@@ -21,6 +21,11 @@
     window.MFL_SANDBOX_ACCESS = MFL_SANDBOX_ACCESS;
     window.platformAccessAllowed = platformAccessAllowed;
 
+    // ── PRE-LIVE: Empire Dashboard is free for everyone until launch. ──
+    // Flip to false (or delete) to restore the paid gate before going live.
+    const EMPIRE_FREE_PRELIVE = true;
+    window.App.EMPIRE_FREE_PRELIVE = EMPIRE_FREE_PRELIVE;
+
     // ── Notes from the Front — Field Log feed from Scout sessions ──
     var FL_CAT_COLORS = { trade:'#D4AF37', roster:'#2ECC71', draft:'#3498DB', waivers:'#9B59B6', research:'#E67E22', note:'#808080' };
     var FL_CAT_ICONS  = { trade:'🔄', roster:'📋', draft:'🎯', waivers:'📡', research:'🔍', note:'📝' };
@@ -617,7 +622,8 @@
             if (sleeperLeagues.length === 0) return <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--silver)', fontSize: '0.82rem' }}>No leagues found for {selectedYear}</div>;
 
             const tier = typeof getUserTier === 'function' ? getUserTier() : 'free';
-            const isPaid = tier === 'pro' || tier === 'warroom' || tier === 'war_room' || tier === 'commissioner';
+            // Pre-live: treat everyone as paid so Empire is a free tool for now.
+            const isPaid = EMPIRE_FREE_PRELIVE || tier === 'pro' || tier === 'warroom' || tier === 'war_room' || tier === 'commissioner';
             const showProCard = true; // Always show — changes label based on tier
 
             return (
