@@ -3,7 +3,7 @@
 
 (function() {
     const REMOTE_BASE = 'https://jcc100218.github.io/ReconAI/shared/';
-    const DEFAULT_VERSION = '20260517rookie-fano';
+    const DEFAULT_VERSION = '20260531voice1';
     const config = {
         localBase: null,
         remoteBase: REMOTE_BASE,
@@ -79,17 +79,20 @@
 
     function setDefaultRookieDataBase() {
         if (window.ROOKIE_DATA_BASE) return;
+        if (!window.location.origin || window.location.origin === 'null') return;
         const path = window.location.pathname || '';
-        if (isLocalMode() && window.location.origin && window.location.origin !== 'null') {
+        if (isLocalMode()) {
             window.ROOKIE_DATA_BASE = `${window.location.origin}/draft-war-room`;
             return;
         }
-        if (window.location.hostname === 'jcc100218.github.io') {
-            const firstSegment = path.split('/').filter(Boolean)[0];
-            window.ROOKIE_DATA_BASE = firstSegment
-                ? `${window.location.origin}/${firstSegment}/draft-war-room`
-                : `${window.location.origin}/draft-war-room`;
-        }
+        // Hosted deployments resolve same-origin so the data load is covered by CSP 'self'.
+        // GitHub Pages project sites serve under /<repo>/; root-domain deployments use the origin root.
+        const firstSegment = window.location.hostname.endsWith('.github.io')
+            ? path.split('/').filter(Boolean)[0]
+            : '';
+        window.ROOKIE_DATA_BASE = firstSegment
+            ? `${window.location.origin}/${firstSegment}/draft-war-room`
+            : `${window.location.origin}/draft-war-room`;
     }
 
     window.WRShared = {
