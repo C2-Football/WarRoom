@@ -2,7 +2,15 @@
 // Resolves ReconAI shared scripts for local War Room dev and production.
 
 (function() {
-    const REMOTE_BASE = 'https://jcc100218.github.io/ReconAI/shared/';
+    const REMOTE_BASE = (function () {
+        try {
+            const h = window.location.hostname || '';
+            // Scout is deployed at <origin>/ReconAI/ on each GitHub Pages host, so load
+            // shared scripts same-origin (covered by CSP 'self') instead of a fixed domain.
+            if (h.endsWith('.github.io')) return `${window.location.origin}/ReconAI/shared/`;
+        } catch (e) {}
+        return 'https://c2-football.github.io/ReconAI/shared/';
+    })();
     const DEFAULT_VERSION = '20260531voice1';
     const config = {
         localBase: null,
