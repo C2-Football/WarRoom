@@ -250,6 +250,11 @@
         const visibleEspnLeagues = PLATFORM_SANDBOX_ACCESS ? espnLeagues : [];
         const visibleMflLeagues = PLATFORM_SANDBOX_ACCESS ? mflLeagues : [];
         const [espnError, setEspnError] = useState(null);
+        // Sleeper username — read from localStorage (login.html stores 'username', inline connect stores 'sleeperUsername')
+        const sleeperUsername = React.useMemo(() => {
+            return window.OD?.getCurrentUsername?.() || null;
+        }, []);
+
         // Display name state
         const [customDisplayName, setCustomDisplayName] = useState(() => {
             return localStorage.getItem('od_display_name') || '';
