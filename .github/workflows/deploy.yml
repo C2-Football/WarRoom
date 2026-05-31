@@ -26,6 +26,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # reconai-shared/ is gitignored, so the bundled browser modules must be
+      # regenerated from the canonical ReconAI source at deploy time — otherwise
+      # the Pages artifact ships a stale (or missing) copy of supabase-client.js
+      # and the other shared modules.
+      - name: Checkout ReconAI shared source
+        uses: actions/checkout@v4
+        with:
+          repository: C2-Football/ReconAI
+          path: reconai-src
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Sync ReconAI shared modules
+        run: RECONAI_SHARED_SOURCE="$GITHUB_WORKSPACE/reconai-src/shared" npm run sync:shared
+
       - name: Build Pages artifact
         run: |
           set -euo pipefail
