@@ -1988,7 +1988,7 @@ WRShared.loadMany(WR_SHARED_FILES);
 <script src="college-stats.js"></script>
 <script src="draft-history.js"></script>
 <script src="charts.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- html2canvas is lazy-loaded on first export via window.ensureHtml2Canvas() (defined in js/export.js) -->
 <script src="js/export.js"></script>
 <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
@@ -1998,8 +1998,7 @@ WRShared.loadMany(WR_SHARED_FILES);
 <script src="js/theme.js?v=20260526lightgate1"></script>
 <!-- 0b. Alex voice helper — seeded phrase variation + template-first AI upgrade (plain JS) -->
 <script src="js/shared/alex-voice.js?v=20260531voice2"></script>
-<!-- Tecmo Bowl retro font (loaded async, swap fallback) -->
-<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<!-- (removed unused 'Press Start 2P' web font — it was a render-blocking request but referenced by no font-family) -->
 
 <!-- War Room modules — loaded in dependency order by Babel standalone -->
 <!-- 1. Core: tier system, React hooks, fetch helpers (everything depends on this) -->

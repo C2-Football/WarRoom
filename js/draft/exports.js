@@ -14,6 +14,7 @@
     const { FONT_UI, FONT_DISPL } = window.DraftCC.styles;
 
     async function downloadDraftCard(state) {
+        try { await window.ensureHtml2Canvas?.(); } catch (e) { /* handled by guard below */ }
         if (typeof window.html2canvas !== 'function') {
             alert('html2canvas not loaded — cannot export PNG');
             return null;

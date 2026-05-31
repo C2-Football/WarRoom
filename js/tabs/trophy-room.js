@@ -17,7 +17,9 @@ function TrophyRoomTab({ currentLeague, playersData, myRoster, sleeperUserId }) 
     // ── Export as image ──
     async function exportAsImage(elementId, filename) {
         const el = document.getElementById(elementId);
-        if (!el || typeof window.html2canvas !== 'function') {
+        if (!el) return;
+        try { await window.ensureHtml2Canvas?.(); } catch (e) { /* fall through to text fallback */ }
+        if (typeof window.html2canvas !== 'function') {
             // Fallback: copy text
             const text = el?.innerText || '';
             navigator.clipboard?.writeText(text);
