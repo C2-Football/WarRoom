@@ -33,6 +33,14 @@
     return arr[hashStr(seed) % arr.length];
   }
 
+  // Like pick, but rotated by `offset` (e.g. a row index). Two callers that
+  // share a hash collision still land on different variants because the
+  // offset steps them through the pool — kills "every row opens the same way".
+  function pickRot(seed, arr, offset) {
+    if (!arr || !arr.length) return '';
+    return arr[(hashStr(seed) + (offset | 0)) % arr.length];
+  }
+
   // Pick `n` DISTINCT entries (in seed-shuffled order). Falls back to fewer
   // if the pool is small. Useful when a single note wants two different
   // connectives that must not collide.
@@ -148,6 +156,7 @@
   window.AlexVoice = {
     hashStr: hashStr,
     pick: pick,
+    pickRot: pickRot,
     pickList: pickList,
     cap: cap,
     joinNatural: joinNatural,

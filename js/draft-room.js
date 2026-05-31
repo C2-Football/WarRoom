@@ -3,6 +3,13 @@
 // ══════════════════════════════════════════════════════════════════
     const DRAFT_WR_KEYS  = window.App.WR_KEYS;
     const DraftStorage = window.App.WrStorage;
+    // Seeded phrase variation so two notes from the same template branch never
+    // read identically. Seed off something stable (pid + position) and a row
+    // keeps its wording across re-renders while its neighbours differ.
+    const avPick = (seed, arr) => (window.AlexVoice ? window.AlexVoice.pick(seed, arr) : arr[0]);
+    // Rotated pick — spreads variants across rows by index so same-tier
+    // neighbours don't open with the same sentence on a hash collision.
+    const avPickRot = (seed, arr, off) => (window.AlexVoice ? window.AlexVoice.pickRot(seed, arr, off) : arr[(off | 0) % arr.length]);
     // ══════════════════════════════════════════════════════════════════════════
     // END FREE AGENCY TAB
     // ══════════════════════════════════════════════════════════════════════════
@@ -71,6 +78,9 @@
             try { return localStorage.getItem(draftStrategyKey) || ''; } catch(e) { return ''; }
         });
         const [pickFocus, setPickFocus] = useState(() => window._wrDraftPickFocus || null);
+        // AI-upgraded roster-target notes, keyed by position. Empty until/unless
+        // a real AI call resolves; the seeded template always renders underneath.
+        const [aiRosterNotes, setAiRosterNotes] = useState({});
         const [flashAnalystPresetId, setFlashAnalystPresetId] = useState('league-history');
         const [flashAnalystRoundLimit, setFlashAnalystRoundLimit] = useState('1');
         const [flashAnalystReports, setFlashAnalystReports] = useState([]);
@@ -929,18 +939,43 @@
             const target = targetName || 'a clean tier fit';
             const dhqText = targetDhq ? ' (' + fmtDhq(targetDhq) + ' ' + valueShortLabel + ')' : '';
             const pickText = nextPickLabel || 'our next pick';
+            const seed = 'arn:' + p + ':' + (targetName || '');
             if (priorityScore >= 300) {
-                if (p === 'QB') return 'I see QB as a real lineup pressure point. If ' + target + dhqText + ' reaches ' + pickText + ', I would rather solve the weekly ceiling problem than chase a luxury tier.';
-                if (p === 'TE') return 'I see TE as the cleanest way to change our roster shape. If ' + target + dhqText + ' survives to ' + pickText + ', I want to attack it before the cliff turns ugly.';
-                if (['DL', 'LB', 'DB'].includes(p)) return 'I see ' + p + ' as an IDP pressure spot, not a vanity pick. If ' + target + dhqText + ' is there, it keeps us from paying future capital after the room realizes the tier is gone.';
-                return 'I see ' + p + ' as a real roster pressure point. If ' + target + dhqText + ' reaches ' + pickText + ', I want to close that gap while the ' + valueShortLabel + ' value still lines up.';
+                if (p === 'QB') return avPick(seed, [
+                    'QB is the spot that decides our weeks. If ' + target + dhqText + ' gets to ' + pickText + ', I\'m taking the ceiling over some luxury pick every time.',
+                    'We need to solve QB, plain and simple. ' + target + dhqText + ' at ' + pickText + ' fixes the weekly floor — I don\'t want to chase a shinier name and leave the hole open.',
+                ]);
+                if (p === 'TE') return avPick(seed, [
+                    'TE is the fastest way to change our roster shape. If ' + target + dhqText + ' falls to ' + pickText + ', I want him before the cliff gets ugly.',
+                    'I\'d attack TE here — ' + target + dhqText + ' at ' + pickText + ' is the kind of swing that separates us once the position dries up.',
+                ]);
+                if (['DL', 'LB', 'DB'].includes(p)) return avPick(seed, [
+                    p + ' is a real IDP pressure spot, not a vanity grab. Get ' + target + dhqText + ' now and we don\'t pay future capital once the room wakes up to the tier.',
+                    'Don\'t sleep on ' + p + '. ' + target + dhqText + ' keeps us from overpaying later when everyone realizes the IDP tier is gone.',
+                ]);
+                return avPick(seed, [
+                    p + ' is a real pressure point for us. If ' + target + dhqText + ' reaches ' + pickText + ', I want to close that gap while the ' + valueShortLabel + ' value still lines up.',
+                    'We can\'t keep ignoring ' + p + '. ' + target + dhqText + ' at ' + pickText + ' is the clean fix while the value\'s still there.',
+                ]);
             }
             if (priorityScore >= 200) {
-                if (p === 'RB') return 'I read RB as a depth and age-risk lane. I do not want to force it, but ' + target + dhqText + ' should be a tie-breaker if the board flattens.';
-                if (p === 'WR') return 'I read WR as a depth squeeze more than an emergency. Keep ' + target + dhqText + ' active, but only jump if the tier holds real value at ' + pickText + '.';
-                return 'I read ' + p + ' as an active lane, not a panic spot. ' + target + dhqText + ' matters if the board gives us the value, but I would still let ' + valueShortLabel + ' settle the tie.';
+                if (p === 'RB') return avPick(seed, [
+                    'RB is a depth-and-age question for us. I won\'t force it, but ' + target + dhqText + ' is the tie-breaker if the board flattens.',
+                    'I\'m not reaching for RB, but keep ' + target + dhqText + ' in mind — a younger swing against our age curve is worth it if value cooperates.',
+                ]);
+                if (p === 'WR') return avPick(seed, [
+                    'WR is more of a squeeze than an emergency. Keep ' + target + dhqText + ' live, but only jump if the tier still holds value at ' + pickText + '.',
+                    'No panic at WR — ' + target + dhqText + ' is worth a look at ' + pickText + ' if the value\'s real, otherwise let it ride.',
+                ]);
+                return avPick(seed, [
+                    p + ' is an active lane, not a panic spot. ' + target + dhqText + ' matters if the board hands us the value, but I\'d still let ' + valueShortLabel + ' settle the tie.',
+                    'I\'ve got ' + p + ' on the radar. ' + target + dhqText + ' is in play, just don\'t let it pull us off a cleaner ' + valueShortLabel + ' value.',
+                ]);
             }
-            return 'I would keep ' + p + ' on the watch list. ' + target + dhqText + ' is useful if the room lets value fall, but this should not pull us away from a better tier.';
+            return avPick(seed, [
+                p + ' stays on the watch list. ' + target + dhqText + ' is useful if the room lets value fall, but it shouldn\'t pull us off a better tier.',
+                'I\'d keep ' + p + ' in the back pocket — ' + target + dhqText + ' only if he slides, never at the cost of a stronger pick.',
+            ]);
         }, [normPos, nextPickLabel, fmtDhq, valueShortLabel]);
 
         const pressureProjectionReport = useMemo(() => {
@@ -1013,21 +1048,53 @@
                 DEF: 'pressure rate, turnover chances, schedule pockets, and matchup streamability',
             };
             const role = roleByPos[pos] || 'weekly role, team context, and replacement-level gap';
-            const ageText = age ? ' At age ' + age + ', the risk lens is durability and role stability more than long-term development.' : '';
+            const seed = 'scout:' + pos + ':' + (row.pid || name);
+            const ageText = age ? ' ' + avPick(seed + ':age', [
+                'At ' + age + ', I\'m watching durability and role stability more than upside.',
+                'He\'s ' + age + ', so this is about staying healthy and holding the role, not projection.',
+                'Age ' + age + ' means the question is consistency, not ceiling.',
+            ]) : '';
             const teamText = team && team !== 'FA'
-                ? name + ' is tied to ' + team + ', so the scouting question is ' + role + '.'
-                : name + ' is not carrying a clean team label here, so I would treat the board value as stronger than the environment tag until news clarifies it.';
+                ? avPick(seed + ':team', [
+                    name + ' lands in ' + team + ', so the real question is ' + role + '.',
+                    'Tied to ' + team + ', what I care about with ' + name + ' is ' + role + '.',
+                    'With ' + name + ' in ' + team + ', it comes down to ' + role + '.',
+                  ])
+                : avPick(seed + ':noteam', [
+                    name + ' doesn\'t have a clean landing spot yet, so I\'d trust the board value over the situation until news clears it up.',
+                    'No firm team for ' + name + ' right now — I\'d lean on the value tier and wait for the role to clarify.',
+                  ]);
             const planText = tier.label === 'Elite'
-                ? 'Draft plan: treat him as an anchor. Do not overthink small fit nits if he falls below his value tier.'
+                ? avPick(seed + ':plan', [
+                    'Plan: treat him as an anchor. Don\'t overthink small fit nits if he ever slips below tier.',
+                    'Plan: this is a cornerstone — take him and don\'t let little concerns talk you out of it.',
+                  ])
                 : tier.label === 'Core'
-                    ? 'Draft plan: take him when roster construction needs a bankable weekly starter and the board is leaving the tier intact.'
+                    ? avPick(seed + ':plan', [
+                        'Plan: grab him when we need a bankable weekly starter and the tier\'s still intact.',
+                        'Plan: he\'s a starter you can count on — pull the trigger when the board leaves the tier sitting.',
+                      ])
                     : tier.label === 'Starter'
-                        ? 'Draft plan: useful if the build needs points now; pass if a cleaner ceiling tier is still available.'
-                        : 'Draft plan: this is a bench/streaming decision. Let ADP, roster need, and schedule break the tie.';
+                        ? avPick(seed + ':plan', [
+                            'Plan: fine if we need points now; pass if a cleaner ceiling tier is still on the board.',
+                            'Plan: useful for the build, but don\'t reach past a higher-upside name to get him.',
+                          ])
+                        : avPick(seed + ':plan', [
+                            'Plan: this is a bench/streaming call — let ADP, need, and schedule break the tie.',
+                            'Plan: depth dart. Take him late if the matchup math or roster need says so.',
+                          ]);
+            const gradeText = avPick(seed + ':grade', [
+                name + ' grades out as a ' + tier.label.toLowerCase() + ' ' + posLabel(pos) + ' in this format (' + rankText + ', ' + fmtDhq(row.dhq) + ' ' + valueShortLabel + ').',
+                'I\'ve got ' + name + ' as a ' + tier.label.toLowerCase() + ' ' + posLabel(pos) + ' for us — ' + rankText + ', ' + fmtDhq(row.dhq) + ' ' + valueShortLabel + '.',
+            ]);
+            const readText = avPick(seed + ':read', [
+                'My read: it\'s about ' + role + '. The value tier tells you how far above replacement he is; the need tells you whether we should be the one paying for it.',
+                'Bottom line — focus on ' + role + '. Value says how good, need says whether it\'s our problem to solve.',
+            ]);
             return [
-                name + ' grades as a ' + tier.label.toLowerCase() + ' ' + posLabel(pos) + ' in this format (' + rankText + ', ' + fmtDhq(row.dhq) + ' ' + valueShortLabel + ').',
+                gradeText,
                 teamText + ageText,
-                'Alex read: focus on ' + role + '. Value tier says how far above replacement he is; roster need says whether we should be the one paying that price.',
+                readText,
                 planText,
             ];
         }, [normPos, valueTierMeta, valueShortLabel]);
@@ -1182,19 +1249,54 @@
                 const cliffDhq = cliffPlayer?.dhq > 0 ? fmtDhq(cliffPlayer.dhq) : '';
                 const pedigreeBits = [topCapital, topCollege].filter(Boolean);
                 const pedigree = pedigreeBits.length ? ' (' + pedigreeBits.join(' / ') + ')' : '';
+                const posName = posLabel(row.pos);
+                const seed = 'cd:' + row.pos + ':' + (row.topPid || topName);
                 const sentences = [];
                 if (row.count >= 14) {
-                    sentences.push(row.count + ' top-60 ' + posLabel(row.pos) + ' prospects after adjusting for ' + formatLabel + ' — real depth at this position.');
-                    if (topName) sentences.push(topName + pedigree + ' anchors the tier' + (cliffName && cliffName !== topName ? '; depth still lives down to ' + cliffName + (cliffDhq ? ' (' + cliffDhq + ')' : '') : '') + '.');
-                    sentences.push('We can stay patient, let the room spend early capital, then attack the value pocket before the tier dries up.');
+                    sentences.push(avPick(seed + ':deep', [
+                        'This is a deep ' + posName + ' class — ' + row.count + ' in the top 60 once you adjust for ' + formatLabel + '.',
+                        row.count + ' ' + posName + 's crack the top 60 in ' + formatLabel + ', so there\'s real meat on the bone here.',
+                        'No shortage of ' + posName + 's this year: ' + row.count + ' of them grade top-60 for our format.',
+                    ]));
+                    if (topName) sentences.push(avPick(seed + ':deeptop', [
+                        topName + pedigree + ' is the headliner' + (cliffName && cliffName !== topName ? ', and the depth runs all the way to ' + cliffName + (cliffDhq ? ' (' + cliffDhq + ')' : '') : '') + '.',
+                        topName + pedigree + ' leads it off' + (cliffName && cliffName !== topName ? '; you can still find a body as late as ' + cliffName + (cliffDhq ? ' (' + cliffDhq + ')' : '') : '') + '.',
+                    ]));
+                    sentences.push(avPick(seed + ':deepplan', [
+                        'I\'d let the room burn early capital here and pick off the value pocket before the tier dries up.',
+                        'No reason to rush — sit back, let others overpay, then strike when the value lands in our lap.',
+                        'Patience pays at ' + posName + '. Let it come to us instead of reaching.',
+                    ]));
                 } else if (row.count <= 6) {
-                    sentences.push('Only ' + row.count + ' top-60 ' + posLabel(row.pos) + ' prospect' + (row.count === 1 ? '' : 's') + ' under ' + formatLabel + (starterCount ? ' — and the lineup starts ' + starterCount + ' ' + posLabel(row.pos) + '.' : '.'));
-                    if (topName) sentences.push(topName + pedigree + ' is the top name; nothing should be assumed to fall.');
-                    sentences.push('If this position matters to our build, we move on the tier early rather than wait for value.');
+                    sentences.push(avPick(seed + ':thin', [
+                        posName + ' is bone-dry this class — only ' + row.count + ' top-60 name' + (row.count === 1 ? '' : 's') + ' in ' + formatLabel + (starterCount ? ', and we start ' + starterCount + ' of them.' : '.'),
+                        'There\'s barely a ' + posName + ' tier here: ' + row.count + ' top-60 prospect' + (row.count === 1 ? '' : 's') + ' under ' + formatLabel + (starterCount ? ' against ' + starterCount + ' starting slot' + (starterCount === 1 ? '' : 's') + '.' : '.'),
+                        'Thin at ' + posName + ' — ' + row.count + ' top-60 option' + (row.count === 1 ? '' : 's') + ' for ' + formatLabel + (starterCount ? ', and the lineup demands ' + starterCount + '.' : '.'),
+                    ]));
+                    if (topName) sentences.push(avPick(seed + ':thintop', [
+                        topName + pedigree + ' is basically the tier — don\'t assume anyone falls.',
+                        topName + pedigree + ' is the name, and I wouldn\'t bet on him sliding.',
+                    ]));
+                    sentences.push(avPick(seed + ':thinplan', [
+                        'If ' + posName + ' matters to our build, we take the tier early instead of praying for value.',
+                        'This is a "go get it" spot — wait on ' + posName + ' and we get left out.',
+                        'When it\'s this shallow, you move first and ask questions later.',
+                    ]));
                 } else {
-                    sentences.push(row.count + ' top-60 ' + posLabel(row.pos) + ' prospects after adjusting for ' + formatLabel + ' — workable but not deep.');
-                    if (topName) sentences.push(topName + pedigree + ' is the headliner' + (cliffName && cliffName !== topName ? '; ' + cliffName + ' marks the next tier break' + (cliffDhq ? ' (' + cliffDhq + ')' : '') : '') + '.');
-                    sentences.push('Track the cliff, then let ' + valueShortLabel + ' decide if the board stays flat.');
+                    sentences.push(avPick(seed + ':mid', [
+                        posName + ' is workable but not deep — ' + row.count + ' top-60 names in ' + formatLabel + '.',
+                        'Middle-of-the-road ' + posName + ' class: ' + row.count + ' top-60 prospects for our format.',
+                        row.count + ' ' + posName + 's grade top-60 in ' + formatLabel + ' — enough to work with, not enough to sleep on.',
+                    ]));
+                    if (topName) sentences.push(avPick(seed + ':midtop', [
+                        topName + pedigree + ' headlines it' + (cliffName && cliffName !== topName ? ', and ' + cliffName + ' marks where the next tier breaks' + (cliffDhq ? ' (' + cliffDhq + ')' : '') : '') + '.',
+                        topName + pedigree + ' is the top of the board' + (cliffName && cliffName !== topName ? '; watch for the drop-off around ' + cliffName + (cliffDhq ? ' (' + cliffDhq + ')' : '') : '') + '.',
+                    ]));
+                    sentences.push(avPick(seed + ':midplan', [
+                        'Keep an eye on the cliff and let ' + valueShortLabel + ' tell us whether to pounce or wait.',
+                        'Track where it falls off, then let the board value make the call.',
+                        'I\'d watch the tier break and stay flexible.',
+                    ]));
                 }
                 return { ...row, alexBlurb: sentences.join(' ') };
             });
@@ -1214,7 +1316,7 @@
             // landing team, age, and which player at this position the room is
             // about to take before our pick. Falls back gracefully when fields
             // are missing.
-            const buildRosterNote = (target, pos, priorityScore) => {
+            const buildRosterNote = (target, pos, priorityScore, rowIdx) => {
                 if (!target) {
                     return 'No clean ' + pos + ' target survives our pick — let the board come to us and reassess.';
                 }
@@ -1248,26 +1350,86 @@
                     ? lastGone.round + '.' + String(lastGone.slot).padStart(2, '0')
                     : '';
 
+                const seed = 'rn:' + pos + ':' + (target.pid || name);
+                const ri = rowIdx | 0;
+                const val = dhqText ? dhqText + ' of value' : '';
                 const sentences = [];
                 if (priorityScore >= 300) {
-                    sentences.push(pos + ' is a real lineup pressure point — ' + name + pedigree + ' is the clean way to close it at ' + slot + (dhqText ? ' (' + dhqText + ' value)' : '') + '.');
+                    sentences.push(avPickRot(seed + ':crit', [
+                        pos + ' is where this roster actually hurts, and ' + name + pedigree + ' is the cleanest patch on the board at ' + slot + (dhqText ? ' — ' + val : '') + '.',
+                        'We can\'t keep punting ' + pos + '. ' + name + pedigree + ' is the one I\'d lock in at ' + slot + (dhqText ? ', and ' + dhqText + ' is honest money there' : '') + '.',
+                        name + pedigree + ' is my answer at ' + pos + ' — it\'s a real pressure point for us and he\'s sitting right there at ' + slot + (dhqText ? ' for ' + dhqText : '') + '.',
+                        'If I\'m honest, ' + pos + ' is the hole that costs us weeks. ' + name + pedigree + ' fixes it at ' + slot + (dhqText ? ' (' + dhqText + ')' : '') + '.',
+                    ], ri));
                 } else if (priorityScore >= 200) {
-                    sentences.push(pos + ' is a depth squeeze, not a panic spot. ' + name + pedigree + ' is the active target' + (dhqText ? ' at ' + dhqText : '') + '.');
+                    sentences.push(avPickRot(seed + ':high', [
+                        pos + ' isn\'t an emergency yet, but it\'s thinning out. ' + name + pedigree + ' keeps us honest there' + (dhqText ? ' at ' + dhqText : '') + '.',
+                        'I like ' + name + pedigree + ' as our ' + pos + ' play — no need to panic, just don\'t let the tier walk past you' + (dhqText ? ' (' + dhqText + ')' : '') + '.',
+                        'We could use another ' + pos + ', and ' + name + pedigree + ' is the name I\'d circle' + (dhqText ? ' — ' + dhqText : '') + '.',
+                        name + pedigree + ' shores up ' + pos + ' without making us reach' + (dhqText ? '; ' + dhqText + ' is fair here' : '') + '.',
+                    ], ri));
                 } else {
-                    sentences.push(pos + ' stays on watch — ' + name + pedigree + ' is the name to monitor if value falls' + (dhqText ? ' (' + dhqText + ')' : '') + '.');
+                    sentences.push(avPickRot(seed + ':watch', [
+                        pos + ' stays on the back burner — ' + name + pedigree + ' is who I\'d watch if the value falls to us' + (dhqText ? ' (' + dhqText + ')' : '') + '.',
+                        'No rush at ' + pos + ', but keep ' + name + pedigree + ' in your back pocket' + (dhqText ? ' at ' + dhqText : '') + '.',
+                        'I\'m not chasing ' + pos + ' here. ' + name + pedigree + ' only matters if he slides' + (dhqText ? ', and ' + dhqText + ' would make it easy' : '') + '.',
+                    ], ri));
                 }
 
                 if (lastGone && posGone.length >= 2) {
-                    sentences.push(posGone.length + ' ' + pos + 's are projected off before our pick (' + lastGone.name + ' at ' + lastGoneSlot + '), so this tier could move fast.');
+                    sentences.push(avPick(seed + ':run', [
+                        'Heads up — ' + posGone.length + ' ' + pos + 's are projected gone by then (' + lastGone.name + ' at ' + lastGoneSlot + '), so this tier can dry up fast.',
+                        'The room is hammering ' + pos + ': ' + posGone.length + ' off the board before us, ' + lastGone.name + ' the last at ' + lastGoneSlot + '. Don\'t wait too long.',
+                        posGone.length + ' ' + pos + 's come off ahead of us (' + lastGone.name + ' around ' + lastGoneSlot + ') — if you want this tier, you move early.',
+                    ]));
                 } else if (lastGone) {
-                    sentences.push(lastGone.name + ' is projected to come off at ' + lastGoneSlot + '; ' + firstName + ' sits in the next tier behind him.');
+                    sentences.push(avPick(seed + ':one', [
+                        lastGone.name + ' is the one projected to go just ahead of us at ' + lastGoneSlot + '; ' + firstName + ' is the next man up.',
+                        'Once ' + lastGone.name + ' goes around ' + lastGoneSlot + ', ' + firstName + ' is sitting right behind him.',
+                    ]));
                 }
 
                 if (age && age <= 21) {
-                    sentences.push('Age curve still in front of him at ' + age + '.');
+                    sentences.push(avPick(seed + ':age', [
+                        'And he\'s only ' + age + ' — the whole runway is still in front of him.',
+                        'At ' + age + ', you\'re buying the front of the age curve, not the back.',
+                        firstName + '\'s ' + age + ', so the dynasty math works for us for years.',
+                    ]));
                 }
 
                 return sentences.join(' ');
+            };
+
+            // Structured facts for a target — same inputs the template uses, but
+            // exposed so the AI upgrade can advocate with real data instead of
+            // re-evaluating the pick from a bare name + value.
+            const targetFacts = (target, pos) => {
+                if (!target) return null;
+                const college = target.csv?.college || target.p?.college || target.p?.metadata?.college || '';
+                const nflTeam = target.csv?.nflTeam || target.p?.team || '';
+                const dRound = Number(target.csv?.draftRound) || 0;
+                const isUDFA = !!target.csv?.isUDFA && !dRound;
+                const ageRaw = Number(target.p?.age) || (target.csv?.age ? parseFloat(target.csv.age) : 0);
+                const age = ageRaw > 0 && ageRaw < 35 ? Math.round(ageRaw) : null;
+                let capital = '';
+                if (dRound === 1) capital = 'NFL Round 1 capital';
+                else if (dRound === 2) capital = 'NFL Round 2 capital';
+                else if (dRound === 3) capital = 'NFL Round 3 capital';
+                else if (dRound >= 4) capital = 'NFL Day 3 (R' + dRound + ') capital';
+                else if (isUDFA) capital = 'UDFA';
+                const posGone = (draftPredictionReport?.picks || [])
+                    .filter(p => Number(p.overall) < (nextPickOverall || Infinity) && (normPos(p.pos) || p.pos) === pos)
+                    .sort((a, b) => Number(b.overall) - Number(a.overall));
+                const lastGone = posGone[0];
+                return {
+                    capital: capital || null,
+                    college: college || null,
+                    team: nflTeam || null,
+                    age,
+                    goneBeforePick: posGone.length,
+                    lastGoneName: lastGone?.name || null,
+                    lastGoneSlot: lastGone ? lastGone.round + '.' + String(lastGone.slot).padStart(2, '0') : null,
+                };
             };
 
             return (assess?.needs || [])
@@ -1279,7 +1441,7 @@
                     const score = urgencyScore(urgency) + Math.max(0, 40 - idx * 8) + (Number(item?.count || 0) ? Math.max(0, 18 - Number(item.count) * 3) : 0);
                     const targetName = target ? pName(target.p) : null;
                     const priorityScore = urgencyScore(urgency);
-                    const alexBlurb = buildRosterNote(target, pos, priorityScore);
+                    const alexBlurb = buildRosterNote(target, pos, priorityScore, idx);
                     return {
                         ...item,
                         pos,
@@ -1289,6 +1451,7 @@
                         targetName,
                         targetPid: target?.pid || '',
                         targetDhq: target?.dhq || 0,
+                        targetFacts: targetFacts(target, pos),
                         alexBlurb,
                     };
                 })
@@ -1296,6 +1459,68 @@
                 .sort((a, b) => b.score - a.score)
                 .slice(0, 6);
         }, [rosterState.isUsable, assess, scoredAvailable, draftPredictionReport, nextPickOverall, nextPickLabel, normPos]);
+
+        // Template-first AI upgrade for the Roster Targeting notes. One batched
+        // dhqAI call (not six) returns a line per position in Alex's configured
+        // voice; we parse "POS: note" lines and swap them in over the seeded
+        // template. If AI is unavailable or the call fails, the template stands.
+        useEffect(() => {
+            const AV = window.AlexVoice;
+            if (!AV || !AV.hasAI() || !needLabels.length) return;
+            const targets = needLabels.filter(n => n.targetName);
+            if (!targets.length) return;
+            const sig = targets.map(n => n.pos + ':' + n.targetName + ':' + (n.priorityLabel || '')).join('|')
+                + '@' + (nextPickLabel || '') + '#' + (leagueKey || '');
+            const cacheKey = 'flash-targets:' + sig;
+            const cached = AV.getCached(cacheKey);
+            if (cached) { setAiRosterNotes(cached); return; }
+            let cancelled = false;
+            const context = JSON.stringify({
+                pick: nextPickLabel || 'our next pick',
+                valueLabel: valueShortLabel,
+                targets: targets.map(n => ({
+                    pos: n.pos,
+                    priority: n.priorityLabel,
+                    target: n.targetName,
+                    value: n.targetDhq || null,
+                    capital: n.targetFacts?.capital || undefined,
+                    college: n.targetFacts?.college || undefined,
+                    landingTeam: n.targetFacts?.team || undefined,
+                    age: n.targetFacts?.age || undefined,
+                    samePositionGoneBeforeOurPick: n.targetFacts?.goneBeforePick || undefined,
+                    lastOneOffTheBoard: n.targetFacts?.lastGoneName
+                        ? n.targetFacts.lastGoneName + ' at ' + n.targetFacts.lastGoneSlot
+                        : undefined,
+                })),
+            });
+            const message = 'These are MY pre-set roster targets for the upcoming draft — one per position, each already chosen as the best player likely to reach our pick. '
+                + 'For each one, sell me on the pick in your own voice, like you\'re leaning over my shoulder in the war room. '
+                + 'IMPORTANT: do not second-guess, re-rank, or suggest looking elsewhere — assume the listed player IS our pick and make the case FOR him. '
+                + 'Build the case from the data I gave you: his NFL draft capital, college, landing team, age (younger = more runway), the position\'s priority for us, and how many at his position are projected gone before our pick (a thinning tier = move now). '
+                + 'Use the specific numbers and names. Confident and decisive, never wishy-washy. '
+                + 'Max two sentences each. No bullet symbols, no preamble. Return exactly one line per position formatted as "POS: note" (e.g. "QB: ...").';
+            AV.enhance({
+                type: 'strategy-analysis',
+                message,
+                context,
+                cacheKey,
+                fallback: null,
+                transform: (raw) => {
+                    // Scan for "POS: note" segments. Works whether the model
+                    // returns one line per position or a single run-on string
+                    // (sanitize() collapses newlines), and skips any preamble.
+                    const map = {};
+                    const re = /\b(QB|RB|WR|TE|DL|LB|DB|FB|K)\s*[:\-—]\s*([\s\S]*?)(?=\b(?:QB|RB|WR|TE|DL|LB|DB|FB|K)\s*[:\-—]|$)/gi;
+                    let m;
+                    while ((m = re.exec(raw))) {
+                        const note = m[2].trim().replace(/\s+/g, ' ');
+                        if (note.length > 4) map[m[1].toUpperCase()] = note;
+                    }
+                    return Object.keys(map).length ? map : null;
+                },
+            }).then(map => { if (!cancelled && map) setAiRosterNotes(map); });
+            return () => { cancelled = true; };
+        }, [needLabels, nextPickLabel, leagueKey, valueShortLabel]);
 
         const userMockRows = useMemo(() => {
             const picks = (draftPredictionReport?.picks || []).filter(p =>
@@ -1340,13 +1565,29 @@
             const label = pick ? compactPickLabel(pick) : (idx ? 'later pick' : nextPickLabel);
             const needWord = targetNeed?.priorityLabel ? targetNeed.priorityLabel.toLowerCase() : 'board value';
             const posName = posLabel(pos);
+            const seed = 'app:' + pos + ':' + (targetName || '') + ':' + label;
             if (targetNeed) {
-                return 'At ' + label + ', I want ' + targetName + ' because ' + posName + ' is already one of our real roster pressure points. This is not just taking the top name left; it is using the pick to fix a lineup problem while the value is still defendable.';
+                return avPick(seed, [
+                    'At ' + label + ', I want ' + targetName + ' because ' + posName + ' is already a real pressure point for us. This isn\'t taking the top name left — it\'s using the pick to fix a lineup problem while the value still holds.',
+                    'At ' + label + ', give me ' + targetName + '. ' + posName + ' is a hole we have to close, and the value\'s still defendable here.',
+                ]);
             }
-            if (pos === 'QB') return 'At ' + label + ', I would only take ' + targetName + ' if the room leaves us a real QB value pocket. The point is insulation and weekly ceiling, not collecting another name.';
-            if (pos === 'RB') return 'At ' + label + ', ' + targetName + ' makes sense if we need a younger value swing against the roster age curve. I would not force RB over a cleaner tier at another position.';
-            if (['DL', 'LB', 'DB'].includes(pos)) return 'At ' + label + ', ' + targetName + ' is an IDP value bet. I would take it only if the room has not already drained the tier before our pick.';
-            return 'At ' + label + ', I would use ' + targetName + ' as a ' + needWord + ' checkpoint. If the board is flat, this is the kind of pick that keeps our build flexible without sacrificing ' + valueShortLabel + '.';
+            if (pos === 'QB') return avPick(seed, [
+                'At ' + label + ', I\'d only take ' + targetName + ' if the room leaves us a real QB value pocket. It\'s about insulation and weekly ceiling, not collecting another name.',
+                'At ' + label + ', ' + targetName + ' is a yes only if QB value falls to us — I\'m chasing ceiling, not a roster trophy.',
+            ]);
+            if (pos === 'RB') return avPick(seed, [
+                'At ' + label + ', ' + targetName + ' works if we want a younger swing against our age curve. I won\'t force RB over a cleaner tier somewhere else.',
+                'At ' + label + ', I\'d take ' + targetName + ' as an age-curve bet — but not at the cost of a better tier at another spot.',
+            ]);
+            if (['DL', 'LB', 'DB'].includes(pos)) return avPick(seed, [
+                'At ' + label + ', ' + targetName + ' is an IDP value bet — only if the room hasn\'t already drained the tier before us.',
+                'At ' + label + ', I\'ll grab ' + targetName + ' on the IDP side, provided the tier survives to our pick.',
+            ]);
+            return avPick(seed, [
+                'At ' + label + ', I\'d treat ' + targetName + ' as a ' + needWord + ' checkpoint. If the board\'s flat, this is the kind of pick that keeps us flexible without giving up ' + valueShortLabel + '.',
+                'At ' + label + ', ' + targetName + ' is my ' + needWord + ' fallback — flexible value when the board doesn\'t give us anything cleaner.',
+            ]);
         }, [compactPickLabel, nextPickLabel]);
 
         // Alex's Recommended Draft — simulates Alex's pick at each of the user's
@@ -1412,38 +1653,76 @@
 
                 const dhqText = r.dhq > 0 ? fmtDhq(r.dhq) + ' ' + valueShortLabel : '';
 
+                const seed = 'pr:' + pos + ':' + (r.pid || name) + ':' + pickOverall;
                 const sentences = [];
                 if (alreadyClaimed >= 1) {
-                    sentences.push('At ' + slot + ', ' + name + pedigree + ' doubles up the ' + pos + ' room — second swing now that we have already anchored the position.');
+                    sentences.push(avPick(seed + ':dbl', [
+                        'At ' + slot + ', I\'m doubling up on ' + pos + ' with ' + name + pedigree + ' — second swing now that we\'ve already anchored the spot.',
+                        'We\'ve got the ' + pos + ' anchor, so at ' + slot + ' I take another bite with ' + name + pedigree + '.',
+                    ]));
                 } else if (lastGone && posGone.length >= 2) {
-                    sentences.push('At ' + slot + ', ' + posGone.length + ' ' + pos + 's are off the board (' + lastGone.name + ' just went at ' + lastGoneSlot + '); ' + name + pedigree + ' is the next clean tier for us.');
+                    sentences.push(avPick(seed + ':run', [
+                        'At ' + slot + ', ' + posGone.length + ' ' + pos + 's are already gone (' + lastGone.name + ' just went at ' + lastGoneSlot + '), so ' + name + pedigree + ' is our next clean tier.',
+                        'The ' + pos + ' run is on — ' + posGone.length + ' off the board by ' + slot + ', ' + lastGone.name + ' the last at ' + lastGoneSlot + '. ' + name + pedigree + ' is who I grab.',
+                    ]));
                 } else if (lastGone) {
-                    sentences.push('At ' + slot + ', ' + name + pedigree + ' is our ' + pos + ' answer after ' + lastGone.name + ' came off at ' + lastGoneSlot + '.');
+                    sentences.push(avPick(seed + ':after', [
+                        'At ' + slot + ', ' + name + pedigree + ' is our ' + pos + ' answer right after ' + lastGone.name + ' came off at ' + lastGoneSlot + '.',
+                        'Once ' + lastGone.name + ' goes at ' + lastGoneSlot + ', I\'m on ' + name + pedigree + ' at ' + slot + ' to cover ' + pos + '.',
+                    ]));
                 } else if (need?.urgency === 'deficit') {
-                    sentences.push('At ' + slot + ', ' + name + pedigree + ' closes our ' + pos + ' deficit before the position run forces our hand.');
+                    sentences.push(avPick(seed + ':def', [
+                        'At ' + slot + ', ' + name + pedigree + ' closes our ' + pos + ' deficit before the run forces our hand.',
+                        'I take ' + name + pedigree + ' at ' + slot + ' to patch ' + pos + ' while we still can.',
+                    ]));
                 } else if (need) {
-                    sentences.push('At ' + slot + ', ' + name + pedigree + ' shores up a ' + pos + ' depth squeeze without reaching past the tier.');
+                    sentences.push(avPick(seed + ':shore', [
+                        'At ' + slot + ', ' + name + pedigree + ' shores up ' + pos + ' without making us reach.',
+                        name + pedigree + ' at ' + slot + ' adds the ' + pos + ' depth we want, no reach required.',
+                    ]));
                 } else {
-                    sentences.push('At ' + slot + ', ' + name + pedigree + ' is the strongest piece left on our board.');
+                    sentences.push(avPick(seed + ':bpa', [
+                        'At ' + slot + ', ' + name + pedigree + ' is simply the best piece left on our board.',
+                        'Easy call at ' + slot + ' — ' + name + pedigree + ' is the strongest name available to us.',
+                    ]));
                 }
 
                 // Second sentence: value + need framing, or pure BPA framing
                 if (need && alreadyClaimed === 0 && dhqText) {
                     const needWord = need.urgency === 'deficit' ? 'a deficit slot' : 'a real depth squeeze';
-                    sentences.push(pos + ' is ' + needWord + ' on our build, and ' + dhqText + ' is honest value at this pick.');
+                    sentences.push(avPick(seed + ':val', [
+                        pos + ' is ' + needWord + ' for us, and ' + dhqText + ' is honest value right here.',
+                        'With ' + pos + ' being ' + needWord + ', ' + dhqText + ' is more than fair at this pick.',
+                    ]));
                 } else if (alreadyClaimed >= 1 && dhqText) {
-                    sentences.push('At ' + dhqText + ', this is the kind of depth move that keeps the build flexible.');
+                    sentences.push(avPick(seed + ':val2', [
+                        'At ' + dhqText + ', this is the kind of depth move that keeps our build flexible.',
+                        dhqText + ' for a depth swing like this is exactly how we stay nimble.',
+                    ]));
                 } else if (dhqText) {
-                    sentences.push(dhqText + ' on the board — value over a positional reach.');
+                    sentences.push(avPick(seed + ':val3', [
+                        dhqText + ' on the board — I\'ll take value over a positional reach every time.',
+                        'That\'s ' + dhqText + ' sitting there; value wins over forcing a position.',
+                    ]));
                 }
 
                 // Optional third sentence: risk/age tag if it adds something
                 if (risk && /high|long.?shot|boom|bust/i.test(risk)) {
-                    sentences.push('Risk tag: ' + risk + (age ? ' at age ' + age : '') + '.');
+                    sentences.push(avPick(seed + ':risk', [
+                        'Fair warning — he\'s a ' + risk.toLowerCase() + (age ? ' at ' + age : '') + ', so know what you\'re signing up for.',
+                        'Risk\'s real here: ' + risk.toLowerCase() + (age ? ' at age ' + age : '') + '.',
+                    ]));
                 } else if (age && age <= 21 && firstName) {
-                    sentences.push(firstName + ' is a ' + age + '-year-old prospect — age curve still in front of him.');
+                    sentences.push(avPick(seed + ':age', [
+                        firstName + '\'s only ' + age + ' — the whole age curve is still in front of him.',
+                        'And at ' + age + ', ' + firstName + ' has years of runway left.',
+                    ]));
                 } else if (consensusRank && consensusRank <= 36) {
-                    sentences.push('Consensus board has him in the top ' + (consensusRank <= 12 ? '12' : consensusRank <= 24 ? '24' : '36') + ' of this class.');
+                    const band = consensusRank <= 12 ? '12' : consensusRank <= 24 ? '24' : '36';
+                    sentences.push(avPick(seed + ':rank', [
+                        'Consensus has him top ' + band + ' in this class, so we\'re not out on a limb.',
+                        'The industry\'s got him top ' + band + ' too — this isn\'t just my board talking.',
+                    ]));
                 }
 
                 return sentences.join(' ');
@@ -1773,7 +2052,7 @@
                                                     </>
                                                 ) : (n.count ? n.count + ' players' : 'no clean target loaded')}
                                             </em>
-                                            <p>{n.alexBlurb}</p>
+                                            <p>{aiRosterNotes[n.pos] || n.alexBlurb}</p>
                                         </div>
                                     )) : <div className="draft-empty">No urgent roster gaps detected. Bias to value and tiers.</div>}
                                 </div>

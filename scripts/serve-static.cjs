@@ -218,6 +218,10 @@ async function callGemini(provider, request) {
     body: JSON.stringify({
       model: provider.model,
       max_tokens: request.maxTokens,
+      // Gemini 2.5 "thinking" silently consumes the token budget, truncating
+      // short advisory blurbs. These prompts don't need reasoning — disable it
+      // so the cap goes to visible output.
+      reasoning_effort: 'none',
       messages: [{ role: 'system', content: request.system }, ...request.messages],
     }),
   });

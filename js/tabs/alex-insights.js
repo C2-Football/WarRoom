@@ -13,6 +13,7 @@
 (function () {
     const h = React.createElement;
     const { useState, useEffect } = React;
+    const avPick = (seed, arr) => (window.AlexVoice ? window.AlexVoice.pick(seed, arr) : arr[0]);
 
     // ── Settings access ───────────────────────────────────────────
     // Delegates to window.WR.AlexSettings so every Alex surface shares
@@ -871,13 +872,23 @@
             if (!partners.length) return null;
             const top = partners[0];
             const top2Share = partners.slice(0, 2).reduce((s, p) => s + p.count, 0) / Math.max(1, myTrades.length);
+            const sd = 'ai-net:' + partners.length + ':' + top.name + ':' + top.count;
             if (partners.length >= 10 && top2Share < 0.5) {
-                return 'Broad network across ' + partners.length + ' partners \u2014 you engage the whole league. ' + top.name + ' is your most frequent dance partner at ' + top.count + ' deals.';
+                return avPick(sd, [
+                    'You work the whole room \u2014 ' + partners.length + ' different partners. ' + top.name + ' is your go-to at ' + top.count + ' deals.',
+                    'Broad network here: ' + partners.length + ' partners, no real favorites. ' + top.name + ' shows up most at ' + top.count + ' deals.',
+                ]);
             }
             if (top2Share >= 0.6) {
-                return 'Concentrated network \u2014 ' + Math.round(top2Share * 100) + '% of your trades go through 2 managers. Worth broadening; mismatched needs live on the periphery.';
+                return avPick(sd, [
+                    'You\u2019re funneling ' + Math.round(top2Share * 100) + '% of your trades through just two managers. I\u2019d branch out \u2014 the best value usually hides with the people you\u2019re not talking to.',
+                    Math.round(top2Share * 100) + '% of your deals run through two guys. That\u2019s a narrow market \u2014 widen it and you\u2019ll find softer spots.',
+                ]);
             }
-            return 'Balanced spread across ' + partners.length + ' partners. ' + top.name + ' is your most frequent counter at ' + top.count + ' deals.';
+            return avPick(sd, [
+                'Nice balance across ' + partners.length + ' partners. ' + top.name + ' is your most frequent counter at ' + top.count + ' deals.',
+                'You spread it around \u2014 ' + partners.length + ' partners, with ' + top.name + ' your most common (' + top.count + ' deals).',
+            ]);
         })();
 
         const tradeValueInterp = (() => {
@@ -886,36 +897,63 @@
             const losers = partners.filter(p => p.net < 0);
             const biggestLoser = losers.length ? losers.reduce((a, b) => Math.abs(a.net) > Math.abs(b.net) ? a : b) : null;
             const biggestWinner = winners.length ? winners.reduce((a, b) => a.net > b.net ? a : b) : null;
+            const sd = 'ai-val:' + partners.length + ':' + winners.length;
             if (biggestLoser && Math.abs(biggestLoser.net) >= 3000) {
-                return 'You profit from ' + winners.length + ' of ' + partners.length + ' partners, but ' + biggestLoser.name + ' has taken you for ' + (biggestLoser.net / 1000).toFixed(1) + 'k DHQ. Run their next proposal through Trade Center\u2019s analyzer before you reply.';
+                return avPick(sd, [
+                    'You come out ahead against ' + winners.length + ' of ' + partners.length + ' partners \u2014 but ' + biggestLoser.name + ' has gotten you for ' + (Math.abs(biggestLoser.net) / 1000).toFixed(1) + 'k DHQ. Run their next offer through the analyzer before you say yes.',
+                    'Solid overall \u2014 ' + winners.length + ' of ' + partners.length + ' partners \u2014 but watch ' + biggestLoser.name + '. They\u2019re up ' + (Math.abs(biggestLoser.net) / 1000).toFixed(1) + 'k on you. Slow down on their proposals.',
+                ]);
             }
             if (biggestWinner && winners.length >= partners.length / 2) {
-                return biggestWinner.name + ' has been your most profitable mark (+' + (biggestWinner.net / 1000).toFixed(1) + 'k). Stay on the offer side with them \u2014 your edge is real.';
+                return avPick(sd, [
+                    biggestWinner.name + ' has been your favorite mark (+' + (biggestWinner.net / 1000).toFixed(1) + 'k). Keep sending them offers \u2014 your edge there is real.',
+                    'You\u2019ve got ' + biggestWinner.name + '\u2019s number (+' + (biggestWinner.net / 1000).toFixed(1) + 'k). Stay on the offer side with them.',
+                ]);
             }
-            return 'Net trade value is scattered. No single partner dominates either direction \u2014 you\u2019re playing the whole market fairly.';
+            return avPick(sd, [
+                'Your trade value\u2019s scattered \u2014 nobody\u2019s really winning or losing. You\u2019re playing the market fair and square.',
+                'No clear edge or leak across partners. You\u2019re trading the whole league pretty evenly.',
+            ]);
         })();
 
         const draftHitInterp = (() => {
             if (!draftPicks.length) return null;
             const totalHits = draftPicks.filter(d => (LI.playerScores?.[d.pid] || 0) >= 3000).length;
             const rate = Math.round(totalHits / draftPicks.length * 100);
+            const sd = 'ai-hit:' + draftPicks.length + ':' + rate;
             if (rate === 0) {
-                return 'Zero of your ' + draftPicks.length + ' tracked picks have reached contributor DHQ. Your draft isn\u2019t the engine \u2014 trades are. Consider flipping future rookies for proven veterans.';
+                return avPick(sd, [
+                    'None of your ' + draftPicks.length + ' tracked picks have hit contributor value yet. Your draft isn\u2019t the engine \u2014 your trades are. Lean into flipping rookies for proven vets.',
+                    'Rough drafting so far \u2014 0 of ' + draftPicks.length + ' picks at contributor DHQ. That\u2019s fine if you keep winning on the trade side; consider dealing picks for known production.',
+                ]);
             }
             if (rate >= 50) {
-                return rate + '% hit rate across ' + draftPicks.length + ' picks \u2014 elite drafting. Hoard picks in trades; they\u2019re compound value in your hands.';
+                return avPick(sd, [
+                    rate + '% hit rate across ' + draftPicks.length + ' picks \u2014 that\u2019s elite. Hoard picks in trades; they compound in your hands.',
+                    'You draft. ' + rate + '% hits on ' + draftPicks.length + ' picks. I\u2019d be collecting picks every chance you get.',
+                ]);
             }
-            return rate + '% hit rate over ' + draftPicks.length + ' picks. Middle of the pack \u2014 no clear round stands out as your sweet spot yet.';
+            return avPick(sd, [
+                rate + '% hit rate over ' + draftPicks.length + ' picks \u2014 middle of the pack. No single round has become your sweet spot yet.',
+                'You\u2019re right around average: ' + rate + '% on ' + draftPicks.length + ' picks. Nothing\u2019s jumped out as your money round.',
+            ]);
         })();
 
         const draftPosInterp = (() => {
             if (!draftByPos.length) return null;
             const top = draftByPos[0];
             const topPct = Math.round(top.total / draftPicks.length * 100);
+            const sd = 'ai-pos:' + top.pos + ':' + topPct;
             if (topPct >= 40) {
-                return 'You lean hard on ' + top.pos + ' in drafts (' + topPct + '% of picks). Either a deliberate roster-construction thesis or a bias \u2014 diversifying next draft is cheap insurance.';
+                return avPick(sd, [
+                    'You lean hard on ' + top.pos + ' \u2014 ' + topPct + '% of your picks. Either that\u2019s a real thesis or a blind spot; mixing it up next draft is cheap insurance.',
+                    top.pos + ' is clearly your comfort pick (' + topPct + '% of the board). Worth asking whether it\u2019s strategy or habit.',
+                ]);
             }
-            return 'Position mix is balanced across ' + draftByPos.length + ' spots. No one position dominates your draft board.';
+            return avPick(sd, [
+                'Your draft board\u2019s balanced across ' + draftByPos.length + ' positions \u2014 no one spot runs the show.',
+                'No positional tunnel vision here; you spread picks across ' + draftByPos.length + ' spots.',
+            ]);
         })();
 
         const partnerInterpColor = partners.some(p => p.net < -3000) ? '#E74C3C' : '#2ECC71';

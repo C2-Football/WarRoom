@@ -20,6 +20,7 @@
 (function() {
     const { DRAFT_CC_LAYOUT, FONT_UI, FONT_DISPL, FONT_MONO, panelCard, bpBucket } = window.DraftCC.styles;
     const SpeedMap = { slow: 1600, medium: 700, fast: 250, paused: -1 };
+    const avPick = (seed, arr) => (window.AlexVoice ? window.AlexVoice.pick(seed, arr) : arr[0]);
 
     const FEATURE_FLAG_KEY = 'wr_draft_cc_enabled';
     function isFeatureEnabled() {
@@ -3609,20 +3610,45 @@
                 : Number(player.dhq || 0) >= 4500 ? 'premium starter'
                     : Number(player.dhq || 0) >= 2200 ? 'lineup starter'
                         : 'depth value';
+            const sd = 'pw:' + (player.pid || player.name) + ':' + lane;
             if (established) {
-                if (lane === 'safe') return player.name + ' is the stability lane: a proven ' + pos + ' profile on ' + team + ', ' + valueBand + ' pricing, and less projection risk than the nearby tier.';
-                if (lane === 'upside') return player.name + ' is not a generic upside dart. The ceiling case is proven NFL production plus spike-week access on ' + team + '; draft him when you want bankable points with a real weekly hammer.';
-                return player.name + ' is my preferred pick because the current-season value clears replacement at ' + pos + '. In redraft, I care about role security, weekly ceiling, and how quickly the next tier falls off.';
+                if (lane === 'safe') return avPick(sd, [
+                    player.name + ' is the stability play — a proven ' + pos + ' on ' + team + ', ' + valueBand + ' pricing, and a lot less projection risk than the names around him.',
+                    'If you want the safe answer, it\'s ' + player.name + '. Established ' + pos + ' on ' + team + ', ' + valueBand + ', and you know what you\'re getting.',
+                ]);
+                if (lane === 'upside') return avPick(sd, [
+                    player.name + ' isn\'t a generic dart — the ceiling is real NFL production plus spike-week access on ' + team + '. Take him when you want points you can bank on with a weekly hammer attached.',
+                    'The swing here is ' + player.name + ': proven production on ' + team + ' with genuine spike weeks. That\'s upside with a floor.',
+                ]);
+                return avPick(sd, [
+                    player.name + ' is my pick — the current-season value clears replacement at ' + pos + '. In redraft I\'m weighing role security, weekly ceiling, and how fast the next tier falls off.',
+                    'I\'d take ' + player.name + '. He beats replacement at ' + pos + ' right now, and the role plus ceiling check the boxes that matter in redraft.',
+                ]);
             }
-            if (lane === 'safe') return 'This is the low-variance answer: ' + pos + ' value, clean capital, and no need to chase a thinner pocket later.';
-            if (lane === 'upside') return 'This is the ceiling swing: ' + school + ' profile, ' + team + ' landing spot, and enough fit to justify variance.';
-            return 'This is my preferred pick because the board value still lines up with our roster build. I am not taking him just because he is listed first.';
+            if (lane === 'safe') return avPick(sd, [
+                'This is the low-variance call: clean ' + pos + ' value, solid capital, no need to chase a thinner pocket later.',
+                'Safe and simple — ' + pos + ' value with real capital behind it. No reason to overthink it.',
+            ]);
+            if (lane === 'upside') return avPick(sd, [
+                'This is the ceiling swing — ' + school + ' pedigree, ' + team + ' landing spot, and enough fit to justify the variance.',
+                'If you want to dream, here\'s your shot: ' + school + ' profile into ' + team + '. The fit makes the risk worth it.',
+            ]);
+            return avPick(sd, [
+                player.name + ' is my pick because the board value still lines up with our build — I\'m not taking him just because he\'s listed first.',
+                'I\'ve got ' + player.name + ' here. It\'s a value-and-fit call, not just "next name up."',
+            ]);
         };
+        const tradeWindowText = currentSlot
+            ? avPick('pw:trade:' + slotLabel, [
+                'I\'d pick up the phone if someone overpays. Aim for a top-40 pick or better to move off ' + slotLabel + '.',
+                'Open to moving ' + slotLabel + ' if the price is right — think top-40 pick or better.',
+              ])
+            : 'No active trade window yet.';
         const cards = [
             { key: 'rec', label: 'Recommended Pick', player: best, tone: '#2ECC71', text: pickWhy(best, 'rec') },
             { key: 'safe', label: 'Safe Pick', player: safe, tone: '#3498DB', text: pickWhy(safe, 'safe') },
             { key: 'upside', label: 'Upside Swing', player: upside, tone: '#9b8afb', text: pickWhy(upside, 'upside') },
-            { key: 'trade', label: 'Trade Window', player: null, tone: 'var(--gold)', text: currentSlot ? 'I would listen if someone overpays. Aim for a top-40 pick or better to move off ' + slotLabel + '.' : 'No active trade window yet.' },
+            { key: 'trade', label: 'Trade Window', player: null, tone: 'var(--gold)', text: tradeWindowText },
         ];
         return (
             <section className="mock-panel mock-decision-deck">
