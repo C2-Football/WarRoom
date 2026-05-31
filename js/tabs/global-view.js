@@ -459,6 +459,307 @@ function buildEmpirePortfolioModel(input) {
     };
 }
 
+// deriveOwnerEdge — translate a trade posture into an actionable cross-league edge.
+function deriveOwnerEdge(posture) {
+    const key = posture?.key || 'NEUTRAL';
+    if (key === 'DESPERATE') return { edge: 'Panicking — overpays for win-now help', exploit: 9, tone: '#BB8FCE' };
+    if (key === 'SELLER')    return { edge: 'Buy his assets at a discount', exploit: 7.5, tone: '#5DADE2' };
+    if (key === 'BUYER')     return { edge: 'Sell him studs at a premium', exploit: 6, tone: '#F0A500' };
+    if (key === 'LOCKED')    return { edge: 'Hard to move — high attachment', exploit: 2.5, tone: '#7F8C8D' };
+    return { edge: 'Fair value only — no clear edge', exploit: 4, tone: '#95A5A6' };
+}
+
+// buildEmpireRolodex — every owner you face, across every league, ranked by edge.
+// Pure: reads league.empireAssessments (from assessAllTeams) + optional league.empireDna.
+// calcPosture is injectable for testing; defaults to the shared trade engine.
+function buildEmpireRolodex(leagues, myUserId, calcPosture) {
+    const posFn = calcPosture || (typeof window !== 'undefined' && window.App?.TradeEngine?.calcOwnerPosture) || (() => ({ key: 'NEUTRAL', label: 'Neutral' }));
+    const sameId = (a, b) => a != null && b != null && String(a) === String(b);
+    const owners = [];
+    (leagues || []).forEach(league => {
+        const assessments = league.empireAssessments || [];
+        const dnaMap = league.empireDna || {};
+        const leagueName = league.name || 'League';
+        const leagueId = league.id || league.league_id || '';
+        assessments.forEach(a => {
+            if (sameId(a.ownerId, myUserId)) return;
+            const dnaKey = dnaMap[a.ownerId] || null;
+            const posture = posFn(a, dnaKey) || { key: 'NEUTRAL', label: 'Neutral', color: '#95A5A6' };
+            const e = deriveOwnerEdge(posture);
+            owners.push({
+                ownerId: a.ownerId,
+                ownerName: a.ownerName || a.teamName || 'Owner',
+                leagueId, leagueName,
+                tier: a.tier || 'UNKNOWN',
+                posture: posture.label || posture.key,
+                postureKey: posture.key,
+                postureColor: posture.color || e.tone,
+                edge: e.edge,
+                exploit: Math.round((e.exploit + ((a.panic || 0) >= 3 ? 0.5 : 0)) * 10) / 10,
+                needs: (a.needs || []).slice(0, 2).map(n => (typeof n === 'string' ? n : n.pos)).filter(Boolean),
+                dnaKey,
+            });
+        });
+    });
+    owners.sort((x, y) => y.exploit - x.exploit || x.ownerName.localeCompare(y.ownerName));
+    return owners;
+}
+
+// buildEmpireMoves — the moat. Cross-league trade lanes ranked by value × acceptance.
+// For each league: sell my post-window/over-exposed assets to a buyer who needs that
+// position; buy my top need from a seller — scored with the real trade-psychology engine.
+// Pure: injectable tradeEngine (defaults to window.App.TradeEngine) for testability.
+function buildEmpireMoves(input) {
+    input = input || {};
+    const leagues = input.leagues || [];
+    const model = input.model || { assets: [], provinces: [] };
+    const scores = input.scores || {};
+    const playersData = input.playersData || {};
+    const myUserId = input.myUserId;
+    const normPos = input.normPos || (p => p);
+    const TE = input.tradeEngine || (typeof window !== 'undefined' ? window.App?.TradeEngine : null) || {};
+    const calcPosture = TE.calcOwnerPosture || (() => ({ key: 'NEUTRAL', label: 'Neutral' }));
+    const calcTaxes = TE.calcPsychTaxes || (() => []);
+    const calcAccept = TE.calcAcceptanceLikelihood || (() => 50);
+    const sameId = (a, b) => a != null && b != null && String(a) === String(b);
+    const needList = a => (a.needs || []).map(n => (typeof n === 'string' ? n : n.pos)).filter(Boolean);
+
+    const moves = [];
+    const totalLeagues = model.provinces.length || leagues.length || 1;
+    const exposureCut = Math.max(2, Math.ceil(totalLeagues * 0.6));
+
+    leagues.forEach(league => {
+        const assessments = league.empireAssessments || [];
+        if (!assessments.length) return;
+        const leagueId = league.id || league.league_id || '';
+        const leagueName = league.name || 'League';
+        const dnaMap = league.empireDna || {};
+        const myA = assessments.find(a => sameId(a.ownerId, myUserId));
+        if (!myA) return;
+        const opponents = assessments.filter(a => !sameId(a.ownerId, myUserId));
+        const postureOf = a => calcPosture(a, dnaMap[a.ownerId] || null) || { key: 'NEUTRAL', label: 'Neutral' };
+
+        // SELL lanes — my post-window or over-exposed assets → a buyer who needs that position.
+        (model.assets || [])
+            .filter(as => as.leagueId === leagueId && as.dhq > 0 && (as.agePhase === 'post' || as.exposureCount >= exposureCut))
+            .sort((a, b) => b.dhq - a.dhq)
+            .slice(0, 2)
+            .forEach(asset => {
+                const buyers = opponents
+                    .map(a => ({ a, posture: postureOf(a) }))
+                    .filter(x => (x.posture.key === 'BUYER' || x.posture.key === 'DESPERATE') && needList(x.a).includes(asset.pos))
+                    .sort((x, y) => (y.posture.key === 'DESPERATE' ? 1 : 0) - (x.posture.key === 'DESPERATE' ? 1 : 0) || (y.a.panic || 0) - (x.a.panic || 0));
+                if (!buyers.length) return;
+                const { a: buyer, posture } = buyers[0];
+                const dnaKey = dnaMap[buyer.ownerId] || null;
+                const accept = calcAccept(asset.dhq, asset.dhq, dnaKey, calcTaxes(myA, buyer, dnaKey, posture), myA, buyer);
+                moves.push({
+                    type: 'sell',
+                    title: 'Sell ' + asset.name + ' to ' + (buyer.ownerName || 'a rival'),
+                    leagueId, leagueName, ownerName: buyer.ownerName || 'rival',
+                    posture: posture.label || posture.key,
+                    why: (asset.agePhase === 'post' ? 'Post-window asset' : 'Trim ' + asset.exposureCount + '× exposure')
+                        + ' — ' + (buyer.ownerName || 'they') + (posture.key === 'DESPERATE' ? ' is panicking and overpays' : ' is buying') + ' and needs ' + asset.pos + '.',
+                    value: asset.dhq, accept, pid: asset.pid,
+                    score: Math.round(asset.dhq * (accept / 100)),
+                });
+            });
+
+        // BUY lane — fill my top need in a league I should push, from a seller's roster.
+        const myNeed = needList(myA)[0];
+        const pushing = ['CONTENDER', 'ELITE', 'CROSSROADS'].includes(myA.tier);
+        if (myNeed && pushing) {
+            let best = null;
+            opponents
+                .map(a => ({ a, posture: postureOf(a) }))
+                .filter(x => x.posture.key === 'SELLER' || x.posture.key === 'DESPERATE')
+                .forEach(({ a, posture }) => {
+                    const roster = (league.rosters || []).find(r => sameId(r.owner_id, a.ownerId));
+                    (roster?.players || []).forEach(pid => {
+                        const p = playersData[pid];
+                        if (!p) return;
+                        const pos = normPos(p.position) || p.position;
+                        if (pos !== myNeed) return;
+                        const dhq = scores[pid] || 0;
+                        if (dhq <= 0) return;
+                        if (!best || dhq > best.dhq) {
+                            best = { pid, name: p.full_name || [p.first_name, p.last_name].filter(Boolean).join(' '), dhq, owner: a, posture };
+                        }
+                    });
+                });
+            if (best) {
+                const dnaKey = dnaMap[best.owner.ownerId] || null;
+                const accept = calcAccept(best.dhq, best.dhq, dnaKey, calcTaxes(myA, best.owner, dnaKey, best.posture), myA, best.owner);
+                moves.push({
+                    type: 'buy',
+                    title: 'Acquire ' + best.name + ' from ' + (best.owner.ownerName || 'a seller'),
+                    leagueId, leagueName, ownerName: best.owner.ownerName || 'seller',
+                    posture: best.posture.label || best.posture.key,
+                    why: 'Fills your ' + myNeed + ' need in a league you should push. '
+                        + (best.owner.ownerName || 'They') + (best.posture.key === 'DESPERATE' ? ' is panicking' : ' is selling') + ' — buy at a discount.',
+                    value: best.dhq, accept, pid: best.pid,
+                    score: Math.round(best.dhq * (accept / 100)),
+                });
+            }
+        }
+    });
+
+    moves.sort((a, b) => b.score - a.score);
+    return moves.slice(0, 8);
+}
+
+// buildEmpireConsolidation — sequence ranked moves into one cross-league campaign:
+// liquidate aging/over-exposed assets, recycle the value into need-filling buys, net effect.
+function buildEmpireConsolidation(moves, model) {
+    const sells = (moves || []).filter(m => m.type === 'sell');
+    const buys = (moves || []).filter(m => m.type === 'buy');
+    if (!sells.length && !buys.length) return null;
+    const assetByPid = {};
+    (model?.assets || []).forEach(a => { assetByPid[a.pid] = a; });
+    const sellValue = sells.reduce((s, m) => s + (m.value || 0), 0);
+    const buyValue = buys.reduce((s, m) => s + (m.value || 0), 0);
+    const postWindowMoved = sells.filter(m => assetByPid[m.pid]?.agePhase === 'post').length;
+    const exposureTrimmed = sells.filter(m => (assetByPid[m.pid]?.exposureCount || 1) > 1).length;
+    const pushLeagues = Array.from(new Set(buys.map(m => m.leagueName)));
+
+    const steps = [];
+    const tidy = s => s.replace(/\.{2,}/g, '.');
+    if (sells.length) {
+        steps.push({
+            phase: 'SELL', tone: '#5DADE2',
+            title: 'Liquidate ' + sells.length + ' aging / over-exposed asset' + (sells.length === 1 ? '' : 's'),
+            detail: tidy(sells.map(m => m.title.replace(/^Sell /, '')).join('; ') + '.'),
+        });
+    }
+    if (buys.length) {
+        steps.push({
+            phase: 'BUY', tone: '#2ECC71',
+            title: 'Recycle into ' + buys.length + ' need-filling buy' + (buys.length === 1 ? '' : 's'),
+            detail: tidy(buys.map(m => m.title.replace(/^Acquire /, '')).join('; ')
+                + (pushLeagues.length ? ' — pushing ' + pushLeagues.join(', ') + '.' : '.')),
+        });
+    }
+    const net = [];
+    if (exposureTrimmed) net.push('cuts ' + exposureTrimmed + ' over-exposure');
+    if (postWindowMoved) net.push('clears ' + postWindowMoved + ' post-window asset' + (postWindowMoved === 1 ? '' : 's'));
+    if (pushLeagues.length) net.push('upgrades ' + pushLeagues.length + ' contending ' + (pushLeagues.length === 1 ? 'league' : 'leagues'));
+    steps.push({
+        phase: 'NET', tone: '#D4AF37',
+        title: 'Net effect across the empire',
+        detail: (net.length ? net.join(', ') : 'rebalances the portfolio')
+            + '. Reallocates ' + empireCompact(sellValue) + ' from sells into ' + empireCompact(buyValue) + ' of targeted value.',
+    });
+    return { steps, sells: sells.length, buys: buys.length };
+}
+
+// buildEmpireActionQueue — cross-league priority queue.
+// Pure function over the portfolio model + owner rolodex. Merges actionable signals,
+// per-league needs, post-window sells, and cross-league owner edges into one ranked list.
+function buildEmpireActionQueue(model, rolodex) {
+    if (!model) return [];
+    const provinces = model.provinces || [];
+    const assets = model.assets || [];
+    const sevRank = { high: 0, medium: 1, low: 2 };
+    const actions = [];
+
+    // 1. Actionable portfolio signals (skip data-quality + the "all balanced" no-op).
+    (model.signals || []).forEach(sig => {
+        if (sig.type === 'data' || sig.type === 'balance') return;
+        actions.push({
+            severity: sig.severity || 'medium',
+            kind: sig.type || 'signal',
+            title: sig.title,
+            detail: sig.body,
+            metric: sig.metric || '',
+            leagueId: sig.leagueId || null,
+            pid: sig.pid || null,
+            filter: sig.filter || null,
+            sliceDetail: sig.detail || null,
+            cta: sig.cta || 'Open',
+            weight: (sig.severity === 'high' ? 300 : sig.severity === 'medium' ? 150 : 50),
+        });
+    });
+
+    // 2. Per-league upgrade needs for leagues you should be pushing (contender/fringe).
+    provinces.forEach(p => {
+        if ((p.status === 'contender' || p.status === 'fringe') && (p.needs || []).length) {
+            const hp = p.healthScore;
+            actions.push({
+                severity: hp != null && hp < 65 ? 'high' : 'medium',
+                kind: 'need',
+                title: 'Upgrade ' + p.needs[0] + ' in ' + p.name,
+                detail: (p.tier || 'Active') + ' roster'
+                    + (p.needs.length > 1 ? ' — also light at ' + p.needs.slice(1).join(', ') : '')
+                    + '. Closing this protects a live window.',
+                metric: hp != null ? 'HP ' + hp : '',
+                leagueId: p.id,
+                cta: 'Open league',
+                weight: 120 + Math.max(0, 65 - (hp || 65)),
+            });
+        }
+    });
+
+    // 3. Post-window vets sitting on rebuild rosters → sell before value bleeds.
+    provinces.filter(p => p.status === 'rebuild').forEach(p => {
+        const vet = assets
+            .filter(a => a.leagueId === p.id && a.agePhase === 'post' && a.dhq > 0)
+            .sort((a, b) => b.dhq - a.dhq)[0];
+        if (vet) {
+            actions.push({
+                severity: 'medium',
+                kind: 'sell',
+                title: 'Sell ' + vet.name + ' in ' + p.name,
+                detail: 'Post-window vet on a rebuild roster — convert to picks before the cliff prices in.',
+                metric: empireCompact(vet.dhq),
+                leagueId: p.id,
+                pid: vet.pid,
+                cta: 'Open player',
+                weight: 90 + Math.round(vet.dhq / 100),
+            });
+        }
+    });
+
+    // 4. Cross-league owner edges — the moat. Surface the most exploitable
+    // buyers/sellers across every league as concrete buy/sell-window moves.
+    (rolodex || [])
+        .filter(o => o.postureKey === 'SELLER' || o.postureKey === 'DESPERATE')
+        .slice(0, 2)
+        .forEach(o => {
+            const desperate = o.postureKey === 'DESPERATE';
+            actions.push({
+                severity: desperate ? 'high' : 'medium',
+                kind: 'edge',
+                title: (desperate ? 'Sell into ' + o.ownerName + "'s panic in " : 'Buy-low window: ' + o.ownerName + ' in ') + o.leagueName,
+                detail: o.edge + (o.needs.length ? ' · needs ' + o.needs.join(', ') : '') + '.',
+                metric: o.posture,
+                leagueId: o.leagueId,
+                cta: 'Open league',
+                weight: 110 + Math.round(o.exploit * 6),
+            });
+        });
+
+    actions.sort((a, b) => (sevRank[a.severity] - sevRank[b.severity]) || (b.weight - a.weight));
+    return actions.slice(0, 8);
+}
+
+// buildEmpireBrief — short deterministic empire summary in Alex's register.
+// (Synchronous template for now; AlexVoice/AI upgrade tracked separately.)
+function buildEmpireBrief(model, userName) {
+    if (!model || !model.totals) return '';
+    const t = model.totals;
+    const topSignal = (model.signals || []).find(s => s.type !== 'data' && s.type !== 'balance');
+    const valueStr = t.totalDHQ > 0 ? empireCompact(t.totalDHQ) + ' DHQ' : 'value still loading';
+    const recStr = t.totalRecord ? t.totalRecord.wins + '–' + t.totalRecord.losses : '';
+    const mix = t.contenders + ' contending / ' + t.rebuilds + ' rebuilding';
+    const lead = 'Across your ' + t.leagues + ' league' + (t.leagues === 1 ? '' : 's')
+        + ' you’re holding ' + valueStr + (recStr ? ' on a ' + recStr + ' record' : '') + ' — ' + mix + '.';
+    const focus = topSignal
+        ? ' Top of my list: ' + topSignal.title.toLowerCase() + (topSignal.metric ? ' (' + topSignal.metric + ')' : '') + '.'
+        : ' No single risk is dominating the portfolio right now.';
+    const close = ' I’ve queued the highest-leverage moves on the right.';
+    return lead + focus + close;
+}
+
 function empireCompact(value) {
     const n = Number(value || 0);
     if (Math.abs(n) >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'm';
@@ -496,6 +797,13 @@ function EmpireStyles() {
             .empire-clear { margin-left: auto; border-color: rgba(231,76,60,0.38); color: #E74C3C; }
             .empire-shell { max-width: 1760px; margin: 0 auto; padding: 18px 24px 40px; }
             .empire-main-grid { display: grid; grid-template-columns: minmax(270px, 0.84fr) minmax(420px, 1.34fr) minmax(290px, 0.92fr); gap: 12px; align-items: start; }
+            .empire-bridge { display: grid; grid-template-columns: minmax(320px, 1.05fr) minmax(280px, 0.95fr); gap: 12px; margin-bottom: 12px; align-items: start; }
+            .empire-brief { display: flex; gap: 11px; }
+            .empire-brief-av { width: 38px; height: 38px; flex: 0 0 auto; border-radius: 10px; background: linear-gradient(135deg, #7c6bf8, #4ECDC4); display: grid; place-items: center; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1.05rem; color: #0a0a0c; }
+            .empire-brief-meta { color: #9b8afb; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+            .empire-brief-body { color: rgba(255,255,255,0.68); font-size: 0.8rem; line-height: 1.5; margin-top: 5px; }
+            .empire-rolodex { margin-bottom: 12px; }
+            .empire-rolodex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
             .empire-panel { min-width: 0; border: 1px solid rgba(212,175,55,0.14); background: linear-gradient(180deg, rgba(255,255,255,0.028), rgba(255,255,255,0.014)); border-radius: 8px; padding: 12px; }
             .empire-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid rgba(212,175,55,0.12); }
             .empire-panel-head strong { color: #D4AF37; font-family: 'Rajdhani', sans-serif; font-size: 0.98rem; letter-spacing: 0.08em; text-transform: uppercase; }
@@ -558,7 +866,7 @@ function EmpireStyles() {
                 .empire-topbar { padding: 9px 14px; }
                 .empire-kpis, .empire-filters { padding-left: 14px; padding-right: 14px; }
                 .empire-shell, .empire-detail { padding-left: 14px; padding-right: 14px; }
-                .empire-main-grid, .empire-slice-grid { grid-template-columns: 1fr; }
+                .empire-main-grid, .empire-slice-grid, .empire-bridge { grid-template-columns: 1fr; }
                 .empire-user { display: none; }
                 .empire-workspace-head { align-items: flex-start; flex-direction: column; }
                 .empire-table-head, .empire-asset-row { grid-template-columns: minmax(140px,1fr) 40px 46px 58px 58px; }
@@ -596,6 +904,12 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         nowYear: new Date().getFullYear(),
         liLoaded: !!window.App?.LI_LOADED,
     }), [allLeagues, playersData, sleeperUserId, scoreKey]);
+
+    const rolodex = useMemo(() => buildEmpireRolodex(allLeagues, sleeperUserId), [allLeagues, scoreKey]);
+    const actionQueue = useMemo(() => buildEmpireActionQueue(model, rolodex), [model, rolodex]);
+    const briefText = useMemo(() => buildEmpireBrief(model, userName), [model, userName]);
+    const moves = useMemo(() => buildEmpireMoves({ leagues: allLeagues, model, scores, playersData, myUserId: sleeperUserId, normPos, tradeEngine: window.App?.TradeEngine }), [allLeagues, model, scoreKey]);
+    const consolidation = useMemo(() => buildEmpireConsolidation(moves, model), [moves, model]);
 
     const setFilter = useCallback((key, value) => {
         setFilters(prev => ({ ...prev, [key]: prev[key] === value ? '' : value }));
@@ -664,6 +978,13 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
             return;
         }
         if (signal.filter) setFilters(prev => ({ ...prev, ...signal.filter }));
+    }, []);
+
+    const actionForQueue = useCallback((action) => {
+        if (action.pid) { setDetail({ type: 'player', pid: action.pid }); return; }
+        if (action.leagueId) { setDetail({ type: 'league', leagueId: action.leagueId }); return; }
+        if (action.sliceDetail?.type) { setDetail(action.sliceDetail); return; }
+        if (action.filter) setFilters(prev => ({ ...prev, ...action.filter }));
     }, []);
 
     const metric = (label, value, sub, color) => (
@@ -900,9 +1221,81 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         );
     };
 
+    const renderMovesDetail = () => {
+        const sells = moves.filter(m => m.type === 'sell');
+        const buys = moves.filter(m => m.type === 'buy');
+        return (
+            <div className={rootClassName} data-testid="empire-root">
+                <EmpireStyles />
+                <div className="empire-header">
+                    <div className="empire-topbar">
+                        <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+                        <div className="empire-title"><strong>Empire Moves</strong><span>DHQ × Owner DNA × all leagues — moves you can't see from inside one league</span></div>
+                    </div>
+                </div>
+                <main className="empire-detail">
+                    <section className="empire-detail-hero">
+                        <div>
+                            <h1>Empire Moves</h1>
+                            <p>{moves.length} portfolio-optimal {moves.length === 1 ? 'move' : 'moves'} · ranked by value × acceptance</p>
+                        </div>
+                    </section>
+                    {consolidation ? (
+                        <section className="empire-panel" style={{ marginBottom: 12 }}>
+                            <div className="empire-panel-head"><strong>Consolidation Plan</strong><em>{consolidation.sells} sell → {consolidation.buys} buy · one campaign</em></div>
+                            <div className="empire-stack">
+                                {consolidation.steps.map((s, i) => (
+                                    <div key={i} style={{ border: '1px solid rgba(255,255,255,0.07)', borderLeft: '3px solid ' + s.tone, borderRadius: 7, padding: 10, background: 'rgba(255,255,255,0.024)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+                                            <strong style={{ color: 'var(--white, #fff)', fontSize: '0.8rem' }}>{s.title}</strong>
+                                            <b style={{ color: s.tone, fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.1em' }}>{s.phase}</b>
+                                        </div>
+                                        <span style={{ display: 'block', color: 'rgba(255,255,255,0.58)', fontSize: '0.7rem', lineHeight: 1.45, marginTop: 5 }}>{s.detail}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    ) : null}
+                    <div className="empire-slice-grid">
+                        <section className="empire-workspace" style={{ marginTop: 0 }}>
+                            <div className="empire-workspace-head"><strong>Ranked Moves</strong><span>{sells.length} sell · {buys.length} buy</span></div>
+                            <div className="empire-stack" style={{ padding: 12 }}>
+                                {moves.length ? moves.map((m, i) => (
+                                    <button key={i} type="button" className="empire-signal" style={{ '--tone': m.type === 'sell' ? '#5DADE2' : '#2ECC71' }} onClick={() => m.pid && setDetail({ type: 'player', pid: m.pid })}>
+                                        <div className="empire-signal-top"><strong>{m.title}</strong><b>{m.accept}% accept</b></div>
+                                        <span>{m.why}</span>
+                                        <em>{m.leagueName} · {m.posture} · {empireCompact(m.value)} DHQ</em>
+                                    </button>
+                                )) : (
+                                    <div className="empire-empty"><strong>No clear moves yet</strong>Cross-league moves appear once opponent assessments finish loading. Open the dashboard for a moment, then return.</div>
+                                )}
+                            </div>
+                        </section>
+                        <section className="empire-panel">
+                            <div className="empire-panel-head"><strong>Owner Rolodex</strong><em>by edge</em></div>
+                            <div className="empire-stack">
+                                {rolodex.filter(o => o.exploit >= 6).slice(0, 8).map((o, i) => (
+                                    <button key={o.leagueId + ':' + o.ownerId + ':' + i} className="empire-league-card" style={{ '--tone': o.postureColor }} type="button" onClick={() => setDetail({ type: 'league', leagueId: o.leagueId })}>
+                                        <div>
+                                            <strong>{o.ownerName}</strong>
+                                            <span>{o.leagueName} · {o.posture}</span>
+                                            <em>{o.edge}</em>
+                                        </div>
+                                        <b>{o.exploit}</b>
+                                    </button>
+                                ))}
+                            </div>
+                        </section>
+                    </div>
+                </main>
+            </div>
+        );
+    };
+
     if (detail?.type === 'player') return renderPlayerDetail(detail.pid);
     if (detail?.type === 'league') return renderLeagueDetail(detail.leagueId);
     if (detail?.type === 'slice' || detail?.type === 'quality') return renderSliceDetail(detail);
+    if (detail?.type === 'moves') return renderMovesDetail();
 
     return (
         <div className={rootClassName} data-testid="empire-root">
@@ -915,6 +1308,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                         <strong>Empire Command Center</strong>
                         <span>Asset allocation - exposure - age windows - pick capital</span>
                     </div>
+                    <button className="empire-action" type="button" style={{ marginLeft: 'auto', borderColor: 'rgba(155,138,251,0.4)', color: '#9b8afb', background: 'rgba(155,138,251,0.08)' }} onClick={() => setDetail({ type: 'moves' })}>⚡ Empire Moves{moves.length ? ' · ' + moves.length : ''}</button>
                     <div className="empire-user">{userName}</div>
                 </div>
                 <div className="empire-kpis" data-testid="empire-command-strip">
@@ -956,6 +1350,47 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                     </div>
                 ) : (
                     <>
+                        <section className="empire-bridge" data-testid="empire-bridge">
+                            <div className="empire-panel">
+                                <div className="empire-panel-head"><strong>Alex — Empire Brief</strong><em>{userName}</em></div>
+                                <div className="empire-brief">
+                                    <div className="empire-brief-av">A</div>
+                                    <div>
+                                        <div className="empire-brief-meta">Command read · all leagues</div>
+                                        <div className="empire-brief-body">{briefText}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="empire-panel">
+                                <div className="empire-panel-head"><strong>Priority Queue</strong><em>{actionQueue.length} ranked moves</em></div>
+                                <div className="empire-stack">
+                                    {actionQueue.length ? actionQueue.map((action, i) => (
+                                        <button key={i} type="button" className="empire-signal" style={{ '--tone': signalTone(action.severity) }} onClick={() => actionForQueue(action)}>
+                                            <div className="empire-signal-top"><strong>{action.title}</strong>{action.metric ? <b>{action.metric}</b> : null}</div>
+                                            <span>{action.detail}</span>
+                                            <em>{action.cta}</em>
+                                        </button>
+                                    )) : <div className="empire-empty"><strong>Portfolio is clean</strong>No high-leverage moves flagged right now.</div>}
+                                </div>
+                            </div>
+                        </section>
+                        {rolodex.length ? (
+                            <section className="empire-panel empire-rolodex" data-testid="empire-rolodex">
+                                <div className="empire-panel-head"><strong>Owner Rolodex</strong><em>{rolodex.length} owners across {model.totals.leagues} leagues · ranked by edge</em></div>
+                                <div className="empire-rolodex-grid">
+                                    {rolodex.filter(o => o.exploit >= 6).slice(0, 8).map((o, i) => (
+                                        <button key={o.leagueId + ':' + o.ownerId + ':' + i} className="empire-league-card" style={{ '--tone': o.postureColor }} type="button" onClick={() => setDetail({ type: 'league', leagueId: o.leagueId })}>
+                                            <div>
+                                                <strong>{o.ownerName}</strong>
+                                                <span>{o.leagueName} · {o.posture}</span>
+                                                <em>{o.edge}{o.needs.length ? ' · needs ' + o.needs.join(', ') : ''}</em>
+                                            </div>
+                                            <b>{o.exploit}</b>
+                                        </button>
+                                    ))}
+                                </div>
+                            </section>
+                        ) : null}
                         <section className="empire-main-grid">
                             <div className="empire-panel">
                                 <div className="empire-panel-head"><strong>Asset Allocation</strong><em>{shareBasis}</em></div>
@@ -1047,5 +1482,10 @@ if (typeof window !== 'undefined') {
     window.App = window.App || {};
     window.App.buildEmpirePortfolioModel = buildEmpirePortfolioModel;
     window.buildEmpirePortfolioModel = buildEmpirePortfolioModel;
+    window.App.buildEmpireActionQueue = buildEmpireActionQueue;
+    window.App.buildEmpireBrief = buildEmpireBrief;
+    window.App.buildEmpireRolodex = buildEmpireRolodex;
+    window.App.buildEmpireMoves = buildEmpireMoves;
+    window.App.buildEmpireConsolidation = buildEmpireConsolidation;
     window.EmpireDashboard = EmpireDashboard;
 }

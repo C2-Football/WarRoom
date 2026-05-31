@@ -436,6 +436,8 @@
         const _EmpireDash = typeof EmpireDashboard === 'function' ? EmpireDashboard : null;
         const [empirePlayersLoaded, setEmpirePlayersLoaded] = useState(false);
         const [empirePlayers, setEmpirePlayers] = useState({});
+        // Bumped after background roster assessment so the Rolodex re-renders.
+        const [, setEmpireAssessReady] = useState(0);
 
         // Load player database + DHQ engine when Pro mode activates
         useEffect(() => {
@@ -478,7 +480,22 @@
                     if (typeof window.App?.loadLeagueIntel === 'function' && !window.App.LI_LOADED) {
                         await window.App.loadLeagueIntel().catch(() => {});
                     }
+                    // Unblock the dashboard immediately.
                     setEmpirePlayersLoaded(true);
+                    // Then assess every roster in the background, yielding between
+                    // leagues so a heavy or oddly-shaped league can't freeze the load.
+                    if (typeof window.App?.assessAllTeams === 'function') {
+                        const stats = window.S.playerStats || {};
+                        (async () => {
+                            for (const l of allLeaguesList) {
+                                await new Promise(r => setTimeout(r, 0));
+                                try {
+                                    l.empireAssessments = window.App.assessAllTeams(l.rosters || [], players, stats, l, l.users || [], l.tradedPicks || []);
+                                } catch (e) { l.empireAssessments = []; }
+                            }
+                            setEmpireAssessReady(Date.now());
+                        })();
+                    }
                 } catch (e) { console.warn('[Empire] Data load error:', e); setEmpirePlayersLoaded(true); }
             })();
         }, [proMode, empirePlayersLoaded]);
