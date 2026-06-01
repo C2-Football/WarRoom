@@ -2458,6 +2458,14 @@
                     const toggleSort = (key) => setBoardSort(prev => prev.key === key ? { ...prev, dir: prev.dir * -1 } : { key, dir: ['name','school','team','rank','tier','draft','speed','age'].includes(key) ? 1 : -1 });
                     const sortHdr = { cursor: 'pointer', userSelect: 'none' };
                     const renderCompactBoard = (players, isDhq) => {
+                        // Auto cross-off players already taken in the live draft (parallel to
+                        // the live Command Center board), merged with manual "Off" marks.
+                        const liveDrafted = (() => {
+                            try {
+                                const lid = window.S?.currentLeagueId || currentLeague?.league_id || currentLeague?.id;
+                                return window.DraftCC?.state?.loadFromLocal?.(lid, 'live-sync')?.draftedPids || null;
+                            } catch (e) { return null; }
+                        })();
                         const boardGridCols = isSeasonalDraft
                             ? '58px minmax(220px, 1.25fr) 96px 88px 68px 72px 64px minmax(156px, 0.95fr) 92px'
                             : '58px minmax(205px, 1.15fr) minmax(128px, 0.82fr) 88px 64px 58px 82px 64px 58px minmax(156px, 0.95fr) 92px';
@@ -2496,7 +2504,7 @@
                             {players.map((r, idx) => {
                                 const pos = normPos(r.p.position) || r.p.position;
                                 const dhqC = r.dhq >= 7000 ? 'var(--good)' : r.dhq >= 4000 ? 'var(--k-3498db, #3498db)' : r.dhq >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))';
-                                const isDrafted = draftedPids.has(r.pid);
+                                const isDrafted = draftedPids.has(r.pid) || !!(liveDrafted && liveDrafted[r.pid]);
                                 const tag = boardTags[r.pid];
                                 const note = boardNotes[r.pid] || '';
                                 const isExp = expandedDraftPid === r.pid;

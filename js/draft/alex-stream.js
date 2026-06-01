@@ -176,7 +176,7 @@
             <div style={containerCss}>
                 {/* Header with budget */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', flexShrink: 0 }}>
-                    <div style={{ fontFamily: FONT_DISPL, fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
+                    <div style={{ fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
                         Alex Stream
                     </div>
                     <span title={`Premium Alex calls: ${sonnetUsed}/${budget} · Quick replies: ${flashUsed}`} style={{
@@ -279,7 +279,7 @@
                                 }}>{item.badge}</span>
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{
-                                        fontSize: 'var(--text-body, 1rem)',
+                                        fontSize: 'var(--text-label, 0.75rem)',
                                         fontWeight: 700,
                                         color: 'var(--white)',
                                         whiteSpace: 'nowrap',
@@ -294,7 +294,7 @@
                                     </div>
                                     {item.text && (
                                         <div style={{
-                                            fontSize: 'var(--text-body, 1rem)',
+                                            fontSize: 'var(--text-label, 0.75rem)',
                                             color: 'var(--silver)',
                                             opacity: 0.8,
                                             marginTop: '1px',
@@ -312,7 +312,7 @@
                                         }}>
                                             {fullTextBlocks.map((block, bi) => (
                                                 <div key={bi} style={{
-                                                    fontSize: 'var(--text-body, 1rem)',
+                                                    fontSize: 'var(--text-label, 0.75rem)',
                                                     color: 'var(--silver)',
                                                     opacity: 0.85,
                                                     lineHeight: 1.45,
