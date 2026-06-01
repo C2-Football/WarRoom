@@ -4084,7 +4084,9 @@
                 tone: 'rgba(155,138,251,0.98)',
             },
         ];
-        const stageSummaryCards = liveConfidenceCard ? [liveConfidenceCard, ...baseStageSummaryCards] : baseStageSummaryCards;
+        // Sync confidence renders as a compact badge in the header (below), not as
+        // a full tile — keeps the status row to the three substantive cards.
+        const stageSummaryCards = baseStageSummaryCards;
 
         // Desktop grid or tablet collapse
         const isTablet = viewport === 'tablet';
@@ -4153,8 +4155,15 @@
                         <div style={{ color: 'var(--white)', fontFamily: FONT_DISPL, fontSize: '1.62rem', fontWeight: 900, lineHeight: 1.02, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {currentTeamName}
                         </div>
-                        <div style={{ color: 'var(--silver)', opacity: 0.76, fontSize: '0.72rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {currentPickLabel} - {liveStatusText}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.72rem' }}>
+                            <span style={{ color: 'var(--silver)', opacity: 0.76, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+                                {currentPickLabel} - {liveStatusText}
+                            </span>
+                            {liveConfidenceCard && (
+                                <span title={liveConfidenceCard.label + ': ' + liveConfidenceCard.value + ' — ' + liveConfidenceCard.detail} style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, color: liveConfidenceCard.tone, fontWeight: 800, fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                    <span style={{ fontSize: '0.62rem' }}>{'●'}</span>{liveConfidenceCard.value}
+                                </span>
+                            )}
                         </div>
                     </div>
 
@@ -4857,12 +4866,6 @@
             : status === 'waiting' ? 'var(--k-f0a500, #f0a500)'
                 : status === 'complete' ? 'var(--gold)'
                     : 'var(--k-e74c3c, #e74c3c)';
-        const label = status === 'mirroring' ? 'Live mirror healthy'
-            : status === 'waiting' ? 'Waiting for pick 1'
-                : status === 'complete' ? 'Draft Complete'
-                    : status === 'stale' ? 'Sync Needs Attention'
-                        : status === 'error' ? 'Poll Error'
-                            : 'Connecting live sync';
         const pickLabel = pick => pick ? 'R' + (pick.round || '?') + '.' + String(pick.slot || 0).padStart(2, '0') : '';
         const liveRead = (() => {
             if (state.activeOffer) return 'I paused the room for the trade offer. Resolve or counter before the clock moves.';
@@ -4872,10 +4875,14 @@
             }
             return 'No user pick is currently loaded. I will keep the board and opponent intel synced while the room moves.';
         })();
+        const readout = (state.activeOffer || typeof window.DraftCC?.liveDecisionEngine?.buildLiveReadout !== 'function')
+            ? null
+            : window.DraftCC.liveDecisionEngine.buildLiveReadout(state);
         return (
             <div style={{
-                padding: '10px 12px',
+                padding: '16px 20px',
                 marginBottom: inline ? 0 : '8px',
+                minHeight: inline ? '100%' : 124,
                 background: 'linear-gradient(90deg, rgba(155,138,251,0.07), var(--ov-1, rgba(255,255,255,0.024)) 42%, var(--acc-fill1, rgba(212,175,55,0.045)))',
                 border: '1px solid rgba(155,138,251,0.24)',
                 borderLeft: '3px solid ' + color,
@@ -4888,15 +4895,28 @@
                 height: inline ? '100%' : 'auto',
             }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ color, fontWeight: 900, fontFamily: FONT_DISPL, fontSize: '0.74rem', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
+                    <div style={{ color, fontWeight: 900, fontFamily: FONT_DISPL, fontSize: '0.9rem', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
                         Alex Live Read
                     </div>
-                    <div style={{ color: 'var(--white)', fontSize: '0.78rem', fontWeight: 800, lineHeight: 1.25 }}>
-                        {label}
-                    </div>
-                    <div style={{ color: 'var(--silver)', opacity: 0.78, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.35, marginTop: 3 }}>
-                        {liveRead}
-                    </div>
+                    {readout && readout.available.length ? (
+                        <>
+                            <div style={{ color: 'var(--white)', fontSize: '1.0rem', fontWeight: 800, lineHeight: 1.3 }}>
+                                Here's who I think will be available at {readout.pickLabel}
+                            </div>
+                            <div style={{ color: 'var(--silver)', opacity: 0.9, fontSize: '0.86rem', lineHeight: 1.5, marginTop: 4 }}>
+                                {readout.available.map(a => a.name + (a.pos ? ' (' + a.pos + ')' : '')).join('  ·  ')}
+                            </div>
+                            {readout.outlier && (
+                                <div style={{ marginTop: 8, padding: '7px 10px', borderRadius: 6, background: 'var(--acc-fill2, rgba(212,175,55,0.10))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', color: 'var(--gold)', fontSize: '0.84rem', lineHeight: 1.4, fontWeight: 700 }}>
+                                    {'⚡'} {readout.outlier.name}{readout.outlier.pos ? ' (' + readout.outlier.pos + ')' : ''} is sliding and likely gone before your pick — worth trading up to grab them.
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <div style={{ color: 'var(--silver)', opacity: 0.82, fontSize: '0.84rem', lineHeight: 1.5, marginTop: 5 }}>
+                            {liveRead}
+                        </div>
+                    )}
                 </div>
                 {dispatch && state.phase === 'drafting' && (
                     <button
@@ -5070,6 +5090,10 @@
     function LiveDecisionDeckPanel({ deck, onTrade, layoutGap }) {
         const cards = deck?.cards || [];
         if (!cards.length) return null;
+        // The on-clock owner "tell" is baked into the Trade Window card below
+        // instead of rendering as its own alert row.
+        const ownerTell = (deck?.alerts || []).find(a => a.type === 'owner_tendency') || null;
+        const otherAlerts = (deck?.alerts || []).filter(a => a.type !== 'owner_tendency');
         const next = deck?.nextUserPick;
         const nextLabel = next
             ? (next.picksAway === 0 ? 'You are on deck now' : next.picksAway + ' picks to your next turn')
@@ -5095,7 +5119,7 @@
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fit, minmax(148px, 1fr))',
                     gap: 7,
-                    marginBottom: deck.alerts?.length ? 8 : 0,
+                    marginBottom: otherAlerts.length ? 8 : 0,
                 }}>
                     {cards.map(card => {
                         const tone = liveTone(card.tone);
@@ -5122,30 +5146,43 @@
                                 <div style={{ color: tone.main, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
                                     {card.label}
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, marginBottom: 4 }}>
-                                    {player?.pos && (
-                                        <span style={{ flexShrink: 0, color: tone.main, border: '1px solid ' + tone.border, borderRadius: 3, padding: '0 4px', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900 }}>
-                                            {player.pos}
-                                        </span>
-                                    )}
-                                    <strong style={{ color: 'var(--white)', fontSize: '0.72rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {player?.name || card.detail}
-                                    </strong>
-                                </div>
-                                {player && (
-                                    <div style={{ display: 'flex', gap: 7, color: 'var(--silver)', opacity: 0.78, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, marginBottom: 4 }}>
-                                        <span>DHQ {shortLiveValue(player.dhq)}</span>
-                                        <span>Y5 {shortLiveValue(player.y5)}</span>
-                                        {player.tier && <span>T{player.tier}</span>}
-                                    </div>
+                                {player ? (
+                                    <>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, marginBottom: 4 }}>
+                                            {player.pos && (
+                                                <span style={{ flexShrink: 0, color: tone.main, border: '1px solid ' + tone.border, borderRadius: 3, padding: '0 4px', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900 }}>
+                                                    {player.pos}
+                                                </span>
+                                            )}
+                                            <strong style={{ color: 'var(--white)', fontSize: '0.72rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {player.name}
+                                            </strong>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 7, color: 'var(--silver)', opacity: 0.78, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO }}>
+                                            <span>DHQ {shortLiveValue(player.dhq)}</span>
+                                            <span>Y5 {shortLiveValue(player.y5)}</span>
+                                            {player.tier && <span>T{player.tier}</span>}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div style={{ color: 'var(--white)', fontSize: '0.72rem', lineHeight: 1.3, marginBottom: (card.action === 'trade' && ownerTell) ? 4 : 0 }}>
+                                            {card.detail}
+                                        </div>
+                                        {card.action === 'trade' && ownerTell && (
+                                            <div style={{ color: tone.main, opacity: 0.92, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.3 }}>
+                                                {ownerTell.text}
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </button>
                         );
                     })}
                 </div>
-                {!!deck.alerts?.length && (
+                {!!otherAlerts.length && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {deck.alerts.map(alert => {
+                        {otherAlerts.map(alert => {
                             const tone = liveTone(alert.tone);
                             return (
                                 <div key={alert.type + ':' + alert.title} style={{

@@ -117,7 +117,11 @@
             }
         }, [boardContext?.activeLane]);
 
-        const activeLane = lanes[boardLane] ? boardLane : 'dhq';
+        // Allow the "my" lane to activate even before a manual order exists — it
+        // renders the DHQ order as a draggable starting point, and the first drag
+        // persists the manual order. (Otherwise an empty My Board silently falls
+        // back to DHQ and can never be reordered.)
+        const activeLane = (boardLane === 'my' || lanes[boardLane]) ? boardLane : 'dhq';
         const activeLaneData = lanes[activeLane] || lanes.dhq || { order: [] };
         const activeRanks = React.useMemo(() => rankMap(activeLaneData.order || []), [activeLaneData]);
         const dhqRanks = React.useMemo(() => rankMap(lanes.dhq?.order || []), [lanes.dhq]);
@@ -491,6 +495,12 @@
                         }}>{posLabel(pos)}</button>
                     ))}
                 </div>
+
+                {activeLane === 'my' && (
+                    <div style={{ padding: '4px 2px 7px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', opacity: 0.72, fontFamily: FONT_UI, display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ fontWeight: 900 }}>{'↕'}</span> Drag rows to reorder your board
+                    </div>
+                )}
 
                 <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', marginRight: '-4px', paddingRight: '4px' }}>
                     {available.length === 0 && (

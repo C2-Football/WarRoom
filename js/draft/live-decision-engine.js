@@ -202,10 +202,6 @@
             const upB = b.growth + (b.target ? 450 : 0) + (ageOf(b.player) && ageOf(b.player) <= 24 ? 200 : 0);
             return upB - upA;
         })[0] || recommended;
-        const avoid = rows.find(c => c.fade)
-            || rows.find(c => c.dhq > 0 && c.y5 > 0 && c.y5 < c.dhq * 0.65)
-            || null;
-
         const cards = [
             card('recommended', 'Recommended', recommended, 'Best blend of board value, roster fit, and five-year value.', 'gold', {
                 drivers: ['board_rank', recommended?.needBoost ? 'roster_need' : 'value', recommended?.target ? 'user_target' : 'projection'],
@@ -231,15 +227,6 @@
                 action: 'trade',
                 meta: { rosterId: tradeWindow.rosterId, tradeWindow },
             });
-        }
-
-        if (avoid) {
-            const reason = avoid.fade
-                ? 'User-board fade or do-not-draft flag is active.'
-                : 'Current value is materially ahead of five-year projection.';
-            cards.push(card('avoid', 'Avoid Warning', avoid, reason, 'red', {
-                drivers: [avoid.fade ? 'user_board' : 'projection_risk'],
-            }));
         }
 
         return cards.slice(0, 5);
@@ -307,9 +294,44 @@
         };
     }
 
+    // A forward-looking read for the Alex Live Read panel: who is likely still
+    // available at the user's next pick, plus an outlier worth trading up for.
+    function buildLiveReadout(state) {
+        const next = nextUserPick(state);
+        if (!next || !next.slot) return null;
+        const picksAway = num(next.picksAway, 0);
+        const rows = candidates(state, 60).filter(c => !c.fade);
+        if (!rows.length) return null;
+        const nm = c => c.player?.name || c.player?.full_name || c.player?.pid || 'Player';
+        const ps = c => posOf(c.player) || '';
+        const slot = next.slot;
+        const pickLabel = 'R' + (slot.round || '?') + '.' + String(slot.slot || 0).padStart(2, '0');
+        // Heuristic: the ~picksAway top-ranked players are likely gone before our turn.
+        const survivors = rows.filter(c => c.rank > picksAway + 1);
+        const gone = rows.filter(c => c.rank <= picksAway);
+        const pool = survivors.length ? survivors : rows;
+        const available = pool.slice(0, 3).map(c => ({ name: nm(c), pos: ps(c), dhq: c.dhq, tier: c.tier }));
+        // Outlier: a clearly-superior player projected gone before our pick — a
+        // tier or sizeable value jump over the best expected survivor.
+        let outlier = null;
+        if (picksAway > 0) {
+            const bestSurv = survivors[0] || null;
+            const topGone = gone.slice().sort((a, b) => b.dhq - a.dhq)[0] || null;
+            if (topGone) {
+                const tierJump = !!(topGone.tier && bestSurv?.tier && (bestSurv.tier - topGone.tier >= 2));
+                const valueJump = !bestSurv || topGone.dhq > bestSurv.dhq * 1.18;
+                if (tierJump || valueJump) {
+                    outlier = { name: nm(topGone), pos: ps(topGone), dhq: topGone.dhq, tier: topGone.tier };
+                }
+            }
+        }
+        return { pickLabel, picksAway, available, outlier };
+    }
+
     window.DraftCC = window.DraftCC || {};
     window.DraftCC.liveDecisionEngine = {
         buildDecisionDeck,
+        buildLiveReadout,
         _private: {
             candidates,
             nextUserPick,
