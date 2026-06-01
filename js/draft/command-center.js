@@ -3035,6 +3035,10 @@
             const v = Number(n) || 0;
             return v >= 1000 ? (v / 1000).toFixed(1) + 'k' : String(Math.round(v));
         };
+        const shortName = (full) => {
+            const parts = String(full || '').trim().split(/\s+/);
+            return parts.length > 1 ? parts[0][0] + '. ' + parts.slice(1).join(' ') : (full || '');
+        };
         const playerName = (pid, fallback) => {
             const p = players[pid] || {};
             return fallback || p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || pid;
@@ -3149,22 +3153,23 @@
                     {positions.length === 0 && (
                         <div style={{ padding: '12px', textAlign: 'center', color: 'var(--silver)', opacity: 0.45, fontSize: '0.7rem' }}>Your mock picks will appear here.</div>
                     )}
-                    {positions.slice(0, 7).map(pos => {
-                        const rows = grouped[pos].slice(0, 3);
+                    {positions.map(pos => {
+                        const rows = grouped[pos];
                         return (
                             <div key={pos} style={{ marginBottom: '6px', paddingBottom: '5px', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '3px' }}>
                                     <strong style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: posColors[pos] || 'var(--gold)', width: 28 }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</strong>
-                                    <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.55 }}>{grouped[pos].length} players</span>
-                                    <span style={{ marginLeft: 'auto', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontFamily: FONT_MONO }}>{fmt(grouped[pos].reduce((s, r) => s + r.dhq, 0))}</span>
+                                    <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.55 }}>{rows.length} players</span>
+                                    <span style={{ marginLeft: 'auto', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontFamily: FONT_MONO }}>{fmt(rows.reduce((s, r) => s + r.dhq, 0))}</span>
                                 </div>
-                                {rows.map(r => (
-                                    <div key={r.source + '-' + r.pid} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.45 }}>
-                                        <span style={{ flex: 1, color: r.isPick ? 'var(--gold)' : 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
-                                        <span style={{ color: 'var(--silver)', opacity: 0.55, fontFamily: FONT_MONO }}>{fmt(r.dhq)}</span>
-                                        <span style={{ color: r.projected5 >= r.dhq ? 'var(--k-2ecc71, #2ecc71)' : 'var(--silver)', fontFamily: FONT_MONO, minWidth: 32, textAlign: 'right' }}>Y5 {fmt(r.projected5)}</span>
-                                    </div>
-                                ))}
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 12px' }}>
+                                    {rows.map(r => (
+                                        <span key={r.source + '-' + r.pid} title={r.name} style={{ display: 'inline-flex', alignItems: 'baseline', gap: '4px', fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.5, whiteSpace: 'nowrap' }}>
+                                            <span style={{ color: r.isPick ? 'var(--gold)' : 'var(--white)' }}>{shortName(r.name)}</span>
+                                            <span style={{ color: 'var(--silver)', opacity: 0.6, fontFamily: FONT_MONO }}>{fmt(r.dhq)}</span>
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
                         );
                     })}
@@ -4028,6 +4033,8 @@
         const OpponentIntelPanel = window.DraftCC.OpponentIntelPanel;
         const AlexStreamPanel = window.DraftCC.AlexStreamPanel;
         const AskAnswerWindow = window.DraftCC.AskAnswerWindow;
+        const AlexCall = window.DraftCC.AlexCall;
+        const AlexEdgeGlow = window.DraftCC.AlexEdgeGlow;
         const TradeModal = window.DraftCC.TradeModal;
         const TradeProposer = window.DraftCC.TradeProposer;
 
@@ -4277,6 +4284,64 @@
                                 </span>
                             )}
                         </div>
+                        {/* ── Alex Whisper: latest take in the user's primary sightline. Reuses the
+                            existing stream + shared HIGH_SIGNAL gate; no new window or panel. ──── */}
+                        {state.phase === 'drafting' && (() => {
+                            const HS = window.DraftCC.HIGH_SIGNAL_BADGES || new Set(['🔥', '⛰', '⬇']);
+                            const DOTS = window.DraftCC.AnimatedDots;
+                            const ALEX = 'var(--k-9b8afb, #9b8afb)';
+                            const thinking = !!(state.alex && state.alex.thinking);
+                            const feed = (state.alex && state.alex.stream) || [];
+                            // On your turn, surface the most decision-relevant take; else the latest.
+                            const DECISION = new Set(['✦', '⚖', '◇', 'A', '↑', '↓']);
+                            const item = thinking ? null
+                                : (isUserTurn ? (feed.find(e => DECISION.has(e.badge)) || feed[0]) : feed[0]);
+                            if (!thinking && !item) {
+                                return (
+                                    <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontFamily: FONT_UI, fontSize: 'var(--text-micro, 0.6875rem)', color: ALEX, opacity: 0.5, fontStyle: 'italic' }}>
+                                        <span style={{ fontWeight: 800, fontStyle: 'normal' }}>✦</span>Alex is watching the board…
+                                    </div>
+                                );
+                            }
+                            const isHigh = !thinking && HS.has(item.badge);
+                            const accent = thinking ? ALEX : (item.color || ALEX);
+                            return (
+                                <div style={{
+                                    marginTop: 6,
+                                    display: 'flex',
+                                    gap: 7,
+                                    alignItems: 'flex-start',
+                                    maxWidth: 540,
+                                    padding: '4px 8px 4px 7px',
+                                    borderRadius: 'var(--card-radius-sm, 6px)',
+                                    borderLeft: '2px solid ' + wrAlpha(accent, isHigh ? 'cc' : '55'),
+                                    background: isHigh ? wrAlpha(accent, '14') : wrAlpha(ALEX, '0a'),
+                                }}>
+                                    <span style={{ color: accent, fontWeight: 800, fontSize: 'var(--text-label, 0.75rem)', flexShrink: 0, marginTop: 1, width: 13, textAlign: 'center' }}>
+                                        {thinking ? '✦' : item.badge}
+                                    </span>
+                                    <div style={{ minWidth: 0, flex: 1, fontFamily: FONT_UI }}>
+                                        {thinking ? (
+                                            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: ALEX, fontStyle: 'italic' }}>
+                                                Alex is reading the board{DOTS ? React.createElement(DOTS) : '…'}
+                                            </div>
+                                        ) : (
+                                            <React.Fragment>
+                                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                    <span style={{ color: ALEX, fontWeight: 800, letterSpacing: '0.07em', marginRight: 6, fontSize: 'var(--text-micro, 0.6875rem)' }}>ALEX</span>
+                                                    {(item.title || '').replace(/^Alex\s*[·:—-]?\s*/i, '') || item.title}
+                                                </div>
+                                                {item.text && (
+                                                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.78, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        {item.text}
+                                                    </div>
+                                                )}
+                                            </React.Fragment>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </div>
 
                     <div style={{
@@ -4501,6 +4566,7 @@
                         />
                         <LiveTradeWindowBanner
                             tradeWindow={liveTradeWindow}
+                            ownerTell={(liveDecisionDeck?.alerts || []).find(a => a.type === 'owner_tendency') || null}
                             onOpen={() => liveTradeWindow?.rosterId && onPropose(liveTradeWindow.rosterId)}
                             inline
                         />
@@ -4508,6 +4574,7 @@
                 ) : (
                     <LiveTradeWindowBanner
                         tradeWindow={liveTradeWindow}
+                        ownerTell={(liveDecisionDeck?.alerts || []).find(a => a.type === 'owner_tendency') || null}
                         onOpen={() => liveTradeWindow?.rosterId && onPropose(liveTradeWindow.rosterId)}
                         layoutGap={L.GRID_GAP}
                     />
@@ -4623,6 +4690,12 @@
 
                 {/* Floating "Ask Alex" answer window — opened by action buttons (fixed-position) */}
                 {AskAnswerWindow && <AskAnswerWindow state={state} />}
+
+                {/* Alex Call — cinematic lower-third; transient, fires on high-signal moments + your turn */}
+                {AlexCall && <AlexCall state={state} isUserTurn={isUserTurn} />}
+
+                {/* Alex edge-glow — peripheral bloom on high-signal moments + on-clock breathing */}
+                {AlexEdgeGlow && <AlexEdgeGlow state={state} isUserTurn={isUserTurn} />}
 
                 {/* Phase 3: CPU trade offer modal (fixed-position) */}
                 {state.activeOffer && TradeModal && <TradeModal state={state} dispatch={dispatch} />}
@@ -5235,10 +5308,10 @@
     }
 
     function LiveDecisionDeckPanel({ deck, onTrade, layoutGap }) {
-        const cards = deck?.cards || [];
+        // The Trade Window now lives in the purple Current Pick Trade Window
+        // banner above the deck (with the owner tell), so drop it from here.
+        const cards = (deck?.cards || []).filter(c => c.action !== 'trade');
         if (!cards.length) return null;
-        // The on-clock owner "tell" is baked into the Trade Window card below
-        // instead of rendering as its own alert row.
         const ownerTell = (deck?.alerts || []).find(a => a.type === 'owner_tendency') || null;
         const otherAlerts = (deck?.alerts || []).filter(a => a.type !== 'owner_tendency');
         const next = deck?.nextUserPick;
@@ -5371,7 +5444,7 @@
         );
     }
 
-    function LiveTradeWindowBanner({ tradeWindow, onOpen, layoutGap, inline = false }) {
+    function LiveTradeWindowBanner({ tradeWindow, onOpen, layoutGap, ownerTell, inline = false }) {
         if (!tradeWindow) return null;
             const suggestion = tradeWindow.suggestion || {};
             const proposal = suggestion.proposal || {};
@@ -5436,6 +5509,11 @@
                                 ? 'No viable trade — ' + tradeWindow.teamName + ' won’t move off ' + tradeWindow.pickLabel + ' near their buyer line.'
                                 : liveTradeTimingLabel(tradeWindow) + ' · ' + (suggestion.label || tradeWindow.motive || 'Package') + ' · Give ' + give + ' / Get ' + get}
                         </div>
+                        {ownerTell?.text && (
+                            <div title={ownerTell.title || 'Owner tell'} style={{ color: 'rgba(155,138,251,0.92)', fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.3, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {'⚑ '}{ownerTell.text}
+                            </div>
+                        )}
                     </div>
                     <div style={{
                         color: statusColor,
@@ -5500,6 +5578,8 @@
         const BigBoardPanel = window.DraftCC.BigBoardPanel;
         const AlexStreamPanel = window.DraftCC.AlexStreamPanel;
         const AskAnswerWindow = window.DraftCC.AskAnswerWindow;
+        const AlexCall = window.DraftCC.AlexCall;
+        const AlexEdgeGlow = window.DraftCC.AlexEdgeGlow;
 
         if (state.phase === 'setup') {
             return (
@@ -5548,6 +5628,8 @@
                     <DraftPickListPanel state={state} currentSlot={currentSlot} />
                 </div>
                 {AskAnswerWindow && <AskAnswerWindow state={state} />}
+                {AlexCall && <AlexCall state={state} isUserTurn={isUserTurn} />}
+                {AlexEdgeGlow && <AlexEdgeGlow state={state} isUserTurn={isUserTurn} />}
             </div>
         );
     }

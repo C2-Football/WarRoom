@@ -13,6 +13,10 @@
 (function() {
     const { FONT_UI, FONT_DISPL, panelCard } = window.DraftCC.styles;
 
+    // High-signal room events (run / tier break / value cliff). Module-scoped and
+    // exported so the header "Alex Whisper" shares the exact same gate (no dupes).
+    const HIGH_SIGNAL = new Set(['🔥', '⛰', '⬇']);
+
     const CHIP_PROMPTS = [
         { label: 'Who should I target?',  text: 'Who should I target with my next pick given the current board?' },
         { label: 'Is this a reach?',       text: 'Was my last pick a reach? Explain.' },
@@ -248,9 +252,8 @@
                             .map(part => part.trim())
                             .filter(Boolean)
                             .slice(0, 8);
-                        // High-signal room events (run / tier break / value cliff)
-                        // get a colored left accent + faint tint so they pop.
-                        const HIGH_SIGNAL = new Set(['🔥', '⛰', '⬇']);
+                        // High-signal room events get a colored left accent + faint
+                        // tint so they pop (HIGH_SIGNAL is module-scoped, see top).
                         const isHighlight = HIGH_SIGNAL.has(item.badge);
                         return (
                             <div key={item.id} onClick={toggle} style={{
@@ -413,4 +416,6 @@
 
     window.DraftCC = window.DraftCC || {};
     window.DraftCC.AlexStreamPanel = AlexStreamPanel;
+    window.DraftCC.AnimatedDots = AnimatedDots;
+    window.DraftCC.HIGH_SIGNAL_BADGES = HIGH_SIGNAL;
 })();

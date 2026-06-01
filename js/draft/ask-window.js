@@ -183,6 +183,7 @@
             setPending(false);
             setMinimized(false);
             setSaved(false);
+            try { window.dispatchEvent(new CustomEvent('wr:ask-closed')); } catch (_) {}
         }, []);
 
         // Run one AI call for the given prompt/title.
