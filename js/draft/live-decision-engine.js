@@ -224,7 +224,9 @@
                 label: 'Trade Window',
                 tone: tradeWindow.likelihood >= tradeWindow.acceptanceLine ? 'green' : 'amber',
                 player: null,
-                detail: `${tradeWindow.teamName || 'Owner'} · ${tradeWindow.likelihood || 0}% vs ${tradeWindow.acceptanceLine || 70}% Buyer Line`,
+                detail: tradeWindow.likelihood >= tradeWindow.acceptanceLine
+                    ? `${tradeWindow.teamName || 'Owner'} · likely to deal (${tradeWindow.likelihood || 0}% to accept)`
+                    : `${tradeWindow.teamName || 'Owner'} · unlikely to deal (${tradeWindow.likelihood || 0}% to accept)`,
                 drivers: ['owner_trade_intel', 'board_tier', 'buyer_line'],
                 action: 'trade',
                 meta: { rosterId: tradeWindow.rosterId, tradeWindow },

@@ -66,6 +66,7 @@
         const [boardMode, setBoardMode] = useState('dhq'); // 'dhq' | 'ai' | 'my'
         const [myBoardOrder, setMyBoardOrder] = useState([]); // custom ordered pid array
         const [boardPosFilter, setBoardPosFilter] = useState(''); // '' | 'QB' | 'RB' | 'WR' | 'TE' | 'DL' | 'LB' | 'DB'
+        const [boardSearch, setBoardSearch] = useState(''); // player/team/college lookup
         const [boardTeamFilter, setBoardTeamFilter] = useState(''); // '' | NFL team abbr
         const [boardRoundFilter, setBoardRoundFilter] = useState(''); // '' | '1'..'7' | 'UDFA'
         const [boardSort, setBoardSort] = useState({ key: 'dhq', dir: -1 }); // sortable columns
@@ -343,7 +344,22 @@
                 }
             }
 
-            return [...sleeperRookies, ...csvOnly].sort((a, b) => {
+            // Consolidate any duplicate identities (e.g. a Sleeper-matched rookie and
+            // a CSV-only synthetic that slipped past the name dedup above). Keep one
+            // row per normalized name, preferring the real Sleeper entry, then the
+            // higher dynasty value.
+            const byName = new Map();
+            [...sleeperRookies, ...csvOnly].forEach(row => {
+                const key = normName(row.p.full_name || ((row.p.first_name || '') + ' ' + (row.p.last_name || '')).trim());
+                if (!key) { byName.set(Symbol(), row); return; }
+                const existing = byName.get(key);
+                if (!existing) { byName.set(key, row); return; }
+                const better = (!row.isCSVOnly && existing.isCSVOnly) ? row
+                    : (row.isCSVOnly && !existing.isCSVOnly) ? existing
+                    : (row.dhq || 0) >= (existing.dhq || 0) ? row : existing;
+                byName.set(key, better);
+            });
+            return Array.from(byName.values()).sort((a, b) => {
                 // Sort by CSV rank first (if available), then DHQ
                 const aRank = a.csv?.rank || 9999;
                 const bRank = b.csv?.rank || 9999;
@@ -2704,7 +2720,14 @@
                         { k: 'my', label: 'User Board', sub: 'editable front office board', detail: myBoardOrder.length ? 'Manual order with your notes, tags, and draft prep.' : 'Starts from AI Recommended, then becomes yours when edited.' },
                     ];
                     const activeBoardInfo = boardModeOptions.find(opt => opt.k === boardMode) || boardModeOptions[0];
-                    const visibleBoardPlayers = boardMode === 'my' ? myBoardPlayers : boardMode === 'ai' ? aiBoardPlayers : dhqBoardPlayers;
+                    const allBoardPlayers = boardMode === 'my' ? myBoardPlayers : boardMode === 'ai' ? aiBoardPlayers : dhqBoardPlayers;
+                    const boardQuery = boardSearch.trim().toLowerCase();
+                    const visibleBoardPlayers = !boardQuery ? allBoardPlayers : allBoardPlayers.filter(r => {
+                        const name = pName(r.p).toLowerCase();
+                        const team = String(r.csv?.nflTeam || r.p?.team || '').toLowerCase();
+                        const college = String(r.csv?.college || r.p?.college || r.p?.metadata?.college || '').toLowerCase();
+                        return name.includes(boardQuery) || team.includes(boardQuery) || college.includes(boardQuery);
+                    });
                     const manualSignalCount = Object.keys(boardNotes || {}).length + Object.values(boardTags || {}).filter(Boolean).length;
 
                     return (
@@ -2747,6 +2770,20 @@
                                 ))}
                             </div>
                         </section>
+
+                        {/* Player search */}
+                        <div style={{ position: 'relative', marginBottom: '8px' }}>
+                            <input
+                                type="text"
+                                value={boardSearch}
+                                onChange={e => setBoardSearch(e.target.value)}
+                                placeholder="Search players, teams, colleges..."
+                                style={{ width: '100%', padding: '9px 30px 9px 12px', minHeight: '44px', fontSize: '0.8rem', fontFamily: 'var(--font-body)', background: 'var(--ov-2, rgba(255,255,255,0.03))', color: 'var(--white)', border: '1px solid ' + (boardSearch ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'), borderRadius: '10px', outline: 'none', boxSizing: 'border-box' }}
+                            />
+                            {boardSearch && (
+                                <button onClick={() => setBoardSearch('')} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--silver)', cursor: 'pointer', fontSize: '1rem', lineHeight: 1, padding: '4px' }} aria-label="Clear search">{'×'}</button>
+                            )}
+                        </div>
 
                         {/* Position filters */}
                         <div style={{ display: 'flex', gap: '4px', marginBottom: '8px', flexWrap: 'wrap', alignItems: 'center' }}>

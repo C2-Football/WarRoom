@@ -399,7 +399,8 @@
         const availablePlayers = useMemo(() => {
             if (!rosterState.isUsable) return [];
             return Object.entries(playersData)
-                .filter(([pid, p]) => !rostered.has(pid) && p.team && p.status !== 'Inactive' && p.status !== 'Retired' && p.active !== false && !isDraftProspect(pid, p))
+                .filter(([pid, p]) => !rostered.has(pid) && p.team && p.status !== 'Inactive' && p.status !== 'Retired' && p.active !== false && !isDraftProspect(pid, p)
+                    && (p.full_name || p.first_name || p.last_name) && (window.App?.LI?.playerScores?.[pid] || 0) > 0)
                 .map(([pid, p]) => ({ pid, p, dhq: window.App?.LI?.playerScores?.[pid] || 0, pos: normPos(p.position) || p.position }))
                 .sort((a, b) => b.dhq - a.dhq)
                 .slice(0, 300);

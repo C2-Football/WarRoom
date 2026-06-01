@@ -3003,27 +3003,6 @@
             return m;
         }, [rosterRows]);
 
-        const compareRows = React.useMemo(() => {
-            return (state.pool || []).slice(0, 80).map(p => {
-                const pos = p.pos || '?';
-                const age = playerAge(p.pid, p.age || p.csv?.age || null);
-                const projected5 = projectDhq(p.dhq || 0, pos, age, 5);
-                const room = (grouped[pos] || []).slice().sort((a, b) => b.dhq - a.dhq);
-                const topMine = room[0] || null;
-                return {
-                    ...p,
-                    age,
-                    projected5,
-                    topMine,
-                    delta: (p.dhq || 0) - (topMine?.dhq || 0),
-                };
-            }).sort((a, b) => {
-                const needA = a.delta > 0 ? 1 : 0;
-                const needB = b.delta > 0 ? 1 : 0;
-                return needB - needA || (b.dhq || 0) - (a.dhq || 0);
-            }).slice(0, 10);
-        }, [state.pool, grouped, players]);
-
         const totalDhq = rosterRows.reduce((sum, r) => sum + (r.dhq || 0), 0);
         const pickDhq = myPicks.reduce((sum, p) => sum + (p.dhq || 0), 0);
         const positions = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'].filter(pos => grouped[pos]?.length)
@@ -3077,20 +3056,6 @@
                                         <span style={{ color: r.projected5 >= r.dhq ? 'var(--k-2ecc71, #2ecc71)' : 'var(--silver)', fontFamily: FONT_MONO, minWidth: 32, textAlign: 'right' }}>Y5 {fmt(r.projected5)}</span>
                                     </div>
                                 ))}
-                            </div>
-                        );
-                    })}
-
-                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '8px 0 4px' }}>Available Vs Team</div>
-                    {compareRows.map(p => {
-                        const col = p.delta > 0 ? 'var(--k-2ecc71, #2ecc71)' : p.delta > -600 ? 'var(--gold)' : 'var(--silver)';
-                        return (
-                            <div key={p.pid} style={{ display: 'grid', gridTemplateColumns: '22px minmax(0,1fr) 42px 44px 44px', gap: '5px', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.035))', fontSize: 'var(--text-micro, 0.6875rem)' }}>
-                                <span style={{ color: posColors[p.pos] || 'var(--silver)', fontWeight: 700 }}>{p.pos}</span>
-                                <span style={{ color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
-                                <span style={{ color: 'var(--gold)', textAlign: 'right', fontFamily: FONT_MONO }}>{fmt(p.dhq)}</span>
-                                <span style={{ color: col, textAlign: 'right', fontFamily: FONT_MONO }}>{p.delta > 0 ? '+' : ''}{fmt(p.delta)}</span>
-                                <span style={{ color: p.projected5 >= p.dhq ? 'var(--k-2ecc71, #2ecc71)' : 'var(--silver)', textAlign: 'right', fontFamily: FONT_MONO }}>Y5 {fmt(p.projected5)}</span>
                             </div>
                         );
                     })}
@@ -5174,9 +5139,6 @@
                                         {player.tier && <span>T{player.tier}</span>}
                                     </div>
                                 )}
-                                <div style={{ color: 'var(--silver)', opacity: 0.76, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.35 }}>
-                                    {player ? card.detail : (card.drivers || []).slice(0, 2).join(' · ')}
-                                </div>
                             </button>
                         );
                     })}
