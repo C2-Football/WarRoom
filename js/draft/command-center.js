@@ -2157,7 +2157,7 @@
                                     <span>{filteredPicks.length} of {active.picks.length} projected picks</span>
                                     <span>{brief?.roundSummaries?.length || 0} rounds · {brief?.teamSummaries?.length || 0} teams</span>
                                 </div>
-                                <div style={{ maxHeight: 520, overflowY: 'auto', paddingRight: 3 }}>
+                                <div style={{ maxHeight: 520, overflowY: 'auto', overscrollBehavior: 'contain', paddingRight: 3 }}>
                                     {!filteredPicks.length && (
                                         <div style={{ padding: 14, color: 'var(--silver)', opacity: 0.68, fontSize: 'var(--text-micro, 0.6875rem)', textAlign: 'center' }}>No picks match the current report filters.</div>
                                     )}
@@ -2669,7 +2669,7 @@
                             letterSpacing: '0.06em',
                             marginBottom: '3px',
                         }}>In progress / upcoming ({otherDrafts.length})</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', maxHeight: 100, overflowY: 'auto' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', maxHeight: 100, overflowY: 'auto', overscrollBehavior: 'contain' }}>
                             {otherDrafts.slice(0, 10).map(d => (
                                 <div key={d.draft_id}
                                     title={d.status === 'pre_draft' ? 'Not started yet — no picks to replay' : 'Draft in progress — use Live Sync mode instead'}
@@ -2863,7 +2863,7 @@
                     </div>
                 )}
                 {!loading && liveDrafts.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: 220, overflowY: 'auto' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: 220, overflowY: 'auto', overscrollBehavior: 'contain' }}>
                         {liveDrafts.map(d => {
                             const isActive = state.sleeperDraftId === d.draft_id;
                             const isDrafting = d.status === 'drafting';
@@ -2960,7 +2960,7 @@
                     letterSpacing: '0.08em',
                     marginBottom: '6px',
                 }}>Saved Templates ({templates.length})</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: 150, overflowY: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: 150, overflowY: 'auto', overscrollBehavior: 'contain' }}>
                     {templates.map(tpl => (
                         <div key={tpl.id} style={{
                             display: 'flex',
@@ -3148,7 +3148,7 @@
                     </div>
                 </div>
 
-                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '3px' }}>
+                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', paddingRight: '3px' }}>
                     <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Build By Position</div>
                     {positions.length === 0 && (
                         <div style={{ padding: '12px', textAlign: 'center', color: 'var(--silver)', opacity: 0.45, fontSize: '0.7rem' }}>Your mock picks will appear here.</div>
@@ -3245,7 +3245,7 @@
                         {picks.length} made / {order.length || '--'}
                     </em>
                 </div>
-                <div style={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
+                <div style={{ flex: 1, overflowY: 'auto', overscrollBehavior: 'contain', padding: '6px' }}>
                     {!rows.length && (
                         <div style={{ color: 'var(--silver)', opacity: 0.6, fontSize: 'var(--text-micro, 0.6875rem)', padding: '10px' }}>
                             Start the draft to see the room as a running pick list.
@@ -4207,8 +4207,17 @@
         // a full tile — keeps the status row to the three substantive cards.
         const stageSummaryCards = baseStageSummaryCards;
 
-        // Desktop grid or tablet collapse
-        const isTablet = viewport === 'tablet';
+        // Width-aware cockpit sizing. The global 'desktop' bucket only triggers at
+        // 1440, so most laptops (1280-1439) were stuck in the 2-col collapse. Track the
+        // live width: give the rich 3-col layout to anything >= 1200px, and below that a
+        // compact 2-col layout whose panel heights adapt to the viewport (not fixed px).
+        const [winW, setWinW] = React.useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1440));
+        React.useEffect(() => {
+            const onResize = () => setWinW(window.innerWidth);
+            window.addEventListener('resize', onResize);
+            return () => window.removeEventListener('resize', onResize);
+        }, []);
+        const isCompact = winW < 1200;
 
         if (state.mode !== 'live-sync' && state.phase === 'drafting') {
             return (
@@ -4332,7 +4341,7 @@
                                                     {(item.title || '').replace(/^Alex\s*[·:—-]?\s*/i, '') || item.title}
                                                 </div>
                                                 {item.text && (
-                                                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.78, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.78, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                         {item.text}
                                                     </div>
                                                 )}
@@ -4346,7 +4355,7 @@
 
                     <div style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))',
                         gap: '7px',
                         minWidth: 0,
                         flex: stageSummaryCards.length > 3 ? '1 1 560px' : '1 1 440px',
@@ -4550,7 +4559,7 @@
                 {state.mode === 'live-sync' ? (
                     <div style={{
                         display: 'grid',
-                        gridTemplateColumns: liveTradeWindow ? 'repeat(auto-fit, minmax(320px, 1fr))' : '1fr',
+                        gridTemplateColumns: liveTradeWindow ? 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' : '1fr',
                         gap: L.GRID_GAP + 'px',
                         alignItems: 'stretch',
                         marginBottom: L.GRID_GAP + 'px',
@@ -4648,18 +4657,18 @@
                 {/* ── TOP ROW: Big Board / Roster Build / Opponent Intel ───── */}
                 <div style={{
                     display: 'grid',
-                    gridTemplateColumns: isTablet ? '1fr 1fr' : 'minmax(0, 1.55fr) minmax(320px, 0.7fr) minmax(340px, 0.8fr)',
+                    gridTemplateColumns: isCompact ? '1fr 1fr' : 'minmax(0, 1.5fr) minmax(300px, 0.72fr) minmax(320px, 0.82fr)',
                     gap: L.GRID_GAP + 'px',
-                    height: isTablet ? 'auto' : 'clamp(520px, 58vh, 680px)',
+                    height: isCompact ? 'auto' : 'clamp(520px, 58vh, 680px)',
                     marginBottom: L.GRID_GAP + 'px',
                 }}>
-                    <div style={{ minHeight: isTablet ? 500 : '100%', minWidth: 0 }}>
+                    <div style={{ minHeight: isCompact ? 'clamp(420px, 50vh, 560px)' : '100%', minWidth: 0 }}>
                         <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} />
                     </div>
-                    <div style={{ minHeight: isTablet ? 500 : '100%', minWidth: 0 }}>
+                    <div style={{ minHeight: isCompact ? 'clamp(420px, 50vh, 560px)' : '100%', minWidth: 0 }}>
                         <MyDraftRosterPanel state={state} />
                     </div>
-                    {!isTablet && (
+                    {!isCompact && (
                         <div style={{ minHeight: '100%', minWidth: 0 }}>
                             <OpponentIntelPanel state={state} dispatch={dispatch} currentSlot={currentSlot} onPropose={onPropose} />
                         </div>
@@ -4669,21 +4678,21 @@
                 {/* ── BOTTOM ROW: Pick List / Alex Stream ───── */}
                 <div style={{
                     display: 'grid',
-                    gridTemplateColumns: isTablet
+                    gridTemplateColumns: isCompact
                         ? '1fr 1fr'
-                        : 'minmax(0, 1.15fr) minmax(360px, 0.85fr)',
+                        : 'minmax(0, 1.1fr) minmax(340px, 0.9fr)',
                     gap: L.GRID_GAP + 'px',
-                    height: isTablet ? 'auto' : 'clamp(260px, 28vh, 360px)',
+                    height: isCompact ? 'auto' : 'clamp(320px, 32vh, 420px)',
                 }}>
-                    {isTablet && (
-                        <div style={{ minHeight: 240, minWidth: 0 }}>
+                    {isCompact && (
+                        <div style={{ minHeight: 'clamp(220px, 24vh, 300px)', minWidth: 0 }}>
                             <OpponentIntelPanel state={state} dispatch={dispatch} currentSlot={currentSlot} onPropose={onPropose} />
                         </div>
                     )}
-	                    <div style={{ minHeight: isTablet ? 240 : '100%', minWidth: 0 }}>
+	                    <div style={{ minHeight: isCompact ? 'clamp(240px, 26vh, 320px)' : '100%', minWidth: 0 }}>
 	                        <DraftPickListPanel state={state} currentSlot={currentSlot} />
                     </div>
-                    <div style={{ minHeight: isTablet ? 240 : '100%', minWidth: 0 }}>
+                    <div style={{ minHeight: isCompact ? 'clamp(240px, 26vh, 320px)' : '100%', minWidth: 0 }}>
                         <AlexStreamPanel state={state} dispatch={dispatch} />
                     </div>
                 </div>
@@ -4790,7 +4799,7 @@
                             padding: 'var(--space-xl)', animation: 'wrFadeIn 0.2s ease'
                         }} onClick={e => { if (e.target === e.currentTarget) onExit && onExit(); }}>
                             <div style={{
-                                width: '100%', maxWidth: '1080px', maxHeight: '92vh', overflowY: 'auto',
+                                width: '100%', maxWidth: '1080px', maxHeight: '92vh', overflowY: 'auto', overscrollBehavior: 'contain',
                                 background: 'var(--k-0a0b0d, #0a0b0d)', border: '2px solid ' + wrAlpha(gradeColor, '55'),
                                 borderRadius: '16px', boxShadow: '0 32px 96px rgba(0,0,0,0.8)',
                             }}>
@@ -5618,13 +5627,13 @@
 
         return (
             <div style={{ fontFamily: FONT_UI, padding: '4px 0' }}>
-                <div style={{ height: 400, marginBottom: 10 }}>
+                <div style={{ minHeight: 320, maxHeight: '56vh', marginBottom: 10 }}>
                     <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} />
                 </div>
-                <div style={{ height: 260, marginBottom: 10 }}>
+                <div style={{ minHeight: 300, marginBottom: 10 }}>
                     <AlexStreamPanel state={state} dispatch={dispatch} />
                 </div>
-                <div style={{ height: 300 }}>
+                <div style={{ minHeight: 260, maxHeight: '44vh' }}>
                     <DraftPickListPanel state={state} currentSlot={currentSlot} />
                 </div>
                 {AskAnswerWindow && <AskAnswerWindow state={state} />}
@@ -5677,7 +5686,7 @@
                 onClick={e => { if (e.target === e.currentTarget) onClose && onClose(); }}
             >
                 <div style={{
-                    width: '100%', maxWidth: '720px', maxHeight: '88vh', overflowY: 'auto',
+                    width: '100%', maxWidth: '720px', maxHeight: '88vh', overflowY: 'auto', overscrollBehavior: 'contain',
                     background: 'var(--k-0a0b0d, #0a0b0d)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.34))',
                     borderRadius: '14px', boxShadow: '0 28px 80px rgba(0,0,0,0.78)', fontFamily: FONT_UI,
                 }}>

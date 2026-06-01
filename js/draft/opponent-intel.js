@@ -125,7 +125,7 @@
 
                 {/* Persona card */}
                 {persona && (
-                    <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingRight: '3px' }}>
+                    <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'contain', paddingRight: '3px' }}>
                         {/* Identity header */}
                         <div style={{
                             display: 'flex',

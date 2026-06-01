@@ -500,7 +500,7 @@
                     {(isUserTurn || state.overrideMode || state.mode === 'manual') && <span />}
                 </div>
 
-                <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', marginRight: '-4px', paddingRight: '4px', maxHeight: scrollMaxHeight }}>
+                <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'contain', marginRight: '-4px', paddingRight: '4px', maxHeight: scrollMaxHeight }}>
                     {available.length === 0 && (
                         <div style={{ padding: '12px', textAlign: 'center', color: 'var(--silver)', opacity: 0.4, fontSize: '0.72rem' }}>
                             No players match filter

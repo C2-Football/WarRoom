@@ -154,7 +154,7 @@
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            padding: '8px 10px',
+            padding: '10px 12px',
             overflow: 'hidden',
         });
 
@@ -194,7 +194,7 @@
                 </div>
 
                 {/* Stream feed */}
-                <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingRight: '3px', marginBottom: '6px' }}>
+                <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'contain', paddingRight: '3px', marginBottom: '6px' }}>
                     {state.alex.thinking && (
                         <div style={{
                             padding: '5px 8px',
@@ -259,7 +259,7 @@
                             <div key={item.id} onClick={toggle} style={{
                                 display: 'flex',
                                 gap: '6px',
-                                padding: '5px 2px 5px ' + (isHighlight ? '6px' : '2px'),
+                                padding: '6px 4px 6px ' + (isHighlight ? '6px' : '4px'),
                                 borderBottom: '1px solid var(--ov-2, rgba(255,255,255,0.025))',
                                 borderLeft: isHighlight ? '2px solid ' + wrAlpha(item.color, 'aa') : '2px solid transparent',
                                 fontFamily: FONT_UI,
@@ -279,7 +279,7 @@
                                 }}>{item.badge}</span>
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{
-                                        fontSize: 'var(--text-label, 0.75rem)',
+                                        fontSize: 'var(--text-body, 1rem)',
                                         fontWeight: 700,
                                         color: 'var(--white)',
                                         whiteSpace: 'nowrap',
@@ -294,7 +294,7 @@
                                     </div>
                                     {item.text && (
                                         <div style={{
-                                            fontSize: 'var(--text-label, 0.75rem)',
+                                            fontSize: 'var(--text-body, 1rem)',
                                             color: 'var(--silver)',
                                             opacity: 0.8,
                                             marginTop: '1px',
@@ -312,7 +312,7 @@
                                         }}>
                                             {fullTextBlocks.map((block, bi) => (
                                                 <div key={bi} style={{
-                                                    fontSize: 'var(--text-label, 0.75rem)',
+                                                    fontSize: 'var(--text-body, 1rem)',
                                                     color: 'var(--silver)',
                                                     opacity: 0.85,
                                                     lineHeight: 1.45,
