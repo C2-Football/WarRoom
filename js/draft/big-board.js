@@ -44,12 +44,6 @@
         return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(Math.round(n));
     }
 
-    function signed(value) {
-        const n = Number(value || 0);
-        if (!n) return '0';
-        return n > 0 ? '+' + n : String(n);
-    }
-
     function rankMap(order) {
         const out = {};
         (order || []).forEach((pid, idx) => { if (pid != null) out[String(pid)] = idx + 1; });
@@ -221,6 +215,8 @@
                 if (sortKey === 'rank') return dir * ((a.consensusRank || a.rank || 9999) - (b.consensusRank || b.rank || 9999));
                 if (sortKey === 'tier') return dir * ((a._board.tier || 99) - (b._board.tier || 99));
                 if (sortKey === 'age') return dir * ((ageOf(a) || 99) - (ageOf(b) || 99));
+                if (sortKey === 'team') { const x = nflTeamOf(a) || '', y = nflTeamOf(b) || ''; if (!x !== !y) return x ? -1 : 1; return dir * x.localeCompare(y); }
+                if (sortKey === 'college') { const x = collegeOf(a) || '', y = collegeOf(b) || ''; if (!x !== !y) return x ? -1 : 1; return dir * x.localeCompare(y); }
                 return dir * ((b.dhq || 0) - (a.dhq || 0));
             });
             return sorted.slice(0, 100);
@@ -471,6 +467,8 @@
                     {sortButton('dhq', 'DHQ', -1)}
                     {sortButton('tier', 'Tier', 1)}
                     {sortButton('age', 'Age', 1)}
+                    {sortButton('team', 'Team', 1)}
+                    {sortButton('college', 'College', 1)}
                 </div>
 
                 <div style={{ display: 'flex', gap: '3px', marginBottom: '6px', flexWrap: 'wrap' }}>
@@ -544,15 +542,12 @@
                         const tag = TAG_META[b.tag];
                         const col = dhqColor(p.dhq);
                         const tCol = tierColor(b.tier);
-                        const win = b.windowInfo || valueWindow(p);
                         const rowRank = b.activeRank < 99999 ? b.activeRank : idx + 1;
                         const posColor = posColors[p.pos] || 'var(--silver)';
                         const note = b.note || '';
                         const nflTeam = nflTeamOf(p);
                         const college = collegeOf(p);
-                        const teamCollege = [nflTeam, college].filter(Boolean).join(' · ');
                         const draftPos = draftPosLabel(p);
-                        const showSecondLine = boardView !== 'compact' || note || tag || teamCollege;
                         return (
                             <div
                                 key={p.pid}
@@ -578,10 +573,10 @@
                                 }}
                                 style={{
                                     display: 'grid',
-                                    gridTemplateColumns: (isUserTurn || state.overrideMode || state.mode === 'manual') ? '24px minmax(0,1fr) 34px 44px 48px 44px 56px' : '24px minmax(0,1fr) 34px 44px 48px 44px',
+                                    gridTemplateColumns: (isUserTurn || state.overrideMode || state.mode === 'manual') ? '22px minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 44px 46px 50px' : '22px minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 44px 46px',
                                     gap: '5px',
                                     alignItems: 'center',
-                                    padding: '6px 3px 6px 0',
+                                    padding: '3px 3px 3px 0',
                                     borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.035))',
                                     borderLeft: b.tier ? '2px solid ' + tCol : '2px solid transparent',
                                     paddingLeft: '5px',
@@ -594,41 +589,17 @@
                                 onMouseLeave={e => e.currentTarget.style.background = dragPid === idOf(p) ? 'var(--acc-fill2, rgba(212,175,55,0.10))' : (idx === 0 ? 'var(--acc-fill1, rgba(212,175,55,0.045))' : 'transparent')}
                             >
                                 <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: rowRank <= 12 ? 'var(--gold)' : 'var(--ov-8, rgba(255,255,255,0.34))', textAlign: 'right', fontFamily: FONT_MONO }}>{rowRank}</span>
-                                <div style={{ minWidth: 0 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
-                                        <span style={{ color: 'var(--white)', fontWeight: 700, fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: p._drafted ? 'line-through' : 'none' }}>{p.name}</span>
-                                        {b.rankDelta !== 0 && activeLane !== 'dhq' && (
-                                            <span style={{
-                                                flexShrink: 0,
-                                                color: b.rankDelta > 0 ? 'var(--good)' : 'var(--bad)',
-                                                fontSize: 'var(--text-micro, 0.6875rem)',
-                                                fontFamily: FONT_MONO,
-                                                border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
-                                                borderRadius: '3px',
-                                                padding: '0 3px',
-                                            }}>{signed(b.rankDelta)}</span>
-                                        )}
-                                        {tag && (
-                                            <span style={{ flexShrink: 0, color: tag.color, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, border: '1px solid ' + wrAlpha(tag.color, '55'), background: wrAlpha(tag.color, '18'), borderRadius: '3px', padding: '0 4px' }}>{tag.label}</span>
-                                        )}
-                                    </div>
-                                    {teamCollege && (
-                                        <div style={{ color: 'var(--silver)', opacity: 0.7, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {teamCollege}
-                                        </div>
-                                    )}
-                                    {showSecondLine && (
-                                        <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {boardView === 'fit' && p.fit?.score != null ? 'Fit ' + p.fit.score + ' · ' : ''}
-                                            {boardView === 'value' ? win.label + (win.years != null ? ' ' + win.years + 'yr · ' : ' · ') : ''}
-                                            {note || (b.tier ? 'Tier ' + b.tier : 'Click for player context')}
-                                        </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
+                                    <span style={{ color: 'var(--white)', fontWeight: 700, fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: p._drafted ? 'line-through' : 'none' }}>{p.name}</span>
+                                    {tag && (
+                                        <span style={{ flexShrink: 0, color: tag.color, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, border: '1px solid ' + wrAlpha(tag.color, '55'), background: wrAlpha(tag.color, '18'), borderRadius: '3px', padding: '0 4px' }}>{tag.label}</span>
                                     )}
                                 </div>
+                                <span title={nflTeam} style={{ color: 'var(--silver)', opacity: 0.78, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nflTeam || '—'}</span>
+                                <span title={college} style={{ color: 'var(--silver)', opacity: 0.7, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{college || '—'}</span>
                                 <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, padding: '1px 5px', borderRadius: '3px', background: wrAlpha(posColor, '22'), color: posColor, textAlign: 'center', fontFamily: FONT_UI }}>{p.pos}</span>
                                 <span style={{ color: col, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, fontFamily: FONT_MONO, textAlign: 'right' }}>{fmt(p.dhq)}</span>
                                 <span title="Draft position" style={{ color: draftPos === '—' ? 'var(--ov-8, rgba(255,255,255,0.34))' : 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{draftPos}</span>
-                                <span style={{ color: win.color, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, textAlign: 'center', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '3px', padding: '1px 2px' }}>{win.label}</span>
                                 {(isUserTurn || state.overrideMode || state.mode === 'manual') && (
                                     <button
                                         onClick={e => { e.stopPropagation(); onDraft(p); }}
