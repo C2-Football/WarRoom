@@ -292,7 +292,17 @@
         const next = { ...initialLiveSyncState(), ...(current || {}), ...(patch || {}) };
         if (patch.error === null) next.error = null;
         if (patch.status === 'mirroring' || patch.status === 'waiting' || patch.status === 'complete') {
-            next.stale = false;
+            // Only clear stale when nothing is left unresolved. A healthy-looking
+            // status string must NOT paper over a real gap/conflict — otherwise the
+            // banner flips green while the mirror is still stuck behind a missing pick.
+            const hasUnresolved = !!(
+                (patch.missingPickNos && patch.missingPickNos.length) ||
+                (next.missingPickNos && next.missingPickNos.length) ||
+                (patch.conflictPickNos && patch.conflictPickNos.length) ||
+                (next.conflictPickNos && next.conflictPickNos.length) ||
+                patch.remoteBehind || next.remoteBehind
+            );
+            if (!hasUnresolved) next.stale = false;
         }
         return next;
     }

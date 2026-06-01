@@ -222,7 +222,7 @@
                         maxHeight: '82vh',
                         display: 'flex',
                         flexDirection: 'column',
-                        background: 'linear-gradient(180deg, #14121c 0%, #0d0b12 100%)',
+                        background: 'linear-gradient(180deg, var(--k-14121c, #14121c) 0%, var(--k-0d0b12, #0d0b12) 100%)',
                         border: '1px solid rgba(124,107,248,0.32)',
                         borderRadius: '12px',
                         boxShadow: '0 24px 70px rgba(0,0,0,0.6)',
@@ -235,10 +235,10 @@
                         alignItems: 'center',
                         gap: '10px',
                         padding: '12px 14px',
-                        borderBottom: '1px solid rgba(255,255,255,0.06)',
+                        borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))',
                         flexShrink: 0,
                     }}>
-                        <span style={{ fontSize: '1rem', color: '#9b8afb' }}>✦</span>
+                        <span style={{ fontSize: '1rem', color: 'var(--k-9b8afb, #9b8afb)' }}>✦</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{
                                 fontFamily: FONT_DISPL,
@@ -260,8 +260,8 @@
                             style={{
                                 width: 26, height: 26,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                background: 'rgba(255,255,255,0.05)',
-                                border: '1px solid rgba(255,255,255,0.1)',
+                                background: 'var(--ov-3, rgba(255,255,255,0.05))',
+                                border: '1px solid var(--ov-6, rgba(255,255,255,0.1))',
                                 borderRadius: '6px',
                                 color: 'var(--silver)',
                                 fontSize: '0.9rem',
@@ -279,7 +279,7 @@
                             </div>
                         )}
                         {!pending && error && (
-                            <div style={{ color: '#E74C3C', fontSize: '0.72rem', lineHeight: 1.5 }}>
+                            <div style={{ color: 'var(--k-e74c3c, #e74c3c)', fontSize: '0.72rem', lineHeight: 1.5 }}>
                                 {error}
                             </div>
                         )}
@@ -294,7 +294,7 @@
                     {prompt && (
                         <div style={{
                             padding: '8px 14px',
-                            borderTop: '1px solid rgba(255,255,255,0.06)',
+                            borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))',
                             fontSize: '0.56rem',
                             color: 'var(--silver)',
                             opacity: 0.5,

@@ -330,7 +330,12 @@
                                 height: csv.size ? parseInt(csv.size.replace("'", "").split('"')[0]) * 12 + parseInt((csv.size.match(/'(\d+)/)?.[1]) || 0) : null,
                                 weight: csv.weight ? parseInt(csv.weight) : null,
                             },
-                            dhq: csv.draftScore || 0,
+                            // Use the canonical 0–10000 dynasty value so CSV-only
+                            // prospects sit on the same axis as Sleeper-matched rookies.
+                            // draftScore is a 0–~15 scale and would sort these to the
+                            // bottom as if worthless. Fall back to draftScore only if no
+                            // canonical value exists.
+                            dhq: Math.min(10000, Math.max(0, csv.dynastyValue || csv.baseDynastyValue || csv.draftCapitalValue || csv.draftScore || 0)),
                             csv,
                             isCSVOnly: true,
                         });

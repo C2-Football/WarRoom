@@ -625,7 +625,6 @@
         const seen = new Set();
         const myPicksHigh = remainingPicksByValue(state, state.userRosterId, [], 'desc');
         const myPicksLow = remainingPicksByValue(state, state.userRosterId, [], 'asc');
-        const theirPicksHigh = remainingPicksByValue(state, targetRosterId, [], 'desc');
         const theirPicksLow = remainingPicksByValue(state, targetRosterId, [], 'asc');
         const theirNeeds = personaNeeds(persona);
         const myNeedFits = topPlayersFor(state, state.userRosterId, 4, { matchNeeds: theirNeeds });
@@ -657,10 +656,21 @@
             });
         }
 
-        if (theirPicksHigh[0]) {
-            const targetPickValue = pickValueFor(state, theirPicksHigh[0]);
-            let proposal = normalizeProposal(targetRosterId, { theirGive: [theirPicksHigh[0]] });
-            proposal = addUserPicksUntil(state, proposal, Math.round(targetPickValue * 0.92), 3);
+        // Target the partner's EARLIEST remaining pick (the one literally on the
+        // clock when this partner is on the clock), not just their highest-value
+        // pick. pickValueFor can return 0 for a slot the value tables miss, which
+        // would otherwise sort the on-clock pick last and make Move Up target a
+        // later pick — leaving the on-clock window with nothing that acquires it.
+        const theirEarliest = remainingPicksFor(state, targetRosterId, [])
+            .slice()
+            .sort((a, b) => Number(a.overall || 9999) - Number(b.overall || 9999))[0];
+        if (theirEarliest) {
+            const targetPickValue = pickValueFor(state, theirEarliest);
+            let proposal = normalizeProposal(targetRosterId, { theirGive: [theirEarliest] });
+            // Math.max(1, …) guarantees at least one user pick is added so the
+            // package stays two-sided even when the pick's value resolves to 0
+            // (a one-sided proposal is dropped by push()).
+            proposal = addUserPicksUntil(state, proposal, Math.round(Math.max(1, targetPickValue) * 0.92), 3);
             push(
                 'move-up',
                 'Move Up',
@@ -766,9 +776,27 @@
             if (!profile) return;
             const suggestions = buildTradeSuggestions(state, slot.rosterId);
             if (!suggestions.length) return;
-            const best = suggestions.find(s => s.likelihood >= s.acceptanceLine)
-                || suggestions.find(s => s.verdict === 'countered')
-                || suggestions[0];
+            // For the team on the clock (idx === 0), the window MUST headline a
+            // trade that actually acquires the pick on the clock. Otherwise the
+            // banner names the on-clock pick but recommends an unrelated package
+            // (Sell Player / Move Down / Buy Player), because "Move Up" is the
+            // costliest, lowest-acceptance option and loses the single headline slot
+            // under a pure likelihood sort. Prefer the acquires-on-clock suggestion;
+            // fall back to the old heuristic only if none exists.
+            const onClockKey = pickKey(slot);
+            const acquiresOnClock = s => (s.proposal?.theirGive || []).some(p => pickKey(p) === onClockKey);
+            const clears = s => s.likelihood >= s.acceptanceLine;
+            const countered = s => s.verdict === 'countered';
+            const best = idx === 0
+                ? (suggestions.find(s => acquiresOnClock(s) && clears(s))
+                    || suggestions.find(s => acquiresOnClock(s) && countered(s))
+                    || suggestions.find(acquiresOnClock)
+                    || suggestions.find(clears)
+                    || suggestions.find(countered)
+                    || suggestions[0])
+                : (suggestions.find(clears)
+                    || suggestions.find(countered)
+                    || suggestions[0]);
             if (!best) return;
             windows.push({
                 rosterId: slot.rosterId,

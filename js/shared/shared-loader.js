@@ -11,7 +11,7 @@
         } catch (e) {}
         return 'https://c2-football.github.io/ReconAI/shared/';
     })();
-    const DEFAULT_VERSION = '20260531voice1';
+    const DEFAULT_VERSION = '20260531sandbox2';
     const config = {
         localBase: null,
         remoteBase: REMOTE_BASE,

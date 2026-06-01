@@ -24,7 +24,7 @@ window.App.PlayerValue = (function () {
 
     // ── Draft pick values (DHQ equivalent, used as fallback when DHQ engine absent) ──
     const PICK_VALUES = { 1:6250, 2:3150, 3:1650, 4:850, 5:450, 6:225, 7:125 };
-    const PICK_COLORS = { 1:'#D4AF37', 2:'#5DADE2', 3:'#2ECC71', 4:'#BB8FCE', 5:'#95A5A6', 6:'#7F8C8D', 7:'#6C7A7D' };
+    const PICK_COLORS = { 1:'var(--k-d4af37, #d4af37)', 2:'var(--k-5dade2, #5dade2)', 3:'var(--k-2ecc71, #2ecc71)', 4:'var(--k-bb8fce, #bb8fce)', 5:'var(--k-95a5a6, #95a5a6)', 6:'var(--k-7f8c8d, #7f8c8d)', 7:'var(--k-6c7a7d, #6c7a7d)' };
 
     // Slot-specific values (16-team × 7-round = 112 picks).
     // Dynamically generated from pick-value-model.js (industry consensus) when available.
