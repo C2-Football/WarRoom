@@ -1497,6 +1497,81 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     );
 }
 
+// buildCommandBridge — the terminal HOME data contract. Pure composition of the portfolio
+// model (KPI strip, radar = model.signals, league stack = model.provinces), the cross-league
+// action queue, the brief, and week-over-week deltas from the snapshot store. The Command
+// Bridge screen renders this object; no data work happens in the view.
+//   input: { model, actionQueue, brief, empireDelta }  (empireDelta = WrSnapshots.empireDelta(leagueIds))
+function buildCommandBridge(input) {
+    input = input || {};
+    const model = input.model || {};
+    const totals = model.totals || {};
+    const queue = input.actionQueue || [];
+    const delta = input.empireDelta || null;
+    const pickCapital = model.pickCapital || {};
+    const provinces = model.provinces || [];
+    const topExp = (model.exposure || [])[0] || null;
+
+    const fmtK = v => {
+        const n = Math.round(Number(v) || 0);
+        if (n < 1000) return String(n);
+        const k = n / 1000;
+        return (k >= 100 ? Math.round(k) : Math.round(k * 10) / 10) + 'k';
+    };
+    const dir = d => (d == null ? null : d > 0 ? 'up' : d < 0 ? 'down' : 'flat');
+    const healthTone = h => (h == null ? null : h >= 80 ? 'good' : h >= 65 ? 'warn' : 'bad');
+
+    // Honest "in a playoff spot" — actual standings rank (wins, points-for tiebreak) vs the
+    // league's playoff_teams. Uses each province's own league rosters, not a DHQ proxy.
+    const inPlayoffSpot = p => {
+        const lg = p.league || {};
+        const rosters = lg.rosters || [];
+        if (!rosters.length || !p.roster) return false;
+        const cutoff = (lg.settings && lg.settings.playoff_teams) || 6;
+        const pf = r => ((r.settings && r.settings.fpts) || 0) + (((r.settings && r.settings.fpts_decimal) || 0) / 100);
+        const ranked = rosters.slice().sort((a, b) => {
+            const aw = (a.settings && a.settings.wins) || 0, bw = (b.settings && b.settings.wins) || 0;
+            return bw !== aw ? bw - aw : pf(b) - pf(a);
+        });
+        const rank = ranked.findIndex(r => String(r.roster_id) === String(p.roster.roster_id)) + 1;
+        return rank > 0 && rank <= cutoff;
+    };
+
+    const rec = totals.totalRecord || { wins: 0, losses: 0 };
+    const games = (rec.wins || 0) + (rec.losses || 0);
+    const winPctStr = games ? ('.' + String(Math.round((rec.wins / games) * 1000)).padStart(3, '0')).replace('.1000', '1.000') : '—';
+    const playoffSpots = provinces.filter(inPlayoffSpot).length;
+
+    const dhqDelta = delta ? delta.totalDHQDelta : null;
+    const prevDHQ = dhqDelta != null ? (totals.totalDHQ || 0) - dhqDelta : null;
+    const dhqPct = (dhqDelta != null && prevDHQ) ? Math.round((dhqDelta / prevDHQ) * 1000) / 10 : null;
+    const healthDelta = delta ? delta.avgHealthDelta : null;
+    const highActions = queue.filter(a => a && a.severity === 'high').length;
+
+    const kpis = [
+        { key: 'value', label: 'Empire Value', value: fmtK(totals.totalDHQ),
+          sub: 'DHQ across ' + (totals.leagues || 0) + ' leagues',
+          delta: dhqDelta != null ? { dir: dir(dhqDelta), pct: dhqPct } : null },
+        { key: 'record', label: 'Record', value: (rec.wins || 0) + '–' + (rec.losses || 0),
+          sub: winPctStr + ' · ' + playoffSpots + ' in playoff spots' },
+        { key: 'health', label: 'Avg Health', value: totals.avgHealth != null ? String(totals.avgHealth) : '—',
+          tone: healthTone(totals.avgHealth),
+          sub: healthDelta == null ? 'no prior week yet'
+               : healthDelta === 0 ? 'flat week over week'
+               : (healthDelta > 0 ? 'up ' : 'down ') + Math.abs(healthDelta) + ' from last week',
+          delta: healthDelta != null ? { dir: dir(healthDelta), n: healthDelta } : null },
+        { key: 'picks', label: 'Pick Capital', value: String(pickCapital.total || 0),
+          sub: (pickCapital.premium || 0) + ' premium (R1–2)' },
+        { key: 'exposure', label: 'Top Exposure', value: topExp ? topExp.exposurePct + '%' : '—',
+          tone: topExp && topExp.exposurePct >= 50 ? 'warn' : null,
+          sub: topExp ? topExp.name + ' · ' + topExp.count + ' of ' + (totals.leagues || 0) + ' leagues' : 'no duplicate exposure' },
+        { key: 'actions', label: 'Open Actions', value: String(queue.length),
+          tone: highActions ? 'gold' : null, sub: highActions + ' high priority' },
+    ];
+
+    return { kpis, queue, radar: model.signals || [], leagueStack: provinces, brief: input.brief || '' };
+}
+
 if (typeof window !== 'undefined') {
     window.App = window.App || {};
     window.App.buildEmpirePortfolioModel = buildEmpirePortfolioModel;
@@ -1506,5 +1581,6 @@ if (typeof window !== 'undefined') {
     window.App.buildEmpireRolodex = buildEmpireRolodex;
     window.App.buildEmpireMoves = buildEmpireMoves;
     window.App.buildEmpireConsolidation = buildEmpireConsolidation;
+    window.App.buildCommandBridge = buildCommandBridge;
     window.EmpireDashboard = EmpireDashboard;
 }
