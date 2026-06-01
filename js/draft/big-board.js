@@ -18,13 +18,6 @@
         my:  { label: 'My Board', short: 'MY', sub: 'front-office prep' },
     };
 
-    const VIEW_LABELS = [
-        { key: 'compact', label: 'Compact' },
-        { key: 'scout', label: 'Scout' },
-        { key: 'fit', label: 'Fit' },
-        { key: 'value', label: 'Value' },
-    ];
-
     const TAG_META = {
         target:  { label: 'Target', color: 'var(--k-2ecc71, #2ecc71)' },
         sleeper: { label: 'Watch', color: 'var(--k-3498db, #3498db)' },
@@ -58,16 +51,9 @@
         return player?.school || player?.college || player?.csv?.college || player?.p?.college || player?.p?.metadata?.college || '';
     }
 
-    // Draft position label. Prefer real "Rd X.Y" from Sleeper draft_round/draft_pick,
-    // which is frequently missing — fall back to consensus/ADP overall rank, else '—'.
-    function draftPosLabel(player) {
-        const rd = Number(player?.p?.draft_round || player?.draft_round || 0);
-        const pk = Number(player?.p?.draft_pick || player?.draft_pick || 0);
-        if (rd && pk) return 'Rd ' + rd + '.' + pk;
-        if (rd) return 'Rd ' + rd;
-        const adp = Number(player?.consensusRank || player?.rank || 0);
-        if (adp) return 'ADP ' + Math.round(adp);
-        return '—';
+    // Edge rushers (ED) group under DL on the board.
+    function normEdPos(pos) {
+        return pos === 'ED' ? 'DL' : pos;
     }
 
     function ageOf(player) {
@@ -122,7 +108,6 @@
         const [sortKey, setSortKey] = React.useState('board');
         const [sortDir, setSortDir] = React.useState(1);
         const [boardLane, setBoardLane] = React.useState(defaultLane);
-        const [boardView, setBoardView] = React.useState('compact');
         const [dragPid, setDragPid] = React.useState(null);
         const [bucket, setBucket] = React.useState(() => bpBucket());
 
@@ -201,7 +186,7 @@
 
         const available = React.useMemo(() => {
             const filtered = decoratedPool.filter(p => {
-                if (posFilter && p.pos !== posFilter) return false;
+                if (posFilter && normEdPos(p.pos) !== posFilter) return false;
                 if (search) {
                     const q = search.toLowerCase();
                     const hay = [p.name, p.team, p.nflTeam, p.college, p.csv?.college].filter(Boolean).join(' ').toLowerCase();
@@ -211,8 +196,9 @@
             });
             const sorted = filtered.slice().sort((a, b) => {
                 const dir = sortDir;
-                if (sortKey === 'board') return (a._board.activeRank - b._board.activeRank) || ((b.dhq || 0) - (a.dhq || 0));
-                if (sortKey === 'rank') return dir * ((a.consensusRank || a.rank || 9999) - (b.consensusRank || b.rank || 9999));
+                if (sortKey === 'board') return dir * ((a._board.activeRank - b._board.activeRank) || ((b.dhq || 0) - (a.dhq || 0)));
+                if (sortKey === 'name') return dir * String(a.name || '').localeCompare(String(b.name || ''));
+                if (sortKey === 'pos') { const x = normEdPos(a.pos) || '', y = normEdPos(b.pos) || ''; return x === y ? ((b.dhq || 0) - (a.dhq || 0)) : dir * x.localeCompare(y); }
                 if (sortKey === 'tier') return dir * ((a._board.tier || 99) - (b._board.tier || 99));
                 if (sortKey === 'age') return dir * ((ageOf(a) || 99) - (ageOf(b) || 99));
                 if (sortKey === 'team') { const x = nflTeamOf(a) || '', y = nflTeamOf(b) || ''; if (!x !== !y) return x ? -1 : 1; return dir * x.localeCompare(y); }
@@ -224,7 +210,7 @@
 
         const availablePositions = React.useMemo(() => {
             const set = new Set();
-            (state.pool || []).slice(0, 120).forEach(p => { if (p.pos) set.add(p.pos); });
+            (state.pool || []).slice(0, 120).forEach(p => { if (p.pos) set.add(normEdPos(p.pos)); });
             const priority = { QB: 1, RB: 2, WR: 3, TE: 4, DL: 5, LB: 6, DB: 7, K: 8 };
             return Array.from(set).sort((a, b) => (priority[a] || 99) - (priority[b] || 99));
         }, [state.pool]);
@@ -347,25 +333,20 @@
             }
         };
 
-        const sortButton = (key, label, defaultDir) => (
-            <button key={key} onClick={() => {
+        // Google-Sheets-style sortable column header: click to sort, click again to flip.
+        const colHeader = (key, label, align) => (
+            <button onClick={() => {
                 if (sortKey === key) setSortDir(d => d * -1);
-                else { setSortKey(key); setSortDir(defaultDir); }
-            }} style={{
-                padding: '2px 10px',
-                minHeight: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 'var(--text-micro, 0.6875rem)',
-                borderRadius: '3px',
-                border: '1px solid ' + (sortKey === key ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                background: sortKey === key ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
+                else { setSortKey(key); setSortDir((key === 'dhq' || key === 'board') ? -1 : 1); }
+            }} title={'Sort by ' + label} style={{
+                display: 'flex', alignItems: 'center', minWidth: 0,
+                justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start',
+                gap: 2, background: 'transparent', border: 0, padding: 0, cursor: 'pointer',
                 color: sortKey === key ? 'var(--gold)' : 'var(--silver)',
-                cursor: 'pointer',
-                fontFamily: FONT_UI,
-                fontWeight: sortKey === key ? 700 : 500,
-            }}>{label}{sortKey === key ? (sortDir === -1 ? ' ▼' : ' ▲') : ''}</button>
+                opacity: sortKey === key ? 1 : 0.62,
+                fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_UI, fontWeight: 800,
+                textTransform: 'uppercase', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden',
+            }}>{label}{sortKey === key ? (sortDir === -1 ? ' ▾' : ' ▴') : ''}</button>
         );
 
         const containerCss = panelCard({
@@ -461,36 +442,6 @@
                     }}
                 />
 
-                <div style={{ display: 'flex', gap: '3px', marginBottom: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, fontFamily: FONT_UI, marginRight: '2px' }}>SORT:</span>
-                    {sortButton('board', 'Board', 1)}
-                    {sortButton('dhq', 'DHQ', -1)}
-                    {sortButton('tier', 'Tier', 1)}
-                    {sortButton('age', 'Age', 1)}
-                    {sortButton('team', 'Team', 1)}
-                    {sortButton('college', 'College', 1)}
-                </div>
-
-                <div style={{ display: 'flex', gap: '3px', marginBottom: '6px', flexWrap: 'wrap' }}>
-                    {VIEW_LABELS.map(view => (
-                        <button key={view.key} onClick={() => setBoardView(view.key)} style={{
-                            padding: '2px 10px',
-                            minHeight: '40px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '10px',
-                            border: '1px solid ' + (boardView === view.key ? 'var(--acc-line2, rgba(212,175,55,0.35))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                            background: boardView === view.key ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'transparent',
-                            color: boardView === view.key ? 'var(--gold)' : 'var(--silver)',
-                            cursor: 'pointer',
-                            fontSize: 'var(--text-micro, 0.6875rem)',
-                            fontFamily: FONT_UI,
-                            fontWeight: 700,
-                        }}>{view.label}</button>
-                    ))}
-                </div>
-
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginBottom: '8px' }}>
                     <button onClick={() => setPosFilter('')} style={{
                         padding: '2px 10px',
@@ -531,6 +482,24 @@
                     </div>
                 )}
 
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: (isUserTurn || state.overrideMode || state.mode === 'manual') ? '22px minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 48px 50px' : '22px minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 48px',
+                    gap: '5px',
+                    alignItems: 'center',
+                    padding: '0 3px 4px 5px',
+                    borderBottom: '1px solid var(--ov-6, rgba(255,255,255,0.12))',
+                    marginBottom: '2px',
+                }}>
+                    {colHeader('board', '#', 'right')}
+                    {colHeader('name', 'Player', 'left')}
+                    {colHeader('team', 'Team', 'left')}
+                    {colHeader('college', 'College', 'left')}
+                    {colHeader('pos', 'Pos', 'center')}
+                    {colHeader('dhq', 'DHQ', 'right')}
+                    {(isUserTurn || state.overrideMode || state.mode === 'manual') && <span />}
+                </div>
+
                 <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', marginRight: '-4px', paddingRight: '4px', maxHeight: scrollMaxHeight }}>
                     {available.length === 0 && (
                         <div style={{ padding: '12px', textAlign: 'center', color: 'var(--silver)', opacity: 0.4, fontSize: '0.72rem' }}>
@@ -543,11 +512,10 @@
                         const col = dhqColor(p.dhq);
                         const tCol = tierColor(b.tier);
                         const rowRank = b.activeRank < 99999 ? b.activeRank : idx + 1;
-                        const posColor = posColors[p.pos] || 'var(--silver)';
+                        const posColor = posColors[normEdPos(p.pos)] || 'var(--silver)';
                         const note = b.note || '';
                         const nflTeam = nflTeamOf(p);
                         const college = collegeOf(p);
-                        const draftPos = draftPosLabel(p);
                         return (
                             <div
                                 key={p.pid}
@@ -573,7 +541,7 @@
                                 }}
                                 style={{
                                     display: 'grid',
-                                    gridTemplateColumns: (isUserTurn || state.overrideMode || state.mode === 'manual') ? '22px minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 44px 46px 50px' : '22px minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 44px 46px',
+                                    gridTemplateColumns: (isUserTurn || state.overrideMode || state.mode === 'manual') ? '22px minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 48px 50px' : '22px minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 48px',
                                     gap: '5px',
                                     alignItems: 'center',
                                     padding: '3px 3px 3px 0',
@@ -597,9 +565,8 @@
                                 </div>
                                 <span title={nflTeam} style={{ color: 'var(--silver)', opacity: 0.78, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nflTeam || '—'}</span>
                                 <span title={college} style={{ color: 'var(--silver)', opacity: 0.7, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{college || '—'}</span>
-                                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, padding: '1px 5px', borderRadius: '3px', background: wrAlpha(posColor, '22'), color: posColor, textAlign: 'center', fontFamily: FONT_UI }}>{p.pos}</span>
+                                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, padding: '1px 5px', borderRadius: '3px', background: wrAlpha(posColor, '22'), color: posColor, textAlign: 'center', fontFamily: FONT_UI }}>{normEdPos(p.pos)}</span>
                                 <span style={{ color: col, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, fontFamily: FONT_MONO, textAlign: 'right' }}>{fmt(p.dhq)}</span>
-                                <span title="Draft position" style={{ color: draftPos === '—' ? 'var(--ov-8, rgba(255,255,255,0.34))' : 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{draftPos}</span>
                                 {(isUserTurn || state.overrideMode || state.mode === 'manual') && (
                                     <button
                                         onClick={e => { e.stopPropagation(); onDraft(p); }}

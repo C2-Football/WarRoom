@@ -5092,9 +5092,9 @@
             : window.DraftCC.liveDecisionEngine.buildLiveReadout(state);
         return (
             <div style={{
-                padding: '16px 20px',
+                padding: '11px 14px',
                 marginBottom: inline ? 0 : '8px',
-                minHeight: inline ? '100%' : 124,
+                minHeight: inline ? '100%' : 'auto',
                 background: 'linear-gradient(90deg, rgba(155,138,251,0.07), var(--ov-1, rgba(255,255,255,0.024)) 42%, var(--acc-fill1, rgba(212,175,55,0.045)))',
                 border: '1px solid rgba(155,138,251,0.24)',
                 borderLeft: '3px solid ' + color,
@@ -5107,25 +5107,25 @@
                 height: inline ? '100%' : 'auto',
             }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ color, fontWeight: 900, fontFamily: FONT_DISPL, fontSize: '0.9rem', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+                    <div style={{ color, fontWeight: 900, fontFamily: FONT_DISPL, fontSize: '0.76rem', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
                         Alex Live Read
                     </div>
                     {readout && readout.available.length ? (
                         <>
-                            <div style={{ color: 'var(--white)', fontSize: '1.0rem', fontWeight: 800, lineHeight: 1.3 }}>
+                            <div style={{ color: 'var(--white)', fontSize: '0.88rem', fontWeight: 800, lineHeight: 1.25 }}>
                                 Here's who I think will be available at {readout.pickLabel}
                             </div>
-                            <div style={{ color: 'var(--silver)', opacity: 0.9, fontSize: '0.86rem', lineHeight: 1.5, marginTop: 4 }}>
+                            <div style={{ color: 'var(--silver)', opacity: 0.9, fontSize: '0.78rem', lineHeight: 1.4, marginTop: 3 }}>
                                 {readout.available.map(a => a.name + (a.pos ? ' (' + a.pos + ')' : '')).join('  ·  ')}
                             </div>
                             {readout.outlier && (
-                                <div style={{ marginTop: 8, padding: '7px 10px', borderRadius: 6, background: 'var(--acc-fill2, rgba(212,175,55,0.10))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', color: 'var(--gold)', fontSize: '0.84rem', lineHeight: 1.4, fontWeight: 700 }}>
+                                <div style={{ marginTop: 6, padding: '5px 8px', borderRadius: 6, background: 'var(--acc-fill2, rgba(212,175,55,0.10))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', color: 'var(--gold)', fontSize: '0.78rem', lineHeight: 1.35, fontWeight: 700 }}>
                                     {'⚡'} {readout.outlier.name}{readout.outlier.pos ? ' (' + readout.outlier.pos + ')' : ''} is sliding and likely gone before your pick — worth trading up to grab them.
                                 </div>
                             )}
                         </>
                     ) : (
-                        <div style={{ color: 'var(--silver)', opacity: 0.82, fontSize: '0.84rem', lineHeight: 1.5, marginTop: 5 }}>
+                        <div style={{ color: 'var(--silver)', opacity: 0.82, fontSize: '0.78rem', lineHeight: 1.4, marginTop: 4 }}>
                             {liveRead}
                         </div>
                     )}
