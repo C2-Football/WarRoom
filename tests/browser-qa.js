@@ -160,9 +160,15 @@ async function main() {
 
     const page = await context.newPage();
     await page.setViewportSize({ width: 390, height: 900 });
-    await page.addInitScript(() => localStorage.setItem('wr_tutorial_done_v1', '1'));
+    // Connect the user so the real league shell renders. sleeperUsername reads from storage
+    // (OD.getCurrentUsername → dynastyhq_username), NOT the ?user= param, so without this the
+    // app sits on the pre-connect screen and the nav shell (.wr-hamburger) never mounts.
+    await page.addInitScript(u => {
+      localStorage.setItem('wr_tutorial_done_v1', '1');
+      localStorage.setItem('dynastyhq_username', u);
+    }, USER);
     await page.goto(`http://127.0.0.1:${port}${BASE_PATH}?dev=true&user=${USER}#league=${LEAGUE_ID}&tab=dashboard`, { waitUntil: 'domcontentloaded', timeout: 12000 });
-    await page.waitForTimeout(700);
+    await page.locator('.wr-hamburger').waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
 
     const hamburger = page.locator('.wr-hamburger');
     if (await hamburger.count() !== 1) {
@@ -234,11 +240,24 @@ async function main() {
 
     const empirePage = await context.newPage();
     await empirePage.setViewportSize({ width: 1365, height: 900 });
+    // The hub league-selector (which holds the Launch Empire Dashboard control) only renders
+    // once a Sleeper user is connected, and sleeperUsername reads from storage
+    // (OD.getCurrentUsername → dynastyhq_username), NOT the ?user= query param. Seed it so the
+    // hub boots connected and renders the launch control.
+    await empirePage.addInitScript(u => {
+      try { localStorage.setItem('dynastyhq_username', u); localStorage.setItem('wr_tutorial_done_v1', '1'); } catch (e) {}
+    }, USER);
     await empirePage.goto(`http://127.0.0.1:${port}${BASE_PATH}?dev=true&user=${USER}`, { waitUntil: 'domcontentloaded', timeout: 12000 });
+    // The selector renders only after the user's leagues finish loading (network).
+    await empirePage.locator('.hub-league-selector').waitFor({ state: 'attached', timeout: 20000 }).catch(() => {});
     const launch = empirePage.getByText('Launch Empire Dashboard', { exact: true });
-    await launch.waitFor({ state: 'visible', timeout: 12000 }).catch(() => {});
+    await launch.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
     if (await launch.count() !== 1) {
-      failures.push('empire-launch: Launch Empire Dashboard control not found');
+      const diag = await empirePage.evaluate(() => ({
+        sel: !!document.querySelector('.hub-league-selector'),
+        body: String(document.body.innerText || '').replace(/\s+/g, ' ').slice(0, 160),
+      })).catch(() => ({}));
+      failures.push(`empire-launch: Launch Empire Dashboard control not found [selector=${diag.sel} body="${diag.body || ''}"]`);
     } else {
       await launch.click();
       await empirePage.waitForTimeout(1200);
@@ -255,6 +274,30 @@ async function main() {
       if (empireSnap.scrollWidth > empireSnap.innerWidth + 2) {
         failures.push(`empire-launch: horizontal overflow ${empireSnap.scrollWidth} > ${empireSnap.innerWidth}`);
       }
+      // P0 data modules must be live in-browser and produce a valid Command Bridge contract.
+      const mods = await empirePage.evaluate(() => {
+        const r = {
+          snap: !!(window.WrSnapshots && typeof window.WrSnapshots.empireDelta === 'function'),
+          txn: !!(window.WrTxns && typeof window.WrTxns.fetchLeagueTxns === 'function'),
+          cb: !!(window.App && typeof window.App.buildCommandBridge === 'function'),
+          kpis: -1,
+        };
+        try {
+          if (window.App && window.App.buildCommandBridge) {
+            const out = window.App.buildCommandBridge({
+              model: { totals: { totalDHQ: 120000, leagues: 2, totalRecord: { wins: 3, losses: 1 }, avgHealth: 75 }, provinces: [], exposure: [], pickCapital: { total: 5, premium: 2 } },
+              actionQueue: [],
+            });
+            r.kpis = ((out && out.kpis) || []).length;
+          }
+        } catch (e) { r.err = String((e && e.message) || e); }
+        return r;
+      }).catch(() => ({}));
+      if (!mods.snap) failures.push('empire-modules: window.WrSnapshots.empireDelta missing');
+      if (!mods.txn) failures.push('empire-modules: window.WrTxns.fetchLeagueTxns missing');
+      if (!mods.cb) failures.push('empire-modules: window.App.buildCommandBridge missing');
+      if (mods.kpis !== 6) failures.push(`empire-modules: buildCommandBridge KPIs=${mods.kpis}${mods.err ? ' err=' + mods.err : ''}`);
+
       const postWindow = empirePage.getByRole('button', { name: 'Post-window', exact: true });
       if (await postWindow.count() > 0) {
         await postWindow.first().click();
