@@ -787,16 +787,24 @@
             const acquiresOnClock = s => (s.proposal?.theirGive || []).some(p => pickKey(p) === onClockKey);
             const clears = s => s.likelihood >= s.acceptanceLine;
             const countered = s => s.verdict === 'countered';
-            const best = idx === 0
-                ? (suggestions.find(s => acquiresOnClock(s) && clears(s))
+            // 'declined' = below the partner's counter line — a non-starter not worth
+            // surfacing as a recommendation.
+            const isViable = s => !!s && s.verdict !== 'declined';
+            let best, viable;
+            if (idx === 0) {
+                best = suggestions.find(s => acquiresOnClock(s) && clears(s))
                     || suggestions.find(s => acquiresOnClock(s) && countered(s))
                     || suggestions.find(acquiresOnClock)
-                    || suggestions.find(clears)
-                    || suggestions.find(countered)
-                    || suggestions[0])
-                : (suggestions.find(clears)
-                    || suggestions.find(countered)
-                    || suggestions[0]);
+                    || suggestions[0];
+                // Viable only when the headline both acquires the on-clock pick AND
+                // clears the partner's counter line. A 14%-acceptance Move Up (or no
+                // acquiring package at all) is flagged non-viable so the banner can
+                // read "No viable trade" instead of a misleading low-odds rec.
+                viable = isViable(best) && acquiresOnClock(best);
+            } else {
+                best = suggestions.find(clears) || suggestions.find(countered) || suggestions[0];
+                viable = isViable(best);
+            }
             if (!best) return;
             windows.push({
                 rosterId: slot.rosterId,
@@ -807,6 +815,7 @@
                 likelihood: best.likelihood,
                 acceptanceLine: best.acceptanceLine,
                 verdict: best.verdict,
+                viable,
                 onClock: idx === 0,
                 picksAway: idx,
                 pickLabel: 'R' + slot.round + '.' + String(slot.slot || 0).padStart(2, '0'),

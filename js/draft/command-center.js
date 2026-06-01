@@ -922,6 +922,7 @@
             const windows = window.DraftCC.tradeSimulator?.buildLiveTradeWindows?.(state, { lookahead: 5 }) || [];
             const best = windows[0];
             if (!best) return;
+            if (best.viable === false) return; // don't narrate a non-starter trade window
             const alertFloor = Math.max((best.acceptanceLine || 70) - 8, best.suggestion?.evaluation?.counterLine || 0);
             if ((best.likelihood || 0) < alertFloor) return;
             const key = [state.currentIdx, best.rosterId, best.suggestion?.id].join(':');
@@ -5210,8 +5211,9 @@
             const proposal = suggestion.proposal || {};
             const give = formatTradePackageSide(proposal, 'my');
             const get = formatTradePackageSide(proposal, 'their');
+            const viable = tradeWindow.viable !== false;
             const clears = tradeWindow.likelihood >= tradeWindow.acceptanceLine;
-            const statusColor = clears ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-f0a500, #f0a500)';
+            const statusColor = !viable ? 'var(--silver)' : (clears ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-f0a500, #f0a500)');
             return (
                 <div style={{
                     padding: '9px 14px',
@@ -5255,7 +5257,9 @@
                             </span>
                         </div>
                         <div style={{ color: 'var(--silver)', fontSize: '0.64rem', lineHeight: 1.35, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {liveTradeTimingLabel(tradeWindow)} · {suggestion.label || tradeWindow.motive || 'Package'} · Give {give} / Get {get}
+                            {!viable
+                                ? 'No viable trade — ' + tradeWindow.teamName + ' won’t move off ' + tradeWindow.pickLabel + ' near their buyer line.'
+                                : liveTradeTimingLabel(tradeWindow) + ' · ' + (suggestion.label || tradeWindow.motive || 'Package') + ' · Give ' + give + ' / Get ' + get}
                         </div>
                     </div>
                     <div style={{
@@ -5266,9 +5270,9 @@
                         textAlign: 'right',
                         flexShrink: 0,
                     }}>
-                        {tradeWindow.likelihood}% / {tradeWindow.acceptanceLine}%
+                        {!viable ? 'No deal' : tradeWindow.likelihood + '% / ' + tradeWindow.acceptanceLine + '%'}
                         <div style={{ color: 'var(--silver)', opacity: 0.68, fontSize: '0.52rem', fontFamily: FONT_UI, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                            Buyer Line
+                            {!viable ? 'Below counter line' : 'Buyer Line'}
                         </div>
                     </div>
                     <button

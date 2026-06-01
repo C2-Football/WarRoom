@@ -136,7 +136,15 @@
         }, [boardContext]);
 
         const decoratedPool = React.useMemo(() => {
-            return (state.pool || []).map(player => {
+            // Keep undrafted players exactly as state.pool provides them, then re-add
+            // any drafted players from the full original pool so they stay on the board
+            // (struck through) instead of vanishing the moment they're picked.
+            const drafted = state.draftedPids || {};
+            const live = state.pool || [];
+            const liveIds = new Set(live.map(p => String(idOf(p))));
+            const draftedExtra = (state.originalPool || [])
+                .filter(p => drafted[idOf(p)] && !liveIds.has(String(idOf(p))));
+            return [...live, ...draftedExtra].map(player => {
                 const pid = idOf(player);
                 const entry = boardContext?.entries?.[pid] || {};
                 const projections = projectionFor(player);
@@ -160,9 +168,10 @@
                         tier: entry.tier || player.tier || player.csv?.tier || null,
                         rankDelta: dhqRank && activeRank && activeRank < 99999 ? dhqRank - activeRank : 0,
                     },
+                    _drafted: !!drafted[pid],
                 };
             });
-        }, [state.pool, boardContext, activeLane, activeRanks, dhqRanks, aiRanks, myRanks]);
+        }, [state.pool, state.originalPool, state.draftedPids, boardContext, activeLane, activeRanks, dhqRanks, aiRanks, myRanks]);
 
         const available = React.useMemo(() => {
             const filtered = decoratedPool.filter(p => {
@@ -503,9 +512,9 @@
                             <div
                                 key={p.pid}
                                 onClick={() => onOpenModal(p)}
-                                draggable={activeLane === 'my'}
+                                draggable={activeLane === 'my' && !p._drafted}
                                 onDragStart={e => {
-                                    if (activeLane !== 'my') return;
+                                    if (activeLane !== 'my' || p._drafted) return;
                                     setDragPid(idOf(p));
                                     e.dataTransfer.effectAllowed = 'move';
                                     try { e.dataTransfer.setData('text/plain', idOf(p)); } catch (_) {}
@@ -531,8 +540,8 @@
                                     borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.035))',
                                     borderLeft: b.tier ? '2px solid ' + tCol : '2px solid transparent',
                                     paddingLeft: '5px',
-                                    cursor: activeLane === 'my' ? 'grab' : 'pointer',
-                                    opacity: dragPid === idOf(p) ? 0.52 : 1,
+                                    cursor: activeLane === 'my' && !p._drafted ? 'grab' : 'pointer',
+                                    opacity: p._drafted ? 0.4 : (dragPid === idOf(p) ? 0.52 : 1),
                                     background: dragPid === idOf(p) ? 'var(--acc-fill2, rgba(212,175,55,0.10))' : (idx === 0 ? 'var(--acc-fill1, rgba(212,175,55,0.045))' : 'transparent'),
                                     transition: 'background 0.1s',
                                 }}
@@ -542,7 +551,7 @@
                                 <span style={{ fontSize: '0.62rem', color: rowRank <= 12 ? 'var(--gold)' : 'var(--ov-8, rgba(255,255,255,0.34))', textAlign: 'right', fontFamily: FONT_MONO }}>{rowRank}</span>
                                 <div style={{ minWidth: 0 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
-                                        <span style={{ color: 'var(--white)', fontWeight: 700, fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                                        <span style={{ color: 'var(--white)', fontWeight: 700, fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: p._drafted ? 'line-through' : 'none' }}>{p.name}</span>
                                         {b.rankDelta !== 0 && activeLane !== 'dhq' && (
                                             <span style={{
                                                 flexShrink: 0,
