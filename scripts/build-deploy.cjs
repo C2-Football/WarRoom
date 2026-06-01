@@ -16,6 +16,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const Babel = require('@babel/standalone');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -25,9 +26,16 @@ const OUT_DIR = path.join(ROOT, 'dist-deploy');
 const ENTRIES = ['index.html', 'draft-warroom.html', 'free-agency.html', 'trade-calculator.html'];
 
 const compiled = new Set(); // source pathnames already compiled (dedupe across entries)
+const assetHash = new Map(); // pathname -> content hash of the compiled output
 let compiledCount = 0;
 
 function ensureDir(dir) { fs.mkdirSync(dir, { recursive: true }); }
+
+// Short content hash for cache-busting. Derived from the *compiled* output, so
+// the ?v= changes exactly when a module's shipped bytes change — no manual bumps.
+function contentHash(str) {
+  return crypto.createHash('sha256').update(str).digest('hex').slice(0, 10);
+}
 
 function transform(code, filename) {
   return Babel.transform(code, {
@@ -46,7 +54,9 @@ function compileExternal(src) {
   if (compiled.has(pathname)) return;
   const out = path.join(OUT_DIR, pathname);
   ensureDir(path.dirname(out));
-  fs.writeFileSync(out, transform(fs.readFileSync(inputPath, 'utf8'), pathname) + '\n', 'utf8');
+  const code = transform(fs.readFileSync(inputPath, 'utf8'), pathname) + '\n';
+  fs.writeFileSync(out, code, 'utf8');
+  assetHash.set(pathname, contentHash(code));
   compiled.add(pathname);
   compiledCount++;
 }
@@ -91,6 +101,22 @@ function processEntry(entry) {
   });
 })();`,
   );
+
+  // 4. Content-hash cache-bust EVERY local script's ?v= — compiled JSX modules
+  //    (hash of the emitted output) and raw plain-JS modules (hash of the source)
+  //    alike — so a stale or missing hand-maintained ?v= can never pin an old
+  //    module after a deploy. External / CDN URLs are left untouched.
+  html = html.replace(/<script\b([^>]*?)\bsrc=(["'])([^"']+)\2([^>]*)>/gi, (m, before, q, src, after) => {
+    if (/^(https?:)?\/\//i.test(src)) return m; // external/CDN — leave as-is
+    const pathname = src.split('?')[0];
+    let hash = assetHash.get(pathname); // compiled JSX module → hash of emitted output
+    if (!hash) {
+      const rawPath = path.join(ROOT, pathname);
+      if (!fs.existsSync(rawPath)) return m; // unknown local asset — leave as-is
+      hash = contentHash(fs.readFileSync(rawPath));
+    }
+    return `<script${before}src=${q}${pathname}?v=${hash}${q}${after}>`;
+  });
 
   // Safety net: the deploy must ship NO in-browser Babel (match real script tags,
   // not the word "text/babel" appearing inside a comment/string).
