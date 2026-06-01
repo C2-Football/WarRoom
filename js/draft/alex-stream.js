@@ -91,18 +91,14 @@
             dispatch({ type: 'ALEX_SET_THINKING', thinking: true });
 
             try {
-                // Build short context from current state
-                const myPicks = state.picks.filter(p => p.rosterId === state.userRosterId || p.isUser);
-                const currentSlot = state.pickOrder[state.currentIdx];
-                const contextLines = [
-                    `Round ${currentSlot?.round || '?'}, pick ${currentSlot?.overall || '?'} / ${state.pickOrder.length}.`,
-                    `User has made ${myPicks.length} picks: ${myPicks.map(p => p.pos + ' ' + p.name).join(', ') || 'none'}.`,
-                    state.pinnedRosterId ? `Pinned team: ${state.personas[state.pinnedRosterId]?.teamName} — DNA ${state.personas[state.pinnedRosterId]?.draftDna?.label}, posture ${state.personas[state.pinnedRosterId]?.posture?.label}.` : '',
-                ].filter(Boolean).join(' ');
+                // Rich, board-aware context (shared with the Ask windows)
+                const contextLines = window.DraftCC.buildAskContext
+                    ? window.DraftCC.buildAskContext(state)
+                    : '';
 
-                const messages = [
-                    { role: 'user', content: contextLines + '\n\n' + text },
-                ];
+                // Pass the bare question as the message; dhqAI injects the
+                // context itself, so don't duplicate it into the message.
+                const messages = [{ role: 'user', content: text }];
                 const response = await window.dhqAI('draft-chat', text, contextLines, { messages });
                 dispatch({ type: 'ALEX_SPEND_FLASH' });
                 window.OD?.track?.('alex_response_actioned', {
@@ -114,7 +110,7 @@
                     metadata: { action: 'draft_alex_asked', quickPrompt: CHIP_PROMPTS.some(p => p.text === text) },
                 });
 
-                const replyText = typeof response === 'string' ? response : (response?.content || response?.text || JSON.stringify(response).slice(0, 400));
+                const replyText = typeof response === 'string' ? response : (response?.content || response?.text || JSON.stringify(response));
                 dispatch({
                     type: 'ALEX_EVENT_ADD',
                     event: {
@@ -122,7 +118,9 @@
                         badge: '✦',
                         color: 'var(--gold)',
                         title: 'Alex',
-                        text: replyText.slice(0, 400),
+                        text: replyText,
+                        fullText: replyText,
+                        expandable: replyText.length > 160,
                     },
                 });
             } catch (e) {
@@ -325,13 +323,15 @@
                     <div ref={streamEndRef} />
                 </div>
 
-                {/* Ask Alex chips */}
+                {/* Ask Alex chips — open a dedicated, dismissible answer window
+                    instead of posting into this shared stream. */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginBottom: '5px', flexShrink: 0 }}>
                     {CHIP_PROMPTS.map(chip => (
                         <button
                             key={chip.label}
-                            disabled={pendingAsk}
-                            onClick={() => sendAsk(chip.text)}
+                            onClick={() => window.dispatchEvent(new CustomEvent('wr:ask-open', {
+                                detail: { title: chip.label, prompt: chip.text },
+                            }))}
                             style={{
                                 fontSize: '0.52rem',
                                 padding: '3px 6px',
@@ -339,9 +339,8 @@
                                 border: '1px solid rgba(124,107,248,0.2)',
                                 color: 'rgba(155,138,251,0.9)',
                                 borderRadius: '10px',
-                                cursor: pendingAsk ? 'not-allowed' : 'pointer',
+                                cursor: 'pointer',
                                 fontFamily: FONT_UI,
-                                opacity: pendingAsk ? 0.5 : 1,
                             }}
                         >{chip.label}</button>
                     ))}

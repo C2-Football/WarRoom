@@ -3930,6 +3930,7 @@
         const BigBoardPanel = window.DraftCC.BigBoardPanel;
         const OpponentIntelPanel = window.DraftCC.OpponentIntelPanel;
         const AlexStreamPanel = window.DraftCC.AlexStreamPanel;
+        const AskAnswerWindow = window.DraftCC.AskAnswerWindow;
         const TradeModal = window.DraftCC.TradeModal;
         const TradeProposer = window.DraftCC.TradeProposer;
 
@@ -4484,6 +4485,9 @@
                         <AlexStreamPanel state={state} dispatch={dispatch} />
                     </div>
                 </div>
+
+                {/* Floating "Ask Alex" answer window — opened by action buttons (fixed-position) */}
+                {AskAnswerWindow && <AskAnswerWindow state={state} />}
 
                 {/* Phase 3: CPU trade offer modal (fixed-position) */}
                 {state.activeOffer && TradeModal && <TradeModal state={state} dispatch={dispatch} />}
@@ -5260,6 +5264,7 @@
         function MobileFeed({ state, dispatch, onStart, isUserTurn, currentSlot }) {
         const BigBoardPanel = window.DraftCC.BigBoardPanel;
         const AlexStreamPanel = window.DraftCC.AlexStreamPanel;
+        const AskAnswerWindow = window.DraftCC.AskAnswerWindow;
 
         if (state.phase === 'setup') {
             return (
@@ -5307,6 +5312,7 @@
                 <div style={{ height: 300 }}>
                     <DraftPickListPanel state={state} currentSlot={currentSlot} />
                 </div>
+                {AskAnswerWindow && <AskAnswerWindow state={state} />}
             </div>
         );
     }
