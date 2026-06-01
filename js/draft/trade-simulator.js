@@ -616,6 +616,81 @@
         };
     }
 
+    // ── buildSuggestionReasoning — interface contract consumed by ──────
+    // command-center.js (trade-up reasoning) AND the proposer's SuggestionRail.
+    // Shape: { headline: string, drivers: [{ label, detail, tone }] }
+    // where tone ∈ 'good' | 'bad' | 'neutral'. Derived purely from the
+    // evaluation object already computed — never recomputes value tables.
+    function buildSuggestionReasoning(state, persona, evaluation, opts = {}) {
+        const drivers = [];
+        const myGiveDHQ = Math.round(Number(evaluation?.myGiveDHQ || 0));
+        const theirGiveDHQ = Math.round(Number(evaluation?.theirGiveDHQ || 0));
+        const acquired = opts.acquiredPick || null;
+        const acquiredVal = acquired ? pickValueFor(state, acquired) : theirGiveDHQ;
+        const slotLabel = acquired
+            ? 'R' + acquired.round + '.' + String(acquired.slot || 0).padStart(2, '0')
+            : 'their slot';
+
+        // Net DHQ — what you pay vs the value you acquire.
+        if (myGiveDHQ > 0 || theirGiveDHQ > 0) {
+            const net = theirGiveDHQ - myGiveDHQ;
+            drivers.push({
+                label: 'Net value',
+                detail: 'You pay ~' + myGiveDHQ.toLocaleString() + ', get ~' + theirGiveDHQ.toLocaleString()
+                    + (acquired ? ' (' + slotLabel + ' slot)' : ''),
+                tone: net >= 0 ? 'good' : (net >= -Math.max(150, myGiveDHQ * 0.08) ? 'neutral' : 'bad'),
+            });
+        }
+
+        // Timing — the +10% / +5% move-up motive from timingModifier.
+        const timingMod = (evaluation?.modifiers || []).find(m => /move-up|pick-window|timing/i.test(m.label || ''));
+        if (timingMod && Number(timingMod.impact)) {
+            const up = Number(timingMod.impact) > 0;
+            drivers.push({
+                label: 'Timing',
+                detail: (up ? '+' : '') + timingMod.impact + '% — ' + (up ? 'they value moving up' : 'they surrender the earlier window'),
+                tone: up ? 'good' : 'bad',
+            });
+        }
+
+        // Their buyer line / DNA — where the deal has to clear.
+        const dnaLabel = persona?.tradeDna?.label || persona?.draftDna?.label || 'Balanced';
+        const line = Math.round(Number(evaluation?.acceptanceLine || acceptanceLineFor(state, persona) || 70));
+        drivers.push({
+            label: 'Buyer line',
+            detail: dnaLabel + ' profile clears at ' + line + '%',
+            tone: 'neutral',
+        });
+
+        // Value cliff / window — why act now on the earlier pick.
+        if (acquired) {
+            const cliff = opts.cliffNote ? ' ' + opts.cliffNote : '';
+            drivers.push({
+                label: 'Why now',
+                detail: 'Buy the earlier ' + slotLabel + ' window before the tier breaks.' + cliff,
+                tone: 'good',
+            });
+        }
+
+        const likelihood = Math.round(Number(evaluation?.likelihood || 0));
+        const cleared = likelihood >= line;
+        let headline = opts.headline;
+        if (!headline) {
+            if (opts.isMoonshot) {
+                headline = 'Long shot — you overpay to force the window open.';
+            } else if (acquired) {
+                headline = cleared
+                    ? 'Pay a small premium to jump to ' + slotLabel + ' — it clears their line.'
+                    : 'Package your capital against their buyer line for the earlier ' + slotLabel + ' slot.';
+            } else {
+                headline = cleared
+                    ? 'Value and owner profile both say this can get done.'
+                    : 'Close, but the package is still light against their buyer line.';
+            }
+        }
+        return { headline, drivers };
+    }
+
     function buildTradeSuggestions(state, targetRosterId, opts = {}) {
         const persona = state.personas?.[targetRosterId];
         const myPersona = state.personas?.[state.userRosterId];
@@ -631,19 +706,21 @@
         const myTopPlayers = topPlayersFor(state, state.userRosterId, 4);
         const theirTopPlayers = topPlayersFor(state, targetRosterId, 4);
 
-        function push(id, label, intent, rationale, proposal) {
-            if (!proposalHasAssets(proposal)) return;
-            if (!(proposal.myGive || []).length && !(proposal.myGivePlayers || []).length && !proposal.myGiveFaab) return;
-            if (!(proposal.theirGive || []).length && !(proposal.theirGivePlayers || []).length && !proposal.theirGiveFaab) return;
+        function push(id, label, intent, rationale, proposal, reasonOpts = {}) {
+            if (!proposalHasAssets(proposal)) return null;
+            if (!(proposal.myGive || []).length && !(proposal.myGivePlayers || []).length && !proposal.myGiveFaab) return null;
+            if (!(proposal.theirGive || []).length && !(proposal.theirGivePlayers || []).length && !proposal.theirGiveFaab) return null;
             const key = proposalKey(proposal);
-            if (seen.has(key)) return;
+            if (seen.has(key)) return null;
             seen.add(key);
             const evaluation = evaluateUserProposal(state, proposal, { preview: true, noCounter: true });
-            suggestions.push({
+            const reasoning = buildSuggestionReasoning(state, persona, evaluation, reasonOpts);
+            const suggestion = {
                 id,
                 label,
                 intent,
                 rationale,
+                reasoning,
                 proposal,
                 evaluation,
                 likelihood: evaluation.likelihood || 0,
@@ -653,7 +730,9 @@
                     : 'declined',
                 myGiveDHQ: evaluation.myGiveDHQ || 0,
                 theirGiveDHQ: evaluation.theirGiveDHQ || 0,
-            });
+            };
+            suggestions.push(suggestion);
+            return suggestion;
         }
 
         // Target the partner's EARLIEST remaining pick (the one literally on the
@@ -671,12 +750,16 @@
             // package stays two-sided even when the pick's value resolves to 0
             // (a one-sided proposal is dropped by push()).
             proposal = addUserPicksUntil(state, proposal, Math.round(Math.max(1, targetPickValue) * 0.92), 3);
+            const earliestLabel = 'R' + theirEarliest.round + '.' + String(theirEarliest.slot || 0).padStart(2, '0');
             push(
                 'move-up',
                 'Move Up',
-                'Buy the earlier pick window',
+                'Buy the earlier ' + earliestLabel + ' window',
+                // Fallback rationale only — reasoning.headline (set below) is the
+                // dynamic, evaluation-aware version the UI surfaces.
                 'Packages your draft capital against their buyer line for an earlier slot.',
-                proposal
+                proposal,
+                { acquiredPick: theirEarliest }
             );
         }
 
@@ -749,7 +832,7 @@
             }
         }
 
-        return suggestions
+        const ranked = suggestions
             .sort((a, b) => {
                 const aClear = a.likelihood >= a.acceptanceLine ? 1 : 0;
                 const bClear = b.likelihood >= b.acceptanceLine ? 1 : 0;
@@ -757,6 +840,49 @@
                 return b.likelihood - a.likelihood;
             })
             .slice(0, 4);
+
+        // Moonshot fallback: when NO normal package even clears the counter
+        // line (all declined, or nothing generated), the user has no path to
+        // "get in." Build exactly ONE aggressively-overpaying deal to acquire
+        // the partner's earliest pick so the rail always offers a move.
+        const hasViable = ranked.some(s => s.verdict !== 'declined');
+        if (!hasViable && theirEarliest) {
+            const targetPickValue = Math.max(1, pickValueFor(state, theirEarliest));
+            const overpayTarget = Math.round(targetPickValue * 1.3);
+            let moonshot = normalizeProposal(targetRosterId, { theirGive: [theirEarliest] });
+            moonshot = addUserPicksUntil(state, moonshot, overpayTarget, 4);
+            // If picks alone can't reach the overpay target, sweeten with FAAB
+            // (converted via the same conservative ratio the evaluator uses).
+            const shortfall = overpayTarget - proposalValue(state, moonshot, 'my');
+            if (shortfall > 0) {
+                moonshot = { ...moonshot, myGiveFaab: Math.min(1000, Math.round(shortfall / 0.7)) };
+            }
+            const moonEval = evaluateUserProposal(state, moonshot, { preview: true, noCounter: true });
+            const earliestLabel = 'R' + theirEarliest.round + '.' + String(theirEarliest.slot || 0).padStart(2, '0');
+            ranked.push({
+                id: 'moonshot',
+                label: 'MOONSHOT',
+                intent: 'Overpay to force the ' + earliestLabel + ' window open',
+                rationale: 'Aggressive overpay — low odds, but the only path in when nothing else clears their line.',
+                reasoning: buildSuggestionReasoning(state, persona, moonEval, {
+                    acquiredPick: theirEarliest,
+                    isMoonshot: true,
+                    headline: 'Long shot — you overpay to force the window open.',
+                }),
+                proposal: moonshot,
+                evaluation: moonEval,
+                likelihood: moonEval.likelihood || 0,
+                acceptanceLine: moonEval.acceptanceLine || acceptanceLineFor(state, persona),
+                verdict: (moonEval.likelihood || 0) >= (moonEval.acceptanceLine || 70) ? 'accepted'
+                    : (moonEval.likelihood || 0) >= (moonEval.counterLine || 50) ? 'countered'
+                    : 'declined',
+                myGiveDHQ: moonEval.myGiveDHQ || 0,
+                theirGiveDHQ: moonEval.theirGiveDHQ || 0,
+                isMoonshot: true,
+            });
+        }
+
+        return ranked;
     }
 
     function buildLiveTradeWindows(state, opts = {}) {
@@ -822,6 +948,9 @@
                 overall: slot.overall,
                 motive: best.intent || best.label,
                 reason: best.rationale,
+                // Trade-up reasoning contract (consumed by command-center.js):
+                // { headline, drivers:[{ label, detail, tone }] }.
+                reasoning: best.reasoning || null,
             });
         });
 
@@ -1090,6 +1219,7 @@
         computeProposalEvaluation,
         buildCounterOffer,
         buildTradeSuggestions,
+        buildSuggestionReasoning,
         buildLiveTradeWindows,
         describeTradePartner,
         validateProposalRealism,

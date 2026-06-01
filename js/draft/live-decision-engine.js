@@ -328,10 +328,107 @@
         return { pickLabel, picksAway, available, outlier };
     }
 
+    // Lightweight, pure signals for the Alex live commentary stream. Returns a
+    // bundle the stream effect can dedupe + narrate without any model calls:
+    //   tierBreak  — a positional tier that just emptied to its last man (uses
+    //                the same tierAlert() cliff logic, surfaced per position).
+    //   valueCliff — the steepest DHQ drop-off among the top available players.
+    //   needTension— the user's top roster need vs. the board's best-player-available.
+    function liveStreamSignals(state) {
+        const rows = candidates(state, 48).filter(c => !c.fade);
+        const out = { tierBreak: null, valueCliff: null, needTension: null };
+        if (!rows.length) return out;
+        const nm = c => c.player?.name || c.player?.full_name || c.player?.pid || 'Player';
+        const ps = c => posOf(c.player) || '';
+
+        // ── Tier break: a position whose remaining top tier is down to its last
+        // player. Reuse tierAlert() over the position's own pocket so the wording
+        // and the <=1 cliff threshold stay consistent.
+        const byPos = {};
+        rows.forEach(c => {
+            const pos = ps(c);
+            if (!pos) return;
+            (byPos[pos] = byPos[pos] || []).push(c);
+        });
+        let tierBreak = null;
+        Object.keys(byPos).forEach(pos => {
+            const alert = tierAlert(byPos[pos]);
+            if (!alert) return;
+            const topTier = byPos[pos].find(c => c.tier);
+            const tier = topTier?.tier || null;
+            const lastMan = byPos[pos].filter(c => String(c.tier) === String(tier));
+            // Only the genuine cliffs (one or zero left in the pocket's top tier).
+            if (lastMan.length > 1) return;
+            const survivor = byPos[pos][lastMan.length] || null;
+            if (!tierBreak || (tier && (!tierBreak.tier || tier < tierBreak.tier))) {
+                tierBreak = {
+                    pos,
+                    tier,
+                    lastPlayer: lastMan[0] ? nm(lastMan[0]) : null,
+                    nextPlayer: survivor ? nm(survivor) : null,
+                    nextTier: survivor?.tier || null,
+                };
+            }
+        });
+        out.tierBreak = tierBreak;
+
+        // ── Value cliff: biggest DHQ drop-off between consecutive top-board
+        // players. Steep = the gap exceeds ~22% of the higher player's DHQ.
+        const top = rows.slice(0, 14);
+        let cliff = null;
+        for (let i = 0; i < top.length - 1; i++) {
+            const a = top[i], b = top[i + 1];
+            const dropAbs = num(a.dhq) - num(b.dhq);
+            const dropPct = a.dhq ? dropAbs / a.dhq : 0;
+            if (dropAbs <= 0) continue;
+            if (!cliff || dropPct > cliff.dropPct) {
+                cliff = {
+                    afterPlayer: nm(a),
+                    afterPos: ps(a),
+                    afterDhq: Math.round(num(a.dhq)),
+                    nextPlayer: nm(b),
+                    nextDhq: Math.round(num(b.dhq)),
+                    dropAbs: Math.round(dropAbs),
+                    dropPct,
+                    index: i,
+                };
+            }
+        }
+        // Only surface a steep, early cliff (top of the board, >= 22% gap).
+        if (cliff && cliff.dropPct >= 0.22 && cliff.index <= 6) out.valueCliff = cliff;
+
+        // ── Need vs. BPA: the user's most urgent need pocket vs. the absolute
+        // best player available. Tension when the BPA is off-need but the need
+        // is real and the on-need option is a clear step down.
+        const needs = userNeedMap(state);
+        const needPositions = Object.keys(needs).sort((a, b) => needs[b] - needs[a]);
+        const topNeed = needPositions[0];
+        if (topNeed) {
+            const bpa = rows[0];
+            const bpaPos = ps(bpa);
+            if (bpa && bpaPos && bpaPos !== topNeed) {
+                const onNeed = rows.find(c => ps(c) === topNeed);
+                const gap = onNeed ? num(bpa.dhq) - num(onNeed.dhq) : null;
+                out.needTension = {
+                    needPos: topNeed,
+                    bpaName: nm(bpa),
+                    bpaPos,
+                    onNeedName: onNeed ? nm(onNeed) : null,
+                    gap: gap == null ? null : Math.round(gap),
+                    urgent: needs[topNeed] >= 22,
+                };
+            }
+        }
+
+        return out;
+    }
+
     window.DraftCC = window.DraftCC || {};
     window.DraftCC.liveDecisionEngine = {
         buildDecisionDeck,
         buildLiveReadout,
+        liveStreamSignals,
+        tierAlert,
         _private: {
             candidates,
             nextUserPick,

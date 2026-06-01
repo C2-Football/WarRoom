@@ -171,20 +171,9 @@
                             </div>
                         </div>
 
-                        {/* Stat rows */}
-                        <StatRow label="DRAFT DNA" value={persona.draftDna?.label || 'Balanced'} color="var(--gold)" />
-                        <StatRow label="TRADE DNA" value={persona.tradeDna?.label || '—'} color={persona.tradeDna?.color || 'var(--silver)'} />
-                        <StatRow label="POSTURE" value={persona.posture?.label || 'Neutral'} color={persona.posture?.color || 'var(--silver)'} />
-                        <StatRow label="TIER" value={persona.assessment?.tier || '—'} color="var(--silver)" />
-                        <StatRow label="HEALTH" value={(persona.assessment?.healthScore || 0) + ' / 100'} color={healthColor(persona.assessment?.healthScore || 0)} />
-
-                        {persona.ownerIntel && (
-                            <OwnerIntelBlock ownerIntel={persona.ownerIntel} />
-                        )}
-
-                        {/* Needs */}
+                        {/* Needs — surfaced high, right under identity */}
                         {persona.assessment?.needs?.length > 0 && (
-                            <div style={{ marginTop: '8px' }}>
+                            <div style={{ marginBottom: '4px' }}>
                                 <SectionLabel>Needs</SectionLabel>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
                                     {persona.assessment.needs.slice(0, 4).map((n, i) => {
@@ -208,38 +197,18 @@
                             </div>
                         )}
 
-                        {/* Predictions — Phase 2 */}
-                        {(persona.predictions?.willReach?.length > 0 || persona.predictions?.willPassOn?.length > 0 || persona.predictions?.likelyPick) && (
-                            <div style={{
-                                marginTop: '10px',
-                                padding: '8px 10px',
-                                background: 'var(--acc-fill1, rgba(212,175,55,0.05))',
-                                border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))',
-                                borderRadius: '5px',
-                            }}>
-                                <SectionLabel>Prediction Engine</SectionLabel>
-                                {persona.predictions.likelyPick && (
-                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', marginBottom: '5px', color: 'var(--white)', fontFamily: FONT_UI }}>
-                                        <span style={{ color: 'var(--silver)', opacity: 0.6 }}>Likely target: </span>
-                                        <span style={{ fontWeight: 700 }}>{persona.predictions.likelyPick.name}</span>
-                                        <span style={{ color: 'var(--gold)', marginLeft: '4px', fontSize: 'var(--text-label, 0.75rem)' }}>
-                                            ({persona.predictions.likelyPick.pos})
-                                        </span>
-                                    </div>
-                                )}
-                                {persona.predictions.willReach?.length > 0 && (
-                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginBottom: '3px', fontFamily: FONT_UI }}>
-                                        <span style={{ color: 'var(--k-2ecc71, #2ecc71)', fontWeight: 700 }}>↑ Will reach: </span>
-                                        {persona.predictions.willReach.map(r => r.pos + ' (+' + Math.round(r.delta * 100) + '%)').join(', ')}
-                                    </div>
-                                )}
-                                {persona.predictions.willPassOn?.length > 0 && (
-                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', fontFamily: FONT_UI }}>
-                                        <span style={{ color: 'var(--k-e74c3c, #e74c3c)', fontWeight: 700 }}>↓ Will pass: </span>
-                                        {persona.predictions.willPassOn.map(r => r.pos + ' (' + Math.round(r.delta * 100) + '%)').join(', ')}
-                                    </div>
-                                )}
-                            </div>
+                        {/* ── PREDICTION ENGINE — visual centerpiece ── */}
+                        <PredictionEngine predictions={persona.predictions} />
+
+                        {/* Stat rows (DNA) */}
+                        <StatRow label="DRAFT DNA" value={persona.draftDna?.label || 'Balanced'} color="var(--gold)" />
+                        <StatRow label="TRADE DNA" value={persona.tradeDna?.label || '—'} color={persona.tradeDna?.color || 'var(--silver)'} />
+                        <StatRow label="POSTURE" value={persona.posture?.label || 'Neutral'} color={persona.posture?.color || 'var(--silver)'} />
+                        <StatRow label="TIER" value={persona.assessment?.tier || '—'} color="var(--silver)" />
+                        <StatRow label="HEALTH" value={(persona.assessment?.healthScore || 0) + ' / 100'} color={healthColor(persona.assessment?.healthScore || 0)} />
+
+                        {persona.ownerIntel && (
+                            <OwnerIntelBlock ownerIntel={persona.ownerIntel} />
                         )}
 
                         {/* Psych taxes (vs. user) */}
@@ -361,6 +330,239 @@
                                         borderRadius: '4px',
                                         cursor: onPropose ? 'pointer' : 'not-allowed',
                                     }}>PROPOSE TRADE</button>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // ── Prediction Engine — confidence model ──────────────────────────
+    // delta is a fractional multiplier (0.18 => +18% inflation vs baseline).
+    // confidence may arrive as a 0-1 scalar; if absent we derive one from the
+    // strongest "will reach" signal so the hero always reads as conviction.
+    function predConfidence(predictions) {
+        const c = predictions?.likelyPick?.confidence;
+        if (typeof c === 'number' && isFinite(c) && c >= 0 && c <= 1) {
+            return Math.round(c * 100);
+        }
+        // Derive from signal strength: top reach delta scaled into a band.
+        const reach = predictions?.willReach || [];
+        const topDelta = reach.length ? Math.abs(reach[0].delta || 0) : 0;
+        if (!topDelta) return 50; // no signal → neutral MED
+        // 0.25 delta (a strong reach) maps near the top of the band.
+        return Math.max(35, Math.min(85, Math.round(40 + (topDelta / 0.25) * 45)));
+    }
+
+    function confBand(pct) {
+        if (pct >= 66) return { label: 'HIGH', color: 'var(--k-2ecc71, #2ecc71)' };
+        if (pct >= 40) return { label: 'MED', color: 'var(--gold)' };
+        return { label: 'LOW', color: 'var(--k-f0a500, #f0a500)' };
+    }
+
+    // A single ranked prediction row: position badge + delta + proportional bar.
+    function PredRow({ pos, delta, max, sign, color }) {
+        const pct = Math.round(Math.abs(delta) * 100);
+        const barW = max > 0 ? Math.max(8, Math.round((Math.abs(delta) / max) * 100)) : 8;
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0', fontFamily: FONT_UI }}>
+                <span style={{
+                    fontSize: 'var(--text-label, 0.75rem)',
+                    fontWeight: 800,
+                    color,
+                    minWidth: '34px',
+                    padding: '1px 5px',
+                    textAlign: 'center',
+                    borderRadius: '3px',
+                    background: wrAlpha(color, '1a'),
+                    border: '1px solid ' + wrAlpha(color, '3a'),
+                    letterSpacing: '0.04em',
+                }}>{pos}</span>
+                <div style={{ flex: 1, height: '6px', borderRadius: '3px', background: 'var(--ov-3, rgba(255,255,255,0.05))', overflow: 'hidden' }}>
+                    <div style={{ width: barW + '%', height: '100%', background: color, borderRadius: '3px', transition: 'width 0.2s ease' }} />
+                </div>
+                <span style={{
+                    fontSize: 'var(--text-label, 0.75rem)',
+                    fontWeight: 700,
+                    color,
+                    minWidth: '36px',
+                    textAlign: 'right',
+                }}>{sign}{pct}%</span>
+            </div>
+        );
+    }
+
+    function PredictionEngine({ predictions }) {
+        const likely = predictions?.likelyPick;
+        const reach = (predictions?.willReach || []).slice(0, 3);
+        const pass = (predictions?.willPassOn || []).slice(0, 3);
+        const hasSignal = !!likely || reach.length > 0 || pass.length > 0;
+
+        const goodCol = 'var(--k-2ecc71, #2ecc71)';
+        const badCol = 'var(--k-e74c3c, #e74c3c)';
+        const reachMax = reach.reduce((m, r) => Math.max(m, Math.abs(r.delta || 0)), 0);
+        const passMax = pass.reduce((m, r) => Math.max(m, Math.abs(r.delta || 0)), 0);
+
+        const conf = predConfidence(predictions);
+        const band = confBand(conf);
+
+        return (
+            <div style={{
+                margin: '10px 0',
+                padding: '0',
+                background: 'var(--acc-fill1, rgba(212,175,55,0.06))',
+                border: '1px solid var(--acc-line1, rgba(212,175,55,0.28))',
+                borderRadius: '6px',
+                overflow: 'hidden',
+            }}>
+                {/* Gold-accented header bar */}
+                <div style={{
+                    padding: '6px 10px',
+                    background: 'var(--acc-fill2, rgba(212,175,55,0.12))',
+                    borderBottom: hasSignal ? '1px solid var(--acc-line2, rgba(212,175,55,0.3))' : 'none',
+                    display: 'flex',
+                    alignItems: 'baseline',
+                    gap: '7px',
+                }}>
+                    <span style={{
+                        fontSize: 'var(--text-label, 0.75rem)',
+                        fontWeight: 800,
+                        color: 'var(--gold)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em',
+                        fontFamily: FONT_DISPL,
+                    }}>◈ Prediction Engine</span>
+                    <span style={{
+                        fontSize: 'var(--text-micro, 0.6875rem)',
+                        color: 'var(--silver)',
+                        opacity: 0.6,
+                        fontFamily: FONT_UI,
+                    }}>what this GM does next</span>
+                </div>
+
+                {!hasSignal && (
+                    <div style={{
+                        padding: '14px 10px',
+                        textAlign: 'center',
+                        color: 'var(--silver)',
+                        opacity: 0.55,
+                        fontSize: 'var(--text-label, 0.75rem)',
+                        fontFamily: FONT_UI,
+                    }}>
+                        <span style={{ opacity: 0.6 }}>◌ </span>Gathering read…
+                    </div>
+                )}
+
+                {hasSignal && (
+                    <div style={{ padding: '8px 10px' }}>
+                        {/* HERO — most likely pick */}
+                        {likely && (
+                            <div style={{ marginBottom: (reach.length || pass.length) ? '9px' : '0' }}>
+                                <div style={{
+                                    fontSize: 'var(--text-label, 0.75rem)',
+                                    color: 'var(--silver)',
+                                    opacity: 0.6,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.06em',
+                                    fontFamily: FONT_UI,
+                                    marginBottom: '2px',
+                                }}>Most likely pick</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '5px' }}>
+                                    <span style={{
+                                        fontSize: 'var(--text-body, 1rem)',
+                                        fontWeight: 700,
+                                        color: 'var(--white)',
+                                        fontFamily: FONT_DISPL,
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        flex: 1,
+                                        minWidth: 0,
+                                    }}>{likely.name}</span>
+                                    {likely.pos && (
+                                        <span style={{
+                                            fontSize: 'var(--text-label, 0.75rem)',
+                                            fontWeight: 800,
+                                            color: 'var(--gold)',
+                                            padding: '1px 6px',
+                                            borderRadius: '3px',
+                                            background: wrAlpha('var(--k-d4af37, #d4af37)', '1a'),
+                                            border: '1px solid ' + wrAlpha('var(--k-d4af37, #d4af37)', '3a'),
+                                            letterSpacing: '0.04em',
+                                            fontFamily: FONT_UI,
+                                        }}>{likely.pos}</span>
+                                    )}
+                                </div>
+                                {/* Confidence readout: bar + chip */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                                    <span style={{
+                                        fontSize: 'var(--text-label, 0.75rem)',
+                                        color: 'var(--silver)',
+                                        opacity: 0.7,
+                                        fontFamily: FONT_UI,
+                                        minWidth: '64px',
+                                    }}>Confidence</span>
+                                    <div style={{ flex: 1, height: '7px', borderRadius: '4px', background: 'var(--ov-3, rgba(255,255,255,0.05))', overflow: 'hidden' }}>
+                                        <div style={{ width: conf + '%', height: '100%', background: band.color, borderRadius: '4px', transition: 'width 0.2s ease' }} />
+                                    </div>
+                                    <span style={{
+                                        fontSize: 'var(--text-label, 0.75rem)',
+                                        fontWeight: 800,
+                                        color: band.color,
+                                        fontFamily: FONT_UI,
+                                        minWidth: '30px',
+                                        textAlign: 'right',
+                                    }}>{conf}%</span>
+                                    <span style={{
+                                        fontSize: 'var(--text-micro, 0.6875rem)',
+                                        fontWeight: 800,
+                                        color: band.color,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.06em',
+                                        padding: '1px 5px',
+                                        borderRadius: '3px',
+                                        background: wrAlpha(band.color, '1a'),
+                                        border: '1px solid ' + wrAlpha(band.color, '3a'),
+                                        fontFamily: FONT_UI,
+                                    }}>{band.label}</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* WILL REACH FOR */}
+                        {reach.length > 0 && (
+                            <div style={{ marginBottom: pass.length ? '8px' : '0' }}>
+                                <div style={{
+                                    fontSize: 'var(--text-label, 0.75rem)',
+                                    fontWeight: 700,
+                                    color: goodCol,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.06em',
+                                    fontFamily: FONT_UI,
+                                    marginBottom: '2px',
+                                }}>↑ Will reach for</div>
+                                {reach.map((r, i) => (
+                                    <PredRow key={'reach' + i} pos={r.pos} delta={r.delta} max={reachMax} sign="+" color={goodCol} />
+                                ))}
+                            </div>
+                        )}
+
+                        {/* WILL PASS ON */}
+                        {pass.length > 0 && (
+                            <div>
+                                <div style={{
+                                    fontSize: 'var(--text-label, 0.75rem)',
+                                    fontWeight: 700,
+                                    color: badCol,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.06em',
+                                    fontFamily: FONT_UI,
+                                    marginBottom: '2px',
+                                }}>↓ Will pass on</div>
+                                {pass.map((r, i) => (
+                                    <PredRow key={'pass' + i} pos={r.pos} delta={r.delta} max={passMax} sign="−" color={badCol} />
+                                ))}
                             </div>
                         )}
                     </div>

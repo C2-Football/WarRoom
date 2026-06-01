@@ -1826,8 +1826,8 @@
                     relatedPickNo: action.event.relatedPickNo || null,
                     ts: action.event.ts || Date.now(),
                 };
-                // Cap stream at 50 most recent events
-                const newStream = [ev, ...state.alex.stream].slice(0, 50);
+                // Cap stream at 80 most recent events (richer Alex stream)
+                const newStream = [ev, ...state.alex.stream].slice(0, 80);
                 return {
                     ...state,
                     alex: { ...state.alex, stream: newStream },
@@ -2466,6 +2466,8 @@
         normalizePickRecord,
         buildPickedByIdx,
         leagueTotalsFromPicks,
+        buildTeamRecaps,
+        rosterName,
         buildDraftRecap,
         saveDraftRecap,
         saveDraftLearning,

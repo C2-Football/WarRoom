@@ -109,7 +109,11 @@
         const proposal = suggestion.proposal || {};
         const give = formatTradePackageSide(proposal, 'my');
         const get = formatTradePackageSide(proposal, 'their');
-        return liveTradeTimingLabel(tradeWindow) + ' at ' + tradeWindow.pickLabel + ': '
+        // Lead with the trade-cluster's reasoning headline when present, so the
+        // narration explains WHY before it lists the mechanics.
+        const headline = suggestion.reasoning?.headline;
+        return (headline ? headline + ' ' : '')
+            + liveTradeTimingLabel(tradeWindow) + ' at ' + tradeWindow.pickLabel + ': '
             + (suggestion.label || tradeWindow.motive || 'Trade window') + ' with ' + tradeWindow.teamName
             + '. Give ' + give + '; get ' + get + '. '
             + tradeWindow.likelihood + '% acceptance vs ' + tradeWindow.acceptanceLine + '% Buyer Line.';
@@ -790,6 +794,12 @@
         const lastAlexPickCountRef = React.useRef(0);
         const lastAlexRoundRef = React.useRef(0);
         const alexSonnetCooldownRef = React.useRef(0);
+        // Dedupe trackers for the rule-based "live insight" stream events so each
+        // run/tier-break/value-cliff/need-tension fires once per occurrence.
+        const lastRunRef = React.useRef({ pos: '', count: 0 });
+        const lastTierBreakRef = React.useRef('');
+        const lastValueCliffRef = React.useRef('');
+        const lastNeedTensionRef = React.useRef('');
         React.useEffect(() => {
             if (state.phase !== 'drafting') return;
             if (state.picks.length === lastAlexPickCountRef.current) return;
@@ -846,6 +856,105 @@
                     },
                 });
             }
+
+            // ── Live insight events (rule-triggered, free, throttled) ─────
+            // Alex narrates room dynamics: positional runs, tier breaks, value
+            // cliffs, and need-vs-BPA tension. Each is deduped so it fires once
+            // per occurrence rather than spamming every pick.
+
+            // (a) ROOM RUN — the headline. ≥3 of the last ~6 picks at one pos.
+            try {
+                const run = window.DraftCC.liveAnalytics?.detectRuns?.(state.picks, 6, 3);
+                if (run && (run.pos !== lastRunRef.current.pos || run.count > lastRunRef.current.count)) {
+                    lastRunRef.current = { pos: run.pos, count: run.count };
+                    const ordinal = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth'][run.count] || (run.count + 'th');
+                    const userNeedsRun = (() => {
+                        const up = state.personas?.[state.userRosterId];
+                        const needs = up?.assessment?.needs || [];
+                        return needs.some(n => (typeof n === 'string' ? n : n?.pos) === run.pos);
+                    })();
+                    const implication = userNeedsRun
+                        ? `You need ${run.pos} — the cliff is one turn away. If you want one, this is the window.`
+                        : `If you want one, the cliff is one turn away. Otherwise let the room thin it out and pivot.`;
+                    dispatch({
+                        type: 'ALEX_EVENT_ADD',
+                        event: {
+                            type: 'rule',
+                            badge: '🔥',
+                            color: 'var(--gold)',
+                            title: 'ROOM RUN · ' + run.pos,
+                            text: `That's the ${ordinal} ${run.pos} in the last ${run.window} picks — the run is live. ${implication}`,
+                            relatedPickNo: lastPick.overall,
+                        },
+                    });
+                }
+            } catch (e) { if (window.wrLog) window.wrLog('alex.run', e); }
+
+            // (b) TIER BREAK + (c) VALUE CLIFF + (d) NEED-vs-BPA tension.
+            try {
+                const signals = window.DraftCC.liveDecisionEngine?.liveStreamSignals?.(state) || {};
+
+                const tb = signals.tierBreak;
+                if (tb && tb.lastPlayer) {
+                    const tbKey = tb.pos + ':' + (tb.tier || '?') + ':' + tb.lastPlayer;
+                    if (lastTierBreakRef.current !== tbKey) {
+                        lastTierBreakRef.current = tbKey;
+                        const stepDown = tb.nextPlayer
+                            ? `Next up is ${tb.nextPlayer}${tb.nextTier ? ' (tier ' + tb.nextTier + ')' : ''} — a real step down.`
+                            : `The next tier is a real step down.`;
+                        dispatch({
+                            type: 'ALEX_EVENT_ADD',
+                            event: {
+                                type: 'rule',
+                                badge: '⛰',
+                                color: 'var(--k-f0a500, #f0a500)',
+                                title: 'TIER BREAK · ' + tb.pos,
+                                text: `${tb.lastPlayer} is the last ${tb.pos} in this tier${tb.tier ? ' (tier ' + tb.tier + ')' : ''}. ${stepDown}`,
+                                relatedPickNo: lastPick.overall,
+                            },
+                        });
+                    }
+                }
+
+                const vc = signals.valueCliff;
+                if (vc) {
+                    const vcKey = vc.afterPlayer + ':' + vc.dropAbs;
+                    if (lastValueCliffRef.current !== vcKey) {
+                        lastValueCliffRef.current = vcKey;
+                        dispatch({
+                            type: 'ALEX_EVENT_ADD',
+                            event: {
+                                type: 'rule',
+                                badge: '⬇',
+                                color: 'var(--k-e67e22, #e67e22)',
+                                title: 'VALUE CLIFF · after ' + vc.afterPlayer,
+                                text: `Big value drop after ${vc.afterPlayer} (${vc.afterPos}) — ${Math.round(vc.dropPct * 100)}% gap to ${vc.nextPlayer}. Grab now or wait a full round for similar.`,
+                                relatedPickNo: lastPick.overall,
+                            },
+                        });
+                    }
+                }
+
+                const nt = signals.needTension;
+                if (nt && nt.onNeedName) {
+                    const ntKey = nt.needPos + ':' + nt.bpaName;
+                    if (lastNeedTensionRef.current !== ntKey) {
+                        lastNeedTensionRef.current = ntKey;
+                        const gapTxt = nt.gap && nt.gap > 0 ? ` (${nt.gap.toLocaleString()} DHQ richer)` : '';
+                        dispatch({
+                            type: 'ALEX_EVENT_ADD',
+                            event: {
+                                type: 'rule',
+                                badge: nt.urgent ? '⚖' : '◇',
+                                color: 'var(--silver)',
+                                title: 'NEED vs BPA · ' + nt.needPos,
+                                text: `Best on the board is ${nt.bpaName} (${nt.bpaPos})${gapTxt}, but your ${nt.needPos} room is thin — ${nt.onNeedName} is the on-need play. ${nt.urgent ? 'Need is urgent; weigh the fit over the value.' : 'Lean BPA unless the fit gap closes.'}`,
+                                relatedPickNo: lastPick.overall,
+                            },
+                        });
+                    }
+                }
+            } catch (e) { if (window.wrLog) window.wrLog('alex.signals', e); }
 
             // Sonnet AI event (budget-limited)
             // Triggers: R1 pick, user pick, reach beyond threshold
@@ -3992,6 +4101,9 @@
         const openTradeDesk = React.useCallback(() => {
             if (tradeDeskTarget) onPropose(tradeDeskTarget);
         }, [onPropose, tradeDeskTarget]);
+        // Live league-wide A–F draft grades (overlay, toggled from the header).
+        const [showLeagueGrades, setShowLeagueGrades] = React.useState(false);
+        const LeagueGradesPanel = window.DraftCC.LeagueGradesPanel;
         const learningSaveKeyRef = React.useRef('');
         React.useEffect(() => {
             const helpers = window.DraftCC?.state || {};
@@ -4234,6 +4346,28 @@
                                 </button>
                             ))}
                         </div>
+                    )}
+
+                    {state.phase === 'drafting' && (
+                        <button
+                            onClick={() => setShowLeagueGrades(true)}
+                            title="Live A–F draft grades for every team"
+                            style={{
+                                padding: '5px 10px',
+                                background: 'var(--ov-2, rgba(255,255,255,0.04))',
+                                border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
+                                borderRadius: '4px',
+                                color: 'var(--silver)',
+                                cursor: 'pointer',
+                                fontSize: 'var(--text-micro, 0.6875rem)',
+                                fontFamily: FONT_UI,
+                                flexShrink: 0,
+                                fontWeight: 700,
+                                letterSpacing: '0.04em',
+                            }}
+                        >
+                            🏆 LEAGUE GRADES
+                        </button>
                     )}
 
                     {state.phase === 'drafting' && tradeDeskTarget && (
@@ -4495,6 +4629,11 @@
 
                 {/* Phase 3: User trade proposer drawer (fixed-position) */}
                 {state.proposerDrawer && TradeProposer && <TradeProposer state={state} dispatch={dispatch} />}
+
+                {/* Live league-wide draft grades overlay (toggled from header) */}
+                {showLeagueGrades && LeagueGradesPanel && (
+                    <LeagueGradesPanel state={state} onClose={() => setShowLeagueGrades(false)} />
+                )}
 
                 {/* Phase 7: Post-draft recap — full-screen modal with grade + per-position + roster + export */}
                 {state.phase === 'complete' && (() => {
@@ -5077,6 +5216,14 @@
         return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(Math.round(n));
     }
 
+    // Maps a trade-reasoning driver tone ('good'|'bad'|'neutral') to a color for
+    // the "Why move up" lists. good = green/gold, bad = red, neutral = silver.
+    function liveDriverColor(tone) {
+        if (tone === 'good') return 'var(--k-2ecc71, #2ecc71)';
+        if (tone === 'bad') return 'var(--k-e74c3c, #e74c3c)';
+        return 'var(--silver)';
+    }
+
     function openLiveDecisionPlayer(player) {
         if (!player?.pid) return;
         if (typeof window.openPlayerModal === 'function') {
@@ -5125,6 +5272,11 @@
                         const tone = liveTone(card.tone);
                         const player = card.player;
                         const clickable = card.action === 'trade' || player?.pid;
+                        // Optional trade-cluster reasoning contract on the trade card.
+                        const tradeReasoning = card.action === 'trade'
+                            ? card.meta?.tradeWindow?.suggestion?.reasoning
+                            : null;
+                        const tradeDrivers = (tradeReasoning?.drivers || []).slice(0, 3);
                         return (
                             <button
                                 key={card.kind + ':' + (player?.pid || card.detail || '')}
@@ -5166,9 +5318,24 @@
                                     </>
                                 ) : (
                                     <>
-                                        <div style={{ color: 'var(--white)', fontSize: '0.72rem', lineHeight: 1.3, marginBottom: (card.action === 'trade' && ownerTell) ? 4 : 0 }}>
+                                        {tradeReasoning?.headline && (
+                                            <div style={{ color: 'var(--white)', fontSize: '0.72rem', fontWeight: 700, lineHeight: 1.3, marginBottom: 3 }}>
+                                                {tradeReasoning.headline}
+                                            </div>
+                                        )}
+                                        <div style={{ color: 'var(--white)', fontSize: '0.72rem', lineHeight: 1.3, marginBottom: ((card.action === 'trade' && ownerTell) || tradeDrivers.length) ? 4 : 0 }}>
                                             {card.detail}
                                         </div>
+                                        {!!tradeDrivers.length && (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: ownerTell ? 4 : 0 }}>
+                                                {tradeDrivers.map((d, di) => (
+                                                    <div key={di} style={{ fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.3 }}>
+                                                        <span style={{ color: liveDriverColor(d.tone), fontWeight: 800 }}>{d.label}</span>
+                                                        <span style={{ color: 'var(--silver)', opacity: 0.82 }}>{d.detail ? ' · ' + d.detail : ''}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                         {card.action === 'trade' && ownerTell && (
                                             <div style={{ color: tone.main, opacity: 0.92, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.3 }}>
                                                 {ownerTell.text}
@@ -5213,6 +5380,9 @@
             const viable = tradeWindow.viable !== false;
             const clears = tradeWindow.likelihood >= tradeWindow.acceptanceLine;
             const statusColor = !viable ? 'var(--silver)' : (clears ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-f0a500, #f0a500)');
+            // Trade-cluster reasoning (optional contract): { headline, drivers:[{label,detail,tone}] }
+            const reasoning = suggestion.reasoning;
+            const drivers = (reasoning?.drivers || []).slice(0, 4);
             return (
                 <div style={{
                     padding: '9px 14px',
@@ -5221,12 +5391,13 @@
                     border: '1px solid rgba(155,138,251,0.28)',
                     borderRadius: '6px',
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
+                    flexDirection: 'column',
+                    gap: '8px',
                     minHeight: 48,
                     fontFamily: FONT_UI,
                     height: inline ? '100%' : 'auto',
                 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
                     <div style={{
                         width: 26,
                         height: 26,
@@ -5255,6 +5426,11 @@
                                 {tradeWindow.teamName} · {tradeWindow.pickLabel}
                             </span>
                         </div>
+                        {viable && reasoning?.headline && (
+                            <div style={{ color: 'var(--white)', fontSize: '0.72rem', fontWeight: 700, lineHeight: 1.35, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {reasoning.headline}
+                            </div>
+                        )}
                         <div style={{ color: 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.35, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {!viable
                                 ? 'No viable trade — ' + tradeWindow.teamName + ' won’t move off ' + tradeWindow.pickLabel + ' near their buyer line.'
@@ -5293,6 +5469,29 @@
                         OPEN TRADE DESK
                     </button>
                 </div>
+                {viable && !!drivers.length && (
+                    <div style={{
+                        borderTop: '1px solid rgba(155,138,251,0.18)',
+                        paddingTop: 7,
+                    }}>
+                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'rgba(155,138,251,1)', textTransform: 'uppercase', letterSpacing: '0.09em', fontWeight: 800, marginBottom: 4 }}>
+                            Why move up
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            {drivers.map((d, di) => (
+                                <div key={di} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 'var(--text-label, 0.75rem)', lineHeight: 1.35 }}>
+                                    <span style={{ flexShrink: 0, color: liveDriverColor(d.tone), fontWeight: 800 }}>
+                                        {d.label}
+                                    </span>
+                                    <span style={{ color: 'var(--silver)', opacity: 0.85, minWidth: 0 }}>
+                                        {d.detail}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
             );
         }
 
@@ -5353,9 +5552,149 @@
         );
     }
 
+    // ── Live League Grades overlay ────────────────────────────────────
+    // A–F draft grades for EVERY team in the league, live during the draft.
+    // Reuses the post-draft recap math (leagueTotalsFromPicks + buildTeamRecaps)
+    // but renders as a lightweight, dismissible overlay instead of the full
+    // post-draft modal. Toggled from the header "LEAGUE GRADES" button.
+    function leagueGradeColor(letter) {
+        const l = String(letter || '');
+        if (l === '—') return 'var(--silver)';
+        if (l.startsWith('A')) return 'var(--k-2ecc71, #2ecc71)';
+        if (l.startsWith('B')) return 'var(--k-d4af37, #d4af37)';
+        if (l.startsWith('C')) return 'var(--k-f0a500, #f0a500)';
+        return 'var(--k-e74c3c, #e74c3c)';
+    }
+
+    function LeagueGradesPanel({ state, onClose }) {
+        const recaps = React.useMemo(() => {
+            const helpers = window.DraftCC?.state || {};
+            if (!helpers.buildTeamRecaps || !helpers.leagueTotalsFromPicks) return [];
+            try {
+                const totals = helpers.leagueTotalsFromPicks(state.picks || []);
+                return helpers.buildTeamRecaps(state, state.picks || [], totals) || [];
+            } catch (e) {
+                if (window.wrLog) window.wrLog('cc.leagueGrades', e);
+                return [];
+            }
+        }, [state.picks, state.personas]);
+
+        const userKey = String(state.userRosterId || '');
+        const fmtDhq = value => {
+            const n = Number(value || 0);
+            return n ? n.toLocaleString() : '0';
+        };
+
+        return (
+            <div
+                style={{
+                    position: 'fixed', inset: 0, background: 'var(--surf-solid, rgba(5,6,9,0.78))',
+                    zIndex: 880, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: 'var(--space-xl)', animation: 'wrFadeIn 0.18s ease',
+                }}
+                onClick={e => { if (e.target === e.currentTarget) onClose && onClose(); }}
+            >
+                <div style={{
+                    width: '100%', maxWidth: '720px', maxHeight: '88vh', overflowY: 'auto',
+                    background: 'var(--k-0a0b0d, #0a0b0d)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.34))',
+                    borderRadius: '14px', boxShadow: '0 28px 80px rgba(0,0,0,0.78)', fontFamily: FONT_UI,
+                }}>
+                    {/* Header */}
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '16px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))',
+                        position: 'sticky', top: 0, background: 'var(--k-0a0b0d, #0a0b0d)', zIndex: 1,
+                    }}>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Live · updates every pick</div>
+                            <div style={{ fontFamily: FONT_DISPL, fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--white)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>League Draft Grades</div>
+                        </div>
+                        <button
+                            onClick={() => onClose && onClose()}
+                            aria-label="Close"
+                            style={{
+                                width: 30, height: 30, borderRadius: '50%',
+                                background: 'var(--ov-2, rgba(255,255,255,0.04))',
+                                border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
+                                color: 'var(--silver)', cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1,
+                                flexShrink: 0,
+                            }}
+                        >✕</button>
+                    </div>
+
+                    {/* Grade rows */}
+                    <div style={{ padding: '12px 16px' }}>
+                        {recaps.length === 0 && (
+                            <div style={{ padding: '28px 10px', textAlign: 'center', color: 'var(--silver)', opacity: 0.5, fontSize: 'var(--text-label, 0.75rem)' }}>
+                                No teams to grade yet.
+                            </div>
+                        )}
+                        {recaps.map((row, idx) => {
+                            const hasPicks = (row.picks || []).length > 0;
+                            const letter = hasPicks ? (row.grade || '—') : '—';
+                            const color = leagueGradeColor(letter);
+                            const isUser = String(row.rosterId || '') === userKey;
+                            const steal = row.bestValue || (row.steals || [])[0] || null;
+                            const reach = row.biggestReach || (row.reaches || [])[0] || null;
+                            return (
+                                <div key={(row.rosterId ?? 'r') + ':' + idx} style={{
+                                    display: 'flex', alignItems: 'center', gap: 12,
+                                    padding: '10px 10px',
+                                    borderBottom: '1px solid var(--ov-2, rgba(255,255,255,0.03))',
+                                    background: isUser ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'transparent',
+                                    borderRadius: isUser ? '6px' : 0,
+                                }}>
+                                    <div style={{
+                                        fontFamily: FONT_MONO, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700,
+                                        color: 'var(--silver)', opacity: 0.7, width: 22, textAlign: 'right', flexShrink: 0,
+                                    }}>#{row.rank ?? idx + 1}</div>
+                                    <div style={{
+                                        fontFamily: FONT_DISPL, fontSize: '1.4rem', fontWeight: 800, color,
+                                        width: 38, textAlign: 'center', flexShrink: 0, lineHeight: 1,
+                                    }}>{letter}</div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', gap: 6, minWidth: 0,
+                                        }}>
+                                            <strong style={{ color: 'var(--white)', fontSize: '0.82rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {row.teamName || 'Team'}
+                                            </strong>
+                                            {isUser && (
+                                                <span style={{ flexShrink: 0, color: 'var(--gold)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, letterSpacing: '0.06em' }}>YOU</span>
+                                            )}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 10, marginTop: 2, color: 'var(--silver)', opacity: 0.74, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO }}>
+                                            <span>{fmtDhq(row.totalDHQ)} DHQ</span>
+                                            <span>{(row.picks || []).length} pick{(row.picks || []).length === 1 ? '' : 's'}</span>
+                                        </div>
+                                        {(steal || reach) && (
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 3, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.3 }}>
+                                                {steal?.name && (steal.valueDelta || 0) > 0 && (
+                                                    <span style={{ color: 'var(--k-2ecc71, #2ecc71)' }}>
+                                                        ↓ Steal: {steal.name}
+                                                    </span>
+                                                )}
+                                                {reach?.name && (reach.valueDelta || 0) < 0 && (
+                                                    <span style={{ color: 'var(--k-e74c3c, #e74c3c)' }}>
+                                                        ↑ Reach: {reach.name}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     // ── Expose ───────────────────────────────────────────────────────
     window.DraftCommandCenter = DraftCommandCenter;
     window.DraftCC = window.DraftCC || {};
+    window.DraftCC.LeagueGradesPanel = LeagueGradesPanel;
     window.DraftCC.featureFlag = {
         key: FEATURE_FLAG_KEY,
         isEnabled: isFeatureEnabled,

@@ -135,7 +135,7 @@
 	                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', marginBottom: '5px', fontWeight: 700 }}>
 	                        Draft paused for negotiation · counter {Math.min(round, maxRounds)} / {maxRounds}
 	                    </div>
-	                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.75, marginBottom: '8px' }}>
+	                    <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--white)', opacity: 1, marginBottom: '8px', lineHeight: 1.4 }}>
 	                        {offer.reason}
 	                    </div>
 	                    {offer.cpuMessage && (
@@ -175,9 +175,9 @@
                             padding: '10px',
                             textAlign: 'center',
                         }}>
-                            <div style={{ fontSize: 'var(--text-micro)', color: 'var(--bad)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>You give</div>
+                            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--bad)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '5px' }}>You give →</div>
                             <AssetStack picks={offer.myGive} playerIds={offer.myGivePlayers} faab={offer.myGiveFaab} />
-                            <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', marginTop: '2px', fontFamily: FONT_MONO }}>
+                            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginTop: '3px', fontFamily: FONT_MONO, fontWeight: 700 }}>
                                 {offer.myGiveDHQ?.toLocaleString()} DHQ
                             </div>
                         </div>
@@ -189,9 +189,9 @@
                             padding: '10px',
                             textAlign: 'center',
                         }}>
-                            <div style={{ fontSize: 'var(--text-micro)', color: 'var(--good)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>You get</div>
+                            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--good)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '5px' }}>← You get</div>
                             <AssetStack picks={offer.theirGive} playerIds={offer.theirGivePlayers} faab={offer.theirGiveFaab} />
-                            <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', marginTop: '2px', fontFamily: FONT_MONO }}>
+                            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginTop: '3px', fontFamily: FONT_MONO, fontWeight: 700 }}>
                                 {offer.myGainDHQ?.toLocaleString()} DHQ
                             </div>
                         </div>
@@ -202,21 +202,21 @@
                         <div style={{
                             display: 'flex',
                             flexWrap: 'wrap',
-                            gap: '3px',
+                            gap: '6px',
                             marginBottom: '12px',
                         }}>
-                            {offer.taxes.slice(0, 4).map((t, i) => {
+                            {offer.taxes.slice(0, 3).map((t, i) => {
                                 const isTax = (t.impact || 0) < 0;
                                 const col = isTax ? 'var(--k-e74c3c, #e74c3c)' : 'var(--k-2ecc71, #2ecc71)';
                                 return (
                                     <span key={i} title={t.desc || ''} style={{
-                                        fontSize: 'var(--text-micro)',
-                                        padding: '2px 6px',
+                                        fontSize: 'var(--text-label, 0.75rem)',
+                                        padding: '4px 8px',
                                         borderRadius: '10px',
                                         background: wrAlpha(col, '15'),
                                         border: '1px solid ' + wrAlpha(col, '40'),
                                         color: col,
-                                        fontWeight: 600,
+                                        fontWeight: 700,
                                     }}>
                                         {t.name} {(t.impact || 0) > 0 ? '+' : ''}{t.impact}{typeof t.impact === 'number' ? '%' : ''}
                                     </span>

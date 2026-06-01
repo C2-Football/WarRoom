@@ -248,15 +248,22 @@
                             .map(part => part.trim())
                             .filter(Boolean)
                             .slice(0, 8);
+                        // High-signal room events (run / tier break / value cliff)
+                        // get a colored left accent + faint tint so they pop.
+                        const HIGH_SIGNAL = new Set(['🔥', '⛰', '⬇']);
+                        const isHighlight = HIGH_SIGNAL.has(item.badge);
                         return (
                             <div key={item.id} onClick={toggle} style={{
                                 display: 'flex',
                                 gap: '6px',
-                                padding: '5px 2px',
+                                padding: '5px 2px 5px ' + (isHighlight ? '6px' : '2px'),
                                 borderBottom: '1px solid var(--ov-2, rgba(255,255,255,0.025))',
+                                borderLeft: isHighlight ? '2px solid ' + wrAlpha(item.color, 'aa') : '2px solid transparent',
                                 fontFamily: FONT_UI,
                                 cursor: isExpandable ? 'pointer' : 'default',
-                                background: isExpanded ? 'rgba(124,107,248,0.06)' : 'transparent',
+                                background: isExpanded
+                                    ? 'rgba(124,107,248,0.06)'
+                                    : (isHighlight ? wrAlpha(item.color, '12') : 'transparent'),
                             }}>
                                 <span style={{
                                     color: item.color,

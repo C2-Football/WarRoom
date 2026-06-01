@@ -10,7 +10,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 (function() {
-    const { FONT_UI, FONT_DISPL, FONT_MONO, panelCard, dhqColor, tierColor } = window.DraftCC.styles;
+    const { FONT_UI, FONT_DISPL, FONT_MONO, panelCard, dhqColor, tierColor, bpBucket } = window.DraftCC.styles;
 
     const LANE_LABELS = {
         dhq: { label: 'DHQ Board', short: 'DHQ', sub: 'canonical value' },
@@ -54,6 +54,26 @@
         const out = {};
         (order || []).forEach((pid, idx) => { if (pid != null) out[String(pid)] = idx + 1; });
         return out;
+    }
+
+    function nflTeamOf(player) {
+        return player?.nflTeam || player?.team || player?.csv?.nflTeam || player?.p?.team || '';
+    }
+
+    function collegeOf(player) {
+        return player?.school || player?.college || player?.csv?.college || player?.p?.college || player?.p?.metadata?.college || '';
+    }
+
+    // Draft position label. Prefer real "Rd X.Y" from Sleeper draft_round/draft_pick,
+    // which is frequently missing — fall back to consensus/ADP overall rank, else '—'.
+    function draftPosLabel(player) {
+        const rd = Number(player?.p?.draft_round || player?.draft_round || 0);
+        const pk = Number(player?.p?.draft_pick || player?.draft_pick || 0);
+        if (rd && pk) return 'Rd ' + rd + '.' + pk;
+        if (rd) return 'Rd ' + rd;
+        const adp = Number(player?.consensusRank || player?.rank || 0);
+        if (adp) return 'ADP ' + Math.round(adp);
+        return '—';
     }
 
     function ageOf(player) {
@@ -110,12 +130,20 @@
         const [boardLane, setBoardLane] = React.useState(defaultLane);
         const [boardView, setBoardView] = React.useState('compact');
         const [dragPid, setDragPid] = React.useState(null);
+        const [bucket, setBucket] = React.useState(() => bpBucket());
 
         React.useEffect(() => {
             if (boardContext?.activeLane && boardContext.activeLane !== boardLane) {
                 setBoardLane(boardContext.activeLane);
             }
         }, [boardContext?.activeLane]);
+
+        // Re-read viewport bucket on resize so the iPad/narrow row cap stays accurate.
+        React.useEffect(() => {
+            const onResize = () => setBucket(bpBucket());
+            window.addEventListener('resize', onResize);
+            return () => window.removeEventListener('resize', onResize);
+        }, []);
 
         // Allow the "my" lane to activate even before a manual order exists — it
         // renders the DHQ order as a draggable starting point, and the first drag
@@ -193,8 +221,6 @@
                 if (sortKey === 'rank') return dir * ((a.consensusRank || a.rank || 9999) - (b.consensusRank || b.rank || 9999));
                 if (sortKey === 'tier') return dir * ((a._board.tier || 99) - (b._board.tier || 99));
                 if (sortKey === 'age') return dir * ((ageOf(a) || 99) - (ageOf(b) || 99));
-                if (sortKey === 'fit') return dir * ((b.fit?.score || 0) - (a.fit?.score || 0));
-                if (sortKey === 'y5') return dir * ((b._board.projections.y5 || 0) - (a._board.projections.y5 || 0));
                 return dir * ((b.dhq || 0) - (a.dhq || 0));
             });
             return sorted.slice(0, 100);
@@ -353,6 +379,13 @@
             padding: '10px 12px',
         });
 
+        // iPad / narrow cap: show ~15 player rows then scroll. Desktop is unrestricted
+        // (flex fills the panel). DHQ/AI rows are one line (~46px incl. padding+border);
+        // My Board adds a second control row (~38px) per visible row.
+        const ROWS_VISIBLE = 15;
+        const rowHeight = activeLane === 'my' ? 84 : 46;
+        const scrollMaxHeight = bucket === 'desktop' ? undefined : (ROWS_VISIBLE * rowHeight) + 'px';
+
         const laneSource = activeLaneData.source || '';
         const laneCopy = activeLane === 'my' && laneSource === 'seeded_from_ai'
             ? 'Seeded from AI. Edits create your manual fork.'
@@ -438,8 +471,6 @@
                     {sortButton('dhq', 'DHQ', -1)}
                     {sortButton('tier', 'Tier', 1)}
                     {sortButton('age', 'Age', 1)}
-                    {sortButton('fit', 'Fit', -1)}
-                    {sortButton('y5', 'Y5', -1)}
                 </div>
 
                 <div style={{ display: 'flex', gap: '3px', marginBottom: '6px', flexWrap: 'wrap' }}>
@@ -502,7 +533,7 @@
                     </div>
                 )}
 
-                <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', marginRight: '-4px', paddingRight: '4px' }}>
+                <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', marginRight: '-4px', paddingRight: '4px', maxHeight: scrollMaxHeight }}>
                     {available.length === 0 && (
                         <div style={{ padding: '12px', textAlign: 'center', color: 'var(--silver)', opacity: 0.4, fontSize: '0.72rem' }}>
                             No players match filter
@@ -517,7 +548,11 @@
                         const rowRank = b.activeRank < 99999 ? b.activeRank : idx + 1;
                         const posColor = posColors[p.pos] || 'var(--silver)';
                         const note = b.note || '';
-                        const showSecondLine = boardView !== 'compact' || note || tag;
+                        const nflTeam = nflTeamOf(p);
+                        const college = collegeOf(p);
+                        const teamCollege = [nflTeam, college].filter(Boolean).join(' · ');
+                        const draftPos = draftPosLabel(p);
+                        const showSecondLine = boardView !== 'compact' || note || tag || teamCollege;
                         return (
                             <div
                                 key={p.pid}
@@ -577,10 +612,14 @@
                                             <span style={{ flexShrink: 0, color: tag.color, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, border: '1px solid ' + wrAlpha(tag.color, '55'), background: wrAlpha(tag.color, '18'), borderRadius: '3px', padding: '0 4px' }}>{tag.label}</span>
                                         )}
                                     </div>
+                                    {teamCollege && (
+                                        <div style={{ color: 'var(--silver)', opacity: 0.7, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {teamCollege}
+                                        </div>
+                                    )}
                                     {showSecondLine && (
                                         <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                             {boardView === 'fit' && p.fit?.score != null ? 'Fit ' + p.fit.score + ' · ' : ''}
-                                            {boardView === 'scout' && (p.college || p.team || p.nflTeam) ? (p.college || p.team || p.nflTeam) + ' · ' : ''}
                                             {boardView === 'value' ? win.label + (win.years != null ? ' ' + win.years + 'yr · ' : ' · ') : ''}
                                             {note || (b.tier ? 'Tier ' + b.tier : 'Click for player context')}
                                         </div>
@@ -588,7 +627,7 @@
                                 </div>
                                 <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, padding: '1px 5px', borderRadius: '3px', background: wrAlpha(posColor, '22'), color: posColor, textAlign: 'center', fontFamily: FONT_UI }}>{p.pos}</span>
                                 <span style={{ color: col, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, fontFamily: FONT_MONO, textAlign: 'right' }}>{fmt(p.dhq)}</span>
-                                <span style={{ color: b.projections?.y5 >= (p.dhq || 0) ? 'var(--good)' : 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, textAlign: 'right' }}>Y5 {fmt(b.projections?.y5)}</span>
+                                <span title="Draft position" style={{ color: draftPos === '—' ? 'var(--ov-8, rgba(255,255,255,0.34))' : 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{draftPos}</span>
                                 <span style={{ color: win.color, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, textAlign: 'center', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '3px', padding: '1px 2px' }}>{win.label}</span>
                                 {(isUserTurn || state.overrideMode || state.mode === 'manual') && (
                                     <button
@@ -613,54 +652,19 @@
                                 )}
                                 {activeLane === 'my' && (
                                     <div style={{ gridColumn: '2 / -1', display: 'flex', gap: '5px', alignItems: 'center', marginTop: '-2px' }}>
-                                        <button onClick={e => { e.stopPropagation(); onMovePlayer(p, -1); }} style={{
-                                            padding: '0 10px',
-                                            minHeight: '44px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            borderRadius: '3px',
-                                            border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
-                                            background: 'var(--ov-2, rgba(255,255,255,0.03))',
+                                        <span title="Drag to reorder" style={{
+                                            fontSize: 'var(--text-micro, 0.6875rem)',
+                                            lineHeight: 1,
                                             color: 'var(--silver)',
-                                            cursor: 'pointer',
-                                            fontSize: 'var(--text-label)',
-                                            fontFamily: FONT_UI,
-                                            fontWeight: 800,
-                                        }}>UP</button>
-                                        <button onClick={e => { e.stopPropagation(); onMovePlayer(p, 1); }} style={{
-                                            padding: '0 10px',
-                                            minHeight: '44px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            borderRadius: '3px',
-                                            border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
-                                            background: 'var(--ov-2, rgba(255,255,255,0.03))',
-                                            color: 'var(--silver)',
-                                            cursor: 'pointer',
-                                            fontSize: 'var(--text-label)',
-                                            fontFamily: FONT_UI,
-                                            fontWeight: 800,
-                                        }}>DOWN</button>
-                                        <button onClick={e => { e.stopPropagation(); onEditTier(p); }} style={{
-                                            padding: '0 10px',
-                                            minHeight: '44px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            borderRadius: '3px',
-                                            border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
-                                            background: b.tier ? wrAlpha(tCol, '18') : 'var(--ov-2, rgba(255,255,255,0.03))',
-                                            color: b.tier ? tCol : 'var(--silver)',
-                                            cursor: 'pointer',
-                                            fontSize: 'var(--text-label)',
-                                            fontFamily: FONT_UI,
-                                            fontWeight: 800,
-                                        }}>TIER</button>
+                                            opacity: 0.4,
+                                            cursor: 'grab',
+                                            userSelect: 'none',
+                                            flexShrink: 0,
+                                            paddingRight: '2px',
+                                        }}>⠿</span>
                                         <button onClick={e => { e.stopPropagation(); onCycleTag(p); }} style={{
-                                            padding: '0 10px',
-                                            minHeight: '44px',
+                                            padding: '2px 6px',
+                                            minHeight: '30px',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
@@ -669,13 +673,13 @@
                                             background: tag ? wrAlpha(tag.color, '18') : 'var(--ov-2, rgba(255,255,255,0.03))',
                                             color: tag ? tag.color : 'var(--silver)',
                                             cursor: 'pointer',
-                                            fontSize: 'var(--text-label)',
+                                            fontSize: 'var(--text-micro, 0.6875rem)',
                                             fontFamily: FONT_UI,
                                             fontWeight: 800,
                                         }}>TAG</button>
                                         <button onClick={e => { e.stopPropagation(); onEditNote(p); }} style={{
-                                            padding: '0 10px',
-                                            minHeight: '44px',
+                                            padding: '2px 6px',
+                                            minHeight: '30px',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
@@ -684,7 +688,7 @@
                                             background: note ? 'var(--acc-fill2, rgba(212,175,55,0.10))' : 'var(--ov-2, rgba(255,255,255,0.03))',
                                             color: note ? 'var(--gold)' : 'var(--silver)',
                                             cursor: 'pointer',
-                                            fontSize: 'var(--text-label)',
+                                            fontSize: 'var(--text-micro, 0.6875rem)',
                                             fontFamily: FONT_UI,
                                             fontWeight: 800,
                                         }}>NOTE</button>

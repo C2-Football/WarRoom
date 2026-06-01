@@ -301,7 +301,7 @@
                     flexShrink: 0,
                 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '0.6875rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Propose Trade</div>
+                        <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Propose Trade</div>
                         <select
                             value={String(targetId)}
                             disabled={isSending || isAccepted}
@@ -327,7 +327,7 @@
                                 </option>
                             ))}
                         </select>
-                        <div style={{ fontSize: '0.6875rem', color: 'var(--silver)', opacity: 0.7 }}>
+                        <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.9, marginTop: 3 }}>
                             {targetPersona.tradeDna?.label || '—'} · {targetPersona.posture?.label || '—'}
                         </div>
                     </div>
@@ -471,43 +471,43 @@
                     }}>
                         <div style={{
                             padding: '8px',
-                            background: 'var(--ov-1, rgba(255,255,255,0.02))',
-                            border: '1px solid var(--ov-4, rgba(255,255,255,0.06))',
+                            background: 'var(--acc-fill2, rgba(212,175,55,0.1))',
+                            border: '1px solid var(--ov-6, rgba(255,255,255,0.14))',
                             borderRadius: '5px',
                             textAlign: 'center',
                         }}>
                             <div style={{ fontSize: '1.2rem', fontWeight: 700, color: gradeCol, fontFamily: FONT_DISPL }}>
                                 {evaluation.grade?.grade || '—'}
                             </div>
-                            <div style={{ fontSize: '0.6875rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '2px' }}>
+                            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>
                                 {evaluation.grade?.label || 'Empty'}
                             </div>
                         </div>
                         <div style={{
                             padding: '8px',
-                            background: 'var(--ov-1, rgba(255,255,255,0.02))',
-                            border: '1px solid var(--ov-4, rgba(255,255,255,0.06))',
+                            background: 'var(--acc-fill2, rgba(212,175,55,0.1))',
+                            border: '1px solid var(--ov-6, rgba(255,255,255,0.14))',
                             borderRadius: '5px',
                             textAlign: 'center',
                         }}>
                             <div style={{ fontSize: '1.2rem', fontWeight: 700, color: likelihoodCol, fontFamily: FONT_DISPL }}>
                                 {evaluation.likelihood}%
                             </div>
-                            <div style={{ fontSize: '0.6875rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '2px' }}>
+                            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>
                                 Acceptance
                             </div>
                         </div>
                         <div style={{
                             padding: '8px',
-                            background: 'var(--ov-1, rgba(255,255,255,0.02))',
-                            border: '1px solid var(--ov-4, rgba(255,255,255,0.06))',
+                            background: 'var(--acc-fill2, rgba(212,175,55,0.1))',
+                            border: '1px solid var(--ov-6, rgba(255,255,255,0.14))',
                             borderRadius: '5px',
                             textAlign: 'center',
                         }}>
                             <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--gold)', fontFamily: FONT_DISPL }}>
                                 {evaluation.acceptanceLine || 70}%
                             </div>
-                            <div style={{ fontSize: '0.6875rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '2px' }}>
+                            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>
                                 Buyer Line
                             </div>
                         </div>
@@ -516,13 +516,13 @@
                     {evaluation.verdict && (
                         <div style={{
                             marginBottom: 12,
-                            padding: '7px 8px',
-                            border: '1px solid var(--acc-fill3, rgba(212,175,55,0.14))',
-                            background: 'var(--acc-fill1, rgba(212,175,55,0.045))',
+                            padding: '8px 10px',
+                            border: '1px solid var(--acc-line2, rgba(212,175,55,0.34))',
+                            background: 'var(--acc-fill3, rgba(212,175,55,0.14))',
                             borderRadius: 5,
                             color: 'var(--silver)',
-                            fontSize: 'var(--text-micro, 0.6875rem)',
-                            lineHeight: 1.35,
+                            fontSize: 'var(--text-label, 0.75rem)',
+                            lineHeight: 1.4,
                         }}>
                             <strong style={{ color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                                 {evaluation.verdict === 'accepted' ? 'Likely accept' : evaluation.verdict === 'countered' ? 'Likely counter' : 'Likely decline'}
@@ -622,7 +622,7 @@
                     {evaluation.taxes && evaluation.taxes.length > 0 && (
                         <div style={{ marginTop: '12px' }}>
                             <div style={{
-                                fontSize: '0.6875rem',
+                                fontSize: 'var(--text-label, 0.75rem)',
                                 fontWeight: 700,
                                 color: 'var(--gold)',
                                 textTransform: 'uppercase',
@@ -638,10 +638,9 @@
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'space-between',
-                                            fontSize: '0.6875rem',
-                                            padding: '3px 6px',
+                                            fontSize: 'var(--text-label, 0.75rem)',
+                                            padding: '6px 8px',
                                             borderLeft: '2px solid ' + col,
-                                            paddingLeft: '8px',
                                         }}>
                                             <span style={{
                                                 color: 'var(--silver)',
@@ -649,9 +648,9 @@
                                                 overflow: 'hidden',
                                                 textOverflow: 'ellipsis',
                                                 flex: 1,
-                                                opacity: 0.85,
+                                                opacity: 0.95,
                                             }}>{t.name}</span>
-                                            <span style={{ color: col, fontWeight: 700, marginLeft: '6px' }}>
+                                            <span style={{ color: col, fontWeight: 700, marginLeft: '8px', textAlign: 'right', flexShrink: 0 }}>
                                                 {(t.impact || 0) > 0 ? '+' : ''}{t.impact}{typeof t.impact === 'number' ? '%' : ''}
                                             </span>
                                         </div>
@@ -663,7 +662,7 @@
                     {evaluation.modifiers && evaluation.modifiers.length > 0 && (
                         <div style={{ marginTop: '12px' }}>
                             <div style={{
-                                fontSize: '0.6875rem',
+                                fontSize: 'var(--text-label, 0.75rem)',
                                 fontWeight: 700,
                                 color: 'var(--gold)',
                                 textTransform: 'uppercase',
@@ -678,13 +677,12 @@
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'space-between',
-                                            fontSize: '0.6875rem',
-                                            padding: '3px 6px',
+                                            fontSize: 'var(--text-label, 0.75rem)',
+                                            padding: '6px 8px',
                                             borderLeft: '2px solid ' + col,
-                                            paddingLeft: '8px',
                                         }}>
-                                            <span style={{ color: 'var(--silver)', opacity: 0.85 }}>{m.label}</span>
-                                            <span style={{ color: col, fontWeight: 700, marginLeft: '6px' }}>{(m.impact || 0) > 0 ? '+' : ''}{m.impact}%</span>
+                                            <span style={{ color: 'var(--silver)', opacity: 0.95, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.label}</span>
+                                            <span style={{ color: col, fontWeight: 700, marginLeft: '8px', textAlign: 'right', flexShrink: 0 }}>{(m.impact || 0) > 0 ? '+' : ''}{m.impact}%</span>
                                         </div>
                                     );
                                 })}
@@ -844,7 +842,7 @@
                 borderRadius: '6px',
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 7 }}>
-                    <div style={{ fontSize: '0.6875rem', color: 'var(--gold)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                         Owner Trade Intel
                     </div>
                     <div style={{ color: 'var(--gold)', fontFamily: FONT_DISPL, fontWeight: 800, fontSize: '0.78rem' }}>
@@ -859,23 +857,23 @@
                             background: 'var(--acc-fill2, rgba(212,175,55,0.08))',
                             border: '1px solid var(--acc-fill3, rgba(212,175,55,0.18))',
                             color: 'var(--silver)',
-                            fontSize: '0.6875rem',
+                            fontSize: 'var(--text-label, 0.75rem)',
                             fontWeight: 700,
                         }}>{chip}</span>
                     ))}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', lineHeight: 1.35 }}>
-                    <div>
-                        <strong style={{ display: 'block', color: 'var(--white)', fontSize: 'var(--text-micro, 0.6875rem)', marginBottom: 2 }}>Needs</strong>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', lineHeight: 1.4 }}>
+                    <div style={{ opacity: 0.9 }}>
+                        <strong style={{ display: 'block', color: 'var(--white)', fontSize: 'var(--text-label, 0.75rem)', marginBottom: 2, opacity: 1 }}>Needs</strong>
                         {needs.length ? needs.join(', ') : 'No clear needs'}
                     </div>
-                    <div>
-                        <strong style={{ display: 'block', color: 'var(--white)', fontSize: 'var(--text-micro, 0.6875rem)', marginBottom: 2 }}>Tradable</strong>
+                    <div style={{ opacity: 0.9 }}>
+                        <strong style={{ display: 'block', color: 'var(--white)', fontSize: 'var(--text-label, 0.75rem)', marginBottom: 2, opacity: 1 }}>Tradable</strong>
                         {[...picks, ...players].slice(0, 4).join(', ') || 'No obvious assets'}
                     </div>
                 </div>
                 {profile.ownerIntelSummary && (
-                    <div style={{ marginTop: 7, fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.78, lineHeight: 1.35 }}>
+                    <div style={{ marginTop: 7, fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.9, lineHeight: 1.4 }}>
                         {profile.ownerIntelSummary}
                     </div>
                 )}
@@ -884,11 +882,14 @@
     }
 
     function SuggestionRail({ suggestions, onLoad, disabled }) {
+        // Render even when the only item is a MOONSHOT (the no-viable-deal
+        // fallback) — that is precisely the case where the user most needs a
+        // surfaced path "in." Only bail when the rail is genuinely empty.
         if (!suggestions || suggestions.length === 0) return null;
         return (
             <div style={{ marginBottom: 14 }}>
                 <div style={{
-                    fontSize: '0.6875rem',
+                    fontSize: 'var(--text-label, 0.75rem)',
                     fontWeight: 800,
                     color: 'var(--gold)',
                     textTransform: 'uppercase',
@@ -897,9 +898,10 @@
                 }}>Quick Packages</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {suggestions.map(s => {
+                        const isMoonshot = !!s.isMoonshot;
                         const clears = s.likelihood >= s.acceptanceLine;
                         const near = !clears && s.verdict === 'countered';
-                        const color = clears ? 'var(--good)' : near ? 'var(--warn)' : 'var(--bad)';
+                        const color = isMoonshot ? 'var(--warn)' : clears ? 'var(--good)' : near ? 'var(--warn)' : 'var(--bad)';
                         return (
                             <button
                                 key={s.id}
@@ -909,8 +911,8 @@
                                 style={{
                                     textAlign: 'left',
                                     padding: '8px',
-                                    background: 'var(--ov-2, rgba(255,255,255,0.03))',
-                                    border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
+                                    background: isMoonshot ? 'var(--acc-fill2, rgba(240,165,0,0.1))' : 'var(--ov-2, rgba(255,255,255,0.03))',
+                                    border: isMoonshot ? '1px solid ' + wrAlpha('var(--warn)', '55') : '1px solid var(--ov-5, rgba(255,255,255,0.08))',
                                     borderLeft: '3px solid ' + color,
                                     borderRadius: '5px',
                                     color: 'var(--silver)',
@@ -920,18 +922,57 @@
                                 }}
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
-                                    <strong style={{ color: 'var(--white)', fontSize: 'var(--text-micro, 0.6875rem)' }}>{s.label}</strong>
-                                    <span style={{ color, fontFamily: FONT_MONO, fontSize: '0.6875rem', fontWeight: 800 }}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                                        <strong style={{ color: isMoonshot ? 'var(--warn)' : 'var(--white)', fontSize: 'var(--text-label, 0.75rem)' }}>{s.label}</strong>
+                                        {isMoonshot && (
+                                            <span style={{
+                                                fontSize: 'var(--text-micro, 0.6875rem)',
+                                                fontWeight: 900,
+                                                letterSpacing: '0.06em',
+                                                color: 'var(--black)',
+                                                background: 'var(--warn)',
+                                                padding: '1px 5px',
+                                                borderRadius: '3px',
+                                            }}>MOONSHOT</span>
+                                        )}
+                                    </span>
+                                    <span style={{ color, fontFamily: FONT_MONO, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 800, flexShrink: 0 }}>
                                         {s.likelihood}% / {s.acceptanceLine}%
                                     </span>
                                 </div>
-                                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontWeight: 700, marginBottom: 3 }}>
+                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', fontWeight: 700, marginBottom: 4 }}>
                                     {s.intent}
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: '0.6875rem', lineHeight: 1.3 }}>
-                                    <span><strong style={{ color: 'var(--bad)' }}>Give:</strong> {proposalAssets(s.proposal, 'my')}</span>
-                                    <span><strong style={{ color: 'var(--good)' }}>Get:</strong> {proposalAssets(s.proposal, 'their')}</span>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 'var(--text-label, 0.75rem)', lineHeight: 1.35, marginBottom: 4 }}>
+                                    <span style={{ color: 'var(--silver)' }}><strong style={{ color: 'var(--bad)' }}>Give:</strong> {proposalAssets(s.proposal, 'my')}</span>
+                                    <span style={{ color: 'var(--silver)' }}><strong style={{ color: 'var(--good)' }}>Get:</strong> {proposalAssets(s.proposal, 'their')}</span>
                                 </div>
+                                {/* Why — trade-up reasoning (headline + tone-colored drivers) */}
+                                {s.reasoning && (
+                                    <div style={{
+                                        marginTop: 5,
+                                        paddingTop: 5,
+                                        borderTop: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
+                                    }}>
+                                        <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--white)', fontWeight: 700, lineHeight: 1.35, marginBottom: 3 }}>
+                                            Why: {s.reasoning.headline}
+                                        </div>
+                                        {(s.reasoning.drivers || []).slice(0, 4).map((d, i) => {
+                                            const tCol = d.tone === 'good' ? 'var(--good)' : d.tone === 'bad' ? 'var(--bad)' : 'var(--silver)';
+                                            return (
+                                                <div key={i} style={{ fontSize: 'var(--text-label, 0.75rem)', lineHeight: 1.35, opacity: 0.95 }}>
+                                                    <strong style={{ color: tCol }}>{d.label}:</strong>{' '}
+                                                    <span style={{ color: 'var(--silver)' }}>{d.detail}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                {isMoonshot && (
+                                    <div style={{ marginTop: 5, fontSize: 'var(--text-label, 0.75rem)', color: 'var(--warn)', fontWeight: 600, lineHeight: 1.35 }}>
+                                        Low odds — but possible if they're desperate.
+                                    </div>
+                                )}
                             </button>
                         );
                     })}
@@ -948,21 +989,27 @@
             const n = p?.full_name || ((p?.first_name || '') + ' ' + (p?.last_name || '')).trim();
             return n || pid;
         };
+        // Unmistakable directional cue: GIVE side gets a left red stripe + "→"
+        // (assets leaving you), GET side gets a left green stripe + "←"
+        // (assets coming to you).
+        const isGive = String(label || '').toLowerCase().includes('give');
+        const dirLabel = isGive ? (label + ' →') : ('← ' + label);
         return (
             <div style={{
                 padding: '10px',
                 background: wrAlpha(color, '08'),
                 border: '1px solid ' + wrAlpha(color, '25'),
+                borderLeft: '3px solid ' + color,
                 borderRadius: '6px',
                 minHeight: 66,
             }}>
-                <div style={{ fontSize: '0.6875rem', color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>{label}</div>
+                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '5px' }}>{dirLabel}</div>
                 {hasAny ? (
                     <>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginBottom: '4px' }}>
                             {(picks || []).map((p, i) => (
                                 <span key={'p'+i} style={{
-                                    fontSize: 'var(--text-micro, 0.6875rem)',
+                                    fontSize: 'var(--text-label, 0.75rem)',
                                     fontWeight: 700,
                                     padding: '2px 6px',
                                     borderRadius: '3px',
@@ -972,7 +1019,7 @@
                             ))}
                             {(playerIds || []).map((pid) => (
                                 <span key={'pl'+pid} title={playerName(pid)} style={{
-                                    fontSize: 'var(--text-micro, 0.6875rem)',
+                                    fontSize: 'var(--text-label, 0.75rem)',
                                     fontWeight: 700,
                                     padding: '2px 6px',
                                     borderRadius: '3px',
@@ -986,7 +1033,7 @@
                             ))}
                             {faab > 0 && (
                                 <span style={{
-                                    fontSize: 'var(--text-micro, 0.6875rem)',
+                                    fontSize: 'var(--text-label, 0.75rem)',
                                     fontWeight: 700,
                                     padding: '2px 6px',
                                     borderRadius: '3px',
@@ -995,12 +1042,12 @@
                                 }}>${faab} FAAB</span>
                             )}
                         </div>
-                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', fontFamily: FONT_MONO, opacity: 0.7 }}>
+                        <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', fontFamily: FONT_MONO, opacity: 0.9 }}>
                             ≈ {(dhq || 0).toLocaleString()} DHQ
                         </div>
                     </>
                 ) : (
-                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.5, fontStyle: 'italic' }}>{empty}</div>
+                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, fontStyle: 'italic' }}>{empty}</div>
                 )}
             </div>
         );

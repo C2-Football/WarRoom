@@ -20,6 +20,28 @@
         DL: 'var(--k-e67e22, #e67e22)', LB: 'var(--k-f0a500, #f0a500)', DB: 'var(--k-5dade2, #5dade2)', K: 'var(--k-bb8fce, #bb8fce)',
     };
 
+    // Pure run-detector: returns the most concentrated positional run inside the
+    // last `lookback` picks, or null if no position has >= `min` of them.
+    // Shape: { pos, count, window, picks } where picks are the run's pick records.
+    function detectRuns(picks, lookback = 6, min = 3) {
+        const window = (picks || []).slice(-lookback);
+        if (window.length < min) return null;
+        const byPos = {};
+        window.forEach(p => {
+            const pos = (p && (p.pos || p.player?.position) || '').toUpperCase();
+            if (!pos) return;
+            (byPos[pos] = byPos[pos] || []).push(p);
+        });
+        let best = null;
+        Object.keys(byPos).forEach(pos => {
+            const list = byPos[pos];
+            if (list.length >= min && (!best || list.length > best.count)) {
+                best = { pos, count: list.length, window: window.length, picks: list };
+            }
+        });
+        return best;
+    }
+
     function LiveAnalyticsPanel({ state }) {
         const posColors = window.App?.POS_COLORS || POS_COLORS;
 
@@ -609,4 +631,6 @@
 
     window.DraftCC = window.DraftCC || {};
     window.DraftCC.LiveAnalyticsPanel = LiveAnalyticsPanel;
+    window.DraftCC.liveAnalytics = window.DraftCC.liveAnalytics || {};
+    window.DraftCC.liveAnalytics.detectRuns = detectRuns;
 })();
