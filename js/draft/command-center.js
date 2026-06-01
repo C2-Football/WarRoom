@@ -4341,7 +4341,7 @@
                                                     {(item.title || '').replace(/^Alex\s*[·:—-]?\s*/i, '') || item.title}
                                                 </div>
                                                 {item.text && (
-                                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.78, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.78, marginTop: 2, lineHeight: 1.4 }}>
                                                         {item.text}
                                                     </div>
                                                 )}
@@ -4682,7 +4682,7 @@
                         ? '1fr 1fr'
                         : 'minmax(0, 1.1fr) minmax(340px, 0.9fr)',
                     gap: L.GRID_GAP + 'px',
-                    height: isCompact ? 'auto' : 'clamp(320px, 32vh, 420px)',
+                    height: isCompact ? 'auto' : 'clamp(440px, 44vh, 600px)',
                 }}>
                     {isCompact && (
                         <div style={{ minHeight: 'clamp(220px, 24vh, 300px)', minWidth: 0 }}>

@@ -513,7 +513,6 @@
                         const tCol = tierColor(b.tier);
                         const rowRank = b.activeRank < 99999 ? b.activeRank : idx + 1;
                         const posColor = posColors[normEdPos(p.pos)] || 'var(--silver)';
-                        const note = b.note || '';
                         const nflTeam = nflTeamOf(p);
                         const college = collegeOf(p);
                         return (
@@ -587,51 +586,6 @@
                                             cursor: 'pointer',
                                         }}
                                     >{state.mode === 'live-sync' && state.overrideMode ? 'APPLY' : state.mode === 'manual' ? 'PICK' : (state.overrideMode ? 'FORCE' : 'DRAFT')}</button>
-                                )}
-                                {activeLane === 'my' && (
-                                    <div style={{ gridColumn: '2 / -1', display: 'flex', gap: '5px', alignItems: 'center', marginTop: '-2px' }}>
-                                        <span title="Drag to reorder" style={{
-                                            fontSize: 'var(--text-micro, 0.6875rem)',
-                                            lineHeight: 1,
-                                            color: 'var(--silver)',
-                                            opacity: 0.4,
-                                            cursor: 'grab',
-                                            userSelect: 'none',
-                                            flexShrink: 0,
-                                            paddingRight: '2px',
-                                        }}>⠿</span>
-                                        <button onClick={e => { e.stopPropagation(); onCycleTag(p); }} style={{
-                                            padding: '2px 6px',
-                                            minHeight: '30px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            borderRadius: '3px',
-                                            border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
-                                            background: tag ? wrAlpha(tag.color, '18') : 'var(--ov-2, rgba(255,255,255,0.03))',
-                                            color: tag ? tag.color : 'var(--silver)',
-                                            cursor: 'pointer',
-                                            fontSize: 'var(--text-micro, 0.6875rem)',
-                                            fontFamily: FONT_UI,
-                                            fontWeight: 800,
-                                        }}>TAG</button>
-                                        <button onClick={e => { e.stopPropagation(); onEditNote(p); }} style={{
-                                            padding: '2px 6px',
-                                            minHeight: '30px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            borderRadius: '3px',
-                                            border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
-                                            background: note ? 'var(--acc-fill2, rgba(212,175,55,0.10))' : 'var(--ov-2, rgba(255,255,255,0.03))',
-                                            color: note ? 'var(--gold)' : 'var(--silver)',
-                                            cursor: 'pointer',
-                                            fontSize: 'var(--text-micro, 0.6875rem)',
-                                            fontFamily: FONT_UI,
-                                            fontWeight: 800,
-                                        }}>NOTE</button>
-                                        {note && <span style={{ minWidth: 0, flex: 1, color: 'var(--silver)', opacity: 0.58, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{note}</span>}
-                                    </div>
                                 )}
                             </div>
                         );
