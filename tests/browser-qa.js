@@ -306,6 +306,14 @@ async function main() {
       const missingKpis = wantKpis.filter(w => !kpiLabels.includes(w));
       if (missingKpis.length) failures.push(`command-bridge: KPI tiles missing ${JSON.stringify(missingKpis)} (got ${JSON.stringify(kpiLabels)})`);
 
+      // Command Bridge composition: the signature panels render with live cross-league data.
+      const panels = await empirePage.evaluate(() =>
+        [...document.querySelectorAll('.empire-panel-head strong')].map(s => (s.textContent || '').trim())
+      ).catch(() => []);
+      const wantPanels = ['Empire Brief', 'Priority Queue', 'Risks And Opportunities', 'League Stack'];
+      const missingPanels = wantPanels.filter(w => !panels.some(p => p.includes(w)));
+      if (missingPanels.length) failures.push(`command-bridge: panels missing ${JSON.stringify(missingPanels)} (got ${JSON.stringify(panels)})`);
+
       const postWindow = empirePage.getByRole('button', { name: 'Post-window', exact: true });
       if (await postWindow.count() > 0) {
         await postWindow.first().click();
