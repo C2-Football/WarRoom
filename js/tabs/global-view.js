@@ -617,7 +617,15 @@ function buildEmpireMoves(input) {
                 if (!buyers.length) return;
                 const { a: buyer, posture } = buyers[0];
                 const dnaKey = dnaMap[buyer.ownerId] || null;
-                const accept = calcAccept(asset.dhq, asset.dhq, dnaKey, calcTaxes(myA, buyer, dnaKey, posture), myA, buyer);
+                // Model the real deal, not a 1-for-1 swap: the buyer's eagerness sets how much they
+                // overpay for the asset they need. Acceptance falls as the premium rises, but their
+                // posture / psych tax (panic premium for DESPERATE) offsets it.
+                const eagerness = posture.key === 'DESPERATE' ? 1.12 : 1.04;
+                const give = asset.dhq;                              // the asset I send out
+                const receive = Math.round(asset.dhq * eagerness);   // their (over)payment back
+                const accept = calcAccept(give, receive, dnaKey, calcTaxes(myA, buyer, dnaKey, posture), myA, buyer);
+                // Portfolio Δ = premium extracted + value preserved by shedding a decaying/redundant asset.
+                const delta = Math.round((receive - give) + asset.dhq * (asset.agePhase === 'post' ? 0.18 : 0.10));
                 moves.push({
                     type: 'sell',
                     title: 'Sell ' + asset.name + ' to ' + (buyer.ownerName || 'a rival'),
@@ -625,8 +633,8 @@ function buildEmpireMoves(input) {
                     posture: posture.label || posture.key,
                     why: (asset.agePhase === 'post' ? 'Post-window asset' : 'Trim ' + asset.exposureCount + '× exposure')
                         + ' — ' + (buyer.ownerName || 'they') + (posture.key === 'DESPERATE' ? ' is panicking and overpays' : ' is buying') + ' and needs ' + asset.pos + '.',
-                    value: asset.dhq, accept, pid: asset.pid,
-                    score: Math.round(asset.dhq * (accept / 100)),
+                    value: delta, accept, pid: asset.pid,
+                    score: Math.round(delta * (accept / 100)),
                 });
             });
 
@@ -654,7 +662,13 @@ function buildEmpireMoves(input) {
                 });
             if (best) {
                 const dnaKey = dnaMap[best.owner.ownerId] || null;
-                const accept = calcAccept(best.dhq, best.dhq, dnaKey, calcTaxes(myA, best.owner, dnaKey, best.posture), myA, best.owner);
+                // Buy below market: a seller/rebuilder takes a discount on a current player.
+                // Acceptance reflects the discount, offset by their seller/rebuild posture tax.
+                const discount = best.posture.key === 'DESPERATE' ? 0.85 : 0.92;
+                const give = Math.round(best.dhq * discount);   // what I pay (picks / surplus)
+                const receive = best.dhq;                       // the player I acquire
+                const accept = calcAccept(give, receive, dnaKey, calcTaxes(myA, best.owner, dnaKey, best.posture), myA, best.owner);
+                const delta = Math.round(best.dhq - give);      // discount captured filling a need
                 moves.push({
                     type: 'buy',
                     title: 'Acquire ' + best.name + ' from ' + (best.owner.ownerName || 'a seller'),
@@ -662,8 +676,8 @@ function buildEmpireMoves(input) {
                     posture: best.posture.label || best.posture.key,
                     why: 'Fills your ' + myNeed + ' need in a league you should push. '
                         + (best.owner.ownerName || 'They') + (best.posture.key === 'DESPERATE' ? ' is panicking' : ' is selling') + ' — buy at a discount.',
-                    value: best.dhq, accept, pid: best.pid,
-                    score: Math.round(best.dhq * (accept / 100)),
+                    value: delta, accept, pid: best.pid,
+                    score: Math.round(delta * (accept / 100)),
                 });
             }
         }
