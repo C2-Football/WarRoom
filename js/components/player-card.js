@@ -177,9 +177,6 @@
         const leagueProfile = typeof window.App?.Intelligence?.buildLeagueProfile === 'function'
             ? window.App.Intelligence.buildLeagueProfile({ league: { ...currentLeague, scoring_settings: sc }, rosters: window.S?.rosters || [], platform: window.S?.platform || currentLeague?._platform })
             : null;
-        const leagueFormatBadges = leagueProfile && typeof window.App?.Intelligence?.buildFormatBadges === 'function'
-            ? window.App.Intelligence.buildFormatBadges(leagueProfile).filter(b => b.impact === 'major' || b.impact === 'scoring' || b.impact === 'confidence').slice(0, 4)
-            : [];
         const playerFormatReasons = leagueProfile && typeof window.App?.Intelligence?.buildPlayerFormatReasons === 'function'
             ? window.App.Intelligence.buildPlayerFormatReasons({ player: p, pos: nPos, profile: leagueProfile }).slice(0, 3)
             : [];
@@ -230,12 +227,6 @@
         if (typeof window.App?.Intelligence?.publishRecommendations === 'function' && rosterRecommendation) {
             window.App.Intelligence.publishRecommendations('player-card', [rosterRecommendation], { surface: 'player-card', playerId: pid });
         }
-        const rosterWhyView = typeof window.App?.Intelligence?.buildWhyView === 'function'
-            ? window.App.Intelligence.buildWhyView(rosterRecommendation, { title: 'Why this player card', limit: 3 })
-            : null;
-        const rosterRecommendationWhy = rosterWhyView?.lines || (typeof window.App?.Intelligence?.recommendationWhyLines === 'function'
-            ? window.App.Intelligence.recommendationWhyLines(rosterRecommendation, 3)
-            : []);
         const tier = tierFromDhq(dhq);
         const depthChart = typeof p.depth_chart_order === 'number'
             ? (pos + (p.depth_chart_order + 1))
@@ -331,33 +322,6 @@
                         lineHeight: 1.45,
                     }
                 }, dhqContext),
-                playerFormatReasons.length > 0 && React.createElement('div', {
-                    style: {
-                        margin: '10px 20px 0',
-                        padding: '10px 11px',
-                        border: '1px solid rgba(52,152,219,0.18)',
-                        borderRadius: '7px',
-                        background: 'rgba(52,152,219,0.055)',
-                    }
-                },
-                    React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '6px' } },
-                        React.createElement('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--k-7db7e8, #7db7e8)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 800 } }, 'League Context'),
-                        leagueFormatBadges.map(badge => React.createElement('span', {
-                            key: badge.code,
-                            style: {
-                                fontSize: 'var(--text-label, 0.75rem)',
-                                color: 'var(--k-d0e7fa, #d0e7fa)',
-                                border: '1px solid rgba(125,183,232,0.22)',
-                                borderRadius: '4px',
-                                padding: '1px 5px',
-                                background: 'rgba(125,183,232,0.08)',
-                            }
-                        }, badge.label))
-                    ),
-                    React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.45 } },
-                        playerFormatReasons.map(r => r.detail || r.label).join(' ')
-                    )
-                ),
                 // Age curve
                 React.createElement('div', { style: { padding: '14px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
 	                    React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
@@ -440,27 +404,6 @@
                                 )
                             )
                         ))
-                    )
-                ),
-                // Shared recommendation
-                React.createElement('div', { style: { padding: '14px 20px', display: 'flex', gap: '10px', alignItems: 'flex-start' } },
-                    React.createElement('div', { style: { width: '24px', height: '24px', borderRadius: '6px', background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 800, color: 'var(--k-0a0a0a, #0a0a0a)' } }, 'AI'),
-                    React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--k-d0d0d0, #d0d0d0)', lineHeight: 1.5 } },
-                        rosterRecommendation?.display?.detail || (() => {
-                            let insight;
-	                            if (isOnMyTeam && valueYrs <= 1 && dhq >= 3000) insight = 'Sell window closing — move before value drops.';
-                            else if (!isOnMyTeam && peakYrs >= 5 && dhq < 4000) insight = 'Buy-low candidate — young with room to grow.';
-                            else if (peakYrs >= 4) insight = 'Long dynasty window — cornerstone asset.';
-                            else if (peakYrs >= 1) insight = 'In production window.';
-	                            else if (valueYrs >= 1) insight = 'Veteran value window.';
-	                            else insight = 'Past value window — value declining.';
-                            if (trend >= 20) insight += ' Trending up ' + trend + '%.';
-                            else if (trend <= -15) insight += ' Production down ' + Math.abs(trend) + '%.';
-                            return insight;
-                        })(),
-                        rosterRecommendationWhy.length > 0 && React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '8px' } },
-                            rosterRecommendationWhy.map(line => React.createElement('span', { key: line, style: { color: 'var(--k-d0e7fa, #d0e7fa)', background: 'rgba(125,183,232,0.07)', border: '1px solid rgba(125,183,232,0.18)', borderRadius: '4px', padding: '2px 5px', fontSize: 'var(--text-label, 0.75rem)', lineHeight: 1.25 } }, line))
-                        )
                     )
                 )
             );

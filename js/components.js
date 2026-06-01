@@ -48,7 +48,6 @@
         const dhq = window.App?.LI?.playerScores?.[pid] || 0;
         const meta = window.App?.LI?.playerMeta?.[pid] || {};
         const leagueSkin = window.App?.LeagueSkin?.getCurrent?.() || null;
-        const skinFeatures = leagueSkin?.features || {};
         const valueShortLabel = leagueSkin?.vocabulary?.valueShortLabel || 'DHQ';
         const st = statsData?.[pid] || {};
         const nPos = ['DE','DT','NT'].includes(pos)?'DL':['CB','S','SS','FS'].includes(pos)?'DB':['OLB','ILB','MLB'].includes(pos)?'LB':pos;
@@ -73,11 +72,6 @@
         const rec = pa ? pa.label.toUpperCase() : (peakYrs <= 0 && trend <= -10 ? 'SELL NOW' : peakYrs <= 0 ? 'SELL' : peakYrs <= 2 ? 'SELL' : dhq >= 7000 && peakYrs >= 3 ? 'HOLD CORE' : 'HOLD');
         const recCol = rec.includes('SELL') ? 'var(--k-e74c3c, #e74c3c)' : rec.includes('BUY') ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-d4af37, #d4af37)';
         const initials = ((p.first_name||'?')[0] + (p.last_name||'?')[0]).toUpperCase();
-
-        // Check roster context
-        const S = window.S || {};
-        const myRoster = (S.rosters || []).find(r => r.roster_id === S.myRosterId);
-        const isOnMyTeam = myRoster?.players?.includes(pid);
 
         // Smart positioning: ensure card is fully visible
         const isMobile = typeof window !== 'undefined' && window.innerWidth < 440;
@@ -123,50 +117,6 @@
                     React.createElement('span', null, '20'),
                     React.createElement('span', null, 'Peak '+pLo+'\u2013'+pHi),
                     React.createElement('span', null, '36')
-                )
-            ),
-            // Recommendation line — Alex Ingram insight (persona-aware)
-            React.createElement('div', { style:{ padding:'6px 12px', margin:'0 8px', background:'var(--acc-fill1, rgba(212,175,55,0.04))', borderLeft:'3px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius:'0 6px 6px 0', display:'flex', gap:'6px', alignItems:'flex-start' } },
-                React.createElement('div', { style:{ width:'18px', height:'18px', borderRadius:'5px', background:'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'var(--text-label, 0.75rem)', fontWeight:800, color:'var(--k-0a0a0a, #0a0a0a)', fontFamily:'Rajdhani, sans-serif', marginTop:'2px' } }, 'AI'),
-                React.createElement('div', { style:{ fontSize:'var(--text-body, 1rem)', color:'var(--silver)', lineHeight:1.5 } },
-                    (() => {
-                        const S = window.S || {};
-                        const rosters = S.rosters || [];
-                        const alexStyle = localStorage.getItem('wr_alex_style') || 'default';
-                        // Count teams that need this position (only if player is on my team)
-                        const needCount = isOnMyTeam ? rosters.filter(r => {
-                            if (r.roster_id === S.myRosterId) return false;
-                            const assess = typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(r.roster_id) : null;
-                            return assess?.needs?.some(n => n.pos === nPos);
-                        }).length : 0;
-
-                        // Base insight
-                        let insight = '';
-                        if (isOnMyTeam && needCount >= 3) insight = needCount + ' teams need ' + nPos + ' \u2014 strong trade leverage.';
-	                        else if (isOnMyTeam && valueYrs <= 1 && dhq >= 3000) insight = 'Sell window closing. Move before value drops.';
-                        else if (!isOnMyTeam && peakYrs >= 5 && dhq < 4000) insight = 'Buy-low candidate \u2014 young with room to grow.';
-                        else if (peakYrs >= 4) insight = skinFeatures.showDynastyValue === false ? 'Long value window - high-upside player.' : 'Long dynasty window - cornerstone asset.';
-                        else if (peakYrs >= 1) insight = 'In production window.';
-	                        else insight = 'Past value window \u2014 value declining.';
-
-                        // Persona flavor
-                        const flavors = {
-                            general: { sell: 'Execute the trade. No hesitation.', buy: 'Acquire this player. That\'s an order.', hold: 'Hold the line. Don\'t get sentimental.' },
-                            enthusiast: { sell: 'Cash in NOW while you can! This is exciting!', buy: 'OH MAN you gotta get this guy!', hold: 'Love this player! Keep building around them!' },
-                            bayou: { sell: 'Time to let this one swim downstream, cher.', buy: 'Go get \'em before someone else does, ya hear?', hold: 'This one\'s a keeper. Don\'t nobody touch \'em.' },
-                            wit: { sell: 'Your leaguemates still think he\'s worth something. Exploit that.', buy: 'Undervalued. Their loss, your gain.', hold: 'Solid. Try not to overthink it.' },
-                            closer: { sell: 'Sell. Now. Done.', buy: 'Get it done. Close.', hold: 'Hold. Period.' },
-                            strategist: { sell: 'Optimal exit point. Maximize return on declining asset.', buy: 'Favorable risk-reward profile. Recommend acquisition.', hold: 'Asset performing within expected parameters. Maintain position.' },
-                        };
-                        const f = flavors[alexStyle];
-                        if (f) {
-                            const isSell = rec.includes('SELL');
-                            const isBuy = rec.includes('BUY');
-                            insight += ' ' + (isSell ? f.sell : isBuy ? f.buy : f.hold);
-                        }
-                        return insight;
-                    })(),
-                    trend >= 20 ? ' Trending up '+trend+'%.' : trend <= -15 ? ' Production down '+Math.abs(trend)+'%.' : ''
                 )
             ),
             // Action buttons

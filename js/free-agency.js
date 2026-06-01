@@ -237,7 +237,7 @@
                 : win.peakYrs > 0
                     ? (skinFeatures.showDynastyValue === false ? 'Adds usable production runway without forcing a major FAAB commitment.' : 'Adds usable dynasty runway without forcing a major FAAB commitment.')
                     : 'Short-window depth. Treat as a tactical add, not a core asset.';
-            const why = formatReasons.length ? whyBase + ' ' + (formatReasons[0].detail || formatReasons[0].label) : whyBase;
+            const why = whyBase;
             const intelligence = typeof window.App?.Intelligence?.buildWaiverRecommendation === 'function'
                 ? window.App.Intelligence.buildWaiverRecommendation({
                     id: 'waiver_' + x.pid,
@@ -366,11 +366,6 @@
                 ? window.App.Intelligence.buildLeagueProfile({ league: currentLeague, rosters: currentLeague?.rosters || [], platform: currentLeague?._platform })
                 : null;
         }, [currentLeague]);
-        const leagueFormatBadges = useMemo(() => {
-            return leagueProfile && typeof window.App?.Intelligence?.buildFormatBadges === 'function'
-                ? window.App.Intelligence.buildFormatBadges(leagueProfile).filter(b => b.impact === 'major' || b.impact === 'scoring' || b.impact === 'confidence').slice(0, 4)
-                : [];
-        }, [leagueProfile]);
         const rookiesLocked = rookiesLockedForWaivers(currentLeague, briefDraftInfo);
         const prospectNames = useMemo(() => {
             if (!rookiesLocked || typeof window.getProspects !== 'function') return new Set();
@@ -683,7 +678,7 @@
                 : win.peakYrs > 0
                     ? (skinFeatures.showDynastyValue === false ? 'Adds usable production runway without forcing a major FAAB commitment.' : 'Adds usable dynasty runway without forcing a major FAAB commitment.')
                     : 'Short-window depth. Treat as a tactical add, not a core asset.';
-            const why = formatReasons.length ? whyBase + ' ' + (formatReasons[0].detail || formatReasons[0].label) : whyBase;
+            const why = whyBase;
             const intelligence = typeof window.App?.Intelligence?.buildWaiverRecommendation === 'function'
                 ? window.App.Intelligence.buildWaiverRecommendation({
                     id: 'waiver_' + x.pid,
@@ -803,12 +798,6 @@
 
         function renderCandidateRow(x, i, isPrimary) {
             const dhqCol = x.dhq >= 4000 ? 'var(--k-3498db, #3498db)' : x.dhq >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.45))';
-            const whyView = typeof window.App?.Intelligence?.buildWhyView === 'function'
-                ? window.App.Intelligence.buildWhyView(x.intelligence, { title: 'Why this waiver target', limit: 3 })
-                : null;
-            const whyLines = whyView?.lines || (typeof window.App?.Intelligence?.recommendationWhyLines === 'function'
-                ? window.App.Intelligence.recommendationWhyLines(x.intelligence, 3)
-                : []);
             return (
                 <button key={x.pid} className={'fa-hq-candidate' + (isPrimary ? ' is-primary' : '')} title="Open player card" onClick={() => openFaPlayer(x.pid)}>
                     <span className="fa-hq-rank">{i + 1}</span>
@@ -822,7 +811,6 @@
                         <em>{x.faab ? '$' + x.faab.lo + '-' + x.faab.hi : 'No bid'}</em>
                     </span>
                     <span className="fa-hq-why">{x.why}</span>
-                    {whyLines.length > 0 && <span className="fa-hq-evidence">{whyLines.slice(0, 3).map(line => <em key={line}>{line}</em>)}</span>}
                 </button>
             );
         }
@@ -852,9 +840,6 @@
                             <span>Free Agency Action HQ</span>
                             <h2>{topAdds[0] ? topAdds[0].p.full_name || playerName(topAdds[0].p) : 'No urgent add surfaced'}</h2>
                             <p>{topAdds[0] ? topAdds[0].why : 'Your market is clean enough to browse for stashes and tactical depth.'}</p>
-                            {leagueFormatBadges.length > 0 && <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
-                                {leagueFormatBadges.map(badge => <span key={badge.code} style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--k-d0e7fa, #d0e7fa)', border: '1px solid rgba(125,183,232,0.25)', background: 'rgba(125,183,232,0.08)', borderRadius: '5px', padding: '2px 7px', fontWeight: 700 }}>{badge.label}</span>)}
-                            </div>}
                         </div>
                         <div className="fa-hq-hero-kpis">
                             {hasFAAB && <div><span>FAAB</span><strong style={{ color: faabColor }}>${remaining}</strong><em>#{myFaabRank || '—'}/{faabMarketRows.length || '—'} · avg ${leagueAvgRemaining}</em></div>}
@@ -1256,9 +1241,6 @@
                             {need && <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--k-2ecc71, #2ecc71)', fontWeight: 600, marginBottom: '4px' }}>Fills {selPos} {need.urgency}</div>}
                             {strength && <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.7, marginBottom: '4px' }}>You already have {selPos} surplus — stash only</div>}
                             {!need && !strength && <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', marginBottom: '4px' }}>Depth add at {selPos}</div>}
-                            <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6 }}>
-	                                {selPeakYrs >= 4 ? (skinFeatures.showDynastyValue === false ? 'Long value window - upside add' : 'Long dynasty window - buy low candidate') : selPeakYrs >= 1 ? 'In production window - immediate contributor' : selValueYrs >= 1 ? 'Veteran value window - short-term contributor' : 'Past value window - short-term rental only'}
-                            </div>
                         </div>;
                     })()}
 
