@@ -298,6 +298,14 @@ async function main() {
       if (!mods.cb) failures.push('empire-modules: window.App.buildCommandBridge missing');
       if (mods.kpis !== 6) failures.push(`empire-modules: buildCommandBridge KPIs=${mods.kpis}${mods.err ? ' err=' + mods.err : ''}`);
 
+      // Command Bridge KPI strip renders the 6 mockup KPIs (from buildCommandBridge) with live data.
+      const kpiLabels = await empirePage.evaluate(() =>
+        [...document.querySelectorAll('[data-testid="empire-command-strip"] .empire-kpi span')].map(s => (s.textContent || '').trim())
+      ).catch(() => []);
+      const wantKpis = ['Empire Value', 'Record', 'Avg Health', 'Pick Capital', 'Top Exposure', 'Open Actions'];
+      const missingKpis = wantKpis.filter(w => !kpiLabels.includes(w));
+      if (missingKpis.length) failures.push(`command-bridge: KPI tiles missing ${JSON.stringify(missingKpis)} (got ${JSON.stringify(kpiLabels)})`);
+
       const postWindow = empirePage.getByRole('button', { name: 'Post-window', exact: true });
       if (await postWindow.count() > 0) {
         await postWindow.first().click();

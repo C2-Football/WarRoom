@@ -929,6 +929,9 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const briefText = useMemo(() => buildEmpireBrief(model, userName), [model, userName]);
     const moves = useMemo(() => buildEmpireMoves({ leagues: allLeagues, model, scores, playersData, myUserId: sleeperUserId, normPos, tradeEngine: window.App?.TradeEngine }), [allLeagues, model, scoreKey]);
     const consolidation = useMemo(() => buildEmpireConsolidation(moves, model), [moves, model]);
+    const empireLeagueIds = useMemo(() => (allLeagues || []).map(l => l.id || l.league_id).filter(Boolean), [allLeagues]);
+    const empireDelta = useMemo(() => (window.WrSnapshots && typeof window.WrSnapshots.empireDelta === 'function') ? window.WrSnapshots.empireDelta(empireLeagueIds) : null, [empireLeagueIds, scoreKey]);
+    const bridge = useMemo(() => buildCommandBridge({ model, actionQueue, brief: briefText, empireDelta }), [model, actionQueue, briefText, empireDelta]);
 
     const setFilter = useCallback((key, value) => {
         setFilters(prev => ({ ...prev, [key]: prev[key] === value ? '' : value }));
@@ -982,7 +985,6 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const activeFilters = Object.values(filters).filter(Boolean).length;
     const hasNoResults = !filtered.provinces.length && !filtered.assets.length && !filtered.picks.length;
     const shareBasis = model.totals.useValueShare ? 'DHQ share' : 'asset count';
-    const qualityTone = model.dataQuality.status === 'ready' ? 'var(--good)' : model.dataQuality.status === 'partial' || model.dataQuality.status === 'loading' ? 'var(--warn)' : 'var(--bad)';
     const signalTone = sev => sev === 'high' ? 'var(--k-e74c3c, #e74c3c)' : sev === 'medium' ? 'var(--k-f0a500, #f0a500)' : 'var(--k-2ecc71, #2ecc71)';
     const filterActive = (key, value) => filters[key] === value;
     const rootClassName = 'empire-root' + ((new URLSearchParams(window.location.search || '').has('dev') || ['localhost', '127.0.0.1'].includes(window.location.hostname || '')) ? ' is-local-preview' : '');
@@ -1006,13 +1008,20 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         if (action.filter) setFilters(prev => ({ ...prev, ...action.filter }));
     }, []);
 
-    const metric = (label, value, sub, color) => (
-        <div className="empire-kpi">
-            <strong style={{ color: color || undefined }}>{value}</strong>
-            <span>{label}</span>
-            {sub && <em>{sub}</em>}
-        </div>
-    );
+    // Command Bridge KPI tile — renders a buildCommandBridge KPI (value + label + sub + WoW delta).
+    const kpiToneColor = (t) => t === 'good' ? 'var(--good)' : t === 'warn' ? 'var(--warn)' : t === 'bad' ? 'var(--bad)' : t === 'gold' ? 'var(--gold)' : undefined;
+    const kpiTile = (k) => {
+        const d = k.delta;
+        const deltaStr = (d && d.pct != null) ? ' ' + (d.dir === 'up' ? '▲' : d.dir === 'down' ? '▼' : '→') + Math.abs(d.pct) + '%' : '';
+        const sub = (k.sub || '') + deltaStr;
+        return (
+            <div className="empire-kpi" key={k.key}>
+                <strong style={{ color: kpiToneColor(k.tone) || undefined }}>{k.value}</strong>
+                <span>{k.label}</span>
+                {sub && <em>{sub}</em>}
+            </div>
+        );
+    };
     const filterButton = (key, value, label, color) => (
         <button
             key={key + ':' + value}
@@ -1331,14 +1340,10 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                     <div className="empire-user">{userName}</div>
                 </div>
                 <div className="empire-kpis" data-testid="empire-command-strip">
-                    {metric('Portfolio', filtered.totalDHQ > 0 ? empireCompact(filtered.totalDHQ) : 'No DHQ', model.totals.useValueShare ? 'DHQ valued' : 'value engine pending', filtered.totalDHQ > 0 ? 'var(--good)' : 'var(--warn)')}
-                    {metric('Data Sync', model.dataQuality.status, model.dataQuality.scoredAssets + '/' + model.assets.length + ' valued', qualityTone)}
-                    {metric('Leagues', filtered.provinces.length, activeFilters ? 'of ' + model.provinces.length : 'portfolio')}
-                    {metric('Assets', filtered.assets.length, model.exposure.filter(e => e.count > 1).length + ' duplicated')}
-                    {metric('Picks', filtered.picks.length, model.pickCapital.premium + ' premium')}
-                    {metric('Concentration', model.totals.topExposurePct + '%', 'top exposure', model.totals.topExposurePct >= 50 ? 'var(--bad)' : 'var(--gold)')}
-                    {metric('Age Balance', (model.ageAllocation.find(a => a.key === 'peak')?.share || 0) + '/' + (model.ageAllocation.find(a => a.key === 'value')?.share || 0), 'peak/value %')}
-                    {metric('Timeline', model.totals.contenders + 'C ' + model.totals.rebuilds + 'R', 'league mix')}
+                    {/* Command Bridge KPI strip — empire-wide overview (mockup contract), with
+                        week-over-week deltas from the snapshot store. Lens filters drive the asset
+                        table below, not these portfolio-level KPIs. */}
+                    {bridge.kpis.map(kpiTile)}
                 </div>
                 <div className="empire-filters">
                     <span className="empire-filter-label">Lenses</span>
