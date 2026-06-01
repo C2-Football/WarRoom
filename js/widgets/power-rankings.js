@@ -13,13 +13,13 @@
     'use strict';
 
     const TONE = {
-        elite: '#2ECC71',
-        strong: '#8AD17A',
+        elite: 'var(--good)',
+        strong: 'var(--k-8ad17a, #8ad17a)',
         middle: 'var(--silver)',
-        weak: '#E86A5A',
+        weak: 'var(--k-e86a5a, #e86a5a)',
         gold: 'var(--gold)',
-        panel: 'rgba(255,255,255,0.035)',
-        line: 'rgba(255,255,255,0.08)',
+        panel: 'var(--ov-3, rgba(255,255,255,0.035))',
+        line: 'var(--ov-5, rgba(255,255,255,0.08))',
     };
 
     const VIEW_META = {
@@ -136,8 +136,8 @@
 
         const base = {
             background: 'var(--off-black)',
-            border: '1px solid rgba(212,175,55,0.14)',
-            borderRadius: '10px',
+            border: 'var(--card-border)',
+            borderRadius: 'var(--card-radius)',
             padding: 'var(--card-pad, 14px 16px)',
             display: 'flex',
             flexDirection: 'column',
@@ -158,8 +158,8 @@
                 onClick: jumpToLeague,
                 title: 'Open League Analytics',
                 style: {
-                    border: '1px solid rgba(212,175,55,0.18)',
-                    background: 'rgba(212,175,55,0.06)',
+                    border: '1px solid var(--acc-fill3, rgba(212,175,55,0.18))',
+                    background: 'var(--acc-fill1, rgba(212,175,55,0.06))',
                     color: 'var(--gold)',
                     borderRadius: '6px',
                     cursor: 'pointer',
@@ -167,6 +167,10 @@
                     fontFamily: 'var(--font-body)',
                     fontWeight: 700,
                     padding: '4px 9px',
+                    minHeight: '44px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     whiteSpace: 'nowrap',
                 }
             }, label);
@@ -198,15 +202,18 @@
                         onClick: e => { e.stopPropagation(); setView(k); },
                         title: VIEW_META[k].help,
                         style: {
-                            height: compact ? '22px' : '24px',
-                            padding: compact ? '0 7px' : '0 9px',
+                            minHeight: compact ? '30px' : '32px',
+                            padding: compact ? '0 9px' : '0 11px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                             fontSize: compact ? '0.58rem' : '0.64rem',
                             fontFamily: 'var(--font-body)',
                             borderRadius: '5px',
                             cursor: 'pointer',
                             letterSpacing: '0',
-                            border: '1px solid ' + (view === k ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.1)'),
-                            background: view === k ? 'rgba(212,175,55,0.13)' : 'rgba(255,255,255,0.02)',
+                            border: '1px solid ' + (view === k ? 'var(--acc-line3, rgba(212,175,55,0.5))' : 'var(--ov-6, rgba(255,255,255,0.1))'),
+                            background: view === k ? 'var(--acc-fill2, rgba(212,175,55,0.13))' : 'var(--ov-1, rgba(255,255,255,0.02))',
                             color: view === k ? 'var(--gold)' : 'var(--silver)',
                             whiteSpace: 'nowrap',
                         }
@@ -223,7 +230,7 @@
                 style: {
                     width,
                     height,
-                    background: 'rgba(255,255,255,0.07)',
+                    background: 'var(--ov-4, rgba(255,255,255,0.07))',
                     borderRadius: height,
                     overflow: 'hidden',
                     flexShrink: 0,
@@ -237,15 +244,15 @@
             return React.createElement('div', {
                 style: {
                     background: TONE.panel,
-                    border: '1px solid rgba(255,255,255,0.055)',
+                    border: '1px solid var(--ov-4, rgba(255,255,255,0.055))',
                     borderRadius: '8px',
                     padding: '8px 10px',
                     minWidth: 0,
                 }
             },
-                React.createElement('div', { style: { fontSize: '0.54rem', color: 'var(--silver)', opacity: 0.66, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' } }, label),
+                React.createElement('div', { style: { fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.66, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' } }, label),
                 React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.18rem', lineHeight: 1.1, fontWeight: 900, color: tone, marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, value),
-                sub ? React.createElement('div', { style: { fontSize: '0.56rem', color: 'var(--silver)', opacity: 0.62, marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, sub) : null
+                sub ? React.createElement('div', { style: { fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.62, marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, sub) : null
             );
         }
 
@@ -269,8 +276,8 @@
                     minHeight: micro ? '23px' : dense ? '30px' : '36px',
                     padding: micro ? '1px 6px' : dense ? '3px 7px' : '5px 8px',
                     borderRadius: '6px',
-                    background: isMe ? 'rgba(212,175,55,0.11)' : 'transparent',
-                    border: isMe ? '1px solid rgba(212,175,55,0.2)' : '1px solid transparent',
+                    background: isMe ? 'var(--acc-fill2, rgba(212,175,55,0.11))' : 'transparent',
+                    border: isMe ? '1px solid var(--acc-line1, rgba(212,175,55,0.2))' : '1px solid transparent',
                 }
             },
                 React.createElement('div', {
@@ -295,7 +302,7 @@
                     }, getTeamName(t) + (isMe ? ' ★' : '')),
                     (showTrend || crossText) ? React.createElement('div', {
                         style: {
-                            fontSize: micro ? '0.5rem' : '0.56rem',
+                            fontSize: 'var(--text-micro)',
                             color: 'var(--silver)',
                             opacity: 0.58,
                             marginTop: '1px',
@@ -335,7 +342,7 @@
                 showMe ? React.createElement('div', {
                     style: {
                         height: '1px',
-                        borderTop: '1px dashed rgba(212,175,55,0.24)',
+                        borderTop: '1px dashed var(--acc-line1, rgba(212,175,55,0.24))',
                         margin: '2px 8px 0',
                     }
                 }) : null,
@@ -376,7 +383,7 @@
                     React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '2.15rem', lineHeight: 1, fontWeight: 900, color } }, myRank ? '#' + myRank : '\u2014'),
                     React.createElement('div', { style: { fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.72, marginTop: '6px' } }, total ? 'of ' + total + ' teams' : 'No teams')
                 ),
-                React.createElement('div', { style: { height: '7px', borderRadius: '7px', background: 'rgba(255,255,255,0.07)', overflow: 'hidden' } },
+                React.createElement('div', { style: { height: '7px', borderRadius: '7px', background: 'var(--ov-4, rgba(255,255,255,0.07))', overflow: 'hidden' } },
                     React.createElement('div', { style: { width: pct + '%', height: '100%', background: color, borderRadius: '7px' } })
                 )
             );
@@ -391,7 +398,7 @@
                 React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '88px 1fr', gap: '12px', alignItems: 'center', flex: 1, minHeight: 0 } },
                     React.createElement('div', {
                         style: {
-                            border: '1px solid rgba(255,255,255,0.08)',
+                            border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
                             background: TONE.panel,
                             borderRadius: '8px',
                             padding: '10px 8px',
@@ -413,7 +420,7 @@
                                 React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.05rem', fontWeight: 800, color: 'var(--white)' } }, behind)
                             )
                         ),
-                        React.createElement('div', { style: { display: 'flex', height: '12px', borderRadius: '7px', overflow: 'hidden', background: 'rgba(255,255,255,0.07)' } },
+                        React.createElement('div', { style: { display: 'flex', height: '12px', borderRadius: '7px', overflow: 'hidden', background: 'var(--ov-4, rgba(255,255,255,0.07))' } },
                             ...cur.data.map((t, i) => React.createElement('div', {
                                 key: t.rosterId || i,
                                 title: (i + 1) + '. ' + getTeamName(t) + ' - ' + cur.fmtFn(cur.valFn(t)),
@@ -449,8 +456,8 @@
                             key: t.rosterId || rank,
                             style: {
                                 minWidth: 0,
-                                border: '1px solid ' + (isMe ? 'rgba(212,175,55,0.38)' : 'rgba(255,255,255,0.08)'),
-                                background: isMe ? 'rgba(212,175,55,0.1)' : TONE.panel,
+                                border: '1px solid ' + (isMe ? 'var(--acc-line3, rgba(212,175,55,0.38))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
+                                background: isMe ? 'var(--acc-fill2, rgba(212,175,55,0.1))' : TONE.panel,
                                 borderRadius: '8px',
                                 padding: '8px',
                             }
@@ -466,7 +473,7 @@
                 ),
                 React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '1px', minHeight: 0, flex: 1 } },
                     ...nextRows.map((t, i) => React.createElement(TeamRow, { key: t.rosterId || i, t, rank: i + 4, dense: true, showTrend: false })),
-                    showMe ? React.createElement('div', { style: { borderTop: '1px dashed rgba(212,175,55,0.25)', margin: '3px 8px 1px' } }) : null,
+                    showMe ? React.createElement('div', { style: { borderTop: '1px dashed var(--acc-line1, rgba(212,175,55,0.25))', margin: '3px 8px 1px' } }) : null,
                     showMe ? React.createElement(TeamRow, { t: myTeam, rank: myRank, dense: true, showTrend: false }) : null
                 ),
                 total > (showMe ? nextRows.length + 4 : nextRows.length + 3)
@@ -551,7 +558,7 @@
                 return React.createElement('div', {
                     style: {
                         background: TONE.panel,
-                        border: '1px solid rgba(255,255,255,0.055)',
+                        border: '1px solid var(--ov-4, rgba(255,255,255,0.055))',
                         borderRadius: '8px',
                         padding: '9px 10px',
                         minHeight: 0,
@@ -663,8 +670,8 @@
                                 key: t.rosterId || rank,
                                 style: {
                                     minWidth: 0,
-                                    border: '1px solid ' + (isMe ? 'rgba(212,175,55,0.42)' : 'rgba(255,255,255,0.08)'),
-                                    background: isMe ? 'rgba(212,175,55,0.11)' : TONE.panel,
+                                    border: '1px solid ' + (isMe ? 'var(--acc-line3, rgba(212,175,55,0.42))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
+                                    background: isMe ? 'var(--acc-fill2, rgba(212,175,55,0.11))' : TONE.panel,
                                     borderRadius: '9px',
                                     padding: '10px',
                                 }

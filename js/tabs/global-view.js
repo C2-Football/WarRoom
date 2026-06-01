@@ -14,11 +14,11 @@ function buildEmpirePortfolioModel(input) {
         return { build: [22, Math.max(22, peak[0] - 1)], peak, decline: [peak[1] + 1, peak[1] + 3] };
     };
     const tradeValueTier = input.tradeValueTier || function(val) {
-        if (val >= 7000) return { tier: 'Elite', col: '#2ECC71' };
-        if (val >= 4000) return { tier: 'Starter', col: '#3498DB' };
-        if (val >= 2000) return { tier: 'Depth', col: '#D4AF37' };
-        if (val > 0) return { tier: 'Stash', col: 'rgba(255,255,255,0.58)' };
-        return { tier: 'Unscored', col: 'rgba(255,255,255,0.38)' };
+        if (val >= 7000) return { tier: 'Elite', col: 'var(--k-2ecc71, #2ecc71)' };
+        if (val >= 4000) return { tier: 'Starter', col: 'var(--k-3498db, #3498db)' };
+        if (val >= 2000) return { tier: 'Depth', col: 'var(--k-d4af37, #d4af37)' };
+        if (val > 0) return { tier: 'Stash', col: 'var(--ov-9, rgba(255,255,255,0.58))' };
+        return { tier: 'Unscored', col: 'var(--ov-8, rgba(255,255,255,0.38))' };
     };
     const assessTeam = input.assessTeam;
     const nowYear = parseInt(input.nowYear || new Date().getFullYear(), 10);
@@ -42,11 +42,11 @@ function buildEmpirePortfolioModel(input) {
         return league?.id || league?.league_id || league?.leagueId || '';
     }
     function tierColor(tier) {
-        if (tier === 'ELITE') return '#2ECC71';
-        if (tier === 'CONTENDER') return '#3498DB';
-        if (tier === 'CROSSROADS') return '#F0A500';
-        if (tier === 'REBUILDING') return '#E74C3C';
-        return 'rgba(255,255,255,0.46)';
+        if (tier === 'ELITE') return 'var(--k-2ecc71, #2ecc71)';
+        if (tier === 'CONTENDER') return 'var(--k-3498db, #3498db)';
+        if (tier === 'CROSSROADS') return 'var(--k-f0a500, #f0a500)';
+        if (tier === 'REBUILDING') return 'var(--k-e74c3c, #e74c3c)';
+        return 'var(--ov-9, rgba(255,255,255,0.46))';
     }
     function statusFromTier(tier) {
         if (tier === 'ELITE' || tier === 'CONTENDER') return 'contender';
@@ -55,14 +55,14 @@ function buildEmpirePortfolioModel(input) {
         return 'unknown';
     }
     function agePhaseFor(pos, age) {
-        if (!age || !Number.isFinite(Number(age))) return { key: 'unknown', label: 'Unknown', color: 'rgba(255,255,255,0.38)' };
+        if (!age || !Number.isFinite(Number(age))) return { key: 'unknown', label: 'Unknown', color: 'var(--ov-8, rgba(255,255,255,0.38))' };
         const curve = getAgeCurve(pos) || {};
         const peak = curve.peak || [24, 29];
         const decline = curve.decline || [peak[1] + 1, peak[1] + 3];
-        if (age < peak[0]) return { key: 'build', label: 'Build', color: '#4ECDC4' };
-        if (age <= peak[1]) return { key: 'peak', label: 'Peak', color: '#2ECC71' };
-        if (age <= decline[1]) return { key: 'value', label: 'Value', color: '#F0A500' };
-        return { key: 'post', label: 'Post-window', color: '#E74C3C' };
+        if (age < peak[0]) return { key: 'build', label: 'Build', color: 'var(--k-4ecdc4, #4ecdc4)' };
+        if (age <= peak[1]) return { key: 'peak', label: 'Peak', color: 'var(--k-2ecc71, #2ecc71)' };
+        if (age <= decline[1]) return { key: 'value', label: 'Value', color: 'var(--k-f0a500, #f0a500)' };
+        return { key: 'post', label: 'Post-window', color: 'var(--k-e74c3c, #e74c3c)' };
     }
     function addTotal(map, key, patch) {
         const safeKey = key || 'unknown';
@@ -87,7 +87,17 @@ function buildEmpirePortfolioModel(input) {
         if (!myRoster) return;
 
         const rosterPlayers = myRoster.players || [];
-        const assessment = typeof assessTeam === 'function' ? assessTeam(myRoster.roster_id, league) : null;
+        // Health/tier must come from the per-league assessment. app.js runs
+        // assessAllTeams(league.rosters, …, league, …) with the explicit league object and
+        // stashes the result on league.empireAssessments. Prefer that over the single-league
+        // window.S global accessor (assessTeam=assessTeamFromGlobal), which in Empire mode
+        // reads an unset S.currentLeagueId (so leagueInfo is undefined) and resolves rosters
+        // from a cross-league S.rosters array deduped by roster_id — but Sleeper roster_ids
+        // are 1..N PER league, so leagues collide and the health score is computed against
+        // the wrong roster. Fall back to the global accessor only until assessments load.
+        const leagueAssessments = league?.empireAssessments || [];
+        let assessment = leagueAssessments.find(a => sameId(a.rosterId, myRoster.roster_id) || sameId(a.ownerId, myRoster.owner_id)) || null;
+        if (!assessment && typeof assessTeam === 'function') assessment = assessTeam(myRoster.roster_id, league);
         if (assessment) assessedLeagueCount++;
         const healthScore = assessment?.healthScore ?? null;
         const tier = assessment?.tier || 'UNKNOWN';
@@ -140,7 +150,7 @@ function buildEmpirePortfolioModel(input) {
             const age = player.age || null;
             const dhq = scores[pid] || 0;
             const phase = agePhaseFor(pos, age);
-            const valueTier = tradeValueTier(dhq) || { tier: 'Unscored', col: 'rgba(255,255,255,0.38)' };
+            const valueTier = tradeValueTier(dhq) || { tier: 'Unscored', col: 'var(--ov-8, rgba(255,255,255,0.38))' };
             const name = player.full_name || [player.first_name, player.last_name].filter(Boolean).join(' ');
             const asset = {
                 pid,
@@ -150,7 +160,7 @@ function buildEmpirePortfolioModel(input) {
                 age,
                 dhq,
                 tier: valueTier.tier || 'Unscored',
-                tierColor: valueTier.col || 'rgba(255,255,255,0.38)',
+                tierColor: valueTier.col || 'var(--ov-8, rgba(255,255,255,0.38))',
                 agePhase: phase.key,
                 agePhaseLabel: phase.label,
                 agePhaseColor: phase.color,
@@ -462,11 +472,11 @@ function buildEmpirePortfolioModel(input) {
 // deriveOwnerEdge — translate a trade posture into an actionable cross-league edge.
 function deriveOwnerEdge(posture) {
     const key = posture?.key || 'NEUTRAL';
-    if (key === 'DESPERATE') return { edge: 'Panicking — overpays for win-now help', exploit: 9, tone: '#BB8FCE' };
-    if (key === 'SELLER')    return { edge: 'Buy his assets at a discount', exploit: 7.5, tone: '#5DADE2' };
-    if (key === 'BUYER')     return { edge: 'Sell him studs at a premium', exploit: 6, tone: '#F0A500' };
-    if (key === 'LOCKED')    return { edge: 'Hard to move — high attachment', exploit: 2.5, tone: '#7F8C8D' };
-    return { edge: 'Fair value only — no clear edge', exploit: 4, tone: '#95A5A6' };
+    if (key === 'DESPERATE') return { edge: 'Panicking — overpays for win-now help', exploit: 9, tone: 'var(--k-bb8fce, #bb8fce)' };
+    if (key === 'SELLER')    return { edge: 'Buy his assets at a discount', exploit: 7.5, tone: 'var(--k-5dade2, #5dade2)' };
+    if (key === 'BUYER')     return { edge: 'Sell him studs at a premium', exploit: 6, tone: 'var(--k-f0a500, #f0a500)' };
+    if (key === 'LOCKED')    return { edge: 'Hard to move — high attachment', exploit: 2.5, tone: 'var(--k-7f8c8d, #7f8c8d)' };
+    return { edge: 'Fair value only — no clear edge', exploit: 4, tone: 'var(--k-95a5a6, #95a5a6)' };
 }
 
 // buildEmpireRolodex — every owner you face, across every league, ranked by edge.
@@ -484,7 +494,7 @@ function buildEmpireRolodex(leagues, myUserId, calcPosture) {
         assessments.forEach(a => {
             if (sameId(a.ownerId, myUserId)) return;
             const dnaKey = dnaMap[a.ownerId] || null;
-            const posture = posFn(a, dnaKey) || { key: 'NEUTRAL', label: 'Neutral', color: '#95A5A6' };
+            const posture = posFn(a, dnaKey) || { key: 'NEUTRAL', label: 'Neutral', color: 'var(--k-95a5a6, #95a5a6)' };
             const e = deriveOwnerEdge(posture);
             owners.push({
                 ownerId: a.ownerId,
@@ -626,14 +636,14 @@ function buildEmpireConsolidation(moves, model) {
     const tidy = s => s.replace(/\.{2,}/g, '.');
     if (sells.length) {
         steps.push({
-            phase: 'SELL', tone: '#5DADE2',
+            phase: 'SELL', tone: 'var(--k-5dade2, #5dade2)',
             title: 'Liquidate ' + sells.length + ' aging / over-exposed asset' + (sells.length === 1 ? '' : 's'),
             detail: tidy(sells.map(m => m.title.replace(/^Sell /, '')).join('; ') + '.'),
         });
     }
     if (buys.length) {
         steps.push({
-            phase: 'BUY', tone: '#2ECC71',
+            phase: 'BUY', tone: 'var(--k-2ecc71, #2ecc71)',
             title: 'Recycle into ' + buys.length + ' need-filling buy' + (buys.length === 1 ? '' : 's'),
             detail: tidy(buys.map(m => m.title.replace(/^Acquire /, '')).join('; ')
                 + (pushLeagues.length ? ' — pushing ' + pushLeagues.join(', ') + '.' : '.')),
@@ -644,7 +654,7 @@ function buildEmpireConsolidation(moves, model) {
     if (postWindowMoved) net.push('clears ' + postWindowMoved + ' post-window asset' + (postWindowMoved === 1 ? '' : 's'));
     if (pushLeagues.length) net.push('upgrades ' + pushLeagues.length + ' contending ' + (pushLeagues.length === 1 ? 'league' : 'leagues'));
     steps.push({
-        phase: 'NET', tone: '#D4AF37',
+        phase: 'NET', tone: 'var(--k-d4af37, #d4af37)',
         title: 'Net effect across the empire',
         detail: (net.length ? net.join(', ') : 'rebalances the portfolio')
             + '. Reallocates ' + empireCompact(sellValue) + ' from sells into ' + empireCompact(buyValue) + ' of targeted value.',
@@ -774,104 +784,113 @@ function empirePercent(part, total) {
 function EmpireStyles() {
     return (
         <style>{`
-            .empire-root { min-height: 100vh; background: #070707; color: var(--text-primary, #f4f1e8); font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+            .empire-root { min-height: 100vh; background: var(--page-bg); color: var(--text-primary, var(--k-f4f1e8, #f4f1e8)); font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
             .empire-root.is-local-preview .empire-topbar { padding-top: 28px; min-height: 72px; }
-            .empire-header { position: sticky; top: 0; z-index: 60; background: rgba(7,7,7,0.98); border-bottom: 1px solid rgba(212,175,55,0.22); box-shadow: 0 12px 32px rgba(0,0,0,0.35); }
-            .empire-topbar { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 24px; border-bottom: 1px solid rgba(255,255,255,0.055); box-sizing: border-box; }
-            .empire-back, .empire-ghost, .empire-filter, .empire-row-btn, .empire-action { border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.035); color: rgba(255,255,255,0.72); border-radius: 6px; cursor: pointer; font-family: inherit; transition: border-color 120ms, background 120ms, transform 120ms, color 120ms; }
+            .empire-header { position: sticky; top: 0; z-index: 60; background: var(--surf-solid, rgba(7,7,7,0.98)); border-bottom: 1px solid var(--acc-line1, rgba(212,175,55,0.22)); box-shadow: 0 12px 32px rgba(0,0,0,0.35); }
+            .empire-topbar { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 24px; border-bottom: 1px solid var(--ov-4, rgba(255,255,255,0.055)); box-sizing: border-box; }
+            .empire-back, .empire-ghost, .empire-filter, .empire-row-btn, .empire-action { border: 1px solid var(--ov-6, rgba(255,255,255,0.1)); background: var(--ov-3, rgba(255,255,255,0.035)); color: var(--ov-9, rgba(255,255,255,0.72)); border-radius: var(--card-radius-sm); cursor: pointer; font-family: inherit; transition: border-color 120ms, background 120ms, transform 120ms, color 120ms; }
             .empire-back { width: 34px; height: 28px; font-size: 0.9rem; }
-            .empire-back:hover, .empire-ghost:hover, .empire-filter:hover, .empire-row-btn:hover, .empire-action:hover { border-color: rgba(212,175,55,0.5); background: rgba(212,175,55,0.07); color: #f7e9b0; }
+            .empire-back:hover, .empire-ghost:hover, .empire-filter:hover, .empire-row-btn:hover, .empire-action:hover { border-color: var(--acc-line3, rgba(212,175,55,0.5)); background: var(--acc-fill1, rgba(212,175,55,0.07)); color: var(--k-f7e9b0, #f7e9b0); }
             .empire-title { display: flex; flex-direction: column; min-width: 0; }
-            .empire-title strong { color: #D4AF37; font-family: 'Rajdhani', sans-serif; font-size: 1rem; letter-spacing: 0.1em; text-transform: uppercase; line-height: 1; }
-            .empire-title span { color: rgba(255,255,255,0.48); font-size: 0.68rem; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .empire-user { margin-left: auto; color: rgba(255,255,255,0.55); font-size: 0.72rem; white-space: nowrap; }
-            .empire-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 0; padding: 0 24px; background: linear-gradient(90deg, rgba(212,175,55,0.055), rgba(78,205,196,0.025), rgba(124,107,248,0.035)); }
-            .empire-kpi { min-width: 0; padding: 10px 12px; border-right: 1px solid rgba(255,255,255,0.055); }
-            .empire-kpi strong { display: block; font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace; color: var(--white, #fff); font-size: 1.05rem; line-height: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .empire-kpi span { display: block; margin-top: 5px; color: #D4AF37; font-size: 0.55rem; font-weight: 800; letter-spacing: 0.11em; text-transform: uppercase; }
-            .empire-kpi em { display: block; margin-top: 2px; color: rgba(255,255,255,0.42); font-style: normal; font-size: 0.58rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .empire-title strong { color: var(--gold); font-family: var(--font-title); font-size: 1rem; letter-spacing: 0.1em; text-transform: uppercase; line-height: 1; }
+            .empire-title span { color: var(--ov-9, rgba(255,255,255,0.48)); font-size: 0.68rem; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .empire-user { margin-left: auto; color: var(--ov-9, rgba(255,255,255,0.55)); font-size: 0.72rem; white-space: nowrap; }
+            .empire-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 0; padding: 0 24px; background: linear-gradient(90deg, var(--acc-fill1, rgba(212,175,55,0.055)), rgba(78,205,196,0.025), rgba(124,107,248,0.035)); }
+            .empire-kpi { min-width: 0; padding: 10px 12px; border-right: 1px solid var(--ov-4, rgba(255,255,255,0.055)); }
+            .empire-kpi strong { display: block; font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace; color: var(--white, var(--k-ffffff, #ffffff)); font-size: 1.05rem; line-height: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .empire-kpi span { display: block; margin-top: 5px; color: var(--gold); font-size: var(--text-micro); font-weight: 800; letter-spacing: 0.11em; text-transform: uppercase; }
+            .empire-kpi em { display: block; margin-top: 2px; color: var(--ov-8, rgba(255,255,255,0.42)); font-style: normal; font-size: var(--text-micro); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .empire-filters { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; padding: 9px 24px 10px; background: rgba(0,0,0,0.32); }
-            .empire-filter-label { color: #D4AF37; font-size: 0.56rem; font-weight: 900; letter-spacing: 0.13em; text-transform: uppercase; margin-right: 2px; }
-            .empire-filter { min-height: 28px; padding: 5px 10px; font-size: 0.68rem; font-weight: 800; color: rgba(255,255,255,0.52); }
-            .empire-filter.is-active { border-color: var(--tone, #D4AF37); background: color-mix(in srgb, var(--tone, #D4AF37) 16%, transparent); color: var(--tone, #D4AF37); }
-            .empire-clear { margin-left: auto; border-color: rgba(231,76,60,0.38); color: #E74C3C; }
+            .empire-filter-label { color: var(--gold); font-size: var(--text-micro); font-weight: 900; letter-spacing: 0.13em; text-transform: uppercase; margin-right: 2px; }
+            .empire-filter { min-height: 28px; padding: 5px 10px; font-size: 0.68rem; font-weight: 800; color: var(--ov-9, rgba(255,255,255,0.52)); }
+            .empire-filter.is-active { border-color: var(--tone, var(--k-d4af37, #d4af37)); background: color-mix(in srgb, var(--tone, var(--k-d4af37, #d4af37)) 16%, transparent); color: var(--tone, var(--k-d4af37, #d4af37)); }
+            .empire-clear { margin-left: auto; border-color: rgba(231,76,60,0.38); color: var(--k-e74c3c, #e74c3c); }
             .empire-shell { max-width: 1760px; margin: 0 auto; padding: 18px 24px 40px; }
             .empire-main-grid { display: grid; grid-template-columns: minmax(270px, 0.84fr) minmax(420px, 1.34fr) minmax(290px, 0.92fr); gap: 12px; align-items: start; }
             .empire-bridge { display: grid; grid-template-columns: minmax(320px, 1.05fr) minmax(280px, 0.95fr); gap: 12px; margin-bottom: 12px; align-items: start; }
             .empire-brief { display: flex; gap: 11px; }
-            .empire-brief-av { width: 38px; height: 38px; flex: 0 0 auto; border-radius: 10px; background: linear-gradient(135deg, #7c6bf8, #4ECDC4); display: grid; place-items: center; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1.05rem; color: #0a0a0c; }
-            .empire-brief-meta { color: #9b8afb; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
-            .empire-brief-body { color: rgba(255,255,255,0.68); font-size: 0.8rem; line-height: 1.5; margin-top: 5px; }
+            .empire-brief-av { width: 38px; height: 38px; flex: 0 0 auto; border-radius: 10px; background: linear-gradient(135deg, var(--k-7c6bf8, #7c6bf8), var(--k-4ecdc4, #4ecdc4)); display: grid; place-items: center; font-family: var(--font-title); font-weight: 700; font-size: 1.05rem; color: var(--k-0a0a0c, #0a0a0c); }
+            .empire-brief-meta { color: var(--purple); font-size: var(--text-micro); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+            .empire-brief-body { color: var(--ov-9, rgba(255,255,255,0.68)); font-size: 0.8rem; line-height: 1.5; margin-top: 5px; }
             .empire-rolodex { margin-bottom: 12px; }
             .empire-rolodex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
-            .empire-panel { min-width: 0; border: 1px solid rgba(212,175,55,0.14); background: linear-gradient(180deg, rgba(255,255,255,0.028), rgba(255,255,255,0.014)); border-radius: 8px; padding: 12px; }
-            .empire-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid rgba(212,175,55,0.12); }
-            .empire-panel-head strong { color: #D4AF37; font-family: 'Rajdhani', sans-serif; font-size: 0.98rem; letter-spacing: 0.08em; text-transform: uppercase; }
-            .empire-panel-head em { color: rgba(255,255,255,0.46); font-style: normal; font-size: 0.66rem; text-align: right; }
+            .empire-panel { min-width: 0; border: 1px solid var(--acc-fill3, rgba(212,175,55,0.14)); background: linear-gradient(180deg, var(--ov-2, rgba(255,255,255,0.028)), var(--ov-1, rgba(255,255,255,0.014))); border-radius: var(--card-radius); padding: 12px; }
+            .empire-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid var(--acc-fill2, rgba(212,175,55,0.12)); }
+            .empire-panel-head strong { color: var(--gold); font-family: var(--font-title); font-size: 0.98rem; letter-spacing: 0.08em; text-transform: uppercase; }
+            .empire-panel-head em { color: var(--ov-9, rgba(255,255,255,0.46)); font-style: normal; font-size: 0.66rem; text-align: right; }
             .empire-stack { display: flex; flex-direction: column; gap: 8px; }
-            .empire-bar-row { display: grid; grid-template-columns: 52px minmax(0,1fr) 46px; gap: 8px; align-items: center; color: rgba(255,255,255,0.62); font-size: 0.7rem; min-width: 0; }
-            .empire-bar-row strong { color: var(--bar, #D4AF37); font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .empire-track { height: 8px; border-radius: 99px; background: rgba(255,255,255,0.055); overflow: hidden; }
-            .empire-fill { height: 100%; border-radius: 99px; background: var(--bar, #D4AF37); min-width: 2px; }
-            .empire-signal { text-align: left; border: 1px solid rgba(255,255,255,0.07); border-left: 3px solid var(--tone, #D4AF37); background: rgba(255,255,255,0.026); color: inherit; border-radius: 7px; padding: 10px; cursor: pointer; font-family: inherit; }
-            .empire-signal:hover { border-color: color-mix(in srgb, var(--tone, #D4AF37) 56%, rgba(255,255,255,0.08)); background: color-mix(in srgb, var(--tone, #D4AF37) 7%, transparent); }
+            .empire-bar-row { display: grid; grid-template-columns: 52px minmax(0,1fr) 46px; gap: 8px; align-items: center; color: var(--ov-9, rgba(255,255,255,0.62)); font-size: 0.7rem; min-width: 0; }
+            .empire-bar-row strong { color: var(--bar, var(--k-d4af37, #d4af37)); font-family: var(--font-mono); font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .empire-track { height: 8px; border-radius: 99px; background: var(--ov-4, rgba(255,255,255,0.055)); overflow: hidden; }
+            .empire-fill { height: 100%; border-radius: 99px; background: var(--bar, var(--k-d4af37, #d4af37)); min-width: 2px; }
+            .empire-signal { text-align: left; border: 1px solid var(--ov-4, rgba(255,255,255,0.07)); border-left: 3px solid var(--tone, var(--k-d4af37, #d4af37)); background: var(--ov-2, rgba(255,255,255,0.026)); color: inherit; border-radius: var(--card-radius-sm); padding: 10px; cursor: pointer; font-family: inherit; }
+            .empire-signal:hover { border-color: color-mix(in srgb, var(--tone, var(--k-d4af37, #d4af37)) 56%, var(--ov-5, rgba(255,255,255,0.08))); background: color-mix(in srgb, var(--tone, var(--k-d4af37, #d4af37)) 7%, transparent); }
             .empire-signal-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-            .empire-signal strong { color: var(--white, #fff); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .empire-signal b { color: var(--tone, #D4AF37); font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; white-space: nowrap; }
-            .empire-signal span { display: block; color: rgba(255,255,255,0.58); font-size: 0.68rem; line-height: 1.35; margin-top: 4px; }
-            .empire-signal em { display: block; color: var(--tone, #D4AF37); font-style: normal; font-size: 0.62rem; margin-top: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
-            .empire-league-card { width: 100%; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; text-align: left; border: 1px solid rgba(255,255,255,0.07); border-left: 3px solid var(--tone, #D4AF37); background: rgba(255,255,255,0.024); border-radius: 7px; padding: 9px; color: inherit; cursor: pointer; font-family: inherit; }
-            .empire-league-card:hover { border-color: rgba(212,175,55,0.48); background: rgba(212,175,55,0.045); }
-            .empire-league-card strong { display: block; color: var(--white, #fff); font-size: 0.76rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .empire-league-card span, .empire-league-card em { display: block; color: rgba(255,255,255,0.52); font-size: 0.64rem; font-style: normal; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .empire-league-card b { color: var(--tone, #D4AF37); font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; white-space: nowrap; }
+            .empire-signal strong { color: var(--white, var(--k-ffffff, #ffffff)); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .empire-signal b { color: var(--tone, var(--k-d4af37, #d4af37)); font-family: var(--font-mono); font-size: 0.75rem; white-space: nowrap; }
+            .empire-signal span { display: block; color: var(--ov-9, rgba(255,255,255,0.58)); font-size: 0.68rem; line-height: 1.35; margin-top: 4px; }
+            .empire-signal em { display: block; color: var(--tone, var(--k-d4af37, #d4af37)); font-style: normal; font-size: var(--text-micro); margin-top: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+            .empire-league-card { width: 100%; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; text-align: left; border: 1px solid var(--ov-4, rgba(255,255,255,0.07)); border-left: 3px solid var(--tone, var(--k-d4af37, #d4af37)); background: var(--ov-1, rgba(255,255,255,0.024)); border-radius: var(--card-radius-sm); padding: 9px; color: inherit; cursor: pointer; font-family: inherit; }
+            .empire-league-card:hover { border-color: var(--acc-line3, rgba(212,175,55,0.48)); background: var(--acc-fill1, rgba(212,175,55,0.045)); }
+            .empire-league-card strong { display: block; color: var(--white, var(--k-ffffff, #ffffff)); font-size: 0.76rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .empire-league-card span, .empire-league-card em { display: block; color: var(--ov-9, rgba(255,255,255,0.52)); font-size: 0.64rem; font-style: normal; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .empire-league-card b { color: var(--tone, var(--k-d4af37, #d4af37)); font-family: var(--font-mono); font-size: 0.72rem; white-space: nowrap; }
             .empire-quality-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-top: 12px; }
-            .empire-quality { border: 1px solid rgba(255,255,255,0.065); background: rgba(0,0,0,0.18); border-radius: 7px; padding: 9px; border-left: 3px solid var(--tone, #D4AF37); min-width: 0; }
-            .empire-quality span { display: block; color: rgba(255,255,255,0.5); font-size: 0.58rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
-            .empire-quality strong { display: block; color: var(--white, #fff); font-size: 0.74rem; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .empire-quality em { display: block; color: rgba(255,255,255,0.52); font-style: normal; font-size: 0.64rem; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .empire-workspace { margin-top: 12px; border: 1px solid rgba(212,175,55,0.14); border-radius: 8px; background: rgba(255,255,255,0.018); overflow: hidden; }
+            .empire-quality { border: 1px solid var(--ov-4, rgba(255,255,255,0.065)); background: rgba(0,0,0,0.18); border-radius: var(--card-radius-sm); padding: 9px; border-left: 3px solid var(--tone, var(--k-d4af37, #d4af37)); min-width: 0; }
+            .empire-quality span { display: block; color: var(--ov-9, rgba(255,255,255,0.5)); font-size: var(--text-micro); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+            .empire-quality strong { display: block; color: var(--white, var(--k-ffffff, #ffffff)); font-size: 0.74rem; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .empire-quality em { display: block; color: var(--ov-9, rgba(255,255,255,0.52)); font-style: normal; font-size: 0.64rem; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .empire-workspace { margin-top: 12px; border: 1px solid var(--acc-fill3, rgba(212,175,55,0.14)); border-radius: var(--card-radius); background: var(--ov-1, rgba(255,255,255,0.018)); overflow: hidden; }
             .empire-workspace-head, .empire-table-head, .empire-asset-row { display: grid; grid-template-columns: minmax(180px,1.3fr) 46px 54px 76px 78px 72px minmax(140px,1fr); gap: 8px; align-items: center; }
-            .empire-workspace-head { display: flex; justify-content: space-between; gap: 12px; padding: 11px 12px; border-bottom: 1px solid rgba(212,175,55,0.12); }
-            .empire-workspace-head strong { color: #D4AF37; font-family: 'Rajdhani', sans-serif; letter-spacing: 0.08em; text-transform: uppercase; }
+            .empire-workspace-head { display: flex; justify-content: space-between; gap: 12px; padding: 11px 12px; border-bottom: 1px solid var(--acc-fill2, rgba(212,175,55,0.12)); }
+            .empire-workspace-head strong { color: var(--gold); font-family: var(--font-title); letter-spacing: 0.08em; text-transform: uppercase; }
             .empire-sort-row { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
             .empire-ghost { padding: 5px 9px; font-size: 0.66rem; font-weight: 800; }
-            .empire-ghost.is-active { color: #D4AF37; border-color: rgba(212,175,55,0.45); background: rgba(212,175,55,0.08); }
-            .empire-table-head { padding: 7px 12px; color: #D4AF37; background: rgba(212,175,55,0.045); font-size: 0.58rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
-            .empire-asset-row { width: 100%; min-height: 34px; border: 0; border-bottom: 1px solid rgba(255,255,255,0.035); background: transparent; color: rgba(255,255,255,0.66); padding: 6px 12px; text-align: left; font-family: inherit; font-size: 0.72rem; cursor: pointer; }
-            .empire-asset-row:nth-child(even) { background: rgba(255,255,255,0.012); }
-            .empire-asset-row:hover { background: rgba(212,175,55,0.055); }
+            .empire-ghost.is-active { color: var(--gold); border-color: var(--acc-line3, rgba(212,175,55,0.45)); background: var(--acc-fill2, rgba(212,175,55,0.08)); }
+            .empire-table-head { padding: 7px 12px; color: var(--gold); background: var(--acc-fill1, rgba(212,175,55,0.045)); font-size: var(--text-micro); font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+            .empire-asset-row { width: 100%; min-height: 34px; border: 0; border-bottom: 1px solid var(--ov-3, rgba(255,255,255,0.035)); background: transparent; color: var(--ov-9, rgba(255,255,255,0.66)); padding: 6px 12px; text-align: left; font-family: inherit; font-size: 0.72rem; cursor: pointer; }
+            .empire-asset-row:nth-child(even) { background: var(--ov-1, rgba(255,255,255,0.012)); }
+            .empire-asset-row:hover { background: var(--acc-fill1, rgba(212,175,55,0.055)); }
             .empire-player-cell { display: flex; align-items: center; gap: 7px; min-width: 0; }
             .empire-player-cell img { width: 22px; height: 22px; object-fit: cover; border-radius: 50%; flex: 0 0 auto; }
             .empire-player-cell strong, .empire-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-            .empire-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; border-radius: 4px; padding: 2px 5px; color: var(--tone, #D4AF37); background: color-mix(in srgb, var(--tone, #D4AF37) 16%, transparent); font-size: 0.58rem; font-weight: 900; }
-            .empire-empty { border: 1px dashed rgba(212,175,55,0.22); border-radius: 8px; padding: 20px; text-align: center; color: rgba(255,255,255,0.56); font-size: 0.78rem; }
-            .empire-empty strong { display: block; color: #D4AF37; font-family: 'Rajdhani', sans-serif; font-size: 1rem; margin-bottom: 5px; }
+            .empire-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; border-radius: var(--card-radius-sm); padding: 2px 5px; color: var(--tone, var(--k-d4af37, #d4af37)); background: color-mix(in srgb, var(--tone, var(--k-d4af37, #d4af37)) 16%, transparent); font-size: var(--text-micro); font-weight: 900; }
+            .empire-empty { border: 1px dashed var(--acc-line1, rgba(212,175,55,0.22)); border-radius: var(--card-radius); padding: 20px; text-align: center; color: var(--ov-9, rgba(255,255,255,0.56)); font-size: 0.78rem; }
+            .empire-empty strong { display: block; color: var(--gold); font-family: var(--font-title); font-size: 1rem; margin-bottom: 5px; }
             .empire-detail { max-width: 1380px; margin: 0 auto; padding: 18px 24px 42px; }
-            .empire-detail-hero { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 18px; align-items: center; border: 1px solid rgba(212,175,55,0.18); background: linear-gradient(135deg, rgba(212,175,55,0.07), rgba(78,205,196,0.028), rgba(124,107,248,0.035)); border-radius: 9px; padding: 14px; margin-bottom: 12px; }
-            .empire-detail-hero h1 { margin: 0; color: var(--white, #fff); font-family: 'Rajdhani', sans-serif; font-size: 1.45rem; letter-spacing: 0.04em; }
-            .empire-detail-hero p { margin: 4px 0 0; color: rgba(255,255,255,0.58); font-size: 0.78rem; }
+            .empire-detail-hero { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 18px; align-items: center; border: 1px solid var(--acc-fill3, rgba(212,175,55,0.18)); background: linear-gradient(135deg, var(--acc-fill1, rgba(212,175,55,0.07)), rgba(78,205,196,0.028), rgba(124,107,248,0.035)); border-radius: var(--card-radius); padding: 14px; margin-bottom: 12px; }
+            .empire-detail-hero h1 { margin: 0; color: var(--white, var(--k-ffffff, #ffffff)); font-family: var(--font-title); font-size: 1.45rem; letter-spacing: 0.04em; }
+            .empire-detail-hero p { margin: 4px 0 0; color: var(--ov-9, rgba(255,255,255,0.58)); font-size: 0.78rem; }
             .empire-detail-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 8px; margin-bottom: 12px; }
-            .empire-metric { border: 1px solid rgba(255,255,255,0.065); background: rgba(255,255,255,0.024); border-radius: 7px; padding: 9px; min-width: 0; }
-            .empire-metric span { display: block; color: rgba(255,255,255,0.5); font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.09em; font-weight: 800; }
-            .empire-metric strong { display: block; color: var(--white, #fff); font-family: 'JetBrains Mono', monospace; font-size: 0.94rem; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .empire-action { padding: 7px 11px; font-size: 0.72rem; font-weight: 900; color: #D4AF37; border-color: rgba(212,175,55,0.32); background: rgba(212,175,55,0.065); }
+            .empire-metric { border: 1px solid var(--ov-4, rgba(255,255,255,0.065)); background: var(--ov-1, rgba(255,255,255,0.024)); border-radius: var(--card-radius-sm); padding: 9px; min-width: 0; }
+            .empire-metric span { display: block; color: var(--ov-9, rgba(255,255,255,0.5)); font-size: var(--text-micro); text-transform: uppercase; letter-spacing: 0.09em; font-weight: 800; }
+            .empire-metric strong { display: block; color: var(--white, var(--k-ffffff, #ffffff)); font-family: var(--font-mono); font-size: 0.94rem; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .empire-action { padding: 7px 11px; font-size: 0.72rem; font-weight: 900; color: var(--gold); border-color: var(--acc-line2, rgba(212,175,55,0.32)); background: var(--acc-fill1, rgba(212,175,55,0.065)); }
             .empire-slice-grid { display: grid; grid-template-columns: minmax(260px,0.7fr) minmax(0,1.3fr); gap: 12px; }
-            @media(max-width:1180px) {
+            @media(max-width:1439px) {
                 .empire-main-grid { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
                 .empire-center { grid-column: 1 / -1; grid-row: 1; }
                 .empire-workspace-head, .empire-table-head, .empire-asset-row { grid-template-columns: minmax(150px,1fr) 42px 46px 66px 66px 56px minmax(110px,0.8fr); }
             }
-            @media(max-width:760px) {
-                .empire-topbar { padding: 9px 14px; }
-                .empire-kpis, .empire-filters { padding-left: 14px; padding-right: 14px; }
-                .empire-shell, .empire-detail { padding-left: 14px; padding-right: 14px; }
+            @media(max-width:1023px) {
                 .empire-main-grid, .empire-slice-grid, .empire-bridge { grid-template-columns: 1fr; }
-                .empire-user { display: none; }
                 .empire-workspace-head { align-items: flex-start; flex-direction: column; }
                 .empire-table-head, .empire-asset-row { grid-template-columns: minmax(140px,1fr) 40px 46px 58px 58px; }
                 .empire-table-head div:nth-child(n+6), .empire-asset-row div:nth-child(n+6) { display: none; }
                 .empire-detail-hero { grid-template-columns: 1fr; }
+            }
+            @media(max-width:767px) {
+                .empire-topbar { padding: 9px 14px; }
+                .empire-kpis, .empire-filters { padding-left: 14px; padding-right: 14px; }
+                .empire-shell, .empire-detail { padding-left: 14px; padding-right: 14px; }
+                .empire-user { display: none; }
+            }
+            @media(pointer: coarse) {
+                .empire-back { width: 44px; min-height: 44px; }
+                .empire-filter { min-height: 44px; padding: 12px 10px; }
+                .empire-ghost { min-height: 44px; padding: 12px 9px; }
+                .empire-action { min-height: 44px; padding: 12px 11px; }
+                .empire-asset-row { min-height: 44px; }
             }
         `}</style>
     );
@@ -963,8 +982,8 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const activeFilters = Object.values(filters).filter(Boolean).length;
     const hasNoResults = !filtered.provinces.length && !filtered.assets.length && !filtered.picks.length;
     const shareBasis = model.totals.useValueShare ? 'DHQ share' : 'asset count';
-    const qualityTone = model.dataQuality.status === 'ready' ? '#2ECC71' : model.dataQuality.status === 'partial' || model.dataQuality.status === 'loading' ? '#F0A500' : '#E74C3C';
-    const signalTone = sev => sev === 'high' ? '#E74C3C' : sev === 'medium' ? '#F0A500' : '#2ECC71';
+    const qualityTone = model.dataQuality.status === 'ready' ? 'var(--good)' : model.dataQuality.status === 'partial' || model.dataQuality.status === 'loading' ? 'var(--warn)' : 'var(--bad)';
+    const signalTone = sev => sev === 'high' ? 'var(--k-e74c3c, #e74c3c)' : sev === 'medium' ? 'var(--k-f0a500, #f0a500)' : 'var(--k-2ecc71, #2ecc71)';
     const filterActive = (key, value) => filters[key] === value;
     const rootClassName = 'empire-root' + ((new URLSearchParams(window.location.search || '').has('dev') || ['localhost', '127.0.0.1'].includes(window.location.hostname || '')) ? ' is-local-preview' : '');
 
@@ -998,7 +1017,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         <button
             key={key + ':' + value}
             className={'empire-filter' + (filterActive(key, value) ? ' is-active' : '')}
-            style={{ '--tone': color || '#D4AF37' }}
+            style={{ '--tone': color || 'var(--k-d4af37, #d4af37)' }}
             onClick={() => setFilter(key, value)}
             type="button"
         >
@@ -1011,7 +1030,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
             <button
                 key={label}
                 className={'empire-filter' + (active ? ' is-active' : '')}
-                style={{ '--tone': color || '#D4AF37' }}
+                style={{ '--tone': color || 'var(--k-d4af37, #d4af37)' }}
                 onClick={() => applyLens(nextFilters)}
                 type="button"
             >
@@ -1022,7 +1041,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const barRows = (items, filterKey, emptyText) => (
         <div className="empire-stack">
             {items.length ? items.map(item => (
-                <button key={item.key} className="empire-row-btn empire-bar-row" type="button" onClick={() => setDetail({ type: 'slice', title: item.label + ' Allocation', filter: { [filterKey]: item.key } })} style={{ '--bar': item.color || '#D4AF37', padding: '6px 7px' }}>
+                <button key={item.key} className="empire-row-btn empire-bar-row" type="button" onClick={() => setDetail({ type: 'slice', title: item.label + ' Allocation', filter: { [filterKey]: item.key } })} style={{ '--bar': item.color || 'var(--k-d4af37, #d4af37)', padding: '6px 7px' }}>
                     <strong>{item.label}</strong>
                     <div className="empire-track"><div className="empire-fill" style={{ width: Math.max(2, item.share) + '%' }} /></div>
                     <span>{item.share}%</span>
@@ -1031,7 +1050,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         </div>
     );
     const qualityItem = (item) => {
-        const tone = item.status === 'ready' ? '#2ECC71' : item.status === 'partial' || item.status === 'loading' ? '#F0A500' : '#E74C3C';
+        const tone = item.status === 'ready' ? 'var(--k-2ecc71, #2ecc71)' : item.status === 'partial' || item.status === 'loading' ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
         return (
             <div key={item.key} className="empire-quality" style={{ '--tone': tone }}>
                 <span>{item.label}</span>
@@ -1054,7 +1073,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                     <img src={'https://sleepercdn.com/content/nfl/players/thumb/' + asset.pid + '.jpg'} onError={e => { e.currentTarget.style.display = 'none'; }} />
                     <strong>{asset.name}</strong>
                 </div>
-                <div><span className="empire-pill" style={{ '--tone': posColors[asset.pos] || '#D4AF37' }}>{asset.pos}</span></div>
+                <div><span className="empire-pill" style={{ '--tone': posColors[asset.pos] || 'var(--k-d4af37, #d4af37)' }}>{asset.pos}</span></div>
                 <div>{asset.age || '-'}</div>
                 <div>{asset.dhq > 0 ? empireCompact(asset.dhq) : 'No DHQ'}</div>
                 <div><span className="empire-pill" style={{ '--tone': asset.agePhaseColor }}>{asset.agePhaseLabel}</span></div>
@@ -1099,7 +1118,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                             {owned.map(asset => {
                                 const province = model.provinces.find(p => p.id === asset.leagueId);
                                 return (
-                                    <button key={asset.leagueId} className="empire-league-card" style={{ '--tone': province?.tierColor || '#D4AF37' }} type="button" onClick={() => setDetail({ type: 'league', leagueId: asset.leagueId })}>
+                                    <button key={asset.leagueId} className="empire-league-card" style={{ '--tone': province?.tierColor || 'var(--k-d4af37, #d4af37)' }} type="button" onClick={() => setDetail({ type: 'league', leagueId: asset.leagueId })}>
                                         <div>
                                             <strong>{asset.leagueName}</strong>
                                             <span>{province?.tier || 'UNKNOWN'} - {province?.wins || 0}-{province?.losses || 0} - HP {province?.healthScore ?? 'No read'}</span>
@@ -1149,8 +1168,8 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                             <div className="empire-panel-head"><strong>Roster Direction</strong><em>{province.status}</em></div>
                             <div className="empire-stack">
                                 <div className="empire-quality" style={{ '--tone': province.tierColor }}><span>Strengths</span><strong>{province.strengths.length ? province.strengths.join(', ') : 'None flagged'}</strong><em>Current roster edge</em></div>
-                                <div className="empire-quality" style={{ '--tone': '#E74C3C' }}><span>Needs</span><strong>{province.needs.length ? province.needs.join(', ') : 'None flagged'}</strong><em>Upgrade lanes</em></div>
-                                <div className="empire-quality" style={{ '--tone': '#9b8afb' }}><span>Draft Capital</span><strong>{leaguePicks.length} picks</strong><em>{leaguePicks.filter(p => p.acquired).length} acquired</em></div>
+                                <div className="empire-quality" style={{ '--tone': 'var(--k-e74c3c, #e74c3c)' }}><span>Needs</span><strong>{province.needs.length ? province.needs.join(', ') : 'None flagged'}</strong><em>Upgrade lanes</em></div>
+                                <div className="empire-quality" style={{ '--tone': 'var(--purple)' }}><span>Draft Capital</span><strong>{leaguePicks.length} picks</strong><em>{leaguePicks.filter(p => p.acquired).length} acquired</em></div>
                             </div>
                         </section>
                         <section className="empire-workspace" style={{ marginTop: 0 }}>
@@ -1245,12 +1264,12 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                             <div className="empire-panel-head"><strong>Consolidation Plan</strong><em>{consolidation.sells} sell → {consolidation.buys} buy · one campaign</em></div>
                             <div className="empire-stack">
                                 {consolidation.steps.map((s, i) => (
-                                    <div key={i} style={{ border: '1px solid rgba(255,255,255,0.07)', borderLeft: '3px solid ' + s.tone, borderRadius: 7, padding: 10, background: 'rgba(255,255,255,0.024)' }}>
+                                    <div key={i} style={{ border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderLeft: '3px solid ' + s.tone, borderRadius: 7, padding: 10, background: 'var(--ov-1, rgba(255,255,255,0.024))' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-                                            <strong style={{ color: 'var(--white, #fff)', fontSize: '0.8rem' }}>{s.title}</strong>
-                                            <b style={{ color: s.tone, fontFamily: "'JetBrains Mono', monospace", fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.1em' }}>{s.phase}</b>
+                                            <strong style={{ color: 'var(--white, var(--k-ffffff, #ffffff))', fontSize: '0.8rem' }}>{s.title}</strong>
+                                            <b style={{ color: s.tone, fontFamily: "var(--font-mono)", fontSize: 'var(--text-micro)', fontWeight: 800, letterSpacing: '0.1em' }}>{s.phase}</b>
                                         </div>
-                                        <span style={{ display: 'block', color: 'rgba(255,255,255,0.58)', fontSize: '0.7rem', lineHeight: 1.45, marginTop: 5 }}>{s.detail}</span>
+                                        <span style={{ display: 'block', color: 'var(--ov-9, rgba(255,255,255,0.58))', fontSize: '0.7rem', lineHeight: 1.45, marginTop: 5 }}>{s.detail}</span>
                                     </div>
                                 ))}
                             </div>
@@ -1261,7 +1280,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                             <div className="empire-workspace-head"><strong>Ranked Moves</strong><span>{sells.length} sell · {buys.length} buy</span></div>
                             <div className="empire-stack" style={{ padding: 12 }}>
                                 {moves.length ? moves.map((m, i) => (
-                                    <button key={i} type="button" className="empire-signal" style={{ '--tone': m.type === 'sell' ? '#5DADE2' : '#2ECC71' }} onClick={() => m.pid && setDetail({ type: 'player', pid: m.pid })}>
+                                    <button key={i} type="button" className="empire-signal" style={{ '--tone': m.type === 'sell' ? 'var(--k-5dade2, #5dade2)' : 'var(--k-2ecc71, #2ecc71)' }} onClick={() => m.pid && setDetail({ type: 'player', pid: m.pid })}>
                                         <div className="empire-signal-top"><strong>{m.title}</strong><b>{m.accept}% accept</b></div>
                                         <span>{m.why}</span>
                                         <em>{m.leagueName} · {m.posture} · {empireCompact(m.value)} DHQ</em>
@@ -1308,35 +1327,35 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                         <strong>Empire Command Center</strong>
                         <span>Asset allocation - exposure - age windows - pick capital</span>
                     </div>
-                    <button className="empire-action" type="button" style={{ marginLeft: 'auto', borderColor: 'rgba(155,138,251,0.4)', color: '#9b8afb', background: 'rgba(155,138,251,0.08)' }} onClick={() => setDetail({ type: 'moves' })}>⚡ Empire Moves{moves.length ? ' · ' + moves.length : ''}</button>
+                    <button className="empire-action" type="button" style={{ marginLeft: 'auto', borderColor: 'rgba(155,138,251,0.4)', color: 'var(--purple)', background: 'rgba(155,138,251,0.08)' }} onClick={() => setDetail({ type: 'moves' })}>⚡ Empire Moves{moves.length ? ' · ' + moves.length : ''}</button>
                     <div className="empire-user">{userName}</div>
                 </div>
                 <div className="empire-kpis" data-testid="empire-command-strip">
-                    {metric('Portfolio', filtered.totalDHQ > 0 ? empireCompact(filtered.totalDHQ) : 'No DHQ', model.totals.useValueShare ? 'DHQ valued' : 'value engine pending', filtered.totalDHQ > 0 ? '#2ECC71' : '#F0A500')}
+                    {metric('Portfolio', filtered.totalDHQ > 0 ? empireCompact(filtered.totalDHQ) : 'No DHQ', model.totals.useValueShare ? 'DHQ valued' : 'value engine pending', filtered.totalDHQ > 0 ? 'var(--good)' : 'var(--warn)')}
                     {metric('Data Sync', model.dataQuality.status, model.dataQuality.scoredAssets + '/' + model.assets.length + ' valued', qualityTone)}
                     {metric('Leagues', filtered.provinces.length, activeFilters ? 'of ' + model.provinces.length : 'portfolio')}
                     {metric('Assets', filtered.assets.length, model.exposure.filter(e => e.count > 1).length + ' duplicated')}
                     {metric('Picks', filtered.picks.length, model.pickCapital.premium + ' premium')}
-                    {metric('Concentration', model.totals.topExposurePct + '%', 'top exposure', model.totals.topExposurePct >= 50 ? '#E74C3C' : '#D4AF37')}
+                    {metric('Concentration', model.totals.topExposurePct + '%', 'top exposure', model.totals.topExposurePct >= 50 ? 'var(--bad)' : 'var(--gold)')}
                     {metric('Age Balance', (model.ageAllocation.find(a => a.key === 'peak')?.share || 0) + '/' + (model.ageAllocation.find(a => a.key === 'value')?.share || 0), 'peak/value %')}
                     {metric('Timeline', model.totals.contenders + 'C ' + model.totals.rebuilds + 'R', 'league mix')}
                 </div>
                 <div className="empire-filters">
                     <span className="empire-filter-label">Lenses</span>
-                    {lensButton('All', {}, '#D4AF37')}
-                    {lensButton('High Exposure', { exposure: 'multi', assetType: 'players' }, '#9b8afb')}
-                    {lensButton('Post-window', { agePhase: 'post' }, '#E74C3C')}
-                    {lensButton('Peak Assets', { agePhase: 'peak' }, '#2ECC71')}
-                    {lensButton('Picks', { assetType: 'picks' }, '#9b8afb')}
-                    {lensButton('Contenders', { status: 'contender' }, '#2ECC71')}
-                    {lensButton('Rebuilds', { status: 'rebuild' }, '#E74C3C')}
+                    {lensButton('All', {}, 'var(--gold)')}
+                    {lensButton('High Exposure', { exposure: 'multi', assetType: 'players' }, 'var(--purple)')}
+                    {lensButton('Post-window', { agePhase: 'post' }, 'var(--bad)')}
+                    {lensButton('Peak Assets', { agePhase: 'peak' }, 'var(--good)')}
+                    {lensButton('Picks', { assetType: 'picks' }, 'var(--purple)')}
+                    {lensButton('Contenders', { status: 'contender' }, 'var(--good)')}
+                    {lensButton('Rebuilds', { status: 'rebuild' }, 'var(--bad)')}
                     <span className="empire-filter-label">Pos</span>
                     {['QB','RB','WR','TE','K','DEF','DL','LB','DB'].map(pos => filterButton('position', pos, window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos), posColors[pos]))}
                     <span className="empire-filter-label">Age</span>
-                    {filterButton('agePhase', 'build', 'Build', '#4ECDC4')}
-                    {filterButton('agePhase', 'peak', 'Peak', '#2ECC71')}
-                    {filterButton('agePhase', 'value', 'Value', '#F0A500')}
-                    {filterButton('agePhase', 'post', 'Post-window', '#E74C3C')}
+                    {filterButton('agePhase', 'build', 'Build', 'var(--k-4ecdc4, #4ecdc4)')}
+                    {filterButton('agePhase', 'peak', 'Peak', 'var(--k-2ecc71, #2ecc71)')}
+                    {filterButton('agePhase', 'value', 'Value', 'var(--k-f0a500, #f0a500)')}
+                    {filterButton('agePhase', 'post', 'Post-window', 'var(--k-e74c3c, #e74c3c)')}
                     {activeFilters > 0 && <button className="empire-filter empire-clear" type="button" onClick={clearFilters}>Clear {activeFilters}</button>}
                 </div>
             </header>
@@ -1442,7 +1461,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                             <div className="empire-workspace-head">
                                 <div>
                                     <strong>Asset Workspace</strong>
-                                    <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.68rem', marginTop: 2 }}>{filtered.assets.length} players - {filtered.picks.length} picks - {activeFilters ? activeFilters + ' filters' : 'full portfolio'}</div>
+                                    <div style={{ color: 'var(--ov-9, rgba(255,255,255,0.5))', fontSize: '0.68rem', marginTop: 2 }}>{filtered.assets.length} players - {filtered.picks.length} picks - {activeFilters ? activeFilters + ' filters' : 'full portfolio'}</div>
                                 </div>
                                 <div className="empire-sort-row">
                                     {['dhq', 'exposure', 'age', 'position', 'league'].map(key => (
@@ -1453,7 +1472,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                             {filters.assetType === 'picks' ? (
                                 <div className="empire-quality-grid" style={{ padding: 12, marginTop: 0 }}>
                                     {model.pickCapital.byYear.map(year => (
-                                        <button key={year.year} className="empire-league-card" style={{ '--tone': '#9b8afb' }} type="button" onClick={() => setDetail({ type: 'slice', title: year.year + ' Draft Capital', filter: { assetType: 'picks' } })}>
+                                        <button key={year.year} className="empire-league-card" style={{ '--tone': 'var(--purple)' }} type="button" onClick={() => setDetail({ type: 'slice', title: year.year + ' Draft Capital', filter: { assetType: 'picks' } })}>
                                             <div><strong>{year.year}</strong><span>{year.count} picks - {year.premium} premium</span><em>{year.acquired} acquired - {year.own} own</em></div>
                                             <b>{year.score}</b>
                                         </button>

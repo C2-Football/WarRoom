@@ -44,7 +44,7 @@
     // Compact one-line row (md/lg)
     function CompactRow({ r, tone, onClick }) {
         const posColors = (window.App && window.App.POS_COLORS) || {};
-        const posCol = posColors[r.pos] || '#8D887E';
+        const posCol = posColors[r.pos] || 'var(--k-8d887e, #8d887e)';
         return React.createElement('div', {
             onClick,
             role: 'button',
@@ -55,7 +55,7 @@
                 display: 'flex', alignItems: 'center', gap: '6px',
                 padding: '4px 6px', borderRadius: '4px',
                 cursor: 'pointer',
-                background: 'rgba(255,255,255,0.02)',
+                background: 'var(--ov-1, rgba(255,255,255,0.02))',
                 fontSize: '0.7rem',
             },
         },
@@ -64,7 +64,7 @@
                     fontSize: '0.56rem', fontWeight: 700, color: posCol,
                     minWidth: 22, textAlign: 'center',
                     padding: '1px 3px', borderRadius: '3px',
-                    background: posCol + '22',
+                    background: wrAlpha(posCol, '22'),
                 },
             }, r.pos),
             React.createElement('span', { style: { flex: 1, minWidth: 0, color: 'var(--text-primary)', fontWeight: 500, fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, r.name),
@@ -79,7 +79,7 @@
     // Full row with subline (tall)
     function FullRow({ r, tone, onClick }) {
         const posColors = (window.App && window.App.POS_COLORS) || {};
-        const posCol = posColors[r.pos] || '#8D887E';
+        const posCol = posColors[r.pos] || 'var(--k-8d887e, #8d887e)';
         return React.createElement('div', {
             onClick,
             role: 'button',
@@ -88,10 +88,10 @@
             onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick && onClick(e); } },
             style: {
                 display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '6px 8px', borderRadius: '6px',
+                padding: '6px 8px', borderRadius: '6px', minHeight: '44px',
                 cursor: 'pointer',
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.06)',
+                background: 'var(--ov-1, rgba(255,255,255,0.02))',
+                border: '1px solid var(--ov-4, rgba(255,255,255,0.06))',
             },
         },
             React.createElement('span', {
@@ -99,7 +99,7 @@
                     fontSize: '0.62rem', fontWeight: 700, color: posCol,
                     minWidth: 24, textAlign: 'center',
                     padding: '2px 4px', borderRadius: '3px',
-                    background: posCol + '22',
+                    background: wrAlpha(posCol, '22'),
                 },
             }, r.pos),
             React.createElement('div', { style: { flex: 1, minWidth: 0 } },
@@ -121,7 +121,7 @@
 
         const base = {
             background: 'var(--off-black)',
-            border: '1px solid rgba(212,175,55,0.12)',
+            border: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))',
             borderRadius: '10px', padding: 'var(--card-pad, 12px 14px)',
             display: 'flex', flexDirection: 'column', gap: '6px',
             height: '100%', minHeight: 0, overflow: 'hidden',
@@ -148,8 +148,8 @@
                     title: 'Tag players in My Roster',
                     style: {
                         padding: '2px 6px', fontSize: '0.58rem',
-                        background: 'rgba(212,175,55,0.08)', color: 'var(--gold)',
-                        border: '1px solid rgba(212,175,55,0.2)', borderRadius: '4px',
+                        background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)',
+                        border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '4px',
                         cursor: 'pointer', fontFamily: 'var(--font-body)', letterSpacing: '0.05em',
                     },
                 }, 'TAG'),
@@ -218,10 +218,10 @@
             return React.createElement('div', { style: base },
                 header({ large: true }),
                 // Summary chip strip — total DHQ + position breakdown
-                rows.length > 0 && React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', padding: '6px 8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', flexShrink: 0 } },
+                rows.length > 0 && React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', padding: '6px 8px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '6px', flexShrink: 0 } },
                     React.createElement('span', { style: { fontSize: '0.6rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 } }, 'Total'),
                     React.createElement('span', { style: { fontSize: '0.78rem', fontWeight: 700, color: tone, fontFamily: 'JetBrains Mono, monospace' } }, totalDhq >= 1000 ? (totalDhq / 1000).toFixed(1) + 'k' : totalDhq),
-                    React.createElement('span', { style: { color: 'rgba(255,255,255,0.15)', margin: '0 4px' } }, '·'),
+                    React.createElement('span', { style: { color: 'var(--ov-6, rgba(255,255,255,0.15))', margin: '0 4px' } }, '·'),
                     ...Object.entries(posCounts).sort((a, b) => b[1] - a[1]).map(([pos, count]) => React.createElement('span', { key: pos, style: { display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.6rem', fontFamily: 'var(--font-body)' } },
                         React.createElement('span', { style: { color: posColors[pos] || 'var(--text-muted)', fontWeight: 700 } }, pos),
                         React.createElement('span', { style: { color: 'var(--silver)', fontFamily: 'JetBrains Mono, monospace' } }, count),
@@ -234,7 +234,7 @@
                         rows.length > shown.length
                             ? React.createElement('div', {
                                 onClick: openRoster,
-                                style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.6, textAlign: 'center', padding: '4px', cursor: 'pointer' },
+                                style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.6, textAlign: 'center', padding: '4px', cursor: 'pointer', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
                             }, '+ ' + (rows.length - shown.length) + ' more')
                             : null,
                     ),
@@ -251,7 +251,7 @@
             title: 'Trade Block',
             icon: '🏷️',
             tag: 'trade',
-            tone: '#F0A500',
+            tone: 'var(--k-f0a500, #f0a500)',
             emptyText: 'Tag players on your roster to shop them here.',
             clickTarget: 'myteam',
         });
@@ -263,7 +263,7 @@
             title: 'Cut Candidates',
             icon: '✂️',
             tag: 'cut',
-            tone: '#E74C3C',
+            tone: 'var(--k-e74c3c, #e74c3c)',
             emptyText: 'Flag dead weight on your roster to review here.',
             clickTarget: 'myteam',
         });
@@ -275,7 +275,7 @@
             title: 'Waiver Targets',
             icon: '🎯',
             tag: 'watch',
-            tone: '#3498DB',
+            tone: 'var(--k-3498db, #3498db)',
             emptyText: 'Tag "Watch" on any player to track them here.',
             clickTarget: 'fa',
         });

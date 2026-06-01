@@ -26,11 +26,11 @@
     ];
 
     const TAG_META = {
-        target:  { label: 'Target', color: '#2ECC71' },
-        sleeper: { label: 'Watch', color: '#3498DB' },
-        fade:    { label: 'Fade', color: '#F0A500' },
-        avoid:   { label: 'DND', color: '#E74C3C' },
-        must:    { label: 'Must', color: '#D4AF37' },
+        target:  { label: 'Target', color: 'var(--k-2ecc71, #2ecc71)' },
+        sleeper: { label: 'Watch', color: 'var(--k-3498db, #3498db)' },
+        fade:    { label: 'Fade', color: 'var(--k-f0a500, #f0a500)' },
+        avoid:   { label: 'DND', color: 'var(--k-e74c3c, #e74c3c)' },
+        must:    { label: 'Must', color: 'var(--k-d4af37, #d4af37)' },
     };
     const TAG_CYCLE = ['target', 'sleeper', 'fade', 'avoid', 'must', null];
 
@@ -78,10 +78,10 @@
         const [pLo, pHi] = curve.peak || [24, 29];
         const declineHi = curve.decline?.[1] || pHi + 3;
         if (!age) return { label: 'Window —', color: 'var(--silver)', years: null };
-        if (age < pLo) return { label: 'Rising', color: '#2ECC71', years: Math.max(0, pHi - age) };
+        if (age < pLo) return { label: 'Rising', color: 'var(--k-2ecc71, #2ecc71)', years: Math.max(0, pHi - age) };
         if (age <= pHi) return { label: 'Peak', color: 'var(--gold)', years: Math.max(0, pHi - age) };
-        if (age <= declineHi) return { label: 'Value', color: '#F0A500', years: Math.max(0, declineHi - age) };
-        return { label: 'Late', color: '#E74C3C', years: 0 };
+        if (age <= declineHi) return { label: 'Value', color: 'var(--k-f0a500, #f0a500)', years: Math.max(0, declineHi - age) };
+        return { label: 'Late', color: 'var(--k-e74c3c, #e74c3c)', years: 0 };
     }
 
     function projectionFor(player) {
@@ -125,8 +125,8 @@
         const myRanks = React.useMemo(() => rankMap(lanes.my?.order || []), [lanes.my]);
 
         const posColors = window.App?.POS_COLORS || {
-            QB: '#FF6B6B', RB: '#4ECDC4', WR: '#45B7D1', TE: '#F7DC6F',
-            K: '#BB8FCE', DEF: '#85929E', DL: '#E67E22', LB: '#F0A500', DB: '#5DADE2',
+            QB: 'var(--k-ff6b6b, #ff6b6b)', RB: 'var(--k-4ecdc4, #4ecdc4)', WR: 'var(--k-45b7d1, #45b7d1)', TE: 'var(--k-f7dc6f, #f7dc6f)',
+            K: 'var(--k-bb8fce, #bb8fce)', DEF: 'var(--k-85929e, #85929e)', DL: 'var(--k-e67e22, #e67e22)', LB: 'var(--k-f0a500, #f0a500)', DB: 'var(--k-5dade2, #5dade2)',
         };
         const posLabel = window.App?.posLabel || (pos => pos === 'DEF' ? 'D/ST' : pos);
 
@@ -317,11 +317,15 @@
                 if (sortKey === key) setSortDir(d => d * -1);
                 else { setSortKey(key); setSortDir(defaultDir); }
             }} style={{
-                padding: '2px 7px',
+                padding: '2px 10px',
+                minHeight: '40px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 fontSize: '0.6rem',
                 borderRadius: '3px',
-                border: '1px solid ' + (sortKey === key ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.08)'),
-                background: sortKey === key ? 'rgba(212,175,55,0.15)' : 'transparent',
+                border: '1px solid ' + (sortKey === key ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
+                background: sortKey === key ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
                 color: sortKey === key ? 'var(--gold)' : 'var(--silver)',
                 cursor: 'pointer',
                 fontFamily: FONT_UI,
@@ -364,8 +368,8 @@
                                 minWidth: 0,
                                 padding: '5px 4px',
                                 borderRadius: '5px',
-                                border: '1px solid ' + (active ? 'rgba(212,175,55,0.55)' : 'rgba(255,255,255,0.08)'),
-                                background: active ? 'rgba(212,175,55,0.16)' : 'rgba(255,255,255,0.025)',
+                                border: '1px solid ' + (active ? 'var(--acc-line4, rgba(212,175,55,0.55))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
+                                background: active ? 'var(--acc-fill3, rgba(212,175,55,0.16))' : 'var(--ov-2, rgba(255,255,255,0.025))',
                                 color: active ? 'var(--gold)' : 'var(--silver)',
                                 cursor: 'pointer',
                                 fontFamily: FONT_UI,
@@ -383,8 +387,8 @@
                     {activeLane === 'my' && boardContext?.canSeedMyBoardFromAi && (
                         <button onClick={onSeedMyBoardFromAi} style={{
                             padding: '2px 6px',
-                            border: '1px solid rgba(212,175,55,0.25)',
-                            background: 'rgba(212,175,55,0.08)',
+                            border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))',
+                            background: 'var(--acc-fill2, rgba(212,175,55,0.08))',
                             color: 'var(--gold)',
                             borderRadius: '4px',
                             cursor: 'pointer',
@@ -404,8 +408,8 @@
                         width: '100%',
                         boxSizing: 'border-box',
                         padding: '6px 8px',
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '1px solid rgba(255,255,255,0.08)',
+                        background: 'var(--ov-2, rgba(255,255,255,0.03))',
+                        border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
                         borderRadius: '4px',
                         color: 'var(--white)',
                         fontSize: '0.72rem',
@@ -428,10 +432,14 @@
                 <div style={{ display: 'flex', gap: '3px', marginBottom: '6px', flexWrap: 'wrap' }}>
                     {VIEW_LABELS.map(view => (
                         <button key={view.key} onClick={() => setBoardView(view.key)} style={{
-                            padding: '2px 7px',
+                            padding: '2px 10px',
+                            minHeight: '40px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                             borderRadius: '10px',
-                            border: '1px solid ' + (boardView === view.key ? 'rgba(212,175,55,0.35)' : 'rgba(255,255,255,0.08)'),
-                            background: boardView === view.key ? 'rgba(212,175,55,0.12)' : 'transparent',
+                            border: '1px solid ' + (boardView === view.key ? 'var(--acc-line2, rgba(212,175,55,0.35))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
+                            background: boardView === view.key ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'transparent',
                             color: boardView === view.key ? 'var(--gold)' : 'var(--silver)',
                             cursor: 'pointer',
                             fontSize: '0.56rem',
@@ -443,22 +451,30 @@
 
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginBottom: '8px' }}>
                     <button onClick={() => setPosFilter('')} style={{
-                        padding: '2px 8px',
+                        padding: '2px 10px',
+                        minHeight: '40px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                         fontSize: '0.62rem',
                         borderRadius: '10px',
-                        border: '1px solid ' + (posFilter === '' ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.08)'),
-                        background: posFilter === '' ? 'rgba(212,175,55,0.15)' : 'transparent',
+                        border: '1px solid ' + (posFilter === '' ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
+                        background: posFilter === '' ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
                         color: posFilter === '' ? 'var(--gold)' : 'var(--silver)',
                         cursor: 'pointer',
                         fontFamily: FONT_UI,
                     }}>ALL</button>
                     {availablePositions.map(pos => (
                         <button key={pos} onClick={() => setPosFilter(posFilter === pos ? '' : pos)} style={{
-                            padding: '2px 8px',
+                            padding: '2px 10px',
+                            minHeight: '40px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                             fontSize: '0.62rem',
                             borderRadius: '10px',
-                            border: '1px solid ' + (posFilter === pos ? (posColors[pos] || '#666') + '66' : 'rgba(255,255,255,0.08)'),
-                            background: posFilter === pos ? (posColors[pos] || '#666') + '22' : 'transparent',
+                            border: '1px solid ' + (posFilter === pos ? (posColors[pos] || 'var(--k-666666, #666666)') + '66' : 'var(--ov-5, rgba(255,255,255,0.08))'),
+                            background: posFilter === pos ? (posColors[pos] || 'var(--k-666666, #666666)') + '22' : 'transparent',
                             color: posFilter === pos ? (posColors[pos] || 'var(--silver)') : 'var(--silver)',
                             cursor: 'pointer',
                             fontFamily: FONT_UI,
@@ -512,34 +528,34 @@
                                     gap: '5px',
                                     alignItems: 'center',
                                     padding: '6px 3px 6px 0',
-                                    borderBottom: '1px solid rgba(255,255,255,0.035)',
+                                    borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.035))',
                                     borderLeft: b.tier ? '2px solid ' + tCol : '2px solid transparent',
                                     paddingLeft: '5px',
                                     cursor: activeLane === 'my' ? 'grab' : 'pointer',
                                     opacity: dragPid === idOf(p) ? 0.52 : 1,
-                                    background: dragPid === idOf(p) ? 'rgba(212,175,55,0.10)' : (idx === 0 ? 'rgba(212,175,55,0.045)' : 'transparent'),
+                                    background: dragPid === idOf(p) ? 'var(--acc-fill2, rgba(212,175,55,0.10))' : (idx === 0 ? 'var(--acc-fill1, rgba(212,175,55,0.045))' : 'transparent'),
                                     transition: 'background 0.1s',
                                 }}
-                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.06)'}
-                                onMouseLeave={e => e.currentTarget.style.background = dragPid === idOf(p) ? 'rgba(212,175,55,0.10)' : (idx === 0 ? 'rgba(212,175,55,0.045)' : 'transparent')}
+                                onMouseEnter={e => e.currentTarget.style.background = 'var(--acc-fill1, rgba(212,175,55,0.06))'}
+                                onMouseLeave={e => e.currentTarget.style.background = dragPid === idOf(p) ? 'var(--acc-fill2, rgba(212,175,55,0.10))' : (idx === 0 ? 'var(--acc-fill1, rgba(212,175,55,0.045))' : 'transparent')}
                             >
-                                <span style={{ fontSize: '0.62rem', color: rowRank <= 12 ? 'var(--gold)' : 'rgba(255,255,255,0.34)', textAlign: 'right', fontFamily: FONT_MONO }}>{rowRank}</span>
+                                <span style={{ fontSize: '0.62rem', color: rowRank <= 12 ? 'var(--gold)' : 'var(--ov-8, rgba(255,255,255,0.34))', textAlign: 'right', fontFamily: FONT_MONO }}>{rowRank}</span>
                                 <div style={{ minWidth: 0 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
                                         <span style={{ color: 'var(--white)', fontWeight: 700, fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
                                         {b.rankDelta !== 0 && activeLane !== 'dhq' && (
                                             <span style={{
                                                 flexShrink: 0,
-                                                color: b.rankDelta > 0 ? '#2ECC71' : '#E74C3C',
+                                                color: b.rankDelta > 0 ? 'var(--good)' : 'var(--bad)',
                                                 fontSize: '0.52rem',
                                                 fontFamily: FONT_MONO,
-                                                border: '1px solid rgba(255,255,255,0.08)',
+                                                border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
                                                 borderRadius: '3px',
                                                 padding: '0 3px',
                                             }}>{signed(b.rankDelta)}</span>
                                         )}
                                         {tag && (
-                                            <span style={{ flexShrink: 0, color: tag.color, fontSize: '0.5rem', fontWeight: 800, border: '1px solid ' + tag.color + '55', background: tag.color + '18', borderRadius: '3px', padding: '0 4px' }}>{tag.label}</span>
+                                            <span style={{ flexShrink: 0, color: tag.color, fontSize: '0.5rem', fontWeight: 800, border: '1px solid ' + wrAlpha(tag.color, '55'), background: wrAlpha(tag.color, '18'), borderRadius: '3px', padding: '0 4px' }}>{tag.label}</span>
                                         )}
                                     </div>
                                     {showSecondLine && (
@@ -551,21 +567,25 @@
                                         </div>
                                     )}
                                 </div>
-                                <span style={{ fontSize: '0.56rem', fontWeight: 800, padding: '1px 5px', borderRadius: '3px', background: posColor + '22', color: posColor, textAlign: 'center', fontFamily: FONT_UI }}>{p.pos}</span>
+                                <span style={{ fontSize: '0.56rem', fontWeight: 800, padding: '1px 5px', borderRadius: '3px', background: wrAlpha(posColor, '22'), color: posColor, textAlign: 'center', fontFamily: FONT_UI }}>{p.pos}</span>
                                 <span style={{ color: col, fontSize: '0.62rem', fontWeight: 800, fontFamily: FONT_MONO, textAlign: 'right' }}>{fmt(p.dhq)}</span>
-                                <span style={{ color: b.projections?.y5 >= (p.dhq || 0) ? '#2ECC71' : 'var(--silver)', fontSize: '0.58rem', fontFamily: FONT_MONO, textAlign: 'right' }}>Y5 {fmt(b.projections?.y5)}</span>
-                                <span style={{ color: win.color, fontSize: '0.52rem', fontWeight: 800, textAlign: 'center', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '3px', padding: '1px 2px' }}>{win.label}</span>
+                                <span style={{ color: b.projections?.y5 >= (p.dhq || 0) ? 'var(--good)' : 'var(--silver)', fontSize: '0.58rem', fontFamily: FONT_MONO, textAlign: 'right' }}>Y5 {fmt(b.projections?.y5)}</span>
+                                <span style={{ color: win.color, fontSize: '0.52rem', fontWeight: 800, textAlign: 'center', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '3px', padding: '1px 2px' }}>{win.label}</span>
                                 {(isUserTurn || state.overrideMode || state.mode === 'manual') && (
                                     <button
                                         onClick={e => { e.stopPropagation(); onDraft(p); }}
                                         title={state.overrideMode || state.mode === 'manual' ? 'Record the player for the team on the clock' : 'Make your pick'}
                                         style={{
-                                            padding: '4px 6px',
+                                            padding: '10px 8px',
+                                            minHeight: '44px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
                                             fontSize: '0.58rem',
                                             fontFamily: FONT_UI,
                                             fontWeight: 800,
-                                            background: state.overrideMode ? '#9b8afb' : 'var(--gold)',
-                                            color: state.overrideMode ? '#fff' : 'var(--black)',
+                                            background: state.overrideMode ? 'var(--purple)' : 'var(--gold)',
+                                            color: state.overrideMode ? 'var(--k-ffffff, #ffffff)' : 'var(--black)',
                                             border: 'none',
                                             borderRadius: '3px',
                                             cursor: 'pointer',
@@ -575,57 +595,77 @@
                                 {activeLane === 'my' && (
                                     <div style={{ gridColumn: '2 / -1', display: 'flex', gap: '5px', alignItems: 'center', marginTop: '-2px' }}>
                                         <button onClick={e => { e.stopPropagation(); onMovePlayer(p, -1); }} style={{
-                                            padding: '2px 6px',
+                                            padding: '0 10px',
+                                            minHeight: '44px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
                                             borderRadius: '3px',
-                                            border: '1px solid rgba(255,255,255,0.08)',
-                                            background: 'rgba(255,255,255,0.03)',
+                                            border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
+                                            background: 'var(--ov-2, rgba(255,255,255,0.03))',
                                             color: 'var(--silver)',
                                             cursor: 'pointer',
-                                            fontSize: '0.5rem',
+                                            fontSize: 'var(--text-label)',
                                             fontFamily: FONT_UI,
                                             fontWeight: 800,
                                         }}>UP</button>
                                         <button onClick={e => { e.stopPropagation(); onMovePlayer(p, 1); }} style={{
-                                            padding: '2px 6px',
+                                            padding: '0 10px',
+                                            minHeight: '44px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
                                             borderRadius: '3px',
-                                            border: '1px solid rgba(255,255,255,0.08)',
-                                            background: 'rgba(255,255,255,0.03)',
+                                            border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
+                                            background: 'var(--ov-2, rgba(255,255,255,0.03))',
                                             color: 'var(--silver)',
                                             cursor: 'pointer',
-                                            fontSize: '0.5rem',
+                                            fontSize: 'var(--text-label)',
                                             fontFamily: FONT_UI,
                                             fontWeight: 800,
                                         }}>DOWN</button>
                                         <button onClick={e => { e.stopPropagation(); onEditTier(p); }} style={{
-                                            padding: '2px 6px',
+                                            padding: '0 10px',
+                                            minHeight: '44px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
                                             borderRadius: '3px',
-                                            border: '1px solid rgba(255,255,255,0.08)',
-                                            background: b.tier ? tCol + '18' : 'rgba(255,255,255,0.03)',
+                                            border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
+                                            background: b.tier ? wrAlpha(tCol, '18') : 'var(--ov-2, rgba(255,255,255,0.03))',
                                             color: b.tier ? tCol : 'var(--silver)',
                                             cursor: 'pointer',
-                                            fontSize: '0.5rem',
+                                            fontSize: 'var(--text-label)',
                                             fontFamily: FONT_UI,
                                             fontWeight: 800,
                                         }}>TIER</button>
                                         <button onClick={e => { e.stopPropagation(); onCycleTag(p); }} style={{
-                                            padding: '2px 6px',
+                                            padding: '0 10px',
+                                            minHeight: '44px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
                                             borderRadius: '3px',
-                                            border: '1px solid rgba(255,255,255,0.08)',
-                                            background: tag ? tag.color + '18' : 'rgba(255,255,255,0.03)',
+                                            border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
+                                            background: tag ? wrAlpha(tag.color, '18') : 'var(--ov-2, rgba(255,255,255,0.03))',
                                             color: tag ? tag.color : 'var(--silver)',
                                             cursor: 'pointer',
-                                            fontSize: '0.5rem',
+                                            fontSize: 'var(--text-label)',
                                             fontFamily: FONT_UI,
                                             fontWeight: 800,
                                         }}>TAG</button>
                                         <button onClick={e => { e.stopPropagation(); onEditNote(p); }} style={{
-                                            padding: '2px 6px',
+                                            padding: '0 10px',
+                                            minHeight: '44px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
                                             borderRadius: '3px',
-                                            border: '1px solid rgba(255,255,255,0.08)',
-                                            background: note ? 'rgba(212,175,55,0.10)' : 'rgba(255,255,255,0.03)',
+                                            border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
+                                            background: note ? 'var(--acc-fill2, rgba(212,175,55,0.10))' : 'var(--ov-2, rgba(255,255,255,0.03))',
                                             color: note ? 'var(--gold)' : 'var(--silver)',
                                             cursor: 'pointer',
-                                            fontSize: '0.5rem',
+                                            fontSize: 'var(--text-label)',
                                             fontFamily: FONT_UI,
                                             fontWeight: 800,
                                         }}>NOTE</button>

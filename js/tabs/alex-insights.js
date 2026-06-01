@@ -597,7 +597,7 @@
 
     // ── Sub-tab row ───────────────────────────────────────────────
     function SubTabs({ value, onChange, tabs }) {
-        return h('div', { className: 'wr-module-nav', style: { margin: '0 0 16px' } },
+        return h('div', { className: 'wr-module-nav', style: { margin: '0 0 var(--space-lg)' } },
             tabs.map(t => h('button', {
                 key: t.k,
                 className: value === t.k ? 'is-active' : '',
@@ -688,12 +688,12 @@
                     onClick: doGenerate,
                     disabled: aiLoading,
                     style: {
-                        display: 'inline-flex', alignItems: 'center', gap: '6px',
+                        display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px',
                         padding: '6px 12px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 600,
-                        fontFamily: 'DM Sans, sans-serif',
+                        fontFamily: 'var(--font-body)',
                         background: aiLoading ? 'rgba(124,107,248,0.08)' : 'rgba(124,107,248,0.12)',
                         border: '1px solid rgba(124,107,248,0.35)',
-                        color: '#9b8afb',
+                        color: 'var(--purple)',
                         cursor: aiLoading ? 'wait' : 'pointer',
                         opacity: aiLoading ? 0.7 : 1,
                     }
@@ -701,16 +701,17 @@
                 aiInsights.length > 0 && h('button', {
                     onClick: doClear,
                     style: {
+                        minHeight: '44px',
                         padding: '6px 10px', borderRadius: '6px', fontSize: '0.7rem',
-                        fontFamily: 'DM Sans, sans-serif', background: 'transparent',
-                        border: '1px solid rgba(255,255,255,0.08)', color: 'var(--silver)',
+                        fontFamily: 'var(--font-body)', background: 'transparent',
+                        border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', color: 'var(--silver)',
                         cursor: 'pointer',
                     }
                 }, 'Clear AI'),
-                aiInsights.length > 0 && cacheAge != null && h('span', { style: { fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.5, fontFamily: 'JetBrains Mono, monospace' } },
+                aiInsights.length > 0 && cacheAge != null && h('span', { style: { fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.5, fontFamily: 'var(--font-mono)' } },
                     cacheAge < 1 ? 'just now' : cacheAge < 60 ? cacheAge + 'm ago' : Math.floor(cacheAge / 60) + 'h ago')
             ),
-            aiError && h('div', { style: { padding: '10px 14px', marginBottom: '12px', background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: '6px', fontSize: '0.78rem', color: '#E74C3C' } },
+            aiError && h('div', { style: { padding: '10px 14px', marginBottom: '12px', background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: '6px', fontSize: '0.78rem', color: 'var(--bad)' } },
                 'Alex couldn\u2019t generate insights: ', aiError),
             merged.length === 0
                 ? h(window.WR.Card, { padding: '24px' },
@@ -729,17 +730,17 @@
                             ins.recommendationWhy.slice(0, 3).map(line => h('span', {
                                 key: line,
                                 style: {
-                                    color: '#D0E7FA',
+                                    color: 'var(--k-d0e7fa, #d0e7fa)',
                                     background: 'rgba(125,183,232,0.07)',
                                     border: '1px solid rgba(125,183,232,0.18)',
                                     borderRadius: '4px',
                                     padding: '2px 5px',
-                                    fontSize: '0.6rem',
+                                    fontSize: 'var(--text-micro)',
                                     lineHeight: 1.25,
                                 }
                             }, line))
                         ),
-                        ins.isAi && h('div', { style: { position: 'absolute', top: 10, right: 10, fontFamily: 'JetBrains Mono, monospace', fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.12em', padding: '2px 6px', borderRadius: '4px', background: 'rgba(124,107,248,0.2)', color: '#9b8afb', border: '1px solid rgba(124,107,248,0.4)' } }, '\u2728 AI')
+                        ins.isAi && h('div', { style: { position: 'absolute', top: 10, right: 10, fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro)', fontWeight: 700, letterSpacing: '0.12em', padding: '2px 6px', borderRadius: '4px', background: 'rgba(124,107,248,0.2)', color: 'var(--purple)', border: '1px solid rgba(124,107,248,0.4)' } }, '\u2728 AI')
                     ))
                 )
         );
@@ -830,36 +831,36 @@
 
         // ── Chart primitives ──
         const POS_COLORS = window.App?.POS_COLORS || {};
-        const posColor = (p) => POS_COLORS[p] || '#D0D0D0';
+        const posColor = (p) => POS_COLORS[p] || 'var(--k-d0d0d0, #d0d0d0)';
 
         const HBar = ({ label, labelColor, value, max, valStr, barColor, rightText }) =>
             h('div', { style: { display: 'grid', gridTemplateColumns: '110px 1fr 60px', gap: '10px', alignItems: 'center', marginBottom: '6px' } },
                 h('div', { style: { fontSize: '0.76rem', color: labelColor || 'var(--silver)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, label),
-                h('div', { style: { height: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '3px', overflow: 'hidden', position: 'relative' } },
+                h('div', { style: { height: '10px', background: 'var(--ov-3, rgba(255,255,255,0.04))', borderRadius: '3px', overflow: 'hidden', position: 'relative' } },
                     h('div', { style: { width: Math.max(0, Math.min(100, (value / max) * 100)) + '%', height: '100%', background: barColor || 'var(--gold)', borderRadius: '3px', transition: 'width 0.2s' } })
                 ),
-                h('div', { style: { fontSize: '0.74rem', fontFamily: 'JetBrains Mono, monospace', color: rightText || 'var(--silver)', textAlign: 'right', fontWeight: 700 } }, valStr)
+                h('div', { style: { fontSize: '0.74rem', fontFamily: 'var(--font-mono)', color: rightText || 'var(--silver)', textAlign: 'right', fontWeight: 700 } }, valStr)
             );
 
         // Panel wraps each chart with its title + Alex-voiced interpretation.
         // `interpretation` is the differentiator vs. Analytics: the same data
         // is there, but here Alex tells you what it *means* for your play.
-        const Panel = ({ title, subtitle, interpretation, interpColor, children, empty }) => h(Card, { padding: '18px 20px', style: { marginBottom: '12px' } },
+        const Panel = ({ title, subtitle, interpretation, interpColor, children, empty }) => h(Card, { padding: 'var(--card-pad-lg)', style: { marginBottom: 'var(--space-md)' } },
             h('div', { style: { display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: interpretation ? '8px' : '14px' } },
-                h('h3', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', fontWeight: 700, margin: 0, letterSpacing: 0 } }, title),
-                subtitle && h('span', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'JetBrains Mono, monospace' } }, '\u2014 ' + subtitle)
+                h('h3', { style: { fontFamily: 'var(--font-title)', fontSize: '1rem', fontWeight: 700, margin: 0, letterSpacing: 0 } }, title),
+                subtitle && h('span', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-mono)' } }, '\u2014 ' + subtitle)
             ),
             interpretation && h('div', {
                 style: {
                     display: 'flex', alignItems: 'flex-start', gap: '8px',
                     marginBottom: '14px', padding: '8px 10px',
-                    background: 'rgba(212,175,55,0.04)',
-                    borderLeft: '2px solid ' + (interpColor || 'rgba(212,175,55,0.5)'),
+                    background: 'var(--acc-fill1, rgba(212,175,55,0.04))',
+                    borderLeft: '2px solid ' + (interpColor || 'var(--acc-line3, rgba(212,175,55,0.5))'),
                     borderRadius: '0 5px 5px 0',
                     fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.92, lineHeight: 1.5,
                 }
             },
-                h('span', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '0.64rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', flexShrink: 0, paddingTop: '2px' } }, 'Alex'),
+                h('span', { style: { fontFamily: 'var(--font-title)', fontSize: '0.64rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', flexShrink: 0, paddingTop: '2px' } }, 'Alex'),
                 h('span', null, interpretation)
             ),
             empty
@@ -956,8 +957,8 @@
             ]);
         })();
 
-        const partnerInterpColor = partners.some(p => p.net < -3000) ? '#E74C3C' : '#2ECC71';
-        const draftHitInterpColor = draftPicks.length && draftPicks.filter(d => (LI.playerScores?.[d.pid] || 0) >= 3000).length === 0 ? '#E74C3C' : 'var(--gold)';
+        const partnerInterpColor = partners.some(p => p.net < -3000) ? 'var(--bad)' : 'var(--good)';
+        const draftHitInterpColor = draftPicks.length && draftPicks.filter(d => (LI.playerScores?.[d.pid] || 0) >= 3000).length === 0 ? 'var(--bad)' : 'var(--gold)';
 
         // ── Render ──
         const maxPartnerCount = Math.max(1, ...partners.map(p => p.count));
@@ -972,7 +973,7 @@
         // all behavior-specific (about how you play, not raw league data).
         return h('div', null,
             h('div', { style: { marginBottom: '14px', padding: '12px 16px', background: 'rgba(124,107,248,0.04)', border: '1px solid rgba(124,107,248,0.15)', borderRadius: 'var(--card-radius, 10px)' } },
-                h('div', { style: { fontSize: '0.68rem', color: '#9b8afb', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px', fontFamily: 'Rajdhani, sans-serif' } }, 'How this differs from Analytics'),
+                h('div', { style: { fontSize: '0.68rem', color: 'var(--purple)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px', fontFamily: 'var(--font-title)' } }, 'How this differs from Analytics'),
                 h('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.85, lineHeight: 1.5 } },
                     'Analytics shows raw numbers. Patterns is Alex reading those numbers back to you \u2014 every chart below includes Alex\u2019s take on what it means for your play style.')
             ),
@@ -1006,8 +1007,8 @@
                     value: Math.abs(p.net),
                     max: maxPartnerAbs,
                     valStr: (p.net > 0 ? '+' : '') + (p.net / 1000).toFixed(1) + 'k',
-                    barColor: p.net > 0 ? '#2ECC71' : p.net < 0 ? '#E74C3C' : 'var(--silver)',
-                    rightText: p.net > 0 ? '#2ECC71' : p.net < 0 ? '#E74C3C' : 'var(--silver)',
+                    barColor: p.net > 0 ? 'var(--good)' : p.net < 0 ? 'var(--bad)' : 'var(--silver)',
+                    rightText: p.net > 0 ? 'var(--good)' : p.net < 0 ? 'var(--bad)' : 'var(--silver)',
                 }))
             ),
             // Draft — hit rate by round
@@ -1024,7 +1025,7 @@
                     value: r.hits,
                     max: maxDraftTotal,
                     valStr: r.hits + '/' + r.total + '  ' + r.rate + '%',
-                    barColor: r.rate >= 50 ? '#2ECC71' : r.rate >= 25 ? '#F0A500' : '#E74C3C',
+                    barColor: r.rate >= 50 ? 'var(--good)' : r.rate >= 25 ? 'var(--warn)' : 'var(--bad)',
                 }))
             ),
             // Draft — position mix
@@ -1044,7 +1045,7 @@
                     barColor: posColor(p.pos),
                 })),
                 // Deep-link to the Analytics draft tab for full tabular detail.
-                h('div', { style: { marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.55 } },
+                h('div', { style: { marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--ov-3, rgba(255,255,255,0.05))', fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.55 } },
                     'For full roster and waiver data tables, open ',
                     h('a', { href: '#', onClick: e => { e.preventDefault(); props?.setActiveTab?.('analytics'); }, style: { color: 'var(--gold)', textDecoration: 'underline' } }, 'Analytics'), '.')
             )
@@ -1240,14 +1241,15 @@
         const filterChip = (key, label) => h('button', {
             key, onClick: () => setFilter(key),
             style: {
+                minHeight: '44px',
                 padding: '5px 10px', borderRadius: '999px',
                 fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer',
-                background: filter === key ? 'rgba(212,175,55,0.15)' : 'transparent',
-                border: '1px solid ' + (filter === key ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.08)'),
+                background: filter === key ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
+                border: '1px solid ' + (filter === key ? 'var(--acc-line3, rgba(212,175,55,0.5))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
                 color: filter === key ? 'var(--gold)' : 'var(--silver)',
-                fontFamily: 'DM Sans, sans-serif',
+                fontFamily: 'var(--font-body)',
             },
-        }, label, key !== 'all' && counts[key] != null ? h('span', { style: { marginLeft: '6px', opacity: 0.6, fontFamily: 'JetBrains Mono, monospace' } }, counts[key]) : null);
+        }, label, key !== 'all' && counts[key] != null ? h('span', { style: { marginLeft: '6px', opacity: 0.6, fontFamily: 'var(--font-mono)' } }, counts[key]) : null);
 
         function renderRow(ev, i) {
             const date = _dhDate(ev.ts);
@@ -1257,7 +1259,7 @@
                     h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px' } },
                         h(window.WR.Badge, { label: ev.category || 'note', kind: ev.category || 'note' }),
                         h('div', { style: { flex: 1, minWidth: 0, fontSize: '0.82rem', color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, ev.text || 'Logged decision'),
-                        h('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'JetBrains Mono, monospace', flexShrink: 0 } }, date),
+                        h('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-mono)', flexShrink: 0 } }, date),
                     )
                 );
             }
@@ -1299,12 +1301,12 @@
             const netDhq = (myIn + pickIn) - (myOut + pickOut);
             const hasTradeAssets = !!(addedPids.length || droppedPids.length || addedPicks.length || droppedPicks.length || addedFaab || droppedFaab);
             const netStr = kind === 'trade' && hasTradeAssets ? ((netDhq >= 0 ? '+' : '') + (Math.abs(netDhq) >= 1000 ? (netDhq / 1000).toFixed(1) + 'k' : Math.round(netDhq)) + ' DHQ') : null;
-            const netCol = netDhq > 0 ? '#2ECC71' : netDhq < 0 ? '#E74C3C' : 'var(--silver)';
+            const netCol = netDhq > 0 ? 'var(--good)' : netDhq < 0 ? 'var(--bad)' : 'var(--silver)';
 
             const renderChips = (pids, prefix, color) => pids.length === 0 ? null : h('span', { style: { display: 'inline-flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' } },
                 pids.slice(0, 4).map(pid => h('span', {
                     key: pid,
-                    style: { fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: color + '12', border: '1px solid ' + color + '33', color: color, fontWeight: 600 },
+                    style: { fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: wrAlpha(color, '12'), border: '1px solid ' + wrAlpha(color, '33'), color: color, fontWeight: 600 },
                 }, prefix, chipText(pid))),
                 pids.length > 4 ? h('span', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.6 } }, '+' + (pids.length - 4)) : null,
             );
@@ -1325,12 +1327,12 @@
             const renderPickChips = (picks, prefix, color) => picks.length === 0 ? null : h('span', { style: { display: 'inline-flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' } },
                 picks.slice(0, 4).map((pk, idx) => h('span', {
                     key: [pk.season, pk.round, pk.roster_id, idx].join(':'),
-                    style: { fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: color + '12', border: '1px solid ' + color + '33', color: color, fontWeight: 600 },
+                    style: { fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: wrAlpha(color, '12'), border: '1px solid ' + wrAlpha(color, '33'), color: color, fontWeight: 600 },
                 }, prefix, pickText(pk))),
                 picks.length > 4 ? h('span', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.6 } }, '+' + (picks.length - 4) + ' picks') : null,
             );
             const renderFaabChip = (amount, prefix, color) => !amount ? null : h('span', {
-                style: { fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: color + '12', border: '1px solid ' + color + '33', color: color, fontWeight: 600 },
+                style: { fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: wrAlpha(color, '12'), border: '1px solid ' + wrAlpha(color, '33'), color: color, fontWeight: 600 },
             }, prefix, '$' + amount + ' FAAB');
             const hasIncoming = !!(addedPids.length || addedPicks.length || addedFaab);
             const hasOutgoing = !!(droppedPids.length || droppedPicks.length || droppedFaab);
@@ -1339,17 +1341,17 @@
                 h('div', { style: { display: 'grid', gridTemplateColumns: '60px 1fr auto auto', gap: '10px', alignItems: 'center' } },
                     h(window.WR.Badge, { label: kind, kind }),
                     h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '4px', minWidth: 0 } },
-                        renderChips(addedPids, '+ ', '#2ECC71'),
-                        renderPickChips(addedPicks, '+ ', '#2ECC71'),
-                        renderFaabChip(addedFaab, '+ ', '#2ECC71'),
+                        renderChips(addedPids, '+ ', 'var(--k-2ecc71, #2ecc71)'),
+                        renderPickChips(addedPicks, '+ ', 'var(--k-2ecc71, #2ecc71)'),
+                        renderFaabChip(addedFaab, '+ ', 'var(--k-2ecc71, #2ecc71)'),
                         hasOutgoing && hasIncoming && h('span', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.5, alignSelf: 'center' } }, 'for'),
-                        renderChips(droppedPids, '\u2212 ', '#E74C3C'),
-                        renderPickChips(droppedPicks, '\u2212 ', '#E74C3C'),
-                        renderFaabChip(droppedFaab, '\u2212 ', '#E74C3C'),
+                        renderChips(droppedPids, '\u2212 ', 'var(--k-e74c3c, #e74c3c)'),
+                        renderPickChips(droppedPicks, '\u2212 ', 'var(--k-e74c3c, #e74c3c)'),
+                        renderFaabChip(droppedFaab, '\u2212 ', 'var(--k-e74c3c, #e74c3c)'),
                         !hasTradeAssets && h('span', { style: { fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, fontStyle: 'italic' } }, 'No recorded asset changes'),
                     ),
-                    netStr && h('span', { style: { fontSize: '0.74rem', fontWeight: 700, color: netCol, fontFamily: 'JetBrains Mono, monospace', flexShrink: 0 } }, netStr),
-                    h('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'JetBrains Mono, monospace', flexShrink: 0 } }, date),
+                    netStr && h('span', { style: { fontSize: '0.74rem', fontWeight: 700, color: netCol, fontFamily: 'var(--font-mono)', flexShrink: 0 } }, netStr),
+                    h('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-mono)', flexShrink: 0 } }, date),
                 ),
             );
         }
@@ -1357,7 +1359,7 @@
         return h('div', null,
             // Filter strip
             h('div', { style: { display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap', alignItems: 'center' } },
-                h('span', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.55, fontFamily: 'JetBrains Mono, monospace', textTransform: 'uppercase', letterSpacing: '0.08em', marginRight: '4px' } }, 'Filter:'),
+                h('span', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.55, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginRight: '4px' } }, 'Filter:'),
                 filterChip('all', 'All ' + events.length),
                 counts.trade && filterChip('trade', 'Trades'),
                 counts.waiver && filterChip('waiver', 'Waivers'),
@@ -1367,9 +1369,9 @@
             filtered.length === 0 ? h(window.WR.Card, { padding: '24px' },
                 h('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, textAlign: 'center' } }, 'No ' + filter + ' history.')
             ) : groups.map((g, gi) => h('div', { key: 'g' + gi, style: { marginBottom: '20px' } },
-                h('div', { style: { fontSize: '0.66rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' } },
+                h('div', { style: { fontSize: '0.66rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'var(--font-title)', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' } },
                     g.month,
-                    h('span', { style: { color: 'var(--silver)', opacity: 0.5, fontFamily: 'JetBrains Mono, monospace', fontWeight: 400 } }, g.items.length + ' decision' + (g.items.length === 1 ? '' : 's')),
+                    h('span', { style: { color: 'var(--silver)', opacity: 0.5, fontFamily: 'var(--font-mono)', fontWeight: 400 } }, g.items.length + ' decision' + (g.items.length === 1 ? '' : 's')),
                 ),
                 h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
                     g.items.map((ev, i) => renderRow(ev, gi * 1000 + i)),
@@ -1399,7 +1401,7 @@
         const sliderRow = (label, hint, key, min, max, step, format) => h('div', { style: { marginBottom: '18px' } },
             h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' } },
                 h('span', { style: { fontSize: '0.82rem', color: 'var(--white)', opacity: 0.88, fontWeight: 600 } }, label),
-                h('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '0.88rem', fontWeight: 700, color: 'var(--gold)' } },
+                h('span', { style: { fontFamily: 'var(--font-mono)', fontSize: '0.88rem', fontWeight: 700, color: 'var(--gold)' } },
                     format ? format(settings[key]) : settings[key])
             ),
             hint && h('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.55, marginBottom: '8px', lineHeight: 1.4 } }, hint),
@@ -1407,17 +1409,18 @@
                 type: 'range', min, max, step: step || 1,
                 value: settings[key],
                 onChange: e => update({ [key]: Number(e.target.value) }),
-                style: { width: '100%', accentColor: '#D4AF37' },
+                style: { width: '100%', accentColor: 'var(--gold)' },
             })
         );
 
         const focusChip = (k, label) => h('button', {
             key: k, onClick: () => updateFocus(k, !settings.focus[k]),
             style: {
-                padding: '6px 12px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 500,
-                cursor: 'pointer', fontFamily: 'DM Sans, sans-serif',
-                border: '1px solid ' + (settings.focus[k] ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.1)'),
-                background: settings.focus[k] ? 'rgba(212,175,55,0.12)' : 'rgba(255,255,255,0.02)',
+                minHeight: '44px',
+                padding: '6px 12px', borderRadius: 'var(--card-radius-sm)', fontSize: '0.74rem', fontWeight: 500,
+                cursor: 'pointer', fontFamily: 'var(--font-body)',
+                border: '1px solid ' + (settings.focus[k] ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'),
+                background: settings.focus[k] ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'var(--ov-1, rgba(255,255,255,0.02))',
                 color: settings.focus[k] ? 'var(--gold)' : 'var(--silver)',
             }
         }, label);
@@ -1426,18 +1429,19 @@
             disabled: !!opts.disabled,
             title: opts.title,
             style: {
-                padding: '6px 12px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 500,
-                cursor: opts.disabled ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif',
-                border: '1px solid ' + (settings.channel[k] ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.1)'),
-                background: settings.channel[k] ? 'rgba(212,175,55,0.12)' : 'rgba(255,255,255,0.02)',
+                minHeight: '44px',
+                padding: '6px 12px', borderRadius: 'var(--card-radius-sm)', fontSize: '0.74rem', fontWeight: 500,
+                cursor: opts.disabled ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-body)',
+                border: '1px solid ' + (settings.channel[k] ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'),
+                background: settings.channel[k] ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'var(--ov-1, rgba(255,255,255,0.02))',
                 color: settings.channel[k] ? 'var(--gold)' : 'var(--silver)',
                 opacity: opts.disabled ? 0.48 : 1,
             }
         }, label);
 
         const sectionTitle = (label) => h('div', { style: { display: 'flex', alignItems: 'baseline', gap: '8px', margin: '0 0 14px' } },
-            h('h3', { style: { fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, fontSize: '1.02rem', margin: 0, letterSpacing: '0.01em', color: 'var(--white)' } }, label.title),
-            h('span', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.55, fontFamily: 'JetBrains Mono, monospace' } }, label.sub),
+            h('h3', { style: { fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.02rem', margin: 0, letterSpacing: '0.01em', color: 'var(--white)' } }, label.title),
+            h('span', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.55, fontFamily: 'var(--font-mono)' } }, label.sub),
         );
         const tradeAggressionLabel = (v) => {
             const stance = v <= 20 ? 'Conservative' : v <= 40 ? 'Cautious' : v <= 60 ? 'Balanced' : v <= 80 ? 'Bold' : 'Aggressive';
@@ -1461,17 +1465,17 @@
         return h('div', null,
             // Intro card
             h('div', { style: { padding: '12px 16px', marginBottom: '14px', background: 'rgba(124,107,248,0.04)', border: '1px solid rgba(124,107,248,0.15)', borderRadius: 'var(--card-radius, 10px)' } },
-                h('div', { style: { fontSize: '0.68rem', color: '#9b8afb', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px', fontFamily: 'Rajdhani, sans-serif' } }, 'How Alex talks to you'),
+                h('div', { style: { fontSize: '0.68rem', color: 'var(--purple)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px', fontFamily: 'var(--font-title)' } }, 'How Alex talks to you'),
                 h('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.85, lineHeight: 1.5 } },
                     settingsIntro)
             ),
-            h('div', { style: { display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '14px' } },
-                h(window.WR.Card, { padding: '20px 22px' },
+            h('div', { className: 'gm-office-settings-grid' },
+                h(window.WR.Card, { padding: 'var(--card-pad-lg)' },
                     sectionTitle({ title: 'Sensitivity', sub: 'When and how often Alex speaks up' }),
                     sliderRow('Alert threshold', 'Minimum confidence Alex needs before showing an insight. Higher = quieter, only the strong signals.', 'alertThreshold', 0, 100, 1, v => v + '%'),
                     sliderRow('Max alerts per week', 'Caps how many cards Alex shows in Overview. Lower = curated.', 'maxAlertsPerWeek', 1, 20, 1),
                     sliderRow('Min projected-points delta', 'Smallest swing (in projected fantasy points) Alex bothers flagging on lineup or waiver moves.', 'minPointsDelta', 0, 10, 0.5, v => Number(v).toFixed(1) + ' pts'),
-                    h('div', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.55, marginTop: '4px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'Rajdhani, sans-serif', fontWeight: 700 } }, 'Quick presets'),
+                    h('div', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.55, marginTop: '4px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-title)', fontWeight: 700 } }, 'Quick presets'),
                     h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' } },
                         presetButton('Conservative', 'Only flag 85%+ confidence \u00B7 ~3 alerts/week',
                             () => ({ ...DEFAULT_SETTINGS, alertThreshold: 85, maxAlertsPerWeek: 3, minPointsDelta: 4 })),
@@ -1481,7 +1485,7 @@
                             () => ({ ...DEFAULT_SETTINGS, alertThreshold: 55, maxAlertsPerWeek: 12, minPointsDelta: 1 })),
                     ),
                 ),
-                h(window.WR.Card, { padding: '20px 22px' },
+                h(window.WR.Card, { padding: 'var(--card-pad-lg)' },
                     sectionTitle({ title: 'Focus areas', sub: 'Which categories Alex monitors' }),
                     h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '7px' } },
                         focusChip('startSit', 'Start / Sit'),
@@ -1494,7 +1498,7 @@
                     ),
                     h('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, marginTop: '12px', lineHeight: 1.5 } },
                         'Alex only surfaces insights for active areas. Decision History still logs everything regardless.'),
-                    h('div', { style: { marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.06)' } },
+                    h('div', { style: { marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
                         sectionTitle({ title: 'Notifications', sub: 'Where you get pinged' }),
                         h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '7px' } },
                             chanChip('inApp', 'GM Office cards'),
@@ -1507,13 +1511,13 @@
                 ),
             ),
             // ── Trade Calculator tuning ──
-            h('div', { style: { display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '14px', marginTop: '14px' } },
+            h('div', { className: 'gm-office-settings-grid', style: { marginTop: 'var(--card-gap)' } },
                 // Left column — Aggression
-                h(window.WR.Card, { padding: '20px 22px' },
+                h(window.WR.Card, { padding: 'var(--card-pad-lg)' },
                     sectionTitle({ title: 'Trade Calculator', sub: 'How aggressive Deal HQ builds packages' }),
                     sliderRow('Trade aggression', 'Controls how wide the value-matching window is when generating packages. Balanced only auto-surfaces 75%+ offers; higher settings loosen that floor.', 'tradeAggression', 0, 100, 5,
                         tradeAggressionLabel),
-                    h('div', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.55, marginTop: '4px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'Rajdhani, sans-serif', fontWeight: 700 } }, 'Quick presets'),
+                    h('div', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.55, marginTop: '4px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-title)', fontWeight: 700 } }, 'Quick presets'),
                     h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' } },
                         presetButton('Conservative', 'Tight value · fair only',
                             () => ({ ...settings, tradeAggression: 15 })),
@@ -1524,26 +1528,27 @@
                     ),
                 ),
                 // Right column — Asset Priorities
-                h(window.WR.Card, { padding: '20px 22px' },
+                h(window.WR.Card, { padding: 'var(--card-pad-lg)' },
                     sectionTitle({ title: 'Asset Priorities', sub: 'What Deal HQ targets' }),
                     h('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '14px', lineHeight: 1.45 } },
                         'Active chips tell Deal HQ which assets to prioritize. All positions off = auto-detect from roster needs.'),
                     // Positions
                     h('div', { style: { marginBottom: '16px' } },
-                        h('div', { style: { fontSize: '0.66rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px', fontFamily: 'Rajdhani, sans-serif' } }, 'Target Positions'),
+                        h('div', { style: { fontSize: '0.66rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px', fontFamily: 'var(--font-title)' } }, 'Target Positions'),
                         h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px' } },
                             targetPositions.map(pos => {
-                                const posColors = window.App?.POS_COLORS || { QB:'#FF6B6B', RB:'#4ECDC4', WR:'#45B7D1', TE:'#F7DC6F', K:'#BB8FCE', DEF:'#85929E', DL:'#E67E22', LB:'#F0A500', DB:'#5DADE2' };
+                                const posColors = window.App?.POS_COLORS || { QB:'var(--k-ff6b6b, #ff6b6b)', RB:'var(--k-4ecdc4, #4ecdc4)', WR:'var(--k-45b7d1, #45b7d1)', TE:'var(--k-f7dc6f, #f7dc6f)', K:'var(--k-bb8fce, #bb8fce)', DEF:'var(--k-85929e, #85929e)', DL:'var(--k-e67e22, #e67e22)', LB:'var(--k-f0a500, #f0a500)', DB:'var(--k-5dade2, #5dade2)' };
                                 const label = window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos);
                                 const active = tp.positions?.[pos];
                                 const c = posColors[pos] || 'var(--silver)';
                                 return h('button', {
                                     key: pos, onClick: () => updateTP('positions', pos, !active),
                                     style: {
-                                        padding: '5px 12px', borderRadius: '6px', fontSize: '0.76rem', fontWeight: 700,
-                                        cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace',
-                                        border: '1px solid ' + (active ? c + '88' : 'rgba(255,255,255,0.1)'),
-                                        background: active ? c + '18' : 'rgba(255,255,255,0.02)',
+                                        minHeight: '44px',
+                                        padding: '5px 12px', borderRadius: 'var(--card-radius-sm)', fontSize: '0.76rem', fontWeight: 700,
+                                        cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                                        border: '1px solid ' + (active ? wrAlpha(c, '88') : 'var(--ov-6, rgba(255,255,255,0.1))'),
+                                        background: active ? wrAlpha(c, '18') : 'var(--ov-1, rgba(255,255,255,0.02))',
                                         color: active ? c : 'var(--silver)',
                                     }
                                 }, label);
@@ -1553,33 +1558,35 @@
                     // Draft picks + FAAB side by side
                     h('div', { style: { display: 'grid', gridTemplateColumns: '1fr auto', gap: '16px', alignItems: 'start' } },
                         h('div', null,
-                            h('div', { style: { fontSize: '0.66rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px', fontFamily: 'Rajdhani, sans-serif' } }, 'Draft Pick Years'),
+                            h('div', { style: { fontSize: '0.66rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px', fontFamily: 'var(--font-title)' } }, 'Draft Pick Years'),
                             h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px' } },
                                 draftPickYears.map(yr => {
                                     const active = tp.picks?.[yr];
                                     return h('button', {
                                         key: yr, onClick: () => updateTP('picks', yr, !active),
                                         style: {
-                                            padding: '5px 14px', borderRadius: '6px', fontSize: '0.76rem', fontWeight: 700,
-                                            cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace',
-                                            border: '1px solid ' + (active ? 'rgba(187,143,206,0.5)' : 'rgba(255,255,255,0.1)'),
-                                            background: active ? 'rgba(187,143,206,0.12)' : 'rgba(255,255,255,0.02)',
-                                            color: active ? '#BB8FCE' : 'var(--silver)',
+                                            minHeight: '44px',
+                                            padding: '5px 14px', borderRadius: 'var(--card-radius-sm)', fontSize: '0.76rem', fontWeight: 700,
+                                            cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                                            border: '1px solid ' + (active ? 'rgba(187,143,206,0.5)' : 'var(--ov-6, rgba(255,255,255,0.1))'),
+                                            background: active ? 'rgba(187,143,206,0.12)' : 'var(--ov-1, rgba(255,255,255,0.02))',
+                                            color: active ? 'var(--k-bb8fce, #bb8fce)' : 'var(--silver)',
                                         }
                                     }, yr);
                                 })
                             )
                         ),
                         h('div', null,
-                            h('div', { style: { fontSize: '0.66rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px', fontFamily: 'Rajdhani, sans-serif' } }, 'FAAB'),
+                            h('div', { style: { fontSize: '0.66rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px', fontFamily: 'var(--font-title)' } }, 'FAAB'),
                             h('button', {
                                 onClick: () => updateTPFaab(!tp.faab),
                                 style: {
-                                    padding: '5px 14px', borderRadius: '6px', fontSize: '0.76rem', fontWeight: 700,
-                                    cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace',
-                                    border: '1px solid ' + (tp.faab ? 'rgba(46,204,113,0.5)' : 'rgba(255,255,255,0.1)'),
-                                    background: tp.faab ? 'rgba(46,204,113,0.12)' : 'rgba(255,255,255,0.02)',
-                                    color: tp.faab ? '#2ECC71' : 'var(--silver)',
+                                    minHeight: '44px',
+                                    padding: '5px 14px', borderRadius: 'var(--card-radius-sm)', fontSize: '0.76rem', fontWeight: 700,
+                                    cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                                    border: '1px solid ' + (tp.faab ? 'rgba(46,204,113,0.5)' : 'var(--ov-6, rgba(255,255,255,0.1))'),
+                                    background: tp.faab ? 'rgba(46,204,113,0.12)' : 'var(--ov-1, rgba(255,255,255,0.02))',
+                                    color: tp.faab ? 'var(--good)' : 'var(--silver)',
                                 }
                             }, tp.faab ? 'Include' : 'Off'),
                         ),
@@ -1592,8 +1599,8 @@
     const presetBtnStyle = {
         flex: 1, padding: '7px 10px', borderRadius: '6px',
         fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer',
-        background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
-        color: 'var(--silver)', fontFamily: 'DM Sans, sans-serif',
+        background: 'transparent', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))',
+        color: 'var(--silver)', fontFamily: 'var(--font-body)',
     };
 
     // ── Main component ────────────────────────────────────────────

@@ -86,8 +86,13 @@
                     {isPinned && (
                         <button onClick={onUnpin} style={{
                             padding: '2px 6px',
-                            fontSize: '0.56rem',
-                            border: '1px solid rgba(255,255,255,0.1)',
+                            minWidth: '44px',
+                            minHeight: '44px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 'var(--text-label)',
+                            border: '1px solid var(--ov-6, rgba(255,255,255,0.1))',
                             background: 'transparent',
                             color: 'var(--silver)',
                             borderRadius: '3px',
@@ -128,12 +133,12 @@
                             gap: '10px',
                             paddingBottom: '8px',
                             marginBottom: '8px',
-                            borderBottom: '1px solid rgba(212,175,55,0.15)',
+                            borderBottom: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))',
                         }}>
                             {persona.avatar ? (
                                 <img
                                     src={persona.avatar}
-                                    style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(212,175,55,0.3)' }}
+                                    style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--acc-line2, rgba(212,175,55,0.3))' }}
                                     onError={e => e.target.style.display = 'none'}
                                     alt=""
                                 />
@@ -143,7 +148,7 @@
                                     background: 'var(--charcoal)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     fontSize: '0.9rem', color: 'var(--gold)', fontWeight: 700,
-                                    border: '2px solid rgba(212,175,55,0.3)',
+                                    border: '2px solid var(--acc-line2, rgba(212,175,55,0.3))',
                                     fontFamily: FONT_DISPL,
                                 }}>{(persona.teamName || '?').charAt(0)}</div>
                             )}
@@ -185,15 +190,15 @@
                                     {persona.assessment.needs.slice(0, 4).map((n, i) => {
                                         const pos = typeof n === 'string' ? n : n?.pos;
                                         const urgency = typeof n === 'object' ? n?.urgency : null;
-                                        const col = urgency === 'deficit' ? '#E74C3C' : '#D4AF37';
+                                        const col = urgency === 'deficit' ? 'var(--k-e74c3c, #e74c3c)' : 'var(--k-d4af37, #d4af37)';
                                         return (
                                             <span key={i} style={{
                                                 fontSize: '0.56rem',
                                                 fontWeight: 700,
                                                 padding: '2px 6px',
                                                 borderRadius: '10px',
-                                                background: col + '18',
-                                                border: '1px solid ' + col + '44',
+                                                background: wrAlpha(col, '18'),
+                                                border: '1px solid ' + wrAlpha(col, '44'),
                                                 color: col,
                                                 fontFamily: FONT_UI,
                                             }}>{pos}{urgency === 'deficit' ? '!' : ''}</span>
@@ -208,8 +213,8 @@
                             <div style={{
                                 marginTop: '10px',
                                 padding: '8px 10px',
-                                background: 'rgba(212,175,55,0.05)',
-                                border: '1px solid rgba(212,175,55,0.2)',
+                                background: 'var(--acc-fill1, rgba(212,175,55,0.05))',
+                                border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))',
                                 borderRadius: '5px',
                             }}>
                                 <SectionLabel>Prediction Engine</SectionLabel>
@@ -224,13 +229,13 @@
                                 )}
                                 {persona.predictions.willReach?.length > 0 && (
                                     <div style={{ fontSize: '0.58rem', color: 'var(--silver)', marginBottom: '3px', fontFamily: FONT_UI }}>
-                                        <span style={{ color: '#2ECC71', fontWeight: 700 }}>↑ Will reach: </span>
+                                        <span style={{ color: 'var(--k-2ecc71, #2ecc71)', fontWeight: 700 }}>↑ Will reach: </span>
                                         {persona.predictions.willReach.map(r => r.pos + ' (+' + Math.round(r.delta * 100) + '%)').join(', ')}
                                     </div>
                                 )}
                                 {persona.predictions.willPassOn?.length > 0 && (
                                     <div style={{ fontSize: '0.58rem', color: 'var(--silver)', fontFamily: FONT_UI }}>
-                                        <span style={{ color: '#E74C3C', fontWeight: 700 }}>↓ Will pass: </span>
+                                        <span style={{ color: 'var(--k-e74c3c, #e74c3c)', fontWeight: 700 }}>↓ Will pass: </span>
                                         {persona.predictions.willPassOn.map(r => r.pos + ' (' + Math.round(r.delta * 100) + '%)').join(', ')}
                                     </div>
                                 )}
@@ -244,7 +249,7 @@
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                     {psychTaxes.slice(0, 5).map((t, i) => {
                                         const isTax = (t.impact || 0) < 0;
-                                        const col = isTax ? '#E74C3C' : '#2ECC71';
+                                        const col = isTax ? 'var(--k-e74c3c, #e74c3c)' : 'var(--k-2ecc71, #2ecc71)';
                                         return (
                                             <div key={i} title={t.desc || ''} style={{
                                                 display: 'flex',
@@ -283,7 +288,7 @@
                                 border: '1px solid ' + (grudgeScore > 0 ? 'rgba(46,204,113,0.25)' : 'rgba(231,76,60,0.25)'),
                                 borderRadius: '4px',
                                 fontSize: '0.58rem',
-                                color: grudgeScore > 0 ? '#2ECC71' : '#E74C3C',
+                                color: grudgeScore > 0 ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-e74c3c, #e74c3c)',
                                 fontFamily: FONT_UI,
                                 display: 'flex',
                                 alignItems: 'center',
@@ -296,7 +301,7 @@
 
                         {/* Draft DNA details */}
                         {persona.draftDna?.picksAnalyzed > 0 && (
-                            <div style={{ marginTop: '8px', padding: '6px 8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                            <div style={{ marginTop: '8px', padding: '6px 8px', background: 'var(--ov-1, rgba(255,255,255,0.02))', borderRadius: '4px', border: '1px solid var(--ov-3, rgba(255,255,255,0.04))' }}>
                                 <SectionLabel>Draft History</SectionLabel>
                                 <div style={{ fontSize: '0.58rem', color: 'var(--silver)', lineHeight: 1.5, fontFamily: FONT_UI }}>
                                     {persona.draftDna.tendency || persona.draftDna.roundProfile || ''}
@@ -316,7 +321,7 @@
                                 border: '1px solid rgba(240,165,0,0.25)',
                                 borderRadius: '4px',
                                 fontSize: '0.54rem',
-                                color: '#F0A500',
+                                color: 'var(--k-f0a500, #f0a500)',
                                 fontFamily: FONT_UI,
                                 lineHeight: 1.4,
                             }}>
@@ -330,11 +335,12 @@
                                 <button onClick={onScoutRoster} style={{
                                     flex: 1,
                                     padding: '6px',
-                                    fontSize: '0.58rem',
+                                    minHeight: '44px',
+                                    fontSize: 'var(--text-label)',
                                     fontFamily: FONT_UI,
                                     fontWeight: 600,
                                     background: 'rgba(52,152,219,0.12)',
-                                    color: '#3498DB',
+                                    color: 'var(--k-3498db, #3498db)',
                                     border: '1px solid rgba(52,152,219,0.3)',
                                     borderRadius: '4px',
                                     cursor: 'pointer',
@@ -345,12 +351,13 @@
                                     style={{
                                         flex: 1,
                                         padding: '6px',
-                                        fontSize: '0.58rem',
+                                        minHeight: '44px',
+                                        fontSize: 'var(--text-label)',
                                         fontFamily: FONT_UI,
                                         fontWeight: 600,
-                                        background: 'rgba(212,175,55,0.12)',
+                                        background: 'var(--acc-fill2, rgba(212,175,55,0.12))',
                                         color: 'var(--gold)',
-                                        border: '1px solid rgba(212,175,55,0.35)',
+                                        border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))',
                                         borderRadius: '4px',
                                         cursor: onPropose ? 'pointer' : 'not-allowed',
                                     }}>PROPOSE TRADE</button>
@@ -402,13 +409,13 @@
     function OwnerIntelBlock({ ownerIntel }) {
         const confidence = ownerIntel?.confidence?.overall || 'inferred';
         const reasons = (ownerIntel?.reasonCodes || []).slice(0, 3);
-        const color = confidence === 'high' ? '#2ECC71' : confidence === 'medium' ? 'var(--gold)' : confidence === 'low' ? '#F0A500' : 'var(--silver)';
+        const color = confidence === 'high' ? 'var(--k-2ecc71, #2ecc71)' : confidence === 'medium' ? 'var(--gold)' : confidence === 'low' ? 'var(--k-f0a500, #f0a500)' : 'var(--silver)';
         return (
             <div style={{
                 marginTop: '9px',
                 padding: '7px 8px',
-                background: 'rgba(255,255,255,0.025)',
-                border: '1px solid rgba(212,175,55,0.14)',
+                background: 'var(--ov-2, rgba(255,255,255,0.025))',
+                border: '1px solid var(--acc-fill3, rgba(212,175,55,0.14))',
                 borderRadius: '5px',
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: reasons.length ? '5px' : 0 }}>
@@ -439,9 +446,9 @@
     }
 
     function healthColor(h) {
-        if (h >= 70) return '#2ECC71';
-        if (h >= 40) return '#F0A500';
-        return '#E74C3C';
+        if (h >= 70) return 'var(--k-2ecc71, #2ecc71)';
+        if (h >= 40) return 'var(--k-f0a500, #f0a500)';
+        return 'var(--k-e74c3c, #e74c3c)';
     }
 
     window.DraftCC = window.DraftCC || {};

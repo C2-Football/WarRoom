@@ -37,7 +37,7 @@
                     event: {
                         type: 'scouting',
                         badge: '🔎',
-                        color: '#9b8afb',
+                        color: 'var(--k-9b8afb, #9b8afb)',
                         title: playerName ? ('Scouting Report — ' + playerName + (pos ? ' (' + pos + ')' : '')) : 'Scouting Report',
                         text: summary || text || 'Scouting report ready. Tap to expand.',
                         fullText: fullText || text || summary || '',
@@ -54,8 +54,8 @@
         const flashUsed = state.alex.alexSpend.flash || 0;
         const budgetPct = (sonnetUsed / budget) * 100;
         const budgetCol =
-            sonnetUsed >= budget ? '#E74C3C' :
-            sonnetUsed >= budget * 0.7 ? '#F0A500' : '#2ECC71';
+            sonnetUsed >= budget ? 'var(--k-e74c3c, #e74c3c)' :
+            sonnetUsed >= budget * 0.7 ? 'var(--k-f0a500, #f0a500)' : 'var(--k-2ecc71, #2ecc71)';
 
         // Send an "Ask Alex" request via Gemini Flash (draft-chat route)
         const sendAsk = async (text) => {
@@ -66,7 +66,7 @@
                     event: {
                         type: 'user',
                         badge: '?',
-                        color: '#E74C3C',
+                        color: 'var(--k-e74c3c, #e74c3c)',
                         title: 'AI unavailable',
                         text: 'dhqAI is not loaded. Try reloading the page.',
                     },
@@ -80,7 +80,7 @@
                 event: {
                     type: 'user',
                     badge: '?',
-                    color: '#9b8afb',
+                    color: 'var(--k-9b8afb, #9b8afb)',
                     title: 'You asked',
                     text,
                 },
@@ -129,7 +129,7 @@
                     event: {
                         type: 'user',
                         badge: '!',
-                        color: '#E74C3C',
+                        color: 'var(--k-e74c3c, #e74c3c)',
                         title: 'Alex error',
                         text: String(e?.message || e).slice(0, 200),
                     },
@@ -179,7 +179,7 @@
                         fontSize: '0.5rem',
                         padding: '1px 6px',
                         background: 'rgba(0,0,0,0.3)',
-                        border: '1px solid ' + budgetCol + '44',
+                        border: '1px solid ' + wrAlpha(budgetCol, '44'),
                         borderRadius: '3px',
                         color: budgetCol,
                         fontFamily: FONT_MONO_SAFE(),
@@ -253,7 +253,7 @@
                                 display: 'flex',
                                 gap: '6px',
                                 padding: '5px 2px',
-                                borderBottom: '1px solid rgba(255,255,255,0.025)',
+                                borderBottom: '1px solid var(--ov-2, rgba(255,255,255,0.025))',
                                 fontFamily: FONT_UI,
                                 cursor: isExpandable ? 'pointer' : 'default',
                                 background: isExpanded ? 'rgba(124,107,248,0.06)' : 'transparent',
@@ -308,10 +308,10 @@
                                                     lineHeight: 1.45,
                                                     wordBreak: 'break-word',
                                                     whiteSpace: 'normal',
-                                                    border: '1px solid rgba(255,255,255,0.055)',
-                                                    borderRadius: '5px',
+                                                    border: '1px solid var(--ov-4, rgba(255,255,255,0.055))',
+                                                    borderRadius: 'var(--card-radius-sm)',
                                                     padding: '5px 6px',
-                                                    background: 'rgba(255,255,255,0.018)',
+                                                    background: 'var(--ov-1, rgba(255,255,255,0.018))',
                                                 }}>{block}</div>
                                             ))}
                                         </div>
@@ -333,8 +333,9 @@
                                 detail: { title: chip.label, prompt: chip.text },
                             }))}
                             style={{
-                                fontSize: '0.52rem',
+                                fontSize: 'var(--text-label)',
                                 padding: '3px 6px',
+                                minHeight: '44px',
                                 background: 'rgba(124,107,248,0.08)',
                                 border: '1px solid rgba(124,107,248,0.2)',
                                 color: 'rgba(155,138,251,0.9)',
@@ -357,11 +358,12 @@
                         style={{
                             flex: 1,
                             padding: '5px 8px',
-                            background: 'rgba(255,255,255,0.03)',
-                            border: '1px solid rgba(255,255,255,0.08)',
+                            minHeight: '44px',
+                            background: 'var(--ov-2, rgba(255,255,255,0.03))',
+                            border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
                             borderRadius: '4px',
                             color: 'var(--white)',
-                            fontSize: '0.64rem',
+                            fontSize: 'var(--text-label)',
                             fontFamily: FONT_UI,
                             outline: 'none',
                             minWidth: 0,
@@ -372,11 +374,12 @@
                         disabled={pendingAsk || !inputValue.trim()}
                         style={{
                             padding: '5px 10px',
-                            background: (pendingAsk || !inputValue.trim()) ? 'rgba(212,175,55,0.3)' : 'var(--gold)',
+                            minHeight: '44px',
+                            background: (pendingAsk || !inputValue.trim()) ? 'var(--acc-line2, rgba(212,175,55,0.3))' : 'var(--gold)',
                             color: 'var(--black)',
                             border: 'none',
                             borderRadius: '4px',
-                            fontSize: '0.6rem',
+                            fontSize: 'var(--text-label)',
                             fontWeight: 700,
                             cursor: (pendingAsk || !inputValue.trim()) ? 'not-allowed' : 'pointer',
                             fontFamily: FONT_UI,

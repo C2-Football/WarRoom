@@ -16,8 +16,8 @@
     const { FONT_UI, FONT_DISPL, FONT_MONO, panelCard, dhqColor } = window.DraftCC.styles;
 
     const POS_COLORS = {
-        QB: '#FF6B6B', RB: '#4ECDC4', WR: '#45B7D1', TE: '#F7DC6F',
-        DL: '#E67E22', LB: '#F0A500', DB: '#5DADE2', K: '#BB8FCE',
+        QB: 'var(--k-ff6b6b, #ff6b6b)', RB: 'var(--k-4ecdc4, #4ecdc4)', WR: 'var(--k-45b7d1, #45b7d1)', TE: 'var(--k-f7dc6f, #f7dc6f)',
+        DL: 'var(--k-e67e22, #e67e22)', LB: 'var(--k-f0a500, #f0a500)', DB: 'var(--k-5dade2, #5dade2)', K: 'var(--k-bb8fce, #bb8fce)',
     };
 
     function LiveAnalyticsPanel({ state }) {
@@ -158,8 +158,8 @@
                         left: '10px',
                         right: '10px',
                         padding: '8px 12px',
-                        background: 'linear-gradient(90deg, rgba(212,175,55,0.22), rgba(212,175,55,0.05))',
-                        border: '1px solid rgba(212,175,55,0.5)',
+                        background: 'linear-gradient(90deg, var(--acc-line1, rgba(212,175,55,0.22)), var(--acc-fill1, rgba(212,175,55,0.05)))',
+                        border: '1px solid var(--acc-line3, rgba(212,175,55,0.5))',
                         borderRadius: '6px',
                         zIndex: 5,
                         fontSize: '0.72rem',
@@ -183,7 +183,7 @@
                         fontSize: '0.5rem',
                         padding: '1px 5px',
                         background: 'rgba(46,204,113,0.12)',
-                        color: '#2ECC71',
+                        color: 'var(--k-2ecc71, #2ecc71)',
                         border: '1px solid rgba(46,204,113,0.3)',
                         borderRadius: '3px',
                         fontFamily: FONT_UI,
@@ -194,7 +194,7 @@
                 {/* Row 1: Health · Value Curve · Live Grade */}
                 <div style={{
                     display: 'grid',
-                    gridTemplateColumns: '80px 1fr 100px',
+                    gridTemplateColumns: 'minmax(0, 80px) minmax(0, 1fr) minmax(0, 100px)',
                     gap: '8px',
                     marginBottom: '8px',
                     flex: 1,
@@ -227,7 +227,7 @@
         const radius = (size - strokeWidth) / 2;
         const circumference = 2 * Math.PI * radius;
         const offset = circumference - (value / 100) * circumference;
-        const col = value >= 70 ? '#2ECC71' : value >= 40 ? '#F0A500' : '#E74C3C';
+        const col = value >= 70 ? 'var(--k-2ecc71, #2ecc71)' : value >= 40 ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
 
         return (
             <div style={{
@@ -235,8 +235,8 @@
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.05)',
+                background: 'var(--ov-1, rgba(255,255,255,0.02))',
+                border: '1px solid var(--ov-3, rgba(255,255,255,0.05))',
                 borderRadius: '5px',
                 padding: '4px',
                 position: 'relative',
@@ -247,7 +247,7 @@
                         cy={size / 2}
                         r={radius}
                         fill="none"
-                        stroke="rgba(255,255,255,0.06)"
+                        stroke="var(--ov-4, rgba(255,255,255,0.06))"
                         strokeWidth={strokeWidth}
                     />
                     <circle
@@ -284,7 +284,7 @@
                         top: 2,
                         right: 2,
                         fontSize: '0.5rem',
-                        color: '#2ECC71',
+                        color: 'var(--k-2ecc71, #2ecc71)',
                         fontWeight: 700,
                         fontFamily: FONT_MONO,
                     }}>+{delta}</div>
@@ -315,8 +315,8 @@
 
         return (
             <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.05)',
+                background: 'var(--ov-1, rgba(255,255,255,0.02))',
+                border: '1px solid var(--ov-3, rgba(255,255,255,0.05))',
                 borderRadius: '5px',
                 padding: '4px 6px',
                 display: 'flex',
@@ -330,7 +330,7 @@
                     <path
                         d={baselinePath}
                         fill="none"
-                        stroke="rgba(255,255,255,0.25)"
+                        stroke="var(--ov-7, rgba(255,255,255,0.25))"
                         strokeWidth={1}
                         strokeDasharray="2 2"
                     />
@@ -344,7 +344,7 @@
                         const hasConsensus = consensusAtX > 0;
                         const isSteal = hasConsensus && p.y > consensusAtX * 1.05;
                         const isReach = hasConsensus && p.y < consensusAtX * 0.85;
-                        const dotCol = isSteal ? '#2ECC71' : isReach ? '#E74C3C' : 'var(--gold)';
+                        const dotCol = isSteal ? 'var(--k-2ecc71, #2ecc71)' : isReach ? 'var(--k-e74c3c, #e74c3c)' : 'var(--gold)';
                         return (
                             <circle
                                 key={i}
@@ -362,8 +362,8 @@
                 </svg>
                 <div style={{ fontSize: '0.44rem', color: 'var(--silver)', opacity: 0.4, display: 'flex', gap: '6px', marginTop: '1px' }}>
                     <span>— baseline</span>
-                    <span style={{ color: '#2ECC71' }}>● steal</span>
-                    <span style={{ color: '#E74C3C' }}>● reach</span>
+                    <span style={{ color: 'var(--k-2ecc71, #2ecc71)' }}>● steal</span>
+                    <span style={{ color: 'var(--k-e74c3c, #e74c3c)' }}>● reach</span>
                 </div>
             </div>
         );
@@ -373,9 +373,9 @@
     function LiveGradeWidget({ grade }) {
         const col =
             grade.letter === '?' ? 'var(--silver)' :
-            grade.letter.startsWith('A') ? '#2ECC71' :
-            grade.letter.startsWith('B') ? '#D4AF37' :
-            grade.letter === 'C' ? '#F0A500' : '#E74C3C';
+            grade.letter.startsWith('A') ? 'var(--k-2ecc71, #2ecc71)' :
+            grade.letter.startsWith('B') ? 'var(--k-d4af37, #d4af37)' :
+            grade.letter === 'C' ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
 
         const [pulse, setPulse] = React.useState(false);
         const lastLetterRef = React.useRef(grade.letter);
@@ -390,8 +390,8 @@
 
         return (
             <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.05)',
+                background: 'var(--ov-1, rgba(255,255,255,0.02))',
+                border: '1px solid var(--ov-3, rgba(255,255,255,0.05))',
                 borderRadius: '5px',
                 padding: '6px 4px',
                 display: 'flex',
@@ -433,8 +433,8 @@
 
         return (
             <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.05)',
+                background: 'var(--ov-1, rgba(255,255,255,0.02))',
+                border: '1px solid var(--ov-3, rgba(255,255,255,0.05))',
                 borderRadius: '5px',
                 padding: '5px 7px',
             }}>
@@ -459,7 +459,7 @@
                                 <div style={{
                                     flex: 1,
                                     height: 6,
-                                    background: 'rgba(255,255,255,0.05)',
+                                    background: 'var(--ov-3, rgba(255,255,255,0.05))',
                                     borderRadius: 2,
                                     overflow: 'hidden',
                                     position: 'relative',
@@ -494,8 +494,8 @@
         const hasRun = entries.some(([, ct]) => ct >= 3);
         return (
             <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid ' + (hasRun ? 'rgba(231,76,60,0.35)' : 'rgba(255,255,255,0.05)'),
+                background: 'var(--ov-1, rgba(255,255,255,0.02))',
+                border: '1px solid ' + (hasRun ? 'rgba(231,76,60,0.35)' : 'var(--ov-3, rgba(255,255,255,0.05))'),
                 borderRadius: '5px',
                 padding: '5px 7px',
             }}>
@@ -503,7 +503,7 @@
                     <div style={{ fontSize: '0.48rem', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONT_UI, flex: 1 }}>
                         POS RUN · last 8
                     </div>
-                    {hasRun && <span style={{ fontSize: '0.48rem', color: '#E74C3C', fontWeight: 700 }}>🔥</span>}
+                    {hasRun && <span style={{ fontSize: '0.48rem', color: 'var(--k-e74c3c, #e74c3c)', fontWeight: 700 }}>🔥</span>}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     {entries.slice(0, 4).map(([pos, ct]) => {
@@ -515,7 +515,7 @@
                                 <div style={{
                                     flex: 1,
                                     height: 5,
-                                    background: 'rgba(255,255,255,0.05)',
+                                    background: 'var(--ov-3, rgba(255,255,255,0.05))',
                                     borderRadius: 2,
                                     overflow: 'hidden',
                                 }}>
@@ -544,8 +544,8 @@
     function ReachStealTicker({ events }) {
         return (
             <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.05)',
+                background: 'var(--ov-1, rgba(255,255,255,0.02))',
+                border: '1px solid var(--ov-3, rgba(255,255,255,0.05))',
                 borderRadius: '5px',
                 padding: '5px 7px',
                 overflow: 'hidden',
@@ -555,7 +555,7 @@
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     {events.slice(-4).reverse().map((e, i) => {
-                        const col = e.type === 'steal' ? '#2ECC71' : '#E74C3C';
+                        const col = e.type === 'steal' ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-e74c3c, #e74c3c)';
                         const sign = e.type === 'steal' ? '↓' : '↑';
                         return (
                             <div key={i} style={{
@@ -592,8 +592,8 @@
     function Placeholder({ label, text }) {
         return (
             <div style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.05)',
+                background: 'var(--ov-1, rgba(255,255,255,0.02))',
+                border: '1px solid var(--ov-3, rgba(255,255,255,0.05))',
                 borderRadius: '5px',
                 padding: '6px',
                 display: 'flex',

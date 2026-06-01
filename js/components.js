@@ -14,7 +14,7 @@
         if (children && hasTasteLeft() && !tasteUsed) {
             return React.createElement(React.Fragment, null,
                 children,
-                React.createElement('div', { style: { textAlign:'center', padding:'12px', background:'rgba(212,175,55,0.06)', border:'1px solid rgba(212,175,55,0.2)', borderRadius:'8px', marginTop:'12px' } },
+                React.createElement('div', { style: { textAlign:'center', padding:'12px', background:'var(--acc-fill1, rgba(212,175,55,0.06))', border:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius:'8px', marginTop:'12px' } },
                     React.createElement('div', { style: { fontSize:'0.82rem', color:'var(--gold)', fontWeight:700, marginBottom:'4px' } }, 'Free preview — upgrade to keep using this feature'),
                     React.createElement('button', { onClick: () => setTasteUsed(true), style: { padding:'6px 16px', background:'var(--gold)', color:'var(--black)', border:'none', borderRadius:'6px', fontFamily:'Rajdhani, sans-serif', fontSize:'0.9rem', cursor:'pointer' } }, 'Got it')
                 )
@@ -24,7 +24,7 @@
         const tierLabel = targetTier === 'scout' ? 'Scout' : 'War Room';
         const tierPrice = targetTier === 'scout' ? '$4.99/mo' : '$9.99/mo';
 
-        return React.createElement('div', { style: { background:'linear-gradient(135deg, var(--off-black), var(--charcoal))', border:'1px solid rgba(212,175,55,0.2)', borderRadius:'10px', padding:'28px 24px', textAlign:'center', maxWidth:'480px', margin:'20px auto' } },
+        return React.createElement('div', { style: { background:'linear-gradient(135deg, var(--off-black), var(--charcoal))', border:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius:'var(--card-radius)', padding:'24px', textAlign:'center', maxWidth:'480px', margin:'24px auto' } },
             React.createElement('div', { style: { fontFamily:'Rajdhani, sans-serif', fontSize:'1.6rem', color:'var(--gold)', letterSpacing:'0.06em', marginBottom:'8px' } }, title || 'UPGRADE TO UNLOCK'),
             React.createElement('div', { style: { fontSize:'0.88rem', color:'var(--silver)', lineHeight:1.7, marginBottom:'16px' } }, description || 'This feature requires a paid subscription.'),
             React.createElement('div', { style: { display:'flex', gap:'10px', justifyContent:'center', marginBottom:'12px' } },
@@ -61,8 +61,8 @@
         const peakYrs = Math.max(0, pHi - age);
         const valueYrs = Math.max(0, declineHi - age);
         const peakLabel = age < pLo ? 'Rising' : age <= pHi ? 'Prime' : age <= declineHi ? 'Veteran' : 'Post-Window';
-        const peakCol = age < pLo ? '#2ECC71' : age <= pHi ? '#D4AF37' : age <= declineHi ? '#F0A500' : '#E74C3C';
-        const dhqCol = dhq >= 7000 ? '#2ECC71' : dhq >= 4000 ? '#3498DB' : dhq >= 2000 ? '#D0D0D0' : 'rgba(255,255,255,0.3)';
+        const peakCol = age < pLo ? 'var(--k-2ecc71, #2ecc71)' : age <= pHi ? 'var(--k-d4af37, #d4af37)' : age <= declineHi ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
+        const dhqCol = dhq >= 7000 ? 'var(--k-2ecc71, #2ecc71)' : dhq >= 4000 ? 'var(--k-3498db, #3498db)' : dhq >= 2000 ? 'var(--k-d0d0d0, #d0d0d0)' : 'var(--ov-8, rgba(255,255,255,0.3))';
         // Use league scoring_settings for PPG (matches roster table calculation)
         const scoring = window.S?.leagues?.[0]?.scoring_settings;
         const ppgRaw = window.App.calcPPG(st, scoring);
@@ -71,7 +71,7 @@
         // Use shared getPlayerAction if available (ownership-aware)
         const pa = typeof window.getPlayerAction === 'function' ? window.getPlayerAction(pid) : null;
         const rec = pa ? pa.label.toUpperCase() : (peakYrs <= 0 && trend <= -10 ? 'SELL NOW' : peakYrs <= 0 ? 'SELL' : peakYrs <= 2 ? 'SELL' : dhq >= 7000 && peakYrs >= 3 ? 'HOLD CORE' : 'HOLD');
-        const recCol = rec.includes('SELL') ? '#E74C3C' : rec.includes('BUY') ? '#2ECC71' : '#D4AF37';
+        const recCol = rec.includes('SELL') ? 'var(--k-e74c3c, #e74c3c)' : rec.includes('BUY') ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-d4af37, #d4af37)';
         const initials = ((p.first_name||'?')[0] + (p.last_name||'?')[0]).toUpperCase();
 
         // Check roster context
@@ -82,26 +82,26 @@
         // Smart positioning: ensure card is fully visible
         const isMobile = typeof window !== 'undefined' && window.innerWidth < 440;
         const cardStyle = isMobile
-            ? { position:'fixed', bottom:0, left:0, right:0, width:'100%', maxHeight:'85vh', overflowY:'auto', background:'#0a0b0d', border:'none', borderTop:'2px solid rgba(212,175,55,0.4)', borderRadius:'14px 14px 0 0', zIndex:250, boxShadow:'0 -12px 48px rgba(0,0,0,0.7)', animation:'wrFadeIn 0.2s ease' }
-            : { position:'fixed', bottom:'80px', right:'24px', width:'360px', maxHeight:'calc(100vh - 100px)', overflowY:'auto', background:'#0a0b0d', border:'2px solid rgba(212,175,55,0.4)', borderRadius:'14px', zIndex:250, boxShadow:'0 12px 48px rgba(0,0,0,0.7)', animation:'wrFadeIn 0.2s ease' };
+            ? { position:'fixed', bottom:0, left:0, right:0, width:'100%', maxHeight:'85vh', overflowY:'auto', background:'var(--black)', border:'none', borderTop:'2px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius:'14px 14px 0 0', zIndex:250, boxShadow:'0 -12px 48px rgba(0,0,0,0.7)', animation:'wrFadeIn 0.2s ease' }
+            : { position:'fixed', bottom:'80px', right:'24px', width:'360px', maxHeight:'calc(100vh - 100px)', overflowY:'auto', background:'var(--black)', border:'2px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius:'14px', zIndex:250, boxShadow:'0 12px 48px rgba(0,0,0,0.7)', animation:'wrFadeIn 0.2s ease' };
 
         return React.createElement('div', { style: cardStyle },
             // Header with photo
-            React.createElement('div', { style:{ padding:'14px 16px', background:'linear-gradient(135deg, rgba(212,175,55,0.08), transparent)', borderBottom:'1px solid rgba(212,175,55,0.15)', display:'flex', gap:'12px', alignItems:'center' } },
-                React.createElement('div', { className: 'wr-ring wr-ring-' + nPos, style:{ width:'48px', height:'48px', borderRadius:'10px', overflow:'hidden', background:'rgba(212,175,55,0.1)', border:'1px solid rgba(212,175,55,0.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 } },
-                    React.createElement('img', { src:'https://sleepercdn.com/content/nfl/players/'+pid+'.jpg', style:{width:'48px',height:'48px',objectFit:'cover'}, onError:function(e){ e.target.style.display='none'; const s=document.createElement('span'); s.style.cssText='font-size:16px;font-weight:700;color:#D4AF37'; s.textContent=initials; e.target.after(s);; } })
+            React.createElement('div', { style:{ padding:'14px 16px', background:'linear-gradient(135deg, var(--acc-fill2, rgba(212,175,55,0.08)), transparent)', borderBottom:'1px solid var(--acc-fill3, rgba(212,175,55,0.15))', display:'flex', gap:'12px', alignItems:'center' } },
+                React.createElement('div', { className: 'wr-ring wr-ring-' + nPos, style:{ width:'48px', height:'48px', borderRadius:'10px', overflow:'hidden', background:'var(--acc-fill2, rgba(212,175,55,0.1))', border:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 } },
+                    React.createElement('img', { src:'https://sleepercdn.com/content/nfl/players/'+pid+'.jpg', style:{width:'48px',height:'48px',objectFit:'cover'}, onError:function(e){ e.target.style.display='none'; const s=document.createElement('span'); s.style.cssText='font-size:16px;font-weight:700;color:var(--k-d4af37, #d4af37)'; s.textContent=initials; e.target.after(s);; } })
                 ),
                 React.createElement('div', { style:{flex:1} },
                     React.createElement('div', { style:{ fontFamily:'Rajdhani, sans-serif', fontSize:'1.2rem', color: 'var(--text-primary)', letterSpacing:'0.02em' } }, name),
-                    React.createElement('div', { style:{ fontSize:'0.78rem', color:'#D0D0D0' } }, nPos+' \u00B7 '+(p.team||'FA')+' \u00B7 Age '+(age||'?')+(p.college ? ' \u00B7 '+p.college : ''))
+                    React.createElement('div', { style:{ fontSize:'0.78rem', color:'var(--silver)' } }, nPos+' \u00B7 '+(p.team||'FA')+' \u00B7 Age '+(age||'?')+(p.college ? ' \u00B7 '+p.college : ''))
                 ),
-                React.createElement('button', { onClick:onClose, style:{ background:'none', border:'none', color: 'var(--text-muted)', cursor:'pointer', fontSize:'1.1rem', padding:'2px' } }, '\u2715')
+                React.createElement('button', { onClick:onClose, style:{ background:'none', border:'none', color: 'var(--text-muted)', cursor:'pointer', fontSize:'1.1rem', padding:'2px', minWidth:'44px', minHeight:'44px', display:'flex', alignItems:'center', justifyContent:'center' } }, '\u2715')
             ),
             // Stats row
-            React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'4px', padding:'10px 16px', borderBottom:'1px solid rgba(255,255,255,0.06)' } },
+            React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'4px', padding:'10px 16px', borderBottom:'1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
                 ...[
                     { val:dhq>0?dhq.toLocaleString():'\u2014', lbl:valueShortLabel, col:dhqCol, gauge:true },
-                    { val:ppg||'\u2014', lbl:'PPG', col:ppg>=10?'#2ECC71':'#D0D0D0' },
+                    { val:ppg||'\u2014', lbl:'PPG', col:ppg>=10?'var(--k-2ecc71, #2ecc71)':'var(--k-d0d0d0, #d0d0d0)' },
                     { val:peakYrs>0?peakYrs+'yr':valueYrs+'yr', lbl:peakYrs>0?'PEAK':'VALUE', col:peakCol },
                     { val:rec, lbl:'ACTION', col:recCol }
                 ].map(function(s,i){ var dhqFilled=s.gauge?Math.round(Math.min(10,dhq/1000)):0; var gCol=dhq>=7000?'filled-green':dhq>=4000?'filled':'filled-red'; return React.createElement('div', { key:i, style:{textAlign:'center'} },
@@ -117,7 +117,7 @@
                     React.createElement('div', { style:{ fontSize:'0.72rem', color:peakCol } }, peakLabel+' \u00B7 '+(peakYrs > 0 ? peakYrs+'yr peak left' : valueYrs > 0 ? valueYrs+'yr value left' : 'Past value window'))
                 ),
                 React.createElement('div', { style:{ display:'flex', height:'16px', borderRadius:'4px', overflow:'hidden', gap:'1px' } },
-                    ...Array.from({length:17}, function(_,i){ var a=i+20; var col=a<pLo-3?'rgba(96,165,250,0.3)':a<pLo?'rgba(46,204,113,0.45)':(a>=pLo&&a<=pHi)?'rgba(46,204,113,0.75)':a<=declineHi?'rgba(212,175,55,0.45)':'rgba(231,76,60,0.35)'; return React.createElement('div', { key:a, style:{ flex:1, background:col, opacity:a===age?1:0.55, outline:a===age?'2px solid #D4AF37':'none', outlineOffset:'-1px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.6rem', fontWeight:700, color:a===age?'var(--text-primary)':'transparent' } }, a===age?String(age):''); })
+                    ...Array.from({length:17}, function(_,i){ var a=i+20; var col=a<pLo-3?'rgba(96,165,250,0.3)':a<pLo?'rgba(46,204,113,0.45)':(a>=pLo&&a<=pHi)?'rgba(46,204,113,0.75)':a<=declineHi?'var(--acc-line3, rgba(212,175,55,0.45))':'rgba(231,76,60,0.35)'; return React.createElement('div', { key:a, style:{ flex:1, background:col, opacity:a===age?1:0.55, outline:a===age?'2px solid var(--k-d4af37, #d4af37)':'none', outlineOffset:'-1px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.6rem', fontWeight:700, color:a===age?'var(--text-primary)':'transparent' } }, a===age?String(age):''); })
                 ),
                 React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', fontSize:'0.64rem', color: 'var(--text-muted)', marginTop:'2px' } },
                     React.createElement('span', null, '20'),
@@ -126,9 +126,9 @@
                 )
             ),
             // Recommendation line — Alex Ingram insight (persona-aware)
-            React.createElement('div', { style:{ padding:'6px 12px', margin:'0 8px', background:'rgba(212,175,55,0.04)', borderLeft:'3px solid rgba(212,175,55,0.4)', borderRadius:'0 6px 6px 0', display:'flex', gap:'6px', alignItems:'flex-start' } },
-                React.createElement('div', { style:{ width:'18px', height:'18px', borderRadius:'5px', background:'linear-gradient(135deg, #D4AF37, #B8941E)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'0.5rem', fontWeight:800, color:'#0A0A0A', fontFamily:'Rajdhani, sans-serif', marginTop:'2px' } }, 'AI'),
-                React.createElement('div', { style:{ fontSize:'0.78rem', color:'#D0D0D0', lineHeight:1.5 } },
+            React.createElement('div', { style:{ padding:'6px 12px', margin:'0 8px', background:'var(--acc-fill1, rgba(212,175,55,0.04))', borderLeft:'3px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius:'0 6px 6px 0', display:'flex', gap:'6px', alignItems:'flex-start' } },
+                React.createElement('div', { style:{ width:'18px', height:'18px', borderRadius:'5px', background:'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'0.5rem', fontWeight:800, color:'var(--k-0a0a0a, #0a0a0a)', fontFamily:'Rajdhani, sans-serif', marginTop:'2px' } }, 'AI'),
+                React.createElement('div', { style:{ fontSize:'0.78rem', color:'var(--silver)', lineHeight:1.5 } },
                     (() => {
                         const S = window.S || {};
                         const rosters = S.rosters || [];
@@ -170,9 +170,9 @@
                 )
             ),
             // Action buttons
-            React.createElement('div', { style:{ padding:'10px 16px', display:'flex', gap:'6px', borderTop:'1px solid rgba(255,255,255,0.06)' } },
-                React.createElement('button', { onClick:onFullProfile, style:{ flex:1, padding:'8px', background:'#D4AF37', color:'#0A0A0A', border:'none', borderRadius:'6px', fontFamily:'Rajdhani, sans-serif', fontSize:'0.9rem', cursor:'pointer' } }, 'FULL PROFILE'),
-                React.createElement('button', { onClick:onClose, style:{ padding:'8px 14px', background:'transparent', border:'1px solid rgba(212,175,55,0.3)', color:'#D4AF37', borderRadius:'6px', fontFamily:'Rajdhani, sans-serif', fontSize:'0.9rem', cursor:'pointer' } }, 'CLOSE')
+            React.createElement('div', { style:{ padding:'10px 16px', display:'flex', gap:'6px', borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
+                React.createElement('button', { onClick:onFullProfile, style:{ flex:1, padding:'8px', minHeight:'44px', background:'var(--k-d4af37, #d4af37)', color:'var(--k-0a0a0a, #0a0a0a)', border:'none', borderRadius:'6px', fontFamily:'Rajdhani, sans-serif', fontSize:'0.9rem', cursor:'pointer' } }, 'FULL PROFILE'),
+                React.createElement('button', { onClick:onClose, style:{ padding:'8px 14px', minHeight:'44px', background:'transparent', border:'1px solid var(--acc-line2, rgba(212,175,55,0.3))', color:'var(--k-d4af37, #d4af37)', borderRadius:'6px', fontFamily:'Rajdhani, sans-serif', fontSize:'0.9rem', cursor:'pointer' } }, 'CLOSE')
             )
         );
     }
@@ -223,9 +223,9 @@
         const sz = size || 28;
         const av = ALEX_AVATARS.find(a => a.id === getAlexAvatar());
         if (av && av.src) {
-            return React.createElement('img', { src: av.src, alt: 'Alex', style: { width: sz+'px', height: sz+'px', borderRadius: sz > 24 ? '8px' : '6px', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(212,175,55,0.4)' } });
+            return React.createElement('img', { src: av.src, alt: 'Alex', style: { width: sz+'px', height: sz+'px', borderRadius: sz > 24 ? '8px' : '6px', objectFit: 'cover', flexShrink: 0, border: '2px solid var(--acc-line3, rgba(212,175,55,0.4))' } });
         }
-        return React.createElement('div', { style: { width: sz+'px', height: sz+'px', borderRadius: sz > 24 ? '8px' : '6px', background: 'linear-gradient(135deg, #D4AF37, #B8941E)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: (sz * 0.024) + 'rem', fontWeight: 800, color: '#0A0A0A', fontFamily: 'Rajdhani, sans-serif' } }, 'AI');
+        return React.createElement('div', { style: { width: sz+'px', height: sz+'px', borderRadius: sz > 24 ? '8px' : '6px', background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: (sz * 0.024) + 'rem', fontWeight: 800, color: 'var(--k-0a0a0a, #0a0a0a)', fontFamily: 'Rajdhani, sans-serif' } }, 'AI');
     }
     window.AlexAvatar = AlexAvatar;
     window.ALEX_AVATARS = ALEX_AVATARS;
@@ -236,8 +236,8 @@
         if (compact) {
             return React.createElement('div', { style: {
                 display: 'flex', gap: '8px', alignItems: 'flex-start', padding: '4px 10px',
-                background: 'rgba(212,175,55,0.04)', borderRadius: '8px', marginBottom: '6px',
-                border: '1px solid rgba(212,175,55,0.1)'
+                background: 'var(--acc-fill1, rgba(212,175,55,0.04))', borderRadius: '8px', marginBottom: '6px',
+                border: '1px solid var(--acc-fill2, rgba(212,175,55,0.1))'
             }},
                 React.createElement(AlexAvatar, { size: 20 }),
                 React.createElement('div', { style: { flex: 1 } },
@@ -249,7 +249,7 @@
             );
         }
         return React.createElement('div', { style: {
-            background: 'rgba(212,175,55,0.03)', border: '1px solid rgba(212,175,55,0.12)',
+            background: 'var(--acc-fill1, rgba(212,175,55,0.03))', border: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))',
             borderRadius: '8px', padding: '10px 14px', marginBottom: '8px'
         }},
             React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' } },
@@ -262,7 +262,7 @@
                 )
             ),
             title && React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: '0.78rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' } }, title),
-            React.createElement('div', { style: { fontSize: '0.82rem', color: '#D0D0D0', lineHeight: 1.4 } }, children)
+            React.createElement('div', { style: { fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.4 } }, children)
         );
     }
     window.GMMessage = GMMessage;
@@ -341,7 +341,7 @@
             ));
         }
 
-        return React.createElement('div', { style: { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' } }, ...sections);
+        return React.createElement('div', { style: { background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' } }, ...sections);
     }
 
     function SkeletonRows({ count, cols }) {
@@ -385,21 +385,21 @@
         const valueYrsLeft = Math.max(0, declineHi - age);
         const trend = meta.trend || 0;
 
-        if (age > declineHi && dhq >= 2000) return { text: 'Sell high \u2014 past value window', color: '#E74C3C', rec: 'SELL' };
-        if (age > pHi && age <= declineHi && dhq >= 3000 && trend <= -10) return { text: 'Veteran decline band \u2014 monitor closely', color: '#F0A500', rec: 'HOLD' };
-        if (peakYrsLeft >= 5 && dhq >= 3000) return { text: peakYrsLeft + ' peak yrs ahead \u2014 cornerstone', color: '#2ECC71', rec: 'HOLD' };
-        if (peakYrsLeft >= 3 && trend >= 15) return { text: 'Breakout trajectory +' + trend + '%', color: '#2ECC71', rec: 'HOLD' };
+        if (age > declineHi && dhq >= 2000) return { text: 'Sell high \u2014 past value window', color: 'var(--k-e74c3c, #e74c3c)', rec: 'SELL' };
+        if (age > pHi && age <= declineHi && dhq >= 3000 && trend <= -10) return { text: 'Veteran decline band \u2014 monitor closely', color: 'var(--k-f0a500, #f0a500)', rec: 'HOLD' };
+        if (peakYrsLeft >= 5 && dhq >= 3000) return { text: peakYrsLeft + ' peak yrs ahead \u2014 cornerstone', color: 'var(--k-2ecc71, #2ecc71)', rec: 'HOLD' };
+        if (peakYrsLeft >= 3 && trend >= 15) return { text: 'Breakout trajectory +' + trend + '%', color: 'var(--k-2ecc71, #2ecc71)', rec: 'HOLD' };
         if (age >= pLo && age <= pHi && dhq >= 5000) return { text: 'Prime window \u2014 maximize now', color: 'var(--gold)', rec: 'HOLD' };
-        if (valueYrsLeft <= 1 && dhq >= 2000) return { text: 'Window closing \u2014 sell or ride', color: '#F0A500', rec: 'HOLD' };
+        if (valueYrsLeft <= 1 && dhq >= 2000) return { text: 'Window closing \u2014 sell or ride', color: 'var(--k-f0a500, #f0a500)', rec: 'HOLD' };
         return null;
     }
 
     function getMatchupAnnotation(myPPG, oppPPG, pos) {
         const diff = myPPG - oppPPG;
-        if (diff > 5) return { text: 'Strong edge +' + diff.toFixed(1), color: '#2ECC71' };
-        if (diff > 2) return { text: 'Slight edge', color: '#2ECC71' };
-        if (diff < -5) return { text: 'Vulnerable \u2014 ' + diff.toFixed(1), color: '#E74C3C' };
-        if (diff < -2) return { text: 'Disadvantage', color: '#E74C3C' };
+        if (diff > 5) return { text: 'Strong edge +' + diff.toFixed(1), color: 'var(--k-2ecc71, #2ecc71)' };
+        if (diff > 2) return { text: 'Slight edge', color: 'var(--k-2ecc71, #2ecc71)' };
+        if (diff < -5) return { text: 'Vulnerable \u2014 ' + diff.toFixed(1), color: 'var(--k-e74c3c, #e74c3c)' };
+        if (diff < -2) return { text: 'Disadvantage', color: 'var(--k-e74c3c, #e74c3c)' };
         return { text: 'Even matchup', color: 'var(--silver)' };
     }
 
@@ -465,7 +465,7 @@
                     }, 'Try Again'),
                     React.createElement('button', {
                         onClick: () => window.location.reload(),
-                        style: { padding: '10px 24px', background: 'transparent', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', fontFamily: 'var(--font-body)', fontSize: '1rem', cursor: 'pointer' }
+                        style: { padding: '10px 24px', background: 'transparent', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', fontFamily: 'var(--font-body)', fontSize: '1rem', cursor: 'pointer' }
                     }, 'Reload Page'),
                     React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.5, marginTop: '12px' } },
                         String(this.state.error?.message || '').substring(0, 100))
@@ -631,8 +631,8 @@
                 return s + Math.max(0, end - age);
             }, 0);
             const peakDelta = getPeakTotal - givePeakTotal;
-            if (peakDelta >= 3) return { label: 'Extends window', icon: '\u2191', col: '#2ECC71' };
-            if (peakDelta <= -3) return { label: 'Shortens window', icon: '\u2193', col: '#E74C3C' };
+            if (peakDelta >= 3) return { label: 'Extends window', icon: '\u2191', col: 'var(--k-2ecc71, #2ecc71)' };
+            if (peakDelta <= -3) return { label: 'Shortens window', icon: '\u2193', col: 'var(--k-e74c3c, #e74c3c)' };
             return { label: 'Window neutral', icon: '\u2192', col: 'var(--silver)' };
         }
 
@@ -645,26 +645,26 @@
 
         return React.createElement('div', null,
             // Time context banner
-            isProjected ? React.createElement('div', { style:{fontSize:'0.76rem',color:'#3498DB',background:'rgba(52,152,219,0.08)',border:'1px solid rgba(52,152,219,0.2)',borderRadius:'6px',padding:'6px 12px',marginBottom:'10px',display:'flex',alignItems:'center',gap:'6px'} },
+            isProjected ? React.createElement('div', { style:{fontSize:'0.76rem',color:'var(--k-3498db, #3498db)',background:'rgba(52,152,219,0.08)',border:'1px solid rgba(52,152,219,0.2)',borderRadius:'6px',padding:'6px 12px',marginBottom:'10px',display:'flex',alignItems:'center',gap:'6px'} },
                 React.createElement('span', null, 'Evaluated in '+evalYear+' (Projected Values)'),
             ) : null,
             React.createElement('div', {style:{fontSize:'0.78rem',color:'var(--silver)',opacity:0.65,marginBottom:'0.75rem',lineHeight:1.5}}, 'Select any player to generate trade proposals. Shows offers within 20% value variance ranked by acceptance likelihood. ', React.createElement(Tip, null, 'Builds 1-for-1, 2-for-1, and player+pick combos. Acceptance % uses DNA type, psychological taxes, and trade posture.')),
             React.createElement('div', {style:{display:'flex',gap:'0.5rem',marginBottom:'1rem'}},
-                React.createElement('button', {onClick:()=>{setFinderMode('my');setFinderAsset(null);setFinderResults(null);setShowMoonshots(false);},style:{padding:'7px 16px',fontSize:'0.78rem',fontFamily: 'var(--font-body)',textTransform:'uppercase',background:finderMode==='my'?'var(--gold)':'rgba(255,255,255,0.04)',color:finderMode==='my'?'var(--black)':'var(--silver)',border:'1px solid '+(finderMode==='my'?'var(--gold)':'rgba(255,255,255,0.08)'),borderRadius:'4px',cursor:'pointer'}}, 'Trade My Player'),
-                React.createElement('button', {onClick:()=>{setFinderMode('acquire');setFinderAsset(null);setFinderResults(null);setShowMoonshots(false);},style:{padding:'7px 16px',fontSize:'0.78rem',fontFamily: 'var(--font-body)',textTransform:'uppercase',background:finderMode==='acquire'?'var(--gold)':'rgba(255,255,255,0.04)',color:finderMode==='acquire'?'var(--black)':'var(--silver)',border:'1px solid '+(finderMode==='acquire'?'var(--gold)':'rgba(255,255,255,0.08)'),borderRadius:'4px',cursor:'pointer'}}, 'Acquire a Player')
+                React.createElement('button', {onClick:()=>{setFinderMode('my');setFinderAsset(null);setFinderResults(null);setShowMoonshots(false);},style:{padding:'7px 16px',fontSize:'0.78rem',fontFamily: 'var(--font-body)',textTransform:'uppercase',background:finderMode==='my'?'var(--gold)':'var(--ov-3, rgba(255,255,255,0.04))',color:finderMode==='my'?'var(--black)':'var(--silver)',border:'1px solid '+(finderMode==='my'?'var(--gold)':'var(--ov-5, rgba(255,255,255,0.08))'),borderRadius:'4px',cursor:'pointer'}}, 'Trade My Player'),
+                React.createElement('button', {onClick:()=>{setFinderMode('acquire');setFinderAsset(null);setFinderResults(null);setShowMoonshots(false);},style:{padding:'7px 16px',fontSize:'0.78rem',fontFamily: 'var(--font-body)',textTransform:'uppercase',background:finderMode==='acquire'?'var(--gold)':'var(--ov-3, rgba(255,255,255,0.04))',color:finderMode==='acquire'?'var(--black)':'var(--silver)',border:'1px solid '+(finderMode==='acquire'?'var(--gold)':'var(--ov-5, rgba(255,255,255,0.08))'),borderRadius:'4px',cursor:'pointer'}}, 'Acquire a Player')
             ),
             React.createElement('div', {style:{fontSize:'0.74rem',color:'var(--gold)',textTransform:'uppercase',marginBottom:'0.3rem',fontWeight:700}}, finderMode==='my'?'Select your player to shop':'Select a player to acquire'),
-            React.createElement('div', {style:{display:'flex',flexWrap:'wrap',gap:'0.35rem',maxHeight:'200px',overflowY:'auto',marginBottom:'1rem',padding:'10px',background:'rgba(255,255,255,0.02)',borderRadius:'8px',border:'1px solid rgba(212,175,55,0.12)'}},
+            React.createElement('div', {style:{display:'flex',flexWrap:'wrap',gap:'0.35rem',maxHeight:'200px',overflowY:'auto',marginBottom:'1rem',padding:'10px',background:'var(--ov-1, rgba(255,255,255,0.02))',borderRadius:'8px',border:'1px solid var(--acc-fill2, rgba(212,175,55,0.12))'}},
                 ...(finderMode==='my'?myPlayers:allLeaguePlayers).slice(0,60).map(p=>
-                    React.createElement('button', {key:p.pid, onClick:()=>{setFinderAsset(p.pid);setFinderResults(null);setShowMoonshots(false);generateTrades(p.pid,finderMode);}, style:{padding:'5px 12px',fontSize:'0.74rem',fontFamily: 'var(--font-body)',borderRadius:'4px',cursor:'pointer',background:finderAsset===p.pid?'var(--gold)':'rgba(255,255,255,0.04)',color:finderAsset===p.pid?'var(--black)':'var(--silver)',border:'1px solid '+(finderAsset===p.pid?'var(--gold)':'rgba(255,255,255,0.06)')}}, p.name+' '+p.val.toLocaleString())
+                    React.createElement('button', {key:p.pid, onClick:()=>{setFinderAsset(p.pid);setFinderResults(null);setShowMoonshots(false);generateTrades(p.pid,finderMode);}, style:{padding:'5px 12px',fontSize:'0.74rem',fontFamily: 'var(--font-body)',borderRadius:'4px',cursor:'pointer',background:finderAsset===p.pid?'var(--gold)':'var(--ov-3, rgba(255,255,255,0.04))',color:finderAsset===p.pid?'var(--black)':'var(--silver)',border:'1px solid '+(finderAsset===p.pid?'var(--gold)':'var(--ov-4, rgba(255,255,255,0.06))')}}, p.name+' '+p.val.toLocaleString())
                 )
             ),
             finderResults && !finderResults.length ? React.createElement('div', {style:{color:'var(--silver)',fontSize:'0.82rem',textAlign:'center',padding:'2rem'}}, 'No viable trades found within 20% value variance.') : null,
             finderResults && finderResults.length && !visibleFinderResults.length ? React.createElement('div', {style:{color:'var(--silver)',fontSize:'0.82rem',textAlign:'center',padding:'2rem'}}, 'No actionable trades clear '+actionableAcceptanceFloor+'% acceptance.') : null,
-            hiddenMoonshotCount ? React.createElement('button', {onClick:()=>setShowMoonshots(v=>!v), style:{padding:'6px 12px',fontSize:'0.72rem',fontFamily:'var(--font-body)',textTransform:'uppercase',background:'rgba(255,255,255,0.04)',color:'var(--gold)',border:'1px solid rgba(212,175,55,0.22)',borderRadius:'4px',cursor:'pointer',marginBottom:'0.75rem'}}, showMoonshots ? 'Hide moonshots' : 'Show '+hiddenMoonshotCount+' moonshot'+(hiddenMoonshotCount===1?'':'s')) : null,
+            hiddenMoonshotCount ? React.createElement('button', {onClick:()=>setShowMoonshots(v=>!v), style:{padding:'6px 12px',fontSize:'0.72rem',fontFamily:'var(--font-body)',textTransform:'uppercase',background:'var(--ov-3, rgba(255,255,255,0.04))',color:'var(--gold)',border:'1px solid var(--acc-line1, rgba(212,175,55,0.22))',borderRadius:'4px',cursor:'pointer',marginBottom:'0.75rem'}}, showMoonshots ? 'Hide moonshots' : 'Show '+hiddenMoonshotCount+' moonshot'+(hiddenMoonshotCount===1?'':'s')) : null,
             visibleFinderResults ? visibleFinderResults.map((r,ri) =>
                 React.createElement('div', {key:ri, style:{marginBottom:'1.25rem'}, className:'wr-fade-in'},
-                    React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.5rem',paddingBottom:'0.4rem',borderBottom:'1px solid rgba(212,175,55,0.15)'}},
+                    React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.5rem',paddingBottom:'0.4rem',borderBottom:'1px solid var(--acc-fill3, rgba(212,175,55,0.15))'}},
                         React.createElement('span', {style:{fontFamily:'Rajdhani, sans-serif',fontSize:'1rem',color:'var(--white)'}}, r.team.ownerName),
                         React.createElement('span', {style:{fontSize:'0.72rem',color:'var(--silver)',opacity:0.65}}, r.team.teamName),
                         React.createElement('span', {style:{fontSize:'0.7rem',fontWeight:700,color:r.team.tierColor,background:r.team.tierBg,padding:'0.15rem 0.4rem',borderRadius:'3px'}}, r.team.tier),
@@ -673,12 +673,12 @@
                     ...r.trades.map((t,ti) => {
                         const giveT=t.give.reduce((s,p)=>s+p.val,0)+t.givePicks.reduce((s,p)=>s+(p.val||0),0);
                         const getT=t.receive.reduce((s,p)=>s+p.val,0)+t.receivePicks.reduce((s,p)=>s+(p.val||0),0);
-                        return React.createElement('div', {key:ti, style:{background:'rgba(255,255,255,0.02)',border:'1px solid rgba(212,175,55,0.15)',borderRadius:'8px',padding:'0.75rem',marginBottom:'0.5rem'}},
+                        return React.createElement('div', {key:ti, style:{background:'var(--ov-1, rgba(255,255,255,0.02))',border:'1px solid var(--acc-fill3, rgba(212,175,55,0.15))',borderRadius:'8px',padding:'0.75rem',marginBottom:'0.5rem'}},
                             React.createElement('div', {style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.5rem'}},
                                 React.createElement('span', {style:{fontSize:'0.74rem',color:'var(--gold)',fontWeight:700,textTransform:'uppercase'}}, t.type),
                                 React.createElement('div', {style:{display:'flex',gap:'0.5rem',alignItems:'center'}},
                                     React.createElement('span', {style:{fontSize:'0.74rem',color:t.diff>=0?'var(--win-green)':'var(--loss-red)'}}, (t.diff>=0?'You gain ':'You give ')+Math.abs(Math.round(t.diff)).toLocaleString()+' '+valueShortLabel),
-                                    React.createElement('span', {style:{fontSize:'0.78rem',fontWeight:700,color:t.likelihood>=60?'var(--win-green)':t.likelihood>=40?'#F0A500':'var(--loss-red)',background:(t.likelihood>=60?'rgba(46,204,113,0.1)':t.likelihood>=40?'rgba(240,165,0,0.1)':'rgba(231,76,60,0.1)'),padding:'0.15rem 0.5rem',borderRadius:'4px'}}, Math.round(t.likelihood)+'%')
+                                    React.createElement('span', {style:{fontSize:'0.78rem',fontWeight:700,color:t.likelihood>=60?'var(--win-green)':t.likelihood>=40?'var(--k-f0a500, #f0a500)':'var(--loss-red)',background:(t.likelihood>=60?'rgba(46,204,113,0.1)':t.likelihood>=40?'rgba(240,165,0,0.1)':'rgba(231,76,60,0.1)'),padding:'0.15rem 0.5rem',borderRadius:'4px'}}, Math.round(t.likelihood)+'%')
                                 )
                             ),
                             React.createElement('div', {style:{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:'0.5rem',alignItems:'start'}},
@@ -699,13 +699,13 @@
                                 const multiYear = getMultiYearDelta(t);
                                 const winImpact = getWindowImpact(t);
                                 if (!multiYear) return null;
-                                return React.createElement('div', {style:{display:'flex',gap:'10px',alignItems:'center',marginTop:'8px',paddingTop:'8px',borderTop:'1px solid rgba(255,255,255,0.04)',flexWrap:'wrap'}},
+                                return React.createElement('div', {style:{display:'flex',gap:'10px',alignItems:'center',marginTop:'8px',paddingTop:'8px',borderTop:'1px solid var(--ov-3, rgba(255,255,255,0.04))',flexWrap:'wrap'}},
                                     // Multi-year trend
-                                    ...multiYear.map((yr,yi) => React.createElement('span', {key:yi, style:{fontSize:'0.72rem',color:yr.diff>=0?'#2ECC71':'#E74C3C',fontWeight:600}},
+                                    ...multiYear.map((yr,yi) => React.createElement('span', {key:yi, style:{fontSize:'0.72rem',color:yr.diff>=0?'var(--k-2ecc71, #2ecc71)':'var(--k-e74c3c, #e74c3c)',fontWeight:600}},
                                         (yr.diff>=0?'+':'')+Math.round(yr.diff).toLocaleString()+' ('+yr.year+')'
                                     )),
                                     // Trend arrow
-                                    React.createElement('span', {style:{fontSize:'0.72rem',color:multiYear[2].diff>multiYear[0].diff?'#2ECC71':multiYear[2].diff<multiYear[0].diff?'#E74C3C':'var(--silver)'}},
+                                    React.createElement('span', {style:{fontSize:'0.72rem',color:multiYear[2].diff>multiYear[0].diff?'var(--k-2ecc71, #2ecc71)':multiYear[2].diff<multiYear[0].diff?'var(--k-e74c3c, #e74c3c)':'var(--silver)'}},
                                         multiYear[2].diff>multiYear[0].diff?'\uD83D\uDCC8 improving':multiYear[2].diff<multiYear[0].diff?'\uD83D\uDCC9 declining':'\u27A1 neutral'
                                     ),
                                     // Window impact
@@ -724,11 +724,11 @@
     const DEV_MODE = new URLSearchParams(window.location.search).has('dev') || window.location.hostname.includes('sandbox') || IS_LOCAL;
     const DEV_DEBUG = new URLSearchParams(window.location.search).get('dev') === 'true';
     if (DEV_MODE) {
-        console.log('%c[DEV MODE] All features unlocked, auth bypassed','color:#D4AF37;font-weight:bold;font-size:14px');
+        console.log('%c[DEV MODE] All features unlocked, auth bypassed','color:var(--k-d4af37, #d4af37);font-weight:bold;font-size:14px');
         document.documentElement.style.setProperty('--wr-dev-banner-height', '18px');
         const b = document.createElement('div');
         b.className = 'wr-dev-banner';
-        b.style.cssText = 'position:fixed;top:0;left:0;right:0;height:18px;box-sizing:border-box;z-index:99999;background:#D4AF37;color:#000;font-size:11px;font-weight:700;text-align:center;padding:3px;letter-spacing:.05em;font-family:monospace;line-height:12px;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+        b.style.cssText = 'position:fixed;top:0;left:0;right:0;height:18px;box-sizing:border-box;z-index:99999;background:var(--k-d4af37, #d4af37);color:var(--k-000000, #000000);font-size:11px;font-weight:700;text-align:center;padding:3px;letter-spacing:.05em;font-family:monospace;line-height:12px;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
         b.textContent = IS_LOCAL ? '⚡ LOCAL DEV — bigloco auto-logged in, all features unlocked' : 'SANDBOX — changes here do not affect production';
         document.body.prepend(b);
     }

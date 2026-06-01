@@ -11,7 +11,9 @@ const ROOT = path.join(__dirname, '..');
 const LEAGUE_ID = process.env.WARROOM_QA_LEAGUE || '1312100327931019264';
 const USER = process.env.WARROOM_QA_USER || 'bigloco';
 const BASE_PATH = process.env.WARROOM_QA_PATH || '/dist-preview/';
-const WIDTHS = [390, 430, 1365];
+// Phone floor (390/430), iPad portrait (768 mini, 820 Air, 834 Pro 11", 1024 Pro 12.9"),
+// iPad landscape (1180), desktop (1365). iPad portrait is now a first-class layout tier.
+const WIDTHS = [390, 430, 768, 820, 834, 1024, 1180, 1365];
 const TABS = ['dashboard', 'myteam', 'compare', 'trades', 'fa', 'draft', 'analytics', 'alex', 'trophies', 'calendar', 'strategy'];
 const CHROME = process.env.PLAYWRIGHT_CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PORT_START = Number(process.env.WARROOM_QA_PORT || 3210);

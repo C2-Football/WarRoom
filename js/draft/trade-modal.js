@@ -93,6 +93,8 @@
                     borderRadius: '10px',
                     padding: '14px 16px',
                     boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+                    maxHeight: 'calc(100vh - 100px)',
+                    overflowY: 'auto',
                 }}>
                     {/* Header */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
@@ -104,10 +106,10 @@
                             letterSpacing: '0.1em',
                         }}>⚡ Trade Offer</span>
                         <span style={{
-                            fontSize: '0.58rem',
+                            fontSize: 'var(--text-micro)',
                             padding: '1px 6px',
                             borderRadius: '10px',
-                            background: 'rgba(255,255,255,0.04)',
+                            background: 'var(--ov-3, rgba(255,255,255,0.04))',
                             color: 'var(--silver)',
                         }}>{offer.dnaLabel}</span>
                         <button onClick={onDecline} style={{
@@ -118,6 +120,11 @@
                             fontSize: '1rem',
                             cursor: 'pointer',
                             padding: 0,
+                            width: '44px',
+                            height: '44px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                         }}>×</button>
                     </div>
 
@@ -134,7 +141,7 @@
 	                    {offer.cpuMessage && (
 	                        <div style={{
 	                            fontSize: '0.68rem',
-	                            color: '#F0A500',
+	                            color: 'var(--warn)',
 	                            marginBottom: '9px',
 	                            padding: '7px 9px',
 	                            border: '1px solid rgba(240,165,0,0.24)',
@@ -147,7 +154,7 @@
 	                    )}
 
                     {/* Metadata strip */}
-                    <div style={{ fontSize: '0.64rem', color: 'var(--silver)', marginBottom: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: 'var(--text-label)', color: 'var(--silver)', marginBottom: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <span style={{ color: gradeCol, fontWeight: 700 }}>{offer.grade?.grade || '—'} · {offer.grade?.label || ''}</span>
                         <span>·</span>
                         <span>Likelihood: <strong style={{ color: 'var(--gold)' }}>{offer.likelihood}%</strong></span>
@@ -168,9 +175,9 @@
                             padding: '10px',
                             textAlign: 'center',
                         }}>
-                            <div style={{ fontSize: '0.56rem', color: '#E74C3C', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>You give</div>
+                            <div style={{ fontSize: 'var(--text-micro)', color: 'var(--bad)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>You give</div>
                             <AssetStack picks={offer.myGive} playerIds={offer.myGivePlayers} faab={offer.myGiveFaab} />
-                            <div style={{ fontSize: '0.6rem', color: 'var(--silver)', marginTop: '2px', fontFamily: FONT_MONO }}>
+                            <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', marginTop: '2px', fontFamily: FONT_MONO }}>
                                 {offer.myGiveDHQ?.toLocaleString()} DHQ
                             </div>
                         </div>
@@ -182,9 +189,9 @@
                             padding: '10px',
                             textAlign: 'center',
                         }}>
-                            <div style={{ fontSize: '0.56rem', color: '#2ECC71', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>You get</div>
+                            <div style={{ fontSize: 'var(--text-micro)', color: 'var(--good)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>You get</div>
                             <AssetStack picks={offer.theirGive} playerIds={offer.theirGivePlayers} faab={offer.theirGiveFaab} />
-                            <div style={{ fontSize: '0.6rem', color: 'var(--silver)', marginTop: '2px', fontFamily: FONT_MONO }}>
+                            <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', marginTop: '2px', fontFamily: FONT_MONO }}>
                                 {offer.myGainDHQ?.toLocaleString()} DHQ
                             </div>
                         </div>
@@ -200,14 +207,14 @@
                         }}>
                             {offer.taxes.slice(0, 4).map((t, i) => {
                                 const isTax = (t.impact || 0) < 0;
-                                const col = isTax ? '#E74C3C' : '#2ECC71';
+                                const col = isTax ? 'var(--k-e74c3c, #e74c3c)' : 'var(--k-2ecc71, #2ecc71)';
                                 return (
                                     <span key={i} title={t.desc || ''} style={{
-                                        fontSize: '0.54rem',
+                                        fontSize: 'var(--text-micro)',
                                         padding: '2px 6px',
                                         borderRadius: '10px',
-                                        background: col + '15',
-                                        border: '1px solid ' + col + '40',
+                                        background: wrAlpha(col, '15'),
+                                        border: '1px solid ' + wrAlpha(col, '40'),
                                         color: col,
                                         fontWeight: 600,
                                     }}>
@@ -222,8 +229,8 @@
 	                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
 	                        <button onClick={onAccept} style={{
 	                            padding: '10px',
-	                            background: '#2ECC71',
-                            color: '#fff',
+	                            background: 'var(--good)',
+                            color: 'var(--white)',
                             border: 'none',
                             borderRadius: '6px',
                             fontSize: '0.82rem',
@@ -233,9 +240,9 @@
 	                        }}>Accept</button>
 	                        <button onClick={onCounter} disabled={counterClosed} title={counterClosed ? 'CPU has moved on from counters' : 'Ask for a better version of the offer'} style={{
 	                            padding: '10px',
-	                            background: counterClosed ? 'rgba(255,255,255,0.04)' : 'rgba(212,175,55,0.12)',
-	                            color: counterClosed ? 'rgba(255,255,255,0.35)' : 'var(--gold)',
-	                            border: '1px solid ' + (counterClosed ? 'rgba(255,255,255,0.08)' : 'rgba(212,175,55,0.34)'),
+	                            background: counterClosed ? 'var(--ov-3, rgba(255,255,255,0.04))' : 'var(--acc-fill2, rgba(212,175,55,0.12))',
+	                            color: counterClosed ? 'var(--ov-8, rgba(255,255,255,0.35))' : 'var(--gold)',
+	                            border: '1px solid ' + (counterClosed ? 'var(--ov-5, rgba(255,255,255,0.08))' : 'var(--acc-line2, rgba(212,175,55,0.34))'),
 	                            borderRadius: '6px',
 	                            fontSize: '0.82rem',
 	                            fontWeight: 700,
@@ -246,7 +253,7 @@
 	                            padding: '10px',
 	                            background: 'transparent',
                             color: 'var(--silver)',
-                            border: '1px solid rgba(255,255,255,0.15)',
+                            border: '1px solid var(--ov-6, rgba(255,255,255,0.15))',
                             borderRadius: '6px',
                             fontSize: '0.82rem',
                             fontWeight: 700,
@@ -307,7 +314,7 @@
         };
         const hasAny = (picks || []).length || (playerIds || []).length || Number(faab || 0) > 0;
         if (!hasAny) {
-            return <div style={{ color: 'var(--silver)', opacity: 0.55, fontSize: '0.62rem' }}>No assets</div>;
+            return <div style={{ color: 'var(--silver)', opacity: 0.55, fontSize: 'var(--text-micro)' }}>No assets</div>;
         }
         return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'center' }}>
@@ -317,12 +324,12 @@
                     </div>
                 ))}
                 {(playerIds || []).map(pid => (
-                    <div key={pid} style={{ maxWidth: 150, fontSize: '0.64rem', color: '#9b8afb', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div key={pid} style={{ maxWidth: 150, fontSize: 'var(--text-label)', color: 'var(--purple)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {playerName(pid)}
                     </div>
                 ))}
                 {Number(faab || 0) > 0 && (
-                    <div style={{ fontSize: '0.64rem', color: '#2ECC71', fontFamily: FONT_MONO }}>${faab} FAAB</div>
+                    <div style={{ fontSize: 'var(--text-label)', color: 'var(--good)', fontFamily: FONT_MONO }}>${faab} FAAB</div>
                 )}
             </div>
         );

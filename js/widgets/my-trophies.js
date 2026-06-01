@@ -40,8 +40,8 @@
 
         const base = {
             background: 'var(--off-black)',
-            border: '1px solid rgba(212,175,55,0.15)',
-            borderRadius: '10px', padding: 'var(--card-pad, 14px 16px)',
+            border: 'var(--card-border)',
+            borderRadius: 'var(--card-radius)', padding: 'var(--card-pad, 14px 16px)',
             display: 'flex', flexDirection: 'column', gap: '6px',
             height: '100%', minHeight: 0, cursor: 'pointer',
             overflow: 'hidden',
@@ -74,7 +74,7 @@
         // Stats grid renderer (used by md/lg/tall/xxl)
         function statGrid(stats, cols) {
             return React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(' + cols + ', 1fr)', gap: '6px', flexShrink: 0 } },
-                ...stats.map(s => React.createElement('div', { key: s.label, style: { background: 'var(--black)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '6px', padding: '8px 6px', textAlign: 'center' } },
+                ...stats.map(s => React.createElement('div', { key: s.label, style: { background: 'var(--black)', border: '1px solid var(--ov-3, rgba(255,255,255,0.05))', borderRadius: '6px', padding: '8px 6px', textAlign: 'center' } },
                     React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.15rem', fontWeight: 700, color: s.col } }, s.val),
                     React.createElement('div', { style: { fontSize: '0.56rem', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' } }, s.label),
                 )),
@@ -83,15 +83,15 @@
 
         const lgStats = [
             { label: 'Titles', val: mine.championships, col: mine.championships > 0 ? 'var(--gold)' : 'var(--silver)' },
-            { label: 'R-Up', val: mine.runnerUps, col: mine.runnerUps > 0 ? '#C0C0C0' : 'var(--silver)' },
-            { label: 'Badges', val: earnedCount, col: earnedCount > 0 ? '#7C6BF8' : 'var(--silver)' },
+            { label: 'R-Up', val: mine.runnerUps, col: mine.runnerUps > 0 ? 'var(--k-c0c0c0, #c0c0c0)' : 'var(--silver)' },
+            { label: 'Badges', val: earnedCount, col: earnedCount > 0 ? 'var(--k-7c6bf8, #7c6bf8)' : 'var(--silver)' },
         ];
         const tallStats = [
             { label: 'Titles', val: mine.championships, col: mine.championships > 0 ? 'var(--gold)' : 'var(--silver)' },
-            { label: 'R-Up', val: mine.runnerUps, col: mine.runnerUps > 0 ? '#C0C0C0' : 'var(--silver)' },
+            { label: 'R-Up', val: mine.runnerUps, col: mine.runnerUps > 0 ? 'var(--k-c0c0c0, #c0c0c0)' : 'var(--silver)' },
             { label: 'Playoffs', val: mine.playoffs, col: mine.playoffs > 0 ? 'var(--gold)' : 'var(--silver)' },
-            { label: 'Badges', val: earnedCount + '/' + totalCatalog, col: earnedCount > 0 ? '#7C6BF8' : 'var(--silver)' },
-            { label: 'Win %', val: Math.round(mine.winPct) + '%', col: mine.winPct >= 50 ? '#2ECC71' : '#E74C3C' },
+            { label: 'Badges', val: earnedCount + '/' + totalCatalog, col: earnedCount > 0 ? 'var(--k-7c6bf8, #7c6bf8)' : 'var(--silver)' },
+            { label: 'Win %', val: Math.round(mine.winPct) + '%', col: mine.winPct >= 50 ? 'var(--good)' : 'var(--bad)' },
         ];
 
         // ── MD ──
@@ -107,9 +107,9 @@
                 React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', flexShrink: 0 } },
                     [
                         { label: 'Titles', val: mine.championships, col: mine.championships > 0 ? 'var(--gold)' : 'var(--silver)' },
-                        { label: 'R-Up', val: mine.runnerUps, col: mine.runnerUps > 0 ? '#C0C0C0' : 'var(--silver)' },
-                        { label: 'Win%', val: Math.round(mine.winPct) + '%', col: mine.winPct >= 50 ? '#2ECC71' : '#E74C3C' },
-                    ].map(s => React.createElement('div', { key: s.label, style: { background: 'var(--black)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '6px', padding: '5px 4px', textAlign: 'center' } },
+                        { label: 'R-Up', val: mine.runnerUps, col: mine.runnerUps > 0 ? 'var(--k-c0c0c0, #c0c0c0)' : 'var(--silver)' },
+                        { label: 'Win%', val: Math.round(mine.winPct) + '%', col: mine.winPct >= 50 ? 'var(--good)' : 'var(--bad)' },
+                    ].map(s => React.createElement('div', { key: s.label, style: { background: 'var(--black)', border: '1px solid var(--ov-3, rgba(255,255,255,0.05))', borderRadius: '6px', padding: '5px 4px', textAlign: 'center' } },
                         React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '0.95rem', fontWeight: 700, color: s.col } }, s.val),
                         React.createElement('div', { style: { fontSize: '0.52rem', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '1px' } }, s.label),
                     )),
@@ -137,7 +137,7 @@
                         const tc = window.WrAchievements.tierColor(a.tier);
                         return React.createElement('span', {
                             key: a.id, title: a.label + ' — ' + a.description,
-                            style: { display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.62rem', padding: '2px 6px', background: tc + '14', border: '1px solid ' + tc + '44', borderRadius: '4px', color: tc, fontWeight: 600, fontFamily: 'var(--font-body)' },
+                            style: { display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.62rem', padding: '2px 6px', background: wrAlpha(tc, '14'), border: '1px solid ' + wrAlpha(tc, '44'), borderRadius: '4px', color: tc, fontWeight: 600, fontFamily: 'var(--font-body)' },
                         }, React.createElement('span', { style: { fontSize: '0.78rem' } }, a.icon), a.label);
                     }),
                 ),
@@ -153,8 +153,8 @@
                 style: {
                     display: 'flex', alignItems: 'center', gap: '6px',
                     padding: '5px 8px',
-                    background: earned ? tc + '14' : 'rgba(255,255,255,0.02)',
-                    border: '1px solid ' + (earned ? tc + '55' : 'rgba(255,255,255,0.06)'),
+                    background: earned ? wrAlpha(tc, '14') : 'var(--ov-1, rgba(255,255,255,0.02))',
+                    border: '1px solid ' + (earned ? wrAlpha(tc, '55') : 'var(--ov-4, rgba(255,255,255,0.06))'),
                     borderRadius: '6px',
                     opacity: earned ? 1 : 0.55,
                 },
@@ -163,7 +163,7 @@
                 React.createElement('div', { style: { flex: 1, minWidth: 0 } },
                     React.createElement('div', { style: { fontSize: '0.66rem', fontWeight: 700, color: earned ? tc : 'var(--silver)', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, a.label),
                     !opts.hideDesc && React.createElement('div', { style: { fontSize: '0.54rem', color: 'var(--silver)', opacity: 0.65, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, a.description),
-                    !earned && a.target > 1 && React.createElement('div', { style: { height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden', marginTop: '3px' } },
+                    !earned && a.target > 1 && React.createElement('div', { style: { height: 3, background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: 2, overflow: 'hidden', marginTop: '3px' } },
                         React.createElement('div', { style: { width: (a.progress * 100) + '%', height: '100%', background: tc, opacity: 0.8 } }),
                     ),
                 ),
@@ -183,20 +183,20 @@
                 ),
                 statGrid(tallStats, 5),
                 // Record + win% bar
-                React.createElement('div', { style: { padding: '6px 10px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', flexShrink: 0 } },
+                React.createElement('div', { style: { padding: '6px 10px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '6px', flexShrink: 0 } },
                     React.createElement('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.62rem', color: 'var(--silver)', marginBottom: '3px', fontFamily: 'JetBrains Mono, monospace' } },
                         React.createElement('span', null, 'All-time'),
                         React.createElement('span', { style: { color: 'var(--white)', fontWeight: 700 } }, record + ' · ' + Math.round(mine.winPct) + '%'),
                     ),
-                    React.createElement('div', { style: { height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' } },
-                        React.createElement('div', { style: { width: mine.winPct + '%', height: '100%', background: mine.winPct >= 50 ? '#2ECC71' : '#E74C3C' } }),
+                    React.createElement('div', { style: { height: 6, background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: 3, overflow: 'hidden' } },
+                        React.createElement('div', { style: { width: mine.winPct + '%', height: '100%', background: mine.winPct >= 50 ? 'var(--good)' : 'var(--bad)' } }),
                     ),
                 ),
                 // Champ + Runner-up callouts
-                mine.champSeasons.length > 0 && React.createElement('div', { style: { fontSize: '0.7rem', color: 'var(--gold)', fontWeight: 700, padding: '6px 10px', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '6px', flexShrink: 0 } },
+                mine.champSeasons.length > 0 && React.createElement('div', { style: { fontSize: '0.7rem', color: 'var(--gold)', fontWeight: 700, padding: '6px 10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '6px', flexShrink: 0 } },
                     '👑 Championship seasons: ', mine.champSeasons.join(' · '),
                 ),
-                mine.runnerUpSeasons.length > 0 && React.createElement('div', { style: { fontSize: '0.66rem', color: '#C0C0C0', padding: '4px 10px', background: 'rgba(192,192,192,0.06)', border: '1px solid rgba(192,192,192,0.15)', borderRadius: '6px', flexShrink: 0 } },
+                mine.runnerUpSeasons.length > 0 && React.createElement('div', { style: { fontSize: '0.66rem', color: 'var(--k-c0c0c0, #c0c0c0)', padding: '4px 10px', background: 'rgba(192,192,192,0.06)', border: '1px solid rgba(192,192,192,0.15)', borderRadius: '6px', flexShrink: 0 } },
                     '🥈 Runner-up seasons: ', mine.runnerUpSeasons.join(' · '),
                 ),
                 // Earned badges section
@@ -233,14 +233,14 @@
                 statGrid(tallStats, 5),
                 // Champ + Runner-Up banners
                 React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', flexShrink: 0 } },
-                    React.createElement('div', { style: { padding: '8px 12px', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '6px' } },
+                    React.createElement('div', { style: { padding: '8px 12px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '6px' } },
                         React.createElement('div', { style: { fontSize: '0.6rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: '2px' } }, '👑 Championships'),
                         React.createElement('div', { style: { fontSize: '0.78rem', color: mine.champSeasons.length ? 'var(--white)' : 'var(--silver)', fontFamily: 'JetBrains Mono, monospace' } },
                             mine.champSeasons.length ? mine.champSeasons.join(' · ') : 'No titles yet',
                         ),
                     ),
                     React.createElement('div', { style: { padding: '8px 12px', background: 'rgba(192,192,192,0.06)', border: '1px solid rgba(192,192,192,0.18)', borderRadius: '6px' } },
-                        React.createElement('div', { style: { fontSize: '0.6rem', color: '#C0C0C0', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: '2px' } }, '🥈 Runner-Ups'),
+                        React.createElement('div', { style: { fontSize: '0.6rem', color: 'var(--k-c0c0c0, #c0c0c0)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: '2px' } }, '🥈 Runner-Ups'),
                         React.createElement('div', { style: { fontSize: '0.78rem', color: mine.runnerUpSeasons.length ? 'var(--white)' : 'var(--silver)', fontFamily: 'JetBrains Mono, monospace' } },
                             mine.runnerUpSeasons.length ? mine.runnerUpSeasons.join(' · ') : 'None',
                         ),
@@ -260,11 +260,11 @@
                                     const madePlayoffs = s.place && s.place <= playoffCutoff;
                                     const totalG = s.wins + s.losses;
                                     const wp = totalG ? (s.wins / totalG) * 100 : 0;
-                                    return React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.66rem', fontFamily: 'var(--font-body)', padding: '3px 6px', background: isChamp ? 'rgba(212,175,55,0.08)' : 'rgba(255,255,255,0.02)', borderRadius: '4px', borderLeft: isChamp ? '2px solid var(--gold)' : isRunner ? '2px solid #C0C0C0' : madePlayoffs ? '2px solid #2ECC71' : '2px solid transparent' } },
+                                    return React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.66rem', fontFamily: 'var(--font-body)', padding: '3px 6px', background: isChamp ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'var(--ov-1, rgba(255,255,255,0.02))', borderRadius: '4px', borderLeft: isChamp ? '2px solid var(--gold)' : isRunner ? '2px solid var(--k-c0c0c0, #c0c0c0)' : madePlayoffs ? '2px solid var(--good)' : '2px solid transparent' } },
                                         React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', color: 'var(--gold)', minWidth: 36, fontWeight: 700 } }, s.season),
                                         React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', color: 'var(--white)', minWidth: 40, fontWeight: 600 } }, s.wins + '-' + s.losses),
-                                        React.createElement('div', { style: { flex: 1, minWidth: 0, height: 5, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' } },
-                                            React.createElement('div', { style: { width: wp + '%', height: '100%', background: wp >= 50 ? '#2ECC71' : '#E74C3C', opacity: 0.8 } }),
+                                        React.createElement('div', { style: { flex: 1, minWidth: 0, height: 5, background: 'var(--ov-3, rgba(255,255,255,0.05))', borderRadius: 2, overflow: 'hidden' } },
+                                            React.createElement('div', { style: { width: wp + '%', height: '100%', background: wp >= 50 ? 'var(--good)' : 'var(--bad)', opacity: 0.8 } }),
                                         ),
                                         s.place && React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', color: madePlayoffs ? 'var(--gold)' : 'var(--silver)', fontSize: '0.6rem', minWidth: 30, textAlign: 'right', fontWeight: 700 } }, 'P#' + s.place),
                                         isChamp && React.createElement('span', { style: { fontSize: '0.7rem' } }, '👑'),

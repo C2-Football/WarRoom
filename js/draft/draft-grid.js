@@ -18,8 +18,8 @@
 
     function DraftGridPanel({ state, dispatch, isUserTurn, currentSlot }) {
         const posColors = window.App?.POS_COLORS || {
-            QB: '#FF6B6B', RB: '#4ECDC4', WR: '#45B7D1', TE: '#F7DC6F',
-            DL: '#E67E22', LB: '#F0A500', DB: '#5DADE2', K: '#BB8FCE',
+            QB: 'var(--k-ff6b6b, #ff6b6b)', RB: 'var(--k-4ecdc4, #4ecdc4)', WR: 'var(--k-45b7d1, #45b7d1)', TE: 'var(--k-f7dc6f, #f7dc6f)',
+            DL: 'var(--k-e67e22, #e67e22)', LB: 'var(--k-f0a500, #f0a500)', DB: 'var(--k-5dade2, #5dade2)', K: 'var(--k-bb8fce, #bb8fce)',
         };
 
         // Build pick map for O(1) cell lookup
@@ -40,9 +40,9 @@
 
         // Phase 7 deferred: per-owner accent color so each team column is visually distinct.
         // Uses a 12-color palette hashed by rosterId for stability across renders.
-        const OWNER_PALETTE = ['#E74C3C', '#F0A500', '#D4AF37', '#2ECC71', '#1ABC9C', '#3498DB', '#9B8AFB', '#E67E22', '#FF6B6B', '#27AE60', '#3FA7D6', '#C678DD'];
+        const OWNER_PALETTE = ['var(--k-e74c3c, #e74c3c)', 'var(--k-f0a500, #f0a500)', 'var(--k-d4af37, #d4af37)', 'var(--k-2ecc71, #2ecc71)', 'var(--k-1abc9c, #1abc9c)', 'var(--k-3498db, #3498db)', 'var(--k-9b8afb, #9b8afb)', 'var(--k-e67e22, #e67e22)', 'var(--k-ff6b6b, #ff6b6b)', 'var(--k-27ae60, #27ae60)', 'var(--k-3fa7d6, #3fa7d6)', 'var(--k-c678dd, #c678dd)'];
         const ownerColor = (teamIdx) => {
-            if (teamIdx === userIdx) return '#D4AF37'; // gold for the user
+            if (teamIdx === userIdx) return 'var(--k-d4af37, #d4af37)'; // gold for the user
             for (const s of state.pickOrder) {
                 if (s.teamIdx === teamIdx) {
                     const rid = s.rosterId || teamIdx;
@@ -160,8 +160,8 @@
                     flex: 1,
                     overflow: 'auto',
                     borderRadius: '6px',
-                    border: '1px solid rgba(212,175,55,0.1)',
-                    background: 'rgba(255,255,255,0.01)',
+                    border: '1px solid var(--acc-fill2, rgba(212,175,55,0.1))',
+                    background: 'var(--ov-1, rgba(255,255,255,0.01))',
                 }}>
                     <table style={{
                         borderCollapse: 'collapse',
@@ -172,14 +172,14 @@
                         fontFamily: FONT_UI,
                     }}>
                         <thead>
-                            <tr style={{ background: 'rgba(212,175,55,0.08)', position: 'sticky', top: 0, zIndex: 1 }}>
+                            <tr style={{ background: 'var(--acc-fill2, rgba(212,175,55,0.08))', position: 'sticky', top: 0, zIndex: 1 }}>
                                 <th style={{
                                     width: 28,
                                     padding: '4px 2px',
                                     textAlign: 'center',
                                     color: 'var(--silver)',
                                     fontWeight: 700,
-                                    borderBottom: '1px solid rgba(212,175,55,0.15)',
+                                    borderBottom: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))',
                                     fontSize: '0.58rem',
                                 }}>Rd</th>
                                 {Array.from({ length: leagueSize }, (_, i) => {
@@ -197,22 +197,23 @@
                                             title={isClickable ? (isPinned ? 'Unpin team' : 'Pin to Opponent Intel') : 'Your team'}
                                             style={{
                                                 padding: '0 2px 4px',
+                                                minHeight: isClickable ? '44px' : undefined,
                                                 textAlign: 'center',
                                                 fontWeight: isUser ? 800 : 600,
                                                 color: isUser ? 'var(--gold)' : isPinned ? 'var(--gold)' : 'var(--silver)',
                                                 borderBottom: '1px solid rgba(212,175,55,' + (isPinned ? '0.5' : '0.15') + ')',
                                                 background: isUser
-                                                    ? 'rgba(212,175,55,0.10)'
+                                                    ? 'var(--acc-fill2, rgba(212,175,55,0.10))'
                                                     : isPinned
-                                                        ? 'rgba(212,175,55,0.12)'
+                                                        ? 'var(--acc-fill2, rgba(212,175,55,0.12))'
                                                         : 'transparent',
                                                 width: cellWidth,
                                                 overflow: 'hidden',
                                                 cursor: isClickable ? 'pointer' : 'default',
                                                 transition: 'background 0.12s',
                                             }}
-                                            onMouseEnter={e => { if (isClickable && !isPinned) e.currentTarget.style.background = 'rgba(212,175,55,0.08)'; }}
-                                            onMouseLeave={e => { if (isClickable && !isPinned) e.currentTarget.style.background = isUser ? 'rgba(212,175,55,0.10)' : 'transparent'; }}
+                                            onMouseEnter={e => { if (isClickable && !isPinned) e.currentTarget.style.background = 'var(--acc-fill2, rgba(212,175,55,0.08))'; }}
+                                            onMouseLeave={e => { if (isClickable && !isPinned) e.currentTarget.style.background = isUser ? 'var(--acc-fill2, rgba(212,175,55,0.10))' : 'transparent'; }}
                                         >
                                             {/* Phase 7 deferred: owner accent strip — fills the column width with the owner's color */}
                                             <div style={{ height: '3px', background: accent, marginBottom: '3px' }} />
@@ -247,13 +248,13 @@
                         </thead>
                         <tbody>
                             {Array.from({ length: rounds }, (_, r) => (
-                                <tr key={r} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                                <tr key={r} style={{ borderBottom: '1px solid var(--ov-1, rgba(255,255,255,0.02))' }}>
                                     <td style={{
                                         padding: '2px 2px',
                                         textAlign: 'center',
                                         color: 'var(--gold)',
                                         fontWeight: 700,
-                                        background: 'rgba(212,175,55,0.04)',
+                                        background: 'var(--acc-fill1, rgba(212,175,55,0.04))',
                                         fontSize: '0.62rem',
                                     }}>{r + 1}</td>
                                     {Array.from({ length: leagueSize }, (_, i) => {
@@ -268,8 +269,8 @@
                                                 padding: '2px',
                                                 textAlign: 'center',
                                                 height: 34,
-                                                background: isCurrent ? 'rgba(212,175,55,0.15)' : isMe ? 'rgba(212,175,55,0.03)' : 'transparent',
-                                                outline: isCurrent ? '1px solid rgba(212,175,55,0.5)' : 'none',
+                                                background: isCurrent ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : isMe ? 'var(--acc-fill1, rgba(212,175,55,0.03))' : 'transparent',
+                                                outline: isCurrent ? '1px solid var(--acc-line3, rgba(212,175,55,0.5))' : 'none',
                                                 verticalAlign: 'middle',
                                                 position: 'relative',
                                             }}>
@@ -291,7 +292,7 @@
                                                             fontWeight: 700,
                                                             padding: '0 3px',
                                                             borderRadius: '2px',
-                                                            background: (posColors[pick.pos] || '#666') + '22',
+                                                            background: (posColors[pick.pos] || 'var(--k-666666, #666666)') + '22',
                                                             color: posColors[pick.pos] || 'var(--silver)',
                                                             display: 'inline-block',
                                                             marginTop: '1px',
@@ -305,7 +306,7 @@
                                                         animation: 'wrFadeIn 0.8s ease infinite alternate',
                                                     }}>•••</span>
                                                 ) : (
-                                                    <span style={{ color: 'rgba(255,255,255,0.12)', fontSize: '0.56rem' }}>
+                                                    <span style={{ color: 'var(--ov-6, rgba(255,255,255,0.12))', fontSize: '0.56rem' }}>
                                                         #{slot?.overall || ''}
                                                     </span>
                                                 )}
@@ -315,7 +316,7 @@
                                                         top: 1,
                                                         right: 1,
                                                         fontSize: '0.48rem',
-                                                        color: '#F0A500',
+                                                        color: 'var(--k-f0a500, #f0a500)',
                                                         fontWeight: 700,
                                                     }}>↔</span>
                                                 )}
@@ -334,9 +335,9 @@
                         marginTop: '8px',
                         padding: '10px 12px',
                         background: onTheClock.isUser
-                            ? 'linear-gradient(90deg, rgba(212,175,55,0.18), rgba(212,175,55,0.04))'
-                            : 'rgba(255,255,255,0.03)',
-                        border: '1px solid ' + (onTheClock.isUser ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.08)'),
+                            ? 'linear-gradient(90deg, var(--acc-fill3, rgba(212,175,55,0.18)), var(--acc-fill1, rgba(212,175,55,0.04)))'
+                            : 'var(--ov-2, rgba(255,255,255,0.03))',
+                        border: '1px solid ' + (onTheClock.isUser ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
                         borderRadius: '6px',
                         display: 'flex',
                         alignItems: 'center',
@@ -347,7 +348,7 @@
                             {onTheClock.avatar ? (
                                 <img
                                     src={onTheClock.avatar}
-                                    style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', border: '2px solid ' + (onTheClock.isUser ? 'var(--gold)' : 'rgba(212,175,55,0.3)') }}
+                                    style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', border: '2px solid ' + (onTheClock.isUser ? 'var(--gold)' : 'var(--acc-line2, rgba(212,175,55,0.3))') }}
                                     onError={e => e.target.style.display = 'none'}
                                     alt=""
                                 />
@@ -357,7 +358,7 @@
                                     background: 'var(--charcoal)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     fontSize: '0.9rem', color: 'var(--gold)', fontWeight: 700,
-                                    border: '2px solid rgba(212,175,55,0.3)',
+                                    border: '2px solid var(--acc-line2, rgba(212,175,55,0.3))',
                                     fontFamily: FONT_DISPL,
                                 }}>{(onTheClock.teamName || '?').charAt(0)}</div>
                             )}
@@ -366,7 +367,7 @@
                                     position: 'absolute', top: -2, right: -2,
                                     width: 10, height: 10,
                                     borderRadius: '50%',
-                                    background: '#2ECC71',
+                                    background: 'var(--k-2ecc71, #2ecc71)',
                                     border: '2px solid var(--black)',
                                     animation: 'pulse 1.2s infinite',
                                 }} />
@@ -404,8 +405,8 @@
                                         color: 'var(--gold)',
                                         padding: '0 5px',
                                         borderRadius: '3px',
-                                        background: 'rgba(212,175,55,0.15)',
-                                        border: '1px solid rgba(212,175,55,0.3)',
+                                        background: 'var(--acc-fill3, rgba(212,175,55,0.15))',
+                                        border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
                                     }}>DRAFT DNA: {onTheClock.dnaLabel}</span>
                                 )}
                                 {onTheClock.tradeDna && onTheClock.tradeDna !== 'Balanced' && onTheClock.tradeDna !== '— Not Set —' && (
@@ -415,8 +416,8 @@
                                         color: onTheClock.tradeDnaColor,
                                         padding: '0 5px',
                                         borderRadius: '3px',
-                                        background: onTheClock.tradeDnaColor + '15',
-                                        border: '1px solid ' + onTheClock.tradeDnaColor + '40',
+                                        background: wrAlpha(onTheClock.tradeDnaColor, '15'),
+                                        border: '1px solid ' + wrAlpha(onTheClock.tradeDnaColor, '40'),
                                     }}>{onTheClock.tradeDna}</span>
                                 )}
                                 {onTheClock.posture && onTheClock.posture !== 'Neutral' && (
@@ -426,18 +427,18 @@
                                         color: onTheClock.postureColor,
                                         padding: '0 5px',
                                         borderRadius: '3px',
-                                        background: onTheClock.postureColor + '15',
-                                        border: '1px solid ' + onTheClock.postureColor + '40',
+                                        background: wrAlpha(onTheClock.postureColor, '15'),
+                                        border: '1px solid ' + wrAlpha(onTheClock.postureColor, '40'),
                                     }}>{onTheClock.posture}</span>
                                 )}
                                 {state.overrideMode && !onTheClock.isUser && (
                                     <span style={{
                                         fontSize: '0.54rem',
                                         fontWeight: 700,
-                                        color: '#fff',
+                                        color: 'var(--k-ffffff, #ffffff)',
                                         padding: '1px 6px',
                                         borderRadius: '3px',
-                                        background: '#9b8afb',
+                                        background: 'var(--k-9b8afb, #9b8afb)',
                                         animation: 'pulse 1.4s infinite',
                                     }}>🎮 OVERRIDE ACTIVE</span>
                                 )}
@@ -451,12 +452,13 @@
                                 title={state.overrideMode ? 'Return control to the CPU' : 'Pick for this CPU team from the Big Board'}
                                 style={{
                                     padding: '6px 12px',
+                                    minHeight: '44px',
                                     fontSize: '0.6rem',
                                     fontFamily: FONT_UI,
                                     fontWeight: 700,
-                                    background: state.overrideMode ? '#9b8afb' : 'rgba(124,107,248,0.12)',
-                                    color: state.overrideMode ? '#fff' : 'rgba(155,138,251,0.9)',
-                                    border: '1px solid ' + (state.overrideMode ? '#9b8afb' : 'rgba(124,107,248,0.3)'),
+                                    background: state.overrideMode ? 'var(--k-9b8afb, #9b8afb)' : 'rgba(124,107,248,0.12)',
+                                    color: state.overrideMode ? 'var(--k-ffffff, #ffffff)' : 'rgba(155,138,251,0.9)',
+                                    border: '1px solid ' + (state.overrideMode ? 'var(--k-9b8afb, #9b8afb)' : 'rgba(124,107,248,0.3)'),
                                     borderRadius: '4px',
                                     cursor: 'pointer',
                                     flexShrink: 0,
