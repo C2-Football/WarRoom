@@ -499,9 +499,17 @@
                         (async () => {
                             for (const l of allLeaguesList) {
                                 await new Promise(r => setTimeout(r, 0));
+                                const lid = l.id || l.league_id;
                                 try {
                                     l.empireAssessments = window.App.assessAllTeams(l.rosters || [], players, stats, l, l.users || [], l.tradedPicks || []);
                                 } catch (e) { l.empireAssessments = []; }
+                                // Real Owner DNA for the moat: curated reads (od_owner_dna) take
+                                // precedence; transaction-behavioral inference fills the gaps.
+                                try {
+                                    const saved = (window.OD?.loadDNA ? await window.OD.loadDNA(lid).catch(() => ({})) : {}) || {};
+                                    const txns = (window.WrTxns?.fetchLeagueTxns ? await window.WrTxns.fetchLeagueTxns(lid).catch(() => []) : []) || [];
+                                    l.empireDna = window.App.buildEmpireDna ? window.App.buildEmpireDna(saved, txns, l.rosters || [], sleeperUser?.user_id) : saved;
+                                } catch (e) { l.empireDna = l.empireDna || {}; }
                             }
                             setEmpireAssessReady(Date.now());
                         })();

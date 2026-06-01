@@ -479,6 +479,61 @@ function deriveOwnerEdge(posture) {
     return { edge: 'Fair value only — no clear edge', exploit: 4, tone: 'var(--k-95a5a6, #95a5a6)' };
 }
 
+// inferDnaFromTransactions — transaction-behavioral Owner DNA (a DNA_TYPES key) per owner,
+// from a league's completed trades. Mirrors computeWeightedDNA's frequency + pick/player-flow
+// signals; the DHQ-value-graded signals (win rate, avg value diff) need per-league player
+// scores and are deferred — so this is a CONSERVATIVE read: it only emits a key on a clear
+// behavioral signal, otherwise leaves the owner unset (for curated DNA / NONE to fill).
+function inferDnaFromTransactions(transactions, rosters, myUserId) {
+    const out = {};
+    const trades = (transactions || []).filter(t => t && t.type === 'trade' && t.status !== 'failed');
+    if (trades.length < 2 || !rosters || !rosters.length) return out;
+    const ridToOwner = {};
+    rosters.forEach(r => { if (r && r.roster_id != null) ridToOwner[r.roster_id] = r.owner_id; });
+    const per = {};
+    const bump = rid => (per[rid] = per[rid] || { trades: 0, picksRecv: 0, picksSent: 0, playersRecv: 0, playersSent: 0 });
+    trades.forEach(t => {
+        (t.roster_ids || []).forEach(rid => { bump(rid).trades++; });
+        Object.values(t.adds || {}).forEach(rid => { bump(rid).playersRecv++; });
+        Object.values(t.drops || {}).forEach(rid => { bump(rid).playersSent++; });
+        (t.draft_picks || []).forEach(p => {
+            if (p.owner_id != null) bump(p.owner_id).picksRecv++;
+            if (p.previous_owner_id != null) bump(p.previous_owner_id).picksSent++;
+        });
+    });
+    const rids = Object.keys(per);
+    const avgTrades = rids.reduce((s, rid) => s + per[rid].trades, 0) / Math.max(1, rids.length);
+    rids.forEach(rid => {
+        const p = per[rid];
+        if (p.trades < 2) return;
+        const ownerId = ridToOwner[rid];
+        if (ownerId == null || (myUserId != null && String(ownerId) === String(myUserId))) return;
+        const scores = { FLEECER: 0, STALWART: 0, ACCEPTOR: 0 };
+        if (avgTrades > 0) {
+            const ratio = p.trades / avgTrades;
+            if (ratio < 0.5) scores.STALWART += 4;
+            else if (ratio > 1.75) scores.FLEECER += 3;
+        }
+        const netPicks = p.picksRecv - p.picksSent;
+        if (netPicks >= 2) scores.ACCEPTOR += 3;                                       // hoards picks → rebuilder/seller
+        if (netPicks > 0 && (p.playersSent - p.playersRecv) > 0) scores.ACCEPTOR += 2; // sells players for picks
+        let best = null, bestV = 0;
+        Object.keys(scores).forEach(k => { if (scores[k] > bestV) { bestV = scores[k]; best = k; } });
+        if (best) out[ownerId] = best;
+    });
+    return out;
+}
+
+// buildEmpireDna — real per-league Owner DNA for the moat. The user's curated reads
+// (od_owner_dna_v1_<lid>, keyed by ownerId) take precedence; transaction-behavioral inference
+// fills the gaps. Returns { [ownerId]: DNA_TYPES key }, which buildEmpireRolodex/buildEmpireMoves
+// read off league.empireDna (previously never populated, so they ran on NEUTRAL fallbacks).
+function buildEmpireDna(savedDna, transactions, rosters, myUserId) {
+    const out = { ...inferDnaFromTransactions(transactions, rosters, myUserId) };
+    Object.keys(savedDna || {}).forEach(ownerId => { if (savedDna[ownerId]) out[ownerId] = savedDna[ownerId]; });
+    return out;
+}
+
 // buildEmpireRolodex — every owner you face, across every league, ranked by edge.
 // Pure: reads league.empireAssessments (from assessAllTeams) + optional league.empireDna.
 // calcPosture is injectable for testing; defaults to the shared trade engine.
@@ -1584,6 +1639,8 @@ if (typeof window !== 'undefined') {
     window.App.buildEmpireActionQueue = buildEmpireActionQueue;
     window.App.buildEmpireBrief = buildEmpireBrief;
     window.App.buildEmpireRolodex = buildEmpireRolodex;
+    window.App.inferDnaFromTransactions = inferDnaFromTransactions;
+    window.App.buildEmpireDna = buildEmpireDna;
     window.App.buildEmpireMoves = buildEmpireMoves;
     window.App.buildEmpireConsolidation = buildEmpireConsolidation;
     window.App.buildCommandBridge = buildCommandBridge;
