@@ -85,7 +85,7 @@
         return h('span', {
             style: {
                 display: 'inline-flex', alignItems: 'center',
-                fontSize: '0.58rem', fontWeight: 700,
+                fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700,
                 padding: '1px 7px', borderRadius: '10px',
                 background: wrAlpha(t.c, '22'), color: t.c,
                 border: '1px solid ' + wrAlpha(t.c, '4d'),
@@ -110,7 +110,7 @@
         return h('span', {
             style: {
                 fontFamily: 'JetBrains Mono, monospace',
-                fontSize: '0.6rem', letterSpacing: '0.08em',
+                fontSize: 'var(--text-label, 0.75rem)', letterSpacing: '0.08em',
                 padding: '1px 7px', borderRadius: '10px',
                 background: wrAlpha(t.c, '26'), color: t.c,
                 border: '1px solid ' + wrAlpha(t.c, '4d'),
@@ -142,7 +142,7 @@
         return h('span', {
             style: {
                 display: 'inline-flex', alignItems: 'center', gap: '4px',
-                fontSize: '0.7rem', color: color,
+                fontSize: 'var(--text-label, 0.75rem)', color: color,
                 fontFamily: 'JetBrains Mono, monospace',
                 ...style,
             }
@@ -161,11 +161,11 @@
                        : 'var(--white)';
         const deltaEl = delta ? h(DeltaLine, delta) : null;
         const subEl = !deltaEl && sub
-            ? h('div', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.6, marginTop: '6px', fontFamily: 'JetBrains Mono, monospace' } }, sub)
+            ? h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginTop: '6px', fontFamily: 'JetBrains Mono, monospace' } }, sub)
             : null;
         return h(Card, { padding: '14px 16px', onClick },
             h('div', {
-                style: { fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600, marginBottom: '8px' }
+                style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600, marginBottom: '8px' }
             }, label),
             h('div', {
                 style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.85rem', fontWeight: 700, lineHeight: 1, color: valColor, letterSpacing: 0 }
@@ -210,8 +210,8 @@
             }, icon || s.icon),
             h('div', { style: { position: 'relative', zIndex: 1, minWidth: 0 } },
                 h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px', flexWrap: 'wrap' } },
-                    h('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '0.62rem', fontWeight: 700, color: color, letterSpacing: '0.12em', textTransform: 'uppercase' } }, s.label),
-                    confidence != null && h('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.6, letterSpacing: '0.06em' } },
+                    h('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: color, letterSpacing: '0.12em', textTransform: 'uppercase' } }, s.label),
+                    confidence != null && h('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, letterSpacing: '0.06em' } },
                         'CONF ',
                         h('strong', { style: { color: 'var(--silver)', opacity: 0.9, fontWeight: 700 } }, confidence + '%')
                     )
@@ -224,7 +224,7 @@
                         display: 'inline-flex', alignItems: 'center', gap: '6px',
                         padding: '6px 12px', borderRadius: '5px', minHeight: '44px',
                         background: bg, border: '1px solid ' + border, color: color,
-                        fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer',
+                        fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, cursor: 'pointer',
                         fontFamily: 'DM Sans, sans-serif',
                     }
                 }, ctaLabel, h('span', { style: { fontSize: '1rem', lineHeight: 0.8 } }, '\u203A'))

@@ -80,7 +80,7 @@
             <div style={containerCss}>
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <div style={{ fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
+                    <div style={{ fontFamily: FONT_DISPL, fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
                         Opponent Intel
                     </div>
                     {isPinned && (
@@ -113,7 +113,7 @@
                         gap: '6px',
                         color: 'var(--silver)',
                         opacity: 0.4,
-                        fontSize: '0.72rem',
+                        fontSize: 'var(--text-label, 0.75rem)',
                         textAlign: 'center',
                         padding: '20px',
                         fontFamily: FONT_UI,
@@ -147,14 +147,14 @@
                                     width: 40, height: 40, borderRadius: '50%',
                                     background: 'var(--charcoal)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: '0.9rem', color: 'var(--gold)', fontWeight: 700,
+                                    fontSize: 'var(--text-body, 1rem)', color: 'var(--gold)', fontWeight: 700,
                                     border: '2px solid var(--acc-line2, rgba(212,175,55,0.3))',
                                     fontFamily: FONT_DISPL,
                                 }}>{(persona.teamName || '?').charAt(0)}</div>
                             )}
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{
-                                    fontSize: '0.86rem',
+                                    fontSize: 'var(--text-body, 1rem)',
                                     fontWeight: 700,
                                     color: 'var(--white)',
                                     whiteSpace: 'nowrap',
@@ -164,7 +164,7 @@
                                     letterSpacing: '0.02em',
                                 }}>{isPinned && '📌 '}{persona.teamName}</div>
                                 {persona.ownerName && (
-                                    <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.6, fontFamily: FONT_UI }}>
+                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, fontFamily: FONT_UI }}>
                                         {persona.ownerName}{isMe ? ' · YOU' : ''}
                                     </div>
                                 )}
@@ -193,7 +193,7 @@
                                         const col = urgency === 'deficit' ? 'var(--k-e74c3c, #e74c3c)' : 'var(--k-d4af37, #d4af37)';
                                         return (
                                             <span key={i} style={{
-                                                fontSize: '0.56rem',
+                                                fontSize: 'var(--text-label, 0.75rem)',
                                                 fontWeight: 700,
                                                 padding: '2px 6px',
                                                 borderRadius: '10px',
@@ -219,22 +219,22 @@
                             }}>
                                 <SectionLabel>Prediction Engine</SectionLabel>
                                 {persona.predictions.likelyPick && (
-                                    <div style={{ fontSize: '0.62rem', marginBottom: '5px', color: 'var(--white)', fontFamily: FONT_UI }}>
+                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', marginBottom: '5px', color: 'var(--white)', fontFamily: FONT_UI }}>
                                         <span style={{ color: 'var(--silver)', opacity: 0.6 }}>Likely target: </span>
                                         <span style={{ fontWeight: 700 }}>{persona.predictions.likelyPick.name}</span>
-                                        <span style={{ color: 'var(--gold)', marginLeft: '4px', fontSize: '0.54rem' }}>
+                                        <span style={{ color: 'var(--gold)', marginLeft: '4px', fontSize: 'var(--text-label, 0.75rem)' }}>
                                             ({persona.predictions.likelyPick.pos})
                                         </span>
                                     </div>
                                 )}
                                 {persona.predictions.willReach?.length > 0 && (
-                                    <div style={{ fontSize: '0.58rem', color: 'var(--silver)', marginBottom: '3px', fontFamily: FONT_UI }}>
+                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginBottom: '3px', fontFamily: FONT_UI }}>
                                         <span style={{ color: 'var(--k-2ecc71, #2ecc71)', fontWeight: 700 }}>↑ Will reach: </span>
                                         {persona.predictions.willReach.map(r => r.pos + ' (+' + Math.round(r.delta * 100) + '%)').join(', ')}
                                     </div>
                                 )}
                                 {persona.predictions.willPassOn?.length > 0 && (
-                                    <div style={{ fontSize: '0.58rem', color: 'var(--silver)', fontFamily: FONT_UI }}>
+                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', fontFamily: FONT_UI }}>
                                         <span style={{ color: 'var(--k-e74c3c, #e74c3c)', fontWeight: 700 }}>↓ Will pass: </span>
                                         {persona.predictions.willPassOn.map(r => r.pos + ' (' + Math.round(r.delta * 100) + '%)').join(', ')}
                                     </div>
@@ -255,7 +255,7 @@
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'space-between',
-                                                fontSize: '0.58rem',
+                                                fontSize: 'var(--text-label, 0.75rem)',
                                                 padding: '2px 4px',
                                                 borderLeft: '2px solid ' + col,
                                                 paddingLeft: '6px',
@@ -287,7 +287,7 @@
                                 background: grudgeScore > 0 ? 'rgba(46,204,113,0.08)' : 'rgba(231,76,60,0.08)',
                                 border: '1px solid ' + (grudgeScore > 0 ? 'rgba(46,204,113,0.25)' : 'rgba(231,76,60,0.25)'),
                                 borderRadius: '4px',
-                                fontSize: '0.58rem',
+                                fontSize: 'var(--text-label, 0.75rem)',
                                 color: grudgeScore > 0 ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-e74c3c, #e74c3c)',
                                 fontFamily: FONT_UI,
                                 display: 'flex',
@@ -303,10 +303,10 @@
                         {persona.draftDna?.picksAnalyzed > 0 && (
                             <div style={{ marginTop: '8px', padding: '6px 8px', background: 'var(--ov-1, rgba(255,255,255,0.02))', borderRadius: '4px', border: '1px solid var(--ov-3, rgba(255,255,255,0.04))' }}>
                                 <SectionLabel>Draft History</SectionLabel>
-                                <div style={{ fontSize: '0.58rem', color: 'var(--silver)', lineHeight: 1.5, fontFamily: FONT_UI }}>
+                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', lineHeight: 1.5, fontFamily: FONT_UI }}>
                                     {persona.draftDna.tendency || persona.draftDna.roundProfile || ''}
                                 </div>
-                                <div style={{ fontSize: '0.52rem', color: 'var(--silver)', opacity: 0.5, marginTop: '2px' }}>
+                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5, marginTop: '2px' }}>
                                     {persona.draftDna.picksAnalyzed} picks · {persona.draftDna.seasons}
                                 </div>
                             </div>
@@ -320,7 +320,7 @@
                                 background: 'rgba(240,165,0,0.08)',
                                 border: '1px solid rgba(240,165,0,0.25)',
                                 borderRadius: '4px',
-                                fontSize: '0.54rem',
+                                fontSize: 'var(--text-label, 0.75rem)',
                                 color: 'var(--k-f0a500, #f0a500)',
                                 fontFamily: FONT_UI,
                                 lineHeight: 1.4,
@@ -372,7 +372,7 @@
     function SectionLabel({ children }) {
         return (
             <div style={{
-                fontSize: '0.54rem',
+                fontSize: 'var(--text-label, 0.75rem)',
                 fontWeight: 700,
                 color: 'var(--gold)',
                 textTransform: 'uppercase',
@@ -390,11 +390,11 @@
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '2px 0',
-                fontSize: '0.66rem',
+                fontSize: 'var(--text-label, 0.75rem)',
                 fontFamily: FONT_UI,
             }}>
                 <span style={{
-                    fontSize: '0.54rem',
+                    fontSize: 'var(--text-label, 0.75rem)',
                     fontWeight: 700,
                     color: 'var(--silver)',
                     textTransform: 'uppercase',
@@ -421,7 +421,7 @@
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: reasons.length ? '5px' : 0 }}>
                     <SectionLabel>Historical Intel</SectionLabel>
                     <span style={{
-                        fontSize: '0.52rem',
+                        fontSize: 'var(--text-label, 0.75rem)',
                         fontWeight: 800,
                         color,
                         textTransform: 'uppercase',
@@ -431,7 +431,7 @@
                 </div>
                 {reasons.map(r => (
                     <div key={r.code} title={r.source || ''} style={{
-                        fontSize: '0.58rem',
+                        fontSize: 'var(--text-label, 0.75rem)',
                         color: 'var(--silver)',
                         lineHeight: 1.35,
                         marginTop: '3px',

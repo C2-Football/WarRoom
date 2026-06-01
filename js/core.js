@@ -590,7 +590,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                 },
             }, title),
             ReactRef.createElement('div', { style: { color: 'var(--white)', fontWeight: 700, fontSize: compact ? '0.78rem' : '0.92rem', lineHeight: 1.35 } }, message),
-            !compact && ReactRef.createElement('div', { style: { fontSize: '0.78rem', lineHeight: 1.55, opacity: 0.78 } }, detail),
+            !compact && ReactRef.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', lineHeight: 1.55, opacity: 0.78 } }, detail),
             opts.actionLabel && ReactRef.createElement('button', {
                 type: 'button',
                 onClick: opts.onAction || (() => window.location.reload()),

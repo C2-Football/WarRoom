@@ -331,7 +331,7 @@
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '0.6rem',
+                fontSize: 'var(--text-micro, 0.6875rem)',
                 borderRadius: '3px',
                 border: '1px solid ' + (sortKey === key ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
                 background: sortKey === key ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
@@ -364,7 +364,7 @@
                     <div style={{ fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
                         Big Board
                     </div>
-                    <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.65, fontFamily: FONT_UI }}>
+                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, fontFamily: FONT_UI }}>
                         {state.pool.length} avail
                     </div>
                 </div>
@@ -384,15 +384,15 @@
                                 fontFamily: FONT_UI,
                                 textAlign: 'left',
                             }}>
-                                <div style={{ fontSize: '0.62rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{LANE_LABELS[lane].short}</div>
-                                <div style={{ fontSize: '0.48rem', opacity: 0.65, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{LANE_LABELS[lane].sub}</div>
+                                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{LANE_LABELS[lane].short}</div>
+                                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', opacity: 0.65, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{LANE_LABELS[lane].sub}</div>
                             </button>
                         );
                     })}
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '7px', minHeight: 18 }}>
-                    <span style={{ flex: 1, minWidth: 0, color: 'var(--silver)', opacity: 0.62, fontSize: '0.56rem', fontFamily: FONT_UI, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{laneCopy}</span>
+                    <span style={{ flex: 1, minWidth: 0, color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_UI, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{laneCopy}</span>
                     {activeLane === 'my' && boardContext?.canSeedMyBoardFromAi && (
                         <button onClick={onSeedMyBoardFromAi} style={{
                             padding: '2px 6px',
@@ -401,7 +401,7 @@
                             color: 'var(--gold)',
                             borderRadius: '4px',
                             cursor: 'pointer',
-                            fontSize: '0.52rem',
+                            fontSize: 'var(--text-micro, 0.6875rem)',
                             fontFamily: FONT_UI,
                             fontWeight: 700,
                             flexShrink: 0,
@@ -429,7 +429,7 @@
                 />
 
                 <div style={{ display: 'flex', gap: '3px', marginBottom: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.58rem', color: 'var(--silver)', opacity: 0.65, fontFamily: FONT_UI, marginRight: '2px' }}>SORT:</span>
+                    <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, fontFamily: FONT_UI, marginRight: '2px' }}>SORT:</span>
                     {sortButton('board', 'Board', 1)}
                     {sortButton('dhq', 'DHQ', -1)}
                     {sortButton('tier', 'Tier', 1)}
@@ -451,7 +451,7 @@
                             background: boardView === view.key ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'transparent',
                             color: boardView === view.key ? 'var(--gold)' : 'var(--silver)',
                             cursor: 'pointer',
-                            fontSize: '0.56rem',
+                            fontSize: 'var(--text-micro, 0.6875rem)',
                             fontFamily: FONT_UI,
                             fontWeight: 700,
                         }}>{view.label}</button>
@@ -465,7 +465,7 @@
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '0.62rem',
+                        fontSize: 'var(--text-micro, 0.6875rem)',
                         borderRadius: '10px',
                         border: '1px solid ' + (posFilter === '' ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
                         background: posFilter === '' ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
@@ -480,7 +480,7 @@
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: '0.62rem',
+                            fontSize: 'var(--text-micro, 0.6875rem)',
                             borderRadius: '10px',
                             border: '1px solid ' + (posFilter === pos ? (posColors[pos] || 'var(--k-666666, #666666)') + '66' : 'var(--ov-5, rgba(255,255,255,0.08))'),
                             background: posFilter === pos ? (posColors[pos] || 'var(--k-666666, #666666)') + '22' : 'transparent',
@@ -548,7 +548,7 @@
                                 onMouseEnter={e => e.currentTarget.style.background = 'var(--acc-fill1, rgba(212,175,55,0.06))'}
                                 onMouseLeave={e => e.currentTarget.style.background = dragPid === idOf(p) ? 'var(--acc-fill2, rgba(212,175,55,0.10))' : (idx === 0 ? 'var(--acc-fill1, rgba(212,175,55,0.045))' : 'transparent')}
                             >
-                                <span style={{ fontSize: '0.62rem', color: rowRank <= 12 ? 'var(--gold)' : 'var(--ov-8, rgba(255,255,255,0.34))', textAlign: 'right', fontFamily: FONT_MONO }}>{rowRank}</span>
+                                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: rowRank <= 12 ? 'var(--gold)' : 'var(--ov-8, rgba(255,255,255,0.34))', textAlign: 'right', fontFamily: FONT_MONO }}>{rowRank}</span>
                                 <div style={{ minWidth: 0 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
                                         <span style={{ color: 'var(--white)', fontWeight: 700, fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: p._drafted ? 'line-through' : 'none' }}>{p.name}</span>
@@ -556,7 +556,7 @@
                                             <span style={{
                                                 flexShrink: 0,
                                                 color: b.rankDelta > 0 ? 'var(--good)' : 'var(--bad)',
-                                                fontSize: '0.52rem',
+                                                fontSize: 'var(--text-micro, 0.6875rem)',
                                                 fontFamily: FONT_MONO,
                                                 border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
                                                 borderRadius: '3px',
@@ -564,11 +564,11 @@
                                             }}>{signed(b.rankDelta)}</span>
                                         )}
                                         {tag && (
-                                            <span style={{ flexShrink: 0, color: tag.color, fontSize: '0.5rem', fontWeight: 800, border: '1px solid ' + wrAlpha(tag.color, '55'), background: wrAlpha(tag.color, '18'), borderRadius: '3px', padding: '0 4px' }}>{tag.label}</span>
+                                            <span style={{ flexShrink: 0, color: tag.color, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, border: '1px solid ' + wrAlpha(tag.color, '55'), background: wrAlpha(tag.color, '18'), borderRadius: '3px', padding: '0 4px' }}>{tag.label}</span>
                                         )}
                                     </div>
                                     {showSecondLine && (
-                                        <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: '0.56rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                             {boardView === 'fit' && p.fit?.score != null ? 'Fit ' + p.fit.score + ' · ' : ''}
                                             {boardView === 'scout' && (p.college || p.team || p.nflTeam) ? (p.college || p.team || p.nflTeam) + ' · ' : ''}
                                             {boardView === 'value' ? win.label + (win.years != null ? ' ' + win.years + 'yr · ' : ' · ') : ''}
@@ -576,10 +576,10 @@
                                         </div>
                                     )}
                                 </div>
-                                <span style={{ fontSize: '0.56rem', fontWeight: 800, padding: '1px 5px', borderRadius: '3px', background: wrAlpha(posColor, '22'), color: posColor, textAlign: 'center', fontFamily: FONT_UI }}>{p.pos}</span>
-                                <span style={{ color: col, fontSize: '0.62rem', fontWeight: 800, fontFamily: FONT_MONO, textAlign: 'right' }}>{fmt(p.dhq)}</span>
-                                <span style={{ color: b.projections?.y5 >= (p.dhq || 0) ? 'var(--good)' : 'var(--silver)', fontSize: '0.58rem', fontFamily: FONT_MONO, textAlign: 'right' }}>Y5 {fmt(b.projections?.y5)}</span>
-                                <span style={{ color: win.color, fontSize: '0.52rem', fontWeight: 800, textAlign: 'center', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '3px', padding: '1px 2px' }}>{win.label}</span>
+                                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, padding: '1px 5px', borderRadius: '3px', background: wrAlpha(posColor, '22'), color: posColor, textAlign: 'center', fontFamily: FONT_UI }}>{p.pos}</span>
+                                <span style={{ color: col, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, fontFamily: FONT_MONO, textAlign: 'right' }}>{fmt(p.dhq)}</span>
+                                <span style={{ color: b.projections?.y5 >= (p.dhq || 0) ? 'var(--good)' : 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, textAlign: 'right' }}>Y5 {fmt(b.projections?.y5)}</span>
+                                <span style={{ color: win.color, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, textAlign: 'center', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '3px', padding: '1px 2px' }}>{win.label}</span>
                                 {(isUserTurn || state.overrideMode || state.mode === 'manual') && (
                                     <button
                                         onClick={e => { e.stopPropagation(); onDraft(p); }}
@@ -590,7 +590,7 @@
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            fontSize: '0.58rem',
+                                            fontSize: 'var(--text-micro, 0.6875rem)',
                                             fontFamily: FONT_UI,
                                             fontWeight: 800,
                                             background: state.overrideMode ? 'var(--purple)' : 'var(--gold)',
@@ -678,7 +678,7 @@
                                             fontFamily: FONT_UI,
                                             fontWeight: 800,
                                         }}>NOTE</button>
-                                        {note && <span style={{ minWidth: 0, flex: 1, color: 'var(--silver)', opacity: 0.58, fontSize: '0.52rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{note}</span>}
+                                        {note && <span style={{ minWidth: 0, flex: 1, color: 'var(--silver)', opacity: 0.58, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{note}</span>}
                                     </div>
                                 )}
                             </div>

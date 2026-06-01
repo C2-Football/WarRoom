@@ -15,8 +15,8 @@
             return React.createElement(React.Fragment, null,
                 children,
                 React.createElement('div', { style: { textAlign:'center', padding:'12px', background:'var(--acc-fill1, rgba(212,175,55,0.06))', border:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius:'8px', marginTop:'12px' } },
-                    React.createElement('div', { style: { fontSize:'0.82rem', color:'var(--gold)', fontWeight:700, marginBottom:'4px' } }, 'Free preview — upgrade to keep using this feature'),
-                    React.createElement('button', { onClick: () => setTasteUsed(true), style: { padding:'6px 16px', background:'var(--gold)', color:'var(--black)', border:'none', borderRadius:'6px', fontFamily:'Rajdhani, sans-serif', fontSize:'0.9rem', cursor:'pointer' } }, 'Got it')
+                    React.createElement('div', { style: { fontSize:'var(--text-body, 1rem)', color:'var(--gold)', fontWeight:700, marginBottom:'4px' } }, 'Free preview — upgrade to keep using this feature'),
+                    React.createElement('button', { onClick: () => setTasteUsed(true), style: { padding:'6px 16px', background:'var(--gold)', color:'var(--black)', border:'none', borderRadius:'6px', fontFamily:'Rajdhani, sans-serif', fontSize:'var(--text-body, 1rem)', cursor:'pointer' } }, 'Got it')
                 )
             );
         }
@@ -26,12 +26,12 @@
 
         return React.createElement('div', { style: { background:'linear-gradient(135deg, var(--off-black), var(--charcoal))', border:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius:'var(--card-radius)', padding:'24px', textAlign:'center', maxWidth:'480px', margin:'24px auto' } },
             React.createElement('div', { style: { fontFamily:'Rajdhani, sans-serif', fontSize:'1.6rem', color:'var(--gold)', letterSpacing:'0.06em', marginBottom:'8px' } }, title || 'UPGRADE TO UNLOCK'),
-            React.createElement('div', { style: { fontSize:'0.88rem', color:'var(--silver)', lineHeight:1.7, marginBottom:'16px' } }, description || 'This feature requires a paid subscription.'),
+            React.createElement('div', { style: { fontSize:'var(--text-body, 1rem)', color:'var(--silver)', lineHeight:1.7, marginBottom:'16px' } }, description || 'This feature requires a paid subscription.'),
             React.createElement('div', { style: { display:'flex', gap:'10px', justifyContent:'center', marginBottom:'12px' } },
                 React.createElement('button', { onClick: () => { window.location.href = 'landing.html'; }, style: { padding:'10px 24px', background:'var(--gold)', color:'var(--black)', border:'none', borderRadius:'6px', fontFamily:'Rajdhani, sans-serif', fontSize:'1.1rem', letterSpacing:'0.05em', cursor:'pointer' } }, 'Unlock ' + tierLabel + ' — ' + tierPrice),
             ),
-            React.createElement('div', { style: { fontSize:'0.76rem', color:'var(--silver)', opacity:0.5 } }, 'Currently on Scout (free) plan'),
-            onClose ? React.createElement('button', { onClick: onClose, style: { marginTop:'10px', background:'none', border:'none', color:'var(--silver)', cursor:'pointer', fontSize:'0.78rem' } }, 'Maybe later') : null
+            React.createElement('div', { style: { fontSize:'var(--text-body, 1rem)', color:'var(--silver)', opacity:0.5 } }, 'Currently on Scout (free) plan'),
+            onClose ? React.createElement('button', { onClick: onClose, style: { marginTop:'10px', background:'none', border:'none', color:'var(--silver)', cursor:'pointer', fontSize:'var(--text-body, 1rem)' } }, 'Maybe later') : null
         );
     }
     window.UpgradeGate = UpgradeGate;
@@ -93,7 +93,7 @@
                 ),
                 React.createElement('div', { style:{flex:1} },
                     React.createElement('div', { style:{ fontFamily:'Rajdhani, sans-serif', fontSize:'1.2rem', color: 'var(--text-primary)', letterSpacing:'0.02em' } }, name),
-                    React.createElement('div', { style:{ fontSize:'0.78rem', color:'var(--silver)' } }, nPos+' \u00B7 '+(p.team||'FA')+' \u00B7 Age '+(age||'?')+(p.college ? ' \u00B7 '+p.college : ''))
+                    React.createElement('div', { style:{ fontSize:'var(--text-body, 1rem)', color:'var(--silver)' } }, nPos+' \u00B7 '+(p.team||'FA')+' \u00B7 Age '+(age||'?')+(p.college ? ' \u00B7 '+p.college : ''))
                 ),
                 React.createElement('button', { onClick:onClose, style:{ background:'none', border:'none', color: 'var(--text-muted)', cursor:'pointer', fontSize:'1.1rem', padding:'2px', minWidth:'44px', minHeight:'44px', display:'flex', alignItems:'center', justifyContent:'center' } }, '\u2715')
             ),
@@ -107,19 +107,19 @@
                 ].map(function(s,i){ var dhqFilled=s.gauge?Math.round(Math.min(10,dhq/1000)):0; var gCol=dhq>=7000?'filled-green':dhq>=4000?'filled':'filled-red'; return React.createElement('div', { key:i, style:{textAlign:'center'} },
                     React.createElement('div', { style:{ fontFamily:'JetBrains Mono, monospace', fontSize:'1rem', fontWeight:600, color:s.col } }, s.val),
                     s.gauge ? React.createElement('div', { className:'wr-gauge', style:{marginTop:'2px'} }, Array.from({length:10}, function(_,gi){ return React.createElement('div', { key:gi, className:'wr-gauge-seg'+(gi<dhqFilled?' '+gCol:'') }); })) : null,
-                    React.createElement('div', { style:{ fontSize:'0.68rem', color: 'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em' } }, s.lbl)
+                    React.createElement('div', { style:{ fontSize:'var(--text-label, 0.75rem)', color: 'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em' } }, s.lbl)
                 ); })
             ),
             // Age curve visualization
             React.createElement('div', { style:{ padding:'8px 16px' } },
                 React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px' } },
-                    React.createElement('div', { style:{ fontSize:'0.68rem', color: 'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700 } }, 'Age Curve'),
-                    React.createElement('div', { style:{ fontSize:'0.72rem', color:peakCol } }, peakLabel+' \u00B7 '+(peakYrs > 0 ? peakYrs+'yr peak left' : valueYrs > 0 ? valueYrs+'yr value left' : 'Past value window'))
+                    React.createElement('div', { style:{ fontSize:'var(--text-label, 0.75rem)', color: 'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700 } }, 'Age Curve'),
+                    React.createElement('div', { style:{ fontSize:'var(--text-label, 0.75rem)', color:peakCol } }, peakLabel+' \u00B7 '+(peakYrs > 0 ? peakYrs+'yr peak left' : valueYrs > 0 ? valueYrs+'yr value left' : 'Past value window'))
                 ),
                 React.createElement('div', { style:{ display:'flex', height:'16px', borderRadius:'4px', overflow:'hidden', gap:'1px' } },
-                    ...Array.from({length:17}, function(_,i){ var a=i+20; var col=a<pLo-3?'rgba(96,165,250,0.3)':a<pLo?'rgba(46,204,113,0.45)':(a>=pLo&&a<=pHi)?'rgba(46,204,113,0.75)':a<=declineHi?'var(--acc-line3, rgba(212,175,55,0.45))':'rgba(231,76,60,0.35)'; return React.createElement('div', { key:a, style:{ flex:1, background:col, opacity:a===age?1:0.55, outline:a===age?'2px solid var(--k-d4af37, #d4af37)':'none', outlineOffset:'-1px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.6rem', fontWeight:700, color:a===age?'var(--text-primary)':'transparent' } }, a===age?String(age):''); })
+                    ...Array.from({length:17}, function(_,i){ var a=i+20; var col=a<pLo-3?'rgba(96,165,250,0.3)':a<pLo?'rgba(46,204,113,0.45)':(a>=pLo&&a<=pHi)?'rgba(46,204,113,0.75)':a<=declineHi?'var(--acc-line3, rgba(212,175,55,0.45))':'rgba(231,76,60,0.35)'; return React.createElement('div', { key:a, style:{ flex:1, background:col, opacity:a===age?1:0.55, outline:a===age?'2px solid var(--k-d4af37, #d4af37)':'none', outlineOffset:'-1px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'var(--text-label, 0.75rem)', fontWeight:700, color:a===age?'var(--text-primary)':'transparent' } }, a===age?String(age):''); })
                 ),
-                React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', fontSize:'0.64rem', color: 'var(--text-muted)', marginTop:'2px' } },
+                React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', fontSize:'var(--text-label, 0.75rem)', color: 'var(--text-muted)', marginTop:'2px' } },
                     React.createElement('span', null, '20'),
                     React.createElement('span', null, 'Peak '+pLo+'\u2013'+pHi),
                     React.createElement('span', null, '36')
@@ -127,8 +127,8 @@
             ),
             // Recommendation line — Alex Ingram insight (persona-aware)
             React.createElement('div', { style:{ padding:'6px 12px', margin:'0 8px', background:'var(--acc-fill1, rgba(212,175,55,0.04))', borderLeft:'3px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius:'0 6px 6px 0', display:'flex', gap:'6px', alignItems:'flex-start' } },
-                React.createElement('div', { style:{ width:'18px', height:'18px', borderRadius:'5px', background:'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'0.5rem', fontWeight:800, color:'var(--k-0a0a0a, #0a0a0a)', fontFamily:'Rajdhani, sans-serif', marginTop:'2px' } }, 'AI'),
-                React.createElement('div', { style:{ fontSize:'0.78rem', color:'var(--silver)', lineHeight:1.5 } },
+                React.createElement('div', { style:{ width:'18px', height:'18px', borderRadius:'5px', background:'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'var(--text-label, 0.75rem)', fontWeight:800, color:'var(--k-0a0a0a, #0a0a0a)', fontFamily:'Rajdhani, sans-serif', marginTop:'2px' } }, 'AI'),
+                React.createElement('div', { style:{ fontSize:'var(--text-body, 1rem)', color:'var(--silver)', lineHeight:1.5 } },
                     (() => {
                         const S = window.S || {};
                         const rosters = S.rosters || [];
@@ -171,8 +171,8 @@
             ),
             // Action buttons
             React.createElement('div', { style:{ padding:'10px 16px', display:'flex', gap:'6px', borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
-                React.createElement('button', { onClick:onFullProfile, style:{ flex:1, padding:'8px', minHeight:'44px', background:'var(--k-d4af37, #d4af37)', color:'var(--k-0a0a0a, #0a0a0a)', border:'none', borderRadius:'6px', fontFamily:'Rajdhani, sans-serif', fontSize:'0.9rem', cursor:'pointer' } }, 'FULL PROFILE'),
-                React.createElement('button', { onClick:onClose, style:{ padding:'8px 14px', minHeight:'44px', background:'transparent', border:'1px solid var(--acc-line2, rgba(212,175,55,0.3))', color:'var(--k-d4af37, #d4af37)', borderRadius:'6px', fontFamily:'Rajdhani, sans-serif', fontSize:'0.9rem', cursor:'pointer' } }, 'CLOSE')
+                React.createElement('button', { onClick:onFullProfile, style:{ flex:1, padding:'8px', minHeight:'44px', background:'var(--k-d4af37, #d4af37)', color:'var(--k-0a0a0a, #0a0a0a)', border:'none', borderRadius:'6px', fontFamily:'Rajdhani, sans-serif', fontSize:'var(--text-body, 1rem)', cursor:'pointer' } }, 'FULL PROFILE'),
+                React.createElement('button', { onClick:onClose, style:{ padding:'8px 14px', minHeight:'44px', background:'transparent', border:'1px solid var(--acc-line2, rgba(212,175,55,0.3))', color:'var(--k-d4af37, #d4af37)', borderRadius:'6px', fontFamily:'Rajdhani, sans-serif', fontSize:'var(--text-body, 1rem)', cursor:'pointer' } }, 'CLOSE')
             )
         );
     }
@@ -242,9 +242,9 @@
                 React.createElement(AlexAvatar, { size: 20 }),
                 React.createElement('div', { style: { flex: 1 } },
                     React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '1px' } },
-                        React.createElement('span', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', letterSpacing: '0.03em' } }, 'Alex Ingram')
+                        React.createElement('span', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', letterSpacing: '0.03em' } }, 'Alex Ingram')
                     ),
-                    React.createElement('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.4 } }, children)
+                    React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.4 } }, children)
                 )
             );
         }
@@ -256,13 +256,13 @@
                 React.createElement(AlexAvatar, { size: 28 }),
                 React.createElement('div', { style: { flex: 1 } },
                     React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
-                        React.createElement('span', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '0.86rem', color: 'var(--gold)', letterSpacing: '0.03em' } }, 'Alex Ingram')
+                        React.createElement('span', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-body, 1rem)', color: 'var(--gold)', letterSpacing: '0.03em' } }, 'Alex Ingram')
                     ),
-                    React.createElement('span', { style: { fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.35 } }, now)
+                    React.createElement('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.35 } }, now)
                 )
             ),
-            title && React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: '0.78rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' } }, title),
-            React.createElement('div', { style: { fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.4 } }, children)
+            title && React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' } }, title),
+            React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.4 } }, children)
         );
     }
     window.GMMessage = GMMessage;
@@ -315,11 +315,11 @@
         // College stats section
         if (collegeHtml) {
             sections.push(React.createElement('div', { key: 'college', style: { marginBottom: html ? '14px' : 0 } },
-                React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' } },
+                React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' } },
                     'College Stats',
-                    collegeData && React.createElement('span', { style: { fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.5, textTransform: 'none', fontFamily: 'inherit', letterSpacing: 0 } }, collegeData.school + ' \u00B7 ' + collegeData.conf + ' \u00B7 ' + collegeData.years)
+                    collegeData && React.createElement('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5, textTransform: 'none', fontFamily: 'inherit', letterSpacing: 0 } }, collegeData.school + ' \u00B7 ' + collegeData.conf + ' \u00B7 ' + collegeData.years)
                 ),
-                React.createElement('div', { dangerouslySetInnerHTML: { __html: collegeHtml }, style: { fontSize: '13px' } })
+                React.createElement('div', { dangerouslySetInnerHTML: { __html: collegeHtml }, style: { fontSize: 'var(--text-body, 1rem)' } })
             ));
         }
 
@@ -327,17 +327,17 @@
         const isRookie = (player?.years_exp || 0) === 0;
         if (html && !isRookie) {
             sections.push(React.createElement('div', { key: 'nfl' },
-                React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' } }, 'NFL Stats'),
-                React.createElement('div', { dangerouslySetInnerHTML: { __html: html }, style: { fontSize: '13px' } })
+                React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' } }, 'NFL Stats'),
+                React.createElement('div', { dangerouslySetInnerHTML: { __html: html }, style: { fontSize: 'var(--text-body, 1rem)' } })
             ));
         } else if (loading && !isRookie) {
-            sections.push(React.createElement('div', { key: 'loading', style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.5 } }, 'Loading stats...'));
+            sections.push(React.createElement('div', { key: 'loading', style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.5 } }, 'Loading stats...'));
         }
 
         if (!sections.length) {
             sections.push(React.createElement('div', { key: 'empty' },
-                React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' } }, 'Career Stats'),
-                React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.5 } }, 'No stats available')
+                React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' } }, 'Career Stats'),
+                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.5 } }, 'No stats available')
             ));
         }
 
@@ -457,7 +457,7 @@
                 },
                     React.createElement('div', { style: { fontSize: '2rem', marginBottom: '12px' } }, '\u26A0\uFE0F'),
                     React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.4rem', color: 'var(--white)', marginBottom: '8px' } }, 'Something went wrong'),
-                    React.createElement('div', { style: { fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.6, marginBottom: '16px' } },
+                    React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.6, marginBottom: '16px' } },
                         'War Room encountered an error. This usually fixes itself on reload.'),
                     React.createElement('button', {
                         onClick: () => { this.setState({ hasError: false, error: null }); },
@@ -467,7 +467,7 @@
                         onClick: () => window.location.reload(),
                         style: { padding: '10px 24px', background: 'transparent', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', fontFamily: 'var(--font-body)', fontSize: '1rem', cursor: 'pointer' }
                     }, 'Reload Page'),
-                    React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.5, marginTop: '12px' } },
+                    React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5, marginTop: '12px' } },
                         String(this.state.error?.message || '').substring(0, 100))
                 );
             }
@@ -645,53 +645,53 @@
 
         return React.createElement('div', null,
             // Time context banner
-            isProjected ? React.createElement('div', { style:{fontSize:'0.76rem',color:'var(--k-3498db, #3498db)',background:'rgba(52,152,219,0.08)',border:'1px solid rgba(52,152,219,0.2)',borderRadius:'6px',padding:'6px 12px',marginBottom:'10px',display:'flex',alignItems:'center',gap:'6px'} },
+            isProjected ? React.createElement('div', { style:{fontSize:'var(--text-body, 1rem)',color:'var(--k-3498db, #3498db)',background:'rgba(52,152,219,0.08)',border:'1px solid rgba(52,152,219,0.2)',borderRadius:'6px',padding:'6px 12px',marginBottom:'10px',display:'flex',alignItems:'center',gap:'6px'} },
                 React.createElement('span', null, 'Evaluated in '+evalYear+' (Projected Values)'),
             ) : null,
-            React.createElement('div', {style:{fontSize:'0.78rem',color:'var(--silver)',opacity:0.65,marginBottom:'0.75rem',lineHeight:1.5}}, 'Select any player to generate trade proposals. Shows offers within 20% value variance ranked by acceptance likelihood. ', React.createElement(Tip, null, 'Builds 1-for-1, 2-for-1, and player+pick combos. Acceptance % uses DNA type, psychological taxes, and trade posture.')),
+            React.createElement('div', {style:{fontSize:'var(--text-body, 1rem)',color:'var(--silver)',opacity:0.65,marginBottom:'0.75rem',lineHeight:1.5}}, 'Select any player to generate trade proposals. Shows offers within 20% value variance ranked by acceptance likelihood. ', React.createElement(Tip, null, 'Builds 1-for-1, 2-for-1, and player+pick combos. Acceptance % uses DNA type, psychological taxes, and trade posture.')),
             React.createElement('div', {style:{display:'flex',gap:'0.5rem',marginBottom:'1rem'}},
-                React.createElement('button', {onClick:()=>{setFinderMode('my');setFinderAsset(null);setFinderResults(null);setShowMoonshots(false);},style:{padding:'7px 16px',fontSize:'0.78rem',fontFamily: 'var(--font-body)',textTransform:'uppercase',background:finderMode==='my'?'var(--gold)':'var(--ov-3, rgba(255,255,255,0.04))',color:finderMode==='my'?'var(--black)':'var(--silver)',border:'1px solid '+(finderMode==='my'?'var(--gold)':'var(--ov-5, rgba(255,255,255,0.08))'),borderRadius:'4px',cursor:'pointer'}}, 'Trade My Player'),
-                React.createElement('button', {onClick:()=>{setFinderMode('acquire');setFinderAsset(null);setFinderResults(null);setShowMoonshots(false);},style:{padding:'7px 16px',fontSize:'0.78rem',fontFamily: 'var(--font-body)',textTransform:'uppercase',background:finderMode==='acquire'?'var(--gold)':'var(--ov-3, rgba(255,255,255,0.04))',color:finderMode==='acquire'?'var(--black)':'var(--silver)',border:'1px solid '+(finderMode==='acquire'?'var(--gold)':'var(--ov-5, rgba(255,255,255,0.08))'),borderRadius:'4px',cursor:'pointer'}}, 'Acquire a Player')
+                React.createElement('button', {onClick:()=>{setFinderMode('my');setFinderAsset(null);setFinderResults(null);setShowMoonshots(false);},style:{padding:'7px 16px',fontSize:'var(--text-body, 1rem)',fontFamily: 'var(--font-body)',textTransform:'uppercase',background:finderMode==='my'?'var(--gold)':'var(--ov-3, rgba(255,255,255,0.04))',color:finderMode==='my'?'var(--black)':'var(--silver)',border:'1px solid '+(finderMode==='my'?'var(--gold)':'var(--ov-5, rgba(255,255,255,0.08))'),borderRadius:'4px',cursor:'pointer'}}, 'Trade My Player'),
+                React.createElement('button', {onClick:()=>{setFinderMode('acquire');setFinderAsset(null);setFinderResults(null);setShowMoonshots(false);},style:{padding:'7px 16px',fontSize:'var(--text-body, 1rem)',fontFamily: 'var(--font-body)',textTransform:'uppercase',background:finderMode==='acquire'?'var(--gold)':'var(--ov-3, rgba(255,255,255,0.04))',color:finderMode==='acquire'?'var(--black)':'var(--silver)',border:'1px solid '+(finderMode==='acquire'?'var(--gold)':'var(--ov-5, rgba(255,255,255,0.08))'),borderRadius:'4px',cursor:'pointer'}}, 'Acquire a Player')
             ),
-            React.createElement('div', {style:{fontSize:'0.74rem',color:'var(--gold)',textTransform:'uppercase',marginBottom:'0.3rem',fontWeight:700}}, finderMode==='my'?'Select your player to shop':'Select a player to acquire'),
+            React.createElement('div', {style:{fontSize:'var(--text-label, 0.75rem)',color:'var(--gold)',textTransform:'uppercase',marginBottom:'0.3rem',fontWeight:700}}, finderMode==='my'?'Select your player to shop':'Select a player to acquire'),
             React.createElement('div', {style:{display:'flex',flexWrap:'wrap',gap:'0.35rem',maxHeight:'200px',overflowY:'auto',marginBottom:'1rem',padding:'10px',background:'var(--ov-1, rgba(255,255,255,0.02))',borderRadius:'8px',border:'1px solid var(--acc-fill2, rgba(212,175,55,0.12))'}},
                 ...(finderMode==='my'?myPlayers:allLeaguePlayers).slice(0,60).map(p=>
-                    React.createElement('button', {key:p.pid, onClick:()=>{setFinderAsset(p.pid);setFinderResults(null);setShowMoonshots(false);generateTrades(p.pid,finderMode);}, style:{padding:'5px 12px',fontSize:'0.74rem',fontFamily: 'var(--font-body)',borderRadius:'4px',cursor:'pointer',background:finderAsset===p.pid?'var(--gold)':'var(--ov-3, rgba(255,255,255,0.04))',color:finderAsset===p.pid?'var(--black)':'var(--silver)',border:'1px solid '+(finderAsset===p.pid?'var(--gold)':'var(--ov-4, rgba(255,255,255,0.06))')}}, p.name+' '+p.val.toLocaleString())
+                    React.createElement('button', {key:p.pid, onClick:()=>{setFinderAsset(p.pid);setFinderResults(null);setShowMoonshots(false);generateTrades(p.pid,finderMode);}, style:{padding:'5px 12px',fontSize:'var(--text-label, 0.75rem)',fontFamily: 'var(--font-body)',borderRadius:'4px',cursor:'pointer',background:finderAsset===p.pid?'var(--gold)':'var(--ov-3, rgba(255,255,255,0.04))',color:finderAsset===p.pid?'var(--black)':'var(--silver)',border:'1px solid '+(finderAsset===p.pid?'var(--gold)':'var(--ov-4, rgba(255,255,255,0.06))')}}, p.name+' '+p.val.toLocaleString())
                 )
             ),
-            finderResults && !finderResults.length ? React.createElement('div', {style:{color:'var(--silver)',fontSize:'0.82rem',textAlign:'center',padding:'2rem'}}, 'No viable trades found within 20% value variance.') : null,
-            finderResults && finderResults.length && !visibleFinderResults.length ? React.createElement('div', {style:{color:'var(--silver)',fontSize:'0.82rem',textAlign:'center',padding:'2rem'}}, 'No actionable trades clear '+actionableAcceptanceFloor+'% acceptance.') : null,
-            hiddenMoonshotCount ? React.createElement('button', {onClick:()=>setShowMoonshots(v=>!v), style:{padding:'6px 12px',fontSize:'0.72rem',fontFamily:'var(--font-body)',textTransform:'uppercase',background:'var(--ov-3, rgba(255,255,255,0.04))',color:'var(--gold)',border:'1px solid var(--acc-line1, rgba(212,175,55,0.22))',borderRadius:'4px',cursor:'pointer',marginBottom:'0.75rem'}}, showMoonshots ? 'Hide moonshots' : 'Show '+hiddenMoonshotCount+' moonshot'+(hiddenMoonshotCount===1?'':'s')) : null,
+            finderResults && !finderResults.length ? React.createElement('div', {style:{color:'var(--silver)',fontSize:'var(--text-body, 1rem)',textAlign:'center',padding:'2rem'}}, 'No viable trades found within 20% value variance.') : null,
+            finderResults && finderResults.length && !visibleFinderResults.length ? React.createElement('div', {style:{color:'var(--silver)',fontSize:'var(--text-body, 1rem)',textAlign:'center',padding:'2rem'}}, 'No actionable trades clear '+actionableAcceptanceFloor+'% acceptance.') : null,
+            hiddenMoonshotCount ? React.createElement('button', {onClick:()=>setShowMoonshots(v=>!v), style:{padding:'6px 12px',fontSize:'var(--text-label, 0.75rem)',fontFamily:'var(--font-body)',textTransform:'uppercase',background:'var(--ov-3, rgba(255,255,255,0.04))',color:'var(--gold)',border:'1px solid var(--acc-line1, rgba(212,175,55,0.22))',borderRadius:'4px',cursor:'pointer',marginBottom:'0.75rem'}}, showMoonshots ? 'Hide moonshots' : 'Show '+hiddenMoonshotCount+' moonshot'+(hiddenMoonshotCount===1?'':'s')) : null,
             visibleFinderResults ? visibleFinderResults.map((r,ri) =>
                 React.createElement('div', {key:ri, style:{marginBottom:'1.25rem'}, className:'wr-fade-in'},
                     React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.5rem',paddingBottom:'0.4rem',borderBottom:'1px solid var(--acc-fill3, rgba(212,175,55,0.15))'}},
                         React.createElement('span', {style:{fontFamily:'Rajdhani, sans-serif',fontSize:'1rem',color:'var(--white)'}}, r.team.ownerName),
-                        React.createElement('span', {style:{fontSize:'0.72rem',color:'var(--silver)',opacity:0.65}}, r.team.teamName),
-                        React.createElement('span', {style:{fontSize:'0.7rem',fontWeight:700,color:r.team.tierColor,background:r.team.tierBg,padding:'0.15rem 0.4rem',borderRadius:'3px'}}, r.team.tier),
-                        r.dnaKey!=='NONE'?React.createElement('span', {style:{fontSize:'0.7rem',color:(DNA_TYPES[r.dnaKey]||{}).color,fontWeight:700}}, (DNA_TYPES[r.dnaKey]||{}).label):null
+                        React.createElement('span', {style:{fontSize:'var(--text-label, 0.75rem)',color:'var(--silver)',opacity:0.65}}, r.team.teamName),
+                        React.createElement('span', {style:{fontSize:'var(--text-label, 0.75rem)',fontWeight:700,color:r.team.tierColor,background:r.team.tierBg,padding:'0.15rem 0.4rem',borderRadius:'3px'}}, r.team.tier),
+                        r.dnaKey!=='NONE'?React.createElement('span', {style:{fontSize:'var(--text-label, 0.75rem)',color:(DNA_TYPES[r.dnaKey]||{}).color,fontWeight:700}}, (DNA_TYPES[r.dnaKey]||{}).label):null
                     ),
                     ...r.trades.map((t,ti) => {
                         const giveT=t.give.reduce((s,p)=>s+p.val,0)+t.givePicks.reduce((s,p)=>s+(p.val||0),0);
                         const getT=t.receive.reduce((s,p)=>s+p.val,0)+t.receivePicks.reduce((s,p)=>s+(p.val||0),0);
                         return React.createElement('div', {key:ti, style:{background:'var(--ov-1, rgba(255,255,255,0.02))',border:'1px solid var(--acc-fill3, rgba(212,175,55,0.15))',borderRadius:'8px',padding:'0.75rem',marginBottom:'0.5rem'}},
                             React.createElement('div', {style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.5rem'}},
-                                React.createElement('span', {style:{fontSize:'0.74rem',color:'var(--gold)',fontWeight:700,textTransform:'uppercase'}}, t.type),
+                                React.createElement('span', {style:{fontSize:'var(--text-label, 0.75rem)',color:'var(--gold)',fontWeight:700,textTransform:'uppercase'}}, t.type),
                                 React.createElement('div', {style:{display:'flex',gap:'0.5rem',alignItems:'center'}},
-                                    React.createElement('span', {style:{fontSize:'0.74rem',color:t.diff>=0?'var(--win-green)':'var(--loss-red)'}}, (t.diff>=0?'You gain ':'You give ')+Math.abs(Math.round(t.diff)).toLocaleString()+' '+valueShortLabel),
-                                    React.createElement('span', {style:{fontSize:'0.78rem',fontWeight:700,color:t.likelihood>=60?'var(--win-green)':t.likelihood>=40?'var(--k-f0a500, #f0a500)':'var(--loss-red)',background:(t.likelihood>=60?'rgba(46,204,113,0.1)':t.likelihood>=40?'rgba(240,165,0,0.1)':'rgba(231,76,60,0.1)'),padding:'0.15rem 0.5rem',borderRadius:'4px'}}, Math.round(t.likelihood)+'%')
+                                    React.createElement('span', {style:{fontSize:'var(--text-label, 0.75rem)',color:t.diff>=0?'var(--win-green)':'var(--loss-red)'}}, (t.diff>=0?'You gain ':'You give ')+Math.abs(Math.round(t.diff)).toLocaleString()+' '+valueShortLabel),
+                                    React.createElement('span', {style:{fontSize:'var(--text-body, 1rem)',fontWeight:700,color:t.likelihood>=60?'var(--win-green)':t.likelihood>=40?'var(--k-f0a500, #f0a500)':'var(--loss-red)',background:(t.likelihood>=60?'rgba(46,204,113,0.1)':t.likelihood>=40?'rgba(240,165,0,0.1)':'rgba(231,76,60,0.1)'),padding:'0.15rem 0.5rem',borderRadius:'4px'}}, Math.round(t.likelihood)+'%')
                                 )
                             ),
                             React.createElement('div', {style:{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:'0.5rem',alignItems:'start'}},
                                 React.createElement('div', null,
-                                    React.createElement('div', {style:{fontSize:'0.7rem',color:'var(--loss-red)',textTransform:'uppercase',marginBottom:'0.25rem',fontWeight:700}}, 'Send ('+giveT.toLocaleString()+')'),
-                                    ...t.give.map(p=>React.createElement('div', {key:p.pid,style:{fontSize:'0.78rem',color:'var(--white)',fontWeight:600}}, pName(p.pid), React.createElement('span', {style:{color:'var(--silver)',fontSize:'0.72rem',marginLeft:'4px'}}, pPos(p.pid)+' '+p.val.toLocaleString()))),
-                                    ...t.givePicks.map((pk,i)=>React.createElement('div', {key:'gp'+i,style:{fontSize:'0.78rem',color:'var(--gold)',fontWeight:600}}, (pk.year||pk.season)+' R'+pk.round))
+                                    React.createElement('div', {style:{fontSize:'var(--text-label, 0.75rem)',color:'var(--loss-red)',textTransform:'uppercase',marginBottom:'0.25rem',fontWeight:700}}, 'Send ('+giveT.toLocaleString()+')'),
+                                    ...t.give.map(p=>React.createElement('div', {key:p.pid,style:{fontSize:'var(--text-body, 1rem)',color:'var(--white)',fontWeight:600}}, pName(p.pid), React.createElement('span', {style:{color:'var(--silver)',fontSize:'var(--text-label, 0.75rem)',marginLeft:'4px'}}, pPos(p.pid)+' '+p.val.toLocaleString()))),
+                                    ...t.givePicks.map((pk,i)=>React.createElement('div', {key:'gp'+i,style:{fontSize:'var(--text-body, 1rem)',color:'var(--gold)',fontWeight:600}}, (pk.year||pk.season)+' R'+pk.round))
                                 ),
                                 React.createElement('div', {style:{fontSize:'1.1rem',color:'var(--gold)',alignSelf:'center',fontWeight:700}}, '\u21C4'),
                                 React.createElement('div', null,
-                                    React.createElement('div', {style:{fontSize:'0.7rem',color:'var(--win-green)',textTransform:'uppercase',marginBottom:'0.25rem',fontWeight:700}}, 'Get ('+getT.toLocaleString()+')'),
-                                    ...t.receive.map(p=>React.createElement('div', {key:p.pid,style:{fontSize:'0.78rem',color:'var(--white)',fontWeight:600}}, pName(p.pid), React.createElement('span', {style:{color:'var(--silver)',fontSize:'0.72rem',marginLeft:'4px'}}, pPos(p.pid)+' '+p.val.toLocaleString()))),
-                                    ...t.receivePicks.map((pk,i)=>React.createElement('div', {key:'rp'+i,style:{fontSize:'0.78rem',color:'var(--gold)',fontWeight:600}}, (pk.year||pk.season)+' R'+pk.round))
+                                    React.createElement('div', {style:{fontSize:'var(--text-label, 0.75rem)',color:'var(--win-green)',textTransform:'uppercase',marginBottom:'0.25rem',fontWeight:700}}, 'Get ('+getT.toLocaleString()+')'),
+                                    ...t.receive.map(p=>React.createElement('div', {key:p.pid,style:{fontSize:'var(--text-body, 1rem)',color:'var(--white)',fontWeight:600}}, pName(p.pid), React.createElement('span', {style:{color:'var(--silver)',fontSize:'var(--text-label, 0.75rem)',marginLeft:'4px'}}, pPos(p.pid)+' '+p.val.toLocaleString()))),
+                                    ...t.receivePicks.map((pk,i)=>React.createElement('div', {key:'rp'+i,style:{fontSize:'var(--text-body, 1rem)',color:'var(--gold)',fontWeight:600}}, (pk.year||pk.season)+' R'+pk.round))
                                 )
                             ),
                             // Multi-year delta + window impact
@@ -701,15 +701,15 @@
                                 if (!multiYear) return null;
                                 return React.createElement('div', {style:{display:'flex',gap:'10px',alignItems:'center',marginTop:'8px',paddingTop:'8px',borderTop:'1px solid var(--ov-3, rgba(255,255,255,0.04))',flexWrap:'wrap'}},
                                     // Multi-year trend
-                                    ...multiYear.map((yr,yi) => React.createElement('span', {key:yi, style:{fontSize:'0.72rem',color:yr.diff>=0?'var(--k-2ecc71, #2ecc71)':'var(--k-e74c3c, #e74c3c)',fontWeight:600}},
+                                    ...multiYear.map((yr,yi) => React.createElement('span', {key:yi, style:{fontSize:'var(--text-label, 0.75rem)',color:yr.diff>=0?'var(--k-2ecc71, #2ecc71)':'var(--k-e74c3c, #e74c3c)',fontWeight:600}},
                                         (yr.diff>=0?'+':'')+Math.round(yr.diff).toLocaleString()+' ('+yr.year+')'
                                     )),
                                     // Trend arrow
-                                    React.createElement('span', {style:{fontSize:'0.72rem',color:multiYear[2].diff>multiYear[0].diff?'var(--k-2ecc71, #2ecc71)':multiYear[2].diff<multiYear[0].diff?'var(--k-e74c3c, #e74c3c)':'var(--silver)'}},
+                                    React.createElement('span', {style:{fontSize:'var(--text-label, 0.75rem)',color:multiYear[2].diff>multiYear[0].diff?'var(--k-2ecc71, #2ecc71)':multiYear[2].diff<multiYear[0].diff?'var(--k-e74c3c, #e74c3c)':'var(--silver)'}},
                                         multiYear[2].diff>multiYear[0].diff?'\uD83D\uDCC8 improving':multiYear[2].diff<multiYear[0].diff?'\uD83D\uDCC9 declining':'\u27A1 neutral'
                                     ),
                                     // Window impact
-                                    React.createElement('span', {style:{fontSize:'0.72rem',color:winImpact.col,marginLeft:'auto',fontWeight:600}}, winImpact.icon+' '+winImpact.label)
+                                    React.createElement('span', {style:{fontSize:'var(--text-label, 0.75rem)',color:winImpact.col,marginLeft:'auto',fontWeight:600}}, winImpact.icon+' '+winImpact.label)
                                 );
                             })()
                         );
@@ -724,11 +724,11 @@
     const DEV_MODE = new URLSearchParams(window.location.search).has('dev') || window.location.hostname.includes('sandbox') || IS_LOCAL;
     const DEV_DEBUG = new URLSearchParams(window.location.search).get('dev') === 'true';
     if (DEV_MODE) {
-        console.log('%c[DEV MODE] All features unlocked, auth bypassed','color:var(--k-d4af37, #d4af37);font-weight:bold;font-size:14px');
+        console.log('%c[DEV MODE] All features unlocked, auth bypassed','color:var(--k-d4af37, #d4af37);font-weight:bold;font-size:var(--text-body, 1rem)');
         document.documentElement.style.setProperty('--wr-dev-banner-height', '18px');
         const b = document.createElement('div');
         b.className = 'wr-dev-banner';
-        b.style.cssText = 'position:fixed;top:0;left:0;right:0;height:18px;box-sizing:border-box;z-index:99999;background:var(--k-d4af37, #d4af37);color:var(--k-000000, #000000);font-size:11px;font-weight:700;text-align:center;padding:3px;letter-spacing:.05em;font-family:monospace;line-height:12px;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+        b.style.cssText = 'position:fixed;top:0;left:0;right:0;height:18px;box-sizing:border-box;z-index:99999;background:var(--k-d4af37, #d4af37);color:var(--k-000000, #000000);font-size:var(--text-label, 0.75rem);font-weight:700;text-align:center;padding:3px;letter-spacing:.05em;font-family:monospace;line-height:12px;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
         b.textContent = IS_LOCAL ? '⚡ LOCAL DEV — bigloco auto-logged in, all features unlocked' : 'SANDBOX — changes here do not affect production';
         document.body.prepend(b);
     }

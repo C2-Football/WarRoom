@@ -111,7 +111,7 @@
         footer.style.cssText = 'text-align:center;font-size:18px;color:var(--k-95a5a6, #95a5a6);opacity:0.7';
         footer.innerHTML = `
             <div>Mock Draft · ${state.mode || 'solo'} · ${state.rounds}R × ${state.leagueSize}T</div>
-            <div style="margin-top:6px;font-size:14px;opacity:0.5">warroom.skjjcruz.com</div>
+            <div style="margin-top:6px;font-size:var(--text-body, 1rem);opacity:0.5">warroom.skjjcruz.com</div>
         `;
         card.appendChild(footer);
 

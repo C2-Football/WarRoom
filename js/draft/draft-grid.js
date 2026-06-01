@@ -147,10 +147,10 @@
             <div style={containerCss}>
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <div style={{ fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
+                    <div style={{ fontFamily: FONT_DISPL, fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
                         Draft Grid
                     </div>
-                    <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.6, fontFamily: FONT_UI }}>
+                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, fontFamily: FONT_UI }}>
                         Pick {state.currentIdx} / {state.pickOrder.length}
                     </div>
                 </div>
@@ -165,7 +165,7 @@
                 }}>
                     <table style={{
                         borderCollapse: 'collapse',
-                        fontSize: '0.62rem',
+                        fontSize: 'var(--text-label, 0.75rem)',
                         width: '100%',
                         minWidth: (leagueSize * cellWidth + 30) + 'px',
                         tableLayout: 'fixed',
@@ -180,7 +180,7 @@
                                     color: 'var(--silver)',
                                     fontWeight: 700,
                                     borderBottom: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))',
-                                    fontSize: '0.58rem',
+                                    fontSize: 'var(--text-label, 0.75rem)',
                                 }}>Rd</th>
                                 {Array.from({ length: leagueSize }, (_, i) => {
                                     const label = teamLabel(i);
@@ -226,12 +226,12 @@
                                                     whiteSpace: 'nowrap',
                                                     overflow: 'hidden',
                                                     textOverflow: 'ellipsis',
-                                                    fontSize: '0.62rem',
+                                                    fontSize: 'var(--text-label, 0.75rem)',
                                                 }}>{isPinned && '📌 '}{label}</div>
                                             </div>
                                             {dna && (
                                                 <div style={{
-                                                    fontSize: '0.5rem',
+                                                    fontSize: 'var(--text-label, 0.75rem)',
                                                     color: 'var(--gold)',
                                                     opacity: 0.7,
                                                     marginTop: '1px',
@@ -255,7 +255,7 @@
                                         color: 'var(--gold)',
                                         fontWeight: 700,
                                         background: 'var(--acc-fill1, rgba(212,175,55,0.04))',
-                                        fontSize: '0.62rem',
+                                        fontSize: 'var(--text-label, 0.75rem)',
                                     }}>{r + 1}</td>
                                     {Array.from({ length: leagueSize }, (_, i) => {
                                         const key = (r + 1) + '-' + i;
@@ -282,13 +282,13 @@
                                                             overflow: 'hidden',
                                                             textOverflow: 'ellipsis',
                                                             whiteSpace: 'nowrap',
-                                                            fontSize: '0.6rem',
+                                                            fontSize: 'var(--text-label, 0.75rem)',
                                                             padding: '0 2px',
                                                         }}>
                                                             {pick.name.split(' ').slice(-1)[0]}
                                                         </div>
                                                         <span style={{
-                                                            fontSize: '0.5rem',
+                                                            fontSize: 'var(--text-label, 0.75rem)',
                                                             fontWeight: 700,
                                                             padding: '0 3px',
                                                             borderRadius: '2px',
@@ -302,11 +302,11 @@
                                                     <span style={{
                                                         color: 'var(--gold)',
                                                         fontWeight: 800,
-                                                        fontSize: '0.9rem',
+                                                        fontSize: 'var(--text-body, 1rem)',
                                                         animation: 'wrFadeIn 0.8s ease infinite alternate',
                                                     }}>•••</span>
                                                 ) : (
-                                                    <span style={{ color: 'var(--ov-6, rgba(255,255,255,0.12))', fontSize: '0.56rem' }}>
+                                                    <span style={{ color: 'var(--ov-6, rgba(255,255,255,0.12))', fontSize: 'var(--text-label, 0.75rem)' }}>
                                                         #{slot?.overall || ''}
                                                     </span>
                                                 )}
@@ -315,7 +315,7 @@
                                                         position: 'absolute',
                                                         top: 1,
                                                         right: 1,
-                                                        fontSize: '0.48rem',
+                                                        fontSize: 'var(--text-label, 0.75rem)',
                                                         color: 'var(--k-f0a500, #f0a500)',
                                                         fontWeight: 700,
                                                     }}>↔</span>
@@ -357,7 +357,7 @@
                                     width: 42, height: 42, borderRadius: '50%',
                                     background: 'var(--charcoal)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: '0.9rem', color: 'var(--gold)', fontWeight: 700,
+                                    fontSize: 'var(--text-body, 1rem)', color: 'var(--gold)', fontWeight: 700,
                                     border: '2px solid var(--acc-line2, rgba(212,175,55,0.3))',
                                     fontFamily: FONT_DISPL,
                                 }}>{(onTheClock.teamName || '?').charAt(0)}</div>
@@ -377,7 +377,7 @@
                         {/* Info */}
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{
-                                fontSize: '0.6rem',
+                                fontSize: 'var(--text-label, 0.75rem)',
                                 fontWeight: 800,
                                 color: 'var(--gold)',
                                 textTransform: 'uppercase',
@@ -385,7 +385,7 @@
                                 fontFamily: FONT_UI,
                             }}>{onTheClock.isUser ? 'YOU ARE ON THE CLOCK' : 'ON THE CLOCK'}</div>
                             <div style={{
-                                fontSize: '0.92rem',
+                                fontSize: 'var(--text-body, 1rem)',
                                 fontWeight: 700,
                                 color: 'var(--white)',
                                 whiteSpace: 'nowrap',
@@ -395,12 +395,12 @@
                                 letterSpacing: '0.02em',
                             }}>{onTheClock.teamName}</div>
                             <div style={{ display: 'flex', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: '0.56rem', color: 'var(--silver)', opacity: 0.7 }}>
+                                <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.7 }}>
                                     R{currentSlot.round} · Pick #{currentSlot.overall}
                                 </span>
                                 {onTheClock.dnaLabel && onTheClock.dnaLabel !== 'Balanced' && (
                                     <span style={{
-                                        fontSize: '0.54rem',
+                                        fontSize: 'var(--text-label, 0.75rem)',
                                         fontWeight: 700,
                                         color: 'var(--gold)',
                                         padding: '0 5px',
@@ -411,7 +411,7 @@
                                 )}
                                 {onTheClock.tradeDna && onTheClock.tradeDna !== 'Balanced' && onTheClock.tradeDna !== '— Not Set —' && (
                                     <span style={{
-                                        fontSize: '0.54rem',
+                                        fontSize: 'var(--text-label, 0.75rem)',
                                         fontWeight: 700,
                                         color: onTheClock.tradeDnaColor,
                                         padding: '0 5px',
@@ -422,7 +422,7 @@
                                 )}
                                 {onTheClock.posture && onTheClock.posture !== 'Neutral' && (
                                     <span style={{
-                                        fontSize: '0.54rem',
+                                        fontSize: 'var(--text-label, 0.75rem)',
                                         fontWeight: 700,
                                         color: onTheClock.postureColor,
                                         padding: '0 5px',
@@ -433,7 +433,7 @@
                                 )}
                                 {state.overrideMode && !onTheClock.isUser && (
                                     <span style={{
-                                        fontSize: '0.54rem',
+                                        fontSize: 'var(--text-label, 0.75rem)',
                                         fontWeight: 700,
                                         color: 'var(--k-ffffff, #ffffff)',
                                         padding: '1px 6px',
@@ -453,7 +453,7 @@
                                 style={{
                                     padding: '6px 12px',
                                     minHeight: '44px',
-                                    fontSize: '0.6rem',
+                                    fontSize: 'var(--text-label, 0.75rem)',
                                     fontFamily: FONT_UI,
                                     fontWeight: 700,
                                     background: state.overrideMode ? 'var(--k-9b8afb, #9b8afb)' : 'rgba(124,107,248,0.12)',

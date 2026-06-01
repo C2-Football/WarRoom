@@ -83,54 +83,54 @@
                     React.createElement('div', { className: 'product-card-title' }, 'NOTES FROM THE FRONT'),
                     React.createElement('div', { className: 'product-card-subtitle' }, 'Intel logged in your Scout sessions')
                 ),
-                React.createElement('button', { onClick: handleManualSync, disabled: syncing, style: { flexShrink:0,background:'none',border:'1px solid rgba(124,107,248,0.4)',borderRadius:6,color:'var(--k-7c6bf8, #7c6bf8)',fontSize:'0.72rem',padding:'4px 10px',cursor:'pointer',fontFamily:'inherit',fontWeight:700,opacity:syncing?0.5:1,minHeight:'44px',display:'inline-flex',alignItems:'center',justifyContent:'center' } },
+                React.createElement('button', { onClick: handleManualSync, disabled: syncing, style: { flexShrink:0,background:'none',border:'1px solid rgba(124,107,248,0.4)',borderRadius:6,color:'var(--k-7c6bf8, #7c6bf8)',fontSize:'var(--text-label, 0.75rem)',padding:'4px 10px',cursor:'pointer',fontFamily:'inherit',fontWeight:700,opacity:syncing?0.5:1,minHeight:'44px',display:'inline-flex',alignItems:'center',justifyContent:'center' } },
                     syncing ? '↻ Syncing…' : '↻ Refresh'
                 )
             ),
             // Body
             entries === null
-                ? React.createElement('div', { style: { padding:'1rem 0',textAlign:'center',color:'var(--silver)',fontSize:'0.78rem' } }, 'Loading field log…')
+                ? React.createElement('div', { style: { padding:'1rem 0',textAlign:'center',color:'var(--silver)',fontSize:'var(--text-body, 1rem)' } }, 'Loading field log…')
                 : entries.length === 0
                 ? (noSupabase
                     ? React.createElement('div', { style: { padding:'1.5rem 0',textAlign:'center' } },
                         React.createElement('div', { style: { fontSize:'1.6rem',marginBottom:'0.5rem' } }, '🔌'),
-                        React.createElement('div', { style: { fontSize:'0.78rem',color:'var(--silver)',lineHeight:1.6 } }, 'Connect your Scout account to see field notes.')
+                        React.createElement('div', { style: { fontSize:'var(--text-body, 1rem)',color:'var(--silver)',lineHeight:1.6 } }, 'Connect your Scout account to see field notes.')
                       )
                     : React.createElement('div', { style: { padding:'1.5rem 0',textAlign:'center' } },
                         React.createElement('div', { style: { fontSize:'2rem',marginBottom:'0.5rem' } }, '📋'),
-                        React.createElement('div', { style: { fontSize:'0.78rem',color:'var(--silver)',lineHeight:1.6 } }, 'No field log entries yet. Actions you take in War Room Scout — trade scenarios, draft targets, waiver bids — will appear here automatically after syncing.')
+                        React.createElement('div', { style: { fontSize:'var(--text-body, 1rem)',color:'var(--silver)',lineHeight:1.6 } }, 'No field log entries yet. Actions you take in War Room Scout — trade scenarios, draft targets, waiver bids — will appear here automatically after syncing.')
                       )
                   )
                 : React.createElement('div', { style: { maxHeight:'340px',overflowY:'auto',paddingRight:'2px' } },
                     grouped.map(function(group) {
                         return React.createElement('div', { key: group.label, style: { marginBottom:'14px' } },
-                            React.createElement('div', { style: { fontSize:'0.64rem',fontWeight:700,color:'var(--silver)',textTransform:'uppercase',letterSpacing:'0.08em',padding:'0 0 5px',borderBottom:'1px solid var(--ov-4, rgba(255,255,255,0.06))',marginBottom:'6px',opacity:0.7 } }, group.label),
+                            React.createElement('div', { style: { fontSize:'var(--text-label, 0.75rem)',fontWeight:700,color:'var(--silver)',textTransform:'uppercase',letterSpacing:'0.08em',padding:'0 0 5px',borderBottom:'1px solid var(--ov-4, rgba(255,255,255,0.06))',marginBottom:'6px',opacity:0.7 } }, group.label),
                             group.items.map(function(entry, idx) {
                                 var timeStr = new Date(entry.ts).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
                                 var catColor = FL_CAT_COLORS[entry.category] || 'var(--k-808080, #808080)';
                                 var targetLeague = entry.leagueId ? leagues.find(function(l) { return l.id === entry.leagueId; }) : null;
                                 return React.createElement('div', { key: entry.id || idx, style: { display:'flex',gap:'8px',alignItems:'flex-start',padding:'5px 0',borderBottom:'1px solid var(--ov-2, rgba(255,255,255,0.03))' } },
-                                    React.createElement('span', { style: { fontSize:'0.88rem',flexShrink:0,marginTop:'1px' } }, entry.icon || FL_CAT_ICONS[entry.category] || '📋'),
+                                    React.createElement('span', { style: { fontSize:'var(--text-body, 1rem)',flexShrink:0,marginTop:'1px' } }, entry.icon || FL_CAT_ICONS[entry.category] || '📋'),
                                     React.createElement('div', { style: { flex:1,minWidth:0 } },
-                                        React.createElement('div', { style: { fontSize:'0.8rem',color:'var(--white)',lineHeight:1.35 } }, entry.text),
-                                        entry.players && entry.players.length > 0 && React.createElement('div', { style: { fontSize:'0.68rem',color:'var(--k-7c6bf8, #7c6bf8)',marginTop:'2px' } }, entry.players.map(function(p){ return p.name||p; }).join(', ')),
-                                        entry.context && React.createElement('div', { style: { fontSize:'0.72rem',color:'var(--silver)',marginTop:'2px',fontStyle:'italic',opacity:0.8,lineHeight:1.3 } }, entry.context),
+                                        React.createElement('div', { style: { fontSize:'var(--text-body, 1rem)',color:'var(--white)',lineHeight:1.35 } }, entry.text),
+                                        entry.players && entry.players.length > 0 && React.createElement('div', { style: { fontSize:'var(--text-label, 0.75rem)',color:'var(--k-7c6bf8, #7c6bf8)',marginTop:'2px' } }, entry.players.map(function(p){ return p.name||p; }).join(', ')),
+                                        entry.context && React.createElement('div', { style: { fontSize:'var(--text-label, 0.75rem)',color:'var(--silver)',marginTop:'2px',fontStyle:'italic',opacity:0.8,lineHeight:1.3 } }, entry.context),
                                         React.createElement('div', { style: { display:'flex',gap:'5px',alignItems:'center',marginTop:'3px',flexWrap:'wrap' } },
-                                            React.createElement('span', { style: { fontSize:'0.64rem',color:catColor,fontWeight:700,textTransform:'uppercase' } }, entry.category),
-                                            React.createElement('span', { style: { fontSize:'0.64rem',color:'var(--silver)',opacity:0.4 } }, '·'),
-                                            React.createElement('span', { style: { fontSize:'0.64rem',color:'var(--silver)',opacity:0.6 } }, timeStr),
-                                            targetLeague && React.createElement('span', { style: { fontSize:'0.64rem',color:'var(--silver)',opacity:0.4 } }, '·'),
-                                            targetLeague && React.createElement('span', { style: { fontSize:'0.64rem',color:'var(--silver)',opacity:0.7 } }, targetLeague.name)
+                                            React.createElement('span', { style: { fontSize:'var(--text-label, 0.75rem)',color:catColor,fontWeight:700,textTransform:'uppercase' } }, entry.category),
+                                            React.createElement('span', { style: { fontSize:'var(--text-label, 0.75rem)',color:'var(--silver)',opacity:0.4 } }, '·'),
+                                            React.createElement('span', { style: { fontSize:'var(--text-label, 0.75rem)',color:'var(--silver)',opacity:0.6 } }, timeStr),
+                                            targetLeague && React.createElement('span', { style: { fontSize:'var(--text-label, 0.75rem)',color:'var(--silver)',opacity:0.4 } }, '·'),
+                                            targetLeague && React.createElement('span', { style: { fontSize:'var(--text-label, 0.75rem)',color:'var(--silver)',opacity:0.7 } }, targetLeague.name)
                                         )
                                     ),
-                                    targetLeague && onOpenLeague && React.createElement('button', { onClick: function(){ onOpenLeague(targetLeague, entry.category); }, style: { flexShrink:0,background:'none',border:'1px solid var(--acc-line2, rgba(212,175,55,0.35))',borderRadius:4,color:'var(--gold)',fontSize:'0.62rem',padding:'2px 7px',cursor:'pointer',fontFamily:'inherit',fontWeight:700,marginTop:'1px',minHeight:'44px',minWidth:'44px',display:'inline-flex',alignItems:'center',justifyContent:'center' } }, 'OPEN →')
+                                    targetLeague && onOpenLeague && React.createElement('button', { onClick: function(){ onOpenLeague(targetLeague, entry.category); }, style: { flexShrink:0,background:'none',border:'1px solid var(--acc-line2, rgba(212,175,55,0.35))',borderRadius:4,color:'var(--gold)',fontSize:'var(--text-label, 0.75rem)',padding:'2px 7px',cursor:'pointer',fontFamily:'inherit',fontWeight:700,marginTop:'1px',minHeight:'44px',minWidth:'44px',display:'inline-flex',alignItems:'center',justifyContent:'center' } }, 'OPEN →')
                                 );
                             })
                         );
                     })
                   ),
             // Footer
-            entries !== null && pendingCount > 0 && React.createElement('div', { style: { marginTop:'8px',paddingTop:'8px',borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))',fontSize:'0.68rem',color:'var(--silver)',opacity:0.7 } }, pendingCount + ' entries pending sync from Scout. Open War Room Scout to push them.')
+            entries !== null && pendingCount > 0 && React.createElement('div', { style: { marginTop:'8px',paddingTop:'8px',borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))',fontSize:'var(--text-label, 0.75rem)',color:'var(--silver)',opacity:0.7 } }, pendingCount + ' entries pending sync from Scout. Open War Room Scout to push them.')
         );
     }
 
@@ -161,29 +161,29 @@
                             React.createElement('span', { style: { fontSize: 13, fontWeight: 800, color: 'var(--k-ffffff, #ffffff)' } }, 'E')
                         ),
                         React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-                            React.createElement('div', { style: { fontSize: '0.86rem', fontWeight: 600, color: 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, l.name),
-                            React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', marginTop: 2 } },
+                            React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', fontWeight: 600, color: 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, l.name),
+                            React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginTop: 2 } },
                                 (l.rosters || []).length + ' teams · ' + l.season + ' · ESPN'
                             )
                         ),
-                        React.createElement('span', { style: { fontSize: '0.64rem', fontWeight: 800, background: RED, color: 'var(--k-ffffff, #ffffff)', borderRadius: 4, padding: '2px 6px', flexShrink: 0 } }, 'ESPN')
+                        React.createElement('span', { style: { fontSize: 'var(--text-label, 0.75rem)', fontWeight: 800, background: RED, color: 'var(--k-ffffff, #ffffff)', borderRadius: 4, padding: '2px 6px', flexShrink: 0 } }, 'ESPN')
                     );
                 }),
                 React.createElement('a', {
                     href: espnScoutUrl(leagues[0]._espnLeagueId),
                     target: '_blank', rel: 'noopener noreferrer',
                     className: 'hub-cta',
-                    style: { textDecoration: 'none', background: RED, marginTop: 4, display: 'block', textAlign: 'center', padding: '10px', borderRadius: 8, fontSize: '0.78rem', fontWeight: 700, color: 'var(--k-ffffff, #ffffff)', letterSpacing: '.06em' }
+                    style: { textDecoration: 'none', background: RED, marginTop: 4, display: 'block', textAlign: 'center', padding: '10px', borderRadius: 8, fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--k-ffffff, #ffffff)', letterSpacing: '.06em' }
                 }, 'OPEN IN WAR ROOM SCOUT →'),
                 React.createElement('button', {
                     onClick: function() { /* allow reconnecting */ },
-                    style: { background: 'none', border: 'none', color: 'var(--silver)', fontSize: '0.72rem', cursor: 'pointer', marginTop: 6, padding: 0 }
+                    style: { background: 'none', border: 'none', color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)', cursor: 'pointer', marginTop: 6, padding: 0 }
                 }, '+ Connect another league')
             );
         }
 
         return React.createElement('div', null,
-            React.createElement('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', marginBottom: '0.75rem', lineHeight: 1.6 } },
+            React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', marginBottom: '0.75rem', lineHeight: 1.6 } },
                 'Connect any ESPN Fantasy Football league. Your League ID is in the URL: fantasy.espn.com/football/league?leagueId=',
                 React.createElement('strong', { style: { color: 'var(--white)' } }, '123456')
             ),
@@ -192,17 +192,17 @@
                 value: leagueId,
                 onChange: function(e) { setLeagueId(e.target.value); },
                 onKeyDown: function(e) { if (e.key === 'Enter') onConnect(leagueId, espnS2, swid); },
-                style: { width: '100%', fontSize: '0.9rem', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', background: 'var(--charcoal)', color: 'var(--white)', boxSizing: 'border-box', marginBottom: 8, fontFamily: 'inherit' }
+                style: { width: '100%', fontSize: 'var(--text-body, 1rem)', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', background: 'var(--charcoal)', color: 'var(--white)', boxSizing: 'border-box', marginBottom: 8, fontFamily: 'inherit' }
             }),
             React.createElement('div', {
                 onClick: function() { setShowCreds(!showCreds); },
-                style: { fontSize: '0.72rem', color: 'var(--silver)', cursor: 'pointer', marginBottom: showCreds ? 8 : 0, display: 'flex', alignItems: 'center', gap: 4 }
+                style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', cursor: 'pointer', marginBottom: showCreds ? 8 : 0, display: 'flex', alignItems: 'center', gap: 4 }
             },
                 React.createElement('span', null, showCreds ? '▾' : '▸'),
                 ' Private league? Add cookies for access'
             ),
             showCreds && React.createElement('div', { style: { marginBottom: 8 } },
-                React.createElement('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', lineHeight: 1.5, marginBottom: 6 } },
+                React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', lineHeight: 1.5, marginBottom: 6 } },
                     'F12 → Application → Cookies → fantasy.espn.com — copy espn_s2 and SWID values.'
                 ),
                 React.createElement('input', {
@@ -210,20 +210,20 @@
                     type: 'password',
                     value: espnS2,
                     onChange: function(e) { setEspnS2(e.target.value); },
-                    style: { width: '100%', fontSize: '0.78rem', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', background: 'var(--charcoal)', color: 'var(--white)', boxSizing: 'border-box', marginBottom: 6, fontFamily: 'monospace' }
+                    style: { width: '100%', fontSize: 'var(--text-body, 1rem)', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', background: 'var(--charcoal)', color: 'var(--white)', boxSizing: 'border-box', marginBottom: 6, fontFamily: 'monospace' }
                 }),
                 React.createElement('input', {
                     placeholder: 'SWID cookie value {XXXXXXXX-...}',
                     value: swid,
                     onChange: function(e) { setSwid(e.target.value); },
-                    style: { width: '100%', fontSize: '0.78rem', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', background: 'var(--charcoal)', color: 'var(--white)', boxSizing: 'border-box', fontFamily: 'monospace' }
+                    style: { width: '100%', fontSize: 'var(--text-body, 1rem)', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', background: 'var(--charcoal)', color: 'var(--white)', boxSizing: 'border-box', fontFamily: 'monospace' }
                 })
             ),
-            error && React.createElement('div', { style: { fontSize: '0.75rem', color: 'var(--k-e74c3c, #e74c3c)', marginBottom: 8, padding: '6px 10px', background: 'rgba(231,76,60,0.08)', borderRadius: 6, lineHeight: 1.5 } }, error),
+            error && React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--k-e74c3c, #e74c3c)', marginBottom: 8, padding: '6px 10px', background: 'rgba(231,76,60,0.08)', borderRadius: 6, lineHeight: 1.5 } }, error),
             React.createElement('button', {
                 onClick: function() { onConnect(leagueId, espnS2, swid); },
                 disabled: connecting,
-                style: { width: '100%', padding: '10px', background: connecting ? 'rgba(204,0,0,0.5)' : RED, color: 'var(--k-ffffff, #ffffff)', border: 'none', borderRadius: 8, fontSize: '0.82rem', fontWeight: 700, cursor: connecting ? 'not-allowed' : 'pointer', letterSpacing: '.05em', fontFamily: 'inherit' }
+                style: { width: '100%', padding: '10px', background: connecting ? 'rgba(204,0,0,0.5)' : RED, color: 'var(--k-ffffff, #ffffff)', border: 'none', borderRadius: 8, fontSize: 'var(--text-body, 1rem)', fontWeight: 700, cursor: connecting ? 'not-allowed' : 'pointer', letterSpacing: '.05em', fontFamily: 'inherit' }
             }, connecting ? 'Connecting...' : 'CONNECT ESPN LEAGUE')
         );
     }
@@ -617,9 +617,9 @@
             const accentBg = 'var(--acc-fill2, rgba(212,175,55,0.08))';
             const accentBorder = 'var(--acc-line2, rgba(212,175,55,0.3))';
             if (!sleeperUsername) return null;
-            if (loading) return <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--silver)', fontSize: '0.82rem' }}>Loading leagues...</div>;
-            if (error) return <div style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--k-e74c3c, #e74c3c)', fontSize: '0.82rem' }}>{error}</div>;
-            if (sleeperLeagues.length === 0) return <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--silver)', fontSize: '0.82rem' }}>No leagues found for {selectedYear}</div>;
+            if (loading) return <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--silver)', fontSize: 'var(--text-body, 1rem)' }}>Loading leagues...</div>;
+            if (error) return <div style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--k-e74c3c, #e74c3c)', fontSize: 'var(--text-body, 1rem)' }}>{error}</div>;
+            if (sleeperLeagues.length === 0) return <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--silver)', fontSize: 'var(--text-body, 1rem)' }}>No leagues found for {selectedYear}</div>;
 
             const tier = typeof getUserTier === 'function' ? getUserTier() : 'free';
             // Pre-live: treat everyone as paid so Empire is a free tool for now.
@@ -639,10 +639,10 @@
                             <div style={{ width: '36px', height: '36px', flexShrink: 0 }}><ProTierIcon size={36} /></div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                                    <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--white)' }}>Upgrade to War Room</span>
-                                    <span style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--gold)', background: 'var(--acc-fill3, rgba(212,175,55,0.15))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '10px', padding: '1px 7px', letterSpacing: '0.04em' }}>$4.99/mo</span>
+                                    <span style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--white)' }}>Upgrade to War Room</span>
+                                    <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: 'var(--gold)', background: 'var(--acc-fill3, rgba(212,175,55,0.15))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '10px', padding: '1px 7px', letterSpacing: '0.04em' }}>$4.99/mo</span>
                                 </div>
-                                <div style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.6 }}>Unlock full AI analysis · All leagues · Owner DNA</div>
+                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6 }}>Unlock full AI analysis · All leagues · Owner DNA</div>
                             </div>
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--acc-line3, rgba(212,175,55,0.5))" strokeWidth="2.5" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6"/></svg>
                         </div>
@@ -655,10 +655,10 @@
                             <div style={{ width: '36px', height: '36px', flexShrink: 0 }}><ProTierIcon size={36} /></div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                                    <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--gold)' }}>Launch Empire Dashboard</span>
-                                    <span style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--k-2ecc71, #2ecc71)', background: 'rgba(46,204,113,0.15)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: '10px', padding: '1px 7px', letterSpacing: '0.04em' }}>PRO</span>
+                                    <span style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--gold)' }}>Launch Empire Dashboard</span>
+                                    <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: 'var(--k-2ecc71, #2ecc71)', background: 'rgba(46,204,113,0.15)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: '10px', padding: '1px 7px', letterSpacing: '0.04em' }}>PRO</span>
                                 </div>
-                                <div style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.6 }}>All {sleeperLeagues.length} league{sleeperLeagues.length !== 1 ? 's' : ''} · Cross-league intel · Player exposure</div>
+                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6 }}>All {sleeperLeagues.length} league{sleeperLeagues.length !== 1 ? 's' : ''} · Cross-league intel · Player exposure</div>
                             </div>
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--gold)" strokeWidth="2" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6"/></svg>
                         </div>
@@ -674,8 +674,8 @@
                                     onMouseEnter={e => { e.currentTarget.style.borderColor = accentColor; e.currentTarget.style.background = accentBg; }}
                                     onMouseLeave={e => { e.currentTarget.style.borderColor = accentBorder; e.currentTarget.style.background = 'var(--ov-1, rgba(255,255,255,0.02))'; }}>
                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.name}</div>
-                                        <div style={{ display: 'flex', gap: '8px', marginTop: '3px', fontSize: '0.72rem', color: 'var(--silver)' }}>
+                                        <div style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.name}</div>
+                                        <div style={{ display: 'flex', gap: '8px', marginTop: '3px', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>
                                             <span>{h.teamCount}T</span>
                                             <span style={{ color: recordCol, fontWeight: 700 }}>{l.wins}-{l.losses}{l.ties > 0 ? '-'+l.ties : ''}</span>
                                             {h.fillPct !== null && <span style={{ color: fillCol }}>{h.fillPct}% filled</span>}
@@ -817,7 +817,7 @@
                             <div className="header-subtitle">{String(displayName)}</div>
                         </div>
                     </div>
-                    <a href={RECONAI_BASE} onClick={() => localStorage.setItem('fw_preferred_view','scout')} style={{ fontSize:'0.72rem',color:'var(--gold)',textDecoration:'none',fontWeight:700,padding:'4px 10px',border:'1px solid var(--acc-line1, rgba(212,175,55,.25))',borderRadius:'6px',whiteSpace:'nowrap',marginRight:'8px',display:'inline-flex',alignItems:'center',minHeight:'44px' }} title="Switch to Scout mobile view">Scout</a>
+                    <a href={RECONAI_BASE} onClick={() => localStorage.setItem('fw_preferred_view','scout')} style={{ fontSize:'var(--text-label, 0.75rem)',color:'var(--gold)',textDecoration:'none',fontWeight:700,padding:'4px 10px',border:'1px solid var(--acc-line1, rgba(212,175,55,.25))',borderRadius:'6px',whiteSpace:'nowrap',marginRight:'8px',display:'inline-flex',alignItems:'center',minHeight:'44px' }} title="Switch to Scout mobile view">Scout</a>
                     <svg className="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" onClick={() => setShowSettings(true)} style={{ cursor: 'pointer' }}>
                         <circle cx="12" cy="12" r="3" stroke="var(--gold)"/>
                         <path d="M12 1v6m0 6v6m-5.2-7.8l-4.3-4.2m12.9 0l4.3 4.2M1 12h6m6 0h6m-7.8 5.2l-4.2 4.3m0-12.9l4.2 4.3" stroke="var(--gold)"/>
@@ -896,22 +896,22 @@
                             {/* Franchise picker */}
                             {mflFranchises && (
                                 <div>
-                                    <div style={{ fontSize: '0.72rem', color: 'var(--gold)', marginBottom: '8px', fontWeight: 700 }}>Select your team:</div>
+                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', marginBottom: '8px', fontWeight: 700 }}>Select your team:</div>
                                     <div style={{ maxHeight: '200px', overflow: 'auto' }}>
                                         {mflFranchises.map(f => (
                                             <button key={f.id} onClick={() => finalizeMFLConnect(f.id)}
-                                                style={{ display: 'block', width: '100%', padding: '8px 10px', marginBottom: '4px', background: 'rgba(46,125,50,0.08)', border: '1px solid rgba(46,125,50,0.25)', borderRadius: '6px', color: 'var(--white)', fontSize: '0.78rem', fontFamily: 'var(--font-body)', cursor: 'pointer', textAlign: 'left' }}>
+                                                style={{ display: 'block', width: '100%', padding: '8px 10px', marginBottom: '4px', background: 'rgba(46,125,50,0.08)', border: '1px solid rgba(46,125,50,0.25)', borderRadius: '6px', color: 'var(--white)', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', cursor: 'pointer', textAlign: 'left' }}>
                                                 {f.name || f.owner_name || ('Team ' + f.id)}
                                             </button>
                                         ))}
                                     </div>
-                                    <button onClick={() => { setMflFranchises(null); setMflPendingResult(null); }} style={{ fontSize: '0.72rem', color: 'var(--silver)', background: 'none', border: 'none', cursor: 'pointer', marginTop: '6px' }}>Cancel</button>
+                                    <button onClick={() => { setMflFranchises(null); setMflPendingResult(null); }} style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', background: 'none', border: 'none', cursor: 'pointer', marginTop: '6px' }}>Cancel</button>
                                 </div>
                             )}
                             {/* Connect form */}
                             {!mflFranchises && (
                                 <div>
-                                    <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginBottom: '8px' }}>Enter your MFL League ID and year to connect.</div>
+                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginBottom: '8px' }}>Enter your MFL League ID and year to connect.</div>
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px,1fr))', gap: '6px', marginBottom: '10px' }}>
                                         {[
                                             ['Public', 'league XML'],
@@ -919,20 +919,20 @@
                                             ['Team', 'franchise pick'],
                                         ].map(([label, detail]) => (
                                             <div key={label} style={{ border: '1px solid rgba(46,125,50,0.18)', background: 'rgba(46,125,50,0.06)', borderRadius: '6px', padding: '7px 8px', minWidth: 0 }}>
-                                                <strong style={{ display: 'block', color: 'var(--k-81c784, #81c784)', fontSize: '0.7rem', fontFamily: 'var(--font-body)' }}>{label}</strong>
-                                                <span style={{ display: 'block', color: 'var(--silver)', fontSize: '0.62rem', opacity: 0.72, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{detail}</span>
+                                                <strong style={{ display: 'block', color: 'var(--k-81c784, #81c784)', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)' }}>{label}</strong>
+                                                <span style={{ display: 'block', color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)', opacity: 0.72, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{detail}</span>
                                             </div>
                                         ))}
                                     </div>
                                     <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
-                                        <input id="wr-mfl-id" placeholder="League ID" style={{ flex: 1, padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '6px', color: 'var(--white)', fontSize: '0.82rem', fontFamily: 'var(--font-body)' }} />
-                                        <input id="wr-mfl-year" placeholder="Year" defaultValue="2026" style={{ width: '70px', padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '6px', color: 'var(--white)', fontSize: '0.82rem', fontFamily: 'var(--font-body)', textAlign: 'center' }} />
+                                        <input id="wr-mfl-id" placeholder="League ID" style={{ flex: 1, padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '6px', color: 'var(--white)', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)' }} />
+                                        <input id="wr-mfl-year" placeholder="Year" defaultValue="2026" style={{ width: '70px', padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '6px', color: 'var(--white)', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', textAlign: 'center' }} />
                                     </div>
                                     <details style={{ marginBottom: '8px' }}>
-                                        <summary style={{ fontSize: '0.72rem', color: 'var(--silver)', cursor: 'pointer', opacity: 0.7 }}>Private league? Add API key</summary>
-                                        <input id="wr-mfl-apikey" placeholder="API Key (optional)" style={{ width: '100%', marginTop: '6px', padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '6px', color: 'var(--white)', fontSize: '0.82rem', fontFamily: 'var(--font-body)' }} />
+                                        <summary style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', cursor: 'pointer', opacity: 0.7 }}>Private league? Add API key</summary>
+                                        <input id="wr-mfl-apikey" placeholder="API Key (optional)" style={{ width: '100%', marginTop: '6px', padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '6px', color: 'var(--white)', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)' }} />
                                     </details>
-                                    {mflError && <div style={{ fontSize: '0.72rem', color: 'var(--k-e74c3c, #e74c3c)', marginBottom: '8px' }}>{mflError}</div>}
+                                    {mflError && <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--k-e74c3c, #e74c3c)', marginBottom: '8px' }}>{mflError}</div>}
                                     <button className="hub-cta gold" disabled={mflConnecting} onClick={() => {
                                         const id = document.getElementById('wr-mfl-id')?.value?.trim();
                                         const yr = document.getElementById('wr-mfl-year')?.value?.trim() || '2026';

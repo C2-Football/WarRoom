@@ -198,7 +198,7 @@ function CalendarTab({ currentLeague, myRoster, leagueSkin }) {
 
     // ── Styles ──
     const cardStyle = { background: 'var(--black)', border: 'var(--card-border)', borderRadius: 'var(--card-radius, 10px)', overflow: 'hidden' };
-    const headerStyle = { fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-body)', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.06em' };
+    const headerStyle = { fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-hero, 2rem)', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.06em' };
 
     const now = Date.now();
 
@@ -240,7 +240,7 @@ function CalendarTab({ currentLeague, myRoster, leagueSkin }) {
                             ),
                             // Countdown or delete
                             countdown && React.createElement('span', { style: { fontSize: 'var(--text-label)', fontWeight: 700, color: 'var(--gold)', fontFamily: 'JetBrains Mono, monospace', flexShrink: 0 } }, countdown),
-                            event.isCustom && React.createElement('button', { title: 'Remove custom calendar event', onClick: () => removeEvent(event.id), style: { background: 'none', border: 'none', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.9rem', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: 0.7 } }, '\u2715'),
+                            event.isCustom && React.createElement('button', { title: 'Remove custom calendar event', onClick: () => removeEvent(event.id), style: { background: 'none', border: 'none', color: 'var(--silver)', cursor: 'pointer', fontSize: 'var(--text-body, 1rem)', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: 0.7 } }, '\u2715'),
                         );
                     })
                 ),

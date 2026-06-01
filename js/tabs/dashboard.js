@@ -254,14 +254,14 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
                         <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.1rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em' }}>
                             {editWidget ? 'EDIT WIDGET' : 'ADD WIDGET'}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--silver)', marginTop: '2px', opacity: 0.7 }}>
+                        <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', marginTop: '2px', opacity: 0.7 }}>
                             {step === 'module' ? 'Choose a module' : step === 'size' ? (mod?.label || '') + ' — pick a size' : 'Configure & confirm'}
                         </div>
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         {step !== 'module' && (
                             <button onClick={() => setStep(step === 'size' ? 'module' : 'size')}
-                                style={{ background: 'var(--ov-4, rgba(255,255,255,0.06))', border: 'none', borderRadius: '8px', padding: '6px 12px', minHeight: '44px', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'DM Sans, sans-serif' }}>
+                                style={{ background: 'var(--ov-4, rgba(255,255,255,0.06))', border: 'none', borderRadius: '8px', padding: '6px 12px', minHeight: '44px', color: 'var(--silver)', cursor: 'pointer', fontSize: 'var(--text-body, 1rem)', fontFamily: 'DM Sans, sans-serif' }}>
                                 ← Back
                             </button>
                         )}
@@ -286,8 +286,8 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
                                         transition: 'all 0.15s', textAlign: 'center', fontFamily: 'inherit',
                                     }}>
                                     <div style={{ fontSize: '1.5rem', marginBottom: '4px', lineHeight: 1 }}>{m.icon}</div>
-                                    <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.88rem', fontWeight: 700, color: 'var(--white)', letterSpacing: '0.04em', marginBottom: '2px' }}>{m.label}</div>
-                                    <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.6, lineHeight: 1.3 }}>{m.description}</div>
+                                    <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--white)', letterSpacing: '0.04em', marginBottom: '2px' }}>{m.label}</div>
+                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, lineHeight: 1.3 }}>{m.description}</div>
                                 </button>
                             ))}
                         </div>
@@ -301,8 +301,8 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', padding: '10px 14px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderRadius: '8px' }}>
                             <span style={{ fontSize: '1.4rem' }}>{mod.icon}</span>
                             <div>
-                                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, color: 'var(--white)', fontSize: '0.92rem' }}>{mod.label}</div>
-                                <div style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.7 }}>{mod.description}</div>
+                                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, color: 'var(--white)', fontSize: 'var(--text-body, 1rem)' }}>{mod.label}</div>
+                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.7 }}>{mod.description}</div>
                             </div>
                         </div>
 
@@ -328,8 +328,8 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
                                             border: '1px solid ' + (isActive ? 'var(--gold)' : 'var(--ov-6, rgba(255,255,255,0.1))'),
                                             borderRadius: '3px', marginBottom: '6px',
                                         }} />
-                                        <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.82rem', fontWeight: 700, color: isActive ? 'var(--gold)' : 'var(--white)' }}>{sm.label}</div>
-                                        <div style={{ fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.5 }}>{sm.dims}</div>
+                                        <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: isActive ? 'var(--gold)' : 'var(--white)' }}>{sm.label}</div>
+                                        <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5 }}>{sm.dims}</div>
                                     </div>
                                 );
                             })}
@@ -338,7 +338,7 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
                         {/* Metric picker (for modules with choices) */}
                         {mod.metrics.length > 1 && (
                             <div style={{ marginBottom: '14px' }}>
-                                <div style={{ fontSize: '0.68rem', color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600, marginBottom: '6px' }}>Primary Stat</div>
+                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600, marginBottom: '6px' }}>Primary Stat</div>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                                     {mod.metrics.map(m => {
                                         const accentCol = typeof mod.accent === 'function' ? mod.accent() : mod.accent;
@@ -348,7 +348,7 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
                                                 border: '1px solid ' + (selectedMetric === m.key ? (accentCol || 'var(--gold)') : 'var(--ov-6, rgba(255,255,255,0.1))'),
                                                 background: selectedMetric === m.key ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
                                                 color: selectedMetric === m.key ? 'var(--gold)' : 'var(--silver)',
-                                                fontSize: '0.72rem', fontWeight: selectedMetric === m.key ? 600 : 400,
+                                                fontSize: 'var(--text-label, 0.75rem)', fontWeight: selectedMetric === m.key ? 600 : 400,
                                                 transition: 'all 0.12s', fontFamily: 'DM Sans, sans-serif',
                                             }}>{m.label}</button>
                                         );
@@ -362,7 +362,7 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
                             width: '100%', padding: '12px', borderRadius: '8px', cursor: selectedSize ? 'pointer' : 'not-allowed',
                             background: selectedSize ? 'var(--gold)' : 'var(--ov-4, rgba(255,255,255,0.06))',
                             border: 'none', color: selectedSize ? 'var(--k-000000, #000000)' : 'var(--silver)',
-                            fontFamily: 'Rajdhani, sans-serif', fontSize: '0.92rem', fontWeight: 700,
+                            fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-body, 1rem)', fontWeight: 700,
                             letterSpacing: '0.06em', transition: 'all 0.15s',
                         }}>{editWidget ? 'UPDATE WIDGET' : 'ADD TO DASHBOARD'}</button>
                     </div>
@@ -471,8 +471,8 @@ function DashboardPanel({
         const first = sparkData[0], last = sparkData[sparkData.length - 1];
         if (!first) return null;
         const pct = Math.round((last - first) / Math.abs(first) * 100);
-        if (Math.abs(pct) < 2) return <span style={{ color: S, fontSize: '0.7rem' }}> →</span>;
-        return <span style={{ color: pct > 0 ? 'var(--good)' : 'var(--bad)', fontSize: '0.7rem', fontWeight: 700 }}> {pct > 0 ? '↑' : '↓'}</span>;
+        if (Math.abs(pct) < 2) return <span style={{ color: S, fontSize: 'var(--text-label, 0.75rem)' }}> →</span>;
+        return <span style={{ color: pct > 0 ? 'var(--good)' : 'var(--bad)', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700 }}> {pct > 0 ? '↑' : '↓'}</span>;
     }
 
     // ── Percentile badge from rank string like "#3/12" ──
@@ -485,7 +485,7 @@ function DashboardPanel({
         const pct = Math.round((rank / total) * 100);
         const label = pct <= 25 ? 'Top 25%' : pct <= 50 ? 'Top 50%' : pct <= 75 ? 'Top 75%' : 'Bottom 25%';
         const col = pct <= 25 ? 'var(--k-2ecc71, #2ecc71)' : pct <= 50 ? G : pct <= 75 ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
-        return <span style={{ fontSize: '0.6rem', padding: '1px 5px', borderRadius: '3px', background: `${col}18`, color: col, fontWeight: 700, marginLeft: '4px', fontFamily: dmFont }}>{label}</span>;
+        return <span style={{ fontSize: 'var(--text-label, 0.75rem)', padding: '1px 5px', borderRadius: '3px', background: `${col}18`, color: col, fontWeight: 700, marginLeft: '4px', fontFamily: dmFont }}>{label}</span>;
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -500,7 +500,7 @@ function DashboardPanel({
         return (
             <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)', display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
                 {/* Module badge */}
-                <div style={{ fontSize: '0.62rem', color: accentColor, fontFamily: dmFont, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.9 }}>
+                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: accentColor, fontFamily: dmFont, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.9 }}>
                     {mod?.icon} {mod?.label || key}
                 </div>
                 {/* Big value */}
@@ -511,9 +511,9 @@ function DashboardPanel({
                 {/* Percentile */}
                 {percentileBadge(val.value, accentColor)}
                 {/* Sub label */}
-                <div style={{ fontSize: '0.62rem', color: S, fontFamily: dmFont, opacity: 0.75, marginTop: '1px' }}>{val.sub}</div>
+                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: S, fontFamily: dmFont, opacity: 0.75, marginTop: '1px' }}>{val.sub}</div>
                 {/* Annotation */}
-                {ann && <div style={{ fontSize: '0.62rem', color: G, fontWeight: 600, fontFamily: dmFont, lineHeight: 1.3, borderTop: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))', paddingTop: '4px', marginTop: 'auto' }}>{ann}</div>}
+                {ann && <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: G, fontWeight: 600, fontFamily: dmFont, lineHeight: 1.3, borderTop: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))', paddingTop: '4px', marginTop: 'auto' }}>{ann}</div>}
             </div>
         );
     }
@@ -544,10 +544,10 @@ function DashboardPanel({
             <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)', display: 'flex', flexDirection: 'column' }}>
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                    <div style={{ fontFamily: rajFont, fontSize: '0.85rem', fontWeight: 700, color: mod.accent, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+                    <div style={{ fontFamily: rajFont, fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: mod.accent, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
                         {mod.icon} {mod.label}
                     </div>
-                    <div style={{ fontSize: '0.65rem', color: S, opacity: 0.5, fontFamily: dmFont }}>{metaLabel}</div>
+                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: S, opacity: 0.5, fontFamily: dmFont }}>{metaLabel}</div>
                 </div>
 
                 {/* Primary stat row */}
@@ -566,10 +566,10 @@ function DashboardPanel({
 
                 {/* Insight / annotation */}
                 {ann && (
-                    <div style={{ fontSize: '0.72rem', color: G, fontFamily: dmFont, fontWeight: 600, lineHeight: 1.4, marginBottom: '8px' }}>{ann}</div>
+                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: G, fontFamily: dmFont, fontWeight: 600, lineHeight: 1.4, marginBottom: '8px' }}>{ann}</div>
                 )}
                 {!ann && val.sub && (
-                    <div style={{ fontSize: '0.72rem', color: S, fontFamily: dmFont, opacity: 0.75, lineHeight: 1.4, marginBottom: '8px' }}>{val.sub}</div>
+                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: S, fontFamily: dmFont, opacity: 0.75, lineHeight: 1.4, marginBottom: '8px' }}>{val.sub}</div>
                 )}
 
                 {/* Secondary metrics */}
@@ -577,8 +577,8 @@ function DashboardPanel({
                     <div style={{ display: 'flex', gap: '12px', marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
                         {secondary.map(s => (
                             <div key={s.key}>
-                                <div style={{ fontSize: '0.6rem', color: S, opacity: 0.6, fontFamily: dmFont, marginBottom: '1px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
-                                <div style={{ fontFamily: monoFont, fontSize: '0.85rem', fontWeight: 600, color: s.val.color || W }}>{s.val.value}</div>
+                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: S, opacity: 0.6, fontFamily: dmFont, marginBottom: '1px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
+                                <div style={{ fontFamily: monoFont, fontSize: 'var(--text-body, 1rem)', fontWeight: 600, color: s.val.color || W }}>{s.val.value}</div>
                             </div>
                         ))}
                     </div>
@@ -630,16 +630,16 @@ function DashboardPanel({
                     {trendArrow(primaryVal.sparkData, primaryVal.color)}
                     {percentileBadge(primaryVal.value, mod.accent)}
                 </div>
-                {ann && <div style={{ fontSize: '0.72rem', color: G, fontFamily: dmFont, fontWeight: 600, lineHeight: 1.4, marginBottom: '10px' }}>{ann}</div>}
+                {ann && <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: G, fontFamily: dmFont, fontWeight: 600, lineHeight: 1.4, marginBottom: '10px' }}>{ann}</div>}
 
                 {/* Stats grid */}
                 {allMetrics.length > 1 && (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '12px' }}>
                         {allMetrics.map(m => (
                             <div key={m.key} style={{ background: 'var(--ov-2, rgba(255,255,255,0.03))', borderRadius: '8px', padding: '8px 10px' }}>
-                                <div style={{ fontSize: '0.6rem', color: S, opacity: 0.6, fontFamily: dmFont, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>{m.label}</div>
-                                <div style={{ fontFamily: monoFont, fontSize: '0.95rem', fontWeight: 600, color: m.val.color || W }}>{m.val.value}</div>
-                                <div style={{ fontSize: '0.6rem', color: S, opacity: 0.5, fontFamily: dmFont, marginTop: '1px' }}>{m.val.sub}</div>
+                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: S, opacity: 0.6, fontFamily: dmFont, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>{m.label}</div>
+                                <div style={{ fontFamily: monoFont, fontSize: 'var(--text-body, 1rem)', fontWeight: 600, color: m.val.color || W }}>{m.val.value}</div>
+                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: S, opacity: 0.5, fontFamily: dmFont, marginTop: '1px' }}>{m.val.sub}</div>
                             </div>
                         ))}
                     </div>
@@ -647,14 +647,14 @@ function DashboardPanel({
 
                 {/* Mini bar chart: league value comparison */}
                 <div style={{ marginTop: 'auto' }}>
-                    <div style={{ fontSize: '0.6rem', color: S, opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: dmFont, marginBottom: '6px' }}>League {valueShortLabel}</div>
+                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: S, opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: dmFont, marginBottom: '6px' }}>League {valueShortLabel}</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                         {allDHQs.slice(0, 6).map(t => (
                             <div key={t.rid} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <div style={{ flex: 1, height: '6px', background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '3px', overflow: 'hidden' }}>
                                     <div style={{ height: '100%', width: `${(t.dhq / maxDHQ) * 100}%`, background: t.isMe ? mod.accent : 'var(--ov-7, rgba(255,255,255,0.2))', borderRadius: '3px', transition: 'width 0.3s' }} />
                                 </div>
-                                <div style={{ fontSize: '0.6rem', fontFamily: monoFont, color: t.isMe ? mod.accent : S, opacity: t.isMe ? 1 : 0.6, minWidth: '32px', textAlign: 'right' }}>{(t.dhq / 1000).toFixed(0)}k</div>
+                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', fontFamily: monoFont, color: t.isMe ? mod.accent : S, opacity: t.isMe ? 1 : 0.6, minWidth: '32px', textAlign: 'right' }}>{(t.dhq / 1000).toFixed(0)}k</div>
                             </div>
                         ))}
                     </div>
@@ -787,7 +787,7 @@ function DashboardPanel({
         }
         return (
             <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)', maxHeight: size === 'lg' ? '100%' : '300px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ fontFamily: rajFont, fontSize: '0.9rem', fontWeight: 700, color: 'var(--k-34d399, #34d399)', letterSpacing: '0.07em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ fontFamily: rajFont, fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, color: 'var(--k-34d399, #34d399)', letterSpacing: '0.07em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     📰 TRANSACTION TICKER
                 </div>
                 {(!transactions || transactions.length === 0) ? (
@@ -795,17 +795,17 @@ function DashboardPanel({
                 ) : visibleTransactions.map((txn, ti) => (
                     <div key={ti} {...tickerTradeProps(txn)} style={{ padding: '8px 0', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.05))', cursor: txn.type === 'trade' ? 'pointer' : 'default', outline: 'none' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px', flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: '0.65rem', color: S, opacity: 0.55, minWidth: '36px' }}>{timeAgo(txn.created)}</span>
-                            <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 5px', borderRadius: '3px',
+                            <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: S, opacity: 0.55, minWidth: '36px' }}>{timeAgo(txn.created)}</span>
+                            <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, padding: '1px 5px', borderRadius: '3px',
                                 background: txn.type === 'trade' ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : txn.type === 'waiver' ? 'rgba(52,211,153,0.15)' : 'rgba(96,165,250,0.15)',
                                 color: txn.type === 'trade' ? G : txn.type === 'waiver' ? 'var(--k-34d399, #34d399)' : 'var(--k-60a5fa, #60a5fa)',
                             }}>{(txn.type === 'free_agent' ? 'FA' : txn.type || '').toUpperCase()}</span>
-                            <span style={{ fontSize: '0.65rem', color: S }}>{getOwnerName(txn.roster_ids?.[0])}</span>
+                            <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: S }}>{getOwnerName(txn.roster_ids?.[0])}</span>
                             {txn.type === 'trade' && txn.roster_ids?.[1] && (
-                                <span style={{ fontSize: '0.65rem', color: S, opacity: 0.6 }}>↔ {getOwnerName(txn.roster_ids[1])}</span>
+                                <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: S, opacity: 0.6 }}>↔ {getOwnerName(txn.roster_ids[1])}</span>
                             )}
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: W, paddingLeft: '42px' }}>
+                        <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: W, paddingLeft: '42px' }}>
                             {Object.keys(txn.adds || {}).map(pid => (
                                 <span key={'a'+pid} style={{ color: 'var(--good)', cursor: 'pointer', marginRight: '5px' }}
                                     {...tickerPlayerProps(pid)}>
@@ -820,7 +820,7 @@ function DashboardPanel({
                             ))}
                             {txn.settings?.waiver_bid > 0 && <span style={{ color: 'var(--warn)', marginLeft: '2px' }}>${txn.settings.waiver_bid}</span>}
                             {txn.type === 'trade' && txn.draft_picks?.length > 0 && (
-                                <span style={{ color: G, fontSize: '0.72rem', marginLeft: '4px' }}>+{txn.draft_picks.length} pick{txn.draft_picks.length !== 1 ? 's' : ''}</span>
+                                <span style={{ color: G, fontSize: 'var(--text-label, 0.75rem)', marginLeft: '4px' }}>+{txn.draft_picks.length} pick{txn.draft_picks.length !== 1 ? 's' : ''}</span>
                             )}
                         </div>
                     </div>
@@ -846,11 +846,11 @@ function DashboardPanel({
 
         return (
             <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)', overflow: 'hidden' }}>
-                <div style={{ fontFamily: rajFont, fontSize: '0.9rem', fontWeight: 700, color: G, letterSpacing: '0.07em', marginBottom: '10px' }}>📊 LEAGUE STANDINGS</div>
+                <div style={{ fontFamily: rajFont, fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, color: G, letterSpacing: '0.07em', marginBottom: '10px' }}>📊 LEAGUE STANDINGS</div>
                 {divKeys.map(divKey => (
                     <div key={divKey} style={{ marginBottom: hasDivisions ? '14px' : 0 }}>
-                        {hasDivisions && <div style={{ fontFamily: dmFont, fontSize: '0.68rem', color: G, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: '6px', paddingBottom: '3px', borderBottom: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))' }}>{divNameMap[divKey]}</div>}
-                        <div style={{ display: 'grid', gridTemplateColumns: isCompact ? '16px 1fr 44px 50px' : '16px 24px 1fr 44px 44px 50px', gap: '4px', padding: '3px 6px', fontSize: '0.65rem', fontWeight: 700, color: G, fontFamily: dmFont, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))' }}>
+                        {hasDivisions && <div style={{ fontFamily: dmFont, fontSize: 'var(--text-label, 0.75rem)', color: G, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: '6px', paddingBottom: '3px', borderBottom: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))' }}>{divNameMap[divKey]}</div>}
+                        <div style={{ display: 'grid', gridTemplateColumns: isCompact ? '16px 1fr 44px 50px' : '16px 24px 1fr 44px 44px 50px', gap: '4px', padding: '3px 6px', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: G, fontFamily: dmFont, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))' }}>
                             <span>#</span>
                             {!isCompact && <span/>}
                             <span>Team</span>
@@ -882,24 +882,24 @@ function DashboardPanel({
                                     display: 'grid', gridTemplateColumns: isCompact ? '16px 1fr 44px 50px' : '16px 24px 1fr 44px 44px 50px', gap: '4px',
                                     padding: '5px 6px', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))',
                                     background: isMe ? 'var(--acc-fill1, rgba(212,175,55,0.07))' : 'transparent',
-                                    fontSize: '0.7rem', alignItems: 'center',
+                                    fontSize: 'var(--text-label, 0.75rem)', alignItems: 'center',
                                 }}>
-                                    <span style={{ fontFamily: rajFont, fontSize: '0.85rem', color: idx === 0 ? 'var(--k-d4af37, #d4af37)' : idx === 1 ? 'var(--k-c0c0c0, #c0c0c0)' : idx === 2 ? 'var(--k-cd7f32, #cd7f32)' : S }}>{idx + 1}</span>
+                                    <span style={{ fontFamily: rajFont, fontSize: 'var(--text-label, 0.75rem)', color: idx === 0 ? 'var(--k-d4af37, #d4af37)' : idx === 1 ? 'var(--k-c0c0c0, #c0c0c0)' : idx === 2 ? 'var(--k-cd7f32, #cd7f32)' : S }}>{idx + 1}</span>
                                     {!isCompact && (
                                         <div style={{ width: 22, height: 22 }}>
                                             {avatarUrl
                                                 ? <img src={avatarUrl} alt="" style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover', border: isMe ? '1.5px solid var(--gold)' : '1px solid var(--ov-6, rgba(255,255,255,0.1))' }} />
-                                                : <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--ov-4, rgba(255,255,255,0.07))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.62rem', color: S }}>{(team.displayName || '?').charAt(0).toUpperCase()}</div>
+                                                : <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--ov-4, rgba(255,255,255,0.07))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-label, 0.75rem)', color: S }}>{(team.displayName || '?').charAt(0).toUpperCase()}</div>
                                             }
                                         </div>
                                     )}
                                     <div style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontWeight: isMe ? 700 : 400, color: isMe ? G : W }}>
                                         {isCompact ? team.displayName : (team.teamName ? `${team.teamName} (${team.displayName})` : team.displayName)}
-                                        {isMe && <span style={{ fontSize: '0.6rem', color: G, marginLeft: '3px' }}>YOU</span>}
+                                        {isMe && <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: G, marginLeft: '3px' }}>YOU</span>}
                                     </div>
-                                    <span style={{ textAlign: 'right', fontFamily: dmFont, fontWeight: 600, color: W, fontSize: '0.7rem' }}>{isOffseason ? (hs > 0 ? hs.toFixed(0) : '—') : `${team.wins}-${team.losses}`}</span>
-                                    {!isCompact && <span style={{ textAlign: 'right', fontSize: '0.68rem', color: S }}>{team.pointsFor > 0 ? team.pointsFor.toFixed(0) : '—'}</span>}
-                                    <span style={{ textAlign: 'right', fontSize: '0.68rem', fontFamily: dmFont, color: totalDHQ >= 80000 ? 'var(--good)' : totalDHQ >= 50000 ? G : S }}>{totalDHQ > 0 ? (totalDHQ / 1000).toFixed(0) + 'k' : '—'}</span>
+                                    <span style={{ textAlign: 'right', fontFamily: dmFont, fontWeight: 600, color: W, fontSize: 'var(--text-label, 0.75rem)' }}>{isOffseason ? (hs > 0 ? hs.toFixed(0) : '—') : `${team.wins}-${team.losses}`}</span>
+                                    {!isCompact && <span style={{ textAlign: 'right', fontSize: 'var(--text-label, 0.75rem)', color: S }}>{team.pointsFor > 0 ? team.pointsFor.toFixed(0) : '—'}</span>}
+                                    <span style={{ textAlign: 'right', fontSize: 'var(--text-label, 0.75rem)', fontFamily: dmFont, color: totalDHQ >= 80000 ? 'var(--good)' : totalDHQ >= 50000 ? G : S }}>{totalDHQ > 0 ? (totalDHQ / 1000).toFixed(0) + 'k' : '—'}</span>
                                 </div>
                             );
                         })}
@@ -958,7 +958,7 @@ function DashboardPanel({
                             position: 'absolute', top: '-11px', right: '-11px',
                             width: '44px', height: '44px', padding: 0,
                             border: 'none', background: 'transparent',
-                            cursor: 'pointer', fontSize: '0.7rem',
+                            cursor: 'pointer', fontSize: 'var(--text-label, 0.75rem)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             zIndex: 5,
                         }}
@@ -980,7 +980,7 @@ function DashboardPanel({
                             position: 'absolute', top: '-11px', right: '33px',
                             width: '44px', height: '44px', padding: 0,
                             border: 'none', background: 'transparent',
-                            cursor: 'pointer', fontSize: '0.7rem',
+                            cursor: 'pointer', fontSize: 'var(--text-label, 0.75rem)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             zIndex: 5,
                         }}
@@ -1130,19 +1130,19 @@ function DashboardPanel({
         return (
             <div style={{ padding: '0 20px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', paddingTop: '16px', borderTop: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))' }}>
-                    <span style={{ color: G, fontSize: '0.85rem' }}>★</span>
-                    <span style={{ fontFamily: rajFont, fontSize: '0.85rem', fontWeight: 700, color: G, letterSpacing: '0.08em' }}>PINNED</span>
-                    <span style={{ fontSize: '0.65rem', color: S, opacity: 0.5, fontFamily: dmFont }}>Starred from across the app</span>
+                    <span style={{ color: G, fontSize: 'var(--text-body, 1rem)' }}>★</span>
+                    <span style={{ fontFamily: rajFont, fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, color: G, letterSpacing: '0.08em' }}>PINNED</span>
+                    <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: S, opacity: 0.5, fontFamily: dmFont }}>Starred from across the app</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
                     {starredWidgets.map(item => (
                         <div key={item.id} style={{ background: 'var(--acc-fill1, rgba(212,175,55,0.05))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '10px', padding: '12px 14px', position: 'relative' }}>
                             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
-                                <div style={{ fontFamily: dmFont, fontSize: '0.75rem', fontWeight: 600, color: W, lineHeight: 1.3 }}>{item.title}</div>
-                                <button onClick={() => window.WrStarWidget?.remove(item.id)} title="Unpin" style={{ background: 'none', border: 'none', cursor: 'pointer', color: G, fontSize: '0.8rem', flexShrink: 0, padding: 0, lineHeight: 1, minWidth: '44px', minHeight: '44px', margin: '-12px -14px -12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>★</button>
+                                <div style={{ fontFamily: dmFont, fontSize: 'var(--text-body, 1rem)', fontWeight: 600, color: W, lineHeight: 1.3 }}>{item.title}</div>
+                                <button onClick={() => window.WrStarWidget?.remove(item.id)} title="Unpin" style={{ background: 'none', border: 'none', cursor: 'pointer', color: G, fontSize: 'var(--text-body, 1rem)', flexShrink: 0, padding: 0, lineHeight: 1, minWidth: '44px', minHeight: '44px', margin: '-12px -14px -12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>★</button>
                             </div>
-                            {item.content && <div style={{ fontSize: '0.68rem', color: S, fontFamily: dmFont, opacity: 0.75, lineHeight: 1.4 }}>{item.content}</div>}
-                            {item.sourceModule && <div style={{ fontSize: '0.6rem', color: S, opacity: 0.4, fontFamily: dmFont, marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.sourceModule}</div>}
+                            {item.content && <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: S, fontFamily: dmFont, opacity: 0.75, lineHeight: 1.4 }}>{item.content}</div>}
+                            {item.sourceModule && <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: S, opacity: 0.4, fontFamily: dmFont, marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.sourceModule}</div>}
                         </div>
                     ))}
                 </div>
@@ -1172,7 +1172,7 @@ function DashboardPanel({
                     padding: '12px 20px',
                     background: 'linear-gradient(90deg, var(--acc-fill2, rgba(212,175,55,0.1)), var(--acc-fill1, rgba(212,175,55,0.02)))',
                     borderBottom: '1px solid var(--acc-line1, rgba(212,175,55,0.2))',
-                    fontFamily: dmFont, fontSize: '0.78rem', color: S,
+                    fontFamily: dmFont, fontSize: 'var(--text-body, 1rem)', color: S,
                 }}>
                     <span style={{ fontSize: '1.1rem' }}>✨</span>
                     <div style={{ flex: 1, lineHeight: 1.5 }}>
@@ -1180,7 +1180,7 @@ function DashboardPanel({
                         {' '}Hover any widget to resize or remove it. Drag to reorder. Click <strong>+ Add Widget</strong> to build your layout.
                     </div>
                     <button onClick={dismissHint} style={{
-                        padding: '5px 14px', fontSize: '0.72rem', fontFamily: dmFont, fontWeight: 600,
+                        padding: '5px 14px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: dmFont, fontWeight: 600,
                         background: 'var(--acc-fill2, rgba(212,175,55,0.12))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
                         borderRadius: '5px', color: G, cursor: 'pointer', flexShrink: 0,
                     }}>Got it</button>
@@ -1285,7 +1285,7 @@ function DashboardPanel({
                     onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--acc-line1, rgba(212,175,55,0.25))'; e.currentTarget.style.color = 'var(--acc-line2, rgba(212,175,55,0.35))'; e.currentTarget.style.background = 'transparent'; }}
                 >
                     <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>+</span>
-                    <span style={{ fontSize: '0.65rem', fontFamily: dmFont, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Add Widget</span>
+                    <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontFamily: dmFont, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Add Widget</span>
                 </button>
             </div>
 

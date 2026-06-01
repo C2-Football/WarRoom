@@ -99,7 +99,7 @@
                     {/* Header */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                         <span style={{
-                            fontSize: '0.68rem',
+                            fontSize: 'var(--text-label, 0.75rem)',
                             fontWeight: 800,
                             color: 'var(--gold)',
                             textTransform: 'uppercase',
@@ -129,18 +129,18 @@
                     </div>
 
                     {/* Title + reason */}
-	                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--white)', marginBottom: '2px', fontFamily: FONT_DISPL, letterSpacing: '0.02em' }}>
+	                    <div style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--white)', marginBottom: '2px', fontFamily: FONT_DISPL, letterSpacing: '0.02em' }}>
 	                        {offer.fromName} wants to deal
 	                    </div>
-	                    <div style={{ fontSize: '0.68rem', color: 'var(--gold)', marginBottom: '5px', fontWeight: 700 }}>
+	                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', marginBottom: '5px', fontWeight: 700 }}>
 	                        Draft paused for negotiation · counter {Math.min(round, maxRounds)} / {maxRounds}
 	                    </div>
-	                    <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.75, marginBottom: '8px' }}>
+	                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.75, marginBottom: '8px' }}>
 	                        {offer.reason}
 	                    </div>
 	                    {offer.cpuMessage && (
 	                        <div style={{
-	                            fontSize: '0.68rem',
+	                            fontSize: 'var(--text-label, 0.75rem)',
 	                            color: 'var(--warn)',
 	                            marginBottom: '9px',
 	                            padding: '7px 9px',
@@ -233,7 +233,7 @@
                             color: 'var(--white)',
                             border: 'none',
                             borderRadius: '6px',
-                            fontSize: '0.82rem',
+                            fontSize: 'var(--text-body, 1rem)',
                             fontWeight: 700,
                             cursor: 'pointer',
 	                            fontFamily: FONT_UI,
@@ -244,7 +244,7 @@
 	                            color: counterClosed ? 'var(--ov-8, rgba(255,255,255,0.35))' : 'var(--gold)',
 	                            border: '1px solid ' + (counterClosed ? 'var(--ov-5, rgba(255,255,255,0.08))' : 'var(--acc-line2, rgba(212,175,55,0.34))'),
 	                            borderRadius: '6px',
-	                            fontSize: '0.82rem',
+	                            fontSize: 'var(--text-body, 1rem)',
 	                            fontWeight: 700,
 	                            cursor: counterClosed ? 'not-allowed' : 'pointer',
 	                            fontFamily: FONT_UI,
@@ -255,7 +255,7 @@
                             color: 'var(--silver)',
                             border: '1px solid var(--ov-6, rgba(255,255,255,0.15))',
                             borderRadius: '6px',
-                            fontSize: '0.82rem',
+                            fontSize: 'var(--text-body, 1rem)',
                             fontWeight: 700,
                             cursor: 'pointer',
                             fontFamily: FONT_UI,
@@ -319,7 +319,7 @@
         return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'center' }}>
                 {(picks || []).map((p, i) => (
-                    <div key={'pick' + i} style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--white)', fontFamily: FONT_DISPL, letterSpacing: '0.02em' }}>
+                    <div key={'pick' + i} style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--white)', fontFamily: FONT_DISPL, letterSpacing: '0.02em' }}>
                         R{p.round}.{String(p.slot || 0).padStart(2, '0')}
                     </div>
                 ))}

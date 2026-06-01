@@ -180,7 +180,7 @@
                         Live Analytics
                     </div>
                     <span style={{
-                        fontSize: '0.5rem',
+                        fontSize: 'var(--text-micro, 0.6875rem)',
                         padding: '1px 5px',
                         background: 'rgba(46,204,113,0.12)',
                         color: 'var(--k-2ecc71, #2ecc71)',
@@ -274,7 +274,7 @@
                     <div style={{ fontSize: '1rem', fontWeight: 700, color: col, fontFamily: FONT_DISPL, lineHeight: 1 }}>
                         {value || '—'}
                     </div>
-                    <div style={{ fontSize: '0.42rem', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: '1px' }}>
+                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: '1px' }}>
                         HEALTH
                     </div>
                 </div>
@@ -283,7 +283,7 @@
                         position: 'absolute',
                         top: 2,
                         right: 2,
-                        fontSize: '0.5rem',
+                        fontSize: 'var(--text-micro, 0.6875rem)',
                         color: 'var(--k-2ecc71, #2ecc71)',
                         fontWeight: 700,
                         fontFamily: FONT_MONO,
@@ -322,7 +322,7 @@
                 display: 'flex',
                 flexDirection: 'column',
             }}>
-                <div style={{ fontSize: '0.48rem', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONT_UI, marginBottom: '2px' }}>
+                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONT_UI, marginBottom: '2px' }}>
                     VALUE CURVE · Pick # vs DHQ
                 </div>
                 <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
@@ -360,7 +360,7 @@
                         );
                     })}
                 </svg>
-                <div style={{ fontSize: '0.44rem', color: 'var(--silver)', opacity: 0.4, display: 'flex', gap: '6px', marginTop: '1px' }}>
+                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.4, display: 'flex', gap: '6px', marginTop: '1px' }}>
                     <span>— baseline</span>
                     <span style={{ color: 'var(--k-2ecc71, #2ecc71)' }}>● steal</span>
                     <span style={{ color: 'var(--k-e74c3c, #e74c3c)' }}>● reach</span>
@@ -412,10 +412,10 @@
                 }}>
                     {grade.letter}
                 </div>
-                <div style={{ fontSize: '0.44rem', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>
+                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>
                     LIVE GRADE
                 </div>
-                <div style={{ fontSize: '0.52rem', color: 'var(--silver)', opacity: 0.8, marginTop: '3px', fontFamily: FONT_MONO }}>
+                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.8, marginTop: '3px', fontFamily: FONT_MONO }}>
                     {grade.totalDHQ >= 1000 ? (grade.totalDHQ / 1000).toFixed(1) + 'k' : grade.totalDHQ} DHQ
                 </div>
             </div>
@@ -438,7 +438,7 @@
                 borderRadius: '5px',
                 padding: '5px 7px',
             }}>
-                <div style={{ fontSize: '0.48rem', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONT_UI, marginBottom: '3px' }}>
+                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONT_UI, marginBottom: '3px' }}>
                     ROSTER FILL
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -450,7 +450,7 @@
                         return (
                             <div key={pos} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <span style={{
-                                    fontSize: '0.54rem',
+                                    fontSize: 'var(--text-micro, 0.6875rem)',
                                     fontWeight: 700,
                                     color: col,
                                     width: 28,
@@ -473,7 +473,7 @@
                                     }} />
                                 </div>
                                 <span style={{
-                                    fontSize: '0.54rem',
+                                    fontSize: 'var(--text-micro, 0.6875rem)',
                                     color: 'var(--silver)',
                                     opacity: 0.7,
                                     minWidth: 22,
@@ -500,10 +500,10 @@
                 padding: '5px 7px',
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px' }}>
-                    <div style={{ fontSize: '0.48rem', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONT_UI, flex: 1 }}>
+                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONT_UI, flex: 1 }}>
                         POS RUN · last 8
                     </div>
-                    {hasRun && <span style={{ fontSize: '0.48rem', color: 'var(--k-e74c3c, #e74c3c)', fontWeight: 700 }}>🔥</span>}
+                    {hasRun && <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--k-e74c3c, #e74c3c)', fontWeight: 700 }}>🔥</span>}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     {entries.slice(0, 4).map(([pos, ct]) => {
@@ -511,7 +511,7 @@
                         const pct = (ct / 8) * 100;
                         return (
                             <div key={pos} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span style={{ fontSize: '0.54rem', fontWeight: 700, color: col, width: 16 }}>{pos}</span>
+                                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: col, width: 16 }}>{pos}</span>
                                 <div style={{
                                     flex: 1,
                                     height: 5,
@@ -526,12 +526,12 @@
                                         opacity: ct >= 3 ? 1 : 0.7,
                                     }} />
                                 </div>
-                                <span style={{ fontSize: '0.54rem', color: 'var(--silver)', fontFamily: FONT_MONO, minWidth: 10, textAlign: 'right' }}>{ct}</span>
+                                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', fontFamily: FONT_MONO, minWidth: 10, textAlign: 'right' }}>{ct}</span>
                             </div>
                         );
                     })}
                     {entries.length === 0 && (
-                        <div style={{ fontSize: '0.52rem', color: 'var(--silver)', opacity: 0.4, fontStyle: 'italic', textAlign: 'center', padding: '6px 0' }}>
+                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.4, fontStyle: 'italic', textAlign: 'center', padding: '6px 0' }}>
                             No picks yet
                         </div>
                     )}
@@ -550,7 +550,7 @@
                 padding: '5px 7px',
                 overflow: 'hidden',
             }}>
-                <div style={{ fontSize: '0.48rem', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONT_UI, marginBottom: '3px' }}>
+                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONT_UI, marginBottom: '3px' }}>
                     REACH / STEAL TICKER
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -562,7 +562,7 @@
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '4px',
-                                fontSize: '0.52rem',
+                                fontSize: 'var(--text-micro, 0.6875rem)',
                                 fontFamily: FONT_UI,
                             }}>
                                 <span style={{ color: col, fontWeight: 700, width: 8 }}>{sign}</span>
@@ -580,7 +580,7 @@
                         );
                     })}
                     {events.length === 0 && (
-                        <div style={{ fontSize: '0.52rem', color: 'var(--silver)', opacity: 0.4, fontStyle: 'italic', textAlign: 'center', padding: '6px 0' }}>
+                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.4, fontStyle: 'italic', textAlign: 'center', padding: '6px 0' }}>
                             No reaches / steals
                         </div>
                     )}
@@ -601,8 +601,8 @@
                 justifyContent: 'center',
                 alignItems: 'center',
             }}>
-                <div style={{ fontSize: '0.48rem', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
-                <div style={{ fontSize: '0.58rem', color: 'var(--silver)', opacity: 0.4, fontStyle: 'italic', marginTop: '3px' }}>{text}</div>
+                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.4, fontStyle: 'italic', marginTop: '3px' }}>{text}</div>
             </div>
         );
     }

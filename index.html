@@ -67,13 +67,16 @@
             --card-radius-lg: 14px;  /* hero cards (product-card) */
             --card-border: 1px solid rgba(212,175,55,0.2);
 
-            /* Typography scale */
-            --text-hero: 2rem;       /* 32px — page titles (Rajdhani 700) */
+            /* Typography scale — anchors: headline 32 / section 18 / body 16 / caption 12.
+               The typescale codemod (scripts/typescale-codemod.cjs) migrates the app's
+               hardcoded font literals onto these tokens, never shrinking, so the four
+               named tiers actually render at their target sizes app-wide. */
+            --text-hero: 2rem;       /* 32px — main headline (Rajdhani 700) */
             --text-title: 1.125rem;  /* 18px — section headers (Rajdhani 600) */
             --text-heading: 1rem;    /* 16px — card titles (DM Sans 600) */
-            --text-body: 0.9375rem;  /* 15px — body text (DM Sans 400) */
-            --text-label: 0.75rem;   /* 12px — labels/micro (DM Sans 500) */
-            --text-micro: 0.6875rem; /* 11px — micro UI (DM Sans 500) */
+            --text-body: 1rem;       /* 16px — body text (DM Sans 400) */
+            --text-label: 0.75rem;   /* 12px — captions/metadata (DM Sans 500) */
+            --text-micro: 0.6875rem; /* 11px — dense-data floor (DM Sans 500) */
 
             /* Font stacks */
             --font-title: 'Rajdhani', sans-serif;
@@ -111,7 +114,7 @@
         min-height: 100vh;
         position: relative;
         -webkit-overflow-scrolling: touch;
-        font-size: 15px;
+        font-size: 16px;
         line-height: 1.55;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
@@ -2045,6 +2048,8 @@ WRShared.loadMany(WR_SHARED_FILES);
     <script type="text/babel" src="js/components/player-card.js?v=20260427font1"></script>
 <!-- 2c. Saved List Views (SI-1) — window.WR.SavedViews — shared across list surfaces -->
 <script type="text/babel" src="js/shared/saved-views.js?v=20260427font1"></script>
+<!-- 2c-2. Saved Alex Reports — window.WR.SavedReports — local cache + ai_analysis server sync -->
+<script src="js/shared/saved-reports.js?v=20260601reports1"></script>
 <!-- 2d. GM Mode helper (Phase 1) — window.WR.GmMode — canonical mode/preset source of truth -->
 <script type="text/babel" src="js/shared/gm-mode.js?v=20260418a"></script>
 <!-- 2e. Alex behavioral-insight settings — window.WR.AlexSettings — shared tuning for every Alex surface -->

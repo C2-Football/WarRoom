@@ -172,11 +172,11 @@
             <div style={containerCss}>
                 {/* Header with budget */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', flexShrink: 0 }}>
-                    <div style={{ fontFamily: FONT_DISPL, fontSize: '0.8rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
+                    <div style={{ fontFamily: FONT_DISPL, fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
                         Alex Stream
                     </div>
                     <span title={`Premium Alex calls: ${sonnetUsed}/${budget} · Quick replies: ${flashUsed}`} style={{
-                        fontSize: '0.5rem',
+                        fontSize: 'var(--text-label, 0.75rem)',
                         padding: '1px 6px',
                         background: 'rgba(0,0,0,0.3)',
                         border: '1px solid ' + wrAlpha(budgetCol, '44'),
@@ -194,7 +194,7 @@
                     {state.alex.thinking && (
                         <div style={{
                             padding: '5px 8px',
-                            fontSize: '0.6rem',
+                            fontSize: 'var(--text-label, 0.75rem)',
                             color: 'var(--gold)',
                             fontStyle: 'italic',
                             opacity: 0.7,
@@ -209,7 +209,7 @@
                             textAlign: 'center',
                             color: 'var(--silver)',
                             opacity: 0.4,
-                            fontSize: '0.68rem',
+                            fontSize: 'var(--text-label, 0.75rem)',
                             fontFamily: FONT_UI,
                         }}>
                             Alex's commentary will<br />appear here during the draft
@@ -260,7 +260,7 @@
                             }}>
                                 <span style={{
                                     color: item.color,
-                                    fontSize: '0.7rem',
+                                    fontSize: 'var(--text-label, 0.75rem)',
                                     fontWeight: 700,
                                     width: 10,
                                     textAlign: 'center',
@@ -269,7 +269,7 @@
                                 }}>{item.badge}</span>
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{
-                                        fontSize: '0.62rem',
+                                        fontSize: 'var(--text-label, 0.75rem)',
                                         fontWeight: 700,
                                         color: 'var(--white)',
                                         whiteSpace: 'nowrap',
@@ -279,12 +279,12 @@
                                     }}>
                                         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</span>
                                         {isExpandable && (
-                                            <span style={{ fontSize: '0.5rem', opacity: 0.6, color: item.color }}>{isExpanded ? '▾' : '▸'}</span>
+                                            <span style={{ fontSize: 'var(--text-label, 0.75rem)', opacity: 0.6, color: item.color }}>{isExpanded ? '▾' : '▸'}</span>
                                         )}
                                     </div>
                                     {item.text && (
                                         <div style={{
-                                            fontSize: '0.56rem',
+                                            fontSize: 'var(--text-label, 0.75rem)',
                                             color: 'var(--silver)',
                                             opacity: 0.8,
                                             marginTop: '1px',
@@ -302,7 +302,7 @@
                                         }}>
                                             {fullTextBlocks.map((block, bi) => (
                                                 <div key={bi} style={{
-                                                    fontSize: '0.56rem',
+                                                    fontSize: 'var(--text-label, 0.75rem)',
                                                     color: 'var(--silver)',
                                                     opacity: 0.85,
                                                     lineHeight: 1.45,

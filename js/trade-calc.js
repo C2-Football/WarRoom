@@ -1709,7 +1709,7 @@
                 <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                     {/* Left pane: PR-sorted owner list */}
                     <div style={{ flex: '0 0 240px', minWidth: '200px', maxHeight: '78vh', overflowY: 'auto', background: 'var(--off-black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: '10px', padding: '6px' }}>
-                        <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.6, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '6px 8px' }}>Owners · sorted by power</div>
+                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '6px 8px' }}>Owners · sorted by power</div>
                         {sortedAssessments.map((a, idx) => {
                             const rid = a.rosterId;
                             const dnaKey = ownerDna[a.ownerId] || 'NONE';
@@ -1727,15 +1727,15 @@
                                     border: '1px solid ' + (isSel ? 'var(--acc-line2, rgba(212,175,55,0.35))' : 'transparent'),
                                     marginBottom: '2px', transition: 'background 0.15s'
                                 }}>
-                                    <span style={{ fontSize: '0.64rem', color: idx < 3 ? 'var(--gold)' : 'var(--silver)', width: '18px', textAlign: 'center', fontFamily: 'var(--font-mono)', opacity: 0.7 }}>{idx + 1}</span>
+                                    <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: idx < 3 ? 'var(--gold)' : 'var(--silver)', width: '18px', textAlign: 'center', fontFamily: 'var(--font-mono)', opacity: 0.7 }}>{idx + 1}</span>
                                     <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--charcoal)', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        {avatarSrc ? <img src={avatarSrc} alt={a.ownerName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => e.target.style.display='none'} /> : <span style={{ fontSize: '0.68rem', color: 'var(--gold)', fontWeight: 700 }}>{a.ownerName.charAt(0).toUpperCase()}</span>}
+                                        {avatarSrc ? <img src={avatarSrc} alt={a.ownerName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => e.target.style.display='none'} /> : <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontWeight: 700 }}>{a.ownerName.charAt(0).toUpperCase()}</span>}
                                     </div>
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ fontSize: '0.78rem', fontWeight: isSel ? 700 : 500, color: isSel ? 'var(--gold)' : 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {a.ownerName}{isMe && <span style={{ fontSize: '0.58rem', color: 'var(--gold)', fontWeight: 700, marginLeft: '4px' }}>ME</span>}
+                                            {a.ownerName}{isMe && <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontWeight: 700, marginLeft: '4px' }}>ME</span>}
                                         </div>
-                                        <div style={{ fontSize: '0.62rem', color: shownDna.color || 'var(--silver)', opacity: 0.85 }}>{shownDna.label || '—'}</div>
+                                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: shownDna.color || 'var(--silver)', opacity: 0.85 }}>{shownDna.label || '—'}</div>
                                     </div>
                                     <span style={{ fontSize: '0.74rem', fontWeight: 700, color: a.tierColor, fontFamily: 'var(--font-mono)' }}>{a.healthScore}</span>
                                 </div>
@@ -1760,9 +1760,9 @@
                                                     React.createElement('span', { style:{fontFamily:'var(--font-title)',fontSize:'0.9rem',color:d.color,fontWeight:700,letterSpacing:'0.03em'} }, d.label)
                                                 ),
                                                 React.createElement('div', { style:{fontSize:'0.7rem',color:'var(--silver)',lineHeight:1.45,marginBottom:'4px'} }, d.desc),
-                                                d.strategy ? React.createElement('div', { style:{fontSize:'0.66rem',color:d.color,opacity:0.85,fontStyle:'italic',paddingTop:'4px',borderTop:'1px dashed '+wrAlpha(d.color, '33'),marginTop:'4px'} }, '→ ' + d.strategy) : null,
+                                                d.strategy ? React.createElement('div', { style:{fontSize:'var(--text-micro, 0.6875rem)',color:d.color,opacity:0.85,fontStyle:'italic',paddingTop:'4px',borderTop:'1px dashed '+wrAlpha(d.color, '33'),marginTop:'4px'} }, '→ ' + d.strategy) : null,
                                                 d.taxes && d.taxes.length ? React.createElement('div', { style:{display:'flex',flexWrap:'wrap',gap:'3px',marginTop:'5px'} },
-                                                    ...d.taxes.slice(0, 3).map(function(t,i){ return React.createElement('span', { key:i, style:{fontSize:'0.58rem',padding:'1px 4px',borderRadius:'3px',border:'1px solid '+wrAlpha(d.color, '40'),color:d.color,background:wrAlpha(d.color, '08')} }, t); })
+                                                    ...d.taxes.slice(0, 3).map(function(t,i){ return React.createElement('span', { key:i, style:{fontSize:'var(--text-micro, 0.6875rem)',padding:'1px 4px',borderRadius:'3px',border:'1px solid '+wrAlpha(d.color, '40'),color:d.color,background:wrAlpha(d.color, '08')} }, t); })
                                                 ) : null
                                             );
                                         })
@@ -1903,7 +1903,7 @@
                             { label: 'PF', value: a.pf > 0 ? Math.round(a.pf) : '—', color: 'var(--silver)' },
                         ].map((k, i) => <div key={i} style={{ padding: '8px', background: 'var(--black)', border: '1px solid var(--ov-3, rgba(255,255,255,0.05))', borderRadius: '6px', textAlign: 'center' }}>
                             <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.1rem', fontWeight: 700, color: k.color }}>{k.value}</div>
-                            <div style={{ fontSize: '0.58rem', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>{k.label}</div>
+                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>{k.label}</div>
                         </div>)}
                     </div>
 
@@ -1929,7 +1929,7 @@
                             {aiDna && <option value={aiDna.key}>AI: {DNA_TYPES[aiDna.key]?.label} (recommended)</option>}
                             {Object.entries(DNA_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                         </select>
-                        {isOverridden && <div style={{ fontSize: '0.68rem', color: 'var(--warn)', marginTop: '4px' }}>Overridden from AI suggestion</div>}
+                        {isOverridden && <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--warn)', marginTop: '4px' }}>Overridden from AI suggestion</div>}
                         {dnaKey && dnaKey !== 'NONE' && dna.desc && (
                             <div style={{ marginTop: '8px', padding: '8px 10px', background: wrAlpha(dna.color, '08'), borderLeft: '3px solid ' + dna.color, borderRadius: '0 6px 6px 0' }}>
                                 <div style={{ fontSize: '0.74rem', color: 'var(--silver)', lineHeight: 1.5 }}>{dna.desc}</div>
@@ -1942,7 +1942,7 @@
                     {behaviorProfile && (
                         <div style={{ marginBottom: '14px', display: 'grid', gridTemplateColumns: 'minmax(0, 1.15fr) minmax(0, 0.85fr)', gap: '10px' }}>
                             <div style={{ border: '1px solid rgba(125,183,232,0.16)', borderRadius: '7px', background: 'rgba(125,183,232,0.04)', padding: '9px 10px' }}>
-                                <div style={{ fontSize: '0.66rem', color: 'var(--k-7db7e8, #7db7e8)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Observed Behavior</div>
+                                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--k-7db7e8, #7db7e8)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Observed Behavior</div>
                                 <div style={{ display: 'grid', gap: '5px' }}>
                                     {behaviorFacts.slice(0, 4).map(fact => (
                                         <div key={fact.code} style={{ fontSize: '0.72rem', color: 'var(--silver)', lineHeight: 1.35 }}>
@@ -1953,11 +1953,11 @@
                                 </div>
                             </div>
                             <div style={{ border: '1px solid var(--acc-fill3, rgba(212,175,55,0.16))', borderRadius: '7px', background: 'var(--acc-fill1, rgba(212,175,55,0.04))', padding: '9px 10px' }}>
-                                <div style={{ fontSize: '0.66rem', color: 'var(--gold)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Inference</div>
+                                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Inference</div>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '7px' }}>
                                     {behaviorTags.length
-                                        ? behaviorTags.slice(0, 5).map(tag => <span key={tag} style={{ fontSize: '0.62rem', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', background: 'var(--acc-fill1, rgba(212,175,55,0.07))', borderRadius: '4px', padding: '2px 5px' }}>{tag.replace(/-/g, ' ')}</span>)
-                                        : <span style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.6 }}>Sample too thin</span>}
+                                        ? behaviorTags.slice(0, 5).map(tag => <span key={tag} style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', background: 'var(--acc-fill1, rgba(212,175,55,0.07))', borderRadius: '4px', padding: '2px 5px' }}>{tag.replace(/-/g, ' ')}</span>)
+                                        : <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6 }}>Sample too thin</span>}
                                 </div>
                                 <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.82, lineHeight: 1.42 }}>{behaviorProfile.strategy?.offerFrame}</div>
                             </div>
@@ -1968,9 +1968,9 @@
                     {draftDna && (
                         <div style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '6px', padding: '8px 10px', marginBottom: '14px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
-                                <span style={{ fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Draft DNA</span>
+                                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Draft DNA</span>
                                 <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--k-a5b4fc, #a5b4fc)' }}>{draftDna.label}</span>
-                                <span style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.55, marginLeft: 'auto' }}>{draftDna.seasons} · {draftDna.picksAnalyzed} picks</span>
+                                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.55, marginLeft: 'auto' }}>{draftDna.seasons} · {draftDna.picksAnalyzed} picks</span>
                             </div>
                             <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.75, fontStyle: 'italic' }}>{draftDna.tendency}</div>
                         </div>
@@ -2127,7 +2127,7 @@
                                             <span style={{ color:a.tierColor, fontWeight:600 }}>{a.healthScore}</span>
                                             <span style={{ color:'var(--silver)', opacity:0.5 }}>{a.wins}-{a.losses}</span>
                                         </div>
-                                        <span style={{ fontSize:'0.65rem', color:'var(--silver)', opacity:0.4 }}>{isExpanded ? '▲' : '▼'}</span>
+                                        <span style={{ fontSize:'var(--text-micro, 0.6875rem)', color:'var(--silver)', opacity:0.4 }}>{isExpanded ? '▲' : '▼'}</span>
                                     </div>
 
                                     {/* ── EXPANDED VIEW (click to reveal) ── */}
@@ -2185,8 +2185,8 @@
                                         <div style={{ marginTop:'10px', paddingTop:'10px', borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
                                             <div style={{ fontSize:'0.7rem', color:'var(--silver)', opacity:0.65, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px', display:'flex', gap:'8px', alignItems:'baseline' }}>
                                                 <span>Roster Audit</span>
-                                                {a.strengths?.length > 0 && <span style={{ fontSize:'0.68rem', color:'var(--good)', opacity:0.8 }}>surplus: {a.strengths.join(', ')}</span>}
-                                                {a.needs?.filter(n => n.urgency === 'deficit').length > 0 && <span style={{ fontSize:'0.68rem', color:'var(--bad)', opacity:0.8 }}>deficit: {a.needs.filter(n => n.urgency === 'deficit').map(n => n.pos).join(', ')}</span>}
+                                                {a.strengths?.length > 0 && <span style={{ fontSize:'var(--text-micro, 0.6875rem)', color:'var(--good)', opacity:0.8 }}>surplus: {a.strengths.join(', ')}</span>}
+                                                {a.needs?.filter(n => n.urgency === 'deficit').length > 0 && <span style={{ fontSize:'var(--text-micro, 0.6875rem)', color:'var(--bad)', opacity:0.8 }}>deficit: {a.needs.filter(n => n.urgency === 'deficit').map(n => n.pos).join(', ')}</span>}
                                             </div>
                                             <div className="tc-pos-grid">
                                                 {Object.entries(a.posAssessment).sort((pa, pb) => (TC_POS_ORDER[pa[0]] ?? 9) - (TC_POS_ORDER[pb[0]] ?? 9)).map(([pos, data]) => <TcPosRow key={pos} pos={pos} assessment={data} />)}
@@ -3072,7 +3072,7 @@
                     {/* Verdict */}
                     {hasTrade && (
                         <div className="tc-ta-verdict tc-ta-sticky-summary" id="wr-export-trade">
-                            <div className="tc-section-hdr" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>TRADE ANALYSIS<button onClick={() => window.wrExport?.capture(document.getElementById('wr-export-trade'), 'trade-analysis')} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'4px', padding:'2px 8px', color:'var(--gold)', fontSize:'0.68rem', cursor:'pointer', fontFamily: 'var(--font-body)', minHeight:'44px', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>Snapshot</button></div>
+                            <div className="tc-section-hdr" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>TRADE ANALYSIS<button onClick={() => window.wrExport?.capture(document.getElementById('wr-export-trade'), 'trade-analysis')} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'4px', padding:'2px 8px', color:'var(--gold)', fontSize:'var(--text-micro, 0.6875rem)', cursor:'pointer', fontFamily: 'var(--font-body)', minHeight:'44px', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>Snapshot</button></div>
                             <div style={{ display:'flex', alignItems:'baseline', gap:'0.6rem', flexWrap:'wrap' }}>
                                 <span className="tc-verdict-diff" style={{ color: verdictColor }}>{diffDisplay}</span>
                                 <span style={{ fontFamily:'var(--font-title)', fontSize:'1.1rem', color: verdictColor }}>{verdictText}</span>
@@ -3219,24 +3219,24 @@
                                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px' }}>
                                     <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
                                         <span title={'Grade measures trade fairness. A = balanced (\u22645% value diff). Variance = % difference between sides.'} style={{ fontFamily:'var(--font-mono)', fontSize:'1rem', fontWeight:600, color:t.gradeCol, cursor:'help' }}>{t.grade}</span>
-                                        <span style={{ fontSize:'0.68rem', color:'var(--silver)', opacity:0.65 }}>{t.pctDiff}%</span>
-                                        {winner && <span style={{ fontSize:'0.66rem', color:'var(--win-green)', fontWeight:700 }}>{winner}</span>}
+                                        <span style={{ fontSize:'var(--text-micro, 0.6875rem)', color:'var(--silver)', opacity:0.65 }}>{t.pctDiff}%</span>
+                                        {winner && <span style={{ fontSize:'var(--text-micro, 0.6875rem)', color:'var(--win-green)', fontWeight:700 }}>{winner}</span>}
                                     </div>
                                     <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
-                                        <span style={{ fontSize:'0.68rem', color:'var(--silver)', opacity:0.5 }}>
+                                        <span style={{ fontSize:'var(--text-micro, 0.6875rem)', color:'var(--silver)', opacity:0.5 }}>
                                             {t.trade.season ? 'S'+t.trade.season+(t.trade.week?' W'+t.trade.week:'') : ''}
                                         </span>
                                     </div>
                                 </div>
                                 <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:'4px', alignItems:'start' }}>
                                     <div>
-                                        <div style={{ fontSize:'0.68rem', color:'var(--gold)', fontWeight:700, marginBottom:'2px' }}>{name1} ({t.val1.toLocaleString()})</div>
+                                        <div style={{ fontSize:'var(--text-micro, 0.6875rem)', color:'var(--gold)', fontWeight:700, marginBottom:'2px' }}>{name1} ({t.val1.toLocaleString()})</div>
                                         {(s1.players||[]).map(pid => <div key={pid} style={{ fontSize:'0.72rem', color:'var(--white)', lineHeight:1.4 }}>{pn(pid)}</div>)}
                                         {(s1.picks||[]).map((pk,i) => <div key={'p'+i} style={{ fontSize:'0.72rem', color:'var(--gold)' }}>{pk.season||pk.year} R{pk.round}</div>)}
                                     </div>
                                     <div style={{ fontSize:'0.82rem', color:'var(--gold)', alignSelf:'center', fontWeight:700 }}>&#8644;</div>
                                     <div>
-                                        <div style={{ fontSize:'0.68rem', color:'var(--gold)', fontWeight:700, marginBottom:'2px' }}>{name2} ({t.val2.toLocaleString()})</div>
+                                        <div style={{ fontSize:'var(--text-micro, 0.6875rem)', color:'var(--gold)', fontWeight:700, marginBottom:'2px' }}>{name2} ({t.val2.toLocaleString()})</div>
                                         {(s2.players||[]).map(pid => <div key={pid} style={{ fontSize:'0.72rem', color:'var(--white)', lineHeight:1.4 }}>{pn(pid)}</div>)}
                                         {(s2.picks||[]).map((pk,i) => <div key={'s2p'+i} style={{ fontSize:'0.72rem', color:'var(--gold)' }}>{pk.season||pk.year} R{pk.round}</div>)}
                                     </div>
@@ -3404,7 +3404,7 @@
                 {tradeContext && (
                     <div className="trade-context-banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
                         <div style={{ minWidth: 0 }}>
-                            <span style={{ display: 'block', fontSize: '0.68rem', color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Trade Context</span>
+                            <span style={{ display: 'block', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Trade Context</span>
                             <strong style={{ display: 'block', color: 'var(--white)', fontSize: '0.9rem', fontFamily: 'var(--font-title)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Opened from transaction ticker</strong>
                             <em style={{ display: 'block', color: 'var(--silver)', fontSize: '0.74rem', fontStyle: 'normal' }}>{formatTradeContextSummary(tradeContext) || 'Use this deal as context while evaluating partner fit and packages.'}</em>
                         </div>

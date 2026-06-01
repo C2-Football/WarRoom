@@ -163,7 +163,7 @@
                     color: 'var(--gold)',
                     borderRadius: '6px',
                     cursor: 'pointer',
-                    fontSize: '0.62rem',
+                    fontSize: 'var(--text-micro, 0.6875rem)',
                     fontFamily: 'var(--font-body)',
                     fontWeight: 700,
                     padding: '4px 9px',
@@ -219,7 +219,7 @@
                         }
                     }, compact ? VIEW_META[k].short : VIEW_META[k].label)
                 )) : React.createElement('div', {
-                    style: { marginLeft: 'auto', fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.72 }
+                    style: { marginLeft: 'auto', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.72 }
                 }, cur.label));
         }
 
@@ -379,9 +379,9 @@
             },
                 React.createElement(Header, { compact: true, showTabs: false }),
                 React.createElement('div', { style: { textAlign: 'center', padding: '2px 0' } },
-                    React.createElement('div', { style: { fontSize: '0.62rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.7 } }, cur.label + ' Rank'),
+                    React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.7 } }, cur.label + ' Rank'),
                     React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '2.15rem', lineHeight: 1, fontWeight: 900, color } }, myRank ? '#' + myRank : '\u2014'),
-                    React.createElement('div', { style: { fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.72, marginTop: '6px' } }, total ? 'of ' + total + ' teams' : 'No teams')
+                    React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.72, marginTop: '6px' } }, total ? 'of ' + total + ' teams' : 'No teams')
                 ),
                 React.createElement('div', { style: { height: '7px', borderRadius: '7px', background: 'var(--ov-4, rgba(255,255,255,0.07))', overflow: 'hidden' } },
                     React.createElement('div', { style: { width: pct + '%', height: '100%', background: color, borderRadius: '7px' } })
@@ -405,18 +405,18 @@
                             textAlign: 'center',
                         }
                     },
-                        React.createElement('div', { style: { fontSize: '0.56rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.72 } }, 'You'),
+                        React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.72 } }, 'You'),
                         React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.8rem', lineHeight: 1, fontWeight: 900, color, marginTop: '4px' } }, myRank ? '#' + myRank : '\u2014'),
-                        React.createElement('div', { style: { fontSize: '0.58rem', color: 'var(--silver)', opacity: 0.65, marginTop: '5px' } }, cur.fmtFn(myVal) + ' ' + metricLabel(view).toLowerCase())
+                        React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, marginTop: '5px' } }, cur.fmtFn(myVal) + ' ' + metricLabel(view).toLowerCase())
                     ),
                     React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '7px', minWidth: 0 } },
                         React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' } },
                             React.createElement('div', { style: { background: TONE.panel, borderRadius: '7px', padding: '7px 8px' } },
-                                React.createElement('div', { style: { fontSize: '0.54rem', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase' } }, 'Ahead'),
+                                React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase' } }, 'Ahead'),
                                 React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.05rem', fontWeight: 800, color: 'var(--white)' } }, ahead)
                             ),
                             React.createElement('div', { style: { background: TONE.panel, borderRadius: '7px', padding: '7px 8px' } },
-                                React.createElement('div', { style: { fontSize: '0.54rem', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase' } }, 'Behind'),
+                                React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase' } }, 'Behind'),
                                 React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.05rem', fontWeight: 800, color: 'var(--white)' } }, behind)
                             )
                         ),
@@ -432,7 +432,7 @@
                                 }
                             }))
                         ),
-                        React.createElement('div', { style: { fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.62, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
+                        React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
                             leader ? 'Leader: ' + getTeamName(leader) + ' · ' + cur.fmtFn(leaderVal) : metricLabel(view)
                         )
                     )
@@ -484,7 +484,7 @@
                             background: 'transparent',
                             color: 'var(--silver)',
                             opacity: 0.62,
-                            fontSize: '0.64rem',
+                            fontSize: 'var(--text-micro, 0.6875rem)',
                             cursor: 'pointer',
                             padding: '0',
                         }
@@ -564,7 +564,7 @@
                         minHeight: 0,
                     }
                 },
-                    React.createElement('div', { style: { fontSize: '0.58rem', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' } }, title),
+                    React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' } }, title),
                     ...rows.map((x, idx) => React.createElement('div', {
                         key: title + (x.team.rosterId || idx),
                         style: {
@@ -575,7 +575,7 @@
                             padding: '3px 0',
                         }
                     },
-                        React.createElement('div', { style: { color: x.team.ownerId === sleeperUserId ? TONE.gold : 'var(--white)', fontSize: '0.66rem', fontWeight: 750, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, getTeamName(x.team)),
+                        React.createElement('div', { style: { color: x.team.ownerId === sleeperUserId ? TONE.gold : 'var(--white)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 750, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, getTeamName(x.team)),
                         React.createElement('div', { style: { color: tone, fontFamily: 'Rajdhani, sans-serif', fontSize: '0.78rem', fontWeight: 900 } }, Math.abs(x.delta))
                     ))
                 );
@@ -681,7 +681,7 @@
                                     React.createElement('div', { style: { color: teamTone(val, rank, total), fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', fontWeight: 900 } }, cur.fmtFn(val))
                                 ),
                                 React.createElement('div', { style: { marginTop: '9px', color: isMe ? TONE.gold : 'var(--white)', fontSize: '0.84rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, getTeamName(t) + (isMe ? ' ★' : '')),
-                                React.createElement('div', { style: { marginTop: '8px', fontSize: '0.56rem', color: 'var(--silver)', opacity: 0.62 } }, 'Now #' + rankByView.contender[t.rosterId] + ' · Future #' + rankByView.dynasty[t.rosterId]),
+                                React.createElement('div', { style: { marginTop: '8px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62 } }, 'Now #' + rankByView.contender[t.rosterId] + ' · Future #' + rankByView.dynasty[t.rosterId]),
                                 React.createElement('div', { style: { marginTop: '8px' } }, React.createElement(Bar, { val, rank, totalTeams: total, width: '100%', height: 7 }))
                             );
                         }),
@@ -725,15 +725,15 @@
                 }
             },
                 React.createElement('div', { style: { background: TONE.panel, borderRadius: '8px', padding: '8px 10px' } },
-                    React.createElement('div', { style: { fontSize: '0.56rem', color: 'var(--silver)', opacity: 0.66, textTransform: 'uppercase' } }, 'Your Rank'),
+                    React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.66, textTransform: 'uppercase' } }, 'Your Rank'),
                     React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.25rem', fontWeight: 900, color: myRank ? rankTone(myRank) : TONE.middle } }, myRank ? '#' + myRank : '\u2014')
                 ),
                 React.createElement('div', { style: { background: TONE.panel, borderRadius: '8px', padding: '8px 10px' } },
-                    React.createElement('div', { style: { fontSize: '0.56rem', color: 'var(--silver)', opacity: 0.66, textTransform: 'uppercase' } }, 'Leader'),
+                    React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.66, textTransform: 'uppercase' } }, 'Leader'),
                     React.createElement('div', { style: { fontSize: '0.78rem', fontWeight: 750, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, leader ? getTeamName(leader) : '\u2014')
                 ),
                 React.createElement('div', { style: { background: TONE.panel, borderRadius: '8px', padding: '8px 10px' } },
-                    React.createElement('div', { style: { fontSize: '0.56rem', color: 'var(--silver)', opacity: 0.66, textTransform: 'uppercase' } }, metricLabel(view)),
+                    React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.66, textTransform: 'uppercase' } }, metricLabel(view)),
                     React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.25rem', fontWeight: 900, color: TONE.gold } }, cur.fmtFn(myVal))
                 )
             ),

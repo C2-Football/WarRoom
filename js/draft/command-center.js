@@ -1493,7 +1493,7 @@
                                 background: 'rgba(155,138,251,0.07)',
                                 textAlign: 'center',
                             }}>
-                                <div style={{ color: 'rgba(214,208,255,0.98)', fontSize: '0.58rem', fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Live Sync</div>
+                                <div style={{ color: 'rgba(214,208,255,0.98)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Live Sync</div>
                                 <div style={{ color: 'var(--white)', fontFamily: FONT_MONO, fontSize: '0.9rem', fontWeight: 800, marginTop: 3 }}>one-click</div>
                             </div>
                         </div>
@@ -1727,12 +1727,12 @@
                         <div style={{ display: 'grid', gap: 6 }}>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                                 {tuningLabels.map(([key, label]) => (
-                                    <span key={key} style={{ fontSize: '0.58rem', color: 'var(--silver)', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 4, padding: '3px 5px', background: 'var(--ov-2, rgba(255,255,255,0.025))' }}>
+                                    <span key={key} style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 4, padding: '3px 5px', background: 'var(--ov-2, rgba(255,255,255,0.025))' }}>
                                         {label} {learning.suggestedTuning?.[key] ?? '--'}
                                     </span>
                                 ))}
                             </div>
-                            <button type="button" onClick={applyLearning} style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', fontFamily: FONT_UI, fontWeight: 800, cursor: 'pointer', fontSize: '0.68rem' }}>
+                            <button type="button" onClick={applyLearning} style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', fontFamily: FONT_UI, fontWeight: 800, cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)' }}>
                                 APPLY LEARNED DEFAULTS
                             </button>
                         </div>
@@ -1745,15 +1745,15 @@
                                 <strong style={{ color: 'var(--gold)', fontFamily: FONT_DISPL, fontSize: '1.08rem', lineHeight: 1 }}>{recap.grade?.letter || '?'}</strong>
                                 <div style={{ minWidth: 0 }}>
                                     <div style={{ color: 'var(--white)', fontWeight: 800, fontSize: '0.72rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{recap.variant || 'draft'} recap</div>
-                                    <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: '0.6rem' }}>{when(recap.savedAt)}</div>
+                                    <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)' }}>{when(recap.savedAt)}</div>
                                 </div>
                             </div>
-                            <div style={{ color: 'var(--silver)', fontSize: '0.66rem', lineHeight: 1.45, minHeight: 36 }}>
+                            <div style={{ color: 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.45, minHeight: 36 }}>
                                 #{recap.rank || '-'} league rank - {fmt(recap.totalDHQ)} DHQ - {recap.actionPlan?.length || 0} actions
                             </div>
                             <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                                <button type="button" onClick={() => exportRecap(recap)} style={{ flex: 1, padding: '5px 7px', borderRadius: 5, border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', fontFamily: FONT_UI, fontWeight: 800, cursor: 'pointer', fontSize: '0.58rem' }}>EXPORT</button>
-                                <button type="button" onClick={() => deleteRecap(recap.id)} style={{ padding: '5px 7px', borderRadius: 5, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'transparent', color: 'var(--silver)', fontFamily: FONT_UI, fontWeight: 700, cursor: 'pointer', fontSize: '0.58rem' }}>DELETE</button>
+                                <button type="button" onClick={() => exportRecap(recap)} style={{ flex: 1, padding: '5px 7px', borderRadius: 5, border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', fontFamily: FONT_UI, fontWeight: 800, cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)' }}>EXPORT</button>
+                                <button type="button" onClick={() => deleteRecap(recap.id)} style={{ padding: '5px 7px', borderRadius: 5, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'transparent', color: 'var(--silver)', fontFamily: FONT_UI, fontWeight: 700, cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)' }}>DELETE</button>
                             </div>
                         </div>
                     ))}
@@ -1857,7 +1857,7 @@
             border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))',
             borderRadius: '6px',
             color: 'var(--white)',
-            fontSize: '0.68rem',
+            fontSize: 'var(--text-micro, 0.6875rem)',
             fontFamily: FONT_UI,
             outline: 'none',
             minWidth: 0,
@@ -1869,7 +1869,7 @@
             background: activeChip ? 'var(--acc-fill2, rgba(212,175,55,0.13))' : 'var(--ov-2, rgba(255,255,255,0.025))',
             color: activeChip ? 'var(--gold)' : 'var(--silver)',
             cursor: 'pointer',
-            fontSize: '0.58rem',
+            fontSize: 'var(--text-micro, 0.6875rem)',
             fontFamily: FONT_UI,
             fontWeight: 800,
             textTransform: 'uppercase',
@@ -1955,9 +1955,9 @@
                         {active && (
                             <div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, marginBottom: 8 }}>
-                                    <div><span style={{ display: 'block', fontSize: '0.52rem', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase' }}>Picks</span><strong style={{ color: 'var(--gold)', fontFamily: FONT_MONO }}>{active.summary.totalPicks}</strong></div>
-                                    <div><span style={{ display: 'block', fontSize: '0.52rem', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase' }}>Your Picks</span><strong style={{ color: 'var(--k-2ecc71, #2ecc71)', fontFamily: FONT_MONO }}>{active.summary.userPicks.length}</strong></div>
-                                    <div><span style={{ display: 'block', fontSize: '0.52rem', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase' }}>Basis</span><strong style={{ color: 'var(--white)', fontFamily: FONT_MONO }}>{active.basis}</strong></div>
+                                    <div><span style={{ display: 'block', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase' }}>Picks</span><strong style={{ color: 'var(--gold)', fontFamily: FONT_MONO }}>{active.summary.totalPicks}</strong></div>
+                                    <div><span style={{ display: 'block', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase' }}>Your Picks</span><strong style={{ color: 'var(--k-2ecc71, #2ecc71)', fontFamily: FONT_MONO }}>{active.summary.userPicks.length}</strong></div>
+                                    <div><span style={{ display: 'block', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase' }}>Basis</span><strong style={{ color: 'var(--white)', fontFamily: FONT_MONO }}>{active.basis}</strong></div>
                                 </div>
                                 {brief && (
                                     <div style={{
@@ -1967,28 +1967,28 @@
                                         border: '1px solid var(--acc-fill3, rgba(212,175,55,0.16))',
                                         borderRadius: '7px',
                                     }}>
-                                        <div style={{ color: 'var(--gold)', fontSize: '0.56rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 900, fontFamily: FONT_UI, marginBottom: 3 }}>Report Brief</div>
-                                        <div style={{ color: 'var(--white)', fontSize: '0.66rem', lineHeight: 1.35, fontFamily: FONT_UI }}>{brief.headline}</div>
-                                        <div style={{ color: 'var(--silver)', opacity: 0.72, fontSize: '0.58rem', lineHeight: 1.35, marginTop: 4, fontFamily: FONT_UI }}>{brief.userPath}</div>
+                                        <div style={{ color: 'var(--gold)', fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 900, fontFamily: FONT_UI, marginBottom: 3 }}>Report Brief</div>
+                                        <div style={{ color: 'var(--white)', fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.35, fontFamily: FONT_UI }}>{brief.headline}</div>
+                                        <div style={{ color: 'var(--silver)', opacity: 0.72, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.35, marginTop: 4, fontFamily: FONT_UI }}>{brief.userPath}</div>
                                     </div>
                                 )}
                                 {brief && (
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 6, marginBottom: 9 }}>
                                         <div style={{ padding: '7px 8px', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', background: 'var(--ov-2, rgba(255,255,255,0.025))', borderRadius: 6 }}>
-                                            <span style={{ display: 'block', color: 'var(--silver)', opacity: 0.62, fontSize: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Pressure</span>
+                                            <span style={{ display: 'block', color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Pressure</span>
                                             <strong style={{ display: 'block', color: 'var(--white)', fontSize: '0.72rem', fontFamily: FONT_MONO, marginTop: 2 }}>{brief.positionPressure?.[0] ? brief.positionPressure[0].key + ' x' + brief.positionPressure[0].count : 'Even'}</strong>
                                         </div>
                                         <div style={{ padding: '7px 8px', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', background: 'var(--ov-2, rgba(255,255,255,0.025))', borderRadius: 6 }}>
-                                            <span style={{ display: 'block', color: 'var(--silver)', opacity: 0.62, fontSize: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Value Team</span>
-                                            <strong style={{ display: 'block', color: 'var(--k-2ecc71, #2ecc71)', fontSize: '0.68rem', fontFamily: FONT_UI, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{brief.valueTeams?.[0]?.ownerName || '—'}</strong>
+                                            <span style={{ display: 'block', color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Value Team</span>
+                                            <strong style={{ display: 'block', color: 'var(--k-2ecc71, #2ecc71)', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_UI, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{brief.valueTeams?.[0]?.ownerName || '—'}</strong>
                                         </div>
                                         <div style={{ padding: '7px 8px', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', background: 'var(--ov-2, rgba(255,255,255,0.025))', borderRadius: 6 }}>
-                                            <span style={{ display: 'block', color: 'var(--silver)', opacity: 0.62, fontSize: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Watch</span>
+                                            <span style={{ display: 'block', color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Watch</span>
                                             <strong style={{ display: 'block', color: 'var(--gold)', fontSize: '0.72rem', fontFamily: FONT_MONO, marginTop: 2 }}>{(active.summary.reaches?.length || 0) + (active.summary.steals?.length || 0) + (active.summary.tradeSignals?.length || 0)}</strong>
                                         </div>
                                     </div>
                                 )}
-                                <div style={{ fontSize: '0.58rem', color: 'var(--silver)', opacity: 0.65, marginBottom: 8 }}>{driverLabel(active.summary.driverCounts)}</div>
+                                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, marginBottom: 8 }}>{driverLabel(active.summary.driverCounts)}</div>
                                 <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
                                     {reports.map(r => (
                                         <button key={r.id} type="button" onClick={() => setActiveId(r.id)} style={{
@@ -1998,7 +1998,7 @@
                                             background: active.id === r.id ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'transparent',
                                             color: active.id === r.id ? 'var(--gold)' : 'var(--silver)',
                                             cursor: 'pointer',
-                                            fontSize: '0.56rem',
+                                            fontSize: 'var(--text-micro, 0.6875rem)',
                                             fontFamily: FONT_UI,
                                         }}>{r.label}</button>
                                     ))}
@@ -2014,9 +2014,9 @@
                                         border: '1px solid rgba(155,138,251,0.18)',
                                         borderRadius: 7,
                                     }}>
-                                        <div><span style={{ display: 'block', color: 'var(--silver)', opacity: 0.62, fontSize: '0.5rem', textTransform: 'uppercase' }}>Changed Picks</span><strong style={{ color: 'rgba(214,208,255,0.98)', fontFamily: FONT_MONO, fontSize: '0.68rem' }}>{comparison.changedPickCount}</strong></div>
-                                        <div><span style={{ display: 'block', color: 'var(--silver)', opacity: 0.62, fontSize: '0.5rem', textTransform: 'uppercase' }}>Target Risk</span><strong style={{ color: comparison.summary.targetRisk ? 'var(--k-f0a500, #f0a500)' : 'var(--k-2ecc71, #2ecc71)', fontFamily: FONT_MONO, fontSize: '0.68rem' }}>{comparison.summary.targetRisk}</strong></div>
-                                        <div><span style={{ display: 'block', color: 'var(--silver)', opacity: 0.62, fontSize: '0.5rem', textTransform: 'uppercase' }}>Top Grade</span><strong style={{ color: 'var(--gold)', fontFamily: FONT_UI, fontSize: '0.66rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{comparison.teamGrades?.[0]?.letter || '?'} · {comparison.teamGrades?.[0]?.ownerName || '—'}</strong></div>
+                                        <div><span style={{ display: 'block', color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase' }}>Changed Picks</span><strong style={{ color: 'rgba(214,208,255,0.98)', fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)' }}>{comparison.changedPickCount}</strong></div>
+                                        <div><span style={{ display: 'block', color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase' }}>Target Risk</span><strong style={{ color: comparison.summary.targetRisk ? 'var(--k-f0a500, #f0a500)' : 'var(--k-2ecc71, #2ecc71)', fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)' }}>{comparison.summary.targetRisk}</strong></div>
+                                        <div><span style={{ display: 'block', color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase' }}>Top Grade</span><strong style={{ color: 'var(--gold)', fontFamily: FONT_UI, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{comparison.teamGrades?.[0]?.letter || '?'} · {comparison.teamGrades?.[0]?.ownerName || '—'}</strong></div>
                                     </div>
                                 )}
                                 <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.62fr 0.62fr 1fr', gap: 6, marginBottom: 7 }}>
@@ -2044,13 +2044,13 @@
                                         <button type="button" onClick={() => setFilters({ team: 'all', round: 'all', pos: 'ALL', focus: 'all', query: '' })} style={chipStyle(false)}>Clear</button>
                                     )}
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, color: 'var(--silver)', opacity: 0.68, fontSize: '0.56rem', fontFamily: FONT_UI, marginBottom: 5 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, color: 'var(--silver)', opacity: 0.68, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_UI, marginBottom: 5 }}>
                                     <span>{filteredPicks.length} of {active.picks.length} projected picks</span>
                                     <span>{brief?.roundSummaries?.length || 0} rounds · {brief?.teamSummaries?.length || 0} teams</span>
                                 </div>
                                 <div style={{ maxHeight: 520, overflowY: 'auto', paddingRight: 3 }}>
                                     {!filteredPicks.length && (
-                                        <div style={{ padding: 14, color: 'var(--silver)', opacity: 0.68, fontSize: '0.68rem', textAlign: 'center' }}>No picks match the current report filters.</div>
+                                        <div style={{ padding: 14, color: 'var(--silver)', opacity: 0.68, fontSize: 'var(--text-micro, 0.6875rem)', textAlign: 'center' }}>No picks match the current report filters.</div>
                                     )}
                                     {filteredPicks.map(p => {
                                         const expanded = Number(expandedOverall) === Number(p.overall);
@@ -2069,38 +2069,38 @@
                                                 cursor: 'pointer',
                                             }}>
                                                 <div style={{ display: 'grid', gridTemplateColumns: '42px minmax(0,1fr) 62px', gap: 8, alignItems: 'start' }}>
-                                                    <span style={{ color: isMine ? 'var(--k-2ecc71, #2ecc71)' : 'var(--gold)', fontFamily: FONT_MONO, fontSize: '0.64rem' }}>{p.round}.{String(p.slot).padStart(2, '0')}</span>
+                                                    <span style={{ color: isMine ? 'var(--k-2ecc71, #2ecc71)' : 'var(--gold)', fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)' }}>{p.round}.{String(p.slot).padStart(2, '0')}</span>
                                                     <span style={{ minWidth: 0 }}>
-                                                        <strong style={{ display: 'block', color: 'var(--white)', fontSize: '0.72rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name} <span style={{ color: 'var(--gold)', fontSize: '0.58rem' }}>{p.pos}</span></strong>
-                                                        <em style={{ display: 'block', color: 'var(--silver)', opacity: 0.66, fontSize: '0.58rem', fontStyle: 'normal', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.ownerName}</em>
+                                                        <strong style={{ display: 'block', color: 'var(--white)', fontSize: '0.72rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name} <span style={{ color: 'var(--gold)', fontSize: 'var(--text-micro, 0.6875rem)' }}>{p.pos}</span></strong>
+                                                        <em style={{ display: 'block', color: 'var(--silver)', opacity: 0.66, fontSize: 'var(--text-micro, 0.6875rem)', fontStyle: 'normal', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.ownerName}</em>
                                                     </span>
                                                     <span style={{ textAlign: 'right' }}>
-                                                        <span style={{ display: 'block', color: p.confidence === 'high' ? 'var(--k-2ecc71, #2ecc71)' : p.confidence === 'medium' ? 'var(--gold)' : 'var(--silver)', fontSize: '0.54rem', textTransform: 'uppercase', fontWeight: 900 }}>{p.confidence}</span>
-                                                        <span style={{ display: 'block', color: isSteal ? 'var(--k-2ecc71, #2ecc71)' : isReach ? 'var(--k-e74c3c, #e74c3c)' : 'var(--silver)', fontFamily: FONT_MONO, fontSize: '0.56rem', marginTop: 2 }}>{isSteal ? 'STEAL' : isReach ? 'REACH' : isTrade ? 'TRADE' : fmt(p.dhq)}</span>
+                                                        <span style={{ display: 'block', color: p.confidence === 'high' ? 'var(--k-2ecc71, #2ecc71)' : p.confidence === 'medium' ? 'var(--gold)' : 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', fontWeight: 900 }}>{p.confidence}</span>
+                                                        <span style={{ display: 'block', color: isSteal ? 'var(--k-2ecc71, #2ecc71)' : isReach ? 'var(--k-e74c3c, #e74c3c)' : 'var(--silver)', fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)', marginTop: 2 }}>{isSteal ? 'STEAL' : isReach ? 'REACH' : isTrade ? 'TRADE' : fmt(p.dhq)}</span>
                                                     </span>
                                                 </div>
                                                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 5 }}>
                                                     {isMine && <span style={chipStyle(true)}>Your pick</span>}
-                                                    {(p.drivers || []).slice(0, 3).map(d => <span key={d.code} style={{ ...chipStyle(false), cursor: 'default', padding: '3px 6px', fontSize: '0.51rem' }}>{d.label}</span>)}
+                                                    {(p.drivers || []).slice(0, 3).map(d => <span key={d.code} style={{ ...chipStyle(false), cursor: 'default', padding: '3px 6px', fontSize: 'var(--text-micro, 0.6875rem)' }}>{d.label}</span>)}
                                                 </div>
                                                 {expanded && (
                                                     <div style={{ marginTop: 7, paddingTop: 7, borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                                        <div style={{ color: 'var(--silver)', opacity: 0.78, fontSize: '0.6rem', lineHeight: 1.38, fontFamily: FONT_UI, marginBottom: 7 }}>{p.note}</div>
+                                                        <div style={{ color: 'var(--silver)', opacity: 0.78, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.38, fontFamily: FONT_UI, marginBottom: 7 }}>{p.note}</div>
                                                         {p.alexCommentary && (
                                                             <div style={{ padding: '7px 8px', background: 'var(--acc-fill1, rgba(212,175,55,0.055))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.14))', borderRadius: 6 }}>
-                                                                <div style={{ color: 'var(--gold)', fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 900, marginBottom: 4 }}>Alex Pick Read</div>
+                                                                <div style={{ color: 'var(--gold)', fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 900, marginBottom: 4 }}>Alex Pick Read</div>
                                                                 <div style={{ display: 'grid', gap: 5 }}>
                                                                     {[p.alexCommentary.teamImpact, p.alexCommentary.ownerFit, p.alexCommentary.boardRead, p.alexCommentary.roomImpact, p.alexCommentary.pivot].filter(Boolean).map((line, idx) => (
-                                                                        <div key={idx} style={{ color: idx === 2 ? 'var(--white)' : 'var(--silver)', opacity: idx === 2 ? 0.92 : 0.75, fontSize: '0.6rem', lineHeight: 1.35, fontFamily: FONT_UI }}>{line}</div>
+                                                                        <div key={idx} style={{ color: idx === 2 ? 'var(--white)' : 'var(--silver)', opacity: idx === 2 ? 0.92 : 0.75, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.35, fontFamily: FONT_UI }}>{line}</div>
                                                                     ))}
                                                                 </div>
                                                             </div>
                                                         )}
                                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 5, marginTop: 7 }}>
-                                                            <div><span style={{ display: 'block', color: 'var(--silver)', opacity: 0.55, fontSize: '0.48rem', textTransform: 'uppercase' }}>DHQ</span><strong style={{ color: 'var(--gold)', fontFamily: FONT_MONO, fontSize: '0.64rem' }}>{fmt(p.dhq)}</strong></div>
-                                                            <div><span style={{ display: 'block', color: 'var(--silver)', opacity: 0.55, fontSize: '0.48rem', textTransform: 'uppercase' }}>Board</span><strong style={{ color: 'var(--white)', fontFamily: FONT_MONO, fontSize: '0.64rem' }}>{p.consensusRank ? '#' + Math.round(p.consensusRank) : '—'}</strong></div>
-                                                            <div><span style={{ display: 'block', color: 'var(--silver)', opacity: 0.55, fontSize: '0.48rem', textTransform: 'uppercase' }}>Tier</span><strong style={{ color: 'var(--white)', fontFamily: FONT_MONO, fontSize: '0.64rem' }}>{p.tier || '—'}</strong></div>
-                                                            <div><span style={{ display: 'block', color: 'var(--silver)', opacity: 0.55, fontSize: '0.48rem', textTransform: 'uppercase' }}>Alt</span><strong style={{ color: 'var(--white)', fontFamily: FONT_UI, fontSize: '0.58rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(p.alternatives || [])[0]?.name || '—'}</strong></div>
+                                                            <div><span style={{ display: 'block', color: 'var(--silver)', opacity: 0.55, fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase' }}>DHQ</span><strong style={{ color: 'var(--gold)', fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)' }}>{fmt(p.dhq)}</strong></div>
+                                                            <div><span style={{ display: 'block', color: 'var(--silver)', opacity: 0.55, fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase' }}>Board</span><strong style={{ color: 'var(--white)', fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)' }}>{p.consensusRank ? '#' + Math.round(p.consensusRank) : '—'}</strong></div>
+                                                            <div><span style={{ display: 'block', color: 'var(--silver)', opacity: 0.55, fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase' }}>Tier</span><strong style={{ color: 'var(--white)', fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)' }}>{p.tier || '—'}</strong></div>
+                                                            <div><span style={{ display: 'block', color: 'var(--silver)', opacity: 0.55, fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase' }}>Alt</span><strong style={{ color: 'var(--white)', fontFamily: FONT_UI, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(p.alternatives || [])[0]?.name || '—'}</strong></div>
                                                         </div>
                                                     </div>
                                                 )}
@@ -2205,8 +2205,8 @@
                                         fontFamily: FONT_UI,
                                     }}
                                 >
-                                    <div style={{ color: active ? 'var(--gold)' : 'var(--white)', fontWeight: 900, fontSize: '0.66rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{preset.shortLabel || preset.label}</div>
-                                    <div style={{ color: 'var(--silver)', opacity: 0.66, fontSize: '0.56rem', lineHeight: 1.35, marginTop: 4 }}>{preset.philosophy}</div>
+                                    <div style={{ color: active ? 'var(--gold)' : 'var(--white)', fontWeight: 900, fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{preset.shortLabel || preset.label}</div>
+                                    <div style={{ color: 'var(--silver)', opacity: 0.66, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.35, marginTop: 4 }}>{preset.philosophy}</div>
                                 </button>
                             );
                         })}
@@ -2221,12 +2221,12 @@
                             <div style={{ color: 'var(--white)', fontWeight: 900, fontSize: '0.8rem', fontFamily: FONT_UI }}>
                                 {currentProfile?.label || 'Front Office Blend'}
                             </div>
-                            <div style={{ color: 'var(--silver)', opacity: 0.72, fontSize: '0.66rem', lineHeight: 1.45, marginTop: 3 }}>
+                            <div style={{ color: 'var(--silver)', opacity: 0.72, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.45, marginTop: 3 }}>
                                 {currentProfile?.philosophy || 'Balanced board, owner history, roster fit, and normal trade pressure.'}
                             </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
                                 {signalRows.map(([label, value]) => (
-                                    <span key={label} style={{ fontSize: '0.56rem', color: 'var(--silver)', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 4, padding: '3px 5px', background: 'var(--ov-2, rgba(255,255,255,0.025))' }}>
+                                    <span key={label} style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 4, padding: '3px 5px', background: 'var(--ov-2, rgba(255,255,255,0.025))' }}>
                                         {label} {typeof value === 'number' ? value + '%' : value}
                                     </span>
                                 ))}
@@ -2236,11 +2236,11 @@
                             <button
                                 type="button"
                                 onClick={saveCustom}
-                                style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', fontFamily: FONT_UI, fontWeight: 900, cursor: 'pointer', fontSize: '0.66rem' }}
+                                style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', fontFamily: FONT_UI, fontWeight: 900, cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)' }}
                             >
                                 {saveState === 'saved' ? 'SAVED TO LEAGUE' : 'SAVE PROFILE'}
                             </button>
-                            <div style={{ color: 'var(--silver)', opacity: 0.58, fontSize: '0.58rem', lineHeight: 1.35, fontFamily: FONT_UI }}>
+                            <div style={{ color: 'var(--silver)', opacity: 0.58, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.35, fontFamily: FONT_UI }}>
                                 {currentProfile?.saved ? 'League profile active.' : 'GM mode default active.'}
                             </div>
                         </div>
@@ -2297,8 +2297,8 @@
                         return (
                             <div key={row.key}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                    <span style={{ flex: 1, fontSize: '0.66rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONT_UI }}>{row.label}</span>
-                                    <span style={{ fontSize: '0.66rem', color: 'var(--white)', fontFamily: FONT_MONO, minWidth: 34, textAlign: 'right' }}>{value}%</span>
+                                    <span style={{ flex: 1, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: FONT_UI }}>{row.label}</span>
+                                    <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--white)', fontFamily: FONT_MONO, minWidth: 34, textAlign: 'right' }}>{value}%</span>
                                 </div>
                                 <input
                                     type="range"
@@ -2308,7 +2308,7 @@
                                     onChange={e => patch(row.key, e.target.value)}
                                     style={{ width: '100%', accentColor: 'var(--gold)' }}
                                 />
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.52rem', color: 'var(--silver)', opacity: 0.55, fontFamily: FONT_UI, marginTop: '-1px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.55, fontFamily: FONT_UI, marginTop: '-1px' }}>
                                     <span>{row.left}</span>
                                     <span>{row.right}</span>
                                 </div>
@@ -2331,7 +2331,7 @@
         return (
             <div style={{ marginBottom: '16px' }}>
                 <div style={{
-                    fontSize: '0.62rem',
+                    fontSize: 'var(--text-micro, 0.6875rem)',
                     fontWeight: 700,
                     color: 'var(--gold)',
                     textTransform: 'uppercase',
@@ -2355,7 +2355,7 @@
                             }}>
                                 <div style={{ fontSize: '1rem', marginBottom: '3px' }}>{m.icon}</div>
                                 <div>{m.label}</div>
-                                <div style={{ fontSize: '0.52rem', color: 'var(--silver)', opacity: 0.6, marginTop: '2px' }}>{m.desc}</div>
+                                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, marginTop: '2px' }}>{m.desc}</div>
                             </button>
                         );
                     })}
@@ -2370,7 +2370,7 @@
         return (
             <div style={{ marginBottom: '16px' }}>
                 <div style={{
-                    fontSize: '0.64rem',
+                    fontSize: 'var(--text-micro, 0.6875rem)',
                     fontWeight: 700,
                     color: 'var(--gold)',
                     textTransform: 'uppercase',
@@ -2444,7 +2444,7 @@
                     marginBottom: '6px',
                 }}>
                     <div style={{
-                        fontSize: '0.64rem',
+                        fontSize: 'var(--text-micro, 0.6875rem)',
                         fontWeight: 700,
                         color: 'var(--gold)',
                         textTransform: 'uppercase',
@@ -2452,7 +2452,7 @@
                         flex: 1,
                     }}>Replay Source</div>
                     {!loading && drafts && (
-                        <span style={{ fontSize: '0.56rem', color: 'var(--silver)', opacity: 0.6 }}>
+                        <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6 }}>
                             {completeDrafts.length} complete · {otherDrafts.length} other
                         </span>
                     )}
@@ -2524,7 +2524,7 @@
                                         fontSize: '0.72rem',
                                     }}>
                                     <span style={{
-                                        fontSize: '0.58rem',
+                                        fontSize: 'var(--text-micro, 0.6875rem)',
                                         color: 'var(--gold)',
                                         fontWeight: 700,
                                         textTransform: 'uppercase',
@@ -2535,7 +2535,7 @@
                                         {d.leagueName && <span style={{ color: 'var(--silver)', opacity: 0.6, marginLeft: 6 }}>· {d.leagueName}</span>}
                                     </span>
                                     <span style={{
-                                        fontSize: '0.54rem',
+                                        fontSize: 'var(--text-micro, 0.6875rem)',
                                         padding: '1px 5px',
                                         borderRadius: '3px',
                                         background: 'rgba(46,204,113,0.15)',
@@ -2553,7 +2553,7 @@
                 {!loading && otherDrafts.length > 0 && (
                     <div style={{ marginTop: '8px' }}>
                         <div style={{
-                            fontSize: '0.54rem',
+                            fontSize: 'var(--text-micro, 0.6875rem)',
                             color: 'var(--silver)',
                             opacity: 0.5,
                             textTransform: 'uppercase',
@@ -2575,10 +2575,10 @@
                                         color: 'var(--silver)',
                                         cursor: 'not-allowed',
                                         fontFamily: FONT_UI,
-                                        fontSize: '0.62rem',
+                                        fontSize: 'var(--text-micro, 0.6875rem)',
                                         opacity: 0.45,
                                     }}>
-                                    <span style={{ fontSize: '0.52rem', fontWeight: 700, minWidth: 42 }}>{d.season}</span>
+                                    <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, minWidth: 42 }}>{d.season}</span>
                                     <span style={{
                                         flex: 1,
                                         whiteSpace: 'nowrap',
@@ -2586,7 +2586,7 @@
                                         textOverflow: 'ellipsis',
                                     }}>{(d.leagueName || 'Unknown').slice(0, 30)} · {d.type || 'snake'} · {d.settings?.teams || '?'}T</span>
                                     <span style={{
-                                        fontSize: '0.5rem',
+                                        fontSize: 'var(--text-micro, 0.6875rem)',
                                         padding: '1px 5px',
                                         borderRadius: '3px',
                                         background: 'rgba(240,165,0,0.12)',
@@ -2663,13 +2663,13 @@
                         background: 'linear-gradient(90deg, var(--ov-3, rgba(255,255,255,0.035)), rgba(155,138,251,0.045))',
                     }}>
                         <div style={{ minWidth: 0 }}>
-                            <div style={{ color: statusColor, fontSize: '0.58rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 5 }}>
+                            <div style={{ color: statusColor, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 5 }}>
                                 {statusLabel}
                             </div>
                             <div style={{ color: 'var(--white)', fontFamily: FONT_DISPL, fontSize: '1rem', fontWeight: 850, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {loading ? 'Checking Sleeper draft sources...' : selectedDraft ? `${selectedDraft.season || state.season} · ${selectedDraft.type || state.draftType} · ${selectedDraft.settings?.rounds || state.rounds}R × ${selectedDraft.settings?.teams || state.leagueSize}T` : 'No upcoming or in-progress draft found'}
                             </div>
-                            <div style={{ color: 'var(--silver)', opacity: 0.68, fontSize: '0.68rem', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <div style={{ color: 'var(--silver)', opacity: 0.68, fontSize: 'var(--text-micro, 0.6875rem)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {selectedDraft ? `${selectedDraft.leagueName || 'Sleeper draft'} · ${startStr}` : 'Live Draft will open as soon as Sleeper has a scheduled source.'}
                             </div>
                         </div>
@@ -2680,7 +2680,7 @@
                             background: 'var(--acc-fill2, rgba(212,175,55,0.08))',
                             color: 'var(--gold)',
                             fontFamily: FONT_DISPL,
-                            fontSize: '0.66rem',
+                            fontSize: 'var(--text-micro, 0.6875rem)',
                             fontWeight: 900,
                             letterSpacing: '0.08em',
                             textTransform: 'uppercase',
@@ -2715,7 +2715,7 @@
                     marginBottom: '6px',
                 }}>
                     <div style={{
-                        fontSize: '0.64rem',
+                        fontSize: 'var(--text-micro, 0.6875rem)',
                         fontWeight: 700,
                         color: 'var(--gold)',
                         textTransform: 'uppercase',
@@ -2723,7 +2723,7 @@
                         flex: 1,
                     }}>Live Sync Source</div>
                     {!loading && liveDrafts && (
-                        <span style={{ fontSize: '0.56rem', color: 'var(--silver)', opacity: 0.6 }}>
+                        <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6 }}>
                             {liveDrafts.length} upcoming
                         </span>
                     )}
@@ -2792,12 +2792,12 @@
                                         <div style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                             {d.season} · {d.type || 'snake'} · {d.settings?.rounds || '?'}R × {d.settings?.teams || '?'}T
                                         </div>
-                                        <div style={{ fontSize: '0.58rem', color: 'var(--silver)', opacity: 0.6, marginTop: '2px' }}>
+                                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, marginTop: '2px' }}>
                                             {d.leagueName} · {startStr}
                                         </div>
                                     </div>
                                     <span style={{
-                                        fontSize: '0.54rem',
+                                        fontSize: 'var(--text-micro, 0.6875rem)',
                                         padding: '2px 6px',
                                         borderRadius: '3px',
                                         background: wrAlpha(statusCol, '15'),
@@ -2844,7 +2844,7 @@
         return (
             <div style={{ marginBottom: '16px' }}>
                 <div style={{
-                    fontSize: '0.64rem',
+                    fontSize: 'var(--text-micro, 0.6875rem)',
                     fontWeight: 700,
                     color: 'var(--gold)',
                     textTransform: 'uppercase',
@@ -2872,7 +2872,7 @@
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis',
                                 }}>{tpl.name}</div>
-                                <div style={{ fontSize: '0.58rem', color: 'var(--silver)', opacity: 0.6 }}>
+                                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6 }}>
                                     {new Date(tpl.ts).toLocaleString()} · {tpl.state.picks?.length || 0} picks
                                 </div>
                             </div>
@@ -2887,7 +2887,7 @@
                                 border: 'none',
                                 borderRadius: 'var(--card-radius-sm)',
                                 cursor: 'pointer',
-                                fontSize: '0.6rem',
+                                fontSize: 'var(--text-micro, 0.6875rem)',
                                 fontWeight: 700,
                                 fontFamily: FONT_UI,
                             }}>LOAD</button>
@@ -2903,7 +2903,7 @@
                                 border: '1px solid rgba(231,76,60,0.3)',
                                 borderRadius: 'var(--card-radius-sm)',
                                 cursor: 'pointer',
-                                fontSize: '0.6rem',
+                                fontSize: 'var(--text-micro, 0.6875rem)',
                                 fontFamily: FONT_UI,
                             }}>×</button>
                         </div>
@@ -3043,21 +3043,21 @@
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexShrink: 0 }}>
                     <div style={{ fontFamily: FONT_DISPL, fontSize: '0.8rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>My Roster Build</div>
-                    <span style={{ fontSize: '0.58rem', color: 'var(--silver)', opacity: 0.65 }}>{myPicks.length} picks</span>
+                    <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65 }}>{myPicks.length} picks</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '8px', flexShrink: 0 }}>
                     <div style={{ padding: '6px 8px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.14))', borderRadius: '5px' }}>
-                        <div style={{ fontSize: '0.52rem', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase' }}>Roster DHQ</div>
+                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase' }}>Roster DHQ</div>
                         <div style={{ fontFamily: FONT_MONO, color: 'var(--gold)', fontWeight: 700, fontSize: '0.84rem' }}>{fmt(totalDhq)}</div>
                     </div>
                     <div style={{ padding: '6px 8px', background: 'rgba(46,204,113,0.06)', border: '1px solid rgba(46,204,113,0.14)', borderRadius: '5px' }}>
-                        <div style={{ fontSize: '0.52rem', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase' }}>Draft Added</div>
+                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase' }}>Draft Added</div>
                         <div style={{ fontFamily: FONT_MONO, color: 'var(--k-2ecc71, #2ecc71)', fontWeight: 700, fontSize: '0.84rem' }}>{fmt(pickDhq)}</div>
                     </div>
                 </div>
 
                 <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '3px' }}>
-                    <div style={{ fontSize: '0.56rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Build By Position</div>
+                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Build By Position</div>
                     {positions.length === 0 && (
                         <div style={{ padding: '12px', textAlign: 'center', color: 'var(--silver)', opacity: 0.45, fontSize: '0.7rem' }}>Your mock picks will appear here.</div>
                     )}
@@ -3066,12 +3066,12 @@
                         return (
                             <div key={pos} style={{ marginBottom: '6px', paddingBottom: '5px', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
-                                    <strong style={{ fontSize: '0.62rem', color: posColors[pos] || 'var(--gold)', width: 28 }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</strong>
-                                    <span style={{ fontSize: '0.54rem', color: 'var(--silver)', opacity: 0.55 }}>{grouped[pos].length} players</span>
-                                    <span style={{ marginLeft: 'auto', fontSize: '0.56rem', color: 'var(--gold)', fontFamily: FONT_MONO }}>{fmt(grouped[pos].reduce((s, r) => s + r.dhq, 0))}</span>
+                                    <strong style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: posColors[pos] || 'var(--gold)', width: 28 }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</strong>
+                                    <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.55 }}>{grouped[pos].length} players</span>
+                                    <span style={{ marginLeft: 'auto', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontFamily: FONT_MONO }}>{fmt(grouped[pos].reduce((s, r) => s + r.dhq, 0))}</span>
                                 </div>
                                 {rows.map(r => (
-                                    <div key={r.source + '-' + r.pid} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.6rem', lineHeight: 1.45 }}>
+                                    <div key={r.source + '-' + r.pid} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.45 }}>
                                         <span style={{ flex: 1, color: r.isPick ? 'var(--gold)' : 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
                                         <span style={{ color: 'var(--silver)', opacity: 0.55, fontFamily: FONT_MONO }}>{fmt(r.dhq)}</span>
                                         <span style={{ color: r.projected5 >= r.dhq ? 'var(--k-2ecc71, #2ecc71)' : 'var(--silver)', fontFamily: FONT_MONO, minWidth: 32, textAlign: 'right' }}>Y5 {fmt(r.projected5)}</span>
@@ -3081,11 +3081,11 @@
                         );
                     })}
 
-                    <div style={{ fontSize: '0.56rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '8px 0 4px' }}>Available Vs Team</div>
+                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '8px 0 4px' }}>Available Vs Team</div>
                     {compareRows.map(p => {
                         const col = p.delta > 0 ? 'var(--k-2ecc71, #2ecc71)' : p.delta > -600 ? 'var(--gold)' : 'var(--silver)';
                         return (
-                            <div key={p.pid} style={{ display: 'grid', gridTemplateColumns: '22px minmax(0,1fr) 42px 44px 44px', gap: '5px', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.035))', fontSize: '0.6rem' }}>
+                            <div key={p.pid} style={{ display: 'grid', gridTemplateColumns: '22px minmax(0,1fr) 42px 44px 44px', gap: '5px', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.035))', fontSize: 'var(--text-micro, 0.6875rem)' }}>
                                 <span style={{ color: posColors[p.pos] || 'var(--silver)', fontWeight: 700 }}>{p.pos}</span>
                                 <span style={{ color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
                                 <span style={{ color: 'var(--gold)', textAlign: 'right', fontFamily: FONT_MONO }}>{fmt(p.dhq)}</span>
@@ -3162,13 +3162,13 @@
 	                    <span style={{ color: 'var(--gold)', fontFamily: FONT_DISPL, fontSize: '0.82rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
 	                        Ongoing Draft Log
 	                    </span>
-                    <em style={{ marginLeft: 'auto', color: 'var(--silver)', opacity: 0.62, fontSize: '0.56rem', fontStyle: 'normal', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    <em style={{ marginLeft: 'auto', color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', fontStyle: 'normal', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                         {picks.length} made / {order.length || '--'}
                     </em>
                 </div>
                 <div style={{ flex: 1, overflowY: 'auto', padding: '6px' }}>
                     {!rows.length && (
-                        <div style={{ color: 'var(--silver)', opacity: 0.6, fontSize: '0.68rem', padding: '10px' }}>
+                        <div style={{ color: 'var(--silver)', opacity: 0.6, fontSize: 'var(--text-micro, 0.6875rem)', padding: '10px' }}>
                             Start the draft to see the room as a running pick list.
                         </div>
                     )}
@@ -3193,19 +3193,19 @@
                                 background: isCurrent ? 'var(--acc-fill2, rgba(212,175,55,0.09))' : isUser ? 'var(--acc-fill1, rgba(212,175,55,0.045))' : 'var(--ov-1, rgba(255,255,255,0.012))',
                                 marginBottom: 4,
                             }}>
-                                <span style={{ color: isCurrent || isUser ? 'var(--gold)' : 'var(--silver)', fontFamily: FONT_MONO, fontSize: '0.6rem', fontWeight: 800 }}>
+                                <span style={{ color: isCurrent || isUser ? 'var(--gold)' : 'var(--silver)', fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800 }}>
                                     {row.label}
                                 </span>
-                                <span style={{ color: isUser ? 'var(--gold)' : 'var(--silver)', fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <span style={{ color: isUser ? 'var(--gold)' : 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                     {ownerName(slot, pick)}
                                 </span>
-                                <span style={{ color: pick ? 'var(--white)' : isCurrent ? 'var(--gold)' : 'var(--silver)', fontSize: '0.66rem', fontWeight: pick ? 800 : 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <span style={{ color: pick ? 'var(--white)' : isCurrent ? 'var(--gold)' : 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: pick ? 800 : 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                     {pick ? pick.name : (isCurrent ? 'On clock' : 'Upcoming')}
                                 </span>
-                                <span style={{ color: pick ? posCol : 'var(--silver)', fontSize: '0.58rem', fontWeight: 900, textAlign: 'center' }}>
+                                <span style={{ color: pick ? posCol : 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textAlign: 'center' }}>
                                     {pos || '--'}
                                 </span>
-	                                <span style={{ color: pick ? 'var(--gold)' : 'var(--silver)', opacity: pick || slot.value ? 1 : 0.5, fontFamily: FONT_MONO, fontSize: '0.58rem', textAlign: 'right' }}>
+	                                <span style={{ color: pick ? 'var(--gold)' : 'var(--silver)', opacity: pick || slot.value ? 1 : 0.5, fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)', textAlign: 'right' }}>
 	                                    {pick ? fmt(pick.dhq) : (slot.value ? fmt(slot.value) : '#' + (slot.overall || '--'))}
 	                                </span>
                             </div>
@@ -3978,7 +3978,7 @@
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '0.68rem',
+            fontSize: 'var(--text-micro, 0.6875rem)',
             fontFamily: FONT_UI,
             fontWeight: 600,
             background: state.speed === v ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
@@ -4172,7 +4172,7 @@
                         }}>DHQ</div>
                         <div style={{ minWidth: 0 }}>
                             <div style={{ color: 'var(--gold)', fontFamily: FONT_DISPL, fontSize: '0.84rem', fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase' }}>DraftCast</div>
-                            <div style={{ color: 'var(--silver)', opacity: 0.72, fontSize: '0.58rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.09em' }}>{state.mode} - {state.variant}</div>
+                            <div style={{ color: 'var(--silver)', opacity: 0.72, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.09em' }}>{state.mode} - {state.variant}</div>
                         </div>
                     </div>
 
@@ -4182,7 +4182,7 @@
                         borderLeft: '4px solid var(--gold)',
                         padding: '7px 0 7px 14px',
                     }}>
-                        <div style={{ color: state.activeOffer ? 'var(--k-f0a500, #f0a500)' : 'var(--gold)', fontSize: '0.56rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                        <div style={{ color: state.activeOffer ? 'var(--k-f0a500, #f0a500)' : 'var(--gold)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
                             {state.activeOffer ? 'Trade offer on deck' : 'On the clock'}
                         </div>
                         <div style={{ color: 'var(--white)', fontFamily: FONT_DISPL, fontSize: '1.62rem', fontWeight: 900, lineHeight: 1.02, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -4208,9 +4208,9 @@
                                 borderRadius: '7px',
                                 padding: '8px 9px',
                             }}>
-                                <div style={{ color: card.tone, fontSize: '0.52rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 3 }}>{card.label}</div>
+                                <div style={{ color: card.tone, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 3 }}>{card.label}</div>
                                 <div style={{ color: 'var(--white)', fontSize: '0.76rem', fontWeight: 850, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.value}</div>
-                                <div style={{ color: 'var(--silver)', opacity: 0.66, fontSize: '0.58rem', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.detail}</div>
+                                <div style={{ color: 'var(--silver)', opacity: 0.66, fontSize: 'var(--text-micro, 0.6875rem)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.detail}</div>
                             </div>
                         ))}
                     </div>
@@ -4231,7 +4231,7 @@
                                 transition: 'width 0.4s ease',
                             }} />
                         </div>
-                        <span style={{ fontSize: '0.64rem', color: 'var(--silver)', flexShrink: 0 }}>
+                        <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', flexShrink: 0 }}>
                             {state.currentIdx} / {state.pickOrder.length}
                         </span>
                     </div>
@@ -4243,7 +4243,7 @@
                             background: 'var(--acc-fill2, rgba(212,175,55,0.08))',
                             border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))',
                             borderRadius: '4px',
-                            fontSize: '0.68rem',
+                            fontSize: 'var(--text-micro, 0.6875rem)',
                             fontWeight: 700,
                             color: 'var(--gold)',
                         }}>
@@ -4273,7 +4273,7 @@
                                 borderRadius: '4px',
                                 color: 'var(--gold)',
                                 cursor: 'pointer',
-                                fontSize: '0.66rem',
+                                fontSize: 'var(--text-micro, 0.6875rem)',
                                 fontFamily: FONT_UI,
                                 flexShrink: 0,
                                 fontWeight: 700,
@@ -4295,7 +4295,7 @@
                                 borderRadius: '4px',
                                 color: 'rgba(214,208,255,0.98)',
                                 cursor: 'pointer',
-                                fontSize: '0.66rem',
+                                fontSize: 'var(--text-micro, 0.6875rem)',
                                 fontFamily: FONT_UI,
                                 flexShrink: 0,
                                 fontWeight: 700,
@@ -4335,7 +4335,7 @@
                                 borderRadius: '4px',
                                 color: 'var(--k-2ecc71, #2ecc71)',
                                 cursor: 'pointer',
-                                fontSize: '0.66rem',
+                                fontSize: 'var(--text-micro, 0.6875rem)',
                                 fontFamily: FONT_UI,
                                 flexShrink: 0,
                                 fontWeight: 600,
@@ -4354,7 +4354,7 @@
                                 borderRadius: '4px',
                                 color: 'rgba(155,138,251,0.9)',
                                 cursor: 'pointer',
-                                fontSize: '0.66rem',
+                                fontSize: 'var(--text-micro, 0.6875rem)',
                                 fontFamily: FONT_UI,
                                 flexShrink: 0,
                                 fontWeight: 600,
@@ -4368,7 +4368,7 @@
                         borderRadius: '4px',
                         color: 'var(--silver)',
                         cursor: 'pointer',
-                        fontSize: '0.68rem',
+                        fontSize: 'var(--text-micro, 0.6875rem)',
                         fontFamily: FONT_UI,
                         flexShrink: 0,
 	                    }}>Exit</button>
@@ -4453,7 +4453,7 @@
                         fontFamily: FONT_UI,
                     }}>
                         <span style={{ fontSize: '1rem' }}>👻</span>
-                        <span style={{ fontSize: '0.68rem', color: 'rgba(155,138,251,0.9)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'rgba(155,138,251,0.9)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                             Ghost Replay
                         </span>
                         <input
@@ -4464,7 +4464,7 @@
                             onChange={e => dispatch({ type: 'REPLAY_SEEK', idx: parseInt(e.target.value) })}
                             style={{ flex: 1, cursor: 'pointer' }}
                         />
-                        <span style={{ fontSize: '0.68rem', color: 'var(--silver)', fontFamily: FONT_MONO, minWidth: 60, textAlign: 'right' }}>
+                        <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', fontFamily: FONT_MONO, minWidth: 60, textAlign: 'right' }}>
                             {state.currentIdx} / {state.replay.totalPicks}
                         </span>
                     </div>
@@ -4585,9 +4585,9 @@
                                 minHeight: '92px',
                             }}
                         >
-                            <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.68, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>{label}</div>
+                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.68, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>{label}</div>
                             <div style={{ color: color || 'var(--white)', fontWeight: 800, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value || '—'}</div>
-                            <div style={{ color: 'var(--silver)', opacity: 0.74, fontSize: '0.68rem', lineHeight: 1.45, marginTop: '4px' }}>{detail || 'No signal yet.'}</div>
+                            <div style={{ color: 'var(--silver)', opacity: 0.74, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.45, marginTop: '4px' }}>{detail || 'No signal yet.'}</div>
                         </button>
                     );
 
@@ -4675,7 +4675,7 @@
                                     <div style={{ display: 'grid', gap: '8px' }}>
                                         {(actionPlan.length ? actionPlan : [{ title: 'Save this recap', detail: 'Use it as the next mock draft input.', type: 'prep_loop' }]).map((item, i) => (
                                             <div key={item.type || i} style={{ display: 'grid', gridTemplateColumns: '28px minmax(0,1fr)', gap: '10px', alignItems: 'start', padding: '10px 12px', background: 'var(--acc-fill1, rgba(212,175,55,0.045))', border: '1px solid var(--acc-fill2, rgba(212,175,55,0.10))', borderRadius: '8px' }}>
-                                                <div style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--acc-fill3, rgba(212,175,55,0.16))', color: 'var(--gold)', fontWeight: 900, fontSize: '0.68rem' }}>{i + 1}</div>
+                                                <div style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--acc-fill3, rgba(212,175,55,0.16))', color: 'var(--gold)', fontWeight: 900, fontSize: 'var(--text-micro, 0.6875rem)' }}>{i + 1}</div>
                                                 <div>
                                                     <div style={{ color: 'var(--white)', fontWeight: 800, fontSize: '0.82rem' }}>{item.title}</div>
                                                     <div style={{ color: 'var(--silver)', opacity: 0.78, fontSize: '0.74rem', lineHeight: 1.5, marginTop: '2px' }}>{item.detail}</div>
@@ -4694,7 +4694,7 @@
                                             {(postDraftMoves.waiverTargets || []).slice(0, 3).map(p => (
                                                 <button key={p.pid || p.name} type="button" onClick={() => p.pid && openRecapPlayer(p.pid)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '5px 0', border: 'none', background: 'transparent', color: 'var(--white)', fontFamily: FONT_UI, cursor: p.pid ? 'pointer' : 'default' }}>
                                                     <span style={{ fontWeight: 800 }}>{p.name}</span>
-                                                    <span style={{ color: 'var(--silver)', opacity: 0.72, fontSize: '0.66rem' }}> - {p.pos} - {fmtDhq(p.dhq)} DHQ</span>
+                                                    <span style={{ color: 'var(--silver)', opacity: 0.72, fontSize: 'var(--text-micro, 0.6875rem)' }}> - {p.pos} - {fmtDhq(p.dhq)} DHQ</span>
                                                 </button>
                                             ))}
                                             {!(postDraftMoves.waiverTargets || []).length && <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: '0.7rem' }}>No immediate waiver watchlist from this recap.</div>}
@@ -4702,7 +4702,7 @@
                                         <div style={{ padding: '11px 12px', borderRadius: 8, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'var(--ov-2, rgba(255,255,255,0.025))' }}>
                                             <div style={{ color: 'var(--k-3498db, #3498db)', fontWeight: 800, fontSize: '0.72rem', marginBottom: 6 }}>Trade Map</div>
                                             {(postDraftMoves.tradeTargets || []).slice(0, 3).map((t, i) => (
-                                                <div key={(t.rosterId || t.teamName || i) + '-' + t.pos} style={{ color: 'var(--silver)', fontSize: '0.68rem', lineHeight: 1.45, padding: '4px 0' }}>
+                                                <div key={(t.rosterId || t.teamName || i) + '-' + t.pos} style={{ color: 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.45, padding: '4px 0' }}>
                                                     <strong style={{ color: 'var(--white)' }}>{t.teamName}</strong> - {t.pos} surplus around {t.player?.name || 'new draft capital'}
                                                 </div>
                                             ))}
@@ -4713,7 +4713,7 @@
                                             {(postDraftMoves.cutCandidates || []).slice(0, 3).map(p => (
                                                 <button key={p.pid || p.name} type="button" onClick={() => p.pid && openRecapPlayer(p.pid)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '5px 0', border: 'none', background: 'transparent', color: 'var(--white)', fontFamily: FONT_UI, cursor: p.pid ? 'pointer' : 'default' }}>
                                                     <span style={{ fontWeight: 800 }}>{p.name}</span>
-                                                    <span style={{ color: 'var(--silver)', opacity: 0.72, fontSize: '0.66rem' }}> - {p.pos || 'depth'} - {fmtDhq(p.dhq)} DHQ</span>
+                                                    <span style={{ color: 'var(--silver)', opacity: 0.72, fontSize: 'var(--text-micro, 0.6875rem)' }}> - {p.pos || 'depth'} - {fmtDhq(p.dhq)} DHQ</span>
                                                 </button>
                                             ))}
                                             {!(postDraftMoves.cutCandidates || []).length && <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: '0.7rem' }}>No cut-pressure candidates available from loaded roster data.</div>}
@@ -4732,7 +4732,7 @@
                                                 return <div key={pos} style={{ padding: '10px 12px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderRadius: '8px', borderLeft: '3px solid ' + posCol }}>
                                                     <div style={{ fontSize: '0.82rem', fontWeight: 700, color: posCol, letterSpacing: '0.04em' }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</div>
                                                     <div style={{ fontFamily: FONT_DISPL, fontSize: '1.2rem', fontWeight: 700, color: 'var(--white)', marginTop: '2px' }}>{s.count}</div>
-                                                    <div style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.7 }}>{s.dhq.toLocaleString()} DHQ</div>
+                                                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.7 }}>{s.dhq.toLocaleString()} DHQ</div>
                                                 </div>;
                                             })}
                                         </div>
@@ -4806,7 +4806,7 @@
                                                             title="Pin this team in opponent intel"
                                                         >
                                                             <div style={{ fontWeight: 800, fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{team.teamName}</div>
-                                                            <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: '0.62rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{team.buildLabel}</div>
+                                                            <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{team.buildLabel}</div>
                                                         </button>
                                                         <div style={{ color: gradeCol, fontFamily: FONT_DISPL, fontSize: '1rem', fontWeight: 900 }}>{team.grade}</div>
                                                         <div style={{ color: 'var(--silver)', fontSize: '0.7rem', fontFamily: FONT_MONO, textAlign: 'right' }}>{fmtDhq(team.totalDHQ)} DHQ</div>
@@ -4814,11 +4814,11 @@
                                                             type="button"
                                                             onClick={() => topPlayer?.pid && openRecapPlayer(topPlayer.pid)}
                                                             disabled={!topPlayer?.pid}
-                                                            style={{ minWidth: 0, padding: 0, border: 'none', background: 'transparent', color: topPlayer?.pid ? 'var(--gold)' : 'var(--silver)', textAlign: 'left', cursor: topPlayer?.pid ? 'pointer' : 'default', fontFamily: FONT_UI, fontSize: '0.68rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                                                            style={{ minWidth: 0, padding: 0, border: 'none', background: 'transparent', color: topPlayer?.pid ? 'var(--gold)' : 'var(--silver)', textAlign: 'left', cursor: topPlayer?.pid ? 'pointer' : 'default', fontFamily: FONT_UI, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                                                         >
                                                             {topPlayer ? topPlayer.name : 'No top pick'}
                                                         </button>
-                                                        <div style={{ color: 'var(--silver)', opacity: 0.72, fontSize: '0.66rem', textAlign: 'right' }}>
+                                                        <div style={{ color: 'var(--silver)', opacity: 0.72, fontSize: 'var(--text-micro, 0.6875rem)', textAlign: 'right' }}>
                                                             {team.steals?.length || 0} steal{team.steals?.length === 1 ? '' : 's'} · {team.reaches?.length || 0} reach{team.reaches?.length === 1 ? '' : 'es'}
                                                         </div>
                                                     </div>
@@ -4831,7 +4831,7 @@
                                 {/* Alex commentary */}
                                 <div style={{ padding: '22px 32px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                        <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.56rem', fontWeight: 800, color: 'var(--k-0a0a0a, #0a0a0a)' }}>AI</div>
+                                        <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: 'var(--k-0a0a0a, #0a0a0a)' }}>AI</div>
                                         <span style={{ fontFamily: FONT_DISPL, fontSize: '0.82rem', color: 'var(--gold)', letterSpacing: '0.06em' }}>Alex's Take</span>
                                     </div>
                                     <div style={{ padding: '10px 14px', background: 'var(--acc-fill1, rgba(212,175,55,0.05))', borderLeft: '3px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius: '0 6px 6px 0', fontSize: '0.84rem', color: 'var(--silver)', lineHeight: 1.55 }}>
@@ -4929,7 +4929,7 @@
                     <div style={{ color: 'var(--white)', fontSize: '0.78rem', fontWeight: 800, lineHeight: 1.25 }}>
                         {label}
                     </div>
-                    <div style={{ color: 'var(--silver)', opacity: 0.78, fontSize: '0.64rem', lineHeight: 1.35, marginTop: 3 }}>
+                    <div style={{ color: 'var(--silver)', opacity: 0.78, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.35, marginTop: 3 }}>
                         {liveRead}
                     </div>
                 </div>
@@ -4967,7 +4967,7 @@
                 fontFamily: FONT_UI,
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 7 }}>
-                    <div style={{ color: 'rgba(155,138,251,1)', fontSize: '0.58rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                    <div style={{ color: 'rgba(155,138,251,1)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                         Staged Live Offers
                         <span style={{ marginLeft: 8, color: 'var(--silver)', opacity: 0.7, fontWeight: 700 }}>
                             {(counts.pending || 0)} pending · {(counts.accepted || 0)} accepted · {(counts.rejected || 0)} rejected
@@ -5020,10 +5020,10 @@
                 borderRadius: '5px',
             }}>
                 <div style={{ flex: '1 1 240px', minWidth: 0 }}>
-                    <div style={{ color: 'var(--white)', fontSize: '0.66rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ color: 'var(--white)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {offer.partnerName || 'Trade partner'} · {offer.likelihood || 0}% / {offer.acceptanceLine || 70}% Buyer Line
                     </div>
-                    <div style={{ color: 'var(--silver)', opacity: 0.74, fontSize: '0.56rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>
+                    <div style={{ color: 'var(--silver)', opacity: 0.74, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>
                         <span style={{ color: statusColor, fontWeight: 800, textTransform: 'uppercase' }}>{status}</span> · Give {offer.giveText || 'package'} / Get {offer.getText || 'package'}
                     </div>
                 </div>
@@ -5119,10 +5119,10 @@
                 fontFamily: FONT_UI,
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                    <div style={{ color: 'var(--gold)', fontSize: '0.6rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', flex: 1 }}>
+                    <div style={{ color: 'var(--gold)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', flex: 1 }}>
                         On-Clock Decision Deck
                     </div>
-                    <div style={{ color: 'var(--silver)', opacity: 0.66, fontSize: '0.56rem', fontWeight: 700 }}>
+                    <div style={{ color: 'var(--silver)', opacity: 0.66, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700 }}>
                         {nextLabel} · {deck.assumptions?.boardLane || 'dhq'} board
                     </div>
                 </div>
@@ -5154,12 +5154,12 @@
                                     color: 'var(--silver)',
                                 }}
                             >
-                                <div style={{ color: tone.main, fontSize: '0.52rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+                                <div style={{ color: tone.main, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
                                     {card.label}
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, marginBottom: 4 }}>
                                     {player?.pos && (
-                                        <span style={{ flexShrink: 0, color: tone.main, border: '1px solid ' + tone.border, borderRadius: 3, padding: '0 4px', fontSize: '0.52rem', fontWeight: 900 }}>
+                                        <span style={{ flexShrink: 0, color: tone.main, border: '1px solid ' + tone.border, borderRadius: 3, padding: '0 4px', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900 }}>
                                             {player.pos}
                                         </span>
                                     )}
@@ -5168,13 +5168,13 @@
                                     </strong>
                                 </div>
                                 {player && (
-                                    <div style={{ display: 'flex', gap: 7, color: 'var(--silver)', opacity: 0.78, fontSize: '0.54rem', fontFamily: FONT_MONO, marginBottom: 4 }}>
+                                    <div style={{ display: 'flex', gap: 7, color: 'var(--silver)', opacity: 0.78, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, marginBottom: 4 }}>
                                         <span>DHQ {shortLiveValue(player.dhq)}</span>
                                         <span>Y5 {shortLiveValue(player.y5)}</span>
                                         {player.tier && <span>T{player.tier}</span>}
                                     </div>
                                 )}
-                                <div style={{ color: 'var(--silver)', opacity: 0.76, fontSize: '0.56rem', lineHeight: 1.35 }}>
+                                <div style={{ color: 'var(--silver)', opacity: 0.76, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.35 }}>
                                     {player ? card.detail : (card.drivers || []).slice(0, 2).join(' · ')}
                                 </div>
                             </button>
@@ -5194,8 +5194,8 @@
                                     border: '1px solid ' + tone.border,
                                     borderRadius: '4px',
                                 }}>
-                                    <div style={{ color: tone.main, fontSize: '0.52rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{alert.title}</div>
-                                    <div style={{ color: 'var(--silver)', opacity: 0.8, fontSize: '0.56rem', lineHeight: 1.35, marginTop: 2 }}>{alert.text}</div>
+                                    <div style={{ color: tone.main, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{alert.title}</div>
+                                    <div style={{ color: 'var(--silver)', opacity: 0.8, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.35, marginTop: 2 }}>{alert.text}</div>
                                 </div>
                             );
                         })}
@@ -5249,14 +5249,14 @@
                             minWidth: 0,
                             marginBottom: 2,
                         }}>
-                            <span style={{ fontSize: '0.58rem', color: 'rgba(155,138,251,1)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, flexShrink: 0 }}>
+                            <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'rgba(155,138,251,1)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, flexShrink: 0 }}>
                                 Current Pick Trade Window
                             </span>
                             <span style={{ color: 'var(--white)', fontSize: '0.72rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {tradeWindow.teamName} · {tradeWindow.pickLabel}
                             </span>
                         </div>
-                        <div style={{ color: 'var(--silver)', fontSize: '0.64rem', lineHeight: 1.35, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ color: 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.35, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {!viable
                                 ? 'No viable trade — ' + tradeWindow.teamName + ' won’t move off ' + tradeWindow.pickLabel + ' near their buyer line.'
                                 : liveTradeTimingLabel(tradeWindow) + ' · ' + (suggestion.label || tradeWindow.motive || 'Package') + ' · Give ' + give + ' / Get ' + get}
@@ -5271,7 +5271,7 @@
                         flexShrink: 0,
                     }}>
                         {!viable ? 'No deal' : tradeWindow.likelihood + '% / ' + tradeWindow.acceptanceLine + '%'}
-                        <div style={{ color: 'var(--silver)', opacity: 0.68, fontSize: '0.52rem', fontFamily: FONT_UI, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        <div style={{ color: 'var(--silver)', opacity: 0.68, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_UI, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                             {!viable ? 'Below counter line' : 'Buyer Line'}
                         </div>
                     </div>
@@ -5285,7 +5285,7 @@
                             color: 'rgba(214,208,255,0.98)',
                             cursor: 'pointer',
                             fontFamily: FONT_UI,
-                            fontSize: '0.62rem',
+                            fontSize: 'var(--text-micro, 0.6875rem)',
                             fontWeight: 800,
                             letterSpacing: '0.04em',
                             flexShrink: 0,

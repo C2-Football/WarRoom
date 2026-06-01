@@ -123,6 +123,40 @@
         return nodes;
     }
 
+    // ── Printable HTML for "Download PDF" (opens a tab → print-to-PDF) ──
+    function reportToHtml(title, text) {
+        const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+        const inline = s => esc(s).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        const lines = String(text || '').split(/\r?\n/);
+        let body = '';
+        let inList = false;
+        const closeList = () => { if (inList) { body += '</ul>'; inList = false; } };
+        lines.forEach(raw => {
+            const t = raw.trim();
+            if (!t) { closeList(); return; }
+            const h = t.match(/^(#{1,4})\s+(.*)$/);
+            if (h) { closeList(); const lvl = Math.min(h[1].length + 1, 4); body += '<h' + lvl + '>' + inline(h[2]) + '</h' + lvl + '>'; return; }
+            if (/^([-*•]|\d+[.)])\s+/.test(t)) {
+                if (!inList) { body += '<ul>'; inList = true; }
+                body += '<li>' + inline(t.replace(/^([-*•]|\d+[.)])\s+/, '')) + '</li>';
+                return;
+            }
+            closeList();
+            body += '<p>' + inline(t) + '</p>';
+        });
+        closeList();
+        const safeTitle = esc(title || 'Report');
+        return '<!doctype html><html><head><meta charset="utf-8"><title>' + safeTitle + '</title>'
+            + '<style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:760px;margin:48px auto;padding:0 28px;color:#15171a;line-height:1.6}'
+            + 'h1{font-size:22px;margin:0 0 4px}h2,h3,h4{margin:22px 0 6px;color:#0d0f12}'
+            + 'ul{margin:6px 0;padding-left:20px}li{margin:3px 0}p{margin:8px 0}'
+            + '.meta{color:#6b7280;font-size:12px;margin-bottom:16px}hr{border:0;border-top:1px solid #e5e7eb;margin:14px 0}'
+            + '@media print{body{margin:0;max-width:none}}</style></head><body>'
+            + '<h1>' + safeTitle + '</h1>'
+            + '<div class="meta">Alex · Draft War Room — ' + esc(new Date().toLocaleString()) + '</div><hr/>'
+            + body + '</body></html>';
+    }
+
     // ── The floating answer window ──────────────────────────────────
     function AskAnswerWindow({ state }) {
         const [open, setOpen] = React.useState(false);
@@ -131,21 +165,32 @@
         const [pending, setPending] = React.useState(false);
         const [answer, setAnswer] = React.useState('');
         const [error, setError] = React.useState('');
+        const [kind, setKind] = React.useState('report');
+        const [minimized, setMinimized] = React.useState(false);
+        const [saved, setSaved] = React.useState(false);
+        const [saving, setSaving] = React.useState(false);
 
         // Keep the freshest state available to the (async) event handler.
         const stateRef = React.useRef(state);
         stateRef.current = state;
+
+        const leagueId = () => window.S?.currentLeagueId || null;
 
         const close = React.useCallback(() => {
             setOpen(false);
             setAnswer('');
             setError('');
             setPending(false);
+            setMinimized(false);
+            setSaved(false);
         }, []);
 
         // Run one AI call for the given prompt/title.
-        const ask = React.useCallback(async (askTitle, askPrompt) => {
+        const ask = React.useCallback(async (askTitle, askPrompt, askKind) => {
             setOpen(true);
+            setMinimized(false);
+            setSaved(false);
+            setKind(askKind || 'report');
             setTitle(askTitle || 'Ask Alex');
             setPrompt(askPrompt || '');
             setAnswer('');
@@ -179,15 +224,71 @@
             }
         }, []);
 
-        // Listen for open requests from any action button.
+        // Display a previously-saved report without re-running the AI.
+        const showSaved = React.useCallback((d) => {
+            d = d || {};
+            setOpen(true);
+            setMinimized(false);
+            setPending(false);
+            setError('');
+            setSaved(true);
+            setKind(d.kind || 'report');
+            setTitle(d.title || 'Report');
+            setPrompt(d.prompt || '');
+            setAnswer(d.answer || d.content || '');
+        }, []);
+
+        const doSave = React.useCallback(async () => {
+            if (!answer || saving) return;
+            setSaving(true);
+            try {
+                if (window.WR?.SavedReports?.save) {
+                    await window.WR.SavedReports.save(leagueId(), { title, prompt, content: answer, kind });
+                }
+                setSaved(true);
+                window.dispatchEvent(new CustomEvent('wr:report-saved', { detail: { leagueId: leagueId() } }));
+            } catch (e) {
+                if (window.wrLog) window.wrLog('ask.save', e);
+            } finally {
+                setSaving(false);
+            }
+        }, [answer, saving, title, prompt, kind]);
+
+        const doPdf = React.useCallback(() => {
+            if (!answer) return;
+            const w = window.open('', '_blank');
+            if (!w) return;
+            w.document.write(reportToHtml(title, answer));
+            w.document.close();
+            w.focus();
+            setTimeout(() => { try { w.print(); } catch (e) { /* user can print manually */ } }, 350);
+        }, [answer, title]);
+
+        const doEmail = React.useCallback(async () => {
+            if (!answer) return;
+            if (navigator.share) {
+                try { await navigator.share({ title: title || 'Draft Report', text: answer }); return; }
+                catch (e) { /* fall back to mailto */ }
+            }
+            const subject = encodeURIComponent(title || 'Draft Report');
+            const body = encodeURIComponent(answer.slice(0, 1800) + (answer.length > 1800 ? '\n\n…(truncated)' : ''));
+            window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
+        }, [answer, title]);
+
+        // Listen for open + show requests from any action button.
         React.useEffect(() => {
-            const handler = (e) => {
-                const { title: t, prompt: p } = e.detail || {};
-                ask(t, p);
+            const onOpen = (e) => {
+                const { title: t, prompt: p, kind: k } = e.detail || {};
+                ask(t, p, k);
             };
-            window.addEventListener('wr:ask-open', handler);
-            return () => window.removeEventListener('wr:ask-open', handler);
-        }, [ask]);
+            const onShow = (e) => showSaved(e.detail);
+            window.addEventListener('wr:ask-open', onOpen);
+            window.addEventListener('wr:ask-show', onShow);
+            return () => {
+                window.removeEventListener('wr:ask-open', onOpen);
+                window.removeEventListener('wr:ask-show', onShow);
+            };
+        }, [ask, showSaved]);
 
         // Escape closes the window.
         React.useEffect(() => {
@@ -197,7 +298,44 @@
             return () => window.removeEventListener('keydown', onKey);
         }, [open, close]);
 
+        const actionBtnStyle = (active) => ({
+            display: 'inline-flex', alignItems: 'center', gap: '5px',
+            padding: '6px 11px',
+            background: active ? 'var(--acc-fill3, rgba(212,175,55,0.16))' : 'var(--ov-3, rgba(255,255,255,0.05))',
+            border: '1px solid ' + (active ? 'var(--gold)' : 'var(--ov-6, rgba(255,255,255,0.12))'),
+            borderRadius: '7px',
+            color: active ? 'var(--gold)' : 'var(--silver)',
+            fontSize: 'var(--text-label, 0.78rem)', fontFamily: FONT_UI, fontWeight: 600,
+            cursor: 'pointer', whiteSpace: 'nowrap',
+        });
+
         if (!open) return null;
+
+        // Minimized: collapse to a restore pill so the report stays available
+        // without blocking the page (no backdrop).
+        if (minimized) {
+            return (
+                <button
+                    onClick={() => setMinimized(false)}
+                    title="Restore report"
+                    style={{
+                        position: 'fixed', bottom: '20px', left: '20px', zIndex: 600,
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        maxWidth: 'min(320px, 80vw)',
+                        padding: '8px 12px',
+                        background: 'linear-gradient(180deg, var(--k-14121c, #14121c) 0%, var(--k-0d0b12, #0d0b12) 100%)',
+                        border: '1px solid rgba(124,107,248,0.4)',
+                        borderRadius: '10px',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.55)',
+                        color: 'var(--gold)', cursor: 'pointer', fontFamily: FONT_UI,
+                    }}
+                >
+                    <span style={{ color: 'var(--k-9b8afb, #9b8afb)', flexShrink: 0 }}>✦</span>
+                    <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 700, fontSize: 'var(--text-label, 0.8rem)' }}>{title || 'Alex report'}</span>
+                    <span style={{ color: 'var(--silver)', opacity: 0.6, fontSize: 'var(--text-label, 0.75rem)', flexShrink: 0 }}>{pending ? '…' : '⤢'}</span>
+                </button>
+            );
+        }
 
         return (
             <div
@@ -218,8 +356,8 @@
                 <div
                     onClick={e => e.stopPropagation()}
                     style={{
-                        width: 'min(560px, 100%)',
-                        maxHeight: '82vh',
+                        width: 'min(820px, 94vw)',
+                        maxHeight: '88vh',
                         display: 'flex',
                         flexDirection: 'column',
                         background: 'linear-gradient(180deg, var(--k-14121c, #14121c) 0%, var(--k-0d0b12, #0d0b12) 100%)',
@@ -242,7 +380,7 @@
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{
                                 fontFamily: FONT_DISPL,
-                                fontSize: '0.85rem',
+                                fontSize: 'var(--text-body, 1rem)',
                                 fontWeight: 700,
                                 color: 'var(--gold)',
                                 letterSpacing: '0.04em',
@@ -250,10 +388,26 @@
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                             }}>{title}</div>
-                            <div style={{ fontSize: '0.55rem', color: 'var(--silver)', opacity: 0.55, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                                 Alex · Draft War Room
                             </div>
                         </div>
+                        <button
+                            onClick={() => setMinimized(true)}
+                            aria-label="Minimize"
+                            title="Minimize — keep available"
+                            style={{
+                                width: 26, height: 26,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                background: 'var(--ov-3, rgba(255,255,255,0.05))',
+                                border: '1px solid var(--ov-6, rgba(255,255,255,0.1))',
+                                borderRadius: '6px',
+                                color: 'var(--silver)',
+                                fontSize: 'var(--text-body, 1rem)',
+                                cursor: 'pointer',
+                                flexShrink: 0,
+                            }}
+                        >−</button>
                         <button
                             onClick={close}
                             aria-label="Close"
@@ -264,7 +418,7 @@
                                 border: '1px solid var(--ov-6, rgba(255,255,255,0.1))',
                                 borderRadius: '6px',
                                 color: 'var(--silver)',
-                                fontSize: '0.9rem',
+                                fontSize: 'var(--text-body, 1rem)',
                                 cursor: 'pointer',
                                 flexShrink: 0,
                             }}
@@ -274,28 +428,44 @@
                     {/* Body */}
                     <div style={{ padding: '14px', overflowY: 'auto', overflowX: 'hidden', flex: 1 }}>
                         {pending && (
-                            <div style={{ color: 'var(--gold)', fontSize: '0.72rem', fontStyle: 'italic', opacity: 0.8 }}>
+                            <div style={{ color: 'var(--gold)', fontSize: 'var(--text-label, 0.75rem)', fontStyle: 'italic', opacity: 0.8 }}>
                                 Alex is thinking<AnimatedDots />
                             </div>
                         )}
                         {!pending && error && (
-                            <div style={{ color: 'var(--k-e74c3c, #e74c3c)', fontSize: '0.72rem', lineHeight: 1.5 }}>
+                            <div style={{ color: 'var(--k-e74c3c, #e74c3c)', fontSize: 'var(--text-label, 0.75rem)', lineHeight: 1.5 }}>
                                 {error}
                             </div>
                         )}
                         {!pending && !error && answer && (
-                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.92 }}>
+                            <div style={{ fontSize: 'var(--text-body, 1rem)', lineHeight: 1.6, color: 'var(--silver)', opacity: 0.92 }}>
                                 {renderRichText(answer)}
                             </div>
                         )}
                     </div>
 
-                    {/* Footer — show the question that was asked */}
+                    {/* Footer — actions (save / export) shown once a report exists */}
+                    {(answer && !pending && !error) && (
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap',
+                            padding: '10px 14px',
+                            borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))',
+                            flexShrink: 0,
+                        }}>
+                            <button onClick={doSave} disabled={saving || saved} title="Save this report to revisit later" style={actionBtnStyle(saved)}>
+                                {saved ? '✓ Saved' : saving ? 'Saving…' : '＋ Save for later'}
+                            </button>
+                            <button onClick={doPdf} title="Open a printable view (Save as PDF)" style={actionBtnStyle(false)}>⬇ PDF</button>
+                            <button onClick={doEmail} title="Email or share this report" style={actionBtnStyle(false)}>✉ Email / Share</button>
+                            <span style={{ flex: 1 }} />
+                            <button onClick={() => setMinimized(true)} title="Minimize — keep available" style={actionBtnStyle(false)}>▭ Minimize</button>
+                        </div>
+                    )}
                     {prompt && (
                         <div style={{
                             padding: '8px 14px',
                             borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))',
-                            fontSize: '0.56rem',
+                            fontSize: 'var(--text-label, 0.75rem)',
                             color: 'var(--silver)',
                             opacity: 0.5,
                             flexShrink: 0,

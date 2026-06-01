@@ -61,16 +61,16 @@
         },
             React.createElement('span', {
                 style: {
-                    fontSize: '0.56rem', fontWeight: 700, color: posCol,
+                    fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: posCol,
                     minWidth: 22, textAlign: 'center',
                     padding: '1px 3px', borderRadius: '3px',
                     background: wrAlpha(posCol, '22'),
                 },
             }, r.pos),
             React.createElement('span', { style: { flex: 1, minWidth: 0, color: 'var(--text-primary)', fontWeight: 500, fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, r.name),
-            React.createElement('span', { style: { fontSize: '0.58rem', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', minWidth: 26, textAlign: 'right' } }, r.team),
-            r.age ? React.createElement('span', { style: { fontSize: '0.54rem', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', minWidth: 14, textAlign: 'right' } }, r.age) : null,
-            React.createElement('span', { style: { fontSize: '0.6rem', fontWeight: 700, color: tone, fontFamily: 'JetBrains Mono, monospace', minWidth: 32, textAlign: 'right' } },
+            React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', minWidth: 26, textAlign: 'right' } }, r.team),
+            r.age ? React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace', minWidth: 14, textAlign: 'right' } }, r.age) : null,
+            React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: tone, fontFamily: 'JetBrains Mono, monospace', minWidth: 32, textAlign: 'right' } },
                 r.dhq ? (r.dhq >= 1000 ? (r.dhq / 1000).toFixed(1) + 'k' : r.dhq) : '—',
             ),
         );
@@ -96,7 +96,7 @@
         },
             React.createElement('span', {
                 style: {
-                    fontSize: '0.62rem', fontWeight: 700, color: posCol,
+                    fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: posCol,
                     minWidth: 24, textAlign: 'center',
                     padding: '2px 4px', borderRadius: '3px',
                     background: wrAlpha(posCol, '22'),
@@ -104,7 +104,7 @@
             }, r.pos),
             React.createElement('div', { style: { flex: 1, minWidth: 0 } },
                 React.createElement('div', { style: { fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 500, fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, r.name),
-                React.createElement('div', { style: { fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'var(--font-body)' } },
+                React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--text-muted)', fontFamily: 'var(--font-body)' } },
                     [r.team, r.age ? 'Age ' + r.age : null].filter(Boolean).join(' · '),
                 ),
             ),
@@ -142,12 +142,12 @@
                 React.createElement('div', { style: { flex: 1, minWidth: 0 } },
                     React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: opts.large ? '0.95rem' : '0.82rem', fontWeight: 700, color: 'var(--white)', letterSpacing: '0.04em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, title),
                 ),
-                React.createElement('span', { style: { fontSize: '0.6rem', color: 'var(--silver)', fontFamily: 'JetBrains Mono, monospace' } }, rows.length + ' player' + (rows.length === 1 ? '' : 's')),
+                React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', fontFamily: 'JetBrains Mono, monospace' } }, rows.length + ' player' + (rows.length === 1 ? '' : 's')),
                 opts.showTagBtn !== false && React.createElement('button', {
                     onClick: openRoster,
                     title: 'Tag players in My Roster',
                     style: {
-                        padding: '2px 6px', fontSize: '0.58rem',
+                        padding: '2px 6px', fontSize: 'var(--text-micro, 0.6875rem)',
                         background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)',
                         border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '4px',
                         cursor: 'pointer', fontFamily: 'var(--font-body)', letterSpacing: '0.05em',
@@ -160,18 +160,18 @@
         if (size === 'sm') {
             const top = rows[0];
             return React.createElement('div', { style: { ...base, cursor: 'pointer', padding: '12px 14px', textAlign: 'center', justifyContent: 'center', alignItems: 'center', gap: '4px' }, onClick: openRoster },
-                React.createElement('div', { style: { fontSize: '0.62rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.7, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' } },
+                React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.7, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' } },
                     React.createElement('span', null, icon),
                     React.createElement('span', null, title),
                 ),
                 React.createElement('div', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '1.6rem', fontWeight: 700, color: rows.length > 0 ? tone : 'var(--silver)', lineHeight: 1, marginTop: '2px' } }, rows.length),
                 top
-                    ? React.createElement('div', { style: { fontSize: '0.58rem', color: 'var(--silver)', fontFamily: 'var(--font-body)', marginTop: '2px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
+                    ? React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', fontFamily: 'var(--font-body)', marginTop: '2px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
                         'Top: ',
                         React.createElement('span', { style: { color: 'var(--white)', fontWeight: 700 } }, (top.name || '').split(' ').slice(-1)[0]),
                         React.createElement('span', { style: { color: 'var(--silver)', opacity: 0.7 } }, ' · ' + top.pos),
                     )
-                    : React.createElement('div', { style: { fontSize: '0.56rem', color: 'var(--silver)', fontStyle: 'italic', opacity: 0.5, marginTop: '2px' } }, 'No tags'),
+                    : React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', fontStyle: 'italic', opacity: 0.5, marginTop: '2px' } }, 'No tags'),
             );
         }
 
@@ -200,7 +200,7 @@
                         rows.length > shown.length
                             ? React.createElement('div', {
                                 onClick: openRoster,
-                                style: { fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.6, textAlign: 'center', padding: '2px', cursor: 'pointer', marginTop: 'auto' },
+                                style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textAlign: 'center', padding: '2px', cursor: 'pointer', marginTop: 'auto' },
                             }, '+ ' + (rows.length - shown.length) + ' more')
                             : null,
                     ),
@@ -219,10 +219,10 @@
                 header({ large: true }),
                 // Summary chip strip — total DHQ + position breakdown
                 rows.length > 0 && React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', padding: '6px 8px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '6px', flexShrink: 0 } },
-                    React.createElement('span', { style: { fontSize: '0.6rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 } }, 'Total'),
+                    React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 } }, 'Total'),
                     React.createElement('span', { style: { fontSize: '0.78rem', fontWeight: 700, color: tone, fontFamily: 'JetBrains Mono, monospace' } }, totalDhq >= 1000 ? (totalDhq / 1000).toFixed(1) + 'k' : totalDhq),
                     React.createElement('span', { style: { color: 'var(--ov-6, rgba(255,255,255,0.15))', margin: '0 4px' } }, '·'),
-                    ...Object.entries(posCounts).sort((a, b) => b[1] - a[1]).map(([pos, count]) => React.createElement('span', { key: pos, style: { display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.6rem', fontFamily: 'var(--font-body)' } },
+                    ...Object.entries(posCounts).sort((a, b) => b[1] - a[1]).map(([pos, count]) => React.createElement('span', { key: pos, style: { display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)' } },
                         React.createElement('span', { style: { color: posColors[pos] || 'var(--text-muted)', fontWeight: 700 } }, pos),
                         React.createElement('span', { style: { color: 'var(--silver)', fontFamily: 'JetBrains Mono, monospace' } }, count),
                     )),
@@ -234,7 +234,7 @@
                         rows.length > shown.length
                             ? React.createElement('div', {
                                 onClick: openRoster,
-                                style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.6, textAlign: 'center', padding: '4px', cursor: 'pointer', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+                                style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textAlign: 'center', padding: '4px', cursor: 'pointer', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
                             }, '+ ' + (rows.length - shown.length) + ' more')
                             : null,
                     ),

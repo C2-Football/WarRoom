@@ -159,7 +159,7 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
     // ── Section header ────────────────────────────────────────────────────────
     const SectionHeader = ({ title, sub }) => (
         <div style={{ marginBottom: 10 }}>
-            <div style={{ fontFamily: 'var(--font-title)', fontSize: '0.75rem', color: 'var(--acc-line4, rgba(212,175,55,0.6))', letterSpacing: '0.16em', textTransform: 'uppercase' }}>{title}</div>
+            <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-body, 1rem)', color: 'var(--acc-line4, rgba(212,175,55,0.6))', letterSpacing: '0.16em', textTransform: 'uppercase' }}>{title}</div>
             {sub && <div style={{ fontSize: 'var(--text-label)', color: 'var(--ov-8, rgba(255,255,255,0.4))', marginTop: 2 }}>{sub}</div>}
         </div>
     );
@@ -177,7 +177,7 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                         borderRadius: 6,
                         background: active ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'var(--ov-3, rgba(255,255,255,0.04))',
                         color: active ? 'var(--gold)' : 'var(--ov-9, rgba(255,255,255,0.65))',
-                        fontSize: '0.82rem',
+                        fontSize: 'var(--text-body, 1rem)',
                         fontFamily: 'var(--font-body)',
                         fontWeight: active ? 600 : 400,
                         cursor: 'pointer',
@@ -270,7 +270,7 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 10 }}>
                 <div>
                     <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.5rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.04em' }}>GM STRATEGY</div>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--ov-8, rgba(255,255,255,0.45))', fontFamily: 'var(--font-body)', marginTop: 2 }}>
+                    <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--ov-8, rgba(255,255,255,0.45))', fontFamily: 'var(--font-body)', marginTop: 2 }}>
                         Set your franchise direction — syncs to Scout so Alex knows how to advise you.
                     </div>
                 </div>
@@ -361,7 +361,7 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                                 <button onClick={() => set('sellRules', draft.sellRules.filter((_, j) => j !== i))} style={styles.tagX}>×</button>
                             </span>
                         ))}
-                        {draft.sellRules.length === 0 && <span style={{ fontSize: '0.75rem', color: 'var(--ov-8, rgba(255,255,255,0.3))', fontFamily: 'var(--font-body)' }}>No rules set</span>}
+                        {draft.sellRules.length === 0 && <span style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--ov-8, rgba(255,255,255,0.3))', fontFamily: 'var(--font-body)' }}>No rules set</span>}
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                         <input
@@ -385,7 +385,7 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                                 <button onClick={() => set('untouchable', draft.untouchable.filter((_, j) => j !== i))} style={styles.tagX}>×</button>
                             </span>
                         ))}
-                        {draft.untouchable.length === 0 && <span style={{ fontSize: '0.75rem', color: 'var(--ov-8, rgba(255,255,255,0.3))', fontFamily: 'var(--font-body)' }}>No untouchables set</span>}
+                        {draft.untouchable.length === 0 && <span style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--ov-8, rgba(255,255,255,0.3))', fontFamily: 'var(--font-body)' }}>No untouchables set</span>}
                     </div>
                     <div style={{ position: 'relative' }}>
                         <input
@@ -541,7 +541,7 @@ const styles = {
         borderRadius: 6,
         padding: '7px 10px',
         color: 'var(--k-ffffff, #ffffff)',
-        fontSize: '0.82rem',
+        fontSize: 'var(--text-body, 1rem)',
         fontFamily: 'var(--font-body)',
         outline: 'none',
         width: '100%',
@@ -552,7 +552,7 @@ const styles = {
         border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))',
         borderRadius: 6,
         color: 'var(--gold)',
-        fontSize: '0.8rem',
+        fontSize: 'var(--text-body, 1rem)',
         fontFamily: 'var(--font-body)',
         padding: '7px 14px',
         cursor: 'pointer',
@@ -575,7 +575,7 @@ const styles = {
         border: 'none',
         color: 'var(--ov-8, rgba(255,255,255,0.45))',
         cursor: 'pointer',
-        fontSize: '0.85rem',
+        fontSize: 'var(--text-body, 1rem)',
         padding: '8px',
         minWidth: 32,
         minHeight: 32,
@@ -605,7 +605,7 @@ const styles = {
         border: 'none',
         borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.05))',
         color: 'var(--ov-9, rgba(255,255,255,0.75))',
-        fontSize: '0.82rem',
+        fontSize: 'var(--text-body, 1rem)',
         fontFamily: 'var(--font-body)',
         cursor: 'pointer',
         textAlign: 'left',
@@ -618,7 +618,7 @@ const styles = {
         border: '1px solid var(--acc-line3, rgba(212,175,55,0.5))',
         borderRadius: 7,
         color: disabled ? 'var(--acc-line3, rgba(212,175,55,0.5))' : 'var(--gold)',
-        fontSize: '0.85rem',
+        fontSize: 'var(--text-body, 1rem)',
         fontFamily: 'var(--font-body)',
         fontWeight: 600,
         cursor: disabled ? 'not-allowed' : 'pointer',
@@ -633,7 +633,7 @@ const styles = {
         background: bg,
         borderRadius: 20,
         color,
-        fontSize: '0.75rem',
+        fontSize: 'var(--text-body, 1rem)',
         fontFamily: 'var(--font-body)',
         fontWeight: 600,
     }),

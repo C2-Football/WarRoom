@@ -357,7 +357,7 @@
                             background: 'rgba(124,107,248,0.08)',
                             border: '1px solid rgba(155,138,251,0.28)',
                             borderRadius: '5px',
-                            fontSize: '0.64rem',
+                            fontSize: 'var(--text-micro, 0.6875rem)',
                             color: 'rgba(214,208,255,0.94)',
                             marginBottom: '12px',
                             lineHeight: 1.35,
@@ -521,7 +521,7 @@
                             background: 'var(--acc-fill1, rgba(212,175,55,0.045))',
                             borderRadius: 5,
                             color: 'var(--silver)',
-                            fontSize: '0.64rem',
+                            fontSize: 'var(--text-micro, 0.6875rem)',
                             lineHeight: 1.35,
                         }}>
                             <strong style={{ color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -864,18 +864,18 @@
                         }}>{chip}</span>
                     ))}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: '0.6rem', color: 'var(--silver)', lineHeight: 1.35 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', lineHeight: 1.35 }}>
                     <div>
-                        <strong style={{ display: 'block', color: 'var(--white)', fontSize: '0.58rem', marginBottom: 2 }}>Needs</strong>
+                        <strong style={{ display: 'block', color: 'var(--white)', fontSize: 'var(--text-micro, 0.6875rem)', marginBottom: 2 }}>Needs</strong>
                         {needs.length ? needs.join(', ') : 'No clear needs'}
                     </div>
                     <div>
-                        <strong style={{ display: 'block', color: 'var(--white)', fontSize: '0.58rem', marginBottom: 2 }}>Tradable</strong>
+                        <strong style={{ display: 'block', color: 'var(--white)', fontSize: 'var(--text-micro, 0.6875rem)', marginBottom: 2 }}>Tradable</strong>
                         {[...picks, ...players].slice(0, 4).join(', ') || 'No obvious assets'}
                     </div>
                 </div>
                 {profile.ownerIntelSummary && (
-                    <div style={{ marginTop: 7, fontSize: '0.58rem', color: 'var(--silver)', opacity: 0.78, lineHeight: 1.35 }}>
+                    <div style={{ marginTop: 7, fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.78, lineHeight: 1.35 }}>
                         {profile.ownerIntelSummary}
                     </div>
                 )}
@@ -920,12 +920,12 @@
                                 }}
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
-                                    <strong style={{ color: 'var(--white)', fontSize: '0.68rem' }}>{s.label}</strong>
+                                    <strong style={{ color: 'var(--white)', fontSize: 'var(--text-micro, 0.6875rem)' }}>{s.label}</strong>
                                     <span style={{ color, fontFamily: FONT_MONO, fontSize: '0.6875rem', fontWeight: 800 }}>
                                         {s.likelihood}% / {s.acceptanceLine}%
                                     </span>
                                 </div>
-                                <div style={{ fontSize: '0.58rem', color: 'var(--gold)', fontWeight: 700, marginBottom: 3 }}>
+                                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontWeight: 700, marginBottom: 3 }}>
                                     {s.intent}
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: '0.6875rem', lineHeight: 1.3 }}>
@@ -962,7 +962,7 @@
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginBottom: '4px' }}>
                             {(picks || []).map((p, i) => (
                                 <span key={'p'+i} style={{
-                                    fontSize: '0.58rem',
+                                    fontSize: 'var(--text-micro, 0.6875rem)',
                                     fontWeight: 700,
                                     padding: '2px 6px',
                                     borderRadius: '3px',
@@ -972,7 +972,7 @@
                             ))}
                             {(playerIds || []).map((pid) => (
                                 <span key={'pl'+pid} title={playerName(pid)} style={{
-                                    fontSize: '0.58rem',
+                                    fontSize: 'var(--text-micro, 0.6875rem)',
                                     fontWeight: 700,
                                     padding: '2px 6px',
                                     borderRadius: '3px',
@@ -986,7 +986,7 @@
                             ))}
                             {faab > 0 && (
                                 <span style={{
-                                    fontSize: '0.58rem',
+                                    fontSize: 'var(--text-micro, 0.6875rem)',
                                     fontWeight: 700,
                                     padding: '2px 6px',
                                     borderRadius: '3px',
@@ -995,12 +995,12 @@
                                 }}>${faab} FAAB</span>
                             )}
                         </div>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--silver)', fontFamily: FONT_MONO, opacity: 0.7 }}>
+                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', fontFamily: FONT_MONO, opacity: 0.7 }}>
                             ≈ {(dhq || 0).toLocaleString()} DHQ
                         </div>
                     </>
                 ) : (
-                    <div style={{ fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.5, fontStyle: 'italic' }}>{empty}</div>
+                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.5, fontStyle: 'italic' }}>{empty}</div>
                 )}
             </div>
         );
@@ -1142,7 +1142,7 @@
                         );
                     })}
                     {picks.length === 0 && (
-                        <div style={{ fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.4, fontStyle: 'italic' }}>
+                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.4, fontStyle: 'italic' }}>
                             no remaining picks
                         </div>
                     )}

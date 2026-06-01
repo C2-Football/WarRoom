@@ -316,7 +316,7 @@
                         { v: rec, l: 'Action', c: recCol },
                     ].map((s, i) => React.createElement('div', { key: i, style: { textAlign: 'center' } },
                         React.createElement('div', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '1.05rem', fontWeight: 700, color: s.c } }, s.v),
-                        React.createElement('div', { style: { fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '3px' } }, s.l)
+                        React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '3px' } }, s.l)
                     ))
                 ),
                 dhqContext && React.createElement('div', {
@@ -327,7 +327,7 @@
                         borderRadius: '7px',
                         background: 'var(--ov-2, rgba(255,255,255,0.025))',
                         color: dhqContextCol,
-                        fontSize: '0.76rem',
+                        fontSize: 'var(--text-body, 1rem)',
                         lineHeight: 1.45,
                     }
                 }, dhqContext),
@@ -341,11 +341,11 @@
                     }
                 },
                     React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '6px' } },
-                        React.createElement('span', { style: { fontSize: '0.68rem', color: 'var(--k-7db7e8, #7db7e8)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 800 } }, 'League Context'),
+                        React.createElement('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--k-7db7e8, #7db7e8)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 800 } }, 'League Context'),
                         leagueFormatBadges.map(badge => React.createElement('span', {
                             key: badge.code,
                             style: {
-                                fontSize: '0.62rem',
+                                fontSize: 'var(--text-label, 0.75rem)',
                                 color: 'var(--k-d0e7fa, #d0e7fa)',
                                 border: '1px solid rgba(125,183,232,0.22)',
                                 borderRadius: '4px',
@@ -354,15 +354,15 @@
                             }
                         }, badge.label))
                     ),
-                    React.createElement('div', { style: { fontSize: '0.75rem', color: 'var(--silver)', lineHeight: 1.45 } },
+                    React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.45 } },
                         playerFormatReasons.map(r => r.detail || r.label).join(' ')
                     )
                 ),
                 // Age curve
                 React.createElement('div', { style: { padding: '14px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
 	                    React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
-	                        React.createElement('div', { style: { fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 } }, 'Age Curve'),
-	                        React.createElement('div', { style: { fontSize: '0.74rem', color: peakCol } },
+	                        React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 } }, 'Age Curve'),
+	                        React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: peakCol } },
 	                            peakLabel + ' · ' + (peakYrs > 0 ? peakYrs + 'yr peak left' : valueYrs > 0 ? valueYrs + 'yr value left' : 'Past value window'))
                     ),
                     React.createElement('div', { style: { display: 'flex', height: '18px', borderRadius: '4px', overflow: 'hidden', gap: '1px' } },
@@ -378,12 +378,12 @@
                                     flex: 1, background: col, opacity: a === age ? 1 : 0.55,
                                     outline: a === age ? '2px solid var(--k-d4af37, #d4af37)' : 'none', outlineOffset: '-1px',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: '0.6rem', fontWeight: 700, color: a === age ? 'var(--text-primary)' : 'transparent'
+                                    fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: a === age ? 'var(--text-primary)' : 'transparent'
                                 }
                             }, a === age ? String(age) : '');
                         })
                     ),
-                    React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '4px' } },
+                    React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--text-muted)', marginTop: '4px' } },
                         React.createElement('span', null, '20'),
                         React.createElement('span', null, 'Peak ' + pLo + '–' + pHi),
                         React.createElement('span', null, '36')
@@ -397,15 +397,15 @@
                         { l: 'Height / Weight', v: heightWeight || '—' },
                         { l: 'College', v: p.college || '—' },
                     ].map((s, i) => React.createElement('div', { key: i },
-                        React.createElement('div', { style: { fontSize: '0.64rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' } }, s.l),
-                        React.createElement('div', { style: { fontSize: '0.86rem', color: 'var(--text-primary)', fontWeight: 500 } }, s.v)
+                        React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' } }, s.l),
+                        React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--text-primary)', fontWeight: 500 } }, s.v)
                     ))
                 ),
                 // Team history
                 React.createElement('div', { style: { padding: '14px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
-                    React.createElement('div', { style: { fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: '8px' } }, 'Team History'),
+                    React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: '8px' } }, 'Team History'),
                     historyLoading
-                        ? React.createElement('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.55 } }, 'Loading…')
+                        ? React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.55 } }, 'Loading…')
                         : (compressed.length
                             ? React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px' } },
                                 compressed.map((r, i) => React.createElement('span', {
@@ -413,15 +413,15 @@
                                     style: {
                                         padding: '4px 10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))',
                                         border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '6px',
-                                        fontSize: '0.78rem', color: 'var(--text-primary)', fontFamily: 'JetBrains Mono, monospace'
+                                        fontSize: 'var(--text-body, 1rem)', color: 'var(--text-primary)', fontFamily: 'JetBrains Mono, monospace'
                                     }
                                 }, r.team + ' ' + (r.start === r.end ? r.start : r.start + '–' + r.end)))
                             )
                             : React.createElement('div', null,
-                                React.createElement('div', { style: { fontSize: '0.82rem', color: 'var(--text-primary)' } },
+                                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--text-primary)' } },
                                     team === 'FA' ? 'Free Agent' : ('Current: ' + team)
                                 ),
-                                React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.55, marginTop: '4px' } },
+                                React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55, marginTop: '4px' } },
                                     'Per-season history not available from the current data source.'
                                 )
                             )
@@ -429,13 +429,13 @@
                 ),
                 // Phase 9 deferred: custom awards from imported Chronicles
                 customAwards.length > 0 && React.createElement('div', { style: { padding: '14px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
-                    React.createElement('div', { style: { fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: '8px' } }, 'Custom Awards'),
+                    React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: '8px' } }, 'Custom Awards'),
                     React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
                         customAwards.map((a, i) => React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderRadius: '6px' } },
-                            React.createElement('span', { style: { fontSize: '0.95rem' } }, '\uD83C\uDFC5'),
+                            React.createElement('span', { style: { fontSize: 'var(--text-body, 1rem)' } }, '\uD83C\uDFC5'),
                             React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-                                React.createElement('div', { style: { fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' } }, a.name),
-                                React.createElement('div', { style: { fontSize: '0.68rem', color: 'var(--silver)' } },
+                                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--text-primary)' } }, a.name),
+                                React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' } },
                                     [a.year, a.stats, a.league].filter(Boolean).join(' · ')
                                 )
                             )
@@ -444,8 +444,8 @@
                 ),
                 // Shared recommendation
                 React.createElement('div', { style: { padding: '14px 20px', display: 'flex', gap: '10px', alignItems: 'flex-start' } },
-                    React.createElement('div', { style: { width: '24px', height: '24px', borderRadius: '6px', background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '0.55rem', fontWeight: 800, color: 'var(--k-0a0a0a, #0a0a0a)' } }, 'AI'),
-                    React.createElement('div', { style: { fontSize: '0.84rem', color: 'var(--k-d0d0d0, #d0d0d0)', lineHeight: 1.5 } },
+                    React.createElement('div', { style: { width: '24px', height: '24px', borderRadius: '6px', background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 800, color: 'var(--k-0a0a0a, #0a0a0a)' } }, 'AI'),
+                    React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--k-d0d0d0, #d0d0d0)', lineHeight: 1.5 } },
                         rosterRecommendation?.display?.detail || (() => {
                             let insight;
 	                            if (isOnMyTeam && valueYrs <= 1 && dhq >= 3000) insight = 'Sell window closing — move before value drops.';
@@ -459,7 +459,7 @@
                             return insight;
                         })(),
                         rosterRecommendationWhy.length > 0 && React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '8px' } },
-                            rosterRecommendationWhy.map(line => React.createElement('span', { key: line, style: { color: 'var(--k-d0e7fa, #d0e7fa)', background: 'rgba(125,183,232,0.07)', border: '1px solid rgba(125,183,232,0.18)', borderRadius: '4px', padding: '2px 5px', fontSize: '0.6rem', lineHeight: 1.25 } }, line))
+                            rosterRecommendationWhy.map(line => React.createElement('span', { key: line, style: { color: 'var(--k-d0e7fa, #d0e7fa)', background: 'rgba(125,183,232,0.07)', border: '1px solid rgba(125,183,232,0.18)', borderRadius: '4px', padding: '2px 5px', fontSize: 'var(--text-label, 0.75rem)', lineHeight: 1.25 } }, line))
                         )
                     )
                 )
@@ -506,15 +506,15 @@
                         })
                     ),
                     React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-                        React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.45rem', color: 'var(--text-primary)', letterSpacing: '0.02em' } }, name),
+                        React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-hero, 2rem)', color: 'var(--text-primary)', letterSpacing: '0.02em' } }, name),
                         // Single-row identity strip — no redundant profile block below
-                        React.createElement('div', { style: { fontSize: '0.82rem', color: 'var(--k-d0d0d0, #d0d0d0)', marginTop: '2px' } },
+                        React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--k-d0d0d0, #d0d0d0)', marginTop: '2px' } },
                             [nPos, team, 'Age ' + (age || '?'), heightWeight, p.college].filter(Boolean).join(' · ')
                         )
                     ),
                     React.createElement('button', {
                         ref: closeRef, onClick: onClose,
-                        style: { background: 'none', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: '6px', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.95rem', padding: '4px 10px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+                        style: { background: 'none', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: '6px', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 'var(--text-body, 1rem)', padding: '4px 10px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }
                     }, '✕')
                 ),
                 // Tabs
@@ -527,7 +527,7 @@
                                 padding: '10px 14px', minHeight: '44px', background: 'transparent',
                                 border: 'none', borderBottom: tab === t ? '2px solid var(--gold)' : '2px solid transparent',
                                 color: tab === t ? 'var(--gold)' : 'var(--silver)',
-                                fontFamily: 'var(--font-body)', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: 'pointer'
+                                fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: 'pointer'
                             }
                         }, t === 'overview' ? 'Overview' : 'Career Stats')
                     )
@@ -545,7 +545,7 @@
                         ['trade', 'cut', 'watch', 'untouchable'].map(t =>
                             React.createElement('button', {
                                 key: t, onClick: () => applyTag(t),
-                                style: { display: 'block', width: '100%', textAlign: 'left', padding: '12px 10px', minHeight: '44px', background: 'transparent', border: 'none', color: 'var(--k-d0d0d0, #d0d0d0)', fontSize: '0.82rem', cursor: 'pointer', borderRadius: '4px' }
+                                style: { display: 'block', width: '100%', textAlign: 'left', padding: '12px 10px', minHeight: '44px', background: 'transparent', border: 'none', color: 'var(--k-d0d0d0, #d0d0d0)', fontSize: 'var(--text-body, 1rem)', cursor: 'pointer', borderRadius: '4px' }
                             }, 'Tag as ' + t.charAt(0).toUpperCase() + t.slice(1))
                         )
                     ) : null,
@@ -558,7 +558,7 @@
     function btnStyle(variant, extra) {
         const base = {
             padding: '9px 14px', minHeight: '44px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
-            borderRadius: '6px', fontFamily: 'Rajdhani, sans-serif', fontSize: '0.88rem',
+            borderRadius: '6px', fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-body, 1rem)',
             letterSpacing: '0.03em', cursor: 'pointer'
         };
         if (variant === 'primary') return { ...base, background: 'var(--k-d4af37, #d4af37)', color: 'var(--k-0a0a0a, #0a0a0a)', border: '1px solid var(--k-d4af37, #d4af37)', ...(extra || {}) };

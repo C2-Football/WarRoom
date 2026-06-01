@@ -1327,7 +1327,6 @@
                 }
                 const name = pName(target.p);
                 const firstName = target.p?.first_name || name.split(' ')[0];
-                const college = target.csv?.college || target.p?.college || target.p?.metadata?.college || '';
                 const nflTeam = target.csv?.nflTeam || target.p?.team || '';
                 const dRound = Number(target.csv?.draftRound) || 0;
                 const isUDFA = !!target.csv?.isUDFA && !dRound;
@@ -1336,15 +1335,15 @@
                 const dhqText = target.dhq > 0 ? fmtDhq(target.dhq) + ' ' + valueShortLabel : '';
                 const slot = nextPickLabel || 'our next pick';
 
-                let capital = '';
-                if (dRound === 1) capital = 'Round 1 NFL capital';
-                else if (dRound === 2) capital = 'Round 2 capital';
-                else if (dRound === 3) capital = 'Round 3 capital';
-                else if (dRound >= 4) capital = 'Day 3 (R' + dRound + ') capital';
-                else if (isUDFA) capital = 'UDFA dart throw';
+                let pickShort = '';
+                if (dRound === 1) pickShort = 'R1';
+                else if (dRound === 2) pickShort = 'R2';
+                else if (dRound === 3) pickShort = 'R3';
+                else if (dRound >= 4) pickShort = 'Day 3';
+                else if (isUDFA) pickShort = 'UDFA';
 
-                const pedigreeBits = [capital, college, nflTeam ? 'in ' + nflTeam : ''].filter(Boolean);
-                const pedigree = pedigreeBits.length ? ' (' + pedigreeBits.join(' / ') + ')' : '';
+                const pedigreeBits = [pickShort, nflTeam].filter(Boolean);
+                const pedigree = pedigreeBits.length ? ' (' + pedigreeBits.join(', ') + ')' : '';
 
                 const posGone = projectedPicks
                     .filter(p => Number(p.overall) < (nextPickOverall || Infinity)
@@ -1623,7 +1622,6 @@
                 const need = needLabels.find(n => n.pos === pos);
                 const alreadyClaimed = claimedByPos[pos] || 0;
 
-                const college = r.csv?.college || r.p?.college || r.p?.metadata?.college || '';
                 const nflTeam = r.csv?.nflTeam || r.p?.team || '';
                 const dRound = Number(r.csv?.draftRound) || 0;
                 const isUDFA = !!r.csv?.isUDFA && !dRound;
@@ -1632,21 +1630,15 @@
                 const consensusRank = r.consensusRank || r.csv?.rank || 0;
                 const risk = r.csv?.risk || '';
 
-                let capital = '';
-                if (dRound === 1) capital = 'Round 1 NFL capital';
-                else if (dRound === 2) capital = 'Round 2 capital';
-                else if (dRound === 3) capital = 'Round 3 capital';
-                else if (dRound >= 4) capital = 'Day 3 (R' + dRound + ') capital';
-                else if (isUDFA) capital = 'UDFA dart throw';
+                let pickShort = '';
+                if (dRound === 1) pickShort = 'R1';
+                else if (dRound === 2) pickShort = 'R2';
+                else if (dRound === 3) pickShort = 'R3';
+                else if (dRound >= 4) pickShort = 'Day 3';
+                else if (isUDFA) pickShort = 'UDFA';
 
-                let pedigree = '';
-                if (capital && college && nflTeam) pedigree = ' — ' + capital + ', ' + college + ' / ' + nflTeam;
-                else if (capital && college) pedigree = ' — ' + capital + ' out of ' + college;
-                else if (capital && nflTeam) pedigree = ' — ' + capital + ' / ' + nflTeam;
-                else if (college && nflTeam) pedigree = ' — ' + college + ' to ' + nflTeam;
-                else if (capital) pedigree = ' (' + capital + ')';
-                else if (college) pedigree = ' out of ' + college;
-                else if (nflTeam) pedigree = ' (landing in ' + nflTeam + ')';
+                const pedBits = [pickShort, nflTeam].filter(Boolean);
+                const pedigree = pedBits.length ? ' (' + pedBits.join(', ') + ')' : '';
 
                 const posGone = projectedPicks
                     .filter(p => Number(p.overall) < pickOverall && (normPos(p.pos) || p.pos) === pos)
@@ -1813,10 +1805,27 @@
             compactPickLabel, needLabels,
         ]);
 
+        // Saved Alex reports (draft plans / class reads) — local cache + server sync.
+        const [savedReports, setSavedReports] = useState([]);
+        useEffect(() => {
+            let alive = true;
+            const load = () => {
+                const lid = window.S?.currentLeagueId || null;
+                const SR = window.WR?.SavedReports;
+                if (SR?.syncFromServer) {
+                    SR.syncFromServer(lid).then(rows => { if (alive) setSavedReports(rows || []); }).catch(() => {});
+                } else if (SR?.listLocal) {
+                    if (alive) setSavedReports(SR.listLocal(lid));
+                }
+            };
+            load();
+            const onSaved = () => load();
+            window.addEventListener('wr:report-saved', onSaved);
+            return () => { alive = false; window.removeEventListener('wr:report-saved', onSaved); };
+        }, []);
+
         const requestFullDraftReport = useCallback(() => {
-            if (typeof setReconPanelOpen !== 'function' || typeof sendReconMessage !== 'function') return;
             if (!rosterState.isUsable) { alert(rosterState.message); return; }
-            setReconPanelOpen(true);
             const needs = needLabels.map(n => n.pos + (n.urgency === 'deficit' ? ' critical' : '')).join(', ') || 'balanced';
             const picks = myPicks.filter(p => p.year === leagueSeason).map(fmtPick).join(', ') || 'unknown';
             const prompt = isRookieDraft
@@ -1826,18 +1835,15 @@
                 : `Generate a full ${leagueSeason} redraft plan from the current player pool.\n\n` +
                     `League size: ${leagueSize}\nMy needs: ${needs}\nMy draft slots: ${picks}\n\n` +
                     `Cover: positional tiers, early-round build paths, mid-round targets, late values, kicker/DST timing, and avoid zones. Use specific player names from the board.`;
-            sendReconMessage(prompt);
-        }, [setReconPanelOpen, sendReconMessage, rosterState.isUsable, rosterState.message, needLabels, myPicks, leagueSeason, leagueSize, fmtPick, isRookieDraft, skinFeatures.showDynastyValue]);
+            window.dispatchEvent(new CustomEvent('wr:ask-open', { detail: { title: leagueSeason + ' Draft Plan', prompt, kind: 'draft-plan' } }));
+        }, [rosterState.isUsable, rosterState.message, needLabels, myPicks, leagueSeason, leagueSize, fmtPick, isRookieDraft, skinFeatures.showDynastyValue]);
 
         const requestClassOverview = useCallback(() => {
-            if (typeof setReconPanelOpen !== 'function' || typeof sendReconMessage !== 'function') return;
-            setReconPanelOpen(true);
-            sendReconMessage(
-                isRookieDraft
-                    ? 'Give me a concise ' + leagueSeason + ' rookie class overview by position, including class strengths, cliff points, and where my current picks should attack.'
-                    : 'Give me a concise ' + leagueSeason + ' redraft board overview by position, including tier cliffs, scarce pockets, and where my draft slots should attack.'
-            );
-        }, [setReconPanelOpen, sendReconMessage, leagueSeason, isRookieDraft]);
+            const prompt = isRookieDraft
+                ? 'Give me a concise ' + leagueSeason + ' rookie class overview by position, including class strengths, cliff points, and where my current picks should attack.'
+                : 'Give me a concise ' + leagueSeason + ' redraft board overview by position, including tier cliffs, scarce pockets, and where my draft slots should attack.';
+            window.dispatchEvent(new CustomEvent('wr:ask-open', { detail: { title: leagueSeason + ' Class Read', prompt, kind: 'class-read' } }));
+        }, [leagueSeason, isRookieDraft]);
 
         // Tag button helper
         const tagDefs = { target: { icon: '\u2605', color: 'var(--good)', label: 'Target' }, avoid: { icon: '\u2717', color: 'var(--bad)', label: 'Avoid' }, sleeper: { icon: '\u26A1', color: 'var(--k-3498db, #3498db)', label: 'Sleeper' }, must: { icon: '\u2B50', color: 'var(--gold)', label: 'Must' } };
@@ -1977,7 +1983,7 @@
                 {pickFocus && (
                     <div className="draft-pick-context-banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-md)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', borderRadius: 'var(--card-radius-sm)', padding: 'var(--card-pad-sm)', marginBottom: 'var(--space-md)' }}>
                         <div style={{ minWidth: 0 }}>
-                            <span style={{ display: 'block', fontSize: '0.68rem', color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Pick Focus</span>
+                            <span style={{ display: 'block', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Pick Focus</span>
                             <strong style={{ display: 'block', color: 'var(--white)', fontSize: '0.9rem', fontFamily: 'var(--font-title)' }}>{pickFocusLabel}</strong>
                             <em style={{ display: 'block', color: 'var(--silver)', fontSize: '0.74rem', fontStyle: 'normal' }}>{pickFocusSummary || 'Opened from the pick ledger.'}</em>
                         </div>
@@ -2053,7 +2059,7 @@
                                                     <>
                                                         <button type="button" onClick={() => openDraftPlayer(n.targetPid)} style={{ border: 0, background: 'transparent', color: 'inherit', padding: 0, font: 'inherit', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'var(--acc-line2, rgba(212,175,55,0.35))' }}>{n.targetName}</button>
                                                         {n.targetDhq ? ' - ' + fmtDhq(n.targetDhq) + ' ' + valueShortLabel : ''}
-                                                        <button type="button" onClick={() => setBoardTags(prev => ({ ...prev, [n.targetPid]: 'target' }))} style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '44px', minWidth: '44px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', borderRadius: 5, padding: '2px 5px', fontSize: 'var(--text-micro)', fontFamily: 'var(--font-body)', cursor: 'pointer' }}>Tag</button>
+                                                        <button type="button" onClick={() => setBoardTags(prev => ({ ...prev, [n.targetPid]: 'target' }))} style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', borderRadius: 5, padding: '1px 7px', fontSize: 'var(--text-micro)', fontFamily: 'var(--font-body)', cursor: 'pointer' }}>Tag</button>
                                                     </>
                                                 ) : (n.count ? n.count + ' players' : 'no clean target loaded')}
                                             </em>
@@ -2077,6 +2083,19 @@
                                             <button type="button" disabled={!aiRecommendedOrder.length || !boardPosFilter} onClick={() => applyAiOrderToUserBoard('position')}>Apply Position</button>
                                         </div>
                                     </div>
+                                    {savedReports.length > 0 && (
+                                        <div style={{ marginTop: 10, borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))', paddingTop: 8 }}>
+                                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--silver)', opacity: 0.6, marginBottom: 6 }}>Saved Reports</div>
+                                            {savedReports.slice(0, 6).map(r => (
+                                                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
+                                                    <button type="button" title="Reopen report" onClick={() => window.dispatchEvent(new CustomEvent('wr:ask-show', { detail: { title: r.title, prompt: r.prompt, answer: r.content, kind: r.kind } }))} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'transparent', border: 0, color: 'var(--silver)', cursor: 'pointer', font: 'inherit', fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: 0 }}>
+                                                        <span style={{ color: 'var(--gold)' }}>{'★'}</span> {r.title} <span style={{ opacity: 0.45 }}>{new Date(r.createdAt).toLocaleDateString()}</span>
+                                                    </button>
+                                                    <button type="button" title="Remove from list" onClick={() => { const lid = window.S?.currentLeagueId || null; window.WR?.SavedReports?.remove?.(lid, r.id); setSavedReports(prev => prev.filter(x => x.id !== r.id)); }} style={{ flexShrink: 0, background: 'transparent', border: 0, color: 'var(--silver)', opacity: 0.5, cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', padding: '0 2px' }}>{'✕'}</button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                                 {renderAnalystFlash()}
                             </aside>
@@ -2151,7 +2170,7 @@
                                             <span>{row.count} top-60 {draftPoolNoun}</span>
                                             <em>
                                                 <button type="button" onClick={() => openDraftPlayer(row.topPid)} style={{ border: 0, background: 'transparent', color: 'inherit', padding: 0, font: 'inherit', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'var(--acc-line2, rgba(212,175,55,0.35))' }}>{row.top}</button>
-                                                <button type="button" onClick={() => setBoardTags(prev => ({ ...prev, [row.topPid]: 'target' }))} style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '44px', minWidth: '44px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', borderRadius: 5, padding: '2px 5px', fontSize: 'var(--text-micro)', fontFamily: 'var(--font-body)', cursor: 'pointer' }}>Tag</button>
+                                                <button type="button" onClick={() => setBoardTags(prev => ({ ...prev, [row.topPid]: 'target' }))} style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', borderRadius: 5, padding: '1px 7px', fontSize: 'var(--text-micro)', fontFamily: 'var(--font-body)', cursor: 'pointer' }}>Tag</button>
                                             </em>
                                             <p>{row.alexBlurb}</p>
                                         </div>
@@ -2229,7 +2248,7 @@
                                                         ].map(([label, value]) => (
                                                             <div key={label} style={{ border: '1px solid var(--ov-4, rgba(255,255,255,0.055))', borderRadius: 6, padding: '6px 7px', background: 'var(--ov-1, rgba(255,255,255,0.02))' }}>
                                                                 <em style={{ display: 'block', color: 'var(--silver)', opacity: 0.58, fontStyle: 'normal', fontSize: 'var(--text-micro)', textTransform: 'uppercase' }}>{label}</em>
-                                                                <strong style={{ display: 'block', color: label === valueShortLabel ? dhqC : 'var(--white)', fontSize: '0.68rem', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</strong>
+                                                                <strong style={{ display: 'block', color: label === valueShortLabel ? dhqC : 'var(--white)', fontSize: 'var(--text-micro, 0.6875rem)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</strong>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -2241,15 +2260,15 @@
                                                             <div key={bi} style={{ color: 'var(--white)', opacity: 0.92, fontSize: '0.72rem', lineHeight: 1.45, border: '1px solid var(--ov-4, rgba(255,255,255,0.055))', borderRadius: 6, padding: '7px 8px', background: 'var(--ov-1, rgba(255,255,255,0.018))' }}>{bit}</div>
                                                         ))}
                                                     </div>
-                                                    {compText && <div style={{ color: 'var(--white)', opacity: 0.82, fontSize: '0.68rem', marginTop: 7 }}>Comp: {compText}</div>}
+                                                    {compText && <div style={{ color: 'var(--white)', opacity: 0.82, fontSize: 'var(--text-micro, 0.6875rem)', marginTop: 7 }}>Comp: {compText}</div>}
                                                 </div>
                                             </div>
                                             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                                                <button type="button" onClick={() => { setScoutDrawerPid(null); openInBigBoard(r.pid); }} style={{ padding: '7px 10px', fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 6, cursor: 'pointer', fontWeight: 800 }}>OPEN IN BIG BOARD</button>
-                                                <a href={(isSeasonalDraftCtx ? 'https://www.pro-football-reference.com/search/search.fcgi?search=' : 'https://www.sports-reference.com/cfb/search/search.fcgi?search=') + encodeURIComponent(pName(r.p))} target="_blank" rel="noopener" style={{ padding: '7px 10px', fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'rgba(52,152,219,0.12)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>{isSeasonalDraftCtx ? 'PRO STATS' : 'COLLEGE STATS'}</a>
-                                                <a href={'https://www.youtube.com/results?search_query=' + encodeURIComponent(pName(r.p) + ' highlights ' + leagueSeason)} target="_blank" rel="noopener" style={{ padding: '7px 10px', fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'rgba(231,76,60,0.12)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>HIGHLIGHTS</a>
-                                                <a href={'https://www.fantasypros.com/nfl/players/' + encodeURIComponent(((r.p.first_name || '') + '-' + (r.p.last_name || '')).toLowerCase().replace(/[^a-z-]/g, '')) + '.php'} target="_blank" rel="noopener" style={{ padding: '7px 10px', fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'rgba(52,152,219,0.15)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>FANTASYPROS</a>
-                                                <button type="button" onClick={() => { setBoardTags(prev => ({ ...prev, [r.pid]: prev[r.pid] === 'target' ? undefined : 'target' })); }} style={{ padding: '7px 10px', fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'rgba(46,204,113,0.12)', color: 'var(--good)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: 6, cursor: 'pointer', fontWeight: 800 }}>{boardTags[r.pid] === 'target' ? 'UNTAG TARGET' : 'TAG TARGET'}</button>
+                                                <button type="button" onClick={() => { setScoutDrawerPid(null); openInBigBoard(r.pid); }} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 6, cursor: 'pointer', fontWeight: 800 }}>OPEN IN BIG BOARD</button>
+                                                <a href={(isSeasonalDraftCtx ? 'https://www.pro-football-reference.com/search/search.fcgi?search=' : 'https://www.sports-reference.com/cfb/search/search.fcgi?search=') + encodeURIComponent(pName(r.p))} target="_blank" rel="noopener" style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(52,152,219,0.12)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>{isSeasonalDraftCtx ? 'PRO STATS' : 'COLLEGE STATS'}</a>
+                                                <a href={'https://www.youtube.com/results?search_query=' + encodeURIComponent(pName(r.p) + ' highlights ' + leagueSeason)} target="_blank" rel="noopener" style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(231,76,60,0.12)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>HIGHLIGHTS</a>
+                                                <a href={'https://www.fantasypros.com/nfl/players/' + encodeURIComponent(((r.p.first_name || '') + '-' + (r.p.last_name || '')).toLowerCase().replace(/[^a-z-]/g, '')) + '.php'} target="_blank" rel="noopener" style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(52,152,219,0.15)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>FANTASYPROS</a>
+                                                <button type="button" onClick={() => { setBoardTags(prev => ({ ...prev, [r.pid]: prev[r.pid] === 'target' ? undefined : 'target' })); }} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(46,204,113,0.12)', color: 'var(--good)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: 6, cursor: 'pointer', fontWeight: 800 }}>{boardTags[r.pid] === 'target' ? 'UNTAG TARGET' : 'TAG TARGET'}</button>
                                             </div>
                                         </div>
                                     </div>
@@ -2445,7 +2464,7 @@
                         return (
 		                        <div style={{ background: 'var(--black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: 'var(--card-radius-sm)', maxHeight: 'none', overflowX: 'auto', WebkitOverflowScrolling: 'touch', overflowY: 'clip' }}>
 	                          <div style={{ minWidth: '100%' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: boardGridCols, minHeight: '34px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', fontSize: '0.66rem', fontWeight: 800, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', alignItems: 'center', position: 'sticky', top: 0, zIndex: 1 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: boardGridCols, minHeight: '34px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', alignItems: 'center', position: 'sticky', top: 0, zIndex: 1 }}>
                                 <div style={{ textAlign: 'center' }}>#</div>
                                 {boardHeaderCell('Player', 'name', { padding: '0 8px' })}
                                 {boardHeaderCell(isSeasonalDraft ? 'NFL Team' : 'College', isSeasonalDraft ? 'team' : 'school', { padding: '0 8px' })}
@@ -2549,8 +2568,8 @@
                                             <span>{idx + 1}</span>
                                             {!isDhq && (
                                                 <span style={{ display: 'inline-grid', gap: 2 }}>
-                                                    <button type="button" title="Move up" onClick={e => { e.stopPropagation(); handleBoardMove(r.pid, -1); }} style={{ width: 16, height: 14, lineHeight: 1, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 3, background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', cursor: 'pointer', fontSize: '0.52rem', padding: 0 }}>▲</button>
-                                                    <button type="button" title="Move down" onClick={e => { e.stopPropagation(); handleBoardMove(r.pid, 1); }} style={{ width: 16, height: 14, lineHeight: 1, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 3, background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', cursor: 'pointer', fontSize: '0.52rem', padding: 0 }}>▼</button>
+                                                    <button type="button" title="Move up" onClick={e => { e.stopPropagation(); handleBoardMove(r.pid, -1); }} style={{ width: 16, height: 14, lineHeight: 1, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 3, background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', padding: 0 }}>▲</button>
+                                                    <button type="button" title="Move down" onClick={e => { e.stopPropagation(); handleBoardMove(r.pid, 1); }} style={{ width: 16, height: 14, lineHeight: 1, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 3, background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', padding: 0 }}>▼</button>
                                                 </span>
                                             )}
                                         </div>
@@ -2575,12 +2594,12 @@
                                         {snapshotCell(profileStr, speedStr && parseFloat(speedStr) <= 4.45 ? 'var(--good)' : 'var(--white)')}
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, padding: '4px 6px' }}>
                                             <button type="button" onClick={e => { e.stopPropagation(); openPlayerDetail(); }}
-                                                style={{ fontSize: '0.55rem', padding: '3px 6px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: 5, cursor: 'pointer', background: isExp ? 'var(--acc-fill3, rgba(212,175,55,0.14))' : 'var(--ov-3, rgba(255,255,255,0.035))', color: isExp ? 'var(--gold)' : 'var(--silver)', fontFamily: 'var(--font-body)', fontWeight: 800 }}>
+                                                style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '3px 6px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: 5, cursor: 'pointer', background: isExp ? 'var(--acc-fill3, rgba(212,175,55,0.14))' : 'var(--ov-3, rgba(255,255,255,0.035))', color: isExp ? 'var(--gold)' : 'var(--silver)', fontFamily: 'var(--font-body)', fontWeight: 800 }}>
                                                 {isExp ? 'Hide' : 'Open'}
                                             </button>
                                             {!isDhq && (
                                                 <button type="button" onClick={e => { e.stopPropagation(); setDraftedPids(prev => { const n = new Set(prev); if (n.has(r.pid)) n.delete(r.pid); else n.add(r.pid); return n; }); }}
-                                                    style={{ fontSize: '0.55rem', padding: '3px 6px', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 5, cursor: 'pointer', background: isDrafted ? 'rgba(231,76,60,0.15)' : 'var(--ov-3, rgba(255,255,255,0.035))', color: isDrafted ? 'var(--bad)' : 'var(--silver)', fontFamily: 'var(--font-body)', fontWeight: 800 }}>
+                                                    style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '3px 6px', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 5, cursor: 'pointer', background: isDrafted ? 'rgba(231,76,60,0.15)' : 'var(--ov-3, rgba(255,255,255,0.035))', color: isDrafted ? 'var(--bad)' : 'var(--silver)', fontFamily: 'var(--font-body)', fontWeight: 800 }}>
                                                     {isDrafted ? 'Undo' : 'Off'}
                                                 </button>
                                             )}
@@ -2603,7 +2622,7 @@
                                                         ].map(([label, value]) => (
                                                             <div key={label} style={{ border: '1px solid var(--ov-4, rgba(255,255,255,0.055))', borderRadius: 6, padding: '6px 7px', background: 'var(--ov-1, rgba(255,255,255,0.02))' }}>
                                                                 <em style={{ display: 'block', color: 'var(--silver)', opacity: 0.58, fontStyle: 'normal', fontSize: 'var(--text-micro)', textTransform: 'uppercase' }}>{label}</em>
-                                                                <strong style={{ display: 'block', color: label === valueShortLabel ? dhqC : 'var(--white)', fontSize: '0.68rem', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</strong>
+                                                                <strong style={{ display: 'block', color: label === valueShortLabel ? dhqC : 'var(--white)', fontSize: 'var(--text-micro, 0.6875rem)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</strong>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -2615,7 +2634,7 @@
                                                             <div key={bi} style={{ color: 'var(--silver)', fontSize: '0.72rem', lineHeight: 1.45, border: '1px solid var(--ov-4, rgba(255,255,255,0.055))', borderRadius: 6, padding: '7px 8px', background: 'var(--ov-1, rgba(255,255,255,0.018))' }}>{bit}</div>
                                                         ))}
                                                     </div>
-                                                    {compText && <div style={{ color: 'var(--white)', opacity: 0.82, fontSize: '0.68rem', marginTop: 7 }}>Comp: {compText}</div>}
+                                                    {compText && <div style={{ color: 'var(--white)', opacity: 0.82, fontSize: 'var(--text-micro, 0.6875rem)', marginTop: 7 }}>Comp: {compText}</div>}
                                                     {teamFitInsight && (
                                                         <div style={{ border: '1px solid rgba(46,204,113,0.18)', background: 'rgba(46,204,113,0.045)', borderRadius: 6, padding: '7px 8px', marginTop: 7 }}>
                                                             <span style={{ display: 'block', color: 'var(--good)', fontSize: 'var(--text-micro)', fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Alex NFL Fit</span>
@@ -2636,13 +2655,13 @@
                                                     <span style={detailLabel}>Research / Actions</span>
                                                     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 9 }}>
                                                         {Object.entries(tagDefs).map(([tKey, tDef]) => (
-                                                            <button key={tKey} type="button" onClick={(e) => { e.stopPropagation(); const wasActive = boardTags[r.pid] === tKey; setBoardTags(prev => ({ ...prev, [r.pid]: prev[r.pid] === tKey ? undefined : tKey })); if (!wasActive) { window.wrLogAction?.('TAG', 'Tagged ' + pName(r.p) + ' on draft board', 'draft', { players: [{ name: pName(r.p) }], actionType: 'board-tag' }); } }} style={{ padding: '4px 9px', fontSize: '0.64rem', fontFamily: 'var(--font-body)', fontWeight: 800, borderRadius: 6, cursor: 'pointer', border: '1px solid ' + (tag === tKey ? tDef.color : 'var(--ov-6, rgba(255,255,255,0.12))'), background: tag === tKey ? wrAlpha(tDef.color, '25') : 'var(--ov-2, rgba(255,255,255,0.03))', color: tag === tKey ? tDef.color : 'var(--silver)' }}>{tDef.label}</button>
+                                                            <button key={tKey} type="button" onClick={(e) => { e.stopPropagation(); const wasActive = boardTags[r.pid] === tKey; setBoardTags(prev => ({ ...prev, [r.pid]: prev[r.pid] === tKey ? undefined : tKey })); if (!wasActive) { window.wrLogAction?.('TAG', 'Tagged ' + pName(r.p) + ' on draft board', 'draft', { players: [{ name: pName(r.p) }], actionType: 'board-tag' }); } }} style={{ padding: '4px 9px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', fontWeight: 800, borderRadius: 6, cursor: 'pointer', border: '1px solid ' + (tag === tKey ? tDef.color : 'var(--ov-6, rgba(255,255,255,0.12))'), background: tag === tKey ? wrAlpha(tDef.color, '25') : 'var(--ov-2, rgba(255,255,255,0.03))', color: tag === tKey ? tDef.color : 'var(--silver)' }}>{tDef.label}</button>
                                                         ))}
                                                     </div>
                                                     <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                                                        <a href={(isSeasonalDraft ? 'https://www.pro-football-reference.com/search/search.fcgi?search=' : 'https://www.sports-reference.com/cfb/search/search.fcgi?search=') + encodeURIComponent(pName(r.p))} target="_blank" rel="noopener" title={isSeasonalDraft ? 'Open Pro Football Reference player search in a new tab' : 'Open Sports Reference college stats in a new tab'} onClick={e => e.stopPropagation()} style={{ padding: '7px 10px', fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'rgba(52,152,219,0.12)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>{isSeasonalDraft ? 'PRO STATS' : 'COLLEGE STATS'}</a>
-                                                        <a href={'https://www.youtube.com/results?search_query=' + encodeURIComponent(pName(r.p) + ' highlights ' + leagueSeason)} target="_blank" rel="noopener" onClick={e => e.stopPropagation()} style={{ padding: '7px 10px', fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'rgba(231,76,60,0.12)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>HIGHLIGHTS</a>
-                                                        <a href={'https://www.fantasypros.com/nfl/players/' + encodeURIComponent(((r.p.first_name || '') + '-' + (r.p.last_name || '')).toLowerCase().replace(/[^a-z-]/g, '')) + '.php'} target="_blank" rel="noopener" title="Open FantasyPros player news and profile in a new tab" aria-label={'Open FantasyPros news for ' + pName(r.p)} onClick={e => e.stopPropagation()} style={{ padding: '7px 10px', fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'rgba(52,152,219,0.15)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>FANTASYPROS NEWS</a>
+                                                        <a href={(isSeasonalDraft ? 'https://www.pro-football-reference.com/search/search.fcgi?search=' : 'https://www.sports-reference.com/cfb/search/search.fcgi?search=') + encodeURIComponent(pName(r.p))} target="_blank" rel="noopener" title={isSeasonalDraft ? 'Open Pro Football Reference player search in a new tab' : 'Open Sports Reference college stats in a new tab'} onClick={e => e.stopPropagation()} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(52,152,219,0.12)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>{isSeasonalDraft ? 'PRO STATS' : 'COLLEGE STATS'}</a>
+                                                        <a href={'https://www.youtube.com/results?search_query=' + encodeURIComponent(pName(r.p) + ' highlights ' + leagueSeason)} target="_blank" rel="noopener" onClick={e => e.stopPropagation()} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(231,76,60,0.12)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>HIGHLIGHTS</a>
+                                                        <a href={'https://www.fantasypros.com/nfl/players/' + encodeURIComponent(((r.p.first_name || '') + '-' + (r.p.last_name || '')).toLowerCase().replace(/[^a-z-]/g, '')) + '.php'} target="_blank" rel="noopener" title="Open FantasyPros player news and profile in a new tab" aria-label={'Open FantasyPros news for ' + pName(r.p)} onClick={e => e.stopPropagation()} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(52,152,219,0.15)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>FANTASYPROS NEWS</a>
                                                         <button type="button" onClick={e => {
                                                             e.stopPropagation();
                                                             const name = pName(r.p);
@@ -2659,8 +2678,8 @@
                                                                 const context = isSeasonalDraft ? (posLabel(pos) + ', ' + (team || 'FA') + ', age ' + (age || 'unknown') + ', ' + rankStr + ' board rank, ' + tierStr + ' tier') : (posLabel(pos) + ', ' + college);
                                                                 sendReconMessage('Give me a full ' + (isSeasonalDraft ? 'redraft NFL player scouting report' : 'rookie scouting report') + ' on ' + name + ' (' + context + '). Include role, production profile, weekly floor, ceiling, risk, comparable players, and where I should draft him in this league format.');
                                                             }
-                                                        }} style={{ padding: '7px 10px', fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'rgba(124,107,248,0.15)', color: 'var(--purple)', border: '1px solid rgba(124,107,248,0.3)', borderRadius: 6, cursor: 'pointer', fontWeight: 800 }}>ASK ALEX</button>
-                                                        <button type="button" onClick={e => { e.stopPropagation(); setExpandedDraftPid(null); }} style={{ padding: '7px 10px', fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 6, cursor: 'pointer', fontWeight: 800 }}>COLLAPSE</button>
+                                                        }} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(124,107,248,0.15)', color: 'var(--purple)', border: '1px solid rgba(124,107,248,0.3)', borderRadius: 6, cursor: 'pointer', fontWeight: 800 }}>ASK ALEX</button>
+                                                        <button type="button" onClick={e => { e.stopPropagation(); setExpandedDraftPid(null); }} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 6, cursor: 'pointer', fontWeight: 800 }}>COLLAPSE</button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2693,7 +2712,7 @@
                         <section style={{ border: '1px solid var(--acc-fill3, rgba(212,175,55,0.18))', borderRadius: 'var(--card-radius)', background: 'linear-gradient(135deg, var(--acc-fill2, rgba(212,175,55,0.08)), var(--ov-1, rgba(255,255,255,0.018)))', padding: '14px 15px', marginBottom: 12 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: 12 }}>
                                 <div style={{ minWidth: 0 }}>
-	                                    <div style={{ color: 'var(--gold)', fontFamily: 'var(--font-body)', fontSize: '0.66rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>{isRookieDraft ? 'Draft Big Board' : 'Redraft Big Board'}</div>
+	                                    <div style={{ color: 'var(--gold)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>{isRookieDraft ? 'Draft Big Board' : 'Redraft Big Board'}</div>
                                     <h3 style={{ margin: 0, color: 'var(--white)', fontFamily: 'var(--font-title)', fontSize: '1.22rem', lineHeight: 1.05 }}>{activeBoardInfo.label}</h3>
                                     <p style={{ margin: '4px 0 0', color: 'var(--silver)', opacity: 0.72, fontSize: '0.76rem', lineHeight: 1.45 }}>{activeBoardInfo.detail}</p>
                                 </div>
@@ -2723,7 +2742,7 @@
                                         fontFamily: 'var(--font-body)',
                                     }}>
                                         <strong style={{ display: 'block', color: boardMode === opt.k ? 'var(--gold)' : 'var(--white)', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{opt.label}</strong>
-                                        <span style={{ display: 'block', opacity: 0.66, fontSize: '0.62rem', marginTop: 2 }}>{opt.sub}</span>
+                                        <span style={{ display: 'block', opacity: 0.66, fontSize: 'var(--text-micro, 0.6875rem)', marginTop: 2 }}>{opt.sub}</span>
                                     </button>
                                 ))}
                             </div>
@@ -2735,13 +2754,13 @@
                             {(typeof getLeaguePositions === 'function' ? getLeaguePositions() : ['QB','RB','WR','TE','K','DEF','DL','LB','DB']).map(pos => (
                                 <button key={pos} onClick={() => setBoardPosFilter(boardPosFilter === pos ? '' : pos)} style={{ padding: '4px 10px', minHeight: '44px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', borderRadius: '14px', cursor: 'pointer', border: '1px solid ' + (boardPosFilter === pos ? (posColors[pos] || 'var(--k-666666, #666666)') + '55' : 'var(--ov-5, rgba(255,255,255,0.08))'), background: boardPosFilter === pos ? (posColors[pos] || 'var(--k-666666, #666666)') + '18' : 'transparent', color: boardPosFilter === pos ? posColors[pos] : 'var(--silver)' }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</button>
                             ))}
-                            <span style={{ marginLeft: 'auto', fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.4 }}>Click row to expand {'\u00B7'} Use arrows or drag to reorder My Board</span>
+                            <span style={{ marginLeft: 'auto', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.4 }}>Click row to expand {'\u00B7'} Use arrows or drag to reorder My Board</span>
                         </div>
 
                         {/* Team & Round filters */}
                         <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Team</span>
+                                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Team</span>
                                 <select value={boardTeamFilter} onChange={e => setBoardTeamFilter(e.target.value)} style={{ padding: '3px 6px', minHeight: '44px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', background: 'var(--ov-3, rgba(255,255,255,0.04))', color: boardTeamFilter ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (boardTeamFilter ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'), borderRadius: '6px', cursor: 'pointer', outline: 'none' }}>
                                     <option value="">All teams</option>
                                     {availableTeams.map(t => <option key={t} value={t}>{t}</option>)}
@@ -2749,7 +2768,7 @@
                             </div>
 	                            {isRookieDraft && (
 	                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-	                                <span style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: '2px' }}>Round</span>
+	                                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: '2px' }}>Round</span>
 	                                {[
 	                                    { k: '', label: 'All' },
 	                                    { k: '1', label: 'R1' },
@@ -2761,17 +2780,17 @@
 	                                    { k: '7', label: 'R7' },
 	                                    { k: 'UDFA', label: 'UDFA' },
 	                                ].map(opt => (
-	                                    <button key={opt.k} onClick={() => setBoardRoundFilter(boardRoundFilter === opt.k ? '' : opt.k)} style={{ padding: '3px 8px', minHeight: '44px', fontSize: '0.66rem', fontFamily: 'var(--font-body)', borderRadius: '10px', cursor: 'pointer', border: '1px solid ' + (boardRoundFilter === opt.k ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'), background: boardRoundFilter === opt.k ? 'var(--acc-fill3, rgba(212,175,55,0.14))' : 'transparent', color: boardRoundFilter === opt.k ? 'var(--gold)' : 'var(--silver)' }}>{opt.label}</button>
+	                                    <button key={opt.k} onClick={() => setBoardRoundFilter(boardRoundFilter === opt.k ? '' : opt.k)} style={{ padding: '3px 8px', minHeight: '44px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', borderRadius: '10px', cursor: 'pointer', border: '1px solid ' + (boardRoundFilter === opt.k ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'), background: boardRoundFilter === opt.k ? 'var(--acc-fill3, rgba(212,175,55,0.14))' : 'transparent', color: boardRoundFilter === opt.k ? 'var(--gold)' : 'var(--silver)' }}>{opt.label}</button>
 	                                ))}
 	                            </div>
 	                            )}
                             {(boardTeamFilter || boardRoundFilter) && (
-                                <button onClick={() => { setBoardTeamFilter(''); setBoardRoundFilter(''); }} style={{ marginLeft: 'auto', padding: '3px 10px', minHeight: '44px', fontSize: '0.64rem', fontFamily: 'var(--font-body)', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: '10px', cursor: 'pointer' }}>Clear</button>
+                                <button onClick={() => { setBoardTeamFilter(''); setBoardRoundFilter(''); }} style={{ marginLeft: 'auto', padding: '3px 10px', minHeight: '44px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: '10px', cursor: 'pointer' }}>Clear</button>
                             )}
                         </div>
 
                         <div style={{ marginBottom: '14px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 8, color: 'var(--silver)', opacity: 0.65, fontSize: '0.68rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 8, color: 'var(--silver)', opacity: 0.65, fontSize: 'var(--text-micro, 0.6875rem)' }}>
                                 <span>{activeBoardInfo.label} - {visibleBoardPlayers.length} visible players</span>
                                 <span>{boardMode === 'my' ? 'Drag rows to reorder - click a player for notes' : 'Switch to User Board to edit rank order'}</span>
                             </div>
@@ -2823,6 +2842,12 @@
                         </div>
                     );
                 })()}
+
+                {/* Dedicated Alex answer window for Flash Brief report buttons —
+                    command-center (which normally mounts this) isn't rendered on this view. */}
+                {activeView === 'command' && window.DraftCC && window.DraftCC.AskAnswerWindow
+                    ? React.createElement(window.DraftCC.AskAnswerWindow, { state: null })
+                    : null}
 
             </div>
         );

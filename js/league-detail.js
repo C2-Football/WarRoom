@@ -476,16 +476,16 @@
 	                    ),
 	                    React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px', marginBottom: '14px' } },
 	                        ...quickItems.map(item => React.createElement('div', { key: item.term, style: { padding: '12px 13px', background: 'var(--black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.18))', borderRadius: '8px' } },
-	                            React.createElement('div', { style: { fontSize: '0.76rem', fontWeight: 800, color: 'var(--gold)', fontFamily: 'var(--font-body)', marginBottom: '4px' } }, item.term),
-	                            React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', lineHeight: 1.45 } }, item.def)
+	                            React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', fontWeight: 800, color: 'var(--gold)', fontFamily: 'var(--font-body)', marginBottom: '4px' } }, item.term),
+	                            React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', lineHeight: 1.45 } }, item.def)
 	                        ))
 	                    ),
 	                    React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '12px' } },
 	                        ...fullItems.map(section => React.createElement('section', { key: section.cat, style: { padding: '13px 14px', background: 'var(--black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.18))', borderRadius: '8px' } },
-	                            React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '0.95rem', color: 'var(--gold)', letterSpacing: '0.08em', marginBottom: '10px', textTransform: 'uppercase' } }, section.cat),
+	                            React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-body, 1rem)', color: 'var(--gold)', letterSpacing: '0.08em', marginBottom: '10px', textTransform: 'uppercase' } }, section.cat),
 	                            ...section.items.map(item => React.createElement('div', { key: item.term, style: { marginBottom: '10px' } },
-	                                React.createElement('div', { style: { fontSize: '0.8rem', fontWeight: 800, color: 'var(--white)', marginBottom: '2px' } }, item.term),
-	                                React.createElement('div', { style: { fontSize: '0.74rem', color: 'var(--silver)', lineHeight: 1.42 } }, item.def)
+	                                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', fontWeight: 800, color: 'var(--white)', marginBottom: '2px' } }, item.term),
+	                                React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', lineHeight: 1.42 } }, item.def)
 	                            ))
 	                        ))
 	                    )
@@ -494,18 +494,18 @@
 	            return React.createElement('div', { style: { marginBottom: '8px' } },
                 React.createElement('button', {
                     onClick: () => setOpen(!open),
-                    style: { width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--gold)', fontSize: '0.78rem', fontFamily: 'var(--font-body)', letterSpacing: '0.03em', textAlign: 'left' },
+                    style: { width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--gold)', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', letterSpacing: '0.03em', textAlign: 'left' },
                     onMouseEnter: e => { e.currentTarget.style.background = 'var(--acc-fill1, rgba(212,175,55,0.06))'; },
                     onMouseLeave: e => { e.currentTarget.style.background = 'transparent'; }
                 }, open ? '\u25BC' : '\u25B6', ' Legend'),
                 open && React.createElement('div', { style: { padding: '8px 12px', maxHeight: '300px', overflowY: 'auto' } },
                     React.createElement('button', {
                         onClick: () => setExpanded(true),
-                        style: { width: '100%', marginBottom: '10px', padding: '6px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '4px', color: 'var(--gold)', cursor: 'pointer' }
+                        style: { width: '100%', marginBottom: '10px', padding: '6px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '4px', color: 'var(--gold)', cursor: 'pointer' }
                     }, 'FULL GUIDE \u2192'),
                     ...quickItems.map(item => React.createElement('div', { key: item.term, style: { marginBottom: '8px' } },
-                        React.createElement('div', { style: { fontSize: '0.72rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)' } }, item.term),
-                        React.createElement('div', { style: { fontSize: '0.68rem', color: 'var(--silver)', lineHeight: 1.4, marginTop: '1px' } }, item.def)
+                        React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)' } }, item.term),
+                        React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', lineHeight: 1.4, marginTop: '1px' } }, item.def)
                     ))
                 ),
                 // Expanded modal overlay — theme-aware so it remains readable in light mode
@@ -521,12 +521,12 @@
                             React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.4rem', color: 'var(--gold)', letterSpacing: '0.06em' } }, 'WAR ROOM GUIDE'),
                             React.createElement('button', { onClick: () => setExpanded(false), style: { background: 'none', border: 'none', color: 'var(--silver)', cursor: 'pointer', fontSize: '1.2rem' } }, '\u2715')
                         ),
-                        React.createElement('div', { style: { fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.4, marginBottom: '20px' } }, 'Dynasty HQ analyzes this league format to give you an edge in every decision - trades, drafts, waivers, and roster construction. Here\u2019s what every tool and metric means.'),
+                        React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.4, marginBottom: '20px' } }, 'Dynasty HQ analyzes this league format to give you an edge in every decision - trades, drafts, waivers, and roster construction. Here\u2019s what every tool and metric means.'),
                         ...fullItems.map(section => React.createElement('div', { key: section.cat, style: { marginBottom: '20px' } },
                             React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', borderBottom: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', paddingBottom: '4px', marginBottom: '10px' } }, section.cat),
                             ...section.items.map(item => React.createElement('div', { key: item.term, style: { marginBottom: '12px' } },
-                                React.createElement('div', { style: { fontSize: '0.84rem', fontWeight: 700, color: 'var(--white)' } }, item.term),
-                                React.createElement('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.4, marginTop: '2px' } }, item.def)
+                                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--white)' } }, item.term),
+                                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.4, marginTop: '2px' } }, item.def)
                             ))
                         ))
                     )
@@ -1001,73 +1001,23 @@
                 }
                 case 'playoff-record': {
                     const brackets = window.App?.LI?.bracketData || {};
+                    const rec = window.WrHistory?.playoffRecord;
                     let pw = 0, pl = 0;
-                    const numPlayoffTeams = currentLeague?.settings?.playoff_teams || 6;
                     Object.values(brackets).forEach(({ winners }) => {
-                        if (!winners?.length) return;
-                        // Find true playoff matchups: exclude consolation games
-                        // In Sleeper brackets, first-round matchups have t1/t2 as seed numbers.
-                        // Only count matchups that feed into the championship (highest round).
-                        const maxRound = Math.max(...winners.map(m => m.r || 0));
-                        // Determine real playoff matchup IDs: start from championship and trace back
-                        const realMatchIds = new Set();
-                        // Championship game
-                        const champGame = winners.find(m => m.r === maxRound);
-                        if (champGame) {
-                            realMatchIds.add(champGame.m);
-                            // Trace feeder matchups backwards through rounds
-                            const queue = [champGame];
-                            while (queue.length) {
-                                const g = queue.shift();
-                                // t1_from and t2_from reference the matchup IDs that feed into this game
-                                // In Sleeper: t1_from.w means "winner of matchup t1_from", etc.
-                                const feeders = winners.filter(fm => {
-                                    // A matchup feeds this one if its winner/loser advances here
-                                    return fm.m === g.t1_from?.w || fm.m === g.t1_from?.l || fm.m === g.t2_from?.w || fm.m === g.t2_from?.l
-                                        || fm.m === g.t1 || fm.m === g.t2;
-                                });
-                                feeders.forEach(f => { if (!realMatchIds.has(f.m)) { realMatchIds.add(f.m); queue.push(f); } });
-                            }
-                        }
-                        // If tracing didn't work (simple bracket), fall back: only count top rounds
-                        // For N playoff teams, there are ceil(log2(N)) real rounds
-                        const realRounds = Math.ceil(Math.log2(numPlayoffTeams));
-                        const minPlayoffRound = maxRound - realRounds + 1;
-                        winners.forEach(m => {
-                            const isReal = realMatchIds.size > 1 ? realMatchIds.has(m.m) : (m.r >= minPlayoffRound);
-                            if (!isReal) return;
-                            if (m.w === myRoster?.roster_id) pw++;
-                            if (m.l === myRoster?.roster_id) pl++;
-                        });
+                        if (!winners?.length || !myRoster) return;
+                        const r = rec ? rec(winners, myRoster.roster_id) : { w: 0, l: 0 };
+                        pw += r.w; pl += r.l;
                     });
                     return { value: pw + '-' + pl, sub: 'Playoff W-L', color: pw > pl ? 'var(--k-2ecc71, #2ecc71)' : pw < pl ? 'var(--k-e74c3c, #e74c3c)' : 'var(--silver)' };
                 }
                 case 'playoff-winpct': {
                     const brackets2 = window.App?.LI?.bracketData || {};
+                    const rec2 = window.WrHistory?.playoffRecord;
                     let pw2 = 0, pl2 = 0;
-                    const numPlayoffTeams2 = currentLeague?.settings?.playoff_teams || 6;
                     Object.values(brackets2).forEach(({ winners }) => {
-                        if (!winners?.length) return;
-                        const maxRound = Math.max(...winners.map(m => m.r || 0));
-                        const realRounds = Math.ceil(Math.log2(numPlayoffTeams2));
-                        const minPlayoffRound = maxRound - realRounds + 1;
-                        const realMatchIds = new Set();
-                        const champGame = winners.find(m => m.r === maxRound);
-                        if (champGame) {
-                            realMatchIds.add(champGame.m);
-                            const queue = [champGame];
-                            while (queue.length) {
-                                const g = queue.shift();
-                                const feeders = winners.filter(fm => fm.m === g.t1_from?.w || fm.m === g.t1_from?.l || fm.m === g.t2_from?.w || fm.m === g.t2_from?.l || fm.m === g.t1 || fm.m === g.t2);
-                                feeders.forEach(f => { if (!realMatchIds.has(f.m)) { realMatchIds.add(f.m); queue.push(f); } });
-                            }
-                        }
-                        winners.forEach(m => {
-                            const isReal = realMatchIds.size > 1 ? realMatchIds.has(m.m) : (m.r >= minPlayoffRound);
-                            if (!isReal) return;
-                            if (m.w === myRoster?.roster_id) pw2++;
-                            if (m.l === myRoster?.roster_id) pl2++;
-                        });
+                        if (!winners?.length || !myRoster) return;
+                        const r = rec2 ? rec2(winners, myRoster.roster_id) : { w: 0, l: 0 };
+                        pw2 += r.w; pl2 += r.l;
                     });
                     const total = pw2 + pl2;
                     const pct = total > 0 ? Math.round(pw2 / total * 100) : 0;
@@ -1160,6 +1110,7 @@
             }
         }
         const [reconPanelOpen, setReconPanelOpen] = useState(false);
+        const [reconExpanded, setReconExpanded] = useState(false);
         const [showNotifications, setShowNotifications] = useState(false);
         // showAlerts removed — alerts now live on Brief tab
         const [briefDraftInfo, setBriefDraftInfo] = useState(null);
@@ -2378,7 +2329,7 @@
                     <div style={{ position:'fixed', left:0, top:0, bottom:0, width:'160px', background:'var(--black)', borderRight:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', padding:'16px 0', zIndex:100 }}>
                         <div style={{ fontFamily:'Rajdhani, sans-serif', fontSize:'1.3rem', color:'var(--gold)', padding:'0 16px', marginBottom:'20px' }}>WAR ROOM</div>
                         {['Home','My Team','League','Analytics','Trades','Free Agency','Draft'].map((label,i) => (
-                            <div key={i} style={{ padding:'10px 16px', fontSize:'0.82rem', fontFamily: 'var(--font-body)', color: i===0?'var(--gold)':'var(--ov-8, rgba(255,255,255,0.3))', borderLeft: i===0?'3px solid var(--gold)':'3px solid transparent', background: i===0?'var(--acc-fill2, rgba(212,175,55,0.12))':'transparent' }}>{label}</div>
+                            <div key={i} style={{ padding:'10px 16px', fontSize:'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', color: i===0?'var(--gold)':'var(--ov-8, rgba(255,255,255,0.3))', borderLeft: i===0?'3px solid var(--gold)':'3px solid transparent', background: i===0?'var(--acc-fill2, rgba(212,175,55,0.12))':'transparent' }}>{label}</div>
                         ))}
                     </div>
                     {/* Skeleton main content */}
@@ -2410,7 +2361,7 @@
         const isViewingMyTeam = viewingOwnerId === sleeperUserId;
 
         // Stat column style shared by header and rows
-        const statColStyle = { width: '42px', textAlign: 'center', fontSize: '0.76rem', flexShrink: 0 };
+        const statColStyle = { width: '42px', textAlign: 'center', fontSize: 'var(--text-label, 0.75rem)', flexShrink: 0 };
 
         // Column header row for stat columns — merged into section labels
         const statLabels = ['DHQ', 'YRS', 'PTS', 'GP', 'AVG', 'PROJ'];
@@ -2426,7 +2377,7 @@
                     gap: '0.5rem'
                 }}>
                     <span style={{ width: '36px', flexShrink: 0 }}></span>
-                    <span style={{ flex: 1, color: color, fontSize: '0.85rem', fontWeight: '700', letterSpacing: '0.08em' }}>{label}</span>
+                    <span style={{ flex: 1, color: color, fontSize: 'var(--text-body, 1rem)', fontWeight: '700', letterSpacing: '0.08em' }}>{label}</span>
                     {statLabels.map(l => (
                         <span key={l} style={{ ...statColStyle, color: 'var(--gold)', fontWeight: '700', letterSpacing: '0.05em', opacity: 0.8 }}>{l}</span>
                     ))}
@@ -2459,7 +2410,7 @@
                         justifyContent: 'center',
                         width: '36px',
                         flexShrink: 0,
-                        fontSize: '0.76rem',
+                        fontSize: 'var(--text-label, 0.75rem)',
                         fontWeight: '700',
                         color: getPositionColor(pos),
                         border: '1.5px solid var(--gold)',
@@ -2480,7 +2431,7 @@
                             alignItems: 'center',
                             gap: '6px',
                             color: 'var(--white)',
-                            fontSize: '0.92rem',
+                            fontSize: 'var(--text-body, 1rem)',
                             overflow: 'hidden',
                             textDecoration: 'none',
                             transition: 'color 0.2s',
@@ -2499,15 +2450,15 @@
                         />
                         </div>
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {getPlayerName(playerId)} <span style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.65 }}>{team}</span>
+                            {getPlayerName(playerId)} <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.65 }}>{team}</span>
                         </span>
                     </a>
                     {/* DHQ dynasty value */}
                     {(() => {
                       const dhq = window.App?.LI?.playerScores?.[playerId] || 0;
-                      if (!dhq) return <span style={{ ...statColStyle, color: 'var(--silver)', opacity: 0.6, fontSize: '0.76rem' }}>—</span>;
+                      if (!dhq) return <span style={{ ...statColStyle, color: 'var(--silver)', opacity: 0.6, fontSize: 'var(--text-body, 1rem)' }}>—</span>;
                       const col = dhq >= 7000 ? 'var(--k-2ecc71, #2ecc71)' : dhq >= 4000 ? 'var(--k-d4af37, #d4af37)' : dhq >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.4))';
-                      return <span style={{ ...statColStyle, color: col, fontWeight: '700', fontFamily: 'var(--font-body)', fontSize: '0.72rem', minWidth: '42px' }}>{dhq.toLocaleString()}</span>;
+                      return <span style={{ ...statColStyle, color: col, fontWeight: '700', fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)', minWidth: '42px' }}>{dhq.toLocaleString()}</span>;
                     })()}
                     {/* Stat columns: YRS PTS GP AVG PROJ */}
                     <span style={{ ...statColStyle, color: 'var(--silver)', opacity: 0.7 }}>{stats.yrs}</span>
@@ -2699,8 +2650,8 @@
                                 animation: 'dhqSpin 0.8s linear infinite'
                             }}></div>
                             <div>
-                                <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', color: 'var(--gold)', fontWeight: 700, letterSpacing: '0.04em' }}>BUILDING LEAGUE INTELLIGENCE</div>
-                                <div style={{ fontSize: '0.78rem', color: 'var(--silver)', marginTop: '2px' }}>{dhqStatus.step}</div>
+                                <div style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', color: 'var(--gold)', fontWeight: 700, letterSpacing: '0.04em' }}>BUILDING LEAGUE INTELLIGENCE</div>
+                                <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', marginTop: '2px' }}>{dhqStatus.step}</div>
                             </div>
                         </div>
                         <div style={{ background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '4px', height: '4px', overflow: 'hidden' }}>
@@ -2710,7 +2661,7 @@
                                 borderRadius: '4px', transition: 'width 0.5s ease'
                             }}></div>
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginTop: '6px', opacity: 0.6 }}>
+                        <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginTop: '6px', opacity: 0.6 }}>
                             {dhqStatus.progress < 50 ? 'Analyzing league history, stats, drafts, and transactions. First load takes ~15 seconds, then it\'s cached.' :
                              dhqStatus.progress < 80 ? 'Scoring every player in your league\'s scoring system...' :
                              'Almost done — blending market data and computing trade values.'}
@@ -2733,7 +2684,7 @@
                 }
                 @media(max-width:767px){
                     .wr-league-header-row{display:grid !important;grid-template-columns:minmax(0,1fr) auto;align-items:start !important;gap:6px 8px !important;padding-left:42px}
-                    .wr-league-header-row .header-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.96rem !important;line-height:1.2}
+                    .wr-league-header-row .header-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--text-body, 1rem) !important;line-height:1.2}
                     .wr-league-switch{grid-column:2;grid-row:1}
                     .wr-gm-mode-badge{grid-column:1 / 3;justify-self:start;max-width:100%;min-width:0}
                     .wr-league-type-badge{grid-column:1 / 3;grid-row:3;justify-self:start;max-width:100%;min-width:0}
@@ -2749,6 +2700,19 @@
                     .wr-time-banner button{margin-left:0 !important;width:100%;max-width:220px}
                     .wr-debug-strip{padding:4px 10px !important;overflow-x:auto;overflow-y:clip}
                     .wr-debug-strip>div{min-width:max-content}
+                }`}</style>
+                {/* iPad-portrait header collapse (768–1023): year pills → compact
+                    dropdown, and the league header + time bar become single
+                    scrollable lines so the header stops stacking into ~190px. */}
+                <style>{`@media(max-width:1023px){
+                    .wr-time-years{display:none !important}
+                    .wr-time-years-select{display:inline-block !important}
+                }
+                @media(min-width:768px) and (max-width:1023px){
+                    .wr-league-header-row{flex-wrap:nowrap !important;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+                    .wr-league-header-row::-webkit-scrollbar{display:none}
+                    .wr-time-bar{flex-wrap:nowrap !important;overflow-x:auto;scrollbar-width:none}
+                    .wr-time-bar::-webkit-scrollbar{display:none}
                 }`}</style>
 
                 {/* Mobile overlay */}
@@ -2767,12 +2731,12 @@
                       <img src={iconSrc} alt="Dynasty HQ" style={{ width: '28px', height: '28px', borderRadius: '6px' }} onError={e => { e.target.style.display = 'none'; }} />
                       <div className="wr-sidebar-wordmark">
                         <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', lineHeight: 1.1 }}>DYNASTY HQ</div>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.5, fontFamily: 'var(--font-body)', letterSpacing: '0.04em' }}>WAR ROOM</div>
+                        <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5, fontFamily: 'var(--font-body)', letterSpacing: '0.04em' }}>WAR ROOM</div>
                       </div>
                       {(() => {
                         const champs = window.App?.LI?.championships || {};
                         const cnt = Object.values(champs).filter(c => c.champion === myRoster?.roster_id).length;
-                        if (cnt > 0) return <span style={{ fontSize: '0.7rem', color: 'var(--gold)' }} title={cnt + 'x Champion'}>{'\uD83C\uDFC6'}</span>;
+                        if (cnt > 0) return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)' }} title={cnt + 'x Champion'}>{'\uD83C\uDFC6'}</span>;
                         return null;
                       })()}
                     </div>
@@ -2787,7 +2751,7 @@
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                             {sidebarCollapsed ? <path d="M9 6l6 6-6 6" /> : <path d="M15 6l-6 6 6 6" />}
                         </svg>
-                        {!sidebarCollapsed && <span style={{ marginLeft: '8px', fontSize: '0.66rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Hide Menu</span>}
+                        {!sidebarCollapsed && <span style={{ marginLeft: '8px', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Hide Menu</span>}
                     </button>
 
                     {/* Alerts removed — rolled into Brief */}
@@ -2818,7 +2782,7 @@
                                 ref: inputRef, type: 'text', placeholder: 'Search...', value: q,
                                 onChange: e => setQ(e.target.value),
                                 onKeyDown: e => { if (e.key === 'Escape') { setQ(''); setResults([]); } },
-                                style: { width: '100%', padding: '7px 10px 7px 28px', fontSize: '0.72rem', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: '6px', color: 'var(--silver)', fontFamily: 'var(--font-body)', outline: 'none', boxSizing: 'border-box' }
+                                style: { width: '100%', padding: '7px 10px 7px 28px', fontSize: 'var(--text-label, 0.75rem)', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: '6px', color: 'var(--silver)', fontFamily: 'var(--font-body)', outline: 'none', boxSizing: 'border-box' }
                             }),
                             React.createElement('svg', { viewBox: '0 0 24 24', width: 12, height: 12, fill: 'none', stroke: 'var(--acc-line3, rgba(212,175,55,0.4))', strokeWidth: 2, style: { position: 'absolute', left: '20px', top: '11px', pointerEvents: 'none' } },
                                 React.createElement('circle', { cx: 11, cy: 11, r: 8 }),
@@ -2832,14 +2796,14 @@
                                         else if (r.type === 'tab') { setSidebarOpen(false); setActiveTab(r.tab); }
                                         setQ(''); setResults([]);
                                     },
-                                    style: { padding: '6px 10px', cursor: 'pointer', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '6px', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))' },
+                                    style: { padding: '6px 10px', cursor: 'pointer', fontSize: 'var(--text-label, 0.75rem)', display: 'flex', alignItems: 'center', gap: '6px', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))' },
                                     onMouseEnter: e => e.currentTarget.style.background = 'var(--acc-fill2, rgba(212,175,55,0.08))',
                                     onMouseLeave: e => e.currentTarget.style.background = 'transparent',
                                 },
                                     r.type === 'player'
                                         ? [
                                             React.createElement('span', { key: 'n', style: { color: 'var(--white)', fontWeight: 500, flex: 1 } }, r.name),
-                                            React.createElement('span', { key: 'p', style: { fontSize: '0.6rem', color: window.App?.POS_COLORS?.[window.App.normPos(r.pos)] || 'var(--silver)', fontWeight: 700 } }, window.App.normPos(r.pos)),
+                                            React.createElement('span', { key: 'p', style: { fontSize: 'var(--text-label, 0.75rem)', color: window.App?.POS_COLORS?.[window.App.normPos(r.pos)] || 'var(--silver)', fontWeight: 700 } }, window.App.normPos(r.pos)),
                                         ]
                                         : React.createElement('span', { style: { color: 'var(--gold)', fontWeight: 600 } }, '\u2192 ' + r.label)
                                 ))
@@ -2887,7 +2851,7 @@
                                 cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: sidebarCollapsed ? 'center' : 'flex-start', gap: '9px',
                                 transition: 'all 0.15s',
                                 color: isActive ? 'var(--gold)' : 'var(--silver)',
-                                fontSize: '0.78rem', fontFamily: 'var(--font-body)',
+                                fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)',
                                 fontWeight: isActive ? 700 : 400,
                                 letterSpacing: '0.03em', textAlign: 'left',
                                 position: 'relative',
@@ -2898,7 +2862,7 @@
                             {sidebarCollapsed && renderNavIcon(item.iconKey)}
                             {!sidebarCollapsed && <span className="wr-sidebar-label" style={{ flex: 1 }}>{item.label}</span>}
                             {item.isNew && <span className="wr-sidebar-new-badge" style={{
-                                fontSize: '0.48rem', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700,
+                                fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700,
                                 padding: '1px 5px', borderRadius: '3px',
                                 background: 'rgba(46,204,113,0.2)', color: 'var(--k-2ecc71, #2ecc71)',
                                 letterSpacing: '0.08em',
@@ -2911,7 +2875,7 @@
                     <div style={{ flex: 1 }}></div>
 
                     {/* Sync Status */}
-                    <div className="wr-sidebar-extra" style={{ fontSize: '0.76rem', color: window.App?.LI_LOADED ? 'var(--k-2ecc71, #2ecc71)' : 'var(--silver)', textAlign: 'center', fontFamily: 'var(--font-body)', opacity: 0.7, marginBottom: '4px' }}>
+                    <div className="wr-sidebar-extra" style={{ fontSize: 'var(--text-body, 1rem)', color: window.App?.LI_LOADED ? 'var(--k-2ecc71, #2ecc71)' : 'var(--silver)', textAlign: 'center', fontFamily: 'var(--font-body)', opacity: 0.7, marginBottom: '4px' }}>
                         <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: window.App?.LI_LOADED ? 'var(--k-2ecc71, #2ecc71)' : 'var(--silver)', margin: '0 auto 2px' }}></div>
                         {window.App?.LI_LOADED ? 'Synced' : 'Loading'}
                     </div>
@@ -2919,9 +2883,7 @@
                     {/* Refresh Button */}
                     <button onClick={async () => {
                         try {
-                            localStorage.removeItem('dhq_leagueintel_v9');
-                            localStorage.removeItem('dhq_leagueintel_v10');
-                            Object.keys(localStorage).filter(k => k.startsWith('dhq_hist_')).forEach(k => localStorage.removeItem(k));
+                            Object.keys(localStorage).filter(k => k.startsWith('dhq_leagueintel_') || k.startsWith('dhq_hist_')).forEach(k => localStorage.removeItem(k));
                             try { sessionStorage.removeItem('fw_players_cache'); } catch(e) { window.wrLog('refresh.sessionClear', e); }
                             window._wrPlayersCache = null;
                             if (window.App) { window.App.LI = {}; window.App.LI_LOADED = false; window._liLoading = false; }
@@ -2931,7 +2893,7 @@
                         width: '100%', padding: '10px 16px', border: 'none',
                         background: 'transparent', cursor: 'pointer', display: 'flex',
                         alignItems: 'center', transition: 'all 0.15s', color: 'var(--gold)',
-                        fontSize: '0.78rem', fontFamily: 'var(--font-body)',
+                        fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)',
                         letterSpacing: '0.03em', textAlign: 'left', marginBottom: '8px'
                     }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--acc-fill1, rgba(212,175,55,0.06))'}
@@ -2958,7 +2920,7 @@
                 <header className="header" style={{ position: 'relative', marginBottom: '0', paddingTop: '0.6rem', paddingBottom: '0.6rem' }}>
                     <div className="wr-league-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '8px 10px', flexWrap: 'wrap', minWidth: 0 }}>
                         <div className="header-title" style={{ fontSize: '1.05rem', minWidth: 0, maxWidth: 'min(460px, 100%)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentLeague.name}</div>
-                        <button className="wr-league-switch" onClick={onBack} style={{ padding: '4px 12px', fontSize: '0.66rem', fontFamily: 'var(--font-body)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--acc-fill2, rgba(212,175,55,0.10))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>SWITCH</button>
+                        <button className="wr-league-switch" onClick={onBack} style={{ padding: '4px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--acc-fill2, rgba(212,175,55,0.10))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>SWITCH</button>
                         {(() => {
                             const gm = window.WR?.GmMode?.describe?.(gmStrategy?.mode || 'compete');
                             if (!gm) return null;
@@ -2969,7 +2931,7 @@
                                 className: 'wr-gm-mode-badge',
                                 style: {
                                     padding: '4px 10px 4px 8px', display: 'inline-flex', alignItems: 'center', gap: '6px',
-                                    fontSize: '0.66rem', fontFamily: 'var(--font-body)', fontWeight: 700,
+                                    fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', fontWeight: 700,
                                     textTransform: 'uppercase', letterSpacing: '0.06em',
                                     background: wrAlpha(gm.badgeColor, '22'), color: gm.badgeColor,
                                     border: '1px solid ' + wrAlpha(gm.badgeColor, '66'),
@@ -2992,7 +2954,7 @@
                                 border: '1px solid ' + wrAlpha(headerLeagueType.color, '66'),
                                 background: wrAlpha(headerLeagueType.color, '18'),
                                 color: headerLeagueType.color,
-                                fontFamily: 'var(--font-body)', fontSize: '0.66rem',
+                                fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)',
                                 fontWeight: 800, textTransform: 'uppercase',
                                 letterSpacing: '0.06em', whiteSpace: 'nowrap',
                                 cursor: 'help'
@@ -3013,7 +2975,7 @@
                                 border: '1px solid ' + wrAlpha(leagueSkin.phaseMeta.color, '55'),
                                 background: wrAlpha(leagueSkin.phaseMeta.color, '14'),
                                 color: leagueSkin.phaseMeta.color,
-                                fontFamily: 'var(--font-body)', fontSize: '0.66rem',
+                                fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)',
                                 fontWeight: 800, textTransform: 'uppercase',
                                 letterSpacing: '0.06em', whiteSpace: 'nowrap',
                                 cursor: 'help'
@@ -3031,13 +2993,13 @@
                                 border: '1px solid var(--acc-line3, rgba(212,175,55,0.42))',
                                 background: 'var(--acc-fill2, rgba(212,175,55,0.12))',
                                 color: 'var(--gold)',
-                                fontFamily: 'var(--font-body)', fontSize: '0.66rem',
+                                fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)',
                                 fontWeight: 800, textTransform: 'uppercase',
                                 letterSpacing: '0.06em', whiteSpace: 'nowrap'
                             }
                         },
                             React.createElement('span', { style: { color: 'var(--silver)', opacity: 0.78 } }, headerDraftClock.label),
-                            React.createElement('strong', { style: { color: 'var(--white)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.68rem' } }, headerDraftClock.clock)
+                            React.createElement('strong', { style: { color: 'var(--white)', fontFamily: "'JetBrains Mono', monospace", fontSize: 'var(--text-label, 0.75rem)' } }, headerDraftClock.clock)
                         )}
                     </div>
                 </header>
@@ -3047,7 +3009,7 @@
                     <div style={{
                         padding: '6px 16px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))',
                         borderBottom: '1px solid var(--acc-fill2, rgba(212,175,55,0.1))',
-                        fontSize: '0.78rem', color: 'var(--gold)', fontFamily: 'var(--font-body)',
+                        fontSize: 'var(--text-body, 1rem)', color: 'var(--gold)', fontFamily: 'var(--font-body)',
                         display: 'flex', alignItems: 'center', gap: '8px'
                     }}>
                         <div style={{ width: '12px', height: '12px', border: '2px solid var(--acc-line2, rgba(212,175,55,0.3))', borderTopColor: 'var(--gold)', borderRadius: '50%', animation: 'dhqSpin 0.8s linear infinite' }}></div>
@@ -3065,7 +3027,7 @@
                     <div className="wr-time-years" style={{ display: 'flex', gap: '3px', flexWrap: 'wrap', minWidth: 0 }}>
                         {timeYears.map(yr =>
                             <button key={yr} onClick={() => handleTimeYearChange(yr)} style={{
-                                padding: '4px 10px', fontSize: '0.76rem', fontFamily: 'var(--font-body)',
+                                padding: '4px 10px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)',
                                 fontWeight: timeYear === yr ? 700 : 400,
                                 background: timeYear === yr ? 'var(--gold)' : 'var(--ov-2, rgba(255,255,255,0.03))',
                                 color: timeYear === yr ? 'var(--black)' : 'var(--silver)',
@@ -3074,11 +3036,19 @@
                             }}>{yr}</button>
                         )}
                     </div>
+                    {/* Compact year dropdown — replaces the pill strip at ≤1023px (CSS-toggled) */}
+                    <select className="wr-time-years-select" value={timeYear} onChange={e => handleTimeYearChange(Number(e.target.value))} aria-label="Season year" style={{
+                        display: 'none', padding: '5px 8px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)',
+                        fontWeight: 700, background: 'var(--gold)', color: 'var(--black)', border: '1px solid var(--gold)',
+                        borderRadius: '4px', cursor: 'pointer', minHeight: '32px'
+                    }}>
+                        {timeYears.map(yr => <option key={yr} value={yr} style={{ background: 'var(--black)', color: 'var(--white)' }}>{yr}{yr === currentSeason ? ' • current' : ''}</option>)}
+                    </select>
                     {/* League name/team-count moved to the main header to avoid duplication. */}
                     <div className="wr-time-spacer" style={{ marginLeft: 'auto' }}></div>
                     {/* Time mode badge */}
                     <span className="wr-time-mode" style={{
-                        fontSize: '0.72rem', fontWeight: 700, color: timeModeColor,
+                        fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: timeModeColor,
                         background: wrAlpha(timeModeColor, '15'), border: '1px solid ' + wrAlpha(timeModeColor, '30'),
                         padding: '2px 10px', borderRadius: '12px',
                         fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em'
@@ -3086,7 +3056,7 @@
                     {/* Loading indicator */}
                     {timeLoading && <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <div style={{ width: '10px', height: '10px', border: '2px solid var(--acc-line2, rgba(212,175,55,0.3))', borderTopColor: 'var(--gold)', borderRadius: '50%', animation: 'dhqSpin 0.8s linear infinite' }} />
-                        <span style={{ fontSize: '0.72rem', color: 'var(--gold)' }}>Recomputing...</span>
+                        <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)' }}>Recomputing...</span>
                     </div>}
                 </div>
 
@@ -3095,17 +3065,17 @@
                     padding: '8px 24px', display: 'flex', alignItems: 'center', gap: '8px',
                     background: wrAlpha(timeModeColor, '10'), borderBottom: '1px solid ' + wrAlpha(timeModeColor, '30')
                 }}>
-                    <span style={{ fontSize: '0.82rem', color: timeModeColor, fontWeight: 700, fontFamily: 'var(--font-body)' }}>
+                    <span style={{ fontSize: 'var(--text-body, 1rem)', color: timeModeColor, fontWeight: 700, fontFamily: 'var(--font-body)' }}>
                         {isFutureYear ? 'FUTURE PROJECTION' : 'HISTORICAL VIEW'}: {timeYear}
                     </span>
-                    <span style={{ fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6 }}>
+                    <span style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6 }}>
                         {isFutureYear ? 'Player ages projected +' + timeDelta + 'yr. Values and stats are estimates.' : 'Showing ' + timeYear + ' season stats. Roster composition reflects current state.'}
                     </span>
-                    <button onClick={() => handleTimeYearChange(currentSeason)} style={{ marginLeft: 'auto', fontSize: '0.74rem', padding: '3px 10px', background: 'transparent', border: '1px solid ' + timeModeColor, color: timeModeColor, borderRadius: '4px', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Back to {currentSeason}</button>
+                    <button onClick={() => handleTimeYearChange(currentSeason)} style={{ marginLeft: 'auto', fontSize: 'var(--text-label, 0.75rem)', padding: '3px 10px', background: 'transparent', border: '1px solid ' + timeModeColor, color: timeModeColor, borderRadius: '4px', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Back to {currentSeason}</button>
                 </div>}
 
                 {/* Debug panel (dev only) */}
-                {DEV_DEBUG && <div className="wr-debug-strip" style={{ padding: '4px 24px', background: 'rgba(255,0,0,0.04)', borderBottom: '1px solid rgba(255,0,0,0.1)', fontSize: '0.7rem', fontFamily: 'monospace', color: 'var(--k-f0a500, #f0a500)' }}>
+                {DEV_DEBUG && <div className="wr-debug-strip" style={{ padding: '4px 24px', background: 'rgba(255,0,0,0.04)', borderBottom: '1px solid rgba(255,0,0,0.1)', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'monospace', color: 'var(--k-f0a500, #f0a500)' }}>
                     <div style={{ display: 'flex', gap: '16px', marginBottom: '2px' }}>
                         <span>year={timeYear}</span>
                         <span>mode={timeMode}</span>
@@ -3119,7 +3089,7 @@
                         const scores = window.App.LI.playerScores;
                         const backup = window.App.LI._baseScoresBackup || {};
                         const samples = Object.entries(scores).filter(([,v]) => v > 2000).sort((a,b) => b[1] - a[1]).slice(0, 4);
-                        return <div style={{ display: 'flex', gap: '12px', fontSize: '0.65rem', color: 'var(--k-3498db, #3498db)' }}>
+                        return <div style={{ display: 'flex', gap: '12px', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--k-3498db, #3498db)' }}>
                             {samples.map(([pid, projDhq]) => {
                                 const baseDhq = backup[pid] || projDhq;
                                 const p = playersData[pid];
@@ -3334,6 +3304,14 @@
               display: 'flex', flexDirection: 'column',
               boxShadow: '0 24px 80px rgba(0,0,0,0.8), 0 0 0 1px var(--acc-fill3, rgba(212,175,55,0.15)), 0 0 120px var(--acc-fill1, rgba(212,175,55,0.06))',
               animation: 'wrFadeIn 0.3s ease'
+            } : reconExpanded ? {
+              position: 'fixed', bottom: '80px', right: '24px',
+              width: 'min(760px, calc(100vw - 48px))', height: 'calc(100vh - 120px)', maxHeight: 'calc(100vh - 120px)',
+              background: 'var(--k-0a0b0d, #0a0b0d)', border: '2px solid var(--acc-line2, rgba(212,175,55,0.3))',
+              borderRadius: '16px', zIndex: 200,
+              display: 'flex', flexDirection: 'column',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.75), 0 0 0 1px var(--acc-fill2, rgba(212,175,55,0.1))',
+              animation: 'wrFadeIn 0.2s ease'
             } : {
               position: 'fixed', bottom: '80px', right: '24px',
               width: '380px', maxHeight: '520px',
@@ -3355,10 +3333,10 @@
                   <AlexAvatar size={30} />
                 </div>
                 <div>
-                  <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.88rem', color: 'var(--gold)', letterSpacing: '0.04em', lineHeight: 1, display: 'flex', alignItems: 'center', gap: '4px' }}>{(() => { const k = localStorage.getItem('wr_alex_avatar') || 'brain'; const m = { brain:'\u{1F9E0}', target:'\u{1F3AF}', chart:'\u{1F4CA}', football:'\u{1F3C8}', bolt:'\u26A1', fire:'\u{1F525}', medal:'\u{1F396}\uFE0F', trophy:'\u{1F3C6}' }; return m[k] || ''; })()}Alex Ingram</div>
-                  <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.5 }}>AI General Manager</div>
+                  <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', color: 'var(--gold)', letterSpacing: '0.04em', lineHeight: 1, display: 'flex', alignItems: 'center', gap: '4px' }}>{(() => { const k = localStorage.getItem('wr_alex_avatar') || 'brain'; const m = { brain:'\u{1F9E0}', target:'\u{1F3AF}', chart:'\u{1F4CA}', football:'\u{1F3C8}', bolt:'\u26A1', fire:'\u{1F525}', medal:'\u{1F396}\uFE0F', trophy:'\u{1F3C6}' }; return m[k] || ''; })()}Alex Ingram</div>
+                  <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5 }}>AI General Manager</div>
                 </div>
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Cmd+K</span>
+                <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--text-muted)' }}>Cmd+K</span>
                 <span style={{ flex: 1 }}></span>
                 {reconMessages.length > 1 && (
                   <button onClick={() => {
@@ -3367,10 +3345,14 @@
                     LeagueStorage.remove(LEAGUE_WR_KEYS.CHAT(currentLeague?.league_id));
                   }} title="Clear chat history" style={{
                     background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer',
-                    fontSize: '0.62rem', padding: '2px 4px', fontFamily: 'var(--font-body)', letterSpacing: '0.04em'
+                    fontSize: 'var(--text-label, 0.75rem)', padding: '2px 4px', fontFamily: 'var(--font-body)', letterSpacing: '0.04em'
                   }}>CLEAR</button>
                 )}
-                <button onClick={() => setReconPanelOpen(false)} style={{
+                <button onClick={() => setReconExpanded(v => !v)} title={reconExpanded ? 'Collapse' : 'Expand'} aria-label={reconExpanded ? 'Collapse panel' : 'Expand panel'} style={{
+                  background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer',
+                  fontSize: '1rem', padding: '2px', lineHeight: 1
+                }}>{reconExpanded ? '−' : '⛶'}</button>
+                <button onClick={() => { setReconPanelOpen(false); setReconExpanded(false); }} style={{
                   background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer',
                   fontSize: '1rem', padding: '2px'
                 }}>&#10005;</button>
@@ -3379,7 +3361,7 @@
               {/* Avatar picker (toggled) */}
               {showAvatarPicker && (
                 <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', background: 'var(--acc-fill1, rgba(212,175,55,0.04))' }}>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '6px', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Choose Alex's look</div>
+                  <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginBottom: '6px', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Choose Alex's look</div>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     {ALEX_AVATARS.map(av => (
                       <button key={av.id} onClick={() => { setAlexAvatar(av.id); setShowAvatarPicker(false); setAvatarKey(k => k+1); }} style={{
@@ -3391,9 +3373,9 @@
                         {av.src ? (
                           <img src={av.src} alt={av.label} style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover' }} />
                         ) : (
-                          <div style={{ width: '36px', height: '36px', borderRadius: '6px', background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: 800, color: 'var(--k-0a0a0a, #0a0a0a)', fontFamily: 'Rajdhani, sans-serif' }}>AI</div>
+                          <div style={{ width: '36px', height: '36px', borderRadius: '6px', background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 800, color: 'var(--k-0a0a0a, #0a0a0a)', fontFamily: 'Rajdhani, sans-serif' }}>AI</div>
                         )}
-                        <span style={{ fontSize: '0.58rem', color: 'var(--silver)', textAlign: 'center' }}>{av.label}</span>
+                        <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', textAlign: 'center' }}>{av.label}</span>
                       </button>
                     ))}
                   </div>
@@ -3405,7 +3387,7 @@
                 {getReconChips().map((chip, i) => (
                   <button key={i} onClick={() => sendReconMessage(chip.prompt)}
                     style={{
-                      padding: '3px 8px', fontSize: '0.72rem', borderRadius: '14px',
+                      padding: '3px 8px', fontSize: 'var(--text-label, 0.75rem)', borderRadius: '14px',
                       border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', background: 'var(--acc-fill1, rgba(212,175,55,0.06))',
                       color: 'var(--gold)', cursor: 'pointer', fontFamily: 'inherit'
                     }}>
@@ -3418,13 +3400,13 @@
               <div style={{
                 flex: 1, overflow: 'auto', padding: '10px 12px',
                 display: 'flex', flexDirection: 'column', gap: '6px',
-                maxHeight: '320px'
+                maxHeight: reconExpanded ? 'none' : '320px'
               }}>
                 {reconMessages.map((msg, i) => (
                   msg.role === 'user' ? (
                     <div key={i} style={{
                       alignSelf: 'flex-end', maxWidth: '85%', padding: '8px 12px', borderRadius: '12px',
-                      fontSize: '0.78rem', lineHeight: 1.4,
+                      fontSize: 'var(--text-body, 1rem)', lineHeight: 1.4,
                       background: 'rgba(124,107,248,0.12)', border: '1px solid rgba(124,107,248,0.18)',
                       color: 'var(--text-primary)'
                     }} dangerouslySetInnerHTML={{ __html: markdownToHtml(msg.content) }} />
@@ -3436,7 +3418,7 @@
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                         <AlexAvatar size={20} />
-                        <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', letterSpacing: '0.03em' }}>Alex Ingram</span>
+                        <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', letterSpacing: '0.03em' }}>Alex Ingram</span>
                       </div>
                       {(() => {
                         const tradeMatch = msg.content.match(/<!--\s*TRADE_CARD:([\s\S]*?)-->/);
@@ -3447,36 +3429,36 @@
                         }
                         return (
                           <React.Fragment>
-                            <div style={{ fontSize: '0.78rem', lineHeight: 1.4, color: 'var(--text-primary)' }}
+                            <div style={{ fontSize: 'var(--text-body, 1rem)', lineHeight: 1.4, color: 'var(--text-primary)' }}
                               dangerouslySetInnerHTML={{ __html: markdownToHtml(textContent) }} />
                             {tradeCard && (
-                              <div style={{ marginTop: '10px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '10px', padding: '10px', fontSize: '0.76rem' }}>
-                                <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+                              <div style={{ marginTop: '10px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '10px', padding: '10px', fontSize: 'var(--text-body, 1rem)' }}>
+                                <div style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
                                   Proposed Trade{tradeCard.target ? ' → ' + tradeCard.target : ''}
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '8px', alignItems: 'start' }}>
                                   <div>
-                                    <div style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '4px', fontFamily: 'var(--font-body)', textTransform: 'uppercase' }}>You Give</div>
+                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginBottom: '4px', fontFamily: 'var(--font-body)', textTransform: 'uppercase' }}>You Give</div>
                                     {(tradeCard.yourSide || []).map((a, j) => (
                                       <div key={j} style={{ padding: '3px 0', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))' }}>
                                         <span style={{ color: 'var(--text-primary)' }}>{a.name}</span>
-                                        <span style={{ color: 'var(--silver)', fontSize: '0.68rem', marginLeft: '4px' }}>{a.dhq?.toLocaleString()} DHQ</span>
+                                        <span style={{ color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)', marginLeft: '4px' }}>{a.dhq?.toLocaleString()} DHQ</span>
                                       </div>
                                     ))}
-                                    <div style={{ marginTop: '4px', fontWeight: 700, color: 'var(--gold)', fontSize: '0.72rem' }}>
+                                    <div style={{ marginTop: '4px', fontWeight: 700, color: 'var(--gold)', fontSize: 'var(--text-label, 0.75rem)' }}>
                                       Total: {(tradeCard.yourSide || []).reduce((s, a) => s + (a.dhq || 0), 0).toLocaleString()}
                                     </div>
                                   </div>
                                   <div style={{ display: 'flex', alignItems: 'center', fontSize: '1.2rem', color: 'var(--gold)', paddingTop: '16px' }}>{'\u21C4'}</div>
                                   <div>
-                                    <div style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '4px', fontFamily: 'var(--font-body)', textTransform: 'uppercase' }}>You Get</div>
+                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginBottom: '4px', fontFamily: 'var(--font-body)', textTransform: 'uppercase' }}>You Get</div>
                                     {(tradeCard.theirSide || []).map((a, j) => (
                                       <div key={j} style={{ padding: '3px 0', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))' }}>
                                         <span style={{ color: 'var(--text-primary)' }}>{a.name}</span>
-                                        <span style={{ color: 'var(--silver)', fontSize: '0.68rem', marginLeft: '4px' }}>{a.dhq?.toLocaleString()} DHQ</span>
+                                        <span style={{ color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)', marginLeft: '4px' }}>{a.dhq?.toLocaleString()} DHQ</span>
                                       </div>
                                     ))}
-                                    <div style={{ marginTop: '4px', fontWeight: 700, color: 'var(--gold)', fontSize: '0.72rem' }}>
+                                    <div style={{ marginTop: '4px', fontWeight: 700, color: 'var(--gold)', fontSize: 'var(--text-label, 0.75rem)' }}>
                                       Total: {(tradeCard.theirSide || []).reduce((s, a) => s + (a.dhq || 0), 0).toLocaleString()}
                                     </div>
                                   </div>
@@ -3494,7 +3476,7 @@
                                       <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: 'var(--ov-5, rgba(255,255,255,0.08))', overflow: 'hidden' }}>
                                         <div style={{ width: Math.min(100, 50 + pct) + '%', height: '100%', background: color, borderRadius: '2px' }} />
                                       </div>
-                                      <span style={{ fontSize: '0.68rem', color, fontFamily: 'var(--font-body)' }}>{label}</span>
+                                      <span style={{ fontSize: 'var(--text-label, 0.75rem)', color, fontFamily: 'var(--font-body)' }}>{label}</span>
                                     </div>
                                   );
                                 })()}
@@ -3502,7 +3484,7 @@
                                 <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
                                   {tradeCard.sleeperDM && (
                                     <button onClick={() => { navigator.clipboard.writeText(tradeCard.sleeperDM); }} style={{
-                                      padding: '5px 12px', fontSize: '0.7rem', fontFamily: 'var(--font-body)',
+                                      padding: '5px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)',
                                       background: 'linear-gradient(135deg, var(--k-7c6bf8, #7c6bf8), var(--k-9b8afb, #9b8afb))', color: 'var(--k-ffffff, #ffffff)',
                                       border: 'none', borderRadius: '14px', cursor: 'pointer'
                                     }}>Copy DM</button>
@@ -3512,7 +3494,7 @@
                                     saved.push({ ...tradeCard, savedAt: Date.now() });
                                     LeagueStorage.set(LEAGUE_WR_KEYS.SAVED_TRADES(currentLeague?.league_id), saved.slice(-20));
                                   }} style={{
-                                    padding: '5px 12px', fontSize: '0.7rem', fontFamily: 'var(--font-body)',
+                                    padding: '5px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)',
                                     background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)',
                                     border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '14px', cursor: 'pointer'
                                   }}>Save</button>
@@ -3537,7 +3519,7 @@
                                   handleOnboardChoice(c.value);
                                 }
                               }} style={{
-                                padding: '6px 14px', fontSize: '0.76rem', fontFamily: 'var(--font-body)',
+                                padding: '6px 14px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)',
                                 background: isSelected ? 'var(--gold)' : 'var(--acc-fill2, rgba(212,175,55,0.08))',
                                 color: isSelected ? 'var(--black)' : 'var(--gold)',
                                 border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
@@ -3549,14 +3531,14 @@
                             <React.Fragment>
                               {onboardSelections.length > 0 && (
                                 <button onClick={() => { handleOnboardChoice(onboardSelections); setOnboardSelections([]); }} style={{
-                                  padding: '6px 14px', fontSize: '0.76rem', fontFamily: 'var(--font-body)',
+                                  padding: '6px 14px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)',
                                   background: 'linear-gradient(135deg, var(--k-2ecc71, #2ecc71), var(--k-27ae60, #27ae60))', color: 'var(--k-ffffff, #ffffff)',
                                   border: 'none', borderRadius: '16px', cursor: 'pointer'
                                 }}>Confirm ({onboardSelections.length})</button>
                               )}
                               {msg.onboardSkip && (
                                 <button onClick={() => { handleOnboardChoice('skip'); setOnboardSelections([]); }} style={{
-                                  padding: '6px 14px', fontSize: '0.76rem', fontFamily: 'var(--font-body)',
+                                  padding: '6px 14px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)',
                                   background: 'var(--ov-3, rgba(255,255,255,0.04))', color: 'var(--silver)',
                                   border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: '16px', cursor: 'pointer'
                                 }}>Skip</button>
@@ -3582,7 +3564,7 @@
                   placeholder="Ask anything..."
                   style={{
                     flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                    color: 'var(--text-primary)', fontSize: '0.82rem', fontFamily: 'inherit'
+                    color: 'var(--text-primary)', fontSize: 'var(--text-body, 1rem)', fontFamily: 'inherit'
                   }}
                 />
                 <button onClick={() => sendReconMessage(reconInput)} style={{
@@ -3608,7 +3590,7 @@
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <AlexAvatar size={22} />
-                  <span style={{ fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.4 }}>I'll be down here if you need me {'\uD83D\uDC47'}</span>
+                  <span style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.4 }}>I'll be down here if you need me {'\uD83D\uDC47'}</span>
                 </div>
               </div>
             )}

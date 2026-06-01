@@ -689,7 +689,7 @@
                     disabled: aiLoading,
                     style: {
                         display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px',
-                        padding: '6px 12px', borderRadius: '6px', fontSize: '0.74rem', fontWeight: 600,
+                        padding: '6px 12px', borderRadius: '6px', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600,
                         fontFamily: 'var(--font-body)',
                         background: aiLoading ? 'rgba(124,107,248,0.08)' : 'rgba(124,107,248,0.12)',
                         border: '1px solid rgba(124,107,248,0.35)',
@@ -702,20 +702,20 @@
                     onClick: doClear,
                     style: {
                         minHeight: '44px',
-                        padding: '6px 10px', borderRadius: '6px', fontSize: '0.7rem',
+                        padding: '6px 10px', borderRadius: '6px', fontSize: 'var(--text-label, 0.75rem)',
                         fontFamily: 'var(--font-body)', background: 'transparent',
                         border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', color: 'var(--silver)',
                         cursor: 'pointer',
                     }
                 }, 'Clear AI'),
-                aiInsights.length > 0 && cacheAge != null && h('span', { style: { fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.5, fontFamily: 'var(--font-mono)' } },
+                aiInsights.length > 0 && cacheAge != null && h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5, fontFamily: 'var(--font-mono)' } },
                     cacheAge < 1 ? 'just now' : cacheAge < 60 ? cacheAge + 'm ago' : Math.floor(cacheAge / 60) + 'h ago')
             ),
-            aiError && h('div', { style: { padding: '10px 14px', marginBottom: '12px', background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: '6px', fontSize: '0.78rem', color: 'var(--bad)' } },
+            aiError && h('div', { style: { padding: '10px 14px', marginBottom: '12px', background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: '6px', fontSize: 'var(--text-body, 1rem)', color: 'var(--bad)' } },
                 'Alex couldn\u2019t generate insights: ', aiError),
             merged.length === 0
                 ? h(window.WR.Card, { padding: '24px' },
-                    h('div', { style: { fontSize: '0.86rem', color: 'var(--silver)', opacity: 0.7, lineHeight: 1.55, textAlign: 'center' } },
+                    h('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.7, lineHeight: 1.55, textAlign: 'center' } },
                         'No behavioral patterns detected yet. Alex needs a bit of trade / waiver / draft history before it can speak confidently.')
                 )
                 : h('div', { className: 'gm-office-insight-grid' },
@@ -835,11 +835,11 @@
 
         const HBar = ({ label, labelColor, value, max, valStr, barColor, rightText }) =>
             h('div', { style: { display: 'grid', gridTemplateColumns: '110px 1fr 60px', gap: '10px', alignItems: 'center', marginBottom: '6px' } },
-                h('div', { style: { fontSize: '0.76rem', color: labelColor || 'var(--silver)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, label),
+                h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: labelColor || 'var(--silver)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, label),
                 h('div', { style: { height: '10px', background: 'var(--ov-3, rgba(255,255,255,0.04))', borderRadius: '3px', overflow: 'hidden', position: 'relative' } },
                     h('div', { style: { width: Math.max(0, Math.min(100, (value / max) * 100)) + '%', height: '100%', background: barColor || 'var(--gold)', borderRadius: '3px', transition: 'width 0.2s' } })
                 ),
-                h('div', { style: { fontSize: '0.74rem', fontFamily: 'var(--font-mono)', color: rightText || 'var(--silver)', textAlign: 'right', fontWeight: 700 } }, valStr)
+                h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-mono)', color: rightText || 'var(--silver)', textAlign: 'right', fontWeight: 700 } }, valStr)
             );
 
         // Panel wraps each chart with its title + Alex-voiced interpretation.
@@ -847,8 +847,8 @@
         // is there, but here Alex tells you what it *means* for your play.
         const Panel = ({ title, subtitle, interpretation, interpColor, children, empty }) => h(Card, { padding: 'var(--card-pad-lg)', style: { marginBottom: 'var(--space-md)' } },
             h('div', { style: { display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: interpretation ? '8px' : '14px' } },
-                h('h3', { style: { fontFamily: 'var(--font-title)', fontSize: '1rem', fontWeight: 700, margin: 0, letterSpacing: 0 } }, title),
-                subtitle && h('span', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-mono)' } }, '\u2014 ' + subtitle)
+                h('h3', { style: { fontFamily: 'var(--font-title)', fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, margin: 0, letterSpacing: 0 } }, title),
+                subtitle && h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-mono)' } }, '\u2014 ' + subtitle)
             ),
             interpretation && h('div', {
                 style: {
@@ -857,14 +857,14 @@
                     background: 'var(--acc-fill1, rgba(212,175,55,0.04))',
                     borderLeft: '2px solid ' + (interpColor || 'var(--acc-line3, rgba(212,175,55,0.5))'),
                     borderRadius: '0 5px 5px 0',
-                    fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.92, lineHeight: 1.5,
+                    fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.92, lineHeight: 1.5,
                 }
             },
-                h('span', { style: { fontFamily: 'var(--font-title)', fontSize: '0.64rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', flexShrink: 0, paddingTop: '2px' } }, 'Alex'),
+                h('span', { style: { fontFamily: 'var(--font-title)', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', flexShrink: 0, paddingTop: '2px' } }, 'Alex'),
                 h('span', null, interpretation)
             ),
             empty
-                ? h('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, padding: '12px 0', fontStyle: 'italic' } }, empty)
+                ? h('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6, padding: '12px 0', fontStyle: 'italic' } }, empty)
                 : children
         );
 
@@ -973,8 +973,8 @@
         // all behavior-specific (about how you play, not raw league data).
         return h('div', null,
             h('div', { style: { marginBottom: '14px', padding: '12px 16px', background: 'rgba(124,107,248,0.04)', border: '1px solid rgba(124,107,248,0.15)', borderRadius: 'var(--card-radius, 10px)' } },
-                h('div', { style: { fontSize: '0.68rem', color: 'var(--purple)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px', fontFamily: 'var(--font-title)' } }, 'How this differs from Analytics'),
-                h('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.85, lineHeight: 1.5 } },
+                h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--purple)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px', fontFamily: 'var(--font-title)' } }, 'How this differs from Analytics'),
+                h('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.85, lineHeight: 1.5 } },
                     'Analytics shows raw numbers. Patterns is Alex reading those numbers back to you \u2014 every chart below includes Alex\u2019s take on what it means for your play style.')
             ),
             // Trade partners — volume
@@ -1045,7 +1045,7 @@
                     barColor: posColor(p.pos),
                 })),
                 // Deep-link to the Analytics draft tab for full tabular detail.
-                h('div', { style: { marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--ov-3, rgba(255,255,255,0.05))', fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.55 } },
+                h('div', { style: { marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--ov-3, rgba(255,255,255,0.05))', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55 } },
                     'For full roster and waiver data tables, open ',
                     h('a', { href: '#', onClick: e => { e.preventDefault(); props?.setActiveTab?.('analytics'); }, style: { color: 'var(--gold)', textDecoration: 'underline' } }, 'Analytics'), '.')
             )
@@ -1243,7 +1243,7 @@
             style: {
                 minHeight: '44px',
                 padding: '5px 10px', borderRadius: '999px',
-                fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer',
+                fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, cursor: 'pointer',
                 background: filter === key ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
                 border: '1px solid ' + (filter === key ? 'var(--acc-line3, rgba(212,175,55,0.5))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
                 color: filter === key ? 'var(--gold)' : 'var(--silver)',
@@ -1258,8 +1258,8 @@
                 return h(window.WR.Card, { key: 'log' + (ev.id || i), padding: '10px 14px' },
                     h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px' } },
                         h(window.WR.Badge, { label: ev.category || 'note', kind: ev.category || 'note' }),
-                        h('div', { style: { flex: 1, minWidth: 0, fontSize: '0.82rem', color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, ev.text || 'Logged decision'),
-                        h('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-mono)', flexShrink: 0 } }, date),
+                        h('div', { style: { flex: 1, minWidth: 0, fontSize: 'var(--text-body, 1rem)', color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, ev.text || 'Logged decision'),
+                        h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-mono)', flexShrink: 0 } }, date),
                     )
                 );
             }
@@ -1306,9 +1306,9 @@
             const renderChips = (pids, prefix, color) => pids.length === 0 ? null : h('span', { style: { display: 'inline-flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' } },
                 pids.slice(0, 4).map(pid => h('span', {
                     key: pid,
-                    style: { fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: wrAlpha(color, '12'), border: '1px solid ' + wrAlpha(color, '33'), color: color, fontWeight: 600 },
+                    style: { fontSize: 'var(--text-label, 0.75rem)', padding: '2px 6px', borderRadius: '4px', background: wrAlpha(color, '12'), border: '1px solid ' + wrAlpha(color, '33'), color: color, fontWeight: 600 },
                 }, prefix, chipText(pid))),
-                pids.length > 4 ? h('span', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.6 } }, '+' + (pids.length - 4)) : null,
+                pids.length > 4 ? h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6 } }, '+' + (pids.length - 4)) : null,
             );
             function rosterLabel(rid) {
                 const rosters = props?.currentLeague?.rosters || window.S?.rosters || [];
@@ -1327,12 +1327,12 @@
             const renderPickChips = (picks, prefix, color) => picks.length === 0 ? null : h('span', { style: { display: 'inline-flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' } },
                 picks.slice(0, 4).map((pk, idx) => h('span', {
                     key: [pk.season, pk.round, pk.roster_id, idx].join(':'),
-                    style: { fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: wrAlpha(color, '12'), border: '1px solid ' + wrAlpha(color, '33'), color: color, fontWeight: 600 },
+                    style: { fontSize: 'var(--text-label, 0.75rem)', padding: '2px 6px', borderRadius: '4px', background: wrAlpha(color, '12'), border: '1px solid ' + wrAlpha(color, '33'), color: color, fontWeight: 600 },
                 }, prefix, pickText(pk))),
-                picks.length > 4 ? h('span', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.6 } }, '+' + (picks.length - 4) + ' picks') : null,
+                picks.length > 4 ? h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6 } }, '+' + (picks.length - 4) + ' picks') : null,
             );
             const renderFaabChip = (amount, prefix, color) => !amount ? null : h('span', {
-                style: { fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: wrAlpha(color, '12'), border: '1px solid ' + wrAlpha(color, '33'), color: color, fontWeight: 600 },
+                style: { fontSize: 'var(--text-label, 0.75rem)', padding: '2px 6px', borderRadius: '4px', background: wrAlpha(color, '12'), border: '1px solid ' + wrAlpha(color, '33'), color: color, fontWeight: 600 },
             }, prefix, '$' + amount + ' FAAB');
             const hasIncoming = !!(addedPids.length || addedPicks.length || addedFaab);
             const hasOutgoing = !!(droppedPids.length || droppedPicks.length || droppedFaab);
@@ -1344,14 +1344,14 @@
                         renderChips(addedPids, '+ ', 'var(--k-2ecc71, #2ecc71)'),
                         renderPickChips(addedPicks, '+ ', 'var(--k-2ecc71, #2ecc71)'),
                         renderFaabChip(addedFaab, '+ ', 'var(--k-2ecc71, #2ecc71)'),
-                        hasOutgoing && hasIncoming && h('span', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.5, alignSelf: 'center' } }, 'for'),
+                        hasOutgoing && hasIncoming && h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5, alignSelf: 'center' } }, 'for'),
                         renderChips(droppedPids, '\u2212 ', 'var(--k-e74c3c, #e74c3c)'),
                         renderPickChips(droppedPicks, '\u2212 ', 'var(--k-e74c3c, #e74c3c)'),
                         renderFaabChip(droppedFaab, '\u2212 ', 'var(--k-e74c3c, #e74c3c)'),
-                        !hasTradeAssets && h('span', { style: { fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, fontStyle: 'italic' } }, 'No recorded asset changes'),
+                        !hasTradeAssets && h('span', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6, fontStyle: 'italic' } }, 'No recorded asset changes'),
                     ),
-                    netStr && h('span', { style: { fontSize: '0.74rem', fontWeight: 700, color: netCol, fontFamily: 'var(--font-mono)', flexShrink: 0 } }, netStr),
-                    h('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-mono)', flexShrink: 0 } }, date),
+                    netStr && h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: netCol, fontFamily: 'var(--font-mono)', flexShrink: 0 } }, netStr),
+                    h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-mono)', flexShrink: 0 } }, date),
                 ),
             );
         }
@@ -1359,7 +1359,7 @@
         return h('div', null,
             // Filter strip
             h('div', { style: { display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap', alignItems: 'center' } },
-                h('span', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.55, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginRight: '4px' } }, 'Filter:'),
+                h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginRight: '4px' } }, 'Filter:'),
                 filterChip('all', 'All ' + events.length),
                 counts.trade && filterChip('trade', 'Trades'),
                 counts.waiver && filterChip('waiver', 'Waivers'),
@@ -1367,9 +1367,9 @@
                 counts.note && filterChip('note', 'Notes'),
             ),
             filtered.length === 0 ? h(window.WR.Card, { padding: '24px' },
-                h('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, textAlign: 'center' } }, 'No ' + filter + ' history.')
+                h('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6, textAlign: 'center' } }, 'No ' + filter + ' history.')
             ) : groups.map((g, gi) => h('div', { key: 'g' + gi, style: { marginBottom: '20px' } },
-                h('div', { style: { fontSize: '0.66rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'var(--font-title)', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' } },
+                h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'var(--font-title)', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' } },
                     g.month,
                     h('span', { style: { color: 'var(--silver)', opacity: 0.5, fontFamily: 'var(--font-mono)', fontWeight: 400 } }, g.items.length + ' decision' + (g.items.length === 1 ? '' : 's')),
                 ),
@@ -1400,11 +1400,11 @@
 
         const sliderRow = (label, hint, key, min, max, step, format) => h('div', { style: { marginBottom: '18px' } },
             h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' } },
-                h('span', { style: { fontSize: '0.82rem', color: 'var(--white)', opacity: 0.88, fontWeight: 600 } }, label),
-                h('span', { style: { fontFamily: 'var(--font-mono)', fontSize: '0.88rem', fontWeight: 700, color: 'var(--gold)' } },
+                h('span', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--white)', opacity: 0.88, fontWeight: 600 } }, label),
+                h('span', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--gold)' } },
                     format ? format(settings[key]) : settings[key])
             ),
-            hint && h('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.55, marginBottom: '8px', lineHeight: 1.4 } }, hint),
+            hint && h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55, marginBottom: '8px', lineHeight: 1.4 } }, hint),
             h('input', {
                 type: 'range', min, max, step: step || 1,
                 value: settings[key],
@@ -1417,7 +1417,7 @@
             key: k, onClick: () => updateFocus(k, !settings.focus[k]),
             style: {
                 minHeight: '44px',
-                padding: '6px 12px', borderRadius: 'var(--card-radius-sm)', fontSize: '0.74rem', fontWeight: 500,
+                padding: '6px 12px', borderRadius: 'var(--card-radius-sm)', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 500,
                 cursor: 'pointer', fontFamily: 'var(--font-body)',
                 border: '1px solid ' + (settings.focus[k] ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'),
                 background: settings.focus[k] ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'var(--ov-1, rgba(255,255,255,0.02))',
@@ -1430,7 +1430,7 @@
             title: opts.title,
             style: {
                 minHeight: '44px',
-                padding: '6px 12px', borderRadius: 'var(--card-radius-sm)', fontSize: '0.74rem', fontWeight: 500,
+                padding: '6px 12px', borderRadius: 'var(--card-radius-sm)', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 500,
                 cursor: opts.disabled ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-body)',
                 border: '1px solid ' + (settings.channel[k] ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'),
                 background: settings.channel[k] ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'var(--ov-1, rgba(255,255,255,0.02))',
@@ -1440,8 +1440,8 @@
         }, label);
 
         const sectionTitle = (label) => h('div', { style: { display: 'flex', alignItems: 'baseline', gap: '8px', margin: '0 0 14px' } },
-            h('h3', { style: { fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.02rem', margin: 0, letterSpacing: '0.01em', color: 'var(--white)' } }, label.title),
-            h('span', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.55, fontFamily: 'var(--font-mono)' } }, label.sub),
+            h('h3', { style: { fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: 'var(--text-title, 1.125rem)', margin: 0, letterSpacing: '0.01em', color: 'var(--white)' } }, label.title),
+            h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55, fontFamily: 'var(--font-mono)' } }, label.sub),
         );
         const tradeAggressionLabel = (v) => {
             const stance = v <= 20 ? 'Conservative' : v <= 40 ? 'Cautious' : v <= 60 ? 'Balanced' : v <= 80 ? 'Bold' : 'Aggressive';
@@ -1459,14 +1459,14 @@
             },
         },
             h('span', { style: { fontWeight: 700, color: 'var(--white)' } }, label),
-            h('span', { style: { fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.7, fontWeight: 400 } }, desc),
+            h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.7, fontWeight: 400 } }, desc),
         );
 
         return h('div', null,
             // Intro card
             h('div', { style: { padding: '12px 16px', marginBottom: '14px', background: 'rgba(124,107,248,0.04)', border: '1px solid rgba(124,107,248,0.15)', borderRadius: 'var(--card-radius, 10px)' } },
-                h('div', { style: { fontSize: '0.68rem', color: 'var(--purple)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px', fontFamily: 'var(--font-title)' } }, 'How Alex talks to you'),
-                h('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.85, lineHeight: 1.5 } },
+                h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--purple)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px', fontFamily: 'var(--font-title)' } }, 'How Alex talks to you'),
+                h('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.85, lineHeight: 1.5 } },
                     settingsIntro)
             ),
             h('div', { className: 'gm-office-settings-grid' },
@@ -1475,7 +1475,7 @@
                     sliderRow('Alert threshold', 'Minimum confidence Alex needs before showing an insight. Higher = quieter, only the strong signals.', 'alertThreshold', 0, 100, 1, v => v + '%'),
                     sliderRow('Max alerts per week', 'Caps how many cards Alex shows in Overview. Lower = curated.', 'maxAlertsPerWeek', 1, 20, 1),
                     sliderRow('Min projected-points delta', 'Smallest swing (in projected fantasy points) Alex bothers flagging on lineup or waiver moves.', 'minPointsDelta', 0, 10, 0.5, v => Number(v).toFixed(1) + ' pts'),
-                    h('div', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.55, marginTop: '4px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-title)', fontWeight: 700 } }, 'Quick presets'),
+                    h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55, marginTop: '4px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-title)', fontWeight: 700 } }, 'Quick presets'),
                     h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' } },
                         presetButton('Conservative', 'Only flag 85%+ confidence \u00B7 ~3 alerts/week',
                             () => ({ ...DEFAULT_SETTINGS, alertThreshold: 85, maxAlertsPerWeek: 3, minPointsDelta: 4 })),
@@ -1496,7 +1496,7 @@
                         focusChip('streaming', 'Streaming'),
                         focusChip('gmStyle', 'GM style')
                     ),
-                    h('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, marginTop: '12px', lineHeight: 1.5 } },
+                    h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginTop: '12px', lineHeight: 1.5 } },
                         'Alex only surfaces insights for active areas. Decision History still logs everything regardless.'),
                     h('div', { style: { marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
                         sectionTitle({ title: 'Notifications', sub: 'Where you get pinged' }),
@@ -1505,7 +1505,7 @@
                             chanChip('email', 'Email (coming soon)', { disabled: true, title: 'Email delivery is not wired yet.' }),
                             chanChip('push', 'Push (coming soon)', { disabled: true, title: 'Push delivery is not wired yet.' }),
                         ),
-                        h('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.55, marginTop: '10px', lineHeight: 1.5 } },
+                        h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55, marginTop: '10px', lineHeight: 1.5 } },
                             'GM Office cards controls whether Alex surfaces behavioral cards here. Email and push delivery need the notification service before they can be enabled.'),
                     )
                 ),
@@ -1517,7 +1517,7 @@
                     sectionTitle({ title: 'Trade Calculator', sub: 'How aggressive Deal HQ builds packages' }),
                     sliderRow('Trade aggression', 'Controls how wide the value-matching window is when generating packages. Balanced only auto-surfaces 75%+ offers; higher settings loosen that floor.', 'tradeAggression', 0, 100, 5,
                         tradeAggressionLabel),
-                    h('div', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.55, marginTop: '4px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-title)', fontWeight: 700 } }, 'Quick presets'),
+                    h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55, marginTop: '4px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-title)', fontWeight: 700 } }, 'Quick presets'),
                     h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' } },
                         presetButton('Conservative', 'Tight value · fair only',
                             () => ({ ...settings, tradeAggression: 15 })),
@@ -1530,11 +1530,11 @@
                 // Right column — Asset Priorities
                 h(window.WR.Card, { padding: 'var(--card-pad-lg)' },
                     sectionTitle({ title: 'Asset Priorities', sub: 'What Deal HQ targets' }),
-                    h('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '14px', lineHeight: 1.45 } },
+                    h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginBottom: '14px', lineHeight: 1.45 } },
                         'Active chips tell Deal HQ which assets to prioritize. All positions off = auto-detect from roster needs.'),
                     // Positions
                     h('div', { style: { marginBottom: '16px' } },
-                        h('div', { style: { fontSize: '0.66rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px', fontFamily: 'var(--font-title)' } }, 'Target Positions'),
+                        h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px', fontFamily: 'var(--font-title)' } }, 'Target Positions'),
                         h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px' } },
                             targetPositions.map(pos => {
                                 const posColors = window.App?.POS_COLORS || { QB:'var(--k-ff6b6b, #ff6b6b)', RB:'var(--k-4ecdc4, #4ecdc4)', WR:'var(--k-45b7d1, #45b7d1)', TE:'var(--k-f7dc6f, #f7dc6f)', K:'var(--k-bb8fce, #bb8fce)', DEF:'var(--k-85929e, #85929e)', DL:'var(--k-e67e22, #e67e22)', LB:'var(--k-f0a500, #f0a500)', DB:'var(--k-5dade2, #5dade2)' };
@@ -1545,7 +1545,7 @@
                                     key: pos, onClick: () => updateTP('positions', pos, !active),
                                     style: {
                                         minHeight: '44px',
-                                        padding: '5px 12px', borderRadius: 'var(--card-radius-sm)', fontSize: '0.76rem', fontWeight: 700,
+                                        padding: '5px 12px', borderRadius: 'var(--card-radius-sm)', fontSize: 'var(--text-body, 1rem)', fontWeight: 700,
                                         cursor: 'pointer', fontFamily: 'var(--font-mono)',
                                         border: '1px solid ' + (active ? wrAlpha(c, '88') : 'var(--ov-6, rgba(255,255,255,0.1))'),
                                         background: active ? wrAlpha(c, '18') : 'var(--ov-1, rgba(255,255,255,0.02))',
@@ -1558,7 +1558,7 @@
                     // Draft picks + FAAB side by side
                     h('div', { style: { display: 'grid', gridTemplateColumns: '1fr auto', gap: '16px', alignItems: 'start' } },
                         h('div', null,
-                            h('div', { style: { fontSize: '0.66rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px', fontFamily: 'var(--font-title)' } }, 'Draft Pick Years'),
+                            h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px', fontFamily: 'var(--font-title)' } }, 'Draft Pick Years'),
                             h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px' } },
                                 draftPickYears.map(yr => {
                                     const active = tp.picks?.[yr];
@@ -1566,7 +1566,7 @@
                                         key: yr, onClick: () => updateTP('picks', yr, !active),
                                         style: {
                                             minHeight: '44px',
-                                            padding: '5px 14px', borderRadius: 'var(--card-radius-sm)', fontSize: '0.76rem', fontWeight: 700,
+                                            padding: '5px 14px', borderRadius: 'var(--card-radius-sm)', fontSize: 'var(--text-body, 1rem)', fontWeight: 700,
                                             cursor: 'pointer', fontFamily: 'var(--font-mono)',
                                             border: '1px solid ' + (active ? 'rgba(187,143,206,0.5)' : 'var(--ov-6, rgba(255,255,255,0.1))'),
                                             background: active ? 'rgba(187,143,206,0.12)' : 'var(--ov-1, rgba(255,255,255,0.02))',
@@ -1577,12 +1577,12 @@
                             )
                         ),
                         h('div', null,
-                            h('div', { style: { fontSize: '0.66rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px', fontFamily: 'var(--font-title)' } }, 'FAAB'),
+                            h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px', fontFamily: 'var(--font-title)' } }, 'FAAB'),
                             h('button', {
                                 onClick: () => updateTPFaab(!tp.faab),
                                 style: {
                                     minHeight: '44px',
-                                    padding: '5px 14px', borderRadius: 'var(--card-radius-sm)', fontSize: '0.76rem', fontWeight: 700,
+                                    padding: '5px 14px', borderRadius: 'var(--card-radius-sm)', fontSize: 'var(--text-body, 1rem)', fontWeight: 700,
                                     cursor: 'pointer', fontFamily: 'var(--font-mono)',
                                     border: '1px solid ' + (tp.faab ? 'rgba(46,204,113,0.5)' : 'var(--ov-6, rgba(255,255,255,0.1))'),
                                     background: tp.faab ? 'rgba(46,204,113,0.12)' : 'var(--ov-1, rgba(255,255,255,0.02))',
@@ -1598,7 +1598,7 @@
 
     const presetBtnStyle = {
         flex: 1, padding: '7px 10px', borderRadius: '6px',
-        fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer',
+        fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, cursor: 'pointer',
         background: 'transparent', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))',
         color: 'var(--silver)', fontFamily: 'var(--font-body)',
     };

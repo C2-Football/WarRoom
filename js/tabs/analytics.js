@@ -81,7 +81,7 @@ function AnalyticsPanel({
     // Token-driven card style so padding/radius/border track index.html's spacing scale.
     const aCardStyle = { background: 'var(--black)', border: 'var(--card-border, 1px solid var(--acc-line1, rgba(212,175,55,0.2)))', borderRadius: 'var(--card-radius, 10px)', padding: 'var(--card-pad, 16px 18px)', marginBottom: 'var(--card-gap, 14px)' };
     const aHeaderStyle = { fontFamily: 'Rajdhani, sans-serif', color: 'var(--gold)', fontSize: '1.125rem', fontWeight: 600, letterSpacing: '0.06em', marginBottom: '12px', borderBottom: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', paddingBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' };
-    const aValStyle = { fontFamily: 'JetBrains Mono, monospace', fontSize: '0.95rem', fontWeight: 500 };
+    const aValStyle = { fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-body, 1rem)', fontWeight: 500 };
     const goodColor = 'var(--good)';
     const warnColor = 'var(--warn)';
     const badColor = 'var(--bad)';
@@ -113,7 +113,7 @@ function AnalyticsPanel({
         picks: 'Pick capital, ownership status, and traded/acquired paths.',
         reports: 'Custom report templates, saved views, and live preview.'
     };
-    const tableRowStyle = (i) => ({ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '8px', padding: '6px 0', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', ...(i === 0 ? { fontWeight: 700, color: 'var(--gold)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' } : { color: 'var(--silver)' }) });
+    const tableRowStyle = (i) => ({ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '8px', padding: '6px 0', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', ...(i === 0 ? { fontWeight: 700, color: 'var(--gold)', fontSize: 'var(--text-body, 1rem)', textTransform: 'uppercase', letterSpacing: '0.05em' } : { color: 'var(--silver)' }) });
     const d = analyticsData;
     const sameId = (a, b) => a != null && b != null && String(a) === String(b);
     const historyLeagueId = currentLeague?.id || currentLeague?.league_id || '';
@@ -374,7 +374,7 @@ function AnalyticsPanel({
             };
             const kpiLabelStyle = {
                 fontFamily: 'var(--font-body)',
-                fontSize: '0.68rem',
+                fontSize: 'var(--text-label, 0.75rem)',
                 color: 'var(--silver)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',
@@ -382,7 +382,7 @@ function AnalyticsPanel({
             };
             const kpiDeltaStyle = (positive) => ({
                 fontFamily: 'var(--font-body)',
-                fontSize: '0.75rem',
+                fontSize: 'var(--text-body, 1rem)',
                 fontWeight: 600,
                 color: positive ? goodColor : badColor,
                 marginTop: '4px',
@@ -599,10 +599,10 @@ function AnalyticsPanel({
                             borderLeft: '4px solid ' + ins.color,
                             border: '1px solid var(--ov-4, rgba(255,255,255,0.06))',
                         }}>
-                            <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', fontWeight: 700, color: ins.color, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: ins.color, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                 {ins.title}
                             </div>
-                            <div style={{ fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.5 }}>{ins.text}</div>
+                            <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.5 }}>{ins.text}</div>
                         </div>
                     ))}
                 </div>
@@ -620,14 +620,14 @@ function AnalyticsPanel({
                             <div style={aHeaderStyle}><span>YOUR 5-YEAR OUTLOOK</span></div>
                             {proj.map((p, i) => (
                                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                                    <span style={{ color: 'var(--silver)', fontFamily: 'var(--font-body)', minWidth: '40px', fontSize: '0.9rem' }}>{p.year}</span>
+                                    <span style={{ color: 'var(--silver)', fontFamily: 'var(--font-body)', minWidth: '40px', fontSize: 'var(--text-body, 1rem)' }}>{p.year}</span>
                                     <div style={{ flex: 1, position: 'relative', height: '24px', background: 'var(--ov-3, rgba(255,255,255,0.05))', borderRadius: '6px', overflow: 'hidden' }}>
                                         <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: (p.projectedDHQ / maxDHQ * 100) + '%', background: tierColor(p.tier), borderRadius: '6px', opacity: 0.6, transition: 'width 0.5s ease' }} />
-                                        <div style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', fontFamily: 'var(--font-body)', color: 'var(--white)', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                        <div style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', color: 'var(--white)', fontWeight: 700, whiteSpace: 'nowrap' }}>
                                             {p.projectedDHQ.toLocaleString()} DHQ
                                         </div>
                                     </div>
-                                    <span style={{ color: tierColor(p.tier), fontFamily: 'var(--font-body)', fontSize: '0.8rem', minWidth: '90px', textAlign: 'right' }}>
+                                    <span style={{ color: tierColor(p.tier), fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', minWidth: '90px', textAlign: 'right' }}>
                                         {p.tier} {p.tier === 'Rebuilding' || p.tier === 'Deep Rebuild' ? '\uD83D\uDD34' : p.tier === 'Playoff Team' ? '\u26A0\uFE0F' : ''}
                                     </span>
                                 </div>
@@ -667,11 +667,11 @@ function AnalyticsPanel({
                     return (
                         <div style={{ ...aCardStyle, marginTop: '12px' }}>
                             <div style={aHeaderStyle}><span>AGING CLIFF ALERT</span></div>
-	                            <div style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px', lineHeight: 1.5 }}>Players within 2 years of their position's value-window end with 2000+ DHQ value. These are your highest-risk assets for dynasty value decline.</div>
+	                            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px', lineHeight: 1.5 }}>Players within 2 years of their position's value-window end with 2000+ DHQ value. These are your highest-risk assets for dynasty value decline.</div>
                             <div style={{ display: 'flex', gap: '24px', marginBottom: '12px' }}>
                                 <div style={{ textAlign: 'center' }}>
                                     <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.6rem', color: arPct2 > 30 ? badColor : arPct2 > 15 ? warnColor : goodColor }}>{arPct2}%</div>
-	                                    <div style={{ fontSize: '0.75rem', color: 'var(--silver)' }}>Your DHQ near value cliff by {(parseInt(S2?.season) || 2026) + 2}</div>
+	                                    <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)' }}>Your DHQ near value cliff by {(parseInt(S2?.season) || 2026) + 2}</div>
                                 </div>
                                 <div style={{ textAlign: 'center' }}>
                                     {(() => {
@@ -690,20 +690,20 @@ function AnalyticsPanel({
                                         const lgP = lgT > 0 ? Math.round(lgA / lgT * 100) : 0;
                                         return <>
                                             <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.6rem', color: 'var(--gold)' }}>{lgP}%</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--silver)' }}>League avg</div>
+                                            <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)' }}>League avg</div>
                                         </>;
                                     })()}
                                 </div>
                             </div>
                             {arPlayers2.length > 0 && (
                                 <div>
-                                    <div style={{ color: 'var(--silver)', fontSize: '0.8rem', marginBottom: '6px', fontWeight: 700 }}>Players at risk:</div>
+                                    <div style={{ color: 'var(--silver)', fontSize: 'var(--text-body, 1rem)', marginBottom: '6px', fontWeight: 700 }}>Players at risk:</div>
                                     {arPlayers2.slice(0, 5).map((p, i) => (
-                                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))', fontSize: '0.85rem', fontFamily: 'var(--font-body)' }}>
+                                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)' }}>
                                             <span style={{ color: 'var(--silver)' }}>{p.name} ({p.age})</span>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <span style={{ color: badColor }}>{p.dhq.toLocaleString()} DHQ</span>
-                                                <span style={{ padding: '2px 8px', background: 'rgba(231,76,60,0.15)', color: badColor, borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em' }}>TRADE NOW</span>
+                                                <span style={{ padding: '2px 8px', background: 'rgba(231,76,60,0.15)', color: badColor, borderRadius: '4px', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, letterSpacing: '0.05em' }}>TRADE NOW</span>
                                             </span>
                                         </div>
                                     ))}
@@ -770,7 +770,7 @@ function AnalyticsPanel({
                 minWidth: '140px',
             };
             const dKpiNum = { fontFamily: 'Rajdhani, sans-serif', fontSize: '2.2rem', lineHeight: 1, color: 'var(--white)', marginBottom: '2px' };
-            const dKpiLabel = { fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.7 };
+            const dKpiLabel = { fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.7 };
 
             // Build bar chart items for hit rate by round
             const hitRateBarItems = rounds.filter(rd => dr.winnerHitRate[rd]).map(rd => ({
@@ -1043,7 +1043,7 @@ function AnalyticsPanel({
                                 </div>
                                 );
                             })}
-                            <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '0.7rem' }}>
+                            <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: 'var(--text-label, 0.75rem)' }}>
                                 <span style={{ color: 'var(--gold)' }}>{'\u25A0'} Elite Tier</span>
                                 <span style={{ color: 'var(--k-4ecdc4, #4ecdc4)' }}>{'\u25A0'} You</span>
                             </div>
@@ -1111,7 +1111,7 @@ function AnalyticsPanel({
                 minWidth: '140px',
             };
             const tKpiNum = { fontFamily: 'Rajdhani, sans-serif', fontSize: '2.2rem', lineHeight: 1, color: 'var(--white)', marginBottom: '2px' };
-            const tKpiLabel = { fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.7 };
+            const tKpiLabel = { fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.7 };
 
             const valueDeltaColor = mp.avgValueGained >= 0 ? goodColor : badColor;
             const marketProofItems = [
@@ -1217,13 +1217,13 @@ function AnalyticsPanel({
                             return (
                                 <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--gold)', fontFamily: 'var(--font-body)' }}>S{trade.season || '?'} W{trade.week || '?'}</span>
-                                        <span style={{ fontSize: '0.68rem', fontFamily: 'var(--font-body)', padding: '2px 8px', borderRadius: '10px', background: wrAlpha(resultColor, '22'), color: resultColor, border: '1px solid ' + wrAlpha(resultColor, '44'), fontWeight: 700 }}>{result}</span>
+                                        <span style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--gold)', fontFamily: 'var(--font-body)' }}>S{trade.season || '?'} W{trade.week || '?'}</span>
+                                        <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', padding: '2px 8px', borderRadius: '10px', background: wrAlpha(resultColor, '22'), color: resultColor, border: '1px solid ' + wrAlpha(resultColor, '44'), fontWeight: 700 }}>{result}</span>
                                     </div>
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--silver)', fontFamily: 'var(--font-body)' }}>
+                                    <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', fontFamily: 'var(--font-body)' }}>
                                         {assetListText(trade.gave)} <span style={{ color: 'var(--gold)', margin: '0 4px' }}>{'\u2192'}</span> {assetListText(trade.got)}
                                     </div>
-                                    <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-body)', color: netDhq >= 0 ? goodColor : badColor, fontWeight: 700 }}>
+                                    <div style={{ fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', color: netDhq >= 0 ? goodColor : badColor, fontWeight: 700 }}>
                                         {netDhq >= 0 ? '+' : ''}{netDhq.toLocaleString()} DHQ
                                     </div>
                                 </div>
@@ -1241,10 +1241,10 @@ function AnalyticsPanel({
                             borderLeft: '4px solid ' + sevColor(a.sev),
                             border: '1px solid var(--ov-4, rgba(255,255,255,0.06))',
                         }}>
-                            <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', fontWeight: 700, color: sevColor(a.sev), marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: sevColor(a.sev), marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                 {a.title}
                             </div>
-                            <div style={{ fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.5 }}>{a.msg}</div>
+                            <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.5 }}>{a.msg}</div>
                         </div>
                     ))}
                 </div>
