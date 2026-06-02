@@ -994,6 +994,12 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const [sort, setSort] = useState('dhq');
     const [detail, setDetail] = useState(null);
     const normPos = window.App?.normPos || (p => p);
+    // KNOWN APPROXIMATION (H5): playerScores come from the one LeagueIntel currently loaded,
+    // so all leagues' Empire DHQ (Empire Value, asset values, move math) are scored in that
+    // league's settings. DHQ is ~mostly intrinsic (production/age/situation), so this is a
+    // decent proxy, not exact — leagues with divergent settings (SF/TE-premium/PPR) drift.
+    // A league-neutral DHQ-scale score is a deferred engine refinement (fcValue is FC-scale +
+    // sparse, so it can't simply be swapped in without breaking the DHQ scale).
     const scores = window.App?.LI?.playerScores || {};
     const posColors = window.App?.POS_COLORS || {};
     const scoreKey = Object.keys(scores).length + ':' + (window.App?.LI_LOADED ? 'ready' : 'loading');
