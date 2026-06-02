@@ -534,6 +534,22 @@ function buildEmpireDna(savedDna, transactions, rosters, myUserId) {
     return out;
 }
 
+// buildEmpireGrudges — aggregate per-league logged trade grudges (od_grudges_v1_<lid>) into one
+// cross-league list. Grudges are keyed by Sleeper user_id, so a grudge with an owner applies
+// wherever you face them. Feeds calcGrudgeTax inside buildEmpireMoves.
+function buildEmpireGrudges(allLeagues) {
+    const out = [];
+    (allLeagues || []).forEach(l => {
+        const lid = l && (l.id || l.league_id);
+        if (!lid || typeof localStorage === 'undefined') return;
+        try {
+            const arr = JSON.parse(localStorage.getItem('od_grudges_v1_' + lid) || '[]');
+            if (Array.isArray(arr)) out.push(...arr);
+        } catch (e) { /* ignore malformed */ }
+    });
+    return out;
+}
+
 // buildEmpireRolodex — every owner you face, across every league, ranked by edge.
 // Pure: reads league.empireAssessments (from assessAllTeams) + optional league.empireDna.
 // calcPosture is injectable for testing; defaults to the shared trade engine.
@@ -586,6 +602,8 @@ function buildEmpireMoves(input) {
     const calcPosture = TE.calcOwnerPosture || (() => ({ key: 'NEUTRAL', label: 'Neutral' }));
     const calcTaxes = TE.calcPsychTaxes || (() => []);
     const calcAccept = TE.calcAcceptanceLikelihood || (() => 50);
+    const calcGrudge = TE.calcGrudgeTax || (() => ({ total: 0 }));
+    const grudges = input.grudges || [];
     const sameId = (a, b) => a != null && b != null && String(a) === String(b);
     const needList = a => (a.needs || []).map(n => (typeof n === 'string' ? n : n.pos)).filter(Boolean);
 
@@ -623,7 +641,9 @@ function buildEmpireMoves(input) {
                 const eagerness = posture.key === 'DESPERATE' ? 1.12 : 1.04;
                 const give = asset.dhq;                              // the asset I send out
                 const receive = Math.round(asset.dhq * eagerness);   // their (over)payment back
-                const accept = calcAccept(give, receive, dnaKey, calcTaxes(myA, buyer, dnaKey, posture), myA, buyer);
+                const sellTaxes = calcTaxes(myA, buyer, dnaKey, posture);
+                const sellGrudge = calcGrudge(myA.ownerId, buyer.ownerId, grudges, dnaKey);
+                const accept = calcAccept(give, receive, dnaKey, sellGrudge.total ? sellTaxes.concat([{ label: 'Grudge', impact: sellGrudge.total }]) : sellTaxes, myA, buyer);
                 // Portfolio Δ = premium extracted + value preserved by shedding a decaying/redundant asset.
                 const delta = Math.round((receive - give) + asset.dhq * (asset.agePhase === 'post' ? 0.18 : 0.10));
                 moves.push({
@@ -667,7 +687,9 @@ function buildEmpireMoves(input) {
                 const discount = best.posture.key === 'DESPERATE' ? 0.85 : 0.92;
                 const give = Math.round(best.dhq * discount);   // what I pay (picks / surplus)
                 const receive = best.dhq;                       // the player I acquire
-                const accept = calcAccept(give, receive, dnaKey, calcTaxes(myA, best.owner, dnaKey, best.posture), myA, best.owner);
+                const buyTaxes = calcTaxes(myA, best.owner, dnaKey, best.posture);
+                const buyGrudge = calcGrudge(myA.ownerId, best.owner.ownerId, grudges, dnaKey);
+                const accept = calcAccept(give, receive, dnaKey, buyGrudge.total ? buyTaxes.concat([{ label: 'Grudge', impact: buyGrudge.total }]) : buyTaxes, myA, best.owner);
                 const delta = Math.round(best.dhq - give);      // discount captured filling a need
                 moves.push({
                     type: 'buy',
@@ -996,7 +1018,8 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const rolodex = useMemo(() => buildEmpireRolodex(allLeagues, sleeperUserId), [allLeagues, scoreKey]);
     const actionQueue = useMemo(() => buildEmpireActionQueue(model, rolodex), [model, rolodex]);
     const briefText = useMemo(() => buildEmpireBrief(model, userName), [model, userName]);
-    const moves = useMemo(() => buildEmpireMoves({ leagues: allLeagues, model, scores, playersData, myUserId: sleeperUserId, normPos, tradeEngine: window.App?.TradeEngine }), [allLeagues, model, scoreKey]);
+    const empireGrudges = useMemo(() => buildEmpireGrudges(allLeagues), [allLeagues]);
+    const moves = useMemo(() => buildEmpireMoves({ leagues: allLeagues, model, scores, playersData, myUserId: sleeperUserId, normPos, tradeEngine: window.App?.TradeEngine, grudges: empireGrudges }), [allLeagues, model, scoreKey, empireGrudges]);
     const consolidation = useMemo(() => buildEmpireConsolidation(moves, model), [moves, model]);
     const empireLeagueIds = useMemo(() => (allLeagues || []).map(l => l.id || l.league_id).filter(Boolean), [allLeagues]);
     const empireDelta = useMemo(() => (window.WrSnapshots && typeof window.WrSnapshots.empireDelta === 'function') ? window.WrSnapshots.empireDelta(empireLeagueIds) : null, [empireLeagueIds, scoreKey]);
@@ -1653,6 +1676,7 @@ if (typeof window !== 'undefined') {
     window.App.buildEmpireActionQueue = buildEmpireActionQueue;
     window.App.buildEmpireBrief = buildEmpireBrief;
     window.App.buildEmpireRolodex = buildEmpireRolodex;
+    window.App.buildEmpireGrudges = buildEmpireGrudges;
     window.App.inferDnaFromTransactions = inferDnaFromTransactions;
     window.App.buildEmpireDna = buildEmpireDna;
     window.App.buildEmpireMoves = buildEmpireMoves;
