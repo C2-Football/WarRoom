@@ -2985,7 +2985,18 @@
                         )}
                         {headerDraftClock && React.createElement('div', {
                             className: 'wr-draft-header-clock',
-                            title: headerDraftInfo?.start_time ? new Date(headerDraftInfo.start_time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'League draft status',
+                            role: 'button',
+                            tabIndex: 0,
+                            title: headerDraftInfo?.status === 'drafting'
+                                ? 'Jump to Follow Live Draft'
+                                : (headerDraftInfo?.start_time ? 'Open the Draft module · ' + new Date(headerDraftInfo.start_time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'Open the Draft module'),
+                            onClick: () => {
+                                const live = headerDraftInfo?.status === 'drafting';
+                                if (live) window._wrOpenLiveDraft = true;
+                                setActiveTab('draft');
+                                if (live) window.dispatchEvent(new CustomEvent('wr:open-live-draft'));
+                            },
+                            onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); } },
                             style: {
                                 display: 'inline-flex', alignItems: 'center', gap: '7px',
                                 flex: '0 0 auto',
@@ -2995,7 +3006,8 @@
                                 color: 'var(--gold)',
                                 fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)',
                                 fontWeight: 800, textTransform: 'uppercase',
-                                letterSpacing: '0.06em', whiteSpace: 'nowrap'
+                                letterSpacing: '0.06em', whiteSpace: 'nowrap',
+                                cursor: 'pointer'
                             }
                         },
                             React.createElement('span', { style: { color: 'var(--silver)', opacity: 0.78 } }, headerDraftClock.label),

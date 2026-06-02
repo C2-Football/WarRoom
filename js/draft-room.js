@@ -127,6 +127,21 @@
             return () => window.removeEventListener('wr:open-draft-pick-context', openPickFocus);
         }, []);
 
+        // Jump straight into Follow Live Draft when the league header "Draft Live"
+        // chip is clicked. The chip lives in league-detail, so it sets a flag +
+        // fires this event; the mount-time flag check covers the case where the
+        // Draft tab (and this module) wasn't mounted yet when the chip was clicked.
+        useEffect(() => {
+            const openLive = () => {
+                window._wrOpenLiveDraft = false;
+                setLiveAutoStartToken(Date.now());
+                setDraftView('live');
+            };
+            window.addEventListener('wr:open-live-draft', openLive);
+            if (window._wrOpenLiveDraft) openLive();
+            return () => window.removeEventListener('wr:open-live-draft', openLive);
+        }, []);
+
         const normPos = window.App.normPos;
         const posLabel = pos => window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos);
         const rosterState = window.App?.getRosterDataState?.({ roster: myRoster, currentLeague, rosters: currentLeague?.rosters }) || { isUsable: true };

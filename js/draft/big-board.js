@@ -216,10 +216,13 @@
         }, [state.pool]);
 
         const persistBoardPatch = React.useCallback((patch) => {
-            const draftType = state.draftContext?.draftType || state.variant || 'startup';
+            // Key the board by the league draft VARIANT, never the live-sync MODE, so
+            // edits here land on the same store the Draft tab's Big Board reads/writes
+            // (state.draftContext.draftType is 'live-sync' during a live draft).
+            const draftType = state.variant || 'startup';
             const saved = window.DraftCC?.context?.saveBoardPatch?.(state.leagueId, draftType, patch);
             dispatch({ type: 'UPDATE_BOARD_CONTEXT', patch: { ...patch, ...(saved?.updatedAt ? { updatedAt: saved.updatedAt } : {}) } });
-        }, [state.leagueId, state.variant, state.draftContext?.draftType]);
+        }, [state.leagueId, state.variant]);
 
         const onLaneSelect = (lane) => {
             setBoardLane(lane);

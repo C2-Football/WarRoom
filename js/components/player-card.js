@@ -123,6 +123,27 @@
     }
 
     // ── Main component ────────────────────────────────────────────
+    // Surface the user's private scouting note (written on the Draft Big Board) on
+    // the player card wherever it opens — incl. Follow Live Draft. Scans every board
+    // store for the current league (variant-suffixed + legacy keys) so we find the
+    // note regardless of which draft variant key it was saved under.
+    function draftScoutNote(pid) {
+        try {
+            const lid = window.S?.currentLeagueId;
+            if (!lid || pid == null) return '';
+            const want = String(pid);
+            const prefix = 'wr_bigboard_' + lid;
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (!k || k.indexOf(prefix) !== 0) continue;
+                const data = JSON.parse(localStorage.getItem(k) || '{}');
+                const n = data && data.notes && data.notes[want];
+                if (n && String(n).trim()) return String(n).trim();
+            }
+        } catch (e) {}
+        return '';
+    }
+
     function PlayerCard({ pid, playersData, statsData, scoringSettings, onClose, initialTab }) {
         const [tab, setTab] = useState(initialTab || 'overview');
         const [tagMenu, setTagMenu] = useState(false);
@@ -157,6 +178,7 @@
         const pos = p.position || '?';
         const nPos = normPos(pos);
         const name = playerName(p);
+        const scoutNote = draftScoutNote(pid);
         const age = p.age || 0;
         const team = p.team || 'FA';
         const dhq = window.App?.LI?.playerScores?.[pid] || 0;
@@ -459,6 +481,13 @@
                         ref: closeRef, onClick: onClose,
                         style: { background: 'none', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: '6px', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 'var(--text-body, 1rem)', padding: '4px 10px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }
                     }, '✕')
+                ),
+                // Private scouting note from the Draft Big Board (if any)
+                scoutNote && React.createElement('div', {
+                    style: { margin: '12px 20px 0', padding: '10px 12px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '8px' }
+                },
+                    React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--gold)', marginBottom: '4px' } }, '📝 Your scouting note'),
+                    React.createElement('div', { style: { fontSize: 'var(--text-label, 0.8rem)', color: 'var(--k-d0d0d0, #d0d0d0)', lineHeight: 1.45, whiteSpace: 'pre-wrap' } }, scoutNote)
                 ),
                 // Tabs
                 React.createElement('div', { style: { display: 'flex', gap: '2px', padding: '0 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
