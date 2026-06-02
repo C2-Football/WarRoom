@@ -1275,6 +1275,32 @@
             return () => { cancelled = true; };
         }, [forcedMode, autoStartLiveToken, state.phase, fetchedDrafts, leagueIdForFetch, onStartDraft]);
 
+        // ── Self-heal personas when window.S.rosters lands late ─────
+        // Personas are stripped on save (state.js) and rebuilt synchronously
+        // from window.S.rosters at mount / START_DRAFT / resume. On a cold or
+        // refreshed load into a Follow-Live-Draft session, the league's rosters
+        // arrive via league-detail's async hydration, which can finish *after*
+        // that first compose — leaving state.personas empty for the whole
+        // session, which blanks Opponent Intel (and the prediction engine,
+        // which bails on an empty persona set). Recompose once rosters appear.
+        React.useEffect(() => {
+            if (state.phase === 'setup' || state.phase === 'complete') return;
+            const rosterCount = (window.S?.rosters || []).length;
+            if (!rosterCount) return;
+            if (Object.keys(state.personas || {}).length >= rosterCount) return;
+            const leagueId = currentLeague?.league_id || currentLeague?.id || '';
+            let draftDnaMap = {};
+            try {
+                if (window.DraftHistory?.loadDraftDNA) {
+                    draftDnaMap = window.DraftHistory.loadDraftDNA(leagueId) || {};
+                }
+            } catch (e) {}
+            const personas = window.DraftCC.persona.composeAllPersonas(leagueId, draftDnaMap);
+            if (Object.keys(personas).length > Object.keys(state.personas || {}).length) {
+                dispatch({ type: 'HYDRATE', state: { personas } });
+            }
+        }, [state.phase, state.personas, myRoster, currentLeague]);
+
         // ── Phase 2: predictions refresh ────────────────────────────
         // Recompute willReach / willPassOn / likelyPick for every persona
         // at the start of each round. Cached per round in draftState.personas[rid].predictions.
