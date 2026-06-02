@@ -72,12 +72,17 @@ function buildEmpirePortfolioModel(input) {
         if (patch.color) map[safeKey].color = patch.color;
         if (patch.label) map[safeKey].label = patch.label;
     }
-    function pickValue(round) {
-        if (round === 1) return 100;
-        if (round === 2) return 55;
-        if (round === 3) return 28;
-        if (round === 4) return 14;
-        return 6;
+    // League-independent industry pick value (DHQ scale, ~7500 at 1.01), using a mid-round
+    // pick — the same getIndustryPickValue model the rest of the app uses for picks (e.g.
+    // league-detail/compare). Replaces an arbitrary off-scale ladder so Empire pick capital
+    // is DHQ-valued and comparable to player DHQ. Falls back to an industry-anchored ladder.
+    function pickValue(round, teams, rounds) {
+        const t = teams || 12;
+        const r = rounds || 4;
+        if (typeof window !== 'undefined' && typeof window.getIndustryPickValue === 'function') {
+            return window.getIndustryPickValue((round - 1) * t + Math.ceil(t / 2), t, r);
+        }
+        return ({ 1: 6200, 2: 3000, 3: 1500, 4: 750, 5: 380 }[round]) || 150;
     }
 
     allLeagues.forEach(league => {
@@ -191,7 +196,7 @@ function buildEmpirePortfolioModel(input) {
                     !sameId(tp.owner_id, myRoster.roster_id)
                 );
                 if (!tradedAway) {
-                    const own = { leagueId: province.id, leagueName: province.name, year, round, own: true, acquired: false, score: pickValue(round) };
+                    const own = { leagueId: province.id, leagueName: province.name, year, round, own: true, acquired: false, score: pickValue(round, province.teams, draftRounds) };
                     picks.push(own);
                     province.pickCount++;
                     province.ownPickCount++;
@@ -204,7 +209,7 @@ function buildEmpirePortfolioModel(input) {
                     sameId(tp.owner_id, myRoster.roster_id) &&
                     !sameId(tp.roster_id, myRoster.roster_id)
                 ).forEach(() => {
-                    const acquired = { leagueId: province.id, leagueName: province.name, year, round, own: false, acquired: true, score: pickValue(round) };
+                    const acquired = { leagueId: province.id, leagueName: province.name, year, round, own: false, acquired: true, score: pickValue(round, province.teams, draftRounds) };
                     picks.push(acquired);
                     province.pickCount++;
                     province.acquiredPickCount++;
@@ -1577,7 +1582,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                                     {model.pickCapital.byYear.map(year => (
                                         <button key={year.year} className="empire-league-card" style={{ '--tone': 'var(--purple)' }} type="button" onClick={() => setDetail({ type: 'slice', title: year.year + ' Draft Capital', filter: { assetType: 'picks' } })}>
                                             <div><strong>{year.year}</strong><span>{year.count} picks - {year.premium} premium</span><em>{year.acquired} acquired - {year.own} own</em></div>
-                                            <b>{year.score}</b>
+                                            <b>{year.score > 0 ? empireCompact(year.score) : '—'}</b>
                                         </button>
                                     ))}
                                 </div>
