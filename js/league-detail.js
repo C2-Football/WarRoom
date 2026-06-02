@@ -2963,7 +2963,7 @@
                             React.createElement(LeagueTypeHeaderIcon, { meta: headerLeagueType }),
                             headerLeagueType.label === 'League Type Unknown' ? 'Type ?' : headerLeagueType.label
                         )}
-                        {leagueSkin?.phaseMeta && leagueSkin.phase !== 'unknown' && React.createElement('div', {
+                        {leagueSkin?.phaseMeta && leagueSkin.phase !== 'unknown' && leagueSkin.phase !== 'drafting' && React.createElement('div', {
                             className: 'wr-league-phase-badge',
                             title: 'League phase: ' + leagueSkin.phaseMeta.label,
                             'aria-label': 'League phase: ' + leagueSkin.phaseMeta.label,
