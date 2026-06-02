@@ -4218,6 +4218,9 @@
             return () => window.removeEventListener('resize', onResize);
         }, []);
         const isCompact = winW < 1200;
+        // Condensed "Split HUD" header replaces the strip + Alex Live Read + trade
+        // window banner during a live draft only; other phases keep the full header.
+        const isLiveDraftHud = state.mode === 'live-sync' && state.phase === 'drafting';
 
         if (state.mode !== 'live-sync' && state.phase === 'drafting') {
             return (
@@ -4242,6 +4245,27 @@
 
         return (
             <div style={{ fontFamily: FONT_UI, paddingBottom: '12px' }}>
+                {isLiveDraftHud ? (
+                    <LiveCommandHeader
+                        state={state}
+                        dispatch={dispatch}
+                        isUserTurn={isUserTurn}
+                        currentSlot={currentSlot}
+                        currentTeamName={currentTeamName}
+                        liveConfidenceCard={liveConfidenceCard}
+                        stageSummaryCards={stageSummaryCards}
+                        liveTradeWindow={liveTradeWindow}
+                        ownerTell={(liveDecisionDeck?.alerts || []).find(a => a.type === 'owner_tendency') || null}
+                        tradeDeskTarget={tradeDeskTarget}
+                        openTradeDesk={openTradeDesk}
+                        onExit={onExit}
+                        onShowGrades={() => setShowLeagueGrades(true)}
+                        canUndoManualPick={canUndoManualPick}
+                        isCompact={isCompact}
+                        layoutGap={L.GRID_GAP}
+                    />
+                ) : (
+                <React.Fragment>
                 {/* ── HEADER ───────────────────────────────────────── */}
                 <div style={headerCss}>
                     <div style={{
@@ -4587,6 +4611,8 @@
                         onOpen={() => liveTradeWindow?.rosterId && onPropose(liveTradeWindow.rosterId)}
                         layoutGap={L.GRID_GAP}
                     />
+                )}
+                </React.Fragment>
                 )}
 
                 {state.mode === 'live-sync' && (state.stagedLiveOffers || []).length > 0 && (
@@ -5077,6 +5103,205 @@
                         </div>
                     );
                 })()}
+            </div>
+        );
+    }
+
+    // ── Condensed live-draft header ("Split HUD"): one card the height of the
+    //    DraftCast strip. LEFT = status (brand, on-the-clock team, chips, progress
+    //    + actions). RIGHT = Alex's reads (latest take, predicted-available, outlier
+    //    trade-up, trade window). Absorbs the old header strip + Alex Live Read panel
+    //    + Current Pick Trade Window banner for live-sync drafting only.
+    function LiveCommandHeader({
+        state, dispatch, isUserTurn,
+        currentSlot, currentTeamName, liveConfidenceCard,
+        stageSummaryCards, liveTradeWindow, ownerTell,
+        tradeDeskTarget, openTradeDesk, onExit, onShowGrades,
+        canUndoManualPick, isCompact, layoutGap,
+    }) {
+        const GOLD = 'var(--gold)';
+        const ALEX = 'var(--k-9b8afb, #9b8afb)';
+        const AVAIL = '#5dade2';
+        const currentPersona = currentSlot ? state.personas?.[String(currentSlot.rosterId)] : null;
+        const teamAvatarUrl = currentPersona?.avatar ? 'https://sleepercdn.com/avatars/thumbs/' + currentPersona.avatar : '';
+        const pickMeta = currentSlot
+            ? 'R' + (currentSlot.round || '?') + '.' + String(currentSlot.slot || 0).padStart(2, '0') + ' · #' + (currentSlot.overall || '--')
+            : 'No active pick';
+        const onClockLabel = state.activeOffer ? 'Trade offer on deck' : 'On the clock';
+
+        // Alex Live Read: who is likely available at the user's next pick + an outlier worth trading up for.
+        const readout = (state.activeOffer || typeof window.DraftCC?.liveDecisionEngine?.buildLiveReadout !== 'function')
+            ? null
+            : window.DraftCC.liveDecisionEngine.buildLiveReadout(state);
+
+        // Read 1 — latest decision-relevant Alex take (reuses the stream's high-signal gate).
+        const alexThinking = !!(state.alex && state.alex.thinking);
+        const alexFeed = (state.alex && state.alex.stream) || [];
+        const DECISION = new Set(['✦', '⚖', '◇', 'A', '↑', '↓']);
+        const alexItem = alexThinking ? null
+            : (isUserTurn ? (alexFeed.find(e => DECISION.has(e.badge)) || alexFeed[0]) : alexFeed[0]);
+
+        const btn = (bg, color, border) => ({
+            padding: '6px 11px', borderRadius: 6, fontSize: 'var(--text-micro, 0.6875rem)',
+            fontFamily: FONT_UI, fontWeight: 800, letterSpacing: '0.04em', cursor: 'pointer',
+            whiteSpace: 'nowrap', flexShrink: 0, background: bg, color, border: '1px solid ' + border,
+        });
+        const readRow = { display: 'flex', gap: 7, alignItems: 'flex-start' };
+        const readIcon = accent => ({ flexShrink: 0, width: 15, textAlign: 'center', fontSize: '0.78rem', marginTop: 1, color: accent });
+        const readLabel = accent => ({ fontSize: '0.66rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: accent });
+        const readText = { color: 'var(--silver)', opacity: 0.85, fontSize: '0.72rem', lineHeight: 1.32 };
+        // Keep each read to 2 lines so the card stays at DraftCast-strip height even
+        // when Alex's copy runs long.
+        const clamp2 = { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden' };
+
+        return (
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: isCompact ? '1fr' : 'minmax(0,1.18fr) minmax(340px,0.9fr)',
+                minHeight: 158,
+                border: '1px solid var(--acc-line2, rgba(212,175,55,0.34))',
+                borderRadius: 10,
+                overflow: 'hidden',
+                marginBottom: (layoutGap || 8) + 'px',
+                background: 'linear-gradient(90deg, rgba(7,9,14,0.98), rgba(17,23,33,0.96) 46%, rgba(30,24,10,0.92))',
+                boxShadow: 'inset 0 -1px 0 var(--ov-3, rgba(255,255,255,0.05)), 0 12px 30px rgba(0,0,0,0.3)',
+                fontFamily: FONT_UI,
+            }}>
+                {/* LEFT — status */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9, padding: '13px 16px', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 7, display: 'grid', placeItems: 'center', background: GOLD, color: 'var(--black)', fontFamily: FONT_DISPL, fontWeight: 900, fontSize: '0.72rem', letterSpacing: '0.06em', flexShrink: 0 }}>DHQ</div>
+                        <div style={{ minWidth: 0 }}>
+                            <div style={{ color: GOLD, fontFamily: FONT_DISPL, fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase', fontSize: '0.8rem', lineHeight: 1 }}>DraftCast</div>
+                            <div style={{ color: 'var(--silver)', opacity: 0.72, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.09em', fontSize: '0.62rem', marginTop: 3 }}>{state.mode} · {state.variant}</div>
+                        </div>
+                        <div style={{ borderLeft: '3px solid ' + GOLD, paddingLeft: 12, marginLeft: 8, flex: 1, minWidth: 0, marginTop: -6 }}>
+                            <div style={{ color: state.activeOffer ? 'var(--k-f0a500, #f0a500)' : GOLD, fontSize: '0.62rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em' }}>{onClockLabel}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+                                <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', background: 'radial-gradient(circle at 30% 25%, #4a4368, #221d34 70%)', border: '1px solid rgba(155,138,251,0.55)', color: '#d6d0ff', fontFamily: FONT_DISPL, fontWeight: 900, fontSize: '1rem', overflow: 'hidden' }}>
+                                    {teamAvatarUrl
+                                        ? <img src={teamAvatarUrl} alt="" onError={e => { e.target.style.display = 'none'; }} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        : mockInitials(currentTeamName)}
+                                </div>
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={{ color: 'var(--white)', fontFamily: FONT_DISPL, fontSize: '1.42rem', fontWeight: 900, lineHeight: 1.04, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentTeamName}</div>
+                                    <div style={{ color: 'var(--silver)', opacity: 0.78, fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span style={{ whiteSpace: 'nowrap' }}>{pickMeta}</span>
+                                        {liveConfidenceCard && (
+                                            <span title={liveConfidenceCard.label + ': ' + liveConfidenceCard.value + ' — ' + liveConfidenceCard.detail} style={{ color: liveConfidenceCard.tone, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 3, textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0 }}>
+                                                <span style={{ fontSize: '0.6rem' }}>{'●'}</span>{liveConfidenceCard.value}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 7 }}>
+                        {stageSummaryCards.map(card => (
+                            <div key={card.label} style={{ flex: 1, minWidth: 0, border: '1px solid var(--acc-fill3, rgba(212,175,55,0.16))', background: 'var(--ov-1, rgba(255,255,255,0.024))', borderRadius: 6, padding: '6px 8px' }}>
+                                <div style={{ color: card.tone, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 800 }}>{card.label}</div>
+                                <div style={{ color: 'var(--white)', fontWeight: 800, fontSize: '0.74rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.value}</div>
+                                {card.label !== 'Room run' && card.detail && (
+                                    <div style={{ color: 'var(--silver)', opacity: 0.6, fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.detail}</div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 'auto' }}>
+                        <div style={{ flex: 1, minWidth: 0, height: 4, background: 'var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 2, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: Math.round((state.currentIdx / Math.max(1, state.pickOrder.length)) * 100) + '%', background: GOLD, transition: 'width 0.4s ease' }} />
+                        </div>
+                        <span style={{ fontFamily: FONT_MONO, fontSize: '0.62rem', color: 'var(--silver)', flexShrink: 0 }}>{state.currentIdx} / {state.pickOrder.length}</span>
+                        <button onClick={() => dispatch({ type: 'SET_OVERRIDE', enabled: !state.overrideMode })} title={state.overrideMode ? 'Return to read-only Sleeper mirror' : 'Apply the next pick manually from the Big Board'} style={btn(state.overrideMode ? 'rgba(155,138,251,0.22)' : 'rgba(155,138,251,0.16)', '#d6d0ff', 'rgba(155,138,251,0.45)')}>
+                            {state.overrideMode ? 'MANUAL ON' : '✎ Manual Pick'}
+                        </button>
+                        <button onClick={onShowGrades} title="Live A–F draft grades for every team" style={btn('var(--ov-2, rgba(255,255,255,0.04))', 'var(--silver)', 'var(--ov-6, rgba(255,255,255,0.12))')}>{'🏆 Grades'}</button>
+                        {canUndoManualPick && (
+                            <button onClick={() => dispatch({ type: 'UNDO_LAST_PICK', manualOnly: true })} title="Undo the last manual pick entry" style={btn('rgba(155,138,251,0.12)', '#d6d0ff', 'rgba(155,138,251,0.35)')}>UNDO</button>
+                        )}
+                        {tradeDeskTarget && (
+                            <button onClick={openTradeDesk} title="Open trade proposer" style={btn('var(--acc-fill2, rgba(212,175,55,0.12))', GOLD, 'var(--acc-line2, rgba(212,175,55,0.45))')}>{'⇄ Trade'}</button>
+                        )}
+                        <button onClick={onExit} style={btn('transparent', 'var(--silver)', 'var(--ov-6, rgba(255,255,255,0.12))')}>Exit</button>
+                    </div>
+                </div>
+
+                {/* RIGHT — Alex */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '12px 15px', borderLeft: isCompact ? 'none' : '3px solid ' + ALEX, borderTop: isCompact ? '3px solid ' + ALEX : 'none', background: 'linear-gradient(180deg, rgba(155,138,251,0.10), rgba(212,175,55,0.045))', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ color: ALEX, fontSize: '0.9rem' }}>{'✦'}</span>
+                        <span style={{ color: GOLD, fontFamily: FONT_DISPL, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: '0.78rem' }}>Alex</span>
+                    </div>
+
+                    {/* Read 1 — latest decision-relevant take */}
+                    {alexThinking ? (
+                        <div style={readRow}>
+                            <span style={readIcon(ALEX)}>{'✦'}</span>
+                            <div style={{ minWidth: 0, flex: 1, ...clamp2 }}><span style={{ ...readText, fontStyle: 'italic' }}>Alex is reading the board…</span></div>
+                        </div>
+                    ) : alexItem ? (
+                        <div style={readRow}>
+                            <span style={readIcon(ALEX)}>{alexItem.badge || '⚖'}</span>
+                            <div style={{ minWidth: 0, flex: 1, ...clamp2 }}>
+                                <span style={{ fontSize: '0.72rem', lineHeight: 1.32 }}>
+                                    <b style={{ color: 'var(--white)', fontWeight: 700 }}>{(alexItem.title || '').replace(/^Alex\s*[·:—-]?\s*/i, '') || alexItem.title}</b>
+                                    {alexItem.text ? <span style={readText}> — {alexItem.text}</span> : null}
+                                </span>
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={readRow}>
+                            <span style={readIcon(ALEX)}>{'✦'}</span>
+                            <div style={{ minWidth: 0, flex: 1, ...clamp2 }}><span style={{ ...readText, opacity: 0.6, fontStyle: 'italic' }}>Alex is watching the board…</span></div>
+                        </div>
+                    )}
+
+                    {/* Read 2 — predicted available at next pick */}
+                    {readout && readout.available.length > 0 && (
+                        <div style={readRow}>
+                            <span style={readIcon(AVAIL)}>{'👁'}</span>
+                            <div style={{ minWidth: 0, flex: 1, ...clamp2 }}>
+                                <span style={readLabel(AVAIL)}>Available @ {readout.pickLabel}</span>
+                                <span style={readText}>{' — '}{readout.available.map((a, i) => (
+                                    <React.Fragment key={i}>{i ? ' · ' : ''}<b style={{ color: 'var(--white)', fontWeight: 700 }}>{a.name}</b>{a.pos ? ' (' + a.pos + ')' : ''}</React.Fragment>
+                                ))}</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Read 3 — outlier worth trading up for */}
+                    {readout && readout.outlier && (
+                        <div style={{ ...readRow, alignItems: 'center', background: 'var(--acc-fill2, rgba(212,175,55,0.10))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', borderRadius: 6, padding: '6px 8px' }}>
+                            <span style={{ ...readIcon(GOLD), marginTop: 0 }}>{'⚡'}</span>
+                            <div style={{ minWidth: 0, flex: 1, ...clamp2 }}>
+                                <span style={{ color: GOLD, fontSize: '0.72rem', lineHeight: 1.35 }}>
+                                    <b style={{ fontWeight: 800 }}>Trade up:</b> {readout.outlier.name}{readout.outlier.pos ? ' (' + readout.outlier.pos + ')' : ''} is sliding and likely gone before your pick.
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Read 4 — trade window */}
+                    <div style={{ ...readRow, alignItems: 'center' }}>
+                        <span style={{ ...readIcon(ALEX), marginTop: 0 }}>{'🔄'}</span>
+                        <div style={{ minWidth: 0, flex: 1, ...clamp2 }}>
+                            <span style={readLabel(ALEX)}>Trade window</span>
+                            <span style={readText}>{' — '}{liveTradeWindow
+                                ? (liveTradeWindow.viable === false
+                                    ? 'no viable trade'
+                                    : (liveTradeWindow.teamName + ' · ' + liveTradeWindow.likelihood + '% / ' + liveTradeWindow.acceptanceLine + '%'))
+                                : 'no live window'}
+                                {ownerTell?.text ? <span style={{ color: ALEX }}> · ⚑ {ownerTell.text}</span> : null}
+                            </span>
+                        </div>
+                        {tradeDeskTarget && (
+                            <button onClick={openTradeDesk} style={{ flexShrink: 0, padding: '4px 9px', borderRadius: 5, fontSize: '0.62rem', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', border: '1px solid rgba(155,138,251,0.4)', background: 'rgba(155,138,251,0.16)', color: '#d6d0ff' }}>Open Trade Desk</button>
+                        )}
+                    </div>
+                </div>
             </div>
         );
     }
