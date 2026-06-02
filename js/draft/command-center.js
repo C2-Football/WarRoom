@@ -794,6 +794,10 @@
         const lastAlexPickCountRef = React.useRef(0);
         const lastAlexRoundRef = React.useRef(0);
         const alexSonnetCooldownRef = React.useRef(0);
+        // Guards against two overlapping pick-analysis calls: in a fast mock draft a
+        // second qualifying pick can land before the first call resolves. We allow at
+        // most one in-flight AI call at a time so each pick fires exactly one prompt.
+        const alexAiInFlightRef = React.useRef(false);
         // Dedupe trackers for the rule-based "live insight" stream events so each
         // run/tier-break/value-cliff/need-tension fires once per occurrence.
         const lastRunRef = React.useRef({ pos: '', count: 0 });
@@ -970,8 +974,9 @@
                     (lastPick.consensusRank && Math.abs(lastPick.overall - lastPick.consensusRank) > 10)  // big reach/steal
                 );
 
-            if (shouldFireAI && typeof window.dhqAI === 'function') {
+            if (shouldFireAI && !alexAiInFlightRef.current && typeof window.dhqAI === 'function') {
                 alexSonnetCooldownRef.current = state.currentIdx;
+                alexAiInFlightRef.current = true;
                 const persona = state.personas?.[lastPick.rosterId];
                 const reasoning = lastPick.reasoning || {};
                 const nudgesText = (reasoning.nudges || []).slice(0, 3).map(n => n.name + ' ' + (n.pct >= 0 ? '+' : '') + n.pct + '%').join(', ');
@@ -1016,6 +1021,7 @@
                         if (window.wrLog) window.wrLog('alex.pickAnalysis', e);
                     })
                     .finally(() => {
+                        alexAiInFlightRef.current = false;
                         dispatch({ type: 'ALEX_SET_THINKING', thinking: false });
                     });
             }

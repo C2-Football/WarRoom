@@ -67,6 +67,14 @@
         return Math.max(0, Math.min(100, n));
     }
 
+    // GM's Office "Roster Fit" slider (BPA ⇄ Need-driven). Used as a small nudge on
+    // how hard a package is to close — need-driven rooms hold assets a touch tighter.
+    function needFitFor(state) {
+        const n = Number(state?.draftTuning?.needFit);
+        if (!Number.isFinite(n)) return 60;
+        return Math.max(0, Math.min(100, n));
+    }
+
     function cpuOfferTradeActivityFor(state) {
         const historical = historicalDraftPickTradeSignal(state);
         return historical ? historical.activity : tradeActivityFor(state);
@@ -243,6 +251,81 @@
         return Math.max(52, Math.min(96, line));
     }
 
+    // ── GM's Office–driven package targeting ───────────────────────────────
+    // Auto-generated packages used to size the user's give to a flat ~0.9× of the
+    // value acquired — a structural underpay that never cleared a 62-96 buyer line,
+    // which is why the rail felt "low acceptance". Instead, derive the give/receive
+    // value RATIO that actually clears the partner's line, scaled by the user's GM's
+    // Office sliders (Trade Activity is the dominant lever; Roster Fit a small nudge).
+    //
+    // Returns r >= 1: for a package where the user ACQUIRES an asset, give r× the
+    // value acquired. For a package where the user RECEIVES picks for a fixed asset,
+    // take back at most 1/r of what they give (the most the partner says yes to).
+    function giveTargetMultiplier(state, persona, opts = {}) {
+        const line = (opts.acceptanceLine != null) ? opts.acceptanceLine : acceptanceLineFor(state, persona);
+        const activity = tradeActivityFor(state);
+        // Cushion above the bare line. Trade Activity dominates; Roster Fit nudges.
+        let cushion = 4 + Math.round((activity - 50) * 0.10);
+        cushion += Math.round((needFitFor(state) - 60) * 0.04);
+        const target = Math.max(52, Math.min(94, line + cushion));
+        const margin = Math.max(2, Math.min(44, target - 50));
+        // Invert the acceptance curve likelihood ≈ 50 + 200·(1 − 1/r) for r at `target`.
+        const r = 1 / (1 - margin / 200);
+        return Math.max(1.0, Math.min(1.6, r));
+    }
+
+    // User ACQUIRES an asset: build the give side up to the value that actually CLEARS
+    // the partner's buyer line, with the LEAST overpay. A flat value target overshoots
+    // badly with chunky picks (a single big pick blows past it), so instead add picks
+    // incrementally and stop the moment the package clears — trying both biggest-first
+    // (best when one pick clears) and smallest-first (finer increments when it doesn't),
+    // then keep whichever clears with the smaller give. If neither clears (a genuinely
+    // hard partner — e.g. a DOMINATOR at zero Trade Activity), fall back to the sane
+    // closed-form attempt; the moonshot fallback covers the no-path case.
+    function buildGiveToClear(state, persona, baseProposal, acquiredValue) {
+        const line = acceptanceLineFor(state, persona);
+        const tryOrder = (order) => {
+            const picks = remainingPicksByValue(state, state.userRosterId, baseProposal.myGive || [], order);
+            let proposal = baseProposal;
+            for (const pick of picks) {
+                if ((proposal.myGive || []).length >= 4) break;
+                proposal = { ...proposal, myGive: [...(proposal.myGive || []), pick] };
+                const ev = evaluateUserProposal(state, proposal, { preview: true, noCounter: true });
+                if ((ev.likelihood || 0) >= line) return { proposal, cleared: true };
+            }
+            return { proposal, cleared: false };
+        };
+        const give = (p) => proposalValue(state, p, 'my');
+        const clearing = [tryOrder('desc'), tryOrder('asc')].filter(r => r.cleared).map(r => r.proposal);
+        if (clearing.length) return clearing.sort((a, b) => give(a) - give(b))[0];
+        // Nothing clears (a genuinely hard partner — e.g. a DOMINATOR at zero Trade
+        // Activity): offer a clean single-pick opener rather than piling capital; the
+        // moonshot fallback provides the explicit overpay path when it stays declined.
+        return addUserPicksUntil(state, baseProposal, Math.round(Math.max(1, acquiredValue)), 1);
+    }
+
+    // User RECEIVES the partner's picks for a fixed asset (move-down / sell-player).
+    // Add their picks (best first) only while the package still CLEARS the buyer line,
+    // so the user gets the most value back without tipping the partner into a decline.
+    // This responds to the GM's Office sliders implicitly (a higher line ⇒ less comes
+    // back) and avoids the chunky-pick overshoot a fixed value target produces.
+    function buildReceiveToClear(state, persona, baseProposal, targetRosterId) {
+        const line = acceptanceLineFor(state, persona);
+        const picks = remainingPicksByValue(state, targetRosterId, baseProposal.theirGive || [], 'desc');
+        let proposal = baseProposal;
+        for (const pick of picks) {
+            if ((proposal.theirGive || []).length >= 3) break;
+            const candidate = { ...proposal, theirGive: [...(proposal.theirGive || []), pick] };
+            const ev = evaluateUserProposal(state, candidate, { preview: true, noCounter: true });
+            if ((ev.likelihood || 0) >= line) proposal = candidate; else break;
+        }
+        // Guarantee the package is two-sided even against a partner who clears nothing.
+        if (!(proposal.theirGive || []).length && picks[0]) {
+            proposal = { ...proposal, theirGive: [picks[0]] };
+        }
+        return proposal;
+    }
+
     function packageComplexityPenalty(proposal) {
         const assets =
             (proposal.myGive || []).length +
@@ -282,12 +365,27 @@
             + faabToDhq(proposal.theirGiveFaab);
         const realism = validateProposalRealism(state, proposal);
 
-        const taxes = helpers.calcPsychTaxes(
+        const basePsychTaxes = helpers.calcPsychTaxes(
             myPersona.assessment,
             theirPersona.assessment,
             theirPersona.tradeDna?.key,
             theirPersona.posture
         );
+
+        // Grudge tax: logged trade-history sentiment between these two owners. Mirrors
+        // the main Trade Center analyzer, which folds it into the acceptance math and
+        // surfaces it as a tax row. 0 (and omitted) when no grudges are on record.
+        const grudgeTotal = helpers.calcGrudgeTax
+            ? (helpers.calcGrudgeTax(state.userRosterId, proposal.targetRosterId, window._tcGrudges) || 0)
+            : 0;
+        const taxes = grudgeTotal !== 0
+            ? [...basePsychTaxes, {
+                name: 'Grudge Tax',
+                impact: grudgeTotal,
+                type: grudgeTotal > 0 ? 'BONUS' : 'TAX',
+                desc: 'Logged trade-history sentiment between you two.',
+            }]
+            : basePsychTaxes;
 
         let likelihood = helpers.calcAcceptanceLikelihood(
             myGiveDHQ,
@@ -326,11 +424,16 @@
         const grade = helpers.fairnessGrade(myGiveDHQ, theirGiveDHQ);
         if (realism.blocked) likelihood = Math.min(2, likelihood);
 
+        const netModifier = taxes.reduce((s, t) => s + (Number(t.impact) || 0), 0)
+            + modifiers.reduce((s, m) => s + (Number(m.impact) || 0), 0);
+
         const evaluation = {
             likelihood,
             grade,
             taxes,
             modifiers,
+            grudgeTax: grudgeTotal,
+            netModifier,
             realism,
             realismFlags: realism.flags,
             myGiveDHQ,
@@ -746,10 +849,10 @@
         if (theirEarliest) {
             const targetPickValue = pickValueFor(state, theirEarliest);
             let proposal = normalizeProposal(targetRosterId, { theirGive: [theirEarliest] });
-            // Math.max(1, …) guarantees at least one user pick is added so the
-            // package stays two-sided even when the pick's value resolves to 0
-            // (a one-sided proposal is dropped by push()).
-            proposal = addUserPicksUntil(state, proposal, Math.round(Math.max(1, targetPickValue) * 0.92), 3);
+            // Build the user's give up to the value that clears the partner's buyer
+            // line (scaled by GM's Office sliders), not a flat underpay. Math.max(1, …)
+            // keeps the package two-sided even when the pick value resolves to 0.
+            proposal = buildGiveToClear(state, persona, proposal, Math.max(1, targetPickValue));
             const earliestLabel = 'R' + theirEarliest.round + '.' + String(theirEarliest.slot || 0).padStart(2, '0');
             push(
                 'move-up',
@@ -764,9 +867,10 @@
         }
 
         if (myPicksHigh[0] && theirPicksLow.length >= 2) {
-            const userPickValue = pickValueFor(state, myPicksHigh[0]);
             let proposal = normalizeProposal(targetRosterId, { myGive: [myPicksHigh[0]] });
-            proposal = addTargetPicksUntil(state, proposal, targetRosterId, Math.round(userPickValue * 0.88), 3);
+            // User receives the partner's picks: take back the most value that still
+            // clears their buyer line (tighter line ⇒ less volume comes back).
+            proposal = buildReceiveToClear(state, persona, proposal, targetRosterId);
             push(
                 'move-down',
                 'Move Down',
@@ -779,7 +883,8 @@
         if (theirTopPlayers[0]) {
             const targetPlayer = theirTopPlayers[0];
             let proposal = normalizeProposal(targetRosterId, { theirGivePlayers: [targetPlayer.pid] });
-            proposal = addUserPicksUntil(state, proposal, Math.round(targetPlayer.value * 0.94), 3);
+            // Acquiring their player: build the give up to clear the buyer line.
+            proposal = buildGiveToClear(state, persona, proposal, targetPlayer.value);
             push(
                 'buy-player',
                 'Buy Player',
@@ -792,7 +897,8 @@
         const sellPlayer = myNeedFits[0] || myTopPlayers[0];
         if (sellPlayer) {
             let proposal = normalizeProposal(targetRosterId, { myGivePlayers: [sellPlayer.pid] });
-            proposal = addTargetPicksUntil(state, proposal, targetRosterId, Math.round(sellPlayer.value * 0.9), 3);
+            // Selling a player for their picks: take back the most value that clears.
+            proposal = buildReceiveToClear(state, persona, proposal, targetRosterId);
             push(
                 'sell-player',
                 'Sell Player',
@@ -1227,6 +1333,8 @@
         offerShape,
         negotiationReadFor,
         acceptanceLineFor,
+        giveTargetMultiplier,
+        needFitFor,
         pickValueFor,
         sumPickValue,
         playerValueFor,

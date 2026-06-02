@@ -689,6 +689,34 @@
                             </div>
                         </div>
                     )}
+                    {/* Net modifier total — the analyzer's signature readout: the sum of
+                        every psych tax + owner-DNA driver applied to the base acceptance. */}
+                    {((evaluation.taxes && evaluation.taxes.length) || (evaluation.modifiers && evaluation.modifiers.length)) ? (
+                        <div style={{
+                            marginTop: '10px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '8px 10px',
+                            borderTop: '1px solid var(--ov-6, rgba(255,255,255,0.14))',
+                            background: 'var(--acc-fill2, rgba(212,175,55,0.1))',
+                            borderRadius: '5px',
+                        }}>
+                            <span style={{
+                                fontSize: 'var(--text-label, 0.75rem)',
+                                fontWeight: 700,
+                                color: 'var(--gold)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.08em',
+                            }}>Net Modifier</span>
+                            <span style={{
+                                fontSize: '0.95rem',
+                                fontWeight: 700,
+                                fontFamily: FONT_DISPL,
+                                color: (evaluation.netModifier || 0) >= 0 ? 'var(--good)' : 'var(--bad)',
+                            }}>{(evaluation.netModifier || 0) > 0 ? '+' : ''}{evaluation.netModifier || 0}%</span>
+                        </div>
+                    ) : null}
                 </div>
 
                 {/* Footer actions */}
