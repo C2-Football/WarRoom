@@ -726,18 +726,21 @@
             'transaction-ticker': { label: 'Transaction Ticker', icon: '', category: 'League', sizes: ['md', 'lg'], tip: 'Recent league transactions: trades, waivers, and free agent moves' },
             'league-standings':   { label: 'League Standings',   icon: '', category: 'League', sizes: ['md', 'lg'], tip: 'Current league standings with W-L records and DHQ totals' },
         };
-        // Default 6-widget dashboard — module-based format. Intelligence brief
-        // sits at the top as a full-width xl widget so new users land on Alex.
-        // v2 default layout — Intel Brief anchors the board; Field Notes starts
-        // compact until real decision logs exist, so empty notes do not consume
-        // a full desktop column.
+        // Curiosity-first default dashboard (new leagues only — existing users keep
+        // their saved layout). One large "wow" anchor + two tension numbers + a
+        // visual + a live feed, spanning AI / roster / league / market so the board
+        // telegraphs the system's breadth and invites a click on first load:
+        //   1. Intel Brief (large)   — Alex's narrative + action CTAs
+        //   2. Health Score (small)  — a lone 0–100 that begs "why?"
+        //   3. Power Rankings (small)— "where do I stand?" competitive tension
+        //   4. Elite Players (medium)— your cornerstones (visual)
+        //   5. Market Radar (medium) — a moving feed of trade/waiver opportunities
         const DEFAULT_WIDGETS = [
-            { id: 'dw0', key: 'intel-brief',        size: 'tall' },
-            { id: 'dw1', key: 'field-notes',        size: 'slim' },
-            { id: 'dw2', key: 'roster-pulse',       size: 'sm', primaryMetric: 'health-score' },
-            { id: 'dw3', key: 'market-radar',       size: 'sm' },
-            { id: 'dw4', key: 'draft-capital',      size: 'sm' },
-            { id: 'dw5', key: 'league-landscape',   size: 'sm' },
+            { id: 'dw0', key: 'intel-brief',    size: 'tall' },
+            { id: 'dw1', key: 'roster-pulse',   size: 'sm', primaryMetric: 'health-score' },
+            { id: 'dw2', key: 'power-rankings', size: 'sm' },
+            { id: 'dw3', key: 'roster-pulse',   size: 'md', primaryMetric: 'elite-count' },
+            { id: 'dw4', key: 'market-radar',   size: 'md' },
         ];
         // Migrate legacy formats to current widget object format
         function migrateKpisToWidgets(stored) {
