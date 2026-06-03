@@ -554,6 +554,45 @@ const EMPIRE_DNA_META = {
 // buildEmpireGrudges — aggregate per-league logged trade grudges (od_grudges_v1_<lid>) into one
 // cross-league list. Grudges are keyed by Sleeper user_id, so a grudge with an owner applies
 // wherever you face them. Feeds calcGrudgeTax inside buildEmpireMoves.
+// buildEmpireIndex — the dynasty market as a desk + how your portfolio is levered to it.
+// Per position class: market avg DHQ (across scored players), your exposure %, and β =
+// (your value share of the class) / (the market's value share) — >1 means overweight/levered.
+function buildEmpireIndex(input) {
+    input = input || {};
+    const scores = input.scores || {};
+    const playersData = input.playersData || {};
+    const positionAllocation = input.positionAllocation || [];
+    const normPos = input.normPos || (p => p);
+    const CLASSES = ['QB', 'RB', 'WR', 'TE'];
+    const mkt = {};
+    CLASSES.forEach(c => { mkt[c] = { total: 0, count: 0 }; });
+    Object.keys(scores).forEach(pid => {
+        const v = scores[pid] || 0;
+        if (v <= 0) return;
+        const p = playersData[pid];
+        if (!p) return;
+        const c = normPos(p.position) || p.position;
+        if (mkt[c]) { mkt[c].total += v; mkt[c].count++; }
+    });
+    const mktTotal = CLASSES.reduce((s, c) => s + mkt[c].total, 0) || 1;
+    const myByPos = {};
+    (positionAllocation || []).forEach(p => { myByPos[p.key] = p.dhq || 0; });
+    const myTotal = CLASSES.reduce((s, c) => s + (myByPos[c] || 0), 0) || 1;
+    const classes = CLASSES.map(c => {
+        const mktShare = mkt[c].total / mktTotal;
+        const myShare = (myByPos[c] || 0) / myTotal;
+        const beta = mktShare > 0 ? Math.round((myShare / mktShare) * 100) / 100 : 0;
+        return {
+            pos: c,
+            mktAvg: mkt[c].count ? Math.round(mkt[c].total / mkt[c].count) : 0,
+            myExposurePct: Math.round(myShare * 100),
+            beta,
+            overweight: beta > 1.15,
+        };
+    });
+    return { classes };
+}
+
 function buildEmpireGrudges(allLeagues) {
     const out = [];
     (allLeagues || []).forEach(l => {
@@ -1549,6 +1588,49 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         );
     };
 
+    const renderIndexDetail = () => {
+        const idx = buildEmpireIndex({ scores, playersData, positionAllocation: model.positionAllocation, normPos });
+        const level = model.totals.totalDHQ || 0;
+        const delta = empireDelta ? empireDelta.totalDHQDelta : null;
+        const betaTone = c => c > 1.15 ? 'var(--bad)' : c < 0.85 ? 'var(--good)' : 'var(--gold)';
+        return (
+            <div className={rootClassName} data-testid="empire-root">
+                <EmpireStyles />
+                <div className="empire-header">
+                    <div className="empire-topbar">
+                        <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+                        <div className="empire-title"><strong>Empire Index</strong><span>the dynasty market · and how your portfolio is levered to it</span></div>
+                        <div className="empire-user">{userName}</div>
+                    </div>
+                </div>
+                <main className="empire-detail">
+                    <section className="empire-detail-hero">
+                        <div>
+                            <h1>{empireCompact(level)} <span style={{ fontSize: '1rem', color: 'var(--silver)' }}>index</span></h1>
+                            <p>Portfolio DHQ across {model.totals.leagues} leagues {delta != null ? (delta >= 0 ? '· ▲ ' : '· ▼ ') + empireCompact(Math.abs(delta)) + ' wk/wk' : '· trend builds weekly'}</p>
+                        </div>
+                    </section>
+                    <section className="empire-panel">
+                        <div className="empire-panel-head"><strong>Position Market</strong><em>avg DHQ · your exposure · β (leverage)</em></div>
+                        <div className="empire-floor-matrix" style={{ gridTemplateColumns: '1fr' }}>
+                            <div className="empire-table-head" style={{ gridTemplateColumns: '80px 1fr 1.6fr 80px' }}><div>Class</div><div>Mkt Avg</div><div>Your exposure</div><div>β</div></div>
+                            {idx.classes.map(c => (
+                                <div key={c.pos} className="empire-expo-row" style={{ gridTemplateColumns: '80px 1fr 1.6fr 80px', cursor: 'default' }}>
+                                    <strong style={{ color: posColors[c.pos] || 'var(--gold)' }}>{c.pos}</strong>
+                                    <b style={{ fontFamily: 'var(--font-mono)' }}>{c.mktAvg ? empireCompact(c.mktAvg) : '—'}</b>
+                                    <div className="empire-expo-track"><div className="empire-expo-fill" style={{ width: Math.min(100, c.myExposurePct) + '%', background: posColors[c.pos] || 'var(--gold)' }} /></div>
+                                    <b style={{ color: betaTone(c.beta), fontFamily: 'var(--font-mono)' }}>{c.beta.toFixed(1)}{c.overweight ? ' ⚠' : ''}</b>
+                                </div>
+                            ))}
+                        </div>
+                        <p style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginTop: 10, lineHeight: 1.5 }}>β &gt; 1 = overweight that class vs the market — more upside if it rises, more single-class risk if it falls. The 7-day market trend builds as weekly snapshots accumulate.</p>
+                    </section>
+                </main>
+            </div>
+        );
+    };
+
+    if (detail?.type === 'index') return renderIndexDetail();
     if (detail?.type === 'owner') return renderOwnerHud(detail.ownerId, detail.leagueId);
     if (detail?.type === 'player') return renderPlayerDetail(detail.pid);
     if (detail?.type === 'league') return renderLeagueDetail(detail.leagueId);
@@ -1564,6 +1646,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                     { g: '⚡', t: 'Empire Moves', go: () => setDetail({ type: 'moves' }) },
                     { g: '◧', t: 'Allocation & Leagues', go: () => document.querySelector('.empire-main-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
                     { g: '◰', t: 'Asset Floor', go: () => document.querySelector('.empire-floor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+                    { g: 'β', t: 'Empire Index', go: () => setDetail({ type: 'index' }) },
                     { g: '≣', t: 'Asset Workspace', go: () => document.querySelector('.empire-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
                 ].map(it => (
                     <button key={it.t} className="empire-rail-btn" type="button" title={it.t} aria-label={it.t} onClick={it.go}>{it.g}</button>
@@ -1859,6 +1942,7 @@ if (typeof window !== 'undefined') {
     window.App.buildEmpireBrief = buildEmpireBrief;
     window.App.buildEmpireRolodex = buildEmpireRolodex;
     window.App.buildEmpireGrudges = buildEmpireGrudges;
+    window.App.buildEmpireIndex = buildEmpireIndex;
     window.App.inferDnaFromTransactions = inferDnaFromTransactions;
     window.App.buildEmpireDna = buildEmpireDna;
     window.App.buildEmpireMoves = buildEmpireMoves;
