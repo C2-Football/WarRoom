@@ -924,6 +924,20 @@ function EmpireStyles() {
             .empire-wire-item::before { content: '\\25C6'; color: var(--acc-line3, rgba(212,175,55,0.5)); margin-right: 22px; font-size: 0.6rem; vertical-align: middle; }
             @keyframes empire-wire-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
             @media (max-width: 1023px) { .empire-root.is-terminal { padding-left: 0; } .empire-rail { display: none; } }
+            /* ── Asset Floor: exposure matrix + DHQ heat tiles ── */
+            .empire-floor-matrix { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px; margin-bottom: 12px; }
+            .empire-expo-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(60px, 1fr) auto; gap: 10px; align-items: center; text-align: left; border: 1px solid var(--ov-4, rgba(255,255,255,0.07)); background: var(--ov-1, rgba(255,255,255,0.024)); border-radius: var(--card-radius-sm, 6px); padding: 7px 10px; cursor: pointer; color: inherit; font-family: inherit; }
+            .empire-expo-row:hover { border-color: var(--acc-line3, rgba(212,175,55,0.4)); }
+            .empire-expo-name strong { display: block; color: var(--white, var(--k-ffffff, #fff)); font-size: var(--text-label, 0.75rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .empire-expo-name span { display: block; color: var(--ov-8, rgba(255,255,255,0.5)); font-size: var(--text-micro); }
+            .empire-expo-track { height: 6px; background: var(--ov-4, rgba(255,255,255,0.08)); border-radius: 3px; overflow: hidden; }
+            .empire-expo-fill { height: 100%; border-radius: 3px; }
+            .empire-expo-row b { font-family: var(--font-mono); font-size: var(--text-label, 0.75rem); white-space: nowrap; }
+            .empire-tilegrid { display: flex; flex-wrap: wrap; gap: 4px; }
+            .empire-tile { flex: 1 1 70px; min-width: 64px; max-width: 170px; min-height: 46px; display: flex; flex-direction: column; justify-content: center; border: 1px solid var(--ov-5, rgba(255,255,255,0.08)); border-radius: var(--card-radius-sm, 6px); background: var(--ov-1, rgba(255,255,255,0.024)); padding: 6px 8px; cursor: pointer; overflow: hidden; }
+            .empire-tile:hover { background: var(--ov-2, rgba(255,255,255,0.04)); }
+            .empire-tile-name { font-size: var(--text-micro); color: var(--white, var(--k-ffffff, #fff)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .empire-tile-dhq { font-size: var(--text-micro); font-family: var(--font-mono); color: var(--ov-9, rgba(255,255,255,0.62)); margin-top: 2px; }
             .empire-main-grid { display: grid; grid-template-columns: minmax(270px, 0.84fr) minmax(420px, 1.34fr) minmax(290px, 0.92fr); gap: 12px; align-items: start; }
             .empire-bridge { display: grid; grid-template-columns: minmax(320px, 1.05fr) minmax(280px, 0.95fr); gap: 12px; margin-bottom: 12px; align-items: start; }
             .empire-brief { display: flex; gap: 11px; }
@@ -1464,6 +1478,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                     { g: '▦', t: 'Command Bridge', go: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
                     { g: '⚡', t: 'Empire Moves', go: () => setDetail({ type: 'moves' }) },
                     { g: '◧', t: 'Allocation & Leagues', go: () => document.querySelector('.empire-main-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+                    { g: '◰', t: 'Asset Floor', go: () => document.querySelector('.empire-floor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
                     { g: '≣', t: 'Asset Workspace', go: () => document.querySelector('.empire-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
                 ].map(it => (
                     <button key={it.t} className="empire-rail-btn" type="button" title={it.t} aria-label={it.t} onClick={it.go}>{it.g}</button>
@@ -1611,6 +1626,28 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                                             </button>
                                         )) : <div className="empire-empty"><strong>No leagues</strong>Reset filters or check roster sync.</div>}
                                 </div>
+                            </div>
+                        </section>
+
+                        <section className="empire-panel empire-floor" data-testid="empire-floor">
+                            <div className="empire-panel-head"><strong>Asset Floor</strong><em>cross-league exposure · tile size = DHQ, edge = age window</em></div>
+                            <div className="empire-floor-matrix">
+                                {model.exposure.filter(e => e.count > 1).slice(0, 12).map(e => (
+                                    <button key={e.pid} type="button" className="empire-expo-row" onClick={() => setDetail({ type: 'player', pid: e.pid })}>
+                                        <div className="empire-expo-name"><strong>{e.name}</strong><span>{e.pos} · {e.count} of {model.totals.leagues} leagues</span></div>
+                                        <div className="empire-expo-track"><div className="empire-expo-fill" style={{ width: Math.min(100, e.exposurePct) + '%', background: e.agePhaseColor }} /></div>
+                                        <b style={{ color: e.exposurePct >= 50 ? 'var(--bad)' : 'var(--gold)' }}>{e.exposurePct}%</b>
+                                    </button>
+                                ))}
+                                {!model.exposure.some(e => e.count > 1) && <div className="empire-empty"><strong>No duplicate exposure</strong>Your assets are spread cleanly across leagues.</div>}
+                            </div>
+                            <div className="empire-tilegrid">
+                                {[...model.assets].filter(a => a.dhq > 0).sort((a, b) => b.dhq - a.dhq).slice(0, 48).map((a, i) => (
+                                    <button key={a.pid + ':' + a.leagueId + ':' + i} type="button" className="empire-tile" title={a.name + ' · ' + empireCompact(a.dhq) + ' · ' + (a.agePhaseLabel || '')} style={{ flexGrow: Math.max(1, Math.round(a.dhq / 800)), borderColor: a.agePhaseColor }} onClick={() => setDetail({ type: 'player', pid: a.pid })}>
+                                        <span className="empire-tile-name">{a.name}</span>
+                                        <span className="empire-tile-dhq">{empireCompact(a.dhq)}</span>
+                                    </button>
+                                ))}
                             </div>
                         </section>
 
