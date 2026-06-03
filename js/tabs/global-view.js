@@ -539,6 +539,18 @@ function buildEmpireDna(savedDna, transactions, rosters, myUserId) {
     return out;
 }
 
+// EMPIRE_DNA_META — display label + how-to-negotiate for the 6 Owner-DNA archetypes. The
+// acceptance math lives in trade-engine.js (operates on the dnaKey); this is presentational
+// for the Negotiation HUD.
+const EMPIRE_DNA_META = {
+    FLEECER:   { label: 'The Fleecer',   strategy: 'Hunts asymmetric value. Lead with clean surplus — they respect boldness, but the math still moves linearly.' },
+    DOMINATOR: { label: 'The Dominator', strategy: 'Ego-driven; needs to feel like the winner. Frame your offer as handing them the better side.' },
+    STALWART:  { label: 'The Stalwart',  strategy: 'Attached to his roster, slow to move. Lead with clear value, never lowball, show both-sides upside.' },
+    ACCEPTOR:  { label: 'The Acceptor',  strategy: 'Low attachment, sells current for futures. Offer picks and young upside — he discounts current stars.' },
+    DESPERATE: { label: 'The Desperate', strategy: 'Urgency from injuries / bye / playoff push. Identify the empty slot and strike fast before it fades.' },
+    NONE:      { label: 'No DNA read',   strategy: 'No behavioral read yet — negotiate at fair value and watch for tells.' },
+};
+
 // buildEmpireGrudges — aggregate per-league logged trade grudges (od_grudges_v1_<lid>) into one
 // cross-league list. Grudges are keyed by Sleeper user_id, so a grudge with an owner applies
 // wherever you face them. Feeds calcGrudgeTax inside buildEmpireMoves.
@@ -1448,7 +1460,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                             <div className="empire-panel-head"><strong>Owner Rolodex</strong><em>by edge</em></div>
                             <div className="empire-stack">
                                 {rolodex.filter(o => o.exploit >= 6).slice(0, 8).map((o, i) => (
-                                    <button key={o.leagueId + ':' + o.ownerId + ':' + i} className="empire-league-card" style={{ '--tone': o.postureColor }} type="button" onClick={() => setDetail({ type: 'league', leagueId: o.leagueId })}>
+                                    <button key={o.leagueId + ':' + o.ownerId + ':' + i} className="empire-league-card" style={{ '--tone': o.postureColor }} type="button" onClick={() => setDetail({ type: 'owner', ownerId: o.ownerId, leagueId: o.leagueId })}>
                                         <div>
                                             <strong>{o.ownerName}</strong>
                                             <span>{o.leagueName} · {o.posture}</span>
@@ -1465,6 +1477,79 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         );
     };
 
+    const renderOwnerHud = (ownerId, leagueId) => {
+        const sid = (a, b) => a != null && b != null && String(a) === String(b);
+        const league = allLeagues.find(l => sid(l.id || l.league_id, leagueId));
+        const assessments = league?.empireAssessments || [];
+        const dnaMap = league?.empireDna || {};
+        const theirA = assessments.find(a => sid(a.ownerId, ownerId));
+        const myA = assessments.find(a => sid(a.ownerId, sleeperUserId));
+        const dnaKey = dnaMap[ownerId] || 'NONE';
+        const TE = window.App?.TradeEngine || {};
+        const posture = (TE.calcOwnerPosture ? TE.calcOwnerPosture(theirA, dnaKey) : null) || { key: 'NEUTRAL', label: 'Neutral', color: 'var(--silver)' };
+        const taxes = (TE.calcPsychTaxes ? TE.calcPsychTaxes(myA, theirA, dnaKey, posture) : []) || [];
+        const grudge = (TE.calcGrudgeTax ? TE.calcGrudgeTax(myA?.ownerId, ownerId, empireGrudges, dnaKey) : null) || { total: 0, entries: [] };
+        const dna = EMPIRE_DNA_META[dnaKey] || EMPIRE_DNA_META.NONE;
+        const netMod = taxes.reduce((s, t) => s + (t.impact || 0), 0) + (grudge.total || 0);
+        const needList = (theirA?.needs || []).map(n => (typeof n === 'string' ? n : n.pos)).filter(Boolean);
+        const tells = [];
+        if (theirA?.panic >= 3) tells.push('Panic ' + theirA.panic + '/5 — urgency overrides caution. Strike fast.');
+        if (dnaKey === 'DOMINATOR') tells.push('Status-driven — frame your offer as him winning the deal.');
+        if (dnaKey === 'ACCEPTOR') tells.push('Discounts current stars — lead with picks and young upside.');
+        if (dnaKey === 'FLEECER') tells.push('Hunts surplus — lead with clean value; the math still moves linearly.');
+        if (dnaKey === 'STALWART') tells.push('Attached to his roster — never lowball; highlight both-sides upside.');
+        if (grudge.total) tells.push('Your trade history shifts his acceptance by ' + (grudge.total > 0 ? '+' : '') + grudge.total + '%.');
+        needList.slice(0, 2).forEach(p => tells.push('Needs ' + p + ' — your surplus there is the leverage.'));
+        if (!tells.length) tells.push('No strong tells — negotiate at fair value.');
+        return (
+            <div className={rootClassName} data-testid="empire-root">
+                <EmpireStyles />
+                <div className="empire-header">
+                    <div className="empire-topbar">
+                        <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+                        <div className="empire-title"><strong>Negotiation HUD</strong><span>{theirA?.ownerName || theirA?.teamName || 'Owner'} · {league?.name || 'League'}</span></div>
+                        {league?.league ? <button className="empire-action" type="button" onClick={() => onEnterLeague(league.league || league)}>Open League</button> : null}
+                    </div>
+                </div>
+                <main className="empire-detail">
+                    <section className="empire-detail-hero">
+                        <div>
+                            <h1>{theirA?.ownerName || theirA?.teamName || 'Owner'}</h1>
+                            <p>{dna.label} · {posture.label || posture.key} · {theirA?.tier || 'tier unknown'}</p>
+                        </div>
+                    </section>
+                    <div className="empire-detail-metrics">
+                        <div className="empire-metric"><span>Posture</span><strong style={{ color: posture.color || 'var(--gold)' }}>{posture.label || posture.key}</strong></div>
+                        <div className="empire-metric"><span>DNA</span><strong>{dna.label}</strong></div>
+                        <div className="empire-metric"><span>Net psych + grudge</span><strong style={{ color: netMod > 0 ? 'var(--good)' : netMod < 0 ? 'var(--bad)' : 'var(--silver)' }}>{netMod > 0 ? '+' : ''}{netMod}%</strong></div>
+                        <div className="empire-metric"><span>History grudge tax</span><strong>{grudge.total > 0 ? '+' : ''}{grudge.total || 0}%</strong></div>
+                    </div>
+                    <div className="empire-bridge">
+                        <section className="empire-panel">
+                            <div className="empire-panel-head"><strong>How To Play It</strong><em>{dna.label}</em></div>
+                            <div className="empire-brief"><div className="empire-brief-av">A</div><div><div className="empire-brief-meta">DNA strategy</div><div className="empire-brief-body">{dna.strategy}</div></div></div>
+                            <div className="empire-stack" style={{ marginTop: 10 }}>
+                                {tells.map((t, i) => <div key={i} className="empire-signal" style={{ '--tone': 'var(--purple)' }}><span>{t}</span></div>)}
+                            </div>
+                        </section>
+                        <section className="empire-panel">
+                            <div className="empire-panel-head"><strong>Psych Taxes</strong><em>{taxes.length} active</em></div>
+                            <div className="empire-stack">
+                                {taxes.length ? taxes.map((t, i) => (
+                                    <div key={i} className="empire-signal" style={{ '--tone': t.type === 'BONUS' ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-e74c3c, #e74c3c)' }}>
+                                        <div className="empire-signal-top"><strong>{t.name}</strong><b style={{ color: t.type === 'BONUS' ? 'var(--good)' : 'var(--bad)' }}>{t.impact > 0 ? '+' : ''}{t.impact}%</b></div>
+                                        <span>{t.desc}</span>
+                                    </div>
+                                )) : <div className="empire-empty"><strong>No psych taxes</strong>Standard negotiation — no exploitable biases flagged.</div>}
+                            </div>
+                        </section>
+                    </div>
+                </main>
+            </div>
+        );
+    };
+
+    if (detail?.type === 'owner') return renderOwnerHud(detail.ownerId, detail.leagueId);
     if (detail?.type === 'player') return renderPlayerDetail(detail.pid);
     if (detail?.type === 'league') return renderLeagueDetail(detail.leagueId);
     if (detail?.type === 'slice' || detail?.type === 'quality') return renderSliceDetail(detail);
@@ -1570,7 +1655,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                                 <div className="empire-panel-head"><strong>Owner Rolodex</strong><em>{rolodex.length} owners across {model.totals.leagues} leagues · ranked by edge</em></div>
                                 <div className="empire-rolodex-grid">
                                     {rolodex.filter(o => o.exploit >= 6).slice(0, 8).map((o, i) => (
-                                        <button key={o.leagueId + ':' + o.ownerId + ':' + i} className="empire-league-card" style={{ '--tone': o.postureColor }} type="button" onClick={() => setDetail({ type: 'league', leagueId: o.leagueId })}>
+                                        <button key={o.leagueId + ':' + o.ownerId + ':' + i} className="empire-league-card" style={{ '--tone': o.postureColor }} type="button" onClick={() => setDetail({ type: 'owner', ownerId: o.ownerId, leagueId: o.leagueId })}>
                                             <div>
                                                 <strong>{o.ownerName}</strong>
                                                 <span>{o.leagueName} · {o.posture}</span>
