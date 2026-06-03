@@ -291,19 +291,32 @@
         const rosterId = side === 'my' ? state.userRosterId : baseProposal.targetRosterId;
         const arrKey = side === 'my' ? 'myGive' : 'theirGive';
         const existing = baseProposal[arrKey] || [];
-        const picks = remainingPicksByValue(state, rosterId, existing, 'desc');
-        const chosen = [...existing];
-        let total = proposalValue(state, baseProposal, side);
-        for (const pick of picks) {
-            if (chosen.length >= maxAdds) break;
-            if (total >= targetValue) break;
-            const pv = pickValueFor(state, pick);
-            const gapBefore = targetValue - total;
-            const gapAfter = Math.abs(targetValue - (total + pv));
-            if (pv <= gapBefore || gapAfter < gapBefore) { chosen.push(pick); total += pv; } else break;
+        const base = proposalValue(state, baseProposal, side);
+        // Greedily add picks (in the given order) that move the running total CLOSER to
+        // the target. Try biggest-first AND smallest-first, then keep whichever lands
+        // nearer the target — chunky picks overshoot badly with a single order.
+        const tryOrder = (order) => {
+            const picks = remainingPicksByValue(state, rosterId, existing, order);
+            const chosen = [...existing];
+            let total = base;
+            for (const pick of picks) {
+                if (chosen.length >= maxAdds) break;
+                const pv = pickValueFor(state, pick);
+                if (Math.abs(targetValue - (total + pv)) < Math.abs(targetValue - total)) { chosen.push(pick); total += pv; }
+            }
+            return { chosen, total };
+        };
+        const a = tryOrder('asc'), d = tryOrder('desc');
+        const dist = (t) => Math.abs(targetValue - t);
+        let best = dist(a.total) <= dist(d.total) ? a.chosen : d.chosen;
+        if (best.length === existing.length) {
+            // Nothing got us closer — take the single pick nearest the target (keeps it two-sided).
+            const picks = remainingPicksByValue(state, rosterId, existing, 'asc');
+            let bp = null, bd = Infinity;
+            picks.forEach(p => { const dd = Math.abs(targetValue - (base + pickValueFor(state, p))); if (dd < bd) { bd = dd; bp = p; } });
+            if (bp) best = [...existing, bp];
         }
-        if (chosen.length === existing.length && picks[0]) chosen.push(picks[0]); // keep two-sided
-        return { ...baseProposal, [arrKey]: chosen };
+        return { ...baseProposal, [arrKey]: best };
     }
 
     // Find a few FAIR candidate packages around a single target asset, for the draft
@@ -346,8 +359,14 @@
             if (seen.has(key)) return; seen.add(key);
             out.push({ proposal: p, evaluation: evaluateUserProposal(state, p, { preview: true, noCounter: true }) });
         });
-        out.sort((a, b) => (b.evaluation.likelihood || 0) - (a.evaluation.likelihood || 0));
-        return out.slice(0, 4);
+        // Only surface FAIR candidates (within ~22% DHQ variance) so the Find tab never
+        // shows a lopsided fleece-yourself package. If none qualify, show the single
+        // fairest so the tab isn't empty when a fair deal genuinely isn't available.
+        const fairness = (ev) => Math.abs((ev.theirGiveDHQ || 0) - (ev.myGiveDHQ || 0)) / Math.max(ev.myGiveDHQ || 1, ev.theirGiveDHQ || 1);
+        const fair = out.filter(c => fairness(c.evaluation) <= 0.22);
+        if (fair.length) { fair.sort((a, b) => (b.evaluation.likelihood || 0) - (a.evaluation.likelihood || 0)); return fair.slice(0, 4); }
+        out.sort((a, b) => fairness(a.evaluation) - fairness(b.evaluation));
+        return out.slice(0, 1);
     }
 
     function packageComplexityPenalty(proposal) {
