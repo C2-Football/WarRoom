@@ -158,6 +158,13 @@
     function faabToDhq(faab) {
         return Math.max(0, Math.round((faab || 0) * 0.7));
     }
+    // Future (next-season) picks are sandbox-only assets valued via the state helper,
+    // which already applies the dynasty future discount. Falls back to the pick's
+    // pre-resolved value if the helper is unavailable.
+    function sumFutureValue(state, picks) {
+        const valueFor = window.DraftCC?.state?.futurePickValueFor;
+        return (picks || []).reduce((sum, p) => sum + (valueFor ? valueFor(state, p) : (Number(p?.value) || 0)), 0);
+    }
 
     function idKey(value) {
         return value == null ? '' : String(value);
@@ -332,6 +339,8 @@
             (proposal.theirGive || []).length +
             (proposal.myGivePlayers || []).length +
             (proposal.theirGivePlayers || []).length +
+            (proposal.myGiveFuture || []).length +
+            (proposal.theirGiveFuture || []).length +
             (proposal.myGiveFaab ? 1 : 0) +
             (proposal.theirGiveFaab ? 1 : 0);
         return Math.max(0, assets - 4) * -2;
@@ -359,9 +368,11 @@
 
         const myGiveDHQ = sumPickValue(state, proposal.myGive)
             + sumPlayerValue(proposal.myGivePlayers)
+            + sumFutureValue(state, proposal.myGiveFuture)
             + faabToDhq(proposal.myGiveFaab);
         const theirGiveDHQ = sumPickValue(state, proposal.theirGive)
             + sumPlayerValue(proposal.theirGivePlayers)
+            + sumFutureValue(state, proposal.theirGiveFuture)
             + faabToDhq(proposal.theirGiveFaab);
         const realism = validateProposalRealism(state, proposal);
 
@@ -539,6 +550,28 @@
             if (!targetRosterPlayers.has(pid)) add('blocker', 'partner_player_unavailable', 'Incoming player unavailable', playerNameFor(pid) + ' is not currently controlled by the selected partner.');
         });
 
+        // Future (next-season) picks — sandbox assets validated against the synthesized
+        // future-pick pool, whose ownership reflects state.futurePicksLedger.
+        const futureKeyOf = window.DraftCC?.state?.futurePickKey || (p => 'FUT:' + p.year + ':' + p.round + ':' + p.fromRosterId);
+        const myFuture = (proposal.myGiveFuture || []).map(futureKeyOf);
+        const theirFuture = (proposal.theirGiveFuture || []).map(futureKeyOf);
+        duplicateKeys(myFuture).forEach(key => add('blocker', 'duplicate_user_future', 'Duplicate future pick', key + ' appears more than once on your side.'));
+        duplicateKeys(theirFuture).forEach(key => add('blocker', 'duplicate_partner_future', 'Duplicate future pick', key + ' appears more than once on their side.'));
+        myFuture.filter(key => theirFuture.includes(key)).forEach(key => {
+            add('blocker', 'same_future_both_sides', 'Same future pick on both sides', key + ' cannot be both sent and received.');
+        });
+        if ((proposal.myGiveFuture || []).length || (proposal.theirGiveFuture || []).length) {
+            const pool = window.DraftCC?.state?.buildFuturePickPool ? window.DraftCC.state.buildFuturePickPool(state) : [];
+            const ownerByKey = {};
+            pool.forEach(fp => { ownerByKey[futureKeyOf(fp)] = idKey(fp.ownerRosterId); });
+            (proposal.myGiveFuture || []).forEach(fp => {
+                if (ownerByKey[futureKeyOf(fp)] !== idKey(state?.userRosterId)) add('blocker', 'user_future_unavailable', 'Outgoing future pick unavailable', 'That future pick is no longer controlled by your roster.');
+            });
+            (proposal.theirGiveFuture || []).forEach(fp => {
+                if (ownerByKey[futureKeyOf(fp)] !== idKey(proposal.targetRosterId)) add('blocker', 'partner_future_unavailable', 'Incoming future pick unavailable', 'That future pick is no longer controlled by the selected partner.');
+            });
+        }
+
         ['myGiveFaab', 'theirGiveFaab'].forEach(key => {
             const value = Number(proposal[key] || 0);
             if (value < 0) add('blocker', 'negative_faab', 'Invalid FAAB', 'FAAB cannot be negative.');
@@ -572,6 +605,8 @@
             (proposal?.theirGive || []).length ||
             (proposal?.myGivePlayers || []).length ||
             (proposal?.theirGivePlayers || []).length ||
+            (proposal?.myGiveFuture || []).length ||
+            (proposal?.theirGiveFuture || []).length ||
             proposal?.myGiveFaab ||
             proposal?.theirGiveFaab
         );
@@ -584,6 +619,8 @@
             theirGive: patch.theirGive || [],
             myGivePlayers: patch.myGivePlayers || [],
             theirGivePlayers: patch.theirGivePlayers || [],
+            myGiveFuture: patch.myGiveFuture || [],
+            theirGiveFuture: patch.theirGiveFuture || [],
             myGiveFaab: patch.myGiveFaab || 0,
             theirGiveFaab: patch.theirGiveFaab || 0,
         };
@@ -1081,6 +1118,8 @@
             myGive: proposal.myGive || [],
             theirGivePlayers: proposal.theirGivePlayers || [],
             myGivePlayers: proposal.myGivePlayers || [],
+            theirGiveFuture: proposal.theirGiveFuture || [],
+            myGiveFuture: proposal.myGiveFuture || [],
             theirGiveFaab: proposal.theirGiveFaab || 0,
             myGiveFaab: proposal.myGiveFaab || 0,
             theirGainDHQ: result.myGiveDHQ,
@@ -1339,6 +1378,7 @@
         sumPickValue,
         playerValueFor,
         sumPlayerValue,
+        sumFutureValue,
         faabToDhq,
         effectiveRosterPlayers,
         topPlayersFor,

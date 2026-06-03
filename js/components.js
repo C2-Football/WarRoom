@@ -425,6 +425,9 @@
         }
     }
     window.ErrorBoundary = ErrorBoundary;
+    // Exposed so the live-draft Trade Desk can mount the same Find-a-Trade auto-proposer
+    // (full analyzer parity). Hoisted function declaration — safe to reference here.
+    window.TradeFinderTab = TradeFinderTab;
 
     function tradeFinderAcceptanceFloorFromSettings(settings = {}) {
         const sharedFloor = window.WR?.AlexSettings?.actionableTradeAcceptanceFloor?.(settings);

@@ -14,6 +14,117 @@
 (function() {
     const { FONT_UI, FONT_DISPL, FONT_MONO } = window.DraftCC.styles;
 
+    // Compact error boundary for the embedded Find-a-Trade tab: a render failure in the
+    // borrowed Trade Center component degrades to a switch-to-Build hint instead of
+    // unmounting the whole drawer.
+    class FinderBoundary extends React.Component {
+        constructor(props) { super(props); this.state = { failed: false }; }
+        static getDerivedStateFromError() { return { failed: true }; }
+        componentDidCatch(err) { if (window.wrLog) window.wrLog('draft.tradeFinder', err); }
+        render() {
+            if (this.state.failed) {
+                return (
+                    <div style={{ padding: '20px 14px', textAlign: 'center', color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)', lineHeight: 1.5 }}>
+                        Find-a-Trade hit a snag in this view. Switch to <strong style={{ color: 'var(--gold)' }}>Build a Trade</strong> to keep going.
+                    </div>
+                );
+            }
+            return this.props.children;
+        }
+    }
+
+    // BUILD / FIND mode toggle — mirrors the main Trade Center analyzer's mode switch.
+    function AnalyzerModeToggle({ mode, onChange, disabled }) {
+        const tab = (key, label) => (
+            <button
+                onClick={() => !disabled && onChange(key)}
+                disabled={disabled}
+                style={{
+                    flex: 1,
+                    padding: '7px 8px',
+                    background: mode === key ? 'var(--acc-fill3, rgba(212,175,55,0.16))' : 'var(--ov-3, rgba(255,255,255,0.04))',
+                    border: '1px solid ' + (mode === key ? 'var(--acc-line2, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.12))'),
+                    color: mode === key ? 'var(--gold)' : 'var(--silver)',
+                    fontFamily: FONT_DISPL,
+                    fontWeight: 700,
+                    fontSize: '0.72rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    borderRadius: '5px',
+                    cursor: disabled ? 'default' : 'pointer',
+                    opacity: disabled ? 0.6 : 1,
+                }}
+            >{label}</button>
+        );
+        return (
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+                {tab('build', 'Build a Trade')}
+                {tab('find', 'Find a Trade')}
+            </div>
+        );
+    }
+
+    // Mounts the main Trade Center Find-a-Trade auto-proposer inside the draft Trade
+    // Desk, fed by draft-context value/assessment adapters. The draft renders inside the
+    // main app, so TradeFinderTab's globals (AlexSettings, LeagueSkin, LI) are present.
+    function DraftTradeFinder({ state, dispatch }) {
+        const Finder = window.TradeFinderTab;
+        const helpers = window.DraftCC?.tradeHelpers || {};
+        const sim = window.DraftCC?.tradeSimulator || {};
+        const drawer = state.proposerDrawer || {};
+        const finderProps = React.useMemo(() => {
+            const personas = state.personas || {};
+            const assessments = Object.values(personas).map(p => ({
+                ownerId: p.ownerId ?? p.rosterId,
+                rosterId: p.rosterId,
+                ownerName: p.ownerName || p.teamName || ('Team ' + p.rosterId),
+                teamName: p.teamName || ('Team ' + p.rosterId),
+                tier: p.assessment?.tier,
+                tierColor: 'var(--gold)',
+                tierBg: 'var(--acc-fill2, rgba(212,175,55,0.1))',
+                needs: p.assessment?.needs || [],
+                strengths: p.assessment?.strengths || [],
+                window: p.assessment?.window,
+                panic: p.assessment?.panic,
+                healthScore: p.assessment?.healthScore,
+                weeklyPts: p.assessment?.weeklyPts,
+            }));
+            const ownerDna = {};
+            Object.values(personas).forEach(p => { ownerDna[p.ownerId ?? p.rosterId] = p.tradeDna?.key || 'NONE'; });
+            return {
+                allRosters: window.S?.rosters || [],
+                myRosterId: Number(state.userRosterId),
+                assessments,
+                ownerDna,
+                playersData: window.S?.players || {},
+                // Draft picks are single-season slots, not multi-year futures — pass an
+                // empty map so TradeFinderTab skips its player+pick combo branch.
+                picksByOwner: {},
+                getPlayerValue: (pid) => ({ value: sim.playerValueFor ? sim.playerValueFor(pid) : (window.App?.LI?.playerScores?.[pid] || 0) }),
+                getPickValue: (year, round, n) => (window.App?.PlayerValue?.getPickValue ? window.App.PlayerValue.getPickValue(year, round, n) : 0),
+                calcOwnerPosture: helpers.calcOwnerPosture,
+                calcPsychTaxes: helpers.calcPsychTaxes,
+                calcAcceptanceLikelihood: helpers.calcAcceptanceLikelihood,
+                DNA_TYPES: helpers.DNA_TYPES,
+                autoTarget: drawer.finderAutoTarget || null,
+                onAutoTargetConsumed: () => dispatch({ type: 'UPDATE_PROPOSER', payload: { finderAutoTarget: null } }),
+            };
+        }, [state.personas, state.userRosterId, drawer.finderAutoTarget]);
+
+        if (typeof Finder !== 'function') {
+            return (
+                <div style={{ padding: '20px 14px', textAlign: 'center', color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)', lineHeight: 1.5 }}>
+                    Find-a-Trade isn't available in this view. Use <strong style={{ color: 'var(--gold)' }}>Build a Trade</strong>.
+                </div>
+            );
+        }
+        return (
+            <FinderBoundary>
+                {React.createElement(Finder, finderProps)}
+            </FinderBoundary>
+        );
+    }
+
     function TradeProposer({ state, dispatch }) {
         const drawer = state.proposerDrawer;
         if (!drawer) return null;
@@ -26,6 +137,14 @@
         const simulator = window.DraftCC.tradeSimulator;
         const isLiveSync = state.mode === 'live-sync';
         const currentSlot = state.pickOrder[state.currentIdx] || null;
+
+        // Analyzer mode: 'build' (manual two-sided builder, the default) vs 'find'
+        // (the embedded Trade Center auto-proposer) — full analyzer parity.
+        const analyzerMode = drawer.analyzerMode || 'build';
+        const setAnalyzerMode = (m) => {
+            if (drawer.status === 'sending' || drawer.status === 'accepted') return;
+            dispatch({ type: 'UPDATE_PROPOSER', payload: { analyzerMode: m } });
+        };
 
         const partnerOptions = React.useMemo(() => {
             return Object.entries(state.personas || {})
@@ -68,9 +187,11 @@
             theirGive: drawer.theirGive || [],
             myGivePlayers: drawer.myGivePlayers || [],
             theirGivePlayers: drawer.theirGivePlayers || [],
+            myGiveFuture: drawer.myGiveFuture || [],
+            theirGiveFuture: drawer.theirGiveFuture || [],
             myGiveFaab: drawer.myGiveFaab || 0,
             theirGiveFaab: drawer.theirGiveFaab || 0,
-        }), [targetId, drawer.myGive, drawer.theirGive, drawer.myGivePlayers, drawer.theirGivePlayers, drawer.myGiveFaab, drawer.theirGiveFaab]);
+        }), [targetId, drawer.myGive, drawer.theirGive, drawer.myGivePlayers, drawer.theirGivePlayers, drawer.myGiveFuture, drawer.theirGiveFuture, drawer.myGiveFaab, drawer.theirGiveFaab]);
 
         const partnerProfile = React.useMemo(() => {
             return simulator?.describeTradePartner ? simulator.describeTradePartner(state, targetId) : null;
@@ -86,6 +207,11 @@
             return simulator.buildTradeSuggestions(state, targetId, { currentProposal });
         }, [simulator, state.pickOrder, state.currentIdx, state.personas, state.tradedAssets, currentProposal, targetId]);
 
+        // Sandbox future-pick pool (next-season picks), ownership reflecting the ledger.
+        const futurePool = React.useMemo(() => (
+            window.DraftCC?.state?.buildFuturePickPool ? window.DraftCC.state.buildFuturePickPool(state) : []
+        ), [state.season, state.rounds, state.leagueSize, state.futurePicksLedger, state.personas]);
+
         // Phase 7 deferred: players + FAAB togglers
         const togglePlayer = (pid, side) => {
             if (drawer.status === 'sending' || drawer.status === 'accepted') return;
@@ -100,6 +226,20 @@
             const key = side === 'my' ? 'myGiveFaab' : 'theirGiveFaab';
             dispatch({ type: 'UPDATE_PROPOSER', payload: { [key]: Math.max(0, Math.min(1000, Number(val) || 0)), status: 'building' } });
         };
+        // Future (next-season) picks — sandbox assets keyed by year:round:fromRosterId.
+        const futureKeyOf = (fp) => 'FUT:' + fp.year + ':' + fp.round + ':' + fp.fromRosterId;
+        const toggleFuture = (fp, side) => {
+            if (drawer.status === 'sending' || drawer.status === 'accepted') return;
+            const key = side === 'my' ? 'myGiveFuture' : 'theirGiveFuture';
+            const arr = drawer[key] || [];
+            const exists = arr.some(p => futureKeyOf(p) === futureKeyOf(fp));
+            const next = exists ? arr.filter(p => futureKeyOf(p) !== futureKeyOf(fp)) : [...arr, fp];
+            dispatch({ type: 'UPDATE_PROPOSER', payload: { [key]: next, status: 'building' } });
+        };
+        const myFuturePicks = futurePool.filter(fp => String(fp.ownerRosterId) === String(state.userRosterId));
+        const theirFuturePicks = futurePool.filter(fp => String(fp.ownerRosterId) === String(targetId));
+        const myFutureSel = new Set((drawer.myGiveFuture || []).map(futureKeyOf));
+        const theirFutureSel = new Set((drawer.theirGiveFuture || []).map(futureKeyOf));
 
         const onTargetChange = (targetRosterId) => {
             if (drawer.status === 'sending' || drawer.status === 'accepted') return;
@@ -109,6 +249,7 @@
                     targetRosterId,
                     theirGive: [],
                     theirGivePlayers: [],
+                    theirGiveFuture: [],
                     theirGiveFaab: 0,
                     status: 'building',
                     counterOffer: null,
@@ -127,6 +268,8 @@
                     theirGive: proposal.theirGive || [],
                     myGivePlayers: proposal.myGivePlayers || [],
                     theirGivePlayers: proposal.theirGivePlayers || [],
+                    myGiveFuture: proposal.myGiveFuture || [],
+                    theirGiveFuture: proposal.theirGiveFuture || [],
                     myGiveFaab: proposal.myGiveFaab || 0,
                     theirGiveFaab: proposal.theirGiveFaab || 0,
                     status: 'building',
@@ -148,8 +291,8 @@
 
         const onClose = () => dispatch({ type: 'CLOSE_PROPOSER' });
 
-        const mySideHasAssets = (drawer.myGive?.length || 0) + (drawer.myGivePlayers?.length || 0) + (drawer.myGiveFaab || 0) > 0;
-        const theirSideHasAssets = (drawer.theirGive?.length || 0) + (drawer.theirGivePlayers?.length || 0) + (drawer.theirGiveFaab || 0) > 0;
+        const mySideHasAssets = (drawer.myGive?.length || 0) + (drawer.myGivePlayers?.length || 0) + (drawer.myGiveFuture?.length || 0) + (drawer.myGiveFaab || 0) > 0;
+        const theirSideHasAssets = (drawer.theirGive?.length || 0) + (drawer.theirGivePlayers?.length || 0) + (drawer.theirGiveFuture?.length || 0) + (drawer.theirGiveFaab || 0) > 0;
 
         const onSend = () => {
             if (!mySideHasAssets || !theirSideHasAssets) return;
@@ -191,6 +334,8 @@
                         myGive: currentProposal.myGive,
                         theirGivePlayers: currentProposal.theirGivePlayers || [],
                         myGivePlayers: currentProposal.myGivePlayers || [],
+                        theirGiveFuture: currentProposal.theirGiveFuture || [],
+                        myGiveFuture: currentProposal.myGiveFuture || [],
                         theirGiveFaab: currentProposal.theirGiveFaab || 0,
                         myGiveFaab: currentProposal.myGiveFaab || 0,
                         myGainDHQ: result.theirGiveDHQ,
@@ -453,6 +598,13 @@
                         </div>
                     )}
 
+                    {/* Analyzer mode toggle — Build vs Find (Trade Center parity) */}
+                    <AnalyzerModeToggle mode={analyzerMode} onChange={setAnalyzerMode} disabled={isSending || isAccepted} />
+
+                    {analyzerMode === 'find' ? (
+                        <DraftTradeFinder state={state} dispatch={dispatch} />
+                    ) : (
+                    <React.Fragment>
                     <OwnerIntelCard profile={partnerProfile} />
 
                     <SuggestionRail
@@ -617,6 +769,28 @@
                         myLabel="Your FAAB"
                         theirLabel={targetPersona.teamName + "'s FAAB"}
                     />
+                    {/* Future (next-season) picks — sandbox only; never written to Sleeper */}
+                    <FutureList
+                        title="Your future picks"
+                        picks={myFuturePicks}
+                        selected={myFutureSel}
+                        onToggle={fp => toggleFuture(fp, 'my')}
+                        state={state}
+                        disabled={isSending || isAccepted}
+                    />
+                    <FutureList
+                        title={targetPersona.teamName + "'s future picks"}
+                        picks={theirFuturePicks}
+                        selected={theirFutureSel}
+                        onToggle={fp => toggleFuture(fp, 'their')}
+                        state={state}
+                        disabled={isSending || isAccepted}
+                    />
+                    {(drawer.myGiveFuture?.length || drawer.theirGiveFuture?.length) ? (
+                        <div style={{ marginTop: '4px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.7, lineHeight: 1.4 }}>
+                            Future picks are sandboxed to this draft — they don't affect your real league.
+                        </div>
+                    ) : null}
 
                     {/* Psych taxes */}
                     {evaluation.taxes && evaluation.taxes.length > 0 && (
@@ -717,6 +891,8 @@
                             }}>{(evaluation.netModifier || 0) > 0 ? '+' : ''}{evaluation.netModifier || 0}%</span>
                         </div>
                     ) : null}
+                    </React.Fragment>
+                    )}
                 </div>
 
                 {/* Footer actions */}
@@ -1219,6 +1395,59 @@
                     {picks.length === 0 && (
                         <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.4, fontStyle: 'italic' }}>
                             no remaining picks
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    function FutureList({ title, picks, selected, onToggle, state, disabled }) {
+        const keyOf = (p) => 'FUT:' + p.year + ':' + p.round + ':' + p.fromRosterId;
+        const valueFor = window.DraftCC?.state?.futurePickValueFor;
+        return (
+            <div style={{ marginBottom: '10px' }}>
+                <div style={{
+                    fontSize: '0.6875rem',
+                    fontWeight: 700,
+                    color: 'var(--gold)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    marginBottom: '4px',
+                }}>{title}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {picks.slice(0, 16).map((p, i) => {
+                        const isSel = selected.has(keyOf(p));
+                        const val = valueFor ? valueFor(state, p) : (Number(p.value) || 0);
+                        return (
+                            <button
+                                key={i}
+                                disabled={disabled}
+                                onClick={() => onToggle(p)}
+                                title={p.year + ' Round ' + p.round + ' pick · ~' + val.toLocaleString() + ' DHQ'}
+                                style={{
+                                    padding: '4px 8px',
+                                    minHeight: '40px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    fontSize: '0.6875rem',
+                                    fontWeight: 700,
+                                    background: isSel ? 'var(--acc-line1, rgba(212,175,55,0.2))' : 'var(--ov-2, rgba(255,255,255,0.03))',
+                                    border: '1px solid ' + (isSel ? 'var(--acc-line3, rgba(212,175,55,0.5))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
+                                    borderRadius: '4px',
+                                    color: isSel ? 'var(--gold)' : 'var(--silver)',
+                                    cursor: disabled ? 'not-allowed' : 'pointer',
+                                    fontFamily: FONT_UI,
+                                    opacity: disabled ? 0.5 : 1,
+                                }}
+                            >
+                                {p.year} R{p.round}
+                            </button>
+                        );
+                    })}
+                    {picks.length === 0 && (
+                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.4, fontStyle: 'italic' }}>
+                            no future picks
                         </div>
                     )}
                 </div>
