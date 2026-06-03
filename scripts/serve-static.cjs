@@ -333,10 +333,73 @@ async function handleDevAI(req, res) {
   }
 }
 
+function isValidMflUrl(urlStr) {
+  try {
+    const parsed = new URL(urlStr);
+    return (
+      parsed.protocol === 'https:' &&
+      (parsed.hostname === 'api.myfantasyleague.com' ||
+        parsed.hostname === 'myfantasyleague.com' ||
+        parsed.hostname.endsWith('.myfantasyleague.com'))
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function handleMflProxy(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+  if (req.method !== 'POST') {
+    sendJson(res, 405, { error: 'Method Not Allowed' });
+    return;
+  }
+
+  try {
+    const body = await readJson(req);
+    const { url } = body || {};
+
+    if (!url || !isValidMflUrl(url)) {
+      sendJson(res, 400, { error: 'Invalid URL — only myfantasyleague.com URLs are allowed.' });
+      return;
+    }
+
+    const mflRes = await fetch(url, {
+      headers: { 'User-Agent': 'FantasyWarRoom/1.0', 'Accept': 'application/json' },
+    });
+
+    if (!mflRes.ok) {
+      const status = mflRes.status;
+      let msg = `MFL API error ${status}`;
+      if (status === 401 || status === 403) msg = 'This MFL league is private. Provide your API key to connect.';
+      else if (status === 404) msg = 'MFL league not found. Check your League ID and year.';
+      sendJson(res, status, { error: msg });
+      return;
+    }
+
+    const data = await mflRes.text();
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(data);
+  } catch (error) {
+    sendJson(res, 500, { error: error.message || 'MFL proxy error' });
+  }
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${host}:${port}`);
   if (url.pathname === '/api/dev-ai-analyze') {
     handleDevAI(req, res);
+    return;
+  }
+  if (url.pathname === '/api/mfl-proxy') {
+    handleMflProxy(req, res);
     return;
   }
   if (url.pathname === '/api/landing-content') {

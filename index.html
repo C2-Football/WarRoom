@@ -1977,12 +1977,14 @@ const WR_PLATFORM_SANDBOX_ACCESS = window.SANDBOX_MODE === true
   || ['localhost', '127.0.0.1'].includes(window.location.hostname || '');
 if (WR_PLATFORM_SANDBOX_ACCESS) {
   const existingConfig = window.DYNASTY_HQ_CONFIG || {};
+  const _isLocalDev = ['localhost', '127.0.0.1'].includes(window.location.hostname || '');
   window.DYNASTY_HQ_CONFIG = {
     ...existingConfig,
     devPreviewAI: true,
     endpoints: {
       ...(existingConfig.endpoints || {}),
       aiAnalyze: `${window.location.origin}/api/dev-ai-analyze`,
+      ...(_isLocalDev ? { mflProxy: `${window.location.origin}/api/mfl-proxy` } : {}),
     },
   };
 }

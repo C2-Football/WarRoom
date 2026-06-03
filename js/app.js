@@ -5,7 +5,11 @@
     const APP_WR_KEYS  = window.App.WR_KEYS;
     const AppStorage = window.App.WrStorage;
     const WR_HOST = window.location.hostname || '';
-    const PLATFORM_SANDBOX_ACCESS = WR_HOST.includes('sandbox') || ['localhost', '127.0.0.1'].includes(WR_HOST);
+    const WR_PATH = window.location.pathname || '';
+    const PLATFORM_SANDBOX_ACCESS = WR_HOST.includes('sandbox')
+        || /\/warroom-sandbox(\/|$)/i.test(WR_PATH)
+        || window.SANDBOX_MODE === true
+        || ['localhost', '127.0.0.1'].includes(WR_HOST);
     const MFL_SANDBOX_ACCESS = PLATFORM_SANDBOX_ACCESS;
     function platformAccessAllowed(platform) {
         platform = platform || 'sleeper';
