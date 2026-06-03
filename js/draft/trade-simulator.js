@@ -281,56 +281,73 @@
         return Math.max(1.0, Math.min(1.6, r));
     }
 
-    // User ACQUIRES an asset: build the give side up to the value that actually CLEARS
-    // the partner's buyer line, with the LEAST overpay. A flat value target overshoots
-    // badly with chunky picks (a single big pick blows past it), so instead add picks
-    // incrementally and stop the moment the package clears — trying both biggest-first
-    // (best when one pick clears) and smallest-first (finer increments when it doesn't),
-    // then keep whichever clears with the smaller give. If neither clears (a genuinely
-    // hard partner — e.g. a DOMINATOR at zero Trade Activity), fall back to the sane
-    // closed-form attempt; the moonshot fallback covers the no-path case.
-    function buildGiveToClear(state, persona, baseProposal, acquiredValue) {
-        const line = acceptanceLineFor(state, persona);
-        const tryOrder = (order) => {
-            const picks = remainingPicksByValue(state, state.userRosterId, baseProposal.myGive || [], order);
-            let proposal = baseProposal;
-            for (const pick of picks) {
-                if ((proposal.myGive || []).length >= 4) break;
-                proposal = { ...proposal, myGive: [...(proposal.myGive || []), pick] };
-                const ev = evaluateUserProposal(state, proposal, { preview: true, noCounter: true });
-                if ((ev.likelihood || 0) >= line) return { proposal, cleared: true };
-            }
-            return { proposal, cleared: false };
-        };
-        const give = (p) => proposalValue(state, p, 'my');
-        const clearing = [tryOrder('desc'), tryOrder('asc')].filter(r => r.cleared).map(r => r.proposal);
-        if (clearing.length) return clearing.sort((a, b) => give(a) - give(b))[0];
-        // Nothing clears (a genuinely hard partner — e.g. a DOMINATOR at zero Trade
-        // Activity): offer a clean single-pick opener rather than piling capital; the
-        // moonshot fallback provides the explicit overpay path when it stays declined.
-        return addUserPicksUntil(state, baseProposal, Math.round(Math.max(1, acquiredValue)), 1);
+    // Build the given side ('my' or 'their' give) to ≈ targetValue — a FAIR package
+    // (even DHQ both ways), NOT an overpay-to-clear-the-line (which fleeced the user) nor
+    // a flat underpay (which never cleared). Adds whole picks best-first, landing as close
+    // to the target as possible: stop once we're at/over the target, or when the next pick
+    // would overshoot by more than the current gap. The card surfaces the resulting DHQ
+    // variance, acceptance %, and grade so the user judges the deal and sweetens if needed.
+    function buildSideToValue(state, baseProposal, side, targetValue, maxAdds = 4) {
+        const rosterId = side === 'my' ? state.userRosterId : baseProposal.targetRosterId;
+        const arrKey = side === 'my' ? 'myGive' : 'theirGive';
+        const existing = baseProposal[arrKey] || [];
+        const picks = remainingPicksByValue(state, rosterId, existing, 'desc');
+        const chosen = [...existing];
+        let total = proposalValue(state, baseProposal, side);
+        for (const pick of picks) {
+            if (chosen.length >= maxAdds) break;
+            if (total >= targetValue) break;
+            const pv = pickValueFor(state, pick);
+            const gapBefore = targetValue - total;
+            const gapAfter = Math.abs(targetValue - (total + pv));
+            if (pv <= gapBefore || gapAfter < gapBefore) { chosen.push(pick); total += pv; } else break;
+        }
+        if (chosen.length === existing.length && picks[0]) chosen.push(picks[0]); // keep two-sided
+        return { ...baseProposal, [arrKey]: chosen };
     }
 
-    // User RECEIVES the partner's picks for a fixed asset (move-down / sell-player).
-    // Add their picks (best first) only while the package still CLEARS the buyer line,
-    // so the user gets the most value back without tipping the partner into a decline.
-    // This responds to the GM's Office sliders implicitly (a higher line ⇒ less comes
-    // back) and avoids the chunky-pick overshoot a fixed value target produces.
-    function buildReceiveToClear(state, persona, baseProposal, targetRosterId) {
-        const line = acceptanceLineFor(state, persona);
-        const picks = remainingPicksByValue(state, targetRosterId, baseProposal.theirGive || [], 'desc');
-        let proposal = baseProposal;
-        for (const pick of picks) {
-            if ((proposal.theirGive || []).length >= 3) break;
-            const candidate = { ...proposal, theirGive: [...(proposal.theirGive || []), pick] };
-            const ev = evaluateUserProposal(state, candidate, { preview: true, noCounter: true });
-            if ((ev.likelihood || 0) >= line) proposal = candidate; else break;
-        }
-        // Guarantee the package is two-sided even against a partner who clears nothing.
-        if (!(proposal.theirGive || []).length && picks[0]) {
-            proposal = { ...proposal, theirGive: [picks[0]] };
-        }
-        return proposal;
+    // Find a few FAIR candidate packages around a single target asset, for the draft
+    // Find tab. mode 'acquire' = user wants the partner's `targetAsset`; mode 'away' =
+    // user shops their own `targetAsset`. Returns [{proposal, evaluation}] ranked by
+    // acceptance likelihood. The counter side is built to ≈ the target's value (fair).
+    function findFairPackages(state, targetRosterId, targetAsset, assetType, mode) {
+        if (!targetAsset) return [];
+        const targetVal = assetType === 'player' ? playerValueFor(targetAsset)
+            : assetType === 'future' ? sumFutureValue(state, [targetAsset])
+            : pickValueFor(state, targetAsset);
+        if (!targetVal) return [];
+        const acquire = mode !== 'away';
+        const targetSide = acquire ? 'their' : 'my';   // where the chosen asset sits
+        const counterSide = acquire ? 'my' : 'their';  // the side we build to match
+        const counterRoster = acquire ? state.userRosterId : targetRosterId;
+        const seed = () => {
+            const p = normalizeProposal(targetRosterId, {});
+            if (assetType === 'player') p[targetSide + 'GivePlayers'] = [targetAsset];
+            else if (assetType === 'future') p[targetSide + 'GiveFuture'] = [targetAsset];
+            else p[targetSide + 'Give'] = [targetAsset];
+            return p;
+        };
+        const candidates = [];
+        // (a) picks-only fair counter
+        candidates.push(buildSideToValue(state, seed(), counterSide, targetVal));
+        // (b) a single counter-roster player within ±20% of the target value
+        const counterPlayers = topPlayersFor(state, counterRoster, 10);
+        const match = counterPlayers.find(pl => Math.abs(pl.value - targetVal) <= targetVal * 0.2);
+        if (match) { const p = seed(); p[counterSide + 'GivePlayers'] = [match.pid]; candidates.push(p); }
+        // (c) player + pick combo: a player just under target, gap filled with picks
+        const under = counterPlayers.find(pl => pl.value > 0 && pl.value < targetVal * 0.95);
+        if (under) { let p = seed(); p[counterSide + 'GivePlayers'] = [under.pid]; candidates.push(buildSideToValue(state, p, counterSide, targetVal)); }
+
+        const out = [];
+        const seen = new Set();
+        candidates.forEach(p => {
+            if (!proposalHasAssets(p)) return;
+            const key = proposalKey(p);
+            if (seen.has(key)) return; seen.add(key);
+            out.push({ proposal: p, evaluation: evaluateUserProposal(state, p, { preview: true, noCounter: true }) });
+        });
+        out.sort((a, b) => (b.evaluation.likelihood || 0) - (a.evaluation.likelihood || 0));
+        return out.slice(0, 4);
     }
 
     function packageComplexityPenalty(proposal) {
@@ -886,10 +903,9 @@
         if (theirEarliest) {
             const targetPickValue = pickValueFor(state, theirEarliest);
             let proposal = normalizeProposal(targetRosterId, { theirGive: [theirEarliest] });
-            // Build the user's give up to the value that clears the partner's buyer
-            // line (scaled by GM's Office sliders), not a flat underpay. Math.max(1, …)
-            // keeps the package two-sided even when the pick value resolves to 0.
-            proposal = buildGiveToClear(state, persona, proposal, Math.max(1, targetPickValue));
+            // Build the user's give to ≈ the acquired pick's value — a fair deal, not an
+            // overpay. Math.max(1, …) keeps it two-sided even when the value resolves to 0.
+            proposal = buildSideToValue(state, proposal, 'my', Math.max(1, targetPickValue));
             const earliestLabel = 'R' + theirEarliest.round + '.' + String(theirEarliest.slot || 0).padStart(2, '0');
             push(
                 'move-up',
@@ -905,9 +921,8 @@
 
         if (myPicksHigh[0] && theirPicksLow.length >= 2) {
             let proposal = normalizeProposal(targetRosterId, { myGive: [myPicksHigh[0]] });
-            // User receives the partner's picks: take back the most value that still
-            // clears their buyer line (tighter line ⇒ less volume comes back).
-            proposal = buildReceiveToClear(state, persona, proposal, targetRosterId);
+            // User gives one pick, receives partner picks of ≈ equal value — a fair return.
+            proposal = buildSideToValue(state, proposal, 'their', pickValueFor(state, myPicksHigh[0]));
             push(
                 'move-down',
                 'Move Down',
@@ -920,8 +935,8 @@
         if (theirTopPlayers[0]) {
             const targetPlayer = theirTopPlayers[0];
             let proposal = normalizeProposal(targetRosterId, { theirGivePlayers: [targetPlayer.pid] });
-            // Acquiring their player: build the give up to clear the buyer line.
-            proposal = buildGiveToClear(state, persona, proposal, targetPlayer.value);
+            // Acquiring their player: build the give to ≈ the player's value — fair.
+            proposal = buildSideToValue(state, proposal, 'my', targetPlayer.value);
             push(
                 'buy-player',
                 'Buy Player',
@@ -934,8 +949,8 @@
         const sellPlayer = myNeedFits[0] || myTopPlayers[0];
         if (sellPlayer) {
             let proposal = normalizeProposal(targetRosterId, { myGivePlayers: [sellPlayer.pid] });
-            // Selling a player for their picks: take back the most value that clears.
-            proposal = buildReceiveToClear(state, persona, proposal, targetRosterId);
+            // Selling a player for their picks: receive ≈ the player's value — fair.
+            proposal = buildSideToValue(state, proposal, 'their', sellPlayer.value);
             push(
                 'sell-player',
                 'Sell Player',
@@ -1364,6 +1379,8 @@
         computeProposalEvaluation,
         buildCounterOffer,
         buildTradeSuggestions,
+        buildSideToValue,
+        findFairPackages,
         buildSuggestionReasoning,
         buildLiveTradeWindows,
         describeTradePartner,

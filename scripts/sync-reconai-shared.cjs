@@ -26,6 +26,7 @@ const FILES = [
   'dhq-core.js',
   'intelligence-context.js',
   'dhq-engine.js',
+  'nfl-fit.js',
   'team-assess.js',
   'analytics-engine.js',
   'dhq-ai.js',
