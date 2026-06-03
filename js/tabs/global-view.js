@@ -902,6 +902,28 @@ function EmpireStyles() {
             .empire-filter.is-active { border-color: var(--tone, var(--k-d4af37, #d4af37)); background: color-mix(in srgb, var(--tone, var(--k-d4af37, #d4af37)) 16%, transparent); color: var(--tone, var(--k-d4af37, #d4af37)); }
             .empire-clear { margin-left: auto; border-color: rgba(231,76,60,0.38); color: var(--k-e74c3c, #e74c3c); }
             .empire-shell { max-width: 1760px; margin: 0 auto; padding: 18px 24px 40px; }
+            /* ── Terminal chrome: left rail + Empire Wire ticker + LIVE ── */
+            .empire-root.is-terminal { padding-left: 52px; box-sizing: border-box; }
+            .empire-rail { position: fixed; left: 0; top: 0; bottom: 0; width: 52px; z-index: 80;
+                background: linear-gradient(180deg, var(--off-black, #070707), rgba(7,7,7,0.96));
+                border-right: 1px solid var(--acc-line1, rgba(212,175,55,0.22));
+                display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 0; }
+            .empire-rail-btn { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+                border: 1px solid transparent; border-radius: var(--card-radius-sm, 6px); background: transparent;
+                color: var(--ov-9, rgba(255,255,255,0.55)); font-size: 1.15rem; cursor: pointer; transition: all 0.15s; }
+            .empire-rail-btn:hover { color: var(--gold); border-color: var(--acc-line2, rgba(212,175,55,0.3)); background: var(--acc-fill1, rgba(212,175,55,0.06)); }
+            .empire-rail-spacer { flex: 1; }
+            .empire-live { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-micro); font-weight: 800; letter-spacing: 0.12em; color: var(--good); text-transform: uppercase; }
+            .empire-live::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--good); animation: empire-pulse 1.8s infinite; }
+            @keyframes empire-pulse { 0% { box-shadow: 0 0 0 0 rgba(46,204,113,0.5); } 70% { box-shadow: 0 0 0 6px rgba(46,204,113,0); } 100% { box-shadow: 0 0 0 0 rgba(46,204,113,0); } }
+            .empire-wire { overflow: hidden; white-space: nowrap; background: rgba(0,0,0,0.34); border-bottom: 1px solid var(--ov-4, rgba(255,255,255,0.055)); padding: 5px 0; display: flex; align-items: center; }
+            .empire-wire-tag { flex-shrink: 0; padding: 0 14px; font-size: var(--text-micro); font-weight: 900; letter-spacing: 0.14em; color: var(--gold); text-transform: uppercase; border-right: 1px solid var(--ov-4, rgba(255,255,255,0.08)); }
+            .empire-wire-track { display: inline-block; white-space: nowrap; animation: empire-wire-scroll 48s linear infinite; }
+            .empire-wire:hover .empire-wire-track { animation-play-state: paused; }
+            .empire-wire-item { display: inline-block; padding: 0 22px; font-size: var(--text-label, 0.75rem); color: var(--ov-9, rgba(255,255,255,0.62)); }
+            .empire-wire-item::before { content: '\\25C6'; color: var(--acc-line3, rgba(212,175,55,0.5)); margin-right: 22px; font-size: 0.6rem; vertical-align: middle; }
+            @keyframes empire-wire-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+            @media (max-width: 1023px) { .empire-root.is-terminal { padding-left: 0; } .empire-rail { display: none; } }
             .empire-main-grid { display: grid; grid-template-columns: minmax(270px, 0.84fr) minmax(420px, 1.34fr) minmax(290px, 0.92fr); gap: 12px; align-items: start; }
             .empire-bridge { display: grid; grid-template-columns: minmax(320px, 1.05fr) minmax(280px, 0.95fr); gap: 12px; margin-bottom: 12px; align-items: start; }
             .empire-brief { display: flex; gap: 11px; }
@@ -1087,6 +1109,12 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
 
     const activeFilters = Object.values(filters).filter(Boolean).length;
     const hasNoResults = !filtered.provinces.length && !filtered.assets.length && !filtered.picks.length;
+    // Empire Wire ticker — scrolling headline feed from the live signals / priority queue / moves.
+    const wireItems = [
+        ...(model.signals || []).filter(s => s.type !== 'data' && s.type !== 'balance').slice(0, 5).map(s => s.title + (s.metric ? ' · ' + s.metric : '')),
+        ...(actionQueue || []).slice(0, 3).map(a => a.title),
+        ...(moves || []).slice(0, 2).map(m => m.title),
+    ].filter(Boolean);
     const shareBasis = model.totals.useValueShare ? 'DHQ share' : 'asset count';
     const signalTone = sev => sev === 'high' ? 'var(--k-e74c3c, #e74c3c)' : sev === 'medium' ? 'var(--k-f0a500, #f0a500)' : 'var(--k-2ecc71, #2ecc71)';
     const filterActive = (key, value) => filters[key] === value;
@@ -1429,19 +1457,40 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     if (detail?.type === 'moves') return renderMovesDetail();
 
     return (
-        <div className={rootClassName} data-testid="empire-root">
+        <div className={rootClassName + ' is-terminal'} data-testid="empire-root">
             <EmpireStyles />
+            <nav className="empire-rail" aria-label="Empire sections">
+                {[
+                    { g: '▦', t: 'Command Bridge', go: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
+                    { g: '⚡', t: 'Empire Moves', go: () => setDetail({ type: 'moves' }) },
+                    { g: '◧', t: 'Allocation & Leagues', go: () => document.querySelector('.empire-main-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+                    { g: '≣', t: 'Asset Workspace', go: () => document.querySelector('.empire-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+                ].map(it => (
+                    <button key={it.t} className="empire-rail-btn" type="button" title={it.t} aria-label={it.t} onClick={it.go}>{it.g}</button>
+                ))}
+                <div className="empire-rail-spacer" />
+                {typeof window.ProTierIcon === 'function' ? <div style={{ width: 24, height: 24, opacity: 0.7 }}>{React.createElement(window.ProTierIcon, { size: 24 })}</div> : null}
+            </nav>
             <header className="empire-header">
                 <div className="empire-topbar">
                     <button className="empire-back" type="button" onClick={onBack}>{"<"}</button>
-                    {typeof window.ProTierIcon === 'function' ? <div style={{ width: 24, height: 24 }}>{React.createElement(window.ProTierIcon, { size: 24 })}</div> : null}
                     <div className="empire-title">
-                        <strong>Empire Command Center</strong>
-                        <span>Asset allocation - exposure - age windows - pick capital</span>
+                        <strong>Empire Command</strong>
+                        <span>{model.totals.leagues} leagues · asset allocation · exposure · pick capital</span>
                     </div>
+                    <span className="empire-live" style={{ marginLeft: 12 }}>Live</span>
                     <button className="empire-action" type="button" style={{ marginLeft: 'auto', borderColor: 'rgba(155,138,251,0.4)', color: 'var(--purple)', background: 'rgba(155,138,251,0.08)' }} onClick={() => setDetail({ type: 'moves' })}>⚡ Empire Moves{moves.length ? ' · ' + moves.length : ''}</button>
                     <div className="empire-user">{userName}</div>
                 </div>
+                {wireItems.length ? (
+                    <div className="empire-wire">
+                        <span className="empire-wire-tag">Empire Wire</span>
+                        <div className="empire-wire-track">
+                            {wireItems.map((w, i) => <span key={'a' + i} className="empire-wire-item">{w}</span>)}
+                            {wireItems.map((w, i) => <span key={'b' + i} className="empire-wire-item">{w}</span>)}
+                        </div>
+                    </div>
+                ) : null}
                 <div className="empire-kpis" data-testid="empire-command-strip">
                     {/* Command Bridge KPI strip — empire-wide overview (mockup contract), with
                         week-over-week deltas from the snapshot store. Lens filters drive the asset
