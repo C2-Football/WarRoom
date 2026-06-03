@@ -1365,6 +1365,14 @@
         };
     }
 
+    // Rebuild the available pool from the full original pool minus everyone now
+    // drafted — used when reconciliation replaces a pick mid-array (a single
+    // restore/filter can't express "give back X, take away Y" cleanly).
+    function rebuildPoolFromDrafted(state, draftedPids) {
+        const original = (state.originalPool && state.originalPool.length) ? state.originalPool : (state.pool || []);
+        return original.filter(p => p?.pid != null && !draftedPids[p.pid]);
+    }
+
     function restorePoolAfterUndo(state, remainingPicks, undonePick) {
         const drafted = new Set((remainingPicks || []).map(p => String(p.pid)).filter(Boolean));
         const original = state.originalPool || [];
@@ -1444,7 +1452,11 @@
 	                const resolvedDhq = resolvePlayerDhq(player).value;
 	                const newPool = state.pool.filter(p => p.pid !== player.pid);
                 const newDrafted = { ...state.draftedPids, [player.pid]: true };
-                const pickSource = action.source || (state.mode === 'live-sync' && state.overrideMode ? 'manual-live' : state.mode === 'manual' ? 'manual-draft' : null);
+                // In live-sync, every MAKE_PICK is a hand-entered pick (the live poll
+                // uses APPLY_LIVE_SYNC_PICKS, and AI auto-picks are disabled). Tag them
+                // all 'manual-live' — whether entered via override or on the user's own
+                // turn — so they're undoable and get reconciled when the real pick lands.
+                const pickSource = action.source || (state.mode === 'live-sync' ? 'manual-live' : state.mode === 'manual' ? 'manual-draft' : null);
                 const newPick = {
                     id: 'pick_' + slot.overall + '_' + Date.now(),
                     round: slot.round,
@@ -1768,6 +1780,8 @@
                 let draftContext = state.draftContext;
                 let duplicateCount = 0;
                 let missedPickCount = 0;
+                let reconciledCount = 0;
+                let overwriteCount = 0;
                 let lastPickNo = state.liveSync?.lastPickNo || 0;
                 const existingPickNos = new Set(picks.map(livePickNo).filter(Boolean));
                 const statusDuplicateCount = Number(action.status?.duplicateCount || 0);
@@ -1790,6 +1804,80 @@
                         duplicateCount += 1;
                         return;
                     }
+
+                    // ── Reconcile against a pick already recorded at this slot ──
+                    // Hand-entered picks have no sleeperPickNo (so they're absent from
+                    // existingPickNos) — match by overall slot number. If the live pick
+                    // confirms the manual guess, mark it authoritative; if it differs,
+                    // the real pick wins and the displaced player returns to the pool.
+                    const occupantIdx = picks.findIndex(p => Number(p.overall) === pickNo);
+                    if (occupantIdx >= 0) {
+                        const occupant = picks[occupantIdx];
+                        const occupantIsManual = occupant.source === 'manual-live' || occupant.source === 'manual-draft';
+                        if (String(occupant.pid) === String(player.pid)) {
+                            // Manual guess matched reality — confirm it once as live-sourced.
+                            if (occupantIsManual) {
+                                const confirmed = { ...occupant, source: 'live-sync', sleeperPickNo: pickNo, sleeperPickedBy: sleeperPick?.picked_by || occupant.sleeperPickedBy || null };
+                                picks = picks.map((p, i) => i === occupantIdx ? confirmed : p);
+                                pickedByIdx = { ...pickedByIdx, [confirmed.overall]: confirmed };
+                                existingPickNos.add(pickNo);
+                                reconciledCount += 1;
+                            } else {
+                                duplicateCount += 1;
+                            }
+                            return;
+                        }
+                        if (!occupantIsManual) {
+                            // Two live records disagree for the same slot — a real conflict, don't clobber.
+                            duplicateCount += 1;
+                            return;
+                        }
+                        // Manual guess was wrong — overwrite with the real pick.
+                        const ovRosterId = sleeperPick?.roster_id || occupant.rosterId;
+                        const ovDhq = resolvePlayerDhq(player).value;
+                        const liveReplacement = {
+                            ...occupant,
+                            id: 'pick_' + occupant.overall + '_' + Date.now(),
+                            rosterId: ovRosterId,
+                            isUser: String(ovRosterId) === String(state.userRosterId),
+                            pid: player.pid,
+                            name: player.name,
+                            pos: player.pos,
+                            dhq: ovDhq,
+                            consensusRank: player.consensusRank || null,
+                            photoUrl: player.photoUrl || '',
+                            college: player.college || '',
+                            tier: player.tier || null,
+                            csv: player.csv || null,
+                            reasoning: item.reasoning || { primary: 'Live pick corrected a manual entry', baseVal: ovDhq, nudges: [] },
+                            confidence: item.confidence || 1.0,
+                            alexReaction: null,
+                            sleeperPickNo: pickNo,
+                            sleeperPickedBy: sleeperPick?.picked_by || null,
+                            source: 'live-sync',
+                            ts: Date.now(),
+                        };
+                        const beforePicks = picks;
+                        picks = picks.map((p, i) => i === occupantIdx ? liveReplacement : p);
+                        const derived = rebuildDraftDerived(picks);
+                        draftedPids = derived.draftedPids;
+                        teamRosters = derived.teamRosters;
+                        pickedByIdx = derived.pickedByIdx;
+                        pool = rebuildPoolFromDrafted(state, draftedPids);
+                        existingPickNos.add(pickNo);
+                        overwriteCount += 1;
+                        // Walk context back over the displaced manual pick, then forward over the live one.
+                        const undoInterim = { ...state, picks: beforePicks.filter((_, i) => i !== occupantIdx), pool, draftedPids, teamRosters, currentIdx };
+                        draftContext = window.DraftCC?.context?.undoPickInContext
+                            ? window.DraftCC.context.undoPickInContext(draftContext, occupant, undoInterim)
+                            : draftContext;
+                        const applyInterim = { ...state, picks, pool, draftedPids, teamRosters, currentIdx };
+                        draftContext = window.DraftCC?.context?.applyPickToContext
+                            ? window.DraftCC.context.applyPickToContext(draftContext, liveReplacement, applyInterim)
+                            : draftContext;
+                        return;
+                    }
+
                     if (existingPickNos.has(pickNo) || draftedPids[player.pid]) {
                         duplicateCount += 1;
                         return;
@@ -1871,6 +1959,8 @@
                     conflictCount: statusConflictCount,
                     conflictPickNos: statusConflictPickNos,
                     invalidPickCount: statusInvalidPickCount,
+                    reconciledCount: (reconciledCount || 0) + overwriteCount,
+                    overwriteCount,
                     remoteBehind: !!action.status?.remoteBehind,
                 };
                 if (missedPickCount > 0 || statusConflictCount > 0 || statusInvalidPickCount > 0) {
