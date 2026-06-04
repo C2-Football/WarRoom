@@ -502,6 +502,10 @@
                             window.S.leagues = [{ league_id: repId, name: rep.name, scoring_settings: rep.scoring_settings, roster_positions: rep.roster_positions, settings: rep.settings }];
                             window.S.currentLeagueId = repId;
                             window.S.season = window.S.season || rep.season || String(new Date().getFullYear());
+                            // loadLeagueIntel reads S.rosters for the rep league's team count / starter pool.
+                            // The cross-league merged array (set above) is deduped by roster_id and would
+                            // give a wrong totalTeams, so point it at the rep league's own rosters.
+                            if (rep.rosters && rep.rosters.length) window.S.rosters = rep.rosters;
                         }
                     }
                     // Unblock the dashboard immediately; load DHQ scores in the background and

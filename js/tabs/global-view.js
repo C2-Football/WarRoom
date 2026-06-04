@@ -965,7 +965,7 @@ function buildScoutBoard(input) {
       })
       .map(k => ({ key: k, label: k, tone: 'var(--gold)', rows: map[k] }));
   } else if (groupBy === 'age') {
-    const order = ['build', 'prime', 'post', 'unknown'];
+    const order = ['build', 'peak', 'value', 'post', 'unknown'];
     const map = {};
     rows.forEach(r => { (map[r.agePhase] = map[r.agePhase] || []).push(r); });
     groups = Object.keys(map)
@@ -2110,7 +2110,7 @@ const renderThreatDetail = () => {
             <div className="empire-stack">
               {board.rows.map((r, i) => (
                 <button
-                  key={r.leagueId + ':' + r.ownerId}
+                  key={r.leagueId + ':' + (r.ownerId != null ? r.ownerId : 'orphan') + ':' + i}
                   type="button"
                   className="empire-threat-row"
                   style={{ '--tone': r.tierTone }}
@@ -2644,7 +2644,9 @@ function buildCommandBridge(input) {
     const playoffSpots = provinces.filter(inPlayoffSpot).length;
 
     const dhqDelta = delta ? delta.totalDHQDelta : null;
-    const prevDHQ = dhqDelta != null ? (totals.totalDHQ || 0) - dhqDelta : null;
+    // prevDHQ must come from the delta's own universe (leagues that have a prior snapshot),
+    // not model totalDHQ (all leagues), or the % mixes two different bases.
+    const prevDHQ = (dhqDelta != null && delta && delta.curDHQ != null) ? delta.curDHQ - dhqDelta : null;
     const dhqPct = (dhqDelta != null && prevDHQ) ? Math.round((dhqDelta / prevDHQ) * 1000) / 10 : null;
     const healthDelta = delta ? delta.avgHealthDelta : null;
     const highActions = queue.filter(a => a && a.severity === 'high').length;
@@ -2654,7 +2656,7 @@ function buildCommandBridge(input) {
           sub: 'DHQ across ' + (totals.leagues || 0) + ' leagues',
           delta: dhqDelta != null ? { dir: dir(dhqDelta), pct: dhqPct } : null },
         { key: 'record', label: 'Record', value: (rec.wins || 0) + '–' + (rec.losses || 0),
-          sub: winPctStr + ' · ' + playoffSpots + ' in playoff spots' },
+          sub: winPctStr + (games ? ' · ' + playoffSpots + ' in playoff spots' : '') },
         { key: 'health', label: 'Avg Health', value: totals.avgHealth != null ? String(totals.avgHealth) : '—',
           tone: healthTone(totals.avgHealth),
           sub: healthDelta == null ? 'no prior week yet'
