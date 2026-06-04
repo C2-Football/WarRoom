@@ -64,9 +64,9 @@
         );
     }
 
-    // Mounts the main Trade Center Find-a-Trade auto-proposer inside the draft Trade
-    // Desk, fed by draft-context value/assessment adapters. The draft renders inside the
-    // main app, so TradeFinderTab's globals (AlexSettings, LeagueSkin, LI) are present.
+    // NOTE: the draft "Find a Trade" tab is a native reimplementation (DraftTradeFinder,
+    // below) built on sim.findFairPackages — it does NOT mount the main app's
+    // window.TradeFinderTab. Keep the two analyzers in sync when changing trade logic.
     // Asset option groups for a roster — picks of all years (current draft + future) in
     // ONE group, players in another. Shared shape with the Build dropdowns.
     function buildAssetGroups(state, rosterId) {
@@ -331,6 +331,7 @@
                     theirGivePlayers: [],
                     theirGiveFuture: [],
                     theirGiveFaab: 0,
+                    finderTargetKey: '',
                     status: 'building',
                     counterOffer: null,
                     lastEvaluation: null,
@@ -483,6 +484,8 @@
                     theirGive: c.theirGive || [],
                     myGivePlayers: c.myGivePlayers || [],
                     theirGivePlayers: c.theirGivePlayers || [],
+                    myGiveFuture: c.myGiveFuture || [],
+                    theirGiveFuture: c.theirGiveFuture || [],
                     myGiveFaab: c.myGiveFaab || 0,
                     theirGiveFaab: c.theirGiveFaab || 0,
                     status: 'building',
@@ -1019,13 +1022,17 @@
 
     function proposalAssets(proposal, side) {
         const picks = side === 'my' ? proposal.myGive : proposal.theirGive;
+        const futures = side === 'my' ? proposal.myGiveFuture : proposal.theirGiveFuture;
         const players = side === 'my' ? proposal.myGivePlayers : proposal.theirGivePlayers;
         const faab = side === 'my' ? proposal.myGiveFaab : proposal.theirGiveFaab;
         const items = [];
         (picks || []).slice(0, 3).forEach(p => items.push(formatPick(p)));
+        (futures || []).slice(0, 2).forEach(fp => items.push(fp.year + ' R' + fp.round));
         (players || []).slice(0, 2).forEach(pid => items.push(playerName(pid)));
         if (faab > 0) items.push('$' + faab + ' FAAB');
-        if ((picks || []).length + (players || []).length > items.length) items.push('+' + (((picks || []).length + (players || []).length) - items.length));
+        const shownAssets = Math.min((picks || []).length, 3) + Math.min((futures || []).length, 2) + Math.min((players || []).length, 2);
+        const totalAssets = (picks || []).length + (futures || []).length + (players || []).length;
+        if (totalAssets > shownAssets) items.push('+' + (totalAssets - shownAssets));
         return items.length ? items.join(', ') : 'No assets';
     }
 
@@ -1053,6 +1060,8 @@
                 theirGive: proposal?.theirGive || [],
                 myGivePlayers: proposal?.myGivePlayers || [],
                 theirGivePlayers: proposal?.theirGivePlayers || [],
+                myGiveFuture: proposal?.myGiveFuture || [],
+                theirGiveFuture: proposal?.theirGiveFuture || [],
                 myGiveFaab: proposal?.myGiveFaab || 0,
                 theirGiveFaab: proposal?.theirGiveFaab || 0,
             },

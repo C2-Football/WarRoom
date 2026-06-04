@@ -994,7 +994,6 @@
                 ].filter(Boolean).join(' ');
 
                 dispatch({ type: 'ALEX_SET_THINKING', thinking: true });
-                dispatch({ type: 'ALEX_SPEND_SONNET' });
 
                 const prompt = lastPick.isUser
                     ? `React to the user's draft pick in 1-2 sentences. Be Alex the draft analyst — direct, punchy, in character. Say if it's a good fit, a reach, or a steal. Context: ${contextLines}`
@@ -1005,6 +1004,9 @@
                     .then(response => {
                         const replyText = typeof response === 'string' ? response : (response?.content || response?.text || '');
                         if (!replyText) return;
+                        // Debit the budget only once we actually have a reply, so a failed
+                        // or empty call doesn't silently drain the per-draft Sonnet budget.
+                        dispatch({ type: 'ALEX_SPEND_SONNET' });
                         dispatch({
                             type: 'ALEX_EVENT_ADD',
                             event: {

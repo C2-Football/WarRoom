@@ -214,6 +214,12 @@
             }),
         ].filter(Boolean);
 
+        // Avoid Warning: surface the most tempting (highest-score) player the user has
+        // tagged fade / do-not-draft, drawn from the UNFILTERED rows.
+        const faded = rows.filter(c => c.fade).sort((a, b) => b.score - a.score)[0];
+        const avoidCard = faded ? card('avoid', 'Avoid Warning', faded, 'User-board fade or do-not-draft flag is active.', 'red', { drivers: ['user_board'] }) : null;
+        if (avoidCard) cards.push(avoidCard);
+
         if (tradeWindow) {
             cards.push({
                 kind: 'trade_down',
