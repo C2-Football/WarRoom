@@ -6,6 +6,11 @@ const http = require('http');
 const path = require('path');
 const { spawn } = require('child_process');
 
+// --compile (dev): transpile type="text/babel" scripts server-side so the browser
+// never loads @babel/standalone (the ~3-10s in-browser JSX compile). Lazy-required
+// only when the flag is present so other server modes carry no extra cost.
+let Babel = null;
+
 const LIVE_AI_ENDPOINT = 'https://sxshiqyxhhifvtfqawbq.supabase.co/functions/v1/ai-analyze';
 
 const MIME_TYPES = {
@@ -38,6 +43,14 @@ const host = getArg('host', '127.0.0.1');
 const port = Number(getArg('port', process.env.PORT || 3001));
 const root = path.resolve(getArg('root', process.cwd()));
 const openPath = getArg('open', '');
+const COMPILE = process.argv.includes('--compile');
+if (COMPILE) {
+  try {
+    Babel = require('@babel/standalone');
+  } catch (err) {
+    console.error('[serve-static] --compile needs @babel/standalone installed; serving raw JSX instead.');
+  }
+}
 
 function loadLocalEnv() {
   ['.env.local', '.env'].forEach(file => {
@@ -392,6 +405,64 @@ async function handleMflProxy(req, res) {
   }
 }
 
+// ── Dev-time JSX compilation (--compile) ─────────────────────────────────────
+// Transpiles only the files index.html (and other pages) mark as type="text/babel",
+// caching by mtime so a save recompiles a single file in ~10-50ms instead of the
+// browser compiling ~3.4MB of JSX on every page load. Mirrors build-preview.cjs.
+const _xpileCache = new Map();   // absPath -> { mtimeMs, code }
+const _babelSrcSet = new Set();  // normalized repo-relative paths flagged text/babel
+let _seeded = false;
+
+function splitUrl(src) {
+  const i = src.indexOf('?');
+  return { pathname: i >= 0 ? src.slice(0, i) : src, query: i >= 0 ? src.slice(i) : '' };
+}
+function isRemoteUrl(value) {
+  return /^(?:https?:)?\/\//i.test(value) || /^data:/i.test(value);
+}
+function collectBabelSrcs(html) {
+  const re = /<script\b([^>]*)>/gi;
+  let m;
+  while ((m = re.exec(html))) {
+    const attrs = m[1];
+    if (!/type=["']text\/babel["']/i.test(attrs)) continue;
+    const sm = attrs.match(/src=["']([^"']+)["']/i);
+    if (sm && !isRemoteUrl(sm[1])) _babelSrcSet.add(splitUrl(sm[1]).pathname.replace(/^\.?\//, ''));
+  }
+}
+function seedBabelSet() {
+  if (_seeded) return;
+  _seeded = true;
+  const idx = path.join(root, 'index.html');
+  if (fs.existsSync(idx)) {
+    try { collectBabelSrcs(fs.readFileSync(idx, 'utf8')); } catch (_e) { /* tolerate */ }
+  }
+}
+function rewriteHtmlForCompile(html) {
+  // Drop the in-browser Babel compiler entirely.
+  html = html.replace(/[ \t]*<script\b[^>]*src=["']https?:\/\/[^"']*@babel\/standalone[^"']*["'][^>]*><\/script>\s*\n?/gi, '');
+  // Server already compiled these — run them as plain JS.
+  html = html.replace(/(<script\b[^>]*?)\s+type=["']text\/babel["']/gi, '$1');
+  return html;
+}
+function transpileFile(absPath) {
+  const stat = fs.statSync(absPath);
+  const hit = _xpileCache.get(absPath);
+  if (hit && hit.mtimeMs === stat.mtimeMs) return hit.code;
+  const rel = path.relative(root, absPath).replace(/\\/g, '/');
+  const result = Babel.transform(fs.readFileSync(absPath, 'utf8'), {
+    filename: rel,
+    sourceFileName: '/' + rel,
+    sourceMaps: 'inline',
+    presets: [['react', { runtime: 'classic' }]],
+    sourceType: 'script',
+    comments: false,
+  });
+  const code = result.code + '\n';
+  _xpileCache.set(absPath, { mtimeMs: stat.mtimeMs, code });
+  return code;
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${host}:${port}`);
   if (url.pathname === '/api/dev-ai-analyze') {
@@ -429,6 +500,47 @@ const server = http.createServer((req, res) => {
   }
 
   const ext = path.extname(filePath).toLowerCase();
+
+  if (COMPILE && Babel && (ext === '.html' || ext === '.js')) {
+    seedBabelSet();
+    if (req.method === 'HEAD') {
+      res.writeHead(200, { 'Content-Type': MIME_TYPES[ext], 'Cache-Control': 'no-store' });
+      res.end();
+      return;
+    }
+    if (ext === '.html') {
+      try {
+        const html = fs.readFileSync(filePath, 'utf8');
+        collectBabelSrcs(html);
+        const body = rewriteHtmlForCompile(html);
+        res.writeHead(200, { 'Content-Type': MIME_TYPES['.html'], 'Cache-Control': 'no-store' });
+        res.end(body);
+        return;
+      } catch (err) {
+        console.error('[serve-static] html rewrite failed for', filePath, '-', err && err.message);
+        // fall through to raw serving
+      }
+    } else { // .js
+      const rel = path.relative(root, filePath).replace(/\\/g, '/');
+      if (_babelSrcSet.has(rel)) {
+        let code;
+        try {
+          code = transpileFile(filePath);
+        } catch (err) {
+          const msg = err && err.message ? err.message : String(err);
+          console.error('[serve-static] JSX compile failed:', rel, '-', msg);
+          res.writeHead(200, { 'Content-Type': MIME_TYPES['.js'], 'Cache-Control': 'no-store' });
+          res.end('console.error(' + JSON.stringify('[dev compile error] ' + rel + ': ' + msg) + ');');
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': MIME_TYPES['.js'], 'Cache-Control': 'no-store' });
+        res.end(code);
+        return;
+      }
+      // not a flagged Babel module — fall through to raw streaming
+    }
+  }
+
   res.writeHead(200, {
     'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
     'Cache-Control': 'no-store',
@@ -443,7 +555,8 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(port, host, () => {
-  console.log(`Serving ${root} at http://${host}:${port}/`);
+  const compileNote = COMPILE ? (Babel ? '  [JSX compile: ON]' : '  [JSX compile: requested but @babel/standalone missing]') : '';
+  console.log(`Serving ${root} at http://${host}:${port}/${compileNote}`);
   if (openPath) {
     const target = new URL(openPath.replace(/^\/+/, ''), `http://${host}:${port}/`).toString();
     const opener = spawn('open', [target], { detached: true, stdio: 'ignore' });
