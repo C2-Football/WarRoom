@@ -120,7 +120,7 @@
         return out;
     }
 
-    function decorateCandidate(state, player, idx, lane, rankLookup) {
+    function decorateCandidate(state, player, idx, lane, rankLookup, needs) {
         const boardContext = state?.draftContext?.boardContext || {};
         const entry = boardEntry(boardContext, player);
         const rank = boardRank(boardContext, player, lane) || rankLookup[idKey(player?.pid)] || idx + 1;
@@ -130,8 +130,10 @@
         const tagTarget = isTarget(entry);
         const tagFade = isFade(entry);
         const tier = entry.tier || player?.tier || player?.csv?.tier || null;
-        const needs = userNeedMap(state);
-        const needBoost = needs[posOf(player)] || 0;
+        // userNeedMap depends only on state, not the player — built once by candidates()
+        // and passed in (was rebuilt for every one of the ~300-440 pool candidates).
+        const needMap = needs || userNeedMap(state);
+        const needBoost = needMap[posOf(player)] || 0;
         const score = dhq / 100
             + needBoost
             + (tagTarget ? 24 : 0)
@@ -158,9 +160,10 @@
         const boardContext = state?.draftContext?.boardContext || {};
         const lane = activeLane(boardContext);
         const rankLookup = rankMap(boardContext?.lanes?.[lane]?.order || []);
+        const needs = userNeedMap(state);
         return asArray(state?.pool)
             .filter(p => p?.pid && !state?.draftedPids?.[p.pid])
-            .map((p, idx) => decorateCandidate(state, p, idx, lane, rankLookup))
+            .map((p, idx) => decorateCandidate(state, p, idx, lane, rankLookup, needs))
             .sort((a, b) => (a.rank - b.rank) || (b.dhq - a.dhq))
             .slice(0, limit);
     }

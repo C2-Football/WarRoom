@@ -146,6 +146,32 @@
             return boardContext?.entries?.[pid] || {};
         }, [boardContext]);
 
+        // Per-player projection/value-window cache. projectionFor/valueWindow are pure
+        // functions of the player's dhq/age/pos (+ session-stable config), so they do
+        // NOT change when a pick is made — only when the pool is re-scored. Without this,
+        // decoratedPool (which re-runs every pick because state.draftedPids changes) calls
+        // projectPlayerValue 3x for the entire 200-300 player pool on every single pick.
+        // Reset on originalPool identity change (re-score); key by dhq/age so a changed
+        // value still recomputes.
+        const projCacheRef = React.useRef({ pool: null, proj: new Map(), win: new Map() });
+        if (projCacheRef.current.pool !== state.originalPool) {
+            projCacheRef.current = { pool: state.originalPool, proj: new Map(), win: new Map() };
+        }
+        const cachedProjectionFor = (player) => {
+            const key = idOf(player) + ':' + (player?.dhq || player?.val || 0) + ':' + (ageOf(player) || 0);
+            const cache = projCacheRef.current.proj;
+            let v = cache.get(key);
+            if (!v) { v = projectionFor(player); cache.set(key, v); }
+            return v;
+        };
+        const cachedValueWindow = (player) => {
+            const key = idOf(player) + ':' + (ageOf(player) || 0) + ':' + (player?.pos || player?.position || '');
+            const cache = projCacheRef.current.win;
+            let v = cache.get(key);
+            if (!v) { v = valueWindow(player); cache.set(key, v); }
+            return v;
+        };
+
         const decoratedPool = React.useMemo(() => {
             // Keep undrafted players exactly as state.pool provides them, then re-add
             // any drafted players from the full original pool so they stay on the board
@@ -158,8 +184,8 @@
             return [...live, ...draftedExtra].map(player => {
                 const pid = idOf(player);
                 const entry = boardContext?.entries?.[pid] || {};
-                const projections = projectionFor(player);
-                const windowInfo = valueWindow(player);
+                const projections = cachedProjectionFor(player);
+                const windowInfo = cachedValueWindow(player);
                 const dhqRank = entry.dhqRank || dhqRanks[pid] || null;
                 const aiRank = entry.aiRank || aiRanks[pid] || null;
                 const myRank = entry.myRank || myRanks[pid] || null;

@@ -4077,9 +4077,16 @@
     // ── Drafting / complete grid ─────────────────────────────────────
     function CommandCenterGrid({ state, dispatch, isUserTurn, currentSlot, onExit, viewport, onPropose }) {
         const L = DRAFT_CC_LAYOUT;
-        // Filter by rosterId so post-trade ownership is respected
-        const myPicks = state.picks.filter(p => p.rosterId === state.userRosterId || p.isUser);
-        const grade = window.DraftCC.state.gradeDraft(myPicks, state.originalPool);
+        // Filter by rosterId so post-trade ownership is respected. Memoized: gradeDraft
+        // builds a Map over the ~600-entry originalPool and ran on every re-render.
+        const myPicks = React.useMemo(
+            () => state.picks.filter(p => p.rosterId === state.userRosterId || p.isUser),
+            [state.picks, state.userRosterId]
+        );
+        const grade = React.useMemo(
+            () => window.DraftCC.state.gradeDraft(myPicks, state.originalPool),
+            [myPicks, state.originalPool]
+        );
 
         const BigBoardPanel = window.DraftCC.BigBoardPanel;
         const OpponentIntelPanel = window.DraftCC.OpponentIntelPanel;
