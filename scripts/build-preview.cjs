@@ -76,18 +76,23 @@ function build() {
 
   html = html.replace(/\n?<script[^>]+src=["']https:\/\/unpkg\.com\/@babel\/standalone[^"']*["'][^>]*><\/script>\s*/i, '\n');
 
+  // data-wr-defer scripts (the lazy-loaded draft module) are kept INERT
+  // (type="text/wr-deferred") so the browser doesn't run them at boot; the draft
+  // loader injects executable copies on demand. They are still compiled like any
+  // other JSX module so the compiled overlay exists for the loader to fetch.
+  const deferType = (a, b, c) => /\bdata-wr-defer\b/i.test((a || '') + (b || '') + (c || '')) ? ' type="text/wr-deferred"' : '';
   html = html.replace(/<script\b([^>]*?)\bsrc=["']([^"']+)["']([^>]*)type=["']text\/babel["']([^>]*)><\/script>/gi,
     (_match, before, src, between, after) => {
       const outSrc = compileScript(src);
       compiled.push(src);
-      return `<script${before}src="${outSrc}"${between}${after}></script>`;
+      return `<script${deferType(before, between, after)}${before}src="${outSrc}"${between}${after}></script>`;
     });
 
   html = html.replace(/<script\b([^>]*?)type=["']text\/babel["']([^>]*)\bsrc=["']([^"']+)["']([^>]*)><\/script>/gi,
     (_match, before, between, src, after) => {
       const outSrc = compileScript(src);
       compiled.push(src);
-      return `<script${before}${between}src="${outSrc}"${after}></script>`;
+      return `<script${deferType(before, between, after)}${before}${between}src="${outSrc}"${after}></script>`;
     });
 
   html = html.replace(/\b(href|src)=["']([^"']+)["']/gi, (match, attr, value) => {

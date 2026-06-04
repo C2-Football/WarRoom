@@ -441,8 +441,13 @@ function seedBabelSet() {
 function rewriteHtmlForCompile(html) {
   // Drop the in-browser Babel compiler entirely.
   html = html.replace(/[ \t]*<script\b[^>]*src=["']https?:\/\/[^"']*@babel\/standalone[^"']*["'][^>]*><\/script>\s*\n?/gi, '');
-  // Server already compiled these — run them as plain JS.
-  html = html.replace(/(<script\b[^>]*?)\s+type=["']text\/babel["']/gi, '$1');
+  // The server already transpiles these on request. data-wr-defer scripts stay INERT
+  // (type="text/wr-deferred") so the browser doesn't run them at boot — the draft
+  // loader injects them on demand; the rest run immediately as plain JS.
+  html = html.replace(/<script\b[^>]*?\stype=["']text\/babel["'][^>]*>/gi, (tag) =>
+    /\bdata-wr-defer\b/i.test(tag)
+      ? tag.replace(/type=["']text\/babel["']/i, 'type="text/wr-deferred"')
+      : tag.replace(/\s+type=["']text\/babel["']/i, ''));
   return html;
 }
 function transpileFile(absPath) {
