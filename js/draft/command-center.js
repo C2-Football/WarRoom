@@ -4084,8 +4084,10 @@
             [state.picks, state.userRosterId]
         );
         const grade = React.useMemo(
-            () => window.DraftCC.state.gradeDraft(myPicks, state.originalPool),
-            [myPicks, state.originalPool]
+            () => window.DraftCC.state.gradeDraft(myPicks, state.originalPool, {
+                assessment: state.personas?.[state.userRosterId]?.assessment,
+            }),
+            [myPicks, state.originalPool, state.personas, state.userRosterId]
         );
 
         const BigBoardPanel = window.DraftCC.BigBoardPanel;
