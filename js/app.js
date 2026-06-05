@@ -529,8 +529,19 @@
                     // Then assess every roster in the background, yielding between
                     // leagues so a heavy or oddly-shaped league can't freeze the load.
                     if (typeof window.App?.assessAllTeams === 'function') {
-                        const stats = window.S.playerStats || {};
                         (async () => {
+                            // Empire mode never populated S.playerStats, so assessments ran with no
+                            // production data → degraded health/tier. Fetch current-season stats once
+                            // (league-independent season totals) and feed them to every assessment.
+                            if ((!window.S.playerStats || !Object.keys(window.S.playerStats).length) && typeof window.fetchSeasonStats === 'function') {
+                                const season = parseInt(window.S.season || new Date().getFullYear(), 10);
+                                let st = (await window.fetchSeasonStats(String(season)).catch(() => ({}))) || {};
+                                // Offseason: the current season has no games yet — fall back to the last
+                                // completed season so dynasty health/tier reflect real production.
+                                if (!Object.keys(st).length) st = (await window.fetchSeasonStats(String(season - 1)).catch(() => ({}))) || {};
+                                window.S.playerStats = st;
+                            }
+                            const stats = window.S.playerStats || {};
                             for (const l of allLeaguesList) {
                                 await new Promise(r => setTimeout(r, 0));
                                 const lid = l.id || l.league_id;
