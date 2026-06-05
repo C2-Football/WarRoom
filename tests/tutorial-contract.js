@@ -49,7 +49,7 @@ console.log('\nWar Room assistant tutorial contract tests');
 test('War Room config uses shared tutorial engine and legacy key compatibility', () => {
   hasEvery(tutorial, [
     "productKey: 'warroom'",
-    "version: 'gm-brief-v1'",
+    "version: 'gm-brief-v2'",
     "legacyKeys: ['wr_tutorial_done_v1']",
     'window.WR_TUTORIAL_CONFIG',
     'window.replayWRTutorial',
@@ -60,7 +60,7 @@ test('War Room config uses shared tutorial engine and legacy key compatibility',
 test('War Room loads the shared tutorial engine and exposes replay in settings', () => {
   hasEvery(index, [
     "'assistant-tutorial.js'",
-    'js/tutorial.js?v=20260503tutorial1',
+    'js/tutorial.js?v=20260604tutorial2',
   ], 'War Room index');
   ok(sync.includes("'assistant-tutorial.js'"), 'sync script must copy shared tutorial engine');
   ok(settings.includes('Replay GM Briefing'), 'settings replay control missing');

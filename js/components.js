@@ -156,18 +156,25 @@
     }
 
     // ===== ALEX INGRAM AVATAR SYSTEM =====
+    // Single source of truth for Alex's look. `id` is the canonical value stored
+    // in wr_alex_avatar; `emoji` is the inline glyph used where a full avatar
+    // image won't fit (header name prefix, compact briefings).
     const ALEX_AVATARS = [
-        { id: 'badge', label: 'Gold Badge', src: null },
-        { id: 'exec', label: 'The Executive', src: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&h=120&fit=crop&crop=face' },
-        { id: 'analyst', label: 'The Analyst', src: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&h=120&fit=crop&crop=face' },
-        { id: 'coach', label: 'The Coach', src: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=120&h=120&fit=crop&crop=face' },
-        { id: 'scout', label: 'The Scout', src: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&h=120&fit=crop&crop=face' },
+        { id: 'badge',   label: 'Gold Badge',    emoji: '\u{1F3C5}', src: null },
+        { id: 'exec',    label: 'The Executive', emoji: '\u{1F4BC}', src: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&h=120&fit=crop&crop=face' },
+        { id: 'analyst', label: 'The Analyst',   emoji: '\u{1F4CA}', src: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&h=120&fit=crop&crop=face' },
+        { id: 'coach',   label: 'The Coach',     emoji: '\u{1F4CB}', src: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=120&h=120&fit=crop&crop=face' },
+        { id: 'scout',   label: 'The Scout',     emoji: '\u{1F52D}', src: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&h=120&fit=crop&crop=face' },
     ];
     function getAlexAvatar() {
         return ComponentsStorage.get(COMPONENTS_WR_KEYS.ALEX_AVATAR, 'badge') || 'badge';
     }
     function setAlexAvatar(id) {
         ComponentsStorage.set(COMPONENTS_WR_KEYS.ALEX_AVATAR, id);
+    }
+    function getAlexAvatarEmoji() {
+        const av = ALEX_AVATARS.find(a => a.id === getAlexAvatar());
+        return (av && av.emoji) || '\u{1F3C5}';
     }
     function AlexAvatar({ size }) {
         const sz = size || 28;
@@ -179,6 +186,7 @@
     }
     window.AlexAvatar = AlexAvatar;
     window.ALEX_AVATARS = ALEX_AVATARS;
+    window.getAlexAvatarEmoji = getAlexAvatarEmoji;
 
     // ===== ALEX INGRAM — AI GM MESSAGE COMPONENT (Slack-style) =====
     function GMMessage({ children, timestamp, compact, title }) {
@@ -218,6 +226,9 @@
     window.GMMessage = GMMessage;
 
     // ===== INLINE CAREER STATS (for expanded player card) =====
+    // Exposed on window so other modules (e.g. the Analytics roster-style player card)
+    // can reuse it without relying on build-time concat-scope leakage of the bare name.
+    window.InlineCareerStats = InlineCareerStats;
     function InlineCareerStats({ pid, pos, player, scoringSettings, statsData }) {
         const [html, setHtml] = React.useState(null);
         const [collegeHtml, setCollegeHtml] = React.useState(null);

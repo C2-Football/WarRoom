@@ -7,7 +7,7 @@
     function AlexTab({ sectionStyle, sectionTitle }) {
         const styles = window.ALEX_STYLES || { default: { name: 'Default', tone: 'Confident but not arrogant. Direct, data-driven, with personality.' }, general: { name: 'The General', tone: 'Intense, demanding, motivational. Short powerful sentences.' }, enthusiast: { name: 'The Enthusiast', tone: 'Excitable, passionate, full of energy. Uses vivid football jargon.' }, bayou: { name: 'The Bayou', tone: 'Folksy, raw, passionate. Southern warmth and earthiness.' }, wit: { name: 'The Wit', tone: 'Sarcastic, confident, clever. Sharp tongue and sharper mind.' }, closer: { name: 'The Closer', tone: 'Direct, emphatic, no-nonsense. Every sentence is declarative.' }, strategist: { name: 'The Strategist', tone: 'Calculated, competitive, analytical. Cold precision.' } };
         const [currentStyle, setCurrentStyleLocal] = React.useState(localStorage.getItem('wr_alex_style') || 'default');
-        const [currentAvatar, setCurrentAvatar] = React.useState(localStorage.getItem('wr_alex_avatar') || 'brain');
+        const [currentAvatar, setCurrentAvatar] = React.useState(localStorage.getItem('wr_alex_avatar') || 'badge');
         return (<>
         <div style={sectionStyle}>
             <div style={sectionTitle}>COMMUNICATION STYLE</div>
@@ -34,31 +34,26 @@
         </div>
         <div style={sectionStyle}>
             <div style={sectionTitle}>AVATAR</div>
-            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginBottom: '0.75rem' }}>Choose Alex's look. Displayed in briefings and chat.</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-                {[
-                    { key: 'brain', emoji: '\u{1F9E0}', label: 'The Analyst' },
-                    { key: 'target', emoji: '\u{1F3AF}', label: 'The Scout' },
-                    { key: 'chart', emoji: '\u{1F4CA}', label: 'The Strategist' },
-                    { key: 'football', emoji: '\u{1F3C8}', label: 'The Coach' },
-                    { key: 'bolt', emoji: '\u26A1', label: 'The Spark' },
-                    { key: 'fire', emoji: '\u{1F525}', label: 'The Motivator' },
-                    { key: 'medal', emoji: '\u{1F396}\uFE0F', label: 'The General' },
-                    { key: 'trophy', emoji: '\u{1F3C6}', label: 'The Winner' },
-                ].map(av => {
-                    const isActive = currentAvatar === av.key;
-                    return <button key={av.key} onClick={() => { localStorage.setItem('wr_alex_avatar', av.key); setCurrentAvatar(av.key); }}
+            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginBottom: '0.75rem' }}>Choose Alex's look. Displayed in briefings and chat. This is the only place to change it.</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
+                {(window.ALEX_AVATARS || []).map(av => {
+                    const isActive = currentAvatar === av.id;
+                    return <button key={av.id} onClick={() => { localStorage.setItem('wr_alex_avatar', av.id); setCurrentAvatar(av.id); }}
                         style={{
                             padding: '12px 8px', textAlign: 'center',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
                             background: isActive ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'var(--ov-1, rgba(255,255,255,0.02))',
                             border: isActive ? '2px solid var(--gold)' : '1px solid var(--ov-5, rgba(255,255,255,0.08))',
                             borderRadius: '10px', cursor: 'pointer',
                         }}>
-                        <div style={{ fontSize: '1.6rem', marginBottom: '4px' }}>{av.emoji}</div>
-                        <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: isActive ? 'var(--gold)' : 'var(--silver)' }}>{av.label}</div>
+                        {av.src
+                            ? <img src={av.src} alt={av.label} style={{ width: '44px', height: '44px', borderRadius: '8px', objectFit: 'cover', border: '2px solid var(--acc-line3, rgba(212,175,55,0.4))' }} />
+                            : <div style={{ width: '44px', height: '44px', borderRadius: '8px', background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.95rem', fontWeight: 800, color: 'var(--k-0a0a0a, #0a0a0a)', fontFamily: 'Rajdhani, sans-serif' }}>AI</div>}
+                        <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: isActive ? 'var(--gold)' : 'var(--silver)', lineHeight: 1.2 }}>{av.label}</div>
                     </button>;
                 })}
             </div>
+            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5, marginTop: '8px' }}>Changes take effect on next page load.</div>
         </div>
         <div style={sectionStyle}>
             <div style={sectionTitle}>GM BRIEFING</div>
@@ -158,6 +153,40 @@
         const [matesAccess, setMatesAccess] = React.useState(null); // Set of usernames with accounts
         const [giftLinks, setGiftLinks] = React.useState({}); // { username: { url, password } }
         const [giftingFor, setGiftingFor] = React.useState(null);
+
+        // ── Self-contained identity + logout (settings-menu fix) ──
+        // SettingsContent previously referenced a bare `sleeperUsername` and `handleLogout`,
+        // neither of which is in scope: settingsProps/SettingsModal never pass them and there
+        // is no global of that name. Reading the undefined `sleeperUsername` during render
+        // threw a ReferenceError that blanked the whole Settings panel (and Logout/password
+        // change were dead). Derive both locally so Settings is self-sufficient.
+        const sleeperUsername = React.useMemo(() => {
+            try {
+                const auth = JSON.parse(localStorage.getItem('od_auth_v1') || '{}');
+                return auth.sleeperUsername || auth.username
+                    || localStorage.getItem('od_locked_username_v2')
+                    || localStorage.getItem('od_display_name') || '';
+            } catch { return ''; }
+        }, []);
+        function handleLogout() {
+            if (!confirm('Are you sure you want to logout?')) return;
+            try {
+                localStorage.removeItem(window.STORAGE_KEYS?.OD_AUTH || 'od_auth_v1');
+                localStorage.removeItem(window.STORAGE_KEYS?.FW_SESSION || 'fw_session_v1');
+            } catch (e) { /* ignore */ }
+            window.location.href = 'landing.html';
+        }
+
+        // Theme picker reactivity: WrTheme.current is a plain mutable global, so picking a
+        // theme didn't move the ACTIVE badge (the old setSettingsTab('display') re-render hack
+        // is a no-op when already on that tab, and the module view ignores settingsTab entirely).
+        // Bump a reducer and also listen for the cross-app 'wr_theme_changed' event.
+        const [, forceThemeRerender] = React.useReducer(x => x + 1, 0);
+        React.useEffect(() => {
+            const h = () => forceThemeRerender();
+            window.addEventListener('wr_theme_changed', h);
+            return () => window.removeEventListener('wr_theme_changed', h);
+        }, []);
 
         const isGiftedAccount = React.useMemo(() => {
             try {
@@ -321,9 +350,9 @@
 
                         <div style={moduleColumnStyle}>
                             <div style={moduleSectionStyle}>
-                                <div style={sectionTitle}>DISPLAY</div>
+                                <div style={sectionTitle}>APPEARANCE</div>
                                 <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
-                                    Change the visual style of your dashboard widgets.
+                                    Switch between dark and light mode across the whole app.
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                     {(window.WrTheme ? window.WrTheme.list() : ['default']).map(themeId => {
@@ -332,7 +361,7 @@
                                         return (
                                             <button key={themeId} onClick={() => {
                                                 if (window.WrTheme) window.WrTheme.set(themeId);
-                                                setSettingsTab('display');
+                                                forceThemeRerender();
                                             }} style={{
                                                 padding: '16px 14px',
                                                 background: isActive ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'var(--ov-2, rgba(255,255,255,0.03))',
@@ -481,9 +510,9 @@
                     {/* ══ DISPLAY TAB ══ */}
                     {settingsTab === 'display' && (<>
                         <div style={sectionStyle}>
-                            <div style={sectionTitle}>DASHBOARD THEME</div>
+                            <div style={sectionTitle}>APPEARANCE</div>
                             <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
-                                Change the visual style of your dashboard widgets.
+                                Switch between dark and light mode across the whole app.
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                 {(window.WrTheme ? window.WrTheme.list() : ['default']).map(themeId => {
@@ -492,8 +521,7 @@
                                     return (
                                         <button key={themeId} onClick={() => {
                                             if (window.WrTheme) window.WrTheme.set(themeId);
-                                            // Force re-render by updating a dummy state
-                                            setSettingsTab('display');
+                                            forceThemeRerender();
                                         }} style={{
                                             padding: '16px 14px',
                                             background: isActive ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'var(--ov-2, rgba(255,255,255,0.03))',

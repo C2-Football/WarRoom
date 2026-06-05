@@ -263,11 +263,7 @@ function IntelligenceBriefWidget({
     // One-sentence headline — used at lg
     const oneSentence = tierMsg;
 
-    const alexAvatar = (() => {
-        const key = localStorage.getItem('wr_alex_avatar') || 'brain';
-        const map = { brain:'\u{1F9E0}', target:'\u{1F3AF}', chart:'\u{1F4CA}', football:'\u{1F3C8}', bolt:'\u26A1', fire:'\u{1F525}', medal:'\u{1F396}\uFE0F', trophy:'\u{1F3C6}' };
-        return map[key] || '\u{1F9E0}';
-    })();
+    const alexAvatar = (window.getAlexAvatarEmoji ? window.getAlexAvatarEmoji() : '\u{1F3C5}');
 
     const cardStyle = { background: 'var(--black)', border: 'var(--card-border, 1px solid var(--acc-line1, rgba(212,175,55,0.2)))', borderRadius: 'var(--card-radius, 10px)', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' };
     const goTo = (target) => {

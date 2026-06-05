@@ -38,10 +38,6 @@ function MyTeamTab({
   gmStrategyOpen,
   setGmStrategyOpen,
 
-  // Alex avatar
-  setAlexAvatar,
-  setAvatarKey,
-
   // Navigation / Recon panel
   setActiveTab,
   setReconPanelOpen,

@@ -1965,7 +1965,7 @@
     <div id="root"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.101.1/dist/umd/supabase.min.js"></script>
-<script src="js/shared/shared-loader.js?v=20260531sandbox2"></script>
+<script src="js/shared/shared-loader.js?v=20260604alex3"></script>
 <script>
 window.DYNASTY_HQ_APP = 'warroom';
 // Sandbox = the WarRoom-sandbox deploy (c2-football.github.io/WarRoom-sandbox/),
@@ -2033,7 +2033,7 @@ WRShared.loadMany(WR_SHARED_FILES);
 <script src="https://unpkg.com/@babel/standalone@7.29.2/babel.min.js"></script>
 
 <!-- 0. Theme engine — must load before any widget/component (plain JS, no Babel needed) -->
-<script src="js/theme.js?v=20260526lightgate1"></script>
+<script src="js/theme.js?v=20260604analytics1"></script>
 <!-- 0b. Alex voice helper — seeded phrase variation + template-first AI upgrade (plain JS) -->
 <script src="js/shared/alex-voice.js?v=20260531voice2"></script>
 <!-- (removed unused 'Press Start 2P' web font — it was a render-blocking request but referenced by no font-family) -->
@@ -2044,7 +2044,7 @@ WRShared.loadMany(WR_SHARED_FILES);
 <!-- 1b. Format/phase skin contract for league-type-aware modules -->
 <script src="js/league-skin.js?v=20260526redraftqa1"></script>
 <!-- 2. Shared components: UpgradeGate, GMMessage, PlayerInlineCard, TradeFinderTab -->
-<script type="text/babel" src="js/components.js?v=20260427font1"></script>
+<script type="text/babel" src="js/components.js?v=20260604analytics1"></script>
 <!-- 2b. Unified Player Card (SI-2) — window.WR.openPlayerCard — replaces CDN modal -->
 <!-- Shared visual primitives (WR.Card / Badge / Chip / ConfChip / DeltaLine / Kpi / InsightCard) -->
 <script type="text/babel" src="js/components/wr-primitives.js?v=20260427font1"></script>
@@ -2069,7 +2069,7 @@ WRShared.loadMany(WR_SHARED_FILES);
 <script type="text/babel" src="js/utils/sos-engine.js"></script>
 <script type="text/babel" src="js/utils/player-value.js?v=20260517valuefix"></script>
 <!-- 4. Feature modules (no internal dependencies between these) -->
-<script type="text/babel" src="js/settings.js?v=20260525redraftnav1"></script>
+<script type="text/babel" src="js/settings.js?v=20260604analytics1"></script>
 <script type="text/babel" src="js/trade-calc.js?v=20260518dealhqdark1"></script>
 <script type="text/babel" src="js/free-agency.js?v=20260516click3"></script>
 <!-- 4b. Draft Command Center modules — DEFERRED. These ~28 scripts (~1.26MB) are
@@ -2120,21 +2120,21 @@ WRShared.loadMany(WR_SHARED_FILES);
 <script type="text/babel" src="js/widgets/my-trophies.js?v=20260427font1"></script>
 <script type="text/babel" src="js/tabs/dashboard.js?v=20260516liveclick1"></script>
 <script type="text/babel" src="js/tabs/flash-brief.js?v=20260502pos1"></script>
-<script type="text/babel" src="js/tabs/league-map.js?v=20260525redraftnav1"></script>
-<script type="text/babel" src="js/tabs/my-team.js?v=20260524density1"></script>
+<script type="text/babel" src="js/tabs/league-map.js?v=20260604analytics1"></script>
+<script type="text/babel" src="js/tabs/my-team.js?v=20260604analytics1"></script>
 <!-- Compare: extracted from My Roster's former sub-view, now a top-level ROSTER-group tab. -->
 <script type="text/babel" src="js/tabs/compare.js?v=20260524compare1"></script>
-<script type="text/babel" src="js/tabs/analytics.js?v=20260525redraftnav1"></script>
+<script type="text/babel" src="js/tabs/analytics.js?v=20260604analytics1"></script>
 <script type="text/babel" src="js/tabs/trophy-room.js?v=20260525redraftnav1"></script>
 <script type="text/babel" src="js/tabs/calendar.js?v=20260525redraftnav1"></script>
 <!-- Alex Insights (Option A): top-level tab for behavioral analysis + AI settings -->
 <script type="text/babel" src="js/tabs/alex-insights.js?v=20260531voice1"></script>
 <script type="text/babel" src="js/tabs/global-view.js?v=20260427font1"></script>
-<script src="js/tutorial.js?v=20260503tutorial1"></script>
+<script src="js/tutorial.js?v=20260604tutorial2"></script>
 <!-- 6. Strategy editor: calls shared GMStrategy API, no logic duplication -->
 <script type="text/babel" src="js/tabs/strategy-editor.js?v=20260502office1"></script>
 <!-- 7. League detail: coordinator shell, depends on all above -->
-    <script type="text/babel" src="js/league-detail.js?v=20260526redraftqa1"></script>
+    <script type="text/babel" src="js/league-detail.js?v=20260604analytics1"></script>
 <!-- 8. App: OwnerDashboard + ReactDOM.render (loads last) -->
 <script type="text/babel" src="js/app.js?v=20260525redraftnav1"></script>
 

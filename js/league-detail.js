@@ -450,10 +450,10 @@
             const quickItems = [
                 { term: valueTerm, def: skinShowsDynastyValue ? 'Dynasty value score (0-10,000). Production + age + situation + market.' : 'Format-adjusted value score (0-10,000). Production, role, scarcity, and market context.' },
                 { term: 'Health Score', def: 'Team grade (0-100). 90+ Elite, 80+ Contender, 70+ Crossroads.' },
-                { term: 'Elite Player', def: '7000+ ' + skinValueShort + ' or top 5 at their position across all league rosters.' },
-                { term: windowTerm, def: skinShowsAgeCurve ? 'Years until your weakest position group ages out.' : 'Current-season readiness for this league format.' },
-                { term: 'Player Tags', def: 'Tag players as Trade Block, Cut, Untouchable, or Watch. Syncs between apps.' },
-                { term: 'Flash Brief', def: 'Quick-action dashboard. Analyst mode shows deep data.' },
+                { term: 'Tiers & Bands', def: 'Elite 7000+, Starter ~3500-6999, Depth ~1000-3499, Replacement <1000 ' + skinValueShort + '.' },
+                { term: 'Color & Tone', def: 'Gold = value/accent, green = positive/buy, red = risk/sell, blue = starter, purple = Alex.' },
+                { term: 'Player Card', def: 'Tap any player for bio, Dynasty Read, age curve, career stats, and tags.' },
+                { term: 'Custom Reports', def: 'Analytics → Custom Reports: pick columns, filter, sort, and save table views.' },
             ];
             const fullItems = [
                 { cat: 'What DHQ Measures', items: [
@@ -462,11 +462,17 @@
                     { term: 'Context Layer', def: 'Team, depth chart, scoring settings, lineup slots, and replacement level adjust the raw player value. A scarce starter can gain value even if his box-score profile is similar to a deeper position.' },
                     { term: 'Market Layer', def: 'Market consensus, rank movement, roster ownership, and trade behavior help keep the number from becoming only a projection model. DHQ is meant to reflect what a player is worth in the room.' },
                 ]},
-                { cat: 'How To Read DHQ', items: [
-                    { term: 'Elite Player', def: '7000+ ' + skinValueShort + ' or a top-5 positional rank across the league. These are anchor assets; losing one usually changes the direction of a roster or trade package.' },
+                { cat: 'Tiers & Value Bands', items: [
+                    { term: 'Elite', def: '7000+ ' + skinValueShort + ' or a top-5 positional rank across the league. These are anchor assets; losing one usually changes the direction of a roster or trade package.' },
                     { term: 'Starter Band', def: 'Roughly 3500-6999 ' + skinValueShort + ' is the weekly starter and premium depth range. Compare players inside the same position and format before treating two numbers as equal.' },
                     { term: 'Depth Band', def: 'Roughly 1000-3499 ' + skinValueShort + ' usually means usable depth, upside bench pieces, short-term streamers, or rookies/prospects who still need the role to arrive.' },
                     { term: 'Replacement Band', def: 'Below 1000 ' + skinValueShort + ' is usually waiver-wire, injury stash, speculative bench, or low-certainty IDP depth. The name can still matter, but the number is warning you not to overpay.' },
+                ]},
+                { cat: 'Reading Color & Tone', items: [
+                    { term: 'Gold', def: 'Value and primary accent. Gold marks ' + skinValueShort + ' numbers, headline figures, active selections, and the main call-to-action on a screen.' },
+                    { term: 'Green vs Red', def: 'Green is positive — an edge, a buy, good health, a strength, or value gained. Red is negative — risk, a sell signal, a roster need, a gap versus the winner template, or value lost.' },
+                    { term: 'Blue & Purple', def: 'Blue marks the solid weekly-starter tier and secondary data points. Purple is Alex, your AI GM, and anything AI-assisted. Muted silver is supporting text.' },
+                    { term: 'Dark & Light Mode', def: 'These meanings hold in both themes. Switch dark/light in Settings → Appearance; the same gold / green / red / blue language carries over.' },
                 ]},
                 { cat: 'What Moves DHQ', items: [
                     { term: 'Role Change', def: 'Depth-chart promotion, target share, route participation, snap share, injury replacement, or defensive alignment changes can move value quickly.' },
@@ -479,18 +485,18 @@
                     { term: 'Not A Trade Price Alone', def: 'Trade offers also depend on partner needs, owner behavior, leverage, timing, and package shape. DHQ is the value anchor, not the whole negotiation.' },
                     { term: 'Not A Blind Sort', def: 'Use DHQ to build a shortlist, then check position need, tier breaks, lineup rules, health, and roster construction. The best move is often the best tier fit, not just the highest number.' },
                 ]},
-                { cat: 'Team Assessment', items: [
+                { cat: 'Your Team', items: [
                     { term: 'Health Score', def: 'Your team\u2019s competitive readiness on a 0-100 scale. 60% is based on your optimal starting lineup strength, 40% on positional depth and coverage. 90+ = Elite tier, 80+ = Contender, 70+ = Crossroads.' },
                     { term: 'Contender Rank', def: 'How you stack up for winning THIS season. Based on your best possible starting lineup PPG compared to every other team in the league.' },
                     { term: rankTerm, def: skinShowsDynastyValue ? 'Your long-term foundation strength. Based on total ' + skinValueShort + ' value across your entire roster - starters, bench, taxi, and picks.' : 'Your format-adjusted roster strength. Based on total ' + skinValueShort + ' value across your active roster context.' },
                     { term: windowTerm, def: skinShowsAgeCurve ? 'How many more years your roster can realistically compete before age-related decline forces a rebuild. Based on the age curves of your weakest position group.' : 'How ready your roster is for the current season format, without forcing a multi-year age-curve read.' },
                 ]},
-                { cat: 'Trading And Tools', items: [
-                    { term: 'Owner DNA', def: 'A behavioral profile derived from each owner\u2019s trade history. Types include Fleecer, Stalwart, Dominator, Acceptor, and Desperate. It helps estimate how hard a deal will be to close.' },
-                    { term: 'Trade Impact', def: 'Before you send a trade, see exactly how it changes your health score, elite count, positional leverage, and competitive tier. Simulates the roster swap and recalculates the team.' },
-                    { term: 'Acceptance Likelihood', def: 'Predicted chance the other owner accepts your offer, based on value difference, their DNA type, positional needs, package shape, and owner behavior.' },
-                    { term: 'Fit Score', def: 'How well a draft or waiver target fills your specific roster needs. A team thin at RB will see RB options scored higher than a team already overloaded there.' },
-                    { term: 'Player Tags', def: 'Tag players as Trade Block, Cut, Untouchable, or Watch List. Tags sync between War Room and War Room Scout so your decisions carry across both apps.' },
+                { cat: 'Tools & Where To Find Them', items: [
+                    { term: 'Trade Center', def: 'Build and grade offers. Owner DNA profiles each manager (Fleecer, Stalwart, Dominator, Acceptor, Desperate); Trade Impact simulates the swap on your health score, elite count, and tier; Acceptance Likelihood predicts the other owner\u2019s yes.' },
+                    { term: 'Draft Command', def: 'Live and mock drafts with Fit Score \u2014 how well each available player fills your specific roster needs, not just raw value. A team thin at RB sees RB options scored higher.' },
+                    { term: 'Analytics', def: 'Roster, Draft, and Market Moves KPIs benchmarked against the league\u2019s winning teams, the combined Players & Picks ledger, and Custom Reports \u2014 saved, filterable table views you build column by column.' },
+                    { term: 'GM\u2019s Office', def: 'Alex, your AI GM, turns the data into briefings, trade reads, and draft scouting, and keeps a record of your decisions.' },
+                    { term: 'Player Card & Tags', def: 'Tap any player \u2014 on your roster or in Analytics \u2014 for their dossier: bio, Dynasty Read, age curve, and career stats. Tag them Trade Block, Cut, Untouchable, or Watch; tags sync between War Room and War Room Scout.' },
                 ]},
 	            ];
 	            if (module) {
@@ -709,8 +715,6 @@
         const [showColPicker, setShowColPicker] = useState(false);
         const [colPreset, setColPreset] = useState('default');
         const [expandedPid, setExpandedPid] = useState(null);
-        const [showAvatarPicker, setShowAvatarPicker] = useState(false);
-        const [avatarKey, setAvatarKey] = useState(0); // force re-render when avatar changes
         const [welcomeMode, setWelcomeMode] = useState(false); // centered modal for first-time welcome
         const [showCornerToast, setShowCornerToast] = useState(false); // "I'll be down here" toast
         const [heroStory, setHeroStory] = useState('');
@@ -1327,13 +1331,33 @@
                 'Let\'s get to work. What\'s on your mind? \u2014 Alex',
               onboardChoices: [
                 { label: 'What should I do?', value: 'advice' },
-                { label: 'Pick Alex\'s look', value: 'avatar' }
+                { label: 'Read my roster', value: 'roster' }
               ]
             }]);
             setGmOnboardStep(0); // reset so strategy onboarding can trigger next
           }, 1500);
           return () => clearTimeout(t);
         }, [myRoster?.players?.length, currentLeague?.league_id]);
+
+        // Tutorial payoff — when the GM Briefing finishes (not skipped), Alex makes
+        // his entrance: open the chat live and deliver the three moves he promised on
+        // the finish screen. This replaces the old separate welcome chat for new users.
+        useEffect(() => {
+          function onTutorialComplete(e) {
+            const detail = (e && e.detail) || {};
+            if (detail.product && detail.product !== 'warroom') return;
+            if (detail.reason === 'skipped' || detail.reason === 'escape') return;
+            setTimeout(() => {
+              try {
+                setWelcomeMode(false);
+                setReconPanelOpen(true);
+                sendReconMessage('What are the top 3 moves I should make right now?');
+              } catch (err) { window.wrLog?.('tutorial.handoff', err); }
+            }, 450);
+          }
+          window.addEventListener('dhq:tutorial-complete', onTutorialComplete);
+          return () => window.removeEventListener('dhq:tutorial-complete', onTutorialComplete);
+        }, [currentLeague?.league_id]);
 
         // Handle welcome choices — exit welcome mode, show corner toast
         function handleWelcomeChoice(value) {
@@ -1346,12 +1370,12 @@
           } else if (value === 'advice') {
             setReconMessages(prev => prev.map(m => ({ ...m, onboardChoices: undefined })));
             sendReconMessage('What are the top 3 moves I should make right now?');
-          } else if (value === 'avatar') {
+          } else if (value === 'roster') {
             setReconMessages(prev => prev.map(m => ({ ...m, onboardChoices: undefined })));
-            setShowAvatarPicker(true);
+            sendReconMessage('Give me a quick read on my roster — biggest strength, biggest hole, and the one window I should be playing for.');
           }
           // Show "I'll be down here" toast after transition
-          if (value !== 'strategy' && value !== 'advice') {
+          if (value !== 'strategy' && value !== 'advice' && value !== 'roster') {
             setReconPanelOpen(false);
             setTimeout(() => {
               setShowCornerToast(true);
@@ -3184,8 +3208,6 @@
                     setGmStrategy={setGmStrategy}
                     gmStrategyOpen={gmStrategyOpen}
                     setGmStrategyOpen={setGmStrategyOpen}
-                    setAlexAvatar={setAlexAvatar}
-                    setAvatarKey={setAvatarKey}
                     setActiveTab={setActiveTab}
                     setReconPanelOpen={setReconPanelOpen}
                     sendReconMessage={sendReconMessage}
@@ -3372,11 +3394,11 @@
                 display: 'flex', alignItems: 'center', gap: '8px',
                 background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderRadius: '14px 14px 0 0'
               }}>
-                <div key={avatarKey} onClick={e => { e.stopPropagation(); setShowAvatarPicker(p => !p); }} style={{ cursor: 'pointer' }} title="Change Alex's avatar">
+                <div>
                   <AlexAvatar size={30} />
                 </div>
                 <div>
-                  <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', color: 'var(--gold)', letterSpacing: '0.04em', lineHeight: 1, display: 'flex', alignItems: 'center', gap: '4px' }}>{(() => { const k = localStorage.getItem('wr_alex_avatar') || 'brain'; const m = { brain:'\u{1F9E0}', target:'\u{1F3AF}', chart:'\u{1F4CA}', football:'\u{1F3C8}', bolt:'\u26A1', fire:'\u{1F525}', medal:'\u{1F396}\uFE0F', trophy:'\u{1F3C6}' }; return m[k] || ''; })()}Alex Ingram</div>
+                  <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', color: 'var(--gold)', letterSpacing: '0.04em', lineHeight: 1, display: 'flex', alignItems: 'center', gap: '4px' }}>Alex Ingram</div>
                   <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5 }}>AI General Manager</div>
                 </div>
                 <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--text-muted)' }}>Cmd+K</span>
@@ -3400,30 +3422,6 @@
                   fontSize: '1rem', padding: '2px'
                 }}>&#10005;</button>
               </div>
-
-              {/* Avatar picker (toggled) */}
-              {showAvatarPicker && (
-                <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', background: 'var(--acc-fill1, rgba(212,175,55,0.04))' }}>
-                  <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginBottom: '6px', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Choose Alex's look</div>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {ALEX_AVATARS.map(av => (
-                      <button key={av.id} onClick={() => { setAlexAvatar(av.id); setShowAvatarPicker(false); setAvatarKey(k => k+1); }} style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
-                        padding: '6px', background: getAlexAvatar() === av.id ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'var(--ov-2, rgba(255,255,255,0.03))',
-                        border: '1px solid ' + (getAlexAvatar() === av.id ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                        borderRadius: '8px', cursor: 'pointer', minWidth: '56px'
-                      }}>
-                        {av.src ? (
-                          <img src={av.src} alt={av.label} style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover' }} />
-                        ) : (
-                          <div style={{ width: '36px', height: '36px', borderRadius: '6px', background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 800, color: 'var(--k-0a0a0a, #0a0a0a)', fontFamily: 'Rajdhani, sans-serif' }}>AI</div>
-                        )}
-                        <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', textAlign: 'center' }}>{av.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Context chips */}
               <div style={{ padding: '6px 12px', display: 'flex', gap: '4px', flexWrap: 'wrap', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
