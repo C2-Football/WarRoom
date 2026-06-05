@@ -60,6 +60,18 @@
                         if (metaResp.ok) meta = await metaResp.json();
                     }
                 } catch (_) {}
+                // Pick ownership can change between picks (managers trade picks live).
+                // Re-pull the draft's traded picks every poll so upcoming-pick ownership
+                // stays current during high-frequency trading. Non-fatal.
+                let tradedPicks = null;
+                try {
+                    if (window.Sleeper?.fetchDraftTradedPicks) {
+                        tradedPicks = await window.Sleeper.fetchDraftTradedPicks(draftId);
+                    } else {
+                        const tpResp = await fetch('https://api.sleeper.app/v1/draft/' + draftId + '/traded_picks');
+                        if (tpResp.ok) tradedPicks = await tpResp.json();
+                    }
+                } catch (_) {}
                 if (picks == null) {
                     // Distinguish a dead/missing draft (null/404 from the fetch) from
                     // a valid empty pre-draft feed ([]). A silent return here would
@@ -103,6 +115,7 @@
                     remoteBehind: snapshot.remoteBehind,
                     stale: !!staleReason,
                     error: staleReason,
+                    tradedPicks: Array.isArray(tradedPicks) ? tradedPicks : null,
                 });
                 if (snapshot.newPicks.length) onNewPicks(snapshot.newPicks, snapshot);
             } catch (e) {

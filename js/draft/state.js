@@ -1863,6 +1863,32 @@
                 };
             }
 
+            case 'UPDATE_LIVE_OWNERSHIP': {
+                // Re-attribute ownership of UPCOMING picks (idx >= currentIdx) from a
+                // freshly-polled pickOwnership map (keyed 'round-slot'). Already-made
+                // picks keep the roster that actually made them. This is what lets
+                // mid-draft pick trades move the right team onto the clock during
+                // high-frequency trading — the live poll refreshes traded picks and
+                // hands the recomputed ownership here.
+                const ownership = action.pickOwnership;
+                if (!ownership || !state.pickOrder?.length) return state;
+                let changed = false;
+                const pickOrder = state.pickOrder.map((slot, idx) => {
+                    if (idx < state.currentIdx) return slot;
+                    const own = ownership[slot.round + '-' + slot.slot];
+                    if (!own) return slot;
+                    const nextRid = own.rosterId != null ? own.rosterId : slot.originalRosterId;
+                    const nextName = own.ownerName || slot.originalOwnerName || slot.ownerName;
+                    const nextTraded = !!own.traded;
+                    if (String(nextRid) === String(slot.rosterId) && nextName === slot.ownerName && nextTraded === !!slot.traded) {
+                        return slot;
+                    }
+                    changed = true;
+                    return { ...slot, rosterId: nextRid, ownerName: nextName, traded: nextTraded };
+                });
+                return changed ? { ...state, pickOrder } : state;
+            }
+
             case 'APPLY_LIVE_SYNC_PICKS': {
                 const incoming = action.picks || [];
                 if (!incoming.length) {

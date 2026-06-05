@@ -210,6 +210,12 @@
         // is populated even when window.S.drafts is empty (which is common —
         // the main app's Draft Room tab fetches it separately into draft-room.js).
         const [fetchedDrafts, setFetchedDrafts] = React.useState(null);
+        // Live-polled traded picks for THIS draft (Follow Live Draft). Kept separate
+        // from the league-wide window.S.tradedPicks so we don't clobber future-pick
+        // data; merged into draftMeta below. Updated only when the set actually
+        // changes (signature-gated in the live-sync onStatus handler).
+        const [liveDraftTradedPicks, setLiveDraftTradedPicks] = React.useState(null);
+        const liveTradedSigRef = React.useRef('');
         const leagueIdForFetch = currentLeague?.league_id || currentLeague?.id;
         React.useEffect(() => {
             if (!leagueIdForFetch) return;
@@ -230,7 +236,12 @@
             const users = window.S?.leagueUsers || currentLeague?.users || [];
             const myUid = window.S?.user?.user_id || '';
             const myRid = myRoster?.roster_id;
-            const tradedPicks = window.S?.tradedPicks || [];
+            // Live-polled draft traded picks win over the league-wide snapshot for
+            // this draft's rounds (.find below takes the first match); fall back to
+            // window.S.tradedPicks for everything else.
+            const liveTp = Array.isArray(liveDraftTradedPicks) ? liveDraftTradedPicks : [];
+            const baseTp = window.S?.tradedPicks || [];
+            const tradedPicks = liveTp.length ? [...liveTp, ...baseTp] : baseTp;
             const leagueSeason = String(currentLeague?.season || new Date().getFullYear());
             // Prefer mount-fetched drafts, then window.S cache, then currentLeague synthetic fallback
             const drafts = (fetchedDrafts && fetchedDrafts.length) ? fetchedDrafts : (window.S?.drafts || []);
@@ -377,7 +388,7 @@
                 draftVariant,
                 upcomingSettings,
             };
-        }, [myRoster, currentLeague, propRounds, fetchedDrafts]);
+        }, [myRoster, currentLeague, propRounds, fetchedDrafts, liveDraftTradedPicks]);
 
         // Reducer + initial state (load from localStorage if possible)
         const [state, dispatch] = React.useReducer(
@@ -735,7 +746,21 @@
             }, {
                 initialPickNo,
                 seenPickKeys,
-                onStatus: status => dispatch({ type: 'LIVE_SYNC_STATUS', payload: status }),
+                onStatus: status => {
+                    // Capture mid-draft pick trades. Only push to state when the set
+                    // actually changes, so we don't re-render every 5s poll.
+                    if (Array.isArray(status?.tradedPicks)) {
+                        const sig = status.tradedPicks
+                            .map(t => [t.season, t.round, t.roster_id, t.owner_id].join(':'))
+                            .sort()
+                            .join('|');
+                        if (sig !== liveTradedSigRef.current) {
+                            liveTradedSigRef.current = sig;
+                            setLiveDraftTradedPicks(status.tradedPicks);
+                        }
+                    }
+                    dispatch({ type: 'LIVE_SYNC_STATUS', payload: status });
+                },
             });
 
             return () => {
@@ -744,6 +769,17 @@
                 }
             };
         }, [state.mode, state.phase, state.sleeperDraftId, state.userRosterId]);
+
+        // ── Live-Sync ownership refresh ────────────────────────────────
+        // When the live poll surfaces new pick trades, draftMeta.pickOwnership
+        // recomputes (it depends on liveDraftTradedPicks). Push the fresh ownership
+        // into the reducer so the upcoming picks re-attribute to whoever owns them
+        // now. Already-made picks are left alone; the reducer no-ops when unchanged.
+        React.useEffect(() => {
+            if (state.mode !== 'live-sync' || state.phase !== 'drafting') return;
+            if (!draftMeta?.pickOwnership || !state.pickOrder?.length) return;
+            dispatch({ type: 'UPDATE_LIVE_OWNERSHIP', pickOwnership: draftMeta.pickOwnership });
+        }, [draftMeta, state.mode, state.phase, state.currentIdx]);
 
         // ── Live-Sync variant auto-correction ──────────────────────────
         // When resuming a live-sync draft, the saved state's `variant` can be
