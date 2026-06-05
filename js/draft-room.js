@@ -1899,7 +1899,7 @@
         // Tag button helper
         const tagDefs = { target: { icon: '\u2605', color: 'var(--good)', label: 'Target' }, avoid: { icon: '\u2717', color: 'var(--bad)', label: 'Avoid' }, sleeper: { icon: '\u26A1', color: 'var(--k-3498db, #3498db)', label: 'Sleeper' }, must: { icon: '\u2B50', color: 'var(--gold)', label: 'Must' } };
 
-        const draftViewLabels = { command: 'Flash Brief', board: 'Big Board', mock: 'Mock Draft Center', live: 'Live Draft' };
+        const draftViewLabels = { command: 'War Room', board: 'Big Board', mock: 'Mock Draft Center', live: 'Live Draft' };
         const draftViewContext = {
             command: 'Your picks, board value, and draft-room priorities.',
             board: isRookieDraft ? 'Prospect board, tags, tiers, and saved scouting views.' : 'Full player board, tags, tiers, and saved redraft views.',
@@ -2017,13 +2017,13 @@
                     {(activeView !== 'live' && activeView !== 'mock') && (
                         <div className="wr-module-context">
                             <span>Draft</span>
-                            <strong>{draftViewLabels[activeView] || 'Flash Brief'}</strong>
+                            <strong>{draftViewLabels[activeView] || 'War Room'}</strong>
                             <em>{draftViewContext[activeView] || draftViewContext.command}</em>
                         </div>
                     )}
                     <div className="wr-module-actions">
                     <div className="wr-module-nav">
-                    <button type="button" className={activeView === 'command' ? 'is-active' : ''} onClick={() => setDraftView('command')}>Flash Brief</button>
+                    <button type="button" className={activeView === 'command' ? 'is-active' : ''} onClick={() => setDraftView('command')}>War Room</button>
                     <button type="button" className={activeView === 'board' ? 'is-active' : ''} onClick={() => setDraftView('board')}>Big Board</button>
                     <button type="button" className={activeView === 'mock' ? 'is-active' : ''} onClick={() => setDraftView('mock')}>Mock Draft Center</button>
                     </div>
