@@ -110,7 +110,7 @@ function build() {
 (function() {
   window.addEventListener('DOMContentLoaded', function() {
     if (typeof OwnerDashboard !== 'undefined') return;
-    document.getElementById('root').innerHTML = '<div style="color:#E74C3C;padding:40px;text-align:center;font-family:sans-serif"><h2>Module Load Error</h2><p>Precompiled War Room modules failed to load. Run npm run build:preview and check the terminal output.</p></div>';
+    document.getElementById('root').innerHTML = '<div style="color:#E74C3C;padding:40px;text-align:center;font-family:sans-serif"><h2>Module Load Error</h2><p>Precompiled Dynasty HQ modules failed to load. Run npm run build:preview and check the terminal output.</p></div>';
   });
 })();`
   );

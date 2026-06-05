@@ -174,7 +174,7 @@
             } catch { return 'free'; }
         }, []);
 
-        const tierLabel = { free: 'War Room Free', trial: 'War Room Trial', scout: 'Scout', warroom: 'War Room', pro: 'Dynasty HQ Pro', power: 'Dynasty HQ Power', paid: 'Paid' };
+        const tierLabel = { free: 'Dynasty HQ Free', trial: 'Dynasty HQ Trial', scout: 'Scout', warroom: 'Dynasty HQ', pro: 'Dynasty HQ Pro', power: 'Dynasty HQ Power', paid: 'Paid' };
         const tierColor = { free: 'var(--silver)', trial: 'var(--silver)', scout: 'var(--silver)', warroom: 'var(--gold)', pro: 'var(--gold)', power: 'var(--k-a855f7, #a855f7)', paid: 'var(--gold)' };
         const tierBg    = { free: 'rgba(192,192,192,0.12)', trial: 'rgba(192,192,192,0.12)', scout: 'rgba(192,192,192,0.12)', warroom: 'var(--acc-fill2, rgba(212,175,55,0.12))', pro: 'var(--acc-fill2, rgba(212,175,55,0.12))', power: 'rgba(168,85,247,0.12)', paid: 'var(--acc-fill2, rgba(212,175,55,0.12))' };
 
@@ -377,7 +377,7 @@
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' }}>
                                     <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>Current plan:</span>
                                     <span style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: tierColor[currentTier] || 'var(--silver)', background: tierBg[currentTier] || 'rgba(192,192,192,0.12)', padding: '0.15rem 0.55rem', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                                        {tierLabel[currentTier] || 'War Room Free'}
+                                        {tierLabel[currentTier] || 'Dynasty HQ Free'}
                                     </span>
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
@@ -413,7 +413,7 @@
                             <div style={moduleSectionStyle}>
                                 <div style={sectionTitle}>ABOUT</div>
                                 <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.65 }}>
-                                    Dynasty HQ War Room v2.0 &middot; Powered by DHQ Engine
+                                    Dynasty HQ v2.0 &middot; Powered by DHQ Engine
                                 </div>
                             </div>
                         </div>
@@ -541,7 +541,7 @@
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' }}>
                             <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>Current plan:</span>
                             <span style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: tierColor[currentTier] || 'var(--silver)', background: tierBg[currentTier] || 'rgba(192,192,192,0.12)', padding: '0.15rem 0.55rem', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                                {tierLabel[currentTier] || 'War Room Free'}
+                                {tierLabel[currentTier] || 'Dynasty HQ Free'}
                             </span>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
@@ -585,7 +585,7 @@
                     <div style={sectionStyle}>
                         <div style={sectionTitle}>ABOUT</div>
                         <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.65 }}>
-                            Dynasty HQ War Room v2.0 &middot; Powered by DHQ Engine
+                            Dynasty HQ v2.0 &middot; Powered by DHQ Engine
                         </div>
                     </div>
                     </>)}

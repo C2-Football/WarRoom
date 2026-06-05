@@ -102,7 +102,7 @@
                       )
                     : React.createElement('div', { style: { padding:'1.5rem 0',textAlign:'center' } },
                         React.createElement('div', { style: { fontSize:'2rem',marginBottom:'0.5rem' } }, '📋'),
-                        React.createElement('div', { style: { fontSize:'var(--text-body, 1rem)',color:'var(--silver)',lineHeight:1.6 } }, 'No field log entries yet. Actions you take in War Room Scout — trade scenarios, draft targets, waiver bids — will appear here automatically after syncing.')
+                        React.createElement('div', { style: { fontSize:'var(--text-body, 1rem)',color:'var(--silver)',lineHeight:1.6 } }, 'No field log entries yet. Actions you take in Scout — trade scenarios, draft targets, waiver bids — will appear here automatically after syncing.')
                       )
                   )
                 : React.createElement('div', { style: { maxHeight:'340px',overflowY:'auto',paddingRight:'2px' } },
@@ -134,7 +134,7 @@
                     })
                   ),
             // Footer
-            entries !== null && pendingCount > 0 && React.createElement('div', { style: { marginTop:'8px',paddingTop:'8px',borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))',fontSize:'var(--text-label, 0.75rem)',color:'var(--silver)',opacity:0.7 } }, pendingCount + ' entries pending sync from Scout. Open War Room Scout to push them.')
+            entries !== null && pendingCount > 0 && React.createElement('div', { style: { marginTop:'8px',paddingTop:'8px',borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))',fontSize:'var(--text-label, 0.75rem)',color:'var(--silver)',opacity:0.7 } }, pendingCount + ' entries pending sync from Scout. Open Scout to push them.')
         );
     }
 
@@ -178,7 +178,7 @@
                     target: '_blank', rel: 'noopener noreferrer',
                     className: 'hub-cta',
                     style: { textDecoration: 'none', background: RED, marginTop: 4, display: 'block', textAlign: 'center', padding: '10px', borderRadius: 8, fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--k-ffffff, #ffffff)', letterSpacing: '.06em' }
-                }, 'OPEN IN WAR ROOM SCOUT →'),
+                }, 'OPEN IN SCOUT →'),
                 React.createElement('button', {
                     onClick: function() { /* allow reconnecting */ },
                     style: { background: 'none', border: 'none', color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)', cursor: 'pointer', marginTop: 6, padding: 0 }
@@ -694,7 +694,7 @@
                             <div style={{ width: '36px', height: '36px', flexShrink: 0 }}><ProTierIcon size={36} /></div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                                    <span style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--white)' }}>Upgrade to War Room</span>
+                                    <span style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--white)' }}>Upgrade to Dynasty HQ</span>
                                     <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: 'var(--gold)', background: 'var(--acc-fill3, rgba(212,175,55,0.15))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '10px', padding: '1px 7px', letterSpacing: '0.04em' }}>$4.99/mo</span>
                                 </div>
                                 <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6 }}>Unlock full AI analysis · All leagues · Owner DNA</div>
@@ -869,7 +869,7 @@
                     <div className="header-brand">
                         <img src={iconSrc} alt="Logo" style={{ width:'44px',height:'44px',borderRadius:'10px',boxShadow:'0 2px 12px var(--acc-line2, rgba(212,175,55,.3))' }} />
                         <div className="header-text">
-                            <h1 className="owner-name" style={{ fontSize:'1.1rem',letterSpacing:'.06em' }}>WAR ROOM</h1>
+                            <h1 className="owner-name" style={{ fontSize:'1.1rem',letterSpacing:'.06em' }}>DYNASTY HQ</h1>
                             <div className="header-subtitle">{String(displayName)}</div>
                         </div>
                     </div>
