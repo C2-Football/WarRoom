@@ -513,7 +513,7 @@
 
                 <div style={{
                     display: 'grid',
-                    gridTemplateColumns: (isUserTurn || state.overrideMode || state.mode === 'manual') ? '22px minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 48px 50px' : '22px minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 48px',
+                    gridTemplateColumns: '22px minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 48px 44px',
                     gap: '5px',
                     alignItems: 'center',
                     padding: '0 3px 4px 5px',
@@ -569,7 +569,7 @@
                                 }}
                                 style={{
                                     display: 'grid',
-                                    gridTemplateColumns: (isUserTurn || state.overrideMode || state.mode === 'manual') ? '22px minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 48px 50px' : '22px minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 48px',
+                                    gridTemplateColumns: '22px minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 48px 44px',
                                     gap: '5px',
                                     alignItems: 'center',
                                     padding: '3px 3px 3px 0',
@@ -600,8 +600,8 @@
                                         onClick={e => { e.stopPropagation(); onDraft(p); }}
                                         title={state.overrideMode || state.mode === 'manual' ? 'Record the player for the team on the clock' : 'Make your pick'}
                                         style={{
-                                            padding: '10px 8px',
-                                            minHeight: '44px',
+                                            padding: '3px 5px',
+                                            minHeight: '22px',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',

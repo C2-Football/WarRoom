@@ -2569,13 +2569,21 @@
                                 // landing spot. Premium users get a live web-search read layered on
                                 // via the nflFitAI effect (rendered below). Falls back to a terse line
                                 // when no signals are available (e.g. a CSV-only prospect with no role).
-                                const teamFitInsight = team ? (
-                                    window.App.computeNFLFit(r.pid, {
+                                // Compute the fit UNCONDITIONALLY and gate on the narrative (like the
+                                // player card does). Previously the whole block was gated on `team`, so
+                                // most rookie-draft prospects (no NFL team yet) got no fit read at all —
+                                // that's why "Alex NFL Fit" fired inconsistently. computeNFLFit returns a
+                                // narrative even with no landing spot (its "Unsettled" branch).
+                                const _nflFit = (typeof window.App.computeNFLFit === 'function')
+                                    ? window.App.computeNFLFit(r.pid, {
                                         pos, player: r.p, dhq: r.dhq, isRookie: isRookieDraft,
                                         capital: { round: draftRound, pick: draftPick, nflTeam: team, isUDFA: isTrueUdfa(cs) },
-                                    }).narrative
-                                    || ('On ' + team + ", the role isn't settled yet — I'd trust the board value over the situation until it clears.")
-                                ) : '';
+                                    })
+                                    : null;
+                                const teamFitInsight = (_nflFit && _nflFit.narrative)
+                                    || (team
+                                        ? ('On ' + team + ", the role isn't settled yet — I'd trust the board value over the situation until it clears.")
+                                        : "The landing spot isn't set yet — I'd trust the board value until it clears.");
                                 const summaryBits = String(cs.summary || '')
                                     .split(/(?<=[.!?])\s+/)
                                     .map(s => s.trim())

@@ -179,7 +179,7 @@
                     <div style={{ fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
                         Alex Stream
                     </div>
-                    <span title={`Premium Alex calls: ${sonnetUsed}/${budget} · Quick replies: ${flashUsed}`} style={{
+                    <span title={`Auto Alex notes: ${sonnetUsed}/${budget} per draft${sonnetUsed >= budget ? ' — used up; Ask Alex still works' : ''} · Quick replies: ${flashUsed}`} style={{
                         fontSize: 'var(--text-label, 0.75rem)',
                         padding: '1px 6px',
                         background: 'rgba(0,0,0,0.3)',
@@ -189,7 +189,7 @@
                         fontFamily: FONT_MONO_SAFE(),
                         fontWeight: 600,
                     }}>
-                        AI notes {sonnetUsed}/{budget}
+                        AI notes {sonnetUsed >= budget ? 'maxed' : `${sonnetUsed}/${budget}`}
                     </span>
                 </div>
 
