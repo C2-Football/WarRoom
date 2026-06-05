@@ -1485,7 +1485,16 @@
         // Phase 3: open the trade proposer drawer for a given CPU roster
         const onPropose = React.useCallback((rosterId, seed) => {
             if (!rosterId || String(rosterId) === String(state.userRosterId)) return;
-            dispatch({ type: 'OPEN_PROPOSER', targetRosterId: rosterId, seed: seed || undefined });
+            const s = seed || {};
+            // Default the draft trade desk to FIND/move-up — the primary draft use is
+            // acquiring a better pick. When a specific asset is queued (e.g. "Queue
+            // trade" from the pick log seeds theirGive), keep the manual Build view so
+            // the seeded lane is visible. (FIND defaults to the 'acquire' intent.)
+            const hasAssetSeed = !!(s.myGive?.length || s.theirGive?.length || s.myGivePlayers?.length
+                || s.theirGivePlayers?.length || s.myGiveFuture?.length || s.theirGiveFuture?.length
+                || s.myGiveFaab || s.theirGiveFaab);
+            const finalSeed = { ...s, analyzerMode: s.analyzerMode || (hasAssetSeed ? 'build' : 'find') };
+            dispatch({ type: 'OPEN_PROPOSER', targetRosterId: rosterId, seed: finalSeed });
         }, [state.userRosterId]);
 
         // ── Render ───────────────────────────────────────────────────

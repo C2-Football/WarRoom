@@ -84,7 +84,8 @@
         const playerIds = (roster?.players || []).filter(pid => pid && !pickedPids.has(pid));
         const playerOpts = playerIds.map(pid => ({ pid, val: sim.playerValueFor ? sim.playerValueFor(pid) : 0 })).sort((a, b) => b.val - a.val).slice(0, 60).map(({ pid, val }) => { const pd = pdata[pid] || {}; const pos = pd.position || pd.fantasy_positions?.[0] || ''; const nm = pd.full_name || ((pd.first_name || '') + ' ' + (pd.last_name || '')).trim() || pid; return { key: 'plr:' + pid, type: 'player', label: nm + (pos ? ' · ' + pos : ''), sub: fmtDhq(val), asset: pid }; });
         return [
-            { label: 'Picks', options: [...pickOpts, ...futureOpts] },
+            { label: 'This draft', options: pickOpts },
+            { label: 'Future picks', options: futureOpts },
             { label: 'Players', options: playerOpts },
         ].filter(g => g.options.length);
     }
@@ -383,7 +384,8 @@
         // Picks of all years (current draft + future seasons) share one group, ordered
         // earliest-first; players are their own group.
         const buildGroups = (picks, pids, futures) => [
-            { label: 'Picks', options: [...pickOpts(picks), ...futureOpts(futures)] },
+            { label: 'This draft', options: pickOpts(picks) },
+            { label: 'Future picks', options: futureOpts(futures) },
             { label: 'Players', options: playerOpts(pids) },
         ].filter(g => g.options.length);
         const giveGroups = buildGroups(myRemainingPicks, myPlayerIds, myFuturePicks);
@@ -705,12 +707,13 @@
                     {/* Analyzer mode toggle — Build vs Find (Trade Center parity) */}
                     <AnalyzerModeToggle mode={analyzerMode} onChange={setAnalyzerMode} disabled={isSending || isAccepted} />
 
+                    {/* Partner needs + tradable assets — always visible (Build AND Find) */}
+                    <OwnerIntelCard profile={partnerProfile} />
+
                     {analyzerMode === 'find' ? (
                         <DraftTradeFinder state={state} dispatch={dispatch} />
                     ) : (
                     <React.Fragment>
-                    <OwnerIntelCard profile={partnerProfile} />
-
                     <SuggestionRail
                         suggestions={packageSuggestions}
                         onLoad={loadProposal}
