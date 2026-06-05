@@ -432,11 +432,67 @@
         return out;
     }
 
+    // ── Mid-draft trade-evolution signal (rule-based, NO model spend) ──────
+    // Buckets state.completedTrades by draft round and compares the per-round and
+    // whole-draft trade rate against an EXPECTED baseline derived from the tuning
+    // knob (state.draftTuning.tradeActivity, 0-100). Classifies 'heavy'/'typical'/'quiet'.
+    // acceptedAt is state.currentIdx — a 0-based pick index; round = floor(idx/size)+1.
+    // In live-sync mode completedTrades is empty (read-only), so this is inert there.
+    function liveTradeEvolutionSignal(state) {
+        const leagueSize = Math.max(1, num(state?.leagueSize, 12));
+        const rounds = Math.max(1, num(state?.rounds, 5));
+        const trades = asArray(state?.completedTrades);
+        const tradedRounds = Math.max(1, Math.floor(num(state?.currentIdx, 0) / leagueSize) + 1);
+
+        const activityRaw = Number(state?.draftTuning?.tradeActivity);
+        const activity = Number.isFinite(activityRaw) ? Math.max(0, Math.min(100, activityRaw)) : 50;
+        const expectedPerRound = Math.max(0, (0.2 + activity * 0.008));
+
+        const byRound = {};
+        let counted = 0;
+        trades.forEach(t => {
+            const idx = num(t?.acceptedAt, NaN);
+            if (!Number.isFinite(idx) || idx < 0) return;
+            const round = Math.floor(idx / leagueSize) + 1;
+            byRound[round] = (byRound[round] || 0) + 1;
+            counted++;
+        });
+
+        const total = counted;
+        const overallRate = total / tradedRounds;
+        const currentRound = Math.min(rounds, Math.floor(num(state?.currentIdx, 0) / leagueSize) + 1);
+        const currentRoundCount = byRound[currentRound] || 0;
+
+        const classify = (count, perRoundExpect, roundsSeen) => {
+            const expect = Math.max(0.0001, perRoundExpect * Math.max(1, roundsSeen));
+            if (count >= Math.max(2, expect * 1.6)) return 'heavy';
+            if (roundsSeen >= 2 && count <= expect * 0.4) return 'quiet';
+            return 'typical';
+        };
+
+        return {
+            schemaVersion: SCHEMA,
+            leagueSize,
+            rounds,
+            totalTrades: total,
+            tradedRounds,
+            currentRound,
+            currentRoundCount,
+            byRound,
+            expectedPerRound: Math.round(expectedPerRound * 100) / 100,
+            overallRate: Math.round(overallRate * 100) / 100,
+            roundClass: classify(currentRoundCount, expectedPerRound, 1),
+            draftClass: classify(total, expectedPerRound, tradedRounds),
+            activity,
+        };
+    }
+
     window.DraftCC = window.DraftCC || {};
     window.DraftCC.liveDecisionEngine = {
         buildDecisionDeck,
         buildLiveReadout,
         liveStreamSignals,
+        liveTradeEvolutionSignal,
         tierAlert,
         _private: {
             candidates,

@@ -15,7 +15,7 @@
 
     // High-signal room events (run / tier break / value cliff). Module-scoped and
     // exported so the header "Alex Whisper" shares the exact same gate (no dupes).
-    const HIGH_SIGNAL = new Set(['🔥', '⛰', '⬇']);
+    const HIGH_SIGNAL = new Set(['🔥', '⛰', '⬇', '🔄']);
 
     const CHIP_PROMPTS = [
         { label: 'Who should I target?',  text: 'Who should I target with my next pick given the current board?' },
