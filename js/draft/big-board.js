@@ -110,6 +110,16 @@
         const [boardLane, setBoardLane] = React.useState(defaultLane);
         const [dragPid, setDragPid] = React.useState(null);
         const [bucket, setBucket] = React.useState(() => bpBucket());
+        // Hide-drafted toggle (default OFF — matches the prior always-show behavior).
+        // Persisted as a single user preference across leagues/variants.
+        const [hideDrafted, setHideDrafted] = React.useState(() => {
+            try { return window.App?.WrStorage?.get('wr_bb_hide_drafted') === true; } catch (e) { return false; }
+        });
+        const toggleHideDrafted = () => setHideDrafted(v => {
+            const next = !v;
+            try { window.App?.WrStorage?.set('wr_bb_hide_drafted', next); } catch (e) {}
+            return next;
+        });
 
         React.useEffect(() => {
             if (boardContext?.activeLane && boardContext.activeLane !== boardLane) {
@@ -212,6 +222,7 @@
 
         const available = React.useMemo(() => {
             const filtered = decoratedPool.filter(p => {
+                if (hideDrafted && p._drafted) return false;
                 if (posFilter && normEdPos(p.pos) !== posFilter) return false;
                 if (search) {
                     const q = search.toLowerCase();
@@ -232,7 +243,7 @@
                 return dir * ((b.dhq || 0) - (a.dhq || 0));
             });
             return sorted.slice(0, 100);
-        }, [decoratedPool, posFilter, search, sortKey, sortDir]);
+        }, [decoratedPool, posFilter, search, sortKey, sortDir, hideDrafted]);
 
         const availablePositions = React.useMemo(() => {
             const set = new Set();
@@ -503,6 +514,22 @@
                             fontWeight: 600,
                         }}>{posLabel(pos)}</button>
                     ))}
+                    <button onClick={toggleHideDrafted} title="Hide players who have already been drafted" style={{
+                        padding: '2px 10px',
+                        minHeight: '40px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 'var(--text-micro, 0.6875rem)',
+                        borderRadius: '10px',
+                        border: '1px solid ' + (hideDrafted ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
+                        background: hideDrafted ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
+                        color: hideDrafted ? 'var(--gold)' : 'var(--silver)',
+                        cursor: 'pointer',
+                        fontFamily: FONT_UI,
+                        fontWeight: 600,
+                        marginLeft: 'auto',
+                    }}>{hideDrafted ? '✓ Hide drafted' : 'Hide drafted'}</button>
                 </div>
 
                 {activeLane === 'my' && (
