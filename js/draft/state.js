@@ -674,10 +674,20 @@
             if (typeof window.getProspects === 'function') {
                 const prospects = window.getProspects();
                 if (prospects && prospects.length) {
-                    return prospects.slice(0, maxSize).map(p => {
+                    return prospects.map(p => {
                         const sleeper = matchSleeperRookie(p, playersData);
                         const sid = sleeper?.pid || p.sleeperId || p.player_id || p.playerId || p.pid;
                         const resolved = resolvePlayerDhq({ ...p, pid: sid, csv: p, player: sleeper?.player, name: sleeper?.player?.full_name || p.name });
+                        // Determine NFL experience. matchSleeperRookie only matches
+                        // years_exp===0 players, so a returning player (e.g. a 2nd-year
+                        // IDP that leaked into the prospect CSV) comes back as no match —
+                        // look it up by its resolved id so we still see its real
+                        // experience. No id / not in the player DB ⇒ incoming rookie.
+                        const sleeperPlayer = sleeper?.player
+                            || (sid != null ? (playersData || window.S?.players || {})[sid] : null)
+                            || null;
+                        const yearsExpRaw = sleeperPlayer?.years_exp ?? sleeperPlayer?.yearsExp;
+                        const yearsExp = Number.isFinite(Number(yearsExpRaw)) ? Number(yearsExpRaw) : null;
                         return {
                             pid: sid || p.pid,
                             csvPid: p.pid,
@@ -686,6 +696,9 @@
                             team: sleeper?.player?.team || '',
                             college: p.college || p.school || sleeper?.player?.college || '',
                             age: p.age || p.csv?.age || sleeper?.player?.age || null,
+                            yearsExp,
+                            years_exp: yearsExp,
+                            isRookie: yearsExp == null || yearsExp === 0,
                             dhq: resolved.value,
                             csv: p,
                             photoUrl: sleeper
@@ -700,7 +713,14 @@
                             source: resolved.source,
                             isCSV: true,
                         };
-                    }).sort((a, b) => (b.dhq || 0) - (a.dhq || 0));
+                    })
+                        // Rookie pool = first-year players only. Drop any prospect that
+                        // resolved to a Sleeper player with NFL experience — those are
+                        // returning players (e.g. 2nd-year IDP scored on real production)
+                        // that don't belong on the rookie board.
+                        .filter(p => p.yearsExp == null || p.yearsExp === 0)
+                        .sort((a, b) => (b.dhq || 0) - (a.dhq || 0))
+                        .slice(0, maxSize);
                 }
             }
             // Fall through to startup if CSV missing
