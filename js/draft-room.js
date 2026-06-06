@@ -250,10 +250,15 @@
             return 0.90;
         };
 
-        const calibratedRookieDHQ = (pid, player, engineDHQ) => {
-            const row = rookieMarket.rows?.[pid];
+        const calibratedRookieDHQ = (pid, player, engineDHQ, csv) => {
             const pos = normPos(player?.position);
-            if (!row || !['QB', 'RB', 'WR', 'TE'].includes(pos)) return engineDHQ || 0;
+            // IDP (non-QB/RB/WR/TE): the league score isn't draft-capital-aware, so a
+            // late-round defender otherwise sits near first-round value. Use the
+            // RookieData capital-blended dynasty value (80/20 round-vs-scouting blend)
+            // when we have a prospect match; fall back to the engine score otherwise.
+            if (!['QB', 'RB', 'WR', 'TE'].includes(pos)) return (csv && csv.dynastyValue) || engineDHQ || 0;
+            const row = rookieMarket.rows?.[pid];
+            if (!row) return engineDHQ || 0;
             const marketDHQ = row.scaled || row.value || 0;
             if (!marketDHQ) return engineDHQ || 0;
             const ladder = rookieMarket.ladders?.[pos] || [];
@@ -313,13 +318,26 @@
                     return hasValue || p.team;
                 })
                 .map(([pid, p]) => {
-                    const csv = typeof window.findProspect === 'function' ? window.findProspect((p.first_name || '') + ' ' + (p.last_name || '')) : null;
+                    let csv = typeof window.findProspect === 'function' ? window.findProspect((p.first_name || '') + ' ' + (p.last_name || '')) : null;
+                    // Guard against name collisions (e.g. a rookie LB matching a same-named
+                    // RB prospect and inheriting its value): reject a match whose macro
+                    // position group (offense vs IDP) differs from the player's.
+                    if (csv) {
+                        const macroGroup = pos => { const n = normPos(pos); return ['QB', 'RB', 'WR', 'TE'].includes(n) ? 'off' : ['DL', 'LB', 'DB'].includes(n) ? 'idp' : n; };
+                        if (macroGroup(p.position) !== macroGroup(csv.mappedPos || csv.pos)) csv = null;
+                    }
                     // The DHQ engine is the canonical value. Consensus rank and NFL
                     // capital are context on the card, not a second scoring pass.
                     const fcVal = window.App?.LI?.playerScores?.[pid] || 0;
+                    const hasCapital = !!(csv && (Number(csv.draftRound) > 0 || Number(csv.draftPick) > 0));
                     let dhq;
-                    if (fcVal > 0) {
-                        dhq = calibratedRookieDHQ(pid, p, fcVal);
+                    if (csv && !hasCapital) {
+                        // Not drafted → treat as UDFA: use the RookieData value, which floors
+                        // undrafted players to baseDynastyValue once the draft is in (and ranks
+                        // them on scouting pre-draft). Never the league/market score.
+                        dhq = csv.dynastyValue || 0;
+                    } else if (fcVal > 0) {
+                        dhq = calibratedRookieDHQ(pid, p, fcVal, csv);
                     } else if (csv) {
                         // No engine/market score yet: fall back to the scouting model.
                         dhq = csv.dynastyValue || 0;
