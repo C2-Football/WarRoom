@@ -1150,7 +1150,17 @@
         // drawer can compute the same value rank + tier + scouting bits per player.
         const isSeasonalDraftCtx = !isRookieDraft;
         const hasDraftCapital = useCallback((cs = {}) => Number(cs.draftRound) > 0 || Number(cs.draftPick) > 0, []);
-        const isTrueUdfa = useCallback((cs = {}) => !!cs.isUDFA && !hasDraftCapital(cs), [hasDraftCapital]);
+        // True once this class's NFL draft is in (any prospect carries a round/pick). Post-draft,
+        // a prospect with no capital went undrafted, so "Capital TBD" is reclassified as UDFA.
+        // Pre-draft (no capital anywhere yet) we keep "Capital TBD" so future classes aren't mislabeled.
+        const draftResultsLoaded = useMemo(() => {
+            try {
+                const list = (typeof window.getProspects === 'function') ? window.getProspects() : [];
+                return list.some(c => Number(c.draftRound) > 0 || Number(c.draftPick) > 0);
+            } catch (e) { return false; }
+        }, [playersData, timeRecomputeTs]);
+        // Undrafted (for labels/filter/sort): no capital AND (explicitly flagged UDFA OR draft is in).
+        const isTrueUdfa = useCallback((cs = {}) => !hasDraftCapital(cs) && (!!cs.isUDFA || draftResultsLoaded), [hasDraftCapital, draftResultsLoaded]);
 
         const valueRankMaps = useMemo(() => {
             const rows = draftPoolRows
@@ -1299,7 +1309,7 @@
                 .map(r => {
                     const pos = normPos(r.p.position) || r.p.position;
                     const hasCapital = Number(r.csv?.draftRound) > 0 || Number(r.csv?.draftPick) > 0;
-                    const isUdfaOnly = !!r.csv?.isUDFA && !hasCapital;
+                    const isUdfaOnly = !hasCapital && (!!r.csv?.isUDFA || draftResultsLoaded);
                     const needEntry = assess?.needs?.find(n => n.pos === pos);
                     const needBonus = needEntry?.urgency === 'deficit' ? 1700 : needEntry ? 850 : 0;
                     const targetBonus = targetPos && pos === targetPos ? 1200 : 0;
@@ -2591,7 +2601,7 @@
                     // Helpers: parse size like "6'4" → inches, draft sort key (drafted first)
                     const parseSizeIn = s => { const m = String(s||'').match(/(\d+)'?\s*(\d+)?/); return m ? parseInt(m[1])*12 + (parseInt(m[2])||0) : 0; };
                     const hasDraftCapital = (cs = {}) => Number(cs.draftRound) > 0 || Number(cs.draftPick) > 0;
-                    const isTrueUdfa = (cs = {}) => !!cs.isUDFA && !hasDraftCapital(cs);
+                    const isTrueUdfa = (cs = {}) => !hasDraftCapital(cs) && (!!cs.isUDFA || draftResultsLoaded);
                     const showDraftCapitalColumn = !isSeasonalDraft;
                     const draftSortKey = r => {
                         const cs = r.csv || {};
