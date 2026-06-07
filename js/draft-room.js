@@ -145,8 +145,37 @@
             // changes), so we deliberately do NOT depend on timeRecomputeTs here — that would
             // recompute this (and the analyst/rec memos that consume it) on every unrelated tick.
         }, [currentLeague, myRoster?.roster_id, liveTick]);
-        // Analyst Mock freeze: once the live draft's first real pick lands, snapshot the mock so
-        // it stops re-simulating; cleared if the live draft is reset. { previewReports, pressureReport }.
+
+        // Smart live-draft detection: poll the league's Sleeper draft status so the War Room
+        // locks down element generation the moment the draft goes live — even before the first
+        // pick lands or the live Command Center is opened. 'drafting'/'complete' = on. Stops
+        // polling once complete; pre-draft / no-draft leaves generation free.
+        const [liveDraftStatus, setLiveDraftStatus] = useState('');
+        useEffect(() => {
+            const lid = window.S?.currentLeagueId || currentLeague?.league_id || currentLeague?.id;
+            if (!lid) return;
+            let cancelled = false, timer = null;
+            const fetchDrafts = window.Sleeper?.fetchDrafts || (async (id) => { const r = await fetch('https://api.sleeper.app/v1/league/' + id + '/drafts'); return r.ok ? r.json() : []; });
+            const poll = () => {
+                Promise.resolve(fetchDrafts(lid)).then(rows => {
+                    if (cancelled) return;
+                    const drafts = Array.isArray(rows) ? rows : [];
+                    const active = drafts.find(d => d.status === 'drafting')
+                        || drafts.find(d => d.status === 'complete')
+                        || drafts.find(d => d.status === 'pre_draft') || null;
+                    setLiveDraftStatus(active?.status || '');
+                    if (active?.status !== 'complete' && !cancelled) timer = setTimeout(poll, 20000);
+                }).catch(() => { if (!cancelled) timer = setTimeout(poll, 30000); });
+            };
+            poll();
+            return () => { cancelled = true; if (timer) clearTimeout(timer); };
+        }, [currentLeague?.league_id, currentLeague?.id]);
+        // War Room is "locked" (generation frozen, tracking mode) when the Sleeper draft is live
+        // OR picks are already mirroring through the live-sync store.
+        const liveDraftOn = liveDraftStatus === 'drafting' || liveDraftStatus === 'complete' || liveDraftSnapshot.active;
+
+        // Analyst Mock freeze: once the live draft is detected, snapshot the mock so it stops
+        // re-simulating; cleared if the live draft is reset. { previewReports, pressureReport }.
         const [frozenMock, setFrozenMock] = useState(null);
 
         const tradedPicks = useMemo(() => {
@@ -891,7 +920,7 @@
         }, [boardPoolForContext.length, flashAnalystPresetOptions, draftProjectionState, draftProjectionMeta, playersData, currentLeague, myRoster, frozenMock]);
 
         const generateFlashAnalystMock = useCallback(() => {
-            if (liveDraftSnapshot.active) return; // locked during a live draft — don't re-simulate
+            if (liveDraftOn) return; // locked once the live draft is detected — don't re-simulate
             const engine = window.DraftCC?.analystMock;
             if (!engine?.generateProjectedMock || !boardPoolForContext.length) return;
             setFlashAnalystStatus('running');
@@ -914,7 +943,7 @@
                 setFlashAnalystError(e?.message || 'Projection failed.');
                 setFlashAnalystStatus('error');
             }
-        }, [boardPoolForContext.length, draftProjectionState, draftProjectionMeta, playersData, currentLeague, myRoster, flashAnalystPresetId, flashAnalystRoundLimit, liveDraftSnapshot]);
+        }, [boardPoolForContext.length, draftProjectionState, draftProjectionMeta, playersData, currentLeague, myRoster, flashAnalystPresetId, flashAnalystRoundLimit, liveDraftSnapshot, liveDraftStatus]);
 
         const activeFlashAnalystReport = flashAnalystReports.find(r => r.presetId === flashAnalystPresetId) || null;
         const activeFlashPreviewReport = flashAnalystPreviewReports.find(r => r.presetId === flashAnalystPresetId) || flashAnalystPreviewReports[0] || null;
@@ -1139,12 +1168,12 @@
 
         // Freeze the Analyst Mock on the live draft's first real pick; clear if it resets.
         useEffect(() => {
-            if (liveDraftSnapshot.active && !frozenMock) {
+            if (liveDraftOn && !frozenMock) {
                 setFrozenMock({ previewReports: flashAnalystPreviewReports, pressureReport: pressureProjectionReport });
-            } else if (!liveDraftSnapshot.active && frozenMock) {
+            } else if (!liveDraftOn && frozenMock) {
                 setFrozenMock(null);
             }
-        }, [liveDraftSnapshot.active]);
+        }, [liveDraftOn]);
 
         // Lifted from the Big Board so both the board and the Flash Brief scouting
         // drawer can compute the same value rank + tier + scouting bits per player.
@@ -1282,9 +1311,12 @@
         const availableAtNextPick = useCallback((r) => {
             if (!r || r.pid == null) return false;
             if (draftedPids.has(r.pid)) return false;
+            // Exclude players already taken in the live draft so recommendations / best
+            // targets never suggest someone who's off the board (no-op pre-draft).
+            if (liveDraftSnapshot.allPids && liveDraftSnapshot.allPids.has(String(r.pid))) return false;
             if (!nextPickOverall) return true;
             return !pidsGoneBeforePick.has(String(r.pid));
-        }, [draftedPids, nextPickOverall, pidsGoneBeforePick]);
+        }, [draftedPids, nextPickOverall, pidsGoneBeforePick, liveDraftSnapshot]);
 
         // Strategy recommendation — must be declared before recommendations (which depends on it)
         const strategyRec = useMemo(() => {
@@ -1357,15 +1389,27 @@
         }, [draftPredictionReport, topProspects, draftedPids, nextPickOverall, picksBeforeNext]);
 
         const positionRunRows = useMemo(() => {
+            const needByPos = {};
+            (assess?.needs || []).forEach(n => { const p = normPos(n.pos) || n.pos; if (p) needByPos[p] = n; });
             const map = {};
             likelyGoneBeforePick.forEach(r => {
                 const pos = r.pos || 'UNK';
                 if (!map[pos]) map[pos] = { pos, count: 0, names: [] };
                 map[pos].count += 1;
-                if (map[pos].names.length < 2) map[pos].names.push(r.name);
+                if (map[pos].names.length < 4) map[pos].names.push(r.name);
             });
-            return Object.values(map).sort((a, b) => b.count - a.count).slice(0, 6);
-        }, [likelyGoneBeforePick]);
+            return Object.values(map).sort((a, b) => b.count - a.count).slice(0, 6).map(row => {
+                const need = needByPos[row.pos];
+                const goneIds = liveDraftSnapshot.allPids || new Set();
+                const nextAvail = scoredAvailable.find(r => (normPos(r.pos || r.p?.position) || r.pos) === row.pos && !goneIds.has(String(r.pid)));
+                const nextName = nextAvail ? pName(nextAvail.p) : '';
+                const lead = need
+                    ? (need.urgency === 'deficit' ? 'A critical ' + row.pos + ' need is draining' : 'A ' + row.pos + ' need is thinning out')
+                    : (row.count >= 4 ? row.pos + ' is coming off the board fast' : row.pos + ' tier is holding for now');
+                const note = lead + (nextName ? ' — ' + nextName + ' is the next one likely up.' : '.');
+                return { ...row, isNeed: !!need, note };
+            });
+        }, [likelyGoneBeforePick, assess, scoredAvailable, normPos, liveDraftSnapshot]);
 
         const classDepthRows = useMemo(() => {
             const map = {};
@@ -1454,7 +1498,7 @@
                         'I\'d watch the tier break and stay flexible.',
                     ]));
                 }
-                return { ...row, alexBlurb: sentences.join(' ') };
+                return { ...row, alexBlurb: sentences.join(' '), starterCount, nextNames: pool.slice(1, 3).map(r => pName(r.p)) };
             });
         }, [topProspects, normPos, leagueDraftProfile]);
 
@@ -1620,6 +1664,7 @@
         // voice; we parse "POS: note" lines and swap them in over the seeded
         // template. If AI is unavailable or the call fails, the template stands.
         useEffect(() => {
+            if (liveDraftOn) return; // live draft: generation is locked — don't fire AI note calls
             const AV = window.AlexVoice;
             if (!AV || !AV.hasAI() || !needLabels.length) return;
             const targets = needLabels.filter(n => n.targetName);
@@ -1675,7 +1720,7 @@
                 },
             }).then(map => { if (!cancelled && map) setAiRosterNotes(map); });
             return () => { cancelled = true; };
-        }, [needLabels, nextPickLabel, leagueKey, valueShortLabel]);
+        }, [needLabels, nextPickLabel, leagueKey, valueShortLabel, liveDraftOn]);
 
         // Live draft scorecard for Roster Targeting. As you make live picks, each one flips
         // into a graded row (value-vs-where-you-drafted blended with need-fit); positions you
@@ -1989,7 +2034,7 @@
                     nflTeam: ap.nflTeam || (ap.csv && ap.csv.nflTeam) || '',
                     photoUrl: ap.photoUrl || (ap.pid ? 'https://sleepercdn.com/content/nfl/players/thumb/' + ap.pid + '.jpg' : ''),
                     dhq: ap.dhq || 0,
-                    impact: 'You drafted ' + (ap.name || 'this player') + ' here.',
+                    impact: '',
                     driverText: 'your pick',
                     source: 'actual',
                     locked: true,
@@ -2285,6 +2330,20 @@
                 {/* ═══════════════════ VIEW 1: FLASH BRIEF ═══════════════════ */}
                 {activeView === 'command' && (
                     <div className="draft-hq-shell">
+                        {liveDraftOn && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', marginBottom: 10, borderRadius: 8, border: '1px solid var(--bad, #e5534b)', background: 'rgba(229,83,75,0.10)', flexWrap: 'wrap' }}>
+                                <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--bad, #e5534b)', boxShadow: '0 0 0 3px rgba(229,83,75,0.22)', flexShrink: 0 }} />
+                                <strong style={{ color: 'var(--bad, #e5534b)', fontSize: '0.8rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{liveDraftStatus === 'complete' ? 'Draft Complete' : 'Live Draft In Progress'}</strong>
+                                <span style={{ color: 'var(--silver)', fontSize: '0.8rem' }}>
+                                    {liveDraftSnapshot.active
+                                        ? 'Element generation locked — tracking your picks.'
+                                        : 'Element generation locked. Open Follow Live Draft to pull picks.'}
+                                </span>
+                                {!liveDraftSnapshot.active && liveDraftStatus !== 'complete' && (
+                                    <button type="button" onClick={launchLiveDraft} style={{ marginLeft: 'auto', padding: '4px 11px', minHeight: '32px', borderRadius: 6, cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.76rem', fontWeight: 800, border: '1px solid var(--bad, #e5534b)', background: 'rgba(229,83,75,0.16)', color: 'var(--white)' }}>Follow Live Draft</button>
+                                )}
+                            </div>
+                        )}
                         <div className="draft-hq-hero">
                             <section className="draft-hq-panel draft-hq-capital-targeting">
                                 <div className="draft-hq-panel-head">
@@ -2452,7 +2511,7 @@
                                                     <span>{valueShortLabel}</span>
                                                 </span>
                                             )}
-                                            <span className="draft-rec-reason">{pick.impact}</span>
+                                            {pick.impact ? <span className="draft-rec-reason">{pick.impact}</span> : null}
                                             {!pick.locked && (
                                                 <span className="draft-rec-actions">
                                                     <button type="button" onClick={e => { e.stopPropagation(); setScoutDrawerPid(pick.pid); }}>Scout</button>
@@ -2472,10 +2531,11 @@
                                 </div>
                                 <div className="draft-run-list">
                                     {positionRunRows.length ? positionRunRows.map(row => (
-                                        <div key={row.pos}>
+                                        <div key={row.pos} className="draft-run-note-row">
                                             <strong style={{ color: posColors[row.pos] || 'var(--gold)' }}>{row.pos}</strong>
                                             <span>{row.count} likely gone</span>
                                             <em>{row.names.join(', ')}</em>
+                                            <p>{row.note}</p>
                                         </div>
                                     )) : <div className="draft-empty">No pick-pressure read yet.</div>}
                                 </div>
@@ -2485,10 +2545,11 @@
                                     {classDepthRows.map(row => (
                                         <div key={row.pos} className="draft-run-note-row">
                                             <strong style={{ color: posColors[row.pos] || 'var(--gold)' }}>{row.pos}</strong>
-                                            <span>{row.count} top-60 {draftPoolNoun}</span>
+                                            <span>{row.count} top-60 {draftPoolNoun}{row.starterCount ? ' · start ' + row.starterCount : ''}</span>
                                             <em>
                                                 <button type="button" onClick={() => openDraftPlayer(row.topPid)} style={{ border: 0, background: 'transparent', color: 'inherit', padding: 0, font: 'inherit', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'var(--acc-line2, rgba(212,175,55,0.35))' }}>{row.top}</button>
                                                 <button type="button" onClick={() => setBoardTags(prev => ({ ...prev, [row.topPid]: 'target' }))} style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', borderRadius: 5, padding: '1px 7px', fontSize: 'var(--text-micro)', fontFamily: 'var(--font-body)', cursor: 'pointer' }}>Tag</button>
+                                                {row.nextNames && row.nextNames.length ? <span style={{ opacity: 0.6 }}>{' · then ' + row.nextNames.join(', ')}</span> : null}
                                             </em>
                                             <p>{row.alexBlurb}</p>
                                         </div>
