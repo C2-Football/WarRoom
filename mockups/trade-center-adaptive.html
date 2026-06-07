@@ -351,6 +351,8 @@
   .ha-more{margin-left:auto;border:1px solid var(--line);border-radius:7px;padding:7px 13px;font-size:12px;font-weight:700;color:var(--gold);background:rgba(212,175,55,.07);min-height:34px}
   .ha-more.ghost{color:var(--silver);background:transparent;border-color:var(--line-soft);margin-left:0}
   .hero-foot{text-align:center;margin-top:22px;font-size:11px;color:var(--dim);font-family:var(--mono);letter-spacing:.03em}
+  .hc-reroll{font-family:var(--mono);font-size:12px;color:var(--dim);border:1px solid var(--line-soft);border-radius:5px;width:21px;height:21px;line-height:1;margin-left:7px;vertical-align:middle}
+  .hc-reroll:hover{color:var(--gold);border-color:var(--line)}
   .frame.is-phone #calmHero{padding:22px 16px}
   .frame.is-phone .hm-cta{margin-left:0;width:100%;margin-top:4px} .frame.is-phone .hm-foot{flex-wrap:wrap}
 
@@ -411,8 +413,8 @@
     <div class="hero-coach">
       <div class="hc-av">◆</div>
       <div>
-        <div class="hc-kick">Alex · your best move right now</div>
-        <p>Mike Lawson needs a back and he's chasing the playoffs. Move <b>Gibbs</b> while his value is peaking — you upgrade at WR and bank a pick. He takes this <span class="acc">4 times out of 5</span>.</p>
+        <div class="hc-kick">Alex · your best move right now <button class="hc-reroll" id="heroReroll" title="Alex, say it another way" onclick="rollHero()">↻</button></div>
+        <p id="heroCoach">Mike Lawson needs a back and he's chasing the playoffs. Move <b>Gibbs</b> while his value is peaking — you upgrade at WR and bank a pick. He takes this <span class="acc">4 times out of 5</span>.</p>
       </div>
     </div>
 
@@ -748,6 +750,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="../js/shared/alex-voice.js"></script>
 <script>
   let pinned = false;
   let hasTrade = false;
@@ -840,6 +843,57 @@
     const t=document.getElementById('toast'); t.innerHTML=html; t.classList.add('on');
     clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('on'), 2600);
   }
+
+  // ── Hero copy via Alex voice (seeded template variation; template-first AI upgrade) ──
+  // Real build: feed live partner/deal fields here; copy stays human + non-templated, and
+  // AlexVoice.enhance() swaps in dhqAI prose when AI is on (template stands when it's off).
+  const HERO_DEAL = { partner:'Mike Lawson', first:'Mike', need:'a back', give:'Gibbs', get:'WR', accept:81, dna:'Fleecer' };
+  let heroRoll = 0;
+  function alexHeroLine(d, roll){
+    const V = window.AlexVoice; if(!V) return null;
+    const seed = d.partner + '|' + d.give;
+    const situation = V.pickRot(seed, [
+      `${d.first} needs ${d.need} and he's chasing the playoffs`,
+      `${d.first}'s been shopping for ${d.need} all week`,
+      `${d.first}'s thin at ${d.need} — and he knows it`,
+      `${d.first}'s in win-now mode with a hole at ${d.need}`,
+    ], roll);
+    const move = V.pickRot(seed+'m', [
+      `move <b>${d.give}</b> while his value is peaking`,
+      `cash <b>${d.give}</b> in at the top of his market`,
+      `sell <b>${d.give}</b> into that need now`,
+      `package <b>${d.give}</b> before the byes cool him off`,
+    ], roll);
+    const benefit = V.pickRot(seed+'b', [
+      `you upgrade at ${d.get} and bank a pick`,
+      `you get younger at ${d.get} and pocket draft capital`,
+      `you fix your ${d.get} room and keep your core`,
+      `you turn depth into a ${d.get} starter`,
+    ], roll);
+    const read = V.pickRot(seed+'r', [
+      `He takes this <span class="acc">${Math.round(d.accept/20)} times out of 5</span>.`,
+      `Reads as an <span class="acc">${d.accept}% yes</span> — his ${d.dna} streak is the only friction.`,
+      `About <span class="acc">${d.accept}%</span> to bite; lead with the need, not the value.`,
+      `His ${d.dna} DNA bends, not breaks — <span class="acc">${d.accept}%</span> to accept.`,
+    ], roll);
+    return `${V.cap(situation)}. ${V.cap(move)} — ${benefit}. ${read}`;
+  }
+  function renderHero(){
+    const el = document.getElementById('heroCoach'); if(!el) return;
+    const line = alexHeroLine(HERO_DEAL, heroRoll);
+    if(line) el.innerHTML = line;
+    if(window.AlexVoice && line){
+      window.AlexVoice.enhance({
+        type:'strategy-analysis',
+        message:'Give the user one punchy sentence on why this trade is their best move right now.',
+        context: JSON.stringify(HERO_DEAL),
+        fallback: line,
+        cacheKey: 'hero-'+HERO_DEAL.partner+'-'+heroRoll,
+      }).then(txt => { if(txt && txt!==line) el.textContent = txt; });
+    }
+  }
+  function rollHero(){ heroRoll++; renderHero(); }
+  renderHero();
 </script>
 </body>
 </html>
