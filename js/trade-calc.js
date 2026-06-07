@@ -4,6 +4,95 @@
     // ══════════════════════════════════════════════════════════════════════════
     // TRADE CALCULATOR TAB — migrated from trade-calculator.html
     // ══════════════════════════════════════════════════════════════════════════
+
+    // ── TcVerdictPanel — extracted from renderTradeAnalyzer (Step-1 refactor; no behavior change) ──
+    // Pure presentational: takes already-computed deal-evaluation values and renders the verdict
+    // headline, impact grid, posture/DNA chips, 8-factor psych-tax table, and likelihood bar.
+    // Reused by the redesigned single-surface Context Rail's Verdict state.
+    function TcVerdictPanel({ verdictColor, diffDisplay, verdictText, totalA, totalB, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta, FAAB_RATE, likelihoodColor, likelihood, netTaxTotal, manualBehaviorFit, otherOwnerId, theirPosture, otherDnaKey, otherDna, manualBehaviorProfile, psychTaxes, grudgeTax }) {
+        return (
+            <div className="tc-ta-verdict tc-ta-sticky-summary" id="wr-export-trade">
+                <div className="tc-section-hdr" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>TRADE ANALYSIS<button onClick={() => window.wrExport?.capture(document.getElementById('wr-export-trade'), 'trade-analysis')} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'4px', padding:'2px 8px', color:'var(--gold)', fontSize:'var(--text-micro, 0.6875rem)', cursor:'pointer', fontFamily: 'var(--font-body)', minHeight:'44px', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>Snapshot</button></div>
+                <div style={{ display:'flex', alignItems:'baseline', gap:'0.6rem', flexWrap:'wrap' }}>
+                    <span className="tc-verdict-diff" style={{ color: verdictColor }}>{diffDisplay}</span>
+                    <span style={{ fontFamily:'var(--font-title)', fontSize:'1.1rem', color: verdictColor }}>{verdictText}</span>
+                    <span style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.655 }}>(gave {totalA.toLocaleString()} / received {totalB.toLocaleString()})</span>
+                </div>
+                <div className="tc-ta-impact-grid">
+                    <div>
+                        <span>Roster Impact</span>
+                        <strong>{rosterImpactLabel}</strong>
+                        <em>{starterValueDelta >= 0 ? '+' : ''}{Math.round(starterValueDelta).toLocaleString()} player DHQ</em>
+                    </div>
+                    <div>
+                        <span>Pick Capital</span>
+                        <strong>{pickCapitalDelta >= 0 ? '+' : ''}{Math.round(pickCapitalDelta).toLocaleString()}</strong>
+                        <em>{pickQuantityDelta >= 0 ? '+' : ''}{pickQuantityDelta} picks</em>
+                    </div>
+                    <div>
+                        <span>FAAB</span>
+                        <strong>{faabDelta >= 0 ? '+' : ''}${faabDelta}</strong>
+                        <em>{Math.round(faabDelta * FAAB_RATE).toLocaleString()} DHQ equiv.</em>
+                    </div>
+                    <div>
+                        <span>Acceptance</span>
+                        <strong style={{ color: likelihoodColor }}>{likelihood}%</strong>
+                        <em>{netTaxTotal >= 0 ? '+' : ''}{netTaxTotal}% psych · {manualBehaviorFit ? `${manualBehaviorFit.acceptanceDelta >= 0 ? '+' : ''}${manualBehaviorFit.acceptanceDelta}% behavior` : '0% behavior'}</em>
+                    </div>
+                </div>
+                {otherOwnerId && (
+                    <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', flexWrap:'wrap' }}>
+                        <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65 }}>Their posture:</span>
+                        <span className="tc-posture-badge" style={{ color:theirPosture.color, borderColor:theirPosture.color, background:`${theirPosture.color}18` }}>{theirPosture.label}</span>
+                        {otherDnaKey !== 'NONE' && <span className="tc-chip tc-chip-dna">{otherDna.label}</span>}
+                        {(manualBehaviorProfile?.inferences || []).slice(0, 3).map(tag => <span key={tag} className="tc-chip">{tag.replace(/-/g, ' ')}</span>)}
+                    </div>
+                )}
+                <div>
+                    <div style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'0.35rem' }}>Psychological Tax Breakdown {React.createElement(Tip, null, 'Each owner\'s DNA type creates percentage-point acceptance modifiers beyond pure value. Taxes reduce likelihood, bonuses increase it. Factors: endowment effect, panic premium, status tax, loss aversion, rebuilding discount, need fulfillment, window alignment, and posture.')}</div>
+                    <div className="tc-tax-table">
+                        {psychTaxes.map((t,i) => (
+                            <div key={i} className={`tc-tax-table-row ${t.type === 'BONUS' ? 'tc-bonus' : 'tc-tax'}`}>
+                                <span className="tc-tax-name">{t.name}</span>
+                                <span className="tc-tax-desc">{t.desc}</span>
+                                <span className="tc-tax-val" style={{ color: t.impact > 0 ? 'var(--win-green)' : 'var(--loss-red)' }}>{t.impact > 0 ? '+' : ''}{t.impact}%</span>
+                            </div>
+                        ))}
+                        {grudgeTax.total !== 0 && (
+                            <div className={`tc-tax-table-row ${grudgeTax.total < 0 ? 'tc-tax' : 'tc-bonus'}`}>
+                                <span className="tc-tax-name">Grudge Tax</span>
+                                <span className="tc-tax-desc">{grudgeTax.entries.length} logged interaction{grudgeTax.entries.length!==1?'s':''}</span>
+                                <span className="tc-tax-val" style={{ color: grudgeTax.total < 0 ? 'var(--loss-red)' : 'var(--win-green)' }}>{grudgeTax.total > 0 ? '+' : ''}{grudgeTax.total}%</span>
+                            </div>
+                        )}
+                        {manualBehaviorFit && (
+                            <div className={`tc-tax-table-row ${manualBehaviorFit.acceptanceDelta >= 0 ? 'tc-bonus' : 'tc-tax'}`}>
+                                <span className="tc-tax-name">Observed Behavior</span>
+                                <span className="tc-tax-desc">{manualBehaviorFit.framing || 'Trade history adjusted acceptance odds.'}</span>
+                                <span className="tc-tax-val" style={{ color: manualBehaviorFit.acceptanceDelta >= 0 ? 'var(--win-green)' : 'var(--loss-red)' }}>{manualBehaviorFit.acceptanceDelta >= 0 ? '+' : ''}{manualBehaviorFit.acceptanceDelta}%</span>
+                            </div>
+                        )}
+                        <div className="tc-tax-table-row tc-total">
+                            <span className="tc-tax-name">NET MODIFIER</span>
+                            <span className="tc-tax-desc">Folded into effective surplus</span>
+                            <span className="tc-tax-val" style={{ color: netTaxTotal > 0 ? 'var(--win-green)' : netTaxTotal < 0 ? 'var(--loss-red)' : 'var(--silver)' }}>{netTaxTotal > 0 ? '+' : ''}{netTaxTotal}%</span>
+                        </div>
+                    </div>
+                </div>
+                {otherDnaKey !== 'NONE' && otherDna.strategy && (
+                    <div style={{ fontSize:'0.76rem', color:otherDna.color, fontStyle:'italic', background:`${otherDna.color}0d`, border:`1px solid ${otherDna.color}25`, borderRadius:5, padding:'0.4rem 0.6rem' }}>Approach: {otherDna.strategy}</div>
+                )}
+                <div>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.3rem' }}>
+                        <span style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.7, textTransform:'uppercase', letterSpacing:'0.06em' }}>Likelihood of Acceptance {React.createElement(Tip, null, 'Estimated chance the other owner accepts. Starts at 50%, then applies value difference plus psychological modifiers from DNA, posture, needs, window, and history.')}</span>
+                        <span style={{ fontFamily:'var(--font-mono)', fontSize:'1.4rem', fontWeight:600, color: likelihoodColor }}>{likelihood}%</span>
+                    </div>
+                    <div className="tc-likelihood-bar-wrap"><div className="tc-likelihood-bar-fill" style={{ width:`${likelihood}%`, background: likelihoodColor }} /></div>
+                </div>
+            </div>
+        );
+    }
+
     function TradeCalcTab({ playersData, statsData, myRoster, standings, currentLeague, leagueSkin, sleeperUserId, timeRecomputeTs, viewMode, initialSubTab, onSubTabConsumed }) {
         // ── Constants ──
         const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
@@ -3070,87 +3159,7 @@
                     </div>
 
                     {/* Verdict */}
-                    {hasTrade && (
-                        <div className="tc-ta-verdict tc-ta-sticky-summary" id="wr-export-trade">
-                            <div className="tc-section-hdr" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>TRADE ANALYSIS<button onClick={() => window.wrExport?.capture(document.getElementById('wr-export-trade'), 'trade-analysis')} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'4px', padding:'2px 8px', color:'var(--gold)', fontSize:'var(--text-micro, 0.6875rem)', cursor:'pointer', fontFamily: 'var(--font-body)', minHeight:'44px', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>Snapshot</button></div>
-                            <div style={{ display:'flex', alignItems:'baseline', gap:'0.6rem', flexWrap:'wrap' }}>
-                                <span className="tc-verdict-diff" style={{ color: verdictColor }}>{diffDisplay}</span>
-                                <span style={{ fontFamily:'var(--font-title)', fontSize:'1.1rem', color: verdictColor }}>{verdictText}</span>
-                                <span style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.655 }}>(gave {totalA.toLocaleString()} / received {totalB.toLocaleString()})</span>
-                            </div>
-                            <div className="tc-ta-impact-grid">
-                                <div>
-                                    <span>Roster Impact</span>
-                                    <strong>{rosterImpactLabel}</strong>
-                                    <em>{starterValueDelta >= 0 ? '+' : ''}{Math.round(starterValueDelta).toLocaleString()} player DHQ</em>
-                                </div>
-                                <div>
-                                    <span>Pick Capital</span>
-                                    <strong>{pickCapitalDelta >= 0 ? '+' : ''}{Math.round(pickCapitalDelta).toLocaleString()}</strong>
-                                    <em>{pickQuantityDelta >= 0 ? '+' : ''}{pickQuantityDelta} picks</em>
-                                </div>
-                                <div>
-                                    <span>FAAB</span>
-                                    <strong>{faabDelta >= 0 ? '+' : ''}${faabDelta}</strong>
-                                    <em>{Math.round(faabDelta * FAAB_RATE).toLocaleString()} DHQ equiv.</em>
-                                </div>
-                                <div>
-                                    <span>Acceptance</span>
-                                    <strong style={{ color: likelihoodColor }}>{likelihood}%</strong>
-                                    <em>{netTaxTotal >= 0 ? '+' : ''}{netTaxTotal}% psych · {manualBehaviorFit ? `${manualBehaviorFit.acceptanceDelta >= 0 ? '+' : ''}${manualBehaviorFit.acceptanceDelta}% behavior` : '0% behavior'}</em>
-                                </div>
-                            </div>
-                            {otherOwnerId && (
-                                <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', flexWrap:'wrap' }}>
-                                    <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65 }}>Their posture:</span>
-                                    <span className="tc-posture-badge" style={{ color:theirPosture.color, borderColor:theirPosture.color, background:`${theirPosture.color}18` }}>{theirPosture.label}</span>
-                                    {otherDnaKey !== 'NONE' && <span className="tc-chip tc-chip-dna">{otherDna.label}</span>}
-                                    {(manualBehaviorProfile?.inferences || []).slice(0, 3).map(tag => <span key={tag} className="tc-chip">{tag.replace(/-/g, ' ')}</span>)}
-                                </div>
-                            )}
-                            <div>
-                                <div style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'0.35rem' }}>Psychological Tax Breakdown {React.createElement(Tip, null, 'Each owner\'s DNA type creates percentage-point acceptance modifiers beyond pure value. Taxes reduce likelihood, bonuses increase it. Factors: endowment effect, panic premium, status tax, loss aversion, rebuilding discount, need fulfillment, window alignment, and posture.')}</div>
-                                <div className="tc-tax-table">
-                                    {psychTaxes.map((t,i) => (
-                                        <div key={i} className={`tc-tax-table-row ${t.type === 'BONUS' ? 'tc-bonus' : 'tc-tax'}`}>
-                                            <span className="tc-tax-name">{t.name}</span>
-                                            <span className="tc-tax-desc">{t.desc}</span>
-                                            <span className="tc-tax-val" style={{ color: t.impact > 0 ? 'var(--win-green)' : 'var(--loss-red)' }}>{t.impact > 0 ? '+' : ''}{t.impact}%</span>
-                                        </div>
-                                    ))}
-                                    {grudgeTax.total !== 0 && (
-                                        <div className={`tc-tax-table-row ${grudgeTax.total < 0 ? 'tc-tax' : 'tc-bonus'}`}>
-                                            <span className="tc-tax-name">Grudge Tax</span>
-                                            <span className="tc-tax-desc">{grudgeTax.entries.length} logged interaction{grudgeTax.entries.length!==1?'s':''}</span>
-                                            <span className="tc-tax-val" style={{ color: grudgeTax.total < 0 ? 'var(--loss-red)' : 'var(--win-green)' }}>{grudgeTax.total > 0 ? '+' : ''}{grudgeTax.total}%</span>
-                                        </div>
-                                    )}
-                                    {manualBehaviorFit && (
-                                        <div className={`tc-tax-table-row ${manualBehaviorFit.acceptanceDelta >= 0 ? 'tc-bonus' : 'tc-tax'}`}>
-                                            <span className="tc-tax-name">Observed Behavior</span>
-                                            <span className="tc-tax-desc">{manualBehaviorFit.framing || 'Trade history adjusted acceptance odds.'}</span>
-                                            <span className="tc-tax-val" style={{ color: manualBehaviorFit.acceptanceDelta >= 0 ? 'var(--win-green)' : 'var(--loss-red)' }}>{manualBehaviorFit.acceptanceDelta >= 0 ? '+' : ''}{manualBehaviorFit.acceptanceDelta}%</span>
-                                        </div>
-                                    )}
-                                    <div className="tc-tax-table-row tc-total">
-                                        <span className="tc-tax-name">NET MODIFIER</span>
-                                        <span className="tc-tax-desc">Folded into effective surplus</span>
-                                        <span className="tc-tax-val" style={{ color: netTaxTotal > 0 ? 'var(--win-green)' : netTaxTotal < 0 ? 'var(--loss-red)' : 'var(--silver)' }}>{netTaxTotal > 0 ? '+' : ''}{netTaxTotal}%</span>
-                                    </div>
-                                </div>
-                            </div>
-                            {otherDnaKey !== 'NONE' && otherDna.strategy && (
-                                <div style={{ fontSize:'0.76rem', color:otherDna.color, fontStyle:'italic', background:`${otherDna.color}0d`, border:`1px solid ${otherDna.color}25`, borderRadius:5, padding:'0.4rem 0.6rem' }}>Approach: {otherDna.strategy}</div>
-                            )}
-                            <div>
-                                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.3rem' }}>
-                                    <span style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.7, textTransform:'uppercase', letterSpacing:'0.06em' }}>Likelihood of Acceptance {React.createElement(Tip, null, 'Estimated chance the other owner accepts. Starts at 50%, then applies value difference plus psychological modifiers from DNA, posture, needs, window, and history.')}</span>
-                                    <span style={{ fontFamily:'var(--font-mono)', fontSize:'1.4rem', fontWeight:600, color: likelihoodColor }}>{likelihood}%</span>
-                                </div>
-                                <div className="tc-likelihood-bar-wrap"><div className="tc-likelihood-bar-fill" style={{ width:`${likelihood}%`, background: likelihoodColor }} /></div>
-                            </div>
-                        </div>
-                    )}
+                    {hasTrade && <TcVerdictPanel {...{ verdictColor, diffDisplay, verdictText, totalA, totalB, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta, FAAB_RATE, likelihoodColor, likelihood, netTaxTotal, manualBehaviorFit, otherOwnerId, theirPosture, otherDnaKey, otherDna, manualBehaviorProfile, psychTaxes, grudgeTax }} />}
                     </>}
                 </div>
             );
