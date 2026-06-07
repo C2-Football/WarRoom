@@ -1004,8 +1004,8 @@
             // Sonnet AI event (budget-limited)
             // Triggers: R1 pick, user pick, reach beyond threshold
             // Throttle: at most once per 3 picks
-            const sonnetUsed = state.alex.alexSpend.sonnet || 0;
-            const budget = state.alex.alexSpend.budget || 12;
+            const sonnetUsed = state.alex?.alexSpend?.sonnet || 0;
+            const budget = state.alex?.alexSpend?.budget || 12;
             const shouldFireAI =
                 sonnetUsed < budget &&
                 (state.currentIdx - alexSonnetCooldownRef.current >= 3 || lastPick.isUser) &&
@@ -4137,7 +4137,7 @@
             { label: 'League Evolution', value: runReport.value, detail: state.activeOffer ? 'Draft paused for negotiation' : runReport.detail, extra: runReport.bullets },
         ];
         return (
-            <div className="mock-draft-cockpit">
+            <div className="mock-draft-cockpit draft-cc-scope">
                 <section className="mock-draftcast-rail">
                     <div className="mock-cast-brand">
                         <div>DHQ</div>
@@ -4430,7 +4430,7 @@
         }
 
         return (
-            <div style={{ fontFamily: FONT_UI, paddingBottom: '12px' }}>
+            <div className="draft-cc-scope" style={{ fontFamily: FONT_UI, paddingBottom: '12px' }}>
                 {isLiveDraftHud ? (
                     <LiveCommandHeader
                         state={state}
@@ -4499,7 +4499,7 @@
                             </span>
                             {liveConfidenceCard && (
                                 <span title={liveConfidenceCard.label + ': ' + liveConfidenceCard.value + ' — ' + liveConfidenceCard.detail} style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, color: liveConfidenceCard.tone, fontWeight: 800, fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                    <span style={{ fontSize: '0.62rem' }}>{'●'}</span>{liveConfidenceCard.value}
+                                    <span style={{ fontSize: 'var(--text-micro, 0.6875rem)' }}>{'●'}</span>{liveConfidenceCard.value}
                                 </span>
                             )}
                         </div>
@@ -5334,7 +5334,7 @@
         });
         const readRow = { display: 'flex', gap: 7, alignItems: 'flex-start' };
         const readIcon = accent => ({ flexShrink: 0, width: 15, textAlign: 'center', fontSize: '0.78rem', marginTop: 1, color: accent });
-        const readLabel = accent => ({ fontSize: '0.66rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: accent });
+        const readLabel = accent => ({ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: accent });
         const readText = { color: 'var(--silver)', opacity: 0.85, fontSize: '0.72rem', lineHeight: 1.32 };
         // Keep each read to 2 lines so the card stays at DraftCast-strip height even
         // when Alex's copy runs long.
@@ -5359,10 +5359,10 @@
                         <div style={{ width: 40, height: 40, borderRadius: 7, display: 'grid', placeItems: 'center', background: GOLD, color: 'var(--black)', fontFamily: FONT_DISPL, fontWeight: 900, fontSize: '0.72rem', letterSpacing: '0.06em', flexShrink: 0 }}>DHQ</div>
                         <div style={{ minWidth: 0 }}>
                             <div style={{ color: GOLD, fontFamily: FONT_DISPL, fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase', fontSize: '0.8rem', lineHeight: 1 }}>DraftCast</div>
-                            <div style={{ color: 'var(--silver)', opacity: 0.72, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.09em', fontSize: '0.62rem', marginTop: 3 }}>{state.mode} · {state.variant}</div>
+                            <div style={{ color: 'var(--silver)', opacity: 0.72, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.09em', fontSize: 'var(--text-micro, 0.6875rem)', marginTop: 3 }}>{state.mode} · {state.variant}</div>
                         </div>
                         <div style={{ borderLeft: '3px solid ' + GOLD, paddingLeft: 12, marginLeft: 8, flex: 1, minWidth: 0, marginTop: -6 }}>
-                            <div style={{ color: state.activeOffer ? 'var(--k-f0a500, #f0a500)' : GOLD, fontSize: '0.62rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em' }}>{onClockLabel}</div>
+                            <div style={{ color: state.activeOffer ? 'var(--k-f0a500, #f0a500)' : GOLD, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em' }}>{onClockLabel}</div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
                                 <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', background: 'radial-gradient(circle at 30% 25%, #4a4368, #221d34 70%)', border: '1px solid rgba(155,138,251,0.55)', color: '#d6d0ff', fontFamily: FONT_DISPL, fontWeight: 900, fontSize: '1rem', overflow: 'hidden' }}>
                                     {teamAvatarUrl
@@ -5375,7 +5375,7 @@
                                         <span style={{ whiteSpace: 'nowrap' }}>{pickMeta}</span>
                                         {liveConfidenceCard && (
                                             <span title={liveConfidenceCard.label + ': ' + liveConfidenceCard.value + ' — ' + liveConfidenceCard.detail} style={{ color: liveConfidenceCard.tone, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 3, textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0 }}>
-                                                <span style={{ fontSize: '0.6rem' }}>{'●'}</span>{liveConfidenceCard.value}
+                                                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)' }}>{'●'}</span>{liveConfidenceCard.value}
                                             </span>
                                         )}
                                     </div>
@@ -5387,10 +5387,10 @@
                     <div style={{ display: 'flex', gap: 7 }}>
                         {stageSummaryCards.map(card => (
                             <div key={card.label} style={{ flex: 1, minWidth: 0, border: '1px solid var(--acc-fill3, rgba(212,175,55,0.16))', background: 'var(--ov-1, rgba(255,255,255,0.024))', borderRadius: 6, padding: '6px 8px' }}>
-                                <div style={{ color: card.tone, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 800 }}>{card.label}</div>
+                                <div style={{ color: card.tone, fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 800 }}>{card.label}</div>
                                 <div style={{ color: 'var(--white)', fontWeight: 800, fontSize: '0.74rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.value}</div>
                                 {card.label !== 'Room run' && card.detail && (
-                                    <div style={{ color: 'var(--silver)', opacity: 0.6, fontSize: '0.6rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.detail}</div>
+                                    <div style={{ color: 'var(--silver)', opacity: 0.6, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.detail}</div>
                                 )}
                             </div>
                         ))}
@@ -5400,7 +5400,7 @@
                         <div style={{ flex: 1, minWidth: 0, height: 4, background: 'var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 2, overflow: 'hidden' }}>
                             <div style={{ height: '100%', width: Math.round((state.currentIdx / Math.max(1, state.pickOrder.length)) * 100) + '%', background: GOLD, transition: 'width 0.4s ease' }} />
                         </div>
-                        <span style={{ fontFamily: FONT_MONO, fontSize: '0.62rem', color: 'var(--silver)', flexShrink: 0 }}>{state.currentIdx} / {state.pickOrder.length}</span>
+                        <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', flexShrink: 0 }}>{state.currentIdx} / {state.pickOrder.length}</span>
                         <button onClick={() => dispatch({ type: 'SET_OVERRIDE', enabled: !state.overrideMode })} title={state.overrideMode ? 'Return to read-only Sleeper mirror' : 'Apply the next pick manually from the Big Board'} style={btn(state.overrideMode ? 'rgba(155,138,251,0.22)' : 'rgba(155,138,251,0.16)', '#d6d0ff', 'rgba(155,138,251,0.45)')}>
                             {state.overrideMode ? 'MANUAL ON' : '✎ Manual Pick'}
                         </button>
@@ -5484,7 +5484,7 @@
                             </span>
                         </div>
                         {tradeDeskTarget && (
-                            <button onClick={openTradeDesk} style={{ flexShrink: 0, padding: '4px 9px', borderRadius: 5, fontSize: '0.62rem', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', border: '1px solid rgba(155,138,251,0.4)', background: 'rgba(155,138,251,0.16)', color: '#d6d0ff' }}>Open Trade Desk</button>
+                            <button onClick={openTradeDesk} style={{ flexShrink: 0, padding: '4px 9px', borderRadius: 5, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', border: '1px solid rgba(155,138,251,0.4)', background: 'rgba(155,138,251,0.16)', color: '#d6d0ff' }}>Open Trade Desk</button>
                         )}
                     </div>
                 </div>
@@ -6003,7 +6003,7 @@
 
         if (state.phase === 'setup') {
             return (
-                <div style={{ padding: '16px', fontFamily: FONT_UI, textAlign: 'center' }}>
+                <div className="draft-cc-scope" style={{ padding: '16px', fontFamily: FONT_UI, textAlign: 'center' }}>
                     <div style={{
                         padding: '14px 18px',
                         background: 'rgba(240,165,0,0.08)',

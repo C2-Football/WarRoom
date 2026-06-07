@@ -2379,6 +2379,13 @@
             if (!parsed.pickedByIdx) parsed.pickedByIdx = buildPickedByIdx(parsed.picks || []);
             if (!parsed.manualCorrections) parsed.manualCorrections = [];
             if (!parsed.stagedLiveOffers) parsed.stagedLiveOffers = [];
+            // Backfill the Alex sub-state if a persisted (or legacy/partial) blob lacks it, so
+            // the live Command Center can't white-screen reading state.alex.* on resume.
+            if (!parsed.alex) parsed.alex = { style: 'default', stream: [], alexSpend: { sonnet: 0, flash: 0, budget: 12 }, thinking: false, lastInsightAt: 0 };
+            else {
+                if (!parsed.alex.alexSpend) parsed.alex.alexSpend = { sonnet: 0, flash: 0, budget: 12 };
+                if (!Array.isArray(parsed.alex.stream)) parsed.alex.stream = [];
+            }
             return parsed;
         } catch (e) {
             if (window.wrLog) window.wrLog('draftState.load', e);
