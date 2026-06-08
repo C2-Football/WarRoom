@@ -3219,9 +3219,10 @@
             );
         }
 
-        function renderTradeAnalyzer() {
-            if (!Object.keys(playersData).length) return <div style={{ color:'var(--silver)', textAlign:'center', padding:'2rem' }}>No player data loaded.</div>;
-
+        // ── computeManualVerdict — the manual builder's deal evaluation, extracted from
+        // renderTradeAnalyzer so the redesigned persistent builder can reuse it (and so the verdict
+        // math lives in one place). Pure function of builder state; no behavior change.
+        function computeManualVerdict() {
             // Use the same ownership-aware value path as the pick list.
             const pickVal = (pkId) => { const p = pkId.split('-'); return pickValueForParts(p[1], Number(p[2]), p[3]); };
             const totalA = tradeIds.A.reduce((s, id) => s + (getPlayerValue(id).value || 0), 0)
@@ -3291,6 +3292,13 @@
                 ? `+${receivedPositions.join('/') || 'none'} / -${sentPositions.join('/') || 'none'}`
                 : 'No players selected';
             const starterValueDelta = tradeIds.B.reduce((s, id) => s + (getPlayerValue(id).value || 0), 0) - tradeIds.A.reduce((s, id) => s + (getPlayerValue(id).value || 0), 0);
+            return { totalA, totalB, hasTrade, otherOwnerId, otherDnaKey, otherDna, theirPosture, psychTaxes, grudgeTax, netTaxTotal, likelihood, manualBehaviorProfile, manualBehaviorFit, likelihoodColor, verdictColor, verdictText, diffDisplay, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta };
+        }
+
+        function renderTradeAnalyzer() {
+            if (!Object.keys(playersData).length) return <div style={{ color:'var(--silver)', textAlign:'center', padding:'2rem' }}>No player data loaded.</div>;
+
+            const { totalA, totalB, hasTrade, otherOwnerId, otherDnaKey, otherDna, theirPosture, psychTaxes, grudgeTax, netTaxTotal, likelihood, manualBehaviorProfile, manualBehaviorFit, likelihoodColor, verdictColor, verdictText, diffDisplay, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta } = computeManualVerdict();
 
             function rosterPlayersFor(side) {
                 const ownerId = tradeOwner[side]; if (!ownerId) return null;
