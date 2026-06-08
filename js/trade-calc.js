@@ -165,6 +165,138 @@
                 </div>;
     }
 
+    // ── TcTradeSide — extracted from renderTradeAnalyzer (builder rework; no behavior change) ──
+    // One side of the manual builder: owner select, added players/picks with value bars, a roster
+    // picker, FAAB input, and a side total. ~29 deps (state, setters, helper closures, value fns)
+    // passed via a tradeSideDeps bag. The new persistent-builder layout will refine this contract.
+    function TcTradeSide({ side, color, label, tradeIds, tradePickIds, tradeFaab, getPlayerValue, pickValueForParts, FAAB_RATE, rosterPlayersFor, tradeOwner, picksByOwner, comparePicksByDraftOrder, setTradeOwner, setSearchText, ownerOptions, playersData, MAX_VALUE, removePlayer, posColor, normPos, PICK_COLORS, ownerNameForRosterId, allRosters, removePick, pickLabel, searchText, TC_POS_ORDER, addPlayer, makePickId, addPick, setTradeFaab }) {
+                const ids = tradeIds[side];
+                const pickIds = tradePickIds[side];
+                const faab = tradeFaab[side] || 0;
+                const tot = ids.reduce((s, id) => s + (getPlayerValue(id).value || 0), 0)
+                    + pickIds.reduce((s, pkId) => { const p = pkId.split('-'); return s + pickValueForParts(p[1], Number(p[2]), p[3]); }, 0)
+                    + Math.round(faab * FAAB_RATE);
+                const rosterPlayers = rosterPlayersFor(side);
+                const ownerId = tradeOwner[side] || null;
+                const ownerPicksList = ownerId ? (picksByOwner[ownerId] || []).slice().sort(comparePicksByDraftOrder) : [];
+
+                return (
+                    <div className={`tc-ta-side tc-side-${side.toLowerCase()}`}>
+                        <span style={{ fontFamily:'var(--font-title)', fontSize:'0.95rem', color, letterSpacing:'0.08em' }}>{label}</span>
+                        <select className="tc-ta-owner-select" value={tradeOwner[side] || ''} onChange={e => { setTradeOwner(prev => ({ ...prev, [side]: e.target.value || null })); setSearchText(prev => ({ ...prev, [side]: '' })); }}>
+                            {ownerOptions.map(o => <option key={o.id||'none'} value={o.id||''}>{o.label}</option>)}
+                        </select>
+
+                        {/* Added players */}
+                        {ids.map(pid => {
+                            const p = playersData[pid]; const v = getPlayerValue(pid);
+                            const pct = Math.round((v.value / MAX_VALUE) * 100);
+                            if (!p) return null;
+                            return (
+                                <div key={pid} className="tc-ta-player-row">
+                                    <button className="tc-ta-remove" onClick={() => removePlayer(side, pid)}>X</button>
+                                    <span className="tc-ta-pos-dot" style={{ background: posColor(normPos(p.position)) }} />
+                                    <span style={{ flex:1, fontSize:'0.82rem', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.first_name} {p.last_name}</span>
+                                    <div className="tc-ta-val-col" style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2 }}>
+                                        <div className="tc-ta-val-bar-wrap"><div className="tc-ta-val-bar-fill" style={{ width:`${pct}%`, background: color }} /></div>
+                                        <span style={{ fontSize:'0.7rem', fontWeight:700, color }}>{v.value > 0 ? v.value.toLocaleString() : '--'}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        {/* Added picks */}
+                        {pickIds.map(pkId => {
+                            const parts = pkId.split('-');
+                            const yr = parts[1], rd = Number(parts[2]), fromRid = parts[3];
+                            const val = pickValueForParts(yr, rd, fromRid);
+                            const pct = Math.round((val / MAX_VALUE) * 100);
+                            const pickColor = PICK_COLORS[rd] || 'var(--silver)';
+                            const via = ownerNameForRosterId(fromRid);
+                            const isOwn = !via || (ownerId && (() => { const r = allRosters.find(x => x.owner_id === ownerId); return r && String(r.roster_id) === String(fromRid); })());
+                            return (
+                                <div key={pkId} className="tc-ta-player-row">
+                                    <button className="tc-ta-remove" onClick={() => removePick(side, pkId)}>X</button>
+                                    <span className="tc-ta-pos-dot" style={{ background: pickColor }} />
+                                    <span style={{ flex:1, fontSize:'0.82rem', fontWeight:600 }}>{pickLabel(yr, rd, fromRid)}{!isOwn && via && <span style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.3rem' }}>via {via}</span>}</span>
+                                    <div className="tc-ta-val-col" style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2 }}>
+                                        <div className="tc-ta-val-bar-wrap"><div className="tc-ta-val-bar-fill" style={{ width:`${pct}%`, background: pickColor }} /></div>
+                                        <span style={{ fontSize:'0.7rem', fontWeight:700, color: pickColor }}>{val.toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        {/* Roster picker */}
+                        {tradeOwner[side] && rosterPlayers !== null ? (
+                            <div>
+                                <input className="tc-ta-roster-filter" placeholder={`Filter ${rosterPlayers.length} players...`} value={searchText[side]} onChange={e => setSearchText(prev => ({ ...prev, [side]: e.target.value }))} />
+                                <div className="tc-ta-roster-list-tall">
+                                    {rosterPlayers.length === 0 ? <div className="tc-ta-roster-empty">No players match</div> : (() => {
+                                        const grouped = {};
+                                        rosterPlayers.forEach(r => { if (!grouped[r.pos]) grouped[r.pos] = []; grouped[r.pos].push(r); });
+                                        return Object.entries(grouped).sort((a,b) => (TC_POS_ORDER[a[0]]??9)-(TC_POS_ORDER[b[0]]??9)).map(([pos, posPlayers]) => (
+                                            <div key={pos}>
+                                                <div className="tc-ta-pos-group-hdr" style={{ color: posColor(pos) }}>{pos}</div>
+                                                {posPlayers.map(r => {
+                                                    const added = ids.includes(r.id);
+                                                    return (
+                                                        <div key={r.id} className={`tc-ta-roster-item${added?' tc-added':''}`} onClick={() => !added && addPlayer(side, r.id)}>
+                                                            <span className="tc-ta-pos-dot" style={{ background: posColor(r.pos) }} />
+                                                            <span style={{ flex:1, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.name}</span>
+                                                            <span className="tc-ta-player-meta">{r.team}</span>
+                                                            <span className="tc-ta-player-val">{r.value > 0 ? r.value.toLocaleString() : '--'}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ));
+                                    })()}
+                                    {ownerPicksList.length > 0 && (
+                                        <div style={{ marginTop:'0.5rem', borderTop:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', paddingTop:'0.4rem' }}>
+                                            <div className="tc-ta-pos-group-hdr" style={{ color:'var(--gold)' }}>DRAFT PICKS</div>
+                                            {ownerPicksList.map(({ year, round, fromRosterId }) => {
+                                                const pkId = makePickId(year, round, fromRosterId);
+                                                const added = pickIds.includes(pkId);
+                                                const val = pickValueForParts(year, round, fromRosterId);
+                                                const pickColor = PICK_COLORS[round] || 'var(--silver)';
+                                                const via = ownerNameForRosterId(fromRosterId);
+                                                const r2 = allRosters.find(x => x.owner_id === ownerId);
+                                                const isOwn2 = r2 && String(r2.roster_id) === String(fromRosterId);
+                                                return (
+                                                    <div key={pkId} className={`tc-ta-roster-item${added?' tc-added':''}`} onClick={() => !added && addPick(side, pkId)}>
+                                                        <span className="tc-ta-pos-dot" style={{ background: pickColor }} />
+                                                        <span style={{ flex:1, fontWeight:600 }}>{pickLabel(year, round, fromRosterId)}{!isOwn2 && via && <span style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.3rem' }}>via {via}</span>}</span>
+                                                        <span className="tc-ta-player-val" style={{ color: pickColor }}>{val.toLocaleString()}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6, textAlign:'center', padding:'0.5rem' }}>Select an owner above to view their roster</div>}
+
+                        {/* FAAB */}
+                        <div style={{ borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))', paddingTop:'0.4rem', marginTop:'0.2rem' }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
+                                <span style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--win-green)', letterSpacing:'0.05em' }}>FAAB $</span>
+                                <input type="number" min={0} value={faab || ''} onChange={e => setTradeFaab(prev => ({ ...prev, [side]: Math.max(0, Number(e.target.value)) }))} placeholder="0"
+                                    style={{ width:70, background:'rgba(0,0,0,0.3)', border:'1px solid rgba(46,204,113,0.35)', color:'var(--win-green)', padding:'0.2rem 0.4rem', borderRadius:4, fontSize:'0.75rem', fontWeight:700, minHeight:'44px' }} />
+                                {faab > 0 && <button className="tc-ta-remove" onClick={() => setTradeFaab(prev => ({ ...prev, [side]: 0 }))}>X</button>}
+                            </div>
+                            {faab > 0 && <div style={{ fontSize:'0.7rem', color:'var(--silver)', opacity:0.6, marginTop:'0.2rem' }}>= {Math.round(faab * FAAB_RATE).toLocaleString()} dynasty pts</div>}
+                        </div>
+
+                        {/* Total */}
+                        <div className="tc-ta-total-row" style={{ background:`${color}12`, border:`1px solid ${color}30` }}>
+                            <span className="tc-ta-total-label">Total Value</span>
+                            <span className="tc-ta-total-val" style={{ color }}>{tot > 0 ? tot.toLocaleString() : '--'}</span>
+                        </div>
+                    </div>
+                );
+    }
+
     function TradeCalcTab({ playersData, statsData, myRoster, standings, currentLeague, leagueSkin, sleeperUserId, timeRecomputeTs, viewMode, initialSubTab, onSubTabConsumed }) {
         // ── Constants ──
         const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
@@ -2974,133 +3106,7 @@
             function pickLabel(year, round, fromRid) { return formatPickLabel(year, round, fromRid); }
             const ownerOptions = [{ id: null, label: '-- None --' }, ...assessments.map(a => ({ id: a.ownerId, label: `${a.ownerName} (${a.teamName})` }))];
 
-            function TradeSide({ side, color, label }) {
-                const ids = tradeIds[side];
-                const pickIds = tradePickIds[side];
-                const faab = tradeFaab[side] || 0;
-                const tot = ids.reduce((s, id) => s + (getPlayerValue(id).value || 0), 0)
-                    + pickIds.reduce((s, pkId) => { const p = pkId.split('-'); return s + pickValueForParts(p[1], Number(p[2]), p[3]); }, 0)
-                    + Math.round(faab * FAAB_RATE);
-                const rosterPlayers = rosterPlayersFor(side);
-                const ownerId = tradeOwner[side] || null;
-                const ownerPicksList = ownerId ? (picksByOwner[ownerId] || []).slice().sort(comparePicksByDraftOrder) : [];
-
-                return (
-                    <div className={`tc-ta-side tc-side-${side.toLowerCase()}`}>
-                        <span style={{ fontFamily:'var(--font-title)', fontSize:'0.95rem', color, letterSpacing:'0.08em' }}>{label}</span>
-                        <select className="tc-ta-owner-select" value={tradeOwner[side] || ''} onChange={e => { setTradeOwner(prev => ({ ...prev, [side]: e.target.value || null })); setSearchText(prev => ({ ...prev, [side]: '' })); }}>
-                            {ownerOptions.map(o => <option key={o.id||'none'} value={o.id||''}>{o.label}</option>)}
-                        </select>
-
-                        {/* Added players */}
-                        {ids.map(pid => {
-                            const p = playersData[pid]; const v = getPlayerValue(pid);
-                            const pct = Math.round((v.value / MAX_VALUE) * 100);
-                            if (!p) return null;
-                            return (
-                                <div key={pid} className="tc-ta-player-row">
-                                    <button className="tc-ta-remove" onClick={() => removePlayer(side, pid)}>X</button>
-                                    <span className="tc-ta-pos-dot" style={{ background: posColor(normPos(p.position)) }} />
-                                    <span style={{ flex:1, fontSize:'0.82rem', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.first_name} {p.last_name}</span>
-                                    <div className="tc-ta-val-col" style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2 }}>
-                                        <div className="tc-ta-val-bar-wrap"><div className="tc-ta-val-bar-fill" style={{ width:`${pct}%`, background: color }} /></div>
-                                        <span style={{ fontSize:'0.7rem', fontWeight:700, color }}>{v.value > 0 ? v.value.toLocaleString() : '--'}</span>
-                                    </div>
-                                </div>
-                            );
-                        })}
-
-                        {/* Added picks */}
-                        {pickIds.map(pkId => {
-                            const parts = pkId.split('-');
-                            const yr = parts[1], rd = Number(parts[2]), fromRid = parts[3];
-                            const val = pickValueForParts(yr, rd, fromRid);
-                            const pct = Math.round((val / MAX_VALUE) * 100);
-                            const pickColor = PICK_COLORS[rd] || 'var(--silver)';
-                            const via = ownerNameForRosterId(fromRid);
-                            const isOwn = !via || (ownerId && (() => { const r = allRosters.find(x => x.owner_id === ownerId); return r && String(r.roster_id) === String(fromRid); })());
-                            return (
-                                <div key={pkId} className="tc-ta-player-row">
-                                    <button className="tc-ta-remove" onClick={() => removePick(side, pkId)}>X</button>
-                                    <span className="tc-ta-pos-dot" style={{ background: pickColor }} />
-                                    <span style={{ flex:1, fontSize:'0.82rem', fontWeight:600 }}>{pickLabel(yr, rd, fromRid)}{!isOwn && via && <span style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.3rem' }}>via {via}</span>}</span>
-                                    <div className="tc-ta-val-col" style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2 }}>
-                                        <div className="tc-ta-val-bar-wrap"><div className="tc-ta-val-bar-fill" style={{ width:`${pct}%`, background: pickColor }} /></div>
-                                        <span style={{ fontSize:'0.7rem', fontWeight:700, color: pickColor }}>{val.toLocaleString()}</span>
-                                    </div>
-                                </div>
-                            );
-                        })}
-
-                        {/* Roster picker */}
-                        {tradeOwner[side] && rosterPlayers !== null ? (
-                            <div>
-                                <input className="tc-ta-roster-filter" placeholder={`Filter ${rosterPlayers.length} players...`} value={searchText[side]} onChange={e => setSearchText(prev => ({ ...prev, [side]: e.target.value }))} />
-                                <div className="tc-ta-roster-list-tall">
-                                    {rosterPlayers.length === 0 ? <div className="tc-ta-roster-empty">No players match</div> : (() => {
-                                        const grouped = {};
-                                        rosterPlayers.forEach(r => { if (!grouped[r.pos]) grouped[r.pos] = []; grouped[r.pos].push(r); });
-                                        return Object.entries(grouped).sort((a,b) => (TC_POS_ORDER[a[0]]??9)-(TC_POS_ORDER[b[0]]??9)).map(([pos, posPlayers]) => (
-                                            <div key={pos}>
-                                                <div className="tc-ta-pos-group-hdr" style={{ color: posColor(pos) }}>{pos}</div>
-                                                {posPlayers.map(r => {
-                                                    const added = ids.includes(r.id);
-                                                    return (
-                                                        <div key={r.id} className={`tc-ta-roster-item${added?' tc-added':''}`} onClick={() => !added && addPlayer(side, r.id)}>
-                                                            <span className="tc-ta-pos-dot" style={{ background: posColor(r.pos) }} />
-                                                            <span style={{ flex:1, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.name}</span>
-                                                            <span className="tc-ta-player-meta">{r.team}</span>
-                                                            <span className="tc-ta-player-val">{r.value > 0 ? r.value.toLocaleString() : '--'}</span>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        ));
-                                    })()}
-                                    {ownerPicksList.length > 0 && (
-                                        <div style={{ marginTop:'0.5rem', borderTop:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', paddingTop:'0.4rem' }}>
-                                            <div className="tc-ta-pos-group-hdr" style={{ color:'var(--gold)' }}>DRAFT PICKS</div>
-                                            {ownerPicksList.map(({ year, round, fromRosterId }) => {
-                                                const pkId = makePickId(year, round, fromRosterId);
-                                                const added = pickIds.includes(pkId);
-                                                const val = pickValueForParts(year, round, fromRosterId);
-                                                const pickColor = PICK_COLORS[round] || 'var(--silver)';
-                                                const via = ownerNameForRosterId(fromRosterId);
-                                                const r2 = allRosters.find(x => x.owner_id === ownerId);
-                                                const isOwn2 = r2 && String(r2.roster_id) === String(fromRosterId);
-                                                return (
-                                                    <div key={pkId} className={`tc-ta-roster-item${added?' tc-added':''}`} onClick={() => !added && addPick(side, pkId)}>
-                                                        <span className="tc-ta-pos-dot" style={{ background: pickColor }} />
-                                                        <span style={{ flex:1, fontWeight:600 }}>{pickLabel(year, round, fromRosterId)}{!isOwn2 && via && <span style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.3rem' }}>via {via}</span>}</span>
-                                                        <span className="tc-ta-player-val" style={{ color: pickColor }}>{val.toLocaleString()}</span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ) : <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6, textAlign:'center', padding:'0.5rem' }}>Select an owner above to view their roster</div>}
-
-                        {/* FAAB */}
-                        <div style={{ borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))', paddingTop:'0.4rem', marginTop:'0.2rem' }}>
-                            <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
-                                <span style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--win-green)', letterSpacing:'0.05em' }}>FAAB $</span>
-                                <input type="number" min={0} value={faab || ''} onChange={e => setTradeFaab(prev => ({ ...prev, [side]: Math.max(0, Number(e.target.value)) }))} placeholder="0"
-                                    style={{ width:70, background:'rgba(0,0,0,0.3)', border:'1px solid rgba(46,204,113,0.35)', color:'var(--win-green)', padding:'0.2rem 0.4rem', borderRadius:4, fontSize:'0.75rem', fontWeight:700, minHeight:'44px' }} />
-                                {faab > 0 && <button className="tc-ta-remove" onClick={() => setTradeFaab(prev => ({ ...prev, [side]: 0 }))}>X</button>}
-                            </div>
-                            {faab > 0 && <div style={{ fontSize:'0.7rem', color:'var(--silver)', opacity:0.6, marginTop:'0.2rem' }}>= {Math.round(faab * FAAB_RATE).toLocaleString()} dynasty pts</div>}
-                        </div>
-
-                        {/* Total */}
-                        <div className="tc-ta-total-row" style={{ background:`${color}12`, border:`1px solid ${color}30` }}>
-                            <span className="tc-ta-total-label">Total Value</span>
-                            <span className="tc-ta-total-val" style={{ color }}>{tot > 0 ? tot.toLocaleString() : '--'}</span>
-                        </div>
-                    </div>
-                );
-            }
+            const tradeSideDeps = { tradeIds, tradePickIds, tradeFaab, getPlayerValue, pickValueForParts, FAAB_RATE, rosterPlayersFor, tradeOwner, picksByOwner, comparePicksByDraftOrder, setTradeOwner, setSearchText, ownerOptions, playersData, MAX_VALUE, removePlayer, posColor, normPos, PICK_COLORS, ownerNameForRosterId, allRosters, removePick, pickLabel, searchText, TC_POS_ORDER, addPlayer, makePickId, addPick, setTradeFaab };
 
             // Phase 5: Build vs Find mode — lets the user pick between manually building a trade
             // or auto-generating proposals. "Find" mode renders the TradeFinderTab inline.
@@ -3130,8 +3136,8 @@
                     </div>
 
                     <div className="tc-ta-3col">
-                        {TradeSide({ side:'A', color:'var(--k-5dade2, #5dade2)', label:'SIDE A -- YOUR GIVE' })}
-                        {TradeSide({ side:'B', color:'var(--k-e74c3c, #e74c3c)', label:'SIDE B -- YOU RECEIVE' })}
+                        {TcTradeSide({ side:'A', color:'var(--k-5dade2, #5dade2)', label:'SIDE A -- YOUR GIVE', ...tradeSideDeps })}
+                        {TcTradeSide({ side:'B', color:'var(--k-e74c3c, #e74c3c)', label:'SIDE B -- YOU RECEIVE', ...tradeSideDeps })}
 
                         {/* League Scouting Panel */}
                         <div className="tc-scout-panel">
