@@ -2910,15 +2910,19 @@
                 : psychTaxes;
             const fairMargin = Math.round(Math.max(totalA, totalB) * 0.04);
 
-            // Use shared canonical acceptance calculation (same as Scout)
+            // Use shared canonical acceptance calculation (same as Scout / Deal HQ buildDeal).
+            // Step 2 (one evaluator): pass totalPieces so the complexity tax (−5% acceptance per asset
+            // beyond 4) matches buildDeal — manual and generated deals now score by identical math.
             const _calcLikelihood = window.App?.TradeEngine?.calcAcceptanceLikelihood;
+            const tradePieceCount = tradeIds.A.length + tradeIds.B.length + tradePickIds.A.length + tradePickIds.B.length;
             let likelihood = 50;
             if (hasTrade && (totalA > 0 || totalB > 0)) {
                 if (typeof _calcLikelihood === 'function') {
-                    likelihood = _calcLikelihood(totalA, totalB, otherDnaKey, acceptanceTaxes, myAssessment, theirAssessment);
+                    likelihood = _calcLikelihood(totalA, totalB, otherDnaKey, acceptanceTaxes, myAssessment, theirAssessment, { totalPieces: tradePieceCount });
                 } else {
                     const maxSide = Math.max(totalA, totalB, 1);
-                    const taxValueAdjust = (netTaxTotal / 200) * maxSide;
+                    const complexityTax = Math.max(0, tradePieceCount - 4) * 5;
+                    const taxValueAdjust = ((netTaxTotal - complexityTax) / 200) * maxSide;
                     const normalizedSurplus = (diff + taxValueAdjust) / maxSide;
                     likelihood = Math.round(Math.max(5, Math.min(95, 50 + Math.round(normalizedSurplus * 200))));
                 }
