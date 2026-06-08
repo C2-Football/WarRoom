@@ -3189,6 +3189,8 @@
             else if (active === 'profiles') body = canAccess('owner-dna') ? renderOwnerDna() : React.createElement(UpgradeGate, { feature: 'owner-dna', title: 'UNLOCK OWNER DNA', description: 'Profile every manager\'s trading psychology. Know who\'s a Fleecer, who\'s Desperate, and exactly how to approach each trade conversation.', targetTier: 'warroom' });
             else body = renderDealHQ();
             const backToBestMove = () => { setAdaptiveView('hero'); setSelectedDealPartnerId(null); setDealFocusPid(null); if (typeof clearTradeContext === 'function') clearTradeContext(); };
+            // Persistent live verdict — the in-progress deal's verdict follows you across surfaces.
+            const _verdict = computeManualVerdict();
             return (
                 <div className="tc-trade-root">
                     <div className="wr-module-strip">
@@ -3213,6 +3215,15 @@
                             </div>
                             <button type="button" onClick={clearTradeContext} style={{ background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', borderRadius: '4px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.72rem', padding: '4px 10px', textTransform: 'uppercase' }}>Clear</button>
                         </div>
+                    )}
+                    {active !== 'analyzer' && _verdict.hasTrade && (
+                        <button type="button" onClick={() => setTcTab('analyzer')} title="Open this deal in the Builder" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', textAlign: 'left', background: 'rgba(53,208,214,0.06)', border: '1px solid rgba(53,208,214,0.28)', borderRadius: '8px', padding: '9px 13px', marginBottom: '12px', cursor: 'pointer' }}>
+                            <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#35d0d6' }}>Live deal</span>
+                            <strong style={{ fontFamily: 'var(--font-title)', fontSize: '0.95rem', color: _verdict.verdictColor }}>{_verdict.verdictText} {_verdict.diffDisplay}</strong>
+                            <span style={{ fontSize: '0.74rem', color: 'var(--silver)' }}>gave {_verdict.totalA.toLocaleString()} / got {_verdict.totalB.toLocaleString()}</span>
+                            <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.82rem', fontWeight: 700, color: _verdict.likelihoodColor }}>{_verdict.likelihood}% accept</span>
+                            <span style={{ fontSize: '0.74rem', color: 'var(--gold)', fontWeight: 700 }}>Open in Builder ›</span>
+                        </button>
                     )}
                     {body}
                 </div>
