@@ -3012,6 +3012,166 @@
         }
 
         // ── renderTradeAnalyzer ──
+        // ── renderAdaptiveLanding — Slice 1 of the tab-free Adaptive War Room canvas ──
+        // Behind the window._wrAdaptiveCanvas flag (default OFF). Computes the single best move
+        // (top partner via the SAME partnerBoard ranking as renderDealHQ + its best generated deal)
+        // and shows a calm Alex-voiced "best move" hero. CTAs reveal the existing surfaces via
+        // existing state. Returns null if there's no usable best move (caller falls through to tabs).
+        function renderAdaptiveLanding() {
+            if (!assessments.length || !myAssessment) return null;
+
+            // Mirror of renderDealHQ partnerBoard ranking — KEEP IN SYNC with renderDealHQ.
+            const myStrengths = myAssessment.strengths || [];
+            const myNeeds = myAssessment.needs || [];
+            const partnerBoard = assessments
+                .filter(a => a.rosterId !== myRosterId)
+                .map(a => {
+                    const dnaKey = ownerDna[a.ownerId] || 'NONE';
+                    const dna = DNA_TYPES[dnaKey] || DNA_TYPES.NONE;
+                    const posture = calcOwnerPosture(a, dnaKey);
+                    const compat = calcComplementarity(myAssessment, a);
+                    const theirNeeds = a.needs || [];
+                    const mutualNeedFit = theirNeeds.filter(n => myStrengths.includes(n.pos)).length;
+                    const theyHaveNeed = myNeeds.filter(n => (a.strengths || []).includes(n.pos)).length;
+                    const pickAssets = pickAssetsForOwner(a.ownerId);
+                    const pickCapital = pickAssets.reduce((s, p) => s + p.value, 0);
+                    const profile = window.App?.LI?.ownerProfiles?.[a.rosterId] || {};
+                    const behaviorProfile = ownerBehaviorByRosterId?.[String(a.rosterId)] || null;
+                    const behaviorTags = new Set(behaviorProfile?.inferences || []);
+                    const tradeVol = profile.trades || 0;
+                    const behaviorScore = behaviorProfile
+                        ? Math.round(((behaviorProfile.scores?.liquidity ?? 50) - 50) / 4)
+                            + (behaviorTags.has('active-trader') ? 8 : 0)
+                            + (behaviorTags.has('fair-dealer') ? 5 : 0)
+                            + (behaviorTags.has('low-liquidity') ? -12 : 0)
+                            + (behaviorTags.has('value-hunter') ? -5 : 0)
+                        : 0;
+                    const panicScore = Math.min(8, (a.panic || 0) * 2);
+                    const pickCapitalScore = Math.min(5, Math.round(pickCapital / 4200));
+                    const rawScore = compat * 0.62 + mutualNeedFit * 13 + theyHaveNeed * 10 + panicScore + pickCapitalScore + Math.min(7, tradeVol) + behaviorScore + (posture.key === 'LOCKED' ? -18 : 0);
+                    const fitCap = compat >= 80 ? 99 : compat >= 65 ? 94 : compat >= 50 ? 88 : compat >= 35 ? 78 : 68;
+                    const score = Math.round(clampNum(rawScore, 0, fitCap, 0));
+                    const tag = score >= 85 ? 'Attack' : score >= 68 ? 'Prime' : score >= 48 ? 'Possible' : a.panic >= 3 ? 'Monitor' : 'Long shot';
+                    const tagColor = tag === 'Attack' || tag === 'Prime' ? 'var(--good)' : tag === 'Possible' ? 'var(--warn)' : tag === 'Monitor' ? 'var(--k-bb8fce, #bb8fce)' : 'var(--silver)';
+                    const scoreReasons = [];
+                    if (mutualNeedFit > 0) scoreReasons.push(`your surplus matches ${mutualNeedFit} need${mutualNeedFit === 1 ? '' : 's'}`);
+                    if (compat >= 60) scoreReasons.push(`${compat}% roster fit`);
+                    if (behaviorTags.has('active-trader')) scoreReasons.push('active trader');
+                    return { assessment: a, dnaKey, dna, posture, compat, score, tag, tagColor, scoreReasons };
+                })
+                .sort((a, b) => b.score - a.score || b.compat - a.compat);
+
+            const bestPartner = partnerBoard[0];
+            if (!bestPartner) return null;
+
+            const _tuning = getDealHqTuning(window.WR?.AlexSettings?.get?.() || {});
+            const _floor = dealActionableAcceptanceFloor(_tuning);
+            const deals = generateDealsForPartner(bestPartner.assessment, dealMode, null) || [];
+            const bestDeal = deals.filter(d => d.likelihood >= _floor)[0] || deals[0] || null;
+            if (!bestDeal) return null;
+
+            const partnerName = bestPartner.assessment.ownerName;
+            const why = bestPartner.scoreReasons && bestPartner.scoreReasons[0];
+            // Alex coaching line — seeded AlexVoice variation, hard fallback if absent/throws.
+            let coachLine;
+            try {
+                const _av = window.AlexVoice;
+                if (_av && typeof _av.pick === 'function') {
+                    const seed = 'best-move|' + partnerName;
+                    const open = _av.pick(seed, [
+                        `${partnerName} is your strongest table right now`,
+                        `${partnerName} lines up best with your roster`,
+                        `Start with ${partnerName} — the fit is there`,
+                    ]);
+                    const close = _av.pick(seed + 'c', [
+                        `this package grades ${bestDeal.grade} and they take it about ${bestDeal.likelihood}% of the time.`,
+                        `the deal below grades ${bestDeal.grade} at roughly ${bestDeal.likelihood}% to accept.`,
+                        `it grades ${bestDeal.grade}, about ${bestDeal.likelihood}% to say yes.`,
+                    ]);
+                    coachLine = `${open}${why ? ` — ${why}` : ''}. Now ${close}`;
+                }
+            } catch (e) { coachLine = null; }
+            if (!coachLine) {
+                coachLine = `${partnerName} is your strongest table right now${why ? ` — ${why}` : ''}. This package grades ${bestDeal.grade} and they accept it about ${bestDeal.likelihood}% of the time.`;
+            }
+
+            const assetText = (players, picks) => {
+                const names = [
+                    ...(players || []).map(p => p.name).filter(Boolean),
+                    ...(picks || []).map(p => p.label).filter(Boolean),
+                ];
+                return names.length ? names.join(', ') : 'assets';
+            };
+            const sendText = assetText(bestDeal.givePlayers, bestDeal.givePicks);
+            const getText = assetText(bestDeal.receivePlayers, bestDeal.receivePicks);
+            const accept = bestDeal.likelihood || 0;
+            const gain = Math.round(bestDeal.userGain || 0);
+            const cardBox = { border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '12px' };
+
+            return (
+                <div className="tc-trade-root wr-fade-in" style={{ maxWidth: '880px', margin: '0 auto', padding: '6px 0' }}>
+                    <div style={{ display: 'flex', gap: '13px', alignItems: 'flex-start', marginBottom: '16px' }}>
+                        <div style={{ width: '38px', height: '38px', borderRadius: '9px', display: 'grid', placeItems: 'center', fontFamily: 'var(--font-title)', fontWeight: 800, fontSize: '15px', background: 'rgba(212,175,55,0.12)', color: 'var(--gold)', flex: '0 0 auto' }}>A</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.6875rem', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gold)', fontWeight: 700, marginBottom: '5px' }}>Alex · Your Best Move</div>
+                            <p style={{ fontSize: '0.95rem', lineHeight: 1.55, color: 'var(--white)', margin: 0 }}>{coachLine}</p>
+                        </div>
+                    </div>
+
+                    <div style={{ border: '1px solid rgba(212,175,55,0.2)', borderRadius: '14px', background: 'linear-gradient(180deg, rgba(212,175,55,0.06), rgba(255,255,255,0.012))', overflow: 'hidden', boxShadow: '0 18px 48px rgba(0,0,0,0.34)', marginBottom: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '13px 16px', background: 'rgba(212,175,55,0.04)', borderBottom: '1px solid rgba(212,175,55,0.14)' }}>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-title)' }}>{partnerName}</div>
+                            <div style={{ fontSize: '0.7rem', color: bestPartner.tagColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{bestPartner.tag}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginLeft: 'auto' }}>{bestPartner.dna && bestPartner.dna.label} · {bestPartner.posture && bestPartner.posture.label}</div>
+                        </div>
+                        <div style={{ padding: '16px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                                <div style={{ ...cardBox, background: 'rgba(224,85,107,0.08)' }}>
+                                    <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--k-e0556b, #e0556b)', marginBottom: '5px' }}>You Send</div>
+                                    <div style={{ fontSize: '0.82rem', color: 'var(--white)', fontWeight: 600 }}>{sendText}</div>
+                                </div>
+                                <div style={{ ...cardBox, background: 'rgba(46,204,113,0.08)' }}>
+                                    <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--good)', marginBottom: '5px' }}>You Get</div>
+                                    <div style={{ fontSize: '0.82rem', color: 'var(--white)', fontWeight: 600 }}>{getText}</div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '8px' }}>
+                                <div style={{ ...cardBox, padding: '9px 12px' }}>
+                                    <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)' }}>Grade</div>
+                                    <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.05rem', marginTop: '2px', color: bestDeal.gradeColor }}>{bestDeal.grade}</div>
+                                </div>
+                                <div style={{ ...cardBox, padding: '9px 12px' }}>
+                                    <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)' }}>Accept %</div>
+                                    <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.05rem', marginTop: '2px', color: accept >= 70 ? 'var(--good)' : accept >= 50 ? 'var(--warn)' : 'var(--bad)' }}>{accept}%</div>
+                                </div>
+                                <div style={{ ...cardBox, padding: '9px 12px' }}>
+                                    <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)' }}>Δ Value</div>
+                                    <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.05rem', marginTop: '2px', color: gain >= 0 ? 'var(--good)' : 'var(--warn)' }}>{gain >= 0 ? '+' : ''}{gain.toLocaleString()}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="button"
+                        onClick={() => { setSelectedDealPartnerId(bestPartner.assessment.ownerId); setDealFocusPid(null); setTcTab('analyzer'); }}
+                        style={{ width: '100%', padding: '12px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', fontFamily: 'var(--font-title)', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        Review &amp; Tweak This Deal
+                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button type="button" onClick={() => { setSelectedDealPartnerId(bestPartner.assessment.ownerId); setTcTab('dealhq'); }}
+                            style={{ flex: 1, padding: '10px 12px', background: 'rgba(212,175,55,0.07)', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', fontFamily: 'var(--font-body)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
+                            Browse All Partners
+                        </button>
+                        <button type="button" onClick={() => { setSelectedDealPartnerId(null); setDealFocusPid(null); setTcTab('analyzer'); }}
+                            style={{ flex: 1, padding: '10px 12px', background: 'rgba(255,255,255,0.03)', color: 'var(--silver)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', fontFamily: 'var(--font-body)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
+                            Build Your Own
+                        </button>
+                    </div>
+                    <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '0.6875rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}>One canvas, no tabs — pick an action to open the full workspace.</div>
+                </div>
+            );
+        }
+
         function renderTradeAnalyzer() {
             if (!Object.keys(playersData).length) return <div style={{ color:'var(--silver)', textAlign:'center', padding:'2rem' }}>No player data loaded.</div>;
 
@@ -3407,6 +3567,14 @@
             profiles: 'Owner posture, roster gaps, pick context, and trade history.',
             analyzer: 'Manual player, pick, and FAAB inspection.'
         };
+        // Adaptive War Room canvas — Slice 1, behind a default-OFF flag (window._wrAdaptiveCanvas).
+        // Only on the default landing (dealhq tab, no partner/focus/context seed) so any CTA or
+        // deep-link reveals the existing tabbed surface. Returns null => fall through to tabs.
+        const _wrAdaptiveOn = (typeof window !== 'undefined' && window._wrAdaptiveCanvas === true);
+        if (_wrAdaptiveOn && canAccess('trade-finder') && tcTab === 'dealhq' && !selectedDealPartnerId && !dealFocusPid && !tradeContext) {
+            const _adaptiveLanding = renderAdaptiveLanding();
+            if (_adaptiveLanding) return _adaptiveLanding;
+        }
         return (
             <div className="tc-trade-root">
                 <div className="wr-module-strip">
