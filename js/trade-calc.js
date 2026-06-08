@@ -93,6 +93,78 @@
         );
     }
 
+    // ── TcDealCard — extracted from renderDealHQ (Step-1 refactor; no behavior change) ──
+    // One generated deal package: send/receive summary, decision strip (grade/accept/Δ), and an
+    // expandable why-drawer. Closures it used (sideSummary, loadDealIntoAnalyzer, saveDeal) are props.
+    function TcDealCard({ deal, idx, actionFloor, expandedDealId, setExpandedDealId, loadDealIntoAnalyzer, saveDeal, sideSummary }) {
+                const deltaColor = deal.userGain >= 0 ? 'var(--good)' : 'var(--bad)';
+                const likelihoodColor2 = deal.likelihood >= actionFloor ? 'var(--good)' : deal.likelihood >= Math.max(55, actionFloor - 15) ? 'var(--warn)' : 'var(--bad)';
+                const expanded = expandedDealId === deal.id;
+                const whyView = typeof window.App?.Intelligence?.buildWhyView === 'function'
+                    ? window.App.Intelligence.buildWhyView(deal.intelligence, { title: 'Why this trade', limit: 4 })
+                    : null;
+                const whyLines = whyView?.lines || (typeof window.App?.Intelligence?.recommendationWhyLines === 'function'
+                    ? window.App.Intelligence.recommendationWhyLines(deal.intelligence, 4)
+                    : []);
+                return <div key={deal.id} className={`tc-dhq-deal-card${idx === 0 ? ' tc-dhq-top-deal' : ''}`}>
+                    <div className="tc-dhq-deal-top">
+                        <div>
+                            <h3>{deal.partnerName}</h3>
+                        </div>
+                        <div className="tc-dhq-actions">
+                            <button onClick={() => loadDealIntoAnalyzer(deal)}>Analyzer</button>
+                            <button onClick={() => saveDeal(deal)}>Save</button>
+                        </div>
+                    </div>
+                    <div className="tc-dhq-deal-grid">
+                        {sideSummary('You Send', deal, 'give')}
+                        {sideSummary('You Get', deal, 'receive')}
+                    </div>
+                    <div className="tc-dhq-decision-strip">
+                        <div className="tc-dhq-decision">
+                            <span>Grade</span>
+                            <strong style={{ color:deal.gradeColor }}>{deal.grade}</strong>
+                        </div>
+                        <div className="tc-dhq-decision">
+                            <span>Accept %</span>
+                            <strong style={{ color:likelihoodColor2 }}>{deal.likelihood}%</strong>
+                        </div>
+                        <div className="tc-dhq-decision">
+                            <span>DHQ Delta</span>
+                            <strong style={{ color:deltaColor }}>{deal.userGain >= 0 ? '+' : ''}{Math.round(deal.userGain).toLocaleString()}</strong>
+                        </div>
+                    </div>
+                    <button className="tc-dhq-detail-toggle" onClick={() => setExpandedDealId(expanded ? null : deal.id)}>
+                        {expanded ? 'Hide details' : 'Details'}
+                    </button>
+                    {expanded && <div className="tc-dhq-detail-drawer">
+                        <div className="tc-dhq-stat-bar">
+                            <div className="tc-dhq-stat">
+                                <span>Fit</span>
+                                <strong>{deal.fit}%</strong>
+                            </div>
+                            <div className="tc-dhq-stat">
+                                <span>Lane</span>
+                                <strong style={{ color:deal.viability === 'Moonshot' ? 'var(--bad)' : deal.viability === 'Negotiable' ? 'var(--warn)' : 'var(--good)' }}>{deal.viability || deal.windowImpact.label.replace(/^Window\s*/i, '')}</strong>
+                            </div>
+                            <div className="tc-dhq-stat">
+                                <span>Window</span>
+                                <strong style={{ color:deal.windowImpact.color }}>{deal.windowImpact.label.replace(/^Window\s*/i, '')}</strong>
+                            </div>
+                        </div>
+                        <div className="tc-dhq-readout">
+                            <div><b>Accept:</b><span>{deal.whyAccept}</span></div>
+                            <div><b>You:</b><span>{deal.whyYou}</span></div>
+                            <div><b>Swing:</b><span>{deal.swing}</span></div>
+                            {deal.formatReadout && <div><b>Format:</b><span>{deal.formatReadout}</span></div>}
+                            {deal.behaviorReadout && <div><b>Behavior:</b><span>{deal.behaviorReadout}</span></div>}
+                        </div>
+                        {whyLines.length > 0 && <div className="tc-dhq-evidence">{whyLines.slice(0, 4).map(line => <span key={line}>{line}</span>)}</div>}
+                        {deal.caution.length > 0 && <div className="tc-dhq-cautions">{deal.caution.slice(0, 3).map(c => <span key={c}>{c}</span>)}</div>}
+                    </div>}
+                </div>;
+    }
+
     function TradeCalcTab({ playersData, statsData, myRoster, standings, currentLeague, leagueSkin, sleeperUserId, timeRecomputeTs, viewMode, initialSubTab, onSubTabConsumed }) {
         // ── Constants ──
         const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
@@ -2613,75 +2685,6 @@
                 </div>;
             }
 
-            function dealCard(deal, idx) {
-                const deltaColor = deal.userGain >= 0 ? 'var(--good)' : 'var(--bad)';
-                const likelihoodColor2 = deal.likelihood >= actionFloor ? 'var(--good)' : deal.likelihood >= Math.max(55, actionFloor - 15) ? 'var(--warn)' : 'var(--bad)';
-                const expanded = expandedDealId === deal.id;
-                const whyView = typeof window.App?.Intelligence?.buildWhyView === 'function'
-                    ? window.App.Intelligence.buildWhyView(deal.intelligence, { title: 'Why this trade', limit: 4 })
-                    : null;
-                const whyLines = whyView?.lines || (typeof window.App?.Intelligence?.recommendationWhyLines === 'function'
-                    ? window.App.Intelligence.recommendationWhyLines(deal.intelligence, 4)
-                    : []);
-                return <div key={deal.id} className={`tc-dhq-deal-card${idx === 0 ? ' tc-dhq-top-deal' : ''}`}>
-                    <div className="tc-dhq-deal-top">
-                        <div>
-                            <h3>{deal.partnerName}</h3>
-                        </div>
-                        <div className="tc-dhq-actions">
-                            <button onClick={() => loadDealIntoAnalyzer(deal)}>Analyzer</button>
-                            <button onClick={() => saveDeal(deal)}>Save</button>
-                        </div>
-                    </div>
-                    <div className="tc-dhq-deal-grid">
-                        {sideSummary('You Send', deal, 'give')}
-                        {sideSummary('You Get', deal, 'receive')}
-                    </div>
-                    <div className="tc-dhq-decision-strip">
-                        <div className="tc-dhq-decision">
-                            <span>Grade</span>
-                            <strong style={{ color:deal.gradeColor }}>{deal.grade}</strong>
-                        </div>
-                        <div className="tc-dhq-decision">
-                            <span>Accept %</span>
-                            <strong style={{ color:likelihoodColor2 }}>{deal.likelihood}%</strong>
-                        </div>
-                        <div className="tc-dhq-decision">
-                            <span>DHQ Delta</span>
-                            <strong style={{ color:deltaColor }}>{deal.userGain >= 0 ? '+' : ''}{Math.round(deal.userGain).toLocaleString()}</strong>
-                        </div>
-                    </div>
-                    <button className="tc-dhq-detail-toggle" onClick={() => setExpandedDealId(expanded ? null : deal.id)}>
-                        {expanded ? 'Hide details' : 'Details'}
-                    </button>
-                    {expanded && <div className="tc-dhq-detail-drawer">
-                        <div className="tc-dhq-stat-bar">
-                            <div className="tc-dhq-stat">
-                                <span>Fit</span>
-                                <strong>{deal.fit}%</strong>
-                            </div>
-                            <div className="tc-dhq-stat">
-                                <span>Lane</span>
-                                <strong style={{ color:deal.viability === 'Moonshot' ? 'var(--bad)' : deal.viability === 'Negotiable' ? 'var(--warn)' : 'var(--good)' }}>{deal.viability || deal.windowImpact.label.replace(/^Window\s*/i, '')}</strong>
-                            </div>
-                            <div className="tc-dhq-stat">
-                                <span>Window</span>
-                                <strong style={{ color:deal.windowImpact.color }}>{deal.windowImpact.label.replace(/^Window\s*/i, '')}</strong>
-                            </div>
-                        </div>
-                        <div className="tc-dhq-readout">
-                            <div><b>Accept:</b><span>{deal.whyAccept}</span></div>
-                            <div><b>You:</b><span>{deal.whyYou}</span></div>
-                            <div><b>Swing:</b><span>{deal.swing}</span></div>
-                            {deal.formatReadout && <div><b>Format:</b><span>{deal.formatReadout}</span></div>}
-                            {deal.behaviorReadout && <div><b>Behavior:</b><span>{deal.behaviorReadout}</span></div>}
-                        </div>
-                        {whyLines.length > 0 && <div className="tc-dhq-evidence">{whyLines.slice(0, 4).map(line => <span key={line}>{line}</span>)}</div>}
-                        {deal.caution.length > 0 && <div className="tc-dhq-cautions">{deal.caution.slice(0, 3).map(c => <span key={c}>{c}</span>)}</div>}
-                    </div>}
-                </div>;
-            }
-
             return <div className="tc-dhq-shell wr-fade-in">
                 <div className="tc-dhq-metrics">
                     <div className="tc-dhq-metric-card"><span>Best Fit</span><strong>{bestPartner?.assessment.ownerName || '--'}</strong><em>{bestPartner ? `${bestPartner.score} fit score${bestPartnerWhy ? ` · ${bestPartnerWhy}` : ''}` : 'No target'}</em></div>
@@ -2867,7 +2870,7 @@
                         </div>
                         <div className="tc-dhq-deal-stage-body">
                             {visibleDeals.length
-                                ? visibleDeals.map(dealCard)
+                                ? visibleDeals.map((deal, idx) => <TcDealCard key={deal.id} deal={deal} idx={idx} actionFloor={actionFloor} expandedDealId={expandedDealId} setExpandedDealId={setExpandedDealId} loadDealIntoAnalyzer={loadDealIntoAnalyzer} saveDeal={saveDeal} sideSummary={sideSummary} />)
                                 : <div className="tc-dhq-empty">No actionable package clears {actionFloor}% acceptance. Use moonshots only if you want long-shot leverage ideas.</div>}
                         </div>
                         {(deals.length > visibleDeals.length || showAllDeals) && <button className="tc-dhq-show-more" onClick={() => setShowAllDeals(!showAllDeals)}>{showAllDeals ? 'Hide moonshots' : moonshotCount ? `Show ${moonshotCount} moonshot${moonshotCount === 1 ? '' : 's'}` : `Show ${deals.length - visibleDeals.length} more`}</button>}
