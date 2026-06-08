@@ -747,6 +747,7 @@
         // ── State ──
         const [tcTab, setTcTab] = useState(initialSubTab || 'dealhq');
         const [adaptiveView, setAdaptiveView] = useState('hero'); // Adaptive War Room canvas view: 'hero' | 'workspace'
+        const [builderExpanded, setBuilderExpanded] = useState(false); // persistent builder panel open/closed
         const [dealMode, setDealMode] = useState('fillNeed');
         const [dealFocusPid, setDealFocusPid] = useState(null);
         const [selectedDealPartnerId, setSelectedDealPartnerId] = useState(null);
@@ -3191,6 +3192,7 @@
             const backToBestMove = () => { setAdaptiveView('hero'); setSelectedDealPartnerId(null); setDealFocusPid(null); if (typeof clearTradeContext === 'function') clearTradeContext(); };
             // Persistent live verdict — the in-progress deal's verdict follows you across surfaces.
             const _verdict = computeManualVerdict();
+            const _tsDeps = buildTradeSideDeps();
             return (
                 <div className="tc-trade-root">
                     <div className="wr-module-strip">
@@ -3216,14 +3218,31 @@
                             <button type="button" onClick={clearTradeContext} style={{ background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', borderRadius: '4px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.72rem', padding: '4px 10px', textTransform: 'uppercase' }}>Clear</button>
                         </div>
                     )}
-                    {active !== 'analyzer' && _verdict.hasTrade && (
-                        <button type="button" onClick={() => setTcTab('analyzer')} title="Open this deal in the Builder" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', textAlign: 'left', background: 'rgba(53,208,214,0.06)', border: '1px solid rgba(53,208,214,0.28)', borderRadius: '8px', padding: '9px 13px', marginBottom: '12px', cursor: 'pointer' }}>
-                            <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#35d0d6' }}>Live deal</span>
-                            <strong style={{ fontFamily: 'var(--font-title)', fontSize: '0.95rem', color: _verdict.verdictColor }}>{_verdict.verdictText} {_verdict.diffDisplay}</strong>
-                            <span style={{ fontSize: '0.74rem', color: 'var(--silver)' }}>gave {_verdict.totalA.toLocaleString()} / got {_verdict.totalB.toLocaleString()}</span>
-                            <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.82rem', fontWeight: 700, color: _verdict.likelihoodColor }}>{_verdict.likelihood}% accept</span>
-                            <span style={{ fontSize: '0.74rem', color: 'var(--gold)', fontWeight: 700 }}>Open in Builder ›</span>
-                        </button>
+                    {active !== 'analyzer' && (
+                        <div style={{ marginBottom: '12px', border: '1px solid rgba(53,208,214,0.28)', borderRadius: '8px', background: 'rgba(53,208,214,0.05)', overflow: 'hidden' }}>
+                            <button type="button" onClick={() => setBuilderExpanded(v => !v)} title="Build or tweak a deal without leaving this view" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', textAlign: 'left', background: 'transparent', border: 'none', padding: '9px 13px', cursor: 'pointer' }}>
+                                <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#35d0d6' }}>{_verdict.hasTrade ? 'Live deal' : 'Deal builder'}</span>
+                                {_verdict.hasTrade ? (
+                                    <>
+                                        <strong style={{ fontFamily: 'var(--font-title)', fontSize: '0.95rem', color: _verdict.verdictColor }}>{_verdict.verdictText} {_verdict.diffDisplay}</strong>
+                                        <span style={{ fontSize: '0.74rem', color: 'var(--silver)' }}>gave {_verdict.totalA.toLocaleString()} / got {_verdict.totalB.toLocaleString()}</span>
+                                        <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.82rem', fontWeight: 700, color: _verdict.likelihoodColor }}>{_verdict.likelihood}% accept</span>
+                                    </>
+                                ) : (
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--silver)' }}>Build or tweak a trade without leaving this view.</span>
+                                )}
+                                <span style={{ marginLeft: _verdict.hasTrade ? '0' : 'auto', fontSize: '0.74rem', color: 'var(--gold)', fontWeight: 700 }}>{builderExpanded ? 'Collapse ▴' : (_verdict.hasTrade ? 'Edit ▾' : 'Open ▾')}</span>
+                            </button>
+                            {builderExpanded && (
+                                <div style={{ borderTop: '1px solid rgba(53,208,214,0.18)', padding: '12px', background: 'rgba(0,0,0,0.16)' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'start' }}>
+                                        {TcTradeSide({ side: 'A', color: 'var(--k-5dade2, #5dade2)', label: 'YOU SEND', ..._tsDeps })}
+                                        {TcTradeSide({ side: 'B', color: 'var(--k-e74c3c, #e74c3c)', label: 'YOU GET', ..._tsDeps })}
+                                    </div>
+                                    {_verdict.hasTrade && <div style={{ marginTop: '12px' }}>{React.createElement(TcVerdictPanel, { ..._verdict, FAAB_RATE })}</div>}
+                                </div>
+                            )}
+                        </div>
                     )}
                     {body}
                 </div>
