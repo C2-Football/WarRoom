@@ -746,6 +746,7 @@
 
         // ── State ──
         const [tcTab, setTcTab] = useState(initialSubTab || 'dealhq');
+        const [adaptiveView, setAdaptiveView] = useState('hero'); // Adaptive War Room canvas view: 'hero' | 'workspace'
         const [dealMode, setDealMode] = useState('fillNeed');
         const [dealFocusPid, setDealFocusPid] = useState(null);
         const [selectedDealPartnerId, setSelectedDealPartnerId] = useState(null);
@@ -3153,21 +3154,67 @@
                     </div>
 
                     <button type="button"
-                        onClick={() => { setSelectedDealPartnerId(bestPartner.assessment.ownerId); setDealFocusPid(null); setTcTab('analyzer'); }}
+                        onClick={() => { setSelectedDealPartnerId(bestPartner.assessment.ownerId); setDealFocusPid(null); setTcTab('analyzer'); setAdaptiveView('workspace'); }}
                         style={{ width: '100%', padding: '12px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', fontFamily: 'var(--font-title)', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                         Review &amp; Tweak This Deal
                     </button>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                        <button type="button" onClick={() => { setSelectedDealPartnerId(bestPartner.assessment.ownerId); setTcTab('dealhq'); }}
+                        <button type="button" onClick={() => { setSelectedDealPartnerId(bestPartner.assessment.ownerId); setTcTab('dealhq'); setAdaptiveView('workspace'); }}
                             style={{ flex: 1, padding: '10px 12px', background: 'rgba(212,175,55,0.07)', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', fontFamily: 'var(--font-body)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
                             Browse All Partners
                         </button>
-                        <button type="button" onClick={() => { setSelectedDealPartnerId(null); setDealFocusPid(null); setTcTab('analyzer'); }}
+                        <button type="button" onClick={() => { setSelectedDealPartnerId(null); setDealFocusPid(null); setTcTab('analyzer'); setAdaptiveView('workspace'); }}
                             style={{ flex: 1, padding: '10px 12px', background: 'rgba(255,255,255,0.03)', color: 'var(--silver)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', fontFamily: 'var(--font-body)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
                             Build Your Own
                         </button>
                     </div>
                     <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '0.6875rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}>One canvas, no tabs — pick an action to open the full workspace.</div>
+                </div>
+            );
+        }
+
+        // ── renderAdaptiveWorkspace — Slice 2a of the tab-free Adaptive War Room canvas ──
+        // Flag-on workspace shell: replaces the old tab bar with a slim adaptive header (‹ Best Move
+        // back-link + a clean Deal HQ / Builder / Owner DNA nav) and reuses the existing surfaces as
+        // bodies. Returns to the hero via setAdaptiveView('hero') + clearing seeds.
+        function renderAdaptiveWorkspace() {
+            const active = tcTab === 'analyzer' ? 'analyzer' : (tcTab === 'profiles' || tcTab === 'dna') ? 'profiles' : 'dealhq';
+            const surfaces = [
+                { key: 'dealhq', label: 'Deal HQ' },
+                { key: 'analyzer', label: 'Builder' },
+                { key: 'profiles', label: 'Owner DNA' },
+            ];
+            let body;
+            if (active === 'analyzer') body = renderTradeAnalyzer();
+            else if (active === 'profiles') body = canAccess('owner-dna') ? renderOwnerDna() : React.createElement(UpgradeGate, { feature: 'owner-dna', title: 'UNLOCK OWNER DNA', description: 'Profile every manager\'s trading psychology. Know who\'s a Fleecer, who\'s Desperate, and exactly how to approach each trade conversation.', targetTier: 'warroom' });
+            else body = renderDealHQ();
+            const backToBestMove = () => { setAdaptiveView('hero'); setSelectedDealPartnerId(null); setDealFocusPid(null); if (typeof clearTradeContext === 'function') clearTradeContext(); };
+            return (
+                <div className="tc-trade-root">
+                    <div className="wr-module-strip">
+                        <div className="wr-module-context" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <button type="button" onClick={backToBestMove} style={{ background: 'rgba(212,175,55,0.07)', border: '1px solid rgba(212,175,55,0.22)', borderRadius: '6px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.74rem', fontWeight: 700, padding: '5px 11px' }}>‹ Best Move</button>
+                            <strong>Trade Center</strong>
+                        </div>
+                        <div className="wr-module-actions">
+                            <div className="wr-module-nav">
+                                {surfaces.map(s => (
+                                    <button key={s.key} className={active === s.key ? 'is-active' : ''} onClick={() => setTcTab(s.key)}>{s.label}</button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    {tradeContext && (
+                        <div className="trade-context-banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
+                            <div style={{ minWidth: 0 }}>
+                                <span style={{ display: 'block', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Trade Context</span>
+                                <strong style={{ display: 'block', color: 'var(--white)', fontSize: '0.9rem', fontFamily: 'var(--font-title)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Opened from transaction ticker</strong>
+                                <em style={{ display: 'block', color: 'var(--silver)', fontSize: '0.74rem', fontStyle: 'normal' }}>{formatTradeContextSummary(tradeContext) || 'Use this deal as context while evaluating partner fit and packages.'}</em>
+                            </div>
+                            <button type="button" onClick={clearTradeContext} style={{ background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', borderRadius: '4px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.72rem', padding: '4px 10px', textTransform: 'uppercase' }}>Clear</button>
+                        </div>
+                    )}
+                    {body}
                 </div>
             );
         }
@@ -3567,13 +3614,18 @@
             profiles: 'Owner posture, roster gaps, pick context, and trade history.',
             analyzer: 'Manual player, pick, and FAAB inspection.'
         };
-        // Adaptive War Room canvas — Slice 1, behind a default-OFF flag (window._wrAdaptiveCanvas).
-        // Only on the default landing (dealhq tab, no partner/focus/context seed) so any CTA or
-        // deep-link reveals the existing tabbed surface. Returns null => fall through to tabs.
+        // Adaptive War Room canvas — behind a default-OFF flag (window._wrAdaptiveCanvas).
+        // Flag ON => fully tab-free: the calm "best move" hero (landing view) + a tab-free workspace
+        // shell that reuses the existing surfaces. Flag OFF => the existing 3-tab return below,
+        // byte-identical (this branch never runs).
         const _wrAdaptiveOn = (typeof window !== 'undefined' && window._wrAdaptiveCanvas === true);
-        if (_wrAdaptiveOn && canAccess('trade-finder') && tcTab === 'dealhq' && !selectedDealPartnerId && !dealFocusPid && !tradeContext) {
-            const _adaptiveLanding = renderAdaptiveLanding();
-            if (_adaptiveLanding) return _adaptiveLanding;
+        if (_wrAdaptiveOn && canAccess('trade-finder')) {
+            // Hero is the landing view, only when not seeded by a deep-link (which jumps to workspace).
+            if (adaptiveView === 'hero' && !selectedDealPartnerId && !dealFocusPid && !tradeContext) {
+                const _adaptiveLanding = renderAdaptiveLanding();
+                if (_adaptiveLanding) return _adaptiveLanding;
+            }
+            return renderAdaptiveWorkspace();
         }
         return (
             <div className="tc-trade-root">
