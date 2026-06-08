@@ -3306,11 +3306,10 @@
             return { totalA, totalB, hasTrade, otherOwnerId, otherDnaKey, otherDna, theirPosture, psychTaxes, grudgeTax, netTaxTotal, likelihood, manualBehaviorProfile, manualBehaviorFit, likelihoodColor, verdictColor, verdictText, diffDisplay, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta };
         }
 
-        function renderTradeAnalyzer() {
-            if (!Object.keys(playersData).length) return <div style={{ color:'var(--silver)', textAlign:'center', padding:'2rem' }}>No player data loaded.</div>;
-
-            const { totalA, totalB, hasTrade, otherOwnerId, otherDnaKey, otherDna, theirPosture, psychTaxes, grudgeTax, netTaxTotal, likelihood, manualBehaviorProfile, manualBehaviorFit, likelihoodColor, verdictColor, verdictText, diffDisplay, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta } = computeManualVerdict();
-
+        // buildTradeSideDeps — constructs the prop bag for TcTradeSide (builder-side helper closures +
+        // value fns). Lifted out of renderTradeAnalyzer (encapsulated, not globalized) so the redesigned
+        // persistent builder pane can render the builder too. Each helper only reads TradeCalcTab state.
+        function buildTradeSideDeps() {
             function rosterPlayersFor(side) {
                 const ownerId = tradeOwner[side]; if (!ownerId) return null;
                 const roster = allRosters.find(r => r.owner_id === ownerId); if (!roster) return null;
@@ -3332,7 +3331,15 @@
             function pickLabel(year, round, fromRid) { return formatPickLabel(year, round, fromRid); }
             const ownerOptions = [{ id: null, label: '-- None --' }, ...assessments.map(a => ({ id: a.ownerId, label: `${a.ownerName} (${a.teamName})` }))];
 
-            const tradeSideDeps = { tradeIds, tradePickIds, tradeFaab, getPlayerValue, pickValueForParts, FAAB_RATE, rosterPlayersFor, tradeOwner, picksByOwner, comparePicksByDraftOrder, setTradeOwner, setSearchText, ownerOptions, playersData, MAX_VALUE, removePlayer, posColor, normPos, PICK_COLORS, ownerNameForRosterId, allRosters, removePick, pickLabel, searchText, TC_POS_ORDER, addPlayer, makePickId, addPick, setTradeFaab };
+            return { tradeIds, tradePickIds, tradeFaab, getPlayerValue, pickValueForParts, FAAB_RATE, rosterPlayersFor, tradeOwner, picksByOwner, comparePicksByDraftOrder, setTradeOwner, setSearchText, ownerOptions, playersData, MAX_VALUE, removePlayer, posColor, normPos, PICK_COLORS, ownerNameForRosterId, allRosters, removePick, pickLabel, searchText, TC_POS_ORDER, addPlayer, makePickId, addPick, setTradeFaab };
+        }
+
+        function renderTradeAnalyzer() {
+            if (!Object.keys(playersData).length) return <div style={{ color:'var(--silver)', textAlign:'center', padding:'2rem' }}>No player data loaded.</div>;
+
+            const { totalA, totalB, hasTrade, otherOwnerId, otherDnaKey, otherDna, theirPosture, psychTaxes, grudgeTax, netTaxTotal, likelihood, manualBehaviorProfile, manualBehaviorFit, likelihoodColor, verdictColor, verdictText, diffDisplay, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta } = computeManualVerdict();
+
+            const tradeSideDeps = buildTradeSideDeps();
 
             // Phase 5: Build vs Find mode — lets the user pick between manually building a trade
             // or auto-generating proposals. "Find" mode renders the TradeFinderTab inline.
