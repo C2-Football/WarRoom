@@ -1772,7 +1772,14 @@
             });
             setTradeFaab({ A: deal.giveFaab || 0, B: deal.receiveFaab || 0 });
             setSearchText({ A: '', B: '' });
-            setTcTab('analyzer');
+            if (typeof window !== 'undefined' && window._wrAdaptiveCanvas === true) {
+                // Adaptive canvas: edit the generated deal IN PLACE via the persistent builder,
+                // instead of jumping to a separate Builder surface.
+                setAdaptiveView('workspace');
+                setBuilderExpanded(true);
+            } else {
+                setTcTab('analyzer');
+            }
             window._wrAnalyzerMode = 'build';
         }
 
