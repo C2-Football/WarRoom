@@ -109,6 +109,52 @@
         return exp === 0 && !hasNflStats;
     }
 
+    // ── GM-Office tunable FA filters ────────────────────────────────────────────
+    // User-set knobs (min DHQ, max age, prime-years-only, excluded positions) from
+    // GM strategy. Applied to the recommendation surfaces (priority adds + action
+    // board), never the market explorer (which always shows everyone). The UDFA
+    // craze is exempt (buildUdfaCrazeBoard passes skipGmFilters).
+    function getGmFaFilters(currentLeague) {
+        const leagueId = currentLeague?.league_id || currentLeague?.id;
+        let strat = null;
+        try {
+            strat = (typeof localStorage !== 'undefined' && localStorage.getItem('dhq_gm_strategy_v1') ? window.GMStrategy?.getStrategy?.(leagueId) : null)
+                || window.App?.WrStorage?.get?.(window.App?.WR_KEYS?.GM_STRATEGY?.(leagueId))
+                || window._wrGmStrategy
+                || null;
+        } catch (_) {}
+        const f = (strat && strat.faFilters) || {};
+        const excludePositions = (Array.isArray(f.excludePositions) ? f.excludePositions : [])
+            .map(p => String((window.App?.normPos?.(p)) || p || '').toUpperCase()).filter(Boolean);
+        return {
+            minDhq: Number(f.minDhq) || 0,
+            maxAge: Number(f.maxAge) || 0,
+            requirePrimeYears: !!f.requirePrimeYears,
+            excludePositions,
+        };
+    }
+    function gmFaFiltersActive(f) {
+        return !!(f && (f.minDhq > 0 || f.maxAge > 0 || f.requirePrimeYears || (f.excludePositions && f.excludePositions.length)));
+    }
+    function gmFaPeakYears(pos, age) {
+        const curve = (typeof window.App?.getAgeCurve === 'function' ? window.App.getAgeCurve(pos) : null)
+            || { peak: (window.App?.peakWindows || {})[pos] || [24, 29] };
+        const peakEnd = (curve.peak && curve.peak[1]) || 29;
+        return Math.max(0, peakEnd - (Number(age) || 25));
+    }
+    function applyGmFaFilters(list, f) {
+        if (!gmFaFiltersActive(f)) return list || [];
+        return (list || []).filter(x => {
+            const pos = String(x.pos || (window.App?.normPos?.(x.p?.position)) || x.p?.position || '').toUpperCase();
+            const age = Number(x.p?.age) || 0;
+            if (f.minDhq && (Number(x.dhq) || 0) < f.minDhq) return false;
+            if (f.excludePositions.includes(pos)) return false;
+            if (f.maxAge && age && age > f.maxAge) return false;
+            if (f.requirePrimeYears && !(gmFaPeakYears(pos, age) > 0)) return false;
+            return true;
+        });
+    }
+
     function buildFreeAgencyActionBoard(args = {}) {
         const playersData = args.playersData || {};
         const statsData = args.statsData || {};
@@ -278,14 +324,18 @@
             .sort((a, b) => b.dhq - a.dhq)
             .slice(0, 300);
 
+        // GM-Office filters scope the recommendation surfaces (not the market pool).
+        const gmFa = getGmFaFilters(currentLeague);
+        const recPool = args.skipGmFilters ? availablePlayers : applyGmFaFilters(availablePlayers, gmFa);
+
         const needPositions = (assess?.needs || []).slice(0, 3).map(n => n.pos).filter(Boolean);
         let recommendations = [];
         if (needPositions.length) {
-            const bestAvailDhq = availablePlayers
+            const bestAvailDhq = recPool
                 .filter(x => needPositions.includes(x.pos))
                 .reduce((m, x) => Math.max(m, x.dhq), 0);
             const dynamicFloor = Math.min(500, Math.max(100, Math.round(bestAvailDhq * 0.25)));
-            recommendations = availablePlayers
+            recommendations = recPool
                 .filter(x => {
                     if (!needPositions.includes(x.pos)) return false;
                     if (x.dhq < dynamicFloor) return false;
@@ -303,7 +353,7 @@
                 .filter(Boolean);
         }
 
-        const actionBoardPlayers = availablePlayers
+        const actionBoardPlayers = recPool
             .map(decorateFaCandidate)
             .sort((a, b) => (b.fitScore * 5000 + b.dhq + (b.ppg || 0) * 35) - (a.fitScore * 5000 + a.dhq + (a.ppg || 0) * 35));
         const priorityAdds = (recommendations.length ? recommendations : actionBoardPlayers)
@@ -314,7 +364,7 @@
         if (typeof window.App?.Intelligence?.publishRecommendations === 'function') {
             window.App.Intelligence.publishRecommendations('waiver', priorityAdds.map(x => x.intelligence).filter(Boolean), { surface: 'free-agency-action-board' });
         }
-        return { priorityAdds, actionBoardPlayers, availablePlayers };
+        return { priorityAdds, actionBoardPlayers, availablePlayers, gmFaFilters: gmFa, gmHiddenCount: Math.max(0, availablePlayers.length - recPool.length) };
     }
 
     // ── UDFA craze ────────────────────────────────────────────────────────────
@@ -351,7 +401,9 @@
         const prospects = (typeof window.getProspects === 'function' ? window.getProspects() : []) || [];
         const prospectNames = new Set(prospects.map(p => faNormName(p.name)).filter(Boolean));
         const prospectByName = new Map(prospects.map(p => [faNormName(p.name), p]));
-        const board = (window.App?.buildFreeAgencyActionBoard || buildFreeAgencyActionBoard)(args);
+        // The craze runs its own eligibility/tiering — exempt it from the GM-Office
+        // FA filters (a minDHQ would wrongly nuke low-value-but-high-upside UDFAs).
+        const board = (window.App?.buildFreeAgencyActionBoard || buildFreeAgencyActionBoard)({ ...args, skipGmFilters: true });
         const pool = board.actionBoardPlayers || [];
         const seed = new Set((args.crazeSeed || []).map(s => String(s.pid ?? s)).filter(Boolean));
         const livRange = window.App?.livFAABRange || (typeof window.livFAABRange === 'function' ? window.livFAABRange : null);
@@ -532,6 +584,19 @@
                 .slice(0, 300);
         }, [rosterState.isUsable, playersData, rostered, timeRecomputeTs, isDraftProspect]);
 
+        // GM-Office FA filters scope the recommendation surfaces (priority adds +
+        // action board). The market explorer (sortedPlayers) keeps the full pool.
+        const [gmFilterTick, setGmFilterTick] = useState(0);
+        useEffect(() => {
+            const h = () => setGmFilterTick(t => t + 1);
+            window.addEventListener('wr:gm-mode-changed', h);
+            return () => window.removeEventListener('wr:gm-mode-changed', h);
+        }, []);
+        const gmFa = useMemo(() => getGmFaFilters(currentLeague), [currentLeague, gmFilterTick]);
+        const recPool = useMemo(() => applyGmFaFilters(availablePlayers, gmFa), [availablePlayers, gmFa]);
+        const gmHiddenCount = Math.max(0, availablePlayers.length - recPool.length);
+        const gmFiltersOn = gmFaFiltersActive(gmFa);
+
         const posColors = window.App.POS_COLORS;
         const faPosOrder = { QB:0, RB:1, WR:2, TE:3, K:4, DEF:5, DL:6, LB:7, DB:8 };
 
@@ -680,14 +745,14 @@
             // ── Dynamic DHQ floor: scales down if wire is thin ──
             // Hard floor is 500, but if the best available at needed positions is below that,
             // drop to 25% of the best available DHQ so we always show something.
-            const bestAvailDhq = availablePlayers
+            const bestAvailDhq = recPool
                 .filter(x => needPositions.includes(x.pos))
                 .reduce((m, x) => Math.max(m, x.dhq), 0);
             const dynamicFloor = Math.min(500, Math.max(100, Math.round(bestAvailDhq * 0.25)));
 
             // ── Minimum quality threshold: dynamic DHQ floor ──
             // ── Rebuild mode: age ≤ 25 unless DHQ > 2000 (genuinely good player) ──
-            return availablePlayers
+            return recPool
                 .filter(x => {
                     if (!needPositions.includes(x.pos)) return false;
                     if (x.dhq < dynamicFloor) return false;
@@ -707,7 +772,7 @@
 	                    return { ...x, ppg, need, peakYrs, valueYrs, faab };
                 })
                 .filter(Boolean);
-        }, [rosterState.isUsable, availablePlayers, assess, statsData]);
+        }, [rosterState.isUsable, recPool, assess, statsData]);
 
         // Selected player detail
         const selPlayer = faSelectedPid ? playersData[faSelectedPid] : null;
@@ -866,7 +931,7 @@
                 const data = assess.posAssessment[pos] || {};
                 const pg = posGradeMap[pos] || { grade: 'C', col: 'var(--k-f0a500, #f0a500)', rank: 0, totalTeams: 0 };
                 const gl = gradeLabel(pg.grade);
-                const bestWire = availablePlayers.find(x => x.pos === pos);
+                const bestWire = recPool.find(x => x.pos === pos);
                 return { pos, data, grade: pg.grade, label: gl.label, color: pg.col, bg: gl.bg, rank: pg.rank, totalTeams: pg.totalTeams, bestWire };
             })
             .sort((a, b) => {
@@ -874,7 +939,7 @@
                 return (order[a.grade] ?? 2) - (order[b.grade] ?? 2) || (faPosOrder[a.pos] ?? 9) - (faPosOrder[b.pos] ?? 9);
             });
 
-        const actionBoardPlayers = availablePlayers
+        const actionBoardPlayers = recPool
             .map(decorateFaCandidate)
             .sort((a, b) => (b.fitScore * 5000 + b.dhq + (b.ppg || 0) * 35) - (a.fitScore * 5000 + a.dhq + (a.ppg || 0) * 35));
         const priorityAdds = (recommendations.length ? recommendations : actionBoardPlayers)
@@ -999,6 +1064,18 @@
                                     </button>
                                 )) : <div className="fa-hq-empty">No priority adds match your current roster needs.</div>}
                             </div>
+                            {gmFiltersOn && (() => {
+                                const parts = [];
+                                if (gmFa.minDhq) parts.push('min ' + gmFa.minDhq.toLocaleString() + ' ' + valueShortLabel);
+                                if (gmFa.maxAge) parts.push('≤' + gmFa.maxAge + ' yrs');
+                                if (gmFa.requirePrimeYears) parts.push('prime years only');
+                                if (gmFa.excludePositions.length) parts.push('no ' + gmFa.excludePositions.join('/'));
+                                return (
+                                    <div style={{ marginTop: 8, padding: '7px 10px', borderRadius: 6, background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', lineHeight: 1.5 }}>
+                                        <strong style={{ color: 'var(--gold)' }}>GM filters</strong>: {parts.join(' · ')}{gmHiddenCount > 0 ? ' · ' + gmHiddenCount + ' hidden' : ''} · edit in GM's Office
+                                    </div>
+                                );
+                            })()}
 
                             <div className="fa-hq-subhead">Best Add/Drop Upgrades</div>
                             <div className="fa-hq-stack">

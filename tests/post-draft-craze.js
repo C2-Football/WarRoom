@@ -284,6 +284,67 @@ console.log('\nWar Room post-draft protocol contract');
   });
 })();
 
+// ─────────────────────────────────────────────────────────────────────────────
+// D. GM-Office tunable FA filters (free-agency.js)
+// ─────────────────────────────────────────────────────────────────────────────
+(function gmFaFilters() {
+  const ctx = makeCtx();
+  loadRaw(ctx, 'reconai-shared/storage.js');
+  loadJsx(ctx, 'js/free-agency.js');
+  const A = ctx.App;
+  ctx.window.getProspects = () => [];
+  ctx.window.assessTeamFromGlobal = () => ({ needs: [], strengths: [], tier: 'CONTENDER', window: 'CONTENDING' });
+  ctx.App.livFAABRange = () => null;
+  ctx.App.LI = { playerScores: { hi_wr: 2000, lo_wr: 300, te1: 1500, old_rb: 1500 }, playerMeta: {} };
+  const playersData = {
+    hi_wr:  { full_name: 'Hi WR',   position: 'WR', team: 'KC',  age: 24, status: 'Active', years_exp: 3 },
+    lo_wr:  { full_name: 'Lo WR',   position: 'WR', team: 'KC',  age: 24, status: 'Active', years_exp: 3 },
+    te1:    { full_name: 'Tee End', position: 'TE', team: 'DAL', age: 26, status: 'Active', years_exp: 4 },
+    old_rb: { full_name: 'Old RB',  position: 'RB', team: 'SEA', age: 33, status: 'Active', years_exp: 11 },
+  };
+  const currentLeague = { league_id: 'GML', settings: { type: 2, waiver_budget: 100 }, season: 2026, rosters: [], roster_positions: ['QB', 'RB', 'WR', 'TE', 'FLEX'], scoring_settings: {} };
+  const baseArgs = { playersData, statsData: {}, prevStatsData: {}, myRoster: { roster_id: 1, settings: {} }, currentLeague };
+  const onBoard = (b, pid) => b.actionBoardPlayers.some(x => x.pid === pid);
+
+  test('no GM filters → full board, market pool intact', () => {
+    ctx.window._wrGmStrategy = null;
+    const b = A.buildFreeAgencyActionBoard(baseArgs);
+    eq(b.actionBoardPlayers.length, 4, 'all 4 on board');
+    eq(b.gmHiddenCount, 0, 'none hidden');
+    eq(b.availablePlayers.length, 4, 'full market pool');
+  });
+  test('minDHQ hides low-value from recommendations, NOT the market pool', () => {
+    ctx.window._wrGmStrategy = { faFilters: { minDhq: 1000 } };
+    const b = A.buildFreeAgencyActionBoard(baseArgs);
+    ok(!onBoard(b, 'lo_wr'), 'lo_wr (300) hidden from board');
+    ok(onBoard(b, 'hi_wr'), 'hi_wr (2000) kept');
+    eq(b.gmHiddenCount, 1, '1 hidden');
+    eq(b.availablePlayers.length, 4, 'market pool still full');
+  });
+  test('excludePositions removes a position', () => {
+    ctx.window._wrGmStrategy = { faFilters: { excludePositions: ['TE'] } };
+    ok(!onBoard(A.buildFreeAgencyActionBoard(baseArgs), 'te1'), 'TE excluded');
+  });
+  test('maxAge removes older players', () => {
+    ctx.window._wrGmStrategy = { faFilters: { maxAge: 30 } };
+    const b = A.buildFreeAgencyActionBoard(baseArgs);
+    ok(!onBoard(b, 'old_rb'), 'age 33 excluded');
+    ok(onBoard(b, 'te1'), 'age 26 kept');
+  });
+  test('requirePrimeYears removes past-peak players', () => {
+    ctx.window._wrGmStrategy = { faFilters: { requirePrimeYears: true } };
+    const b = A.buildFreeAgencyActionBoard(baseArgs);
+    ok(!onBoard(b, 'old_rb'), 'no prime years -> excluded');
+    ok(onBoard(b, 'hi_wr'), 'young player kept');
+  });
+  test('UDFA craze is EXEMPT from GM minDHQ', () => {
+    ctx.window._wrGmStrategy = { faFilters: { minDhq: 1000 } };
+    ctx.window.getProspects = () => [{ pid: 'lo_wr', name: 'Lo WR', pos: 'WR', nflTeam: 'KC', isUDFA: true, dynastyValue: 300, tierLabel: 'UDFA' }];
+    const cb = A.buildUdfaCrazeBoard(baseArgs);
+    ok(cb.candidates.some(c => c.pid === 'lo_wr'), 'low-DHQ signed UDFA still surfaces in the craze');
+  });
+})();
+
 console.log('\n');
 if (failures.length) { console.log(failures.join('\n\n')); console.log(`\nFAIL ${passed + failed} tests - ${passed} passed, ${failed} failed`); process.exit(1); }
 console.log(`PASS ${passed + failed} tests - ${passed} passed, 0 failed`);
