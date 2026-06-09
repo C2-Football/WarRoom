@@ -781,6 +781,20 @@
             dispatch({ type: 'UPDATE_LIVE_OWNERSHIP', pickOwnership: draftMeta.pickOwnership });
         }, [draftMeta, state.mode, state.phase, state.currentIdx]);
 
+        // Bridge live traded picks into the reducer so the recap's Trade Impact +
+        // Trade Volume can see them (Sleeper traded_picks: roster_id=original owner,
+        // owner_id=current, previous_owner_id=prior). Reducer no-ops when unchanged.
+        React.useEffect(() => {
+            if (state.mode !== 'live-sync') return;
+            const tp = Array.isArray(liveDraftTradedPicks) ? liveDraftTradedPicks : [];
+            const normalized = tp.map(t => ({
+                round: Number(t.round) || null,
+                rosterId: t.owner_id ?? t.roster_id ?? null,
+                fromRosterId: t.previous_owner_id ?? null,
+            }));
+            dispatch({ type: 'SET_TRADED_PICKS', tradedPicks: normalized });
+        }, [liveDraftTradedPicks, state.mode]);
+
         // ── Live-Sync variant auto-correction ──────────────────────────
         // When resuming a live-sync draft, the saved state's `variant` can be
         // stale if the user started it before we auto-detected Sleeper draft
@@ -4974,25 +4988,37 @@
 
                     const gradeColor = grade.letter.startsWith('A') ? 'var(--k-2ecc71, #2ecc71)' : grade.letter.startsWith('B') ? 'var(--k-d4af37, #d4af37)' : grade.letter.startsWith('C') ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
                     const teamRecaps = recap?.teamRecaps || [];
-                    const actionPlan = recap?.actionPlan || [];
                     const leagueStorylines = recap?.leagueStorylines || [];
+                    // Post-draft power/tier per team: existing roster health (assessTeam)
+                    // blended with this draft's haul. Degrades gracefully if assessment
+                    // globals aren't loaded (badge simply omitted).
+                    const teamPower = (() => {
+                        let assessments = [];
+                        try { assessments = (typeof window.assessAllTeamsFromGlobal === 'function' ? window.assessAllTeamsFromGlobal() : []) || []; } catch (_) {}
+                        const byRid = {};
+                        assessments.forEach(a => { if (a && a.rosterId != null) byRid[String(a.rosterId)] = a; });
+                        const maxHaul = Math.max(1, ...teamRecaps.map(t => t.totalDHQ || 0));
+                        const out = {};
+                        teamRecaps.forEach(t => {
+                            const a = byRid[String(t.rosterId)] || {};
+                            const health = Number(a.healthScore) || 0;
+                            const haulPct = Math.round(((t.totalDHQ || 0) / maxHaul) * 100);
+                            out[String(t.rosterId)] = { power: Math.round(health * 0.6 + haulPct * 0.4), tier: a.tier || null, tierColor: a.tierColor || null };
+                        });
+                        return out;
+                    })();
                     const tradeImpact = recap?.tradeImpact || { count: 0, summary: 'No accepted draft trades on record.' };
                     const bestPick = recap?.bestPick || null;
                     const biggestReach = recap?.biggestReach || null;
-                    const missedTarget = recap?.missedTarget || null;
+                    const worstPick = recap?.worstPick || null;
                     const bestAlternative = recap?.bestAlternative || null;
-                    const postDraftMoves = recap?.postDraftMoves || {};
-                    // Per-type efficiency (value vs expected pick) + owner-DNA signature.
+                    const leagueExtremes = recap?.leagueExtremes || {};
+                    const tradeVolume = recap?.tradeVolume || { total: 0, byRound: {} };
+                    // Per-type efficiency (value vs expected pick).
                     const efficiency = recap?.efficiency ?? null;
                     const effPct = efficiency != null ? Math.round(efficiency * 100) : null;
                     const gradeBasis = recap?.gradeBasis || 'vs expected pick value';
-                    const myLearning = recap?.ownerLearning?.[String(state.userRosterId)] || null;
-                    const dnaSignals = (myLearning?.reasonCodes || []).map(rc => rc.detail).filter(Boolean);
-                    const dnaLead = avPick('dna:' + state.userRosterId + ':' + grade.letter, [
-                        'Here is the fingerprint you left on this class:',
-                        'This is how you drafted — your signature this cycle:',
-                        'Your tendencies showed up clearly. The read:',
-                    ]);
+                    const effColor = effPct == null ? 'var(--silver)' : effPct >= 100 ? 'var(--k-2ecc71, #2ecc71)' : effPct >= 85 ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
                     const recapPositions = recap?.positionSummary?.length
                         ? recap.positionSummary
                         : orderedPositions.map(pos => ({ pos, ...posSummary[pos] }));
@@ -5053,23 +5079,28 @@
                                 <div style={{ padding: '28px 32px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', background: 'linear-gradient(135deg, ' + gradeColor + '15, transparent 70%)' }}>
                                     <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '6px' }}>Draft Complete — Recap</div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                                        <div style={{ fontFamily: FONT_DISPL, fontSize: '5.5rem', fontWeight: 700, color: gradeColor, lineHeight: 1 }}>{grade.letter}</div>
+                                        <div style={{ textAlign: 'center', flexShrink: 0 }}>
+                                            <div style={{ fontFamily: FONT_DISPL, fontSize: '5.5rem', fontWeight: 700, color: gradeColor, lineHeight: 1 }}>{grade.letter}</div>
+                                            <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '2px' }}>Overall Grade</div>
+                                        </div>
                                         <div style={{ flex: 1 }}>
-                                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Overall Draft Grade</div>
-                                            <div style={{ fontSize: '0.96rem', color: 'var(--white)', marginTop: '6px', lineHeight: 1.5 }}>
-                                                Total DHQ: <strong style={{ color: gradeColor }}>{grade.totalDHQ.toLocaleString()}</strong> across {myPicks.length} pick{myPicks.length === 1 ? '' : 's'} · {grade.pct}% value capture
+                                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.7, lineHeight: 1.45 }}>Grade weighs board value, roster fit, and value vs your expected slots.</div>
+                                            <div style={{ fontSize: '0.96rem', color: 'var(--white)', marginTop: '8px', lineHeight: 1.5 }}>
+                                                Total DHQ: <strong style={{ color: gradeColor }}>{grade.totalDHQ.toLocaleString()}</strong> across {myPicks.length} pick{myPicks.length === 1 ? '' : 's'}
                                             </div>
-                                            {effPct != null && (
-                                                <div style={{ fontSize: '0.82rem', color: 'var(--silver)', marginTop: '4px' }}>
-                                                    Captured <strong style={{ color: gradeColor }}>{effPct}%</strong> of {gradeBasis === 'vs $ spent' ? 'expected value for your spend' : 'expected DHQ for your slots'} <span style={{ opacity: 0.6 }}>· {gradeBasis}</span>
-                                                </div>
-                                            )}
                                             {totals.length >= 3 && (
                                                 <div style={{ fontSize: '0.82rem', color: 'var(--silver)', marginTop: '4px' }}>
                                                     You finished <strong style={{ color: myRank <= 3 ? 'var(--k-2ecc71, #2ecc71)' : myRank <= totals.length / 2 ? 'var(--gold)' : 'var(--k-e74c3c, #e74c3c)' }}>#{myRank}</strong> of {totals.length} teams by draft DHQ ({myPct}th percentile)
                                                 </div>
                                             )}
                                         </div>
+                                        {effPct != null && (
+                                            <div style={{ textAlign: 'center', flexShrink: 0, padding: '12px 18px', borderRadius: '12px', background: wrAlpha(effColor, '12'), border: '1px solid ' + wrAlpha(effColor, '40'), minWidth: '128px' }}>
+                                                <div style={{ fontFamily: FONT_DISPL, fontSize: '2.6rem', fontWeight: 700, color: effColor, lineHeight: 1 }}>{effPct}%</div>
+                                                <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '4px' }}>{gradeBasis === 'vs $ spent' ? <>of expected value<br/>for your spend</> : <>of expected DHQ<br/>for your slots</>}</div>
+                                                <div style={{ fontSize: '0.6rem', color: effColor, opacity: 0.9, marginTop: '4px', fontWeight: 700 }}>{effPct >= 100 ? 'NAILED YOUR SLOTS' : effPct >= 85 ? 'SOLID FOR YOUR SLOTS' : 'LEFT VALUE ON BOARD'}</div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -5092,11 +5123,11 @@
                                             biggestReach?.pid ? () => openRecapPlayer(biggestReach.pid) : null
                                         )}
                                         {insightCard(
-                                            'Missed Target',
-                                            missedTarget ? `${missedTarget.name} #${missedTarget.overall}` : 'No tagged loss',
-                                            missedTarget ? missedTarget.message : 'Targets and Must tags survived or were not set.',
-                                            missedTarget ? 'var(--k-e74c3c, #e74c3c)' : 'var(--silver)',
-                                            missedTarget?.pid ? () => openRecapPlayer(missedTarget.pid) : null
+                                            'Worst Pick',
+                                            worstPick ? `${worstPick.name} #${worstPick.overall}` : 'No picks',
+                                            worstPick ? `${worstPick.pos || '?'} · ${fmtDhq(worstPick.dhq)} DHQ${worstPick.efficiency != null ? ' · ' + Math.round(worstPick.efficiency * 100) + '% of expected' : ''}` : 'Make a pick to surface your lowest-value selection.',
+                                            worstPick ? 'var(--k-e74c3c, #e74c3c)' : 'var(--silver)',
+                                            worstPick?.pid ? () => openRecapPlayer(worstPick.pid) : null
                                         )}
                                         {insightCard(
                                             'Best Alternative',
@@ -5112,74 +5143,6 @@
                                             tradeImpact.netDHQ >= 0 ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-e74c3c, #e74c3c)',
                                             null
                                         )}
-                                    </div>
-                                </div>
-
-                                {/* Draft DNA — owner signature (seeded AlexVoice phrasing) */}
-                                {dnaSignals.length > 0 && (
-                                    <div style={{ padding: '22px 32px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                        <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>Your Draft DNA — This Class</div>
-                                        <div style={{ fontSize: '0.9rem', color: 'var(--white)', marginBottom: '12px', lineHeight: 1.5 }}>{dnaLead} {myLearning?.buildLabel ? <strong style={{ color: 'var(--gold)' }}>{myLearning.buildLabel}</strong> : null}</div>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                            {dnaSignals.map((sig, i) => (
-                                                <span key={i} style={{ padding: '6px 12px', borderRadius: '999px', background: 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', color: 'var(--silver)', fontFamily: FONT_UI, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, letterSpacing: '0.03em' }}>{sig}</span>
-                                            ))}
-                                            {myLearning?.confidence && (
-                                                <span style={{ padding: '6px 12px', borderRadius: '999px', background: 'transparent', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', color: 'var(--silver)', opacity: 0.7, fontFamily: FONT_UI, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600 }}>signal: {myLearning.confidence}</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Action plan */}
-                                <div style={{ padding: '22px 32px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>Post-Draft Action Plan</div>
-                                    <div style={{ display: 'grid', gap: '8px' }}>
-                                        {(actionPlan.length ? actionPlan : [{ title: 'Save this recap', detail: 'Use it as the next mock draft input.', type: 'prep_loop' }]).map((item, i) => (
-                                            <div key={item.type || i} style={{ display: 'grid', gridTemplateColumns: '28px minmax(0,1fr)', gap: '10px', alignItems: 'start', padding: '10px 12px', background: 'var(--acc-fill1, rgba(212,175,55,0.045))', border: '1px solid var(--acc-fill2, rgba(212,175,55,0.10))', borderRadius: '8px' }}>
-                                                <div style={{ width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--acc-fill3, rgba(212,175,55,0.16))', color: 'var(--gold)', fontWeight: 900, fontSize: 'var(--text-micro, 0.6875rem)' }}>{i + 1}</div>
-                                                <div>
-                                                    <div style={{ color: 'var(--white)', fontWeight: 800, fontSize: '0.82rem' }}>{item.title}</div>
-                                                    <div style={{ color: 'var(--silver)', opacity: 0.78, fontSize: '0.74rem', lineHeight: 1.5, marginTop: '2px' }}>{item.detail}</div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* P4B next moves */}
-                                <div style={{ padding: '22px 32px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>Next Moves</div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
-                                        <div style={{ padding: '11px 12px', borderRadius: 8, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'var(--ov-2, rgba(255,255,255,0.025))' }}>
-                                            <div style={{ color: 'var(--k-2ecc71, #2ecc71)', fontWeight: 800, fontSize: '0.72rem', marginBottom: 6 }}>Waiver Watch</div>
-                                            {(postDraftMoves.waiverTargets || []).slice(0, 3).map(p => (
-                                                <button key={p.pid || p.name} type="button" onClick={() => p.pid && openRecapPlayer(p.pid)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '5px 0', border: 'none', background: 'transparent', color: 'var(--white)', fontFamily: FONT_UI, cursor: p.pid ? 'pointer' : 'default' }}>
-                                                    <span style={{ fontWeight: 800 }}>{p.name}</span>
-                                                    <span style={{ color: 'var(--silver)', opacity: 0.72, fontSize: 'var(--text-micro, 0.6875rem)' }}> - {p.pos} - {fmtDhq(p.dhq)} DHQ</span>
-                                                </button>
-                                            ))}
-                                            {!(postDraftMoves.waiverTargets || []).length && <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: '0.7rem' }}>No immediate waiver watchlist from this recap.</div>}
-                                        </div>
-                                        <div style={{ padding: '11px 12px', borderRadius: 8, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'var(--ov-2, rgba(255,255,255,0.025))' }}>
-                                            <div style={{ color: 'var(--k-3498db, #3498db)', fontWeight: 800, fontSize: '0.72rem', marginBottom: 6 }}>Trade Map</div>
-                                            {(postDraftMoves.tradeTargets || []).slice(0, 3).map((t, i) => (
-                                                <div key={(t.rosterId || t.teamName || i) + '-' + t.pos} style={{ color: 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.45, padding: '4px 0' }}>
-                                                    <strong style={{ color: 'var(--white)' }}>{t.teamName}</strong> - {t.pos} surplus around {t.player?.name || 'new draft capital'}
-                                                </div>
-                                            ))}
-                                            {!(postDraftMoves.tradeTargets || []).length && <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: '0.7rem' }}>No clear surplus trade lane yet.</div>}
-                                        </div>
-                                        <div style={{ padding: '11px 12px', borderRadius: 8, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'var(--ov-2, rgba(255,255,255,0.025))' }}>
-                                            <div style={{ color: 'var(--k-f0a500, #f0a500)', fontWeight: 800, fontSize: '0.72rem', marginBottom: 6 }}>Cut Review</div>
-                                            {(postDraftMoves.cutCandidates || []).slice(0, 3).map(p => (
-                                                <button key={p.pid || p.name} type="button" onClick={() => p.pid && openRecapPlayer(p.pid)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '5px 0', border: 'none', background: 'transparent', color: 'var(--white)', fontFamily: FONT_UI, cursor: p.pid ? 'pointer' : 'default' }}>
-                                                    <span style={{ fontWeight: 800 }}>{p.name}</span>
-                                                    <span style={{ color: 'var(--silver)', opacity: 0.72, fontSize: 'var(--text-micro, 0.6875rem)' }}> - {p.pos || 'depth'} - {fmtDhq(p.dhq)} DHQ</span>
-                                                </button>
-                                            ))}
-                                            {!(postDraftMoves.cutCandidates || []).length && <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: '0.7rem' }}>No cut-pressure candidates available from loaded roster data.</div>}
-                                        </div>
                                     </div>
                                 </div>
 
@@ -5231,9 +5194,47 @@
                                     ) : <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6 }}>No picks made.</div>}
                                 </div>
 
-                                {/* League-wide recap */}
+                                {/* Around the league — extremes + draft-day trade volume */}
                                 <div style={{ padding: '22px 32px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>League Recap</div>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>Around the League</div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px' }}>
+                                        {insightCard(
+                                            'League Best Pick',
+                                            leagueExtremes.bestPick ? `${leagueExtremes.bestPick.name} #${leagueExtremes.bestPick.overall}` : '—',
+                                            leagueExtremes.bestPick ? `${leagueExtremes.bestPick.teamName} · ${fmtDhq(leagueExtremes.bestPick.dhq)} DHQ` : 'No picks recorded.',
+                                            'var(--k-2ecc71, #2ecc71)',
+                                            leagueExtremes.bestPick?.pid ? () => openRecapPlayer(leagueExtremes.bestPick.pid) : null
+                                        )}
+                                        {insightCard(
+                                            'League Biggest Reach',
+                                            leagueExtremes.biggestReach ? `${leagueExtremes.biggestReach.name} #${leagueExtremes.biggestReach.overall}` : '—',
+                                            leagueExtremes.biggestReach ? `${leagueExtremes.biggestReach.teamName} · ${Math.abs(leagueExtremes.biggestReach.valueDelta || 0)} slots ahead of board` : 'None flagged.',
+                                            'var(--k-f0a500, #f0a500)',
+                                            leagueExtremes.biggestReach?.pid ? () => openRecapPlayer(leagueExtremes.biggestReach.pid) : null
+                                        )}
+                                        {insightCard(
+                                            'League Worst Pick',
+                                            leagueExtremes.worstPick ? `${leagueExtremes.worstPick.name} #${leagueExtremes.worstPick.overall}` : '—',
+                                            leagueExtremes.worstPick ? `${leagueExtremes.worstPick.teamName} · ${fmtDhq(leagueExtremes.worstPick.dhq)} DHQ` : 'No picks recorded.',
+                                            'var(--k-e74c3c, #e74c3c)',
+                                            leagueExtremes.worstPick?.pid ? () => openRecapPlayer(leagueExtremes.worstPick.pid) : null
+                                        )}
+                                    </div>
+                                    <div style={{ marginTop: '14px' }}>
+                                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Draft-Day Trades — {tradeVolume.total} total</div>
+                                        {tradeVolume.total > 0 ? (
+                                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                                {Object.keys(tradeVolume.byRound).sort((a, b) => Number(a) - Number(b)).map(r => (
+                                                    <span key={r} style={{ padding: '5px 10px', borderRadius: '6px', background: 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)' }}>{Number(r) > 0 ? 'R' + r : 'Other'}: <strong style={{ color: 'var(--white)' }}>{tradeVolume.byRound[r]}</strong></span>
+                                                ))}
+                                            </div>
+                                        ) : <div style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.6 }}>No pick trades during this draft.</div>}
+                                    </div>
+                                </div>
+
+                                {/* League-wide recap — where teams stand after the draft */}
+                                <div style={{ padding: '22px 32px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>Where Teams Stand After the Draft</div>
                                     {leagueStorylines.length > 0 && (
                                         <div style={{ display: 'grid', gap: '6px', marginBottom: '12px' }}>
                                             {leagueStorylines.slice(0, 4).map((line, i) => (
@@ -5267,7 +5268,10 @@
                                                             style={{ minWidth: 0, padding: 0, border: 'none', background: 'transparent', color: 'var(--white)', textAlign: 'left', cursor: 'pointer', fontFamily: FONT_UI }}
                                                             title="Pin this team in opponent intel"
                                                         >
-                                                            <div style={{ fontWeight: 800, fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{team.teamName}</div>
+                                                            <div style={{ fontWeight: 800, fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                {team.teamName}
+                                                                {teamPower[String(team.rosterId)]?.tier && <span style={{ marginLeft: '6px', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: teamPower[String(team.rosterId)].tierColor || 'var(--silver)' }}>{teamPower[String(team.rosterId)].tier}</span>}
+                                                            </div>
                                                             <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{team.buildLabel}</div>
                                                         </button>
                                                         <div style={{ color: gradeCol, fontFamily: FONT_DISPL, fontSize: '1rem', fontWeight: 900 }}>{team.grade}</div>
@@ -5288,22 +5292,6 @@
                                             })}
                                         </div>
                                     ) : <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6 }}>No league picks available for recap.</div>}
-                                </div>
-
-                                {/* Alex commentary */}
-                                <div style={{ padding: '22px 32px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                        <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: 'var(--k-0a0a0a, #0a0a0a)' }}>AI</div>
-                                        <span style={{ fontFamily: FONT_DISPL, fontSize: '0.82rem', color: 'var(--gold)', letterSpacing: '0.06em' }}>Alex's Take</span>
-                                    </div>
-                                    <div style={{ padding: '10px 14px', background: 'var(--acc-fill1, rgba(212,175,55,0.05))', borderLeft: '3px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius: '0 6px 6px 0', fontSize: '0.84rem', color: 'var(--silver)', lineHeight: 1.55 }}>
-                                        {(() => {
-                                            const topPos = recapPositions[0]?.pos || 'skill positions';
-                                            const topPosCount = recapPositions[0]?.count || 0;
-                                            const letterPhrase = grade.letter.startsWith('A') ? "one of the best drafts in the league — you captured elite value" : grade.letter.startsWith('B') ? "a solid class with clear upside" : grade.letter.startsWith('C') ? "a middling haul, with room for growth" : "a tough draft — the value just wasn't there at your slots";
-                                            return "This was " + letterPhrase + ". You leaned heaviest at " + topPos + " (" + topPosCount + " picks) and banked " + grade.totalDHQ.toLocaleString() + " DHQ across " + myPicks.length + " selections. " + (myRank <= 3 ? "You're top-3 by draft DHQ — this class sets you up for a run." : myRank <= totals.length / 2 ? "You're in the upper half — now the work is in the development window." : "You'll need to work the waiver wire and trade market to close the gap.");
-                                        })()}
-                                    </div>
                                 </div>
 
                                 {/* Actions */}

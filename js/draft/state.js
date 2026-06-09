@@ -358,6 +358,10 @@
             activeOffer: null,
             proposerDrawer: null,
             completedTrades: [],
+            // Live-draft traded picks (Sleeper traded_picks), normalized to
+            // { round, rosterId, fromRosterId }. Bridged in via SET_TRADED_PICKS so
+            // the recap's trade impact + trade volume can see live pick movement.
+            tradedPicks: [],
             // Ledger of player + FAAB movement from accepted trades. Keyed by
             // rosterId. Consumers (opponent intel, roster views, simulator)
             // can apply this on top of base rosters to derive effective
@@ -1141,6 +1145,7 @@
     }
 
     function buildTradeImpact(state) {
+        const userRosterId = state?.userRosterId;
         const trades = state?.completedTrades || [];
         const rows = trades.map((trade, idx) => {
             const myGiveDHQ = Number(trade.myGiveDHQ || trade.theirGainDHQ || 0);
@@ -1160,6 +1165,33 @@
                 myGainCount: (trade.theirGive || []).length + (trade.theirGivePlayers || []).length + (trade.theirGiveFaab ? 1 : 0),
             };
         });
+        // Live-draft pick movement: a pick now owned by the user (acquired) adds its
+        // slot value; a pick the user traded away subtracts. Picks not involving the
+        // user are skipped here (they count toward league trade VOLUME, not impact).
+        (state?.tradedPicks || []).forEach((tp, idx) => {
+            const acquired = String(tp.rosterId) === String(userRosterId);
+            const tradedAway = String(tp.fromRosterId) === String(userRosterId);
+            if (!acquired && !tradedAway) return;
+            const round = Number(tp.round) || null;
+            const val = resolveDraftPickValue({ round, leagueSize: state?.leagueSize, rounds: state?.rounds, season: state?.season })?.value || 0;
+            const partnerRid = acquired ? tp.fromRosterId : tp.rosterId;
+            rows.push({
+                id: 'tp_' + idx,
+                partnerRosterId: partnerRid,
+                partnerName: rosterName(state, partnerRid),
+                userInitiated: false,
+                acceptedAt: null,
+                round,
+                isPick: true,
+                grade: null,
+                likelihood: null,
+                myGiveDHQ: tradedAway ? val : 0,
+                myGainDHQ: acquired ? val : 0,
+                netDHQ: (acquired ? val : 0) - (tradedAway ? val : 0),
+                myGiveCount: tradedAway ? 1 : 0,
+                myGainCount: acquired ? 1 : 0,
+            });
+        });
         const netDHQ = rows.reduce((sum, row) => sum + row.netDHQ, 0);
         return {
             count: rows.length,
@@ -1168,9 +1200,38 @@
             netDHQ,
             rows,
             summary: rows.length
-                ? `${rows.length} accepted trade${rows.length === 1 ? '' : 's'} with ${netDHQ >= 0 ? '+' : ''}${netDHQ.toLocaleString()} net DHQ.`
-                : 'No accepted draft trades on record.',
+                ? `${rows.length} draft trade move${rows.length === 1 ? '' : 's'} with ${netDHQ >= 0 ? '+' : ''}${netDHQ.toLocaleString()} net DHQ.`
+                : 'No draft trades on record.',
         };
+    }
+
+    // Total draft-day trade volume by round (this draft only). Live traded picks
+    // carry a round; sim trades fall back to the round implied by acceptedAt.
+    function buildTradeVolume(state) {
+        const byRound = {};
+        let total = 0;
+        const bump = (r) => { const k = Number(r) || 0; byRound[k] = (byRound[k] || 0) + 1; total++; };
+        (state?.tradedPicks || []).forEach(tp => bump(tp.round));
+        (state?.completedTrades || []).forEach(t => {
+            let r = Number(t.round || t.draftRound) || 0;
+            if (!r && t.acceptedAt != null && state?.leagueSize) r = Math.floor(Number(t.acceptedAt) / state.leagueSize) + 1;
+            bump(r);
+        });
+        return { total, byRound };
+    }
+
+    // League-wide best pick / biggest reach / worst pick across all teams. Reuses the
+    // per-team topPick / biggestReach already tracked in buildTeamRecaps.
+    function buildLeagueExtremes(teamRecaps) {
+        let bestPick = null, biggestReach = null, worstPick = null;
+        (teamRecaps || []).forEach(t => {
+            if (t.topPick && (!bestPick || (t.topPick.dhq || 0) > (bestPick.dhq || 0))) bestPick = { ...t.topPick, teamName: t.teamName };
+            if (t.biggestReach && t.biggestReach.valueDelta != null && (!biggestReach || (t.biggestReach.valueDelta || 0) < (biggestReach.valueDelta || 0))) biggestReach = { ...t.biggestReach, teamName: t.teamName };
+            (t.picks || []).forEach(p => {
+                if (p && (p.dhq || 0) > 0 && (!worstPick || (p.dhq || 0) < (worstPick.dhq || 0))) worstPick = { ...p, teamName: t.teamName };
+            });
+        });
+        return { bestPick, biggestReach, worstPick };
     }
 
     function playerInfo(pid) {
@@ -1955,6 +2016,16 @@
                 return changed ? { ...state, pickOrder } : state;
             }
 
+            case 'SET_TRADED_PICKS': {
+                // Bridge live-draft traded picks into state so the recap's trade impact
+                // + trade volume can see pick movement. Expected normalized shape:
+                // [{ round, rosterId, fromRosterId }]. No-op if unchanged.
+                const next = Array.isArray(action.tradedPicks) ? action.tradedPicks : [];
+                if ((state.tradedPicks || []).length === next.length &&
+                    JSON.stringify(state.tradedPicks || []) === JSON.stringify(next)) return state;
+                return { ...state, tradedPicks: next };
+            }
+
             case 'APPLY_LIVE_SYNC_PICKS': {
                 const incoming = action.picks || [];
                 if (!incoming.length) {
@@ -2530,10 +2601,14 @@
         const biggestReach = myPickSnapshots
             .filter(p => p.consensusRank && p.valueDelta < 0)
             .sort((a, b) => a.valueDelta - b.valueDelta)[0] || null;
+        // Worst pick = the user's lowest-DHQ selection (replaces the old Missed Target card).
+        const worstPick = myPickSnapshots.slice().filter(p => (p.dhq || 0) > 0).sort((a, b) => (a.dhq || 0) - (b.dhq || 0))[0] || null;
         const bestAlternative = buildBestAlternative(state, myPicks, picks);
         const missedTarget = buildMissedTarget(state, picks, userRosterId);
         const tradeImpact = buildTradeImpact(state);
+        const tradeVolume = buildTradeVolume(state);
         const teamRecaps = buildTeamRecaps(state, picks, leagueTotals);
+        const leagueExtremes = buildLeagueExtremes(teamRecaps);
         const ownerLearning = buildOwnerLearning(teamRecaps);
         const userTeam = teamRecaps.find(t => String(t.rosterId) === String(userRosterId)) || null;
         const leagueStorylines = buildLeagueStorylines(teamRecaps, userRosterId);
@@ -2571,6 +2646,9 @@
             positionSummary,
             bestPick,
             biggestReach,
+            worstPick,
+            leagueExtremes,
+            tradeVolume,
             bestAlternative,
             missedTarget,
             tradeImpact,
