@@ -901,12 +901,75 @@
         return 6 + (r - 1) * 4; // R1≈6, R2≈10, R3≈14 ... (late rounds forgive reaches)
     }
     function slotBaselineDHQ(overall) {
-        // Expected DHQ for a pick slot — same bands command-center uses.
+        // Legacy static slot bands — retained as the last-resort fallback when the
+        // continuous industry pick-value model isn't available.
         const n = Number(overall || 0) || 1;
         if (n <= 4) return 7000;
         if (n <= 16) return 4500;
         if (n <= 48) return 2200;
         return 1000;
+    }
+    // Expected DHQ for the dollars committed in an auction. Convex so a $1 flier
+    // expects ~floor value and a budget-blowing star expects near top-of-board.
+    function expectedDHQforDollars(spent, budget) {
+        const b = Number(budget) > 0 ? Number(budget) : 200;
+        const frac = Math.min(1, Math.max(0, Number(spent) || 0) / b);
+        return Math.max(50, Math.round(7000 * Math.pow(frac, 0.6)));
+    }
+    // Variant-aware value baseline a pick's actual DHQ is measured against:
+    //   rookie/startup → continuous, league-size-aware industry pick value
+    //   redraft/best_ball → positional replacement (K/DEF floors; skill → slot)
+    //   auction → expected DHQ for $ spent (slot-independent)
+    function expectedDHQ(pick, ctx = {}) {
+        const variant = ctx.variant || 'startup';
+        const overall = Number(pick?.overall || 0) || 1;
+        if (variant === 'auction') {
+            const spent = Number(pick?.amount ?? pick?.cost ?? pick?.bid ?? pick?.spent);
+            if (Number.isFinite(spent) && spent > 0) return expectedDHQforDollars(spent, ctx.budget);
+            // no spend tracked → fall through to the slot baseline
+        }
+        if (variant === 'redraft' || variant === 'best_ball') {
+            const posBase = redraftPositionBaseline(pickPos(pick), variant);
+            if (posBase > 0) return posBase; // skill positions fall through to slot value
+        }
+        const teams = Math.max(1, Number(ctx.leagueSize) || 12);
+        const rounds = Math.max(1, Number(ctx.rounds) || (window.App?.PlayerValue?.DRAFT_ROUNDS) || 7);
+        if (typeof window.getIndustryPickValue === 'function') {
+            const v = Number(window.getIndustryPickValue(overall, teams, rounds)) || 0;
+            if (v > 0) return v;
+        }
+        return slotBaselineDHQ(overall);
+    }
+    // Per-pick efficiency ratio: actual DHQ captured ÷ expected for that slot/$.
+    // 1.0 = on-expectation, >1 = surplus value, <1 = overpay/reach.
+    function pickEfficiency(pick, ctx = {}) {
+        const baseline = expectedDHQ(pick, ctx);
+        return baseline ? pickDhq(pick) / baseline : 1;
+    }
+    // Per-draft-type sub-score weights (value / need / efficiency). Sum to 1.0;
+    // the *0.90 scale is applied in scorePick to preserve aggregateGrade calibration.
+    const GRADE_WEIGHTS = {
+        rookie:    { value: 0.40, need: 0.25, efficiency: 0.35 },
+        startup:   { value: 0.35, need: 0.30, efficiency: 0.35 },
+        redraft:   { value: 0.25, need: 0.45, efficiency: 0.30 },
+        best_ball: { value: 0.30, need: 0.15, efficiency: 0.55 },
+        auction:   { value: 0.20, need: 0.30, efficiency: 0.50 },
+    };
+    function gradeWeights(variant) { return GRADE_WEIGHTS[variant] || GRADE_WEIGHTS.startup; }
+    const GRADE_BASIS = {
+        rookie:    'vs expected pick value',
+        startup:   'vs expected pick value',
+        redraft:   'vs replacement',
+        best_ball: 'vs replacement',
+        auction:   'vs $ spent',
+    };
+    function gradeBasisFor(variant) { return GRADE_BASIS[variant] || GRADE_BASIS.startup; }
+    // Neutral per-pick score for a variant: a perfectly on-expectation draft
+    // (value 62, need 50, efficiency ratio 1.0 → quality 54) maps here, which
+    // aggregateGrade recenters to ~C so the letter scale is stable across types.
+    function neutralPickScore(variant) {
+        const w = gradeWeights(variant);
+        return (62 * w.value + 50 * w.need + 54 * w.efficiency) * 0.90;
     }
     // Roster-need contribution [0..100]. seenPos taper: the first pick at a
     // position scores per its urgency, follow-ups fade. No assessment → ok-1st 50.
@@ -940,17 +1003,20 @@
             valueScore = Math.max(0, Math.min(100, 62 + (delta / slack) * 24));
         }
         const needScore = pickNeedScore(pick, ctx, ctx._seenPos);
-        const dhq = pickDhq(pick);
-        const baseline = slotBaselineDHQ(overall);
-        const ratio = baseline ? dhq / baseline : 1;
+        // Efficiency: actual DHQ vs the value expected for this slot/$ in this
+        // draft type (the "value vs expected pick" term).
+        const ratio = pickEfficiency(pick, ctx);
         const qualityScore = Math.max(0, Math.min(100, 2 + ratio * 52));
-        return valueScore * 0.50 + needScore * 0.25 + qualityScore * 0.15; // 0..90
+        const w = gradeWeights(ctx.variant);
+        // weights sum to 1.0; *0.90 keeps the legacy 0..90 raw scale.
+        return (valueScore * w.value + needScore * w.need + qualityScore * w.efficiency) * 0.90;
     }
     // Spread a team's per-pick average around the neutral so good/bad drafts
     // separate into a real A..F range instead of clustering at the center.
-    function aggregateGrade(avgPickScore) {
+    function aggregateGrade(avgPickScore, variant) {
         const v = Number(avgPickScore || 0);
-        return Math.max(0, Math.min(100, GRADE_AGG_CENTER + (v - NEUTRAL_PICK_SCORE) * GRADE_AGG_SPREAD));
+        const neutral = variant ? neutralPickScore(variant) : NEUTRAL_PICK_SCORE;
+        return Math.max(0, Math.min(100, GRADE_AGG_CENTER + (v - neutral) * GRADE_AGG_SPREAD));
     }
     function gradeLetter(score) {
         const s = Number(score || 0);
@@ -966,9 +1032,9 @@
     // percentile (15%). avgPickScore = mean of scorePick across the team's picks.
     // NOTE: the live grade and the recap share scorePick, but the recap also folds
     // in league percentile, so final letters can differ by up to ~1 step.
-    function recapLetter(percentile, avgPickScore) {
+    function recapLetter(percentile, avgPickScore, variant) {
         const pct = Number(percentile || 0);
-        const agg = aggregateGrade(avgPickScore);
+        const agg = aggregateGrade(avgPickScore, variant);
         const score = Math.round(agg * 0.85 + pct * 0.15);
         return { letter: gradeLetter(score), score };
     }
@@ -1253,13 +1319,13 @@
             // is NEUTRAL inside scorePick (no false value hit — the old bug here
             // counted a missing rank AS a hit, inflating grades). seenPos tapers
             // multi-pick-per-position bonuses.
-            const scoreCtx = { assessment: state?.personas?.[rosterKey(row.rosterId)]?.assessment, _seenPos: {} };
+            const scoreCtx = { assessment: state?.personas?.[rosterKey(row.rosterId)]?.assessment, _seenPos: {}, variant: state?.variant, leagueSize: state?.leagueSize, rounds: state?.rounds, budget: state?.auctionBudget };
             const avgPickScore = row.picks.length
                 ? Math.round(row.picks.reduce((s, p) => s + scorePick(p, scoreCtx), 0) / row.picks.length)
                 : 0;
             const valuePct = avgPickScore; // retained field name for downstream value sorts
             const primaryPos = orderedPositionSummary(row.positionSummary)[0]?.pos || '';
-            const grade = recapLetter(percentile, avgPickScore);
+            const grade = recapLetter(percentile, avgPickScore, state?.variant);
             row.rank = rank;
             row.percentile = percentile;
             row.valuePct = valuePct;
@@ -2405,7 +2471,7 @@
         if (!myPicks.length) return { letter: '?', totalDHQ: 0, pct: 0, score: 0 };
         const totalDHQ = myPicks.reduce((s, p) => s + (p.dhq || 0), 0);
         const ranks = new Map((originalPool || []).map((p, i) => [p.pid, i + 1]));
-        const scoreCtx = { assessment: ctx.assessment, _seenPos: {} };
+        const scoreCtx = { assessment: ctx.assessment, _seenPos: {}, variant: ctx.variant, leagueSize: ctx.leagueSize, rounds: ctx.rounds, budget: ctx.budget };
         let total = 0;
         for (const p of myPicks) {
             // Backfill consensusRank from board position so a pick without a
@@ -2414,7 +2480,7 @@
             const enriched = (p.consensusRank || !fallbackRank) ? p : { ...p, consensusRank: fallbackRank };
             total += scorePick(enriched, scoreCtx);
         }
-        const score = Math.round(aggregateGrade(total / myPicks.length));
+        const score = Math.round(aggregateGrade(total / myPicks.length, ctx.variant));
         return { letter: gradeLetter(score), totalDHQ, pct: score, score };
     }
 
@@ -2428,6 +2494,10 @@
         );
         const grade = opts.grade || gradeDraft(myPicks, state?.originalPool || [], {
             assessment: state?.personas?.[rosterKey(userRosterId)]?.assessment,
+            variant: state?.variant,
+            leagueSize: state?.leagueSize,
+            rounds: state?.rounds,
+            budget: state?.auctionBudget,
         });
         const leagueTotals = leagueTotalsFromPicks(picks);
         const totals = Object.entries(leagueTotals)
@@ -2440,7 +2510,18 @@
         const positionSummaryMap = emptyPositionSummary();
         myPicks.forEach(pick => addPickToPositionSummary(positionSummaryMap, pick));
         const positionSummary = orderedPositionSummary(positionSummaryMap);
-        const myPickSnapshots = myPicks.map(pickSnapshot);
+        // Per-pick + overall efficiency vs the variant-aware expected value. This
+        // is the "value vs expected pick" basis the recap grade is built on.
+        const userCtx = { variant: state?.variant, leagueSize: state?.leagueSize, rounds: state?.rounds, budget: state?.auctionBudget };
+        let myExpectedTotal = 0, myActualTotal = 0;
+        const myPickSnapshots = myPicks.map(pick => {
+            const expected = expectedDHQ(pick, userCtx);
+            const actual = pickDhq(pick);
+            myExpectedTotal += expected; myActualTotal += actual;
+            return { ...pickSnapshot(pick), expectedDHQ: Math.round(expected), efficiency: expected ? +(actual / expected).toFixed(3) : null };
+        });
+        const efficiency = myExpectedTotal > 0 ? +(myActualTotal / myExpectedTotal).toFixed(3) : null;
+        const gradeBasis = gradeBasisFor(state?.variant);
         const bestPick = myPickSnapshots.slice().sort((a, b) => {
             const av = (a.valueDelta || 0) * 120 + (a.dhq || 0);
             const bv = (b.valueDelta || 0) * 120 + (b.dhq || 0);
@@ -2472,13 +2553,16 @@
             userTeam,
         });
         return {
-            schemaVersion: 'draft-recap-v4',
+            schemaVersion: 'draft-recap-v5',
             id: opts.id || ('recap_' + Date.now()),
             leagueId: state?.leagueId || '',
             season: state?.season || new Date().getFullYear(),
             mode: state?.mode || 'solo',
             variant: state?.variant || 'startup',
             grade,
+            gradeBasis,
+            efficiency,
+            expectedDHQTotal: Math.round(myExpectedTotal),
             totalDHQ: grade.totalDHQ,
             pct: grade.pct,
             rank: rank || null,
@@ -2801,6 +2885,9 @@
         recapLetter,
         aggregateGrade,
         slotBaselineDHQ,
+        expectedDHQ,
+        pickEfficiency,
+        gradeBasisFor,
         REACH_STEAL_THRESHOLD,
         normalizePickRecord,
         buildPickedByIdx,

@@ -4211,8 +4211,12 @@
         const grade = React.useMemo(
             () => window.DraftCC.state.gradeDraft(myPicks, state.originalPool, {
                 assessment: state.personas?.[state.userRosterId]?.assessment,
+                variant: state.variant,
+                leagueSize: state.leagueSize,
+                rounds: state.rounds,
+                budget: state.auctionBudget,
             }),
-            [myPicks, state.originalPool, state.personas, state.userRosterId]
+            [myPicks, state.originalPool, state.personas, state.userRosterId, state.variant, state.leagueSize, state.rounds, state.auctionBudget]
         );
 
         const BigBoardPanel = window.DraftCC.BigBoardPanel;
@@ -4300,14 +4304,33 @@
         const learningSaveKeyRef = React.useRef('');
         React.useEffect(() => {
             const helpers = window.DraftCC?.state || {};
-            if (state.phase !== 'complete' || !helpers.buildDraftRecap || !helpers.saveDraftLearning) return;
+            if (state.phase !== 'complete' || !helpers.buildDraftRecap) return;
             const saveKey = [state.id, state.picks?.length || 0, grade.totalDHQ || 0].join(':');
             if (learningSaveKeyRef.current === saveKey) return;
             try {
-                helpers.saveDraftLearning(helpers.buildDraftRecap(state, {
-                    grade,
-                    id: 'learning_' + (state.id || Date.now()),
-                }));
+                const recap = helpers.buildDraftRecap(state, { grade });
+                // Learning loop — tunes the next draft's defaults.
+                if (helpers.saveDraftLearning) {
+                    helpers.saveDraftLearning(helpers.buildDraftRecap(state, {
+                        grade,
+                        id: 'learning_' + (state.id || Date.now()),
+                    }));
+                }
+                // Archive auto-save (the 25-deep store listDraftRecaps reads) so a user
+                // who hits DRAFT AGAIN without clicking SAVE doesn't lose the recap.
+                if (helpers.archiveDraftRecap && recap?.leagueId) helpers.archiveDraftRecap(recap);
+                // Fan out the post-draft protocol: the grade review (this modal) and the
+                // dynasty UDFA craze (free-agency surface) both key off this one event.
+                // The craze reads recap.postDraftMoves.waiverTargets as its seed; the
+                // PostDraft module persists it cross-page (local + Supabase).
+                try {
+                    window.dispatchEvent(new CustomEvent('draft:closed', {
+                        detail: { recap, leagueId: state.leagueId, season: state.season, variant: state.variant },
+                    }));
+                } catch (_) {}
+                if (window.App?.PostDraft?.onDraftClosed) {
+                    try { window.App.PostDraft.onDraftClosed(recap); } catch (_) {}
+                }
                 learningSaveKeyRef.current = saveKey;
             } catch (e) {
                 if (window.wrLog) window.wrLog('cc.draftLearning', e);
@@ -4959,6 +4982,17 @@
                     const missedTarget = recap?.missedTarget || null;
                     const bestAlternative = recap?.bestAlternative || null;
                     const postDraftMoves = recap?.postDraftMoves || {};
+                    // Per-type efficiency (value vs expected pick) + owner-DNA signature.
+                    const efficiency = recap?.efficiency ?? null;
+                    const effPct = efficiency != null ? Math.round(efficiency * 100) : null;
+                    const gradeBasis = recap?.gradeBasis || 'vs expected pick value';
+                    const myLearning = recap?.ownerLearning?.[String(state.userRosterId)] || null;
+                    const dnaSignals = (myLearning?.reasonCodes || []).map(rc => rc.detail).filter(Boolean);
+                    const dnaLead = avPick('dna:' + state.userRosterId + ':' + grade.letter, [
+                        'Here is the fingerprint you left on this class:',
+                        'This is how you drafted — your signature this cycle:',
+                        'Your tendencies showed up clearly. The read:',
+                    ]);
                     const recapPositions = recap?.positionSummary?.length
                         ? recap.positionSummary
                         : orderedPositions.map(pos => ({ pos, ...posSummary[pos] }));
@@ -5025,6 +5059,11 @@
                                             <div style={{ fontSize: '0.96rem', color: 'var(--white)', marginTop: '6px', lineHeight: 1.5 }}>
                                                 Total DHQ: <strong style={{ color: gradeColor }}>{grade.totalDHQ.toLocaleString()}</strong> across {myPicks.length} pick{myPicks.length === 1 ? '' : 's'} · {grade.pct}% value capture
                                             </div>
+                                            {effPct != null && (
+                                                <div style={{ fontSize: '0.82rem', color: 'var(--silver)', marginTop: '4px' }}>
+                                                    Captured <strong style={{ color: gradeColor }}>{effPct}%</strong> of {gradeBasis === 'vs $ spent' ? 'expected value for your spend' : 'expected DHQ for your slots'} <span style={{ opacity: 0.6 }}>· {gradeBasis}</span>
+                                                </div>
+                                            )}
                                             {totals.length >= 3 && (
                                                 <div style={{ fontSize: '0.82rem', color: 'var(--silver)', marginTop: '4px' }}>
                                                     You finished <strong style={{ color: myRank <= 3 ? 'var(--k-2ecc71, #2ecc71)' : myRank <= totals.length / 2 ? 'var(--gold)' : 'var(--k-e74c3c, #e74c3c)' }}>#{myRank}</strong> of {totals.length} teams by draft DHQ ({myPct}th percentile)
@@ -5075,6 +5114,22 @@
                                         )}
                                     </div>
                                 </div>
+
+                                {/* Draft DNA — owner signature (seeded AlexVoice phrasing) */}
+                                {dnaSignals.length > 0 && (
+                                    <div style={{ padding: '22px 32px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>Your Draft DNA — This Class</div>
+                                        <div style={{ fontSize: '0.9rem', color: 'var(--white)', marginBottom: '12px', lineHeight: 1.5 }}>{dnaLead} {myLearning?.buildLabel ? <strong style={{ color: 'var(--gold)' }}>{myLearning.buildLabel}</strong> : null}</div>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                            {dnaSignals.map((sig, i) => (
+                                                <span key={i} style={{ padding: '6px 12px', borderRadius: '999px', background: 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', color: 'var(--silver)', fontFamily: FONT_UI, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, letterSpacing: '0.03em' }}>{sig}</span>
+                                            ))}
+                                            {myLearning?.confidence && (
+                                                <span style={{ padding: '6px 12px', borderRadius: '999px', background: 'transparent', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', color: 'var(--silver)', opacity: 0.7, fontFamily: FONT_UI, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600 }}>signal: {myLearning.confidence}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Action plan */}
                                 <div style={{ padding: '22px 32px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>

@@ -146,7 +146,9 @@ function buildState() {
 test('buildDraftRecap creates P4 strategic user and league outputs', () => {
   const state = buildState();
   const recap = ctx.DraftCC.state.buildDraftRecap(state);
-  eq(recap.schemaVersion, 'draft-recap-v4', 'schema');
+  eq(recap.schemaVersion, 'draft-recap-v5', 'schema');
+  ok(recap.gradeBasis && typeof recap.gradeBasis === 'string', 'grade basis label present');
+  ok(recap.picks.every(p => 'efficiency' in p), 'per-pick efficiency present');
   eq(recap.bestPick.name, 'Alpha QB', 'best pick');
   eq(recap.biggestReach.name, 'Gamma RB', 'reach');
   eq(recap.missedTarget.name, 'Delta WR', 'missed target');

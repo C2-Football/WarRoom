@@ -89,10 +89,13 @@
         const drafts = collectFaDrafts(currentLeague, briefDraftInfo).filter(d => sameDraftSeason(d, currentLeague));
         const rookieDrafts = drafts.filter(d => isRookieDraftLike(d, currentLeague));
         if (rookieDrafts.some(d => ROOKIE_DRAFT_LOCK_STATUSES.has(String(d.status || '').toLowerCase()))) return true;
-        if (rookieDrafts.some(d => String(d.status || '').toLowerCase() === 'complete')) return false;
+        // Unlock (craze opens) only when EVERY same-season rookie-like draft is
+        // complete — handles a rookie + supplemental draft pair so the lock doesn't
+        // lift while a second rookie draft is still pending.
+        if (rookieDrafts.length && rookieDrafts.every(d => String(d.status || '').toLowerCase() === 'complete')) return false;
         return isDynastyLeague(currentLeague)
             && ROOKIE_DRAFT_LOCK_STATUSES.has(String(currentLeague?.status || '').toLowerCase())
-            && !rookieDrafts.some(d => d.status === 'complete');
+            && !rookieDrafts.some(d => String(d.status || '').toLowerCase() === 'complete');
     }
 
     function isRookieWaiverLockedCandidate(pid, p, { rookiesLocked, prospectNames, statsData, prevStatsData }) {
@@ -139,6 +142,9 @@
         const isSuperFlex = leagueProfile ? leagueProfile.formatTags?.includes('superflex') : rosterPositions.includes('SUPER_FLEX');
         const isTEP = leagueProfile ? ((leagueProfile.scoring?.teBonus || 0) > 0 || leagueProfile.scoring?.tePremium >= 1.45) : (scoring.bonus_rec_te || scoring.rec_te || 0) > 0;
         const peaks = window.App?.peakWindows || {};
+        // UDFA-craze seed: pids the post-draft recap pre-identified as waiver targets.
+        // Seeded pids float to the top of priorityAdds when the craze is live.
+        const crazeSeed = new Set((args.crazeSeed || []).map(s => String(s.pid ?? s)).filter(Boolean));
         const rookiesLocked = rookiesLockedForWaivers(currentLeague, briefDraftInfo);
         const prospectNames = rookiesLocked && typeof window.getProspects === 'function'
             ? new Set((window.getProspects() || []).map(p => faNormName(p.name)).filter(Boolean))
@@ -148,8 +154,13 @@
             return typeof window.App?.calcRawPts === 'function' ? window.App.calcRawPts(s, scoring) : 0;
         }
         const isDraftProspect = (pid, p) => isRookieWaiverLockedCandidate(pid, p, { rookiesLocked, prospectNames, statsData, prevStatsData });
-        function playerName(p) {
-            return p?.full_name || ((p?.first_name || '') + ' ' + (p?.last_name || '')).trim() || 'Unknown';
+        function playerName(p, pid) {
+            if (!p) return pid ? 'Player ' + pid : 'Unknown';
+            const full = p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim();
+            if (full) return full;
+            const pos = (normPos?.(p.position) || p.position || '').toUpperCase();
+            if ((pos === 'DEF' || pos === 'DST') && (p.team || pid)) return (p.team || pid) + ' D/ST';
+            return pid ? 'Player ' + pid : 'Unknown';
         }
         function seasonPpgFor(pid) {
             const st = statsData[pid] || {};
@@ -256,7 +267,7 @@
                     badge: fit.short,
                 })
                 : null;
-            return { ...x, name: playerName(x.p), pos, ppg, faab, fit, fitScore: fit.score, peakYrs: win.peakYrs, valueYrs: win.valueYrs, windowLabel: win.label, windowShort: win.short, windowColor: win.color, formatReasons, playerContext, intelligence, why };
+            return { ...x, name: playerName(x.p, x.pid), pos, ppg, faab, fit, fitScore: fit.score, peakYrs: win.peakYrs, valueYrs: win.valueYrs, windowLabel: win.label, windowShort: win.short, windowColor: win.color, formatReasons, playerContext, intelligence, why };
         }
 
         const rostered = new Set();
@@ -297,7 +308,8 @@
             .sort((a, b) => (b.fitScore * 5000 + b.dhq + (b.ppg || 0) * 35) - (a.fitScore * 5000 + a.dhq + (a.ppg || 0) * 35));
         const priorityAdds = (recommendations.length ? recommendations : actionBoardPlayers)
             .map(decorateFaCandidate)
-            .sort((a, b) => (b.fitScore * 5000 + b.dhq) - (a.fitScore * 5000 + a.dhq))
+            .map(x => ({ ...x, seeded: crazeSeed.has(String(x.pid)) }))
+            .sort((a, b) => (Number(b.seeded) - Number(a.seeded)) || ((b.fitScore * 5000 + b.dhq) - (a.fitScore * 5000 + a.dhq)))
             .slice(0, 5);
         if (typeof window.App?.Intelligence?.publishRecommendations === 'function') {
             window.App.Intelligence.publishRecommendations('waiver', priorityAdds.map(x => x.intelligence).filter(Boolean), { surface: 'free-agency-action-board' });
@@ -305,10 +317,99 @@
         return { priorityAdds, actionBoardPlayers, availablePlayers };
     }
 
+    // ── UDFA craze ────────────────────────────────────────────────────────────
+    // The dynasty-only post-rookie-draft scramble. When the rookie lock lifts, the
+    // newly-eligible UDFAs (undrafted rookies signed to an NFL team) become claimable
+    // and the craze board ranks them by roster fit with league-history-anchored FAAB.
+
+    // Blend the model FAAB bid with this league's own positional FAAB history so the
+    // suggestion reflects how this league actually bids, not just a generic dhq/250.
+    function blendFaabWithHistory(faab, range) {
+        if (!faab && !range) return null;
+        if (!faab) return { sug: range.avg, lo: range.low, hi: range.high, leagueAvg: range.avg, leagueCount: range.count };
+        if (!range) return { ...faab, leagueAvg: null, leagueCount: 0 };
+        return {
+            sug: Math.round((faab.sug + range.avg) / 2),
+            lo: Math.min(faab.lo, range.low),
+            hi: Math.max(faab.hi, range.high),
+            leagueAvg: range.avg,
+            leagueCount: range.count,
+            scarcity: faab.scarcity,
+            modeMultiplier: faab.modeMultiplier,
+        };
+    }
+
+    // Tier the post-unlock free-agent pool into the craze board. Composes the existing
+    // action board (so fit/faab/intelligence are reused) and filters to UDFA candidates
+    // signed to an NFL team. Watch tier = undrafted prospects with no team (not claimable).
+    function buildUdfaCrazeBoard(args = {}) {
+        const currentLeague = args.currentLeague || {};
+        const empty = { tiers: { priority: [], speculative: [], watch: [] }, candidates: [], counts: { priority: 0, speculative: 0, watch: 0 } };
+        if (!isDynastyLeague(currentLeague)) return empty;
+        const statsData = args.statsData || {};
+        const prevStatsData = args.prevStatsData || {};
+        const prospects = (typeof window.getProspects === 'function' ? window.getProspects() : []) || [];
+        const prospectNames = new Set(prospects.map(p => faNormName(p.name)).filter(Boolean));
+        const prospectByName = new Map(prospects.map(p => [faNormName(p.name), p]));
+        const board = (window.App?.buildFreeAgencyActionBoard || buildFreeAgencyActionBoard)(args);
+        const pool = board.actionBoardPlayers || [];
+        const seed = new Set((args.crazeSeed || []).map(s => String(s.pid ?? s)).filter(Boolean));
+        const livRange = window.App?.livFAABRange || (typeof window.livFAABRange === 'function' ? window.livFAABRange : null);
+
+        const candidates = pool
+            .filter(x => x.p?.team && isRookieWaiverLockedCandidate(x.pid, x.p, { rookiesLocked: true, prospectNames, statsData, prevStatsData }))
+            .map(x => {
+                const prospect = prospectByName.get(faNormName(x.name)) || null;
+                const range = livRange ? livRange(x.pos) : null;
+                const seeded = seed.has(String(x.pid));
+                const crazeTier = (x.fitScore >= 3) ? 'priority' : 'speculative';
+                return { ...x, prospect, nflTeam: x.p.team, faab: blendFaabWithHistory(x.faab, range), faabHistory: range, seeded, crazeTier, tierLabel: prospect?.tierLabel || null };
+            })
+            .sort((a, b) => (Number(b.seeded) - Number(a.seeded)) || ((b.fitScore * 5000 + b.dhq) - (a.fitScore * 5000 + a.dhq)));
+
+        const priority = candidates.filter(c => c.crazeTier === 'priority');
+        const speculative = candidates.filter(c => c.crazeTier === 'speculative');
+        const watch = prospects
+            .filter(pr => (pr.isUDFA || !pr.draftRound) && !pr.nflTeam)
+            .sort((a, b) => (b.dynastyValue || 0) - (a.dynastyValue || 0))
+            .slice(0, 8)
+            .map(pr => ({ pid: pr.pid, name: pr.name, pos: pr.pos, dhq: pr.dynastyValue || 0, tierLabel: pr.tierLabel || 'UDFA', watch: true }));
+
+        if (typeof window.App?.Intelligence?.publishRecommendations === 'function') {
+            window.App.Intelligence.publishRecommendations('waiver', candidates.slice(0, 8).map(x => x.intelligence).filter(Boolean), { surface: 'udfa-craze' });
+        }
+        return { tiers: { priority, speculative, watch }, candidates, counts: { priority: priority.length, speculative: speculative.length, watch: watch.length } };
+    }
+
+    function udfaLockKey(leagueId) { return 'dhq_udfa_lock_' + (leagueId || 'default'); }
+    // Detect the rookie lock→unlock flip and open the craze. Called on each FA
+    // evaluation; persists the prior lock state so the flip is caught even when the
+    // draft completed on the real platform (not via our draft sim → no draft:closed).
+    function observeUdfaCrazeFlip(currentLeague, briefDraftInfo) {
+        if (!isDynastyLeague(currentLeague)) return null;
+        const leagueId = currentLeague?.league_id || currentLeague?.leagueId || window.S?.currentLeagueId || 'default';
+        const store = window.DhqStorage;
+        const key = udfaLockKey(leagueId);
+        const prev = store ? store.get(key, null) : null;
+        const now = rookiesLockedForWaivers(currentLeague, briefDraftInfo);
+        if (store) store.set(key, now);
+        if (prev === true && now === false) {
+            if (window.App?.PostDraft?.openCraze) {
+                try { window.App.PostDraft.openCraze(leagueId, { league: currentLeague }); } catch (_) {}
+            }
+            try { window.dispatchEvent(new CustomEvent('wr:udfa-craze-open', { detail: { leagueId, season: currentLeague?.season } })); } catch (_) {}
+            return leagueId;
+        }
+        return null;
+    }
+
     window.App = window.App || {};
     window.App.rookiesLockedForWaivers = rookiesLockedForWaivers;
     window.App.isRookieWaiverLockedCandidate = isRookieWaiverLockedCandidate;
     window.App.buildFreeAgencyActionBoard = buildFreeAgencyActionBoard;
+    window.App.buildUdfaCrazeBoard = buildUdfaCrazeBoard;
+    window.App.observeUdfaCrazeFlip = observeUdfaCrazeFlip;
+    window.App.blendFaabWithHistory = blendFaabWithHistory;
     window.App.getFreeAgencyBriefTarget = function getFreeAgencyBriefTarget(args) {
         return buildFreeAgencyActionBoard(args).priorityAdds[0] || null;
     };
@@ -374,6 +475,36 @@
         const isDraftProspect = useCallback((pid, p) => {
             return isRookieWaiverLockedCandidate(pid, p, { rookiesLocked, prospectNames, statsData, prevStatsData });
         }, [rookiesLocked, prospectNames, statsData, prevStatsData]);
+
+        // ── UDFA craze (dynasty post-rookie-draft scramble) ──────────────────────
+        const crazeLeagueId = currentLeague?.league_id || currentLeague?.id || window.S?.currentLeagueId || 'default';
+        const [crazeTick, setCrazeTick] = useState(0);
+        // Catch the rookie lock→unlock flip and reconcile remote craze state.
+        useEffect(() => {
+            try { window.App?.observeUdfaCrazeFlip?.(currentLeague, briefDraftInfo); } catch (e) {}
+            try {
+                const pulled = window.App?.PostDraft?.pullCraze?.(crazeLeagueId);
+                if (pulled && typeof pulled.then === 'function') pulled.then(() => setCrazeTick(t => t + 1)).catch(() => {});
+            } catch (e) {}
+        }, [crazeLeagueId, rookiesLocked]);
+        // One-time open notification + live countdown refresh.
+        useEffect(() => {
+            const onOpen = () => setCrazeTick(t => t + 1);
+            window.addEventListener('wr:udfa-craze-open', onOpen);
+            const iv = setInterval(() => setCrazeTick(t => t + 1), 60000);
+            return () => { window.removeEventListener('wr:udfa-craze-open', onOpen); clearInterval(iv); };
+        }, []);
+        const crazeState = (window.App?.PostDraft?.getCraze?.(crazeLeagueId)) || null;
+        const crazeOpen = !!(crazeState && crazeState.open && !crazeState.dismissed);
+        const crazeBoard = useMemo(() => {
+            if (!crazeOpen || typeof window.App?.buildUdfaCrazeBoard !== 'function') return null;
+            try {
+                return window.App.buildUdfaCrazeBoard({
+                    playersData, statsData, prevStatsData, myRoster, currentLeague,
+                    leagueSkin: resolvedLeagueSkin, briefDraftInfo, crazeSeed: (crazeState && crazeState.seed) || [],
+                });
+            } catch (e) { return null; }
+        }, [crazeOpen, crazeTick, playersData, statsData, myRoster, currentLeague, timeRecomputeTs]);
 
         // Load FA targets from Supabase/localStorage
         useEffect(() => {
@@ -600,8 +731,14 @@
             }
         }
 
-        function playerName(p) {
-            return p?.full_name || ((p?.first_name || '') + ' ' + (p?.last_name || '')).trim() || 'Unknown';
+        function playerName(p, pid) {
+            if (!p) return pid ? 'Player ' + pid : 'Unknown';
+            const full = p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim();
+            if (full) return full;
+            // Team defenses carry a team abbr but often no full/first/last name in the feed.
+            const pos = (window.App?.normPos?.(p.position) || p.position || '').toUpperCase();
+            if ((pos === 'DEF' || pos === 'DST') && (p.team || pid)) return (p.team || pid) + ' D/ST';
+            return pid ? 'Player ' + pid : 'Unknown';
         }
 
         function seasonPpgFor(pid) {
@@ -968,6 +1105,78 @@
 
         if (!rosterState.isUsable) return renderRosterSyncBlocker();
 
+        // ── UDFA CRAZE PANEL ──────────────────────────────────────────────────
+        function fmtCountdown(end) {
+            const ms = Number(end) - Date.now();
+            if (!Number.isFinite(ms) || ms <= 0) return 'closing';
+            const h = Math.floor(ms / 3600000);
+            const m = Math.floor((ms % 3600000) / 60000);
+            if (h >= 24) return Math.floor(h / 24) + 'd ' + (h % 24) + 'h';
+            return h + 'h ' + m + 'm';
+        }
+        function renderCrazeRow(c) {
+            const staged = (crazeState?.stagedClaims || {})[String(c.pid)];
+            const isStaged = staged != null;
+            const sug = c.faab?.sug;
+            const rangeTxt = c.faab && c.faab.leagueCount ? ` · league avg ${c.faab.leagueAvg} (n=${c.faab.leagueCount})` : '';
+            return (
+                <div key={c.pid} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '8px', background: 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid ' + (isStaged ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.08))') }}>
+                    {c.seeded && <span title="Pre-identified by your draft recap" style={{ color: 'var(--gold)', fontSize: '0.8rem' }}>★</span>}
+                    <button type="button" onClick={() => openFaPlayer(c.pid)} style={{ flex: 1, textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--white)', fontFamily: "var(--font-ui, 'DM Sans', sans-serif)", fontWeight: 700, fontSize: '0.82rem' }}>
+                        {c.name} <span style={{ color: 'var(--silver)', opacity: 0.7, fontWeight: 600 }}>{c.pos}{c.nflTeam ? ' · ' + c.nflTeam : ''}{c.tierLabel ? ' · ' + c.tierLabel : ''}</span>
+                    </button>
+                    <span style={{ color: c.fit?.color || 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700 }}>{c.fit?.short || 'Depth'}</span>
+                    <span style={{ color: 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', minWidth: '52px', textAlign: 'right' }}>{Number(c.dhq || 0).toLocaleString()}</span>
+                    {sug != null && (
+                        <button type="button" title={'Suggested FAAB ' + sug + rangeTxt} onClick={() => { try { window.App?.PostDraft?.stageClaim?.(crazeLeagueId, c.pid, isStaged ? null : sug); setCrazeTick(t => t + 1); } catch (e) {} }}
+                            style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', background: isStaged ? 'var(--gold)' : 'var(--acc-fill2, rgba(212,175,55,0.08))', color: isStaged ? 'var(--black)' : 'var(--gold)', fontFamily: "var(--font-ui, 'DM Sans', sans-serif)", fontWeight: 800, fontSize: 'var(--text-micro, 0.6875rem)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            {isStaged ? '✓ $' + staged : '$' + sug}
+                        </button>
+                    )}
+                </div>
+            );
+        }
+        function renderCrazePanel() {
+            if (!crazeOpen || !crazeBoard) return null;
+            const { priority = [], speculative = [], watch = [] } = crazeBoard.tiers || {};
+            const total = priority.length + speculative.length;
+            if (!total && !watch.length) return null;
+            const headline = (window.AlexVoice ? window.AlexVoice.pick('udfa:craze:' + crazeLeagueId, [
+                "Rookie draft's done — the UDFA wire just opened. Move before the room does.",
+                "The craze is live. Undrafted rookies with NFL homes are claimable now.",
+                "This is the scramble. Here are the signed UDFAs worth a bid before waivers run.",
+            ]) : 'The UDFA craze is live.');
+            const staged = Object.keys(crazeState?.stagedClaims || {}).length;
+            return (
+                <section style={{ margin: '0 0 14px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--acc-line4, rgba(212,175,55,0.55))', background: 'linear-gradient(135deg, rgba(212,175,55,0.10), transparent 70%)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
+                        <span style={{ fontFamily: "var(--font-display, Rajdhani, sans-serif)", fontWeight: 800, letterSpacing: '0.08em', color: 'var(--gold)', fontSize: '0.95rem' }}>⚡ UDFA CRAZE — LIVE</span>
+                        <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)' }}>Waivers process in <strong style={{ color: 'var(--white)' }}>{fmtCountdown(crazeState.windowEnd)}</strong> · {total} newly-eligible{staged ? ' · ' + staged + ' staged' : ''}</span>
+                        <span style={{ flex: 1 }} />
+                        <button type="button" title="Dismiss the craze panel" onClick={() => { try { window.App?.PostDraft?.closeCraze?.(crazeLeagueId); setCrazeTick(t => t + 1); } catch (e) {} }}
+                            style={{ background: 'transparent', border: 'none', color: 'var(--silver)', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>×</button>
+                    </div>
+                    <div style={{ padding: '12px 16px' }}>
+                        <div style={{ fontSize: '0.84rem', color: 'var(--white)', marginBottom: '12px', lineHeight: 1.5 }}>{headline}</div>
+                        {priority.length > 0 && (<>
+                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>Priority UDFAs — fill a need</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>{priority.slice(0, 6).map(renderCrazeRow)}</div>
+                        </>)}
+                        {speculative.length > 0 && (<>
+                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>Speculative — signed, no immediate need</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: watch.length ? '12px' : 0 }}>{speculative.slice(0, 4).map(renderCrazeRow)}</div>
+                        </>)}
+                        {watch.length > 0 && (
+                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.8 }}>
+                                <span style={{ textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.8 }}>Watch (no NFL team yet): </span>
+                                {watch.slice(0, 6).map((w, i) => <span key={w.pid}>{i ? ', ' : ''}{w.name} ({w.pos})</span>)}
+                            </div>
+                        )}
+                    </div>
+                </section>
+            );
+        }
+
         // ── COMMAND VIEW: shared Action HQ, without the deep market table ──
         if (viewMode === 'command') {
             if (!canAccess('fa-decision-engine')) {
@@ -990,6 +1199,7 @@
                             <span className="wr-module-pill">Command</span>
                         </div>
                     </div>
+                    {renderCrazePanel()}
                     {renderActionHQ(true)}
                 </div>
             );
@@ -1009,6 +1219,7 @@
                     </div>
                 </div>
 
+                {renderCrazePanel()}
                 {renderActionHQ(false)}
 
                 <section className="fa-market-shell">
@@ -1181,7 +1392,7 @@
                                         <img src={'https://sleepercdn.com/content/nfl/players/' + pid + '.jpg'} alt="" style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))' }} onError={e => { e.target.style.display='none'; const s=document.createElement('span'); s.style.cssText='font-size:var(--text-label, 0.75rem);font-weight:700;color:var(--gold)'; s.textContent=((p.first_name||'?')[0]+(p.last_name||'?')[0]).toUpperCase(); e.target.after(s); }} />
                                     </div>
                                     <div style={{ overflow: 'hidden' }}>
-                                        <div style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.full_name || 'Unknown'}</div>
+                                        <div style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{playerName(p, pid)}</div>
                                         <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55 }}>{p.team || 'FA'}{p.injury_status ? ' · ' : ''}{p.injury_status ? <span style={{ color: 'var(--bad)' }}>{p.injury_status}</span> : ''}</div>
                                     </div>
                                     {visibleFaCols.map(k => <span key={k} style={{ display: 'flex', alignItems: 'center' }}>{renderCell(k)}</span>)}
@@ -1203,7 +1414,7 @@
                             <img src={'https://sleepercdn.com/content/nfl/players/' + faSelectedPid + '.jpg'} style={{ width: '64px', height: '64px', objectFit: 'cover' }} onError={e => { e.target.style.display='none'; const s=document.createElement('span'); s.style.cssText='font-size:20px;font-weight:700;color:var(--gold)'; s.textContent=selInitials; e.target.after(s); }} />
                         </div>
                         <div>
-                            <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.4rem', color: 'var(--white)', letterSpacing: '0.02em' }}>{selPlayer.full_name || 'Unknown'}</div>
+                            <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.4rem', color: 'var(--white)', letterSpacing: '0.02em' }}>{playerName(selPlayer, faSelectedPid)}</div>
                             <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)' }}>{selPos} · {selPlayer.team || 'FA'} · Age {selPlayer.age || '?'} · {selPlayer.years_exp ?? 0}yr exp{selPlayer.college ? ' · ' + selPlayer.college : ''}</div>
                         </div>
                     </div>
