@@ -8,6 +8,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const source = fs.readFileSync(path.join(ROOT, 'supabase', 'functions', 'ai-analyze', 'index.ts'), 'utf8');
 const usageMigration = fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', '20260503000000_ai_usage_controls.sql'), 'utf8');
+const cacheMigration = fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', '20260610000000_ai_response_cache.sql'), 'utf8');
 const marginMigration = fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', '20260503020000_ai_margin_rollups.sql'), 'utf8');
 const deployWorkflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'deploy-functions.yml'), 'utf8');
 const scaleScript = fs.readFileSync(path.join(ROOT, 'scripts', 'ai-scale-load-model.cjs'), 'utf8');
@@ -145,6 +146,48 @@ group('routing');
 test('frequent Alex surfaces route to fast/standard tiers', () => {
   ['fa_chat', 'fa_targets'].forEach(type => assertRouteTier(type, 'fast'));
   ['chat', 'league', 'team', 'partners'].forEach(type => assertRouteTier(type, 'standard'));
+});
+
+test('insight surfaces route cheap-first; explicit trade verdict is premium', () => {
+  assertRouteTier('trade_verdict', 'premium');
+  assertRouteTier('team_diagnosis', 'standard');
+  assertRouteTier('dashboard_digest', 'fast');
+  assertRouteTier('insight', 'fast');
+  ['trade_verdict', 'team_diagnosis', 'dashboard_digest', 'insight'].forEach(type => {
+    ok(new RegExp(`STRUCTURED_TYPES = new Set\\(\\[[^\\]]*'${type}'`).test(source),
+      `${type} should be a structured (non-generic) type`);
+  });
+});
+
+test('insight prompt builders are wired into the type switch', () => {
+  ['buildTradeVerdictPrompt', 'buildTeamDiagnosisPrompt', 'buildDashboardDigestPrompt', 'buildInsightPrompt', 'buildPartnerModeBlock', 'buildScarcityBlock'].forEach(fn => {
+    ok(source.includes(`function ${fn}(`), `missing ${fn}`);
+  });
+  ['trade_verdict', 'team_diagnosis', 'dashboard_digest', 'insight'].forEach(type => {
+    ok(new RegExp(`case '${type}':`).test(source), `${type} missing from type switch`);
+  });
+});
+
+group('response cache');
+
+test('ambient insight types are server-cached and bypass budgets on hits', () => {
+  ok(source.includes('const CACHEABLE_TYPES'), 'missing cacheable type map');
+  ['dashboard_digest', 'insight', 'team_diagnosis'].forEach(type => {
+    ok(new RegExp(`${type}:\\s*\\d`).test(source.slice(source.indexOf('const CACHEABLE_TYPES'))),
+      `${type} should have a cache TTL`);
+  });
+  ok(!/trade_verdict/.test(source.slice(source.indexOf('const CACHEABLE_TYPES'), source.indexOf('const USER_SCOPED_CACHE_TYPES'))),
+    'trade_verdict must never be cached (deal-specific)');
+  ok(source.includes("ai_call_cached"), 'cache hits should be recorded in analytics');
+  ok(source.includes('computeCacheKey'), 'missing cache key derivation');
+  ok(source.includes('forceRefresh'), 'explicit refresh should bypass cache reads');
+  ok(source.includes('countRequest: cacheTtlMs <= 0 || forceRefresh'),
+    'ambient calls must not consume request allowance; forced refreshes must');
+  ok(cacheMigration.includes('create table if not exists public.ai_response_cache'), 'missing cache table');
+  ok(cacheMigration.includes('alter table public.ai_response_cache enable row level security'), 'cache table should have RLS');
+  ok(cacheMigration.includes('revoke all on table public.ai_response_cache from anon, authenticated'), 'cache table should be service-role only');
+  ok(cacheMigration.includes('p_count_request boolean default true'), 'reserve_ai_usage should support uncounted ambient requests');
+  ok(cacheMigration.includes('revoke execute on function public.reserve_ai_usage'), 'new reserve_ai_usage should not be client-callable');
 });
 
 test('long structured generation routes to premium tier', () => {
