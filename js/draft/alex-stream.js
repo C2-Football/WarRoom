@@ -96,10 +96,12 @@
             dispatch({ type: 'ALEX_SET_THINKING', thinking: true });
 
             try {
-                // Rich, board-aware context (shared with the Ask windows)
-                const contextLines = window.DraftCC.buildAskContext
-                    ? window.DraftCC.buildAskContext(state)
-                    : '';
+                // Rich, board-aware context (shared with the Ask windows),
+                // plus the format/quality preamble the generic AI path lacks.
+                const contextLines = (window.WR?.AIContext?.buildFormatPreamble?.(window.S?.currentLeague) || '')
+                    + (window.DraftCC.buildAskContext
+                        ? window.DraftCC.buildAskContext(state)
+                        : '');
 
                 // Pass the bare question as the message; dhqAI injects the
                 // context itself, so don't duplicate it into the message.

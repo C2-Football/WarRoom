@@ -800,6 +800,8 @@
         const [tradeFaab, setTradeFaab] = useState({ A:0, B:0 });
         const [tradeOwner, setTradeOwner] = useState({ A:null, B:null });
         const [searchText, setSearchText] = useState({ A:'', B:'' });
+        // Alex's AI second opinion on the manual builder's deal: { loading, error, text, dealKey, feedback }
+        const [alexVerdict, setAlexVerdict] = useState(null);
         const lastTradeLogRef = useRef('');
         const tradeStartedRef = useRef(false);
         useEffect(() => {
@@ -3246,7 +3248,7 @@
                                         {TcTradeSide({ side: 'A', color: 'var(--k-5dade2, #5dade2)', label: 'YOU SEND', ..._tsDeps })}
                                         {TcTradeSide({ side: 'B', color: 'var(--k-e74c3c, #e74c3c)', label: 'YOU GET', ..._tsDeps })}
                                     </div>
-                                    {_verdict.hasTrade && <div style={{ marginTop: '12px' }}>{React.createElement(TcVerdictPanel, { ..._verdict, FAAB_RATE })}</div>}
+                                    {_verdict.hasTrade && <div style={{ marginTop: '12px' }}>{React.createElement(TcVerdictPanel, { ..._verdict, FAAB_RATE })}{renderAlexVerdict()}</div>}
                                 </div>
                             )}
                         </div>
@@ -3330,6 +3332,122 @@
                 : 'No players selected';
             const starterValueDelta = tradeIds.B.reduce((s, id) => s + (getPlayerValue(id).value || 0), 0) - tradeIds.A.reduce((s, id) => s + (getPlayerValue(id).value || 0), 0);
             return { totalA, totalB, hasTrade, otherOwnerId, otherDnaKey, otherDna, theirPosture, psychTaxes, grudgeTax, netTaxTotal, likelihood, manualBehaviorProfile, manualBehaviorFit, likelihoodColor, verdictColor, verdictText, diffDisplay, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta };
+        }
+
+        // ── Alex second opinion on the builder deal ──────────────────────────
+        // Sends the deterministic verdict plus both teams' assessments and the
+        // full deal to the trade_verdict edge route (premium tier, uncached).
+
+        function buildTradeVerdictContext(v) {
+            const needsToStrings = (needs) => (needs || []).map(n => n.urgency === 'deficit' ? `${n.pos}*` : n.pos);
+            const pickParts = (pkId) => { const p = pkId.split('-'); return { year: p[1], round: Number(p[2]), value: pickValueForParts(p[1], Number(p[2]), p[3]) }; };
+            const dealSide = (side) => ({
+                players: tradeIds[side].map(playerAsset).filter(Boolean).map(a => ({ name: a.name, pos: a.pos, age: a.age, value: a.value })),
+                picks: tradePickIds[side].map(pickParts),
+                faab: tradeFaab[side] || 0,
+            });
+            const theirAssessment = assessments.find(a => a.ownerId === v.otherOwnerId) || null;
+            const psychNotes = [...v.psychTaxes.slice(0, 3).map(t => `${t.name} ${t.impact > 0 ? '+' : ''}${t.impact}%`),
+                ...(v.grudgeTax.total !== 0 ? [`Grudge ${v.grudgeTax.total > 0 ? '+' : ''}${v.grudgeTax.total}%`] : [])].join(', ');
+            return {
+                leagueName: currentLeague?.name || 'my league',
+                leagueId,
+                rosterPositions: currentLeague?.roster_positions || [],
+                roster_positions: currentLeague?.roster_positions || [],
+                scoringSettings: currentLeague?.scoring_settings || {},
+                scoring_settings: currentLeague?.scoring_settings || {},
+                myTeam: myAssessment ? {
+                    record: `${myAssessment.wins}-${myAssessment.losses}`,
+                    tier: myAssessment.tier,
+                    window: myAssessment.tradeWindow || myAssessment.window || '',
+                    healthScore: myAssessment.healthScore,
+                    needs: needsToStrings(myAssessment.needs),
+                    strengths: (myAssessment.strengths || []).slice(0, 5),
+                } : {},
+                partnerTeam: theirAssessment ? {
+                    owner: theirAssessment.ownerName,
+                    record: `${theirAssessment.wins}-${theirAssessment.losses}`,
+                    tier: theirAssessment.tier,
+                    window: theirAssessment.tradeWindow || theirAssessment.window || '',
+                    dna: v.otherDnaKey !== 'NONE' ? (v.otherDna.label || v.otherDnaKey) : 'Unknown',
+                    posture: v.theirPosture?.label || 'N/A',
+                    needs: needsToStrings(theirAssessment.needs),
+                } : {},
+                iSend: dealSide('A'),
+                iReceive: dealSide('B'),
+                verdict: {
+                    verdictText: v.verdictText,
+                    diffDisplay: v.diffDisplay,
+                    likelihood: `${v.likelihood}%`,
+                    psychNotes,
+                },
+            };
+        }
+
+        async function requestAlexVerdict(v, dealKey) {
+            setAlexVerdict({ loading: true, dealKey });
+            try {
+                const result = await window.OD.callAI({ type: 'trade_verdict', context: buildTradeVerdictContext(v) });
+                setAlexVerdict({ text: result.analysis, dealKey });
+                const partnerName = (assessments.find(a => a.ownerId === v.otherOwnerId) || {}).ownerName;
+                if (typeof window.OD?.saveAIAnalysis === 'function') {
+                    window.OD.saveAIAnalysis(leagueId, 'trade_verdict', partnerName ? `Trade Verdict vs ${partnerName}` : 'Trade Verdict', result.analysis).catch?.(() => {});
+                }
+            } catch (e) {
+                setAlexVerdict({ error: e.message || 'Second opinion failed. Try again in a moment.', dealKey });
+            }
+        }
+
+        function sendVerdictFeedback(action, dealKey) {
+            setAlexVerdict(prev => prev && prev.dealKey === dealKey ? { ...prev, feedback: action } : prev);
+            // Learning-loop capture — no-op until the AIFeedback helper ships.
+            window.WR?.AIFeedback?.send?.({ leagueId, surface: 'trade_verdict', recId: dealKey, action });
+        }
+
+        function renderAlexVerdict() {
+            const v = computeManualVerdict();
+            if (!v.hasTrade) return null;
+            if (!canAccess('trade-quick-check')) return null;
+            // Key the response to the deal's contents so editing the deal invalidates a stale verdict.
+            const dealKey = [tradeIds.A.join(','), tradeIds.B.join(','), tradePickIds.A.join(','), tradePickIds.B.join(','), tradeFaab.A, tradeFaab.B].join('|');
+            const current = alexVerdict && alexVerdict.dealKey === dealKey ? alexVerdict : null;
+            const verdictHtml = current?.text ? current.text
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/\*\*([^*\n]+)\*\*/g, '<strong style="color:var(--gold);font-weight:700">$1</strong>')
+                .replace(/^- (.+)$/gm, '<div style="padding-left:0.8rem;margin:0.12rem 0">• $1</div>')
+                .replace(/\n\n/g, '<div style="margin:0.45rem 0"></div>')
+                .replace(/\n/g, '<br>') : '';
+            return (
+                <div style={{ marginTop: '10px' }}>
+                    {!current && (
+                        <button type="button" onClick={() => requestAlexVerdict(v, dealKey)}
+                            style={{ width:'100%', background:'var(--acc-fill2, rgba(212,175,55,0.08))', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'6px', color:'var(--gold)', cursor:'pointer', fontFamily:'var(--font-body)', fontSize:'0.8rem', fontWeight:700, letterSpacing:'0.05em', padding:'9px 12px', minHeight:'44px' }}>
+                            ✨ Ask Alex for a second opinion
+                        </button>
+                    )}
+                    {current?.loading && <GMMessage compact>Reading the deal — checking mode fit, format premiums, and what {(v.theirPosture?.label || 'the other owner').toLowerCase()} energy means for your leverage…</GMMessage>}
+                    {current?.error && (
+                        <div style={{ fontSize:'0.78rem', color:'var(--loss-red)', padding:'6px 2px' }}>
+                            {current.error}{' '}
+                            <button type="button" onClick={() => requestAlexVerdict(v, dealKey)} style={{ background:'none', border:'none', color:'var(--gold)', cursor:'pointer', fontSize:'0.78rem', textDecoration:'underline', padding:0 }}>Retry</button>
+                        </div>
+                    )}
+                    {current?.text && (
+                        <GMMessage title="Second Opinion">
+                            <div dangerouslySetInnerHTML={{ __html: verdictHtml }} />
+                            <div style={{ display:'flex', alignItems:'center', gap:'8px', marginTop:'8px' }}>
+                                {current.feedback
+                                    ? <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.6 }}>{current.feedback === 'up' ? 'Glad it helped.' : 'Noted — Alex learns from this.'}</span>
+                                    : <>
+                                        <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.6 }}>Useful?</span>
+                                        <button type="button" onClick={() => sendVerdictFeedback('up', dealKey)} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'4px', color:'var(--silver)', cursor:'pointer', fontSize:'0.78rem', padding:'2px 9px' }}>Agree</button>
+                                        <button type="button" onClick={() => sendVerdictFeedback('down', dealKey)} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'4px', color:'var(--silver)', cursor:'pointer', fontSize:'0.78rem', padding:'2px 9px' }}>Disagree</button>
+                                    </>}
+                            </div>
+                        </GMMessage>
+                    )}
+                </div>
+            );
         }
 
         // buildTradeSideDeps — constructs the prop bag for TcTradeSide (builder-side helper closures +
@@ -3432,6 +3550,7 @@
 
                     {/* Verdict */}
                     {hasTrade && <TcVerdictPanel {...{ verdictColor, diffDisplay, verdictText, totalA, totalB, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta, FAAB_RATE, likelihoodColor, likelihood, netTaxTotal, manualBehaviorFit, otherOwnerId, theirPosture, otherDnaKey, otherDna, manualBehaviorProfile, psychTaxes, grudgeTax }} />}
+                    {hasTrade && renderAlexVerdict()}
                     </>}
                 </div>
             );
