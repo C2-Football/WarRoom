@@ -158,6 +158,42 @@ function buildTeamDiagnosisPrompt(ctx) {
     return `Diagnose **${ctx.myOwner || 'my'}** team in **${ctx.leagueName || 'this league'}**. Be direct and specific — this is a strategic check-up, not a pep talk.\n${fmtBlock}${modeBlock}${sfQBNote}\n**TEAM STATUS:** ${ctx.record || '?'} | ${ctx.teamTier || ctx.tier || '?'} tier | Health: ${ctx.healthScore ?? '?'}/100 | Window: ${ctx.teamWindow || ctx.tradeWindow || '?'}\n**STATED NEEDS:** ${(ctx.needs || []).join(', ') || 'none identified'}\n**STATED STRENGTHS:** ${(ctx.strengths || []).join(', ') || 'none identified'}\n**GM STRATEGY NOTES:** ${ctx.gmStrategy || ctx.mentality || 'none provided'}\n\n**ROSTER:**\n${rosterStr || 'No roster data'}\n\nRespond in under 350 words with exactly these sections:\n**DIAGNOSIS** — 2-3 sentences: what this team actually is right now\n**ROOT CAUSES** — The structural reasons (age curve, positional gaps, pick capital), not symptoms\n**PRESCRIPTION** — Exactly 3 concrete moves, each aligned with the team mode above. No generic "add depth" advice.\n**MODE CHECK** — One sentence: is the owner's current strategy consistent with what the roster says, or should they change course?`;
 }
 
+function describeSubject(subject) {
+    if (!subject || typeof subject !== 'object') return '';
+    const parts = ['player', 'pos', 'age', 'moveType', 'title']
+        .map(k => subject[k])
+        .filter(v => v !== null && v !== undefined && v !== '');
+    return parts.join(' ').slice(0, 90);
+}
+
+function buildUserPreferenceBlock(prefs) {
+    if (!prefs || !prefs.total) return '';
+    const lines = [];
+    lines.push(`\n═══ USER PREFERENCE PROFILE (learned from this owner's reactions to past AI advice) ═══`);
+    const accept = prefs.acceptRate != null ? Math.round(Number(prefs.acceptRate) * 100) : null;
+    lines.push(`Feedback on ${prefs.total} recommendations in the last 90 days${accept != null ? ` — ${accept}% positively received` : ''}.`);
+    const sc = prefs.surfaceCounts || {};
+    const downSurfaces = Object.entries(sc)
+        .filter(([, c]) => Number(c?.down || 0) > Number(c?.up || 0) + Number(c?.acted || 0))
+        .map(([s]) => s);
+    if (downSurfaces.length) {
+        lines.push(`They frequently reject ${downSurfaces.join(', ')} advice — only repeat a previously rejected framing when the evidence is overwhelming, and acknowledge the change.`);
+    }
+    const actedSurfaces = Object.entries(sc)
+        .filter(([, c]) => Number(c?.acted || 0) > 0)
+        .map(([s]) => s);
+    if (actedSurfaces.length) {
+        lines.push(`They have acted on ${actedSurfaces.join(', ')} recommendations before — these carry weight, so be precise.`);
+    }
+    const downs = (prefs.recentDownSubjects || []).map(describeSubject).filter(Boolean).slice(0, 3);
+    if (downs.length) lines.push(`Recently rejected: ${downs.join(' | ')}. Do not re-pitch these unless circumstances changed.`);
+    const acted = (prefs.recentActedSubjects || []).map(describeSubject).filter(Boolean).slice(0, 3);
+    if (acted.length) lines.push(`Recently acted on: ${acted.join(' | ')}. Similar profiles resonate with this owner.`);
+    lines.push(`These are tendencies, not rules — quality thresholds and team-mode rules above ALWAYS take precedence.`);
+    lines.push(`═══════════════════════════════════════════════════════════════════════════════════════\n`);
+    return lines.join('\n');
+}
+
 function buildQualityThresholdBlock() {
     return `\n═══ MINIMUM QUALITY THRESHOLDS (apply to ALL FA/FAAB/waiver recommendations) ═══\n⛔ DO NOT recommend adding or bidding on players who meet ANY of these criteria:\n  • DHQ below 500 (replacement-level talent — not worth a roster spot in competitive leagues)\n  • PPG below 5.0 in their most recent season with 6+ games played\n  • Players with no NFL stats in the last 2 seasons (unless they are rookies)\n  • Veterans (age 27+) with declining trend who would not crack the starting lineup\n\n✅ ONLY recommend FAAB spending when the player would:\n  • Start or be the first backup at a position of need, OR\n  • Be a high-upside young player (age ≤25) worth a speculative hold, OR\n  • Replace an injured starter (emergency depth pickup)\n\n💰 FAAB DISCIPLINE:\n  • "Depth for depth's sake" is NEVER a valid reason to spend FAAB\n  • A $1 bid on a bad player is still a wasted roster spot\n  • If no quality targets exist at a position, say "HOLD YOUR FAAB" — do not invent targets\n  • Remaining FAAB is a weapon for mid-season breakouts and injuries — preserve it\n═══════════════════════════════════════════════════════════════════════════════════════\n`;
 }
@@ -656,6 +692,55 @@ const TESTS = [
     ],
 },
 
+// ─── TEST 17: Preference block — owner who rejects veteran-for-picks advice ───
+{
+    id: 'T17',
+    name: 'Preference block — rejected framings are not re-pitched',
+    type: 'preference_block',
+    ctx: {},
+    prefs: {
+        total: 12,
+        upCount: 2,
+        downCount: 6,
+        actedCount: 3,
+        dismissedCount: 1,
+        acceptRate: 0.45,
+        surfaceCounts: {
+            trade_verdict: { up: 1, down: 5, acted: 0 },
+            fa_targets: { up: 1, down: 1, acted: 3 },
+        },
+        recentDownSubjects: [
+            { player: 'Keenan Allen', pos: 'WR', age: 30, moveType: 'veteran_for_picks' },
+            { title: 'Sell your RB1 for future capital' },
+        ],
+        recentActedSubjects: [
+            { player: 'Jaylen Wright', pos: 'RB', age: 22, moveType: 'faab_target' },
+        ],
+    },
+    rubric: [
+        { rule: 'Block announces learned preferences', check: 'prefs', contains: 'USER PREFERENCE PROFILE' },
+        { rule: 'Accept rate surfaced', check: 'prefs', contains: '45% positively received' },
+        { rule: 'Rejected surface flagged (trade_verdict)', check: 'prefs', contains: 'frequently reject trade_verdict' },
+        { rule: 'Acted surface flagged (fa_targets)', check: 'prefs', contains: 'acted on fa_targets' },
+        { rule: 'Rejected subjects listed, not re-pitched', check: 'prefs', contains: 'Do not re-pitch' },
+        { rule: 'Rejected veteran example carried through', check: 'prefs', contains: 'Keenan Allen WR 30' },
+        { rule: 'Acted youth example carried through', check: 'prefs', contains: 'Jaylen Wright RB 22' },
+        { rule: 'Quality/mode rules still take precedence', check: 'prefs', contains: 'ALWAYS take precedence' },
+    ],
+},
+
+// ─── TEST 18: Preference block — no feedback history degrades to nothing ───
+{
+    id: 'T18',
+    name: 'Preference block — empty history emits no block',
+    type: 'preference_block',
+    ctx: {},
+    prefs: { total: 0 },
+    rubric: [
+        { rule: 'No block for empty history', check: 'prefs', notContains: 'USER PREFERENCE PROFILE' },
+    ],
+},
+
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -670,13 +755,15 @@ function runTest(test) {
     const faPrompt = test.type === 'fa_targets' ? buildFATargetsPrompt(test.ctx) : null;
     const tradePrompt = test.type === 'trade_verdict' ? buildTradeVerdictPrompt(test.ctx) : null;
     const diagPrompt = test.type === 'team_diagnosis' ? buildTeamDiagnosisPrompt(test.ctx) : null;
+    const prefsBlock = test.type === 'preference_block' ? buildUserPreferenceBlock(test.prefs) : null;
 
     for (const r of test.rubric) {
         const target = r.check === 'system' ? systemPrompt
             : r.check === 'trade' ? tradePrompt
             : r.check === 'diag' ? diagPrompt
+            : r.check === 'prefs' ? prefsBlock
             : faPrompt;
-        if (!target && r.check !== 'system') {
+        if (target == null && r.check !== 'system') {
             results.checks.push({ rule: r.rule, status: 'SKIP', reason: `No ${r.check} prompt for this test type` });
             continue;
         }

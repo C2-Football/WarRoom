@@ -682,6 +682,19 @@
         };
         const doClear = () => { clearCachedAiInsights(props); setAiState({ insights: [], ts: 0 }); };
 
+        // Learning-loop feedback on AI insight cards (keyed by title).
+        const [insightFeedback, setInsightFeedback] = useState({});
+        const sendInsightFeedback = (ins, action) => {
+            setInsightFeedback(prev => ({ ...prev, [ins.title]: action }));
+            window.WR?.AIFeedback?.send?.({
+                leagueId: getLeagueId(props),
+                surface: 'insight',
+                recId: 'ai-insight:' + (ins.title || '').slice(0, 150),
+                action,
+                subject: { title: ins.title, focus: ins.focus || undefined, severity: ins.severity },
+            });
+        };
+
         const cacheAge = aiState?.ts ? Math.round((Date.now() - aiState.ts) / 60000) : null;
 
         return h(React.Fragment, null,
@@ -755,7 +768,16 @@
                 )
                 : h('div', { className: 'gm-office-insight-grid' },
                     merged.map((ins, i) => h('div', { key: i, style: { position: 'relative' } },
-                        h(InsightCard, ins),
+                        h(InsightCard, ins.isAi ? {
+                            ...ins,
+                            // Learning loop: thumbs feed the ai_feedback rollup that
+                            // tunes future prompts for this owner.
+                            feedback: {
+                                given: insightFeedback[ins.title],
+                                onUp: () => sendInsightFeedback(ins, 'up'),
+                                onDown: () => sendInsightFeedback(ins, 'down'),
+                            },
+                        } : ins),
                         ins.recommendationWhy?.length > 0 && h('div', {
                             style: {
                                 display: 'flex', flexWrap: 'wrap', gap: '5px',

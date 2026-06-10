@@ -152,6 +152,20 @@ When the AI gives a second opinion on a calculator-graded trade (`trade_verdict`
 
 ---
 
+## 2c. Learning Loop (User Preference Profile)
+
+The AI learns each owner's tendencies from their reactions to its advice:
+
+1. **Capture** — clients send thumbs up/down, acted-on, and dismissed signals to the `ai-feedback` edge function (via `window.WR.AIFeedback.send`). Surfaces: trade verdict agree/disagree, Alex Insights card thumbs, dashboard digest thumbs, and FA target adds that match the last AI recommendation (`acted`).
+2. **Store** — `ai_feedback` table (RLS, service-role only), deduped per `(identifier, rec_id, action)`.
+3. **Roll up** — `get_ai_preference_summary()` condenses the last 90 days into accept rate, per-surface counts, and the most recent rejected/acted subjects.
+4. **Inject** — `buildUserPreferenceBlock()` appends a ~10-line "USER PREFERENCE PROFILE" to every structured system prompt (mock drafts excluded): rejected framings are not re-pitched without overwhelming evidence; acted-on profiles get weight. The block explicitly states that quality thresholds and team-mode rules always take precedence.
+5. **Cache coherence** — the response-cache key includes a decile-rounded prefs version stamp, so cached ambient insights refresh when an owner's tendencies shift meaningfully without churning on every thumb.
+
+Fail-open at every step: with no feedback history, prompts are byte-identical to the pre-loop behavior.
+
+---
+
 ## 3. How the System Works End-to-End
 
 ```

@@ -1053,16 +1053,77 @@ function stableStringify(value: any): string {
 
 const CACHE_KEY_IGNORED_FIELDS = new Set(['forceRefresh', 'system', 'sessionId', 'session_id', '_dhqContext']);
 
-async function computeCacheKey(type: string, context: any, aiSession: AISession): Promise<string> {
+async function computeCacheKey(type: string, context: any, aiSession: AISession, prefsVersion = ''): Promise<string> {
     const parsed = parseContextPayload(context);
     const pruned: Record<string, any> = {};
     for (const [k, v] of Object.entries(parsed || {})) {
         if (!CACHE_KEY_IGNORED_FIELDS.has(k)) pruned[k] = v;
     }
     const scope = USER_SCOPED_CACHE_TYPES.has(type) ? aiSession.identifier : 'shared';
-    const raw = `${AI_POLICY_VERSION}|${type}|${scope}|${stableStringify(pruned)}`;
+    const raw = `${AI_POLICY_VERSION}|${type}|${scope}|${prefsVersion}|${stableStringify(pruned)}`;
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
     return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ── User preference learning loop ────────────────────────────────────────────
+// Rolls the owner's recent feedback (ai_feedback table, via the ai-feedback
+// edge function) into a compact block appended to structured system prompts.
+// Fail-open: AI must work identically when no feedback exists.
+
+async function fetchPreferenceSummary(aiSession: AISession, leagueId: string | null): Promise<Record<string, any> | null> {
+    const supabase = cacheSupabaseClient();
+    if (!supabase) return null;
+    const data = await safeSupabaseData(supabase.rpc('get_ai_preference_summary', {
+        p_identifier: aiSession.identifier,
+        p_league_id: leagueId,
+    }));
+    if (!data || typeof data !== 'object' || !(data as any).total) return null;
+    return data as Record<string, any>;
+}
+
+// Coarse version stamp for the response-cache key: cached ambient insights
+// refresh when tendencies shift meaningfully, without churning on every
+// single thumb. Accept rate is decile-rounded; volume is bucketed by 5s.
+function prefsVersionFor(prefs: Record<string, any> | null): string {
+    if (!prefs || !prefs.total) return 'p0';
+    const decile = prefs.acceptRate != null ? Math.round(Number(prefs.acceptRate) * 10) : 'x';
+    return `p${decile}:${Math.min(9, Math.floor(Number(prefs.total) / 5))}`;
+}
+
+function describeSubject(subject: any): string {
+    if (!subject || typeof subject !== 'object') return '';
+    const parts = ['player', 'pos', 'age', 'moveType', 'title']
+        .map(k => subject[k])
+        .filter(v => v !== null && v !== undefined && v !== '');
+    return parts.join(' ').slice(0, 90);
+}
+
+function buildUserPreferenceBlock(prefs: Record<string, any> | null): string {
+    if (!prefs || !prefs.total) return '';
+    const lines: string[] = [];
+    lines.push(`\n═══ USER PREFERENCE PROFILE (learned from this owner's reactions to past AI advice) ═══`);
+    const accept = prefs.acceptRate != null ? Math.round(Number(prefs.acceptRate) * 100) : null;
+    lines.push(`Feedback on ${prefs.total} recommendations in the last 90 days${accept != null ? ` — ${accept}% positively received` : ''}.`);
+    const sc = prefs.surfaceCounts || {};
+    const downSurfaces = Object.entries(sc)
+        .filter(([, c]: [string, any]) => Number(c?.down || 0) > Number(c?.up || 0) + Number(c?.acted || 0))
+        .map(([s]) => s);
+    if (downSurfaces.length) {
+        lines.push(`They frequently reject ${downSurfaces.join(', ')} advice — only repeat a previously rejected framing when the evidence is overwhelming, and acknowledge the change.`);
+    }
+    const actedSurfaces = Object.entries(sc)
+        .filter(([, c]: [string, any]) => Number(c?.acted || 0) > 0)
+        .map(([s]) => s);
+    if (actedSurfaces.length) {
+        lines.push(`They have acted on ${actedSurfaces.join(', ')} recommendations before — these carry weight, so be precise.`);
+    }
+    const downs = (prefs.recentDownSubjects || []).map(describeSubject).filter(Boolean).slice(0, 3);
+    if (downs.length) lines.push(`Recently rejected: ${downs.join(' | ')}. Do not re-pitch these unless circumstances changed.`);
+    const acted = (prefs.recentActedSubjects || []).map(describeSubject).filter(Boolean).slice(0, 3);
+    if (acted.length) lines.push(`Recently acted on: ${acted.join(' | ')}. Similar profiles resonate with this owner.`);
+    lines.push(`These are tendencies, not rules — quality thresholds and team-mode rules above ALWAYS take precedence.`);
+    lines.push(`═══════════════════════════════════════════════════════════════════════════════════════\n`);
+    return lines.join('\n');
 }
 
 function cacheSupabaseClient(): any | null {
@@ -2163,9 +2224,17 @@ Deno.serve(async (req) => {
         const contextLeagueId = parsedContext?.leagueId || parsedContext?.currentLeagueId || null;
         const cacheTtlMs = !genericContext ? (CACHEABLE_TYPES[type] || 0) : 0;
         const forceRefresh = parsedContext?.forceRefresh === true;
+
+        // Learning loop: fetch the owner's preference summary once per
+        // structured request (fail-open) and fold it into the system prompt
+        // and the cache key.
+        const userPrefs = (!genericContext && STRUCTURED_TYPES.has(type) && type !== 'mock_draft')
+            ? await fetchPreferenceSummary(aiSession, contextLeagueId)
+            : null;
+
         let cacheKey: string | null = null;
         if (cacheTtlMs > 0) {
-            cacheKey = await computeCacheKey(type, context, aiSession);
+            cacheKey = await computeCacheKey(type, context, aiSession, prefsVersionFor(userPrefs));
             if (!forceRefresh) {
                 const cached = await readAIResponseCache(cacheKey);
                 if (cached) {
@@ -2212,7 +2281,7 @@ Deno.serve(async (req) => {
         const maxTokens = Math.max(100, Math.min(requestedMaxTokens, routeOutputCap, globalOutputCap));
         const systemPrompt = genericContext?.system || (isMockDraft
             ? 'You are a dynasty fantasy football draft simulator. Output ONLY a raw JSON array. No markdown, no code fences, no backticks, no prose before or after. Start your response with [ and end with ]. Never repeat a player. Track all prior picks carefully so each player is selected at most once.'
-            : buildSystemPrompt(context));
+            : buildSystemPrompt(context) + buildUserPreferenceBlock(userPrefs));
 
         let route = routeForType(routeType);
         if (['deep-analysis', 'league-report', 'rule-simulator', 'trade-audit'].includes(routeType)) {
