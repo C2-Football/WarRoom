@@ -39,6 +39,28 @@
         return (s || '').toLowerCase().replace(/[''`.]/g, '').replace(/\s+(jr\.?|sr\.?|ii|iii|iv)$/, '').replace(/\s+/g, ' ').trim();
     }
 
+    // The player position groups this league actually rosters, derived from
+    // roster_positions (FLEX→RB/WR/TE, SUPER_FLEX→+QB, REC_FLEX→WR/TE, IDP_FLEX→DL/LB/DB).
+    // Lets the FA position chips show only relevant groups (no IDP in a non-IDP league, etc.).
+    function leaguePlayablePositions(rosterPositions) {
+        const rp = rosterPositions || [];
+        const set = new Set();
+        rp.forEach(slot => {
+            const s = String(slot).toUpperCase();
+            if (['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'].includes(s)) set.add(s);
+            else if (s === 'FLEX' || s === 'WRRB_FLEX' || s === 'WRRBTE_FLEX') { set.add('RB'); set.add('WR'); set.add('TE'); }
+            else if (s === 'REC_FLEX') { set.add('WR'); set.add('TE'); }
+            else if (s === 'SUPER_FLEX' || s === 'QB_FLEX') { set.add('QB'); set.add('RB'); set.add('WR'); set.add('TE'); }
+            else if (s === 'IDP_FLEX') { set.add('DL'); set.add('LB'); set.add('DB'); }
+            else if (['DE', 'DT', 'EDGE', 'NT'].includes(s)) set.add('DL');
+            else if (['CB', 'S', 'SS', 'FS'].includes(s)) set.add('DB');
+            else if (['OLB', 'ILB', 'MLB'].includes(s)) set.add('LB');
+        });
+        return ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'].filter(p => set.has(p));
+    }
+    window.App = window.App || {};
+    window.App.leaguePlayablePositions = leaguePlayablePositions;
+
     function collectFaDrafts(currentLeague, briefDraftInfo) {
         const byId = new Map();
         const add = (draft) => {
@@ -392,20 +414,22 @@
     // Tier the post-unlock free-agent pool into the craze board. Composes the existing
     // action board (so fit/faab/intelligence are reused) and filters to UDFA candidates
     // signed to an NFL team. Watch tier = undrafted prospects with no team (not claimable).
+    // High-level UDFA-craze overview: total available signed UDFAs, broken out by
+    // the league's playable position groups with a count + highest-rated in each.
+    // It's a launchpad — drilling into a group filters the FA pool to rookies+that pos.
     function buildUdfaCrazeBoard(args = {}) {
         const currentLeague = args.currentLeague || {};
-        const empty = { tiers: { priority: [], speculative: [], watch: [] }, candidates: [], counts: { priority: 0, speculative: 0, watch: 0 } };
+        const empty = { total: 0, groups: [], candidates: [] };
         if (!isDynastyLeague(currentLeague)) return empty;
         const statsData = args.statsData || {};
         const prevStatsData = args.prevStatsData || {};
         const prospects = (typeof window.getProspects === 'function' ? window.getProspects() : []) || [];
         const prospectNames = new Set(prospects.map(p => faNormName(p.name)).filter(Boolean));
         const prospectByName = new Map(prospects.map(p => [faNormName(p.name), p]));
-        // The craze runs its own eligibility/tiering — exempt it from the GM-Office
-        // FA filters (a minDHQ would wrongly nuke low-value-but-high-upside UDFAs).
+        // The craze runs its own eligibility — exempt it from the GM-Office FA filters
+        // (a minDHQ would wrongly nuke low-value-but-high-upside UDFAs).
         const board = (window.App?.buildFreeAgencyActionBoard || buildFreeAgencyActionBoard)({ ...args, skipGmFilters: true });
         const pool = board.actionBoardPlayers || [];
-        const seed = new Set((args.crazeSeed || []).map(s => String(s.pid ?? s)).filter(Boolean));
         const livRange = window.App?.livFAABRange || (typeof window.livFAABRange === 'function' ? window.livFAABRange : null);
 
         const candidates = pool
@@ -413,24 +437,20 @@
             .map(x => {
                 const prospect = prospectByName.get(faNormName(x.name)) || null;
                 const range = livRange ? livRange(x.pos) : null;
-                const seeded = seed.has(String(x.pid));
-                const crazeTier = (x.fitScore >= 3) ? 'priority' : 'speculative';
-                return { ...x, prospect, nflTeam: x.p.team, faab: blendFaabWithHistory(x.faab, range), faabHistory: range, seeded, crazeTier, tierLabel: prospect?.tierLabel || null };
-            })
-            .sort((a, b) => (Number(b.seeded) - Number(a.seeded)) || ((b.fitScore * 5000 + b.dhq) - (a.fitScore * 5000 + a.dhq)));
+                return { ...x, prospect, nflTeam: x.p.team, faab: blendFaabWithHistory(x.faab, range), tierLabel: prospect?.tierLabel || null };
+            });
 
-        const priority = candidates.filter(c => c.crazeTier === 'priority');
-        const speculative = candidates.filter(c => c.crazeTier === 'speculative');
-        const watch = prospects
-            .filter(pr => (pr.isUDFA || !pr.draftRound) && !pr.nflTeam)
-            .sort((a, b) => (b.dynastyValue || 0) - (a.dynastyValue || 0))
-            .slice(0, 8)
-            .map(pr => ({ pid: pr.pid, name: pr.name, pos: pr.pos, dhq: pr.dynastyValue || 0, tierLabel: pr.tierLabel || 'UDFA', watch: true }));
+        const posList = (args.leaguePositions && args.leaguePositions.length) ? args.leaguePositions : leaguePlayablePositions(currentLeague.roster_positions);
+        const order = posList.length ? posList : ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
+        const groups = order.map(pos => {
+            const inPos = candidates.filter(c => String(c.pos || '').toUpperCase() === pos).sort((a, b) => (b.dhq || 0) - (a.dhq || 0));
+            return { pos, count: inPos.length, top: inPos[0] || null };
+        }).filter(g => g.count > 0);
 
         if (typeof window.App?.Intelligence?.publishRecommendations === 'function') {
             window.App.Intelligence.publishRecommendations('waiver', candidates.slice(0, 8).map(x => x.intelligence).filter(Boolean), { surface: 'udfa-craze' });
         }
-        return { tiers: { priority, speculative, watch }, candidates, counts: { priority: priority.length, speculative: speculative.length, watch: watch.length } };
+        return { total: candidates.length, groups, candidates };
     }
 
     function udfaLockKey(leagueId) { return 'dhq_udfa_lock_' + (leagueId || 'default'); }
@@ -600,6 +620,26 @@
         const posColors = window.App.POS_COLORS;
         const faPosOrder = { QB:0, RB:1, WR:2, TE:3, K:4, DEF:5, DL:6, LB:7, DB:8 };
 
+        // League-specific position chips (only groups this league rosters).
+        const leaguePositions = useMemo(() => {
+            const lp = leaguePlayablePositions(currentLeague?.roster_positions);
+            return lp.length ? lp : ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
+        }, [currentLeague]);
+        // Rookies filter — UDFAs fold into the FA pool post-draft; this isolates them.
+        const [rookieOnly, setRookieOnly] = useState(false);
+        const rookieNameSet = useMemo(() => {
+            if (typeof window.getProspects !== 'function') return new Set();
+            return new Set((window.getProspects() || []).map(p => faNormName(p.name)).filter(Boolean));
+        }, [timeRecomputeTs]);
+        const isRookiePlayer = useCallback((pid, p) => {
+            if (!p) return false;
+            const nm = faNormName(p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim());
+            if (rookieNameSet.has(nm)) return true;
+            const exp = Number(p.years_exp ?? p.yoe ?? 0);
+            const hasStats = (statsData?.[pid]?.gp || 0) > 0 || ((prevStatsData || {})[pid]?.gp || 0) > 0;
+            return exp === 0 && !hasStats;
+        }, [rookieNameSet, statsData, prevStatsData]);
+
         function faSortIndicator(key) { return faSort.key === key ? (faSort.dir === -1 ? ' \u25BC' : ' \u25B2') : ''; }
         function handleFaSort(key) { setFaSort(prev => prev.key === key ? { ...prev, dir: prev.dir * -1 } : { key, dir: -1 }); }
 
@@ -609,6 +649,7 @@
             const filtered = availablePlayers.filter(x => {
                 const pos = normPos(x.p.position) || x.p.position || '';
                 if (faFilter && pos !== faFilter) return false;
+                if (rookieOnly && !isRookiePlayer(x.pid, x.p)) return false;
                 if (!q) return true;
                 const name = (x.p.full_name || ((x.p.first_name || '') + ' ' + (x.p.last_name || '')).trim()).toLowerCase();
                 const team = (x.p.team || 'FA').toLowerCase();
@@ -647,7 +688,7 @@
                 if (k === 'injury') return dir * ((a.p.injury_status || '').localeCompare(b.p.injury_status || ''));
                 return 0;
             }).slice(0, 50);
-        }, [availablePlayers, faFilter, faSearch, faSort, statsData]);
+        }, [availablePlayers, faFilter, faSearch, faSort, statsData, rookieOnly, isRookiePlayer]);
 
         const faHeaderStyle = { fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', userSelect: 'none' };
 
@@ -1191,64 +1232,53 @@
             if (h >= 24) return Math.floor(h / 24) + 'd ' + (h % 24) + 'h';
             return h + 'h ' + m + 'm';
         }
-        function renderCrazeRow(c) {
-            const staged = (crazeState?.stagedClaims || {})[String(c.pid)];
-            const isStaged = staged != null;
-            const sug = c.faab?.sug;
-            const rangeTxt = c.faab && c.faab.leagueCount ? ` · league avg ${c.faab.leagueAvg} (n=${c.faab.leagueCount})` : '';
-            return (
-                <div key={c.pid} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '8px', background: 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid ' + (isStaged ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.08))') }}>
-                    {c.seeded && <span title="Pre-identified by your draft recap" style={{ color: 'var(--gold)', fontSize: '0.8rem' }}>★</span>}
-                    <button type="button" onClick={() => openFaPlayer(c.pid)} style={{ flex: 1, textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--white)', fontFamily: "var(--font-ui, 'DM Sans', sans-serif)", fontWeight: 700, fontSize: '0.82rem' }}>
-                        {c.name} <span style={{ color: 'var(--silver)', opacity: 0.7, fontWeight: 600 }}>{c.pos}{c.nflTeam ? ' · ' + c.nflTeam : ''}{c.tierLabel ? ' · ' + c.tierLabel : ''}</span>
-                    </button>
-                    <span style={{ color: c.fit?.color || 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700 }}>{c.fit?.short || 'Depth'}</span>
-                    <span style={{ color: 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', minWidth: '52px', textAlign: 'right' }}>{Number(c.dhq || 0).toLocaleString()}</span>
-                    {sug != null && (
-                        <button type="button" title={'Suggested FAAB ' + sug + rangeTxt} onClick={() => { try { window.App?.PostDraft?.stageClaim?.(crazeLeagueId, c.pid, isStaged ? null : sug); setCrazeTick(t => t + 1); } catch (e) {} }}
-                            style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', background: isStaged ? 'var(--gold)' : 'var(--acc-fill2, rgba(212,175,55,0.08))', color: isStaged ? 'var(--black)' : 'var(--gold)', fontFamily: "var(--font-ui, 'DM Sans', sans-serif)", fontWeight: 800, fontSize: 'var(--text-micro, 0.6875rem)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                            {isStaged ? '✓ $' + staged : '$' + sug}
-                        </button>
-                    )}
-                </div>
-            );
-        }
         function renderCrazePanel() {
             if (!crazeOpen || !crazeBoard) return null;
-            const { priority = [], speculative = [], watch = [] } = crazeBoard.tiers || {};
-            const total = priority.length + speculative.length;
-            if (!total && !watch.length) return null;
+            const groups = crazeBoard.groups || [];
+            const total = crazeBoard.total || 0;
+            if (!total) return null;
             const headline = (window.AlexVoice ? window.AlexVoice.pick('udfa:craze:' + crazeLeagueId, [
-                "Rookie draft's done — the UDFA wire just opened. Move before the room does.",
-                "The craze is live. Undrafted rookies with NFL homes are claimable now.",
-                "This is the scramble. Here are the signed UDFAs worth a bid before waivers run.",
+                "Rookie draft's done — the UDFA wire just opened. Dive into a group to work it.",
+                "The craze is live. Here's the undrafted-rookie market by position — drill in to bid.",
+                "This is the scramble. Scan the groups, then dive into the pool to claim.",
             ]) : 'The UDFA craze is live.');
-            const staged = Object.keys(crazeState?.stagedClaims || {}).length;
+            const drill = (pos) => {
+                setRookieOnly(true);
+                setFaFilter(pos || '');
+                try { document.querySelector('.fa-market-shell')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
+            };
+            const posName = pos => window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos);
             return (
                 <section style={{ margin: '0 0 14px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--acc-line4, rgba(212,175,55,0.55))', background: 'linear-gradient(135deg, rgba(212,175,55,0.10), transparent 70%)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
                         <span style={{ fontFamily: "var(--font-display, Rajdhani, sans-serif)", fontWeight: 800, letterSpacing: '0.08em', color: 'var(--gold)', fontSize: '0.95rem' }}>⚡ UDFA CRAZE — LIVE</span>
-                        <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)' }}>Waivers process in <strong style={{ color: 'var(--white)' }}>{fmtCountdown(crazeState.windowEnd)}</strong> · {total} newly-eligible{staged ? ' · ' + staged + ' staged' : ''}</span>
+                        <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)' }}>Waivers process in <strong style={{ color: 'var(--white)' }}>{fmtCountdown(crazeState.windowEnd)}</strong> · <strong style={{ color: 'var(--white)' }}>{total}</strong> available across {groups.length} group{groups.length === 1 ? '' : 's'}</span>
                         <span style={{ flex: 1 }} />
                         <button type="button" title="Dismiss the craze panel" onClick={() => { try { window.App?.PostDraft?.closeCraze?.(crazeLeagueId); setCrazeTick(t => t + 1); } catch (e) {} }}
                             style={{ background: 'transparent', border: 'none', color: 'var(--silver)', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>×</button>
                     </div>
                     <div style={{ padding: '12px 16px' }}>
                         <div style={{ fontSize: '0.84rem', color: 'var(--white)', marginBottom: '12px', lineHeight: 1.5 }}>{headline}</div>
-                        {priority.length > 0 && (<>
-                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>Priority UDFAs — fill a need</div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>{priority.slice(0, 6).map(renderCrazeRow)}</div>
-                        </>)}
-                        {speculative.length > 0 && (<>
-                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '6px' }}>Speculative — signed, no immediate need</div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: watch.length ? '12px' : 0 }}>{speculative.slice(0, 4).map(renderCrazeRow)}</div>
-                        </>)}
-                        {watch.length > 0 && (
-                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.8 }}>
-                                <span style={{ textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.8 }}>Watch (no NFL team yet): </span>
-                                {watch.slice(0, 6).map((w, i) => <span key={w.pid}>{i ? ', ' : ''}{w.name} ({w.pos})</span>)}
-                            </div>
-                        )}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '8px' }}>
+                            {groups.map(g => (
+                                <button key={g.pos} type="button" onClick={() => drill(g.pos)} title={'View all ' + g.count + ' ' + posName(g.pos) + ' UDFAs'}
+                                    style={{ textAlign: 'left', padding: '10px 12px', borderRadius: '8px', background: 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', cursor: 'pointer' }}>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                                        <span style={{ fontFamily: "var(--font-display, Rajdhani, sans-serif)", fontWeight: 800, color: 'var(--gold)', letterSpacing: '0.04em', fontSize: '0.9rem' }}>{posName(g.pos)}</span>
+                                        <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)' }}>{g.count} avail</span>
+                                    </div>
+                                    {g.top && (
+                                        <div style={{ marginTop: '5px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', lineHeight: 1.4 }}>
+                                            Top: <span style={{ color: 'var(--white)', fontWeight: 700 }}>{g.top.name}</span>{g.top.nflTeam ? ' · ' + g.top.nflTeam : ''} · {Number(g.top.dhq || 0).toLocaleString()}
+                                        </div>
+                                    )}
+                                    <div style={{ marginTop: '6px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontWeight: 700 }}>View all {g.count} →</div>
+                                </button>
+                            ))}
+                        </div>
+                        <button type="button" onClick={() => drill('')} style={{ marginTop: '12px', padding: '7px 12px', borderRadius: '6px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', fontFamily: "var(--font-ui, 'DM Sans', sans-serif)", fontWeight: 800, fontSize: 'var(--text-micro, 0.6875rem)', cursor: 'pointer' }}>
+                            See all {total} UDFAs in the pool →
+                        </button>
                     </div>
                 </section>
             );
@@ -1313,9 +1343,13 @@
                 <div className="fa-market-toolbar wr-module-toolbar">
                     <span className="wr-module-toolbar-label">POS</span>
                     <div className="wr-module-nav">
-                    {['', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'].map(pos =>
+                    {['', ...leaguePositions].map(pos =>
                         <button key={pos} className={faFilter === pos ? 'is-active' : ''} onClick={() => setFaFilter(pos)}>{pos ? (window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)) : 'All'}</button>
                     )}
+                    </div>
+                    <span className="wr-module-toolbar-label">Type</span>
+                    <div className="wr-module-nav">
+                    <button className={rookieOnly ? 'is-active' : ''} onClick={() => setRookieOnly(r => !r)} title="Show only rookies / UDFAs">Rookies</button>
                     </div>
                 </div>
 

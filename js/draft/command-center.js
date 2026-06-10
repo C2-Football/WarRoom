@@ -469,6 +469,10 @@
 
         // Resume banner is only shown when we're still in setup phase but have a saved draft
         const [showResume, setShowResume] = React.useState(false);
+        // Memorialized live drafts: closing the recap reveals the completed board; this
+        // tracks whether the recap modal is dismissed (reopenable via "View Recap").
+        const [recapDismissed, setRecapDismissed] = React.useState(false);
+        React.useEffect(() => { if (state.phase !== 'complete') setRecapDismissed(false); }, [state.phase]);
 
         // Phase 5+: sync setup defaults when draftMeta updates post-mount (e.g.
         // after the async Sleeper drafts fetch resolves). Only applies during
@@ -1496,10 +1500,31 @@
             if (window.DraftCC.liveSync?.isRunning?.()) {
                 window.DraftCC.liveSync.stop();
             }
+            // Live drafts are memorialized: closing the recap keeps the completed board
+            // + memorial intact (a reset only happens when a new draft is scheduled).
+            if (forcedMode === 'live-sync' && state.phase === 'complete') { setRecapDismissed(true); return; }
             stateFns.clearLocal(currentLeague?.league_id || currentLeague?.id, forcedMode);
             dispatch({ type: 'RESET' });
             setShowResume(false);
-        }, [currentLeague]);
+        }, [currentLeague, forcedMode, state.phase]);
+
+        // Memorialize a completed LIVE draft; reset it when a new draft is scheduled.
+        React.useEffect(() => {
+            if (forcedMode !== 'live-sync') return;
+            const PD = window.App?.PostDraft;
+            const leagueId = currentLeague?.league_id || currentLeague?.id || '';
+            if (!PD || !leagueId) return;
+            if (state.phase === 'complete' && state.sleeperDraftId && PD.saveMemorial) {
+                try { PD.saveMemorial(leagueId, { draftId: state.sleeperDraftId, season: state.season, variant: state.variant }); } catch (e) {}
+            }
+            const up = draftMeta?.upcomingSettings;
+            const mem = PD.getMemorial ? PD.getMemorial(leagueId) : null;
+            if (mem && mem.draftId && up && up.status === 'pre_draft' && String(up.draftId) !== String(mem.draftId)) {
+                try { PD.clearMemorial(leagueId); } catch (e) {}
+                stateFns.clearLocal(leagueId, forcedMode);
+                dispatch({ type: 'RESET' });
+            }
+        }, [forcedMode, state.phase, state.sleeperDraftId, draftMeta, currentLeague]);
 
         const onResumeYes = React.useCallback(() => {
             setShowResume(false);
@@ -1584,6 +1609,9 @@
                 onExit={onExit}
                 onPropose={onPropose}
                 viewport={viewport}
+                forcedMode={forcedMode}
+                recapDismissed={recapDismissed}
+                onShowRecap={() => setRecapDismissed(false)}
             />
         );
     }
@@ -4215,7 +4243,7 @@
     }
 
     // ── Drafting / complete grid ─────────────────────────────────────
-    function CommandCenterGrid({ state, dispatch, isUserTurn, currentSlot, onExit, viewport, onPropose }) {
+    function CommandCenterGrid({ state, dispatch, isUserTurn, currentSlot, onExit, viewport, onPropose, forcedMode, recapDismissed, onShowRecap }) {
         const L = DRAFT_CC_LAYOUT;
         // Filter by rosterId so post-trade ownership is respected. Memoized: gradeDraft
         // builds a Map over the ~600-entry originalPool and ran on every re-render.
@@ -4968,7 +4996,7 @@
                 )}
 
                 {/* Phase 7: Post-draft recap — full-screen modal with grade + per-position + roster + export */}
-                {state.phase === 'complete' && (() => {
+                {state.phase === 'complete' && !recapDismissed && (() => {
                     const stateHelpers = window.DraftCC?.state || {};
                     const recap = stateHelpers.buildDraftRecap
                         ? stateHelpers.buildDraftRecap(state, { grade })
@@ -5327,12 +5355,20 @@
                                             const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'draft-recap-' + Date.now() + '.md'; a.click(); URL.revokeObjectURL(url);
                                         } catch (e) { alert('Export failed: ' + e.message); }
                                     }} style={{ padding: '10px 22px', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.15))', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>EXPORT REPORT</button>
-                                    <button onClick={onExit} style={{ padding: '10px 22px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>DRAFT AGAIN</button>
+                                    <button onClick={onExit} style={{ padding: '10px 22px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>{forcedMode === 'live-sync' ? 'VIEW DRAFT BOARD →' : 'DRAFT AGAIN'}</button>
                                 </div>
                             </div>
                         </div>
                     );
                 })()}
+
+                {/* Memorialized live draft: recap dismissed → floating reopen button */}
+                {state.phase === 'complete' && recapDismissed && (
+                    <button type="button" onClick={onShowRecap} title="Reopen the draft recap"
+                        style={{ position: 'fixed', right: '20px', bottom: '20px', zIndex: 850, padding: '11px 18px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '999px', fontFamily: FONT_DISPL, fontWeight: 800, fontSize: '0.84rem', letterSpacing: '0.04em', cursor: 'pointer', boxShadow: '0 8px 28px rgba(0,0,0,0.5)' }}>
+                        📋 VIEW RECAP
+                    </button>
+                )}
             </div>
         );
     }

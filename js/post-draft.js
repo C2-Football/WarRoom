@@ -215,6 +215,26 @@
     }
   }
 
+  // ── Draft memorial ───────────────────────────────────────────────────────────
+  // A completed LIVE draft is kept visible in War Room until the next draft is
+  // scheduled. We store a small marker keyed by league; the full completed draft
+  // state already lives in wr_draft_cc_current_live_${leagueId}.
+  const MEMORIAL_KEY = lid => `wr_draft_memorial_${lid || 'default'}`;
+  function getMemorial(leagueId) { return lsGet(MEMORIAL_KEY(leagueId), null); }
+  function saveMemorial(leagueId, m) {
+    if (!leagueId) return null;
+    const cur = getMemorial(leagueId) || {};
+    const next = { ...cur, ...m, savedAt: Date.now() };
+    lsSet(MEMORIAL_KEY(leagueId), next);
+    dbUpsert(leagueId, next.season, 'memorial', next); // fire-and-forget
+    return next;
+  }
+  function clearMemorial(leagueId) {
+    if (!leagueId) return;
+    lsSet(MEMORIAL_KEY(leagueId), null);
+    dbUpsert(leagueId, _season(), 'memorial', { cleared: true });
+  }
+
   try {
     window.addEventListener('draft:closed', (e) => {
       try { onDraftClosed(e?.detail?.recap); } catch (err) {}
@@ -225,6 +245,7 @@
     crazeKey: CRAZE_KEY,
     getCraze, openCraze, closeCraze, stageClaim, getStagedClaims, pullCraze,
     getRecapArchive, archiveRecap, pullRecapArchive,
+    getMemorial, saveMemorial, clearMemorial,
     onDraftClosed,
     computeWindowEnd,
   };

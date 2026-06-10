@@ -232,34 +232,49 @@ console.log('\nWar Room post-draft protocol contract');
     eq(fired, 1, 'no duplicate fire');
   });
 
-  test('buildUdfaCrazeBoard tiers signed UDFAs by need; watch = no NFL team', () => {
-    // Prospects: two signed UDFAs (one fills WR need, one no need) + one limbo (no team).
+  test('buildUdfaCrazeBoard overview: groups by league position with count + top, FAAB-anchored', () => {
+    // Two signed UDFAs (WR, TE) + one limbo (no team → excluded from claimable pool).
     ctx.window.getProspects = () => ([
-      { pid: 'u_need', name: 'Need UDFA', pos: 'WR', nflTeam: 'KC', isUDFA: true, dynastyValue: 800, tierLabel: 'UDFA' },
-      { pid: 'u_spec', name: 'Spec UDFA', pos: 'TE', nflTeam: 'DAL', isUDFA: true, dynastyValue: 700, tierLabel: 'UDFA' },
-      { pid: 'u_limbo', name: 'Limbo UDFA', pos: 'RB', nflTeam: '', isUDFA: true, dynastyValue: 300, tierLabel: 'UDFA' },
+      { pid: 'u_wr', name: 'Wr Udfa', pos: 'WR', nflTeam: 'KC', isUDFA: true, dynastyValue: 800, tierLabel: 'UDFA' },
+      { pid: 'u_te', name: 'Te Udfa', pos: 'TE', nflTeam: 'DAL', isUDFA: true, dynastyValue: 700, tierLabel: 'UDFA' },
+      { pid: 'u_limbo', name: 'Limbo Udfa', pos: 'RB', nflTeam: '', isUDFA: true, dynastyValue: 300, tierLabel: 'UDFA' },
     ]);
     ctx.window.assessTeamFromGlobal = () => ({ needs: [{ pos: 'WR', urgency: 'deficit' }], strengths: [], tier: 'CONTENDER', window: 'CONTENDING' });
     ctx.App.livFAABRange = (pos) => (pos === 'WR' ? { low: 20, high: 40, avg: 30, count: 9 } : null);
-    ctx.App.LI = { playerScores: { u_need: 800, u_spec: 700 }, playerMeta: {} };
+    ctx.App.LI = { playerScores: { u_wr: 800, u_te: 700 }, playerMeta: {} };
     const playersData = {
-      u_need: { full_name: 'Need UDFA', position: 'WR', team: 'KC', years_exp: 0, status: 'Active' },
-      u_spec: { full_name: 'Spec UDFA', position: 'TE', team: 'DAL', years_exp: 0, status: 'Active' },
+      u_wr: { full_name: 'Wr Udfa', position: 'WR', team: 'KC', years_exp: 0, status: 'Active' },
+      u_te: { full_name: 'Te Udfa', position: 'TE', team: 'DAL', years_exp: 0, status: 'Active' },
     };
     const currentLeague = { settings: { type: 2, waiver_budget: 100 }, season: 2026, rosters: [], roster_positions: ['QB', 'RB', 'WR', 'TE', 'FLEX'], scoring_settings: {} };
-    const board = ctx.App.buildUdfaCrazeBoard({ playersData, statsData: {}, prevStatsData: {}, myRoster: { roster_id: 1, settings: {} }, currentLeague, crazeSeed: [{ pid: 'u_need' }] });
-    ok(board.tiers.priority.some(c => c.pid === 'u_need'), 'WR-need UDFA is priority');
-    ok(board.tiers.speculative.some(c => c.pid === 'u_spec'), 'no-need UDFA is speculative');
-    ok(board.tiers.watch.some(w => w.pid === 'u_limbo'), 'limbo UDFA is watch');
-    const needCand = board.tiers.priority.find(c => c.pid === 'u_need');
-    ok(needCand.seeded === true, 'seeded flag from recap seed');
-    ok(needCand.faab && needCand.faab.leagueCount === 9, 'FAAB anchored to league history');
+    const board = ctx.App.buildUdfaCrazeBoard({ playersData, statsData: {}, prevStatsData: {}, myRoster: { roster_id: 1, settings: {} }, currentLeague });
+    eq(board.total, 2, 'two signed UDFAs available (limbo excluded — no team)');
+    const wrGroup = board.groups.find(g => g.pos === 'WR');
+    const teGroup = board.groups.find(g => g.pos === 'TE');
+    ok(wrGroup && wrGroup.count === 1 && wrGroup.top.pid === 'u_wr', 'WR group: count + top');
+    ok(teGroup && teGroup.count === 1 && teGroup.top.pid === 'u_te', 'TE group: count + top');
+    ok(!board.groups.some(g => g.pos === 'RB'), 'no RB group (limbo has no team)');
+    ok(wrGroup.top.faab && wrGroup.top.faab.leagueCount === 9, 'top FAAB anchored to league history');
   });
 
   test('buildUdfaCrazeBoard returns empty for non-dynasty leagues', () => {
     const board = ctx.App.buildUdfaCrazeBoard({ currentLeague: { settings: { type: 0 } } });
-    eq(board.tiers.priority.length, 0, 'no priority');
+    eq(board.groups.length, 0, 'no groups');
     eq(board.candidates.length, 0, 'no candidates');
+  });
+
+  test('leaguePlayablePositions derives groups from roster_positions', () => {
+    const lp = ctx.App.leaguePlayablePositions;
+    // Offense-only superflex league → no IDP, no K/DEF.
+    const sf = lp(['QB', 'RB', 'WR', 'TE', 'SUPER_FLEX', 'BN']);
+    eq(JSON.stringify(sf), JSON.stringify(['QB', 'RB', 'WR', 'TE']), 'superflex offense set');
+    ok(!sf.includes('DL') && !sf.includes('K'), 'no IDP/K in offense league');
+    // IDP league → DL/LB/DB present.
+    const idp = lp(['QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DEF', 'DL', 'LB', 'DB']);
+    ok(idp.includes('DL') && idp.includes('LB') && idp.includes('DB') && idp.includes('K') && idp.includes('DEF'), 'IDP+K+DEF present');
+    // IDP_FLEX expands to DL/LB/DB.
+    const idpFlex = lp(['QB', 'RB', 'WR', 'TE', 'IDP_FLEX']);
+    ok(idpFlex.includes('DL') && idpFlex.includes('LB') && idpFlex.includes('DB'), 'IDP_FLEX expands');
   });
 
   test('FA name resolver eliminates "Unknown": DEF resolves to first+last, team-only DEF to D/ST', () => {
