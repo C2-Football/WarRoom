@@ -212,6 +212,15 @@ test('ai-feedback function authenticates and validates input', () => {
   ok(feedbackFunction.includes('checkRateLimit'), 'ai-feedback should rate-limit');
 });
 
+test('deploy workflow ships the new function and migrations', () => {
+  ok(deployWorkflow.includes('supabase functions deploy ai-feedback'), 'ai-feedback must be in the deploy list');
+  ok(deployWorkflow.includes('Apply pending database migrations'), 'deploy workflow should apply allowlisted migrations');
+  ['20260610000000', '20260610010000'].forEach(version => {
+    const occurrences = deployWorkflow.split(version).length - 1;
+    ok(occurrences >= 2, `${version} should be in both the apply allowlist and the verification list`);
+  });
+});
+
 test('preference summary is injected into structured prompts and cache keys', () => {
   ok(source.includes('fetchPreferenceSummary'), 'missing preference summary fetch');
   ok(source.includes('get_ai_preference_summary'), 'should call the rollup RPC');
