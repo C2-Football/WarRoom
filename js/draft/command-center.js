@@ -1040,6 +1040,7 @@
                     ? window.DraftCC.context.summarizeOwnerIntel(persona?.ownerIntel || state.draftContext?.ownerContext?.[String(lastPick.rosterId)])
                     : '';
                 const contextLines = [
+                    (window.WR?.AIContext?.buildFormatPreamble?.(window.S?.currentLeague) || '').trim(),
                     `Draft pick: ${lastPick.name} (${lastPick.pos}) at R${lastPick.round}.${String(lastPick.slot).padStart(2, '0')}, overall #${lastPick.overall}.`,
                     `By: ${persona?.teamName || 'Team ' + lastPick.teamIdx}, DNA: ${persona?.draftDna?.label || '—'}, Trade DNA: ${persona?.tradeDna?.label || '—'}, Posture: ${persona?.posture?.label || '—'}.`,
                     ownerIntelText ? `Owner intel: ${ownerIntelText}.` : '',
