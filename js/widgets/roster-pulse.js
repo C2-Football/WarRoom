@@ -228,7 +228,7 @@
                     {/* Position health — league-relative grades */}
                     <div style={{ marginBottom: '8px', flexShrink: 0 }}>
                         <div style={{ fontSize: fs(0.6), fontWeight: 700, color: colors.accent, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px', fontFamily: fonts.ui }}>Position Health</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '4px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(' + Math.min(Math.max(posBreakdown.length, 1), 9) + ', 1fr)', gap: '4px' }}>
                             {posBreakdown.map((p, i) => (
                                 <div key={i} style={{
                                     background: 'var(--ov-1, rgba(255,255,255,0.02))',
@@ -351,10 +351,11 @@
         const normPos = window.App?.normPos || (p => p);
         const players = (myRoster?.players || []).map(pid => {
             const p = playersData?.[pid] || {};
+            const rawAge = p.age || (p.birth_date ? Math.floor((Date.now() - new Date(p.birth_date).getTime()) / 31557600000) : null);
             return {
                 pid, name: p.full_name || pid,
                 pos: normPos(p.position) || '?',
-                age: p.age || (p.birth_date ? Math.floor((Date.now() - new Date(p.birth_date).getTime()) / 31557600000) : null),
+                age: Number.isFinite(rawAge) ? rawAge : null,
                 dhq: scores[pid] || 0,
             };
         }).sort((a, b) => b.dhq - a.dhq).slice(0, limit || 5);
@@ -402,10 +403,11 @@
                 const p = playersData?.[pid] || {};
                 const pos = normPos(p.position);
                 if (!groups[pos]) return;
+                const rawAge = p.age || (p.birth_date ? Math.floor((Date.now() - new Date(p.birth_date).getTime()) / 31557600000) : null);
                 groups[pos].push({
                     pid,
                     name: p.full_name || pid,
-                    age: p.age || (p.birth_date ? Math.floor((Date.now() - new Date(p.birth_date).getTime()) / 31557600000) : null),
+                    age: Number.isFinite(rawAge) ? rawAge : null,
                     dhq: scores[pid] || 0,
                     team: p.team || 'FA',
                 });
@@ -511,9 +513,9 @@
                 fontWeight: 700,
                 padding: '2px 6px',
                 borderRadius: t.card?.radius === '0px' ? '0' : '10px',
-                background: (color || 'var(--k-d4af37, #d4af37)') + '18',
+                background: wrAlpha(color || 'var(--k-d4af37, #d4af37)', '18'),
                 color: color || 'var(--k-d4af37, #d4af37)',
-                border: '1px solid ' + (color || 'var(--k-d4af37, #d4af37)') + '44',
+                border: '1px solid ' + wrAlpha(color || 'var(--k-d4af37, #d4af37)', '44'),
                 fontFamily: t.fonts?.ui || 'DM Sans, sans-serif',
                 whiteSpace: 'nowrap',
             }}>{label}</span>

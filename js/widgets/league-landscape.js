@@ -109,12 +109,12 @@
             const maxH = Math.max(...top5.map(a => a.healthScore || 0), 1);
             return (
                 <div onClick={onClick} style={{ ...cardStyle, padding: 'var(--card-pad, 12px 14px)', cursor: 'pointer', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexShrink: 0 }}>
                         <span style={{ fontSize: '0.95rem' }}>🌐</span>
                         <span style={{ fontFamily: fonts.display, fontSize: fs(0.85), fontWeight: 700, color: colors.accent, letterSpacing: '0.06em', textTransform: 'uppercase', flex: 1 }}>Top of the League</span>
                         <span style={{ fontSize: fs(0.6), color: colors.textMuted, fontFamily: fonts.ui }}>You: #{myRank || '—'}</span>
                     </div>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
                         {top5.map((a, i) => {
                             const isMe = a.rosterId && (currentLeague?.rosters || []).find(r => r.roster_id === a.rosterId)?.owner_id === sleeperUserId;
                             const name = getOwnerName ? getOwnerName(a.rosterId) : ('Team ' + (i + 1));
@@ -123,7 +123,7 @@
                             return (
                                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                     <span style={{ fontSize: fs(0.7), color: i < 3 ? colors.accent : colors.textMuted, fontWeight: 700, width: 14, textAlign: 'right', fontFamily: fonts.mono }}>{i + 1}</span>
-                                    <div style={{ flex: 1, minWidth: 0, position: 'relative', height: 18, borderRadius: theme.card?.radius === '0px' ? '0' : '3px', overflow: 'hidden', background: 'var(--ov-3, rgba(255,255,255,0.04))' }}>
+                                    <div style={{ flex: 1, minWidth: 0, position: 'relative', height: 16, borderRadius: theme.card?.radius === '0px' ? '0' : '3px', overflow: 'hidden', background: 'var(--ov-3, rgba(255,255,255,0.04))' }}>
                                         <div style={{ width: pct + '%', height: '100%', background: isMe ? colors.accent : tc, opacity: isMe ? 1 : 0.3, borderRadius: 'inherit' }} />
                                         <span style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', fontSize: fs(0.62), fontWeight: isMe ? 800 : 600, color: colors.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%', fontFamily: fonts.ui }}>{isMe ? '★ ' : ''}{(name || '').slice(0, 16)}</span>
                                     </div>

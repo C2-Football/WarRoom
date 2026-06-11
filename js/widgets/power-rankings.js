@@ -90,18 +90,24 @@
                 return { ...t, totalDhq };
             }).sort((a, b) => b.totalDhq - a.totalDhq);
 
+            // fmtFn formats SCORES ('\u2014' for missing); gapFmt formats GAPS,
+            // where 0 is a legitimate number ('0', not an em dash) and small
+            // dynasty gaps shouldn't collapse to '0.0K'.
             return {
                 blended: {
                     label: 'Blended', data: blended, valFn: t => t.healthScore || 0,
                     fmtFn: v => String(Math.round(v || 0)),
+                    gapFmt: v => String(Math.round(v || 0)),
                 },
                 contender: {
                     label: 'Contender', data: contender, valFn: t => t.ppg || 0,
                     fmtFn: v => v > 0 ? v.toFixed(1) : '\u2014',
+                    gapFmt: v => (v || 0).toFixed(1),
                 },
                 dynasty: {
                     label: 'Dynasty', data: dynasty, valFn: t => t.totalDhq || 0,
                     fmtFn: v => v > 0 ? ((v / 1000).toFixed(1) + 'K') : '\u2014',
+                    gapFmt: v => (v || 0) >= 1000 ? ((v / 1000).toFixed(1) + 'K') : String(Math.round(v || 0)),
                 },
             };
         }, [assessments, currentLeague, playersData]);
@@ -207,7 +213,7 @@
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: compact ? '0.58rem' : '0.64rem',
+                            fontSize: 'var(--text-micro, 0.6875rem)',
                             fontFamily: 'var(--font-body)',
                             borderRadius: '5px',
                             cursor: 'pointer',
@@ -283,7 +289,7 @@
                 React.createElement('div', {
                     style: {
                         fontFamily: 'Rajdhani, sans-serif',
-                        fontSize: micro ? '0.68rem' : dense ? '0.78rem' : '0.9rem',
+                        fontSize: micro ? 'var(--text-micro, 0.6875rem)' : dense ? '0.78rem' : '0.9rem',
                         fontWeight: 800,
                         color: rank <= 3 ? TONE.gold : 'var(--silver)',
                         textAlign: 'right',
@@ -294,7 +300,7 @@
                         style: {
                             color: isMe ? TONE.gold : 'var(--white)',
                             fontWeight: isMe ? 800 : 650,
-                            fontSize: micro ? '0.66rem' : dense ? '0.74rem' : '0.82rem',
+                            fontSize: micro ? 'var(--text-micro, 0.6875rem)' : dense ? '0.74rem' : '0.82rem',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
@@ -310,7 +316,7 @@
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                         }
-                    }, crossText || (rank === 1 ? 'League leader' : (gapToLead > 0 ? cur.fmtFn(gapToLead) + ' off lead' : metricLabel(view)))) : null
+                    }, crossText || (rank === 1 ? 'League leader' : (gapToLead > 0 ? cur.gapFmt(gapToLead) + ' off lead' : metricLabel(view)))) : null
                 ),
                 React.createElement(Bar, { val, rank, totalTeams: total, width: micro ? 46 : dense ? 58 : 74, height: micro ? 4 : dense ? 5 : 6 }),
                 React.createElement('div', {
@@ -487,6 +493,11 @@
                             fontSize: 'var(--text-micro, 0.6875rem)',
                             cursor: 'pointer',
                             padding: '0',
+                            minHeight: '44px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '-14px 0',
                         }
                     }, 'Open league analytics')
                     : null
@@ -506,7 +517,7 @@
                     React.createElement(StatTile, {
                         label: 'Average',
                         value: cur.fmtFn(avgVal),
-                        sub: gapToAvg >= 0 ? cur.fmtFn(gapToAvg) + ' above avg' : cur.fmtFn(Math.abs(gapToAvg)) + ' below avg',
+                        sub: myTeam ? (gapToAvg >= 0 ? cur.gapFmt(gapToAvg) + ' above avg' : cur.gapFmt(Math.abs(gapToAvg)) + ' below avg') : 'league mean',
                         tone: gapToAvg >= 0 ? TONE.elite : TONE.weak,
                     })
                 ),
@@ -517,7 +528,7 @@
                         gap: '1px',
                         minHeight: 0,
                         flex: 1,
-                        overflow: 'hidden',
+                        overflow: 'auto',
                     }
                 },
                     ...cur.data.map((t, i) => React.createElement(TeamRow, {
@@ -607,19 +618,19 @@
                     }),
                     React.createElement(StatTile, {
                         label: 'Lead Chase',
-                        value: cur.fmtFn(leaderGap),
+                        value: cur.gapFmt(leaderGap),
                         sub: leader ? 'behind ' + getTeamName(leader) : 'no leader',
                         tone: leaderGap <= 5 ? TONE.elite : leaderGap <= 15 ? TONE.gold : TONE.weak,
                     }),
                     React.createElement(StatTile, {
                         label: 'Next Jump',
-                        value: aboveMe ? cur.fmtFn(packGap) : 'Hold',
+                        value: aboveMe ? cur.gapFmt(packGap) : 'Hold',
                         sub: aboveMe ? 'to pass ' + getTeamName(aboveMe) : 'you lead this view',
                         tone: packGap <= 3 ? TONE.elite : packGap <= 10 ? TONE.gold : TONE.middle,
                     }),
                     React.createElement(StatTile, {
                         label: 'Seat Heat',
-                        value: belowMe ? cur.fmtFn(cushion) : 'None',
+                        value: belowMe ? cur.gapFmt(cushion) : 'None',
                         sub: belowMe ? 'over ' + getTeamName(belowMe) : 'no one below',
                         tone: cushion <= 3 ? TONE.weak : cushion <= 10 ? TONE.gold : TONE.elite,
                     })
@@ -638,17 +649,17 @@
                     React.createElement(StatTile, {
                         label: 'Your Board Position',
                         value: myRank ? '#' + myRank + ' of ' + total : '\u2014',
-                        sub: myTeam ? cur.fmtFn(myVal) + ' · ' + (gapToAvg >= 0 ? '+' : '-') + cur.fmtFn(Math.abs(gapToAvg)) + ' vs avg' : 'no roster match',
+                        sub: myTeam ? cur.fmtFn(myVal) + ' · ' + (gapToAvg >= 0 ? '+' : '-') + cur.gapFmt(Math.abs(gapToAvg)) + ' vs avg' : 'no roster match',
                         tone: myRank ? rankTone(myRank) : TONE.middle,
                     }),
                     React.createElement(StatTile, { label: 'Leader', value: leader ? getTeamName(leader) : '\u2014', sub: leader ? cur.fmtFn(leaderVal) + ' ' + metricLabel(view).toLowerCase() : '', tone: TONE.elite }),
-                    React.createElement(StatTile, { label: 'Catch Target', value: aboveMe ? getTeamName(aboveMe) : 'Top spot', sub: aboveMe ? cur.fmtFn(cur.valFn(aboveMe) - myVal) + ' away' : 'protect the lead', tone: aboveMe ? TONE.gold : TONE.elite }),
-                    React.createElement(StatTile, { label: 'Pressure', value: belowMe ? getTeamName(belowMe) : 'None', sub: belowMe ? cur.fmtFn(myVal - cur.valFn(belowMe)) + ' cushion' : 'bottom of board', tone: belowMe ? TONE.middle : TONE.weak })
+                    React.createElement(StatTile, { label: 'Catch Target', value: aboveMe ? getTeamName(aboveMe) : 'Top spot', sub: aboveMe ? cur.gapFmt(Math.max(0, cur.valFn(aboveMe) - myVal)) + ' away' : 'protect the lead', tone: aboveMe ? TONE.gold : TONE.elite }),
+                    React.createElement(StatTile, { label: 'Pressure', value: belowMe ? getTeamName(belowMe) : 'None', sub: belowMe ? cur.gapFmt(Math.max(0, myVal - cur.valFn(belowMe))) + ' cushion' : 'bottom of board', tone: belowMe ? TONE.middle : TONE.weak })
                 ),
                 React.createElement('div', {
                     style: {
                         display: 'grid',
-                        gridTemplateColumns: 'minmax(0, 1.65fr) minmax(240px, 0.85fr)',
+                        gridTemplateColumns: 'minmax(0, 1.65fr) minmax(0, 0.85fr)',
                         gap: '10px',
                         minHeight: 0,
                         flex: 1,

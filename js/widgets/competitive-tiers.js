@@ -473,7 +473,7 @@
                                             // Bar
                                             React.createElement('div', { style: {
                                                 width: '100%', height: h + '%',
-                                                background: n > 0 ? 'linear-gradient(180deg, ' + col + ' 0%, ' + col + 'aa 100%)' : 'var(--ov-3, rgba(255,255,255,0.04))',
+                                                background: n > 0 ? 'linear-gradient(180deg, ' + col + ' 0%, ' + wrAlpha(col, 'AA') + ' 100%)' : 'var(--ov-3, rgba(255,255,255,0.04))',
                                                 opacity: !n ? 0.3 : isMine ? 1 : 0.65,
                                                 borderRadius: '3px 3px 0 0',
                                                 border: isMine ? '2px solid var(--k-ffffff, #ffffff)' : 'none',

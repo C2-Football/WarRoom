@@ -465,6 +465,13 @@ function DashboardPanel({
         try { return computeKpiValue(key); } catch { return { value: '—', sub: '', color: S }; }
     }
 
+    // ── Module accent resolver — WIDGET_MODULES.accent is a function,
+    // passing it raw into a style prop silently drops the declaration ──
+    function modAccent(mod) {
+        const a = mod?.accent;
+        return (typeof a === 'function' ? a() : a) || G;
+    }
+
     // ── Trend arrow from spark data ──
     function trendArrow(sparkData, color) {
         if (!sparkData || sparkData.length < 2) return null;
@@ -478,14 +485,15 @@ function DashboardPanel({
     // ── Percentile badge from rank string like "#3/12" ──
     function percentileBadge(valueStr, accent) {
         if (!valueStr) return null;
-        const m = String(valueStr).match(/#?(\d+)\s*[/\-of]+\s*(\d+)/i);
+        const m = String(valueStr).match(/#?(\d+)\s*(?:\/|of)\s*(\d+)/i);
         if (!m) return null;
         const rank = parseInt(m[1]), total = parseInt(m[2]);
-        if (!total) return null;
+        if (!total || rank > total) return null;
         const pct = Math.round((rank / total) * 100);
         const label = pct <= 25 ? 'Top 25%' : pct <= 50 ? 'Top 50%' : pct <= 75 ? 'Top 75%' : 'Bottom 25%';
         const col = pct <= 25 ? 'var(--k-2ecc71, #2ecc71)' : pct <= 50 ? G : pct <= 75 ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
-        return <span style={{ fontSize: 'var(--text-label, 0.75rem)', padding: '1px 5px', borderRadius: '3px', background: `${col}18`, color: col, fontWeight: 700, marginLeft: '4px', fontFamily: dmFont }}>{label}</span>;
+        const bg = typeof wrAlpha === 'function' ? wrAlpha(col, '18') : 'var(--ov-2, rgba(255,255,255,0.03))';
+        return <span style={{ fontSize: 'var(--text-label, 0.75rem)', padding: '1px 5px', borderRadius: '3px', background: bg, color: col, fontWeight: 700, marginLeft: '4px', fontFamily: dmFont }}>{label}</span>;
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -496,7 +504,7 @@ function DashboardPanel({
         const val = kv(key);
         const ann = typeof getKpiAnnotation === 'function' ? getKpiAnnotation(key, val.value) : '';
         const mod = WIDGET_MODULES[kpiKey];
-        const accentColor = mod?.accent || G;
+        const accentColor = modAccent(mod);
         return (
             <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)', display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
                 {/* Module badge */}
@@ -533,6 +541,7 @@ function DashboardPanel({
 
         const key = primaryMetric || mod.metrics?.[0]?.key;
         if (!key) return null;
+        const accent = modAccent(mod);
         const val = kv(key);
         const ann = typeof getKpiAnnotation === 'function' ? getKpiAnnotation(key, val.value) : '';
         const metaLabel = mod.metrics.find(m => m.key === key)?.label || key;
@@ -544,7 +553,7 @@ function DashboardPanel({
             <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)', display: 'flex', flexDirection: 'column' }}>
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                    <div style={{ fontFamily: rajFont, fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: mod.accent, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+                    <div style={{ fontFamily: rajFont, fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: accent, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
                         {mod.icon} {mod.label}
                     </div>
                     <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: S, opacity: 0.5, fontFamily: dmFont }}>{metaLabel}</div>
@@ -554,13 +563,13 @@ function DashboardPanel({
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '6px' }}>
                     <span style={{ fontFamily: monoFont, fontSize: '1.8rem', fontWeight: 700, color: val.color || W, lineHeight: 1 }}>{val.value}</span>
                     {trendArrow(val.sparkData, val.color)}
-                    {percentileBadge(val.value, mod.accent)}
+                    {percentileBadge(val.value, accent)}
                 </div>
 
                 {/* Sparkline */}
                 {typeof Sparkline !== 'undefined' && val.sparkData && val.sparkData.length > 2 && (
                     <div style={{ marginBottom: '6px' }}>
-                        {React.createElement(Sparkline, { data: val.sparkData, width: 200, height: 28, color: val.color || mod.accent })}
+                        {React.createElement(Sparkline, { data: val.sparkData, width: 200, height: 28, color: val.color || accent })}
                     </div>
                 )}
 
@@ -599,6 +608,7 @@ function DashboardPanel({
         if (moduleKey === 'intel-brief') return renderIntelligenceBrief('lg');
         if (moduleKey === 'field-notes') return renderFieldNotes('lg');
 
+        const accent = modAccent(mod);
         const allMetrics = mod.metrics.map(m => ({ ...m, val: kv(m.key) }));
         const primaryKey = primaryMetric || mod.metrics?.[0]?.key;
         const primaryVal = kv(primaryKey);
@@ -621,14 +631,14 @@ function DashboardPanel({
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                     <span style={{ fontSize: '1.1rem' }}>{mod.icon}</span>
-                    <span style={{ fontFamily: rajFont, fontSize: '1rem', fontWeight: 700, color: mod.accent, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{mod.label}</span>
+                    <span style={{ fontFamily: rajFont, fontSize: '1rem', fontWeight: 700, color: accent, letterSpacing: '0.07em', textTransform: 'uppercase' }}>{mod.label}</span>
                 </div>
 
                 {/* Primary stat hero */}
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '4px' }}>
                     <span style={{ fontFamily: monoFont, fontSize: '2rem', fontWeight: 700, color: primaryVal.color || W, lineHeight: 1 }}>{primaryVal.value}</span>
                     {trendArrow(primaryVal.sparkData, primaryVal.color)}
-                    {percentileBadge(primaryVal.value, mod.accent)}
+                    {percentileBadge(primaryVal.value, accent)}
                 </div>
                 {ann && <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: G, fontFamily: dmFont, fontWeight: 600, lineHeight: 1.4, marginBottom: '10px' }}>{ann}</div>}
 
@@ -652,9 +662,9 @@ function DashboardPanel({
                         {allDHQs.slice(0, 6).map(t => (
                             <div key={t.rid} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <div style={{ flex: 1, height: '6px', background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '3px', overflow: 'hidden' }}>
-                                    <div style={{ height: '100%', width: `${(t.dhq / maxDHQ) * 100}%`, background: t.isMe ? mod.accent : 'var(--ov-7, rgba(255,255,255,0.2))', borderRadius: '3px', transition: 'width 0.3s' }} />
+                                    <div style={{ height: '100%', width: `${(t.dhq / maxDHQ) * 100}%`, background: t.isMe ? accent : 'var(--ov-7, rgba(255,255,255,0.2))', borderRadius: '3px', transition: 'width 0.3s' }} />
                                 </div>
-                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', fontFamily: monoFont, color: t.isMe ? mod.accent : S, opacity: t.isMe ? 1 : 0.6, minWidth: '32px', textAlign: 'right' }}>{(t.dhq / 1000).toFixed(0)}k</div>
+                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', fontFamily: monoFont, color: t.isMe ? accent : S, opacity: t.isMe ? 1 : 0.6, minWidth: '32px', textAlign: 'right' }}>{(t.dhq / 1000).toFixed(0)}k</div>
                             </div>
                         ))}
                     </div>
@@ -702,7 +712,9 @@ function DashboardPanel({
     // TRANSACTION TICKER
     // ══════════════════════════════════════════════════════════════
     function renderTransactionTicker(size) {
-        const transactionLimit = size === 'lg' ? 8 : 5;
+        // Row budget per size: each entry is ~46px (2 lines). md = 1 grid row
+        // (160px) fits 2 entries after the header; lg (2 rows, ~330px) fits 5.
+        const transactionLimit = size === 'lg' ? 5 : 2;
         let visibleTransactions = (transactions || []).slice(0, transactionLimit);
         if (size === 'lg' && !visibleTransactions.some(t => t.type === 'trade')) {
             const firstTrade = (transactions || []).find(t => t.type === 'trade');
@@ -785,13 +797,23 @@ function DashboardPanel({
                 },
             };
         }
+        const hiddenCount = Math.max(0, (transactions || []).length - visibleTransactions.length);
         return (
-            <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)', maxHeight: size === 'lg' ? '100%' : '300px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)', maxHeight: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ fontFamily: rajFont, fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, color: 'var(--k-34d399, #34d399)', letterSpacing: '0.07em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     📰 TRANSACTION TICKER
+                    {hiddenCount > 0 && (
+                        <span role="button" tabIndex={0} title="Open League Analytics"
+                            onClick={() => navigateWidget && navigateWidget('analytics')}
+                            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigateWidget && navigateWidget('analytics'); } }}
+                            style={{ marginLeft: 'auto', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, color: S, opacity: 0.7, fontFamily: dmFont, letterSpacing: 0, textTransform: 'none', cursor: 'pointer' }}>
+                            +{hiddenCount} more →
+                        </span>
+                    )}
                 </div>
+                <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
                 {(!transactions || transactions.length === 0) ? (
-                    <SkeletonRows count={6} />
+                    <SkeletonRows count={size === 'lg' ? 5 : 2} />
                 ) : visibleTransactions.map((txn, ti) => (
                     <div key={ti} {...tickerTradeProps(txn)} style={{ padding: '8px 0', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.05))', cursor: txn.type === 'trade' ? 'pointer' : 'default', outline: 'none' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px', flexWrap: 'wrap' }}>
@@ -825,6 +847,7 @@ function DashboardPanel({
                         </div>
                     </div>
                 ))}
+                </div>
             </div>
         );
     }
@@ -834,42 +857,53 @@ function DashboardPanel({
     // ══════════════════════════════════════════════════════════════
     function renderStandings(size) {
         const isOffseason = currentLeague?.status === 'complete' || currentLeague?.status === 'pre_draft';
-        const divisions = {};
-        (standings || []).forEach(t => { const div = t.division || 0; if (!divisions[div]) divisions[div] = []; divisions[div].push(t); });
-        const divKeys = Object.keys(divisions).sort((a, b) => a - b);
-        const hasDivisions = divKeys.length > 1;
-        const divNameMap = {};
-        if (hasDivisions && currentLeague?.metadata) {
-            divKeys.forEach(dk => { divNameMap[dk] = currentLeague.metadata['division_' + dk + '_name'] || currentLeague.metadata['division_' + dk] || ('Division ' + dk); });
-        }
         const isCompact = size === 'md';
+        // Flat, budget-aware list: division grouping can't fit a fixed-height
+        // card (4 divisions × 5+ rows used to render ~740px into 160px and
+        // hard-clip). Rank globally, cap rows to the card budget, and always
+        // include the user's row. Full division standings live in Analytics.
+        const sorted = [...(standings || [])].sort((a, b) => {
+            if (isOffseason) {
+                const ra = currentLeague?.rosters?.find(r => r.owner_id === a.userId);
+                const rb = currentLeague?.rosters?.find(r => r.owner_id === b.userId);
+                const ha = window.assessTeamFromGlobal?.(ra?.roster_id)?.healthScore || 0;
+                const hb = window.assessTeamFromGlobal?.(rb?.roster_id)?.healthScore || 0;
+                return hb !== ha ? hb - ha : b.pointsFor - a.pointsFor;
+            }
+            if (b.wins !== a.wins) return b.wins - a.wins;
+            if (a.losses !== b.losses) return a.losses - b.losses;
+            return b.pointsFor - a.pointsFor;
+        }).map((team, idx) => ({ team, rank: idx + 1 }));
+        const budget = isCompact ? 4 : 10;
+        const myIdx = sorted.findIndex(({ team }) => team.userId === sleeperUserId);
+        let visible = sorted.slice(0, budget);
+        if (myIdx >= budget) visible = [...sorted.slice(0, budget - 1), sorted[myIdx]];
+        const hiddenCount = sorted.length - visible.length;
 
         return (
-            <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)', overflow: 'hidden' }}>
-                <div style={{ fontFamily: rajFont, fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, color: G, letterSpacing: '0.07em', marginBottom: '10px' }}>📊 LEAGUE STANDINGS</div>
-                {divKeys.map(divKey => (
-                    <div key={divKey} style={{ marginBottom: hasDivisions ? '14px' : 0 }}>
-                        {hasDivisions && <div style={{ fontFamily: dmFont, fontSize: 'var(--text-label, 0.75rem)', color: G, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: '6px', paddingBottom: '3px', borderBottom: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))' }}>{divNameMap[divKey]}</div>}
-                        <div style={{ display: 'grid', gridTemplateColumns: isCompact ? '16px 1fr 44px 50px' : '16px 24px 1fr 44px 44px 50px', gap: '4px', padding: '3px 6px', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: G, fontFamily: dmFont, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))' }}>
-                            <span>#</span>
-                            {!isCompact && <span/>}
-                            <span>Team</span>
-                            <span style={{ textAlign: 'right' }}>{isOffseason ? 'HP' : 'W-L'}</span>
-                            {!isCompact && <span style={{ textAlign: 'right' }}>PF</span>}
-                            <span style={{ textAlign: 'right' }}>{valueShortLabel}</span>
-                        </div>
-                        {divisions[divKey].sort((a, b) => {
-                            if (isOffseason) {
-                                const ra = currentLeague?.rosters?.find(r => r.owner_id === a.userId);
-                                const rb = currentLeague?.rosters?.find(r => r.owner_id === b.userId);
-                                const ha = window.assessTeamFromGlobal?.(ra?.roster_id)?.healthScore || 0;
-                                const hb = window.assessTeamFromGlobal?.(rb?.roster_id)?.healthScore || 0;
-                                return hb !== ha ? hb - ha : b.pointsFor - a.pointsFor;
-                            }
-                            if (b.wins !== a.wins) return b.wins - a.wins;
-                            if (a.losses !== b.losses) return a.losses - b.losses;
-                            return b.pointsFor - a.pointsFor;
-                        }).slice(0, isCompact ? 5 : 8).map((team, idx) => {
+            <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ fontFamily: rajFont, fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, color: G, letterSpacing: '0.07em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    📊 LEAGUE STANDINGS
+                    {hiddenCount > 0 && (
+                        <span role="button" tabIndex={0} title="Open League Analytics"
+                            onClick={() => navigateWidget && navigateWidget('analytics')}
+                            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigateWidget && navigateWidget('analytics'); } }}
+                            style={{ marginLeft: 'auto', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, color: S, opacity: 0.7, fontFamily: dmFont, letterSpacing: 0, textTransform: 'none', cursor: 'pointer' }}>
+                            +{hiddenCount} more →
+                        </span>
+                    )}
+                </div>
+                <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isCompact ? '16px 1fr 44px 50px' : '16px 24px 1fr 44px 44px 50px', gap: '4px', padding: '3px 6px', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: G, fontFamily: dmFont, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))' }}>
+                        <span>#</span>
+                        {!isCompact && <span/>}
+                        <span>Team</span>
+                        <span style={{ textAlign: 'right' }}>{isOffseason ? 'HP' : 'W-L'}</span>
+                        {!isCompact && <span style={{ textAlign: 'right' }}>PF</span>}
+                        <span style={{ textAlign: 'right' }}>{valueShortLabel}</span>
+                    </div>
+                    {visible.map(({ team, rank }) => {
+                        const idx = rank - 1;
                             const isMe = team.userId === sleeperUserId;
                             const roster = currentLeague?.rosters?.find(r => r.owner_id === team.userId);
                             const totalDHQ = roster?.players?.reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0) || 0;
@@ -903,8 +937,7 @@ function DashboardPanel({
                                 </div>
                             );
                         })}
-                    </div>
-                ))}
+                </div>
             </div>
         );
     }
@@ -1212,7 +1245,10 @@ function DashboardPanel({
                     .wr-dashboard-grid>.wr-widget{
                         min-width:0;
                     }
-                    .wr-dashboard-grid>.wr-widget[style*="span 4"]{
+                    /* Target full-width sizes by data attribute — [style*="span 4"]
+                       also matches grid-ROW spans (tall/narrow), stretching them wrong */
+                    .wr-dashboard-grid>.wr-widget[data-widget-size="xl"],
+                    .wr-dashboard-grid>.wr-widget[data-widget-size="xxl"]{
                         grid-column:span 2 !important;
                     }
                 }
@@ -1224,8 +1260,8 @@ function DashboardPanel({
                     .wr-dashboard-grid>.wr-add-widget{
                         min-width:0;
                     }
-                    .wr-dashboard-grid>.wr-widget[style*="span 3"],
-                    .wr-dashboard-grid>.wr-widget[style*="span 4"]{
+                    .wr-dashboard-grid>.wr-widget[data-widget-size="xl"],
+                    .wr-dashboard-grid>.wr-widget[data-widget-size="xxl"]{
                         grid-column:span 2 !important;
                     }
                 }
@@ -1237,7 +1273,8 @@ function DashboardPanel({
                     .wr-dashboard-grid>.wr-add-widget{
                         min-width:0;
                     }
-                    .wr-dashboard-grid>.wr-widget[style*="span 4"]{
+                    .wr-dashboard-grid>.wr-widget[data-widget-size="xl"],
+                    .wr-dashboard-grid>.wr-widget[data-widget-size="xxl"]{
                         grid-column:span 3 !important;
                     }
                 }

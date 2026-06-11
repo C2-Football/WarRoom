@@ -88,11 +88,13 @@
             return Object.entries(groups).sort((a, b) => a[0] - b[0]);
         }, [picks]);
 
-        // League capital rank
-        const leagueCapitalRank = React.useMemo(() => {
+        // League capital per team (rank strip + xxl chart). Hoisted above the
+        // size branches: a useMemo inside `if (size === 'xxl')` violates the
+        // rules of hooks and crashes when a widget is resized in place.
+        const leagueCapital = React.useMemo(() => {
             const allRosters = currentLeague?.rosters || [];
             const leagueSeason = parseInt(currentLeague?.season) || new Date().getFullYear();
-            const allTeamCap = allRosters.map(r => {
+            return allRosters.map(r => {
                 let cap = 0;
                 for (let yr = leagueSeason; yr <= leagueSeason + 2; yr++) {
                     for (let rd = 1; rd <= draftRounds; rd++) {
@@ -105,11 +107,14 @@
                         acquired.forEach(() => { cap += pv; });
                     }
                 }
-                return { rid: r.roster_id, cap };
+                const user = (currentLeague?.users || window.S?.leagueUsers || []).find(u => u.user_id === r.owner_id);
+                return { rid: r.roster_id, name: user?.metadata?.team_name || user?.display_name || ('Team ' + r.roster_id), cap, isMe: r.roster_id === myRid };
             }).sort((a, b) => b.cap - a.cap);
-            const rank = allTeamCap.findIndex(t => t.rid === myRid) + 1;
-            return { rank: rank || '—', total: allTeamCap.length };
         }, [currentLeague, draftRounds, totalTeams, tradedPicks, myRid]);
+        const leagueCapitalRank = {
+            rank: (leagueCapital.findIndex(t => t.rid === myRid) + 1) || '—',
+            total: leagueCapital.length,
+        };
 
         // Pick value equivalent label
         const pickEquiv = (val) => {
@@ -183,7 +188,9 @@
                     </div>
                     {/* Top picks */}
                     <div style={{ flex: 1, minHeight: 0, fontSize: fs(0.62), color: colors.textMuted, fontFamily: fonts.ui, lineHeight: 1.4, borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))', paddingTop: '4px' }}>
-                        Best: {top2.map(p => p.label + ' (' + (p.value >= 1000 ? (p.value / 1000).toFixed(1) + 'k' : p.value) + (pickEquiv(p.value) ? ', ' + pickEquiv(p.value) : '') + ')').join(' · ')}
+                        {top2.length
+                            ? 'Best: ' + top2.map(p => p.label + ' (' + (p.value >= 1000 ? (p.value / 1000).toFixed(1) + 'k' : p.value) + (pickEquiv(p.value) ? ', ' + pickEquiv(p.value) : '') + ')').join(' · ')
+                            : 'No picks owned — all draft capital traded away'}
                     </div>
                 </div>
             );
@@ -192,10 +199,15 @@
         // ── Reusable inventory list (lg/xxl) ──
         function renderInventory(opts = {}) {
             const compact = !!opts.compact;
+            // maxPerYear keeps 5-round leagues from rendering ~18 rows into a
+            // 2x2 card and silently clipping; truncated years get a "+N" line.
+            const maxPerYear = opts.maxPerYear || Infinity;
             return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? '4px' : '6px' }}>
-                    {picksByYear.map(([year, yearPicks], yi) => {
-                        const yearTotal = yearPicks.reduce((s, p) => s + (p.value || 0), 0);
+                    {picksByYear.map(([year, allYearPicks], yi) => {
+                        const yearPicks = allYearPicks.slice(0, maxPerYear);
+                        const yearHidden = allYearPicks.length - yearPicks.length;
+                        const yearTotal = allYearPicks.reduce((s, p) => s + (p.value || 0), 0);
                         return (
                             <div key={year}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
@@ -210,7 +222,7 @@
                                     return (
                                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '1px 0', fontSize: fs(compact ? 0.56 : 0.62) }}>
                                             <span style={{ fontWeight: 700, color: p.own ? colors.text : colors.accent, minWidth: 60, fontFamily: fonts.ui }}>{p.label}</span>
-                                            {!p.own && <span style={{ fontSize: fs(0.48), fontWeight: 700, color: colors.purple || 'var(--k-7c6bf8, #7c6bf8)', padding: '0 3px', background: (colors.purple || 'var(--k-7c6bf8, #7c6bf8)') + '18', borderRadius: 2 }}>TR</span>}
+                                            {!p.own && <span style={{ fontSize: fs(0.48), fontWeight: 700, color: colors.purple || 'var(--k-7c6bf8, #7c6bf8)', padding: '0 3px', background: wrAlpha(colors.purple || 'var(--k-7c6bf8, #7c6bf8)', '18'), borderRadius: 2 }}>TR</span>}
                                             <div style={{ flex: 1, height: 4, background: 'var(--ov-3, rgba(255,255,255,0.04))', borderRadius: 2, overflow: 'hidden' }}>
                                                 <div style={{ width: ((p.value / maxRoundVal) * 100) + '%', height: '100%', background: p.round <= 2 ? colors.accent : wrAlpha(colors.textMuted, '88') }} />
                                             </div>
@@ -221,6 +233,9 @@
                                         </div>
                                     );
                                 })}
+                                {yearHidden > 0 && (
+                                    <div style={{ fontSize: fs(0.5), color: colors.textFaint, fontFamily: fonts.ui, padding: '1px 0 1px 2px', opacity: 0.7 }}>+{yearHidden} more pick{yearHidden !== 1 ? 's' : ''}</div>
+                                )}
                             </div>
                         );
                     })}
@@ -265,7 +280,7 @@
                     <span style={{ fontSize: '1rem' }}>🎯</span>
                     <span style={{ fontFamily: fonts.display, fontSize: fs(0.95), fontWeight: 700, color: colors.warn || 'var(--k-f0a500, #f0a500)', letterSpacing: '0.07em', textTransform: 'uppercase', flex: 1 }}>Draft Capital</span>
                     {countdown && <span style={{ fontSize: fs(0.62), color: countdown.live ? colors.positive : colors.accent, fontWeight: 700, fontFamily: fonts.ui }}>{countdown.live ? '🔴 LIVE' : countdown.text}</span>}
-                    <button onClick={openDraft} title="Open Draft Command" style={{ padding: '3px 8px', background: 'rgba(240,165,0,0.10)', color: colors.warn || 'var(--k-f0a500, #f0a500)', border: '1px solid rgba(240,165,0,0.28)', borderRadius: '5px', cursor: 'pointer', fontSize: fs(0.56), fontFamily: fonts.ui, fontWeight: 700, whiteSpace: 'nowrap' }}>Draft</button>
+                    <button onClick={openDraft} title="Open Draft Command" style={{ padding: '3px 8px', background: wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '1A'), color: colors.warn || 'var(--k-f0a500, #f0a500)', border: '1px solid ' + wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '47'), borderRadius: '5px', cursor: 'pointer', fontSize: fs(0.56), fontFamily: fonts.ui, fontWeight: 700, whiteSpace: 'nowrap' }}>Draft</button>
                 </div>
             );
         }
@@ -276,8 +291,8 @@
                 <div style={{ ...cardStyle, padding: 'var(--card-pad-sm, 10px 12px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                     {header()}
                     <div style={{ marginBottom: '8px', flexShrink: 0 }}>{renderRankStrip()}</div>
-                    <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-                        {renderInventory({ compact: true })}
+                    <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+                        {renderInventory({ compact: true, maxPerYear: 3 })}
                     </div>
                 </div>
             );
@@ -293,40 +308,27 @@
                 .filter(([pid]) => !rostered.has(pid))
                 .map(([pid, dhq]) => {
                     const p = playersData?.[pid] || {};
+                    const rawAge = p.age || (p.birth_date ? Math.floor((Date.now() - new Date(p.birth_date).getTime()) / 31557600000) : null);
                     return {
                         pid, name: p.full_name || pid,
                         pos: window.App?.normPos?.(p.position) || p.position || '?',
-                        age: p.age || (p.birth_date ? Math.floor((Date.now() - new Date(p.birth_date).getTime()) / 31557600000) : null),
+                        age: Number.isFinite(rawAge) ? rawAge : null,
                         team: p.team || 'FA', dhq,
                     };
                 })
                 .sort((a, b) => b.dhq - a.dhq)
                 .slice(0, 20);
 
-            // League capital chart: every team's pick value for comparison
-            const leagueCapital = React.useMemo(() => {
-                const allRosters = currentLeague?.rosters || [];
-                const leagueSeason = parseInt(currentLeague?.season) || new Date().getFullYear();
-                const data = allRosters.map(r => {
-                    let cap = 0;
-                    for (let yr = leagueSeason; yr <= leagueSeason + 2; yr++) {
-                        for (let rd = 1; rd <= draftRounds; rd++) {
-                            const pv = typeof window.getIndustryPickValue === 'function'
-                                ? window.getIndustryPickValue((rd - 1) * totalTeams + Math.ceil(totalTeams / 2), totalTeams, draftRounds)
-                                : window.App?.PlayerValue?.getPickValue?.(yr, rd, totalTeams) || 0;
-                            const tradedAway = (tradedPicks || []).find(p => parseInt(p.season) === yr && p.round === rd && p.roster_id === r.roster_id && p.owner_id !== r.roster_id);
-                            if (!tradedAway) cap += pv;
-                            const acquired = (tradedPicks || []).filter(p => parseInt(p.season) === yr && p.round === rd && p.owner_id === r.roster_id && p.roster_id !== r.roster_id);
-                            acquired.forEach(() => { cap += pv; });
-                        }
-                    }
-                    const user = (currentLeague?.users || window.S?.leagueUsers || []).find(u => u.user_id === r.owner_id);
-                    return { rid: r.roster_id, name: user?.metadata?.team_name || user?.display_name || ('Team ' + r.roster_id), cap, isMe: r.roster_id === myRid };
-                }).sort((a, b) => b.cap - a.cap);
-                return data;
-            }, [currentLeague, draftRounds, totalTeams, tradedPicks, myRid]);
-
+            // League capital chart uses the hoisted leagueCapital memo.
+            // Cap the list so the flexShrink:0 bottom grid can't clip the top
+            // half in big leagues: top 8 + the user's row (with true rank).
             const maxLeagueCap = Math.max(...leagueCapital.map(t => t.cap), 1);
+            const capBudget = 8;
+            const myCapIdx = leagueCapital.findIndex(t => t.isMe);
+            const capRows = leagueCapital
+                .map((t, i) => ({ ...t, rank: i + 1 }))
+                .filter((t, i) => i < (myCapIdx >= capBudget ? capBudget - 1 : capBudget) || t.isMe);
+            const capHidden = leagueCapital.length - capRows.length;
 
             // Pick strategy: pair top 4 picks with user's needs
             const myAssess = typeof window.assessTeamFromGlobal === 'function' && myRid
@@ -361,7 +363,7 @@
                                             fontSize: fs(0.6), fontFamily: fonts.ui,
                                         }}>
                                             <span style={{ fontSize: fs(0.52), color: i < 3 ? colors.accent : colors.textFaint, fontWeight: 700, width: 16, textAlign: 'right', fontFamily: fonts.mono }}>{i + 1}</span>
-                                            <span style={{ fontSize: fs(0.48), padding: '0 4px', borderRadius: 2, background: (window.App?.POS_COLORS?.[p.pos] || colors.accent) + '22', color: window.App?.POS_COLORS?.[p.pos] || colors.accent, fontWeight: 700 }}>{p.pos}</span>
+                                            <span style={{ fontSize: fs(0.48), padding: '0 4px', borderRadius: 2, background: wrAlpha(window.App?.POS_COLORS?.[p.pos] || colors.accent, '22'), color: window.App?.POS_COLORS?.[p.pos] || colors.accent, fontWeight: 700 }}>{p.pos}</span>
                                             <span style={{ flex: 1, color: colors.text, fontWeight: i < 3 ? 700 : 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
                                             {p.age && <span style={{ fontSize: fs(0.48), color: colors.textFaint, fontFamily: fonts.mono }}>{p.age}</span>}
                                             <span style={{ fontSize: fs(0.54), fontWeight: 700, color: col, fontFamily: fonts.mono, minWidth: 30, textAlign: 'right' }}>{p.dhq >= 1000 ? (p.dhq / 1000).toFixed(1) + 'k' : p.dhq}</span>
@@ -374,7 +376,7 @@
                     {/* Bottom half: Pick Strategy + League Capital chart */}
                     <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
                         {/* Pick Strategy */}
-                        <div style={{ padding: '8px 10px', background: 'rgba(240,165,0,0.05)', border: '1px solid rgba(240,165,0,0.2)', borderRadius: '6px' }}>
+                        <div style={{ padding: '8px 10px', background: wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '0D'), border: '1px solid ' + wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '33'), borderRadius: '6px' }}>
                             <div style={{ fontSize: fs(0.6), fontWeight: 700, color: colors.warn || 'var(--k-f0a500, #f0a500)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px', fontFamily: fonts.ui }}>Pick Strategy · Targets by Round</div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px 12px' }}>
                                 {strategy.map((s, i) => {
@@ -398,11 +400,11 @@
                         <div style={{ padding: '8px 10px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '6px' }}>
                             <div style={{ fontSize: fs(0.6), fontWeight: 700, color: colors.accent, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px', fontFamily: fonts.ui }}>League Capital Distribution</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                {leagueCapital.map((t, i) => {
+                                {capRows.map((t, i) => {
                                     const pct = (t.cap / maxLeagueCap) * 100;
                                     return (
                                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: fs(0.54), fontFamily: fonts.ui }}>
-                                            <span style={{ fontSize: fs(0.5), color: colors.textFaint, width: 12, textAlign: 'right', fontFamily: fonts.mono }}>{i + 1}</span>
+                                            <span style={{ fontSize: fs(0.5), color: colors.textFaint, width: 12, textAlign: 'right', fontFamily: fonts.mono }}>{t.rank}</span>
                                             <span style={{ flex: 1, minWidth: 0, color: t.isMe ? colors.accent : colors.textMuted, fontWeight: t.isMe ? 700 : 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(t.isMe ? '★ ' : '') + (t.name || '').slice(0, 14)}</span>
                                             <div style={{ width: 80, height: 5, background: 'var(--ov-3, rgba(255,255,255,0.05))', borderRadius: 2, overflow: 'hidden' }}>
                                                 <div style={{ width: pct + '%', height: '100%', background: t.isMe ? colors.accent : colors.textMuted, opacity: t.isMe ? 1 : 0.5 }} />
@@ -411,6 +413,9 @@
                                         </div>
                                     );
                                 })}
+                                {capHidden > 0 && (
+                                    <div style={{ fontSize: fs(0.5), color: colors.textFaint, fontFamily: fonts.ui, paddingLeft: 18, opacity: 0.7 }}>+{capHidden} more teams</div>
+                                )}
                             </div>
                         </div>
                     </div>

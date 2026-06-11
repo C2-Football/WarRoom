@@ -285,7 +285,7 @@
             return (
                 <div key={i} role="button" tabIndex={0} onClick={() => openCard(p.pid)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCard(p.pid); } }} title="Open player card" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 0', minHeight: '32px', borderBottom: '1px solid var(--ov-1, rgba(255,255,255,0.02))', fontSize: fs(compact ? 0.62 : 0.66), cursor: 'pointer' }}>
                     <span style={{ flex: 1, fontWeight: 700, color: colors.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: fonts.ui }}>{p.name}</span>
-                    <span style={{ fontSize: fs(0.5), padding: '0px 4px', borderRadius: 3, background: (window.App?.POS_COLORS?.[p.pos] || colors.accent) + '22', color: window.App?.POS_COLORS?.[p.pos] || colors.accent, fontWeight: 700 }}>{p.pos}</span>
+                    <span style={{ fontSize: fs(0.5), padding: '0px 4px', borderRadius: 3, background: wrAlpha(window.App?.POS_COLORS?.[p.pos] || colors.accent, '22'), color: window.App?.POS_COLORS?.[p.pos] || colors.accent, fontWeight: 700 }}>{p.pos}</span>
                     {fillsNeed && <span style={{ fontSize: fs(0.5), fontWeight: 700, color: colors.positive }}>NEED</span>}
                     <span style={{ fontSize: fs(0.56), color: colors.textMuted, fontFamily: fonts.mono, minWidth: 28, textAlign: 'right' }}>{p.dhq >= 1000 ? (p.dhq / 1000).toFixed(1) + 'k' : p.dhq}</span>
                 </div>
@@ -314,8 +314,8 @@
                     <span style={{ fontSize: opts.large ? '1.1rem' : '1rem' }}>📡</span>
                     <span style={{ fontFamily: fonts.display, fontSize: fs(opts.large ? 1.05 : 0.95), fontWeight: 700, color: colors.purple || 'var(--k-7c6bf8, #7c6bf8)', letterSpacing: '0.07em', textTransform: 'uppercase', flex: 1 }}>Market Radar</span>
                     <span style={{ fontSize: fs(0.62), color: colors.textMuted, fontFamily: fonts.ui }}>{dealCount} targets · ${faab.remaining}</span>
-                    <button onClick={openTrades} title="Open Trade Center" style={{ padding: '3px 8px', background: 'rgba(124,107,248,0.10)', color: colors.purple || 'var(--k-7c6bf8, #7c6bf8)', border: '1px solid rgba(124,107,248,0.28)', borderRadius: '5px', cursor: 'pointer', fontSize: fs(0.56), fontFamily: fonts.ui, fontWeight: 700, whiteSpace: 'nowrap' }}>Trades</button>
-                    <button onClick={openFreeAgency} title="Open Free Agency" style={{ padding: '3px 8px', background: 'rgba(52,152,219,0.10)', color: colors.info || 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.28)', borderRadius: '5px', cursor: 'pointer', fontSize: fs(0.56), fontFamily: fonts.ui, fontWeight: 700, whiteSpace: 'nowrap' }}>FA</button>
+                    <button onClick={openTrades} title="Open Trade Center" style={{ padding: '3px 8px', background: wrAlpha(colors.purple || 'var(--k-7c6bf8, #7c6bf8)', '1A'), color: colors.purple || 'var(--k-7c6bf8, #7c6bf8)', border: '1px solid ' + wrAlpha(colors.purple || 'var(--k-7c6bf8, #7c6bf8)', '47'), borderRadius: '5px', cursor: 'pointer', fontSize: fs(0.56), fontFamily: fonts.ui, fontWeight: 700, whiteSpace: 'nowrap' }}>Trades</button>
+                    <button onClick={openFreeAgency} title="Open Free Agency" style={{ padding: '3px 8px', background: wrAlpha(colors.info || 'var(--k-3498db, #3498db)', '1A'), color: colors.info || 'var(--k-3498db, #3498db)', border: '1px solid ' + wrAlpha(colors.info || 'var(--k-3498db, #3498db)', '47'), borderRadius: '5px', cursor: 'pointer', fontSize: fs(0.56), fontFamily: fonts.ui, fontWeight: 700, whiteSpace: 'nowrap' }}>FA</button>
                 </div>
             );
         }
@@ -436,7 +436,7 @@
                     {/* Top strip: Surplus matrix (left) + FAAB context (right) */}
                     <div style={{ marginBottom: '10px', flexShrink: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: '10px' }}>
                         {matrix.length > 0 ? (
-                            <div style={{ padding: '8px 10px', background: 'rgba(124,107,248,0.06)', border: '1px solid rgba(124,107,248,0.2)', borderRadius: '6px' }}>
+                            <div style={{ padding: '8px 10px', background: wrAlpha(colors.purple || 'var(--k-7c6bf8, #7c6bf8)', '0F'), border: '1px solid ' + wrAlpha(colors.purple || 'var(--k-7c6bf8, #7c6bf8)', '33'), borderRadius: '6px' }}>
                                 <div style={{ fontSize: fs(0.6), fontWeight: 700, color: colors.purple || 'var(--k-7c6bf8, #7c6bf8)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px', fontFamily: fonts.ui }}>Surplus by Position (your needs)</div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '6px' }}>
                                     {matrix.map((m, i) => (
