@@ -3,21 +3,29 @@
 // plain JS for the GitHub Pages deploy, so production never downloads ~3.1MB of
 // @babel/standalone or transforms ~3MB of JSX in the browser on every cold load.
 //
+// Also minifies (terser) every local script the entries ship — both the compiled
+// JSX modules and the plain-JS ones (theme.js, shared-loader.js, college-stats.js,
+// …) — cutting shipped JS bytes roughly in half and, more importantly on phones,
+// halving main-thread parse/compile time. Top-level names are NOT mangled
+// (terser default): these are classic scripts whose cross-file contract is
+// implicit globals (OwnerDashboard, LeagueDetail, …).
+//
 // Difference vs scripts/build-preview.cjs: that script targets a nested
 // dist-preview/ directory and rewrites every asset path with `../`. This one
 // emits a *flat overlay* rooted at the repo root, so the deploy workflow can copy
 // the normal source tree into the Pages artifact and then drop this on top:
 //
 //   dist-deploy/<entry>.html  — @babel/standalone tag removed, type="text/babel" stripped
-//   dist-deploy/js/...        — compiled plain-JS versions of the JSX sources
+//   dist-deploy/js/...        — compiled+minified JS for every local script tag
 //
 // Uses the same Babel preset/options as build-preview.cjs so the emitted code is
-// identical to what the regression/browser test suites already validate.
+// semantically identical to what the regression/browser test suites validate.
 
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const Babel = require('@babel/standalone');
+const { minify } = require('terser');
 
 const ROOT = path.resolve(__dirname, '..');
 const OUT_DIR = path.join(ROOT, 'dist-deploy');
@@ -25,13 +33,15 @@ const OUT_DIR = path.join(ROOT, 'dist-deploy');
 // Every HTML entry point that loads @babel/standalone + type="text/babel" scripts.
 const ENTRIES = ['index.html', 'draft-warroom.html', 'free-agency.html', 'trade-calculator.html'];
 
-const compiled = new Set(); // source pathnames already compiled (dedupe across entries)
-const assetHash = new Map(); // pathname -> content hash of the compiled output
+const assetHash = new Map(); // pathname -> content hash of the emitted (minified) output
 let compiledCount = 0;
+let minifiedCount = 0;
+let rawBytes = 0;
+let outBytes = 0;
 
 function ensureDir(dir) { fs.mkdirSync(dir, { recursive: true }); }
 
-// Short content hash for cache-busting. Derived from the *compiled* output, so
+// Short content hash for cache-busting. Derived from the *emitted* output, so
 // the ?v= changes exactly when a module's shipped bytes change — no manual bumps.
 function contentHash(str) {
   return crypto.createHash('sha256').update(str).digest('hex').slice(0, 10);
@@ -47,24 +57,68 @@ function transform(code, filename) {
   }).code;
 }
 
-function compileExternal(src) {
-  const pathname = src.split('?')[0];
-  const inputPath = path.join(ROOT, pathname);
-  if (!fs.existsSync(inputPath)) throw new Error(`Missing Babel source: ${src} (${inputPath})`);
-  if (compiled.has(pathname)) return;
-  const out = path.join(OUT_DIR, pathname);
-  ensureDir(path.dirname(out));
-  const code = transform(fs.readFileSync(inputPath, 'utf8'), pathname) + '\n';
-  fs.writeFileSync(out, code, 'utf8');
-  assetHash.set(pathname, contentHash(code));
-  compiled.add(pathname);
-  compiledCount++;
+// toplevel:false (default) keeps top-level function/var names intact — the
+// modules talk to each other through implicit globals, and the boot guard
+// checks `typeof OwnerDashboard`.
+async function minifyCode(code, filename) {
+  const result = await minify(code, { compress: true, mangle: true, sourceMap: false });
+  if (!result || typeof result.code !== 'string' || !result.code.length) {
+    throw new Error(`terser produced no output for ${filename}`);
+  }
+  return result.code;
 }
 
-function processEntry(entry) {
-  const inPath = path.join(ROOT, entry);
-  if (!fs.existsSync(inPath)) { console.warn(`[build-deploy] skip missing entry: ${entry}`); return; }
-  let html = fs.readFileSync(inPath, 'utf8');
+function isExternalSrc(src) {
+  return /^(https?:)?\/\//i.test(src);
+}
+
+// ---------------------------------------------------------------------------
+// Pass A/B: collect every local script the entries reference, then emit a
+// compiled (if JSX) + minified copy of each into the overlay.
+// ---------------------------------------------------------------------------
+const SCRIPT_TAG_RE = /<script\b[^>]*?\bsrc=["']([^"']+)["'][^>]*>/gi;
+const BABEL_TAG_RE = /<script\b[^>]*?\btype=["']text\/babel["'][^>]*?\bsrc=["']([^"']+)["'][^>]*>|<script\b[^>]*?\bsrc=["']([^"']+)["'][^>]*?\btype=["']text\/babel["'][^>]*>/gi;
+
+function collectSources(htmlByEntry) {
+  const babelSrcs = new Set();
+  const allSrcs = new Set();
+  for (const html of Object.values(htmlByEntry)) {
+    let m;
+    BABEL_TAG_RE.lastIndex = 0;
+    while ((m = BABEL_TAG_RE.exec(html))) {
+      const src = m[1] || m[2];
+      if (src && !isExternalSrc(src)) babelSrcs.add(src.split('?')[0]);
+    }
+    SCRIPT_TAG_RE.lastIndex = 0;
+    while ((m = SCRIPT_TAG_RE.exec(html))) {
+      const src = m[1];
+      if (src && !isExternalSrc(src)) allSrcs.add(src.split('?')[0]);
+    }
+  }
+  return { babelSrcs, allSrcs };
+}
+
+async function emitModule(pathname, { jsx }) {
+  if (assetHash.has(pathname)) return;
+  const inputPath = path.join(ROOT, pathname);
+  if (!fs.existsSync(inputPath)) throw new Error(`Missing script source: ${pathname} (${inputPath})`);
+  const raw = fs.readFileSync(inputPath, 'utf8');
+  const plain = jsx ? transform(raw, pathname) : raw;
+  const minified = await minifyCode(plain, pathname);
+  const out = path.join(OUT_DIR, pathname);
+  ensureDir(path.dirname(out));
+  fs.writeFileSync(out, minified + '\n', 'utf8');
+  assetHash.set(pathname, contentHash(minified + '\n'));
+  rawBytes += Buffer.byteLength(raw);
+  outBytes += Buffer.byteLength(minified);
+  if (jsx) compiledCount++;
+  minifiedCount++;
+}
+
+// ---------------------------------------------------------------------------
+// Pass C: rewrite each entry's HTML against the emitted overlay.
+// ---------------------------------------------------------------------------
+function processEntry(entry, html) {
   let entryExternal = 0;
 
   // 1. Remove the @babel/standalone <script> tag entirely.
@@ -73,15 +127,14 @@ function processEntry(entry) {
     '',
   );
 
-  // 2. Rewrite every type="text/babel" script. External (has src): compile the
-  //    source and strip the type attribute, keeping the same src so the compiled
-  //    overlay file loads as a plain classic script. Inline: compile the body.
+  // 2. Rewrite every type="text/babel" script. External (has src): strip the
+  //    type attribute, keeping the same src so the compiled overlay file loads
+  //    as a plain classic script. Inline: compile the body.
   const re = /<script\b([^>]*?)\btype=["']text\/babel["']([^>]*?)>([\s\S]*?)<\/script>/gi;
   html = html.replace(re, (match, before, after, body) => {
     const attrs = (before + after).replace(/\s+/g, ' ').trim();
     const srcMatch = attrs.match(/\bsrc=["']([^"']+)["']/i);
     if (srcMatch) {
-      compileExternal(srcMatch[1]);
       entryExternal++;
       // data-wr-defer scripts are kept INERT (non-executing type) so the browser
       // doesn't run them at boot; the draft loader injects executable copies on
@@ -106,19 +159,14 @@ function processEntry(entry) {
 })();`,
   );
 
-  // 4. Content-hash cache-bust EVERY local script's ?v= — compiled JSX modules
-  //    (hash of the emitted output) and raw plain-JS modules (hash of the source)
-  //    alike — so a stale or missing hand-maintained ?v= can never pin an old
+  // 4. Content-hash cache-bust EVERY local script's ?v= from the emitted overlay
+  //    bytes, so a stale or missing hand-maintained ?v= can never pin an old
   //    module after a deploy. External / CDN URLs are left untouched.
   html = html.replace(/<script\b([^>]*?)\bsrc=(["'])([^"']+)\2([^>]*)>/gi, (m, before, q, src, after) => {
-    if (/^(https?:)?\/\//i.test(src)) return m; // external/CDN — leave as-is
+    if (isExternalSrc(src)) return m; // external/CDN — leave as-is
     const pathname = src.split('?')[0];
-    let hash = assetHash.get(pathname); // compiled JSX module → hash of emitted output
-    if (!hash) {
-      const rawPath = path.join(ROOT, pathname);
-      if (!fs.existsSync(rawPath)) return m; // unknown local asset — leave as-is
-      hash = contentHash(fs.readFileSync(rawPath));
-    }
+    const hash = assetHash.get(pathname);
+    if (!hash) return m; // unknown local asset — leave as-is
     return `<script${before}src=${q}${pathname}?v=${hash}${q}${after}>`;
   });
 
@@ -136,16 +184,33 @@ function processEntry(entry) {
   console.log(`[build-deploy]   ${entry}: rewrote ${entryExternal} external babel scripts`);
 }
 
-function build() {
+async function build() {
   fs.rmSync(OUT_DIR, { recursive: true, force: true });
   ensureDir(OUT_DIR);
-  for (const e of ENTRIES) processEntry(e);
-  console.log(`[build-deploy] compiled ${compiledCount} unique Babel sources across ${ENTRIES.length} entries -> ${path.relative(ROOT, OUT_DIR)}/`);
+
+  const htmlByEntry = {};
+  for (const entry of ENTRIES) {
+    const inPath = path.join(ROOT, entry);
+    if (!fs.existsSync(inPath)) { console.warn(`[build-deploy] skip missing entry: ${entry}`); continue; }
+    htmlByEntry[entry] = fs.readFileSync(inPath, 'utf8');
+  }
+
+  const { babelSrcs, allSrcs } = collectSources(htmlByEntry);
+  for (const src of babelSrcs) await emitModule(src, { jsx: true });
+  for (const src of allSrcs) {
+    if (!babelSrcs.has(src)) await emitModule(src, { jsx: false });
+  }
+
+  for (const [entry, html] of Object.entries(htmlByEntry)) processEntry(entry, html);
+
+  const pct = rawBytes ? Math.round((1 - outBytes / rawBytes) * 100) : 0;
+  console.log(
+    `[build-deploy] compiled ${compiledCount} JSX + minified ${minifiedCount} total modules ` +
+    `(${(rawBytes / 1024 / 1024).toFixed(2)}MB -> ${(outBytes / 1024 / 1024).toFixed(2)}MB, -${pct}%) -> ${path.relative(ROOT, OUT_DIR)}/`,
+  );
 }
 
-try {
-  build();
-} catch (err) {
+build().catch((err) => {
   console.error('[build-deploy] failed:', err && err.message ? err.message : err);
   process.exit(1);
-}
+});

@@ -18,6 +18,71 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600;700&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <!-- Boot-payload warmup. The app can't render until supabase + the shared
+         modules + React execute at the end of <body>, so start every one of
+         those downloads NOW, in parallel, while the inline stylesheet and body
+         parse. Preloads never execute — the document.write chain in <body>
+         still owns execution order. (No crossorigin on the preconnect/preloads:
+         classic scripts fetch no-cors, and the connection must match.) -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.101.1/dist/umd/supabase.min.js">
+    <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js">
+    <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js">
+    <script src="js/shared/shared-loader.js?v=20260612preload1"></script>
+    <script>
+window.DYNASTY_HQ_APP = 'warroom';
+// Sandbox = the WarRoom-sandbox deploy (c2-football.github.io/WarRoom-sandbox/),
+// a hostname containing 'sandbox', localhost, or an explicit SANDBOX_MODE flag.
+// Note: the GitHub Pages sandbox has 'sandbox' in the PATH, not the hostname.
+const WR_PLATFORM_SANDBOX_ACCESS = window.SANDBOX_MODE === true
+  || (window.location.hostname || '').includes('sandbox')
+  || /\/warroom-sandbox(\/|$)/i.test(window.location.pathname || '')
+  || ['localhost', '127.0.0.1'].includes(window.location.hostname || '');
+if (WR_PLATFORM_SANDBOX_ACCESS) {
+  const existingConfig = window.DYNASTY_HQ_CONFIG || {};
+  const _isLocalDev = ['localhost', '127.0.0.1'].includes(window.location.hostname || '');
+  window.DYNASTY_HQ_CONFIG = {
+    ...existingConfig,
+    devPreviewAI: true,
+    endpoints: {
+      ...(existingConfig.endpoints || {}),
+      aiAnalyze: `${window.location.origin}/api/dev-ai-analyze`,
+      ...(_isLocalDev ? { mflProxy: `${window.location.origin}/api/mfl-proxy` } : {}),
+    },
+  };
+}
+const WR_SHARED_FILES = [
+  'app-config.js',
+  'bug-capture.js',
+  'constants.js',
+  'utils.js',
+  'storage.js',
+  'event-bus.js',
+  'platform-provider.js',
+  'sleeper-api.js',
+  'supabase-client.js',
+  'tier.js',
+  'pick-value-model.js',
+  'dhq-providers.js',
+  'dhq-core.js',
+  'intelligence-context.js',
+  'dhq-engine.js',
+  'nfl-fit.js',
+  'team-assess.js',
+  'analytics-engine.js',
+  'dhq-ai.js',
+  'assistant-tutorial.js',
+  'ai-dispatch.js',
+  'strategy.js',
+  'trade-engine.js',
+  'mock-engine.js',
+  'gm-engine.js',
+  'player-modal.js',
+  'rookie-data.js',
+];
+if (WR_PLATFORM_SANDBOX_ACCESS) WR_SHARED_FILES.splice(7, 0, 'espn-api.js', 'mfl-api.js', 'yahoo-api.js');
+WRShared.preloadMany(WR_SHARED_FILES);
+    </script>
     <style>
         :root {
             --gold: #D4AF37;
@@ -2028,64 +2093,21 @@
 
 </head>
 <body>
-    <div id="root"></div>
+    <!-- Static boot splash: pure HTML/CSS, visible at first paint while the JS
+         payload downloads + parses. ReactDOM.render replaces it on mount. -->
+    <div id="root">
+        <style>@keyframes wr-boot-pulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
+        <div style="min-height:80vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px">
+            <img src="icon-192.png" alt="" width="56" height="56" style="border-radius:14px">
+            <div style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;letter-spacing:.12em;color:var(--gold)">DYNASTY HQ</div>
+            <div style="font-size:13px;color:var(--silver);animation:wr-boot-pulse 1.4s ease-in-out infinite">Opening the war room…</div>
+        </div>
+    </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.101.1/dist/umd/supabase.min.js"></script>
-<script src="js/shared/shared-loader.js?v=20260531sandbox2"></script>
-<script>
-window.DYNASTY_HQ_APP = 'warroom';
-// Sandbox = the WarRoom-sandbox deploy (c2-football.github.io/WarRoom-sandbox/),
-// a hostname containing 'sandbox', localhost, or an explicit SANDBOX_MODE flag.
-// Note: the GitHub Pages sandbox has 'sandbox' in the PATH, not the hostname.
-const WR_PLATFORM_SANDBOX_ACCESS = window.SANDBOX_MODE === true
-  || (window.location.hostname || '').includes('sandbox')
-  || /\/warroom-sandbox(\/|$)/i.test(window.location.pathname || '')
-  || ['localhost', '127.0.0.1'].includes(window.location.hostname || '');
-if (WR_PLATFORM_SANDBOX_ACCESS) {
-  const existingConfig = window.DYNASTY_HQ_CONFIG || {};
-  const _isLocalDev = ['localhost', '127.0.0.1'].includes(window.location.hostname || '');
-  window.DYNASTY_HQ_CONFIG = {
-    ...existingConfig,
-    devPreviewAI: true,
-    endpoints: {
-      ...(existingConfig.endpoints || {}),
-      aiAnalyze: `${window.location.origin}/api/dev-ai-analyze`,
-      ...(_isLocalDev ? { mflProxy: `${window.location.origin}/api/mfl-proxy` } : {}),
-    },
-  };
-}
-const WR_SHARED_FILES = [
-  'app-config.js',
-  'bug-capture.js',
-  'constants.js',
-  'utils.js',
-  'storage.js',
-  'event-bus.js',
-  'platform-provider.js',
-  'sleeper-api.js',
-  'supabase-client.js',
-  'tier.js',
-  'pick-value-model.js',
-  'dhq-providers.js',
-  'dhq-core.js',
-  'intelligence-context.js',
-  'dhq-engine.js',
-  'nfl-fit.js',
-  'team-assess.js',
-  'analytics-engine.js',
-  'dhq-ai.js',
-  'assistant-tutorial.js',
-  'ai-dispatch.js',
-  'strategy.js',
-  'trade-engine.js',
-  'mock-engine.js',
-  'gm-engine.js',
-  'player-modal.js',
-  'rookie-data.js',
-];
-if (WR_PLATFORM_SANDBOX_ACCESS) WR_SHARED_FILES.splice(7, 0, 'espn-api.js', 'mfl-api.js', 'yahoo-api.js');
-WRShared.loadMany(WR_SHARED_FILES);
-</script>
+<!-- Shared module list + WRShared live in <head> (preloaded there); this
+     document.write chain just executes them, in order, from the warm cache. -->
+<script>WRShared.loadMany(WR_SHARED_FILES);</script>
 <!-- Preserve shared/tier.js canAccess before core.js hoists its own canAccess over window.canAccess -->
 <script>window._sharedCanAccess = window.canAccess;</script>
 <script src="https://c2-football.github.io/ReconAI/js/pro-launch.js?v=20260414d"></script>
@@ -2094,9 +2116,11 @@ WRShared.loadMany(WR_SHARED_FILES);
 <script src="charts.js"></script>
 <!-- html2canvas is lazy-loaded on first export via window.ensureHtml2Canvas() (defined in js/export.js) -->
 <script src="js/export.js"></script>
-<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.2/babel.min.js"></script>
+<!-- jsdelivr (not unpkg): reuses the already-warm supabase connection instead
+     of opening a second CDN origin, and preload links in <head> cover all three. -->
+<script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.29.2/babel.min.js"></script>
 
 <!-- 0. Theme engine — must load before any widget/component (plain JS, no Babel needed) -->
 <script src="js/theme.js?v=20260526lightgate1"></script>
