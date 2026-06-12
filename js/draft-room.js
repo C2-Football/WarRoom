@@ -128,7 +128,15 @@
             try {
                 const lid = window.S?.currentLeagueId || currentLeague?.league_id || currentLeague?.id;
                 const s = window.DraftCC?.state?.loadFromLocal?.(lid, 'live-sync');
-                if (!s || s.mode !== 'live-sync' || s.phase !== 'drafting') return empty;
+                if (!s || s.mode !== 'live-sync') return empty;
+                // A COMPLETED draft keeps feeding the War Room panels (graded picks,
+                // locked recommended rows, actual-pick overlays) exactly like it did
+                // while drafting — but only while it's still the draft of record, so
+                // a retired draft's picks never bleed into the next draft's prep.
+                const phaseOk = s.phase === 'drafting'
+                    || (s.phase === 'complete'
+                        && (!draftInfo?.draft_id || !s.sleeperDraftId || sameId(s.sleeperDraftId, draftInfo.draft_id)));
+                if (!phaseOk) return empty;
                 const status = s.liveSync?.status || '';
                 const picks = Array.isArray(s.picks) ? s.picks : [];
                 const myRid = (s.userRosterId != null ? s.userRosterId : myRoster?.roster_id);
@@ -148,7 +156,7 @@
             // Freshness is driven by liveTick (bumps only when the persisted live signature
             // changes), so we deliberately do NOT depend on timeRecomputeTs here — that would
             // recompute this (and the analyst/rec memos that consume it) on every unrelated tick.
-        }, [currentLeague, myRoster?.roster_id, liveTick]);
+        }, [currentLeague, myRoster?.roster_id, liveTick, draftInfo?.draft_id]);
 
         // Smart live-draft detection: poll the league's Sleeper draft status so the War Room
         // locks down element generation the moment the draft goes live — even before the first
