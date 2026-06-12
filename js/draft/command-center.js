@@ -168,6 +168,12 @@
     }
 
     function pickLaunchableLiveDraft(drafts) {
+        // The draft of record is launchable in every state: 'drafting' mirrors
+        // live, 'pre_draft' opens the waiting room, and 'complete' (unsuperseded)
+        // REBUILDS the finished board from Sleeper — full picks + grade — so a
+        // just-run draft stays reviewable even if local state was lost.
+        const sel = window.DraftCC?.state?.selectCurrentDraft?.(drafts);
+        if (sel && sel.draft) return sel.draft;
         return (Array.isArray(drafts) ? drafts : [])
             .filter(d => d.status === 'drafting' || d.status === 'pre_draft')
             .sort((a, b) => {
@@ -245,9 +251,16 @@
             const leagueSeason = String(currentLeague?.season || new Date().getFullYear());
             // Prefer mount-fetched drafts, then window.S cache, then currentLeague synthetic fallback
             const drafts = (fetchedDrafts && fetchedDrafts.length) ? fetchedDrafts : (window.S?.drafts || []);
-            const upcoming = drafts.find(d => d.status === 'pre_draft')
-                || drafts.find(d => d.status === 'drafting')
-                || drafts[0];
+            // Live-sync rooms orbit the draft of record (live → unsuperseded complete
+            // → next pre_draft) so slotToRoster/draft_order match the draft actually
+            // shown — a rebuilt completed board must use ITS order, not the next
+            // scheduled draft's. Mock surfaces keep preferring the next schedulable.
+            const recordSel = stateFns.selectCurrentDraft ? stateFns.selectCurrentDraft(drafts) : null;
+            const upcoming = (forcedMode === 'live-sync' && recordSel && recordSel.draft)
+                ? recordSel.draft
+                : (drafts.find(d => d.status === 'pre_draft')
+                    || drafts.find(d => d.status === 'drafting')
+                    || drafts[0]);
             const sleeperOrder = upcoming?.draft_order || {};
 
             const slotToRoster = {};
@@ -1318,7 +1331,9 @@
                 liveDraftStatus = activeState.liveDraftMeta?.status || '';
                 narrative = liveDraftStatus === 'pre_draft'
                     ? '📡 LIVE SYNC · Waiting room open. War Room will mirror Sleeper as soon as picks begin.'
-                    : '📡 LIVE SYNC · Mirroring draft from Sleeper every 5s. Read-only — no picks are sent back.';
+                    : liveDraftStatus === 'complete'
+                        ? '📡 LIVE SYNC · Rebuilding your completed draft board from Sleeper — picks, grade, and recap.'
+                        : '📡 LIVE SYNC · Mirroring draft from Sleeper every 5s. Read-only — no picks are sent back.';
             }
 
             const draftContext = window.DraftCC?.context?.buildDraftContext
@@ -1418,6 +1433,39 @@
             return () => { cancelled = true; };
         }, [forcedMode, autoStartLiveToken, state.phase, fetchedDrafts, leagueIdForFetch, onStartDraft]);
 
+        // ── Manual handover from a memorialized completed board ─────
+        // The completed draft holds the room until the next draft genuinely takes
+        // over (auto-supersede above). This is the explicit escape hatch: archive
+        // the finished board to Draft History and open the next draft's room now.
+        const [pendingNextDraft, setPendingNextDraft] = React.useState(null);
+        const nextUpDraft = React.useMemo(() => {
+            if (forcedMode !== 'live-sync' || state.phase !== 'complete') return null;
+            return (Array.isArray(fetchedDrafts) ? fetchedDrafts : [])
+                .filter(d => d && d.draft_id
+                    && String(d.draft_id) !== String(state.sleeperDraftId || '')
+                    && (d.status === 'pre_draft' || d.status === 'drafting'))
+                .sort((a, b) => {
+                    if (a.status !== b.status) return a.status === 'drafting' ? -1 : 1;
+                    return (Number(a.start_time) || Infinity) - (Number(b.start_time) || Infinity);
+                })[0] || null;
+        }, [forcedMode, state.phase, fetchedDrafts, state.sleeperDraftId]);
+        const openNextDraftRoom = React.useCallback(() => {
+            if (!nextUpDraft) return;
+            const PD = window.App?.PostDraft;
+            const leagueId = currentLeague?.league_id || currentLeague?.id || '';
+            try { if (PD?.clearMemorial && leagueId) PD.clearMemorial(leagueId); } catch (e) {}
+            stateFns.clearLocal(leagueId, forcedMode);
+            setPendingNextDraft(nextUpDraft);
+            dispatch({ type: 'RESET' });
+        }, [nextUpDraft, currentLeague, forcedMode]);
+        React.useEffect(() => {
+            if (!pendingNextDraft || state.phase !== 'setup') return;
+            const patch = liveDraftSetupPatch(pendingNextDraft, currentLeague);
+            setPendingNextDraft(null);
+            dispatch({ type: 'SETUP_CHANGE', payload: patch });
+            onStartDraft(patch);
+        }, [pendingNextDraft, state.phase, currentLeague, onStartDraft]);
+
         // ── Self-heal personas when window.S.rosters lands late ─────
         // Personas are stripped on save (state.js) and rebuilt synchronously
         // from window.S.rosters at mount / START_DRAFT / resume. On a cold or
@@ -1508,23 +1556,44 @@
             setShowResume(false);
         }, [currentLeague, forcedMode, state.phase]);
 
-        // Memorialize a completed LIVE draft; reset it when a new draft is scheduled.
+        // Memorialize a completed LIVE draft; retire it only when a different draft
+        // genuinely takes over the room. A pre_draft that was ALREADY scheduled when
+        // this draft finished (e.g. a UDFA frenzy queued up alongside the rookie
+        // draft) must NOT evict the just-completed board — that wiped users' drafts
+        // the instant they ended. selectCurrentDraft only hands the room to another
+        // draft when one goes live or one is created after this one completed.
         React.useEffect(() => {
             if (forcedMode !== 'live-sync') return;
             const PD = window.App?.PostDraft;
             const leagueId = currentLeague?.league_id || currentLeague?.id || '';
             if (!PD || !leagueId) return;
             if (state.phase === 'complete' && state.sleeperDraftId && PD.saveMemorial) {
-                try { PD.saveMemorial(leagueId, { draftId: state.sleeperDraftId, season: state.season, variant: state.variant }); } catch (e) {}
+                try {
+                    const existing = PD.getMemorial ? PD.getMemorial(leagueId) : null;
+                    const completedAt = (existing && String(existing.draftId) === String(state.sleeperDraftId) && existing.completedAt)
+                        || Date.now();
+                    PD.saveMemorial(leagueId, { draftId: state.sleeperDraftId, season: state.season, variant: state.variant, completedAt });
+                } catch (e) {}
             }
-            const up = draftMeta?.upcomingSettings;
             const mem = PD.getMemorial ? PD.getMemorial(leagueId) : null;
-            if (mem && mem.draftId && up && up.status === 'pre_draft' && String(up.draftId) !== String(mem.draftId)) {
+            if (!mem || !mem.draftId) return;
+            // Only judge supersession off a real drafts fetch — never off an empty/failed one.
+            if (!Array.isArray(fetchedDrafts) || !fetchedDrafts.length) return;
+            const sel = stateFns.selectCurrentDraft ? stateFns.selectCurrentDraft(fetchedDrafts) : null;
+            if (sel && sel.draft && String(sel.draft.draft_id) !== String(mem.draftId)) {
+                // The recap was archived at completion (draft:closed → archiveRecap),
+                // so the retired draft stays reachable from Draft History.
                 try { PD.clearMemorial(leagueId); } catch (e) {}
-                stateFns.clearLocal(leagueId, forcedMode);
-                dispatch({ type: 'RESET' });
+                // Only reset the room if it's still holding the retired draft —
+                // never clobber a session that's already mirroring the new one.
+                const roomHoldsRetired = state.phase === 'complete'
+                    || String(state.sleeperDraftId || '') === String(mem.draftId);
+                if (roomHoldsRetired) {
+                    stateFns.clearLocal(leagueId, forcedMode);
+                    dispatch({ type: 'RESET' });
+                }
             }
-        }, [forcedMode, state.phase, state.sleeperDraftId, draftMeta, currentLeague]);
+        }, [forcedMode, state.phase, state.sleeperDraftId, fetchedDrafts, currentLeague]);
 
         const onResumeYes = React.useCallback(() => {
             setShowResume(false);
@@ -1612,6 +1681,8 @@
                 forcedMode={forcedMode}
                 recapDismissed={recapDismissed}
                 onShowRecap={() => setRecapDismissed(false)}
+                nextUpDraft={nextUpDraft}
+                onOpenNextDraft={openNextDraftRoom}
             />
         );
     }
@@ -2931,12 +3002,18 @@
                 .finally(() => setLoading(false));
         }, [leagueId]);
 
-        // Filter to only drafts we can actually sync against
+        // Launchable sources: in-flight + upcoming drafts, PLUS the league's most
+        // recently completed draft while it's still the draft of record (review
+        // window) — launching it rebuilds the finished board + grade from Sleeper.
+        const recordSel = window.DraftCC?.state?.selectCurrentDraft?.(drafts) || null;
+        const reviewDraftId = recordSel?.reason === 'review' ? String(recordSel.draft?.draft_id || '') : '';
+        const statusRank = d => d.status === 'drafting' ? 0 : (String(d.draft_id) === reviewDraftId ? 1 : 2);
         const liveDrafts = (drafts || [])
-            .filter(d => d.status === 'pre_draft' || d.status === 'drafting')
-            // Sort: drafting first (most urgent), then pre_draft by start_time asc (next up)
+            .filter(d => d.status === 'pre_draft' || d.status === 'drafting' || String(d.draft_id) === reviewDraftId)
+            // Sort: drafting first (most urgent), then the reviewable completed
+            // draft, then pre_draft by start_time asc (next up)
             .sort((a, b) => {
-                if (a.status !== b.status) return a.status === 'drafting' ? -1 : 1;
+                if (statusRank(a) !== statusRank(b)) return statusRank(a) - statusRank(b);
                 return (a.start_time || Infinity) - (b.start_time || Infinity);
             });
         const liveDraftSignature = liveDrafts.map(d => d.draft_id + ':' + d.status).join('|');
@@ -2952,15 +3029,23 @@
                 ? 'finding source'
                 : selectedDraft?.status === 'drafting'
                     ? 'live now'
-                    : selectedDraft
-                        ? 'upcoming'
-                        : 'no source';
-            const statusColor = selectedDraft?.status === 'drafting' ? 'var(--k-2ecc71, #2ecc71)' : selectedDraft ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
-            const startStr = selectedDraft?.start_time
-                ? new Date(selectedDraft.start_time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-                : selectedDraft?.status === 'drafting'
-                    ? 'in progress'
-                    : 'not scheduled';
+                    : selectedDraft?.status === 'complete'
+                        ? 'last draft — review'
+                        : selectedDraft
+                            ? 'upcoming'
+                            : 'no source';
+            const statusColor = selectedDraft?.status === 'drafting'
+                ? 'var(--k-2ecc71, #2ecc71)'
+                : selectedDraft?.status === 'complete'
+                    ? 'var(--gold)'
+                    : selectedDraft ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
+            const startStr = selectedDraft?.status === 'complete'
+                ? 'completed' + (selectedDraft.last_picked ? ' ' + new Date(selectedDraft.last_picked).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '')
+                : selectedDraft?.start_time
+                    ? new Date(selectedDraft.start_time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+                    : selectedDraft?.status === 'drafting'
+                        ? 'in progress'
+                        : 'not scheduled';
             return (
                 <div>
                     <div style={{
@@ -3069,11 +3154,14 @@
                         {liveDrafts.map(d => {
                             const isActive = state.sleeperDraftId === d.draft_id;
                             const isDrafting = d.status === 'drafting';
-                            const statusLabel = isDrafting ? 'LIVE' : 'UPCOMING';
-                            const statusCol = isDrafting ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-f0a500, #f0a500)';
-                            const startStr = d.start_time
-                                ? new Date(d.start_time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-                                : (isDrafting ? 'in progress' : 'not scheduled');
+                            const isComplete = d.status === 'complete';
+                            const statusLabel = isDrafting ? 'LIVE' : isComplete ? 'REVIEW' : 'UPCOMING';
+                            const statusCol = isDrafting ? 'var(--k-2ecc71, #2ecc71)' : isComplete ? 'var(--gold)' : 'var(--k-f0a500, #f0a500)';
+                            const startStr = isComplete
+                                ? 'completed' + (d.last_picked ? ' ' + new Date(d.last_picked).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '')
+                                : d.start_time
+                                    ? new Date(d.start_time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+                                    : (isDrafting ? 'in progress' : 'not scheduled');
                             return (
                                 <button key={d.draft_id}
                                     onClick={() => update(liveDraftSetupPatch(d, currentLeague))}
@@ -4243,7 +4331,7 @@
     }
 
     // ── Drafting / complete grid ─────────────────────────────────────
-    function CommandCenterGrid({ state, dispatch, isUserTurn, currentSlot, onExit, viewport, onPropose, forcedMode, recapDismissed, onShowRecap }) {
+    function CommandCenterGrid({ state, dispatch, isUserTurn, currentSlot, onExit, viewport, onPropose, forcedMode, recapDismissed, onShowRecap, nextUpDraft, onOpenNextDraft }) {
         const L = DRAFT_CC_LAYOUT;
         // Filter by rosterId so post-trade ownership is respected. Memoized: gradeDraft
         // builds a Map over the ~600-entry originalPool and ran on every re-render.
@@ -5367,6 +5455,15 @@
                     <button type="button" onClick={onShowRecap} title="Reopen the draft recap"
                         style={{ position: 'fixed', right: '20px', bottom: '20px', zIndex: 850, padding: '11px 18px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '999px', fontFamily: FONT_DISPL, fontWeight: 800, fontSize: '0.84rem', letterSpacing: '0.04em', cursor: 'pointer', boxShadow: '0 8px 28px rgba(0,0,0,0.5)' }}>
                         📋 VIEW RECAP
+                    </button>
+                )}
+                {/* Memorialized board + another draft on deck → explicit handover.
+                    Archives this board to Draft History and opens the next room. */}
+                {state.phase === 'complete' && recapDismissed && nextUpDraft && (
+                    <button type="button" onClick={onOpenNextDraft}
+                        title="Move this draft to Draft History and open the next draft's room"
+                        style={{ position: 'fixed', right: '20px', bottom: '72px', zIndex: 850, padding: '11px 18px', background: 'var(--ink, #101418)', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: '999px', fontFamily: FONT_DISPL, fontWeight: 800, fontSize: '0.84rem', letterSpacing: '0.04em', cursor: 'pointer', boxShadow: '0 8px 28px rgba(0,0,0,0.5)' }}>
+                        {nextUpDraft.status === 'drafting' ? '🔴 NEXT DRAFT IS LIVE — OPEN ROOM' : '⏭ OPEN NEXT DRAFT ROOM'}
                     </button>
                 )}
             </div>

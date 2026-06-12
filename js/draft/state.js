@@ -2631,6 +2631,7 @@
             schemaVersion: 'draft-recap-v5',
             id: opts.id || ('recap_' + Date.now()),
             leagueId: state?.leagueId || '',
+            sleeperDraftId: state?.sleeperDraftId || null,
             season: state?.season || new Date().getFullYear(),
             mode: state?.mode || 'solo',
             variant: state?.variant || 'startup',
@@ -2660,6 +2661,40 @@
             ownerLearning,
             savedAt: Date.now(),
         };
+    }
+
+    // ── selectCurrentDraft — the league's "draft of record" ─────────────
+    // The single rule every draft surface should use to decide which Sleeper
+    // draft owns the room:
+    //   1. 'live'     — a draft is actively drafting.
+    //   2. 'review'   — the most recently completed draft, which STAYS current
+    //                   until genuinely superseded: another draft goes live, or
+    //                   a pre_draft draft is CREATED after this one finished.
+    //                   (A league that pre-schedules its next draft — e.g. a
+    //                   UDFA frenzy queued up before the rookie draft ran —
+    //                   must NOT evict the just-completed draft.)
+    //   3. 'upcoming' — the next scheduled pre_draft by start time.
+    // Returns { draft, reason } with reason 'live'|'review'|'upcoming'|'none'.
+    function selectCurrentDraft(drafts) {
+        const list = (Array.isArray(drafts) ? drafts : []).filter(d => d && d.draft_id);
+        if (!list.length) return { draft: null, reason: 'none' };
+        const live = list.find(d => d.status === 'drafting');
+        if (live) return { draft: live, reason: 'live' };
+        const completedAtOf = d => Number(d.last_picked || d.start_time || d.created || 0);
+        const latestComplete = list.filter(d => d.status === 'complete')
+            .sort((a, b) => completedAtOf(b) - completedAtOf(a))[0] || null;
+        const nextPre = list.filter(d => d.status === 'pre_draft')
+            .sort((a, b) => (Number(a.start_time) || Infinity) - (Number(b.start_time) || Infinity))[0] || null;
+        if (latestComplete) {
+            const completedAt = completedAtOf(latestComplete);
+            const superseded = list.some(d => d.status === 'pre_draft'
+                && String(d.draft_id) !== String(latestComplete.draft_id)
+                && Number(d.created || 0) > completedAt);
+            if (!superseded) return { draft: latestComplete, reason: 'review' };
+        }
+        if (nextPre) return { draft: nextPre, reason: 'upcoming' };
+        if (latestComplete) return { draft: latestComplete, reason: 'review' };
+        return { draft: list[0], reason: 'upcoming' };
     }
 
     function draftLearningKey(leagueId) {
@@ -2946,6 +2981,7 @@
         initialDraftState,
         normalizeLeagueTypeValue,
         detectDraftVariant,
+        selectCurrentDraft,
         buildPool,
         buildPickOrder,
         resolvePlayerDhq,
