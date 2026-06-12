@@ -442,7 +442,7 @@ function rewriteHtmlForCompile(html) {
   // Drop the in-browser Babel compiler entirely.
   html = html.replace(/[ \t]*<script\b[^>]*src=["']https?:\/\/[^"']*@babel\/standalone[^"']*["'][^>]*><\/script>\s*\n?/gi, '');
   // The server already transpiles these on request. data-wr-defer scripts stay INERT
-  // (type="text/wr-deferred") so the browser doesn't run them at boot — the draft
+  // (type="text/wr-deferred") so the browser doesn't run them at boot — the module
   // loader injects them on demand; the rest run immediately as plain JS.
   html = html.replace(/<script\b[^>]*?\stype=["']text\/babel["'][^>]*>/gi, (tag) =>
     /\bdata-wr-defer\b/i.test(tag)
