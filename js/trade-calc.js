@@ -761,6 +761,7 @@
         const generatedPackagesRef = useRef(null);
         useEffect(() => {
             if (!initialSubTab) return;
+            setAdaptiveView('workspace'); // sub-tab deep-links land on the requested surface, never the hero
             if (initialSubTab === 'finder') {
                 window._wrAnalyzerMode = 'find';
                 setDealMode('acquire');
@@ -1774,7 +1775,7 @@
             });
             setTradeFaab({ A: deal.giveFaab || 0, B: deal.receiveFaab || 0 });
             setSearchText({ A: '', B: '' });
-            if (typeof window !== 'undefined' && window._wrAdaptiveCanvas === true) {
+            if (typeof window !== 'undefined' && window._wrAdaptiveCanvas !== false) {
                 // Adaptive canvas: edit the generated deal IN PLACE via the persistent builder,
                 // instead of jumping to a separate Builder surface.
                 setAdaptiveView('workspace');
@@ -3024,12 +3025,12 @@
 
         // ── renderTradeAnalyzer ──
         // ── renderAdaptiveLanding — Slice 1 of the tab-free Adaptive War Room canvas ──
-        // Behind the window._wrAdaptiveCanvas flag (default OFF). Computes the single best move
+        // Default ON (kill switch: window._wrAdaptiveCanvas = false). Computes the single best move
         // (top partner via the SAME partnerBoard ranking as renderDealHQ + its best generated deal)
         // and shows a calm Alex-voiced "best move" hero. CTAs reveal the existing surfaces via
         // existing state. Returns null if there's no usable best move (caller falls through to tabs).
         function renderAdaptiveLanding() {
-            if (!assessments.length || !myAssessment) return null;
+            if (!rosterState.isUsable || !assessments.length || !myAssessment) return null;
 
             // Mirror of renderDealHQ partnerBoard ranking — KEEP IN SYNC with renderDealHQ.
             const myStrengths = myAssessment.strengths || [];
@@ -3785,11 +3786,10 @@
             profiles: 'Owner posture, roster gaps, pick context, and trade history.',
             analyzer: 'Manual player, pick, and FAAB inspection.'
         };
-        // Adaptive War Room canvas — behind a default-OFF flag (window._wrAdaptiveCanvas).
-        // Flag ON => fully tab-free: the calm "best move" hero (landing view) + a tab-free workspace
-        // shell that reuses the existing surfaces. Flag OFF => the existing 3-tab return below,
-        // byte-identical (this branch never runs).
-        const _wrAdaptiveOn = (typeof window !== 'undefined' && window._wrAdaptiveCanvas === true);
+        // Adaptive War Room canvas — DEFAULT ON (kill switch: window._wrAdaptiveCanvas = false).
+        // On => fully tab-free: the calm "best move" hero (landing view) + a tab-free workspace
+        // shell that reuses the existing surfaces. Off => the legacy 3-tab return below.
+        const _wrAdaptiveOn = (typeof window !== 'undefined' && window._wrAdaptiveCanvas !== false);
         if (_wrAdaptiveOn && canAccess('trade-finder')) {
             // Hero is the landing view, only when not seeded by a deep-link (which jumps to workspace).
             if (adaptiveView === 'hero' && !selectedDealPartnerId && !dealFocusPid && !tradeContext) {
