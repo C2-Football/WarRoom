@@ -45,6 +45,17 @@ function CompareTab({
     });
     const [h2hState, setH2hState] = React.useState({ loading: false, meetings: [], error: null, loadedFor: null });
 
+    // GM Strategy is the single source of truth — re-renders live on save.
+    const gm = window.WR.GmMode.useGmEffects(currentLeague);
+    const gmTargetPositions = gm.targetPositions || new Set();
+    const gmPosture = gm.marketPosture || 'hold';
+    const gmPostureFrame = (() => {
+        if (gmPosture === 'buy_low') return { label: 'Buy-Low Lens', hint: 'Strategy says hunt undervalued rooms in this matchup.', color: 'var(--win-green, var(--good))' };
+        if (gmPosture === 'sell_high') return { label: 'Sell-High Lens', hint: 'Strategy says cash surplus rooms while value is hot.', color: 'var(--gold)' };
+        if (gmPosture === 'exploit') return { label: 'Exploit Lens', hint: 'Strategy says press every edge and pounce on weakness.', color: 'var(--loss-red, var(--bad))' };
+        return { label: 'Hold Lens', hint: 'Strategy says stand pat — read the field before moving.', color: 'var(--silver)' };
+    })();
+
     React.useEffect(() => {
         const onOpenCompare = (event) => {
             const rid = event?.detail?.rosterId || window._wrComparePreselect;
@@ -1172,6 +1183,12 @@ function CompareTab({
                             <div style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.72, marginTop: '3px' }}>
                                 {biggestEdges[0] ? posLabel(biggestEdges[0].pos) : 'Roster'} is the biggest swing: {(biggestEdges[0]?.diff || 0) > 0 ? '+' : ''}{(biggestEdges[0]?.diff || 0).toLocaleString()} {valueShortLabel}.
                             </div>
+                            {gm.hasStrategy ? (
+                                <div title={gmPostureFrame.hint} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '7px', padding: '3px 9px', borderRadius: '999px', border: '1px solid ' + gmPostureFrame.color, background: 'rgba(0,0,0,0.28)' }}>
+                                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: gmPostureFrame.color, flexShrink: 0 }}></span>
+                                    <span style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 850, color: gmPostureFrame.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{gmPostureFrame.label}</span>
+                                </div>
+                            ) : null}
                         </div>
                         <div style={{ textAlign: 'right' }}>
                             <div style={labelStyle}>Opponent</div>
@@ -1360,13 +1377,17 @@ function CompareTab({
                         const maxLen = Math.max(summary.myAtPos.length, summary.theirAtPos.length);
                         const total = Math.max(1, summary.myPosDHQ + summary.theirPosDHQ);
                         const myPosPct = summary.myPosDHQ / total * 100;
+                        const isTargetRoom = gmTargetPositions.has(String(summary.pos));
                         return (
-                            <div key={summary.pos} style={{ marginBottom: '12px', ...panelStyle, overflow: 'hidden' }}>
-                                <div style={{ padding: '9px 10px 10px', background: (posColors[summary.pos] || 'var(--k-666666, #666666)') + '14', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))' }}>
+                            <div key={summary.pos} style={{ marginBottom: '12px', ...panelStyle, overflow: 'hidden', border: isTargetRoom ? '1px solid var(--acc-line2, rgba(212,175,55,0.35))' : panelStyle.border }}>
+                                <div style={{ padding: '9px 10px 10px', background: isTargetRoom ? 'var(--acc-fill1, rgba(212,175,55,0.06))' : (posColors[summary.pos] || 'var(--k-666666, #666666)') + '14', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', gap: '10px' }}>
-                                        <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', fontWeight: 900, color: posColors[summary.pos] || 'var(--silver)' }}>{posLabel(summary.pos)}</span>
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+                                            <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', fontWeight: 900, color: isTargetRoom ? 'var(--gold)' : posColors[summary.pos] || 'var(--silver)' }}>{posLabel(summary.pos)}</span>
+                                            {isTargetRoom ? <span title="Target room from your GM Strategy — win this matchup here" style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 850, color: 'var(--gold)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', letterSpacing: '0.04em' }}>TARGET</span> : null}
+                                        </span>
                                         <div style={{ display: 'flex', gap: '12px', fontSize: '0.72rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                            <span style={{ color: summary.myPosDHQ >= summary.theirPosDHQ ? 'var(--good)' : 'var(--silver)' }}>You: {summary.myPosDHQ.toLocaleString()}</span>
+                                            <span style={{ color: isTargetRoom ? 'var(--gold)' : summary.myPosDHQ >= summary.theirPosDHQ ? 'var(--good)' : 'var(--silver)', fontWeight: isTargetRoom ? 800 : 400 }}>You: {summary.myPosDHQ.toLocaleString()}</span>
                                             <span style={{ color: summary.theirPosDHQ >= summary.myPosDHQ ? 'var(--good)' : 'var(--silver)' }}>Them: {summary.theirPosDHQ.toLocaleString()}</span>
                                             <span style={{ fontWeight: 800, color: summary.diff > 0 ? 'var(--good)' : summary.diff < 0 ? 'var(--bad)' : 'var(--silver)' }}>{summary.diff > 0 ? '+' : ''}{summary.diff.toLocaleString()}</span>
                                         </div>

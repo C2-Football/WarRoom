@@ -41,11 +41,24 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
         if (pos === 'PICKS') return 'Picks';
         return window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos);
     };
+    const acceptanceFloorFor = (aggression, mode) => {
+        const fn = window.WR?.GmMode?.acceptanceFloorFor;
+        return typeof fn === 'function' ? fn(aggression, mode) : 75;
+    };
+    const clampFloor = (v, fallback) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? Math.max(55, Math.min(90, Math.round(n))) : fallback;
+    };
     const normalizeDraft = (saved) => {
         const normalize = window.WR?.GmMode?.normalize || ((m) => m || 'compete');
+        const mode = normalize(saved.mode) || 'compete';
+        const aggression = saved.aggression || 'medium';
         return {
-            mode: normalize(saved.mode) || 'compete',
-            aggression: saved.aggression || 'medium',
+            mode,
+            aggression,
+            // Explicit, user-editable acceptance floor (Trade Acceptance Floor
+            // control). Defaults to the aggression+mode-derived floor when unset.
+            acceptanceFloor: clampFloor(saved.acceptanceFloor, acceptanceFloorFor(aggression, mode)),
             draftStyle: saved.draftStyle || 'bpa',
             marketPosture: saved.marketPosture || 'hold',
             timeline: saved.timeline || '2_3_years',
@@ -67,7 +80,8 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
         setDraft(normalizeDraft(readSavedStrategy()));
     }, [leagueId]);
 
-    // Selecting a preset auto-applies its bundled config.
+    // Selecting a preset auto-applies its bundled config (incl. re-seeding the
+    // acceptance floor from the preset's aggression — "driven by aggression").
     const applyPreset = (modeId) => {
         const preset = window.WR?.GmMode?.getPreset?.(modeId);
         const cfg = preset?.config || {};
@@ -75,6 +89,7 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
             ...d,
             ...cfg,
             mode: modeId,
+            acceptanceFloor: acceptanceFloorFor(cfg.aggression || d.aggression, modeId),
         }));
     };
     const isCustom = draft.mode === 'custom';
@@ -331,13 +346,42 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                 )}
             </div>
 
+            {/* ── Trade Acceptance Floor (always visible — drives the Trade Center) ── */}
+            <div style={styles.card}>
+                <SectionHeader title="Trade Acceptance Floor" sub="The minimum acceptance an offer must clear for the Trade Center to call it Playable. Lower = chase more long-shot deals; higher = only safe, fair offers. Seeded by your aggression — drag to fine-tune." />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+                    <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '2.1rem', fontWeight: 700, color: 'var(--gold)', minWidth: 90, lineHeight: 1 }}>{draft.acceptanceFloor}%</div>
+                    <div style={{ flex: 1, minWidth: 220 }}>
+                        <input
+                            type="range" min="55" max="90" step="1"
+                            value={draft.acceptanceFloor}
+                            onChange={e => set('acceptanceFloor', Number(e.target.value))}
+                            aria-label="Trade acceptance floor"
+                            style={{ width: '100%', accentColor: 'var(--gold)', cursor: 'pointer', height: 32 }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-micro)', color: 'var(--ov-8, rgba(255,255,255,0.4))', fontFamily: 'var(--font-body)', marginTop: 2 }}>
+                            <span>55% · chase long-shots</span>
+                            <span>only safe deals · 90%</span>
+                        </div>
+                    </div>
+                </div>
+                <div style={{ marginTop: 14 }}>
+                    <div style={styles.subLabel}>Quick set</div>
+                    <PillGroup
+                        options={[{ value: 82, label: 'Conservative · 82%' }, { value: 75, label: 'Balanced · 75%' }, { value: 58, label: 'Aggressive · 58%' }]}
+                        value={draft.acceptanceFloor}
+                        onChange={v => set('acceptanceFloor', v)}
+                    />
+                </div>
+            </div>
+
             {/* ── Aggression (Custom only) ── */}
             {isCustom && <div style={styles.card}>
-                <SectionHeader title="Aggression" sub={currentAggression?.desc} />
+                <SectionHeader title="Aggression" sub={(currentAggression?.desc || '') + ' Also re-seeds the acceptance floor above.'} />
                 <PillGroup
                     options={AGGRESSION.map(a => ({ value: a.value, label: a.label }))}
                     value={draft.aggression}
-                    onChange={v => set('aggression', v)}
+                    onChange={v => setDraft(d => ({ ...d, aggression: v, acceptanceFloor: acceptanceFloorFor(v, d.mode) }))}
                     fullWidth
                 />
             </div>}

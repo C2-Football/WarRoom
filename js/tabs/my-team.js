@@ -59,7 +59,6 @@ function MyTeamTab({
   const skinVocabulary = resolvedLeagueSkin?.vocabulary || {};
   const valueLabel = skinVocabulary.valueLabel || 'DHQ Dynasty Value';
   const valueShortLabel = skinVocabulary.valueShortLabel || 'Value';
-  const assetLabel = skinVocabulary.assetLabel || 'Asset';
 
   function calcRawPts(s) { return window.App.calcRawPts(s, currentLeague?.scoring_settings); }
 
@@ -80,6 +79,45 @@ function MyTeamTab({
     const pr = prospectForRow(r);
     return RookieFields ? RookieFields.isRookie(r.p, pr, { cur: statsData, prev: stats2025Data }) : false;
   }, [prospectForRow, statsData, stats2025Data]);
+
+  // ── GM Strategy — single source of truth. Live-updates on GM Strategy save. ──
+  // Drives untouchable lock badges, target/sell position accents, and a sell-rule
+  // nudge on the roster recommendation. Hook is called once, unconditionally.
+  const gm = window.WR.GmMode.useGmEffects(currentLeague);
+  const gmTargetPositions = gm?.targetPositions instanceof Set ? gm.targetPositions : new Set();
+  const gmSellPositions = gm?.sellPositions instanceof Set ? gm.sellPositions : new Set();
+  const gmUntouchable = gm?.untouchable instanceof Set ? gm.untouchable : new Set();
+  // Parse free-text sell rules like "Sell RB age 27+" leniently. Returns
+  // { pos: 'RB', minAge: 27 } per parseable rule; unparseable rules are ignored.
+  const gmSellRulesParsed = React.useMemo(() => {
+    const out = [];
+    (gm?.sellRules || []).forEach(rule => {
+      try {
+        const s = String(rule);
+        const posM = s.match(/\b(QB|RB|WR|TE|K|DEF|DL|LB|DB)\b/i);
+        const ageM = s.match(/age\s*(\d{1,2})\s*\+?/i);
+        if (!posM && !ageM) return; // nothing structured to match on
+        out.push({
+          pos: posM ? posM[1].toUpperCase() : null,
+          minAge: ageM ? parseInt(ageM[1], 10) : null,
+        });
+      } catch {}
+    });
+    return out;
+  }, [gm?.sellRules]);
+  // Does a row trip a sell rule or a sell-position? Used to nudge the rec.
+  const gmTripsSell = React.useCallback((r) => {
+    if (!r) return false;
+    const pos = String(r.pos);
+    if (gmSellPositions.has(pos)) return true;
+    return gmSellRulesParsed.some(rule => {
+      const posOk = !rule.pos || rule.pos === pos;
+      const ageOk = rule.minAge == null || (r.age != null && r.age >= rule.minAge);
+      // A rule with neither a usable pos nor age constraint shouldn't fire blindly.
+      if (rule.pos == null && rule.minAge == null) return false;
+      return posOk && ageOk;
+    });
+  }, [gmSellPositions, gmSellRulesParsed]);
 
   // ── filteredAndSortedRows (formerly a sibling function of renderMyTeamTab) ──
   function filteredAndSortedRows(rows) {
@@ -277,9 +315,18 @@ function MyTeamTab({
     const _pidElite = typeof window.App?.isElitePlayer === 'function' ? window.App.isElitePlayer(pid) : dhq >= 7000;
     // Recommendation for MY roster — shared getPlayerAction() with simplified fallback
     const pa = typeof window.getPlayerAction === 'function' ? window.getPlayerAction(pid) : null;
-    const rec = pa ? pa.label : (valueYrsLeft <= 0 ? 'Sell' : _pidElite && peakYrsLeft >= 3 ? 'Hold Core' : peakYrsLeft >= 4 && dhq < 4000 ? 'Stash' : 'Hold');
+    let rec = pa ? pa.label : (valueYrsLeft <= 0 ? 'Sell' : _pidElite && peakYrsLeft >= 3 ? 'Hold Core' : peakYrsLeft >= 4 && dhq < 4000 ? 'Stash' : 'Hold');
 
-    return { pid, p, pos, dhq, age, curPPG, prevPPG, effectivePPG, effectiveGP, prevGP, durabilityGP, trend, isStarter, isIR, isTaxi, section, peakPhase, peakPct, peakYrsLeft, valueYrsLeft, rec, curGP, meta, injury: p.injury_status };
+    // GM Strategy nudge: if this player's position/age trips a sell rule or a
+    // sell-position (and isn't strategy-untouchable / already a sell or build
+    // call), steer the roster recommendation toward Sell. Flagged for the UI.
+    const gmIsUntouchable = gmUntouchable.has(String(pid));
+    const gmSellNudge = !gmIsUntouchable && !/sell|buy|build|core/i.test(rec) && gmTripsSell({ pos, age });
+    if (gmSellNudge) rec = 'Sell';
+    const gmIsTarget = gmTargetPositions.has(String(pos));
+    const gmIsSellPos = gmSellPositions.has(String(pos));
+
+    return { pid, p, pos, dhq, age, curPPG, prevPPG, effectivePPG, effectiveGP, prevGP, durabilityGP, trend, isStarter, isIR, isTaxi, section, peakPhase, peakPct, peakYrsLeft, valueYrsLeft, rec, curGP, meta, injury: p.injury_status, gmIsUntouchable, gmSellNudge, gmIsTarget, gmIsSellPos };
   }).filter(Boolean);
 
   // Position-level PPG percentiles for color coding
@@ -427,39 +474,6 @@ function MyTeamTab({
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
-  const starterRows = rows.filter(r => r.isStarter);
-  const tierAssess = typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(myRoster?.roster_id) : null;
-  const tier = (tierAssess?.tier || '').toUpperCase();
-  const tierLabel = tier ? tier.charAt(0) + tier.slice(1).toLowerCase() : 'Unranked';
-  const needs = tierAssess?.needs?.slice(0, 3) || [];
-  const sectionCounts = rows.reduce((acc, r) => {
-    acc[r.section] = (acc[r.section] || 0) + 1;
-    return acc;
-  }, { starter: 0, bench: 0, taxi: 0, ir: 0 });
-  const posOrder = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
-  const posMix = posOrder.map(pos => ({
-    pos,
-    count: rows.filter(r => r.pos === pos).length,
-    color: posColors[pos] || 'var(--silver)',
-  })).filter(p => p.count > 0);
-  const sellCount = rows.filter(r => /sell/i.test(r.rec || '')).length;
-  const stashCount = rows.filter(r => /stash|buy|build/i.test(r.rec || '')).length;
-  const bestPosition = posMix.slice().sort((a, b) => b.count - a.count)[0];
-  const oldestStarter = starterRows.filter(r => r.age).sort((a, b) => (b.age || 0) - (a.age || 0))[0];
-  const boardInsightChips = [
-    sellCount > 0 ? { label: sellCount + ' sell flags', color: 'var(--bad)' } : null,
-    stashCount > 0 ? { label: stashCount + ' build ' + String(assetLabel || 'asset').toLowerCase() + (stashCount === 1 ? '' : 's'), color: 'var(--good)' } : null,
-    needs[0] ? { label: needs.slice(0, 2).map(n => n.pos).join('/') + ' needs', color: 'var(--gold)' } : null,
-    oldestStarter ? { label: 'Oldest starter ' + oldestStarter.pos + ' ' + oldestStarter.age, color: 'var(--warn)' } : null,
-    bestPosition ? { label: bestPosition.pos + ' depth ' + bestPosition.count, color: bestPosition.color } : null,
-  ].filter(Boolean);
-  const rosterSummaryParts = [
-    allPlayers.length + ' players',
-    sectionCounts.starter + ' starters',
-    sectionCounts.bench + ' bench',
-    ...(skinFeatures.showTaxi === false ? [] : [sectionCounts.taxi + ' taxi']),
-    sectionCounts.ir + ' IR',
-  ];
   const rosterTagMeta = {
     trade: { bg: 'rgba(240,165,0,0.13)', col: 'var(--warn)', lbl: 'Trade' },
     cut: { bg: 'rgba(231,76,60,0.13)', col: 'var(--bad)', lbl: 'Cut' },
@@ -501,6 +515,22 @@ function MyTeamTab({
     borderRadius: '6px',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
+  });
+  // Compact dropdown used across the roster toolbar (mirrors free-agency's rkSelectStyle).
+  const rosterSelectStyle = (active) => ({
+    padding: '4px 8px',
+    minHeight: '44px',
+    fontSize: '0.72rem',
+    fontFamily: 'var(--font-body)',
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+    background: active ? 'var(--acc-fill2, rgba(212,175,55,0.13))' : 'var(--ov-3, rgba(255,255,255,0.045))',
+    color: active ? 'var(--gold)' : 'var(--silver)',
+    border: '1px solid ' + (active ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'),
+    borderRadius: '6px',
+    cursor: 'pointer',
+    outline: 'none',
   });
   const groupLabelStyle = { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.58, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, whiteSpace: 'nowrap' };
   const sameColumnSet = (a, b) => a.length === b.length && a.every((key, idx) => key === b[idx]);
@@ -633,8 +663,10 @@ function MyTeamTab({
       </div>;
       case 'action': {
         const ann = getPlayerAnnotation(r.pid);
-        return <div key={colKey} style={{...base, flexDirection:'column', gap:'2px', alignItems:'center'}} title={ann?.text || ''}>
+        const gmNudgeTitle = r.gmSellNudge ? 'Nudged to Sell by GM Strategy (position/age trips a sell rule)' : '';
+        return <div key={colKey} style={{...base, flexDirection:'column', gap:'2px', alignItems:'center'}} title={gmNudgeTitle || ann?.text || ''}>
           <span style={{ fontSize:'var(--text-micro, 0.6875rem)',fontWeight:650,padding:'2px 6px',borderRadius:'4px',background:/sell/i.test(r.rec)?'rgba(231,76,60,0.12)':/buy|build|core/i.test(r.rec)?'rgba(46,204,113,0.12)':'var(--acc-fill2, rgba(212,175,55,0.1))',color:/sell/i.test(r.rec)?'var(--bad)':/buy|build|core/i.test(r.rec)?'var(--good)':'var(--gold)',border:'1px solid '+(/sell/i.test(r.rec)?'rgba(231,76,60,0.22)':/buy|build|core/i.test(r.rec)?'rgba(46,204,113,0.22)':'var(--acc-line1, rgba(212,175,55,0.22))') }}>{r.rec}</span>
+          {r.gmSellNudge && <span style={{ fontSize: '0.56rem', fontWeight: 800, color: 'var(--warn)', letterSpacing: '0.05em', opacity: 0.85, lineHeight: 1 }}>GM</span>}
         </div>;
       }
       case 'gp': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.74rem' }}>{r.effectiveGP > 0 ? r.effectiveGP : '\u2014'}{r.curGP === 0 && r.prevGP > 0 ? '*' : ''}</span></div>;
@@ -712,25 +744,6 @@ function MyTeamTab({
 
   return (
     <div style={{ padding: 'var(--card-pad, 16px 18px)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-      <section style={{ background: 'var(--surf-solid, rgba(20,20,26,0.72))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 'var(--card-radius)', padding: 'var(--card-pad-sm)', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 800 }}>My Roster</span>
-        <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', lineHeight: 1, color: 'var(--white)', fontWeight: 700 }}>{tierLabel}</span>
-        <span style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.76 }}>
-          {rosterSummaryParts.join(' · ')}
-        </span>
-        {(() => {
-          const champs = window.App?.LI?.championships || {};
-          const myChampCount = Object.values(champs).filter(c => c.champion === myRoster?.roster_id).length;
-          if (myChampCount <= 0) return null;
-          return <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontWeight: 800, border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '999px', padding: '1px 7px', background: 'var(--acc-fill1, rgba(212,175,55,0.07))' }}>{myChampCount > 1 ? myChampCount + 'x ' : ''}Champion</span>;
-        })()}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          {boardInsightChips.filter(chip => !/needs/i.test(chip.label)).slice(0, 3).map(chip => (
-            <span key={chip.label} style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: chip.color, border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', background: 'var(--ov-2, rgba(255,255,255,0.028))', borderRadius: '999px', padding: '1px 7px', fontWeight: 700 }}>{chip.label}</span>
-          ))}
-        </div>
-      </section>
-
       {isCompactRoster && (() => {
         const ppgLabelMap = { season: 'Season', l5: 'L5', l3: 'L3' };
         const rowLabelMap = { comfortable: 'Comfort', compact: 'Compact' };
@@ -748,61 +761,52 @@ function MyTeamTab({
       })()}
 
       {(!isCompactRoster || filtersOpen) && (
-      <section style={{ background: 'var(--surf-solid, rgba(20,20,26,0.72))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 'var(--card-radius)', padding: 'var(--card-pad-sm)', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '8px 12px', alignItems: 'center' }}>
-        <div className="wr-module-toolbar" style={{ marginBottom: 0, gap: '6px 8px', minWidth: 0 }}>
-          <span className="wr-module-toolbar-label">Scope</span>
-          <div className="wr-module-nav" style={{ padding: '2px', gap: '2px' }}>
-            {rosterFilterOptions.map(f => (
-              <button key={f} className={rosterFilter === f ? 'is-active' : ''} onClick={() => setRosterFilter(f)}>{f}</button>
-            ))}
-          </div>
-        </div>
-        <span style={{ justifySelf: 'end', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, whiteSpace: 'nowrap' }}>{filtered.length} / {allPlayers.length} shown</span>
+      <section style={{ background: 'var(--surf-solid, rgba(20,20,26,0.72))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 'var(--card-radius)', padding: 'var(--card-pad-sm)', display: 'flex', alignItems: 'center', gap: '6px 14px', flexWrap: 'wrap' }}>
+        <span className="wr-module-toolbar-label">Scope</span>
+        <select value={rosterFilter} onChange={e => setRosterFilter(e.target.value)} style={rosterSelectStyle(rosterFilter !== 'All')} title="Show a slot or position group">
+          {rosterFilterOptions.map(f => <option key={f} value={f}>{f}</option>)}
+        </select>
 
-        <div className="wr-module-toolbar" style={{ marginBottom: 0, gap: '6px 8px', minWidth: 0 }}>
-          <span className="wr-module-toolbar-label">View</span>
-          <div className="wr-module-nav" style={{ padding: '2px', gap: '2px' }}>
-            {Object.entries(COLUMN_PRESETS).map(([key, cols]) => (
-              <button key={key} className={activePresetKey === key ? 'is-active' : ''} onClick={() => { setVisibleCols(cols); setColPreset(key); if (key === 'rookie') setRosterFilter('Rookies'); else if (rosterFilter === 'Rookies') setRosterFilter('All'); }}>{COLUMN_PRESET_META[key]?.label || key}</button>
-            ))}
-            <button className={(showColPicker || activePresetKey === 'custom') ? 'is-active' : ''} onClick={() => setShowColPicker(!showColPicker)}>Customize</button>
-          </div>
-          <span className="wr-module-toolbar-label">PPG</span>
-          <div className="wr-module-nav" style={{ padding: '2px', gap: '2px' }}>
-            {[{k:'season',l:'Season'},{k:'l5',l:'L5'},{k:'l3',l:'L3'}].map(opt => (
-              <button key={opt.k} className={ppgWindow === opt.k ? 'is-active' : ''} onClick={() => setPpgWindow(opt.k)} title={opt.k === 'season' ? 'Season-to-date PPG' : 'Last ' + (opt.k === 'l5' ? 5 : 3) + ' games — requires weekly data'}>{opt.l}</button>
-            ))}
-          </div>
-          <span className="wr-module-toolbar-label">Rows</span>
-          <div className="wr-module-nav" style={{ padding: '2px', gap: '2px' }}>
-            {[{k:'comfortable',l:'Comfort'},{k:'compact',l:'Compact'}].map(opt => (
-              <button key={opt.k} className={rowDensity === opt.k ? 'is-active' : ''} onClick={() => setRowDensity(opt.k)}>{opt.l}</button>
-            ))}
-          </div>
-          <span className="wr-module-toolbar-label">Group</span>
-          <div className="wr-module-nav" style={{ padding: '2px', gap: '2px' }}>
-            {GROUP_MODES.map(opt => (
-              <button key={opt.key} className={rosterGroupMode === opt.key ? 'is-active' : ''} onClick={() => setRosterGroupMode(opt.key)}>{opt.label}</button>
-            ))}
-          </div>
-        </div>
+        <span className="wr-module-toolbar-label">View</span>
+        <select value={activePresetKey} onChange={e => { const key = e.target.value; const cols = COLUMN_PRESETS[key]; if (!cols) return; setVisibleCols(cols); setColPreset(key); if (key === 'rookie') setRosterFilter('Rookies'); else if (rosterFilter === 'Rookies') setRosterFilter('All'); }} style={rosterSelectStyle(activePresetKey !== 'default')} title="Column preset">
+          {Object.keys(COLUMN_PRESETS).map(key => <option key={key} value={key}>{COLUMN_PRESET_META[key]?.label || key}</option>)}
+          {activePresetKey === 'custom' && <option value="custom">Custom</option>}
+        </select>
+        <button onClick={() => setShowColPicker(!showColPicker)} style={{ ...controlBtn(showColPicker || activePresetKey === 'custom'), minHeight: '44px' }} title="Add, remove, or reorder columns">Customize</button>
 
-        {window.WR?.SavedViews?.SavedViewBar && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignSelf: 'center' }}>
-            {React.createElement(window.WR.SavedViews.SavedViewBar, {
-              surface: 'roster',
-              leagueId: currentLeague?.id,
-              currentState: { columns: visibleCols, sort: rosterSort, filters: { rosterFilter, rosterGroupMode, rowDensity } },
-              onApply: (v) => {
-                if (Array.isArray(v.columns) && v.columns.length) { setVisibleCols(v.columns); setColPreset('custom'); }
-                if (v.sort && v.sort.key) setRosterSort({ key: v.sort.key, dir: v.sort.dir || 1 });
-                if (v.filters && typeof v.filters.rosterFilter === 'string') setRosterFilter(v.filters.rosterFilter);
-                if (v.filters && typeof v.filters.rosterGroupMode === 'string') setRosterGroupMode(v.filters.rosterGroupMode);
-                if (v.filters && typeof v.filters.rowDensity === 'string') setRowDensity(v.filters.rowDensity);
-              },
-            })}
-          </div>
-        )}
+        <span className="wr-module-toolbar-label">PPG</span>
+        <select value={ppgWindow} onChange={e => setPpgWindow(e.target.value)} style={rosterSelectStyle(ppgWindow !== 'season')} title="Points-per-game window">
+          <option value="season">Season</option>
+          <option value="l5">L5</option>
+          <option value="l3">L3</option>
+        </select>
+
+        <span className="wr-module-toolbar-label">Rows</span>
+        <select value={rowDensity} onChange={e => setRowDensity(e.target.value)} style={rosterSelectStyle(rowDensity !== 'comfortable')} title="Row density">
+          <option value="comfortable">Comfort</option>
+          <option value="compact">Compact</option>
+        </select>
+
+        <span className="wr-module-toolbar-label">Group</span>
+        <select value={rosterGroupMode} onChange={e => setRosterGroupMode(e.target.value)} style={rosterSelectStyle(rosterGroupMode !== 'position')} title="Group rows by">
+          {GROUP_MODES.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
+        </select>
+
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+          <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, whiteSpace: 'nowrap' }}>{filtered.length} / {allPlayers.length} shown</span>
+          {window.WR?.SavedViews?.SavedViewBar && React.createElement(window.WR.SavedViews.SavedViewBar, {
+            surface: 'roster',
+            leagueId: currentLeague?.id,
+            currentState: { columns: visibleCols, sort: rosterSort, filters: { rosterFilter, rosterGroupMode, rowDensity } },
+            onApply: (v) => {
+              if (Array.isArray(v.columns) && v.columns.length) { setVisibleCols(v.columns); setColPreset('custom'); }
+              if (v.sort && v.sort.key) setRosterSort({ key: v.sort.key, dir: v.sort.dir || 1 });
+              if (v.filters && typeof v.filters.rosterFilter === 'string') setRosterFilter(v.filters.rosterFilter);
+              if (v.filters && typeof v.filters.rosterGroupMode === 'string') setRosterGroupMode(v.filters.rosterGroupMode);
+              if (v.filters && typeof v.filters.rowDensity === 'string') setRowDensity(v.filters.rowDensity);
+            },
+          })}
+        </div>
       </section>
       )}
 
@@ -953,6 +957,11 @@ function MyTeamTab({
 	                      <span style={{ fontWeight: 650, color: 'var(--white)', fontSize: playerNameSize, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getPlayerName(r.pid)}</span>
                       {inlineTag(slotTagMeta[r.section], 'slot-' + r.pid)}
                       {inlineTag(rosterTagMeta[window._playerTags?.[r.pid]], 'tag-' + r.pid)}
+                      {/* GM Strategy: untouchable lock — distinct from manual tag system */}
+                      {r.gmIsUntouchable && <span title="GM Strategy: untouchable — locked from sell flags" style={{ fontSize: 'var(--text-micro, 0.6875rem)', flexShrink: 0, lineHeight: 1, color: 'var(--good)' }}>{'🛡'}</span>}
+                      {/* GM Strategy: acquisition-focus / sell-candidate position accents */}
+                      {!r.gmIsUntouchable && r.gmIsTarget && <span title="GM Strategy: acquisition-focus position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.28))', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>TGT</span>}
+                      {!r.gmIsUntouchable && r.gmIsSellPos && <span title="GM Strategy: sell-candidate position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'rgba(240,165,0,0.13)', color: 'var(--warn)', border: '1px solid rgba(240,165,0,0.32)', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>SELL</span>}
                       {dropCandidatePids.has(r.pid) && !dismissedDrops.has(r.pid) && <span onClick={e => { e.stopPropagation(); dismissDrop(r.pid); }} title="Drop candidate (click to dismiss)" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(231,76,60,0.2)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>DROP?</span>}
                     </div>
                     <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, marginTop: '1px' }}>{r.p.team || 'FA'}{r.injury ? ' \u00B7 '+r.injury : ''}</div>

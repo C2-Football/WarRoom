@@ -1439,6 +1439,9 @@
 
     // ── Model Settings sub-tab ────────────────────────────────────
     function SettingsView({ settings, setSettings, leagueSkin, currentLeague }) {
+        // Trade aggression / acceptance floor lives in the GM Strategy editor
+        // (My Strategy sub-tab) — not here. Model Settings is Alex behavioral
+        // tuning only.
         const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
         const skinFeatures = resolvedLeagueSkin?.features || {};
         const baseDraftYear = String(parseInt(currentLeague?.season || new Date().getFullYear(), 10) || new Date().getFullYear());
@@ -1500,12 +1503,6 @@
             h('h3', { style: { fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: 'var(--text-title, 1.125rem)', margin: 0, letterSpacing: '0.01em', color: 'var(--white)' } }, label.title),
             h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55, fontFamily: 'var(--font-mono)' } }, label.sub),
         );
-        const tradeAggressionLabel = (v) => {
-            const stance = v <= 20 ? 'Conservative' : v <= 40 ? 'Cautious' : v <= 60 ? 'Balanced' : v <= 80 ? 'Bold' : 'Aggressive';
-            const floor = window.WR?.AlexSettings?.actionableTradeAcceptanceFloor?.({ tradeAggression: Number(v) }) || 75;
-            return stance + ' · ' + floor + '%+';
-        };
-
         const presetButton = (label, desc, getPatch) => h('button', {
             onClick: () => { const p = getPatch(); setSettings(p); saveSettings(p); },
             title: desc,
@@ -1567,24 +1564,8 @@
                     )
                 ),
             ),
-            // ── Trade Calculator tuning ──
+            // ── Asset Priorities (trade acceptance % now lives in the GM Strategy editor) ──
             h('div', { className: 'gm-office-settings-grid', style: { marginTop: 'var(--card-gap)' } },
-                // Left column — Aggression
-                h(window.WR.Card, { padding: 'var(--card-pad-lg)' },
-                    sectionTitle({ title: 'Trade Calculator', sub: 'How aggressive Deal HQ builds packages' }),
-                    sliderRow('Trade aggression', 'Controls how wide the value-matching window is when generating packages. Balanced only auto-surfaces 75%+ offers; higher settings loosen that floor.', 'tradeAggression', 0, 100, 5,
-                        tradeAggressionLabel),
-                    h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55, marginTop: '4px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-title)', fontWeight: 700 } }, 'Quick presets'),
-                    h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' } },
-                        presetButton('Conservative', 'Tight value · fair only',
-                            () => ({ ...settings, tradeAggression: 15 })),
-                        presetButton('Balanced', 'Default range',
-                            () => ({ ...settings, tradeAggression: 50 })),
-                        presetButton('Aggressive', 'Max range · hunt steals',
-                            () => ({ ...settings, tradeAggression: 100 })),
-                    ),
-                ),
-                // Right column — Asset Priorities
                 h(window.WR.Card, { padding: 'var(--card-pad-lg)' },
                     sectionTitle({ title: 'Asset Priorities', sub: 'What Deal HQ targets' }),
                     h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginBottom: '14px', lineHeight: 1.45 } },

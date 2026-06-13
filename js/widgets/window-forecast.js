@@ -31,6 +31,16 @@
         const posLabel = (pos) => window.App?.posLabel?.(pos) || pos;
         const season = parseInt(currentLeague?.season) || new Date().getFullYear();
 
+        // ── GM Strategy: drive the projection horizon off the GM's timeline ──
+        // 1_year → 1 season, 2_3_years → 3, dynasty_long → 4 (default when no strategy).
+        const gm = window.WR.GmMode.useGmEffects(currentLeague);
+        const horizon = !gm?.hasStrategy
+            ? HORIZON
+            : gm.timeline === '1_year' ? 1
+            : gm.timeline === '2_3_years' ? 3
+            : gm.timeline === 'dynasty_long' ? 4
+            : Math.max(1, Math.min(HORIZON, Math.round(gm.horizonYears || HORIZON)));
+
         const openMyRoster = (e) => {
             e?.stopPropagation?.();
             if (navigateWidget) navigateWidget('myteam');
@@ -71,24 +81,24 @@
                 const players = groups[pos].sort((a, b) => b.dhq - a.dhq);
                 const totalDhq = players.reduce((s, p) => s + p.dhq, 0);
                 const primeShares = [];
-                for (let t = 0; t < HORIZON; t++) {
+                for (let t = 0; t < horizon; t++) {
                     const prime = players.reduce((s, p) => s + ((p.age + t) <= peakEnd ? p.dhq : 0), 0);
                     primeShares.push(totalDhq > 0 ? prime / totalDhq : 0);
                 }
                 let cliffT = -1;
-                for (let t = 0; t < HORIZON; t++) { if (primeShares[t] < 0.5) { cliffT = t; break; } }
+                for (let t = 0; t < horizon; t++) { if (primeShares[t] < 0.5) { cliffT = t; break; } }
                 const wAge = totalDhq > 0 ? players.reduce((s, p) => s + p.age * p.dhq, 0) / totalDhq : 0;
                 const sellBy = players.filter(p => p.age >= peakEnd - 1 && p.age <= declineEnd && p.dhq >= 2000);
                 return { pos, players, totalDhq, primeShares, cliffT, wAge, peakEnd, declineEnd, sellBy };
             }).sort((a, b) => {
-                const at = a.cliffT === -1 ? HORIZON : a.cliffT;
-                const bt = b.cliffT === -1 ? HORIZON : b.cliffT;
+                const at = a.cliffT === -1 ? horizon : a.cliffT;
+                const bt = b.cliffT === -1 ? horizon : b.cliffT;
                 return at !== bt ? at - bt : b.totalDhq - a.totalDhq;
             });
-        }, [rosterState.isUsable, myRoster, playersData]);
+        }, [rosterState.isUsable, myRoster, playersData, horizon]);
 
         const shareCol = (s) => s >= 0.65 ? colors.positive : s >= 0.4 ? colors.accent : s >= 0.2 ? colors.warn : colors.negative;
-        const cliffLabel = (g) => g.cliffT === -1 ? (season + HORIZON) + '+' : g.cliffT === 0 ? 'NOW' : String(season + g.cliffT);
+        const cliffLabel = (g) => g.cliffT === -1 ? (season + horizon) + '+' : g.cliffT === 0 ? 'NOW' : String(season + g.cliffT);
         const cliffCol = (g) => g.cliffT === -1 ? colors.positive : g.cliffT === 0 ? colors.negative : g.cliffT === 1 ? colors.warn : colors.accent;
         const nearest = forecast.find(g => g.cliffT >= 0);
         const sellByAll = forecast.flatMap(g => g.sellBy.map(p => ({ ...p, pos: g.pos, peakEnd: g.peakEnd }))).sort((a, b) => b.dhq - a.dhq);
@@ -131,6 +141,9 @@
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexShrink: 0 }}>
                     <span style={{ fontSize: opts.large ? '1.05rem' : '0.95rem' }}>⏳</span>
                     <span style={{ fontFamily: fonts.display, fontSize: fs(opts.large ? 1.0 : 0.9), fontWeight: 700, color: colors.warn || 'var(--k-f0a500, #f0a500)', letterSpacing: '0.06em', textTransform: 'uppercase', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Window Forecast</span>
+                    {gm?.hasStrategy && (
+                        <span title={'Horizon set by GM Strategy timeline (' + (gm.modeLabel || 'plan') + ')'} style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--gold)', fontFamily: fonts.mono, whiteSpace: 'nowrap', padding: '1px 6px', borderRadius: '4px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))' }}>{horizon}yr</span>
+                    )}
                     {nearest
                         ? <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: cliffCol(nearest), fontFamily: fonts.mono, whiteSpace: 'nowrap' }}>{posLabel(nearest.pos)} cliff {cliffLabel(nearest)}</span>
                         : <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: colors.positive, fontFamily: fonts.ui, whiteSpace: 'nowrap' }}>No cliffs in view</span>}
@@ -151,7 +164,7 @@
                     <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: colors.textMuted, fontFamily: fonts.ui, borderTop: '1px solid ' + (colors.border || 'var(--ov-4, rgba(255,255,255,0.06))'), paddingTop: '4px', marginTop: '2px', width: '100%' }}>
                         {nearest
                             ? Math.round(g.primeShares[Math.max(g.cliffT, 0)] * 100) + '% of ' + posLabel(g.pos) + ' value in prime by then'
-                            : 'Every group holds 50%+ prime value through ' + (season + HORIZON - 1)}
+                            : 'Every group holds 50%+ prime value through ' + (season + horizon - 1)}
                     </div>
                 </div>
             );
@@ -190,7 +203,7 @@
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px', flexShrink: 0 }}>
                         <span style={{ width: 30 }} />
                         <div style={{ display: 'flex', gap: '2px', flex: 1 }}>
-                            {Array.from({ length: HORIZON }, (_, t) => (
+                            {Array.from({ length: horizon }, (_, t) => (
                                 <span key={t} style={{ flex: 1, fontSize: 'var(--text-micro, 0.6875rem)', color: colors.textFaint, fontFamily: fonts.mono, textAlign: 'center', opacity: 0.7 }}>{String(season + t).slice(-2)}</span>
                             ))}
                         </div>
@@ -245,7 +258,7 @@
                             <div style={{ marginTop: '8px', flexShrink: 0, padding: '8px 10px', background: wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '0D'), border: '1px solid ' + wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '33'), borderRadius: '6px', fontSize: fs(0.7), color: colors.textMuted, lineHeight: 1.5, fontFamily: fonts.ui }}>
                                 {nearest
                                     ? <span><strong style={{ color: colors.warn || 'var(--k-f0a500, #f0a500)' }}>{posLabel(nearest.pos)}</strong> is your first cliff ({cliffLabel(nearest)}). {sellByAll.length ? 'Move ' + sellByAll[0].name + ' while contenders still pay prime prices.' : 'Start sourcing younger ' + posLabel(nearest.pos) + ' depth now.'}</span>
-                                    : 'Your core stays in its prime through ' + (season + HORIZON - 1) + ' — extend the window by flipping aging depth for picks.'}
+                                    : 'Your core stays in its prime through ' + (season + horizon - 1) + ' — extend the window by flipping aging depth for picks.'}
                             </div>
                         </React.Fragment>
                     )}

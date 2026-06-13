@@ -26,6 +26,11 @@
         const rosterState = window.App?.getRosterDataState?.({ roster: myRoster, currentLeague, rosters: currentLeague?.rosters }) || { isUsable: true };
         const posLabel = (pos) => window.App?.posLabel?.(pos) || pos;
 
+        // GM Strategy is the single source of truth — pin strategy targets to top
+        const gm = window.WR.GmMode.useGmEffects(currentLeague);
+        const targetPositions = gm.targetPositions || new Set();
+        const isTarget = (pos) => targetPositions.has(String(pos));
+
         const goTo = (target, e) => {
             e?.stopPropagation?.();
             if (navigateWidget) navigateWidget(target);
@@ -69,12 +74,22 @@
                     .map(t => t.posAssessment?.[pos]?.nflStarters)
                     .filter(n => Number.isFinite(n));
                 const eliteAvg = eliteCounts.length ? eliteCounts.reduce((s, n) => s + n, 0) / eliteCounts.length : null;
-                return { pos, status: v.status, need, depthShort, mine: v.nflStarters || 0, required: v.minQuality || v.startingReq || 1, eliteAvg };
+                return { pos, status: v.status, need, depthShort, mine: v.nflStarters || 0, required: v.minQuality || v.startingReq || 1, eliteAvg, isTarget: isTarget(pos) };
             }).sort((a, b) => {
+                // True deficits always rank first; among the rest, strategy
+                // targets get pulled to the top before the usual urgency order.
+                const ad = a.status === 'deficit' ? 0 : 1;
+                const bd = b.status === 'deficit' ? 0 : 1;
+                if (ad !== bd) return ad - bd;
+                if (ad === 1) {
+                    const at = a.isTarget ? 0 : 1;
+                    const bt = b.isTarget ? 0 : 1;
+                    if (at !== bt) return at - bt;
+                }
                 const ur = (urgencyRank[a.status] ?? 2) - (urgencyRank[b.status] ?? 2);
                 return ur !== 0 ? ur : (b.need - a.need) || (b.depthShort - a.depthShort);
             });
-        }, [myAssess, allAssess]);
+        }, [myAssess, allAssess, targetPositions]);
 
         const openGaps = gaps.filter(g => g.status === 'deficit' || g.status === 'thin');
         const topGap = openGaps[0] || null;
@@ -173,11 +188,14 @@
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fs(0.7), color: colors.textFaint, fontStyle: 'italic', fontFamily: fonts.ui }}>No assessment yet</div>
                         )}
                         {rows.map(g => (
-                            <div key={g.pos} role="button" tabIndex={0} title={'Open ' + (g.need > 0 || g.depthShort > 0 ? 'Free Agency' : 'My Roster')}
+                            <div key={g.pos} role="button" tabIndex={0} title={(g.isTarget ? 'Strategy target — ' : '') + 'Open ' + (g.need > 0 || g.depthShort > 0 ? 'Free Agency' : 'My Roster')}
                                 onClick={e => goTo(g.need > 0 || g.depthShort > 0 ? 'fa' : 'myteam', e)}
                                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goTo(g.need > 0 || g.depthShort > 0 ? 'fa' : 'myteam', e); } }}
-                                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '3px 6px', minHeight: '26px', borderRadius: '4px', background: 'var(--ov-1, rgba(255,255,255,0.02))', borderLeft: '2px solid ' + statusCol(g.status), cursor: 'pointer' }}>
-                                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: colors.text, width: 30, fontFamily: fonts.ui }}>{posLabel(g.pos)}</span>
+                                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '3px 6px', minHeight: '26px', borderRadius: '4px', background: g.isTarget ? wrAlpha(colors.gold || 'var(--gold, #d4af37)', '0F') : 'var(--ov-1, rgba(255,255,255,0.02))', borderLeft: '2px solid ' + (g.isTarget ? (colors.gold || 'var(--gold, #d4af37)') : statusCol(g.status)), cursor: 'pointer' }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '3px', width: 30, flexShrink: 0 }}>
+                                    {g.isTarget && <span title="Strategy target" style={{ width: 5, height: 5, borderRadius: '50%', background: colors.gold || 'var(--gold, #d4af37)', flexShrink: 0, boxShadow: '0 0 4px ' + wrAlpha(colors.gold || 'var(--gold, #d4af37)', '99') }} />}
+                                    <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: g.isTarget ? (colors.gold || 'var(--gold, #d4af37)') : colors.text, fontFamily: fonts.ui }}>{posLabel(g.pos)}</span>
+                                </span>
                                 <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: statusCol(g.status), fontFamily: fonts.ui, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{needText(g)}</span>
                                 {countBar(g)}
                                 <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: colors.textFaint, fontFamily: fonts.mono, minWidth: 52, textAlign: 'right' }} title={'Your starter-quality count vs elite tier teams average'}>

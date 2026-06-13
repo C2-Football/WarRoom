@@ -357,6 +357,9 @@
         // GM-Office filters scope the recommendation surfaces (not the market pool).
         const gmFa = getGmFaFilters(currentLeague);
         const recPool = args.skipGmFilters ? availablePlayers : applyGmFaFilters(availablePlayers, gmFa);
+        // GM Strategy target positions float relevant FA adds to the top.
+        const gmEff = window.WR?.GmMode?.effects?.(currentLeague?.id || currentLeague?.league_id) || {};
+        const gmTargets = gmEff.targetPositions instanceof Set ? gmEff.targetPositions : new Set();
 
         const needPositions = (assess?.needs || []).slice(0, 3).map(n => n.pos).filter(Boolean);
         let recommendations = [];
@@ -388,8 +391,8 @@
             .sort((a, b) => (b.fitScore * 5000 + b.dhq + (b.ppg || 0) * 35) - (a.fitScore * 5000 + a.dhq + (a.ppg || 0) * 35));
         const priorityAdds = (recommendations.length ? recommendations : actionBoardPlayers)
             .map(decorateFaCandidate)
-            .map(x => ({ ...x, seeded: crazeSeed.has(String(x.pid)) }))
-            .sort((a, b) => (Number(b.seeded) - Number(a.seeded)) || ((b.fitScore * 5000 + b.dhq) - (a.fitScore * 5000 + a.dhq)))
+            .map(x => ({ ...x, seeded: crazeSeed.has(String(x.pid)), isStrategicTarget: gmTargets.has(x.pos) }))
+            .sort((a, b) => (Number(b.seeded) - Number(a.seeded)) || (Number(b.isStrategicTarget) - Number(a.isStrategicTarget)) || ((b.fitScore * 5000 + b.dhq) - (a.fitScore * 5000 + a.dhq)))
             .slice(0, 5);
         if (typeof window.App?.Intelligence?.publishRecommendations === 'function') {
             window.App.Intelligence.publishRecommendations('waiver', priorityAdds.map(x => x.intelligence).filter(Boolean), { surface: 'free-agency-action-board' });

@@ -153,6 +153,14 @@
         const learning = opts.recapLearning || null;
         const gmMode = inferGmMode(leagueId, opts);
         const gmAdjust = gmModeDraftAdjustment(gmMode);
+        // GM Strategy aggression nudges in-draft trade frequency on top of mode
+        // (conservative trades less, aggressive trades more).
+        try {
+            const eff = window.WR?.GmMode?.effects?.(leagueId);
+            if (eff && Number.isFinite(eff.aggression)) {
+                gmAdjust.tradeActivity = (gmAdjust.tradeActivity || 0) + Math.round((eff.aggression - 0.52) * 40);
+            }
+        } catch (_) { /* ignore */ }
         let tuning = mergeDraftTuning(base, preset.tuning);
 
         DRAFT_TUNING_KEYS.forEach(key => {

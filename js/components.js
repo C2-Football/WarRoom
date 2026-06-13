@@ -430,6 +430,9 @@
     window.TradeFinderTab = TradeFinderTab;
 
     function tradeFinderAcceptanceFloorFromSettings(settings = {}) {
+        // GM Strategy is the single source of truth for the acceptance floor.
+        const gmFloor = window.WR?.GmMode?.effects?.()?.acceptanceFloor;
+        if (Number.isFinite(Number(gmFloor))) return Math.max(55, Math.min(90, Math.round(Number(gmFloor))));
         const sharedFloor = window.WR?.AlexSettings?.actionableTradeAcceptanceFloor?.(settings);
         if (Number.isFinite(Number(sharedFloor))) return Math.max(55, Math.min(90, Math.round(Number(sharedFloor))));
         const raw = Number(settings.tradeAggression);
@@ -454,13 +457,21 @@
         const autoTargetRef = React.useRef(false);
 
         React.useEffect(() => {
-            if (!window.WR?.AlexSettings?.subscribe) return undefined;
-            return window.WR.AlexSettings.subscribe((next) => setActionableAcceptanceFloor(currentTradeFinderAcceptanceFloor(next)));
+            const onGm = () => setActionableAcceptanceFloor(currentTradeFinderAcceptanceFloor());
+            window.addEventListener('wr:gm-mode-changed', onGm);
+            let unsub;
+            if (window.WR?.AlexSettings?.subscribe) {
+                unsub = window.WR.AlexSettings.subscribe((next) => setActionableAcceptanceFloor(currentTradeFinderAcceptanceFloor(next)));
+            }
+            return () => { window.removeEventListener('wr:gm-mode-changed', onGm); if (unsub) unsub(); };
         }, []);
 
-        const myPlayers = React.useMemo(() => (allRosters.find(r => r.roster_id === myRosterId)?.players || [])
-            .map(pid => ({ pid, name: playersData[pid]?.full_name || pid, pos: playersData[pid]?.position || '?', val: getPlayerValue(pid).value }))
-            .filter(p => p.val > 0).sort((a,b) => b.val - a.val), [allRosters, playersData]);
+        const myPlayers = React.useMemo(() => {
+            const untouchable = window.WR?.GmMode?.effects?.()?.untouchable || new Set();
+            return (allRosters.find(r => r.roster_id === myRosterId)?.players || [])
+                .map(pid => ({ pid, name: playersData[pid]?.full_name || pid, pos: playersData[pid]?.position || '?', val: getPlayerValue(pid).value }))
+                .filter(p => p.val > 0 && !untouchable.has(String(p.pid))).sort((a,b) => b.val - a.val);
+        }, [allRosters, playersData, actionableAcceptanceFloor]);
 
         const allLeaguePlayers = React.useMemo(() => {
             const list = [];

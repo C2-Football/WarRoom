@@ -2110,7 +2110,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script>WRShared.loadMany(WR_SHARED_FILES);</script>
 <!-- Preserve shared/tier.js canAccess before core.js hoists its own canAccess over window.canAccess -->
 <script>window._sharedCanAccess = window.canAccess;</script>
-<script src="https://c2-football.github.io/ReconAI/js/pro-launch.js?v=20260414d"></script>
+<script src="js/pro-launch.js?v=20260414d"></script>
 <script src="college-stats.js"></script>
 <script src="draft-history.js"></script>
 <script src="charts.js"></script>
@@ -2134,7 +2134,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- 1b. Format/phase skin contract for league-type-aware modules -->
 <script src="js/league-skin.js?v=20260526redraftqa1"></script>
 <!-- 2. Shared components: UpgradeGate, GMMessage, PlayerInlineCard, TradeFinderTab -->
-<script type="text/babel" src="js/components.js?v=20260427font1"></script>
+<script type="text/babel" src="js/components.js?v=20260613gm1"></script>
 <!-- 2b. Unified Player Card (SI-2) — window.WR.openPlayerCard — replaces CDN modal -->
 <!-- Shared visual primitives (WR.Card / Badge / Chip / ConfChip / DeltaLine / Kpi / InsightCard) -->
 <script type="text/babel" src="js/components/wr-primitives.js?v=20260427font1"></script>
@@ -2144,9 +2144,9 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- 2c-2. Saved Alex Reports — window.WR.SavedReports — local cache + ai_analysis server sync -->
 <script src="js/shared/saved-reports.js?v=20260601reports1"></script>
 <!-- 2d. GM Mode helper (Phase 1) — window.WR.GmMode — canonical mode/preset source of truth -->
-<script type="text/babel" src="js/shared/gm-mode.js?v=20260418a"></script>
+<script type="text/babel" src="js/shared/gm-mode.js?v=20260613gm3"></script>
 <!-- 2e. Alex behavioral-insight settings — window.WR.AlexSettings — shared tuning for every Alex surface -->
-<script type="text/babel" src="js/shared/alex-settings.js?v=20260502c"></script>
+<script type="text/babel" src="js/shared/alex-settings.js?v=20260613gm1"></script>
 <!-- 2f. Achievements catalog — window.WrAchievements — first-class legacy badge system -->
 <script src="js/shared/achievements.js?v=20260426p14"></script>
 <!-- 2g. League history loader — window.WrHistory — Sleeper chain walker for season history -->
@@ -2156,7 +2156,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 
 <script src="js/shared/wr-ai-context.js?v=20260610a"></script>
 <!-- Alex's Desk — cross-league AI digest card for the hub (window.WR.DashboardDigestCard) -->
-<script src="js/tabs/dashboard-digest.js?v=20260610a"></script>
+<script src="js/tabs/dashboard-digest.js?v=20260613gm1"></script>
 <!-- 2i. Per-league transaction cache — window.WrTxns — cross-league activity + DNA substrate -->
 <script src="js/shared/txn-store.js?v=20260601a"></script>
 <!-- 3. Shared utilities: player valuation constants + projection engine -->
@@ -2169,9 +2169,9 @@ WRShared.preloadMany(WR_SHARED_FILES);
      group, when the owning surface first calls wrLoadModuleGroup('<group>'). -->
 <script src="js/module-loader.js?v=20260612modlazy1"></script>
 <script type="text/babel" src="js/settings.js?v=20260525redraftnav1"></script>
-<script type="text/babel" data-wr-defer="trade" src="js/trade-calc.js?v=20260518dealhqdark1"></script>
+<script type="text/babel" data-wr-defer="trade" src="js/trade-calc.js?v=20260613gm1"></script>
 <script type="text/babel" src="js/post-draft.js?v=20260609postdraft1"></script>
-<script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260516click3"></script>
+<script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260613gm1"></script>
 <!-- 4b. Draft Command Center modules — group "draft" (~28 scripts, ~1.26MB),
      loaded on first Draft-tab open. -->
 <script type="text/babel" data-wr-defer="draft" src="js/draft/styles.js?v=20260427font1"></script>
@@ -2180,7 +2180,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/context.js?v=20260517aiguard"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/persona.js?v=20260415cd8"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/cpu-engine.js?v=20260415cd8"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/state.js?v=20260612drafthold"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/state.js?v=20260613gm1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/big-board.js?v=20260601layout"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/draft-grid.js?v=20260418a"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/opponent-intel.js?v=20260601layout"></script>
@@ -2204,38 +2204,38 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260612drafthold2"></script>
 <!-- 5. League detail tab components (extracted from league-detail.js) -->
 <!-- v2 widget modules (load before dashboard.js which consumes them) -->
-<script type="text/babel" src="js/widgets/roster-pulse.js?v=20260611kpifix1"></script>
-<script type="text/babel" src="js/widgets/window-forecast.js?v=20260611wf1"></script>
-<script type="text/babel" src="js/widgets/gap-plan.js?v=20260611gp1"></script>
-<script type="text/babel" src="js/widgets/league-landscape.js?v=20260611kpifix1"></script>
-<script type="text/babel" src="js/widgets/market-radar.js?v=20260611kpifix1"></script>
-<script type="text/babel" src="js/widgets/draft-capital.js?v=20260611kpifix1"></script>
+<script type="text/babel" src="js/widgets/roster-pulse.js?v=20260613gm1"></script>
+<script type="text/babel" src="js/widgets/window-forecast.js?v=20260613gm1"></script>
+<script type="text/babel" src="js/widgets/gap-plan.js?v=20260613gm1"></script>
+<script type="text/babel" src="js/widgets/league-landscape.js?v=20260613gm1"></script>
+<script type="text/babel" src="js/widgets/market-radar.js?v=20260613gm1"></script>
+<script type="text/babel" src="js/widgets/draft-capital.js?v=20260613gm1"></script>
 <!-- SI-3: Tag-driven widgets (Trade Block / Cut Candidates / Waiver Targets) -->
 <script type="text/babel" src="js/widgets/player-tags.js?v=20260516liveclick1"></script>
 <!-- Phase 3: League intel widgets (Competitive Tiers, Power Rankings) — ex-League Map -->
-<script type="text/babel" src="js/widgets/competitive-tiers.js?v=20260611kpifix1"></script>
+<script type="text/babel" src="js/widgets/competitive-tiers.js?v=20260613gm1"></script>
 <script type="text/babel" src="js/widgets/power-rankings.js?v=20260611kpifix1"></script>
 <!-- Phase 9: My Trophies widget -->
 <script type="text/babel" src="js/widgets/my-trophies.js?v=20260611kpifix1"></script>
 <script type="text/babel" src="js/tabs/dashboard.js?v=20260611kpifix1"></script>
-<script type="text/babel" src="js/tabs/flash-brief.js?v=20260612modlazy1"></script>
+<script type="text/babel" src="js/tabs/flash-brief.js?v=20260613gm1"></script>
 <!-- Group "analysis": analytics.js embeds LeagueMapTab, so both defer together
      (league-map.js first — DOM order is execution order within a group). -->
 <script type="text/babel" data-wr-defer="analysis" src="js/tabs/league-map.js?v=20260605rookiefix1"></script>
-<script type="text/babel" src="js/tabs/my-team.js?v=20260524density1"></script>
+<script type="text/babel" src="js/tabs/my-team.js?v=20260613gm1"></script>
 <!-- Compare: extracted from My Roster's former sub-view, now a top-level ROSTER-group tab. -->
-<script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20260524compare1"></script>
-<script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260605analytics3"></script>
+<script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20260613gm1"></script>
+<script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260613gm1"></script>
 <script type="text/babel" data-wr-defer="trophies" src="js/tabs/trophy-room.js?v=20260525redraftnav1"></script>
 <script type="text/babel" src="js/tabs/calendar.js?v=20260525redraftnav1"></script>
 <!-- Alex Insights (Option A): top-level tab for behavioral analysis + AI settings -->
-<script type="text/babel" data-wr-defer="alex" src="js/tabs/alex-insights.js?v=20260531voice1"></script>
+<script type="text/babel" data-wr-defer="alex" src="js/tabs/alex-insights.js?v=20260613gm2"></script>
 <!-- Group "empire": hub-level Empire Dashboard (Pro mode), loaded by app.js when
      Pro mode activates — also provides window.App.buildEmpireDna etc. -->
 <script type="text/babel" data-wr-defer="empire" src="js/tabs/global-view.js?v=20260427font1"></script>
 <script src="js/tutorial.js?v=20260503tutorial1"></script>
 <!-- 6. Strategy editor: calls shared GMStrategy API, no logic duplication -->
-<script type="text/babel" src="js/tabs/strategy-editor.js?v=20260502office1"></script>
+<script type="text/babel" src="js/tabs/strategy-editor.js?v=20260613gm1"></script>
 <!-- 7. League detail: coordinator shell, depends on all above -->
     <script type="text/babel" src="js/league-detail.js?v=20260612modlazy1"></script>
 <!-- 8. App: OwnerDashboard + ReactDOM.render (loads last) -->

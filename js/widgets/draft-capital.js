@@ -25,6 +25,53 @@
         const totalTeams = currentLeague?.rosters?.length || 12;
         const tradedPicks = window.S?.tradedPicks || [];
 
+        // ── GM Strategy: tilt how we read/order pick capital ──
+        const gm = window.WR.GmMode.useGmEffects(currentLeague);
+        const draftStyle = gm?.draftStyle || 'bpa';
+        const timeline = gm?.timeline || '2_3_years';
+        // Strategy posture drives ordering + a one-line tag.
+        // accumulate → value every pick (stack capital); consolidate → early
+        // picks matter most; positional_need → neutral. Timeline shades which
+        // years we lean on: 1_year → near-term, dynasty_long → future.
+        const draftPosture = React.useMemo(() => {
+            const nearYear = parseInt(season);
+            const styleMap = {
+                accumulate: { tag: 'Stacking capital', detail: 'all picks valued', order: 'value', emphasis: 'all' },
+                consolidate: { tag: 'Consolidating', detail: 'early picks emphasized', order: 'value', emphasis: 'early' },
+                positional_need: { tag: 'Filling needs', detail: 'neutral capital read', order: 'none', emphasis: 'none' },
+                bpa: { tag: 'Best available', detail: 'neutral capital read', order: 'none', emphasis: 'none' },
+            };
+            const base = styleMap[draftStyle] || styleMap.bpa;
+            const timelineMap = {
+                '1_year': { tag: 'near-term picks', favorNear: true, favorFar: false },
+                'dynasty_long': { tag: 'future picks', favorNear: false, favorFar: true },
+                '2_3_years': { tag: null, favorNear: false, favorFar: false },
+            };
+            const tl = timelineMap[timeline] || timelineMap['2_3_years'];
+            return {
+                ...base,
+                tl,
+                nearYear,
+                // Years worth emphasizing under the timeline lean.
+                favorNear: tl.favorNear,
+                favorFar: tl.favorFar,
+                label: base.tag + (tl.tag ? ' · ' + tl.tag : ''),
+                active: gm?.hasStrategy && (base.order !== 'none' || tl.favorNear || tl.favorFar),
+            };
+        }, [draftStyle, timeline, season, gm?.hasStrategy]);
+
+        // Per-pick strategy weight: blends round emphasis (consolidate) and
+        // year emphasis (timeline). Higher = more strategy-relevant.
+        const pickStratWeight = React.useCallback((p) => {
+            let w = 0;
+            if (draftPosture.emphasis === 'early' && p.round <= 2) w += 2;
+            if (draftPosture.favorNear && p.year === draftPosture.nearYear) w += 2;
+            if (draftPosture.favorFar && p.year > draftPosture.nearYear) w += 1.5;
+            return w;
+        }, [draftPosture]);
+        // Does this pick get a strategy accent dot?
+        const isStratPick = React.useCallback((p) => draftPosture.active && pickStratWeight(p) > 0, [draftPosture, pickStratWeight]);
+
         // ── Pick inventory ──
         const picks = React.useMemo(() => {
             const inv = [];
@@ -77,7 +124,9 @@
             else if (typeof window.openPlayerModal === 'function') window.openPlayerModal(pid);
         };
 
-        // Group picks by year (used by lg/xxl)
+        // Group picks by year (used by lg/xxl). When a draft posture is active,
+        // float strategy-relevant picks to the top of each year so the rows the
+        // current GM Strategy cares about read first (and survive maxPerYear).
         const picksByYear = React.useMemo(() => {
             const groups = {};
             picks.forEach(p => {
@@ -85,8 +134,12 @@
                 if (!groups[yr]) groups[yr] = [];
                 groups[yr].push(p);
             });
+            if (draftPosture.active) {
+                Object.values(groups).forEach(g => g.sort((a, b) =>
+                    (pickStratWeight(b) - pickStratWeight(a)) || (b.value - a.value)));
+            }
             return Object.entries(groups).sort((a, b) => a[0] - b[0]);
-        }, [picks]);
+        }, [picks, draftPosture, pickStratWeight]);
 
         // League capital per team (rank strip + xxl chart). Hoisted above the
         // size branches: a useMemo inside `if (size === 'xxl')` violates the
@@ -142,6 +195,9 @@
                     <div style={{ fontSize: fs(0.85), color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '4px', fontFamily: fonts.ui }}>
                         {pickCount} PICKS
                     </div>
+                    {draftPosture.active && (
+                        <div title={'GM Strategy · ' + draftPosture.detail} style={{ marginTop: '4px', fontSize: fs(0.5), fontWeight: 700, color: colors.warn || 'var(--k-f0a500, #f0a500)', fontFamily: fonts.ui, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{draftPosture.tag}</div>
+                    )}
                     {countdown && (
                         <div style={{
                             marginTop: '6px', fontSize: fs(0.64),
@@ -161,13 +217,22 @@
                 return { year, total, count };
             });
             const maxYearTotal = Math.max(...yearTotals.map(y => y.total), 1);
-            const top2 = [...picks].sort((a, b) => b.value - a.value).slice(0, 2);
+            // With a draft posture active, surface the on-strategy picks first;
+            // otherwise fall back to pure value (existing behavior).
+            const top2 = [...picks].sort((a, b) =>
+                (draftPosture.active ? (pickStratWeight(b) - pickStratWeight(a)) : 0) || (b.value - a.value)
+            ).slice(0, 2);
+            const top2Label = draftPosture.active ? 'On-strategy: ' : 'Best: ';
 
             return (
                 <div onClick={onClick} style={{ ...cardStyle, padding: 'var(--card-pad-sm, 10px 12px)', cursor: 'pointer', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexShrink: 0 }}>
                         <span style={{ fontSize: '0.95rem' }}>🎯</span>
-                        <span style={{ fontFamily: fonts.display, fontSize: fs(0.85), fontWeight: 700, color: colors.warn || 'var(--k-f0a500, #f0a500)', letterSpacing: '0.06em', textTransform: 'uppercase', flex: 1 }}>Draft Capital</span>
+                        <span style={{ fontFamily: fonts.display, fontSize: fs(0.85), fontWeight: 700, color: colors.warn || 'var(--k-f0a500, #f0a500)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Draft Capital</span>
+                        {draftPosture.active && (
+                            <span title={'GM Strategy · ' + draftPosture.detail} style={{ fontSize: fs(0.46), fontWeight: 700, color: colors.warn || 'var(--k-f0a500, #f0a500)', fontFamily: fonts.ui, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '1px 4px', borderRadius: 3, background: wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '1A'), border: '1px solid ' + wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '40'), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 120 }}>{draftPosture.label}</span>
+                        )}
+                        <span style={{ flex: 1 }} />
                         {countdown && <span style={{ fontSize: fs(0.6), color: countdown.live ? colors.positive : colors.accent, fontWeight: 700, fontFamily: fonts.ui }}>{countdown.live ? '🔴' : countdown.text}</span>}
                     </div>
                     {/* Year value bars */}
@@ -189,7 +254,7 @@
                     {/* Top picks */}
                     <div style={{ flex: 1, minHeight: 0, fontSize: fs(0.62), color: colors.textMuted, fontFamily: fonts.ui, lineHeight: 1.4, borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))', paddingTop: '4px' }}>
                         {top2.length
-                            ? 'Best: ' + top2.map(p => p.label + ' (' + (p.value >= 1000 ? (p.value / 1000).toFixed(1) + 'k' : p.value) + (pickEquiv(p.value) ? ', ' + pickEquiv(p.value) : '') + ')').join(' · ')
+                            ? top2Label + top2.map(p => p.label + ' (' + (p.value >= 1000 ? (p.value / 1000).toFixed(1) + 'k' : p.value) + (pickEquiv(p.value) ? ', ' + pickEquiv(p.value) : '') + ')').join(' · ')
                             : 'No picks owned — all draft capital traded away'}
                     </div>
                 </div>
@@ -219,8 +284,10 @@
                                 </div>
                                 {yearPicks.map((p, i) => {
                                     const equiv = pickEquiv(p.value);
+                                    const strat = isStratPick(p);
                                     return (
                                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '1px 0', fontSize: fs(compact ? 0.56 : 0.62) }}>
+                                            {strat && <span title={'On-strategy: ' + draftPosture.tag} style={{ width: 5, height: 5, borderRadius: '50%', background: colors.warn || 'var(--k-f0a500, #f0a500)', flexShrink: 0, boxShadow: '0 0 4px ' + wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '99') }} />}
                                             <span style={{ fontWeight: 700, color: p.own ? colors.text : colors.accent, minWidth: 60, fontFamily: fonts.ui }}>{p.label}</span>
                                             {!p.own && <span style={{ fontSize: fs(0.48), fontWeight: 700, color: colors.purple || 'var(--k-7c6bf8, #7c6bf8)', padding: '0 3px', background: wrAlpha(colors.purple || 'var(--k-7c6bf8, #7c6bf8)', '18'), borderRadius: 2 }}>TR</span>}
                                             <div style={{ flex: 1, height: 4, background: 'var(--ov-3, rgba(255,255,255,0.04))', borderRadius: 2, overflow: 'hidden' }}>
@@ -278,7 +345,11 @@
             return (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexShrink: 0 }}>
                     <span style={{ fontSize: '1rem' }}>🎯</span>
-                    <span style={{ fontFamily: fonts.display, fontSize: fs(0.95), fontWeight: 700, color: colors.warn || 'var(--k-f0a500, #f0a500)', letterSpacing: '0.07em', textTransform: 'uppercase', flex: 1 }}>Draft Capital</span>
+                    <span style={{ fontFamily: fonts.display, fontSize: fs(0.95), fontWeight: 700, color: colors.warn || 'var(--k-f0a500, #f0a500)', letterSpacing: '0.07em', textTransform: 'uppercase' }}>Draft Capital</span>
+                    {draftPosture.active && (
+                        <span title={'GM Strategy · ' + draftPosture.detail} style={{ fontSize: fs(0.5), fontWeight: 700, color: colors.warn || 'var(--k-f0a500, #f0a500)', fontFamily: fonts.ui, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '1px 5px', borderRadius: 3, background: wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '1A'), border: '1px solid ' + wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '40'), whiteSpace: 'nowrap' }}>{draftPosture.label}</span>
+                    )}
+                    <span style={{ flex: 1 }} />
                     {countdown && <span style={{ fontSize: fs(0.62), color: countdown.live ? colors.positive : colors.accent, fontWeight: 700, fontFamily: fonts.ui }}>{countdown.live ? '🔴 LIVE' : countdown.text}</span>}
                     <button onClick={openDraft} title="Open Draft Command" style={{ padding: '3px 8px', background: wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '1A'), color: colors.warn || 'var(--k-f0a500, #f0a500)', border: '1px solid ' + wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '47'), borderRadius: '5px', cursor: 'pointer', fontSize: fs(0.56), fontFamily: fonts.ui, fontWeight: 700, whiteSpace: 'nowrap' }}>Draft</button>
                 </div>

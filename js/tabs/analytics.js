@@ -67,6 +67,9 @@ function AnalyticsPanel({
   getAcquisitionInfo,
 }) {
     const _seasonCtx = React.useContext(window.App.SeasonContext) || {};
+    // GM Strategy is the single source of truth for the displayed mode/strategy lens.
+    // Live-updates on GM Strategy save; the tier assessment below is only a fallback.
+    const gm = window.WR.GmMode.useGmEffects(currentLeague);
     // _SS mirrors the window.S shape consumed throughout this component
     const _SS = {
         rosters: _seasonCtx.rosters?.length ? _seasonCtx.rosters : (window.S?.rosters || currentLeague?.rosters || []),
@@ -635,29 +638,54 @@ function AnalyticsPanel({
             const winNowScore = (rosterCliffPct >= 25 && compYears <= 2) ? 'CRITICAL' : (rosterCliffPct >= 25) ? 'MANAGED' : (rosterCliffPct >= 15 && compYears <= 1) ? 'ELEVATED' : 'LOW';
             const winNowColor = winNowScore === 'CRITICAL' ? badColor : winNowScore === 'LOW' ? goodColor : warnColor;
 
-            // Suggested Mode — the franchise's recommended operating posture (the football
-            // framing of the old "operating thesis"). Mode label + directive are derived
-            // together so they can never disagree. Drive off the robust tier/window/cliff
-            // signals; only lean on noisy winner-template deltas when the champion sample is
-            // trustworthy (winnerN >= 2).
-            let modeLabel, modeColor, rosterStrategy;
+            // Suggested Mode — the franchise's operating posture (the football framing of the
+            // old "operating thesis"). Mode label + directive are derived together so they can
+            // never disagree.
+            //
+            // GM Strategy is the single source of truth: when the owner has set a strategy
+            // (gm.hasStrategy), gm.mode/gm.modeLabel drive the displayed posture directly. The
+            // tier/window/cliff read below is only the FALLBACK that infers a posture when no GM
+            // Strategy is set (and still seeds the directive copy in every case). Drive that
+            // fallback off the robust tier/window/cliff signals; only lean on noisy
+            // winner-template deltas when the champion sample is trustworthy (winnerN >= 2).
+            let tierModeLabel, tierModeColor, rosterStrategy;
             if (winnerN < 2) {
-                if (tier === 'REBUILDING') { modeLabel = 'REBUILD'; modeColor = warnColor; rosterStrategy = 'accumulate youth and picks — you are early in the build (champion benchmark unavailable)'; }
-                else { modeLabel = 'RETOOL'; modeColor = warnColor; rosterStrategy = 'target your weakest starter rooms (champion benchmark unavailable for template comparison)'; }
+                if (tier === 'REBUILDING') { tierModeLabel = 'REBUILD'; tierModeColor = warnColor; rosterStrategy = 'accumulate youth and picks — you are early in the build (champion benchmark unavailable)'; }
+                else { tierModeLabel = 'RETOOL'; tierModeColor = warnColor; rosterStrategy = 'target your weakest starter rooms (champion benchmark unavailable for template comparison)'; }
             } else if (tier === 'REBUILDING' || compYears <= 1) {
-                modeLabel = 'REBUILD'; modeColor = badColor; rosterStrategy = 'sell aging veterans for youth and picks — your window is closing';
+                tierModeLabel = 'REBUILD'; tierModeColor = badColor; rosterStrategy = 'sell aging veterans for youth and picks — your window is closing';
             } else if (rosterCliffPct >= 25 && compYears <= 2) {
-                modeLabel = 'WIN-NOW'; modeColor = warnColor; rosterStrategy = 'win now — cash aging value before the cliff while your window is open';
+                tierModeLabel = 'WIN-NOW'; tierModeColor = warnColor; rosterStrategy = 'win now — cash aging value before the cliff while your window is open';
             } else if (ageDiffDiag > 1.5 && dhqGap < 0) {
-                modeLabel = 'RETOOL'; modeColor = warnColor; rosterStrategy = 'sell aging veterans and acquire young elites';
+                tierModeLabel = 'RETOOL'; tierModeColor = warnColor; rosterStrategy = 'sell aging veterans and acquire young elites';
             } else if (eliteDiffDiag < -1) {
-                modeLabel = 'RELOAD'; modeColor = warnColor; rosterStrategy = 'buy young elite players to close the talent gap';
+                tierModeLabel = 'RELOAD'; tierModeColor = warnColor; rosterStrategy = 'buy young elite players to close the talent gap';
             } else if (dhqGap >= 0 && ageDiffDiag <= 0.5) {
-                modeLabel = 'RUN IT BACK'; modeColor = goodColor; rosterStrategy = 'hold course — your roster matches the elite tier template';
+                tierModeLabel = 'RUN IT BACK'; tierModeColor = goodColor; rosterStrategy = 'hold course — your roster matches the elite tier template';
             } else {
-                modeLabel = 'RETOOL'; modeColor = warnColor; rosterStrategy = 'target strategic upgrades at your weakest positions';
+                tierModeLabel = 'RETOOL'; tierModeColor = warnColor; rosterStrategy = 'target strategic upgrades at your weakest positions';
             }
-            const modeDirective = rosterStrategy.charAt(0).toUpperCase() + rosterStrategy.slice(1) + '.';
+            const tierModeDirective = rosterStrategy.charAt(0).toUpperCase() + rosterStrategy.slice(1) + '.';
+            // Football-framed directives for the three GM Strategy presets — used when the owner
+            // has explicitly set a strategy so the posture matches their plan, not the inference.
+            const GM_MODE_FRAME = {
+                rebuild:  { label: 'REBUILD',     color: gm.badgeColor || warnColor, directive: 'Accumulate youth and picks; sell aging veterans for your next dynasty core.' },
+                compete:  { label: 'COMPETE',     color: gm.badgeColor || goodColor, directive: 'Balance present and future — hold your core and upgrade only at peak value.' },
+                win_now:  { label: 'WIN-NOW',     color: gm.badgeColor || badColor,  directive: 'Spend future picks and young depth on proven starters — the window is open now.' },
+                custom:   { label: gm.modeLabel || 'CUSTOM', color: gm.badgeColor || warnColor, directive: tierModeDirective },
+            };
+            // GM Strategy is primary; tier inference is the fallback when no strategy is set.
+            const gmFrame = gm.hasStrategy ? (GM_MODE_FRAME[gm.mode] || GM_MODE_FRAME.custom) : null;
+            const modeLabel = gmFrame ? gmFrame.label : tierModeLabel;
+            const modeColor = gmFrame ? gmFrame.color : tierModeColor;
+            const modeDirective = gmFrame ? gmFrame.directive : tierModeDirective;
+            const modeSource = gmFrame ? 'GM Strategy' : 'inferred from tier';
+            // Analysis window label — driven by GM Strategy timeline when set, else the model's
+            // estimated compete window. horizonYears: 1 | 2.5 | 7.
+            const windowYears = gm.hasStrategy ? gm.horizonYears : compYears;
+            const windowLabel = gm.hasStrategy
+                ? (gm.timeline === '1_year' ? 'win-now (1yr) window' : gm.timeline === 'dynasty_long' ? 'dynasty (long) window' : '2-3yr window')
+                : (compYears + 'yr window (model est.)');
             const rosterProofItems = [
                 { label: 'Champion Value Gap', value: winnerN < 2 ? '—' : signedNum(dhqGap, ' DHQ'), detail: winnerN < 2 ? 'Champion sample too small (' + winnerN + ') to benchmark.' : 'You vs ' + winnerN + '-team ' + (winnerSource === 'brackets' ? 'champion' : 'top-standings') + ' template (avg ' + numFmt(w.avgTotalDHQ) + ' DHQ).', tone: winnerN < 2 ? 'warn' : toneFromDelta(dhqGap), color: winnerN < 2 ? warnColor : (dhqGap >= 0 ? goodColor : badColor) },
                 { label: 'Elite Asset Gap', value: winnerN < 2 ? '—' : signedNum(eliteDiffDiag), detail: winnerN < 2 ? 'Champion sample too small to benchmark elites.' : 'Your ' + mElite + ' elites vs ' + wElite + ' for the ' + winnerN + '-team template.', tone: winnerN < 2 ? 'warn' : toneFromDelta(eliteDiffDiag), color: winnerN < 2 ? warnColor : (eliteDiffDiag >= 0 ? goodColor : badColor) },
@@ -721,13 +749,14 @@ function AnalyticsPanel({
                 <AnalyticsCommandPanel
                     title="What exactly separates this roster from the league's winning build?"
                     thesis={'Analytics is reading your roster as evidence: winner-template gaps, room-level coverage, age-window risk, and the positions where a move actually changes your title path.'}
-                    mode={{ label: modeLabel, directive: modeDirective, color: modeColor }}
+                    mode={{ label: modeLabel, directive: modeDirective + ' (' + modeSource + ')', color: modeColor }}
                     stats={[
+                        { label: 'Strategy Lens', value: gm.hasStrategy ? (gm.modeLabel || '').toUpperCase() : 'AUTO', sub: gm.hasStrategy ? 'GM Strategy · ' + windowLabel : 'no GM Strategy set · ' + windowLabel, color: gm.hasStrategy ? (gm.badgeColor || 'var(--gold)') : warnColor, tip: gm.hasStrategy ? 'Your GM Strategy is the lens for this whole tab — mode and analysis window come from your saved plan, not an inference.' : 'No GM Strategy set, so the posture below is inferred from your tier, window, and aging-cliff signals. Set a strategy to lock the lens.' },
                         { label: 'Evidence Set', value: allRosters.length + ' teams', sub: 'live league rosters' },
                         { label: 'Champion Sample', value: winnerN + ' teams', sub: winnerSource === 'brackets' ? 'real bracket champions' : 'standings fallback' },
                         { label: 'Benchmark Confidence', value: benchConfidence, sub: benchHigh ? 'brackets, n>=3' : (winnerN < 2 ? 'sample too small' : 'low-trust template'), color: benchConfColor },
                         { label: 'Current Tier', value: tier || 'UNKNOWN', sub: myRank ? '#' + myRank + ' of ' + teamRankings.length + (rankPct != null ? ' · ' + rankPct + 'th pct' : '') : healthScore + ' health', color: tier === 'REBUILDING' ? badColor : tier === 'CONTENDER' || tier === 'ELITE' ? goodColor : warnColor },
-                        { label: 'Win-Now Pressure', value: winNowScore, sub: rosterCliffPct + '% at cliff · ' + compYears + 'yr window (model est.)', color: winNowColor },
+                        { label: 'Win-Now Pressure', value: winNowScore, sub: rosterCliffPct + '% at cliff · ' + windowLabel, color: winNowColor },
                     ]}
                 />
 

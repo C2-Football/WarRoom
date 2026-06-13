@@ -9,7 +9,7 @@
     // Pure presentational: takes already-computed deal-evaluation values and renders the verdict
     // headline, impact grid, posture/DNA chips, 8-factor psych-tax table, and likelihood bar.
     // Reused by the redesigned single-surface Context Rail's Verdict state.
-    function TcVerdictPanel({ verdictColor, diffDisplay, verdictText, totalA, totalB, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta, FAAB_RATE, likelihoodColor, likelihood, netTaxTotal, manualBehaviorFit, otherOwnerId, theirPosture, otherDnaKey, otherDna, manualBehaviorProfile, psychTaxes, grudgeTax }) {
+    function TcVerdictPanel({ verdictColor, diffDisplay, verdictText, totalA, totalB, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta, FAAB_RATE, likelihoodColor, likelihood, netTaxTotal, manualBehaviorFit, otherOwnerId, theirPosture, otherDnaKey, otherDna, manualBehaviorProfile, psychTaxes, grudgeTax, gmFloor, gmModeLabel, gmViability, gmWarnings }) {
         return (
             <div className="tc-ta-verdict tc-ta-sticky-summary" id="wr-export-trade">
                 <div className="tc-section-hdr" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>TRADE ANALYSIS<button onClick={() => window.wrExport?.capture(document.getElementById('wr-export-trade'), 'trade-analysis')} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'4px', padding:'2px 8px', color:'var(--gold)', fontSize:'var(--text-micro, 0.6875rem)', cursor:'pointer', fontFamily: 'var(--font-body)', minHeight:'44px', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>Snapshot</button></div>
@@ -84,10 +84,37 @@
                 )}
                 <div>
                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.3rem' }}>
-                        <span style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.7, textTransform:'uppercase', letterSpacing:'0.06em' }}>Likelihood of Acceptance {React.createElement(Tip, null, 'Estimated chance the other owner accepts. Starts at 50%, then applies value difference plus psychological modifiers from DNA, posture, needs, window, and history.')}</span>
+                        <span style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.7, textTransform:'uppercase', letterSpacing:'0.06em' }}>Likelihood of Acceptance {React.createElement(Tip, null, 'Their chance to accept — starts at 50%, then value difference plus psychological modifiers from DNA, posture, needs, window, and history. This is the OTHER owner\'s odds, not your bar to act.')}</span>
                         <span style={{ fontFamily:'var(--font-mono)', fontSize:'1.4rem', fontWeight:600, color: likelihoodColor }}>{likelihood}%</span>
                     </div>
-                    <div className="tc-likelihood-bar-wrap"><div className="tc-likelihood-bar-fill" style={{ width:`${likelihood}%`, background: likelihoodColor }} /></div>
+                    <div className="tc-likelihood-bar-wrap" style={{ position:'relative' }}>
+                        <div className="tc-likelihood-bar-fill" style={{ width:`${likelihood}%`, background: likelihoodColor }} />
+                        {typeof gmFloor === 'number' && (
+                            <div title={`Your GM bar to act: ${gmFloor}%`} style={{ position:'absolute', top:'-2px', bottom:'-2px', left:`${gmFloor}%`, width:'2px', background:'var(--gold)', boxShadow:'0 0 0 1px rgba(0,0,0,0.45)' }} />
+                        )}
+                    </div>
+                    {(gmModeLabel || gmViability) && (
+                        <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginTop:'0.4rem', flexWrap:'wrap' }}>
+                            {gmViability && (() => {
+                                const vColor = gmViability === 'Playable' ? 'var(--win-green)' : gmViability === 'Negotiable' ? 'var(--warn)' : 'var(--loss-red)';
+                                const vBg = gmViability === 'Playable' ? 'rgba(46,204,113,0.12)' : gmViability === 'Negotiable' ? 'rgba(230,176,40,0.12)' : 'rgba(231,76,60,0.12)';
+                                return <span style={{ fontSize:'0.68rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', padding:'2px 8px', borderRadius:'4px', color:vColor, border:`1px solid ${vColor}`, background:vBg }}>{gmViability}</span>;
+                            })()}
+                            <span style={{ fontSize:'0.7rem', color:'var(--silver)', opacity:0.72 }}>
+                                {gmModeLabel ? `${gmModeLabel} lens` : 'GM lens'} · your bar to act {typeof gmFloor === 'number' ? `${gmFloor}%` : '—'}
+                                {React.createElement(Tip, null, 'Set by your GM Strategy (mode + aggression). Playable = clears your bar comfortably; Negotiable = near your bar; Moonshot = below your bar — long-shot leverage only. This is YOUR threshold for acting, distinct from their odds to accept above.')}
+                            </span>
+                        </div>
+                    )}
+                    {gmWarnings && gmWarnings.length > 0 && (
+                        <div style={{ marginTop:'0.45rem', display:'flex', flexDirection:'column', gap:'0.25rem' }}>
+                            {gmWarnings.map((w, i) => (
+                                <div key={i} style={{ fontSize:'0.7rem', color:'var(--loss-red)', display:'flex', alignItems:'center', gap:'0.35rem' }}>
+                                    <span style={{ opacity:0.9 }}>⚠</span>{w.text}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -1307,60 +1334,31 @@
             return Math.max(min, Math.min(max, n));
         }
 
-        function getGmStrategySnapshot() {
-            try {
-                const fromStrategy = window.GMStrategy?.getStrategy?.(leagueId);
-                if (fromStrategy && typeof fromStrategy === 'object') return fromStrategy;
-            } catch (_) { /* ignore */ }
-            try {
-                const key = WR_KEYS?.GM_STRATEGY?.(leagueId);
-                const fromStorage = key && WrStorage?.get?.(key);
-                if (fromStorage && typeof fromStorage === 'object') return fromStorage;
-            } catch (_) { /* ignore */ }
-            return window._wrGmStrategy || {};
-        }
-
-        function localActionableAcceptanceFloor(settings = {}) {
-            const raw = Number(settings.tradeAggression);
-            const aggression = Number.isFinite(raw) ? clampNum(raw, 0, 100, 50) : 50;
-            if (aggression <= 50) {
-                return Math.round(75 + ((50 - aggression) / 50) * 10);
-            }
-            return Math.round(75 - ((aggression - 50) / 50) * 20);
-        }
-
-        function configuredActionableAcceptanceFloor(alexSettings = {}) {
-            const sharedFloor = window.WR?.AlexSettings?.actionableTradeAcceptanceFloor?.(alexSettings);
-            return clampNum(sharedFloor, 55, 90, localActionableAcceptanceFloor(alexSettings));
-        }
-
+        // GM Strategy is the single source of truth for Deal HQ tuning. All
+        // YOUR-side knobs (aggression, acceptance floor, overpay budget, target/
+        // sell/untouchable positions) come from the shared WR.GmMode.effects
+        // resolver. The Alex "Trade aggression" slider NO LONGER overrides
+        // aggression or the floor — only tradePriority.positions survives, as an
+        // additive shopping hint unioned into targetPositions. The opponent's
+        // displayed acceptance % is computed elsewhere and is never touched here.
         function getDealHqTuning(alexSettings = {}) {
-            const strategy = getGmStrategySnapshot();
-            const mode = window.WR?.GmMode?.normalize?.(strategy.mode) || window.WR?.GmMode?.getMode?.(leagueId) || 'compete';
-            const modeDesc = window.WR?.GmMode?.describe?.(mode) || {};
-            const aggressionMap = { conservative: 0.28, medium: 0.52, aggressive: 0.78 };
-            const alexAggression = Number(alexSettings.tradeAggression);
-            const aggression = clampNum(
-                Number.isFinite(alexAggression) ? alexAggression / 100 : aggressionMap[strategy.aggression] ?? 0.52,
-                0.2,
-                0.92,
-                0.52
-            );
-            const targetPositions = new Set([...(strategy.targetPositions || []), ...Object.entries(alexSettings.tradePriority?.positions || {}).filter(([, v]) => v).map(([k]) => k)]);
-            const sellPositions = new Set(strategy.sellPositions || []);
-            const untouchable = new Set((strategy.untouchable || []).map(String));
-            const minAcceptance = configuredActionableAcceptanceFloor(alexSettings);
+            const eff = window.WR?.GmMode?.effects?.(leagueId) || {};
+            const aggression = clampNum(eff.aggression, 0.2, 0.92, 0.52);
+            const targetPositions = new Set([
+                ...(eff.targetPositions || []),
+                ...Object.entries(alexSettings.tradePriority?.positions || {}).filter(([, v]) => v).map(([k]) => k),
+            ]);
             return {
-                strategy,
-                mode,
-                modeLabel: modeDesc.label || 'Compete',
+                strategy: eff.strategy || {},
+                mode: eff.mode || 'compete',
+                modeLabel: eff.modeLabel || 'Compete',
                 aggression,
-                minAcceptance,
-                maxUserGainPct: 0.14 + aggression * 0.26,
-                maxOverpayPct: strategy.timeline === '1_year' || mode === 'win_now' ? 0.20 : mode === 'rebuild' ? 0.07 : 0.12,
+                minAcceptance: clampNum(eff.acceptanceFloor, 55, 90, 75),
+                maxUserGainPct: Number.isFinite(eff.maxUserGainPct) ? eff.maxUserGainPct : 0.14 + aggression * 0.26,
+                maxOverpayPct: Number.isFinite(eff.maxOverpayPct) ? eff.maxOverpayPct : 0.12,
                 targetPositions,
-                sellPositions,
-                untouchable,
+                sellPositions: eff.sellPositions || new Set(),
+                untouchable: eff.untouchable || new Set(),
             };
         }
 
@@ -3441,7 +3439,26 @@
                 ? `+${receivedPositions.join('/') || 'none'} / -${sentPositions.join('/') || 'none'}`
                 : 'No players selected';
             const starterValueDelta = tradeIds.B.reduce((s, id) => s + (getPlayerValue(id).value || 0), 0) - tradeIds.A.reduce((s, id) => s + (getPlayerValue(id).value || 0), 0);
-            return { totalA, totalB, hasTrade, otherOwnerId, otherDnaKey, otherDna, theirPosture, psychTaxes, grudgeTax, netTaxTotal, likelihood, manualBehaviorProfile, manualBehaviorFit, likelihoodColor, verdictColor, verdictText, diffDisplay, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta };
+            // ── GM Strategy lens (Lane 2 — YOUR bar to act). Derived ONLY from GM
+            // Strategy via getDealHqTuning; compares against `likelihood` above but
+            // never edits it, so the opponent's displayed acceptance % is unchanged.
+            const _gmTuning = getDealHqTuning(window.WR?.AlexSettings?.get?.() || {});
+            const gmFloor = dealActionableAcceptanceFloor(_gmTuning);
+            const gmModeLabel = _gmTuning.modeLabel;
+            const gmViability = hasTrade ? dealViability({ likelihood }, _gmTuning) : null;
+            const gmWarnings = [];
+            if (hasTrade) {
+                tradeIds.A
+                    .filter(pid => _gmTuning.untouchable?.has(String(pid)))
+                    .forEach(pid => gmWarnings.push({ type: 'untouchable', text: `Untouchable in deal: ${playersData[pid]?.full_name || playersData[pid]?.name || pid}` }));
+                sentPositions
+                    .filter(p => _gmTuning.targetPositions?.has(p))
+                    .forEach(p => gmWarnings.push({ type: 'target', text: `Shipping ${p} — a position you're targeting` }));
+                receivedPositions
+                    .filter(p => _gmTuning.sellPositions?.has(p))
+                    .forEach(p => gmWarnings.push({ type: 'sell', text: `Buying ${p} — your strategy says SELL` }));
+            }
+            return { totalA, totalB, hasTrade, otherOwnerId, otherDnaKey, otherDna, theirPosture, psychTaxes, grudgeTax, netTaxTotal, likelihood, manualBehaviorProfile, manualBehaviorFit, likelihoodColor, verdictColor, verdictText, diffDisplay, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta, gmFloor, gmModeLabel, gmViability, gmWarnings };
         }
 
         // ── Alex second opinion on the builder deal ──────────────────────────
@@ -3591,7 +3608,7 @@
         function renderTradeAnalyzer() {
             if (!Object.keys(playersData).length) return <div style={{ color:'var(--silver)', textAlign:'center', padding:'2rem' }}>No player data loaded.</div>;
 
-            const { totalA, totalB, hasTrade, otherOwnerId, otherDnaKey, otherDna, theirPosture, psychTaxes, grudgeTax, netTaxTotal, likelihood, manualBehaviorProfile, manualBehaviorFit, likelihoodColor, verdictColor, verdictText, diffDisplay, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta } = computeManualVerdict();
+            const { totalA, totalB, hasTrade, otherOwnerId, otherDnaKey, otherDna, theirPosture, psychTaxes, grudgeTax, netTaxTotal, likelihood, manualBehaviorProfile, manualBehaviorFit, likelihoodColor, verdictColor, verdictText, diffDisplay, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta, gmFloor, gmModeLabel, gmViability, gmWarnings } = computeManualVerdict();
 
             const tradeSideDeps = buildTradeSideDeps();
 
@@ -3659,7 +3676,7 @@
                     </div>
 
                     {/* Verdict */}
-                    {hasTrade && <TcVerdictPanel {...{ verdictColor, diffDisplay, verdictText, totalA, totalB, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta, FAAB_RATE, likelihoodColor, likelihood, netTaxTotal, manualBehaviorFit, otherOwnerId, theirPosture, otherDnaKey, otherDna, manualBehaviorProfile, psychTaxes, grudgeTax }} />}
+                    {hasTrade && <TcVerdictPanel {...{ verdictColor, diffDisplay, verdictText, totalA, totalB, rosterImpactLabel, starterValueDelta, pickCapitalDelta, pickQuantityDelta, faabDelta, FAAB_RATE, likelihoodColor, likelihood, netTaxTotal, manualBehaviorFit, otherOwnerId, theirPosture, otherDnaKey, otherDna, manualBehaviorProfile, psychTaxes, grudgeTax, gmFloor, gmModeLabel, gmViability, gmWarnings }} />}
                     {hasTrade && renderAlexVerdict()}
                     </>}
                 </div>
