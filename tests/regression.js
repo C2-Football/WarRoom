@@ -210,11 +210,14 @@ test('league format skin loads early and is published to every module surface', 
   ok(!indexHtml.includes('--black:#24114F;'), 'redraft shell should not replace black card surfaces with royal purple');
 });
 
-test('light mode stays sandbox-only while it is under repair', () => {
-  sourceHas(themeSrc, "const SANDBOX_ONLY_THEMES = new Set(['light']);", 'light theme must be marked sandbox-only');
+test('light mode ships in production while sandbox theme gating stays intact', () => {
+  // Light mode left sandbox-only on 2026-06-04 (3b0e54c); the gate machinery
+  // stays so future in-development themes can be sandbox-gated by id.
+  sourceHas(themeSrc, 'const SANDBOX_ONLY_THEMES = new Set([]);', 'sandbox-only set must stay empty while no theme is under repair');
+  sourceHas(themeSrc, "id: 'light',", 'light theme definition must remain available');
   sourceHas(themeSrc, 'function isSandboxThemeMode()', 'theme engine must know whether sandbox-only themes can show');
   sourceHas(themeSrc, 'return Object.keys(THEMES).filter(themeId => isThemeAllowed(themeId));', 'normal theme list must hide sandbox-only themes');
-  sourceHas(themeSrc, 'WrTheme.current = normalizeThemeId(saved);', 'saved light mode must normalize away outside sandbox mode');
+  sourceHas(themeSrc, 'WrTheme.current = normalizeThemeId(saved);', 'saved sandbox-only themes must normalize away outside sandbox mode');
   sourceHas(themeSrc, 'isSandboxMode: function()', 'theme engine must expose sandbox-mode status for diagnostics');
 });
 
@@ -285,11 +288,11 @@ test('redraft shell, history, calendar, and analytics hide dynasty-only assumpti
   sourceHas(analyticsSrc, 'window.App?.LeagueSkin?.resolveDraftRounds?.({', 'analytics draft capital must use skin-aware draft rounds');
   sourceHas(analyticsSrc, "window.addEventListener('wr_history_loaded', onLoaded);", 'analytics must re-render when league history loads');
   sourceHas(analyticsSrc, 'window.WrHistory.loadIfMissing(currentLeague)', 'analytics must load league history without requiring Trophy Room first');
-  sourceHas(analyticsSrc, 'Historical League Signals', 'analytics draft tab must show league-history fallback when draft outcomes are empty');
-  sourceHas(analyticsSrc, 'Pick Trade Reality', 'analytics draft history fallback must expose pick-trade reality');
-  sourceHas(analyticsSrc, "label: currentPicks.length + ' owned picks'", 'analytics draft build map must show resolved current owned picks');
-  sourceHas(analyticsSrc, 'Resolved from roster-slot skin rules, not raw Sleeper draft_rounds.', 'analytics draft tab must explain redraft round resolution');
-  sourceHas(leagueMapSrc, 'const shouldShowDraftPool = !!(resolvedLeagueSkin?.state?.isSeasonal &&', 'pre-draft redraft player table must use the player universe');
+  sourceHas(analyticsSrc, 'Draft Board Without Outcome History', 'analytics draft tab must show pick-capital fallback when draft outcomes are empty');
+  sourceHas(analyticsSrc, 'no historical pick trades, so trade-up modeling is disabled', 'analytics draft fallback must expose pick-trade reality');
+  sourceHas(analyticsSrc, "kicker: 'Owned Picks', label: currentPicks.length + ' picks'", 'analytics draft fallback must show resolved current owned picks');
+  sourceHas(analyticsSrc, "'Resolved from roster-slot skin rules'", 'analytics draft tab must explain redraft round resolution');
+  sourceHas(leagueMapSrc, 'const shouldShowDraftPool = isPreDraftPhase || !!(resolvedLeagueSkin?.state?.isSeasonal &&', 'pre-draft redraft player table must use the player universe');
   sourceHas(leagueMapSrc, "teamName: 'Draft Pool'", 'pre-draft redraft players should be labeled as draft pool');
   sourceHas(leagueMapSrc, 'const years = skinFeatures.showFuturePicks === false ? [leagueSeason] : [leagueSeason, leagueSeason + 1, leagueSeason + 2];', 'pick ledger must hide future years in redraft');
   sourceHas(leagueMapSrc, 'window.App?.LeagueSkin?.resolveDraftRounds?.({', 'pick ledger must use skin-aware draft rounds');
@@ -493,7 +496,12 @@ test('dashboard mobile grid collapses every widget size to one safe column', () 
 test('dashboard tablet grid clamps xl/xxl spans to active columns', () => {
   const sizeSpan = extractSpanMap(dashboardSrc, 'sizeSpan');
   sourceHas(dashboardSrc, 'grid-template-columns:repeat(2,minmax(140px,1fr)) !important;', 'tablet two-column grid missing');
-  sourceHas(dashboardSrc, '.wr-dashboard-grid>.wr-widget[style*="span 4"]{', 'tablet span-4 selector missing');
+  // afdf24c: clamp targets data-widget-size, not [style*="span 4"], which also
+  // matched grid-ROW spans (tall/narrow) and stretched them across the grid.
+  sourceHas(dashboardSrc, 'data-widget-size={widget.size || \'\'}', 'widget shell must stamp data-widget-size for clamp selectors');
+  sourceHas(dashboardSrc, '.wr-dashboard-grid>.wr-widget[data-widget-size="xl"],', 'tablet xl clamp selector missing');
+  sourceHas(dashboardSrc, '.wr-dashboard-grid>.wr-widget[data-widget-size="xxl"]{', 'tablet xxl clamp selector missing');
+  ok(!dashboardSrc.includes('.wr-widget[style*="span 4"]{'), 'style-attribute span clamp must not return; it also matches row spans');
   sourceHas(dashboardSrc, 'grid-column:span 2 !important;', 'tablet span-4 clamp missing');
   for (const size of ['xl', 'xxl']) {
     eq(sizeSpan[size], 4, `${size} should request four columns on desktop`);
@@ -536,8 +544,12 @@ test('first-run tutorial waits for Home instead of interrupting navigated workfl
   sourceHas(leagueDetailSrc, 'window.shouldShowWRTutorial', 'tutorial should respect shouldShow before start');
 });
 
-test('empty Field Notes defaults to compact decision-log utility', () => {
-  sourceHas(leagueDetailSrc, "{ id: 'dw1', key: 'field-notes',        size: 'slim' }", 'default Field Notes widget should be compact');
+test('Field Notes stays a compact decision-log utility off the default board', () => {
+  // 0f5fa64 replaced the default board with the curiosity-first layout: Field
+  // Notes is no longer a default widget, but old saved defaults still migrate
+  // compact and the empty state keeps its decision-log framing.
+  sourceHas(leagueDetailSrc, "{ id: 'dw0', key: 'intel-brief',    size: 'tall' }", 'curiosity-first default board must anchor on Intel Brief');
+  ok(!leagueDetailSrc.includes("key: 'field-notes'"), 'Field Notes should stay off the default board');
   sourceHas(leagueDetailSrc, "w.key === 'field-notes' && w.id === 'dw1' && w.size === 'narrow'", 'old default Field Notes layouts should migrate compact');
   sourceHas(flashBriefSrc, 'No decisions logged yet', 'empty Field Notes should explain decision log state');
   sourceHas(flashBriefSrc, 'OPEN GM OFFICE', 'empty Field Notes should offer an action');
