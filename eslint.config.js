@@ -133,6 +133,8 @@ module.exports = [
         useCallback: "readonly",
         // ── Tier / auth helpers (core.js) ────────────────────────────────────
         getUserTier: "readonly",
+        getTier: "readonly",
+        showToast: "readonly",
         canAccess: "readonly",
         hasTasteLeft: "readonly",
         useTaste: "readonly",
