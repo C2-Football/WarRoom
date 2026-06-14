@@ -272,13 +272,6 @@
             const moduleColumnStyle = { minWidth: 0 };
             return (
                 <div className="wr-settings-module-screen" style={{ width: '100%' }}>
-                    <div className="wr-module-strip" style={{ marginBottom: '12px' }}>
-                        <div>
-                            <span>Settings</span>
-                            <strong>Account and app controls</strong>
-                            <em>Logged in as {sleeperUsername}</em>
-                        </div>
-                    </div>
                     {isGiftedAccount && (
                         <div style={{ marginBottom: '12px', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', padding: '0.55rem 0.75rem', borderRadius: '6px' }}>
                             Gifted account - change your password below.

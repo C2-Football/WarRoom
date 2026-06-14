@@ -939,11 +939,6 @@ function CompareTab({
     return (
       <div style={pageStyle}>
         <div className="wr-module-strip">
-          <div className="wr-module-context">
-            <span>Compare</span>
-            <strong>{compareScope === 'duel' ? 'Head to Head' : compareScope === 'group' ? 'Custom Group' : compareScope === 'division' ? 'Division View' : 'League Field'}</strong>
-            <em>Team edges, owner history, roster pressure, picks, and FAAB.</em>
-          </div>
           <div className="wr-module-actions">
             {renderScopeControls()}
             {compareScope === 'duel' ? (

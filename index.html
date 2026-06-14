@@ -2168,10 +2168,10 @@ WRShared.preloadMany(WR_SHARED_FILES);
      boot. js/module-loader.js injects executable copies, in DOM order within each
      group, when the owning surface first calls wrLoadModuleGroup('<group>'). -->
 <script src="js/module-loader.js?v=20260612modlazy1"></script>
-<script type="text/babel" src="js/settings.js?v=20260525redraftnav1"></script>
-<script type="text/babel" data-wr-defer="trade" src="js/trade-calc.js?v=20260613gm1"></script>
+<script type="text/babel" src="js/settings.js?v=20260613strip1"></script>
+<script type="text/babel" data-wr-defer="trade" src="js/trade-calc.js?v=20260614dealhq1"></script>
 <script type="text/babel" src="js/post-draft.js?v=20260609postdraft1"></script>
-<script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260613gm1"></script>
+<script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260613strip1"></script>
 <!-- 4b. Draft Command Center modules — group "draft" (~28 scripts, ~1.26MB),
      loaded on first Draft-tab open. -->
 <script type="text/babel" data-wr-defer="draft" src="js/draft/styles.js?v=20260427font1"></script>
@@ -2200,8 +2200,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-sync.js?v=20260516p6redo"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-decision-engine.js?v=20260601draftux"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/analyst-mock.js?v=20260531voice1"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260612drafthold"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260612drafthold2"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260613strip2"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260613strip2"></script>
 <!-- 5. League detail tab components (extracted from league-detail.js) -->
 <!-- v2 widget modules (load before dashboard.js which consumes them) -->
 <script type="text/babel" src="js/widgets/roster-pulse.js?v=20260613gm1"></script>
@@ -2224,20 +2224,20 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="analysis" src="js/tabs/league-map.js?v=20260605rookiefix1"></script>
 <script type="text/babel" src="js/tabs/my-team.js?v=20260613gm1"></script>
 <!-- Compare: extracted from My Roster's former sub-view, now a top-level ROSTER-group tab. -->
-<script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20260613gm1"></script>
-<script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260613gm1"></script>
+<script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20260613strip1"></script>
+<script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260613strip1"></script>
 <script type="text/babel" data-wr-defer="trophies" src="js/tabs/trophy-room.js?v=20260525redraftnav1"></script>
 <script type="text/babel" src="js/tabs/calendar.js?v=20260525redraftnav1"></script>
 <!-- Alex Insights (Option A): top-level tab for behavioral analysis + AI settings -->
-<script type="text/babel" data-wr-defer="alex" src="js/tabs/alex-insights.js?v=20260613gm2"></script>
+<script type="text/babel" data-wr-defer="alex" src="js/tabs/alex-insights.js?v=20260613strip1"></script>
 <!-- Group "empire": hub-level Empire Dashboard (Pro mode), loaded by app.js when
      Pro mode activates — also provides window.App.buildEmpireDna etc. -->
 <script type="text/babel" data-wr-defer="empire" src="js/tabs/global-view.js?v=20260427font1"></script>
 <script src="js/tutorial.js?v=20260503tutorial1"></script>
 <!-- 6. Strategy editor: calls shared GMStrategy API, no logic duplication -->
-<script type="text/babel" src="js/tabs/strategy-editor.js?v=20260613gm1"></script>
+<script type="text/babel" src="js/tabs/strategy-editor.js?v=20260613rec1"></script>
 <!-- 7. League detail: coordinator shell, depends on all above -->
-    <script type="text/babel" src="js/league-detail.js?v=20260612modlazy1"></script>
+    <script type="text/babel" src="js/league-detail.js?v=20260613rec1"></script>
 <!-- 8. App: OwnerDashboard + ReactDOM.render (loads last) -->
 <script type="text/babel" src="js/app.js?v=20260612modlazy1"></script>
 

@@ -283,11 +283,6 @@ function AnalyticsPanel({
     return (
     <div className="analytics-shell" style={{ padding: 'var(--space-md) var(--space-lg) var(--space-lg)' }}>
         <div className="wr-module-strip">
-            <div className="wr-module-context">
-                <span>Analytics</span>
-                <strong>{activeSubTab.label}</strong>
-                <em>{analyticsContext[activeSubTab.key]}</em>
-            </div>
             <div className="wr-module-actions">
                 <div className="wr-module-nav">
                     {subTabs.map(t => (

@@ -773,7 +773,7 @@
 
         // ── State ──
         const [tcTab, setTcTab] = useState(initialSubTab || 'dealhq');
-        const [adaptiveView, setAdaptiveView] = useState('hero'); // Adaptive War Room canvas view: 'hero' | 'workspace'
+        const [, setAdaptiveView] = useState('hero'); // Workspace-only now; setter kept for deep-link seeding (hero landing removed)
         const [builderExpanded, setBuilderExpanded] = useState(false); // persistent builder panel open/closed
         const [railView, setRailView] = useState('dossier'); // Context Rail morph state: 'dossier' | 'dna' | 'verdict'
         const [railPinned, setRailPinned] = useState(false); // 📌 pinned rail ignores auto-morph
@@ -3072,125 +3072,6 @@
         }
 
         // ── renderTradeAnalyzer ──
-        // ── renderAdaptiveLanding — Slice 1 of the tab-free Adaptive War Room canvas ──
-        // Default ON (kill switch: window._wrAdaptiveCanvas = false). Computes the single best move
-        // (top partner via the SAME partnerBoard ranking as renderDealHQ + its best generated deal)
-        // and shows a calm Alex-voiced "best move" hero. CTAs reveal the existing surfaces via
-        // existing state. Returns null if there's no usable best move (caller falls through to tabs).
-        function renderAdaptiveLanding() {
-            if (!rosterState.isUsable || !assessments.length || !myAssessment) return null;
-
-            const partnerBoard = computePartnerBoard();
-            const bestPartner = partnerBoard[0];
-            if (!bestPartner) return null;
-
-            const _tuning = getDealHqTuning(window.WR?.AlexSettings?.get?.() || {});
-            const _floor = dealActionableAcceptanceFloor(_tuning);
-            const deals = generateDealsForPartner(bestPartner.assessment, dealMode, null) || [];
-            const bestDeal = deals.filter(d => d.likelihood >= _floor)[0] || deals[0] || null;
-            if (!bestDeal) return null;
-
-            const partnerName = bestPartner.assessment.ownerName;
-            const why = bestPartner.scoreReasons && bestPartner.scoreReasons[0];
-            // Alex coaching line — seeded AlexVoice variation, hard fallback if absent/throws.
-            let coachLine;
-            try {
-                const _av = window.AlexVoice;
-                if (_av && typeof _av.pick === 'function') {
-                    const seed = 'best-move|' + partnerName;
-                    const open = _av.pick(seed, [
-                        `${partnerName} is your strongest table right now`,
-                        `${partnerName} lines up best with your roster`,
-                        `Start with ${partnerName} — the fit is there`,
-                    ]);
-                    const close = _av.pick(seed + 'c', [
-                        `this package grades ${bestDeal.grade} and they take it about ${bestDeal.likelihood}% of the time.`,
-                        `the deal below grades ${bestDeal.grade} at roughly ${bestDeal.likelihood}% to accept.`,
-                        `it grades ${bestDeal.grade}, about ${bestDeal.likelihood}% to say yes.`,
-                    ]);
-                    coachLine = `${open}${why ? ` — ${why}` : ''}. Now ${close}`;
-                }
-            } catch (e) { coachLine = null; }
-            if (!coachLine) {
-                coachLine = `${partnerName} is your strongest table right now${why ? ` — ${why}` : ''}. This package grades ${bestDeal.grade} and they accept it about ${bestDeal.likelihood}% of the time.`;
-            }
-
-            const assetText = (players, picks) => {
-                const names = [
-                    ...(players || []).map(p => p.name).filter(Boolean),
-                    ...(picks || []).map(p => p.label).filter(Boolean),
-                ];
-                return names.length ? names.join(', ') : 'assets';
-            };
-            const sendText = assetText(bestDeal.givePlayers, bestDeal.givePicks);
-            const getText = assetText(bestDeal.receivePlayers, bestDeal.receivePicks);
-            const accept = bestDeal.likelihood || 0;
-            const gain = Math.round(bestDeal.userGain || 0);
-            const cardBox = { border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', padding: '12px' };
-
-            return (
-                <div className="tc-trade-root wr-fade-in" style={{ maxWidth: '880px', margin: '0 auto', padding: '6px 0' }}>
-                    <div style={{ display: 'flex', gap: '13px', alignItems: 'flex-start', marginBottom: '16px' }}>
-                        <div style={{ width: '38px', height: '38px', borderRadius: '9px', display: 'grid', placeItems: 'center', fontFamily: 'var(--font-title)', fontWeight: 800, fontSize: '15px', background: 'rgba(212,175,55,0.12)', color: 'var(--gold)', flex: '0 0 auto' }}>A</div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.6875rem', letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--gold)', fontWeight: 700, marginBottom: '5px' }}>Alex · Your Best Move</div>
-                            <p style={{ fontSize: '0.95rem', lineHeight: 1.55, color: 'var(--white)', margin: 0 }}>{coachLine}</p>
-                        </div>
-                    </div>
-
-                    <div style={{ border: '1px solid rgba(212,175,55,0.2)', borderRadius: '14px', background: 'linear-gradient(180deg, rgba(212,175,55,0.06), rgba(255,255,255,0.012))', overflow: 'hidden', boxShadow: '0 18px 48px rgba(0,0,0,0.34)', marginBottom: '16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '13px 16px', background: 'rgba(212,175,55,0.04)', borderBottom: '1px solid rgba(212,175,55,0.14)' }}>
-                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--white)', fontFamily: 'var(--font-title)' }}>{partnerName}</div>
-                            <div style={{ fontSize: '0.7rem', color: bestPartner.tagColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{bestPartner.tag}</div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginLeft: 'auto' }}>{bestPartner.dna && bestPartner.dna.label} · {bestPartner.posture && bestPartner.posture.label}</div>
-                        </div>
-                        <div style={{ padding: '16px' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
-                                <div style={{ ...cardBox, background: 'rgba(224,85,107,0.08)' }}>
-                                    <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--k-e0556b, #e0556b)', marginBottom: '5px' }}>You Send</div>
-                                    <div style={{ fontSize: '0.82rem', color: 'var(--white)', fontWeight: 600 }}>{sendText}</div>
-                                </div>
-                                <div style={{ ...cardBox, background: 'rgba(46,204,113,0.08)' }}>
-                                    <div style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--good)', marginBottom: '5px' }}>You Get</div>
-                                    <div style={{ fontSize: '0.82rem', color: 'var(--white)', fontWeight: 600 }}>{getText}</div>
-                                </div>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '8px' }}>
-                                <div style={{ ...cardBox, padding: '9px 12px' }}>
-                                    <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)' }}>Grade</div>
-                                    <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.05rem', marginTop: '2px', color: bestDeal.gradeColor }}>{bestDeal.grade}</div>
-                                </div>
-                                <div style={{ ...cardBox, padding: '9px 12px' }}>
-                                    <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)' }}>Accept %</div>
-                                    <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.05rem', marginTop: '2px', color: accept >= 70 ? 'var(--good)' : accept >= 50 ? 'var(--warn)' : 'var(--bad)' }}>{accept}%</div>
-                                </div>
-                                <div style={{ ...cardBox, padding: '9px 12px' }}>
-                                    <div style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)' }}>Δ Value</div>
-                                    <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.05rem', marginTop: '2px', color: gain >= 0 ? 'var(--good)' : 'var(--warn)' }}>{gain >= 0 ? '+' : ''}{gain.toLocaleString()}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button type="button"
-                        onClick={() => { setSelectedDealPartnerId(bestPartner.assessment.ownerId); setDealFocusPid(null); setTcTab('analyzer'); setAdaptiveView('workspace'); }}
-                        style={{ width: '100%', padding: '12px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', fontFamily: 'var(--font-title)', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        Review &amp; Tweak This Deal
-                    </button>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                        <button type="button" onClick={() => { setSelectedDealPartnerId(bestPartner.assessment.ownerId); setTcTab('dealhq'); setAdaptiveView('workspace'); }}
-                            style={{ flex: 1, padding: '10px 12px', background: 'rgba(212,175,55,0.07)', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', fontFamily: 'var(--font-body)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
-                            Browse All Partners
-                        </button>
-                        <button type="button" onClick={() => { setSelectedDealPartnerId(null); setDealFocusPid(null); setTcTab('analyzer'); setAdaptiveView('workspace'); }}
-                            style={{ flex: 1, padding: '10px 12px', background: 'rgba(255,255,255,0.03)', color: 'var(--silver)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', fontFamily: 'var(--font-body)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
-                            Build Your Own
-                        </button>
-                    </div>
-                    <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '0.6875rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}>One canvas, no tabs — pick an action to open the full workspace.</div>
-                </div>
-            );
-        }
 
         // ── renderContextRail — the morphing right rail (Dossier ⇄ DNA ⇄ Verdict) from the
         // locked Adaptive War Room design. Desktop-only via CSS (.tc-adaptive-canvas.has-rail
@@ -3281,10 +3162,9 @@
             );
         }
 
-        // ── renderAdaptiveWorkspace — Slice 2a of the tab-free Adaptive War Room canvas ──
-        // Flag-on workspace shell: replaces the old tab bar with a slim adaptive header (‹ Best Move
-        // back-link + a clean Deal HQ / Builder / Owner DNA nav) and reuses the existing surfaces as
-        // bodies. Returns to the hero via setAdaptiveView('hero') + clearing seeds.
+        // ── renderAdaptiveWorkspace — the tab-free Trade Center workspace (default + only view) ──
+        // Slim header (Trade Center title + Deal HQ / Builder / Owner DNA nav) over the existing
+        // surfaces. Opens on Deal HQ; the old "best move" hero landing was removed.
         function renderAdaptiveWorkspace() {
             const active = tcTab === 'analyzer' ? 'analyzer' : (tcTab === 'profiles' || tcTab === 'dna') ? 'profiles' : 'dealhq';
             const surfaces = [
@@ -3296,7 +3176,6 @@
             if (active === 'analyzer') body = renderTradeAnalyzer();
             else if (active === 'profiles') body = canAccess('owner-dna') ? renderOwnerDna() : React.createElement(UpgradeGate, { feature: 'owner-dna', title: 'UNLOCK OWNER DNA', description: 'Profile every manager\'s trading psychology. Know who\'s a Fleecer, who\'s Desperate, and exactly how to approach each trade conversation.', targetTier: 'warroom' });
             else body = renderDealHQ();
-            const backToBestMove = () => { setAdaptiveView('hero'); setSelectedDealPartnerId(null); setDealFocusPid(null); if (typeof clearTradeContext === 'function') clearTradeContext(); };
             // Persistent live verdict — the in-progress deal's verdict follows you across surfaces.
             const _verdict = computeManualVerdict();
             const _tsDeps = buildTradeSideDeps();
@@ -3308,8 +3187,8 @@
             return (
                 <div className="tc-trade-root">
                     <div className="wr-module-strip">
-                        <div className="wr-module-context" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <button type="button" onClick={backToBestMove} style={{ background: 'rgba(212,175,55,0.07)', border: '1px solid rgba(212,175,55,0.22)', borderRadius: '6px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.74rem', fontWeight: 700, padding: '5px 11px' }}>‹ Best Move</button>
+                        <div className="wr-module-context">
+                            <span>Trade</span>
                             <strong>Trade Center</strong>
                         </div>
                         <div className="wr-module-actions">
@@ -3917,11 +3796,7 @@
         // shell that reuses the existing surfaces. Off => the legacy 3-tab return below.
         const _wrAdaptiveOn = (typeof window !== 'undefined' && window._wrAdaptiveCanvas !== false);
         if (_wrAdaptiveOn && canAccess('trade-finder')) {
-            // Hero is the landing view, only when not seeded by a deep-link (which jumps to workspace).
-            if (adaptiveView === 'hero' && !selectedDealPartnerId && !dealFocusPid && !tradeContext) {
-                const _adaptiveLanding = renderAdaptiveLanding();
-                if (_adaptiveLanding) return _adaptiveLanding;
-            }
+            // Trade Center opens straight into the Deal HQ workspace — no "best move" hero landing.
             return renderAdaptiveWorkspace();
         }
         return (

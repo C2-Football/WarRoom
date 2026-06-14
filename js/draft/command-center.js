@@ -2102,9 +2102,6 @@
                             <div style={{ color: 'var(--white)', fontWeight: 800, fontSize: '0.78rem', marginBottom: 4 }}>
                                 Recap learning is active for {state.variant.replace('_', ' ')} mocks.
                             </div>
-                            <div style={{ color: 'var(--silver)', opacity: 0.75, fontSize: '0.7rem', lineHeight: 1.5 }}>
-                                {(learning.notes || []).slice(0, 3).join(' ') || 'Saved recaps are available for future mock context.'}
-                            </div>
                         </div>
                         <div style={{ display: 'grid', gap: 6 }}>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>

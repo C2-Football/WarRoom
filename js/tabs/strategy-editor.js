@@ -293,6 +293,25 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
     const currentMode = MODES.find(m => m.value === draft.mode);
     const currentAggression = AGGRESSION.find(a => a.value === draft.aggression);
 
+    // ── Recommended mode — derived from the user's own team assessment ─────────
+    // Maps the roster's competitive tier (health-score based) to a franchise mode
+    // so the picker can flag the on-paper-right call. Advisory only — never auto-applies.
+    const teamRec = React.useMemo(() => {
+        try {
+            const rid = myRoster?.roster_id;
+            const a = (rid != null && window.assessTeamFromGlobal) ? window.assessTeamFromGlobal(rid) : null;
+            if (!a) return null;
+            const tier = String(a.tier || '').toLowerCase();
+            const health = Number(a.healthScore) || 0;
+            let mode;
+            if (tier.includes('rebuild') || (health && health < 70)) mode = 'rebuild';
+            else if (tier.includes('elite') || tier.includes('contend') || health >= 82) mode = 'win_now';
+            else mode = 'compete';
+            return { mode, tierLabel: a.tier ? String(a.tier) : null, health };
+        } catch (_) { return null; }
+    }, [myRoster, playersData]);
+    const recommendedMode = teamRec?.mode || null;
+
     return (
         <div style={{ padding: '20px 0 60px', width: '100%', maxWidth: 'none', margin: 0 }}>
 
@@ -333,12 +352,23 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                                 position: 'relative',
                             }}>
                                 <div style={{ position: 'absolute', top: 10, right: 12, width: 8, height: 8, borderRadius: '50%', background: active ? m.color : 'transparent' }} />
-                                <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-body)', fontWeight: 700, color: active ? m.color : 'var(--ov-9, rgba(255,255,255,0.8))', letterSpacing: '0.03em' }}>{m.label}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', paddingRight: 14 }}>
+                                    <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-body)', fontWeight: 700, color: active ? m.color : 'var(--ov-9, rgba(255,255,255,0.8))', letterSpacing: '0.03em' }}>{m.label}</div>
+                                    {m.value === recommendedMode && (
+                                        <span title={teamRec?.tierLabel ? `Your roster grades ${teamRec.tierLabel}` : 'Based on your roster'} style={{ fontSize: '0.5rem', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--gold)', background: 'var(--acc-fill2, rgba(212,175,55,0.16))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.4))', borderRadius: 4, padding: '1px 5px', textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1.4 }}>★ Rec</span>
+                                    )}
+                                </div>
                                 <div style={{ fontSize: 'var(--text-micro)', color: 'var(--ov-8, rgba(255,255,255,0.4))', marginTop: 3, fontFamily: 'var(--font-body)', lineHeight: 1.3 }}>{m.desc}</div>
                             </button>
                         );
                     })}
                 </div>
+                {recommendedMode && (
+                    <div style={{ marginTop: 12, fontSize: 'var(--text-label)', color: 'var(--ov-9, rgba(255,255,255,0.7))', fontFamily: 'var(--font-body)', lineHeight: 1.5 }}>
+                        <span style={{ color: 'var(--gold)', fontWeight: 700 }}>★ Recommended for your roster:</span> {MODES.find(m => m.value === recommendedMode)?.label}
+                        {teamRec?.tierLabel ? <> — your team grades <em>{teamRec.tierLabel}</em>.</> : '.'} You can still pick any direction.
+                    </div>
+                )}
                 {!isCustom && (
                     <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 6, fontSize: 'var(--text-label)', color: 'var(--ov-9, rgba(255,255,255,0.7))', fontFamily: 'var(--font-body)', lineHeight: 1.5 }}>
                         <strong style={{ color: 'var(--gold)' }}>Preset applied:</strong> aggression <em>{draft.aggression}</em> · draft <em>{draft.draftStyle}</em> · market <em>{draft.marketPosture}</em> · timeline <em>{draft.timeline}</em> · personality <em>{draft.alexPersonality}</em>

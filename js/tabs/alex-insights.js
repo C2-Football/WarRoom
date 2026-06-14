@@ -611,25 +611,6 @@
         }));
     }
 
-    // ── Hero ──────────────────────────────────────────────────────
-    function Hero({ active }) {
-        return h('div', { className: 'wr-module-strip' },
-            h('div', { className: 'wr-module-context' },
-                h('span', null, 'Office'),
-                h('strong', null, 'GM\'s Office'),
-                h('em', null, 'Strategy, alerts, weekly reads, and recommendation history.')
-            ),
-            h('div', {
-                className: 'wr-module-actions'
-            },
-                h('span', {
-                    className: 'wr-module-pill',
-                    style: active ? { color: 'var(--good)', borderColor: 'rgba(46,204,113,0.35)', background: 'rgba(46,204,113,0.08)' } : null
-                }, active ? 'Alex Active' : 'Alex Idle')
-            )
-        );
-    }
-
     // ── Sub-tab row ───────────────────────────────────────────────
     function SubTabs({ value, onChange, tabs }) {
         return h('div', { className: 'wr-module-nav', style: { margin: '0 0 var(--space-lg)' } },
@@ -1691,7 +1672,6 @@
         }, [rawInsights, settings]);
 
         return h('div', { className: 'gm-office-shell wr-fade-in' },
-            h(Hero, { active: !!(window.App?.LI_LOADED) }),
             h(SubTabs, {
                 value: activeSubTab,
                 onChange: setSubTab,
