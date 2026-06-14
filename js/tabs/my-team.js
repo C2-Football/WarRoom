@@ -343,20 +343,12 @@ function MyTeamTab({
   });
 
   // Cell background helpers (FM-style colored cells)
-  const dhqBg = v => v >= 7000 ? 'rgba(46,204,113,0.15)' : v >= 4000 ? 'rgba(52,152,219,0.12)' : v >= 2000 ? 'var(--ov-3, rgba(255,255,255,0.04))' : 'transparent';
-  const dhqCol = v => v >= 7000 ? 'var(--good)' : v >= 4000 ? 'var(--k-3498db, #3498db)' : v >= 2000 ? 'var(--silver)' : 'var(--ov-7, rgba(255,255,255,0.25))';
-  const agePhase = (a, pos) => {
-    if (!a) return 'unknown';
-    const curve = typeof window.App?.getAgeCurve === 'function'
-      ? window.App.getAgeCurve(pos)
-      : { build: [22, 24], peak: (window.App.peakWindows || {})[pos] || [24, 29], decline: [30, 32] };
-    return a < curve.peak[0] ? 'young' : a <= curve.peak[1] ? 'prime' : a <= curve.decline[1] ? 'veteran' : 'post';
-  };
-  const ageBg = (a, pos) => ({ young: 'rgba(46,204,113,0.07)', prime: 'transparent', veteran: 'rgba(240,165,0,0.055)', post: 'rgba(231,76,60,0.06)' }[agePhase(a, pos)] || 'transparent');
-  const ageCol = (a, pos) => ({ young: 'var(--good)', prime: 'var(--white)', veteran: 'var(--warn)', post: 'var(--bad)' }[agePhase(a, pos)] || 'var(--silver)');
-  const ppgBg = (v, pos) => v >= (posP75[pos]||10) ? 'rgba(46,204,113,0.055)' : v <= (posP25[pos]||3) ? 'rgba(231,76,60,0.04)' : 'transparent';
-  const trendBg = t => t >= 15 ? 'rgba(46,204,113,0.05)' : t <= -15 ? 'rgba(231,76,60,0.045)' : 'transparent';
-  const statusCol = s => s === 'starter' ? 'var(--gold)' : s === 'ir' ? 'var(--bad)' : s === 'taxi' ? 'var(--k-3498db, #3498db)' : 'transparent';
+  const dhqBg = () => 'transparent';
+  const dhqCol = v => v > 0 ? 'var(--white)' : 'var(--ov-7, rgba(255,255,255,0.25))';
+  const ageBg = () => 'transparent';
+  const ageCol = () => 'var(--silver)';
+  const ppgBg = () => 'transparent';
+  const trendBg = () => 'transparent';
   const posColors = window.App.POS_COLORS;
 
   // Drop candidate PIDs: non-starters with lowest DHQ (bottom 3 bench players)
@@ -460,13 +452,8 @@ function MyTeamTab({
     if (rosterGroupMode === 'none') return 0;
     return posRank[r.pos] ?? 99;
   };
-  const getRowGroupColor = (r) => {
-    if (rosterGroupMode === 'slot') return statusCol(r.section) === 'transparent' ? 'var(--ov-9, rgba(255,255,255,0.5))' : statusCol(r.section);
-    if (rosterGroupMode === 'action') return /sell/i.test(r.rec || '') ? 'var(--bad)' : /buy|build|core/i.test(r.rec || '') ? 'var(--good)' : /stash/i.test(r.rec || '') ? 'var(--k-3498db, #3498db)' : 'var(--gold)';
-    if (rosterGroupMode === 'age') return getAgeBand(r) === 'Youth' ? 'var(--good)' : getAgeBand(r) === 'Prime' ? 'var(--gold)' : getAgeBand(r) === 'Veteran' ? 'var(--warn)' : 'var(--bad)';
-    if (rosterGroupMode === 'peak') return r.peakPhase === 'PRIME' ? 'var(--good)' : r.peakPhase === 'PRE' ? 'var(--k-3498db, #3498db)' : r.peakPhase === 'VET' ? 'var(--warn)' : 'var(--bad)';
-    return posColors[r.pos] || 'var(--gold)';
-  };
+  // Group dividers use the single gold accent for structure — no per-group rainbow.
+  const getRowGroupColor = () => 'var(--gold)';
 
   const filtered = filteredAndSortedRows(rows);
   const filteredPosCounts = filtered.reduce((acc, r) => {
@@ -481,17 +468,17 @@ function MyTeamTab({
     watch: { bg: 'rgba(52,152,219,0.13)', col: 'var(--k-3498db, #3498db)', lbl: 'Watch' },
   };
   const slotTagMeta = {
-    starter: { bg: 'var(--acc-fill2, rgba(212,175,55,0.12))', col: 'var(--gold)', lbl: 'STR' },
-    bench: { bg: 'var(--ov-4, rgba(255,255,255,0.055))', col: 'var(--silver)', lbl: 'BN' },
-    taxi: { bg: 'rgba(52,152,219,0.12)', col: 'var(--k-3498db, #3498db)', lbl: 'TAX' },
-    ir: { bg: 'rgba(231,76,60,0.12)', col: 'var(--bad)', lbl: 'IR' },
+    starter: { bg: 'var(--ov-3, rgba(255,255,255,0.045))', col: 'var(--white)', lbl: 'STR' },
+    bench: { bg: 'var(--ov-2, rgba(255,255,255,0.03))', col: 'var(--silver)', lbl: 'BN' },
+    taxi: { bg: 'var(--ov-2, rgba(255,255,255,0.03))', col: 'var(--silver)', lbl: 'TAX' },
+    ir: { bg: 'var(--ov-2, rgba(255,255,255,0.03))', col: 'var(--silver)', lbl: 'IR' },
   };
   const inlineTag = (cfg, key) => cfg ? (
     <span key={key} style={{
       fontSize: 'var(--text-micro, 0.6875rem)',
       padding: '2px 5px',
       borderRadius: '4px',
-      fontWeight: 800,
+      fontWeight: 600,
       background: cfg.bg,
       color: cfg.col,
       border: '1px solid ' + wrAlpha(cfg.col, '33'),
@@ -518,7 +505,7 @@ function MyTeamTab({
   });
   // Compact dropdown used across the roster toolbar (mirrors free-agency's rkSelectStyle).
   const rosterSelectStyle = (active) => ({
-    padding: '4px 8px',
+    padding: '4px 6px',
     minHeight: '44px',
     fontSize: '0.72rem',
     fontFamily: 'var(--font-body)',
@@ -531,6 +518,7 @@ function MyTeamTab({
     borderRadius: '6px',
     cursor: 'pointer',
     outline: 'none',
+    minWidth: 0,
   });
   const groupLabelStyle = { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.58, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, whiteSpace: 'nowrap' };
   const sameColumnSet = (a, b) => a.length === b.length && a.every((key, idx) => key === b[idx]);
@@ -619,9 +607,9 @@ function MyTeamTab({
     const base = { width: col.width, minWidth: col.width, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isCompactRows ? '0.73rem' : '0.78rem', padding: '0 5px', borderLeft: isGroupStart ? '1px solid var(--acc-fill2, rgba(212,175,55,0.12))' : '1px solid var(--ov-1, rgba(255,255,255,0.024))', color: 'rgba(235,235,240,0.78)', lineHeight: 1.1 };
 
     switch(colKey) {
-      case 'pos': return <div key={colKey} style={{...base}}><span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 650, color: posColors[r.pos]||'var(--silver)' }}>{window.App?.posLabel?.(r.pos) || (r.pos === 'DEF' ? 'D/ST' : r.pos)}</span></div>;
+      case 'pos': return <div key={colKey} style={{...base}}><span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 550, color: 'var(--silver)' }}>{window.App?.posLabel?.(r.pos) || (r.pos === 'DEF' ? 'D/ST' : r.pos)}</span></div>;
       case 'age': return <div key={colKey} style={{...base, background: ageBg(r.age, r.pos)}}><span style={{ color: ageCol(r.age, r.pos), fontWeight: 550 }}>{r.age||'\u2014'}</span></div>;
-      case 'dhq': return <div key={colKey} style={{...base, background: dhqBg(r.dhq)}}><span style={{ color: dhqCol(r.dhq), fontWeight: 650, fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span></div>;
+      case 'dhq': return <div key={colKey} style={{...base, background: dhqBg(r.dhq)}}><span style={{ color: dhqCol(r.dhq), fontWeight: 600, fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span></div>;
       case 'ppg': {
         // Rolling PPG override — swap in last-N-games PPG when user toggled the window.
         // If a window is active but weekly data isn't ready for this player, fall back
@@ -636,53 +624,50 @@ function MyTeamTab({
           if (rolling > 0) { shown = rolling; marker = ' · L' + n; }
           else { marker = ' · Szn'; }
         }
-        return <div key={colKey} style={{...base, background: ppgBg(shown, r.pos)}}><span style={{ color: shown >= (posP75[r.pos]||10) ? 'var(--good)' : 'var(--silver)', fontWeight: shown >= (posP75[r.pos]||10) ? 650 : 500 }}>{shown > 0 ? shown : '\u2014'}{marker}</span></div>;
+        return <div key={colKey} style={{...base, background: ppgBg(shown, r.pos)}}><span style={{ color: 'var(--silver)', fontWeight: 500 }}>{shown > 0 ? shown : '\u2014'}{marker}</span></div>;
       }
       case 'prev': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', opacity: 0.6 }}>{r.prevPPG > 0 ? r.prevPPG : '\u2014'}</span></div>;
       case 'trend': {
         const trendBars = (() => {
           const t = r.trend || 0;
           const up = t > 0;
-          const color = t >= 15 ? 'var(--good)' : t <= -15 ? 'var(--bad)' : 'var(--silver)';
+          const color = 'var(--silver)';
           const heights = up ? [4, 6, 8, 11, 14] : t < 0 ? [14, 11, 8, 6, 4] : [8, 9, 10, 9, 8];
           return React.createElement('div', { className: 'wr-spark' }, ...heights.map((h, i) => React.createElement('div', { key: i, className: 'wr-spark-bar', style: { height: h + 'px', background: color } })));
         })();
         return <div key={colKey} style={{...base, background: trendBg(r.trend), flexDirection: 'column', gap: '1px'}}>
-          <span style={{ color: r.trend>=15?'var(--good)':r.trend<=-15?'var(--bad)':'var(--silver)', fontWeight: 550, fontSize: '0.7rem' }}>{r.trend>0?'+'+r.trend+'%':r.trend<0?r.trend+'%':'\u2014'}</span>
+          <span style={{ color: 'var(--silver)', fontWeight: 550, fontSize: '0.7rem' }}>{r.trend>0?'+'+r.trend+'%':r.trend<0?r.trend+'%':'\u2014'}</span>
           {trendBars}
         </div>;
       }
 		      case 'peak': return <div key={colKey} style={{...base, flexDirection: 'column', gap: '1px'}}>
-		        <span style={{ fontSize: '0.7rem', fontWeight: 650, color: r.peakPhase==='PRIME'?'var(--good)':r.peakPhase==='PRE'?'var(--k-3498db, #3498db)':r.peakPhase==='VET'?'var(--warn)':'var(--bad)' }}>{r.peakPhase}</span>
+		        <span style={{ fontSize: '0.7rem', fontWeight: 550, color: 'var(--silver)' }}>{r.peakPhase}</span>
         <div style={{ width: '30px', height: '3px', borderRadius: '1px', background: 'var(--ov-4, rgba(255,255,255,0.06))', overflow: 'hidden', position: 'relative' }}>
-          <div style={{ position:'absolute',left:0,top:0,height:'100%',width:'30%',background:'rgba(52,152,219,0.4)' }}></div>
-          <div style={{ position:'absolute',left:'30%',top:0,height:'100%',width:'40%',background:'rgba(46,204,113,0.4)' }}></div>
-          <div style={{ position:'absolute',left:'70%',top:0,height:'100%',width:'30%',background:'rgba(231,76,60,0.3)' }}></div>
-          <div style={{ position:'absolute',left:r.peakPct+'%',top:'-1px',width:'2px',height:'5px',background:'var(--white)',borderRadius:'1px' }}></div>
+          <div style={{ position:'absolute',left:r.peakPct+'%',top:'-1px',width:'2px',height:'5px',background:'var(--silver)',borderRadius:'1px' }}></div>
         </div>
       </div>;
       case 'action': {
         const ann = getPlayerAnnotation(r.pid);
         const gmNudgeTitle = r.gmSellNudge ? 'Nudged to Sell by GM Strategy (position/age trips a sell rule)' : '';
         return <div key={colKey} style={{...base, flexDirection:'column', gap:'2px', alignItems:'center'}} title={gmNudgeTitle || ann?.text || ''}>
-          <span style={{ fontSize:'var(--text-micro, 0.6875rem)',fontWeight:650,padding:'2px 6px',borderRadius:'4px',background:/sell/i.test(r.rec)?'rgba(231,76,60,0.12)':/buy|build|core/i.test(r.rec)?'rgba(46,204,113,0.12)':'var(--acc-fill2, rgba(212,175,55,0.1))',color:/sell/i.test(r.rec)?'var(--bad)':/buy|build|core/i.test(r.rec)?'var(--good)':'var(--gold)',border:'1px solid '+(/sell/i.test(r.rec)?'rgba(231,76,60,0.22)':/buy|build|core/i.test(r.rec)?'rgba(46,204,113,0.22)':'var(--acc-line1, rgba(212,175,55,0.22))') }}>{r.rec}</span>
+          <span style={{ fontSize:'var(--text-micro, 0.6875rem)',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.03em',color:/sell/i.test(r.rec)?'var(--bad)':/buy|build|core/i.test(r.rec)?'var(--good)':'var(--silver)' }}>{r.rec}</span>
           {r.gmSellNudge && <span style={{ fontSize: '0.56rem', fontWeight: 800, color: 'var(--warn)', letterSpacing: '0.05em', opacity: 0.85, lineHeight: 1 }}>GM</span>}
         </div>;
       }
       case 'gp': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.74rem' }}>{r.effectiveGP > 0 ? r.effectiveGP : '\u2014'}{r.curGP === 0 && r.prevGP > 0 ? '*' : ''}</span></div>;
-      case 'durability': { const gpForDur = r.durabilityGP || 0; return <div key={colKey} style={{...base}} title={'Avg GP: ' + gpForDur + '/17'}><div style={{ width:'24px',height:'4px',borderRadius:'2px',background:'var(--ov-4, rgba(255,255,255,0.06))',overflow:'hidden' }}><div style={{ width:Math.min(100,(gpForDur/17)*100)+'%',height:'100%',background:gpForDur>=15?'var(--good)':gpForDur>=10?'var(--warn)':'var(--bad)',borderRadius:'2px' }}></div></div></div>; }
+      case 'durability': { const gpForDur = r.durabilityGP || 0; return <div key={colKey} style={{...base}} title={'Avg GP: ' + gpForDur + '/17'}><div style={{ width:'24px',height:'4px',borderRadius:'2px',background:'var(--ov-4, rgba(255,255,255,0.06))',overflow:'hidden' }}><div style={{ width:Math.min(100,(gpForDur/17)*100)+'%',height:'100%',background:'var(--silver)',opacity:0.7,borderRadius:'2px' }}></div></div></div>; }
       case 'yrsExp': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)' }}>{r.p.years_exp ?? '\u2014'}</span></div>;
       case 'college': return <div key={colKey} style={{...base, justifyContent: 'flex-start'}}><span style={{ color: 'var(--silver)', fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.p.college || '\u2014'}</span></div>;
       case 'nflDraft': { const dr = r.p.draft_round; const dp = r.p.draft_pick; const dy = r.p.draft_year; const dRound = dr || (dp ? Math.ceil(dp / 32) : null); const draftLabel = dRound ? (dy ? "'" + String(dy).slice(2) + ' ' : '') + 'Rd ' + dRound + (dp ? '.' + ((dp - 1) % 32 + 1) : '') : (r.p.undrafted === true || (r.p.years_exp > 0 && !dp && !dr) ? 'UDFA' : '\u2014'); return <div key={colKey} style={{...base}}><span style={{ color: dRound ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))', fontSize: '0.74rem' }}>{draftLabel}</span></div>; }
       case 'posRankLg': {
         const rank = getLeaguePositionRank(r);
-        return <div key={colKey} style={{...base}}><span style={{ color: rank && rank<=3?'var(--good)':rank && rank<=8?'var(--gold)':'var(--silver)', fontWeight: rank && rank<=3?650:450 }}>{rank ? '#'+rank : '\u2014'}</span></div>;
+        return <div key={colKey} style={{...base}}><span style={{ color: rank && rank<=3?'var(--white)':'var(--silver)', fontWeight: 450 }}>{rank ? '#'+rank : '\u2014'}</span></div>;
       }
       case 'posRankNfl': {
         const meta = r.meta;
         return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)' }}>{meta?.fcRank ? '#'+meta.fcRank : '\u2014'}</span></div>;
       }
-      case 'starterSzn': return <div key={colKey} style={{...base}}><span style={{ color: (r.meta?.starterSeasons||0)>=3?'var(--good)':(r.meta?.starterSeasons||0)>=1?'var(--gold)':'var(--silver)', fontWeight: 600 }}>{r.meta?.starterSeasons ?? '\u2014'}</span></div>;
+      case 'starterSzn': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontWeight: 500 }}>{r.meta?.starterSeasons ?? '\u2014'}</span></div>;
       case 'height': {
         const h = r.p.height;
         return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.72rem' }}>{h ? Math.floor(h/12)+"'"+h%12+'"' : '\u2014'}</span></div>;
@@ -692,8 +677,7 @@ function MyTeamTab({
       case 'slot': return <div key={colKey} style={{...base}}><span style={{ fontSize:'0.76rem',color:'var(--silver)',opacity:0.65,textTransform:'uppercase' }}>{r.section==='starter'?'STR':r.section==='ir'?'IR':r.section==='taxi'?'TAX':'BN'}</span></div>;
       case 'acquired': {
         const acq = getAcquisitionInfo(r.pid, myRoster?.roster_id);
-        const methodColors = { Drafted: 'var(--k-3498db, #3498db)', Traded: 'var(--k-9b59b6, #9b59b6)', Waiver: 'var(--gold)', FA: 'var(--good)', Original: 'var(--silver)' };
-        const col = methodColors[acq.method] || 'var(--silver)';
+        const col = 'var(--silver)';
         const methods = ['Drafted', 'Traded', 'Waiver', 'FA', 'Original'];
         return <div key={colKey} style={{...base}}><span
           style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, color: col, padding: '1px 5px', borderRadius: '3px', border: `1px solid ${col}40`, background: `${col}10`, cursor: 'pointer' }}
@@ -723,19 +707,18 @@ function MyTeamTab({
         if (!team || team === 'FA') return <div key={colKey} style={{...base}}><span style={{ color: 'var(--ov-7, rgba(255,255,255,0.2))' }}>{'\u2014'}</span></div>;
         const sos = sosMod.getPlayerSOS(r.pid, r.pos, team);
         if (!sos) return <div key={colKey} style={{...base}}><span style={{ color: 'var(--ov-7, rgba(255,255,255,0.2))' }}>{'\u2014'}</span></div>;
-        const sosBg = sos.avgRank >= 25 ? 'rgba(46,204,113,0.12)' : sos.avgRank <= 8 ? 'rgba(231,76,60,0.1)' : 'transparent';
-        return <div key={colKey} style={{...base, background: sosBg, flexDirection: 'column', gap: '1px'}} title={sos.label + ' schedule (' + sos.avgRank + '/32)'}>
-          <span style={{ color: sos.color, fontWeight: 700, fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}>{sos.avgRank}</span>
-          <span style={{ color: sos.color, fontSize: 'var(--text-micro, 0.6875rem)', opacity: 0.8 }}>{sos.label.toUpperCase()}</span>
+        return <div key={colKey} style={{...base, flexDirection: 'column', gap: '1px'}} title={sos.label + ' schedule (' + sos.avgRank + '/32)'}>
+          <span style={{ color: 'var(--silver)', fontWeight: 600, fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}>{sos.avgRank}</span>
+          <span style={{ color: 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', opacity: 0.7 }}>{sos.label.toUpperCase()}</span>
         </div>;
       }
       case 'rkSlot': case 'rkTeam': case 'rkRank': case 'rkTier': case 'rkProfile': {
         const rf = window.App?.RookieFields?.fields?.(prospectForRow(r)) || null;
         if (!rf) return <div key={colKey} style={{...base}}><span style={{ color: 'var(--ov-8, rgba(255,255,255,0.3))' }}>{'\u2014'}</span></div>;
-        if (colKey === 'rkSlot') return <div key={colKey} style={{...base}}><span style={{ color: rf.draftRound === 1 ? 'var(--good)' : rf.draftRound && rf.draftRound <= 3 ? 'var(--gold)' : 'var(--silver)', fontSize: '0.74rem', fontWeight: 700 }}>{rf.draftSlot || '\u2014'}</span></div>;
+        if (colKey === 'rkSlot') return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.74rem', fontWeight: 600 }}>{rf.draftSlot || '\u2014'}</span></div>;
         if (colKey === 'rkTeam') return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)' }}>{rf.nflTeam || '\u2014'}</span></div>;
         if (colKey === 'rkRank') return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontFamily: 'var(--font-mono)' }}>{rf.consensusRank != null ? rf.consensusRank : '\u2014'}</span></div>;
-        if (colKey === 'rkTier') return <div key={colKey} style={{...base, justifyContent: 'flex-start'}}><span style={{ color: 'var(--gold)', fontWeight: 700, fontSize: '0.72rem' }}>{rf.tierLabel || '\u2014'}</span></div>;
+        if (colKey === 'rkTier') return <div key={colKey} style={{...base, justifyContent: 'flex-start'}}><span style={{ color: 'var(--silver)', fontWeight: 600, fontSize: '0.72rem' }}>{rf.tierLabel || '\u2014'}</span></div>;
         return <div key={colKey} style={{...base, justifyContent: 'flex-start'}}><span title={rf.profile} style={{ color: 'var(--silver)', fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rf.profile || '\u2014'}</span></div>;
       }
       default: return <div key={colKey} style={{...base}}>{'\u2014'}</div>;
@@ -761,7 +744,7 @@ function MyTeamTab({
       })()}
 
       {(!isCompactRoster || filtersOpen) && (
-      <section style={{ background: 'var(--surf-solid, rgba(20,20,26,0.72))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 'var(--card-radius)', padding: 'var(--card-pad-sm)', display: 'flex', alignItems: 'center', gap: '6px 14px', flexWrap: 'wrap' }}>
+      <section style={{ background: 'var(--surf-solid, rgba(20,20,26,0.72))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 'var(--card-radius)', padding: 'var(--card-pad-sm)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap', minWidth: 0 }}>
         <span className="wr-module-toolbar-label">Scope</span>
         <select value={rosterFilter} onChange={e => setRosterFilter(e.target.value)} style={rosterSelectStyle(rosterFilter !== 'All')} title="Show a slot or position group">
           {rosterFilterOptions.map(f => <option key={f} value={f}>{f}</option>)}
@@ -772,7 +755,7 @@ function MyTeamTab({
           {Object.keys(COLUMN_PRESETS).map(key => <option key={key} value={key}>{COLUMN_PRESET_META[key]?.label || key}</option>)}
           {activePresetKey === 'custom' && <option value="custom">Custom</option>}
         </select>
-        <button onClick={() => setShowColPicker(!showColPicker)} style={{ ...controlBtn(showColPicker || activePresetKey === 'custom'), minHeight: '44px' }} title="Add, remove, or reorder columns">Customize</button>
+        <button onClick={() => setShowColPicker(!showColPicker)} style={{ ...controlBtn(showColPicker || activePresetKey === 'custom'), minHeight: '44px', flexShrink: 0 }} title="Add, remove, or reorder columns">Customize</button>
 
         <span className="wr-module-toolbar-label">PPG</span>
         <select value={ppgWindow} onChange={e => setPpgWindow(e.target.value)} style={rosterSelectStyle(ppgWindow !== 'season')} title="Points-per-game window">
@@ -897,8 +880,8 @@ function MyTeamTab({
         <div style={{ overflowX: 'auto', overflowY: 'clip', background: 'linear-gradient(90deg, var(--ov-1, rgba(255,255,255,0.02)), transparent 12%, transparent 88%, var(--ov-1, rgba(255,255,255,0.018)))' }}>
           <div style={{ minWidth: tableMinWidth + 'px' }}>
             {/* Header row */}
-            <div style={{ display: 'flex', height: '32px', background: 'var(--acc-fill2, rgba(212,175,55,0.075))', borderBottom: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', position: 'sticky', top: 0, zIndex: 5 }}>
-              <div title="Player" style={{ width: playerColWidth + 'px', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '0.72rem', fontWeight: 750, color: rosterSort.key === 'name' ? 'var(--white)' : 'var(--gold)', fontFamily: 'var(--font-body)', letterSpacing: '0.035em', cursor: 'pointer', userSelect: 'none', borderRight: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', textTransform: 'uppercase', position: 'sticky', left: 0, zIndex: 7, background: 'linear-gradient(180deg, var(--k-201d12, #201d12), var(--k-14130f, #14130f))', boxShadow: '8px 0 14px rgba(0,0,0,0.2)' }}
+            <div style={{ display: 'flex', height: '32px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderBottom: '1px solid var(--ov-6, rgba(255,255,255,0.12))', position: 'sticky', top: 0, zIndex: 5 }}>
+              <div title="Player" style={{ width: playerColWidth + 'px', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '0.72rem', fontWeight: 600, color: rosterSort.key === 'name' ? 'var(--gold)' : 'var(--silver)', fontFamily: 'var(--font-body)', letterSpacing: '0.035em', cursor: 'pointer', userSelect: 'none', borderRight: '1px solid var(--ov-6, rgba(255,255,255,0.1))', textTransform: 'uppercase', position: 'sticky', left: 0, zIndex: 7, background: 'linear-gradient(180deg, var(--k-1b1d23, #1b1d23), var(--k-15161b, #15161b))', boxShadow: '8px 0 14px rgba(0,0,0,0.2)' }}
                 onClick={() => setRosterSort(prev => prev.key === 'name' ? {...prev, dir: prev.dir*-1} : {key: 'name', dir: 1})}>
                 Player{rosterSort.key === 'name' ? (rosterSort.dir === -1 ? ' v' : ' ^') : ''}
               </div>
@@ -910,7 +893,7 @@ function MyTeamTab({
                   const isGroupStart = visibleColGroupStarts.has(colKey);
                   return (
                     <div key={colKey} title={col.label} onClick={() => setRosterSort(prev => prev.key === colKey ? {...prev, dir: prev.dir*-1} : {key: colKey, dir: 1})}
-                      style={{ width: col.width, minWidth: col.width, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: isSorted ? 800 : 700, color: isSorted ? 'var(--white)' : 'var(--acc-line4, rgba(212,175,55,0.86))', fontFamily: 'var(--font-body)', letterSpacing: '0.025em', cursor: 'pointer', userSelect: 'none', textTransform: 'uppercase', borderLeft: isGroupStart ? '1px solid var(--acc-fill3, rgba(212,175,55,0.16))' : '1px solid var(--ov-3, rgba(255,255,255,0.035))', padding: '0 3px', textAlign: 'center', lineHeight: 1.05, background: isSorted ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'transparent' }}>
+                      style={{ width: col.width, minWidth: col.width, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: isSorted ? 700 : 600, color: isSorted ? 'var(--gold)' : 'var(--silver)', fontFamily: 'var(--font-body)', letterSpacing: '0.025em', cursor: 'pointer', userSelect: 'none', textTransform: 'uppercase', borderLeft: isGroupStart ? '1px solid var(--ov-4, rgba(255,255,255,0.06))' : '1px solid var(--ov-3, rgba(255,255,255,0.035))', padding: '0 3px', textAlign: 'center', lineHeight: 1.05, background: isSorted ? 'var(--acc-fill1, rgba(212,175,55,0.06))' : 'transparent' }}>
                       <span>{col.shortLabel || col.label}{rosterSort.key === colKey ? (rosterSort.dir === -1 ? ' v' : ' ^') : ''}</span>
                     </div>
                   );
@@ -935,9 +918,9 @@ function MyTeamTab({
           return (
             <React.Fragment key={r.pid}>
               {startsPositionGroup && (
-	                <div style={{ display: 'flex', height: isCompactRows ? '20px' : '22px', borderTop: idx === 0 ? 'none' : '1px solid var(--acc-fill2, rgba(212,175,55,0.1))', borderBottom: '1px solid var(--ov-2, rgba(255,255,255,0.032))', background: 'linear-gradient(90deg, var(--acc-fill1, rgba(212,175,55,0.05)), var(--ov-1, rgba(255,255,255,0.01)))' }}>
-	                  <div style={{ width: playerColWidth + 'px', flexShrink: 0, position: 'sticky', left: 0, zIndex: 4, display: 'flex', alignItems: 'center', gap: '7px', padding: '0 10px', background: 'linear-gradient(90deg, var(--k-14130f, #14130f), var(--k-111117, #111117))', borderRight: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))', boxShadow: '8px 0 14px rgba(0,0,0,0.16)' }}>
-	                    <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.76rem', color: getRowGroupColor(r), fontWeight: 750, letterSpacing: '0.06em' }}>{getRowGroupLabel(r)}</span>
+	                <div style={{ display: 'flex', height: isCompactRows ? '24px' : '28px', borderTop: idx === 0 ? 'none' : '2px solid var(--acc-line3, rgba(212,175,55,0.45))', borderBottom: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'var(--ov-2, rgba(255,255,255,0.045))' }}>
+	                  <div style={{ width: playerColWidth + 'px', flexShrink: 0, position: 'sticky', left: 0, zIndex: 4, display: 'flex', alignItems: 'center', gap: '8px', padding: '0 10px', background: 'var(--k-1b1d23, #1b1d23)', borderLeft: '3px solid var(--gold)', borderRight: '1px solid var(--ov-5, rgba(255,255,255,0.08))', boxShadow: '8px 0 14px rgba(0,0,0,0.16)' }}>
+	                    <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.84rem', color: getRowGroupColor(r), fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{getRowGroupLabel(r)}</span>
 	                    <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{filteredPosCounts[rowGroupKey]} players</span>
                   </div>
                   <div style={{ flex: 1, borderLeft: '1px solid var(--ov-2, rgba(255,255,255,0.025))' }} />

@@ -246,19 +246,19 @@
             }));
         }
 
-        function StatTile({ label, value, sub, tone = 'var(--white)' }) {
+        function StatTile({ label, value, sub, tone = 'var(--white)', compact = false }) {
             return React.createElement('div', {
                 style: {
                     background: TONE.panel,
                     border: '1px solid var(--ov-4, rgba(255,255,255,0.055))',
                     borderRadius: '8px',
-                    padding: '8px 10px',
+                    padding: compact ? '5px 9px' : '8px 10px',
                     minWidth: 0,
                 }
             },
                 React.createElement('div', { style: { fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.66, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' } }, label),
-                React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.18rem', lineHeight: 1.1, fontWeight: 900, color: tone, marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, value),
-                sub ? React.createElement('div', { style: { fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.62, marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, sub) : null
+                React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: compact ? '0.95rem' : '1.18rem', lineHeight: 1.1, fontWeight: 900, color: tone, marginTop: compact ? '2px' : '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, value),
+                sub ? React.createElement('div', { style: { fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.62, marginTop: compact ? '1px' : '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, sub) : null
             );
         }
 
@@ -611,24 +611,28 @@
                     }
                 },
                     React.createElement(StatTile, {
+                        compact: true,
                         label: 'Roster Identity',
                         value: identity,
                         sub: myContenderRank && myDynastyRank ? 'Now #' + myContenderRank + ' · Future #' + myDynastyRank : 'cross-view pending',
                         tone: identityTone,
                     }),
                     React.createElement(StatTile, {
+                        compact: true,
                         label: 'Lead Chase',
                         value: cur.gapFmt(leaderGap),
                         sub: leader ? 'behind ' + getTeamName(leader) : 'no leader',
                         tone: leaderGap <= 5 ? TONE.elite : leaderGap <= 15 ? TONE.gold : TONE.weak,
                     }),
                     React.createElement(StatTile, {
+                        compact: true,
                         label: 'Next Jump',
                         value: aboveMe ? cur.gapFmt(packGap) : 'Hold',
                         sub: aboveMe ? 'to pass ' + getTeamName(aboveMe) : 'you lead this view',
                         tone: packGap <= 3 ? TONE.elite : packGap <= 10 ? TONE.gold : TONE.middle,
                     }),
                     React.createElement(StatTile, {
+                        compact: true,
                         label: 'Seat Heat',
                         value: belowMe ? cur.gapFmt(cushion) : 'None',
                         sub: belowMe ? 'over ' + getTeamName(belowMe) : 'no one below',
@@ -660,19 +664,29 @@
                     style: {
                         display: 'grid',
                         gridTemplateColumns: 'minmax(0, 1.65fr) minmax(0, 0.85fr)',
+                        gridTemplateRows: 'minmax(0, 1fr)',
                         gap: '10px',
                         minHeight: 0,
+                        overflow: 'hidden',
                         flex: 1,
                     }
                 },
                     React.createElement('div', {
                         style: {
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                            display: 'flex',
+                            flexDirection: 'column',
                             gap: '8px',
-                            alignContent: 'start',
+                            minHeight: 0,
                         }
                     },
+                        React.createElement('div', {
+                            style: {
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                                gap: '8px',
+                                flexShrink: 0,
+                            }
+                        },
                         ...top3.map((t, i) => {
                             const rank = i + 1;
                             const val = cur.valFn(t);
@@ -695,14 +709,16 @@
                                 React.createElement('div', { style: { marginTop: '8px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62 } }, 'Now #' + rankByView.contender[t.rosterId] + ' · Future #' + rankByView.dynasty[t.rosterId]),
                                 React.createElement('div', { style: { marginTop: '8px' } }, React.createElement(Bar, { val, rank, totalTeams: total, width: '100%', height: 7 }))
                             );
-                        }),
+                        })),
                         React.createElement('div', {
                             style: {
-                                gridColumn: '1 / -1',
                                 display: 'grid',
                                 gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
                                 gap: '3px 12px',
-                                marginTop: '2px',
+                                minHeight: 0,
+                                overflowY: 'auto',
+                                alignContent: 'start',
+                                flex: 1,
                             }
                         },
                             ...cur.data.slice(3).map((t, i) => React.createElement(TeamRow, {
@@ -714,7 +730,7 @@
                             }))
                         )
                     ),
-                    React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', minHeight: 0 } },
+                    React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', minHeight: 0, overflowY: 'auto' } },
                         React.createElement(TierStrip, null),
                         React.createElement(DeltaList, { title: 'Dynasty Risers', rows: upside, tone: TONE.elite }),
                         React.createElement(DeltaList, { title: 'Win-Now Profiles', rows: winNow, tone: TONE.gold })
