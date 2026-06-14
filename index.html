@@ -28,7 +28,7 @@
     <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.101.1/dist/umd/supabase.min.js">
     <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js">
     <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js">
-    <script src="js/shared/shared-loader.js?v=20260612preload1"></script>
+    <script src="js/shared/shared-loader.js?v=20260614dynread1"></script>
     <script>
 window.DYNASTY_HQ_APP = 'warroom';
 // Sandbox = the WarRoom-sandbox deploy (c2-football.github.io/WarRoom-sandbox/),
@@ -2221,8 +2221,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" src="js/tabs/flash-brief.js?v=20260613gm1"></script>
 <!-- Group "analysis": analytics.js embeds LeagueMapTab, so both defer together
      (league-map.js first — DOM order is execution order within a group). -->
-<script type="text/babel" data-wr-defer="analysis" src="js/tabs/league-map.js?v=20260605rookiefix1"></script>
-<script type="text/babel" src="js/tabs/my-team.js?v=20260613gm1"></script>
+<script type="text/babel" data-wr-defer="analysis" src="js/tabs/league-map.js?v=20260614dynread1"></script>
+<script type="text/babel" src="js/tabs/my-team.js?v=20260614dynread1"></script>
 <!-- Compare: extracted from My Roster's former sub-view, now a top-level ROSTER-group tab. -->
 <script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20260613strip1"></script>
 <script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260613strip1"></script>

@@ -11,7 +11,7 @@
         } catch (e) {}
         return 'https://c2-football.github.io/ReconAI/shared/';
     })();
-    const DEFAULT_VERSION = '20260604analytics1';
+    const DEFAULT_VERSION = '20260614dynread1';
     const config = {
         localBase: null,
         remoteBase: REMOTE_BASE,
@@ -51,8 +51,13 @@
     function resolveBase() {
         const explicit = params().get('sharedBase') || window.WARROOM_SHARED_BASE;
         if (explicit) return cleanBase(explicit);
-        if (isLocalMode()) return cleanBase(config.localBase || defaultLocalBase());
-        return cleanBase(config.remoteBase);
+        // War Room ships its own copy of the shared engine in reconai-shared/
+        // (synced from the canonical ReconAI repo at build time and bundled into
+        // the Pages artifact). Always load it same-origin from that vendored copy
+        // so the app does NOT depend on the separate /ReconAI/ Scout deploy being
+        // live. `?shared=remote` stays as a debug-only escape hatch.
+        if (params().get('shared') === 'remote') return cleanBase(config.remoteBase);
+        return cleanBase(config.localBase || defaultLocalBase());
     }
 
     function withVersion(url, version) {
