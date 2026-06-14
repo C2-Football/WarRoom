@@ -401,7 +401,30 @@ function MyTeamTab({
   // currently expanded row (one open at a time), template-first. Result is keyed
   // by pid; the shared weekly cache means repeat opens are an instant hit.
   const [aiReads, setAiReads] = React.useState({});
+  const [readOpen, setReadOpen] = React.useState(false);
+  // Only clamp the Dynasty Read when it actually overflows (short reads show in full).
+  const [readOverflow, setReadOverflow] = React.useState(false);
+  const readRef = React.useRef(null);
+  React.useLayoutEffect(() => {
+    const el = readRef.current;
+    setReadOverflow(!!el && el.scrollHeight > 112);
+  }, [expandedPid, aiReads, rosterViewportWidth]);
+  // Track the roster board's VISIBLE width so the expand card pins to the viewport
+  // instead of stretching to the full (horizontally-scrolling) table width.
+  const boardScrollRef = React.useRef(null);
+  const [boardWidth, setBoardWidth] = React.useState(0);
+  React.useLayoutEffect(() => {
+    const el = boardScrollRef.current;
+    if (!el) return;
+    const measure = () => setBoardWidth(el.clientWidth);
+    measure();
+    let ro;
+    if (typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(measure); ro.observe(el); }
+    window.addEventListener('resize', measure);
+    return () => { if (ro) ro.disconnect(); window.removeEventListener('resize', measure); };
+  }, []);
   React.useEffect(() => {
+    setReadOpen(false);
     const pid = expandedPid;
     if (!pid || aiReads[pid] || typeof window.fetchDynastyRead !== 'function') return;
     const p = playersData?.[pid];
@@ -903,7 +926,7 @@ function MyTeamTab({
             </div>
           </div>
         </div>
-        <div style={{ overflowX: 'auto', overflowY: 'clip', background: 'linear-gradient(90deg, var(--ov-1, rgba(255,255,255,0.02)), transparent 12%, transparent 88%, var(--ov-1, rgba(255,255,255,0.018)))' }}>
+        <div ref={boardScrollRef} style={{ overflowX: 'auto', overflowY: 'clip', background: 'linear-gradient(90deg, var(--ov-1, rgba(255,255,255,0.02)), transparent 12%, transparent 88%, var(--ov-1, rgba(255,255,255,0.018)))' }}>
           <div style={{ minWidth: tableMinWidth + 'px' }}>
             {/* Header row */}
             <div style={{ display: 'flex', height: '32px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderBottom: '1px solid var(--ov-6, rgba(255,255,255,0.12))', position: 'sticky', top: 0, zIndex: 5 }}>
@@ -985,77 +1008,78 @@ function MyTeamTab({
 
               {/* Inline expand card — Madden/FM style */}
               {isExpanded && (
-                <div style={{ borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', background: 'linear-gradient(180deg, var(--surf-solid, rgba(18,18,24,0.99)), var(--surf-solid, rgba(6,6,10,0.99)))', padding: '12px 14px', animation: 'wrFadeIn 0.2s ease' }}>
-                  {/* Player dossier */}
-                  <div style={{ display: 'grid', gridTemplateColumns: rosterViewportWidth <= 560 ? '1fr' : rosterViewportWidth <= 834 ? 'minmax(0, 1fr) minmax(0, 1fr)' : 'minmax(260px, 0.82fr) minmax(420px, 1.45fr) minmax(220px, 0.72fr)', gap: '10px', marginBottom: '10px', alignItems: 'stretch' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '76px minmax(0, 1fr)', gap: '10px', alignItems: 'center', background: 'var(--ov-1, rgba(255,255,255,0.022))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: '8px', padding: '9px' }}>
-                      <div style={{ flexShrink: 0, position: 'relative' }}>
-                        <img src={'https://sleepercdn.com/content/nfl/players/'+r.pid+'.jpg'} alt="" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} style={{ width: '72px', height: '72px', borderRadius: '8px', objectFit: 'cover', objectPosition: 'top', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))' }} />
-                        <div style={{ display: 'none', width: '72px', height: '72px', borderRadius: '8px', background: 'var(--charcoal)', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', fontWeight: 700, color: 'var(--silver)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))' }}>{(r.p.first_name||'?')[0]}{(r.p.last_name||'?')[0]}</div>
-                        <div style={{ position: 'absolute', bottom: '-4px', left: '50%', transform: 'translateX(-50%)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, padding: '1px 7px', borderRadius: '7px', background: (posColors[r.pos]||'var(--k-666666, #666666)')+'22', color: posColors[r.pos]||'var(--silver)', whiteSpace: 'nowrap' }}>{window.App?.posLabel?.(r.pos) || (r.pos === 'DEF' ? 'D/ST' : r.pos)}</div>
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.18rem', color: 'var(--white)', letterSpacing: '0.01em', lineHeight: 1.08, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.p.full_name || getPlayerName(r.pid)}</span>
+                <div style={{ borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', background: 'linear-gradient(180deg, var(--surf-solid, rgba(18,18,24,0.99)), var(--surf-solid, rgba(6,6,10,0.99)))', padding: '12px 14px', animation: 'wrFadeIn 0.2s ease', position: 'sticky', left: 0, zIndex: 3, width: boardWidth ? boardWidth + 'px' : '100%', boxSizing: 'border-box' }}>
+                  {/* ── Dossier (02 "clear hierarchy"): identity + roster call → signals strip → read + signals → curve → stats ── */}
+                  {(() => {
+                    const verdict = r.rec || 'Hold';
+                    const isSell = /sell/i.test(verdict), isBuy = /buy|build|core/i.test(verdict);
+                    const vColor = isSell ? 'var(--bad)' : isBuy ? 'var(--good)' : 'var(--gold)';
+                    const tier = (typeof window.App?.isElitePlayer === 'function' ? window.App.isElitePlayer(r.pid) : r.dhq >= 7000) ? 'Elite' : r.dhq >= 4000 ? 'Starter' : r.dhq >= 2000 ? 'Depth' : 'Stash';
+                    const field = (currentLeague.rosters || []).flatMap(ros => (ros.players || []).filter(pid2 => normPos(playersData[pid2]?.position) === r.pos)).map(pid2 => ({ pid: pid2, dhq: window.App?.LI?.playerScores?.[pid2] || 0 })).filter(x => x.dhq > 0).sort((a, b) => b.dhq - a.dhq);
+                    const rank = field.findIndex(x => x.pid === r.pid) + 1;
+                    const narrow = rosterViewportWidth <= 834;
+                    const posLbl = window.App?.posLabel?.(r.pos) || (r.pos === 'DEF' ? 'D/ST' : r.pos);
+                    const chip = (bg, col) => ({ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: '999px', background: bg, color: col, whiteSpace: 'nowrap' });
+                    const primeEnd = r.peakYrsLeft > 0 && r.age ? r.age + r.peakYrsLeft : null;
+                    const sigWindow = (r.peakPhase || '—') + (primeEnd ? ' · thru ' + primeEnd : r.valueYrsLeft > 0 ? ' · ~' + r.valueYrsLeft + 'yr value' : '');
+                    const sigRisk = r.injury ? r.injury : (r.durabilityGP && r.durabilityGP < 13 ? '~' + r.durabilityGP + ' GP/yr' : 'no current flags');
+                    const sigFloor = r.isStarter ? 'weekly starter' : (r.p.depth_chart_order != null && r.p.depth_chart_order <= 1 ? 'rotation role' : 'bench / depth');
+                    const sigCeiling = r.trend >= 10 ? 'trending up' : (tier === 'Elite' || tier === 'Starter') ? 'proven ' + tier.toLowerCase() : r.peakPhase === 'PRE' ? 'developing' : 'limited upside';
+                    const callSub = tier + ' ' + posLbl + ' · ' + (isSell ? 'sell high' : isBuy ? 'buy low' : "don't overpay");
+                    const sigRow = (label, val, last) => (<div style={{ display: 'flex', gap: '9px', alignItems: 'baseline', padding: '6px 0', borderBottom: last ? 'none' : '1px solid rgba(255,255,255,0.05)', fontSize: '0.74rem' }}><span style={{ minWidth: '52px', color: 'var(--silver)', opacity: 0.65 }}>{label}</span><span style={{ color: 'var(--white)', fontWeight: 600 }}>{val}</span></div>);
+                    return (<React.Fragment>
+                      {/* Identity + roster call */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                        <div style={{ flexShrink: 0, position: 'relative' }}>
+                          <img src={'https://sleepercdn.com/content/nfl/players/' + r.pid + '.jpg'} alt="" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} style={{ width: '58px', height: '58px', borderRadius: '8px', objectFit: 'cover', objectPosition: 'top', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))' }} />
+                          <div style={{ display: 'none', width: '58px', height: '58px', borderRadius: '8px', background: 'var(--charcoal)', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 700, color: 'var(--silver)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))' }}>{(r.p.first_name || '?')[0]}{(r.p.last_name || '?')[0]}</div>
+                          <div style={{ position: 'absolute', bottom: '-4px', left: '50%', transform: 'translateX(-50%)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, padding: '1px 7px', borderRadius: '7px', background: (posColors[r.pos] || 'var(--k-666666, #666666)') + '22', color: posColors[r.pos] || 'var(--silver)', whiteSpace: 'nowrap' }}>{posLbl}</div>
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginTop: '4px', lineHeight: 1.4 }}>
-                          {r.p.team || 'FA'} {'\u00B7'} Age {r.age || '?'} {'\u00B7'} {r.p.years_exp||0}yr exp
-                          {formatHeight(r.p.height) ? ' \u00B7 ' + formatHeight(r.p.height) : ''}
-                          {r.p.weight ? ' \u00B7 ' + r.p.weight + 'lbs' : ''}
-                          {r.p.college ? ' \u00B7 '+r.p.college : ''}
+                        <div style={{ flex: 1, minWidth: '150px' }}>
+                          <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.35rem', color: 'var(--white)', letterSpacing: '0.01em', lineHeight: 1.04 }}>{r.p.full_name || getPlayerName(r.pid)}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginTop: '3px', lineHeight: 1.4 }}>
+                            {posLbl} {'·'} {r.p.team || 'FA'} {'·'} Age {r.age || '?'} {'·'} {r.p.years_exp || 0}yr exp
+                            {formatHeight(r.p.height) ? ' · ' + formatHeight(r.p.height) : ''}
+                            {r.p.college ? ' · ' + r.p.college : ''}
+                            {r.injury ? <span style={{ color: 'var(--bad)', fontWeight: 700 }}> {'·'} {r.injury}</span> : null}
+                          </div>
                         </div>
-                        {r.injury && <div style={{ fontSize: '0.72rem', color: 'var(--bad)', fontWeight: 700, marginTop: '5px' }}>{r.injury}</div>}
+                        <div style={{ textAlign: 'right', minWidth: '120px' }}>
+                          <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Roster call</div>
+                          <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.6rem', fontWeight: 700, color: vColor, lineHeight: 1.05, textTransform: 'uppercase' }}>{verdict}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--silver)' }}>{callSub}</div>
+                        </div>
                       </div>
-                    </div>
-                    <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: '8px', padding: '9px 11px', minWidth: 0 }}>
-                      <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '5px' }}>Dynasty Read</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--k-d8d8de, #d8d8de)', lineHeight: 1.42 }}>
-                        {aiReads[r.pid] || buildDynastyRead(r)}
-                      </div>
-                    </div>
-                    <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: '8px', padding: '9px 11px', minWidth: 0 }}>
-                      <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.58, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '7px' }}>Decision Stack</div>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '0.72rem', fontWeight: 800, fontFamily: 'var(--font-body)', padding: '3px 10px', borderRadius: '999px', background: /sell/i.test(r.rec) ? 'rgba(231,76,60,0.15)' : /buy|build|core/i.test(r.rec) ? 'rgba(46,204,113,0.15)' : 'var(--acc-fill2, rgba(212,175,55,0.12))', color: /sell/i.test(r.rec) ? 'var(--bad)' : /buy|build|core/i.test(r.rec) ? 'var(--good)' : 'var(--gold)', letterSpacing: '0.03em' }}>{r.rec}</span>
-                        <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: '999px', background: dhqBg(r.dhq), color: dhqCol(r.dhq) }}>
-                          {(typeof window.App?.isElitePlayer === 'function' ? window.App.isElitePlayer(r.pid) : r.dhq >= 7000) ? 'Elite' : r.dhq >= 4000 ? 'Starter' : r.dhq >= 2000 ? 'Depth' : 'Stash'} {'\u00B7'} {r.dhq.toLocaleString()} DHQ
-                        </span>
-                        <span style={{ fontSize: '0.72rem', padding: '3px 10px', borderRadius: '999px', background: r.peakPhase === 'PRE' ? 'rgba(46,204,113,0.1)' : r.peakPhase === 'POST' ? 'rgba(231,76,60,0.1)' : 'var(--acc-fill2, rgba(212,175,55,0.08))', color: r.peakPhase === 'PRE' ? 'var(--good)' : r.peakPhase === 'POST' ? 'var(--bad)' : 'var(--gold)', fontWeight: 700 }}>{r.peakPhase}</span>
-                      </div>
-                      <div style={{ marginTop: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '0.72rem', color: 'var(--silver)' }}>
-	                        <div><span style={{ opacity: 0.55 }}>Slot </span><strong style={{ color: 'var(--white)' }}>{slotLabel(r)}</strong></div>
-                        <div><span style={{ opacity: 0.55 }}>Depth </span><strong style={{ color: 'var(--white)' }}>{r.p.depth_chart_order != null ? r.pos + (r.p.depth_chart_order + 1) : '\u2014'}</strong></div>
-                        <div><span style={{ opacity: 0.55 }}>Peak </span><strong style={{ color: 'var(--white)' }}>{r.peakYrsLeft > 0 ? r.peakYrsLeft + ' yrs' : '\u2014'}</strong></div>
-                        <div><span style={{ opacity: 0.55 }}>Trend </span><strong style={{ color: r.trend >= 15 ? 'var(--good)' : r.trend <= -15 ? 'var(--bad)' : 'var(--white)' }}>{r.trend ? (r.trend > 0 ? '+' : '') + r.trend + '%' : '\u2014'}</strong></div>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Stat boxes grid — Madden style */}
-	                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: '6px', marginBottom: '10px' }}>
-                    {(() => {
-                      const dhqPct = Math.min(100, Math.round((r.dhq / 10000) * 100));
-                      const dhqFilled = Math.round(dhqPct / 10);
-                      const dhqColor = r.dhq >= 7000 ? 'filled-green' : r.dhq >= 4000 ? 'filled' : 'filled-red';
-                      return [
-                        { label: 'DHQ', val: r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014', col: dhqCol(r.dhq), gauge: true },
-                        { label: 'RANK', val: (() => {
-                          const allAtPos = (currentLeague.rosters||[]).flatMap(ros=>(ros.players||[]).filter(pid2=>normPos(playersData[pid2]?.position)===r.pos)).map(pid2=>({pid:pid2,dhq:window.App?.LI?.playerScores?.[pid2]||0})).sort((a,b)=>b.dhq-a.dhq);
-                          const rank = allAtPos.findIndex(x=>x.pid===r.pid)+1;
-                          return rank > 0 ? r.pos + rank : '\u2014';
-                        })(), col: 'var(--gold)' },
-                        { label: 'PPG', val: r.effectivePPG || '\u2014', col: r.effectivePPG >= (posP75[r.pos]||10) ? 'var(--good)' : 'var(--text-primary)' },
-	                        { label: 'GP', val: r.effectiveGP || '\u2014', col: r.effectiveGP >= 14 ? 'var(--good)' : r.effectiveGP >= 10 ? 'var(--silver)' : 'var(--bad)' },
-	                        { label: 'TREND', val: r.trend ? (r.trend > 0 ? '+' : '') + r.trend + '%' : '\u2014', col: r.trend >= 15 ? 'var(--good)' : r.trend <= -15 ? 'var(--bad)' : 'var(--silver)' },
-	                      ].map((s, i) => (
-	                        <div key={i} style={{ background: 'var(--ov-2, rgba(255,255,255,0.026))', border: '1px solid var(--ov-4, rgba(255,255,255,0.055))', borderRadius: '7px', padding: '7px 6px', textAlign: 'center' }}>
-	                          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1rem', fontWeight: 550, color: s.col, letterSpacing: 0 }}>{s.val}</div>
-                          {s.gauge && <div className="wr-gauge" style={{ marginTop: '3px' }}>{Array.from({length: 10}, (_, gi) => <div key={gi} className={'wr-gauge-seg' + (gi < dhqFilled ? ' ' + dhqColor : '')}></div>)}</div>}
-                          <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>{s.label}</div>
+                      {/* Signals chip strip */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                        <span style={chip(dhqBg(r.dhq), dhqCol(r.dhq))}>{tier} {'·'} {r.dhq.toLocaleString()} DHQ</span>
+                        {rank > 0 ? <span style={chip('var(--ov-3, rgba(255,255,255,0.05))', 'var(--gold)')}>{r.pos}{rank}</span> : null}
+                        <span style={chip(r.peakPhase === 'PRE' ? 'rgba(46,204,113,0.1)' : r.peakPhase === 'POST' ? 'rgba(231,76,60,0.1)' : 'var(--acc-fill2, rgba(212,175,55,0.08))', r.peakPhase === 'PRE' ? 'var(--good)' : r.peakPhase === 'POST' ? 'var(--bad)' : 'var(--gold)')}>{r.peakPhase}{r.peakYrsLeft > 0 ? ' · ~' + r.peakYrsLeft + 'yr' : ''}</span>
+                        {r.effectivePPG ? <span style={chip('var(--ov-3, rgba(255,255,255,0.05))', 'var(--white)')}>{r.effectivePPG} PPG</span> : null}
+                        {r.injury ? <span style={chip('rgba(231,76,60,0.13)', 'var(--bad)')}>{r.injury}</span> : null}
+                      </div>
+
+                      {/* Dynasty read | signals */}
+                      <div style={{ display: 'grid', gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: '10px', marginBottom: '10px', alignItems: 'start' }}>
+                        <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: '8px', padding: '9px 11px', minWidth: 0 }}>
+                          <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '5px' }}>Dynasty Read</div>
+                          <div style={{ position: 'relative', maxHeight: (readOverflow && !readOpen) ? '104px' : 'none', overflow: (readOverflow && !readOpen) ? 'hidden' : 'visible' }}>
+                            <div ref={readRef} style={{ fontSize: '0.8rem', color: 'var(--k-d8d8de, #d8d8de)', lineHeight: 1.45 }}>{aiReads[r.pid] || buildDynastyRead(r)}</div>
+                            {(readOverflow && !readOpen) ? <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '38px', background: 'linear-gradient(180deg, transparent, var(--surf-solid, rgba(12,12,18,0.99)))', pointerEvents: 'none' }} /> : null}
+                          </div>
+                          {readOverflow ? <button onClick={e => { e.stopPropagation(); setReadOpen(v => !v); }} style={{ marginTop: '6px', fontSize: '0.72rem', color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)' }}>{readOpen ? '▴ Show less' : '▾ Full read'}</button> : null}
                         </div>
-                      ));
-                    })()}
-                  </div>
+                        <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: '8px', padding: '9px 11px', minWidth: 0 }}>
+                          <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.58, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '4px' }}>Signals</div>
+                          {sigRow('Ceiling', sigCeiling)}
+                          {sigRow('Floor', sigFloor)}
+                          {sigRow('Risk', sigRisk)}
+                          {sigRow('Window', sigWindow, true)}
+                        </div>
+                      </div>
+                    </React.Fragment>);
+                  })()}
 
 		                  {/* Age Curve visualization */}
 	                  {(() => {
