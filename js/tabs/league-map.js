@@ -50,15 +50,6 @@ function ReportSubView({
     setReportView('edit');
   }
 
-  function handleUseTemplate(report) {
-    setEditDraft({
-      ...JSON.parse(JSON.stringify(report)),
-      id: 'rpt_' + Date.now(),
-      name: report.name + ' Copy',
-    });
-    setReportView('edit');
-  }
-
   function handleEditReport(report) {
     setEditDraft(JSON.parse(JSON.stringify(report)));
     setReportView('edit');
@@ -161,23 +152,6 @@ function ReportSubView({
     const previewCols = (previewResult?.columns || []).slice(0, 4);
     return (
       <div>
-        {analyticsEmbedMode && (
-          <div className="analytics-report-lab">
-            <div>
-              <span>Report Lab</span>
-              <strong>Build once, rerun all season</strong>
-              <p>Use templates for quick owner/player screens or create a sandbox report from scratch.</p>
-            </div>
-            <div className="analytics-report-templates">
-              {DEFAULT_REPORTS.map(r => (
-                <button key={r.id} onClick={() => handleUseTemplate(r)}>
-                  <strong>{r.name}</strong>
-                  <em>{r.dataSource} · {(r.columns || []).length} cols</em>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
           <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.125rem', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.06em' }}>CUSTOM REPORTS</div>
           <button onClick={handleNewReport} style={{ ...sortBtnStyle(false), marginLeft: 'auto', fontSize: '0.74rem' }}>+ New Report</button>
@@ -1498,16 +1472,6 @@ function LeagueMapTab({
                         <div><span>Elite Assets</span><strong>{playerSummary.elite}</strong><em>7000+ DHQ or top 5 pos</em></div>
                         <div><span>Your Roster</span><strong>{playerSummary.mine}</strong><em>owned players in table</em></div>
                         <div><span>Avg DHQ</span><strong>{playerSummary.avgDhq.toLocaleString()}</strong><em>{posLeader ? posLeader[0] + ' is deepest room' : 'all positions'}</em></div>
-                    </div>
-                )}
-                {_analyticsEmbed && (
-                    <div className="analytics-evidence-head">
-                        <div>
-                            <span>Evidence Layer</span>
-                            <strong>Player market ledger</strong>
-                            <em>Sorted high-to-low by DHQ by default; use this table to verify owner/player signals from the dashboards above.</em>
-                        </div>
-                        <div className="analytics-evidence-meta">{filtered.length.toLocaleString()} rows</div>
                     </div>
                 )}
                 {/* Phase 8 deferred: search + position chips + SavedViewBar */}

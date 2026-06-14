@@ -509,13 +509,6 @@
 	            ];
 	            if (module) {
 	                return React.createElement('div', { style: { padding: '10px 16px 16px', maxWidth: '1280px', margin: '0 auto' } },
-	                    React.createElement('div', { className: 'wr-module-strip' },
-	                        React.createElement('div', { className: 'wr-module-title' },
-	                            React.createElement('span', null, 'GUIDE'),
-	                            React.createElement('strong', null, 'Legend'),
-	                            React.createElement('em', null, 'Metric definitions, status language, and tool meanings for this league format.')
-	                        )
-	                    ),
 	                    React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px', marginBottom: '14px' } },
 	                        ...quickItems.map(item => React.createElement('div', { key: item.term, style: { padding: '12px 13px', background: 'var(--black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.18))', borderRadius: '8px' } },
 	                            React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', fontWeight: 800, color: 'var(--gold)', fontFamily: 'var(--font-body)', marginBottom: '4px' } }, item.term),
@@ -3121,18 +3114,55 @@
                     background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))',
                     position: 'sticky', top: 0, zIndex: 50
                 }}>
-                    {/* Year pills */}
-                    <div className="wr-time-years" style={{ display: 'flex', gap: '3px', flexWrap: 'wrap', minWidth: 0 }}>
-                        {timeYears.map(yr =>
-                            <button key={yr} onClick={() => handleTimeYearChange(yr)} style={{
-                                padding: '4px 10px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)',
-                                fontWeight: timeYear === yr ? 700 : 400,
-                                background: timeYear === yr ? 'var(--gold)' : 'var(--ov-2, rgba(255,255,255,0.03))',
-                                color: timeYear === yr ? 'var(--black)' : 'var(--silver)',
-                                border: timeYear === yr ? '1px solid var(--gold)' : '1px solid var(--ov-4, rgba(255,255,255,0.06))',
-                                borderRadius: '4px', cursor: 'pointer', transition: 'all 0.15s'
-                            }}>{yr}</button>
-                        )}
+                    {/* Year pills — grouped as a timeline: past · current · projected */}
+                    <div className="wr-time-years" style={{ display: 'flex', alignItems: 'center', gap: '3px', flexWrap: 'wrap', minWidth: 0 }}>
+                        {(() => {
+                            const pastYears = timeYears.filter(y => y < currentSeason);
+                            const currentAndFuture = timeYears.filter(y => y >= currentSeason);
+                            return (
+                                <React.Fragment>
+                                    {pastYears.length > 0 && (
+                                        <React.Fragment>
+                                            <select value={isHistoricalYear ? timeYear : ''} onChange={e => { if (e.target.value) handleTimeYearChange(Number(e.target.value)); }} title="Past seasons" style={{
+                                                padding: '4px 8px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)',
+                                                fontWeight: isHistoricalYear ? 700 : 400,
+                                                background: isHistoricalYear ? 'var(--gold)' : 'var(--ov-2, rgba(255,255,255,0.03))',
+                                                color: isHistoricalYear ? 'var(--black)' : 'var(--silver)',
+                                                border: '1px solid ' + (isHistoricalYear ? 'var(--gold)' : 'var(--ov-4, rgba(255,255,255,0.06))'),
+                                                opacity: isHistoricalYear ? 1 : 0.8,
+                                                borderRadius: '4px', cursor: 'pointer', outline: 'none'
+                                            }}>
+                                                <option value="" style={{ background: 'var(--black)', color: 'var(--white)' }}>Past seasons</option>
+                                                {pastYears.map(yr => <option key={yr} value={yr} style={{ background: 'var(--black)', color: 'var(--white)' }}>{yr}</option>)}
+                                            </select>
+                                            {currentAndFuture.length > 0 && <span aria-hidden="true" style={{ width: 1, height: 18, margin: '0 5px', background: 'var(--ov-5, rgba(255,255,255,0.12))', alignSelf: 'center' }} />}
+                                        </React.Fragment>
+                                    )}
+                                    {currentAndFuture.map((yr, i) => {
+                                        const kind = yr > currentSeason ? 'future' : 'current';
+                                        const prev = currentAndFuture[i - 1];
+                                        const prevKind = prev == null ? null : (prev > currentSeason ? 'future' : 'current');
+                                        const selected = timeYear === yr;
+                                        let bg, color, border, weight = selected ? 700 : 400, opacity = 1;
+                                        if (selected) { bg = 'var(--gold)'; color = 'var(--black)'; border = '1px solid var(--gold)'; }
+                                        else if (kind === 'future') { bg = 'rgba(69,183,209,0.06)'; color = 'var(--k-45b7d1, #45b7d1)'; border = '1px solid rgba(69,183,209,0.25)'; }
+                                        else { bg = 'var(--acc-fill2, rgba(212,175,55,0.12))'; color = 'var(--gold)'; border = '1px solid var(--acc-line2, rgba(212,175,55,0.4))'; weight = 700; }
+                                        return (
+                                            <React.Fragment key={yr}>
+                                                {prevKind && prevKind !== kind && (
+                                                    <span aria-hidden="true" style={{ width: 1, height: 18, margin: '0 5px', background: 'var(--ov-5, rgba(255,255,255,0.12))', alignSelf: 'center' }} />
+                                                )}
+                                                <button onClick={() => handleTimeYearChange(yr)} title={kind === 'future' ? yr + ' — projected' : yr + ' — current season'} style={{
+                                                    padding: '4px 10px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)',
+                                                    fontWeight: weight, background: bg, color: color, border: border, opacity,
+                                                    borderRadius: '4px', cursor: 'pointer', transition: 'all 0.15s'
+                                                }}>{yr}</button>
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                </React.Fragment>
+                            );
+                        })()}
                     </div>
                     {/* Compact year dropdown — replaces the pill strip at ≤1023px (CSS-toggled) */}
                     <select className="wr-time-years-select" value={timeYear} onChange={e => handleTimeYearChange(Number(e.target.value))} aria-label="Season year" style={{
@@ -3140,7 +3170,17 @@
                         fontWeight: 700, background: 'var(--gold)', color: 'var(--black)', border: '1px solid var(--gold)',
                         borderRadius: '4px', cursor: 'pointer', minHeight: '32px'
                     }}>
-                        {timeYears.map(yr => <option key={yr} value={yr} style={{ background: 'var(--black)', color: 'var(--white)' }}>{yr}{yr === currentSeason ? ' • current' : ''}</option>)}
+                        {(() => {
+                            const opt = (yr) => <option key={yr} value={yr} style={{ background: 'var(--black)', color: 'var(--white)' }}>{yr}{yr === currentSeason ? ' • current' : ''}</option>;
+                            const past = timeYears.filter(y => y < currentSeason);
+                            const cur = timeYears.filter(y => y === currentSeason);
+                            const future = timeYears.filter(y => y > currentSeason);
+                            return [
+                                past.length ? <optgroup key="p" label="Past seasons">{past.map(opt)}</optgroup> : null,
+                                cur.length ? <optgroup key="c" label="Current">{cur.map(opt)}</optgroup> : null,
+                                future.length ? <optgroup key="f" label="Projected">{future.map(opt)}</optgroup> : null,
+                            ];
+                        })()}
                     </select>
                     {/* League name/team-count moved to the main header to avoid duplication. */}
                     <div className="wr-time-spacer" style={{ marginLeft: 'auto' }}></div>

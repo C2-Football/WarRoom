@@ -775,7 +775,7 @@
             }).slice(0, 50);
         }, [availablePlayers, faFilter, faSearch, faSort, statsData, rookieOnly, isRookiePlayer, rookieTeamFilter, rookieCollegeFilter, rookieSlotFilter, rookieTeamOf, rookieCollegeOf, rookieSlotMatch, prospectFor]);
 
-        const faHeaderStyle = { fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', userSelect: 'none' };
+        const faHeaderStyle = { fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' };
 
         // Compute roster needs for recommendations
         const assess = useMemo(() => typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(myRoster?.roster_id) : null, [myRoster]);
@@ -1043,9 +1043,6 @@
             };
         }).sort((a, b) => b.remaining - a.remaining);
         const myFaabRank = faabMarketRows.findIndex(r => r.isMe) + 1;
-        const leagueAvgRemaining = faabMarketRows.length
-            ? Math.round(faabMarketRows.reduce((s, r) => s + r.remaining, 0) / faabMarketRows.length)
-            : 0;
         const canOutbidRows = faabMarketRows.filter(r => !r.isMe && r.remaining > remaining).slice(0, 5);
 
         const posGrades = window.App?.calcPosGrades?.(myRoster?.roster_id, currentLeague?.rosters, playersData) || [];
@@ -1138,7 +1135,6 @@
                         <strong style={{ color: dhqCol }}>{x.dhq ? x.dhq.toLocaleString() : '—'}</strong>
                         <em>{x.faab ? '$' + x.faab.lo + '-' + x.faab.hi : 'No bid'}</em>
                     </span>
-                    <span className="fa-hq-why">{x.why}</span>
                 </button>
             );
         }
@@ -1148,34 +1144,9 @@
             const boardRows = actionBoardPlayers.slice(0, compact ? 6 : 8);
             const swapRows = upgradePairs.slice(0, compact ? 3 : 4);
             const freshRows = recentDrops.slice(0, compact ? 2 : 3);
-            const deficitChips = (assess?.needs || []).filter(n => n.urgency === 'deficit').map(n => n.pos);
-            const thinChips = (assess?.needs || []).filter(n => n.urgency === 'thin').map(n => n.pos);
-            const starterReq = rosterGapRows.reduce((s, r) => s + Math.max(1, r.data.startingReq || r.data.minQuality || 1), 0);
-            const starterFilled = rosterGapRows.reduce((s, r) => {
-                const req = Math.max(1, r.data.startingReq || r.data.minQuality || 1);
-                const filled = r.data.nflStarters || Math.min(r.data.actual || 0, req);
-                return s + Math.min(filled, req);
-            }, 0);
-            const starterCoverage = starterReq ? Math.round((starterFilled / starterReq) * 100) : null;
-            const pressureScore = boardRows.reduce((s, r) => s + (r.faab?.competitors || 0), 0);
-            const pressure = pressureScore >= 14 ? 'High' : pressureScore >= 7 ? 'Moderate' : 'Low';
-            const pressureColor = pressure === 'High' ? 'var(--k-e74c3c, #e74c3c)' : pressure === 'Moderate' ? 'var(--k-f0a500, #f0a500)' : 'var(--k-2ecc71, #2ecc71)';
             const faabColor = remaining > budget * 0.5 ? 'var(--k-2ecc71, #2ecc71)' : remaining > budget * 0.25 ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
             return (
                 <section className={'fa-hq-shell' + (compact ? ' is-compact' : '')}>
-                    <div className="fa-hq-hero">
-                        <div>
-                            <span>Free Agency Action HQ</span>
-                            <h2>{topAdds[0] ? topAdds[0].p.full_name || playerName(topAdds[0].p) : 'No urgent add surfaced'}</h2>
-                            <p>{topAdds[0] ? topAdds[0].why : 'Your market is clean enough to browse for stashes and tactical depth.'}</p>
-                        </div>
-                        <div className="fa-hq-hero-kpis">
-                            {hasFAAB && <div><span>FAAB</span><strong style={{ color: faabColor }}>${remaining}</strong><em>#{myFaabRank || '—'}/{faabMarketRows.length || '—'} · avg ${leagueAvgRemaining}</em></div>}
-                            <div><span>Pressure</span><strong style={{ color: pressureColor }}>{pressure}</strong><em>{pressureScore} competitor signals</em></div>
-                            <div><span>Coverage</span><strong>{starterCoverage == null ? '—' : starterCoverage + '%'}</strong><em>{deficitChips.length ? deficitChips.join(', ') + ' deficits' : starterCoverage == null ? 'Assessment pending' : 'No red rooms'}</em></div>
-                        </div>
-                    </div>
-
                     <div className="fa-hq-grid">
                         <aside className="fa-hq-panel">
                             <div className="fa-hq-panel-head">
@@ -1285,16 +1256,6 @@
             const isPreDraft = !!rosterState.isPreDraftRosterEmpty;
             return (
                 <div className="fa-page wr-fade-in">
-                    <div className="wr-module-strip">
-                        <div className="wr-module-context">
-                            <span>Waivers</span>
-                            <strong>{isPreDraft ? 'Pre-draft mode' : 'Action HQ paused'}</strong>
-                            <em>{isPreDraft ? rosterState.brief || rosterState.detail : 'Roster-fit targeting is paused until the league roster data is complete.'}</em>
-                        </div>
-                        <div className="wr-module-actions">
-                            <span className="wr-module-pill">{isPreDraft ? 'Draft Prep' : 'Sync Required'}</span>
-                        </div>
-                    </div>
                     {window.App?.renderRosterDataBlocker?.(rosterState, {
                         title: isPreDraft ? null : 'Free Agency paused',
                         message: isPreDraft ? rosterState.message : 'Waiver rankings are hidden until roster IDs finish loading.',
@@ -1381,16 +1342,6 @@
             }
             return (
                 <div className="fa-page wr-fade-in">
-                    <div className="wr-module-strip">
-                        <div className="wr-module-context">
-                            <span>Waivers</span>
-                            <strong>Action HQ</strong>
-                            <em>Add/drop priorities, FAAB leverage, and roster-fit targeting.</em>
-                        </div>
-                        <div className="wr-module-actions">
-                            <span className="wr-module-pill">Command</span>
-                        </div>
-                    </div>
                     {renderCrazePanel()}
                     {renderActionHQ(true)}
                 </div>
@@ -1400,16 +1351,6 @@
         // ── ANALYST VIEW: full market terminal ──
         return (
             <div className="fa-page wr-fade-in">
-                <div className="wr-module-strip">
-                    <div className="wr-module-context">
-                        <span>Waivers</span>
-                        <strong>Action HQ</strong>
-                        <em>Add/drop priorities, FAAB leverage, and full market exploration.</em>
-                    </div>
-                    <div className="wr-module-actions">
-                        <span className="wr-module-pill">Analyst</span>
-                    </div>
-                </div>
 
                 {renderCrazePanel()}
                 {renderActionHQ(false)}
@@ -1548,10 +1489,11 @@
 
                 {/* Dynamic grid — photo + Player + configured columns */}
                 {(() => {
-                    const gridTemplate = '32px 1fr ' + visibleFaCols.map(k => (faColumns[k]?.width || '44px')).join(' ');
-                    return <div style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '10px', overflow: 'hidden' }}>
+                    const gridTemplate = '32px minmax(150px, 1fr) ' + visibleFaCols.map(k => (faColumns[k]?.width || '44px')).join(' ');
+                    const tableMinWidth = 32 + 150 + 24 + visibleFaCols.reduce((s, k) => s + (parseInt(faColumns[k]?.width || '44', 10) || 44) + 4, 0);
+                    return <div style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '10px', overflowX: 'auto' }}>
                         {/* Header */}
-                        <div style={{ display: 'grid', gridTemplateColumns: gridTemplate, gap: '4px', padding: '8px 12px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: gridTemplate, gap: '4px', padding: '8px 12px', minWidth: tableMinWidth + 'px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))' }}>
                             <span style={faHeaderStyle}></span>
                             <span style={faHeaderStyle} onClick={() => handleFaSort('name')}>Player{faSortIndicator('name')}</span>
                             {visibleFaCols.map(k => {
@@ -1564,7 +1506,7 @@
                             })}
                         </div>
                         {/* Body */}
-                        <div style={{ maxHeight: 'none', overflow: 'visible' }}>
+                        <div style={{ maxHeight: 'none', overflow: 'visible', minWidth: tableMinWidth + 'px' }}>
                             {sortedPlayers.map(({ pid, p, dhq }) => {
                                 const pos = normPos(p.position) || p.position;
                                 const st = statsData[pid] || {};
@@ -1595,11 +1537,11 @@
                                 const rkDash = <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--ov-8, rgba(255,255,255,0.3))' }}>{'—'}</span>;
                                 const renderCell = (k) => {
                                     switch (k) {
-                                        case 'pos':        return <span style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: posColors[pos] || 'var(--silver)' }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</span>;
+                                        case 'pos':        return <span style={{ fontSize: '0.78rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)' }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</span>;
                                         case 'team':       return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', fontWeight: 600 }}>{p.team || 'FA'}</span>;
-                                        case 'age':        return <span style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)' }}>{p.age || '\u2014'}</span>;
-                                        case 'dhq':        return <span style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, fontFamily: 'var(--font-body)', color: dhqCol }}>{dhq > 0 ? dhq.toLocaleString() : '\u2014'}</span>;
-                                        case 'ppg':        return <span style={{ fontSize: 'var(--text-body, 1rem)', color: ppg >= 10 ? 'var(--good)' : ppg >= 5 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{ppg > 0 ? ppg : '\u2014'}{ppgMarker}</span>;
+                                        case 'age':        return <span style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>{p.age || '\u2014'}</span>;
+                                        case 'dhq':        return <span style={{ fontSize: '0.78rem', fontWeight: 700, fontFamily: 'var(--font-body)', color: dhqCol }}>{dhq > 0 ? dhq.toLocaleString() : '\u2014'}</span>;
+                                        case 'ppg':        return <span style={{ fontSize: '0.78rem', color: ppg >= 10 ? 'var(--good)' : ppg >= 5 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{ppg > 0 ? ppg : '\u2014'}{ppgMarker}</span>;
                                         case 'peakYr':     return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: peakCol, fontWeight: 600 }}>{peakLabel}</span>;
                                         case 'yrsExp':     return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>{p.years_exp != null ? p.years_exp : '\u2014'}</span>;
                                         case 'college':    return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.college || '\u2014'}</span>;
@@ -1624,7 +1566,7 @@
                                         <img src={'https://sleepercdn.com/content/nfl/players/' + pid + '.jpg'} alt="" style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))' }} onError={e => { e.target.style.display='none'; const s=document.createElement('span'); s.style.cssText='font-size:var(--text-label, 0.75rem);font-weight:700;color:var(--gold)'; s.textContent=((p.first_name||'?')[0]+(p.last_name||'?')[0]).toUpperCase(); e.target.after(s); }} />
                                     </div>
                                     <div style={{ overflow: 'hidden' }}>
-                                        <div style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{playerName(p, pid)}</div>
+                                        <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{playerName(p, pid)}</div>
                                         <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55 }}>{p.team || 'FA'}{p.injury_status ? ' · ' : ''}{p.injury_status ? <span style={{ color: 'var(--bad)' }}>{p.injury_status}</span> : ''}</div>
                                     </div>
                                     {visibleFaCols.map(k => <span key={k} style={{ display: 'flex', alignItems: 'center' }}>{renderCell(k)}</span>)}

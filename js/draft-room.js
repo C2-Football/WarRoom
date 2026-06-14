@@ -2348,13 +2348,6 @@
         return (
             <div className="draft-cc-scope" style={{ padding: 'var(--card-pad, 16px 18px)' }}>
                 <div className={'wr-module-strip' + (activeView === 'live' || activeView === 'mock' ? ' is-compact' : '')}>
-                    {(activeView !== 'live' && activeView !== 'mock') && (
-                        <div className="wr-module-context">
-                            <span>Draft</span>
-                            <strong>{draftViewLabels[activeView] || 'War Room'}</strong>
-                            <em>{draftViewContext[activeView] || draftViewContext.command}</em>
-                        </div>
-                    )}
                     <div className="wr-module-actions">
                     <div className="wr-module-nav">
                     <button type="button" className={activeView === 'command' ? 'is-active' : ''} onClick={() => setDraftView('command')}>War Room</button>
@@ -2503,7 +2496,6 @@
                             <aside className="draft-hq-actions">
                                 <div className="draft-hq-action-card">
                                     <strong>Draft Plan</strong>
-                                    <p>Generate AI scouting and class reads, then apply them to your board.</p>
                                     <div className="draft-card-actions draft-card-actions-grouped">
                                         <div className="draft-card-actions-row">
                                             <button type="button" disabled={!rosterState.isUsable} title={!rosterState.isUsable ? rosterState.message : 'Generate draft scouting report'} onClick={requestFullDraftReport}>{rosterState.isUsable ? 'Generate Report' : 'Sync Required'}</button>
@@ -2566,12 +2558,10 @@
                                             <img className="draft-rec-photo" src={pick.photoUrl} alt="" onError={e => e.currentTarget.style.visibility = 'hidden'} />
                                             <span className="draft-rec-main">
                                                 <strong>{pick.name} <small>{pick.pos}</small></strong>
-                                                <em>{pick.nflTeam} - {pick.school} - {pick.driverText}</em>
                                             </span>
                                             {pick.locked ? (
                                                 <span className="draft-rec-score">
                                                     <strong style={{ color: 'var(--good, #3fb950)' }}>DRAFTED</strong>
-                                                    <span>your pick</span>
                                                 </span>
                                             ) : (
                                                 <span className="draft-rec-score">
@@ -3181,7 +3171,6 @@
                                 <div style={{ minWidth: 0 }}>
 	                                    <div style={{ color: 'var(--gold)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>{isRookieDraft ? 'Draft Big Board' : 'Redraft Big Board'}</div>
                                     <h3 style={{ margin: 0, color: 'var(--white)', fontFamily: 'var(--font-title)', fontSize: '1.22rem', lineHeight: 1.05 }}>{activeBoardInfo.label}</h3>
-                                    <p style={{ margin: '4px 0 0', color: 'var(--silver)', opacity: 0.72, fontSize: '0.76rem', lineHeight: 1.45 }}>{activeBoardInfo.detail}</p>
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(74px,1fr))', gap: 6, minWidth: 250 }}>
                                     {[
