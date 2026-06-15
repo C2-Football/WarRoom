@@ -10,10 +10,15 @@
         || /\/warroom-sandbox(\/|$)/i.test(WR_PATH)
         || window.SANDBOX_MODE === true
         || ['localhost', '127.0.0.1'].includes(WR_HOST);
-    const MFL_SANDBOX_ACCESS = PLATFORM_SANDBOX_ACCESS;
+    // MFL is GA on production (no longer sandbox-beta-only). ESPN/Yahoo remain
+    // sandbox-gated via PLATFORM_SANDBOX_ACCESS. Flip to false to re-gate MFL.
+    const MFL_ENABLED = true;
+    const MFL_SANDBOX_ACCESS = MFL_ENABLED || PLATFORM_SANDBOX_ACCESS;
     function platformAccessAllowed(platform) {
         platform = platform || 'sleeper';
-        return platform === 'sleeper' || PLATFORM_SANDBOX_ACCESS;
+        if (platform === 'sleeper') return true;
+        if (platform === 'mfl') return MFL_ENABLED || PLATFORM_SANDBOX_ACCESS;
+        return PLATFORM_SANDBOX_ACCESS; // espn / yahoo — sandbox only
     }
     function platformBetaMessage(platform) {
         const labels = { espn: 'ESPN', mfl: 'MFL', yahoo: 'Yahoo' };
@@ -264,7 +269,7 @@
         const [mflFranchises, setMflFranchises] = useState(null);
         const [mflPendingResult, setMflPendingResult] = useState(null);
         const visibleEspnLeagues = PLATFORM_SANDBOX_ACCESS ? espnLeagues : [];
-        const visibleMflLeagues = PLATFORM_SANDBOX_ACCESS ? mflLeagues : [];
+        const visibleMflLeagues = MFL_SANDBOX_ACCESS ? mflLeagues : [];
         const [espnError, setEspnError] = useState(null);
         // Sleeper username — read from localStorage (login.html stores 'username', inline connect stores 'sleeperUsername')
         const sleeperUsername = React.useMemo(() => {
@@ -335,19 +340,35 @@
         // connect flow (finalizeMFLConnect) and the on-load rehydrator
         // (loadMflData) so both produce an identical shape.
         function buildMflLeagueObj(result, leagueId, franchiseId) {
+            const lg = result.league || {};
             return {
-                id: result.league.league_id,
-                name: result.league.name,
-                season: result.league.season,
+                id: lg.league_id,
+                league_id: lg.league_id,
+                name: lg.name,
+                season: lg.season,
+                // Draft-driven status ('pre_draft'/'drafting'/'in_season') so the
+                // rookie-waiver lock + live-draft tool engage; was dropped before.
+                status: lg.status || 'in_season',
+                total_rosters: lg.total_rosters,
                 wins: 0, losses: 0, ties: 0,
                 rosters: result.rosters,
-                scoring_settings: result.league.scoring_settings,
-                roster_positions: result.league.roster_positions,
-                settings: result.league.settings || {},
+                scoring_settings: lg.scoring_settings,
+                roster_positions: lg.roster_positions,
+                settings: lg.settings || {},
                 users: result.leagueUsers,
+                // Status-bearing drafts (collectFaDrafts + draft-room read these).
+                drafts: result.drafts || [],
+                // Multi-copy availability map (copies + per-pid roster counts).
+                _availability: lg._availability || null,
+                _source: 'mfl',
                 _mfl: true,
                 _mflLeagueId: leagueId,
                 _mflFranchiseId: franchiseId || null,
+                _mflDraftPlayerPool: lg._mflDraftPlayerPool || '',
+                _mflDraftTimer: lg._mflDraftTimer || '',
+                _mflDraftLimitHours: lg._mflDraftLimitHours || '',
+                _mflDraftKind: lg._mflDraftKind || '',
+                _mflLockout: lg._mflLockout || '',
             };
         }
 
@@ -357,7 +378,7 @@
         // persist the connection (id / year / team) and re-fetch it on mount so
         // a locked-in MFL league always reappears in the franchise picker.
         useEffect(() => {
-            if (!PLATFORM_SANDBOX_ACCESS) return;
+            if (!MFL_SANDBOX_ACCESS) return;
             let alive = true;
             (async () => {
                 // Resolve the connection: prefer local, else pull the cloud-synced
