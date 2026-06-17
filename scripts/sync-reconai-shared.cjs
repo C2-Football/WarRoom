@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-// Copy ReconAI shared browser modules into War Room for local dev.
+// Copy the shared browser-engine modules into War Room for local dev + deploy.
+// Canonical source is the neutral C2-Football/dhq-shared repo — checked out as a
+// sibling ../dhq-shared locally, or pointed at via $SHARED_SOURCE in CI. War Room
+// no longer reads the ReconAI repo for shared code (both apps vendor dhq-shared).
 
 const fs = require('fs');
 const path = require('path');
@@ -42,8 +45,10 @@ const FILES = [
 
 function findSourceDir() {
   const candidates = [
-    process.env.RECONAI_SHARED_SOURCE,
-    path.resolve(ROOT, '..', 'reconai', 'shared'),
+    process.env.SHARED_SOURCE,
+    process.env.RECONAI_SHARED_SOURCE, // back-compat alias
+    path.resolve(ROOT, '..', 'dhq-shared'),
+    path.resolve(ROOT, '..', 'reconai', 'shared'), // legacy fallback
   ].filter(Boolean);
 
   return candidates.find(candidate => fs.existsSync(candidate)) || null;

@@ -27,14 +27,15 @@ jobs:
         uses: actions/checkout@v4
 
       # reconai-shared/ is gitignored, so the bundled browser modules must be
-      # regenerated from the canonical ReconAI source at deploy time — otherwise
+      # regenerated from the canonical dhq-shared source at deploy time — otherwise
       # the Pages artifact ships a stale (or missing) copy of supabase-client.js
-      # and the other shared modules.
-      - name: Checkout ReconAI shared source
+      # and the other shared modules. dhq-shared is the neutral shared-engine repo
+      # that both War Room and ReconAI vendor; War Room no longer reads ReconAI.
+      - name: Checkout dhq-shared (canonical shared engine)
         uses: actions/checkout@v4
         with:
-          repository: C2-Football/ReconAI
-          path: reconai-src
+          repository: C2-Football/dhq-shared
+          path: shared-src
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -45,8 +46,8 @@ jobs:
       - name: Install dependencies
         run: npm ci --omit=dev
 
-      - name: Sync ReconAI shared modules
-        run: RECONAI_SHARED_SOURCE="$GITHUB_WORKSPACE/reconai-src/shared" npm run sync:shared
+      - name: Sync shared engine modules
+        run: SHARED_SOURCE="$GITHUB_WORKSPACE/shared-src" npm run sync:shared
 
       # Precompile every type="text/babel" entry (index + free-agency + draft-warroom
       # + trade-calculator) to plain JS so production no longer downloads ~3.1MB of
