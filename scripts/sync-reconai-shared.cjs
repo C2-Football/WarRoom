@@ -82,3 +82,30 @@ for (const file of FILES) {
 }
 
 console.log(`[sync-reconai-shared] Copied ${FILES.length} files to ${path.relative(ROOT, TARGET)}/`);
+
+// ── Rookie/prospect CSVs (shared data) ──────────────────────────────────────
+// Vendored from dhq-shared/draft-war-room into War Room's own draft-war-room/ so
+// the app loads them SAME-ORIGIN (no cross-repo jsDelivr fetch). Copy-in-place —
+// do NOT wipe draft-war-room/ (it also holds War-Room-only tool files + data).
+const DATA_FILES = ['player.csv', 'player-enrichment.csv', 'data/mock_draft_db.csv'];
+const DATA_SOURCE = path.join(SOURCE, 'draft-war-room');
+const DATA_TARGET = path.join(ROOT, 'draft-war-room');
+
+if (fs.existsSync(DATA_SOURCE)) {
+  for (const file of DATA_FILES) {
+    const src = path.join(DATA_SOURCE, file);
+    if (!fs.existsSync(src)) {
+      console.error(`[sync-reconai-shared] Missing shared data file: ${src}`);
+      process.exit(1);
+    }
+    const dest = path.join(DATA_TARGET, file);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(src, dest);
+  }
+  console.log(`[sync-reconai-shared] Vendored ${DATA_FILES.length} rookie CSVs into draft-war-room/`);
+} else if (DATA_FILES.every(f => fs.existsSync(path.join(DATA_TARGET, f)))) {
+  console.log('[sync-reconai-shared] No draft-war-room/ in source; keeping existing vendored CSVs');
+} else {
+  console.error('[sync-reconai-shared] Missing rookie CSVs in source and locally');
+  process.exit(1);
+}
