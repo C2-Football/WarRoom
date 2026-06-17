@@ -1,23 +1,31 @@
 # Shared Code Contract
 
-**ReconAI (`reconai/`) is the canonical owner of all shared logic.**
-War Room (`warroom/`) consumes it via CDN at runtime.
+**The neutral `C2-Football/dhq-shared` repo is the canonical owner of all shared
+engine logic.** Both War Room (`warroom/`) and ReconAI/Scout (`reconai/`) vendor
+these 30 modules into their own build at deploy time — neither app depends on the
+other's repo, and there is no runtime CDN dependency between them.
 
 ---
 
-## CDN Base URL
+## Source of truth
 
 ```
-https://jcc100218.github.io/ReconAI/shared/
+C2-Football/dhq-shared   (30 modules + manifest.json)
 ```
 
-War Room HTML pages load shared scripts from this URL. Any change to a
-file in `reconai/shared/` is live to War Room after the next GitHub Pages
-deploy — no War Room deploy needed.
+Each app copies these in at build time and on local `npm run dev`/`start` via its
+own sync script:
+
+- War Room — `scripts/sync-reconai-shared.cjs` → `reconai-shared/` (dir name kept
+  for historical reasons; the source is now dhq-shared, not ReconAI).
+- ReconAI — `scripts/sync-shared.cjs` → `shared/` (the 30 are gitignored; the
+  Scout-only modules in `shared/` stay tracked).
+
+A change is live in each app after that app's own next deploy.
 
 ---
 
-## Shared Files (owned by ReconAI, consumed by War Room)
+## Shared Files (owned by dhq-shared, vendored by both apps)
 
 | File | Purpose | Key exports |
 |------|---------|-------------|
@@ -139,9 +147,9 @@ function.
 
 ## Making Changes
 
-- **Changing a shared constant** — edit `reconai/shared/constants.js` only. Verify the fallback value in `warroom/js/core.js` matches, then update it if needed.
-- **Changing `posColor()`** — update `POS_COLORS` in `constants.js`. `posColor()` delegates automatically.
-- **Adding a new shared function** — add to the appropriate `reconai/shared/` file, then add a fallback in `warroom/js/core.js` with the `|| fallback` pattern.
-- **Adding a new constant** — add to `reconai/shared/constants.js` and add a matching fallback in `warroom/js/core.js`.
+- **Changing a shared constant** — edit `constants.js` in the `dhq-shared` repo only. Verify the fallback value in `warroom/js/core.js` matches, then update it if needed.
+- **Changing `posColor()`** — update `POS_COLORS` in `dhq-shared/constants.js`. `posColor()` delegates automatically.
+- **Adding a new shared function** — add to the appropriate `dhq-shared` module, then add a fallback in `warroom/js/core.js` with the `|| fallback` pattern.
+- **Adding a new constant** — add to `dhq-shared/constants.js` and add a matching fallback in `warroom/js/core.js`.
 
-After editing any shared file: `git push origin main` in `reconai/` triggers GitHub Pages deploy (~1-2 min).
+After editing any shared module: `git push origin main` in `dhq-shared/`. Each app vendors the change on its next build (`npm run sync:shared`, which runs automatically on dev/build/deploy).
