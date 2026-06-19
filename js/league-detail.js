@@ -2947,7 +2947,6 @@
                         { section: 'DOSSIER' },
                         { label: 'GM\'s Office', tab: 'alex', iconKey: 'office' },
                         { label: 'Trophy Room', tab: 'trophies', iconKey: 'trophy' },
-                        { label: 'Calendar', tab: 'calendar', iconKey: 'calendar' },
                         { section: 'SETTINGS' },
                         { label: 'Settings', tab: 'settings', iconKey: 'settings' },
                         { label: 'Legend', tab: 'legend', iconKey: 'legend' },
@@ -3402,16 +3401,13 @@
                     sendReconMessage={sendReconMessage}
                     timeRecomputeTs={timeRecomputeTs}
                     viewMode={viewMode}
-                /> : activeTab === 'trophies' ? <TrophyRoomTabLazy
+                /> : (activeTab === 'trophies' || activeTab === 'calendar') ? <TrophyRoomTabLazy
                     currentLeague={currentLeague}
                     leagueSkin={leagueSkin}
                     playersData={playersData}
                     myRoster={myRoster}
                     sleeperUserId={sleeperUserId}
-                /> : activeTab === 'calendar' ? <CalendarTab
-                    currentLeague={currentLeague}
-                    leagueSkin={leagueSkin}
-                    myRoster={myRoster}
+                    initialView={activeTab === 'calendar' ? 'calendar' : null}
                 /> : activeTab === 'settings' ? (
                     typeof window.SettingsModule === 'function'
                         ? React.createElement(window.SettingsModule, settingsProps)

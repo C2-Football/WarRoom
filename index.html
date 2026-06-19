@@ -2221,7 +2221,9 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" src="js/widgets/power-rankings.js?v=20260611kpifix1"></script>
 <!-- Phase 9: My Trophies widget -->
 <script type="text/babel" src="js/widgets/my-trophies.js?v=20260611kpifix1"></script>
-<script type="text/babel" src="js/tabs/dashboard.js?v=20260611kpifix1"></script>
+<!-- League Calendar widget — depends on window.WrCalendar (js/tabs/calendar.js) -->
+<script type="text/babel" src="js/widgets/league-calendar.js?v=20260619cal1"></script>
+<script type="text/babel" src="js/tabs/dashboard.js?v=20260619cal1"></script>
 <script type="text/babel" src="js/tabs/flash-brief.js?v=20260613gm1"></script>
 <!-- Group "analysis": analytics.js embeds LeagueMapTab, so both defer together
      (league-map.js first — DOM order is execution order within a group). -->
@@ -2230,8 +2232,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- Compare: extracted from My Roster's former sub-view, now a top-level ROSTER-group tab. -->
 <script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20260613strip1"></script>
 <script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260613strip1"></script>
-<script type="text/babel" data-wr-defer="trophies" src="js/tabs/trophy-room.js?v=20260525redraftnav1"></script>
-<script type="text/babel" src="js/tabs/calendar.js?v=20260525redraftnav1"></script>
+<script type="text/babel" data-wr-defer="trophies" src="js/tabs/trophy-room.js?v=20260619cal1"></script>
+<script type="text/babel" src="js/tabs/calendar.js?v=20260619cal1"></script>
 <!-- Alex Insights (Option A): top-level tab for behavioral analysis + AI settings -->
 <script type="text/babel" data-wr-defer="alex" src="js/tabs/alex-insights.js?v=20260613strip1"></script>
 <!-- Group "empire": hub-level Empire Dashboard (Pro mode), loaded by app.js when
@@ -2241,7 +2243,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- 6. Strategy editor: calls shared GMStrategy API, no logic duplication -->
 <script type="text/babel" src="js/tabs/strategy-editor.js?v=20260613rec1"></script>
 <!-- 7. League detail: coordinator shell, depends on all above -->
-    <script type="text/babel" src="js/league-detail.js?v=20260613rec1"></script>
+    <script type="text/babel" src="js/league-detail.js?v=20260619cal1"></script>
 <!-- 8. App: OwnerDashboard + ReactDOM.render (loads last) -->
 <script type="text/babel" src="js/app.js?v=20260612modlazy1"></script>
 
