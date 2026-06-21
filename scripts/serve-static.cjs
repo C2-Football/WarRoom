@@ -491,6 +491,31 @@ async function handleMflProxy(req, res) {
   }
 }
 
+// ── NFL scoreboard proxy (schedule + weather + odds) ─────────────────────────
+// ESPN's public scoreboard API is CORS-blocked for browsers, so proxy it
+// server-side. Dumb passthrough (client parses) — the prod Supabase edge fn
+// should mirror this. One game-list per (season, week); short cache.
+async function handleNflScoreboard(req, res) {
+  try {
+    const u = new URL(req.url, `http://${host}:${port}`);
+    const week = parseInt(u.searchParams.get('week') || '0', 10);
+    const season = parseInt(u.searchParams.get('season') || '0', 10);
+    const seasontype = parseInt(u.searchParams.get('seasontype') || '2', 10);
+    let api = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
+    const qp = ['seasontype=' + seasontype];
+    if (week > 0) qp.push('week=' + week);
+    if (season > 0) qp.push('dates=' + season);
+    api += '?' + qp.join('&');
+    const r = await fetch(api, { headers: { 'User-Agent': 'FantasyWarRoom/1.0', 'Accept': 'application/json' } });
+    if (!r.ok) { sendJson(res, r.status, { error: 'ESPN scoreboard error ' + r.status }); return; }
+    const data = await r.text();
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=900' });
+    res.end(data);
+  } catch (error) {
+    sendJson(res, 500, { error: error.message || 'NFL scoreboard proxy error' });
+  }
+}
+
 // ── Dev-time JSX compilation (--compile) ─────────────────────────────────────
 // Transpiles only the files index.html (and other pages) mark as type="text/babel",
 // caching by mtime so a save recompiles a single file in ~10-50ms instead of the
@@ -562,6 +587,10 @@ const server = http.createServer((req, res) => {
   }
   if (url.pathname === '/api/mfl-proxy') {
     handleMflProxy(req, res);
+    return;
+  }
+  if (url.pathname === '/api/nfl-scoreboard') {
+    handleNflScoreboard(req, res);
     return;
   }
   if (url.pathname === '/api/landing-content') {

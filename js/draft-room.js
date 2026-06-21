@@ -93,6 +93,7 @@
         const [flashAnalystReports, setFlashAnalystReports] = useState([]);
         const [flashAnalystStatus, setFlashAnalystStatus] = useState('idle');
         const [flashAnalystError, setFlashAnalystError] = useState('');
+        const [gameplanArch, setGameplanArch] = useState('balanced'); // redraft draft-gameplan archetype
         const [showFuturePickCapital, setShowFuturePickCapital] = useState(false);
         const [liveAutoStartToken, setLiveAutoStartToken] = useState(0);
         // Draft History — archived recaps of finished drafts (local + Supabase-synced)
@@ -2369,6 +2370,42 @@
             );
         };
 
+        // Redraft draft gameplan — round-by-round positional blueprint per
+        // archetype, derived from roster slots + scoring (works with no
+        // scheduled draft). Deterministic; no AI. App.DraftGameplan engine.
+        const renderDraftGameplan = () => {
+            const GP = window.App && window.App.DraftGameplan;
+            if (!GP) return null;
+            let plan = null;
+            try { plan = GP.build(currentLeague); } catch (e) { if (window.wrLog) window.wrLog('draft.gameplan', e); }
+            if (!plan || !plan.archetypes || !plan.archetypes.length) return null;
+            const arch = plan.archetypes.find(a => a.key === gameplanArch) || plan.archetypes[0];
+            const posColor = p => ({ QB: 'var(--k-e74c3c,#e74c3c)', RB: 'var(--k-2ecc71,#2ecc71)', WR: 'var(--k-3498db,#3498db)', TE: 'var(--k-f0a500,#f0a500)', K: 'var(--silver,#bdb8ad)', DEF: 'var(--k-7c6bf8,#7c6bf8)', IDP: 'var(--silver,#bdb8ad)' }[p] || 'var(--silver)');
+            return (
+            <section className="draft-hq-action-card draft-gameplan">
+                <div className="draft-hq-panel-head">
+                    <span>Draft Gameplan</span>
+                    <em>{plan.rounds} rounds · {plan.ppr}{plan.superflex ? ' · Superflex' : ''}{plan.tePremium ? ' · TE-Prem' : ''}</em>
+                </div>
+                <div className="draft-alex-presets" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
+                    {plan.archetypes.map(a => (
+                        <button key={a.key} type="button" className={gameplanArch === a.key ? 'is-active' : ''} onClick={() => setGameplanArch(a.key)}>{a.label}</button>
+                    ))}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--silver)', lineHeight: 1.45, marginBottom: '10px' }}>{arch.blurb}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(54px, 1fr))', gap: '5px' }}>
+                    {arch.picks.map(pk => (
+                        <div key={pk.round} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: '5px 0', border: '1px solid var(--ov-4, rgba(255,255,255,0.08))', borderRadius: '5px' }} title={'Round ' + pk.round + ' → ' + pk.pos}>
+                            <span style={{ fontSize: '0.58rem', color: 'var(--silver)', letterSpacing: '0.04em' }}>R{pk.round}</span>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: posColor(pk.pos) }}>{pk.pos === 'DEF' ? 'DST' : pk.pos}</span>
+                        </div>
+                    ))}
+                </div>
+                <div style={{ fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.7, marginTop: '8px' }}>Position targets from your roster slots + scoring — a blueprint, not locked picks. Pair with the Big Board to take the best player at each slot.</div>
+            </section>
+            );
+        };
+
         return (
             <div className="draft-cc-scope" style={{ padding: 'var(--card-pad, 16px 18px)' }}>
                 <div className={'wr-module-strip' + (activeView === 'live' || activeView === 'mock' ? ' is-compact' : '')}>
@@ -2545,6 +2582,7 @@
                                     )}
                                 </div>
                                 {renderAnalystFlash()}
+                                {renderDraftGameplan()}
                             </aside>
                         </div>
 

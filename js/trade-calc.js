@@ -342,6 +342,17 @@
     function TradeCalcTab({ playersData, statsData, myRoster, standings, currentLeague, leagueSkin, sleeperUserId, timeRecomputeTs, viewMode, initialSubTab, onSubTabConsumed }) {
         // ── Constants ──
         const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
+        // Redraft → build rest-of-season values so deal pricing uses ROS instead
+        // of dynasty DHQ. No-op (falls back to DHQ) for dynasty/keeper leagues.
+        React.useMemo(() => {
+            try {
+                window.App?.PlayerValue?.ensureRos?.({
+                    leagueId: currentLeague?.league_id || currentLeague?.id,
+                    league: currentLeague, playersData, statsData, skin: resolvedLeagueSkin,
+                });
+            } catch (e) { if (window.wrLog) window.wrLog('trade.ensureRos', e); }
+            return null;
+        }, [currentLeague, playersData, statsData, timeRecomputeTs]);
         const skinVocabulary = resolvedLeagueSkin?.vocabulary || {};
         const valueSourceLabel = resolvedLeagueSkin?.features?.showDynastyValue === false ? 'format-adjusted values' : 'dynasty valuations';
         const STATS_YEAR_TC = (() => { const d = new Date(); return String(d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1); })();
@@ -459,6 +470,13 @@
         }
 
         function getPlayerValue(pid) {
+            if (window.App?.PlayerValue?.getValue) {
+                const v = window.App.PlayerValue.getValue(pid, { skin: resolvedLeagueSkin });
+                if (v > 0) {
+                    const isRos = resolvedLeagueSkin?.type === 'redraft' && window.App.PlayerValue.rosState && window.App.PlayerValue.rosState();
+                    return { value: v, source: isRos ? 'ros' : 'dhq' };
+                }
+            }
             const dhqScore = window.App?.LI?.playerScores?.[pid];
             if (dhqScore != null && dhqScore > 0) return { value: dhqScore, source: 'dhq' };
             return { value: 0, source: 'none' };

@@ -270,15 +270,17 @@
             ? 'DHQ Dynasty Value'
             : keeper
                 ? 'Keeper-Adjusted Value'
-                : seasonal
-                    ? 'Format Value'
-                    : 'Player Value';
+                : type === 'redraft'
+                    ? 'Rest-of-Season Value'
+                    : seasonal
+                        ? 'Format Value'
+                        : 'Player Value';
         return {
             appLabel: 'Dynasty HQ',
             teamLabel: seasonal ? 'Team' : 'Roster',
             assetLabel: type === 'dynasty' ? 'Asset' : 'Player',
             valueLabel,
-            valueShortLabel: type === 'dynasty' ? 'DHQ' : 'Value',
+            valueShortLabel: type === 'dynasty' ? 'DHQ' : type === 'redraft' ? 'ROS' : 'Value',
             pickLabel: seasonal ? 'Draft Pick' : 'Future Pick',
             marketLabel: seasonal ? 'Rest-of-Season Market' : 'Trade Market',
             rosterEmptyLabel: phase === 'pre_draft' ? 'Roster Not Drafted Yet' : 'Roster Data Pending',

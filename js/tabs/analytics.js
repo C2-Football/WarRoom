@@ -80,6 +80,13 @@ function AnalyticsPanel({
     const resolvedLeagueSkin = leagueSkin || _seasonCtx.leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
     const skinFeatures = resolvedLeagueSkin?.features || {};
     const rosterState = window.App?.getRosterDataState?.({ roster: myRoster, rosters: _SS.rosters, currentLeague }) || { isUsable: true };
+    // Redraft → build ROS values so analytics roster-strength / rankings reflect
+    // rest-of-season production (no-op → DHQ for dynasty/keeper).
+    React.useMemo(() => {
+        try { window.App?.PlayerValue?.ensureRos?.({ leagueId: currentLeague?.league_id || currentLeague?.id, league: currentLeague, playersData, statsData, priorData: stats2025Data, skin: resolvedLeagueSkin }); }
+        catch (e) { if (window.wrLog) window.wrLog('analytics.ensureRos', e); }
+        return null;
+    }, [currentLeague, playersData, statsData, stats2025Data, timeRecomputeTs]);
 
     // Token-driven card style so padding/radius/border track index.html's spacing scale.
     const aCardStyle = { background: 'var(--black)', border: 'var(--card-border, 1px solid var(--acc-line1, rgba(212,175,55,0.2)))', borderRadius: 'var(--card-radius, 10px)', padding: 'var(--card-pad, 16px 18px)', marginBottom: 'var(--card-gap, 14px)' };
@@ -309,7 +316,7 @@ function AnalyticsPanel({
             const l = r.leagueProfile;
             const m = r.myProfile;
             // Elite = 7000+ DHQ or top 5 at position
-            const playerScores = window.App?.LI?.playerScores || {};
+            const playerScores = window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap() : (window.App?.LI?.playerScores || {});
             const SS = _SS;
             const allRosters = SS?.rosters || [];
             const winnerIds = new Set(d.winners || []);
@@ -843,7 +850,7 @@ function AnalyticsPanel({
                 {/* ── AGING CLIFF ALERT (moved from Projections) ── */}
                 {(() => {
                     const S2 = _SS;
-                    const ps2 = window.App?.LI?.playerScores || {};
+                    const ps2 = window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap() : (window.App?.LI?.playerScores || {});
                     const pm2 = window.App?.LI?.playerMeta || {};
                     // Reuse the shared at-risk set computed once at tab scope (same unified
                     // value-window-end threshold the Win-Now Pressure chip uses).

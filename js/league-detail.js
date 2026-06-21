@@ -46,6 +46,7 @@
     const TrophyRoomTabLazy = wrLazyTab('trophies', 'Trophy Room', () => (typeof TrophyRoomTab === 'function' ? TrophyRoomTab : null));
     const AlexInsightsTabLazy = wrLazyTab('alex', "GM's Office", () => (typeof window.AlexInsightsTab === 'function' ? window.AlexInsightsTab : null));
     const CompareTabLazy = wrLazyTab('compare', 'Compare', () => (typeof window.CompareTab === 'function' ? window.CompareTab : null));
+    const LineupTabLazy = wrLazyTab('lineup', 'Lineup', () => (typeof window.LineupTab === 'function' ? window.LineupTab : null));
 
     function escapeHtml(str) {
         return String(str)
@@ -2938,6 +2939,7 @@
                         { section: 'FRONT OFFICE' },
                         { label: 'Home', tab: 'dashboard', iconKey: 'home' },
                         { label: 'My Roster', tab: 'myteam', iconKey: 'roster' },
+                        { label: 'Lineup', tab: 'lineup', iconKey: 'roster' },
                         { label: 'Compare', tab: 'compare', iconKey: 'compare' },
                         { section: 'LEAGUE' },
                         { label: 'Trade Center', tab: 'trades', iconKey: 'trade' },
@@ -3043,6 +3045,8 @@
                         <div className="header-title" style={{ fontSize: '1.05rem', minWidth: 0, maxWidth: 'min(460px, 100%)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentLeague.name}</div>
                         <button className="wr-league-switch" onClick={onBack} style={{ padding: '4px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--acc-fill2, rgba(212,175,55,0.10))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>SWITCH</button>
                         {(() => {
+                            // Redraft leagues don't surface the GM Mode badge (it's dynasty-flavored).
+                            if (leagueSkin?.type === 'redraft') return null;
                             const gm = window.WR?.GmMode?.describe?.(gmStrategy?.mode || 'compete');
                             if (!gm) return null;
                             return React.createElement('button', {
@@ -3329,6 +3333,17 @@
                     timeRecomputeTs={timeRecomputeTs}
                     setTimeRecomputeTs={setTimeRecomputeTs}
                     getAcquisitionInfo={getAcquisitionInfo}
+                /> : activeTab === 'lineup' ? <LineupTabLazy
+                    myRoster={myRoster}
+                    currentLeague={currentLeague}
+                    leagueSkin={leagueSkin}
+                    playersData={playersData}
+                    statsData={statsData}
+                    stats2025Data={stats2025Data}
+                    sleeperUserId={sleeperUserId}
+                    gmStrategy={gmStrategy}
+                    setActiveTab={setActiveTab}
+                    timeRecomputeTs={timeRecomputeTs}
                 /> : activeTab === 'league' ? <LeagueMapTabLazy
                     leagueViewTab={leagueViewTab}
                     setLeagueViewTab={setLeagueViewTab}
