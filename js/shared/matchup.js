@@ -69,6 +69,25 @@
         return 'sleeper';
     }
 
+    // Cache Sleeper weekly matchup rows per (league, week). resolveOpponentRosterId
+    // is re-invoked on every lineup-tab revisit (and overlaps with what other tabs
+    // fetch), yet the roster→matchup mapping is stable through the week. In-memory
+    // with in-flight dedup; 5-min TTL. Errors are not cached.
+    const _matchupRowsCache = {};      // 'lid|week' -> { ts, rows }
+    const _matchupRowsInflight = {};
+    function _fetchSleeperMatchups(lid, week) {
+        const k = lid + '|' + week;
+        const hit = _matchupRowsCache[k];
+        if (hit && Date.now() - hit.ts < 5 * 60 * 1000) return Promise.resolve(hit.rows);
+        if (_matchupRowsInflight[k]) return _matchupRowsInflight[k];
+        _matchupRowsInflight[k] = fetch('https://api.sleeper.app/v1/league/' + lid + '/matchups/' + week)
+            .then(r => r.ok ? r.json() : [])
+            .then(rows => { rows = rows || []; _matchupRowsCache[k] = { ts: Date.now(), rows }; return rows; })
+            .catch(() => [])
+            .finally(() => { delete _matchupRowsInflight[k]; });
+        return _matchupRowsInflight[k];
+    }
+
     // Resolve the opponent roster_id for (league, myRosterId, week). Returns null
     // when no matchup is scheduled / data unavailable. Sleeper + MFL supported;
     // a generic window.S.matchups fallback covers anything that pre-populates it.
@@ -81,7 +100,7 @@
         try {
             if (plat === 'sleeper') {
                 const lid = league.league_id || league.id;
-                const rows = await fetch('https://api.sleeper.app/v1/league/' + lid + '/matchups/' + week).then(r => r.ok ? r.json() : []);
+                const rows = await _fetchSleeperMatchups(lid, week);
                 const mine = (rows || []).find(r => String(r.roster_id) === myRosterId);
                 if (!mine || mine.matchup_id == null) return null;
                 const opp = rows.find(r => String(r.roster_id) !== myRosterId && String(r.matchup_id) === String(mine.matchup_id));
