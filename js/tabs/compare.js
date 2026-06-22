@@ -7,6 +7,15 @@
 //             window.App.normPos / POS_COLORS / peakWindows / calcPPG.
 // Exposes:    window.CompareTab
 
+// Session cache of the opponent-INDEPENDENT H2H raw data (the league-history
+// chain walk + each season's rosters + weekly matchup rows), keyed by root
+// league. Walking 12 previous_league_id hops + per-season rosters + ~14 weeks of
+// matchups is identical for every opponent — only the final meetings filter
+// differs — so a rival sweep used to re-download the whole chain once per rival.
+// Kept in memory (not localStorage) because raw matchup rows are large; the
+// compact per-opponent `meetings` result keeps its own localStorage cache.
+window._wrCompareRawCache = window._wrCompareRawCache || {};
+
 function CompareTab({
     currentLeague,
     leagueSkin,
@@ -175,21 +184,23 @@ function CompareTab({
             }
         }
 
-        async function loadHistoricalH2H() {
-            const cacheKey = 'wr_compare_h2h_v3_' + rootLeagueId + '_' + myOwnerId + '_' + theirOwnerId;
-            try {
-                const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
-                if (cached && Date.now() - cached.ts < 6 * 60 * 60 * 1000 && Array.isArray(cached.meetings)) {
-                    return cached.meetings;
-                }
-            } catch {}
-
+        // Opponent-INDEPENDENT: walk the league-history chain and pull each
+        // season's rosters + weekly matchup rows. Cached in-session per root
+        // league so switching opponents (or sweeping rivals) reuses it instead of
+        // re-downloading the whole chain. The chain WALK stays sequential (each
+        // hop needs the prior previous_league_id); per-season fetches then run in
+        // parallel rather than season-by-season.
+        async function loadRawChain() {
             const sleeperBase = 'https://api.sleeper.app/v1';
+            const cached = window._wrCompareRawCache[rootLeagueId];
+            if (cached && Date.now() - cached.ts < 6 * 60 * 60 * 1000 && Array.isArray(cached.seasons)) {
+                return cached.seasons;
+            }
+
             const chain = [];
             const seen = new Set();
             let lid = String(rootLeagueId);
             let hops = 0;
-
             while (lid && lid !== '0' && !seen.has(lid) && hops < 12) {
                 seen.add(lid);
                 const fetchedInfo = await fetchJson(sleeperBase + '/league/' + lid);
@@ -202,16 +213,42 @@ function CompareTab({
                 hops += 1;
             }
 
-            const meetings = [];
-            const currentSeason = Number(currentLeague?.season || 0);
-
-            for (const seasonEntry of chain) {
+            const seasons = (await Promise.all(chain.map(async seasonEntry => {
                 const info = seasonEntry.info || {};
                 const season = String(info.season || seasonEntry.season || '');
                 const rosters = sameId(seasonEntry.leagueId, rootLeagueId) && Array.isArray(currentLeague?.rosters)
                     ? currentLeague.rosters
                     : await fetchJson(sleeperBase + '/league/' + seasonEntry.leagueId + '/rosters');
-                if (!Array.isArray(rosters) || !rosters.length) continue;
+                if (!Array.isArray(rosters) || !rosters.length) return null;
+                const playoffStart = Number(info.settings?.playoff_week_start) || Number(currentLeague?.settings?.playoff_week_start) || 15;
+                const maxWeek = Math.max(1, Math.min(18, playoffStart - 1));
+                const weeks = Array.from({ length: maxWeek }, (_, i) => i + 1);
+                const weeklyMatchups = await Promise.all(weeks.map(w =>
+                    fetchJson(sleeperBase + '/league/' + seasonEntry.leagueId + '/matchups/' + w).then(rows => ({ week: w, rows: Array.isArray(rows) ? rows : [] }))
+                ));
+                return { leagueId: seasonEntry.leagueId, season, rosters, weeklyMatchups };
+            }))).filter(Boolean);
+
+            window._wrCompareRawCache[rootLeagueId] = { ts: Date.now(), seasons };
+            return seasons;
+        }
+
+        async function loadHistoricalH2H() {
+            const cacheKey = 'wr_compare_h2h_v3_' + rootLeagueId + '_' + myOwnerId + '_' + theirOwnerId;
+            try {
+                const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+                if (cached && Date.now() - cached.ts < 6 * 60 * 60 * 1000 && Array.isArray(cached.meetings)) {
+                    return cached.meetings;
+                }
+            } catch {}
+
+            const seasons = await loadRawChain();
+            const meetings = [];
+            const currentSeason = Number(currentLeague?.season || 0);
+
+            for (const seasonEntry of seasons) {
+                const season = seasonEntry.season;
+                const rosters = seasonEntry.rosters;
 
                 const historicalMine = rosters.find(r => sameId(r.owner_id, myOwnerId))
                     || (sameId(seasonEntry.leagueId, rootLeagueId) ? rosters.find(r => sameId(r.roster_id, myRoster?.roster_id)) : null);
@@ -219,14 +256,7 @@ function CompareTab({
                     || (sameId(seasonEntry.leagueId, rootLeagueId) ? rosters.find(r => sameId(r.roster_id, theirRoster?.roster_id)) : null);
                 if (!historicalMine || !historicalTheirs) continue;
 
-                const playoffStart = Number(info.settings?.playoff_week_start) || Number(currentLeague?.settings?.playoff_week_start) || 15;
-                const maxWeek = Math.max(1, Math.min(18, playoffStart - 1));
-                const weeks = Array.from({ length: maxWeek }, (_, i) => i + 1);
-                const weeklyMatchups = await Promise.all(weeks.map(w =>
-                    fetchJson(sleeperBase + '/league/' + seasonEntry.leagueId + '/matchups/' + w).then(rows => ({ week: w, rows: Array.isArray(rows) ? rows : [] }))
-                ));
-
-                weeklyMatchups.forEach(({ week, rows }) => {
+                seasonEntry.weeklyMatchups.forEach(({ week, rows }) => {
                     const grouped = {};
                     rows.forEach(row => {
                         if (!row || row.roster_id == null || row.matchup_id == null) return;

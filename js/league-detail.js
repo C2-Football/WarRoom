@@ -642,15 +642,26 @@
                             const baseAge = p.age || 0;
                             const projAge = baseAge ? baseAge + delta : 0;
                             const baseDhq = originalScores[pid] || 0;
-                            // Derive YoY trend from prevAvg vs seasonAvg when both are available
-                            const pStats = window.S?.playerStats?.[pid];
-                            const trendMeta = (() => {
-                                const prev = pStats?.prevAvg;
-                                const cur  = pStats?.seasonAvg;
-                                if (prev > 0 && cur > 0) return { trend: (cur - prev) / prev };
-                                return undefined;
-                            })();
-                            const projDhq = projectPlayerValue(pid, baseDhq, baseAge, p.position || '', delta, trendMeta);
+                            // Only the scored players (a few hundred-thousand of the
+                            // ~12k DB) need the per-year projection math + stats
+                            // lookup. projectPlayerValue returns baseDhq unchanged
+                            // when baseDhq <= 0, so skipping it for zero-score players
+                            // is byte-identical while avoiding ~10k wasted passes per
+                            // time-machine tick.
+                            let projDhq;
+                            if (baseDhq > 0) {
+                                // Derive YoY trend from prevAvg vs seasonAvg when both are available
+                                const pStats = window.S?.playerStats?.[pid];
+                                const trendMeta = (() => {
+                                    const prev = pStats?.prevAvg;
+                                    const cur  = pStats?.seasonAvg;
+                                    if (prev > 0 && cur > 0) return { trend: (cur - prev) / prev };
+                                    return undefined;
+                                })();
+                                projDhq = projectPlayerValue(pid, baseDhq, baseAge, p.position || '', delta, trendMeta);
+                            } else {
+                                projDhq = baseDhq;
+                            }
                             projScores[pid] = projDhq;
                             projected[pid] = {
                                 ...p,

@@ -260,6 +260,31 @@
             const baseTp = window.S?.tradedPicks || [];
             const tradedPicks = liveTp.length ? [...liveTp, ...baseTp] : baseTp;
             const leagueSeason = String(currentLeague?.season || new Date().getFullYear());
+
+            // Pre-indexed lookups — rosters/users/tradedPicks are otherwise scanned
+            // with .find() across every slot and (worst) inside the round×slot
+            // pick-ownership loop (a tradedPicks.find per cell). Raw-value Map keys
+            // preserve the original strict-equality semantics exactly.
+            const rosterByOwner = new Map();   // owner_id → roster
+            const rosterById    = new Map();   // roster_id (raw) → roster
+            const rosterByIdStr = new Map();   // String(roster_id) → roster
+            for (const r of rosters) {
+                if (r.owner_id != null) rosterByOwner.set(r.owner_id, r);
+                if (r.roster_id != null) { rosterById.set(r.roster_id, r); rosterByIdStr.set(String(r.roster_id), r); }
+            }
+            const userById = new Map();        // user_id → user
+            for (const u of users) { if (u.user_id != null) userById.set(u.user_id, u); }
+            // Season's traded picks keyed round → originalRosterId → pick. Mirrors
+            // the loop predicate (owner_id !== roster_id, season match); first match
+            // wins, so live-sync picks (which lead the array) take precedence.
+            const tradedByRound = new Map();
+            for (const tp of tradedPicks) {
+                if (tp.owner_id === tp.roster_id) continue;
+                if (String(tp.season) !== leagueSeason) continue;
+                let inner = tradedByRound.get(tp.round);
+                if (!inner) { inner = new Map(); tradedByRound.set(tp.round, inner); }
+                if (!inner.has(tp.roster_id)) inner.set(tp.roster_id, tp);
+            }
             // Prefer mount-fetched drafts, then window.S cache, then currentLeague synthetic fallback
             const drafts = (fetchedDrafts && fetchedDrafts.length) ? fetchedDrafts : (window.S?.drafts || []);
             // Live-sync rooms orbit the draft of record (live → unsuperseded complete
@@ -287,8 +312,8 @@
             const hasRealDraftOrder = Object.keys(sleeperOrder).length > 0;
             if (hasRealDraftOrder) {
                 Object.entries(sleeperOrder).forEach(([userId, slot]) => {
-                    const roster = rosters.find(r => r.owner_id === userId);
-                    const user = users.find(u => u.user_id === userId);
+                    const roster = rosterByOwner.get(userId);
+                    const user = userById.get(userId);
                     const name = user?.metadata?.team_name || user?.display_name || user?.username || 'Team ' + slot;
                     slotToRoster[slot] = { rosterId: roster?.roster_id, ownerName: name, userId };
                 });
@@ -300,7 +325,7 @@
                     return (a.settings?.fpts || 0) - (b.settings?.fpts || 0);
                 });
                 sorted.forEach((r, i) => {
-                    const user = users.find(u => u.user_id === r.owner_id);
+                    const user = userById.get(r.owner_id);
                     const name = user?.metadata?.team_name || user?.display_name || user?.username || 'Team ' + (i + 1);
                     slotToRoster[i + 1] = { rosterId: r.roster_id, ownerName: name, userId: r.owner_id };
                 });
@@ -312,8 +337,8 @@
             if (mflSlots) {
                 mflSlots.filter(s => Number(s.round) === 1 && s.draft_slot != null).forEach(s => {
                     const slot = Number(s.draft_slot);
-                    const roster = rosters.find(r => String(r.roster_id) === String(s.roster_id));
-                    const user = users.find(u => u.user_id === roster?.owner_id);
+                    const roster = rosterByIdStr.get(String(s.roster_id));
+                    const user = userById.get(roster?.owner_id);
                     const name = user?.metadata?.team_name || user?.display_name || user?.username || ('Team ' + slot);
                     slotToRoster[slot] = { rosterId: roster?.roster_id || s.roster_id, ownerName: name, userId: roster?.owner_id || s.roster_id };
                 });
@@ -336,7 +361,7 @@
             for (let slot = 1; slot <= totalTeams; slot++) {
                 if (slotToRoster[slot]) continue;
                 const r = unmappedRosters[ghostIdx++] || {};
-                const user = r.owner_id ? users.find(u => u.user_id === r.owner_id) : null;
+                const user = r.owner_id ? userById.get(r.owner_id) : null;
                 const name = user?.metadata?.team_name || user?.display_name || user?.username || 'Team ' + slot;
                 slotToRoster[slot] = {
                     rosterId: r.roster_id || null,
@@ -377,8 +402,8 @@
                 mflSlots.forEach(s => {
                     const rd = Number(s.round), slot = Number(s.draft_slot);
                     if (!rd || !slot) return;
-                    const roster = rosters.find(r => String(r.roster_id) === String(s.roster_id));
-                    const user = users.find(u => u.user_id === roster?.owner_id);
+                    const roster = rosterByIdStr.get(String(s.roster_id));
+                    const user = userById.get(roster?.owner_id);
                     const name = user?.metadata?.team_name || user?.display_name || ('Team ' + slot);
                     const origInfo = slotToRoster[slot] || {};
                     pickOwnership[rd + '-' + slot] = {
@@ -393,13 +418,10 @@
                 for (let slot = 1; slot <= numTeams; slot++) {
                     const origInfo = slotToRoster[slot] || {};
                     const origRid = origInfo.rosterId;
-                    const traded = tradedPicks.find(tp =>
-                        tp.round === rd && tp.roster_id === origRid &&
-                        tp.owner_id !== origRid && String(tp.season) === leagueSeason
-                    );
+                    const traded = origRid != null ? tradedByRound.get(rd)?.get(origRid) : undefined;
                     if (traded) {
-                        const newOwner = rosters.find(r => r.roster_id === traded.owner_id);
-                        const newUser = users.find(u => u.user_id === newOwner?.owner_id);
+                        const newOwner = rosterById.get(traded.owner_id);
+                        const newUser = userById.get(newOwner?.owner_id);
                         const newName = newUser?.metadata?.team_name || newUser?.display_name || 'Team';
                         pickOwnership[rd + '-' + slot] = {
                             ownerName: newName,
