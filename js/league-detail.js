@@ -46,6 +46,13 @@
     const TrophyRoomTabLazy = wrLazyTab('trophies', 'Trophy Room', () => (typeof TrophyRoomTab === 'function' ? TrophyRoomTab : null));
     const AlexInsightsTabLazy = wrLazyTab('alex', "GM's Office", () => (typeof window.AlexInsightsTab === 'function' ? window.AlexInsightsTab : null));
     const CompareTabLazy = wrLazyTab('compare', 'Compare', () => (typeof window.CompareTab === 'function' ? window.CompareTab : null));
+    // My Team and Calendar are non-default tabs (the default in-league view is the
+    // dashboard), so their modules are deferred too — they no longer load at boot
+    // and only fetch on first open, like the tabs above. Removes ~68KB of JSX from
+    // the cold-load critical path. The thunks resolve the same top-level globals the
+    // deferred scripts define once the group reports ready.
+    const MyTeamTabLazy = wrLazyTab('myteam', 'My Team', () => (typeof MyTeamTab === 'function' ? MyTeamTab : null));
+    const CalendarTabLazy = wrLazyTab('calendar', 'Calendar', () => (typeof CalendarTab === 'function' ? CalendarTab : null));
 
     function escapeHtml(str) {
         return String(str)
@@ -3308,7 +3315,7 @@
                         initialSubTab={tradeSubTab}
                         onSubTabConsumed={() => setTradeSubTab(null)}
                     />
-                ) : activeTab === 'myteam' ? <MyTeamTab
+                ) : activeTab === 'myteam' ? <MyTeamTabLazy
                     myRoster={myRoster}
                     currentLeague={currentLeague}
                     leagueSkin={leagueSkin}
@@ -3419,7 +3426,7 @@
                     playersData={playersData}
                     myRoster={myRoster}
                     sleeperUserId={sleeperUserId}
-                /> : activeTab === 'calendar' ? <CalendarTab
+                /> : activeTab === 'calendar' ? <CalendarTabLazy
                     currentLeague={currentLeague}
                     leagueSkin={leagueSkin}
                     myRoster={myRoster}

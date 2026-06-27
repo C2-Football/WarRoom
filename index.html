@@ -17,7 +17,9 @@
     <meta name="theme-color" content="#D4AF37">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600;700&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600;700&family=Rajdhani:wght@600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600;700&family=Rajdhani:wght@600;700&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600;700&family=Rajdhani:wght@600;700&display=swap"></noscript>
     <!-- Boot-payload warmup. The app can't render until supabase + the shared
          modules + React execute at the end of <body>, so start every one of
          those downloads NOW, in parallel, while the inline stylesheet and body
@@ -2226,12 +2228,12 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- Group "analysis": analytics.js embeds LeagueMapTab, so both defer together
      (league-map.js first — DOM order is execution order within a group). -->
 <script type="text/babel" data-wr-defer="analysis" src="js/tabs/league-map.js?v=20260614dynread1"></script>
-<script type="text/babel" src="js/tabs/my-team.js?v=20260614card4"></script>
+<script type="text/babel" data-wr-defer="myteam" src="js/tabs/my-team.js?v=20260614card4"></script>
 <!-- Compare: extracted from My Roster's former sub-view, now a top-level ROSTER-group tab. -->
 <script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20260613strip1"></script>
 <script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260613strip1"></script>
 <script type="text/babel" data-wr-defer="trophies" src="js/tabs/trophy-room.js?v=20260525redraftnav1"></script>
-<script type="text/babel" src="js/tabs/calendar.js?v=20260525redraftnav1"></script>
+<script type="text/babel" data-wr-defer="calendar" src="js/tabs/calendar.js?v=20260525redraftnav1"></script>
 <!-- Alex Insights (Option A): top-level tab for behavioral analysis + AI settings -->
 <script type="text/babel" data-wr-defer="alex" src="js/tabs/alex-insights.js?v=20260613strip1"></script>
 <!-- Group "empire": hub-level Empire Dashboard (Pro mode), loaded by app.js when
