@@ -135,5 +135,65 @@
         return null;
     }
 
-    App.Matchup = App.Matchup || { normCdf, dist, forecast, resolveOpponentRosterId, _platform };
+    // Resolve opponents for a SET of weeks in one go — powers the season
+    // schedule rail. Returns { [week]: { oppRosterId, myPts, oppPts } } (pts are
+    // actuals for completed weeks, 0 for upcoming). Sleeper fans out one cached
+    // fetch per week; MFL pulls the whole weeklySchedule in a single export.
+    async function resolveSeasonOpponents(opts) {
+        const league = opts.league || {};
+        const myRosterId = String(opts.myRosterId != null ? opts.myRosterId : '');
+        const weeks = (opts.weeks || []).map(Number).filter(w => w > 0);
+        const out = {};
+        if (!myRosterId || !weeks.length) return out;
+        const plat = _platform(league);
+        try {
+            if (plat === 'sleeper') {
+                const lid = league.league_id || league.id;
+                await Promise.all(weeks.map(async wk => {
+                    const rows = await _fetchSleeperMatchups(lid, wk);
+                    const mine = (rows || []).find(r => String(r.roster_id) === myRosterId);
+                    if (!mine || mine.matchup_id == null) return;
+                    const opp = rows.find(r => String(r.roster_id) !== myRosterId && String(r.matchup_id) === String(mine.matchup_id));
+                    if (opp) out[wk] = { oppRosterId: opp.roster_id, myPts: Number(mine.points) || 0, oppPts: Number(opp.points) || 0 };
+                }));
+                return out;
+            }
+            if (plat === 'mfl') {
+                const lid = league._mflLeagueId || String(league.id || '').replace(/^mfl_/, '').replace(/_\d+$/, '');
+                const yr = league.season || (root.S && root.S.mflYear) || new Date().getFullYear();
+                const key = (root.S && root.S._mflApiKey) || '';
+                const url = 'https://api.myfantasyleague.com/' + yr + '/export?TYPE=schedule&L=' + lid + '&JSON=1' + (key ? '&APIKEY=' + encodeURIComponent(key) : '');
+                const d = await _mflProxyGet(url);
+                let wsArr = d && d.schedule && d.schedule.weeklySchedule;
+                if (!Array.isArray(wsArr)) wsArr = wsArr ? [wsArr] : [];
+                const want = new Set(weeks);
+                wsArr.forEach(ws => {
+                    const wk = Number(ws.week);
+                    if (!want.has(wk)) return;
+                    const matchups = ws.matchup ? (Array.isArray(ws.matchup) ? ws.matchup : [ws.matchup]) : [];
+                    for (const m of matchups) {
+                        const fr = m && m.franchise ? (Array.isArray(m.franchise) ? m.franchise : [m.franchise]) : [];
+                        const ids = fr.map(f => String(f.id));
+                        if (ids.includes(myRosterId)) {
+                            const o = ids.find(id => id !== myRosterId);
+                            if (o) {
+                                const me = fr.find(f => String(f.id) === myRosterId), him = fr.find(f => String(f.id) === o);
+                                out[wk] = { oppRosterId: o, myPts: Number(me && me.score) || 0, oppPts: Number(him && him.score) || 0 };
+                            }
+                            break;
+                        }
+                    }
+                });
+                return out;
+            }
+            // Generic fallback: resolve week-by-week.
+            await Promise.all(weeks.map(async wk => {
+                const id = await resolveOpponentRosterId({ league, myRosterId, week: wk });
+                if (id != null) out[wk] = { oppRosterId: id, myPts: 0, oppPts: 0 };
+            }));
+        } catch (e) { if (root.wrLog) root.wrLog('matchup.resolveSeason', e); }
+        return out;
+    }
+
+    App.Matchup = App.Matchup || { normCdf, dist, forecast, resolveOpponentRosterId, resolveSeasonOpponents, _platform };
 })(typeof window !== 'undefined' ? window : globalThis);

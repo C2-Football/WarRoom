@@ -5,8 +5,9 @@
 // tapping a slot reveals every eligible roster player so you can set it.
 // Working totals + optimal delta update live. League-scored via
 // App.WeeklyProj / App.StartSit; objective tilts by GM mode.
-// NOTE: builds/compares your lineup IN-APP — Sleeper/MFL have no public
-// lineup-write API, so set the final lineup on your platform.
+// NOTE: builds/compares your lineup IN-APP. MFL leagues can push the working
+// lineup straight to MyFantasyLeague ("Submit to MFL"); Sleeper has no public
+// lineup-write API, so Sleeper lineups are still set on the platform.
 // ══════════════════════════════════════════════════════════════════
 
 function LineupTab({
@@ -108,6 +109,217 @@ function LineupTab({
         try { return { roster: oppRoster, res: WP.optimalForRoster(oppRoster, currentLeague, { playersData, statsData, priorData: stats2025Data, objective: 'median' }) }; }
         catch (e) { if (window.wrLog) window.wrLog('lineup.oppProject', e); return null; }
     }, [oppRosterId, currentLeague, playersData, statsData, timeRecomputeTs, ctxTick]);
+
+    // ── Game Day Central: DvP, season schedule rail, Alex note, MFL push ──
+    const [seasonData, setSeasonData] = React.useState(null);
+    const [note, setNote] = React.useState('');
+    const [submit, setSubmit] = React.useState({ status: 'idle', msg: '' });
+    const [isNarrow, setIsNarrow] = React.useState(typeof window !== 'undefined' && window.innerWidth <= 900);
+
+    // Real DvP: spin up the SOS engine (18-week defense-vs-position rankings),
+    // then bump ctxTick so projections recompute with matchup context applied.
+    React.useEffect(() => {
+        const SOS = window.App && window.App.SOS;
+        if (!SOS || !SOS.initialize) return;
+        let alive = true;
+        SOS.initialize(currentLeague && currentLeague.season, playersData, () => { if (alive) setCtxTick(t => t + 1); });
+        return () => { alive = false; };
+    }, [lineupKey]);
+
+    // Responsive: collapse the right rail beneath the main column when narrow.
+    React.useEffect(() => {
+        const onResize = () => setIsNarrow(window.innerWidth <= 900);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+
+    // Full-season schedule + win projection for the right rail. Wait until the
+    // main projection is ready (non-zero) before building/caching — otherwise an
+    // early run (stats prop not yet populated) would cache an all-zero season.
+    const _projReady = !!(result && result.optimal && result.optimal.total > 0);
+    React.useEffect(() => {
+        const Sch = window.App && window.App.Schedule;
+        if (!Sch || !Sch.buildSeason || !myRoster || !currentLeague || !_projReady) return;
+        let alive = true;
+        Sch.buildSeason({ league: currentLeague, myRoster, playersData, statsData, stats2025Data })
+            .then(d => { if (alive && d) setSeasonData(d); })
+            .catch(() => {});
+        return () => { alive = false; };
+    }, [lineupKey, ctxTick, _projReady]);
+
+    // Alex's game-day note: a stable weekly briefing off the CURRENT lineup +
+    // matchup (not the working edits). Seeded template renders instantly; AI
+    // upgrades it in the background when reachable (falls back to the template).
+    function buildNoteFacts() {
+        if (!result || !result.optimal) return null;
+        const proj = result.projections;
+        const curIds = Object.values(currentAssign).filter(Boolean);
+        const curTotal = curIds.reduce((s, pid) => { const p = proj[pid]; return s + (p && p.available ? (p.points[result.objective] || 0) : 0); }, 0);
+        const benchPts = Math.round((result.optimal.total - curTotal) * 10) / 10;
+        let topStart = null;
+        (result.delta && result.delta.startInstead || []).forEach(s => { if (!topStart || s.pts > topStart.pts) topStart = s; });
+        let winPct = null, oppName = null, margin = null;
+        const M = window.App && window.App.Matchup;
+        if (M && oppResult && oppResult.res) {
+            const oppOpt = oppResult.res.optimal.starters.map(s => s.pid);
+            const fc = M.forecast(M.dist(curIds, proj, 'median'), M.dist(oppOpt, oppResult.res.projections, 'median'));
+            winPct = fc.winPct; margin = fc.margin;
+            const users = (currentLeague && currentLeague.users) || [];
+            const u = users.find(x => String(x.user_id) === String(oppResult.roster.owner_id));
+            oppName = (oppResult.roster.metadata && oppResult.roster.metadata.team_name) || (u && u.display_name) || ('Team ' + oppResult.roster.roster_id);
+        }
+        const injuries = curIds.map(pid => { const p = proj[pid]; const st = p && p.injuryStatus; return st ? { name: pmeta(pid).name, status: st } : null; }).filter(Boolean);
+        const topName = topStart ? pmeta(topStart.pid).name : null;
+        return {
+            week: result.week, benchPts, topStart, topName, winPct, oppName, margin, injuries, mode: result.mode,
+            ctx: { week: result.week, winPct, margin, opponent: oppName, pointsLeftOnBench: benchPts, topUpgrade: topName, topUpgradeSlot: topStart ? topStart.slot : null, injuries: injuries.map(i => i.name + ' (' + i.status + ')'), objective: result.objective, mode: result.mode },
+        };
+    }
+    function seededNote(f) {
+        const AV = window.AlexVoice;
+        if (!AV) return '';
+        const seed = (currentLeague && (currentLeague.league_id || currentLeague.id) || '') + '|w' + f.week;
+        let lead;
+        if (f.winPct != null && f.oppName) {
+            if (f.winPct >= 62) lead = AV.pick(seed + 'a', ['You’re favored this week', 'The numbers like your side', 'You’ve got the edge this week']) + ' — about ' + f.winPct + '% to beat ' + f.oppName + '.';
+            else if (f.winPct >= 45) lead = AV.pick(seed + 'a', ['Coin-flip week', 'This one’s tight', 'Dead heat']) + ' against ' + f.oppName + ' (~' + f.winPct + '%).';
+            else lead = AV.pick(seed + 'a', ['Uphill week', 'You’re the underdog', 'Tough draw']) + ' vs ' + f.oppName + ' (~' + f.winPct + '%) — chase ceiling.';
+        } else {
+            lead = AV.pick(seed + 'a', ['Let’s set the week', 'Here’s your week', 'Locking in the lineup']) + '.';
+        }
+        let mid;
+        if (f.benchPts >= 1 && f.topName) mid = ' ' + AV.pick(seed + 'b', ['You’re leaving ' + f.benchPts + ' on the bench', 'There’s ' + f.benchPts + ' sitting on your bench', f.benchPts + ' points are stranded on the bench']) + ' — ' + f.topName + (f.topStart && f.topStart.slot ? ' into your ' + String(f.topStart.slot).replace('_', ' ') : '') + ' is the move.';
+        else mid = ' ' + AV.pick(seed + 'b', ['Lineup’s optimal', 'Nothing left on the table', 'Your best is already in']) + ' — no changes needed.';
+        let tail = '';
+        if (f.injuries && f.injuries.length) tail = ' ' + AV.pick(seed + 'c', ['Keep an eye on', 'Watch', 'Monitor']) + ' ' + AV.joinNatural(f.injuries.map(i => i.name)) + '.';
+        return (lead + mid + tail).trim();
+    }
+    React.useEffect(() => {
+        if (!_projReady) return;                 // wait for real projections (avoid a stale AI-note cache)
+        const facts = buildNoteFacts();
+        if (!facts) { setNote(''); return; }
+        const seeded = seededNote(facts);
+        setNote(seeded);
+        let alive = true;
+        const AV = window.AlexVoice;
+        if (AV && AV.enhance) {
+            // Bucket win% into the cache key so a materially different matchup
+            // outlook re-generates rather than reusing an early note.
+            const wpBucket = facts.winPct == null ? 'na' : Math.round(facts.winPct / 10);
+            AV.enhance({
+                type: 'start-sit',
+                message: 'Give me a punchy 1-2 sentence game-day coaching note for my fantasy team this week. Are we favored? Any must-start upgrade sitting on the bench? Any injuries to watch? Natural prose, no lists, no sign-off.',
+                context: JSON.stringify(facts.ctx),
+                fallback: seeded,
+                cacheKey: 'gd-note-' + lineupKey + '-w' + facts.week + '-' + wpBucket,
+            }).then(txt => { if (alive && txt && typeof txt === 'string') setNote(txt); }).catch(() => {});
+        }
+        return () => { alive = false; };
+    }, [lineupKey, ctxTick, oppRosterId, _projReady]);
+
+    // MFL is the only platform with a public lineup-write API (Sleeper has none).
+    const _plat = (window.App && window.App.Matchup && window.App.Matchup._platform) ? window.App.Matchup._platform(currentLeague) : 'sleeper';
+    const isMfl = _plat === 'mfl';
+    const mflApiKey = (window.S && window.S._mflApiKey) || (function () { try { return sessionStorage.getItem('mfl_api_key') || localStorage.getItem('mfl_api_key'); } catch (e) { return null; } })();
+
+    // MFL requires a login COOKIE (not the API key) to set a lineup. Keep only the
+    // session token (sessionStorage, cleared on tab close); the password is used
+    // once to obtain it and never stored.
+    const [mflCookie, setMflCookie] = React.useState(() => { try { return sessionStorage.getItem('mfl_write_cookie') || ''; } catch (e) { return ''; } });
+    const [mflHost, setMflHost] = React.useState(() => { try { return sessionStorage.getItem('mfl_write_host') || ''; } catch (e) { return ''; } });
+    const [mflUser, setMflUser] = React.useState('');
+    const [mflPass, setMflPass] = React.useState('');
+    const [mflAuthBusy, setMflAuthBusy] = React.useState(false);
+    const [mflAuthErr, setMflAuthErr] = React.useState('');
+    async function doMflLogin() {
+        if (!window.MFL || !window.MFL.mflLogin) { setMflAuthErr('MFL connector unavailable.'); return; }
+        if (!mflUser || !mflPass) { setMflAuthErr('Enter your MFL username and password.'); return; }
+        setMflAuthBusy(true); setMflAuthErr('');
+        try {
+            const yr = currentLeague.season || (window.S && window.S.mflYear);
+            const out = await window.MFL.mflLogin({ username: mflUser, password: mflPass, year: yr });
+            try { sessionStorage.setItem('mfl_write_cookie', out.cookie); if (out.host) sessionStorage.setItem('mfl_write_host', out.host); } catch (e) {}
+            setMflCookie(out.cookie); setMflHost(out.host || ''); setMflPass('');
+        } catch (e) { setMflAuthErr((e && e.message) || 'MFL login failed.'); }
+        finally { setMflAuthBusy(false); }
+    }
+    function mflDisconnect() {
+        try { sessionStorage.removeItem('mfl_write_cookie'); sessionStorage.removeItem('mfl_write_host'); } catch (e) {}
+        setMflCookie(''); setMflHost(''); setSubmit({ status: 'idle', msg: '' });
+    }
+    async function pushToMfl() {
+        const MFL = window.MFL;
+        if (!MFL || !MFL.submitLineup) { setSubmit({ status: 'error', msg: 'MFL connector unavailable.' }); return; }
+        // Fail closed: if any starting slot TYPE wasn't recognized (so it was
+        // dropped from startingSlots), we'd under-submit and MFL's replace-all
+        // would bench it. Block rather than silently overwrite.
+        const trueStartCount = (currentLeague.roster_positions || []).filter(p => { const s = SS.normSlot(p); return s && !BENCH.has(s); }).length;
+        if (startingSlots.length < trueStartCount) {
+            setSubmit({ status: 'error', msg: 'Your lineup has a slot type we don’t fully support yet — set this lineup on MFL directly to be safe.' });
+            return;
+        }
+        // MFL's lineup import is REPLACE-ALL: any starting slot we omit gets
+        // benched. Refuse to push unless every starting slot is filled.
+        const emptySlots = startingSlots.filter(sl => !workingAssign[sl.idx]);
+        if (emptySlots.length) {
+            setSubmit({ status: 'error', msg: 'Fill all ' + startingSlots.length + ' starting slots first — ' + emptySlots.map(s => s.slotName.replace('_', ' ')).join(', ') + ' empty. Tap “Apply Optimal” to fill them. MFL benches anyone left out.' });
+            return;
+        }
+        const starterIds = startingSlots.map(sl => workingAssign[sl.idx]).filter(Boolean);
+        setSubmit({ status: 'submitting', msg: '' });
+        try {
+            await MFL.submitLineup({
+                // Prefer the league being VIEWED (session globals reflect only the
+                // last-connected MFL league — matches league-detail/draft-room).
+                leagueId: currentLeague._mflLeagueId || String(currentLeague.id || '').replace(/^mfl_/, '').replace(/_\d+$/, '') || (window.S && window.S.mflLeagueId),
+                year: currentLeague.season || (window.S && window.S.mflYear),
+                week: result.week,
+                franchiseId: myRoster.roster_id,
+                starterIds,
+                mflByPid: myRoster._mflPlayerIds || null,
+                cookie: mflCookie || undefined,
+                host: mflHost || undefined,
+                apiKey: mflApiKey,
+            });
+            setSubmit({ status: 'done', msg: 'Lineup submitted to MFL for Week ' + result.week + '.' });
+        } catch (e) {
+            const msg = (e && e.message) || 'MFL rejected the lineup — set it on MFL directly.';
+            // If the session expired, drop the cookie so the UI prompts a reconnect.
+            if (/authoriz|expired|not\s*log|logg?ed?[\s-]?in|session/i.test(msg)) mflDisconnect();
+            setSubmit({ status: 'error', msg });
+        }
+    }
+
+    // MFL rosters don't expose current starters (starters:[]), so the builder
+    // would start all-empty. Seed the working lineup from the optimal build once
+    // projections are ready, so the table starts full and the completeness guard
+    // is satisfiable. (We can't show MFL's actual current starters — the rosters
+    // export doesn't include them.)
+    const _optReady = !!(result && result.optimal && result.optimal.starters && result.optimal.starters.length);
+    React.useEffect(() => {
+        if (!isMfl || !_optReady) return;
+        if (Object.keys(currentAssign).length || Object.keys(workingAssign).length) return; // platform starters, or user already editing
+        const byName = {};
+        result.optimal.starters.forEach(s => { (byName[s.slot] = byName[s.slot] || []).push(s.pid); });
+        const next = {};
+        startingSlots.forEach(sl => { const arr = byName[sl.slotName]; if (arr && arr.length) next[sl.idx] = String(arr.shift()); });
+        if (Object.keys(next).length) setWorkingAssign(next);
+    }, [lineupKey, isMfl, _optReady]);
+
+    // Tier gate — matches app.js: free during pre-live, STARTSIT_DEPTH at launch.
+    const _preLiveFree = !!(window.App && window.App.EMPIRE_FREE_PRELIVE);
+    const _hasGameDay = _preLiveFree || typeof window.canAccess !== 'function' || !window.FEATURES || window.canAccess(window.FEATURES.STARTSIT_DEPTH);
+    if (!_hasGameDay) {
+        return (
+            <div style={{ maxWidth: '560px', margin: '0 auto', padding: '56px 24px', textAlign: 'center' }}>
+                <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: 'var(--silver, #9aa0a6)', fontWeight: 600 }}>GAME DAY CENTRAL</div>
+                <div style={{ fontSize: '1.3rem', color: 'var(--gold, #d4af37)', fontWeight: 700, margin: '10px 0' }}>Unlock your game-day command center</div>
+                <div style={{ color: 'var(--silver, #9aa0a6)', lineHeight: 1.6, marginBottom: '18px' }}>Weekly start/sit optimizer with floor–ceiling bands and real matchup context, opponent breakdown, a full-season schedule with win projections, and one-tap lineup push to MFL.</div>
+                <button onClick={() => { if (window.showProLaunchPage) window.showProLaunchPage(); else if (window.showUpgradePrompt) window.showUpgradePrompt(window.FEATURES.STARTSIT_DEPTH); }}
+                    style={{ padding: '10px 20px', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', borderRadius: '6px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.12)', color: 'var(--gold, #d4af37)' }}>Upgrade to War Room</button>
+            </div>
+        );
+    }
 
     if (!WP || !SS) {
         return <div style={{ padding: '48px 24px', color: SILVER }}>Start/Sit engine not loaded.</div>;
@@ -263,13 +475,113 @@ function LineupTab({
         }
     }
 
+    // ── MFL lineup push card (write to MyFantasyLeague) ──
+    function renderMflPush() {
+        if (!isMfl) return null;
+        const s = submit.status;
+        const inputStyle = { flex: '1 1 130px', minWidth: 0, padding: '7px 10px', background: 'var(--charcoal, #0e0e12)', border: `1px solid ${LINE}`, borderRadius: '5px', color: TEXT, fontSize: '0.8rem' };
+        return (
+            <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '12px 16px', marginBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: '0.66rem', letterSpacing: '0.07em', color: GOLD, fontWeight: 700 }}>PUSH LINEUP TO MFL</div>
+                    {mflCookie ? <span onClick={mflDisconnect} style={{ fontSize: '0.62rem', color: SILVER, cursor: 'pointer' }}>● connected · disconnect</span> : null}
+                </div>
+                {!mflCookie ? (
+                    <div style={{ marginTop: '8px' }}>
+                        <div style={{ fontSize: '0.72rem', color: SILVER, marginBottom: '8px', lineHeight: 1.5 }}>MFL requires your login to set a lineup (the API key can’t). Your password is used once to get a session token — only the token is kept (this tab), never the password.</div>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            <input value={mflUser} onChange={e => setMflUser(e.target.value)} placeholder="MFL username" autoComplete="off" style={inputStyle} />
+                            <input value={mflPass} onChange={e => setMflPass(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') doMflLogin(); }} placeholder="MFL password" type="password" autoComplete="off" style={inputStyle} />
+                            <button onClick={doMflLogin} disabled={mflAuthBusy} style={{ ...actBtn, color: GOLD, borderColor: 'var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.10)', opacity: mflAuthBusy ? 0.6 : 1 }}>{mflAuthBusy ? 'Connecting…' : 'Connect'}</button>
+                        </div>
+                        {mflAuthErr ? <div style={{ fontSize: '0.7rem', color: RED, marginTop: '6px' }}>{mflAuthErr}</div> : null}
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', marginTop: '8px' }}>
+                        <div style={{ fontSize: '0.72rem', color: SILVER, minWidth: 0 }}>
+                            {s === 'done' ? <span style={{ color: GREEN }}>{submit.msg}</span>
+                                : s === 'error' ? <span style={{ color: RED }}>{submit.msg}</span>
+                                    : 'Sets your working lineup as this week’s starters on MyFantasyLeague.'}
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            {s === 'confirm' ? (
+                                <React.Fragment>
+                                    <span style={{ fontSize: '0.7rem', color: AMBER }}>Overwrite Week {result.week} starters?</span>
+                                    <button onClick={pushToMfl} style={{ ...actBtn, color: GOLD, borderColor: 'var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.12)' }}>Confirm</button>
+                                    <button onClick={() => setSubmit({ status: 'idle', msg: '' })} style={actBtn}>Cancel</button>
+                                </React.Fragment>
+                            ) : (
+                                <button disabled={s === 'submitting'} onClick={() => setSubmit({ status: 'confirm', msg: '' })}
+                                    style={{ ...actBtn, opacity: s === 'submitting' ? 0.5 : 1, cursor: s === 'submitting' ? 'not-allowed' : 'pointer', color: GOLD, borderColor: 'var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.10)' }}>
+                                    {s === 'submitting' ? 'Submitting…' : s === 'done' ? 'Re-submit' : 'Submit to MFL'}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // ── Season schedule rail: outlook + week-by-week ──
+    function renderRail() {
+        const d = seasonData;
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', position: isNarrow ? 'static' : 'sticky', top: '16px' }}>
+                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
+                    <div style={{ fontSize: '0.64rem', letterSpacing: '0.07em', color: SILVER, fontWeight: 600 }}>SEASON OUTLOOK</div>
+                    {d && d.summary ? (
+                        <React.Fragment>
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '8px' }}>
+                                <span style={{ fontSize: '1.5rem', fontWeight: 800, color: GOLD, fontVariantNumeric: 'tabular-nums' }}>{d.summary.projRecord}</span>
+                                <span style={{ fontSize: '0.64rem', color: SILVER }}>proj record</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '16px', marginTop: '9px' }}>
+                                <div><div style={{ fontSize: '0.6rem', color: SILVER, letterSpacing: '0.04em' }}>NOW</div><div style={{ fontWeight: 700, color: TEXT }}>{d.summary.record}</div></div>
+                                <div><div style={{ fontSize: '0.6rem', color: SILVER, letterSpacing: '0.04em' }}>PROJ PF</div><div style={{ fontWeight: 700, color: TEXT, fontVariantNumeric: 'tabular-nums' }}>{d.summary.projPF}</div></div>
+                                {d.summary.winPct != null ? <div><div style={{ fontSize: '0.6rem', color: SILVER, letterSpacing: '0.04em' }}>WIN%</div><div style={{ fontWeight: 700, color: TEXT }}>{d.summary.winPct}%</div></div> : null}
+                            </div>
+                        </React.Fragment>
+                    ) : <div style={{ color: SILVER, fontSize: '0.74rem', marginTop: '8px', opacity: 0.7 }}>Projecting your season…</div>}
+                </div>
+                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', overflow: 'hidden' }}>
+                    <div style={{ padding: '9px 14px', borderBottom: `1px solid ${LINE}`, fontSize: '0.64rem', letterSpacing: '0.07em', color: SILVER, fontWeight: 600 }}>SCHEDULE</div>
+                    {d && d.weeks ? d.weeks.map(w => {
+                        const wp = w.winPct;
+                        const color = w.result ? (w.result === 'W' ? GREEN : w.result === 'L' ? RED : SILVER) : (wp == null ? SILVER : wp >= 55 ? GREEN : wp <= 45 ? RED : GOLD);
+                        return (
+                            <div key={w.week} style={{ display: 'grid', gridTemplateColumns: '26px 1fr 52px', gap: '8px', alignItems: 'center', padding: '6px 14px', borderBottom: `1px solid ${LINE}`, background: w.isCurrent ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'transparent' }}>
+                                <span style={{ fontSize: '0.62rem', color: w.isCurrent ? GOLD : SILVER, fontWeight: 700 }}>W{w.week}</span>
+                                <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: '0.74rem', color: (w.isPast && !w.result) ? SILVER : TEXT }}>{w.bye ? <span style={{ color: SILVER, opacity: 0.6 }}>bye</span> : w.oppName}</span>
+                                <span style={{ textAlign: 'right', fontSize: '0.68rem', fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>
+                                    {w.result ? (w.result + (w.myProj != null ? ' ' + Math.round(w.myProj) : '')) : (wp != null ? wp + '%' : w.bye ? '—' : '·')}
+                                </span>
+                            </div>
+                        );
+                    }) : <div style={{ padding: '10px 14px', color: SILVER, fontSize: '0.74rem', opacity: 0.7 }}>Loading schedule…</div>}
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div style={{ maxWidth: '1120px', margin: '0 auto', padding: '20px 16px 60px' }}>
-            {/* Hero — Your lineup vs Optimal */}
-            <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '18px 20px', marginBottom: '14px' }}>
+        <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '20px 16px 60px' }}>
+            {/* Alex's game-day note */}
+            {note ? (
+                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '6px', padding: '12px 16px', marginBottom: '14px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.08em', color: GOLD, marginTop: '3px', whiteSpace: 'nowrap' }}>ALEX ·</span>
+                    <span style={{ fontSize: '0.86rem', color: TEXT, lineHeight: 1.5 }}>{note}</span>
+                </div>
+            ) : null}
+
+            <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : '1fr 300px', gap: '16px', alignItems: 'start' }}>
+                <div style={{ minWidth: 0 }}>
+                    {renderMflPush()}
+                    {/* Hero — Your lineup vs Optimal */}
+                    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '18px 20px', marginBottom: '14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
                     <div>
-                        <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600 }}>WEEK {result.week} · LINEUP COMMAND CENTER</div>
+                        <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600 }}>WEEK {result.week} · GAME DAY CENTRAL</div>
                         <div style={{ fontSize: '1.45rem', fontWeight: 700, color: isOptimal ? GREEN : GOLD, marginTop: '6px' }}>
                             {isOptimal ? 'Lineup is optimal' : `${benchPts.toFixed(1)} pts below optimal`}
                         </div>
@@ -401,7 +713,10 @@ function LineupTab({
                 <strong style={{ color: TEXT }}>Proj</strong> projected pts (your {objective} strategy) · <strong style={{ color: TEXT }}>Mtch</strong> matchup grade A–F (opponent's implied total) · <strong style={{ color: TEXT }}>{formWinLabel}</strong> rolling avg of actual pts · <strong style={{ color: TEXT }}>Hi/Lo</strong> season best/worst week
             </div>
             <div style={{ color: SILVER, fontSize: '0.72rem', marginTop: '8px', lineHeight: 1.5 }}>
-                Projections are league-scored from role, recent form{objective !== 'median' ? `, your ${result.mode.replace('_', '-')} strategy` : ''}, and matchup; form columns are actual weekly points over the chosen window. Build and compare lineups here — set the final one on your platform.
+                Projections are league-scored from role, recent form{objective !== 'median' ? `, your ${result.mode.replace('_', '-')} strategy` : ''}, matchup and defense-vs-position; form columns are actual weekly points over the chosen window. Build and compare here{isMfl ? ' — then push straight to MFL above' : ' — set the final lineup on your platform'}.
+            </div>
+                </div>
+                <div style={{ order: isNarrow ? 3 : 0 }}>{renderRail()}</div>
             </div>
         </div>
     );

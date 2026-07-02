@@ -2950,7 +2950,8 @@
                         { section: 'FRONT OFFICE' },
                         { label: 'Home', tab: 'dashboard', iconKey: 'home' },
                         { label: 'My Roster', tab: 'myteam', iconKey: 'roster' },
-                        { label: 'Lineup', tab: 'lineup', iconKey: 'roster' },
+                        // Game Day Central — only surfaced for in-season leagues.
+                        ...((leagueSkin?.features?.showGameDay ?? (leagueSkin?.phase === 'in_season')) ? [{ label: 'Game Day', tab: 'lineup', iconKey: 'roster' }] : []),
                         { label: 'Compare', tab: 'compare', iconKey: 'compare' },
                         { section: 'LEAGUE' },
                         { label: 'Trade Center', tab: 'trades', iconKey: 'trade' },

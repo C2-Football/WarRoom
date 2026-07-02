@@ -29,6 +29,34 @@
         return _ctx.byTeamWeek[`${String(team || '').toUpperCase()}|${week}`] || null;
     }
 
+    // Opponent NFL team for a player's team in a given week — prefers the live
+    // NFL context (ESPN scoreboard), then falls back to the SOS engine's
+    // derived schedule so FUTURE weeks (no live context yet) still resolve an
+    // opponent for matchup grading + the season schedule rail.
+    function opponentTeam(team, week, ctx) {
+        const T = String(team || '').toUpperCase();
+        if (ctx && ctx.opp) return String(ctx.opp).toUpperCase();
+        const sch = App.SOS && App.SOS.schedule;
+        return (sch && sch[week] && sch[week][T]) ? String(sch[week][T]).toUpperCase() : null;
+    }
+
+    // Defense-vs-position multiplier from the SOS engine's per-position defense
+    // rankings (1 = toughest defense → suppress production; 32 = softest →
+    // boost). Neutral (1.0) until App.SOS.initialize() resolves, and for
+    // positions SOS doesn't rank (K/DEF/IDP). This is the real DvP layer the
+    // engine was built for — no backend projections table required.
+    function dvpMultFor(oppTeam, pos) {
+        const ranks = App.SOS && App.SOS.defenseRankings;
+        if (!ranks || !oppTeam) return 1;
+        const P = String(pos || '').toUpperCase();
+        if (P !== 'QB' && P !== 'RB' && P !== 'WR' && P !== 'TE') return 1;
+        const rank = ranks[oppTeam] && ranks[oppTeam]['vs' + P];
+        if (!(rank > 0)) return 1;
+        // rank 16.5 → 1.0 · rank 1 (toughest) → ~0.86 · rank 32 (softest) → ~1.14
+        const mult = 1 + ((rank - 16.5) / 15.5) * 0.14;
+        return Math.max(0.82, Math.min(1.18, mult));
+    }
+
     function currentWeek() {
         const s = root.S || {};
         const w = Number(s.currentWeek || s.nflState?.display_week || s.nflState?.week || 0);
@@ -124,14 +152,22 @@
 
         const team = player && player.team;
         const ctx = teamWeekCtx(team, week);
+        const oppTeam = opponentTeam(team, week, ctx);
         const injuryStatus = isByeOrOut(player, ctx, pid, week);
+
+        // Blend any live-context DvP with the SOS-derived defense-vs-position
+        // multiplier (real DvP layer). Neutral 1.0 when SOS isn't ready.
+        const ctxDvp = ctx && Number.isFinite(ctx.dvpMult) ? ctx.dvpMult : 1;
+        const dvpMult = (ctxDvp !== 1 ? ctxDvp : 1) * dvpMultFor(oppTeam, pos);
 
         const proj = ss.projectPlayerWeek({
             pid, week, position: pos, baseline,
-            dvpMult: ctx ? ctx.dvpMult : 1,
+            dvpMult,
             vegas: ctx ? ctx.vegas : null,
             weather: ctx ? ctx.weather : null,
-            opponent: ctx ? { abbr: ctx.opp, home: ctx.home, impliedTotal: ctx.vegas && ctx.vegas.impliedTotal, spread: ctx.vegas && ctx.vegas.spread } : null,
+            opponent: ctx
+                ? { abbr: ctx.opp, home: ctx.home, impliedTotal: ctx.vegas && ctx.vegas.impliedTotal, spread: ctx.vegas && ctx.vegas.spread }
+                : (oppTeam ? { abbr: oppTeam } : null),
             injuryStatus,
             roleNote: ctx ? ctx.roleNote : '',
         });

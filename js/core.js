@@ -393,6 +393,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         DL: ['DL','DE','DT','NT','IDL','EDGE'],
         LB: ['LB','OLB','ILB','MLB'],
         DEF: ['DEF','DST','D/ST'],
+        K: ['K','PK'],   // MFL codes kickers as PK
     };
 
     // Age curves default - fallback only; shared/constants.js is the primary source.

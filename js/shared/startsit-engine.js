@@ -42,6 +42,7 @@
     function normSlot(slot) {
         const raw = String(slot || '').trim().toUpperCase();
         if (raw === 'D/ST' || raw === 'DST') return 'DEF';
+        if (raw === 'PK') return 'K'; // MFL kicker slot code
         if (raw === 'SUPERFLEX') return 'SUPER_FLEX';
         if (raw === 'WR/RB/TE' || raw === 'W/R/T') return 'FLEX';
         if (raw === 'WR/TE' || raw === 'W/T') return 'REC_FLEX';
@@ -206,10 +207,21 @@
         const score = calcFn || root.calcFantasyPts || (App.Sleeper && App.Sleeper.calcFantasyPts);
         if (typeof score !== 'function') throw new Error('startsit: no calcFantasyPts available');
         const sl = (proj && proj.statLine) || {};
+        // calcFantasyPts is position-blind, so true TE-premium (bonus_rec_te = extra
+        // pts per TE reception, on top of `rec`) can only be honored here, where the
+        // projection carries its position. Applied per stat line so floor/median/
+        // ceiling all reflect the bonus.
+        const teBonus = (proj && proj.position === 'TE' && scoring && Number(scoring.bonus_rec_te)) ? Number(scoring.bonus_rec_te) : 0;
+        const scoreLine = line => {
+            if (!line) return 0;
+            let p = score(line, scoring);
+            if (teBonus && Number.isFinite(line.rec)) p += teBonus * line.rec;
+            return p;
+        };
         const pts = {
-            median: sl.median ? score(sl.median, scoring) : 0,
-            floor: sl.floor ? score(sl.floor, scoring) : 0,
-            ceiling: sl.ceiling ? score(sl.ceiling, scoring) : 0,
+            median: scoreLine(sl.median),
+            floor: scoreLine(sl.floor),
+            ceiling: scoreLine(sl.ceiling),
         };
         return { ...proj, points: pts };
     }
