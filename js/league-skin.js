@@ -256,9 +256,12 @@
             showDraftPrep: preDraft || phase === 'offseason',
             showDraftPrepWhenRosterEmpty: (seasonal || type === 'keeper') && preDraft,
             showStartSit: seasonal && phase === 'in_season',
-            // Game Day Central (start/sit + opponent + season schedule) applies to
-            // ANY in-season league — dynasty leagues play weekly head-to-head too.
-            showGameDay: phase === 'in_season',
+            // Game Day Central (start/sit + opponent + season schedule + bye watch)
+            // applies to ANY in-season league (dynasty plays weekly H2H too), AND
+            // to any drafted roster in the offseason so you can build your Week 1
+            // lineup and plan byes before the schedule is posted. Hidden only for
+            // pre-draft empty rosters (nothing to build yet).
+            showGameDay: phase === 'in_season' || rosterPlayerCount(rosters) > 0,
             showStreaming: seasonal && phase === 'in_season',
             showWaiverPlanner: seasonal || type === 'keeper',
             showRestOfSeasonValue: seasonal || type === 'keeper',

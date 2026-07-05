@@ -170,9 +170,11 @@ function LineupTab({
         }
         const injuries = curIds.map(pid => { const p = proj[pid]; const st = p && p.injuryStatus; return st ? { name: pmeta(pid).name, status: st } : null; }).filter(Boolean);
         const topName = topStart ? pmeta(topStart.pid).name : null;
+        const byeWatch = (seasonData && seasonData.byeWatch) || [];
+        const topBye = byeWatch.length ? byeWatch[0] : null;   // worst upcoming bye week
         return {
-            week: result.week, benchPts, topStart, topName, winPct, oppName, margin, injuries, mode: result.mode,
-            ctx: { week: result.week, winPct, margin, opponent: oppName, pointsLeftOnBench: benchPts, topUpgrade: topName, topUpgradeSlot: topStart ? topStart.slot : null, injuries: injuries.map(i => i.name + ' (' + i.status + ')'), objective: result.objective, mode: result.mode },
+            week: result.week, benchPts, topStart, topName, winPct, oppName, margin, injuries, mode: result.mode, topBye,
+            ctx: { week: result.week, winPct, margin, opponent: oppName, pointsLeftOnBench: benchPts, topUpgrade: topName, topUpgradeSlot: topStart ? topStart.slot : null, injuries: injuries.map(i => i.name + ' (' + i.status + ')'), byeWatch: byeWatch.slice(0, 3).map(b => ({ week: b.week, count: b.count, unfilled: b.unfilled, positions: b.positions })), objective: result.objective, mode: result.mode },
         };
     }
     function seededNote(f) {
@@ -192,7 +194,14 @@ function LineupTab({
         else mid = ' ' + AV.pick(seed + 'b', ['Lineup’s optimal', 'Nothing left on the table', 'Your best is already in']) + ' — no changes needed.';
         let tail = '';
         if (f.injuries && f.injuries.length) tail = ' ' + AV.pick(seed + 'c', ['Keep an eye on', 'Watch', 'Monitor']) + ' ' + AV.joinNatural(f.injuries.map(i => i.name)) + '.';
-        return (lead + mid + tail).trim();
+        let byeTail = '';
+        if (f.topBye && (f.topBye.unfilled || f.topBye.count >= 2)) {
+            const b = f.topBye;
+            const c = {}; (b.positions || []).forEach(p => { c[p] = (c[p] || 0) + 1; });
+            const posLabel = Object.keys(c).map(p => c[p] > 1 ? c[p] + ' ' + p + 's' : p).join(' + ');
+            byeTail = ' ' + AV.pick(seed + 'd', ['Bye watch —', 'Plan ahead —', 'Down the road —']) + ' Week ' + b.week + (b.unfilled ? ' leaves a hole' : ' you’re thin') + (posLabel ? ' at ' + posLabel : '') + ', so line up cover.';
+        }
+        return (lead + mid + tail + byeTail).trim();
     }
     React.useEffect(() => {
         if (!_projReady) return;                 // wait for real projections (avoid a stale AI-note cache)
@@ -208,14 +217,14 @@ function LineupTab({
             const wpBucket = facts.winPct == null ? 'na' : Math.round(facts.winPct / 10);
             AV.enhance({
                 type: 'start-sit',
-                message: 'Give me a punchy 1-2 sentence game-day coaching note for my fantasy team this week. Are we favored? Any must-start upgrade sitting on the bench? Any injuries to watch? Natural prose, no lists, no sign-off.',
+                message: 'Give me a punchy 1-2 sentence game-day coaching note for my fantasy team this week. Are we favored? Any must-start upgrade sitting on the bench? Any injuries to watch, or an upcoming bye-week hole to plan for? Natural prose, no lists, no sign-off.',
                 context: JSON.stringify(facts.ctx),
                 fallback: seeded,
-                cacheKey: 'gd-note-' + lineupKey + '-w' + facts.week + '-' + wpBucket,
+                cacheKey: 'gd-note-' + lineupKey + '-w' + facts.week + '-' + wpBucket + (facts.topBye ? '-b' + facts.topBye.week + (facts.topBye.unfilled ? 'x' : '') : ''),
             }).then(txt => { if (alive && txt && typeof txt === 'string') setNote(txt); }).catch(() => {});
         }
         return () => { alive = false; };
-    }, [lineupKey, ctxTick, oppRosterId, _projReady]);
+    }, [lineupKey, ctxTick, oppRosterId, _projReady, seasonData]);
 
     // MFL is the only platform with a public lineup-write API (Sleeper has none).
     const _plat = (window.App && window.App.Matchup && window.App.Matchup._platform) ? window.App.Matchup._platform(currentLeague) : 'sleeper';
@@ -526,11 +535,20 @@ function LineupTab({
     // ── Season schedule rail: outlook + week-by-week ──
     function renderRail() {
         const d = seasonData;
+        const scheduleUnset = !!(d && d.scheduleUnset);
+        const byeWatch = (d && d.byeWatch) || [];
+        const byeLabel = (bw) => {
+            const c = {}; (bw.positions || []).forEach(p => { c[p] = (c[p] || 0) + 1; });
+            return Object.keys(c).map(p => c[p] > 1 ? c[p] + ' ' + p + 's' : p).join(', ') || (bw.count + ' on bye');
+        };
         return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', position: isNarrow ? 'static' : 'sticky', top: '16px' }}>
+                {/* Season outlook (or a pre-season placeholder when no schedule yet) */}
                 <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
                     <div style={{ fontSize: '0.64rem', letterSpacing: '0.07em', color: SILVER, fontWeight: 600 }}>SEASON OUTLOOK</div>
-                    {d && d.summary ? (
+                    {scheduleUnset ? (
+                        <div style={{ color: SILVER, fontSize: '0.74rem', marginTop: '8px', lineHeight: 1.5 }}>Schedule posts closer to Week 1. Building your <span style={{ color: TEXT, fontWeight: 600 }}>Week 1</span> lineup now — record + win% light up once matchups are set.</div>
+                    ) : d && d.summary ? (
                         <React.Fragment>
                             <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '8px' }}>
                                 <span style={{ fontSize: '1.5rem', fontWeight: 800, color: GOLD, fontVariantNumeric: 'tabular-nums' }}>{d.summary.projRecord}</span>
@@ -544,15 +562,40 @@ function LineupTab({
                         </React.Fragment>
                     ) : <div style={{ color: SILVER, fontSize: '0.74rem', marginTop: '8px', opacity: 0.7 }}>Projecting your season…</div>}
                 </div>
+
+                {/* Bye watch — the weeks you're thinnest (works with or without a schedule) */}
+                {byeWatch.length ? (
+                    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '12px 16px' }}>
+                        <div style={{ fontSize: '0.64rem', letterSpacing: '0.07em', color: SILVER, fontWeight: 600, marginBottom: '6px' }}>BYE WATCH</div>
+                        {byeWatch.map(bw => (
+                            <div key={bw.week} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px', padding: '3px 0', fontSize: '0.74rem' }}>
+                                <span style={{ minWidth: 0 }}>
+                                    <span style={{ color: bw.unfilled ? RED : AMBER, fontWeight: 700 }}>Wk {bw.week}</span>
+                                    <span style={{ color: SILVER, marginLeft: '6px' }}>{byeLabel(bw)}{bw.unfilled ? ' · no cover' : ''}</span>
+                                </span>
+                                <span style={{ color: bw.unfilled ? RED : AMBER, fontWeight: 800 }}>{bw.unfilled ? '⚠' : bw.count}</span>
+                            </div>
+                        ))}
+                        <div style={{ fontSize: '0.62rem', color: SILVER, opacity: 0.7, marginTop: '6px' }}>Plan waivers/draft around these.</div>
+                    </div>
+                ) : null}
+
+                {/* Week-by-week schedule */}
                 <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', overflow: 'hidden' }}>
                     <div style={{ padding: '9px 14px', borderBottom: `1px solid ${LINE}`, fontSize: '0.64rem', letterSpacing: '0.07em', color: SILVER, fontWeight: 600 }}>SCHEDULE</div>
-                    {d && d.weeks ? d.weeks.map(w => {
+                    {scheduleUnset ? (
+                        <div style={{ padding: '10px 14px', color: SILVER, fontSize: '0.74rem', opacity: 0.8, lineHeight: 1.5 }}>Opponents + weekly win% appear here once your league posts the schedule.</div>
+                    ) : d && d.weeks ? d.weeks.map(w => {
                         const wp = w.winPct;
                         const color = w.result ? (w.result === 'W' ? GREEN : w.result === 'L' ? RED : SILVER) : (wp == null ? SILVER : wp >= 55 ? GREEN : wp <= 45 ? RED : GOLD);
+                        const bye = w.byes || {};
                         return (
                             <div key={w.week} style={{ display: 'grid', gridTemplateColumns: '26px 1fr 52px', gap: '8px', alignItems: 'center', padding: '6px 14px', borderBottom: `1px solid ${LINE}`, background: w.isCurrent ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'transparent' }}>
                                 <span style={{ fontSize: '0.62rem', color: w.isCurrent ? GOLD : SILVER, fontWeight: 700 }}>W{w.week}</span>
-                                <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: '0.74rem', color: (w.isPast && !w.result) ? SILVER : TEXT }}>{w.bye ? <span style={{ color: SILVER, opacity: 0.6 }}>bye</span> : w.oppName}</span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
+                                    <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: '0.74rem', color: (w.isPast && !w.result) ? SILVER : TEXT }}>{w.bye ? <span style={{ color: SILVER, opacity: 0.6 }}>bye</span> : w.oppName}</span>
+                                    {bye.count ? <span title={bye.unfilled ? "You can't field a full lineup this week" : bye.count + ' of your starters on bye'} style={{ flex: '0 0 auto', fontSize: '0.56rem', fontWeight: 700, color: bye.thin ? (bye.unfilled ? RED : AMBER) : SILVER }}>{bye.unfilled ? '⚠' : bye.count + '·b'}</span> : null}
+                                </span>
                                 <span style={{ textAlign: 'right', fontSize: '0.68rem', fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>
                                     {w.result ? (w.result + (w.myProj != null ? ' ' + Math.round(w.myProj) : '')) : (wp != null ? wp + '%' : w.bye ? '—' : '·')}
                                 </span>
