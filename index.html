@@ -2142,7 +2142,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- 2b. Unified Player Card (SI-2) — window.WR.openPlayerCard — replaces CDN modal -->
 <!-- Shared visual primitives (WR.Card / Badge / Chip / ConfChip / DeltaLine / Kpi / InsightCard) -->
 <script type="text/babel" src="js/components/wr-primitives.js?v=20260427font1"></script>
-    <script type="text/babel" src="js/components/player-card.js?v=20260616compare1"></script>
+    <script type="text/babel" src="js/components/player-card.js?v=20260702scout1"></script>
 <!-- 2c. Saved List Views (SI-1) — window.WR.SavedViews — shared across list surfaces -->
 <script type="text/babel" src="js/shared/saved-views.js?v=20260427font1"></script>
 <!-- 2c-2. Saved Alex Reports — window.WR.SavedReports — local cache + ai_analysis server sync -->
@@ -2154,6 +2154,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script src="js/shared/nfl-context.js?v=20260616wx1"></script>
 <script src="js/shared/matchup.js?v=20260701gdc1"></script>
 <script src="js/utils/schedule-engine.js?v=20260702bye1"></script>
+<script src="js/utils/gamelog-engine.js?v=20260702scout1"></script>
 <script src="js/shared/draft-gameplan.js?v=20260616ros1"></script>
 <!-- 2e. Alex behavioral-insight settings — window.WR.AlexSettings — shared tuning for every Alex surface -->
 <script type="text/babel" src="js/shared/alex-settings.js?v=20260613gm1"></script>
@@ -2170,7 +2171,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- 2i. Per-league transaction cache — window.WrTxns — cross-league activity + DNA substrate -->
 <script src="js/shared/txn-store.js?v=20260601a"></script>
 <!-- 3. Shared utilities: player valuation constants + projection engine -->
-<script type="text/babel" src="js/utils/sos-engine.js"></script>
+<script type="text/babel" src="js/utils/sos-engine.js?v=20260702scout1"></script>
 <script type="text/babel" src="js/utils/player-value.js?v=20260517valuefix"></script>
 <!-- 4. Feature modules (no internal dependencies between these) -->
 <!-- data-wr-defer scripts are DEFERRED: emitted INERT (type="text/wr-deferred" by
