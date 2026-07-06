@@ -779,8 +779,6 @@
         const [avatarKey, setAvatarKey] = useState(0); // force re-render when avatar changes
         const [welcomeMode, setWelcomeMode] = useState(false); // centered modal for first-time welcome
         const [showCornerToast, setShowCornerToast] = useState(false); // "I'll be down here" toast
-        const [heroStory, setHeroStory] = useState('');
-        const [aiStories, setAiStories] = useState([]);
         const [transactions, setTransactions] = useState([]);
         const [rankedTeams, setRankedTeams] = useState([]);
         const [dhqStatus, setDhqStatus] = useState({ loading: false, step: '', progress: 0 });
@@ -1338,16 +1336,6 @@
                 setAnalyticsData(data);
             }
         }, [activeTab, analyticsData, timeRecomputeTs]);
-
-        // Auto-populate home page content when data is ready
-        useEffect(() => {
-            if (rankedTeams.length > 0 && !heroStory) {
-                setHeroStory(computeDataDrivenHero());
-            }
-            if (rankedTeams.length > 0 && aiStories.length === 0) {
-                generateAiStories();
-            }
-        }, [rankedTeams, transactions]);
 
         // Keyboard shortcut: Cmd/Ctrl+K to toggle ReconAI panel
         useEffect(() => {
@@ -2078,110 +2066,6 @@
             return user?.display_name || user?.username || 'Unknown';
         }
 
-        function computeDataDrivenHero() {
-            const parts = [];
-            if (rankedTeams.length) {
-                const top = rankedTeams[0];
-                const myRank = rankedTeams.findIndex(t => t.userId === sleeperUserId) + 1;
-                parts.push(top.displayName + ' leads the power rankings with a ' + top.healthScore + ' health score and ' + top.wins + '-' + top.losses + ' record.');
-                if (myRank && myRank !== 1) {
-                    const me = rankedTeams[myRank - 1];
-                    parts.push('You sit at #' + myRank + ' (' + me.wins + '-' + me.losses + ') with ' + (me.totalDHQ||0).toLocaleString() + ' total DHQ.');
-                } else if (myRank === 1) {
-                    parts.push('You hold the top spot in the league.');
-                }
-            }
-            const recentTrade = transactions.find(t => t.type === 'trade');
-            if (recentTrade) {
-                const addPids = Object.keys(recentTrade.adds || {});
-                const names = addPids.slice(0, 2).map(pid => getPlayerName(pid)).filter(Boolean).join(' and ');
-                if (names) parts.push('Latest trade: ' + names + ' changed hands between ' + getOwnerName(recentTrade.roster_ids?.[0]) + ' and ' + getOwnerName(recentTrade.roster_ids?.[1]) + '.');
-            }
-            return parts.join(' ') || 'Welcome to Dynasty HQ. League intelligence is loading.';
-        }
-
-        async function generateHeroStory() {
-            // Try AI first, fall back to data-driven
-            if (typeof dhqAI === 'function' || typeof window.dhqAI === 'function' || typeof window.callClaude === 'function') {
-                setHeroStory('Generating...');
-                try {
-                    const fmtPreamble = window.WR?.AIContext?.buildFormatPreamble?.(currentLeague) || '';
-                    const ctx = fmtPreamble + (typeof dhqContext === 'function' ? dhqContext(true) : '');
-                    const prompt = "Write a 3-4 sentence sports journalist narrative about the current state of this dynasty league. Focus on the biggest storyline this week — trades, injuries, power shifts, or playoff implications. Write in the style of The Athletic — dramatic, informed, specific. Use owner names and player names when possible.";
-                    const aiFn = typeof dhqAI === 'function' ? dhqAI : window.dhqAI;
-                    const reply = await aiFn('home-chat', prompt, ctx);
-                    if (reply) { setHeroStory(reply); return; }
-                } catch(e) { console.warn('Hero story AI failed, using data-driven:', e); }
-            }
-            setHeroStory(computeDataDrivenHero());
-        }
-
-        async function generateAiStories() {
-            setAiStories([{ icon: '\u23F3', category: 'Generating...', headline: 'Analyzing league data...', body: '' }]);
-            try {
-                const stories = [];
-                const trades = transactions.filter(t => t.type === 'trade');
-                if (trades.length > 0) {
-                    const bigTrade = trades[0];
-                    const addPids = Object.keys(bigTrade.adds || {});
-                    const addNames = addPids.slice(0, 3).map(pid => getPlayerName(pid)).join(', ');
-                    const totalVal = addPids.reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0);
-                    stories.push({
-                        icon: '\uD83E\uDD1D', category: 'Trade of the Week',
-                        headline: addNames ? addNames + ' change hands in blockbuster deal' : 'Latest trade shakes up league landscape',
-                        body: getOwnerName(bigTrade.roster_ids?.[0]) + ' and ' + getOwnerName(bigTrade.roster_ids?.[1]) + ' swapped ' + addPids.length + ' player' + (addPids.length !== 1 ? 's' : '') + '. Combined DHQ value: ' + totalVal.toLocaleString() + '.'
-                    });
-                } else {
-                    stories.push({ icon: '\uD83E\uDD1D', category: 'Trade Watch', headline: 'Trade market remains quiet', body: 'No trades completed recently. The league is in a holding pattern.' });
-                }
-                if (rankedTeams.length > 0) {
-                    const top = rankedTeams[0];
-                    const bottom = rankedTeams[rankedTeams.length - 1];
-                    stories.push({
-                        icon: '\uD83D\uDCCA', category: 'Power Shift',
-                        headline: top.displayName + ' holds the top spot in power rankings',
-                        body: 'Health score of ' + top.healthScore + ' and ' + top.totalDHQ.toLocaleString() + ' total DHQ. ' + top.displayName + ' leads at ' + top.wins + '-' + top.losses + '. ' + bottom.displayName + ' trails at #' + rankedTeams.length + '.'
-                    });
-                }
-                if (myRoster?.players?.length) {
-	                    const agingPlayers = myRoster.players
-	                        .map(pid => ({ pid, player: playersData[pid], dhq: window.App?.LI?.playerScores?.[pid] || 0 }))
-	                        .filter(p => {
-                                if (!p.player || p.dhq <= 1000) return false;
-                                const valueEnd = typeof window.App?.getValueWindowEnd === 'function'
-                                    ? window.App.getValueWindowEnd(p.player.position)
-                                    : ((window.App.peakWindows || {})[p.player.position] || [24, 29])[1];
-                                return p.player.age > valueEnd;
-                            })
-                        .sort((a,b) => b.dhq - a.dhq)
-                        .slice(0, 3);
-                    if (agingPlayers.length > 0) {
-                        const names = agingPlayers.map(p => (p.player.full_name || getPlayerName(p.pid)) + ' (' + p.player.age + ')').join(', ');
-	                        stories.push({ icon: '\u23F0', category: 'Aging Watch', headline: 'Your veterans past the value window', body: names + ' \u2014 high-value assets past their position curve. Consider selling high before value erodes.' });
-                    } else {
-                        stories.push({ icon: '\uD83C\uDF31', category: 'Youth Movement', headline: 'Your roster skews young', body: 'No significant aging concerns. Your dynasty foundation is built for the long haul.' });
-                    }
-                }
-                if (typeof dhqAI === 'function' && window.App?.LI_LOADED) {
-                    try {
-                        const ctx = (window.WR?.AIContext?.buildFormatPreamble?.(currentLeague) || '') + dhqContext(true);
-                        const reply = await dhqAI('home-chat', 'Write one punchy 2-sentence sports headline and body about the most interesting dynasty angle in this league right now. Focus on a specific team or player. Format exactly: HEADLINE: [headline]\\nBODY: [body]', ctx);
-                        if (reply) {
-                            const headlineMatch = reply.match(/HEADLINE:\s*(.+)/i);
-                            const bodyMatch = reply.match(/BODY:\s*(.+)/is);
-                            if (headlineMatch) {
-                                stories.push({ icon: '\uD83E\uDD16', category: 'AI Insight', headline: headlineMatch[1].trim(), body: bodyMatch ? bodyMatch[1].trim() : reply });
-                            }
-                        }
-                    } catch(e) { window.wrLog('aiStory.generate', e); }
-                }
-                setAiStories(stories.slice(0, 3));
-            } catch(e) {
-                console.warn('AI stories error:', e);
-                setAiStories([{ icon: '\u26A0\uFE0F', category: 'Error', headline: 'Could not generate stories', body: 'Please try again later.' }]);
-            }
-        }
-
         // GM Onboarding wizard — conversational strategy setup
         function startGmOnboarding() {
           if (gmOnboardStep > 0) return;
@@ -2469,7 +2353,7 @@
                 <div className="app-container" style={{ paddingBottom: '60px' }}>
                     {/* Skeleton left nav */}
                     <div style={{ position:'fixed', left:0, top:0, bottom:0, width:'160px', background:'var(--black)', borderRight:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', padding:'16px 0', zIndex:100 }}>
-                        <div style={{ fontFamily:'Rajdhani, sans-serif', fontSize:'1.3rem', color:'var(--gold)', padding:'0 16px', marginBottom:'20px' }}>DYNASTY HQ</div>
+                        <div className="wr-wordmark" style={{ fontFamily:'Rajdhani, sans-serif', fontSize:'1.3rem', color:'var(--gold)', padding:'0 16px', marginBottom:'20px' }}>DYNASTY HQ</div>
                         {['Home','My Team','League','Analytics','Trades','Free Agency','Draft'].map((label,i) => (
                             <div key={i} style={{ padding:'10px 16px', fontSize:'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', color: i===0?'var(--gold)':'var(--ov-8, rgba(255,255,255,0.3))', borderLeft: i===0?'3px solid var(--gold)':'3px solid transparent', background: i===0?'var(--acc-fill2, rgba(212,175,55,0.12))':'transparent' }}>{label}</div>
                         ))}
@@ -2872,7 +2756,7 @@
                     <div className="wr-sidebar-brand" onClick={onBack} style={{ padding: '0 14px', marginBottom: sidebarCollapsed ? '10px' : '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }} title="Back to Dynasty HQ home">
                       <img src={iconSrc} alt="Dynasty HQ" style={{ width: '28px', height: '28px', borderRadius: '6px' }} onError={e => { e.target.style.display = 'none'; }} />
                       <div className="wr-sidebar-wordmark">
-                        <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', lineHeight: 1.1 }}>DYNASTY HQ</div>
+                        <div className="wr-wordmark" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', lineHeight: 1.1 }}>DYNASTY HQ</div>
                       </div>
                       {(() => {
                         const champs = window.App?.LI?.championships || {};

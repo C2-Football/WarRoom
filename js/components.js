@@ -39,6 +39,31 @@
     // (overwrites shared/tier.js and causes infinite recursion via _sharedCanAccess)
     window.getUserTier = getUserTier;
 
+    // ===== GATED "SEE ALL N" TEASER ROW =====
+    // Locked teaser row appended to gated list sections (Intel Brief, Market
+    // Radar, Empire queue, GM's Office). Free renders the section shell with
+    // real rows sliced to zero — rows.slice(0, gated ? 0 : N) — plus this row;
+    // no real recommendations reach the DOM. Port of reconai's
+    // _scoutGatedMoreRow (js/scout-ui.js) in warroom terminal trim.
+    function WrGatedMoreRow({ title, sub, feature }) {
+        const openUpsell = () => {
+            if (window.showProLaunchPage) window.showProLaunchPage();
+            else if (window.showUpgradePrompt) window.showUpgradePrompt(feature || '');
+        };
+        return React.createElement('button', {
+                onClick: openUpsell,
+                style: { display:'flex', alignItems:'center', gap:'10px', width:'100%', textAlign:'left', padding:'10px 12px', background:'var(--off-black)', border:'1px solid var(--charcoal)', borderRadius:'2px', cursor:'pointer' }
+            },
+            React.createElement('span', { 'aria-hidden': true, style: { fontSize:'0.9rem' } }, '🔒'),
+            React.createElement('span', { style: { flex:1, minWidth:0 } },
+                React.createElement('div', { style: { fontFamily:'Rajdhani, sans-serif', fontSize:'0.95rem', fontWeight:600, color:'var(--white)', letterSpacing:'.03em' } }, title),
+                sub ? React.createElement('div', { style: { fontSize:'var(--text-label, 0.75rem)', color:'var(--silver)', marginTop:'2px' } }, sub) : null
+            ),
+            React.createElement('span', { style: { fontFamily:'JetBrains Mono, monospace', fontSize:'var(--text-label, 0.75rem)', letterSpacing:'.08em', textTransform:'uppercase', color:'var(--gold)', border:'1px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius:'2px', padding:'2px 6px' } }, 'Pro')
+        );
+    }
+    window.WrGatedMoreRow = WrGatedMoreRow;
+
     // ===== PLAYER INLINE CARD (bottom-right, non-blocking) =====
     function PlayerInlineCard({ pid, playersData, statsData, onClose, onFullProfile }) {
         const p = playersData?.[pid];

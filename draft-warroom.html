@@ -141,7 +141,7 @@
     <div id="root"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="js/shared/shared-loader.js?v=20260614dynread3"></script>
+    <script src="js/shared/shared-loader.js?v=20260705fdn1"></script>
     <script>
     if (['localhost', '127.0.0.1'].includes(window.location.hostname || '')) {
       const existingConfig = window.DYNASTY_HQ_CONFIG || {};
@@ -158,8 +158,10 @@
       'app-config.js',
       'constants.js',
       'utils.js',
+      'storage.js',
       'sleeper-api.js',
       'supabase-client.js',
+      'tier.js',
       'pick-value-model.js',
       'dhq-core.js',
       'intelligence-context.js',
@@ -173,6 +175,8 @@
       'rookie-data.js',
     ]);
     </script>
+    <!-- Scout-free vs Pro gate: wrIsPro() + chrome + lock card; boots loadUserTier(). -->
+    <script src="js/shared/pro-gate.js?v=20260705gate1"></script>
     <script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.29.2/babel.min.js"></script>

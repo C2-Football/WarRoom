@@ -30,7 +30,7 @@
     <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.101.1/dist/umd/supabase.min.js">
     <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js">
     <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js">
-    <script src="js/shared/shared-loader.js?v=20260701gdc4"></script>
+    <script src="js/shared/shared-loader.js?v=20260705fdn1"></script>
     <script>
 window.DYNASTY_HQ_APP = 'warroom';
 // Sandbox = the WarRoom-sandbox deploy (c2-football.github.io/WarRoom-sandbox/),
@@ -2105,7 +2105,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
         <style>@keyframes wr-boot-pulse{0%,100%{opacity:.35}50%{opacity:1}}</style>
         <div style="min-height:80vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px">
             <img src="icon-192.png" alt="" width="56" height="56" style="border-radius:14px">
-            <div style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;letter-spacing:.12em;color:var(--gold)">DYNASTY HQ</div>
+            <div class="wr-wordmark" style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;letter-spacing:.12em;color:var(--gold)">DYNASTY HQ</div>
             <div style="font-size:13px;color:var(--silver);animation:wr-boot-pulse 1.4s ease-in-out infinite">Opening the war room…</div>
         </div>
     </div>
@@ -2116,6 +2116,9 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script>WRShared.loadMany(WR_SHARED_FILES);</script>
 <!-- Preserve shared/tier.js canAccess before core.js hoists its own canAccess over window.canAccess -->
 <script>window._sharedCanAccess = window.canAccess;</script>
+<!-- Scout-free vs Pro gate: wrIsPro() + chrome + lock card; boots loadUserTier().
+     Must run after the shared tier chain above, before any tab code. -->
+<script src="js/shared/pro-gate.js?v=20260705gate1"></script>
 <script src="js/pro-launch.js?v=20260414d"></script>
 <script src="college-stats.js"></script>
 <script src="draft-history.js"></script>
@@ -2168,8 +2171,6 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script src="js/shared/snapshot-store.js?v=20260601a"></script>
 
 <script src="js/shared/wr-ai-context.js?v=20260610a"></script>
-<!-- Alex's Desk — cross-league AI digest card for the hub (window.WR.DashboardDigestCard) -->
-<script src="js/tabs/dashboard-digest.js?v=20260613gm1"></script>
 <!-- 2i. Per-league transaction cache — window.WrTxns — cross-league activity + DNA substrate -->
 <script src="js/shared/txn-store.js?v=20260601a"></script>
 <!-- 3. Shared utilities: player valuation constants + projection engine -->

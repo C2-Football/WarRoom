@@ -7,9 +7,9 @@
 // persona.js or opponent-intel.js.
 //
 // This module lifts the same fallback implementations that trade-calc.js
-// uses at lines 288–289 when the ReconAI shared trade-engine.js doesn't
+// uses at lines 690–693 when the ReconAI shared trade-engine.js doesn't
 // supply its own. Keep these in sync with trade-calc.js if that file's
-// fallbacks are ever updated — marked with `SYNCED-WITH: trade-calc.js:288-290`.
+// fallbacks are ever updated — marked with `SYNCED-WITH: trade-calc.js:690-693`.
 //
 // Also wires DNA_TYPES / POSTURES onto window.DraftCC.tradeHelpers so
 // persona.js doesn't need to reach back into the React closure.
@@ -62,7 +62,7 @@
         LOCKED:    { key: 'LOCKED',    label: 'Locked In',    color: 'var(--k-7f8c8d, #7f8c8d)', desc: 'Satisfied roster, high attachment.' },
     };
 
-    // ── calcOwnerPosture (SYNCED-WITH: trade-calc.js:288) ────────────
+    // ── calcOwnerPosture (SYNCED-WITH: trade-calc.js:691) ────────────
     function calcOwnerPosture(assessment, dnaKey) {
         // Defer to ReconAI shared engine if available
         const shared = window.App?.TradeEngine?.calcOwnerPosture;
@@ -77,7 +77,7 @@
         return POSTURES.NEUTRAL;
     }
 
-    // ── calcPsychTaxes (SYNCED-WITH: trade-calc.js:289) ──────────────
+    // ── calcPsychTaxes (SYNCED-WITH: trade-calc.js:692) ──────────────
     function calcPsychTaxes(myAssess, theirAssess, theirDnaKey, theirPosture) {
         const shared = window.App?.TradeEngine?.calcPsychTaxes;
         if (typeof shared === 'function') return shared(myAssess, theirAssess, theirDnaKey, theirPosture);

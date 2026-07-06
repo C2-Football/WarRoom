@@ -381,7 +381,7 @@
             DESPERATE: { label: 'The Desperate', color: 'var(--k-bb8fce, #bb8fce)', desc: 'High urgency triggered by injuries, bye-weeks, or playoff push. Will overpay for an immediate starter.', strategy: 'Identify their empty slot or injury. Strike fast — desperation fades after their bye.', taxes: ['Panic Premium +14% to +26%', 'Endowment -8%'] },
         };
 
-        const GRUDGE_TYPES = {
+        const GRUDGE_TYPES = window.App?.TradeEngine?.GRUDGE_TYPES || {
             ACCEPTED_FAIR: { label:'Accepted — Fair Trade', impact:+5, color:'var(--k-2ecc71, #2ecc71)', icon:'OK', cat:'accepted', dnaSignal:{ STALWART:3 } },
             ACCEPTED_WON:  { label:'Accepted — Fleeced Them', impact:-8, color:'var(--k-e67e22, #e67e22)', icon:'UP', cat:'accepted', dnaSignal:{ FLEECER:3, DOMINATOR:1 } },
             ACCEPTED_LOST: { label:'Accepted — Got Fleeced', impact:+10, color:'var(--k-bb8fce, #bb8fce)', icon:'DN', cat:'accepted', dnaSignal:{ ACCEPTOR:3, DESPERATE:2 } },
@@ -697,7 +697,7 @@
         function loadGrudges(lid) { try { return JSON.parse(localStorage.getItem(GRUDGE_KEY(lid)) || '[]'); } catch(e) { return []; } }
         function saveGrudges(lid, data) { localStorage.setItem(GRUDGE_KEY(lid), JSON.stringify(data)); }
 
-        function calcGrudgeTax(myOwnerId, theirOwnerId, grudgesList, theirDnaKey) {
+        const calcGrudgeTax = window.App?.TradeEngine?.calcGrudgeTax || function(myOwnerId, theirOwnerId, grudgesList, theirDnaKey) {
             if (!myOwnerId || !theirOwnerId) return { total:0, entries:[] };
             const relevant = grudgesList.filter(g => g.myOwnerId === myOwnerId && g.theirOwnerId === theirOwnerId);
             const dnaMult = { FLEECER:0.7, DOMINATOR:1.6, STALWART:1.2, ACCEPTOR:0.8, DESPERATE:0.5, NONE:1.0 }[theirDnaKey] || 1.0;
@@ -708,7 +708,7 @@
                 total += (GRUDGE_TYPES[g.type]?.impact || 0) * grudgeDecay(ageDays) * dnaMult;
             }
             return { total:Math.round(total), entries:relevant.sort((a,b) => new Date(b.date)-new Date(a.date)) };
-        }
+        };
 
         function deriveDNAFromHistory(theirOwnerId, allGrudges) {
             const entries = allGrudges.filter(g => g.theirOwnerId === theirOwnerId);
@@ -882,9 +882,10 @@
         }, []);
         const [ownerDna, setOwnerDna] = useState({});
         const [grudges, setGrudges] = useState([]);
-        const [sortMode, setSortMode] = useState('health');
-        const [tierFilter, setTierFilter] = useState('ALL');
-        const [selectedAuditTeam, setSelectedAuditTeam] = useState(null);
+        // Sort/filter controls died with renderAudit; the fixed values still
+        // shape the health-board memo until trade Phase 4 rebuilds this region.
+        const sortMode = 'health';
+        const tierFilter = 'ALL';
 
         // Trade Analyzer state
         const [tradeIds, setTradeIds] = useState({ A:[], B:[] });
@@ -1247,8 +1248,6 @@
             return list;
         }, [assessments, sortMode, tierFilter]);
 
-        const avgHealth = assessments.length ? Math.round(assessments.reduce((s,a) => s + a.healthScore, 0) / assessments.length) : 0;
-        const eliteTeamCount = assessments.filter(a => a.tier === 'ELITE').length;
         const highPanic = assessments.filter(a => a.panic >= 3).length;
         function updateDna(ownerId, dnaKey) {
             const updated = { ...ownerDna, [ownerId]: dnaKey };
@@ -1993,184 +1992,6 @@
             );
         }
 
-        function TcTeamCard({ assessment, isMyTeam }) {
-            const { teamName, ownerName, wins, losses, ties, pf, weeklyPts, healthScore, tier, tierColor, tierBg, posAssessment, panic, window: tradeWindow, needs, strengths, faabRemaining = 0, waiverBudget = 1000 } = assessment;
-            const dnaKey = ownerDna[assessment.ownerId] || 'NONE';
-            const dna = DNA_TYPES[dnaKey] || DNA_TYPES.NONE;
-            const pct = Math.round((weeklyPts / WEEKLY_TARGET) * 100);
-            const scoreBarColor = healthScore >= 85 ? 'var(--gold)' : healthScore >= 70 ? 'var(--good)' : healthScore >= 55 ? 'var(--warn)' : 'var(--bad)';
-            const projClass = weeklyPts >= WEEKLY_TARGET ? 'proj-above' : weeklyPts >= WEEKLY_TARGET * 0.9 ? 'proj-close' : 'proj-below';
-            const projColor = weeklyPts >= WEEKLY_TARGET ? 'var(--win-green)' : weeklyPts >= WEEKLY_TARGET * 0.9 ? 'var(--warn)' : 'var(--loss-red)';
-
-            return (
-                <div className={`tc-team-card${isMyTeam?' tc-my-team':''}`}>
-                    <div className="tc-card-header">
-                        <div style={{ overflow:'hidden' }}>
-                            <div style={{ fontSize:'0.92rem', fontWeight:700 }}>{ownerName}</div>
-                            <div style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.7 }}>{teamName}</div>
-                        </div>
-                        <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:'0.2rem', flexShrink:0 }}>
-                            {isMyTeam && <span className="tc-my-team-badge">MY TEAM</span>}
-                            <span className="tc-tier-badge" style={{ color:tierColor, borderColor:tierColor, background:tierBg }}>{tier}</span>
-                        </div>
-                    </div>
-                    <div className="tc-card-body">
-                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                            <span style={{ fontFamily:'var(--font-mono)', fontSize:'1.5rem', fontWeight:600, color:scoreBarColor, lineHeight:1 }}>{healthScore}</span>
-                            <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end' }}>
-                                <span style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.8 }}>{wins}-{losses}{ties>0?`-${ties}`:''}</span>
-                                <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65 }}>{pf > 0 ? `${pf.toFixed(0)} PF` : ''}</span>
-                            </div>
-                        </div>
-                        <div className="tc-score-row">
-                            <span className="tc-score-label">WEEKLY</span>
-                            <div className="tc-score-bar-wrap"><div className="tc-score-bar-fill" style={{ width:`${Math.min(100,pct)}%`, background:scoreBarColor }} /></div>
-                            <span className="tc-score-val" style={{ color:projColor }}>{weeklyPts > 0 ? weeklyPts : '--'}</span>
-                        </div>
-                        <div className="tc-divider" />
-                        <div className="tc-pos-grid">
-                            {Object.entries(posAssessment).sort((a,b)=>(TC_POS_ORDER[a[0]]??9)-(TC_POS_ORDER[b[0]]??9)).map(([pos, data]) => <TcPosRow key={pos} pos={pos} assessment={data} />)}
-                        </div>
-                        <div className="tc-divider" />
-                        <TcPanicMeter level={panic} />
-                        <div className="tc-chip-row">
-                            <span className="tc-chip tc-chip-window">{tradeWindow}</span>
-                            {dnaKey !== 'NONE' && <span className="tc-chip tc-chip-dna">{dna.label}</span>}
-                        </div>
-                        {strengths.length > 0 && <div className="tc-chip-row">{strengths.map(s => <span key={s} className="tc-chip tc-chip-strength">+{s}</span>)}</div>}
-                        {needs.length > 0 && <div className="tc-chip-row">{needs.map(n => <span key={n.pos} className={`tc-chip ${n.urgency==='deficit'?'tc-chip-need':'tc-chip-thin'}`}>{n.pos}</span>)}</div>}
-                        {waiverBudget > 0 && <div className="tc-chip-row"><span className="tc-chip tc-chip-strength">${faabRemaining.toLocaleString()} FAAB</span></div>}
-                    </div>
-                </div>
-            );
-        }
-
-        // ── renderAudit ──
-        function renderAudit() {
-            if (!assessments.length) return <div style={{ color:'var(--silver)', textAlign:'center', padding:'2rem' }}>No rosters found. Select a league from the home screen.</div>;
-            return (
-                <div>
-                    <div className="tc-summary-bar">
-                        <div className="tc-summary-stat"><span className="tc-summary-val">{assessments.length}</span><span className="tc-summary-lbl">Teams</span></div>
-                        <div className="tc-summary-stat"><span className="tc-summary-val">{avgHealth}</span><span className="tc-summary-lbl">Avg Health</span></div>
-                        <div className="tc-summary-stat"><span className="tc-summary-val">{eliteTeamCount}</span><span className="tc-summary-lbl">Elite Teams</span></div>
-                        <div className="tc-summary-stat"><span className="tc-summary-val" style={{ color:'var(--loss-red)' }}>{highPanic}</span><span className="tc-summary-lbl">High Panic</span></div>
-                        <div className="tc-summary-stat"><span className="tc-summary-val">{WEEKLY_TARGET}</span><span className="tc-summary-lbl">Wk Target</span></div>
-                    </div>
-
-                    {/* MY TEAM Featured */}
-                    {myAssessment && (
-                        <div>
-                            <div className="tc-section-hdr" style={{ marginBottom:'0.6rem' }}>MY TEAM <span className="tc-my-team-badge" style={{ marginLeft:'0.5rem', fontSize:'0.72rem', verticalAlign:'middle' }}>{myAssessment.ownerName}</span></div>
-                            <div className="tc-featured-wrap">
-                                <div>
-                                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.5rem' }}>
-                                        <div>
-                                            <div style={{ fontWeight:700, fontSize:'1rem' }}>{myAssessment.teamName}</div>
-                                            <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6 }}>{myAssessment.wins}-{myAssessment.losses}{myAssessment.ties>0?`-${myAssessment.ties}`:''} {myAssessment.pf > 0 ? `${myAssessment.pf.toFixed(0)} PF` : ''}</div>
-                                        </div>
-                                        <div style={{ textAlign:'center' }}>
-                                            {typeof MiniDonut !== 'undefined' ? React.createElement(MiniDonut, { value: myAssessment.healthScore, size: 56, label: 'HEALTH' }) : <div style={{ fontFamily:'var(--font-mono)', fontSize:'2.2rem', fontWeight:600, lineHeight:1, color: myAssessment.healthScore>=85?'var(--gold)':myAssessment.healthScore>=70?'var(--good)':myAssessment.healthScore>=55?'var(--warn)':'var(--bad)' }}>{myAssessment.healthScore}</div>}
-                                        </div>
-                                    </div>
-                                    <div className="tc-pos-grid">
-                                        {Object.entries(myAssessment.posAssessment).sort((a,b)=>(TC_POS_ORDER[a[0]]??9)-(TC_POS_ORDER[b[0]]??9)).map(([pos, data]) => <TcPosRow key={pos} pos={pos} assessment={data} />)}
-                                    </div>
-                                    <div className="tc-divider" style={{ margin:'0.5rem 0' }} />
-                                    <TcPanicMeter level={myAssessment.panic} />
-                                </div>
-                                <div style={{ display:'flex', flexDirection:'column', gap:'0.6rem' }}>
-                                    {/* Radar Chart — Position Balance */}
-                                    {typeof RadarChart !== 'undefined' && (() => {
-                                        const pa = myAssessment.posAssessment || {};
-                                        const radarVals = {};
-                                        Object.entries(pa).forEach(([pos, data]) => {
-                                            const ideal = data.ideal || 1;
-                                            const actual = data.nflStarters || data.actual || 0;
-                                            radarVals[pos] = Math.min(100, Math.round((actual / ideal) * 100));
-                                        });
-                                        return Object.keys(radarVals).length >= 3 ? React.createElement('div', { style:{display:'flex',justifyContent:'center',marginBottom:'8px'} },
-                                            React.createElement(RadarChart, { values: radarVals, size: 280 })
-                                        ) : null;
-                                    })()}
-                                    <GMMessage compact>
-                                        {myAssessment.tier === 'ELITE' ? 'Championship-caliber operation. Protect core assets and make surgical upgrades.' : myAssessment.tier === 'CONTENDER' ? 'Legitimate playoff threat. Fill the gaps to push into the elite tier.' : myAssessment.tier === 'CROSSROADS' ? 'At a crossroads \u2014 address the gaps or commit to a rebuild.' : 'Building for the future. Accumulate young assets and draft picks.'}
-                                        {myAssessment.strengths.length > 0 ? ` Depth surplus at ${myAssessment.strengths.join(', ')} gives you trading chips.` : ''}
-                                        {myAssessment.needs.length > 0 ? ` ${myAssessment.needs.filter(n=>n.urgency==='deficit').length > 0 ? `Critical shortage at ${myAssessment.needs.filter(n=>n.urgency==='deficit').map(n=>n.pos).join(', ')}.` : ''} ${myAssessment.needs.filter(n=>n.urgency==='thin').length > 0 ? `Running thin at ${myAssessment.needs.filter(n=>n.urgency==='thin').map(n=>n.pos).join(', ')}.` : ''}` : ''}
-                                    </GMMessage>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Expanded detail for selected team */}
-                    {selectedAuditTeam && (() => {
-                        const detail = assessments.find(a => a.rosterId === selectedAuditTeam);
-                        if (!detail) return null;
-                        return (
-                            <div className="tc-team-detail-panel">
-                                <div style={{ gridColumn:'1/-1', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.5rem' }}>
-                                    <div style={{ fontWeight:700, fontSize:'0.9rem' }}>{detail.ownerName} <span style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.5rem' }}>{detail.teamName}</span></div>
-                                    <button onClick={() => setSelectedAuditTeam(null)} style={{ background:'transparent', border:'1.5px solid var(--gold)', color:'var(--gold)', fontFamily: 'var(--font-body)', fontSize:'0.7rem', fontWeight:600, padding:'0.32rem 0.65rem', borderRadius:'4px', cursor:'pointer', minHeight:'44px', minWidth:'44px', display:'flex', alignItems:'center', justifyContent:'center' }}>X Close</button>
-                                </div>
-                                <div>
-                                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.5rem' }}>
-                                        <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6 }}>{detail.wins}-{detail.losses} {detail.pf>0?`${detail.pf.toFixed(0)} PF`:''}</div>
-                                        <div style={{ fontFamily:'var(--font-mono)', fontSize:'1.8rem', fontWeight:600, lineHeight:1, color:detail.tierColor }}>{detail.healthScore}</div>
-                                    </div>
-                                    <div className="tc-pos-grid">
-                                        {Object.entries(detail.posAssessment).sort((a,b)=>(TC_POS_ORDER[a[0]]??9)-(TC_POS_ORDER[b[0]]??9)).map(([pos,data]) => <TcPosRow key={pos} pos={pos} assessment={data} />)}
-                                    </div>
-                                    <div className="tc-divider" style={{ margin:'0.5rem 0' }} />
-                                    <TcPanicMeter level={detail.panic} />
-                                </div>
-                                <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
-                                    {detail.strengths.length > 0 && <div className="tc-commentary-card"><div className="tc-commentary-card-title">Strengths</div><div className="tc-commentary-card-text">Surplus at {detail.strengths.join(', ')}.</div></div>}
-                                    {detail.needs.length > 0 && <div className="tc-commentary-card"><div className="tc-commentary-card-title">Needs</div><div className="tc-commentary-card-text">{detail.needs.map(n=>`${n.pos} (${n.urgency})`).join(', ')}.</div></div>}
-                                </div>
-                            </div>
-                        );
-                    })()}
-
-                    {/* All Teams Grid */}
-                    <div className="tc-section-hdr" style={{ marginBottom:'0.6rem' }}>ALL TEAMS</div>
-                    <div style={{ display:'flex', gap:'1rem', fontSize:'0.74rem', marginBottom:'0.6rem', color:'var(--silver)', opacity:0.7, flexWrap:'wrap' }}>
-                        <span><span style={{ color:'var(--good)' }}>●</span> Surplus</span>
-                        <span><span style={{ color:'var(--silver)' }}>○</span> OK</span>
-                        <span><span style={{ color:'var(--k-f39c12, #f39c12)' }}>↑</span> Thin</span>
-                        <span><span style={{ color:'var(--bad)' }}>✗</span> Deficit</span>
-                    </div>
-                    <div className="tc-filter-bar">
-                        <span style={{ fontSize:'0.78rem', color:'var(--silver)', opacity:0.6 }}>SORT</span>
-                        <select className="tc-filter-select" value={sortMode} onChange={e => setSortMode(e.target.value)}>
-                            <option value="health">Health Score</option>
-                            <option value="panic">Panic Level</option>
-                            <option value="record">W-L Record</option>
-                        </select>
-                        <span style={{ fontSize:'0.78rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.5rem' }}>TIER</span>
-                        <select className="tc-filter-select" value={tierFilter} onChange={e => setTierFilter(e.target.value)}>
-                            <option value="ALL">All Tiers</option>
-                            <option value="ELITE">Elite</option>
-                            <option value="CONTENDER">Contender</option>
-                            <option value="CROSSROADS">Crossroads</option>
-                            <option value="REBUILDING">Rebuilding</option>
-                        </select>
-                    </div>
-                    <div className="tc-team-grid">
-                        {sortedAssessments.map(a => {
-                            const isMe = a.rosterId === myRosterId;
-                            const isSelected = selectedAuditTeam === a.rosterId;
-                            return (
-                                <div key={a.rosterId} style={{ cursor: isMe ? 'default' : 'pointer' }} onClick={() => { if (!isMe) setSelectedAuditTeam(isSelected ? null : a.rosterId); }}>
-                                    <TcTeamCard assessment={a} isMyTeam={isMe} />
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            );
-        }
-
         // ── renderOwnerDna ──
         function renderOwnerDna() {
             if (!assessments.length) return <div style={{ color:'var(--silver)', textAlign:'center', padding:'2rem' }}>No roster data.</div>;
@@ -2539,220 +2360,6 @@
                         ) : <div className="tc-owner-empty">No trade history found for this owner.</div>}
                     </section>
 
-                    {/* Legacy grid retained only for backwards compat — hidden */}
-                    <div style={{ display: 'none' }}>
-                    <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.655, marginBottom:'0.75rem', lineHeight:1.5 }}>
-                        Profile each owner's behavioral DNA. This unlocks psychological tax calculations in the Trade Analyzer. {React.createElement(Tip, null, 'Owner DNA classifies each league member\'s trading personality based on historical behavior. The system auto-derives DNA from trade history and applies psychological taxes to acceptance likelihood calculations.')}
-                    </div>
-                    {/* DNA Profile Guide */}
-                    {React.createElement(function DnaGuideInline() {
-                        const [guideOpen, setGuideOpen] = React.useState(false);
-                        return React.createElement('div', { style:{marginBottom:'0.75rem'} },
-                            React.createElement('button', { onClick:()=>setGuideOpen(!guideOpen), style:{fontSize:'0.76rem',color:'var(--gold)',background:'var(--acc-fill2, rgba(212,175,55,0.08))',border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))',borderRadius:'6px',padding:'0.4rem 0.8rem',cursor:'pointer',fontFamily: 'var(--font-body)',textTransform:'uppercase',letterSpacing:'0.04em'} }, guideOpen ? 'Hide DNA Guide' : 'Show DNA Guide'),
-                            guideOpen ? React.createElement('div', { style:{marginTop:'0.5rem',display:'grid',gap:'0.5rem'} },
-                                ...Object.entries(DNA_TYPES).filter(function(e){return e[0]!=='NONE'}).map(function(entry) {
-                                    var key=entry[0], d=entry[1];
-                                    return React.createElement('div', { key:key, style:{background:'var(--ov-1, rgba(255,255,255,0.02))',border:'1px solid '+wrAlpha(d.color, '30'),borderRadius:'8px',padding:'0.7rem 0.85rem'} },
-                                        React.createElement('div', { style:{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.3rem'} },
-                                            React.createElement('span', { style:{fontFamily:'var(--font-title)',fontSize:'0.95rem',color:d.color} }, d.label)
-                                        ),
-                                        React.createElement('div', { style:{fontSize:'0.76rem',color:'var(--silver)',lineHeight:1.5,marginBottom:'0.3rem'} }, d.desc),
-                                        d.strategy ? React.createElement('div', { style:{fontSize:'0.74rem',color:d.color,opacity:0.9,fontStyle:'italic',marginBottom:'0.3rem'} }, 'Strategy: '+d.strategy) : null,
-                                        d.taxes && d.taxes.length ? React.createElement('div', { style:{display:'flex',flexWrap:'wrap',gap:'0.25rem'} },
-                                            ...d.taxes.map(function(t,i){ return React.createElement('span', { key:i, style:{fontSize:'0.7rem',padding:'0.1rem 0.35rem',borderRadius:'3px',border:'1px solid '+wrAlpha(d.color, '40'),color:d.color,background:wrAlpha(d.color, '10')} }, t); })
-                                        ) : null
-                                    );
-                                })
-                            ) : null
-                        );
-                    })}
-                    <div className="tc-dna-grid">
-                        {assessments.map(a => {
-                            const rid = a.rosterId;
-                            const dnaKey = ownerDna[a.ownerId] || 'NONE';
-                            const dna = DNA_TYPES[dnaKey] || DNA_TYPES.NONE;
-                            const isMyTeam = a.rosterId === myRosterId;
-                            const avatarSrc = avatarUrl(a.avatar);
-                            const draftDna = ownerDraftDna[a.ownerId] || null;
-                            const posture = calcOwnerPosture(a, dnaKey);
-                            const ownerTrades = (window.App?.LI?.tradeHistory || []).filter(t => t.roster_ids?.includes(rid));
-                            const tradeCount = ownerTrades.length;
-                            const aiDna = typeof computeWeightedDNA === 'function' ? computeWeightedDNA(rid) : null;
-                            const currentDna = ownerDna[a.ownerId] || aiDna?.key || 'NONE';
-                            const isOverridden = ownerDna[a.ownerId] && aiDna && ownerDna[a.ownerId] !== aiDna.key;
-                            const isExpanded = expandedDnaOwner === rid;
-                            return (
-                                <div key={a.rosterId} className={`tc-dna-card${dnaKey&&dnaKey!=='NONE'?' tc-dna-set':''}`} onClick={() => setExpandedDnaOwner(isExpanded ? null : rid)} style={{ cursor:'pointer' }}>
-                                    {/* ── COMPACT VIEW (always visible) ── */}
-                                    <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
-                                        <div style={{ width:32, height:32, borderRadius:'50%', background:'var(--charcoal)', overflow:'hidden', flexShrink:0, border:'1.5px solid var(--acc-line2, rgba(212,175,55,0.3))', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                                            {avatarSrc ? <img src={avatarSrc} alt={a.ownerName} style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => e.target.style.display='none'} /> : <span style={{ fontSize:'0.75rem', color:'var(--gold)', fontWeight:700 }}>{a.ownerName.charAt(0).toUpperCase()}</span>}
-                                        </div>
-                                        <div style={{ overflow:'hidden', flex:1 }}>
-                                            <div style={{ fontWeight:700, fontSize:'0.82rem', display:'flex', alignItems:'center', gap:'0.35rem' }}>{a.ownerName}{isMyTeam && <span className="tc-my-team-badge">ME</span>}{tradeCount > 0 && <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.6, fontWeight:400 }}>{tradeCount} trades</span>}</div>
-                                            <div style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.6 }}>{a.teamName}</div>
-                                        </div>
-                                        <span className="tc-tier-badge" style={{ marginLeft:'auto', flexShrink:0, color:a.tierColor, borderColor:a.tierColor, background:a.tierBg }}>{a.tier}</span>
-                                    </div>
-                                    <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', flexWrap:'wrap' }}>
-                                        <span className="tc-posture-badge" style={{ color:posture.color, borderColor:posture.color, background:`${posture.color}18` }}>{posture.label}</span>
-                                        {aiDna && <span style={{ fontSize:'0.7rem', color: DNA_TYPES[aiDna.key]?.color || 'var(--silver)', fontWeight:600 }}>{DNA_TYPES[aiDna.key]?.label || '?'}</span>}
-                                        <div style={{ display:'flex', gap:'0.5rem', marginLeft:'auto', fontSize:'0.72rem' }}>
-                                            <span style={{ color:a.tierColor, fontWeight:600 }}>{a.healthScore}</span>
-                                            <span style={{ color:'var(--silver)', opacity:0.5 }}>{a.wins}-{a.losses}</span>
-                                        </div>
-                                        <span style={{ fontSize:'var(--text-micro, 0.6875rem)', color:'var(--silver)', opacity:0.4 }}>{isExpanded ? '▲' : '▼'}</span>
-                                    </div>
-
-                                    {/* ── EXPANDED VIEW (click to reveal) ── */}
-                                    {isExpanded && (<>
-                                    <div style={{ marginTop:'8px', paddingTop:'8px', borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))' }} onClick={e => e.stopPropagation()}>
-                                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.2rem' }}>
-                                            <span style={{ fontSize:'0.7rem', color:'var(--silver)', opacity:0.65, textTransform:'uppercase', letterSpacing:'0.06em' }}>Owner DNA</span>
-                                            {(() => { const derived = deriveDNAFromHistory(a.ownerId, grudges); if (!derived) return null; const d = DNA_TYPES[derived]; return (<span style={{ fontSize:'0.78rem', fontWeight:700, padding:'0.1rem 0.35rem', borderRadius:3, border:`1px solid ${d?.color}55`, color:d?.color, background:`${d?.color}10` }}>AUTO: {d?.label}</span>); })()}
-                                        </div>
-                                        {aiDna ? (
-                                            <div style={{ fontSize:'0.76rem', marginBottom:'6px' }}>
-                                                <span style={{ color:'var(--gold)', fontWeight:600 }}>Scout suggests: </span>
-                                                <span style={{ color: DNA_TYPES[aiDna.key]?.color || 'var(--silver)', fontWeight:700 }}>{DNA_TYPES[aiDna.key]?.label || aiDna.key}</span>
-                                                <span style={{ color:'var(--silver)', marginLeft:'4px' }}>({aiDna.confidence}% confidence)</span>
-                                                <div style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.7, marginTop:'2px' }}>{aiDna.reasoning}</div>
-                                            </div>
-                                        ) : (
-                                            <div style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.55, marginBottom:'6px', fontStyle:'italic' }}>
-                                                {tradeCount > 0 ? 'Insufficient signal — tag manually' : 'Not enough data — tag manually'}
-                                            </div>
-                                        )}
-                                        <select className="tc-dna-select" value={currentDna} onChange={e => updateDna(a.ownerId, e.target.value)}>
-                                            {aiDna && <option value={aiDna.key}>AI: {DNA_TYPES[aiDna.key]?.label} (recommended)</option>}
-                                            {Object.entries(DNA_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                                        </select>
-                                        {isOverridden && <span style={{ fontSize:'0.78rem', color:'var(--warn)', marginLeft:'6px' }}>Overridden from AI suggestion</span>}
-                                    </div>
-                                    {dnaKey && dnaKey !== 'NONE' && dna.desc && (
-                                        <div className="tc-dna-profile">
-                                            <div style={{ fontSize:'0.72rem', fontWeight:700, color:dna.color, marginBottom:'0.25rem' }}>{dna.label}</div>
-                                            <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.85, lineHeight:1.45 }}>{dna.desc}</div>
-                                            {dna.strategy && <div style={{ marginTop:'0.35rem', fontSize:'0.74rem', color:dna.color, opacity:0.9, fontStyle:'italic' }}>Strategy: {dna.strategy}</div>}
-                                            <div style={{ display:'flex', flexWrap:'wrap', gap:'0.25rem', marginTop:'0.4rem' }}>
-                                                {dna.taxes?.map((t,i) => <span key={i} style={{ fontSize:'0.78rem', padding:'0.1rem 0.35rem', borderRadius:3, border:'1px solid var(--acc-line2, rgba(212,175,55,0.3))', color:'var(--warn)', background:'rgba(240,165,0,0.08)' }}>{t}</span>)}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {draftDna && (
-                                        <div style={{ background:'rgba(99,102,241,0.06)', border:'1px solid rgba(99,102,241,0.2)', borderRadius:'6px', padding:'0.4rem 0.6rem' }}>
-                                            <div style={{ display:'flex', alignItems:'center', gap:'0.4rem', marginBottom:'0.2rem' }}>
-                                                <span style={{ fontSize:'0.78rem', color:'var(--silver)', opacity:0.65, textTransform:'uppercase' }}>Draft DNA</span>
-                                                <span style={{ fontSize:'0.76rem', fontWeight:700, color:'var(--k-a5b4fc, #a5b4fc)' }}>{draftDna.label}</span>
-                                                <span style={{ fontSize:'0.78rem', color:'var(--silver)', opacity:0.6, marginLeft:'auto' }}>{draftDna.seasons} {draftDna.picksAnalyzed} picks</span>
-                                            </div>
-                                            <div style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.655, fontStyle:'italic' }}>{draftDna.tendency}</div>
-                                        </div>
-                                    )}
-                                    <div style={{ display:'flex', gap:'0.75rem', paddingTop:'0.25rem' }}>
-                                        <div style={{ textAlign:'center' }}><div style={{ fontFamily:'var(--font-title)', fontSize:'1rem', color:a.tierColor }}>{a.healthScore}</div><div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.65 }}>HEALTH</div></div>
-                                        <div style={{ textAlign:'center' }}><div style={{ fontFamily:'var(--font-title)', fontSize:'1rem', color:a.panic>=3?'var(--loss-red)':'var(--silver)' }}>{a.panic}/5</div><div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.65 }}>PANIC</div></div>
-                                        <div style={{ textAlign:'center' }}><div style={{ fontFamily:'var(--font-title)', fontSize:'1rem', color:'var(--silver)' }}>{a.wins}-{a.losses}</div><div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.65 }}>RECORD</div></div>
-                                    </div>
-                                    {/* Phase 5: Roster Audit embedded inline — per-position surplus/deficit breakdown */}
-                                    {a.posAssessment && Object.keys(a.posAssessment).length > 0 && (
-                                        <div style={{ marginTop:'10px', paddingTop:'10px', borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                            <div style={{ fontSize:'0.7rem', color:'var(--silver)', opacity:0.65, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px', display:'flex', gap:'8px', alignItems:'baseline' }}>
-                                                <span>Roster Audit</span>
-                                                {a.strengths?.length > 0 && <span style={{ fontSize:'var(--text-micro, 0.6875rem)', color:'var(--good)', opacity:0.8 }}>surplus: {a.strengths.join(', ')}</span>}
-                                                {a.needs?.filter(n => n.urgency === 'deficit').length > 0 && <span style={{ fontSize:'var(--text-micro, 0.6875rem)', color:'var(--bad)', opacity:0.8 }}>deficit: {a.needs.filter(n => n.urgency === 'deficit').map(n => n.pos).join(', ')}</span>}
-                                            </div>
-                                            <div className="tc-pos-grid">
-                                                {Object.entries(a.posAssessment).sort((pa, pb) => (TC_POS_ORDER[pa[0]] ?? 9) - (TC_POS_ORDER[pb[0]] ?? 9)).map(([pos, data]) => <TcPosRow key={pos} pos={pos} assessment={data} />)}
-                                            </div>
-                                        </div>
-                                    )}
-                                    </>)}
-                                    {expandedDnaOwner === rid && (() => {
-                                        const trades = (window.App?.LI?.tradeHistory || []).filter(t => t.roster_ids?.includes(rid));
-                                        const profile = window.App?.LI?.ownerProfiles?.[rid] || {};
-
-                                        if (!trades.length) return <div style={{ padding:'8px', fontSize:'0.7rem', color:'var(--silver)' }}>No trade history found</div>;
-
-                                        return (
-                                            <div style={{ marginTop:'10px', paddingTop:'10px', borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))' }} onClick={e => e.stopPropagation()}>
-                                                <div style={{ display:'flex', gap:'12px', marginBottom:'10px', flexWrap:'wrap', fontSize:'0.76rem' }}>
-                                                    <span style={{ color:'var(--good)' }}>Won: {profile.tradesWon || 0}</span>
-                                                    <span style={{ color:'var(--bad)' }}>Lost: {profile.tradesLost || 0}</span>
-                                                    <span style={{ color:'var(--silver)' }}>Fair: {profile.tradesFair || 0}</span>
-                                                    <span style={{ color: (profile.avgValueDiff || 0) >= 0 ? 'var(--good)' : 'var(--bad)' }}>Avg: {(profile.avgValueDiff || 0) >= 0 ? '+' : ''}{Math.round(profile.avgValueDiff || 0)} DHQ</span>
-                                                </div>
-                                                {trades.sort((ta, tb) => {
-                                                    const aSeason = parseInt(ta.season) || 0;
-                                                    const bSeason = parseInt(tb.season) || 0;
-                                                    if (bSeason !== aSeason) return bSeason - aSeason;
-                                                    return (tb.week || 0) - (ta.week || 0);
-                                                }).map((t, ti) => {
-                                                    const otherRid = t.roster_ids.find(r => r !== rid);
-                                                    const otherUser = ownerNameForRosterId(otherRid) || ('Owner ' + otherRid);
-                                                    const mySide = t.sides?.[rid] || { players:[], picks:[] };
-                                                    const theirSide = t.sides?.[otherRid] || { players:[], picks:[] };
-                                                    const myValue = mySide.totalValue || 0;
-                                                    const theirValue = theirSide.totalValue || 0;
-                                                    const won = myValue > theirValue * 1.15;
-                                                    const lost = theirValue > myValue * 1.15;
-                                                    const verdict = won ? 'Won' : lost ? 'Lost' : 'Fair';
-                                                    const verdictCol = won ? 'var(--k-2ecc71, #2ecc71)' : lost ? 'var(--k-e74c3c, #e74c3c)' : 'var(--silver)';
-
-                                                    return (
-                                                        <div key={ti} style={{ padding:'8px 0', borderBottom:'1px solid var(--ov-3, rgba(255,255,255,0.04))', fontSize:'0.7rem' }}>
-                                                            <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px' }}>
-                                                                <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65 }}>{t.season} W{t.week}</span>
-                                                                <span style={{ fontSize:'0.7rem', fontWeight:700, color:verdictCol, padding:'1px 6px', borderRadius:'3px', background:wrAlpha(verdictCol, '15') }}>{verdict}</span>
-                                                                <span style={{ fontSize:'0.72rem', color:'var(--silver)' }}>vs {otherUser}</span>
-                                                                {t.fairness != null && <span style={{ fontSize:'0.7rem', color:'var(--silver)', opacity:0.6 }}>Fairness: {t.fairness}</span>}
-                                                            </div>
-                                                            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
-                                                                <div>
-                                                                    <div style={{ fontSize:'0.7rem', color:'var(--good)', marginBottom:'2px' }}>Received:</div>
-                                                                    {(mySide.players || []).map(pid => (
-                                                                        <div key={pid} style={{ fontSize:'0.76rem', color:'var(--white)' }}>
-                                                                            {playersData[pid]?.full_name || pid}
-                                                                            <span style={{ color:'var(--silver)', fontSize:'0.78rem', marginLeft:'4px' }}>
-                                                                                ({(window.App?.LI?.playerScores?.[pid] || 0).toLocaleString()} DHQ)
-                                                                            </span>
-                                                                        </div>
-                                                                    ))}
-                                                                    {(mySide.picks || []).map((pk, pi) => (
-                                                                        <div key={'pk'+pi} style={{ fontSize:'0.76rem', color:'var(--gold)' }}>{pk.season} Round {pk.round}</div>
-                                                                    ))}
-                                                                </div>
-                                                                <div>
-                                                                    <div style={{ fontSize:'0.7rem', color:'var(--bad)', marginBottom:'2px' }}>Sent:</div>
-                                                                    {(theirSide.players || []).map(pid => (
-                                                                        <div key={pid} style={{ fontSize:'0.76rem', color:'var(--white)' }}>
-                                                                            {playersData[pid]?.full_name || pid}
-                                                                            <span style={{ color:'var(--silver)', fontSize:'0.78rem', marginLeft:'4px' }}>
-                                                                                ({(window.App?.LI?.playerScores?.[pid] || 0).toLocaleString()} DHQ)
-                                                                            </span>
-                                                                        </div>
-                                                                    ))}
-                                                                    {(theirSide.picks || []).map((pk, pi) => (
-                                                                        <div key={'tpk'+pi} style={{ fontSize:'0.76rem', color:'var(--gold)' }}>{pk.season} Round {pk.round}</div>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                            <div style={{ display:'flex', gap:'12px', marginTop:'4px', fontSize:'0.72rem' }}>
-                                                                <span style={{ color:'var(--good)' }}>Got: {myValue.toLocaleString()}</span>
-                                                                <span style={{ color:'var(--bad)' }}>Gave: {theirValue.toLocaleString()}</span>
-                                                                <span style={{ color:verdictCol, fontWeight:700 }}>Net: {myValue >= theirValue ? '+' : ''}{(myValue - theirValue).toLocaleString()}</span>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        );
-                                    })()}
-                                </div>
-                            );
-                        })}
-                    </div>
-                    </div>
                 </div>
             );
         }

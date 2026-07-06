@@ -169,8 +169,10 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
             return 'scout'; // paid but unrecognized profile tier → minimum paid level
         }
 
-        // Trial users get free-tier access in War Room (no trial concept here)
-        if (sharedTier === 'trial') return 'free';
+        // Trial (30-day) counts as Pro — Scout parity, owner ruling 2026-07-05.
+        // Maps to 'warroom' so existing canAccess gates unlock during trial too,
+        // matching wrIsPro()'s trial-is-Pro line (js/shared/pro-gate.js).
+        if (sharedTier === 'trial') return 'warroom';
 
         // Fallback: shared/tier.js not loaded. Do not trust persisted local
         // storage for paid access; users can edit it in the browser.
