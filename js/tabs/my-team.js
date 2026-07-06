@@ -119,6 +119,33 @@ function MyTeamTab({
     });
   }, [gmSellPositions, gmSellRulesParsed]);
 
+  // ── Weekly start/sit projections (redraft) — league-scored via App.WeeklyProj.
+  // Computed once; the 'proj' column + its sort read it. Neutral matchup until the
+  // projections feed lands; guarded so dynasty/offseason rows just render '—'.
+  const weeklyLineup = React.useMemo(() => {
+    const WP = window.App && window.App.WeeklyProj;
+    if (!WP || !myRoster || !currentLeague) return null;
+    try {
+      const res = WP.optimalForRoster(myRoster, currentLeague, { playersData, statsData, priorData: stats2025Data });
+      return { res, starterSet: new Set((res.optimal.starters || []).map(s => String(s.pid))), objective: res.objective };
+    } catch (e) { if (window.wrLog) window.wrLog('myteam.weeklyProj', e); return null; }
+  }, [myRoster, currentLeague, playersData, statsData, stats2025Data, timeRecomputeTs]);
+  const projFor = (pid) => (weeklyLineup && weeklyLineup.res.projections[pid]) || null;
+
+  // Build rest-of-season values for REDRAFT leagues so the value column + sort
+  // + coloring reflect ROS production instead of dynasty DHQ. No-op (falls back
+  // to DHQ) for dynasty/keeper, offseason, or when no weeks remain.
+  React.useMemo(() => {
+    try {
+      window.App?.PlayerValue?.ensureRos?.({
+        leagueId: currentLeague?.league_id || currentLeague?.id,
+        league: currentLeague, playersData, statsData, priorData: stats2025Data,
+        skin: resolvedLeagueSkin,
+      });
+    } catch (e) { if (window.wrLog) window.wrLog('myteam.ensureRos', e); }
+    return null;
+  }, [currentLeague, playersData, statsData, stats2025Data, timeRecomputeTs]);
+
   // ── filteredAndSortedRows (formerly a sibling function of renderMyTeamTab) ──
   function filteredAndSortedRows(rows) {
     const offPos = new Set(['QB','RB','WR','TE','K','DEF']);
@@ -153,6 +180,16 @@ function MyTeamTab({
           if (rb > 0) bv = rb;
         }
         return (bv - av) * dir;
+      }
+      if (key === 'proj') {
+        const obj = weeklyLineup?.objective || 'median';
+        const pv = r => { const p = projFor(r.pid); return p && p.available ? (p.points[obj] || 0) : -1; };
+        return (pv(b) - pv(a)) * dir;
+      }
+      if (key === 'hi' || key === 'lo') {
+        const f = r => window.App?.WeeklyProj?.formStats?.(r.pid, 'season');
+        const v = r => { const s = f(r); return s ? (key === 'hi' ? s.high : s.low) : -1; };
+        return (v(b) - v(a)) * dir;
       }
       if (key === 'prev') return ((b.prevPPG||0) - (a.prevPPG||0)) * dir;
       if (key === 'trend') return ((b.trend||0) - (a.trend||0)) * dir;
@@ -205,6 +242,9 @@ function MyTeamTab({
     age:        { label: 'Age', shortLabel: 'Age', width: '38px', group: 'dynasty' },
     dhq:        { label: valueLabel, shortLabel: valueShortLabel, width: '60px', group: 'dynasty' },
     ppg:        { label: 'Points Per Game', shortLabel: 'PPG', width: '48px', group: 'stats' },
+    proj:       { label: 'This Week — projected pts + start/sit (league-scored)', shortLabel: 'Wk', width: '62px', group: 'stats' },
+    hi:         { label: 'Season High — most fantasy pts in a week', shortLabel: 'Hi', width: '40px', group: 'stats' },
+    lo:         { label: 'Season Low — fewest fantasy pts in a played week', shortLabel: 'Lo', width: '40px', group: 'stats' },
     prev:       { label: 'Previous Season PPG', shortLabel: 'Last', width: '44px', group: 'stats' },
     trend:      { label: 'Year-over-Year PPG Change (%) — how this season\u2019s PPG compares to last season\u2019s', shortLabel: 'Trend', width: '52px', group: 'dynasty' },
     peak:       { label: 'Peak Window Phase', shortLabel: 'Peak', width: '50px', group: 'dynasty' },
@@ -234,7 +274,8 @@ function MyTeamTab({
   };
 
   const COLUMN_PRESETS = {
-    default: ['pos','age','dhq','posRankLg','ppg','durability','peak','action','sos'],
+    default: ['pos','age','dhq','posRankLg','ppg','proj','durability','peak','action','sos'],
+    redraft: ['pos','proj','ppg','prev','trend','hi','lo','sos'],
     stats:   ['pos','dhq','ppg','prev','trend','gp','durability','sos'],
     scout:   ['pos','age','college','slot','height','weight','depthChart','yrsExp','starterSzn','posRankNfl'],
     rookie:  ['pos','age','college','rkSlot','rkTeam','rkRank','rkTier','rkProfile'],
@@ -242,6 +283,7 @@ function MyTeamTab({
   };
   const COLUMN_PRESET_META = {
     default: { label: 'Default', tone: 'decision board' },
+    redraft: { label: 'Redraft', tone: 'weekly + form' },
     stats: { label: 'Stats', tone: 'production' },
     scout: { label: 'Scout', tone: 'profile' },
     rookie: { label: 'Rookie', tone: 'prospect profile' },
@@ -274,7 +316,7 @@ function MyTeamTab({
     const p = playersData[pid];
     if (!p) return null;
     const pos = normPos(p.position) || p.position || '?';
-    const dhq = window.App?.LI?.playerScores?.[pid] || 0;
+    const dhq = window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid, { skin: resolvedLeagueSkin }) : (window.App?.LI?.playerScores?.[pid] || 0);
     const meta = window.App?.LI?.playerMeta?.[pid];
     const st = statsData[pid] || {};
     const prev = stats2025Data?.[pid] || {};
@@ -656,9 +698,33 @@ function MyTeamTab({
     const base = { width: col.width, minWidth: col.width, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isCompactRows ? '0.73rem' : '0.78rem', padding: '0 5px', borderLeft: isGroupStart ? '1px solid var(--acc-fill2, rgba(212,175,55,0.12))' : '1px solid var(--ov-1, rgba(255,255,255,0.024))', color: 'rgba(235,235,240,0.78)', lineHeight: 1.1 };
 
     switch(colKey) {
+      case 'proj': {
+        const p = projFor(r.pid);
+        if (!p) return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', opacity: 0.45 }}>{'—'}</span></div>;
+        if (!p.available) return <div key={colKey} style={{...base}}><span style={{ color: 'var(--warn)', opacity: 0.85, fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.03em' }}>{p.injuryStatus || 'OUT'}</span></div>;
+        const obj = weeklyLineup?.objective || 'median';
+        const pts = p.points[obj] || 0;
+        const isStart = !!(weeklyLineup && weeklyLineup.starterSet.has(String(r.pid)));
+        const g = p.matchupGrade;
+        const gcol = g === 'A' ? 'var(--good)' : g === 'B' ? 'var(--gold)' : g === 'D' ? 'var(--warn)' : g === 'F' ? 'var(--bad)' : 'var(--silver)';
+        return <div key={colKey} style={{...base, flexDirection: 'column', gap: '0px'}} title={'Projected ' + pts.toFixed(1) + ' pts · matchup ' + g + (p.opponent && p.opponent.abbr ? ' vs ' + p.opponent.abbr : '')}>
+          <span style={{ color: 'var(--white)', fontWeight: 600, fontSize: '0.76rem', fontFamily: 'var(--font-body)' }}>{pts > 0 ? pts.toFixed(1) : '—'}</span>
+          <span style={{ fontSize: '0.54rem', fontWeight: 700, letterSpacing: '0.03em', color: isStart ? 'var(--good)' : 'var(--silver)' }}>{isStart ? 'START' : 'SIT'}<span style={{ color: gcol, marginLeft: '3px' }}>{g}</span></span>
+        </div>;
+      }
+      case 'hi': { const fs = window.App?.WeeklyProj?.formStats?.(r.pid, 'season'); return <div key={colKey} style={{...base}}><span style={{ color: fs ? 'var(--good, #2ecc71)' : 'var(--silver)', opacity: fs ? 1 : 0.45, fontWeight: 550 }}>{fs ? fs.high.toFixed(1) : '—'}</span></div>; }
+      case 'lo': { const fs = window.App?.WeeklyProj?.formStats?.(r.pid, 'season'); return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', opacity: fs ? 0.85 : 0.45 }}>{fs ? fs.low.toFixed(1) : '—'}</span></div>; }
       case 'pos': return <div key={colKey} style={{...base}}><span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 550, color: 'var(--silver)' }}>{window.App?.posLabel?.(r.pos) || (r.pos === 'DEF' ? 'D/ST' : r.pos)}</span></div>;
       case 'age': return <div key={colKey} style={{...base, background: ageBg(r.age, r.pos)}}><span style={{ color: ageCol(r.age, r.pos), fontWeight: 550 }}>{r.age||'\u2014'}</span></div>;
-      case 'dhq': return <div key={colKey} style={{...base, background: dhqBg(r.dhq)}}><span style={{ color: dhqCol(r.dhq), fontWeight: 600, fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span></div>;
+      case 'dhq': {
+        // Redraft \u2192 show projected rest-of-season POINTS (tier-colored by the
+        // scaled value r.dhq). Dynasty/keeper \u2192 the scaled value as before.
+        const rosPts = (resolvedLeagueSkin?.type === 'redraft' && window.App?.PlayerValue?.getRosPoints) ? window.App.PlayerValue.getRosPoints(r.pid) : null;
+        const showRos = rosPts != null;
+        const disp = showRos ? (rosPts > 0 ? Math.round(rosPts).toLocaleString() : '\u2014') : (r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014');
+        const title = showRos ? ('\u2248 ' + Math.round(rosPts) + ' projected pts rest-of-season') : '';
+        return <div key={colKey} style={{...base, background: dhqBg(r.dhq)}} title={title}><span style={{ color: dhqCol(r.dhq), fontWeight: 600, fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>{disp}</span></div>;
+      }
       case 'ppg': {
         // Rolling PPG override — swap in last-N-games PPG when user toggled the window.
         // If a window is active but weekly data isn't ready for this player, fall back

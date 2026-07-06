@@ -297,6 +297,48 @@
             return hits.slice().sort((a, b) => (b.year || 0) - (a.year || 0));
         }, [pid, p?.full_name, p?.first_name, p?.last_name]);
 
+        // ── Scouting tab data — loaded lazily, only when that tab is open ──
+        const [gameLog, setGameLog] = useState(null);           // null = loading, [] = none
+        const [scoutNews, setScoutNews] = useState(null);       // { status, text }
+        const [scoutTick, setScoutTick] = useState(0);          // bumps when SOS / weather finish loading
+        useEffect(() => {
+            if (tab !== 'scouting' || !pid) return;
+            let alive = true;
+            const A = window.App || {};
+            const S = window.S || {};
+            const season = (S.nflState && S.nflState.season) || S.season || (new Date().getFullYear());
+            const scoring = scoringSettings
+                || ((S.leagues && S.leagues.find(l => l.league_id === S.currentLeagueId)) || {}).scoring_settings
+                || ((S.leagues && S.leagues[0]) || {}).scoring_settings || {};
+            const player = (playersData && playersData[pid]) || {};
+            // Warm the matchup engines so opponent + weather fill in when ready.
+            if (A.SOS && A.SOS.initialize && !A.SOS.ready) A.SOS.initialize(season, playersData, () => { if (alive) setScoutTick(t => t + 1); });
+            if (A.NflContext && A.NflContext.loadCurrent) A.NflContext.loadCurrent(season).then(() => { if (alive) setScoutTick(t => t + 1); }).catch(() => {});
+            // Game-by-game log.
+            if (A.GameLog && A.GameLog.buildPlayerLog) {
+                A.GameLog.buildPlayerLog(pid, season, { playersData, scoring }).then(r => { if (alive) setGameLog(r || []); }).catch(() => { if (alive) setGameLog([]); });
+            } else if (alive) setGameLog([]);
+            // Matchup-aware news (graceful — CTA if AI unavailable). Loads once per open.
+            if (scoutNews == null) {
+                const AV = window.AlexVoice;
+                const hasAI = (AV && AV.hasAI && AV.hasAI()) || (window.OD && typeof window.OD.callAI === 'function');
+                if (!hasAI) setScoutNews({ status: 'off' });
+                else {
+                    setScoutNews({ status: 'loading' });
+                    const week = (A.WeeklyProj && A.WeeklyProj.currentWeek && A.WeeklyProj.currentWeek()) || 1;
+                    const ctx = { pid, name: player.full_name || pid, team: player.team, pos: (A.normPos && A.normPos(player.position)) || player.position, age: player.age, season, week };
+                    const run = (window.OD && typeof window.OD.callAI === 'function')
+                        ? window.OD.callAI({ type: 'dynasty_read', context: JSON.stringify(ctx) }).then(res => (res && (res.text || res.analysis || res.response)) || (typeof res === 'string' ? res : ''))
+                        : window.dhqAI('dynasty_read', '', JSON.stringify(ctx));
+                    Promise.resolve(run).then(txt => {
+                        const clean = window.AlexVoice ? window.AlexVoice.sanitize(String(txt || '')) : String(txt || '').trim();
+                        if (alive) setScoutNews(clean ? { status: 'done', text: clean } : { status: 'error' });
+                    }).catch(() => { if (alive) setScoutNews({ status: 'error' }); });
+                }
+            }
+            return () => { alive = false; };
+        }, [tab, pid, scoutTick]);
+
         if (!p) return null;
 
         const pos = p.position || '?';
@@ -591,6 +633,86 @@
             );
         }
 
+        // ── Scouting tab: this-week matchup + injury + usage + game log + news ──
+        function ScoutingTab() {
+            const A = window.App || {};
+            const GREEN = 'var(--k-2ecc71, #2ecc71)', AMBER = 'var(--k-f0a500, #f0a500)', RED = 'var(--k-e74c3c, #e74c3c)', SILVER = 'var(--silver)';
+            const week = (A.WeeklyProj && A.WeeklyProj.currentWeek && A.WeeklyProj.currentWeek()) || 1;
+            const teamU = String(team || '').toUpperCase();
+            const opp = (A.SOS && A.SOS.schedule && A.SOS.schedule[week] && A.SOS.schedule[week][teamU]) || null;
+            const ctx = (A.NflContext && A.NflContext.teamWeekCtx) ? A.NflContext.teamWeekCtx(team, week) : null;
+            const weather = ctx && ctx.weather, vegas = ctx && ctx.vegas, home = ctx ? ctx.home : null;
+            const ranks = A.SOS && A.SOS.defenseRankings;
+            const dvpRank = (opp && ranks && ranks[opp]) ? ranks[opp]['vs' + nPos] : null;
+            const dvp = dvpRank ? (dvpRank >= 25 ? { t: 'Great matchup', c: GREEN } : dvpRank >= 20 ? { t: 'Favorable', c: GREEN } : dvpRank >= 12 ? { t: 'Neutral', c: SILVER } : dvpRank >= 7 ? { t: 'Tough', c: AMBER } : { t: 'Hard', c: RED }) : null;
+            const avail = (A.StartSit && A.StartSit.availability) ? A.StartSit.availability(p.injury_status) : { available: !p.injury_status, mult: 1 };
+            const usage = (A.GameLog && A.GameLog.usageSeries && gameLog && gameLog.length) ? A.GameLog.usageSeries(gameLog, nPos) : null;
+            const sectionStyle = { padding: '14px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' };
+            const hdrStyle = { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: '8px' };
+            const wxText = weather ? (weather.indoor ? 'Dome' : ([weather.temp != null ? Math.round(weather.temp) + '°' : null, weather.display].filter(Boolean).join(' '))) : null;
+
+            return React.createElement(React.Fragment, null,
+                React.createElement('div', { style: sectionStyle },
+                    React.createElement('div', { style: hdrStyle }, 'Week ' + week + ' Matchup'),
+                    opp ? React.createElement('div', null,
+                        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' } },
+                            React.createElement('span', { style: { fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' } }, (home ? 'vs ' : '@ ') + opp),
+                            dvp ? React.createElement('span', { style: { fontSize: 'var(--text-label, 0.8rem)', fontWeight: 700, color: dvp.c } }, dvp.t + (dvpRank ? ' (D#' + dvpRank + ' vs ' + nPos + ')' : '')) : null
+                        ),
+                        React.createElement('div', { style: { display: 'flex', gap: '14px', marginTop: '6px', fontSize: 'var(--text-label, 0.78rem)', color: 'var(--text-muted)' } },
+                            (vegas && vegas.impliedTotal) ? React.createElement('span', { key: 'it' }, 'Team total ' + Math.round(vegas.impliedTotal)) : null,
+                            (vegas && vegas.spread != null) ? React.createElement('span', { key: 'sp' }, 'Spread ' + (vegas.spread > 0 ? '+' : '') + vegas.spread) : null,
+                            wxText ? React.createElement('span', { key: 'wx' }, wxText) : null
+                        )
+                    ) : React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6 } }, 'Opponent not set yet (off-season or schedule pending).')
+                ),
+                p.injury_status ? React.createElement('div', { style: sectionStyle },
+                    React.createElement('div', { style: hdrStyle }, 'Injury'),
+                    React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '10px' } },
+                        React.createElement('span', { style: { padding: '3px 10px', borderRadius: '5px', fontWeight: 800, fontSize: 'var(--text-label, 0.75rem)', color: avail.available ? AMBER : RED, border: '1px solid ' + (avail.available ? 'rgba(240,165,0,0.4)' : 'rgba(231,76,60,0.4)') } }, String(p.injury_status).toUpperCase()),
+                        React.createElement('span', { style: { fontSize: 'var(--text-label, 0.8rem)', color: 'var(--text-muted)' } }, avail.available ? ('~' + Math.round((avail.mult || 1) * 100) + '% expected') : 'Not expected to play')
+                    )
+                ) : null,
+                usage ? React.createElement('div', { style: sectionStyle },
+                    React.createElement('div', { style: hdrStyle }, 'Usage'),
+                    React.createElement('div', { style: { display: 'flex', alignItems: 'baseline', gap: '10px' } },
+                        React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' } }, usage.avg),
+                        React.createElement('span', { style: { fontSize: 'var(--text-label, 0.78rem)', color: 'var(--text-muted)' } }, usage.label + ' · last: ' + usage.series.slice(-6).map(x => x.v).join(', '))
+                    )
+                ) : null,
+                React.createElement('div', { style: sectionStyle },
+                    React.createElement('div', { style: hdrStyle }, 'This Season · Game by Game'),
+                    gameLog == null
+                        ? React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6 } }, 'Loading game log…')
+                        : (gameLog.filter(r => r.played || r.isBye).length === 0
+                            ? React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6 } }, 'No games logged yet this season.')
+                            : React.createElement('div', { style: { display: 'flex', flexDirection: 'column' } },
+                                gameLog.map(r => {
+                                    if (!r.played && !r.isBye) return null;
+                                    const ks = (A.GameLog && r.statLine) ? A.GameLog.keyStats(r.statLine, nPos) : [];
+                                    return React.createElement('div', { key: r.week, style: { display: 'grid', gridTemplateColumns: '28px 44px 46px 1fr', gap: '8px', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid var(--ov-2, rgba(255,255,255,0.03))' } },
+                                        React.createElement('span', { style: { fontSize: 'var(--text-label, 0.72rem)', color: 'var(--silver)', fontWeight: 700 } }, 'W' + r.week),
+                                        React.createElement('span', { style: { fontSize: 'var(--text-label, 0.74rem)', color: 'var(--text-muted)' } }, r.isBye ? 'BYE' : (r.opp || '—')),
+                                        React.createElement('span', { style: { textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-label, 0.82rem)', fontWeight: 700, color: r.isBye ? 'var(--silver)' : (r.pts >= 15 ? GREEN : r.pts != null ? 'var(--text-primary)' : 'var(--silver)') } }, r.isBye ? '—' : (r.pts != null ? r.pts.toFixed(1) : '—')),
+                                        React.createElement('span', { style: { fontSize: 'var(--text-label, 0.72rem)', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, r.isBye ? 'Bye week' : ks.map(k => k.l + ' ' + k.v).join(' · '))
+                                    );
+                                })
+                            )
+                        )
+                ),
+                React.createElement('div', { style: { padding: '14px 20px' } },
+                    React.createElement('div', { style: hdrStyle }, 'Matchup News'),
+                    (!scoutNews || scoutNews.status === 'loading')
+                        ? React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6 } }, 'Reading the latest…')
+                        : scoutNews.status === 'done'
+                            ? React.createElement('div', { style: { fontSize: 'var(--text-body, 0.95rem)', color: 'var(--k-d0d0d0, #d0d0d0)', lineHeight: 1.5 } }, scoutNews.text)
+                            : scoutNews.status === 'off'
+                                ? React.createElement('div', { style: { fontSize: 'var(--text-label, 0.82rem)', color: 'var(--text-muted)' } }, 'Sign in (or add an AI key) to pull live matchup news.')
+                                : React.createElement('div', { style: { fontSize: 'var(--text-label, 0.82rem)', color: 'var(--text-muted)' } }, 'No fresh news found.')
+                )
+            );
+        }
+
         // ── Render ────────────────────────────────────────────────
         const backdrop = {
             position: 'fixed', inset: 0, background: 'var(--surf-solid, rgba(5,6,9,0.72))',
@@ -636,7 +758,7 @@
                 ),
                 // Tabs
                 React.createElement('div', { style: { display: 'flex', gap: '2px', padding: '0 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
-                    ['overview', 'stats'].map(t =>
+                    ['overview', 'stats', 'scouting'].map(t =>
                         React.createElement('button', {
                             key: t,
                             onClick: () => setTab(t),
@@ -646,11 +768,11 @@
                                 color: tab === t ? 'var(--gold)' : 'var(--silver)',
                                 fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: 'pointer'
                             }
-                        }, t === 'overview' ? 'Overview' : 'Career Stats')
+                        }, t === 'overview' ? 'Overview' : t === 'stats' ? 'Career Stats' : 'Scouting')
                     )
                 ),
                 // Tab body
-                tab === 'overview' ? OverviewTab() : StatsTab(),
+                tab === 'overview' ? OverviewTab() : tab === 'stats' ? StatsTab() : ScoutingTab(),
                 // Actions — Compare, Trade Finder, Tag As (no News button)
                 React.createElement('div', { style: { padding: '14px 20px', display: 'flex', gap: '8px', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))', position: 'relative' } },
                     React.createElement('button', { onClick: goCompare, style: btnStyle() }, 'Compare'),

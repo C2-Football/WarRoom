@@ -86,7 +86,7 @@
 
             const dynasty = assessments.map(t => {
                 const r = rosters.find(r2 => r2.roster_id === t.rosterId);
-                const totalDhq = (r?.players || []).reduce((s, pid) => s + ((window.App?.LI?.playerScores || {})[pid] || 0), 0);
+                const totalDhq = (r?.players || []).reduce((s, pid) => s + (window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid) : ((window.App?.LI?.playerScores || {})[pid] || 0)), 0);
                 return { ...t, totalDhq };
             }).sort((a, b) => b.totalDhq - a.totalDhq);
 

@@ -113,7 +113,7 @@
         // so this list matches the Free Agency tab's recommendation surface.
         const waiverTargets = React.useMemo(() => {
             if (!rosterState.isUsable) return [];
-            const scores = window.App?.LI?.playerScores || {};
+            const scores = window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap() : (window.App?.LI?.playerScores || {});
             const rostered = new Set();
             (currentLeague?.rosters || []).forEach(r => (r.players || []).concat(r.taxi || [], r.reserve || []).forEach(pid => rostered.add(String(pid))));
             const f = gmFa || {};
@@ -147,7 +147,7 @@
         // Find a specific player from your surplus that fills their need
         const swapSuggestions = React.useMemo(() => {
             if (!rosterState.isUsable) return {};
-            const scores = window.App?.LI?.playerScores || {};
+            const scores = window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap() : (window.App?.LI?.playerScores || {});
             const myPlayers = (myRoster?.players || []);
             const out = {};
             tradeTargets.forEach(t => {
@@ -171,7 +171,7 @@
         // Sellers: rebuilders hoarding picks — they move vets for futures.
         const leverage = React.useMemo(() => {
             if (!rosterState.isUsable || !allAssess.length || size !== 'xxl') return { buyers: [], sellers: [] };
-            const scores = window.App?.LI?.playerScores || {};
+            const scores = window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap() : (window.App?.LI?.playerScores || {});
             const withAge = allAssess.filter(a => a.rosterId !== myRoster?.roster_id).map(a => {
                 const roster = (currentLeague?.rosters || []).find(r => r.roster_id === a.rosterId);
                 let dhqSum = 0, ageSum = 0;

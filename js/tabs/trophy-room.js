@@ -4,10 +4,16 @@
 // Data from analytics-engine.js buildOwnerHistory() + LI.championships.
 // ══════════════════════════════════════════════════════════════════
 
-function TrophyRoomTab({ currentLeague, playersData, myRoster, sleeperUserId }) {
+function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleeperUserId, initialView }) {
     const { useState, useMemo, useEffect } = React;
     const [selectedOwner, setSelectedOwner] = useState(null);
-    const [view, setView] = useState('league'); // 'league' | 'personal' | 'chronicles' | 'import'
+    // View can be deep-linked: an explicit initialView prop (stale ?tab=calendar
+    // links) or a one-shot window._wrTrophyView set by the Home calendar widget.
+    const [view, setView] = useState(() => {
+        if (initialView) return initialView;
+        try { const v = window._wrTrophyView; if (v) { delete window._wrTrophyView; return v; } } catch (e) {}
+        return 'league';
+    }); // 'league' | 'personal' | 'alltime' | 'chronicles' | 'import' | 'calendar'
     const [importText, setImportText] = useState('');
     const [importStatus, setImportStatus] = useState(''); // '' | 'parsing' | 'done' | 'error'
     const [recapStatus, setRecapStatus] = useState(''); // '' | 'generating' | 'done'
@@ -1071,6 +1077,18 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
     }
 
     // ══════════════════════════════════════════════════════════════
+    // CALENDAR VIEW — League Calendar folded in from its old sidebar tab.
+    // Renders the full CalendarTab (defined in js/tabs/calendar.js).
+    // ══════════════════════════════════════════════════════════════
+    function renderCalendarView() {
+        const Cal = (typeof CalendarTab === 'function' ? CalendarTab : window.CalendarTab);
+        if (typeof Cal !== 'function') {
+            return React.createElement('div', { style: { color: 'var(--silver)', padding: '20px', textAlign: 'center', fontSize: '0.82rem' } }, 'Calendar unavailable.');
+        }
+        return React.createElement(Cal, { currentLeague, leagueSkin, myRoster });
+    }
+
+    // ══════════════════════════════════════════════════════════════
     // MAIN RENDER
     // ══════════════════════════════════════════════════════════════
     const tabBtn = (label, tabKey, clickOverride) => React.createElement('button', {
@@ -1084,6 +1102,7 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
             tabBtn('League', 'league'),
             tabBtn('My Trophies', 'personal', () => { setView('personal'); if (!selectedOwner) setSelectedOwner(myRoster?.roster_id); }),
             tabBtn('All-Time', 'alltime'),
+            tabBtn('Calendar', 'calendar'),
             chronicles && tabBtn('Chronicles', 'chronicles'),
             tabBtn('Import', 'import'),
             view === 'league' && React.createElement('button', {
@@ -1102,6 +1121,7 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
         view === 'league' ? renderLeagueView()
             : view === 'personal' ? renderPersonalView()
             : view === 'alltime' ? renderAllTimeView()
+            : view === 'calendar' ? renderCalendarView()
             : view === 'chronicles' ? renderChroniclesView()
             : view === 'import' ? renderImportView()
             : renderLeagueView(),

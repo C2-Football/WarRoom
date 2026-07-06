@@ -374,7 +374,7 @@
         if (size === 'xxl') {
             // Position-of-power: which tier owns the most DHQ at each position?
             const POS_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
-            const scores = window.App?.LI?.playerScores || {};
+            const scores = window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap() : (window.App?.LI?.playerScores || {});
             const normPos = window.App?.normPos || (p => p);
             const posLabel = pos => window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos);
 

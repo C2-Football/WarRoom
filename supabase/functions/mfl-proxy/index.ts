@@ -61,24 +61,63 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    const { url } = body || {};
+    const { url, method, cookie, form, login } = body || {};
 
     if (!url || !isValidMflUrl(url)) {
       return json(req, { error: 'Invalid URL — only myfantasyleague.com URLs are allowed.' }, 400);
     }
 
-    const mflRes = await fetch(url, {
-      headers: {
-        'User-Agent': 'FantasyWarRoom/1.0',
-        'Accept': 'application/json',
-      },
+    const baseHeaders: Record<string, string> = {
+      'User-Agent': 'FantasyWarRoom/1.0',
+      'Accept': 'application/json',
+    };
+    if (cookie) baseHeaders['Cookie'] = String(cookie);
+
+    // ── Login mode ──────────────────────────────────────────────────
+    // POST the credentials as a FORM body (keeps the password out of the URL /
+    // any request log) and return the MFL_USER_ID auth token + the resolved
+    // shard host. Never persists anything server-side.
+    if (login) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { ...baseHeaders, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: typeof form === 'string' ? form : '',
+      });
+      const text = await res.text();
+      let mflUserId: string | null = null;
+      const setCookies = typeof (res.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie === 'function'
+        ? (res.headers as unknown as { getSetCookie: () => string[] }).getSetCookie()
+        : [];
+      for (const sc of setCookies) { const m = String(sc).match(/MFL_USER_ID=([^;]+)/); if (m) { mflUserId = m[1]; break; } }
+      if (!mflUserId) { const bm = text.match(/MFL_USER_ID="?([^";\s<]+)"?/); if (bm) mflUserId = bm[1]; }
+      let host: string | null = null;
+      try { host = new URL(res.url).host; } catch { host = null; }
+      const failedText = /invalid|incorrect|denied|not\s*log|error/i.test(text) && !mflUserId;
+      const message = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+      return json(req, { ok: !!mflUserId && !failedText, mflUserId, host, message }, 200);
+    }
+
+    // Writes (e.g. TYPE=lineup import) come through as method:'POST'; params stay
+    // in the query string so a shard 302 still carries them. When a cookie is
+    // present we resolve the redirect MANUALLY and re-send the Cookie to the
+    // shard (fetch drops it on a cross-host redirect otherwise).
+    let mflRes = await fetch(url, {
+      method: method === 'POST' ? 'POST' : 'GET',
+      headers: baseHeaders,
+      redirect: cookie ? 'manual' : 'follow',
     });
+    if (cookie && mflRes.status >= 300 && mflRes.status < 400) {
+      const loc = mflRes.headers.get('location');
+      if (loc && isValidMflUrl(loc)) {
+        mflRes = await fetch(loc, { method: method === 'POST' ? 'POST' : 'GET', headers: baseHeaders });
+      }
+    }
 
     if (!mflRes.ok) {
       const status = mflRes.status;
       let msg = `MFL API error ${status}`;
       if (status === 401 || status === 403) {
-        msg = 'This MFL league is private. Provide your API key to connect.';
+        msg = 'MFL authorization failed — your login may have expired. Reconnect and try again.';
       } else if (status === 404) {
         msg = 'MFL league not found. Check your League ID and year.';
       } else if (status === 429) {

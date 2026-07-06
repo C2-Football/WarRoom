@@ -463,21 +463,48 @@ async function handleMflProxy(req, res) {
 
   try {
     const body = await readJson(req);
-    const { url } = body || {};
+    const { url, method, cookie, form, login } = body || {};
 
     if (!url || !isValidMflUrl(url)) {
       sendJson(res, 400, { error: 'Invalid URL — only myfantasyleague.com URLs are allowed.' });
       return;
     }
 
-    const mflRes = await fetch(url, {
-      headers: { 'User-Agent': 'FantasyWarRoom/1.0', 'Accept': 'application/json' },
+    const baseHeaders = { 'User-Agent': 'FantasyWarRoom/1.0', 'Accept': 'application/json' };
+    if (cookie) baseHeaders['Cookie'] = String(cookie);
+
+    // Login mode: POST credentials as a form body, return MFL_USER_ID + shard host.
+    if (login) {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { ...baseHeaders, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: typeof form === 'string' ? form : '',
+      });
+      const text = await r.text();
+      let mflUserId = null;
+      const setCookies = typeof r.headers.getSetCookie === 'function' ? r.headers.getSetCookie() : [];
+      for (const sc of setCookies) { const m = String(sc).match(/MFL_USER_ID=([^;]+)/); if (m) { mflUserId = m[1]; break; } }
+      if (!mflUserId) { const bm = text.match(/MFL_USER_ID="?([^";\s<]+)"?/); if (bm) mflUserId = bm[1]; }
+      let host = null; try { host = new URL(r.url).host; } catch (e) { host = null; }
+      const failedText = /invalid|incorrect|denied|not\s*log|error/i.test(text) && !mflUserId;
+      sendJson(res, 200, { ok: !!mflUserId && !failedText, mflUserId, host, message: text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200) });
+      return;
+    }
+
+    let mflRes = await fetch(url, {
+      method: method === 'POST' ? 'POST' : 'GET',
+      headers: baseHeaders,
+      redirect: cookie ? 'manual' : 'follow',
     });
+    if (cookie && mflRes.status >= 300 && mflRes.status < 400) {
+      const loc = mflRes.headers.get('location');
+      if (loc && isValidMflUrl(loc)) mflRes = await fetch(loc, { method: method === 'POST' ? 'POST' : 'GET', headers: baseHeaders });
+    }
 
     if (!mflRes.ok) {
       const status = mflRes.status;
       let msg = `MFL API error ${status}`;
-      if (status === 401 || status === 403) msg = 'This MFL league is private. Provide your API key to connect.';
+      if (status === 401 || status === 403) msg = 'MFL authorization failed — your login may have expired. Reconnect and try again.';
       else if (status === 404) msg = 'MFL league not found. Check your League ID and year.';
       sendJson(res, status, { error: msg });
       return;
@@ -488,6 +515,31 @@ async function handleMflProxy(req, res) {
     res.end(data);
   } catch (error) {
     sendJson(res, 500, { error: error.message || 'MFL proxy error' });
+  }
+}
+
+// ── NFL scoreboard proxy (schedule + weather + odds) ─────────────────────────
+// ESPN's public scoreboard API is CORS-blocked for browsers, so proxy it
+// server-side. Dumb passthrough (client parses) — the prod Supabase edge fn
+// should mirror this. One game-list per (season, week); short cache.
+async function handleNflScoreboard(req, res) {
+  try {
+    const u = new URL(req.url, `http://${host}:${port}`);
+    const week = parseInt(u.searchParams.get('week') || '0', 10);
+    const season = parseInt(u.searchParams.get('season') || '0', 10);
+    const seasontype = parseInt(u.searchParams.get('seasontype') || '2', 10);
+    let api = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
+    const qp = ['seasontype=' + seasontype];
+    if (week > 0) qp.push('week=' + week);
+    if (season > 0) qp.push('dates=' + season);
+    api += '?' + qp.join('&');
+    const r = await fetch(api, { headers: { 'User-Agent': 'FantasyWarRoom/1.0', 'Accept': 'application/json' } });
+    if (!r.ok) { sendJson(res, r.status, { error: 'ESPN scoreboard error ' + r.status }); return; }
+    const data = await r.text();
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=900' });
+    res.end(data);
+  } catch (error) {
+    sendJson(res, 500, { error: error.message || 'NFL scoreboard proxy error' });
   }
 }
 
@@ -562,6 +614,10 @@ const server = http.createServer((req, res) => {
   }
   if (url.pathname === '/api/mfl-proxy') {
     handleMflProxy(req, res);
+    return;
+  }
+  if (url.pathname === '/api/nfl-scoreboard') {
+    handleNflScoreboard(req, res);
     return;
   }
   if (url.pathname === '/api/landing-content') {

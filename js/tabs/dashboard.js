@@ -54,6 +54,15 @@ const WIDGET_MODULES = {
         sizes: ['sm', 'md', 'lg', 'tall', 'xxl'],
         clickTarget: { sm: 'myteam', md: 'myteam' },
     },
+    'lineup-check': {
+        label: 'Lineup Check',
+        icon: '🧮',
+        description: 'Optimal vs current lineup — points left on your bench this week',
+        accent: () => T().color?.('accent') || 'var(--k-d4af37, #d4af37)',
+        metrics: [],
+        sizes: ['sm', 'md', 'lg'],
+        clickTarget: { sm: 'lineup', md: 'lineup', lg: 'lineup' },
+    },
     'window-forecast': {
         label: 'Window Forecast',
         icon: '⏳',
@@ -181,6 +190,17 @@ const WIDGET_MODULES = {
         accent: () => T().color?.('accent') || 'var(--k-d4af37, #d4af37)',
         metrics: [],
         sizes: ['sm', 'md', 'lg', 'tall', 'xxl'],
+        clickTarget: { sm: 'trophies', md: 'trophies' },
+    },
+    // League Calendar widget — next league date + agenda (draft, deadline,
+    // playoffs, waivers). Lives in the Trophy Room; opens its Calendar sub-view.
+    'league-calendar': {
+        label: 'League Calendar',
+        icon: '🗓️',
+        description: 'Next league date + a running agenda — draft, deadline, playoffs, waivers',
+        accent: () => T().color?.('info') || 'var(--k-3498db, #3498db)',
+        metrics: [],
+        sizes: ['sm', 'md', 'lg', 'tall', 'xl', 'xxl'],
         clickTarget: { sm: 'trophies', md: 'trophies' },
     },
 };
@@ -427,6 +447,13 @@ function DashboardPanel({
         const tab = resolveWidgetDestination(target);
         if (tab && setActiveTab) setActiveTab(tab);
     }, [setActiveTab]);
+    // Redraft → build ROS values so dashboard rankings/tiers/widgets reflect
+    // rest-of-season production (no-op → DHQ for dynasty/keeper).
+    React.useMemo(() => {
+        try { window.App?.PlayerValue?.ensureRos?.({ leagueId: currentLeague?.league_id || currentLeague?.id, league: currentLeague, playersData, statsData, priorData: prevStatsData, skin: resolvedLeagueSkin }); }
+        catch (e) { if (window.wrLog) window.wrLog('dashboard.ensureRos', e); }
+        return null;
+    }, [currentLeague, playersData, statsData, prevStatsData]);
 
     React.useEffect(() => {
         const handler = () => setStarredWidgets(window.WrStarWidget?.getAll() || []);
@@ -635,7 +662,7 @@ function DashboardPanel({
         // League context for bar chart — find roster value for comparison
         const allDHQs = (() => {
             const LI = window.App?.LI || {};
-            const scores = LI.playerScores || {};
+            const scores = window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap() : (LI.playerScores || {});
             return (currentLeague?.rosters || []).map(r => ({
                 rid: r.roster_id,
                 dhq: (r.players || []).reduce((s, pid) => s + (scores[pid] || 0), 0),
@@ -924,7 +951,7 @@ function DashboardPanel({
                         const idx = rank - 1;
                             const isMe = team.userId === sleeperUserId;
                             const roster = currentLeague?.rosters?.find(r => r.owner_id === team.userId);
-                            const totalDHQ = roster?.players?.reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0) || 0;
+                            const totalDHQ = roster?.players?.reduce((s, pid) => s + ((window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid) : (window.App?.LI?.playerScores?.[pid] || 0))), 0) || 0;
                             const user = (currentLeague?.users || []).find(u => u.user_id === team.userId);
                             const avatarId = user?.avatar;
                             const avatarUrl = avatarId ? `https://sleepercdn.com/avatars/thumbs/${avatarId}` : null;
@@ -1122,6 +1149,12 @@ function DashboardPanel({
                 playersData, computeKpiValue, setActiveTab, navigateWidget,
             });
         }
+        // Lineup Check → LineupCheckWidget (js/widgets/lineup-check.js)
+        if (moduleKey === 'lineup-check' && typeof window.LineupCheckWidget === 'function') {
+            return React.createElement(window.LineupCheckWidget, {
+                size, myRoster, currentLeague, playersData, statsData, prevStatsData, setActiveTab, navigateWidget,
+            });
+        }
         // Window Forecast → WindowForecastWidget (js/widgets/window-forecast.js)
         if (moduleKey === 'window-forecast' && typeof window.WindowForecastWidget === 'function') {
             return React.createElement(window.WindowForecastWidget, {
@@ -1180,6 +1213,10 @@ function DashboardPanel({
         // Phase 9: My Trophies widget
         if (moduleKey === 'my-trophies' && typeof window.MyTrophiesWidget === 'function') {
             return React.createElement(window.MyTrophiesWidget, { size, myRoster, currentLeague, setActiveTab, navigateWidget });
+        }
+        // League Calendar widget (js/widgets/league-calendar.js)
+        if (moduleKey === 'league-calendar' && typeof window.LeagueCalendarWidget === 'function') {
+            return React.createElement(window.LeagueCalendarWidget, { size, currentLeague, leagueSkin, myRoster, setActiveTab, navigateWidget });
         }
         // No external widget — fall through to generic renderers
         return null;

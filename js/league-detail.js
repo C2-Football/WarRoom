@@ -53,6 +53,7 @@
     // deferred scripts define once the group reports ready.
     const MyTeamTabLazy = wrLazyTab('myteam', 'My Team', () => (typeof MyTeamTab === 'function' ? MyTeamTab : null));
     const CalendarTabLazy = wrLazyTab('calendar', 'Calendar', () => (typeof CalendarTab === 'function' ? CalendarTab : null));
+    const LineupTabLazy = wrLazyTab('lineup', 'Lineup', () => (typeof window.LineupTab === 'function' ? window.LineupTab : null));
 
     function escapeHtml(str) {
         return String(str)
@@ -2956,6 +2957,8 @@
                         { section: 'FRONT OFFICE' },
                         { label: 'Home', tab: 'dashboard', iconKey: 'home' },
                         { label: 'My Roster', tab: 'myteam', iconKey: 'roster' },
+                        // Game Day Central — only surfaced for in-season leagues.
+                        ...((leagueSkin?.features?.showGameDay ?? (leagueSkin?.phase === 'in_season')) ? [{ label: 'Game Day', tab: 'lineup', iconKey: 'roster' }] : []),
                         { label: 'Compare', tab: 'compare', iconKey: 'compare' },
                         { section: 'LEAGUE' },
                         { label: 'Trade Center', tab: 'trades', iconKey: 'trade' },
@@ -2965,7 +2968,6 @@
                         { section: 'DOSSIER' },
                         { label: 'GM\'s Office', tab: 'alex', iconKey: 'office' },
                         { label: 'Trophy Room', tab: 'trophies', iconKey: 'trophy' },
-                        { label: 'Calendar', tab: 'calendar', iconKey: 'calendar' },
                         { section: 'SETTINGS' },
                         { label: 'Settings', tab: 'settings', iconKey: 'settings' },
                         { label: 'Legend', tab: 'legend', iconKey: 'legend' },
@@ -3062,6 +3064,8 @@
                         <div className="header-title" style={{ fontSize: '1.05rem', minWidth: 0, maxWidth: 'min(460px, 100%)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentLeague.name}</div>
                         <button className="wr-league-switch" onClick={onBack} style={{ padding: '4px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--acc-fill2, rgba(212,175,55,0.10))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>SWITCH</button>
                         {(() => {
+                            // Redraft leagues don't surface the GM Mode badge (it's dynasty-flavored).
+                            if (leagueSkin?.type === 'redraft') return null;
                             const gm = window.WR?.GmMode?.describe?.(gmStrategy?.mode || 'compete');
                             if (!gm) return null;
                             return React.createElement('button', {
@@ -3348,6 +3352,17 @@
                     timeRecomputeTs={timeRecomputeTs}
                     setTimeRecomputeTs={setTimeRecomputeTs}
                     getAcquisitionInfo={getAcquisitionInfo}
+                /> : activeTab === 'lineup' ? <LineupTabLazy
+                    myRoster={myRoster}
+                    currentLeague={currentLeague}
+                    leagueSkin={leagueSkin}
+                    playersData={playersData}
+                    statsData={statsData}
+                    stats2025Data={stats2025Data}
+                    sleeperUserId={sleeperUserId}
+                    gmStrategy={gmStrategy}
+                    setActiveTab={setActiveTab}
+                    timeRecomputeTs={timeRecomputeTs}
                 /> : activeTab === 'league' ? <LeagueMapTabLazy
                     leagueViewTab={leagueViewTab}
                     setLeagueViewTab={setLeagueViewTab}
@@ -3420,16 +3435,13 @@
                     sendReconMessage={sendReconMessage}
                     timeRecomputeTs={timeRecomputeTs}
                     viewMode={viewMode}
-                /> : activeTab === 'trophies' ? <TrophyRoomTabLazy
+                /> : (activeTab === 'trophies' || activeTab === 'calendar') ? <TrophyRoomTabLazy
                     currentLeague={currentLeague}
                     leagueSkin={leagueSkin}
                     playersData={playersData}
                     myRoster={myRoster}
                     sleeperUserId={sleeperUserId}
-                /> : activeTab === 'calendar' ? <CalendarTabLazy
-                    currentLeague={currentLeague}
-                    leagueSkin={leagueSkin}
-                    myRoster={myRoster}
+                    initialView={activeTab === 'calendar' ? 'calendar' : null}
                 /> : activeTab === 'settings' ? (
                     typeof window.SettingsModule === 'function'
                         ? React.createElement(window.SettingsModule, settingsProps)

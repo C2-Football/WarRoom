@@ -520,7 +520,7 @@ function RosterPlayerDossier({ x, playersData, statsData, currentLeague, normPos
     // Position rank across every rostered player by DHQ (mirrors My Roster's RANK box).
     const posRank = (() => {
         try {
-            const scores = App.LI?.playerScores || {};
+            const scores = window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap() : (App.LI?.playerScores || {});
             const norm = typeof normPos === 'function' ? normPos : (q) => q;
             const all = (currentLeague?.rosters || [])
                 .flatMap(ros => (ros.players || []).filter(pid2 => (norm(playersData?.[pid2]?.position) || playersData?.[pid2]?.position) === pos))
@@ -820,9 +820,12 @@ function LeagueMapTab({
       { key: 'team', label: 'NFL Team' },
       { key: 'dhq', label: 'DHQ' },
       { key: 'ppg', label: 'PPG' },
+      { key: 'projWk', label: 'Proj (Wk)' },
+      { key: 'rosValue', label: 'ROS Value' },
       { key: 'peakYrs', label: 'Peak Yrs' },
       { key: 'owner', label: 'Owner' },
-      { key: 'tier', label: 'Tier' },
+      { key: 'tier', label: 'Owner Tier' },
+      { key: 'contend', label: 'Playoff Status' },
       { key: 'acquired', label: 'Acquired' },
     ];
   }
@@ -840,7 +843,7 @@ function LeagueMapTab({
   }
 
   function getFilterableFields(dataSource) {
-    if (dataSource === 'players') return ['pos', 'age', 'dhq', 'ppg', 'peakYrs', 'team', 'owner', 'tier'];
+    if (dataSource === 'players') return ['pos', 'age', 'dhq', 'ppg', 'projWk', 'rosValue', 'peakYrs', 'team', 'owner', 'tier', 'contend'];
     return ['healthScore', 'tier', 'totalDHQ', 'avgAge', 'eliteCount'];
   }
 
@@ -862,6 +865,7 @@ function LeagueMapTab({
     switch (field) {
       case 'pos':   return ['QB','RB','WR','TE','K','DEF','DL','LB','DB'];
       case 'tier':  return ['ELITE','CONTENDER','CROSSROADS','REBUILDING'];
+      case 'contend': return ['In', 'Bubble', 'Out'];
       case 'owner': {
         try {
           const users = (window.S?.leagues?.[0]?.users) || (window.App?.LI?.leagueUsers) || [];
@@ -883,7 +887,7 @@ function LeagueMapTab({
 
   function runReport(config) {
     const allAssessments = (typeof window.assessAllTeamsFromGlobal === 'function' ? window.assessAllTeamsFromGlobal() : []).filter(a => a && a.rosterId);
-    const scores = window.App?.LI?.playerScores || {};
+    const scores = window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap() : (window.App?.LI?.playerScores || {});
     const rosters = currentLeague?.rosters || [];
     const users = currentLeague?.users || [];
 
@@ -899,6 +903,18 @@ function LeagueMapTab({
 
     let rows = [];
 
+    // Playoff contention per roster — rank by record then points-for vs slots.
+    const playoffSlots = Number((currentLeague?.settings || {}).playoff_teams) || Math.max(2, Math.round((rosters.length || 12) / 2));
+    const standRows = (Array.isArray(standings) && standings.length) ? standings : rosters.map(r => ({ rosterId: r.roster_id, userId: r.owner_id, wins: r.settings?.wins || 0, pointsFor: r.settings?.fpts || 0 }));
+    const rankList = standRows.map(s => {
+      let rid = s.rosterId;
+      if (rid == null && s.userId != null) { const rr = rosters.find(ro => String(ro.owner_id) === String(s.userId)); rid = rr && rr.roster_id; }
+      return { rid: String(rid), wins: Number(s.wins) || 0, pf: Number(s.pointsFor || s.fpts || 0) };
+    }).sort((a, b) => (b.wins - a.wins) || (b.pf - a.pf));
+    const contendByRoster = {};
+    const bubbleEdge = playoffSlots + Math.max(1, Math.round((rosters.length || 12) * 0.17));
+    rankList.forEach((s, i) => { contendByRoster[s.rid] = (i + 1) <= playoffSlots ? 'In' : (i + 1) <= bubbleEdge ? 'Bubble' : 'Out'; });
+
     if (config.dataSource === 'players') {
       rosters.forEach(r => {
         const ownerName = ownerNameForRoster(r.roster_id);
@@ -913,10 +929,16 @@ function LeagueMapTab({
           const peakYrs = (pw && p.age) ? Math.max(0, pw[1] - p.age) : null;
           const acq = getAcquisitionInfo(pid, r.roster_id);
           const acqLabel = acq?.type === 'draft' ? ('Draft R' + (acq.round || '?')) : acq?.type === 'trade' ? 'Trade' : acq?.type === 'add' ? 'FA' : '\u2014';
+          let projWk = 0;
+          if (window.App?.WeeklyProj?.projectPlayer) {
+            try { const prj = window.App.WeeklyProj.projectPlayer(pid, { playersData, statsData, priorData: {}, scoring: currentLeague?.scoring_settings || {}, week: window.App.WeeklyProj.currentWeek ? window.App.WeeklyProj.currentWeek() : (window.S?.currentWeek || 1) }); projWk = (prj && prj.points) ? +((prj.points.median) || 0).toFixed(1) : 0; } catch (e) { projWk = 0; }
+          }
+          const rosValue = (window.App?.PlayerValue?.getValue) ? window.App.PlayerValue.getValue(pid) : dhq;
           rows.push({
             name: p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim(),
-            pos, age: p.age || null, team: p.team || 'FA', dhq, ppg,
+            pos, age: p.age || null, team: p.team || 'FA', dhq, ppg, projWk, rosValue,
             peakYrs, owner: ownerName, tier: assess?.tier || 'N/A',
+            contend: contendByRoster[String(r.roster_id)] || 'N/A',
             acquired: acqLabel, pid, rosterId: r.roster_id,
           });
         });
@@ -1022,8 +1044,8 @@ function LeagueMapTab({
     if (leagueSort === 'dhq') {
       const rA = currentLeague.rosters.find(r => r.owner_id === a.userId);
       const rB = currentLeague.rosters.find(r => r.owner_id === b.userId);
-      const dhqA = (rA?.players || []).reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0);
-      const dhqB = (rB?.players || []).reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0);
+      const dhqA = (rA?.players || []).reduce((s, pid) => s + ((window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid) : (window.App?.LI?.playerScores?.[pid] || 0))), 0);
+      const dhqB = (rB?.players || []).reduce((s, pid) => s + ((window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid) : (window.App?.LI?.playerScores?.[pid] || 0))), 0);
       return dhqB - dhqA;
     }
     if (leagueSort === 'champs') {
@@ -1215,7 +1237,7 @@ function LeagueMapTab({
               // Dynasty: by total DHQ
               const dynastyRanked = [...allAssessments].map(t => {
                 const r = currentLeague.rosters?.find(r2 => r2.roster_id === t.rosterId);
-                const totalDhq = (r?.players || []).reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0);
+                const totalDhq = (r?.players || []).reduce((s, pid) => s + ((window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid) : (window.App?.LI?.playerScores?.[pid] || 0))), 0);
                 return { ...t, totalDhq };
               }).sort((a, b) => b.totalDhq - a.totalDhq);
 
@@ -1303,7 +1325,7 @@ function LeagueMapTab({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
         {sortedStandings.map(team => {
           const roster = currentLeague.rosters.find(r => r.owner_id === team.userId);
-          const totalDHQ = (roster?.players || []).reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0);
+          const totalDHQ = (roster?.players || []).reduce((s, pid) => s + ((window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid) : (window.App?.LI?.playerScores?.[pid] || 0))), 0);
           const isMe = team.userId === sleeperUserId;
           const user = currentLeague.users?.find(u => u.user_id === team.userId);
           return (
@@ -1355,7 +1377,7 @@ function LeagueMapTab({
               </div>
               {(() => {
                 const rPlayers = roster?.players || [];
-                const scored = rPlayers.map(pid => ({ pid, dhq: window.App?.LI?.playerScores?.[pid] || 0, meta: window.App?.LI?.playerMeta?.[pid] }));
+                const scored = rPlayers.map(pid => ({ pid, dhq: (window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid) : (window.App?.LI?.playerScores?.[pid] || 0)), meta: window.App?.LI?.playerMeta?.[pid] }));
                 const eliteCount = typeof window.App?.countElitePlayers === 'function' ? window.App.countElitePlayers(scored.map(x => x.pid)) : scored.filter(x => x.dhq >= 7000).length;
                 const ages = scored.map(x => x.meta?.age).filter(a2 => a2 && a2 > 18 && a2 < 45);
                 const avgAge = ages.length > 0 ? (ages.reduce((s,a2) => s + a2, 0) / ages.length).toFixed(1) : '\u2014';
@@ -1419,7 +1441,7 @@ function LeagueMapTab({
 	            (r.players || []).forEach(pid => {
 	                const p = playersData[pid]; if (!p) return;
 	                rosteredPlayerIds.add(String(pid));
-	                const dhq = window.App?.LI?.playerScores?.[pid] || 0;
+	                const dhq = (window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid) : (window.App?.LI?.playerScores?.[pid] || 0));
 	                const pos = normPos(p.position) || p.position;
 	                const st = statsData[pid] || {};
 	                const ppg = st.gp > 0 ? +(calcRawPts(st) / st.gp).toFixed(1) : 0;
@@ -1446,8 +1468,8 @@ function LeagueMapTab({
 	                if (!validPositions.has(pos)) return;
 	                // Keep incoming rookies (years_exp === 0) even if Sleeper still flags them
                 // inactive — they haven't debuted yet but must be visible in the pre-draft pool.
-                if (p.active === false && pos !== 'DEF' && !(p.years_exp === 0 && (window.App?.LI?.playerScores?.[pid] || 0) > 0)) return;
-	                const dhq = window.App?.LI?.playerScores?.[pid] || 0;
+                if (p.active === false && pos !== 'DEF' && !(p.years_exp === 0 && ((window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid) : (window.App?.LI?.playerScores?.[pid] || 0))) > 0)) return;
+	                const dhq = (window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid) : (window.App?.LI?.playerScores?.[pid] || 0));
 	                const st = statsData[pid] || {};
 	                const ppg = st.gp > 0 ? +(calcRawPts(st) / st.gp).toFixed(1) : 0;
 	                allPlayers.push({ pid, p, pos, dhq, ppg, age: p.age || null, teamName: 'Draft Pool', rosterId: null, isMe: false, isPool: true });
@@ -1917,7 +1939,7 @@ function LeagueMapTab({
       const p = playersData[pid];
       if (!p) return null;
       const pos = normPos(p.position) || p.position;
-      const dhq = window.App?.LI?.playerScores?.[pid] || 0;
+      const dhq = (window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid) : (window.App?.LI?.playerScores?.[pid] || 0));
       const acq = getAcquisitionInfo(pid, roster.roster_id);
       const st = statsData[pid] || {};
       const ppg = st.gp > 0 ? +(calcRawPts(st) / st.gp).toFixed(1) : 0;
@@ -1976,7 +1998,7 @@ function LeagueMapTab({
             else if (h.avgValueDiff < -100) narrativeParts.push('Loses value in trades (' + h.avgValueDiff + ' avg DHQ).');
 
             // Best/worst assets
-            const rosterScored = (roster?.players || []).map(pid => ({ pid, dhq: window.App?.LI?.playerScores?.[pid] || 0 })).sort((a,b) => b.dhq - a.dhq);
+            const rosterScored = (roster?.players || []).map(pid => ({ pid, dhq: (window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid) : (window.App?.LI?.playerScores?.[pid] || 0)) })).sort((a,b) => b.dhq - a.dhq);
             const bestAsset = rosterScored[0];
 
             // Rivalries

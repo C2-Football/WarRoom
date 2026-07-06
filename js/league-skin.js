@@ -256,6 +256,12 @@
             showDraftPrep: preDraft || phase === 'offseason',
             showDraftPrepWhenRosterEmpty: (seasonal || type === 'keeper') && preDraft,
             showStartSit: seasonal && phase === 'in_season',
+            // Game Day Central (start/sit + opponent + season schedule + bye watch)
+            // applies to ANY in-season league (dynasty plays weekly H2H too), AND
+            // to any drafted roster in the offseason so you can build your Week 1
+            // lineup and plan byes before the schedule is posted. Hidden only for
+            // pre-draft empty rosters (nothing to build yet).
+            showGameDay: phase === 'in_season' || rosterPlayerCount(rosters) > 0,
             showStreaming: seasonal && phase === 'in_season',
             showWaiverPlanner: seasonal || type === 'keeper',
             showRestOfSeasonValue: seasonal || type === 'keeper',
@@ -270,15 +276,17 @@
             ? 'DHQ Dynasty Value'
             : keeper
                 ? 'Keeper-Adjusted Value'
-                : seasonal
-                    ? 'Format Value'
-                    : 'Player Value';
+                : type === 'redraft'
+                    ? 'Rest-of-Season Value'
+                    : seasonal
+                        ? 'Format Value'
+                        : 'Player Value';
         return {
             appLabel: 'Dynasty HQ',
             teamLabel: seasonal ? 'Team' : 'Roster',
             assetLabel: type === 'dynasty' ? 'Asset' : 'Player',
             valueLabel,
-            valueShortLabel: type === 'dynasty' ? 'DHQ' : 'Value',
+            valueShortLabel: type === 'dynasty' ? 'DHQ' : type === 'redraft' ? 'ROS' : 'Value',
             pickLabel: seasonal ? 'Draft Pick' : 'Future Pick',
             marketLabel: seasonal ? 'Rest-of-Season Market' : 'Trade Market',
             rosterEmptyLabel: phase === 'pre_draft' ? 'Roster Not Drafted Yet' : 'Roster Data Pending',

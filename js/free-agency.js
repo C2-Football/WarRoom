@@ -16,6 +16,7 @@
         age:        { label: 'Age',                     shortLabel: 'Age',    width: '34px', sortKey: 'age',   group: 'dynasty' },
         dhq:        { label: 'DHQ Dynasty Value',       shortLabel: 'DHQ',    width: '58px', sortKey: 'dhq',   group: 'dynasty' },
         ppg:        { label: 'Points Per Game',         shortLabel: 'PPG',    width: '44px', sortKey: 'ppg',   group: 'stats'   },
+        proj:       { label: 'This Week Projection',    shortLabel: 'Proj',   width: '48px', sortKey: 'proj',  group: 'stats'   },
         peakYr:     { label: 'Peak Years Left',         shortLabel: 'Peak',   width: '44px', sortKey: 'peak',  group: 'dynasty' },
         yrsExp:     { label: 'NFL Years Experience',    shortLabel: 'Exp',    width: '38px', sortKey: 'exp',   group: 'dynasty' },
         college:    { label: 'College',                 shortLabel: 'College',width: '90px', sortKey: 'college', group: 'scout' },
@@ -34,7 +35,7 @@
         rkProfile:  { label: 'Rookie Profile (Ht · Wt · 40)', shortLabel: 'Profile', width: '120px', group: 'scout' },
     };
     const FA_COLUMN_PRESETS = {
-        default: ['pos','team','age','dhq','ppg','faab','fit'],
+        default: ['pos','team','age','dhq','ppg','proj','faab','fit'],
         scout:   ['pos','age','college','height','weight','depthChart'],
         bidding: ['pos','team','dhq','ppg','faab','fit','injury'],
         rookie:  ['pos','college','rkSlot','rkTeam','rkRank','rkTier','rkProfile','dhq'],
@@ -508,6 +509,18 @@
         const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
         const skinFeatures = resolvedLeagueSkin?.features || {};
         const skinVocabulary = resolvedLeagueSkin?.vocabulary || {};
+        // Redraft → build rest-of-season values so waiver/FA targets rank by ROS
+        // production instead of dynasty DHQ. No-op (DHQ) for dynasty/keeper.
+        React.useMemo(() => {
+            try {
+                window.App?.PlayerValue?.ensureRos?.({
+                    leagueId: currentLeague?.league_id || currentLeague?.id,
+                    league: currentLeague, playersData, statsData, priorData: prevStatsData,
+                    skin: resolvedLeagueSkin,
+                });
+            } catch (e) { if (window.wrLog) window.wrLog('fa.ensureRos', e); }
+            return null;
+        }, [currentLeague, playersData, statsData, prevStatsData, timeRecomputeTs]);
         const valueLabel = skinVocabulary.valueLabel || FA_COLUMNS.dhq.label;
         const valueShortLabel = skinVocabulary.valueShortLabel || FA_COLUMNS.dhq.shortLabel;
         const valueKpiLabel = (valueShortLabel === 'DHQ' ? 'DHQ VALUE' : valueShortLabel.toUpperCase());
@@ -520,7 +533,14 @@
         const [visibleFaCols, setVisibleFaCols] = useState(() => {
             const stored = window.App?.WrStorage?.get?.('wr_fa_cols');
             const valid = Array.isArray(stored) ? stored.filter(k => FA_COLUMNS[k]) : [];
-            return valid.length ? valid : FA_COLUMN_PRESETS.default;
+            if (!valid.length) return FA_COLUMN_PRESETS.default;
+            // One-time migration: surface the new this-week projection column for
+            // users whose saved column set predates it (insert after PPG/DHQ).
+            if (!valid.includes('proj')) {
+                const at = valid.indexOf('ppg') >= 0 ? valid.indexOf('ppg') + 1 : valid.indexOf('dhq') >= 0 ? valid.indexOf('dhq') + 1 : valid.length;
+                valid.splice(at, 0, 'proj');
+            }
+            return valid;
         });
         const [faColPreset, setFaColPreset] = useState('default');
         const [showFaColPicker, setShowFaColPicker] = useState(false);
@@ -633,10 +653,41 @@
                 .filter(([pid, p]) => !rostered.has(pid) && p.team && p.status !== 'Inactive' && p.status !== 'Retired' && p.active !== false && !isDraftProspect(pid, p)
                     && (p.full_name || p.first_name || p.last_name) && (window.App?.LI?.playerScores?.[pid] || 0) > 0
                     && (!leaguePosSet || leaguePosSet.has(normPos(p.position) || p.position)))
-                .map(([pid, p]) => ({ pid, p, dhq: window.App?.LI?.playerScores?.[pid] || 0, pos: normPos(p.position) || p.position }))
+                .map(([pid, p]) => {
+                    const dhq = (window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid, { skin: resolvedLeagueSkin }) : (window.App?.LI?.playerScores?.[pid] || 0));
+                    let proj = 0;
+                    const WP = window.App && window.App.WeeklyProj;
+                    if (WP && WP.projectPlayer) {
+                        try { const pr = WP.projectPlayer(pid, { playersData, statsData, priorData: prevStatsData, scoring: currentLeague?.scoring_settings || {}, week: WP.currentWeek ? WP.currentWeek() : (window.S?.currentWeek || 1) }); proj = (pr && pr.points) ? (pr.points.median || 0) : 0; } catch (e) { proj = 0; }
+                    }
+                    return { pid, p, dhq, proj, pos: normPos(p.position) || p.position };
+                })
                 .sort((a, b) => b.dhq - a.dhq)
                 .slice(0, 300);
-        }, [rosterState.isUsable, playersData, rostered, timeRecomputeTs, isDraftProspect, leaguePosSet]);
+        }, [rosterState.isUsable, playersData, statsData, prevStatsData, currentLeague, rostered, timeRecomputeTs, isDraftProspect, leaguePosSet]);
+
+        // Streaming opportunities: the best available FA per position that
+        // out-projects the user's WEAKEST current starter at that position this week.
+        const streaming = useMemo(() => {
+            const WP = window.App && window.App.WeeklyProj;
+            if (!WP || !WP.projectPlayer || !myRoster) return [];
+            const scoring = currentLeague?.scoring_settings || {};
+            const week = WP.currentWeek ? WP.currentWeek() : (window.S?.currentWeek || 1);
+            const pmed = pid => { try { const pr = WP.projectPlayer(pid, { playersData, statsData, priorData: prevStatsData, scoring, week }); return pr && pr.points ? (pr.points.median || 0) : 0; } catch (e) { return 0; } };
+            const mineByPos = {};
+            (myRoster.starters || []).filter(Boolean).forEach(pid => { const pos = normPos((playersData[pid] || {}).position); if (!pos) return; (mineByPos[pos] = mineByPos[pos] || []).push({ pid, m: pmed(pid) }); });
+            const bestFa = {};
+            availablePlayers.forEach(fa => { if (fa.proj > 0 && (!bestFa[fa.pos] || fa.proj > bestFa[fa.pos].proj)) bestFa[fa.pos] = fa; });
+            const opps = [];
+            Object.keys(bestFa).forEach(pos => {
+                const mine = (mineByPos[pos] || []).slice().sort((a, b) => a.m - b.m);
+                if (!mine.length) return;
+                const worst = mine[0], fa = bestFa[pos], delta = fa.proj - worst.m;
+                if (delta >= 1.5) opps.push({ pos, fa, worstName: (playersData[worst.pid] || {}).full_name || worst.pid, worstProj: worst.m, delta });
+            });
+            return opps.sort((a, b) => b.delta - a.delta);
+        }, [availablePlayers, myRoster, playersData, statsData, prevStatsData, currentLeague, timeRecomputeTs]);
+        const streamPosSet = new Set(streaming.map(o => o.pos));
 
         // GM-Office FA filters scope the recommendation surfaces (priority adds +
         // action board). The market explorer (sortedPlayers) keeps the full pool.
@@ -751,6 +802,7 @@
                 if (k === 'pos') return dir * ((normPos(a.p.position) || '').localeCompare(normPos(b.p.position) || ''));
                 if (k === 'age') return dir * ((a.p.age || 0) - (b.p.age || 0));
                 if (k === 'dhq') return dir * (a.dhq - b.dhq);
+                if (k === 'proj') return dir * ((a.proj || 0) - (b.proj || 0));
                 if (k === 'ppg') {
                     const sa = statsData[a.pid] || {}; const sb = statsData[b.pid] || {};
                     const pa = sa.gp > 0 ? calcRawPts(sa) / sa.gp : 0;
@@ -915,7 +967,7 @@
         const selPlayer = faSelectedPid ? playersData[faSelectedPid] : null;
         const selStats = faSelectedPid ? statsData[faSelectedPid] || {} : {};
         const selPrevStats = faSelectedPid ? (prevStatsData || {})[faSelectedPid] || {} : {};
-        const selDhq = faSelectedPid ? (window.App?.LI?.playerScores?.[faSelectedPid] || 0) : 0;
+        const selDhq = faSelectedPid ? (window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(faSelectedPid, { skin: resolvedLeagueSkin }) : (window.App?.LI?.playerScores?.[faSelectedPid] || 0)) : 0;
         const selPpg = selStats.gp > 0 ? +(calcRawPts(selStats) / selStats.gp).toFixed(1) : (selPrevStats.gp > 0 ? +(calcRawPts(selPrevStats) / selPrevStats.gp).toFixed(1) : 0);
         const selPos = selPlayer ? normPos(selPlayer.position) : '';
         const selPeakYrs = selPlayer ? peakYearsFor(selPos, selPlayer.age) : 0;
@@ -1381,7 +1433,7 @@
                     <span className="wr-module-toolbar-label">POS</span>
                     <div className="wr-module-nav">
                     {['', ...leaguePositions].map(pos =>
-                        <button key={pos} className={faFilter === pos ? 'is-active' : ''} onClick={() => setFaFilter(pos)}>{pos ? (window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)) : 'All'}</button>
+                        <button key={pos} className={faFilter === pos ? 'is-active' : ''} onClick={() => setFaFilter(pos)} title={pos && streamPosSet.has(pos) ? 'Streaming upgrade available at ' + pos + ' this week' : undefined}>{pos ? (window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)) : 'All'}{pos && streamPosSet.has(pos) ? <span style={{ color: 'var(--gold)', marginLeft: '3px', fontWeight: 800 }}>•</span> : null}</button>
                     )}
                     </div>
                     <span className="wr-module-toolbar-label">Type</span>
@@ -1498,6 +1550,23 @@
                     </div>
                 )}
 
+                {/* Streaming upgrades — a free agent out-projects your weakest starter at a position this week */}
+                {streaming.length ? (
+                    <div style={{ margin: '0 0 10px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderRadius: '8px', padding: '10px 12px' }}>
+                        <div style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.04em', marginBottom: '6px' }}>⚡ STREAMING UPGRADES THIS WEEK</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {streaming.slice(0, 5).map((o, i) => (
+                                <div key={i} role="button" tabIndex={0} onClick={() => openFaPlayer(o.fa.pid)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFaPlayer(o.fa.pid); } }} style={{ display: 'flex', alignItems: 'baseline', gap: '8px', fontSize: 'var(--text-label, 0.8rem)', cursor: 'pointer', flexWrap: 'wrap' }}>
+                                    <span style={{ fontWeight: 700, color: 'var(--gold)', minWidth: '34px' }}>{window.App?.posLabel?.(o.pos) || o.pos}</span>
+                                    <span style={{ color: 'var(--text, #e8e8ea)', fontWeight: 600 }}>{(playersData[o.fa.pid] || {}).full_name || o.fa.pid}</span>
+                                    <span style={{ color: 'var(--good)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{o.fa.proj.toFixed(1)}</span>
+                                    <span style={{ color: 'var(--silver)' }}>projects <span style={{ color: 'var(--good)', fontWeight: 700 }}>+{o.delta.toFixed(1)}</span> over your {o.worstName} ({o.worstProj.toFixed(1)})</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
+
                 {/* Dynamic grid — photo + Player + configured columns */}
                 {(() => {
                     const gridTemplate = '32px minmax(150px, 1fr) ' + visibleFaCols.map(k => (faColumns[k]?.width || '44px')).join(' ');
@@ -1518,7 +1587,7 @@
                         </div>
                         {/* Body */}
                         <div style={{ maxHeight: 'none', overflow: 'visible', minWidth: tableMinWidth + 'px' }}>
-                            {sortedPlayers.map(({ pid, p, dhq }) => {
+                            {sortedPlayers.map(({ pid, p, dhq, proj }) => {
                                 const pos = normPos(p.position) || p.position;
                                 const st = statsData[pid] || {};
                                 const prevSt = (prevStatsData || {})[pid] || {};
@@ -1553,6 +1622,7 @@
                                         case 'age':        return <span style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>{p.age || '\u2014'}</span>;
                                         case 'dhq':        return <span style={{ fontSize: '0.78rem', fontWeight: 700, fontFamily: 'var(--font-body)', color: dhqCol }}>{dhq > 0 ? dhq.toLocaleString() : '\u2014'}</span>;
                                         case 'ppg':        return <span style={{ fontSize: '0.78rem', color: ppg >= 10 ? 'var(--good)' : ppg >= 5 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{ppg > 0 ? ppg : '\u2014'}{ppgMarker}</span>;
+                                        case 'proj':       return <span title="This week's projected points (league-scored)" style={{ fontSize: '0.78rem', fontWeight: 600, color: proj >= 14 ? 'var(--good)' : proj >= 8 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{proj > 0 ? proj.toFixed(1) : '\u2014'}</span>;
                                         case 'peakYr':     return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: peakCol, fontWeight: 600 }}>{peakLabel}</span>;
                                         case 'yrsExp':     return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>{p.years_exp != null ? p.years_exp : '\u2014'}</span>;
                                         case 'college':    return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.college || '\u2014'}</span>;
