@@ -250,9 +250,16 @@
                 .then(rows => {
                     if (cancelled) return;
                     const drafts = Array.isArray(rows) ? rows : [];
-                    const active = drafts.find(d => d.status === 'drafting')
-                        || drafts.find(d => d.status === 'pre_draft')
-                        || null;
+                    // Draft-of-record rule (draft/state.js selectCurrentDraft):
+                    // live > unsuperseded latest complete ('review') > next
+                    // pre_draft — so a just-completed draft keeps a header entry
+                    // point ('View Draft Results') instead of vanishing.
+                    const sel = window.DraftCC?.state?.selectCurrentDraft?.(drafts);
+                    const active = sel !== undefined
+                        ? (sel.draft || null)
+                        : (drafts.find(d => d.status === 'drafting')
+                            || drafts.find(d => d.status === 'pre_draft')
+                            || null);
                     setHeaderDraftInfo(active);
                 })
                 .catch(() => { if (!cancelled) setHeaderDraftInfo(null); });
@@ -268,6 +275,9 @@
         const headerDraftClock = useMemo(() => {
             if (!headerDraftInfo) return null;
             if (headerDraftInfo.status === 'drafting') return { label: 'Draft Live', clock: 'Now' };
+            // Completed draft of record: keep an entry point to the finished
+            // board (DraftTab's _wrOpenLiveDraft flag path rebuilds the results).
+            if (headerDraftInfo.status === 'complete') return { label: '', clock: 'View Draft Results' };
             if (!headerDraftInfo.start_time) return { label: 'Draft Upcoming', clock: 'Scheduled' };
             const diff = Number(headerDraftInfo.start_time) - headerClockNow;
             if (diff <= 0) return { label: 'Draft Upcoming', clock: 'Open' };
@@ -1272,6 +1282,27 @@
                 else { window.wrLogAction?.('\uD83D\uDCCA', 'Updated GM strategy', 'roster', { actionType: 'gm-strategy' }); }
             }
         }, [gmStrategy, currentLeague?.league_id, currentLeague?.id]);
+        // Remote/Scout strategy edits arrive as wr:gm-mode-changed (gm-mode.js
+        // bridges DhqEvents 'strategy:changed'). Adopt them into local gmStrategy
+        // state \u2014 which feeds the header GM badge + Alex AI context \u2014 when they
+        // target the open league. JSON-compare guards the echo: the persist
+        // effect above re-saves on every set, so identical payloads must no-op.
+        useEffect(() => {
+            const onGmChanged = (e) => {
+                const s = e?.detail?.strategy;
+                if (!s || typeof s !== 'object') return;
+                const leagueId = getCurrentLeagueId(currentLeague);
+                if (!leagueId) return;
+                if (s.leagueId != null && String(s.leagueId) !== String(leagueId)) return;
+                const next = normalizeGmStrategy(s, leagueId);
+                if (JSON.stringify(normalizeGmStrategy(gmStrategy, leagueId)) === JSON.stringify(next)) return;
+                // Synced-in change, not a deliberate local edit \u2014 skip the action log.
+                gmStrategyInitRef.current = true;
+                setGmStrategy(next);
+            };
+            window.addEventListener('wr:gm-mode-changed', onGmChanged);
+            return () => window.removeEventListener('wr:gm-mode-changed', onGmChanged);
+        }, [gmStrategy, currentLeague?.league_id, currentLeague?.id]);
 
         // Fetch draft info for Brief tab (Sleeper only — other platforms don't have this endpoint)
         useEffect(() => {
@@ -1469,11 +1500,34 @@
             }
         }, [standings, currentLeague, timeRecomputeTs, statsData]);
 
+        // ── Sync freshness (audit:refresh-stale step 7) ──
+        // wr:data-synced (dispatched by WR.Sync after each successful background
+        // revalidation) bumps syncedAt; the 60s tick keeps the sidebar's
+        // 'Synced Xm ago' readout aging even when nothing else re-renders.
+        const [syncedAt, setSyncedAt] = useState(() => window.WR?.Sync?.lastSyncedAt || null);
+        const [, setSyncTick] = useState(0);
+        useEffect(() => {
+            const onSynced = (e) => setSyncedAt(e?.detail?.at || Date.now());
+            window.addEventListener('wr:data-synced', onSynced);
+            const tick = setInterval(() => setSyncTick(t => t + 1), 60000);
+            return () => { window.removeEventListener('wr:data-synced', onSynced); clearInterval(tick); };
+        }, []);
+
+        // Monotonic load token — a new full load (league switch / manual
+        // refresh) invalidates any in-flight background revalidation from the
+        // previous load (same idea as the _wppFetchToken guard below).
+        const loadSeqRef = useRef(0);
+        // League closed / component unmounted: drop the background revalidator
+        // so WR.Sync stops syncing a dead closure (also resets its lastSyncedAt).
+        useEffect(() => () => { window.WR?.Sync?.registerRevalidator?.(null); }, []);
+
         useEffect(() => {
             loadLeagueDetails();
         }, [currentLeague]);
 
         async function loadLeagueDetails() {
+            // New full load supersedes any in-flight background revalidation.
+            const loadSeq = ++loadSeqRef.current;
             try {
                 // Clear assessment caches for THIS league so health scores compute fresh.
                 // Key by league ID — switching back to a previously-loaded league can
@@ -1558,278 +1612,37 @@
                     nflState,
                 });
 
-                // Pull enrichment out of _extras (Sleeper only — others empty)
-                const stats       = hydrated._extras?.stats       || {};
-                const projections = hydrated._extras?.projections || {};
-                const prevStats   = hydrated._extras?.prevStats   || {};
+                applyHydrated(hydrated, { provider, sleeperPlayers, nflState, currentWeek, myRosterData, background: false });
 
-                // Merge platform-specific extras into the Sleeper player DB.
-                // For Sleeper this is a no-op; for MFL/ESPN/Yahoo this adds
-                // IDP players and other platform-only records that the
-                // Sleeper DB doesn't have.
-                const players = { ...sleeperPlayers, ...(hydrated.players || {}) };
-
-                // Use the hydrated rosters — for non-Sleeper, these now have
-                // Sleeper-resolved player IDs (the whole point of the
-                // provider rebuild step). For Sleeper, these are the fresh
-                // fetchRosters result.
-                const rosters     = (hydrated.rosters && hydrated.rosters.length) ? hydrated.rosters : (currentLeague.rosters || []);
-                const leagueUsers = (hydrated.leagueUsers && hydrated.leagueUsers.length) ? hydrated.leagueUsers : (currentLeague.users || []);
-                const tradedPicks = hydrated.tradedPicks || [];
-                const matchupsData = hydrated.matchups || [];
-
-                // Patch currentLeague in place so downstream useEffects
-                // (computeRankings etc.) see the resolved rosters. React
-                // won't re-render from this mutation, but setStandings /
-                // setRankedTeams below trigger re-renders anyway.
-                currentLeague.rosters = rosters;
-                if (leagueUsers.length) currentLeague.users = leagueUsers;
-
-                // Re-resolve myRosterData now that rosters may have changed
-                const freshMyRoster = provider.id === 'mfl' && currentLeague._mflFranchiseId
-                    ? rosters.find(r => r.roster_id === currentLeague._mflFranchiseId)
-                    : rosters.find(r => r.owner_id === sleeperUserId) || myRosterData;
-                if (freshMyRoster && freshMyRoster !== myRosterData) setMyRoster(freshMyRoster);
-                const myRoster = freshMyRoster || myRosterData;
-
-                setStatsData(stats);
-                setProjectionsData(projections);
-                setStats2025Data(prevStats);
-                setPlayersData(players);
-                setLoadStage('Computing values...');
-
-                // Bridge to DHQ engine immediately
-                if (window.App) {
-                    if (!window.S) window.S = {};
-                    window.S.players = players;
-                    window.S.playerStats = {};
-                    window.S.rosters = rosters;
-                    window.S.leagueUsers = leagueUsers;
-                    window.S.leagues = [{ league_id: currentLeague.id, name: currentLeague.name, scoring_settings: currentLeague.scoring_settings, roster_positions: currentLeague.roster_positions, settings: currentLeague.settings }];
-                    // Invalidate any previously-loaded weekly points from a different
-                    // league before kicking off the fresh fetch below.
-                    if (window.S.weeklyPlayerPointsLeagueId && window.S.weeklyPlayerPointsLeagueId !== currentLeague.id) {
-                        window.S.weeklyPlayerPoints = {};
-                        window.S.weeklyPlayerPointsLeagueId = null;
-                    }
-                    window.S.currentLeagueId = currentLeague.id;
-                    window.S.season = activeYear;
-                    window.S.nflState = hydrated.nflState && Object.keys(hydrated.nflState).length ? hydrated.nflState : nflState;
-                    window.S.currentWeek = currentWeek;
-                    window.S.tradedPicks = window.App?.normalizeTradedPicks
-                        ? window.App.normalizeTradedPicks(rosters, tradedPicks)
-                        : tradedPicks;
-                    window.S.matchups = matchupsData;
-                    window.S.drafts = hydrated.drafts || [];
-                    // MFL: complete future-pick ownership (exact years/rounds) so the
-                    // Trade Center shows real future picks, not invented N-round sets.
-                    window.S._mflFuturePicks = hydrated._extras?.mflFuturePicks || null;
-
-                    // Rolling PPG — fetch all played weeks' matchups in parallel
-                    // so we can compute last-N-games PPG for each player. Runs
-                    // in the background; consumers listen for wr:weekly-points-loaded.
-                    // Only runs for Sleeper (other providers don't have this endpoint shape).
-                    // Single-flight + league-tagged: rapidly switching leagues must not
-                    // let a stale fetch from league A overwrite league B's results.
-                    const _wppLeagueId = currentLeague.id || currentLeague.league_id;
-                    if (provider.id === 'sleeper' && _wppLeagueId && currentWeek > 0) {
-                        const fetchToken = (window._wppFetchToken = (window._wppFetchToken || 0) + 1);
-                        const fetchLeagueId = _wppLeagueId;
-                        (async () => {
-                            try {
-                                const weeks = [];
-                                const maxWeek = Math.min(18, Math.max(1, currentWeek));
-                                for (let w = 1; w <= maxWeek; w++) weeks.push(w);
-                                const results = await Promise.all(weeks.map(w =>
-                                    fetch('https://api.sleeper.app/v1/league/' + fetchLeagueId + '/matchups/' + w)
-                                        .then(r => r.ok ? r.json() : [])
-                                        .catch(() => [])
-                                ));
-                                // Guard: abort if a newer fetch has started or the
-                                // active league has changed under us.
-                                if (fetchToken !== window._wppFetchToken) return;
-                                const activeLeagueId = window.S?.currentLeagueId;
-                                if (activeLeagueId && activeLeagueId !== fetchLeagueId) return;
-                                const wpp = {};
-                                weeks.forEach((w, i) => {
-                                    const wk = {};
-                                    (results[i] || []).forEach(m => {
-                                        if (m && m.players_points) {
-                                            Object.entries(m.players_points).forEach(([pid, pts]) => {
-                                                if (pts != null) wk[pid] = pts;
-                                            });
-                                        }
-                                    });
-                                    wpp[w] = wk;
-                                });
-                                window.S.weeklyPlayerPoints = wpp;
-                                window.S.weeklyPlayerPointsLeagueId = fetchLeagueId;
-                                window.dispatchEvent(new CustomEvent('wr:weekly-points-loaded', { detail: { leagueId: fetchLeagueId } }));
-                            } catch (e) { /* non-fatal */ }
-                        })();
-                    }
-                    window.S.myRosterId = myRoster?.roster_id;
-                    window.S.platform = provider.id;   // canonical marker
-                    const _isNonSleeper = provider.id !== 'sleeper';
-                    window.S.myUserId = _isNonSleeper
-                        ? (myRoster?.owner_id || currentLeague._mflFranchiseId || sleeperUserId)
-                        : sleeperUserId;
-                    const _userId = window.S.myUserId;
-                    const _userName = _isNonSleeper ? (myRoster?._owner_name || 'Owner') : (sleeperUsername || '');
-                    window.S.user = { user_id: _userId, display_name: _userName, username: _userName };
-
-                    // Bridge helper functions for dhq-ai.js context builders
-                    const _p = players || {};
-                    window.myR = () => (window.S.rosters || []).find(r => r.roster_id === window.S.myRosterId);
-                    window.pName = pid => _p[pid]?.full_name || pid;
-                    window.pPos = pid => _p[pid]?.position || '';
-                    window.pAge = pid => _p[pid]?.age || 0;
-                    window.pM = pos => { if (['DE','DT'].includes(pos)) return 'DL'; if (['CB','S','FS','SS'].includes(pos)) return 'DB'; if (['OLB','ILB','MLB'].includes(pos)) return 'LB'; return pos; };
-                    window.dynastyValue = pid => window.App?.LI?.playerScores?.[pid] || 0;
-                    window.getFAAB = () => {
-                        const league = window.S.leagues?.[0];
-                        const my = window.myR();
-                        const isFAAB = (league?.settings?.waiver_type === 2) || (league?.settings?.waiver_budget > 0);
-                        const budget = isFAAB ? (league?.settings?.waiver_budget || 0) : 0;
-                        const spent = my?.settings?.waiver_budget_used || 0;
-                        const minBid = isFAAB ? (league?.settings?.waiver_budget_min ?? 0) : 0;
-                        return { budget, spent, remaining: Math.max(0, budget - spent), isFAAB, minBid };
-                    };
-                    window.loadMentality = () => {
-                        const gm = window._wrGmStrategy || {};
-                        const modeMap = { contend: 'winnow', rebuild: 'rebuild', balanced: 'balanced' };
-                        return { mentality: modeMap[gm.mode] || 'balanced', neverDrop: (gm.untouchable || []).map(pid => _p[pid]?.full_name || pid).join(', '), notes: gm.notes || '' };
-                    };
-                    window.App.myR = window.myR;
-                    window.App.pName = window.pName;
-                    window.App.pPos = window.pPos;
-                    window.App.pAge = window.pAge;
-                    window.App.pM = window.pM;
-                    window.App.dynastyValue = window.dynastyValue;
-                    window.App.getFAAB = window.getFAAB;
-                    window.App.loadMentality = window.loadMentality;
-
-                    // Rolling PPG helper — returns avg points over the last N
-                    // games where the player actually played (> minPts threshold).
-                    // Uses window.S.weeklyPlayerPoints populated by the background
-                    // weekly fetch above. Returns 0 if no data yet.
-                    window.App.computeRollingPPG = function (pid, lastN, minPts) {
-                        const wpp = window.S?.weeklyPlayerPoints || {};
-                        const weeks = Object.keys(wpp).map(Number).sort((a, b) => b - a);
-                        const threshold = minPts == null ? 0.1 : minPts;
-                        const games = [];
-                        for (const w of weeks) {
-                            const pts = wpp[w]?.[pid];
-                            if (pts != null && pts >= threshold) {
-                                games.push(pts);
-                                if (games.length >= (lastN || 5)) break;
-                            }
-                        }
-                        if (!games.length) return 0;
-                        return +(games.reduce((a, b) => a + b, 0) / games.length).toFixed(1);
-                    };
-
-                    // BYO keys are session-only; migrate and clear older localStorage keys.
-                    ['dynastyhq_ai_provider', 'dynastyhq_ai_key', 'dynastyhq_ai_model', 'dynastyhq_xai_key', 'dynastyhq_provider', 'dynastyhq_gemini_key', 'dynastyhq_anthropic_key'].forEach(name => {
-                        try {
-                            const value = localStorage.getItem(name);
-                            if (value && !sessionStorage.getItem(name)) sessionStorage.setItem(name, value);
-                            localStorage.removeItem(name);
-                        } catch (_) {}
+                // Register the background revalidator (audit:refresh-stale step 4).
+                // WR.Sync calls it on tab return / focus / in-season interval:
+                // re-hydrate with the memoized player DB + a FRESH nfl state, then
+                // re-apply. Stale-while-revalidate — background syncs never clear
+                // or reload LI (values keep their own 8h/manual cadence) and never
+                // touch loading/loadStage. loadSeq mirrors the _wppFetchToken
+                // pattern: a league switch or manual refresh invalidates any
+                // in-flight background sync from the previous load.
+                if (window.WR?.Sync?.registerRevalidator) {
+                    const bgLeagueId = currentLeague.id || currentLeague.league_id;
+                    window.WR.Sync.registerRevalidator(async () => {
+                        if (loadSeq !== loadSeqRef.current) return;
+                        const [bgPlayers, bgStateRaw] = await Promise.all([
+                            fetchAllPlayers().catch(() => sleeperPlayers),                 // memoized player DB
+                            fetchJSON(`${SLEEPER_BASE_URL}/state/nfl`).catch(() => ({})),  // always fresh — week-rollover source
+                        ]);
+                        const bgNfl = (bgStateRaw && Object.keys(bgStateRaw).length) ? bgStateRaw : (window.S?.nflState || nflState);
+                        const bgWeek = bgNfl?.display_week || bgNfl?.week || window.S?.currentWeek || currentWeek;
+                        const bgHydrated = await provider.hydrate(currentLeague, {
+                            sleeperPlayers: bgPlayers,
+                            currentWeek: bgWeek,
+                            currentSeason: currentLeague.season || activeYear,
+                            prevSeason: STATS_YEAR,
+                            nflState: bgNfl,
+                        });
+                        if (loadSeq !== loadSeqRef.current) return;
+                        if (window.S?.currentLeagueId && String(window.S.currentLeagueId) !== String(bgLeagueId)) return;
+                        applyHydrated(bgHydrated, { provider, sleeperPlayers: bgPlayers, nflState: bgNfl, currentWeek: bgWeek, myRosterData, background: true });
                     });
-                    const savedProvider = sessionStorage.getItem('dynastyhq_ai_provider') || sessionStorage.getItem('dynastyhq_provider') || 'gemini';
-                    const savedKey = sessionStorage.getItem('dynastyhq_ai_key') || sessionStorage.getItem('dynastyhq_' + savedProvider + '_key') || sessionStorage.getItem('dynastyhq_gemini_key') || sessionStorage.getItem('dynastyhq_anthropic_key') || '';
-                    if (savedKey) { window.S.aiProvider = savedProvider; window.S.apiKey = savedKey; }
-
-                    // Bridge stats data — use prevStats (2025) as base, overlay current season
-                    Object.entries(prevStats).forEach(([pid, s]) => {
-                        if (!window.S.playerStats[pid]) window.S.playerStats[pid] = {};
-                        const pts = calcRawPts(s);
-                        const gp = s.gp || 0;
-                        window.S.playerStats[pid].prevTotal = pts ? Math.round(pts * 10) / 10 : 0;
-                        window.S.playerStats[pid].prevAvg = gp > 0 ? Math.round(pts / gp * 10) / 10 : 0;
-                        window.S.playerStats[pid].prevRawStats = s;
-                    });
-                    // Overlay current season stats if available
-                    Object.entries(stats).forEach(([pid, s]) => {
-                        if (!window.S.playerStats[pid]) window.S.playerStats[pid] = {};
-                        const pts = calcRawPts(s);
-                        const gp = s.gp || 0;
-                        if (gp > 0) {
-                            window.S.playerStats[pid].seasonTotal = pts ? Math.round(pts * 10) / 10 : 0;
-                            window.S.playerStats[pid].seasonAvg = Math.round(pts / gp * 10) / 10;
-                        }
-                    });
-
-                    // Mirror to SeasonContext so tab components can use React state
-                    setSeasonCtxData({
-                        season: activeYear,
-                        playerStats: window.S.playerStats,
-                        tradedPicks: tradedPicks || [],
-                        rosters: currentLeague.rosters || [],
-                        myRosterId: myRosterData?.roster_id || null,
-                        lastUpdated: Date.now(),
-                    });
-                }
-
-                setLoadStage('Building league intelligence...');
-
-                // Flatten hydrated transactions (already bucketed by week
-                // from the provider) and merge in DHQ historical trades.
-                // This replaces the old per-platform transaction fetch.
-                let allTxns = [];
-                Object.values(hydrated.transactions || {}).forEach(wk => {
-                    allTxns = allTxns.concat(wk || []);
-                });
-                allTxns.sort((a, b) => (b.created || 0) - (a.created || 0));
-
-                // Merge DHQ historical trades (pre-analyzed with value data)
-                // Deduplicate by timestamp so the provider's recent txns
-                // aren't doubled.
-                if (window.App?.LI?.tradeHistory?.length > 0) {
-                    const existingTradeTs = new Set(allTxns.filter(t => t.type === 'trade').map(t => t.created || 0));
-                    const histTrades = window.App.LI.tradeHistory
-                        .filter(t => !existingTradeTs.has(t.ts || 0))
-                        .map(t => ({ ...t, type: 'trade', status: 'complete', created: t.ts || 0, _fromDHQ: true }));
-                    allTxns = [...allTxns, ...histTrades].sort((a, b) => (b.created || 0) - (a.created || 0));
-                }
-
-                // Populate window.S.transactions keyed by week for
-                // free-agency.js / flash-brief.js consumers.
-                if (window.S) {
-                    const txnsByWeek = {};
-                    allTxns.forEach(t => {
-                        const key = 'w' + (t.leg ?? t.week ?? 0);
-                        if (!txnsByWeek[key]) txnsByWeek[key] = [];
-                        txnsByWeek[key].push(t);
-                    });
-                    window.S.transactions = txnsByWeek;
-                }
-                let visibleTxns = allTxns.slice(0, 50);
-                if (!visibleTxns.some(t => t.type === 'trade')) {
-                    const firstTrade = allTxns.find(t => t.type === 'trade');
-                    if (firstTrade) visibleTxns = [...visibleTxns.slice(0, 49), firstTrade];
-                }
-                setTransactions(visibleTxns);
-
-                // Trending — if the provider supplied it (Sleeper), use that;
-                // otherwise fall back to Sleeper's global trending endpoint
-                // so all platforms see league-wide trends.
-                if (hydrated.trending?.adds || hydrated.trending?.drops) {
-                    setTrending({
-                        adds: hydrated.trending.adds || [],
-                        drops: hydrated.trending.drops || [],
-                    });
-                } else if (window.Sleeper?.fetchTrending) {
-                    (async () => {
-                        try {
-                            const [adds, drops] = await Promise.all([
-                                window.Sleeper.fetchTrending('add', 24, 15),
-                                window.Sleeper.fetchTrending('drop', 24, 15),
-                            ]);
-                            setTrending({ adds: adds || [], drops: drops || [] });
-                        } catch (e) { window.wrLog && window.wrLog('trending.fetch', e); }
-                    })();
                 }
 
                 // Paint the dashboard shell before DHQ starts, then await DHQ.
@@ -1897,6 +1710,297 @@
                 setError(err.message || 'Failed to load league details');
                 setLoading(false);
                 setLoadStage('');
+            }
+        }
+
+        // ── applyHydrated (audit:refresh-stale step 4) ──────────────────
+        // Commits a provider.hydrate() result to React state + the window.S
+        // bridge. Shared by the full loadLeagueDetails path and the WR.Sync
+        // background revalidator. background:true = stale-while-revalidate
+        // refresh: skips the load-stage UI and NEVER touches LeagueIntel —
+        // rosters/matchups/transactions stay fresh while DHQ values keep
+        // their own 8h/manual cadence. Errors propagate to the caller
+        // (loadLeagueDetails' catch sets the error UI; WR.Sync logs).
+        function applyHydrated(hydrated, { provider, sleeperPlayers, nflState, currentWeek, myRosterData, background = false }) {
+            // Pull enrichment out of _extras (Sleeper only — others empty)
+            const stats       = hydrated._extras?.stats       || {};
+            const projections = hydrated._extras?.projections || {};
+            const prevStats   = hydrated._extras?.prevStats   || {};
+
+            // Merge platform-specific extras into the Sleeper player DB.
+            // For Sleeper this is a no-op; for MFL/ESPN/Yahoo this adds
+            // IDP players and other platform-only records that the
+            // Sleeper DB doesn't have.
+            const players = { ...sleeperPlayers, ...(hydrated.players || {}) };
+
+            // Use the hydrated rosters — for non-Sleeper, these now have
+            // Sleeper-resolved player IDs (the whole point of the
+            // provider rebuild step). For Sleeper, these are the fresh
+            // fetchRosters result.
+            const rosters     = (hydrated.rosters && hydrated.rosters.length) ? hydrated.rosters : (currentLeague.rosters || []);
+            const leagueUsers = (hydrated.leagueUsers && hydrated.leagueUsers.length) ? hydrated.leagueUsers : (currentLeague.users || []);
+            const tradedPicks = hydrated.tradedPicks || [];
+            const matchupsData = hydrated.matchups || [];
+
+            // Patch currentLeague in place so downstream useEffects
+            // (computeRankings etc.) see the resolved rosters. React
+            // won't re-render from this mutation, but setStatsData /
+            // setSeasonCtxData below trigger re-renders anyway.
+            currentLeague.rosters = rosters;
+            if (leagueUsers.length) currentLeague.users = leagueUsers;
+
+            // Re-resolve myRosterData now that rosters may have changed
+            const freshMyRoster = provider.id === 'mfl' && currentLeague._mflFranchiseId
+                ? rosters.find(r => r.roster_id === currentLeague._mflFranchiseId)
+                : rosters.find(r => r.owner_id === sleeperUserId) || myRosterData;
+            if (freshMyRoster && freshMyRoster !== myRosterData) setMyRoster(freshMyRoster);
+            const myRoster = freshMyRoster || myRosterData;
+
+            setStatsData(stats);
+            setProjectionsData(projections);
+            setStats2025Data(prevStats);
+            setPlayersData(players);
+            if (!background) setLoadStage('Computing values...');
+
+            // Bridge to DHQ engine immediately
+            if (window.App) {
+                if (!window.S) window.S = {};
+                // Week rollover (audit:refresh-stale step 5): S.currentWeek is
+                // captured at league open; when a background sync sees a new NFL
+                // week we bump timeRecomputeTs below so PlayerValue._ros (keyed
+                // on week) invalidates and rankings/analytics recompute.
+                const weekRolled = background && window.S.currentWeek != null && currentWeek !== window.S.currentWeek;
+                window.S.players = players;
+                window.S.playerStats = {};
+                window.S.rosters = rosters;
+                window.S.leagueUsers = leagueUsers;
+                window.S.leagues = [{ league_id: currentLeague.id, name: currentLeague.name, scoring_settings: currentLeague.scoring_settings, roster_positions: currentLeague.roster_positions, settings: currentLeague.settings }];
+                // Invalidate any previously-loaded weekly points from a different
+                // league before kicking off the fresh fetch below.
+                if (window.S.weeklyPlayerPointsLeagueId && window.S.weeklyPlayerPointsLeagueId !== currentLeague.id) {
+                    window.S.weeklyPlayerPoints = {};
+                    window.S.weeklyPlayerPointsLeagueId = null;
+                }
+                window.S.currentLeagueId = currentLeague.id;
+                window.S.season = activeYear;
+                window.S.nflState = hydrated.nflState && Object.keys(hydrated.nflState).length ? hydrated.nflState : nflState;
+                window.S.currentWeek = currentWeek;
+                window.S.tradedPicks = window.App?.normalizeTradedPicks
+                    ? window.App.normalizeTradedPicks(rosters, tradedPicks)
+                    : tradedPicks;
+                window.S.matchups = matchupsData;
+                window.S.drafts = hydrated.drafts || [];
+                // MFL: complete future-pick ownership (exact years/rounds) so the
+                // Trade Center shows real future picks, not invented N-round sets.
+                window.S._mflFuturePicks = hydrated._extras?.mflFuturePicks || null;
+
+                // Rolling PPG — fetch all played weeks' matchups in parallel
+                // so we can compute last-N-games PPG for each player. Runs
+                // in the background; consumers listen for wr:weekly-points-loaded.
+                // Only runs for Sleeper (other providers don't have this endpoint shape).
+                // Single-flight + league-tagged: rapidly switching leagues must not
+                // let a stale fetch from league A overwrite league B's results.
+                const _wppLeagueId = currentLeague.id || currentLeague.league_id;
+                if (provider.id === 'sleeper' && _wppLeagueId && currentWeek > 0) {
+                    const fetchToken = (window._wppFetchToken = (window._wppFetchToken || 0) + 1);
+                    const fetchLeagueId = _wppLeagueId;
+                    (async () => {
+                        try {
+                            const weeks = [];
+                            const maxWeek = Math.min(18, Math.max(1, currentWeek));
+                            for (let w = 1; w <= maxWeek; w++) weeks.push(w);
+                            const results = await Promise.all(weeks.map(w =>
+                                fetch('https://api.sleeper.app/v1/league/' + fetchLeagueId + '/matchups/' + w)
+                                    .then(r => r.ok ? r.json() : [])
+                                    .catch(() => [])
+                            ));
+                            // Guard: abort if a newer fetch has started or the
+                            // active league has changed under us.
+                            if (fetchToken !== window._wppFetchToken) return;
+                            const activeLeagueId = window.S?.currentLeagueId;
+                            if (activeLeagueId && activeLeagueId !== fetchLeagueId) return;
+                            const wpp = {};
+                            weeks.forEach((w, i) => {
+                                const wk = {};
+                                (results[i] || []).forEach(m => {
+                                    if (m && m.players_points) {
+                                        Object.entries(m.players_points).forEach(([pid, pts]) => {
+                                            if (pts != null) wk[pid] = pts;
+                                        });
+                                    }
+                                });
+                                wpp[w] = wk;
+                            });
+                            window.S.weeklyPlayerPoints = wpp;
+                            window.S.weeklyPlayerPointsLeagueId = fetchLeagueId;
+                            window.dispatchEvent(new CustomEvent('wr:weekly-points-loaded', { detail: { leagueId: fetchLeagueId } }));
+                        } catch (e) { /* non-fatal */ }
+                    })();
+                }
+                window.S.myRosterId = myRoster?.roster_id;
+                window.S.platform = provider.id;   // canonical marker
+                const _isNonSleeper = provider.id !== 'sleeper';
+                window.S.myUserId = _isNonSleeper
+                    ? (myRoster?.owner_id || currentLeague._mflFranchiseId || sleeperUserId)
+                    : sleeperUserId;
+                const _userId = window.S.myUserId;
+                const _userName = _isNonSleeper ? (myRoster?._owner_name || 'Owner') : (sleeperUsername || '');
+                window.S.user = { user_id: _userId, display_name: _userName, username: _userName };
+
+                // Bridge helper functions for dhq-ai.js context builders
+                const _p = players || {};
+                window.myR = () => (window.S.rosters || []).find(r => r.roster_id === window.S.myRosterId);
+                window.pName = pid => _p[pid]?.full_name || pid;
+                window.pPos = pid => _p[pid]?.position || '';
+                window.pAge = pid => _p[pid]?.age || 0;
+                window.pM = pos => { if (['DE','DT'].includes(pos)) return 'DL'; if (['CB','S','FS','SS'].includes(pos)) return 'DB'; if (['OLB','ILB','MLB'].includes(pos)) return 'LB'; return pos; };
+                window.dynastyValue = pid => window.App?.LI?.playerScores?.[pid] || 0;
+                window.getFAAB = () => {
+                    const league = window.S.leagues?.[0];
+                    const my = window.myR();
+                    const isFAAB = (league?.settings?.waiver_type === 2) || (league?.settings?.waiver_budget > 0);
+                    const budget = isFAAB ? (league?.settings?.waiver_budget || 0) : 0;
+                    const spent = my?.settings?.waiver_budget_used || 0;
+                    const minBid = isFAAB ? (league?.settings?.waiver_budget_min ?? 0) : 0;
+                    return { budget, spent, remaining: Math.max(0, budget - spent), isFAAB, minBid };
+                };
+                window.loadMentality = () => {
+                    const gm = window._wrGmStrategy || {};
+                    const modeMap = { contend: 'winnow', rebuild: 'rebuild', balanced: 'balanced' };
+                    return { mentality: modeMap[gm.mode] || 'balanced', neverDrop: (gm.untouchable || []).map(pid => _p[pid]?.full_name || pid).join(', '), notes: gm.notes || '' };
+                };
+                window.App.myR = window.myR;
+                window.App.pName = window.pName;
+                window.App.pPos = window.pPos;
+                window.App.pAge = window.pAge;
+                window.App.pM = window.pM;
+                window.App.dynastyValue = window.dynastyValue;
+                window.App.getFAAB = window.getFAAB;
+                window.App.loadMentality = window.loadMentality;
+
+                // Rolling PPG helper — returns avg points over the last N
+                // games where the player actually played (> minPts threshold).
+                // Uses window.S.weeklyPlayerPoints populated by the background
+                // weekly fetch above. Returns 0 if no data yet.
+                window.App.computeRollingPPG = function (pid, lastN, minPts) {
+                    const wpp = window.S?.weeklyPlayerPoints || {};
+                    const weeks = Object.keys(wpp).map(Number).sort((a, b) => b - a);
+                    const threshold = minPts == null ? 0.1 : minPts;
+                    const games = [];
+                    for (const w of weeks) {
+                        const pts = wpp[w]?.[pid];
+                        if (pts != null && pts >= threshold) {
+                            games.push(pts);
+                            if (games.length >= (lastN || 5)) break;
+                        }
+                    }
+                    if (!games.length) return 0;
+                    return +(games.reduce((a, b) => a + b, 0) / games.length).toFixed(1);
+                };
+
+                // BYO keys are session-only; migrate and clear older localStorage keys.
+                ['dynastyhq_ai_provider', 'dynastyhq_ai_key', 'dynastyhq_ai_model', 'dynastyhq_xai_key', 'dynastyhq_provider', 'dynastyhq_gemini_key', 'dynastyhq_anthropic_key'].forEach(name => {
+                    try {
+                        const value = localStorage.getItem(name);
+                        if (value && !sessionStorage.getItem(name)) sessionStorage.setItem(name, value);
+                        localStorage.removeItem(name);
+                    } catch (_) {}
+                });
+                const savedProvider = sessionStorage.getItem('dynastyhq_ai_provider') || sessionStorage.getItem('dynastyhq_provider') || 'gemini';
+                const savedKey = sessionStorage.getItem('dynastyhq_ai_key') || sessionStorage.getItem('dynastyhq_' + savedProvider + '_key') || sessionStorage.getItem('dynastyhq_gemini_key') || sessionStorage.getItem('dynastyhq_anthropic_key') || '';
+                if (savedKey) { window.S.aiProvider = savedProvider; window.S.apiKey = savedKey; }
+
+                // Bridge stats data — use prevStats (2025) as base, overlay current season
+                Object.entries(prevStats).forEach(([pid, s]) => {
+                    if (!window.S.playerStats[pid]) window.S.playerStats[pid] = {};
+                    const pts = calcRawPts(s);
+                    const gp = s.gp || 0;
+                    window.S.playerStats[pid].prevTotal = pts ? Math.round(pts * 10) / 10 : 0;
+                    window.S.playerStats[pid].prevAvg = gp > 0 ? Math.round(pts / gp * 10) / 10 : 0;
+                    window.S.playerStats[pid].prevRawStats = s;
+                });
+                // Overlay current season stats if available
+                Object.entries(stats).forEach(([pid, s]) => {
+                    if (!window.S.playerStats[pid]) window.S.playerStats[pid] = {};
+                    const pts = calcRawPts(s);
+                    const gp = s.gp || 0;
+                    if (gp > 0) {
+                        window.S.playerStats[pid].seasonTotal = pts ? Math.round(pts * 10) / 10 : 0;
+                        window.S.playerStats[pid].seasonAvg = Math.round(pts / gp * 10) / 10;
+                    }
+                });
+
+                // Mirror to SeasonContext so tab components can use React state
+                setSeasonCtxData({
+                    season: activeYear,
+                    playerStats: window.S.playerStats,
+                    tradedPicks: tradedPicks || [],
+                    rosters: currentLeague.rosters || [],
+                    myRosterId: myRosterData?.roster_id || null,
+                    lastUpdated: Date.now(),
+                });
+
+                if (weekRolled) setTimeRecomputeTs(Date.now());
+            }
+
+            if (!background) setLoadStage('Building league intelligence...');
+
+            // Flatten hydrated transactions (already bucketed by week
+            // from the provider) and merge in DHQ historical trades.
+            // This replaces the old per-platform transaction fetch.
+            let allTxns = [];
+            Object.values(hydrated.transactions || {}).forEach(wk => {
+                allTxns = allTxns.concat(wk || []);
+            });
+            allTxns.sort((a, b) => (b.created || 0) - (a.created || 0));
+
+            // Merge DHQ historical trades (pre-analyzed with value data)
+            // Deduplicate by timestamp so the provider's recent txns
+            // aren't doubled.
+            if (window.App?.LI?.tradeHistory?.length > 0) {
+                const existingTradeTs = new Set(allTxns.filter(t => t.type === 'trade').map(t => t.created || 0));
+                const histTrades = window.App.LI.tradeHistory
+                    .filter(t => !existingTradeTs.has(t.ts || 0))
+                    .map(t => ({ ...t, type: 'trade', status: 'complete', created: t.ts || 0, _fromDHQ: true }));
+                allTxns = [...allTxns, ...histTrades].sort((a, b) => (b.created || 0) - (a.created || 0));
+            }
+
+            // Populate window.S.transactions keyed by week for
+            // free-agency.js / flash-brief.js consumers.
+            if (window.S) {
+                const txnsByWeek = {};
+                allTxns.forEach(t => {
+                    const key = 'w' + (t.leg ?? t.week ?? 0);
+                    if (!txnsByWeek[key]) txnsByWeek[key] = [];
+                    txnsByWeek[key].push(t);
+                });
+                window.S.transactions = txnsByWeek;
+            }
+            let visibleTxns = allTxns.slice(0, 50);
+            if (!visibleTxns.some(t => t.type === 'trade')) {
+                const firstTrade = allTxns.find(t => t.type === 'trade');
+                if (firstTrade) visibleTxns = [...visibleTxns.slice(0, 49), firstTrade];
+            }
+            setTransactions(visibleTxns);
+
+            // Trending — if the provider supplied it (Sleeper), use that;
+            // otherwise fall back to Sleeper's global trending endpoint
+            // so all platforms see league-wide trends.
+            if (hydrated.trending?.adds || hydrated.trending?.drops) {
+                setTrending({
+                    adds: hydrated.trending.adds || [],
+                    drops: hydrated.trending.drops || [],
+                });
+            } else if (window.Sleeper?.fetchTrending) {
+                (async () => {
+                    try {
+                        const [adds, drops] = await Promise.all([
+                            window.Sleeper.fetchTrending('add', 24, 15),
+                            window.Sleeper.fetchTrending('drop', 24, 15),
+                        ]);
+                        setTrending({ adds: adds || [], drops: drops || [] });
+                    } catch (e) { window.wrLog && window.wrLog('trending.fetch', e); }
+                })();
             }
         }
 
@@ -2191,7 +2295,8 @@
                         record: myRoster?.settings ? `${myRoster.settings.wins}-${myRoster.settings.losses}` : '',
                         needs: (assessment?.needs || []).map(n => n.urgency === 'deficit' ? `${n.pos}*` : n.pos),
                         strengths: assessment?.strengths || [],
-                        gmStrategy: [gmStrategy?.mode, gmStrategy?.riskTolerance && `${gmStrategy.riskTolerance} risk`].filter(Boolean).join(', '),
+                        // gmStrategy rides in from buildStructuredBase (the canonical
+                        // WR.GmMode.promptBlock serialization) — no legacy override here.
                         myRoster: diagRoster,
                       };
                       const result = await window.OD.callAI({ type: 'team_diagnosis', context });
@@ -2266,11 +2371,19 @@
             if (window._leagueDocsContext) {
                 context += '\n\n--- LEAGUE DOCUMENTS ---\n' + window._leagueDocsContext;
             }
-            // Phase 1: inject GM mode preamble so Alex's advice matches the GM's strategy
+            // GM Strategy directive — the FULL committed plan via the canonical
+            // serializer (mode directive, timeline, floor, postures, positions,
+            // sell rules, untouchable names). Falls back to the mode-only preset
+            // sentence when no strategy has been saved yet.
             try {
-                const gm = window.WR?.GmMode?.describe?.(gmStrategy?.mode);
-                if (gm && gm.prompt) {
-                    context = '--- GM MODE DIRECTIVE ---\n' + gm.prompt + '\n\n' + context;
+                const gmBlock = window.WR?.GmMode?.promptBlock?.(currentLeague?.league_id || currentLeague?.id);
+                if (gmBlock) {
+                    context = '--- GM STRATEGY DIRECTIVE ---\n' + gmBlock + '\n\n' + context;
+                } else {
+                    const gm = window.WR?.GmMode?.describe?.(gmStrategy?.mode);
+                    if (gm && gm.prompt) {
+                        context = '--- GM MODE DIRECTIVE ---\n' + gm.prompt + '\n\n' + context;
+                    }
                 }
             } catch (e) { /* ignore */ }
             // Format + quality preamble — the generic dhqAI path can't detect
@@ -2924,18 +3037,43 @@
                     {/* Spacer */}
                     <div style={{ flex: 1 }}></div>
 
-                    {/* Sync Status */}
-                    <div className="wr-sidebar-extra" style={{ fontSize: 'var(--text-body, 1rem)', color: window.App?.LI_LOADED ? 'var(--k-2ecc71, #2ecc71)' : 'var(--silver)', textAlign: 'center', fontFamily: 'var(--font-body)', opacity: 0.7, marginBottom: '4px' }}>
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: window.App?.LI_LOADED ? 'var(--k-2ecc71, #2ecc71)' : 'var(--silver)', margin: '0 auto 2px' }}></div>
-                        {window.App?.LI_LOADED ? 'Synced' : 'Loading'}
-                    </div>
+                    {/* Sync Status — live freshness readout (audit:refresh-stale step 7) */}
+                    {(() => {
+                        const syncBase = window.WR?.Sync?.lastSyncedAt || syncedAt;
+                        const liReady = !!window.App?.LI_LOADED;
+                        let label, color;
+                        if (!liReady || !syncBase) {
+                            label = liReady ? 'Synced' : 'Loading';
+                            color = liReady ? 'var(--k-2ecc71, #2ecc71)' : 'var(--silver)';
+                        } else {
+                            const ageMs = Math.max(0, Date.now() - syncBase);
+                            const mins = Math.floor(ageMs / 60000);
+                            label = mins < 1 ? 'Synced just now'
+                                : mins < 60 ? 'Synced ' + mins + 'm ago'
+                                : 'Synced ' + Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm ago';
+                            const staleMs = window.WR?.Sync?.STALE_MS || 5 * 60 * 1000;
+                            color = ageMs > 30 * 60 * 1000 ? 'var(--k-e74c3c, #e74c3c)'
+                                : ageMs >= staleMs ? 'var(--k-f0a500, #f0a500)'
+                                : 'var(--k-2ecc71, #2ecc71)';
+                        }
+                        return (
+                            <div className="wr-sidebar-extra" title="Auto-refreshes when you return to the tab. Click Refresh Data for a full rebuild (values + history)." style={{ fontSize: 'var(--text-body, 1rem)', color, textAlign: 'center', fontFamily: 'var(--font-body)', opacity: 0.7, marginBottom: '4px' }}>
+                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, margin: '0 auto 2px' }}></div>
+                                {label}
+                            </div>
+                        );
+                    })()}
 
                     {/* Refresh Button */}
                     <button onClick={async () => {
                         try {
                             Object.keys(localStorage).filter(k => k.startsWith('dhq_leagueintel_') || k.startsWith('dhq_hist_')).forEach(k => localStorage.removeItem(k));
-                            try { sessionStorage.removeItem('fw_players_cache'); } catch(e) { window.wrLog('refresh.sessionClear', e); }
-                            window._wrPlayersCache = null;
+                            // Real cache clears (audit:refresh-stale step 2): the old
+                            // `window._wrPlayersCache = null` never touched core.js's
+                            // closure-scoped cache, and the sessionStorage key was a
+                            // relic of the pre-IndexedDB players cache.
+                            window.App?.clearDataCaches?.();
+                            window.Sleeper?.clearSeasonCaches?.();
                             if (window.App) { window.App.LI = {}; window.App.LI_LOADED = false; window._liLoading = false; }
                         } catch(e) { window.wrLog('refresh.cleanup', e); }
                         await loadLeagueDetails();
@@ -3041,12 +3179,17 @@
                             tabIndex: 0,
                             title: headerDraftInfo?.status === 'drafting'
                                 ? 'Jump to Follow Live Draft'
-                                : (headerDraftInfo?.start_time ? 'Open the Draft module · ' + new Date(headerDraftInfo.start_time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'Open the Draft module'),
+                                : headerDraftInfo?.status === 'complete'
+                                    ? 'View the completed draft results'
+                                    : (headerDraftInfo?.start_time ? 'Open the Draft module · ' + new Date(headerDraftInfo.start_time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'Open the Draft module'),
                             onClick: () => {
-                                const live = headerDraftInfo?.status === 'drafting';
-                                if (live) window._wrOpenLiveDraft = true;
+                                // 'drafting' jumps into the live mirror; 'complete' jumps to
+                                // the finished board — DraftTab's _wrOpenLiveDraft flag path
+                                // honors both statuses.
+                                const jump = headerDraftInfo?.status === 'drafting' || headerDraftInfo?.status === 'complete';
+                                if (jump) window._wrOpenLiveDraft = true;
                                 setActiveTab('draft');
-                                if (live) window.dispatchEvent(new CustomEvent('wr:open-live-draft'));
+                                if (jump) window.dispatchEvent(new CustomEvent('wr:open-live-draft'));
                             },
                             onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); } },
                             style: {
@@ -3062,7 +3205,7 @@
                                 cursor: 'pointer'
                             }
                         },
-                            React.createElement('span', { style: { color: 'var(--silver)', opacity: 0.78 } }, headerDraftClock.label),
+                            headerDraftClock.label ? React.createElement('span', { style: { color: 'var(--silver)', opacity: 0.78 } }, headerDraftClock.label) : null,
                             React.createElement('strong', { style: { color: 'var(--white)', fontFamily: "'JetBrains Mono', monospace", fontSize: 'var(--text-label, 0.75rem)' } }, headerDraftClock.clock)
                         )}
                     </div>

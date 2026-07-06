@@ -227,8 +227,14 @@
         const faabMinBid = currentLeague?.settings?.waiver_budget_min ?? 0;
         const teamTier = assess?.tier || '';
         const teamWindow = assess?.window || '';
-        const isRebuilding = teamTier === 'REBUILDING' || teamWindow === 'REBUILDING';
-        const isContending = teamTier === 'ELITE' || teamTier === 'CONTENDER' || teamWindow === 'CONTENDING';
+        // GM Strategy outranks the roster grade for FA posture: a committed plan
+        // sets rebuild/contend directly; the assessment remains the fallback for
+        // strategy-less users. The rebuild age gate follows the GM timeline
+        // (shorter window = looser youth filter); 25 is the legacy default.
+        const gmEff = window.WR?.GmMode?.effects?.(currentLeague?.id || currentLeague?.league_id) || {};
+        const isRebuilding = gmEff.hasStrategy ? gmEff.mode === 'rebuild' : (teamTier === 'REBUILDING' || teamWindow === 'REBUILDING');
+        const isContending = gmEff.hasStrategy ? gmEff.mode === 'win_now' : (teamTier === 'ELITE' || teamTier === 'CONTENDER' || teamWindow === 'CONTENDING');
+        const faAgeGate = gmEff.hasStrategy ? ({ '1_year': 29, '2_3_years': 27, 'dynasty_long': 25 }[gmEff.timeline] || 25) : 25;
         const isSuperFlex = leagueProfile ? leagueProfile.formatTags?.includes('superflex') : rosterPositions.includes('SUPER_FLEX');
         const isTEP = leagueProfile ? ((leagueProfile.scoring?.teBonus || 0) > 0 || leagueProfile.scoring?.tePremium >= 1.45) : (scoring.bonus_rec_te || scoring.rec_te || 0) > 0;
         const peaks = window.App?.peakWindows || {};
@@ -299,7 +305,7 @@
             if (!faIsPro) return null; // FAAB bid recommendations are Pro
             if (!hasFAAB || dhq <= 0) return null;
             if (dhq < 500) return null;
-            if (isRebuilding && (playerAge || 30) > 25 && dhq < 2000) return null;
+            if (isRebuilding && (playerAge || 30) > faAgeGate && dhq < 2000) return null;
             const floor = faabMinBid || 1;
             if (remaining < floor) return null; // FAAB exhausted — no legal bid left to suggest
             const base = Math.round((dhq / 250) * getScarcityMultiplier(pos));
@@ -383,9 +389,19 @@
         // GM-Office filters scope the recommendation surfaces (not the market pool).
         const gmFa = getGmFaFilters(currentLeague);
         const recPool = args.skipGmFilters ? availablePlayers : applyGmFaFilters(availablePlayers, gmFa);
-        // GM Strategy target positions float relevant FA adds to the top.
-        const gmEff = window.WR?.GmMode?.effects?.(currentLeague?.id || currentLeague?.league_id) || {};
+        // GM Strategy target positions float relevant FA adds to the top
+        // (gmEff resolved above, next to the rebuild/contend posture reads).
         const gmTargets = gmEff.targetPositions instanceof Set ? gmEff.targetPositions : new Set();
+        // Market posture biases candidate ordering: buy_low floats dipped-value
+        // adds (negative trend, real DHQ); sell_high/hold tighten the board by
+        // fading speculative low-value candidates.
+        const postureBias = (x) => {
+            if (!gmEff.hasStrategy) return 0;
+            const trend = Number(window.App?.LI?.playerMeta?.[x.pid]?.trend) || 0;
+            if (gmEff.marketPosture === 'buy_low') return (trend < 0 && x.dhq >= 2000) ? 1500 : 0;
+            if (gmEff.marketPosture === 'sell_high' || gmEff.marketPosture === 'hold') return x.dhq < 1500 ? -1200 : 0;
+            return 0;
+        };
 
         const needPositions = (assess?.needs || []).slice(0, 3).map(n => n.pos).filter(Boolean);
         let recommendations = [];
@@ -398,7 +414,7 @@
                 .filter(x => {
                     if (!needPositions.includes(x.pos)) return false;
                     if (x.dhq < dynamicFloor) return false;
-                    if (isRebuilding && (x.p.age || 30) > 25 && x.dhq < 2000) return false;
+                    if (isRebuilding && (x.p.age || 30) > faAgeGate && x.dhq < 2000) return false;
                     return true;
                 })
                 .slice(0, 8)
@@ -414,11 +430,11 @@
 
         const actionBoardPlayers = recPool
             .map(decorateFaCandidate)
-            .sort((a, b) => (b.fitScore * 5000 + b.dhq + (b.ppg || 0) * 35) - (a.fitScore * 5000 + a.dhq + (a.ppg || 0) * 35));
+            .sort((a, b) => (b.fitScore * 5000 + b.dhq + (b.ppg || 0) * 35 + postureBias(b)) - (a.fitScore * 5000 + a.dhq + (a.ppg || 0) * 35 + postureBias(a)));
         const priorityAdds = (recommendations.length ? recommendations : actionBoardPlayers)
             .map(decorateFaCandidate)
             .map(x => ({ ...x, seeded: crazeSeed.has(String(x.pid)), isStrategicTarget: gmTargets.has(x.pos) }))
-            .sort((a, b) => (Number(b.seeded) - Number(a.seeded)) || (Number(b.isStrategicTarget) - Number(a.isStrategicTarget)) || ((b.fitScore * 5000 + b.dhq) - (a.fitScore * 5000 + a.dhq)))
+            .sort((a, b) => (Number(b.seeded) - Number(a.seeded)) || (Number(b.isStrategicTarget) - Number(a.isStrategicTarget)) || ((b.fitScore * 5000 + b.dhq + postureBias(b)) - (a.fitScore * 5000 + a.dhq + postureBias(a))))
             .slice(0, 5);
         if (faIsPro && typeof window.App?.Intelligence?.publishRecommendations === 'function') {
             window.App.Intelligence.publishRecommendations('waiver', priorityAdds.map(x => x.intelligence).filter(Boolean), { surface: 'free-agency-action-board' });
@@ -699,6 +715,9 @@
         // out-projects the user's WEAKEST current starter at that position this week.
         const streaming = useMemo(() => {
             if (!isPro) return []; // "stream X over your worst starter" is a rec — Pro
+            // Dynasty leagues hide streaming (E3) — the empty list also hides
+            // the STREAMING UPGRADES card and the pos-filter dots (streamPosSet).
+            if (skinFeatures.showStreaming === false) return [];
             const WP = window.App && window.App.WeeklyProj;
             if (!WP || !WP.projectPlayer || !myRoster) return [];
             const scoring = currentLeague?.scoring_settings || {};
@@ -716,7 +735,7 @@
                 if (delta >= 1.5) opps.push({ pos, fa, worstName: (playersData[worst.pid] || {}).full_name || worst.pid, worstProj: worst.m, delta });
             });
             return opps.sort((a, b) => b.delta - a.delta);
-        }, [isPro, availablePlayers, myRoster, playersData, statsData, prevStatsData, currentLeague, timeRecomputeTs]);
+        }, [isPro, skinFeatures.showStreaming, availablePlayers, myRoster, playersData, statsData, prevStatsData, currentLeague, timeRecomputeTs]);
         const streamPosSet = new Set(streaming.map(o => o.pos));
 
         // GM-Office FA filters scope the recommendation surfaces (priority adds +
@@ -728,6 +747,9 @@
             return () => window.removeEventListener('wr:gm-mode-changed', h);
         }, []);
         const gmFa = useMemo(() => getGmFaFilters(currentLeague), [currentLeague, gmFilterTick]);
+        // Resolved GM Strategy effects — drives the rebuild/contend posture and
+        // market-posture ordering below (live-updates via gmFilterTick).
+        const gmEff = useMemo(() => window.WR?.GmMode?.effects?.(currentLeague?.league_id || currentLeague?.id) || {}, [currentLeague, gmFilterTick]);
         const recPool = useMemo(() => applyGmFaFilters(availablePlayers, gmFa), [availablePlayers, gmFa]);
         const gmHiddenCount = Math.max(0, availablePlayers.length - recPool.length);
         const gmFiltersOn = gmFaFiltersActive(gmFa);
@@ -897,8 +919,11 @@
         const isTEP = leagueProfile ? ((leagueProfile.scoring?.teBonus || 0) > 0 || leagueProfile.scoring?.tePremium >= 1.45) : (scoring.bonus_rec_te || scoring.rec_te || 0) > 0;
         const teamTier = assess?.tier || '';
         const teamWindow = assess?.window || '';
-        const isRebuilding = teamTier === 'REBUILDING' || teamWindow === 'REBUILDING';
-        const isContending = teamTier === 'ELITE' || teamTier === 'CONTENDER' || teamWindow === 'CONTENDING';
+        // GM Strategy outranks the roster grade (assessment = fallback); the
+        // rebuild age gate follows the GM timeline. Mirrors buildFreeAgencyActionBoard.
+        const isRebuilding = gmEff.hasStrategy ? gmEff.mode === 'rebuild' : (teamTier === 'REBUILDING' || teamWindow === 'REBUILDING');
+        const isContending = gmEff.hasStrategy ? gmEff.mode === 'win_now' : (teamTier === 'ELITE' || teamTier === 'CONTENDER' || teamWindow === 'CONTENDING');
+        const faAgeGate = gmEff.hasStrategy ? ({ '1_year': 29, '2_3_years': 27, 'dynasty_long': 25 }[gmEff.timeline] || 25) : 25;
 
         // ── Positional scarcity multipliers based on league format ──
         function getScarcityMultiplier(pos) {
@@ -920,7 +945,7 @@
             if (dhq < 500) return null; // Below minimum quality threshold
 
             // ── Team mode gate ──
-            if (isRebuilding && (playerAge || 30) > 25 && dhq < 2000) {
+            if (isRebuilding && (playerAge || 30) > faAgeGate && dhq < 2000) {
                 // Rebuilding teams should NOT bid on older low-value players
                 return null;
             }
@@ -978,7 +1003,7 @@
                 .filter(x => {
                     if (!needPositions.includes(x.pos)) return false;
                     if (x.dhq < dynamicFloor) return false;
-                    if (isRebuilding && (x.p.age || 30) > 25 && x.dhq < 2000) return false; // Rebuilders skip old low-value
+                    if (isRebuilding && (x.p.age || 30) > faAgeGate && x.dhq < 2000) return false; // Rebuilders skip old low-value
                     return true;
                 })
                 .slice(0, 8)
@@ -994,7 +1019,7 @@
 	                    return { ...x, ppg, need, peakYrs, valueYrs, faab };
                 })
                 .filter(Boolean);
-        }, [isPro, rosterState.isUsable, recPool, assess, statsData]);
+        }, [isPro, rosterState.isUsable, recPool, assess, statsData, gmEff]);
 
         // Selected player detail
         const selPlayer = faSelectedPid ? playersData[faSelectedPid] : null;
@@ -1163,12 +1188,20 @@
 
         // Free skips the rec pipeline entirely: nothing to render (Action HQ is
         // gated below) and nothing published to the shared Intelligence stream.
+        // Market posture biases ordering — mirrors buildFreeAgencyActionBoard.
+        const postureBias = (x) => {
+            if (!gmEff.hasStrategy) return 0;
+            const trend = Number(window.App?.LI?.playerMeta?.[x.pid]?.trend) || 0;
+            if (gmEff.marketPosture === 'buy_low') return (trend < 0 && x.dhq >= 2000) ? 1500 : 0;
+            if (gmEff.marketPosture === 'sell_high' || gmEff.marketPosture === 'hold') return x.dhq < 1500 ? -1200 : 0;
+            return 0;
+        };
         const actionBoardPlayers = !isPro ? [] : recPool
             .map(decorateFaCandidate)
-            .sort((a, b) => (b.fitScore * 5000 + b.dhq + (b.ppg || 0) * 35) - (a.fitScore * 5000 + a.dhq + (a.ppg || 0) * 35));
+            .sort((a, b) => (b.fitScore * 5000 + b.dhq + (b.ppg || 0) * 35 + postureBias(b)) - (a.fitScore * 5000 + a.dhq + (a.ppg || 0) * 35 + postureBias(a)));
         const priorityAdds = (recommendations.length ? recommendations : actionBoardPlayers)
             .map(decorateFaCandidate)
-            .sort((a, b) => (b.fitScore * 5000 + b.dhq) - (a.fitScore * 5000 + a.dhq))
+            .sort((a, b) => (b.fitScore * 5000 + b.dhq + postureBias(b)) - (a.fitScore * 5000 + a.dhq + postureBias(a)))
             .slice(0, 5);
         if (isPro && typeof window.App?.Intelligence?.publishRecommendations === 'function') {
             window.App.Intelligence.publishRecommendations('waiver', priorityAdds.map(x => x.intelligence).filter(Boolean), { surface: 'free-agency' });

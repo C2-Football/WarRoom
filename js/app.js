@@ -271,6 +271,9 @@
         const [activeTab, setActiveTab] = useState('dashboard');
         const isNavigatingRef = React.useRef(false);
         const initialRouteAppliedRef = React.useRef(false);
+        // When the hub's league cards (records/rosters) last finished loading —
+        // drives the return-to-hub freshness check below (audit:refresh-stale step 10).
+        const hubSyncedAtRef = React.useRef(0);
         // ESPN state
         const [espnLeagues, setEspnLeagues] = useState([]);
         const [espnConnecting, setEspnConnecting] = useState(false);
@@ -472,7 +475,7 @@
                 setSleeperUser(user);
 
                 const leagues = (await fetchUserLeagues(user.user_id, selectedYear)) || [];
-                if (!leagues.length) { setSleeperLeagues([]); setLoading(false); return; }
+                if (!leagues.length) { setSleeperLeagues([]); setLoading(false); hubSyncedAtRef.current = Date.now(); return; }
 
                 // Stream each league's full details into state as it resolves, preserving
                 // the original order, instead of awaiting the slowest league via a single
@@ -515,6 +518,7 @@
                     })
                 );
 
+                hubSyncedAtRef.current = Date.now();
                 setLoading(false);
             } catch (err) {
                 console.error('Failed to load Sleeper data:', err);
@@ -522,6 +526,19 @@
                 setLoading(false);
             }
         }
+
+        // Hub freshness (audit:refresh-stale step 10): league cards load once per
+        // year selection and then sit stale for the whole session. When the user
+        // closes a league and lands back on the hub with data older than 5 min,
+        // re-pull records/rosters. loadSleeperData streams per-league, so the
+        // re-run repaints cards progressively instead of blocking the hub.
+        useEffect(() => {
+            if (selectedLeague || proMode) return;   // only when the hub itself is showing
+            if (!sleeperUsername || loading) return;
+            if (!hubSyncedAtRef.current) return;     // first load is owned by the [selectedYear] effect
+            if (Date.now() - hubSyncedAtRef.current < 5 * 60 * 1000) return;
+            loadSleeperData();
+        }, [selectedLeague, proMode]);
 
         // Hook must be above the early return to maintain consistent hook order
         const [reconLeagueId, setReconLeagueId] = useState(null);

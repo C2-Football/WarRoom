@@ -247,12 +247,15 @@ function MyTeamTab({
 
   if (!myRoster) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--silver)' }}>No roster found</div>;
 
+  // Dynasty (E2): the START/SIT verdict is suppressed at every tier — the Wk
+  // column keeps raw pts + matchup grade, and the Redraft preset disappears.
+  const wkVerdict = skinFeatures.showWeeklyVerdict !== false;
   const ROSTER_COLUMNS = {
     pos:        { label: 'Position', shortLabel: 'Pos', width: '38px', group: 'core' },
     age:        { label: 'Age', shortLabel: 'Age', width: '38px', group: 'dynasty' },
     dhq:        { label: valueLabel, shortLabel: valueShortLabel, width: '60px', group: 'dynasty' },
     ppg:        { label: 'Points Per Game', shortLabel: 'PPG', width: '48px', group: 'stats' },
-    proj:       { label: isPro ? 'This Week — projected pts + start/sit (league-scored)' : 'This Week — projected pts (league-scored)', shortLabel: 'Wk', width: '62px', group: 'stats' },
+    proj:       { label: isPro && wkVerdict ? 'This Week — projected pts + start/sit (league-scored)' : 'This Week — projected pts (league-scored)', shortLabel: 'Wk', width: '62px', group: 'stats' },
     hi:         { label: 'Season High — most fantasy pts in a week', shortLabel: 'Hi', width: '40px', group: 'stats' },
     lo:         { label: 'Season Low — fewest fantasy pts in a played week', shortLabel: 'Lo', width: '40px', group: 'stats' },
     prev:       { label: 'Previous Season PPG', shortLabel: 'Last', width: '44px', group: 'stats' },
@@ -289,9 +292,11 @@ function MyTeamTab({
   // view can't resurrect it.
   if (!isPro) delete ROSTER_COLUMNS.action;
 
+  // Dynasty (E2): 'proj' leaves the default preset — still user-addable
+  // (raw pts; renderCell strips the verdict so saved views can't resurrect it).
   const COLUMN_PRESETS = {
-    default: ['pos','age','dhq','posRankLg','ppg','proj','durability','peak','action','sos'].filter(k => ROSTER_COLUMNS[k]),
-    redraft: ['pos','proj','ppg','prev','trend','hi','lo','sos'],
+    default: ['pos','age','dhq','posRankLg','ppg',...(wkVerdict ? ['proj'] : []),'durability','peak','action','sos'].filter(k => ROSTER_COLUMNS[k]),
+    ...(wkVerdict ? { redraft: ['pos','proj','ppg','prev','trend','hi','lo','sos'] } : {}),
     stats:   ['pos','dhq','ppg','prev','trend','gp','durability','sos'],
     scout:   ['pos','age','college','slot','height','weight','depthChart','yrsExp','starterSzn','posRankNfl'],
     rookie:  ['pos','age','college','rkSlot','rkTeam','rkRank','rkTier','rkProfile'],
@@ -381,13 +386,15 @@ function MyTeamTab({
     // sub-line keys off this so a "past value window" Sell never reads "sell high".
     let recAction = !isPro ? null : pa ? pa.action : (valueYrsLeft <= 0 ? 'SELL' : _pidElite && peakYrsLeft >= 3 ? 'CORE' : peakYrsLeft >= 4 && dhq < 4000 ? 'STASH' : 'HOLD');
 
-    // GM Strategy nudge: if this player's position/age trips a sell rule or a
-    // sell-position (and isn't strategy-untouchable / already a sell or build
-    // call), steer the roster recommendation toward Sell. Flagged for the UI.
-    // Pro-only (Q8): it steers the app's verdict, unlike the passive accents.
+    // GM Strategy nudge — a VISUAL flag over the engine verdict. getPlayerAction
+    // is now strategy-aware and returns GM-steered sells with a 'GM plan:'
+    // reason; detect those so the flag survives. The local gmTripsSell steer
+    // remains only for the simplified fallback rec (engine not loaded).
+    // Pro-only (Q8): it marks/steers the app's verdict, unlike passive accents.
     const gmIsUntouchable = gmUntouchable.has(String(pid));
-    const gmSellNudge = isPro && !gmIsUntouchable && !/sell|buy|build|core/i.test(rec) && gmTripsSell({ pos, age });
-    if (gmSellNudge) { rec = 'Sell'; recAction = 'SELL'; }
+    const gmEngineNudge = !!(pa && /^GM plan/i.test(pa.reason || '') && /SELL/i.test(pa.action || ''));
+    const gmSellNudge = isPro && !gmIsUntouchable && (gmEngineNudge || (!/sell|buy|build|core/i.test(rec) && gmTripsSell({ pos, age })));
+    if (gmSellNudge && !/sell/i.test(rec)) { rec = 'Sell'; recAction = 'SELL'; }
     const gmIsTarget = gmTargetPositions.has(String(pos));
     const gmIsSellPos = gmSellPositions.has(String(pos));
 
@@ -753,10 +760,12 @@ function MyTeamTab({
         const g = p.matchupGrade;
         const gcol = g === 'A' ? 'var(--good)' : g === 'B' ? 'var(--gold)' : g === 'D' ? 'var(--warn)' : g === 'F' ? 'var(--bad)' : 'var(--silver)';
         // Free: raw projected pts keep rendering; START/SIT (optimizer output)
-        // + matchup grade (interpretive read) are the Pro line.
+        // + matchup grade (interpretive read) are the Pro line. Dynasty (E2):
+        // only the START/SIT verdict is suppressed — Pro keeps the matchup
+        // grade, and saved views keep the raw pts.
         return <div key={colKey} style={{...base, flexDirection: 'column', gap: '0px'}} title={'Projected ' + pts.toFixed(1) + ' pts' + (isPro ? ' · matchup ' + g : '') + (p.opponent && p.opponent.abbr ? ' vs ' + p.opponent.abbr : '')}>
           <span style={{ color: 'var(--white)', fontWeight: 600, fontSize: '0.76rem', fontFamily: 'var(--font-body)' }}>{pts > 0 ? pts.toFixed(1) : '—'}</span>
-          {isPro && <span style={{ fontSize: '0.54rem', fontWeight: 700, letterSpacing: '0.03em', color: isStart ? 'var(--good)' : 'var(--silver)' }}>{isStart ? 'START' : 'SIT'}<span style={{ color: gcol, marginLeft: '3px' }}>{g}</span></span>}
+          {isPro && <span style={{ fontSize: '0.54rem', fontWeight: 700, letterSpacing: '0.03em', color: wkVerdict ? (isStart ? 'var(--good)' : 'var(--silver)') : gcol }}>{wkVerdict ? (isStart ? 'START' : 'SIT') : ''}<span style={{ color: gcol, marginLeft: wkVerdict ? '3px' : '0px' }}>{g}</span></span>}
         </div>;
       }
       case 'hi': { const fs = window.App?.WeeklyProj?.formStats?.(r.pid, 'season'); return <div key={colKey} style={{...base}}><span style={{ color: fs ? 'var(--good, #2ecc71)' : 'var(--silver)', opacity: fs ? 1 : 0.45, fontWeight: 550 }}>{fs ? fs.high.toFixed(1) : '—'}</span></div>; }

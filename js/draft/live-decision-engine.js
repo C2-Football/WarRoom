@@ -120,7 +120,28 @@
         return out;
     }
 
-    function decorateCandidate(state, player, idx, lane, rankLookup, needs) {
+    // GM Strategy terms for the live score — resolved once per candidates()
+    // pass, so the Recommended/Safe/Upside cards obey the strategy on the
+    // DEFAULT (dhq) board lane, not just the AI lane. Guarded: gm-mode.js is
+    // optional; returns null (score unchanged) until a strategy is saved.
+    function gmScoreContext(state) {
+        try {
+            if (typeof window.WR?.GmMode?.effects !== 'function') return null;
+            const fx = window.WR.GmMode.effects(state?.leagueId || window.S?.currentLeagueId);
+            if (!fx || !fx.hasStrategy) return null;
+            return {
+                // Same draftStyle → needBias mapping as the AI board lane.
+                needBias: (fx.draftStyle === 'positional_need' || fx.draftStyle === 'need') ? 1.35
+                    : fx.draftStyle === 'bpa' ? 0.8
+                    : num(fx.draftWeights?.needBias, 1) || 1,
+                youthPremium: num(fx.draftWeights?.youthPremium, 1) || 1,
+                targets: fx.targetPositions instanceof Set ? fx.targetPositions : new Set(),
+                fades: fx.sellPositions instanceof Set ? fx.sellPositions : new Set(),
+            };
+        } catch (_) { return null; }
+    }
+
+    function decorateCandidate(state, player, idx, lane, rankLookup, needs, gm) {
         const boardContext = state?.draftContext?.boardContext || {};
         const entry = boardEntry(boardContext, player);
         const rank = boardRank(boardContext, player, lane) || rankLookup[idKey(player?.pid)] || idx + 1;
@@ -133,9 +154,19 @@
         // userNeedMap depends only on state, not the player — built once by candidates()
         // and passed in (was rebuilt for every one of the ~300-440 pool candidates).
         const needMap = needs || userNeedMap(state);
-        const needBoost = needMap[posOf(player)] || 0;
+        const needBoost = (needMap[posOf(player)] || 0) * (gm ? gm.needBias : 1);
+        // GM Strategy steers (0 when no strategy): mild target/fade position
+        // shifts plus a youth tilt — rebuild boosts age-24-and-under skill
+        // players, win-now fades them (youthPremium 1.2 / 0.6 per preset).
+        const age = ageOf(player);
+        const gmPosBoost = gm ? (gm.targets.has(posOf(player)) ? 6 : 0) - (gm.fades.has(posOf(player)) ? 6 : 0) : 0;
+        const gmYouthBoost = (gm && age && age <= 24 && ['QB', 'RB', 'WR', 'TE'].includes(posOf(player)))
+            ? Math.max(-12, Math.min(12, (gm.youthPremium - 1) * 30))
+            : 0;
         const score = dhq / 100
             + needBoost
+            + gmPosBoost
+            + gmYouthBoost
             + (tagTarget ? 24 : 0)
             - (tagFade ? 42 : 0)
             + Math.max(-12, Math.min(18, growth / 180))
@@ -161,10 +192,11 @@
         const lane = activeLane(boardContext);
         const rankLookup = rankMap(boardContext?.lanes?.[lane]?.order || []);
         const needs = userNeedMap(state);
+        const gm = gmScoreContext(state);
         const ldCopies = Math.max(1, Number(state?.playerCopies) || 1);
         return asArray(state?.pool)
             .filter(p => p?.pid && (state?.draftedPids?.[p.pid] || 0) < ldCopies)
-            .map((p, idx) => decorateCandidate(state, p, idx, lane, rankLookup, needs))
+            .map((p, idx) => decorateCandidate(state, p, idx, lane, rankLookup, needs, gm))
             .sort((a, b) => (a.rank - b.rank) || (b.dhq - a.dhq))
             .slice(0, limit);
     }

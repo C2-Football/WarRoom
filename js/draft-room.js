@@ -169,10 +169,14 @@
         // pick lands or the live Command Center is opened. 'drafting'/'complete' = on. Stops
         // polling once complete; pre-draft / no-draft leaves generation free.
         const [liveDraftStatus, setLiveDraftStatus] = useState('');
+        // Draft-of-record id captured alongside the status — keys the auto-open
+        // marker below so each newly completed draft auto-shows exactly once.
+        const [liveDraftId, setLiveDraftId] = useState(null);
         useEffect(() => {
             const lid = window.S?.currentLeagueId || currentLeague?.league_id || currentLeague?.id;
             if (!lid) return;
             let cancelled = false, timer = null;
+            let prevStatus = ''; // per-league transition detection (drafting → complete)
             // MFL leagues have no Sleeper drafts endpoint — that fetch 404s on the
             // 'mfl_<id>_<year>' league id. Source the status-bearing MFL draft
             // objects instead (re-pulled live so pre_draft → drafting is caught),
@@ -203,10 +207,18 @@
                         || drafts.find(d => d.status === 'drafting')
                         || drafts.find(d => d.status === 'complete')
                         || drafts.find(d => d.status === 'pre_draft') || null;
-                    setLiveDraftStatus(active?.status || '');
+                    const status = active?.status || '';
+                    // A draft finishing changes rosters/picks league-wide — revalidate
+                    // the league data instead of rendering stale pre-draft state.
+                    if (prevStatus === 'drafting' && status === 'complete') {
+                        try { window.WR?.Sync?.refresh?.('draft-complete'); } catch (e) {}
+                    }
+                    prevStatus = status;
+                    setLiveDraftStatus(status);
+                    setLiveDraftId(active?.draft_id != null ? String(active.draft_id) : null);
                     // Slow heartbeat post-completion so the tab rotates to the next
                     // draft when it goes live, without a remount.
-                    if (!cancelled) timer = setTimeout(poll, active?.status === 'complete' ? 60000 : 20000);
+                    if (!cancelled) timer = setTimeout(poll, status === 'complete' ? 60000 : 20000);
                 }).catch(() => { if (!cancelled) timer = setTimeout(poll, 30000); });
             };
             poll();
@@ -245,11 +257,19 @@
             });
         }, [currentLeague?.tradedPicks, currentLeague?.rosters, leagueKey, leagueSeason, timeRecomputeTs]);
 
+        // Any user-driven draft navigation this session suppresses the completed-
+        // draft auto-open below — never yank a view the user deliberately chose.
+        const draftNavTouchedRef = useRef(false);
+        // setDraftView wrapper for click-driven navigation (nav strip, jump-to-board
+        // shortcuts). Programmatic view changes keep calling setDraftView directly.
+        const navDraftView = (view) => { draftNavTouchedRef.current = true; setDraftView(view); };
+
         useEffect(() => {
             const openPickFocus = (event) => {
                 const next = event?.detail || window._wrDraftPickFocus || null;
                 if (!next) return;
                 setPickFocus(next);
+                draftNavTouchedRef.current = true; // user opened a pick from the ledger
                 setDraftView('command');
             };
             window.addEventListener('wr:open-draft-pick-context', openPickFocus);
@@ -279,13 +299,15 @@
             return () => { cancelled = true; };
         }, [expandedDraftPid]);
 
-        // Jump straight into Follow Live Draft when the league header "Draft Live"
-        // chip is clicked. The chip lives in league-detail, so it sets a flag +
-        // fires this event; the mount-time flag check covers the case where the
-        // Draft tab (and this module) wasn't mounted yet when the chip was clicked.
+        // Jump straight into Follow Live Draft when the league header draft chip
+        // is clicked (live "Draft Live" AND completed "View Results" — the chip
+        // sets the flag for both statuses). The chip lives in league-detail, so it
+        // sets a flag + fires this event; the mount-time flag check covers the case
+        // where the Draft tab (and this module) wasn't mounted yet on click.
         useEffect(() => {
             const openLive = () => {
                 window._wrOpenLiveDraft = false;
+                draftNavTouchedRef.current = true; // chip click = manual navigation
                 setLiveAutoStartToken(Date.now());
                 setDraftView('live');
             };
@@ -293,6 +315,32 @@
             if (window._wrOpenLiveDraft) openLive();
             return () => window.removeEventListener('wr:open-live-draft', openLive);
         }, []);
+
+        // ── Completed-draft auto-open ─────────────────────────────────────────
+        // A finished real-platform draft (Sleeper autodraft/away, MFL email draft)
+        // used to sit behind a manual "View Draft Results" click — the board was
+        // rebuilt only through launchLiveDraft(). Fire that same chain automatically
+        // ONCE per completed draft: status 'complete' only (never hijack the tab
+        // mid-draft), per-device dedup keyed to the draft id, and only when the
+        // user hasn't manually navigated the draft views this session.
+        useEffect(() => {
+            if (liveDraftStatus !== 'complete' || !liveDraftId) return;
+            if (draftNavTouchedRef.current) return;
+            if (draftView === 'live') return;
+            let shown = null;
+            try { shown = DraftStorage.get('wr_draft_autoshown_' + leagueKey, null); } catch (e) {}
+            if (String(shown ?? '') === String(liveDraftId)) return;
+            setLiveAutoStartToken(Date.now());
+            setDraftView('live');
+        }, [liveDraftStatus, liveDraftId, leagueKey, draftView]);
+
+        // Record "this completed draft has been shown on this device" whenever the
+        // live view is open on it — covers the auto-open above AND manual entries,
+        // so a draft the user already opened themselves never auto-opens later.
+        useEffect(() => {
+            if (draftView !== 'live' || liveDraftStatus !== 'complete' || !liveDraftId) return;
+            try { DraftStorage.set('wr_draft_autoshown_' + leagueKey, String(liveDraftId)); } catch (e) {}
+        }, [draftView, liveDraftStatus, liveDraftId, leagueKey]);
 
         const normPos = window.App.normPos;
         const posLabel = pos => window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos);
@@ -699,6 +747,15 @@
                 || draftHistoryRecaps.find(r => r.mode === 'live-sync')
                 || draftHistoryRecaps[0] || null;
         }, [draftHistoryRecaps, draftInfo]);
+        // Banner honesty: "saved" is only true when we actually hold the finished
+        // board locally (live-sync state) or an archived recap for THIS draft —
+        // strict id match, not lastDraftRecap's any-recap fallback. Otherwise the
+        // button rebuilds the board from the platform, so say that instead.
+        const completedBoardSaved = liveDraftSnapshot.active
+            || draftHistoryRecaps.some(r => {
+                const did = draftInfo?.draft_id || liveDraftId;
+                return did && sameId(r.sleeperDraftId, did);
+            });
 
         // Helper: get player display name
         const pName = (p) => p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || 'Unknown';
@@ -774,7 +831,7 @@
                 setMyBoardOrder(aiRecommendedOrder.slice());
             }
             setBoardMode('my');
-            setDraftView('board');
+            navDraftView('board');
         }, [aiRecommendedOrder, boardPosFilter, draftPoolRows, normPos]);
 
         // Auto-save board data to localStorage on changes. The AI order is saved
@@ -1058,7 +1115,7 @@
             setBoardTeamFilter('');
             setBoardRoundFilter('');
             setExpandedDraftPid(pid);
-            setDraftView('board');
+            navDraftView('board');
             setTimeout(() => {
                 const el = document.querySelector('[data-draft-pid="' + String(pid) + '"]');
                 if (el?.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2288,6 +2345,7 @@
             live: 'Live Sleeper mirror with your board, roster build, and opponent intel.'
         };
         const launchLiveDraft = () => {
+            draftNavTouchedRef.current = true; // always click-driven (banner/strip buttons)
             setLiveAutoStartToken(Date.now());
             setDraftView('live');
         };
@@ -2386,7 +2444,7 @@
                             </div>
                             <div className="draft-alex-footer">
                                 <span>{activeFlashAlexBrief.footer}</span>
-                                <button type="button" onClick={() => setDraftView('mock')}>Open Mock Center</button>
+                                <button type="button" onClick={() => navDraftView('mock')}>Open Mock Center</button>
                             </div>
                         </div>
                     </div>
@@ -2426,8 +2484,9 @@
         // scheduled draft). Deterministic; no AI. App.DraftGameplan engine.
         const renderDraftGameplan = () => {
             // Round-by-round blueprint is a draft optimizer output → Pro (mirrors
-            // reconai renderDraftGameplan). NOTE: the dynasty track adds a format
-            // flag to this SAME condition next step — keep it a single boolean.
+            // reconai renderDraftGameplan). Dynasty never reaches here — the call
+            // site format-gates on skinFeatures.showDraftGameplan (E5), so this
+            // lock card only ever shows for redraft/keeper free users.
             const gameplanLocked = !isPro;
             if (gameplanLocked) {
                 const GatedRow = window.WrGatedMoreRow;
@@ -2480,9 +2539,9 @@
                 <div className={'wr-module-strip' + (activeView === 'live' || activeView === 'mock' ? ' is-compact' : '')}>
                     <div className="wr-module-actions">
                     <div className="wr-module-nav">
-                    <button type="button" className={activeView === 'command' ? 'is-active' : ''} onClick={() => setDraftView('command')}>War Room</button>
-                    <button type="button" className={activeView === 'board' ? 'is-active' : ''} onClick={() => setDraftView('board')}>Big Board</button>
-                    <button type="button" className={activeView === 'mock' ? 'is-active' : ''} onClick={() => setDraftView('mock')}>Mock Draft Center</button>
+                    <button type="button" className={activeView === 'command' ? 'is-active' : ''} onClick={() => navDraftView('command')}>War Room</button>
+                    <button type="button" className={activeView === 'board' ? 'is-active' : ''} onClick={() => navDraftView('board')}>Big Board</button>
+                    <button type="button" className={activeView === 'mock' ? 'is-active' : ''} onClick={() => navDraftView('mock')}>Mock Draft Center</button>
                     <button type="button" onClick={() => setShowDraftHistory(true)} title="Archived drafts — grades, picks, and recaps">Draft History</button>
                     </div>
                     <button type="button" className={'wr-live-draft-action' + (activeView === 'live' ? ' is-active' : '')} onClick={launchLiveDraft}>Follow Live Draft</button>
@@ -2528,7 +2587,9 @@
                                     </span>
                                 )}
                                 <span style={{ color: 'var(--silver)', fontSize: '0.8rem' }}>
-                                    Your board and grade are saved — this draft stays here until the next one is scheduled.
+                                    {completedBoardSaved
+                                        ? 'Your board and grade are saved — this draft stays here until the next one is scheduled.'
+                                        : 'Draft finished — View Draft Results rebuilds the full board, picks, and grade.'}
                                 </span>
                                 <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
                                     <button type="button" onClick={launchLiveDraft} style={{ padding: '4px 12px', minHeight: '32px', borderRadius: 6, cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.76rem', fontWeight: 800, border: 'none', background: 'var(--gold)', color: 'var(--black)' }}>View Draft Results</button>
@@ -2677,7 +2738,9 @@
                                     )}
                                 </div>
                                 {renderAnalystFlash()}
-                                {renderDraftGameplan()}
+                                {/* E5: dynasty leagues have no gameplan at all (format,
+                                    not tier) — clean absence, not a lock card. */}
+                                {skinFeatures.showDraftGameplan !== false && renderDraftGameplan()}
                             </aside>
                         </div>
 
@@ -2738,7 +2801,7 @@
                                                 <span className="draft-rec-actions">
                                                     <button type="button" onClick={e => { e.stopPropagation(); setScoutDrawerPid(pick.pid); }}>Scout</button>
                                                     <button type="button" onClick={e => { e.stopPropagation(); setBoardTags(prev => ({ ...prev, [pick.pid]: 'target' })); }}>Tag Target</button>
-                                                    <button type="button" onClick={e => { e.stopPropagation(); setDraftView('mock'); }}>Mock It</button>
+                                                    <button type="button" onClick={e => { e.stopPropagation(); navDraftView('mock'); }}>Mock It</button>
                                                 </span>
                                             )}
                                         </div>

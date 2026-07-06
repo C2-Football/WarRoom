@@ -201,6 +201,30 @@ function IntelligenceBriefWidget({
         return candidates[0] || null;
 	    }, [rosterState.isUsable, needs, playersData, statsData, prevStatsData, myRoster, currentLeague, briefDraftInfo, scores, timeRecomputeTs, faModuleTick, gm.faFilters]);
 
+    // Sell-rule trips — rostered players whose position/age trips a GM sell
+    // rule or sell-position (untouchables excluded). Feeds the 'GM plan says
+    // move them' action below; same parse the My Roster nudge uses.
+    const sellRuleTrips = useMemo(() => {
+        if (!gm.hasStrategy || !rosterState.isUsable) return [];
+        const normPos = window.App?.normPos || (p => p);
+        const parseRule = window.GMStrategy?.parseSellRule;
+        const rules = (gm.sellRules || [])
+            .map(r => { try { return parseRule ? parseRule(r) : null; } catch (_) { return null; } })
+            .filter(r => r && (r.pos || r.ageAbove));
+        const sellPos = gm.sellPositions instanceof Set ? gm.sellPositions : new Set();
+        const unt = gm.untouchable instanceof Set ? gm.untouchable : new Set();
+        if (!rules.length && !sellPos.size) return [];
+        return (myRoster?.players || []).map(pid => {
+            if (unt.has(String(pid))) return null;
+            const p = playersData?.[pid];
+            if (!p) return null;
+            const pos = normPos(p.position) || p.position;
+            const trips = sellPos.has(pos) || rules.some(r => (!r.pos || r.pos === pos) && (!r.ageAbove || (Number(p.age) && Number(p.age) >= r.ageAbove)));
+            if (!trips) return null;
+            return { pid, name: p.full_name || pid, pos, dhq: scores[pid] || 0 };
+        }).filter(Boolean).sort((a, b) => b.dhq - a.dhq).slice(0, 3);
+    }, [gm.hasStrategy, gm.sellRules, gm.sellPositions, gm.untouchable, myRoster, playersData, scores, rosterState.isUsable]);
+
     // Key drops (high-value players dropped in last 3 weeks)
     const keyDrops = useMemo(() => {
         const drops = [];
@@ -284,8 +308,15 @@ function IntelligenceBriefWidget({
     // Alex Insights quiets those lines here too.
     const alexFocus = (window.WR?.AlexSettings?.get?.()?.focus) || { trades: true, waivers: true, gmStyle: true };
 
+    // ONE strategy-frame lead sentence (owner rule: frame only — never restate
+    // adjacent KPIs). Built from the committed GM plan, not the roster grade.
+    const TIMELINE_FRAME = { '1_year': 'all-in on this season', '2_3_years': 'building for a 2-3 year window', 'dynasty_long': 'playing the long game' };
+    const strategyFrame = gm.hasStrategy
+        ? 'Your plan: ' + (gm.modeLabel || gm.mode) + ', ' + (TIMELINE_FRAME[gm.timeline] || 'on your timeline') + ' — everything below is read against that.'
+        : '';
+
     // Full briefing text — used at tall/xl/xxl
-    let briefText = tierMsg;
+    let briefText = strategyFrame ? strategyFrame + ' ' + tierMsg : tierMsg;
     if (rosterState.isUsable) {
         if (portfolioComparison) briefText += ' ' + portfolioComparison;
         if (elites > 0 && alexFocus.gmStyle !== false) briefText += ` You've got ${elites} elite player${elites > 1 ? 's' : ''} anchoring the roster.`;
@@ -297,7 +328,9 @@ function IntelligenceBriefWidget({
     // Three-sentence summary — fits a 160px-tall md row, no scroll
     const threeSentence = (() => {
         if (!rosterState.isUsable) return tierMsg + ' ' + rosterState.message;
-        const parts = [tierMsg];
+        const parts = [];
+        if (strategyFrame) parts.push(strategyFrame);
+        parts.push(tierMsg);
         if (needPos && alexFocus.gmStyle !== false) parts.push(`Biggest gap: ${needPos}.`);
         else if (elites > 0) parts.push(`${elites} elite anchor${elites > 1 ? 's' : ''}.`);
         if (waiverTarget && alexFocus.waivers !== false) parts.push(`${waiverTarget.name} (${waiverTarget.pos}) sitting on the wire.`);
@@ -335,13 +368,16 @@ function IntelligenceBriefWidget({
             detail: rosterState.message + ' ' + rosterState.detail,
         });
     } else {
+    // GM Strategy annotation: flag the waiver target when it fills a position
+    // the plan says to acquire (same tag FA's priority adds compute).
+    const waiverIsGmTarget = !!(waiverTarget && gm.hasStrategy && gm.targetPositions instanceof Set && gm.targetPositions.has(String(waiverTarget.pos)));
     if (alexFocus.waivers !== false && waiverTarget) {
         actions.push({
             icon: '🎯', tab: 'fa',
 	            title: p.waiver(waiverTarget.name, waiverTarget.pos, waiverTarget.dhq),
 	            detail: [
 	                React.createElement('span', { key: 'n', style: { color: 'var(--gold)', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px' }, onClick: e => { e.stopPropagation(); if (typeof window.openPlayerModal === 'function' && waiverTarget.pid) window.openPlayerModal(waiverTarget.pid); } }, waiverTarget.name),
-	                ` · ${waiverTarget.pos} · DHQ ${waiverTarget.dhq.toLocaleString()} · ${waiverTarget.why || ('Fills your ' + waiverTarget.pos + ' gap.')}`,
+	                ` · ${waiverTarget.pos} · DHQ ${waiverTarget.dhq.toLocaleString()} · ${waiverTarget.why || ('Fills your ' + waiverTarget.pos + ' gap.')}${waiverIsGmTarget ? ' · GM plan: target position' : ''}`,
 	            ],
 	        });
     }
@@ -357,6 +393,18 @@ function IntelligenceBriefWidget({
                 '. Might be worth scooping up before someone else does.',
             ],
         });
+    }
+    // Sell-rule action — the GM plan's own move. Rebuild / sell-high plans
+    // act on sells FIRST (front of the queue); otherwise it slots ahead of
+    // the generic trade CTA.
+    if (alexFocus.trades !== false && sellRuleTrips.length > 0) {
+        const sellAction = {
+            icon: '📉', tab: 'myteam',
+            title: sellRuleTrips.length + ' rostered player' + (sellRuleTrips.length > 1 ? 's trip' : ' trips') + ' your sell rules.',
+            detail: sellRuleTrips.map(t => t.name + ' (' + t.pos + ')').join(', ') + ' — your GM plan says move ' + (sellRuleTrips.length > 1 ? 'them' : 'him') + ' while the value holds.',
+        };
+        if (gm.mode === 'rebuild' || gm.marketPosture === 'sell_high') actions.unshift(sellAction);
+        else actions.push(sellAction);
     }
     if (alexFocus.trades !== false) {
         actions.push({

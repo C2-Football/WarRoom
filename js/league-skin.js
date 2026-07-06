@@ -101,6 +101,12 @@
     }
 
     function detectType(league, fallback) {
+        // Per-league format override (shared store) wins outright — it is the
+        // correction seam for platform mis-detection (e.g. MFL's dynasty-first
+        // hardcode). Same store shared detectLeagueType consults, so the two
+        // detectors can't disagree on an overridden league.
+        const override = normalizeType(window.App?.Intelligence?.getLeagueTypeOverride?.(league) || '');
+        if (override) return override;
         const explicit = normalizeType(firstNonEmpty([
             league?.type,
             league?.league_type,
@@ -245,6 +251,10 @@
         const seasonal = type === 'redraft' || type === 'best_ball' || type === 'dfs';
         const longTerm = type === 'dynasty' || type === 'keeper';
         const preDraft = phase === 'pre_draft' || phase === 'drafting';
+        // Redraft-era features hide only in DYNASTY leagues (owner directive
+        // 2026-07-05, fail-open: keeper/unknown keep everything). Game Day
+        // Central + lineup-check + bye planner are exempt per ruling E1.
+        const allowRedraft = type !== 'dynasty';
         return {
             showTaxi: hasTaxi,
             showIDP: hasIDP,
@@ -262,7 +272,13 @@
             // lineup and plan byes before the schedule is posted. Hidden only for
             // pre-draft empty rosters (nothing to build yet).
             showGameDay: phase === 'in_season' || rosterPlayerCount(rosters) > 0,
-            showStreaming: seasonal && phase === 'in_season',
+            // REDEFINED from `seasonal && in_season` (zero consumers before this
+            // pass): keeper leagues keep the streaming card they see today.
+            showStreaming: allowRedraft && phase === 'in_season',
+            // My Roster Wk START/SIT badge + redraft preset (E2).
+            showWeeklyVerdict: allowRedraft,
+            // Draft Gameplan blueprint (E5) — dynasty startups included.
+            showDraftGameplan: allowRedraft,
             showWaiverPlanner: seasonal || type === 'keeper',
             showRestOfSeasonValue: seasonal || type === 'keeper',
             hasRosteredPlayers: rosterPlayerCount(rosters) > 0,

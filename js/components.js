@@ -463,7 +463,9 @@
 
     function tradeFinderAcceptanceFloorFromSettings(settings = {}) {
         // GM Strategy is the single source of truth for the acceptance floor.
-        const gmFloor = window.WR?.GmMode?.effects?.()?.acceptanceFloor;
+        // Resolve for the ACTIVE league — a bare effects() only works while the
+        // shared strategy store stays global.
+        const gmFloor = window.WR?.GmMode?.effects?.(window.S?.currentLeagueId)?.acceptanceFloor;
         if (Number.isFinite(Number(gmFloor))) return Math.max(55, Math.min(90, Math.round(Number(gmFloor))));
         const sharedFloor = window.WR?.AlexSettings?.actionableTradeAcceptanceFloor?.(settings);
         if (Number.isFinite(Number(sharedFloor))) return Math.max(55, Math.min(90, Math.round(Number(sharedFloor))));
@@ -499,7 +501,7 @@
         }, []);
 
         const myPlayers = React.useMemo(() => {
-            const untouchable = window.WR?.GmMode?.effects?.()?.untouchable || new Set();
+            const untouchable = window.WR?.GmMode?.effects?.(window.S?.currentLeagueId)?.untouchable || new Set();
             return (allRosters.find(r => r.roster_id === myRosterId)?.players || [])
                 .map(pid => ({ pid, name: playersData[pid]?.full_name || pid, pos: playersData[pid]?.position || '?', val: getPlayerValue(pid).value }))
                 .filter(p => p.val > 0 && !untouchable.has(String(p.pid))).sort((a,b) => b.val - a.val);

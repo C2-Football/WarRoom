@@ -594,7 +594,19 @@
         const [showResume, setShowResume] = React.useState(false);
         // Memorialized live drafts: closing the recap reveals the completed board; this
         // tracks whether the recap modal is dismissed (reopenable via "View Recap").
-        const [recapDismissed, setRecapDismissed] = React.useState(false);
+        // Re-entering a memorialized completed draft (hydrated at mount) lands on the
+        // BOARD when its recap was already dismissed once on this device — the full-
+        // screen recap only auto-shows the first time (memorial.recapSeen, persisted
+        // in onExit below).
+        const [recapDismissed, setRecapDismissed] = React.useState(() => {
+            try {
+                const PD = window.App?.PostDraft;
+                const leagueId = currentLeague?.league_id || currentLeague?.id || '';
+                const mem = PD?.getMemorial ? PD.getMemorial(leagueId) : null;
+                return !!(mem && mem.recapSeen && state.sleeperDraftId
+                    && String(mem.draftId || '') === String(state.sleeperDraftId));
+            } catch (e) { return false; }
+        });
         React.useEffect(() => { if (state.phase !== 'complete') setRecapDismissed(false); }, [state.phase]);
 
         // Phase 5+: sync setup defaults when draftMeta updates post-mount (e.g.
@@ -710,28 +722,24 @@
                 let confidence = null;
                 try {
                     if (persona && window.DraftCC.cpuEngine) {
-                        // Phase 1 deferred: inject GM mode weights into draft context so downstream
-                        // MockEngine logic can bias BPA / youth / need per the user's chosen mode.
-                        const gmCtx = (function () {
-                            try {
-                                const leagueId = (state.leagueId || window.S?.leagues?.[0]?.league_id);
-                                const desc = window.WR?.GmMode?.describe?.(window.WR.GmMode.getMode(leagueId));
-                                return desc ? { gmMode: desc.id, draftWeights: desc.draftWeights } : {};
-                            } catch (_) { return {}; }
-                        })();
+                        // GM Strategy weights are the USER's plan — never inject them into
+                        // opponent persona picks (opponents would draft with the user's own
+                        // bias). This loop only ever picks for CPU slots, so no gmMode /
+                        // draftWeights ride in the pick context; user-side pick advice reads
+                        // the strategy via the live decision engine and the AI board lane.
                         const draftCtx = state.draftContext || null;
                         const result = window.DraftCC.cpuEngine.personaPick(
                             persona,
                             state.pool,
                             slot.round,
                             slot.overall,
-                            Object.assign({
+                            {
                                 teamRoster,
                                 draftTuning: state.draftTuning,
                                 draftContext: draftCtx,
                                 boardContext: draftCtx?.boardContext || null,
                                 ownerIntel: persona?.ownerIntel || draftCtx?.ownerContext?.[String(slot.rosterId)] || null,
-                            }, gmCtx)
+                            }
                         );
                         if (result) {
                             pick = result.player;
@@ -1572,7 +1580,11 @@
             let cancelled = false;
             const launch = async () => {
                 let liveDraft = pickLaunchableLiveDraft(fetchedDrafts);
-                if (!liveDraft && leagueIdForFetch && window.DraftCC?.ghostReplay?.listLeagueChainDrafts) {
+                // MFL drafts only exist on window.S.drafts (hydrated by league-detail);
+                // the Sleeper chain endpoint 404s on 'mfl_' league ids — skip the dead
+                // round-trip and let the Draft tab's status poll retry once they land.
+                const chainIsMfl = !!(currentLeague?._mfl || String(currentLeague?.id || '').startsWith('mfl_'));
+                if (!liveDraft && !chainIsMfl && leagueIdForFetch && window.DraftCC?.ghostReplay?.listLeagueChainDrafts) {
                     try {
                         liveDraft = pickLaunchableLiveDraft(await window.DraftCC.ghostReplay.listLeagueChainDrafts(leagueIdForFetch));
                     } catch (_) {}
@@ -1707,11 +1719,23 @@
             }
             // Live drafts are memorialized: closing the recap keeps the completed board
             // + memorial intact (a reset only happens when a new draft is scheduled).
-            if (forcedMode === 'live-sync' && state.phase === 'complete') { setRecapDismissed(true); return; }
+            if (forcedMode === 'live-sync' && state.phase === 'complete') {
+                setRecapDismissed(true);
+                // Persist the dismissal on the memorial so later entries into this
+                // draft (incl. the completed-draft auto-open) land on the board.
+                try {
+                    const PD = window.App?.PostDraft;
+                    const leagueId = currentLeague?.league_id || currentLeague?.id || '';
+                    if (PD?.saveMemorial && leagueId && state.sleeperDraftId) {
+                        PD.saveMemorial(leagueId, { draftId: state.sleeperDraftId, recapSeen: true });
+                    }
+                } catch (e) {}
+                return;
+            }
             stateFns.clearLocal(currentLeague?.league_id || currentLeague?.id, forcedMode);
             dispatch({ type: 'RESET' });
             setShowResume(false);
-        }, [currentLeague, forcedMode, state.phase]);
+        }, [currentLeague, forcedMode, state.phase, state.sleeperDraftId]);
 
         // Memorialize a completed LIVE draft; retire it only when a different draft
         // genuinely takes over the room. A pre_draft that was ALREADY scheduled when

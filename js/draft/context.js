@@ -368,11 +368,15 @@
         const draftWeights = data.draftWeights || {};
         const needs = new Set(posOfNeed(data.userAssessment || data.assessment));
         const draftStyle = strategy.draftStyle || strategy.mode || 'mix';
+        // Editor vocabulary is 'positional_need' (strategy-editor.js); bare
+        // 'need' kept for legacy stored strategies. Canonical timeline values
+        // are '1_year' | '2_3_years' | 'dynasty_long' (strategy.js) — the long
+        // horizon is what earns the youth-premium fallback.
         const needBias =
-            draftStyle === 'need' ? 1.35 :
+            (draftStyle === 'positional_need' || draftStyle === 'need') ? 1.35 :
             draftStyle === 'bpa' ? 0.8 :
             Number(draftWeights.needBias) || 1;
-        const youthPremium = Number(draftWeights.youthPremium) || (strategy.timeline === 'rebuild' ? 1.12 : 1);
+        const youthPremium = Number(draftWeights.youthPremium) || (strategy.timeline === 'dynasty_long' ? 1.12 : 1);
         const targetPositions = new Set(asArray(strategy.targetPositions || strategy.targets || []));
         const fadePositions = new Set(asArray(strategy.sellPositions || strategy.blockPositions || []));
         const adapter = data.formatAdapter || getDraftFormatAdapter(data);

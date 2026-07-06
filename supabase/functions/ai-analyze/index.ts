@@ -2104,7 +2104,7 @@ function buildInsightPrompt(ctx: any): string {
     const known = (ctx.heuristicTitles || []).map((t: string) => `  • ${t}`).join('\n');
 
     return `Analyze this dynasty GM's decision history in **${ctx.leagueName || 'their league'}** and surface exactly 2 NOVEL behavioral insights — patterns a deterministic stats engine would miss (timing tendencies, market behavior, psychological habits, format blind spots).
-
+${ctx.gmStrategy ? `\n**GM STRATEGY (the owner's committed plan — frame insights against it):**\n${ctx.gmStrategy}\n` : ''}
 **GM PERFORMANCE KPIs:** ${Object.entries(kpis).map(([k, v]) => `${k}: ${v}`).join(' | ') || 'none'}
 **TOP ROSTER HOLDS:**
 ${holds || '  none'}

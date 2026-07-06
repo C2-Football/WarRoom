@@ -428,6 +428,68 @@
             });
         }
 
+        // ── GM Strategy alignment ────────────────────────────────
+        // Framed against the CHOSEN plan (WR.GmMode.effects), not the roster
+        // grade. Hard cap of 3 strategy cards here; AlexSettings.filterInsights
+        // still applies the global maxAlertsPerWeek cap downstream. Guarded —
+        // gm-mode.js is optional and this stays inert without a saved strategy.
+        try {
+            const gmFx = typeof window.WR?.GmMode?.effects === 'function'
+                ? window.WR.GmMode.effects(currentLeague?.league_id || currentLeague?.id)
+                : null;
+            if (gmFx && gmFx.hasStrategy) {
+                const gmCards = [];
+                // 1. Strategy drift — GMStrategy.recordAction logs moves that
+                // conflict with the plan; getDrift is that (previously unread) ledger.
+                const drift = window.GMStrategy?.getDrift?.() || { conflicts: [] };
+                const recentConflicts = (drift.conflicts || []).filter(c => Date.now() - (c.timestamp || 0) < 14 * 24 * 60 * 60 * 1000);
+                if (recentConflicts.length >= 2) {
+                    gmCards.push({
+                        focus: 'gmStyle', severity: 'warning', confidence: 82,
+                        title: recentConflicts.length + ' of your recent moves cut against your ' + gmFx.modeLabel + ' plan',
+                        body: 'Alex logged ' + recentConflicts.length + ' actions in the last two weeks that conflict with your committed strategy'
+                            + (recentConflicts[0]?.reasons?.length ? ' (' + recentConflicts[0].reasons[0] + ')' : '')
+                            + '. Recommit to the plan or update it — a strategy you trade against steers every surface wrong.',
+                        ctaLabel: 'Review GM Strategy',
+                    });
+                }
+                // 2. Aging core vs a long-horizon plan.
+                if ((gmFx.mode === 'rebuild' || gmFx.timeline === 'dynasty_long') && totalDhq > 0 && agingDhq / totalDhq > 0.2) {
+                    gmCards.push({
+                        focus: 'gmStyle', severity: 'warning', confidence: 78,
+                        title: Math.round((agingDhq / totalDhq) * 100) + '% of your value sits in vets your ' + gmFx.modeLabel + ' plan says to move',
+                        body: agingPids.length + ' player' + (agingPids.length === 1 ? ' is' : 's are') + ' past the value window while your plan points long. Sell windows close fast — convert them to picks and youth before the market does it for you.',
+                        ctaLabel: 'Open Trade Center',
+                    });
+                }
+                // 3. Sell-rule / sell-position players still rostered.
+                const parseRule = window.GMStrategy?.parseSellRule;
+                const rules = (gmFx.sellRules || [])
+                    .map(r => { try { return parseRule ? parseRule(r) : null; } catch (_) { return null; } })
+                    .filter(r => r && (r.pos || r.ageAbove));
+                const sellPosSet = gmFx.sellPositions instanceof Set ? gmFx.sellPositions : new Set();
+                const untouchSet = gmFx.untouchable instanceof Set ? gmFx.untouchable : new Set();
+                if (rules.length || sellPosSet.size) {
+                    const flagged = myPlayers.filter(pid => {
+                        if (untouchSet.has(String(pid))) return false;
+                        const p = playersData?.[pid]; if (!p) return false;
+                        const pPos = window.App?.normPos?.(p.position) || p.position;
+                        if (sellPosSet.has(pPos)) return true;
+                        return rules.some(r => (!r.pos || r.pos === pPos) && (!r.ageAbove || (p.age && p.age >= r.ageAbove)));
+                    });
+                    if (flagged.length >= 2) {
+                        gmCards.push({
+                            focus: 'gmStyle', severity: 'opportunity', confidence: 74,
+                            title: flagged.length + ' rostered players trip your own sell rules',
+                            body: 'Your GM Strategy flags these positions/ages as sells, yet ' + flagged.length + ' of them are still on your roster. Shop the ones with real markets — rules only pay off when you act on them.',
+                            ctaLabel: 'See flagged players',
+                        });
+                    }
+                }
+                gmCards.slice(0, 3).forEach(c => out.push(c));
+            }
+        } catch (_) { /* strategy layer is optional */ }
+
         // Priority-sort (warning → edge → pattern → opportunity).
         const priority = { warning: 0, edge: 1, pattern: 2, opportunity: 3 };
         out.sort((a, b) => (priority[a.severity] ?? 9) - (priority[b.severity] ?? 9));
@@ -559,8 +621,14 @@
         }
         if (!aiFn) return { error: 'AI not loaded' };
 
+        // GM Strategy — the canonical serialized plan; '' when none is saved.
+        // (The structured path above carries it via buildStructuredBase.)
+        let gmBlock = '';
+        try { gmBlock = window.WR?.GmMode?.promptBlock?.(currentLeague?.league_id || currentLeague?.id) || ''; } catch (_) {}
+
         const contextLines = [
             (window.WR?.AIContext?.buildFormatPreamble?.(currentLeague) || ''),
+            gmBlock ? 'GM STRATEGY (the owner’s committed plan — frame insights against it):\n' + gmBlock : '',
             'LEAGUE: ' + (currentLeague?.name || 'Dynasty') + ', ' + (currentLeague?.rosters?.length || 12) + ' teams',
             'TRADES: ' + (kpis.tradeCount || 0) + ' completed, net DHQ ' + (kpis.tradeNetDhq > 0 ? '+' : '') + Math.round((kpis.tradeNetDhq || 0) / 1000) + 'k',
             'WAIVERS: ' + (kpis.waiverHitPct != null ? (kpis.waiverHitPct + '% retention over ' + kpis.waiverTotal + ' adds') : 'n/a'),
@@ -570,6 +638,10 @@
             heuristicTitles && heuristicTitles.length ? 'ALREADY SURFACED:\n- ' + heuristicTitles.join('\n- ') : '',
         ].filter(Boolean).join('\n');
 
+        // Dynasty (E6): weekly start/sit + streaming leave the AI focus enum;
+        // the deterministic pattern cards stay (they read actual H2H results).
+        const allowRedraft = window.App?.Intelligence?.allowRedraftFeatures
+            ? window.App.Intelligence.allowRedraftFeatures(currentLeague) : true;
         const prompt = [
             'You are Alex, an analytical fantasy-football GM assistant. Generate EXACTLY 2 novel behavioral insights about this manager that are NOT already in the "ALREADY SURFACED" list.',
             'Look for unusual patterns in how they build their roster, manage trades, use waivers, or allocate draft capital. Prefer non-obvious findings over generic ones.',
@@ -578,7 +650,9 @@
             '[{',
             '  "severity": "warning" | "edge" | "pattern" | "opportunity",',
             '  "confidence": integer 50-95,',
-            '  "focus": "trades" | "waivers" | "draft" | "startSit" | "injury" | "streaming" | "gmStyle",',
+            '  "focus": ' + (allowRedraft
+                ? '"trades" | "waivers" | "draft" | "startSit" | "injury" | "streaming" | "gmStyle"'
+                : '"trades" | "waivers" | "draft" | "injury" | "gmStyle"') + ',',
             '  "title": "short headline, under 80 chars",',
             '  "body": "2 sentences with a specific number or detail",',
             '  "ctaLabel": "action verb phrase, e.g. \'Open Trade Center\'"',
@@ -1485,6 +1559,11 @@
         // tuning only.
         const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
         const skinFeatures = resolvedLeagueSkin?.features || {};
+        // Dynasty (E6): the two weekly focus chips hide — unless the pref is
+        // currently ON, so users can still switch the deterministic pattern
+        // cards off (the chip disappears once toggled off).
+        const allowRedraft = window.App?.Intelligence?.allowRedraftFeatures
+            ? window.App.Intelligence.allowRedraftFeatures(currentLeague) : true;
         const baseDraftYear = String(parseInt(currentLeague?.season || new Date().getFullYear(), 10) || new Date().getFullYear());
         const draftYearOptions = [baseDraftYear, String(Number(baseDraftYear) + 1), String(Number(baseDraftYear) + 2)];
         const settingsIntro = resolvedLeagueSkin?.features?.showDynastyValue === false
@@ -1583,12 +1662,12 @@
                 h(window.WR.Card, { padding: 'var(--card-pad-lg)' },
                     sectionTitle({ title: 'Focus areas', sub: 'Which categories Alex monitors' }),
                     h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '7px' } },
-                        focusChip('startSit', 'Start / Sit'),
+                        (allowRedraft || !!settings?.focus?.startSit) && focusChip('startSit', 'Start / Sit'),
                         focusChip('trades', 'Trades'),
                         focusChip('waivers', 'Waivers'),
                         focusChip('draft', 'Draft'),
                         focusChip('injury', 'Injury watch'),
-                        focusChip('streaming', 'Streaming'),
+                        (allowRedraft || !!settings?.focus?.streaming) && focusChip('streaming', 'Streaming'),
                         focusChip('gmStyle', 'GM style')
                     ),
                     h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginTop: '12px', lineHeight: 1.5 } },
