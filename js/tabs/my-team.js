@@ -204,7 +204,11 @@ function MyTeamTab({
       if (key === 'name') { const na = getPlayerName(a.pid).toLowerCase(), nb = getPlayerName(b.pid).toLowerCase(); return (na < nb ? -1 : na > nb ? 1 : 0) * dir; }
       if (key === 'pos') { const d = ((posOrder[a.pos] ?? 99) - (posOrder[b.pos] ?? 99)); return d !== 0 ? d * dir : (b.dhq - a.dhq); }
       if (key === 'peak') return ((b.peakYrsLeft||0) - (a.peakYrsLeft||0)) * dir;
-      if (key === 'action') { const ord = {BUY:3,HOLD:2,SELL:1}; return ((ord[b.rec]||0) - (ord[a.rec]||0)) * dir; }
+      if (key === 'action') {
+        // rec holds mixed-case labels ('Sell High', 'Build Around', 'Hold Core'…) — sort by family, not exact key.
+        const fam = r => /sell/i.test(r.rec || '') ? 0 : /stash/i.test(r.rec || '') ? 1 : /buy|build|core/i.test(r.rec || '') ? 3 : 2;
+        return (fam(b) - fam(a)) * dir;
+      }
       if (key === 'yrsExp') return ((b.p.years_exp||0) - (a.p.years_exp||0)) * dir;
       if (key === 'college') { const ca = (a.p.college||'').toLowerCase(), cb = (b.p.college||'').toLowerCase(); return (ca < cb ? -1 : ca > cb ? 1 : 0) * dir; }
       if (key === 'nflDraft') return (((a.p.draft_round || (a.p.draft_pick ? Math.ceil(a.p.draft_pick/32) : 99)) - (b.p.draft_round || (b.p.draft_pick ? Math.ceil(b.p.draft_pick/32) : 99))) * dir);
@@ -373,6 +377,9 @@ function MyTeamTab({
     // dynasty-read clause — degrades to raw-only even if a gate is missed.
     const pa = isPro && typeof window.getPlayerAction === 'function' ? window.getPlayerAction(pid) : null;
     let rec = !isPro ? null : pa ? pa.label : (valueYrsLeft <= 0 ? 'Sell' : _pidElite && peakYrsLeft >= 3 ? 'Hold Core' : peakYrsLeft >= 4 && dhq < 4000 ? 'Stash' : 'Hold');
+    // Action family code (SELL_HIGH vs SELL etc.) — the dossier's market-posture
+    // sub-line keys off this so a "past value window" Sell never reads "sell high".
+    let recAction = !isPro ? null : pa ? pa.action : (valueYrsLeft <= 0 ? 'SELL' : _pidElite && peakYrsLeft >= 3 ? 'CORE' : peakYrsLeft >= 4 && dhq < 4000 ? 'STASH' : 'HOLD');
 
     // GM Strategy nudge: if this player's position/age trips a sell rule or a
     // sell-position (and isn't strategy-untouchable / already a sell or build
@@ -380,11 +387,11 @@ function MyTeamTab({
     // Pro-only (Q8): it steers the app's verdict, unlike the passive accents.
     const gmIsUntouchable = gmUntouchable.has(String(pid));
     const gmSellNudge = isPro && !gmIsUntouchable && !/sell|buy|build|core/i.test(rec) && gmTripsSell({ pos, age });
-    if (gmSellNudge) rec = 'Sell';
+    if (gmSellNudge) { rec = 'Sell'; recAction = 'SELL'; }
     const gmIsTarget = gmTargetPositions.has(String(pos));
     const gmIsSellPos = gmSellPositions.has(String(pos));
 
-    return { pid, p, pos, dhq, age, curPPG, prevPPG, effectivePPG, effectiveGP, prevGP, durabilityGP, trend, isStarter, isIR, isTaxi, section, peakPhase, peakPct, peakYrsLeft, valueYrsLeft, rec, curGP, meta, injury: p.injury_status, gmIsUntouchable, gmSellNudge, gmIsTarget, gmIsSellPos };
+    return { pid, p, pos, dhq, age, curPPG, prevPPG, effectivePPG, effectiveGP, prevGP, durabilityGP, trend, isStarter, isIR, isTaxi, section, peakPhase, peakPct, peakYrsLeft, valueYrsLeft, rec, recAction, curGP, meta, injury: p.injury_status, gmIsUntouchable, gmSellNudge, gmIsTarget, gmIsSellPos };
   }).filter(Boolean);
 
   // Position-level PPG percentiles for color coding
@@ -699,7 +706,7 @@ function MyTeamTab({
   const activeColumnOrder = visibleCols.filter(key => ROSTER_COLUMNS[key]);
   const inactiveColumnCount = Object.keys(ROSTER_COLUMNS).filter(key => !visibleCols.includes(key)).length;
   const formatHeight = h => h ? Math.floor(h / 12) + "'" + h % 12 + '"' : null;
-  const slotLabel = r => r.section === 'starter' ? 'Starter' : r.section === 'ir' ? 'IR' : r.section === 'taxi' ? 'Taxi' : 'Bench';
+  const _slotLabel = r => r.section === 'starter' ? 'Starter' : r.section === 'ir' ? 'IR' : r.section === 'taxi' ? 'Taxi' : 'Bench';
   const getLeaguePositionRank = r => {
     const allAtPos = (currentLeague.rosters || []).flatMap(ros => (ros.players || []).filter(pid => {
       const pp = playersData[pid];
@@ -714,8 +721,11 @@ function MyTeamTab({
     : 'stash-level asset';
   const buildDynastyRead = r => {
     const rank = getLeaguePositionRank(r);
-    const valueLine = (r.dhq > 0 ? r.dhq.toLocaleString() + ' ' + valueShortLabel : 'Unscored ' + valueShortLabel) + (rank ? ' and ' + r.pos + rank + ' in this league' : '');
-    const productionLine = r.effectivePPG ? r.effectivePPG + ' PPG across ' + (r.effectiveGP || 0) + ' games' : 'No stable recent production sample';
+    // Unscored players get a neutral opener — no tier verdict fabricated from a missing score.
+    const valueLine = r.dhq > 0
+      ? r.dhq.toLocaleString() + ' ' + valueShortLabel + (rank ? ' and ' + r.pos + rank + ' in this league' : '') + ' makes him a ' + dynastyTierLabel(r) + '.'
+      : 'No ' + valueShortLabel + ' score yet — judge on role and production.';
+    const productionLine = r.effectivePPG ? r.effectivePPG + ' PPG across ' + (r.effectiveGP || 0) + ((r.effectiveGP || 0) === 1 ? ' game' : ' games') : 'No stable recent production sample';
     const ageLine = r.age ? 'Age ' + r.age + ' is ' + (r.peakPhase === 'PRE' ? 'before the prime window' : r.peakPhase === 'PRIME' ? 'inside the prime window' : r.peakPhase === 'VET' ? 'in the veteran value band' : 'past the normal value window') : 'Age window unknown';
     const trendLine = r.trend >= 15 ? 'production is rising' : r.trend <= -15 ? 'production is sliding' : 'production is steady';
     // Free: the "roster call is X" clause is a verdict — the raw restatement
@@ -723,7 +733,7 @@ function MyTeamTab({
     const recClause = isPro
       ? ', so the current roster call is ' + String(r.rec || 'Hold').toLowerCase() + ' while ' + trendLine
       : ', and ' + trendLine;
-    return valueLine + ' makes him a ' + dynastyTierLabel(r) + '. ' + productionLine + '; ' + ageLine + recClause + '.';
+    return valueLine + ' ' + productionLine + '; ' + ageLine + recClause + '.';
   };
 
   // renderCell — renders each data cell with FM-style coloring
@@ -1128,7 +1138,15 @@ function MyTeamTab({
                     const sigRisk = r.injury ? r.injury : (r.durabilityGP && r.durabilityGP < 13 ? '~' + r.durabilityGP + ' GP/yr' : 'no current flags');
                     const sigFloor = r.isStarter ? 'weekly starter' : (r.p.depth_chart_order != null && r.p.depth_chart_order <= 1 ? 'rotation role' : 'bench / depth');
                     const sigCeiling = r.trend >= 10 ? 'trending up' : (tier === 'Elite' || tier === 'Starter') ? 'proven ' + tier.toLowerCase() : r.peakPhase === 'PRE' ? 'developing' : 'limited upside';
-                    const callSub = tier + ' ' + posLbl + ' · ' + (isSell ? 'sell high' : isBuy ? 'buy low' : "don't overpay");
+                    // Market posture tracks the actual action family from getPlayerAction —
+                    // a "past value window" SELL must not read as "sell high".
+                    const actionFam = r.recAction || (/sell high/i.test(verdict) ? 'SELL_HIGH' : /sell/i.test(verdict) ? 'SELL' : /buy/i.test(verdict) ? 'BUY' : /build|core/i.test(verdict) ? 'CORE' : /stash/i.test(verdict) ? 'STASH' : 'HOLD');
+                    const marketCall = actionFam === 'SELL_HIGH' ? 'sell high'
+                      : actionFam === 'SELL' ? 'sell while value remains'
+                      : (actionFam === 'CORE' || actionFam === 'BUILD') ? "cornerstone — don't move cheap"
+                      : actionFam === 'BUY' ? 'buy low'
+                      : "don't overpay";
+                    const callSub = tier + ' ' + posLbl + ' · ' + marketCall;
                     const sigRow = (label, val, last) => (<div style={{ display: 'flex', gap: '9px', alignItems: 'baseline', padding: '6px 0', borderBottom: last ? 'none' : '1px solid rgba(255,255,255,0.05)', fontSize: '0.74rem' }}><span style={{ minWidth: '52px', color: 'var(--silver)', opacity: 0.65 }}>{label}</span><span style={{ color: 'var(--white)', fontWeight: 600 }}>{val}</span></div>);
                     return (<React.Fragment>
                       {/* Identity + roster call */}

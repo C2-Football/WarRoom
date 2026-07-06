@@ -16,6 +16,9 @@
 (function() {
     'use strict';
 
+    // Proper ordinal suffix — '92nd', '33rd', not '92th'.
+    const ordinalSuffix = (n) => { const s = ['th', 'st', 'nd', 'rd']; const v = n % 100; return s[(v - 20) % 10] || s[v] || s[0]; };
+
     function RosterPulseWidget({ size, primaryMetric, myRoster, rankedTeams, sleeperUserId, currentLeague, playersData, computeKpiValue, setActiveTab, navigateWidget }) {
         const theme = window.WrTheme?.get?.() || {};
         const colors = theme.colors || {};
@@ -199,7 +202,9 @@
         if (size === 'lg' || size === 'tall' || size === 'xxl') {
             const healthRank = [...allAssess].sort((a, b) => (b.healthScore || 0) - (a.healthScore || 0)).findIndex(a => a.rosterId === myRoster?.roster_id) + 1;
             const totalTeams = allAssess.length || 1;
-            const percentile = totalTeams > 1 ? Math.round((1 - (healthRank - 1) / totalTeams) * 100) : 0;
+            // healthRank 0 = roster not found in the assessment list — no
+            // percentile claim (the formula would exceed 100 otherwise).
+            const percentile = (healthRank > 0 && totalTeams > 1) ? Math.round((1 - (healthRank - 1) / totalTeams) * 100) : 0;
             const healthCol = health >= 80 ? colors.positive : health >= 60 ? colors.accent : health >= 40 ? colors.warn : colors.negative;
 
             // WINDOW vital — calibrated to GM Strategy timeline. A short
@@ -211,7 +216,9 @@
             let windowSub = window_;
             if (gm.hasStrategy) {
                 if (timeline === '1_year' && shortWindow) {
-                    windowCol = colors.warn; windowSub = 'win-now: act';
+                    // 'act' is a directive → Pro; free keeps the urgency color
+                    // with a raw restatement of the window
+                    windowCol = colors.warn; windowSub = pro ? 'win-now: act' : 'win-now: ' + window_;
                 } else if (timeline === 'dynasty_long') {
                     windowCol = shortWindow ? colors.textMuted : colors.positive;
                     windowSub = 'long build: ' + window_;
@@ -303,7 +310,7 @@
                             <div style={{ marginBottom: '8px', flexShrink: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: fs(0.6), color: colors.textMuted, fontFamily: fonts.ui, marginBottom: '2px' }}>
                                     <span style={{ fontWeight: 700, color: colors.accent, textTransform: 'uppercase', letterSpacing: '0.08em' }}>League Health</span>
-                                    <span>You: {percentile}th percentile · #{healthRank || '—'} of {totalTeams}</span>
+                                    <span>You: {healthRank > 0 ? percentile + ordinalSuffix(percentile) + ' percentile · ' : ''}#{healthRank || '—'} of {totalTeams}</span>
                                 </div>
                                 <MiniBarChart data={healthSparkData} highlight={health} colors={colors} fonts={fonts} fs={fs} height={36} />
                             </div>

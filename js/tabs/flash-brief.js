@@ -82,7 +82,9 @@ const BRIEF_PERSONALITY = {
         crossroads: (rank, hs) => "Position: " + ordinal(rank) + ". Health score: " + hs + ". Crossroads classification. Decision matrix: commit to competing or pivot to accumulation.",
         rebuilding: (rank, hs) => "Position: " + ordinal(rank) + ". Health score: " + hs + ". Rebuild phase. Optimal strategy: maximize asset acquisition, minimize win-now spending.",
         waiver: (name, pos, dhq) => "Waiver wire analysis: " + name + " at " + pos + " (DHQ " + dhq.toLocaleString() + ") available. Addresses your positional deficit.",
-        trade: (count) => "Owner analysis complete. " + count + " trade scenarios identified with positive expected value.",
+        trade: (count) => count > 0
+            ? "Owner analysis complete. " + count + " owner profile" + (count === 1 ? "" : "s") + " analyzed for trade leverage."
+            : "Owner analysis queued. Profiles build as league data syncs.",
         draft: (days, date) => "T-minus " + days + " days to draft. Board calibration recommended.",
         rank: (rank, tier) => "League position: " + ordinal(rank) + ". Classification: " + tier + ".",
     },
@@ -226,11 +228,17 @@ function IntelligenceBriefWidget({
         return { days, hours, date: new Date(briefDraftInfo.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) };
     }, [briefDraftInfo]);
 
-    // Active trades in league
+    // Active trades in league — the brief says "recently", so window to the
+    // last ~3 week buckets and skip DHQ-merged historical trades (_fromDHQ),
+    // which can span prior seasons.
     const activeTrades = useMemo(() => {
         const txns = window.S?.transactions || {};
-        const flat = Array.isArray(txns) ? txns : Object.values(txns).flat();
-        return flat.filter(t => t.type === 'trade').length;
+        const curWeek = window.S?.currentWeek || 1;
+        let n = 0;
+        for (let w = curWeek; w >= Math.max(0, curWeek - 2); w--) {
+            ((txns['w' + w]) || []).forEach(t => { if (t.type === 'trade' && !t._fromDHQ) n++; });
+        }
+        return n;
     }, []);
 
     // Greeting based on time of day + personality
@@ -248,8 +256,13 @@ function IntelligenceBriefWidget({
 
     // Build Alex's conversational briefing
     const needPos = needs.length ? (typeof needs[0] === 'string' ? needs[0] : needs[0]?.pos) : '';
+    // UNKNOWN tier = assessment hasn't loaded — never let it fall through to
+    // the rebuilding copy ('ranked 0th, health score 0' as fact). Same for a
+    // known tier with no rank yet: don't interpolate ordinal(0).
     const tierMsg = !rosterState.isUsable ? (rosterState.brief || 'Roster sync incomplete. I paused roster, trade, waiver, and league-rank recommendations until player IDs finish loading.')
+        : (!myAssess || tier === 'UNKNOWN') ? 'Still syncing your league read — I’ll have your tier, rank, and health score once the data lands.'
         : tier === 'ELITE' ? p.elite(myRank, hs)
+        : myRank <= 0 ? ('Your roster reads ' + tier + ' with a health score of ' + hs + ' — league rank is still syncing.')
         : tier === 'CONTENDER' ? p.contender(myRank, hs)
         : tier === 'CROSSROADS' ? p.crossroads(myRank, hs)
         : p.rebuilding(myRank, hs);
@@ -288,9 +301,10 @@ function IntelligenceBriefWidget({
         if (needPos && alexFocus.gmStyle !== false) parts.push(`Biggest gap: ${needPos}.`);
         else if (elites > 0) parts.push(`${elites} elite anchor${elites > 1 ? 's' : ''}.`);
         if (waiverTarget && alexFocus.waivers !== false) parts.push(`${waiverTarget.name} (${waiverTarget.pos}) sitting on the wire.`);
-        else if (draftCountdown) parts.push(`Draft in ${draftCountdown.days} day${draftCountdown.days !== 1 ? 's' : ''}.`);
+        else if (draftCountdown) parts.push(draftCountdown.days === 0 ? 'Draft is today.' : `Draft in ${draftCountdown.days} day${draftCountdown.days !== 1 ? 's' : ''}.`);
         else if (activeTrades > 0 && alexFocus.trades !== false) parts.push(`${activeTrades} recent trade${activeTrades > 1 ? 's' : ''} in your league.`);
-        else parts.push(`Ranked ${ordinal(myRank)} in the league.`);
+        else if (myRank > 0) parts.push(`Ranked ${ordinal(myRank)} in the league.`);
+        else parts.push('League rank still syncing.');
         return parts.slice(0, 3).join(' ');
     })();
 
@@ -354,14 +368,16 @@ function IntelligenceBriefWidget({
     if (alexFocus.draft !== false && draftCountdown) {
         actions.push({
             icon: '📋', tab: 'draft',
-            title: p.draft(draftCountdown.days, draftCountdown.date),
+            // '0 days out' reads wrong — inside 24h the draft is today.
+            title: draftCountdown.days === 0 ? 'Draft is today. Time to lock in your board.' : p.draft(draftCountdown.days, draftCountdown.date),
             detail: `${draftCountdown.date} · I've got your scouting report ready when you are.`,
         });
     }
     actions.push({
         icon: '🏆', tab: 'analytics',
-        title: p.rank(myRank, tier),
-        detail: `${tier} tier · See where everyone else stands.`,
+        // No rank/tier claims until the assessment has actually landed.
+        title: (myRank > 0 && tier !== 'UNKNOWN') ? p.rank(myRank, tier) : 'League standings still syncing — see how the field stacks up.',
+        detail: (tier !== 'UNKNOWN' ? `${tier} tier · ` : '') + 'See where everyone else stands.',
     });
     }
 

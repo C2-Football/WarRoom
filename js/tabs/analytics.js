@@ -130,7 +130,7 @@ function AnalyticsPanel({
     ];
     const activeSubTab = subTabs.find(t => t.key === analyticsTab) || subTabs[0];
     const analyticsViewTab = activeSubTab.key;
-    const analyticsContext = {
+    const _analyticsContext = {
         roster: 'Winner-template gaps, room coverage, and roster construction evidence.',
         draft: 'Pick value, hit-rate patterns, and current-pick strategy.',
         trades: 'Trade efficiency, waiver activity, FAAB, and market pressure.',
@@ -141,7 +141,7 @@ function AnalyticsPanel({
     const d = analyticsData;
     const sameId = (a, b) => a != null && b != null && String(a) === String(b);
     const historyLeagueId = currentLeague?.id || currentLeague?.league_id || '';
-    const [historyTick, setHistoryTick] = React.useState(0);
+    const [, setHistoryTick] = React.useState(0);
     React.useEffect(() => {
         const onLoaded = (event) => {
             const loadedId = event?.detail?.leagueId;
@@ -697,7 +697,7 @@ function AnalyticsPanel({
             const modeSource = gmFrame ? 'GM Strategy' : 'inferred from tier';
             // Analysis window label — driven by GM Strategy timeline when set, else the model's
             // estimated compete window. horizonYears: 1 | 2.5 | 7.
-            const windowYears = gm.hasStrategy ? gm.horizonYears : compYears;
+            const _windowYears = gm.hasStrategy ? gm.horizonYears : compYears;
             const windowLabel = gm.hasStrategy
                 ? (gm.timeline === '1_year' ? 'win-now (1yr) window' : gm.timeline === 'dynasty_long' ? 'dynasty (long) window' : '2-3yr window')
                 : (compYears + 'yr window (model est.)');
@@ -706,7 +706,9 @@ function AnalyticsPanel({
                 { label: 'Elite Asset Gap', value: winnerN < 2 ? '—' : signedNum(eliteDiffDiag), detail: winnerN < 2 ? 'Champion sample too small to benchmark elites.' : 'Your ' + mElite + ' elites vs ' + wElite + ' for the ' + winnerN + '-team template.', tone: winnerN < 2 ? 'warn' : toneFromDelta(eliteDiffDiag), color: winnerN < 2 ? warnColor : (eliteDiffDiag >= 0 ? goodColor : badColor) },
                 { label: 'Startable Surplus', value: signedNum(startableSurplus), detail: startableSurplus >= 0 ? 'Net value-gated (DHQ≥3000) starters above league requirements — your tradeable depth.' : 'You are short ' + Math.abs(startableSurplus) + ' startable bodies vs league lineup needs.', tone: startableSurplus >= 0 ? 'good' : 'bad', color: startableSurplus >= 0 ? goodColor : badColor },
                 { label: 'Age Window Delta', value: winnerCoreAge == null ? '—' : signedNum(Number(ageDiffDiag.toFixed(1)), ' yrs'), detail: winnerCoreAge == null ? 'Core-age benchmark unavailable for this league.' : 'Age of your competitive core (DHQ-weighted top ' + CORE_N + ', avg ' + projMyAge.toFixed(1) + ' yrs) vs the ' + (winnerN || 0) + '-team champion core (avg ' + projWAge.toFixed(1) + ' yrs). Negative = younger window.', tone: ageDiffDiag <= 0.5 ? 'good' : ageDiffDiag <= 1.5 ? 'warn' : 'bad', color: ageDiffDiag <= 0.5 ? goodColor : ageDiffDiag <= 1.5 ? warnColor : badColor },
-                { label: 'Top-5 Concentration', value: concMe + '%', detail: winnerN < 2 ? 'Share of roster DHQ in your top 5 assets.' : 'Top-5 share of roster DHQ vs ' + concWin + '% champion template (' + (concDelta > 8 ? 'top-heavy, win-now/fragile' : concDelta < -8 ? 'unusually balanced' : 'balanced') + ').', tone: Math.abs(concDelta) <= 8 ? 'good' : 'warn', color: Math.abs(concDelta) <= 8 ? goodColor : warnColor },
+                // Free keeps the raw benchmark delta (number + tone/color); the champion-template
+                // window interpretation in the parenthetical is a Pro read.
+                { label: 'Top-5 Concentration', value: concMe + '%', detail: winnerN < 2 ? 'Share of roster DHQ in your top 5 assets.' : 'Top-5 share of roster DHQ vs ' + concWin + '% champion template' + (isPro ? ' (' + (concDelta > 8 ? 'top-heavy, win-now/fragile' : concDelta < -8 ? 'unusually balanced' : 'balanced') + ')' : '') + '.', tone: Math.abs(concDelta) <= 8 ? 'good' : 'warn', color: Math.abs(concDelta) <= 8 ? goodColor : warnColor },
             ];
             // Priority Evidence — rank every roster signal by true severity instead of
             // pinning draft capital to the top. Starter-quality needs come straight off the
@@ -1179,7 +1181,9 @@ function AnalyticsPanel({
                 { kicker: 'Early Capital', label: earlyPicks + ' in R1-R2', detail: 'Premium capital to anchor a tier break.', value: topCurrentPicks[0]?.label || '\u2014', color: earlyPicks >= 3 ? goodColor : warnColor },
             ];
             const buildRows = [
-                { kicker: 'Early Capital', label: earlyPicks + ' picks in R1-R2', detail: earlyPicks >= 3 ? 'Enough premium capital to anchor a tier break.' : 'Light on premium capital; trade-up candidates.', value: topCurrentPicks[0]?.label || '\u2014', color: earlyPicks >= 3 ? goodColor : warnColor },
+                // Low-capital branch: 'trade-up candidates' is a seeded do-X directive (Pro);
+                // free gets the raw threshold statement (the color already encodes it).
+                { kicker: 'Early Capital', label: earlyPicks + ' picks in R1-R2', detail: earlyPicks >= 3 ? 'Enough premium capital to anchor a tier break.' : (isPro ? 'Light on premium capital; trade-up candidates.' : 'Fewer than 3 picks in rounds 1-2.'), value: topCurrentPicks[0]?.label || '\u2014', color: earlyPicks >= 3 ? goodColor : warnColor },
                 { kicker: 'Round Shape', label: draftRounds + ' rounds x ' + totalTeams + ' teams', detail: 'Resolved from roster-slot skin rules' + ((!currentLeague?.settings?.draft_rounds && draftRounds === 5) ? ' (fallback estimate).' : '.'), value: (totalTeams * draftRounds).toLocaleString() + ' picks', color: 'var(--k-9b8afb, #9b8afb)' },
             ];
             // Draft research-question header is bare (no stat boxes) \u2014 see AnalyticsCommandPanel call below.
@@ -1441,8 +1445,8 @@ function AnalyticsPanel({
             const tradeActivity = !hasTraded ? '' : tradeVolDiff < -1 ? 'under-trading' : tradeVolDiff > 1 ? 'over-trading' : 'trading at the right frequency';
 
             const tradeSummaryText = !hasTraded
-                ? 'You haven\u2019t made any trades yet. Active trading is a key trait of winning teams \u2014 elite tier teams average ' + wp.avgTradesPerSeason + ' trades/season and gain +' + wp.avgValueGained + ' DHQ per trade. Consider using the trade finder to identify value opportunities.'
-                : 'You average ' + mp.avgTradesPerSeason + ' trades/season vs elite tier teams\' ' + wp.avgTradesPerSeason + '. You ' + (mp.avgValueGained >= 0 ? 'gain +' : 'lose ') + Math.abs(mp.avgValueGained) + ' DHQ per trade (elite tier: +' + wp.avgValueGained + '). You are ' + tradeActivity + ' and ' + tradeEfficiency + '. ' + (mp.avgValueGained < 0 ? 'Focus on extracting value \u2014 target aging stars from contenders or sell depreciating assets.' : 'Keep leveraging your trade edge to consolidate elite talent.');
+                ? 'You haven\u2019t made any trades yet. Active trading is a key trait of winning teams \u2014 elite tier teams average ' + wp.avgTradesPerSeason + ' trades/season and ' + (wp.avgValueGained >= 0 ? 'gain +' : 'lose ') + Math.abs(wp.avgValueGained) + ' DHQ per trade. Consider using the trade finder to identify value opportunities.'
+                : 'You average ' + mp.avgTradesPerSeason + ' trades/season vs elite tier teams\' ' + wp.avgTradesPerSeason + '. You ' + (mp.avgValueGained >= 0 ? 'gain +' : 'lose ') + Math.abs(mp.avgValueGained) + ' DHQ per trade (elite tier: ' + signedNum(wp.avgValueGained) + '). You are ' + tradeActivity + ' and ' + tradeEfficiency + '. ' + (mp.avgValueGained < 0 ? 'Focus on extracting value \u2014 target aging stars from contenders or sell depreciating assets.' : 'Keep leveraging your trade edge to consolidate elite talent.');
             const assetListText = (items, picks) => {
                 const clean = (items || []).filter(x => x && x !== 'Unknown');
                 const parts = clean.slice();

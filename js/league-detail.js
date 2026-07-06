@@ -2239,6 +2239,7 @@
           // trusts the server whenever hasServerAI() and only ever limited the
           // paid 'scout' tier — and BYOK (S.apiKey) never touches the server,
           // so the counter is checked here at the send seam.
+          let isFreeCountedSend = false;
           if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) {
             const dayKey = window.App.WR_KEYS.AI_DAILY(new Date().toISOString().split('T')[0]);
             if (parseInt(window.App.WrStorage.get(dayKey, '0')) >= 1) {
@@ -2246,7 +2247,7 @@
               setReconMessages(prev => [...prev, { role: 'user', content: text.trim() }, { role: 'assistant', content: 'That\'s my one free scouting call for today — I\'m back tomorrow. Dynasty HQ Pro gets you unlimited Ask Alex, plus verdicts, optimizers and the full intel suite.' }]);
               return;
             }
-            trackAIUse(); // count this send even on the server path — the server doesn't know warroom's 1/day rule
+            isFreeCountedSend = true; // counted after the reply lands — a provider error must not burn the one daily send
           } else {
             // Paid/trial: untouched — legacy scout-tier limit + server-side rate limiting.
             if (!canUseAI()) {
@@ -2296,6 +2297,7 @@
               : typeof callClaude === 'function'
                 ? await callClaude(messages)
                 : 'AI not available. Add an API key in Settings.';
+            if (isFreeCountedSend && (typeof dhqAI === 'function' || typeof callClaude === 'function')) trackAIUse();
             setReconMessages(prev => {
               const updated = [...prev];
               updated[updated.length - 1] = { role: 'assistant', content: reply };

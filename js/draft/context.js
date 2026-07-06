@@ -419,14 +419,20 @@
                 .sort((a, b) => Number(b?.dhq || 0) - Number(a?.dhq || 0))
                 .map(p => p?.pid)
         );
-        const aiOrder = uniqueIds(buildAiRecommendedOrder(pool, {
-            strategy: strategyInfo.strategy,
-            draftWeights: strategyInfo.draftWeights,
-            assessment: data.userAssessment,
-            draftType,
-            leagueFormat,
-            formatAdapter,
-        }));
+        // Free tier: the strategy-fit re-rank is an optimizer output → Pro
+        // (mirror draft-room.js aiRecommendedOrder). Degrading here — the single
+        // seam — covers the AI lane, My-board seeding, entry.aiRank, and every
+        // downstream boardContext consumer with the raw value order instead.
+        const aiOrder = (typeof window.wrIsPro === 'function' && !window.wrIsPro())
+            ? dhqOrder
+            : uniqueIds(buildAiRecommendedOrder(pool, {
+                strategy: strategyInfo.strategy,
+                draftWeights: strategyInfo.draftWeights,
+                assessment: data.userAssessment,
+                draftType,
+                leagueFormat,
+                formatAdapter,
+            }));
         const myOrder = uniqueIds(saved.myOrder && saved.myOrder.length ? saved.myOrder : aiOrder);
 
         const tags = saved.tags || {};

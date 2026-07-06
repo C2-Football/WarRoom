@@ -1300,7 +1300,7 @@ function CompareTab({
                 mk('Pos Rank', 'low', p => p.posRank || 0, (p, v) => v ? (posLabel(p.pos) + ' #' + v) : '—', { countable: true }),
                 mk('Tier', 'none', p => p.dhq, (p) => p.tier.label, { colors: p => p.tier.color }),
                 mk('PPG', 'high', p => p.ppg || 0, (p, v) => v > 0 ? v : '—', { numeric: true, countable: true, gapFmt: n => n.toFixed(1) }),
-                mk('Value Trend', 'high', p => p.trend || 0, (p) => trendDisp(p), { countable: true }),
+                mk('PPG Trend', 'high', p => p.trend || 0, (p) => trendDisp(p), { countable: true }),
                 mk('Age', isRedraft ? 'none' : 'low', p => p.age || 0, (p, v) => v ? v + 'yo' : '—'),
                 mk('Dynasty Runway', isRedraft ? 'none' : 'high', p => p.valueYrs || 0, (p, v) => v > 0 ? v + 'yr' : '—', { countable: !isRedraft }),
                 mk('Peak Left', isRedraft ? 'none' : 'high', p => p.peakYrs || 0, (p, v) => v > 0 ? v + 'yr' : '—', { countable: !isRedraft }),
@@ -1338,16 +1338,25 @@ function CompareTab({
             const byVal = [...list].sort((x, y) => (y.dhq || 0) - (x.dhq || 0));
             const top = byVal[0], second = byVal[1];
             const valGap = (top.dhq || 0) - (second?.dhq || 0);
-            const runwayLeader = [...list].sort((x, y) => (y.valueYrs || 0) - (x.valueYrs || 0))[0];
+            const byRunway = [...list].sort((x, y) => (y.valueYrs || 0) - (x.valueYrs || 0));
+            const runwayLeader = byRunway[0];
+            // Only claim "longest window/runway" when it's strictly longest and non-zero.
+            const runwayIsClear = (runwayLeader.valueYrs || 0) > 0 && (runwayLeader.valueYrs || 0) > (byRunway[1]?.valueYrs || 0);
             let verdict;
             if (isRedraft) {
                 verdict = valGap > 0
                     ? `${top.name} is the top play of the ${N} — +${valGap.toLocaleString()} ${valueShortLabel} on the next-best.`
                     : `${top.name} leads a tight field — separated by weekly scoring, not value.`;
-            } else if (runwayLeader.pid === top.pid || valGap === 0) {
-                verdict = `${top.name} leads the field — top ${valueShortLabel}${runwayLeader.pid === top.pid ? `, and the longest window (${top.valueYrs}yr)` : ''}.`;
+            } else if (valGap === 0) {
+                verdict = runwayIsClear
+                    ? `Dead even on ${valueShortLabel} at the top — ${runwayLeader.name} has the longest runway (${runwayLeader.valueYrs}yr).`
+                    : `Dead even on ${valueShortLabel} at the top — nothing separates the field on value.`;
+            } else if (runwayLeader.pid === top.pid) {
+                verdict = `${top.name} leads the field — top ${valueShortLabel}${runwayIsClear ? `, and the longest window (${top.valueYrs}yr)` : ''}.`;
             } else {
-                verdict = `${top.name} tops the field on value (+${valGap.toLocaleString()}), but ${runwayLeader.name} has the longest runway (${runwayLeader.valueYrs}yr) — value now vs upside later.`;
+                verdict = runwayIsClear
+                    ? `${top.name} tops the field on value (+${valGap.toLocaleString()}), but ${runwayLeader.name} has the longest runway (${runwayLeader.valueYrs}yr) — value now vs upside later.`
+                    : `${top.name} tops the field on value (+${valGap.toLocaleString()}).`;
             }
 
             const totalVal = list.reduce((s, p) => s + (p.dhq || 0), 0);
@@ -1669,13 +1678,14 @@ function CompareTab({
                 streak = (streakResult === 'W' ? 'Won ' : streakResult === 'L' ? 'Lost ' : 'Tied ') + streakCount;
             }
 
+            const faabDiff = myFaab.remaining - theirFaab.remaining;
             const statCards = [
                 { label: valueLabel, value: (myAssetTotal - theirAssetTotal > 0 ? '+' : '') + (myAssetTotal - theirAssetTotal).toLocaleString(), sub: myAssetTotal.toLocaleString() + ' vs ' + theirAssetTotal.toLocaleString() + ' incl. picks', color: myAssetTotal >= theirAssetTotal ? 'var(--good)' : 'var(--bad)' },
                 { label: 'Roster ' + valueShortLabel, value: (myTotal - theirTotal > 0 ? '+' : '') + (myTotal - theirTotal).toLocaleString(), sub: myTotal.toLocaleString() + ' vs ' + theirTotal.toLocaleString(), color: myTotal >= theirTotal ? 'var(--good)' : 'var(--bad)' },
                 { label: 'Starter ' + valueShortLabel, value: (myStarterDhq - theirStarterDhq > 0 ? '+' : '') + (myStarterDhq - theirStarterDhq).toLocaleString(), sub: myStarterDhq.toLocaleString() + ' vs ' + theirStarterDhq.toLocaleString(), color: myStarterDhq >= theirStarterDhq ? 'var(--good)' : 'var(--bad)' },
                 { label: 'Pick Value', value: (pickValueDiff > 0 ? '+' : '') + pickValueDiff.toLocaleString(), sub: Math.round(myPickCapital.totalValue / 1000) + 'k vs ' + Math.round(theirPickCapital.totalValue / 1000) + 'k pick ' + valueShortLabel, color: pickValueDiff >= 0 ? 'var(--good)' : 'var(--bad)' },
                 { label: 'Pick Count', value: (pickCountDiff > 0 ? '+' : '') + pickCountDiff, sub: myPickCapital.count + ' picks vs ' + theirPickCapital.count + ' picks', color: pickCountDiff >= 0 ? 'var(--good)' : 'var(--bad)' },
-                { label: 'FAAB', value: myFaab.isFaab ? ((myFaab.remaining - theirFaab.remaining > 0 ? '+$' : '-$') + Math.abs(myFaab.remaining - theirFaab.remaining).toLocaleString()) : '—', sub: myFaab.isFaab ? '$' + myFaab.remaining + ' vs $' + theirFaab.remaining + ' left' : 'No FAAB budget', color: !myFaab.isFaab ? 'var(--silver)' : myFaab.remaining >= theirFaab.remaining ? 'var(--good)' : 'var(--bad)' },
+                { label: 'FAAB', value: myFaab.isFaab ? (faabDiff > 0 ? '+$' + faabDiff.toLocaleString() : faabDiff < 0 ? '-$' + Math.abs(faabDiff).toLocaleString() : '$0') : '—', sub: myFaab.isFaab ? '$' + myFaab.remaining + ' vs $' + theirFaab.remaining + ' left' : 'No FAAB budget', color: !myFaab.isFaab ? 'var(--silver)' : faabDiff > 0 ? 'var(--good)' : faabDiff < 0 ? 'var(--bad)' : 'var(--silver)' },
                 { label: 'Position Edges', value: youLead + '-' + theyLead, sub: 'rooms won', color: youLead >= theyLead ? 'var(--good)' : 'var(--bad)' },
                 { label: 'All-Time H2H', value: h2hState.loading ? 'Loading' : h2hWins + '-' + h2hLosses + (h2hTies ? '-' + h2hTies : ''), sub: meetings.length ? avgFor.toFixed(1) + '-' + avgAgainst.toFixed(1) + ' avg' : (h2hState.error || 'no meetings found'), color: h2hWins >= h2hLosses ? 'var(--good)' : 'var(--bad)' },
                 { label: 'Titles', value: myChamps + '-' + theirChamps, sub: 'championships', color: myChamps >= theirChamps ? 'var(--good)' : 'var(--bad)' },

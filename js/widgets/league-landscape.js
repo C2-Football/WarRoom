@@ -68,7 +68,9 @@
         const rosterState = window.App?.getRosterDataState?.({ roster: currentRoster, currentLeague, rosters: currentLeague?.rosters }) || { isUsable: true };
         const total = powerRanked.length || 0;
         const myRank = powerRanked.findIndex(a => a.rosterId && (currentLeague?.rosters || []).find(r => r.roster_id === a.rosterId)?.owner_id === sleeperUserId) + 1;
-        const txnCount = Array.isArray(transactions) ? transactions.length : 0;
+        // Exclude DHQ-merged historical trades (_fromDHQ) — the feed shouldn't
+        // count prior-season history as league activity.
+        const txnCount = Array.isArray(transactions) ? transactions.filter(t => !t?._fromDHQ).length : 0;
 
         // Tier color helper
         const tierCol = (t) => t === 'ELITE' ? colors.positive : t === 'CONTENDER' ? colors.accent : t === 'CROSSROADS' ? colors.warn : colors.negative;
@@ -128,7 +130,7 @@
                         borderTop: '1px solid ' + (colors.border || 'var(--ov-4, rgba(255,255,255,0.06))'),
                         paddingTop: '4px', marginTop: '2px', width: '100%',
                     }}>
-                        <span style={{ fontWeight: 700, color: colors.text }}>{txnCount}</span> league moves recently
+                        <span style={{ fontWeight: 700, color: colors.text }}>{txnCount}</span> league moves this season
                     </div>
                     {postureFrame && (
                         <div style={{ fontSize: fs(0.54), color: postureFrame.accent, fontFamily: fonts.ui, fontWeight: 700, letterSpacing: '0.04em' }}>
@@ -183,10 +185,31 @@
             const type = tx.type || 'move';
             const typeCol = type === 'trade' ? (colors.purple || 'var(--k-7c6bf8, #7c6bf8)') : type === 'waiver' ? (colors.info || 'var(--k-00c8b4, #00c8b4)') : colors.positive;
             let desc = tx.description || tx.type || '—';
-            if (tx.adds || tx.drops) {
+            if (type === 'trade' && (tx.adds || tx.drops)) {
+                // Sleeper trades carry every traded player in both adds{} and
+                // drops{} — group by the acquiring roster (adds[pid] → rosterId)
+                // so a 2-for-2 doesn't render 'A, B for A, B'.
+                const byRoster = {};
+                Object.entries(tx.adds || {}).forEach(([pid, rid]) => {
+                    (byRoster[rid] = byRoster[rid] || []).push(playersData?.[pid]?.full_name || pid);
+                });
+                const sides = Object.values(byRoster);
+                if (sides.length >= 2) {
+                    desc = sides[0].slice(0, 2).join(', ') + ' for ' + sides[1].slice(0, 2).join(', ');
+                } else {
+                    const nPlayers = Object.keys(tx.adds || {}).length;
+                    const nPicks = (tx.draft_picks || []).length;
+                    const what = [
+                        nPlayers ? nPlayers + ' player' + (nPlayers === 1 ? '' : 's') : null,
+                        nPicks ? nPicks + ' pick' + (nPicks === 1 ? '' : 's') : null,
+                    ].filter(Boolean).join(' + ') || 'assets';
+                    const teams = (tx.roster_ids || []).map(rid => getOwnerName ? getOwnerName(rid) : ('Team ' + rid)).filter(Boolean);
+                    desc = 'Trade: ' + what + (teams.length >= 2 ? ' between ' + teams[0] + ' & ' + teams[1] : '');
+                }
+            } else if (tx.adds || tx.drops) {
                 const addNames = Object.keys(tx.adds || {}).map(pid => playersData?.[pid]?.full_name || pid).slice(0, 2);
                 const dropNames = Object.keys(tx.drops || {}).map(pid => playersData?.[pid]?.full_name || pid).slice(0, 2);
-                if (addNames.length && dropNames.length) desc = addNames.join(', ') + ' for ' + dropNames.join(', ');
+                if (addNames.length && dropNames.length) desc = 'Added ' + addNames.join(', ') + ', dropped ' + dropNames.join(', ');
                 else if (addNames.length) desc = 'Added ' + addNames.join(', ');
                 else if (dropNames.length) desc = 'Dropped ' + dropNames.join(', ');
             }

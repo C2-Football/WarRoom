@@ -592,11 +592,17 @@
     function resolveDraftPickValue(input = {}) {
         const round = Math.max(1, Number(input.round) || 1);
         const teams = Math.max(1, Number(input.leagueSize || input.totalTeams || input.teams) || 12);
-        const slot = Math.max(1, Number(input.slot || input.pickInRound) || Math.ceil(teams / 2));
+        // Every value model downstream (getPickValue → dhqPickValueFn, pickValueBySlot,
+        // getPickValueBySlot) expects pick-WITHIN-round — NOT the team's draft column.
+        // Prefer deriving it from the true overall so snake even rounds can never mirror.
+        const overallInput = Math.max(0, Number(input.overall) || 0);
+        const slot = overallInput > 0
+            ? ((overallInput - 1) % teams) + 1
+            : Math.max(1, Number(input.pickInRound || input.slot) || Math.ceil(teams / 2));
         const defaultRounds = window.App?.PlayerValue?.DRAFT_ROUNDS || 7;
         const rounds = Math.max(1, Number(input.rounds || input.draftRounds) || defaultRounds);
         const season = input.season || window.S?.season || new Date().getFullYear();
-        const overall = Number(input.overall || ((round - 1) * teams + slot));
+        const overall = overallInput || ((round - 1) * teams + slot);
         const playerValue = window.App?.PlayerValue || {};
         let value = 0;
         let source = 'missing';
@@ -802,7 +808,8 @@
             const rev = draftType === 'snake' && r % 2 === 0;
             for (let s = 0; s < leagueSize; s++) {
                 const teamIdx = rev ? leagueSize - 1 - s : s;
-                const slot = teamIdx + 1; // 1-indexed slot
+                const slot = teamIdx + 1; // 1-indexed team column — ownership key only
+                const pickInRound = s + 1; // 1-indexed pick-within-round — labels + values
                 const origInfo = slotToRoster[slot] || {};
                 const ownershipKey = r + '-' + slot;
                 const owner = pickOwnership[ownershipKey] || { rosterId: origInfo.rosterId, ownerName: origInfo.ownerName, traded: false };
@@ -810,7 +817,7 @@
                 const pickValue = resolveDraftPickValue({
                     season: window.S?.season,
                     round: r,
-                    slot,
+                    pickInRound,
                     overall,
                     leagueSize,
                     rounds,
@@ -818,6 +825,7 @@
                 order.push({
                     round: r,
                     slot,
+                    pickInRound,
                     teamIdx,
                     overall,
                     originalRosterId: origInfo.rosterId || null,
@@ -1360,7 +1368,9 @@
             if (delta <= -REACH_STEAL_THRESHOLD) row.reaches.push(pickSnapshot(pick));
             if (!row.topPick || pickDhq(pick) > row.topPick.dhq) row.topPick = pickSnapshot(pick);
             if (delta > (row.bestValue?.valueDelta ?? -999)) row.bestValue = pickSnapshot(pick);
-            if (delta < (row.biggestReach?.valueDelta ?? 999)) row.biggestReach = pickSnapshot(pick);
+            // Only a NEGATIVE delta is a reach — mirrors the user-recap filter, so a
+            // team that never reached doesn't get a value pick labeled a reach.
+            if (delta < 0 && delta < (row.biggestReach?.valueDelta ?? 999)) row.biggestReach = pickSnapshot(pick);
         });
 
         Object.keys(state?.personas || {}).forEach(rid => {
@@ -1714,7 +1724,7 @@
                     id: 'pick_' + slot.overall + '_' + Date.now(),
                     round: slot.round,
                     slot: slot.slot,
-                    pickInRound: slot.slot,
+                    pickInRound: slot.pickInRound || slot.slot,
                     overall: slot.overall,
                     teamIdx: slot.teamIdx,
                     rosterId: slot.rosterId,
@@ -2198,7 +2208,7 @@
                         id: 'pick_' + adjustedSlot.overall + '_' + Date.now(),
                         round: adjustedSlot.round,
                         slot: adjustedSlot.slot,
-                        pickInRound: adjustedSlot.slot,
+                        pickInRound: adjustedSlot.pickInRound || adjustedSlot.slot,
                         overall: adjustedSlot.overall,
                         teamIdx: adjustedSlot.teamIdx,
                         rosterId,

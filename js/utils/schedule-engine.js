@@ -8,7 +8,7 @@
 //                          byes:{count, unfilled, thin, pids}}],
 //                summary: {record, projRecord, projWins, projLosses,
 //                          projPF, winPct, remainingWeeks, week},
-//                byeWatch: [{week, count, unfilled, pids, positions}],
+//                byeWatch: [{week, count, unfilled, reason, pids, positions}],
 //                scheduleUnset: bool }>
 //
 // Opponents come from App.Matchup.resolveSeasonOpponents (Sleeper + MFL).
@@ -124,7 +124,9 @@
             }
 
             if (entry && oppRoster) {
-                const hasActual = (entry.myPts > 0 || entry.oppPts > 0);
+                // Only completed weeks count as final — live points mid-week
+                // stay on the forecast path instead of stamping a W/L.
+                const hasActual = isPast && (entry.myPts > 0 || entry.oppPts > 0);
                 if (hasActual) {
                     result = entry.myPts > entry.oppPts ? 'W' : entry.myPts < entry.oppPts ? 'L' : 'T';
                     myProj = Math.round(entry.myPts * 10) / 10;
@@ -135,12 +137,16 @@
                         const myDist = M.dist(mine.optimal.starters.map(s => s.pid), mine.projections, 'median');
                         const oppDist = M.dist(theirs.optimal.starters.map(s => s.pid), theirs.projections, 'median');
                         const fc = M.forecast(myDist, oppDist);
-                        winPct = fc.winPct; margin = fc.margin; myProj = fc.projMe; oppProj = fc.projOpp;
-                        if (!isPast) {
-                            futureWins += fc.winPct / 100;
-                            futureLosses += (100 - fc.winPct) / 100;
-                            futurePF += fc.projMe;
-                            winPctSum += fc.winPct; winPctCount++;
+                        // winPct null = a side had no projectable players — no
+                        // forecast for this week (don't paint a 99% "win").
+                        if (fc.winPct != null) {
+                            winPct = fc.winPct; margin = fc.margin; myProj = fc.projMe; oppProj = fc.projOpp;
+                            if (!isPast) {
+                                futureWins += fc.winPct / 100;
+                                futureLosses += (100 - fc.winPct) / 100;
+                                futurePF += fc.projMe;
+                                winPctSum += fc.winPct; winPctCount++;
+                            }
                         }
                     } catch (e) { if (root.wrLog) root.wrLog('schedule.projectWeek', e); }
                 }
@@ -172,6 +178,9 @@
             .slice(0, 3)
             .map(r => ({
                 week: r.week, count: r.byes.count, unfilled: r.byes.unfilled, pids: r.byes.pids,
+                // 'bye' = bye starters drive the flag; 'gap' = slots are empty
+                // for non-bye reasons (position unrostered, players OUT).
+                reason: r.byes.count > 0 ? 'bye' : 'gap',
                 positions: r.byes.pids.map(pid => {
                     const p = playersData && playersData[pid];
                     return (App.normPos && App.normPos(p && p.position)) || (p && p.position) || '?';
@@ -183,7 +192,6 @@
         const pf = Number(st.fpts) || 0;
         const projWins = wins + futureWins;
         const projLosses = losses + futureLosses;
-        const totalGames = projWins + projLosses + ties;
         const r1 = n => Math.round(n * 10) / 10;
 
         const summary = {
@@ -193,7 +201,9 @@
             projLosses: r1(projLosses),
             projRecord: r1(projWins) + '-' + r1(projLosses) + (ties ? '-' + ties : ''),
             projPF: r1(pf + futurePF),
-            winPct: winPctCount ? Math.round(winPctSum / winPctCount) : (totalGames ? Math.round(projWins / totalGames * 100) : null),
+            // Forward-looking only: average of remaining-week forecasts. No
+            // record-percentage fallback — a season record is not a "WIN%".
+            winPct: winPctCount ? Math.round(winPctSum / winPctCount) : null,
             remainingWeeks: winPctCount,
         };
 

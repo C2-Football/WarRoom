@@ -26,7 +26,7 @@
         const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
         const skinFeatures = resolvedLeagueSkin?.features || {};
         const valueShortLabel = resolvedLeagueSkin?.vocabulary?.valueShortLabel || 'DHQ';
-        const draftCapitalLabel = skinFeatures.showFuturePicks === false ? 'draft capital' : 'future capital';
+        const _draftCapitalLabel = skinFeatures.showFuturePicks === false ? 'draft capital' : 'future capital';
         const leagueKey = currentLeague?.league_id || currentLeague?.id || '';
         const leagueSeason = parseInt(currentLeague.season || new Date().getFullYear());
         const fallbackDraftRounds = currentLeague.settings?.draft_rounds || 5;
@@ -740,7 +740,10 @@
                 if (window.wrLog) window.wrLog('draftRoom.boardContext', e);
                 return null;
             }
-        }, [leagueKey, currentLeague, boardPoolForContext, assess, draftVariant]);
+        // isPro dep: buildBoardContext degrades the AI lane for free at build
+        // time — rebuild once the async tier resolves so a lapsed-trial paying
+        // user doesn't keep a degraded board for the session.
+        }, [leagueKey, currentLeague, boardPoolForContext, assess, draftVariant, isPro]);
 
         const aiRecommendedOrder = useMemo(() => {
             // Free tier: the strategy-fit re-rank is an optimizer output → Pro.
@@ -1089,11 +1092,19 @@
             return src != null ? slotMap[String(src)] : null;
         }, [slotMap, myRoster?.roster_id]);
 
+        // Pick-in-round for round.pick labels + value lookups: slotFor() returns the
+        // team's draft COLUMN, which snake even rounds reverse.
+        const pickPosInRound = useCallback((round, slot) => {
+            if (!slot) return null;
+            const snake = (draftProjectionMeta?.draftType || 'snake') === 'snake';
+            return snake && Number(round) % 2 === 0 ? leagueSize - slot + 1 : slot;
+        }, [draftProjectionMeta?.draftType, leagueSize]);
+
         const fmtPick = useCallback((pk) => {
             if (!pk) return '--';
-            const slot = slotFor(pk);
-            return pk.year + ' ' + pk.round + '.' + (slot ? String(slot).padStart(2, '0') : '??');
-        }, [slotFor]);
+            const pos = pickPosInRound(pk.round, slotFor(pk));
+            return pk.year + ' ' + pk.round + '.' + (pos ? String(pos).padStart(2, '0') : '??');
+        }, [slotFor, pickPosInRound]);
 
         const fmtDhq = n => Number(n || 0).toLocaleString();
         const pickValueFor = useCallback((pk) => {
@@ -1103,7 +1114,7 @@
                 const resolved = window.DraftCC?.state?.resolveDraftPickValue?.({
                     season: pk.year,
                     round: pk.round,
-                    slot,
+                    pickInRound: pickPosInRound(pk.round, slot) || slot,
                     totalTeams: leagueSize,
                     leagueSize,
                     draftRounds,
@@ -1112,7 +1123,7 @@
             } catch (_) {
                 return 0;
             }
-        }, [slotFor, leagueSize, draftRounds]);
+        }, [slotFor, pickPosInRound, leagueSize, draftRounds]);
         const pickCapitalRows = useMemo(() => {
             return pickYears.map(yr => {
                 const picks = myPicks
@@ -1146,7 +1157,11 @@
         }, [myPicks, leagueSeason, slotFor]);
 
         const nextSlot = nextPick ? slotFor(nextPick) : null;
-        const nextPickOverall = nextPick ? ((nextPick.round - 1) * leagueSize) + (nextSlot || Math.ceil(leagueSize / 2)) : null;
+        // Snake even rounds reverse the column → position-in-round mapping; without
+        // the mirror every even-round "gone before your pick" cutoff is wrong.
+        const nextPickOverall = nextPick
+            ? ((nextPick.round - 1) * leagueSize) + (pickPosInRound(nextPick.round, nextSlot) || Math.ceil(leagueSize / 2))
+            : null;
         const picksBeforeNext = nextPickOverall ? Math.max(0, nextPickOverall - 1) : 0;
         const highestCurrentPickRound = Math.max(1, ...myPicks.filter(pk => pk.year === leagueSeason).map(pk => Number(pk.round || 1)));
         const nextPickLabel = nextPick ? fmtPick(nextPick).replace(String(leagueSeason) + ' ', '') : 'next pick';
@@ -1186,7 +1201,7 @@
             return { starters, multiplierFor, label: formatBits.length ? formatBits.join(' + ') : 'league format' };
         }, [currentLeague?.scoring_settings, currentLeague?.roster_positions, normPos]);
 
-        const alexRosterNote = useCallback((pos, priorityScore, targetName, targetDhq) => {
+        const _alexRosterNote = useCallback((pos, priorityScore, targetName, targetDhq) => {
             const p = normPos(pos) || pos || 'this position';
             const target = targetName || 'a clean tier fit';
             const dhqText = targetDhq ? ' (' + fmtDhq(targetDhq) + ' ' + valueShortLabel + ')' : '';
@@ -1457,7 +1472,7 @@
         }, [rosterState.isUsable, topProspects, availableAtNextPick, strategyRec, nextPickOverall, assess, leagueSize]);
 
         // Top recommendations for next pick (slice of the scored list).
-        const recommendations = useMemo(() => scoredAvailable.slice(0, 8), [scoredAvailable]);
+        const _recommendations = useMemo(() => scoredAvailable.slice(0, 8), [scoredAvailable]);
 
         const likelyGoneBeforePick = useMemo(() => {
             if (!nextPickOverall) return [];
@@ -1637,7 +1652,7 @@
                     .sort((a, b) => Number(b.overall) - Number(a.overall));
                 const lastGone = posGone[0];
                 const lastGoneSlot = lastGone
-                    ? lastGone.round + '.' + String(lastGone.slot).padStart(2, '0')
+                    ? lastGone.round + '.' + String(lastGone.pickInRound || lastGone.slot).padStart(2, '0')
                     : '';
 
                 const seed = 'rn:' + pos + ':' + (target.pid || name);
@@ -1718,7 +1733,7 @@
                     age,
                     goneBeforePick: posGone.length,
                     lastGoneName: lastGone?.name || null,
-                    lastGoneSlot: lastGone ? lastGone.round + '.' + String(lastGone.slot).padStart(2, '0') : null,
+                    lastGoneSlot: lastGone ? lastGone.round + '.' + String(lastGone.pickInRound || lastGone.slot).padStart(2, '0') : null,
                 };
             };
 
@@ -1838,7 +1853,7 @@
                 let rank = Number(pick.consensusRank ?? (pick.csv && (pick.csv.consensusRank ?? pick.csv.rank)));
                 rank = (Number.isFinite(rank) && rank > 0) ? Math.round(rank) : null;
                 const overall = Number(pick.overall) || null;
-                const slot = (Number(pick.round) || 0) + '.' + String(Number(pick.slot) || 0).padStart(2, '0');
+                const slot = (Number(pick.round) || 0) + '.' + String(Number(pick.pickInRound || pick.slot) || 0).padStart(2, '0');
                 // Value: board rank vs the slot you spent. delta>0 = value fell to you.
                 // Downside capped (-35) so a need-driven reach isn't catastrophic.
                 let valueScore = 0, valuePhrase = '';
@@ -1879,7 +1894,7 @@
                     player: pick.name || 'Your pick',
                     pid: pick.pid,
                     dhq: pick.dhq || 0,
-                    slotLabel: (Number(pick.round) || 0) + '.' + String(Number(pick.slot) || 0).padStart(2, '0'),
+                    slotLabel: (Number(pick.round) || 0) + '.' + String(Number(pick.pickInRound || pick.slot) || 0).padStart(2, '0'),
                     grade: g.grade,
                     rationale: g.rationale,
                 };
@@ -1895,7 +1910,7 @@
             : g === 'C' ? 'var(--k-f0a500, #f0a500)'
             : 'var(--bad, #e5534b)';
 
-        const userMockRows = useMemo(() => {
+        const _userMockRows = useMemo(() => {
             const picks = (draftPredictionReport?.picks || []).filter(p =>
                 sameId(p.rosterId, myRoster?.roster_id)
                 || (!p.rosterId && Number(p.slot) === Number(draftProjectionMeta.mySlot))
@@ -1919,7 +1934,7 @@
                     return {
                         ...pick,
                         pos,
-                        pickLabel: pick.round + '.' + String(pick.slot).padStart(2, '0'),
+                        pickLabel: pick.round + '.' + String(pick.pickInRound || pick.slot).padStart(2, '0'),
                         school: pick.school || pick.college || 'School TBD',
                         nflTeam: pick.nflTeam || pick.team || 'Team TBD',
                         photoUrl: pick.photoUrl || (pick.pid ? 'https://sleepercdn.com/content/nfl/players/thumb/' + pick.pid + '.jpg' : ''),
@@ -1934,7 +1949,7 @@
             return fmtPick(pk).replace(String(leagueSeason) + ' ', '');
         }, [fmtPick, leagueSeason]);
 
-        const alexPickPlanText = useCallback((pick, pos, targetName, targetNeed, idx) => {
+        const _alexPickPlanText = useCallback((pick, pos, targetName, targetNeed, idx) => {
             const label = pick ? compactPickLabel(pick) : (idx ? 'later pick' : nextPickLabel);
             const needWord = targetNeed?.priorityLabel ? targetNeed.priorityLabel.toLowerCase() : 'board value';
             const posName = posLabel(pos);
@@ -2031,7 +2046,7 @@
                     .sort((a, b) => Number(b.overall) - Number(a.overall));
                 const lastGone = posGone[0];
                 const lastGoneSlot = lastGone
-                    ? lastGone.round + '.' + String(lastGone.slot).padStart(2, '0')
+                    ? lastGone.round + '.' + String(lastGone.pickInRound || lastGone.slot).padStart(2, '0')
                     : '';
 
                 const dhqText = r.dhq > 0 ? fmtDhq(r.dhq) + ' ' + valueShortLabel : '';
@@ -2118,7 +2133,7 @@
                 if (ap.pid != null) claimed.add(String(ap.pid));
                 if (aPos) claimedByPos[aPos] = (claimedByPos[aPos] || 0) + 1;
                 const rd = Number(ap.round) || 0;
-                const sl = Number(ap.slot || ap.pickInRound) || 0;
+                const sl = Number(ap.pickInRound || ap.slot) || 0;
                 return {
                     pid: ap.pid,
                     overall: Number(ap.overall) || 0,
@@ -2138,7 +2153,7 @@
 
             const futureRows = futureSlots.map((pk, idx) => {
                 const pickOverall = ((Number(pk.round || 1) - 1) * leagueSize)
-                    + (slotFor(pk) || draftProjectionMeta.mySlot || idx + 1);
+                    + (pickPosInRound(pk.round, slotFor(pk)) || draftProjectionMeta.mySlot || idx + 1);
 
                 // Pids the room has consumed before this pick. Skip my own roster's
                 // projected picks because Alex's plan overrides them.
@@ -2218,7 +2233,7 @@
         }, [
             rosterState.isUsable, currentCapitalRow.picks, draftPredictionReport,
             myRoster?.roster_id, topProspects, draftedPids, assess, strategyRec,
-            leagueSize, slotFor, draftProjectionMeta.mySlot, normPos,
+            leagueSize, slotFor, pickPosInRound, draftProjectionMeta.mySlot, normPos,
             compactPickLabel, needLabels, liveDraftSnapshot,
         ]);
 
@@ -2265,8 +2280,8 @@
         // Tag button helper
         const tagDefs = { target: { icon: '\u2605', color: 'var(--good)', label: 'Target' }, avoid: { icon: '\u2717', color: 'var(--bad)', label: 'Avoid' }, sleeper: { icon: '\u26A1', color: 'var(--k-3498db, #3498db)', label: 'Sleeper' }, must: { icon: '\u2B50', color: 'var(--gold)', label: 'Must' } };
 
-        const draftViewLabels = { command: 'War Room', board: 'Big Board', mock: 'Mock Draft Center', live: 'Live Draft' };
-        const draftViewContext = {
+        const _draftViewLabels = { command: 'War Room', board: 'Big Board', mock: 'Mock Draft Center', live: 'Live Draft' };
+        const _draftViewContext = {
             command: 'Your picks, board value, and draft-room priorities.',
             board: isRookieDraft ? 'Prospect board, tags, tiers, and saved scouting views.' : 'Full player board, tags, tiers, and saved redraft views.',
             mock: 'Scenario testing, roster impact, and draft capital outcomes.',
@@ -2387,7 +2402,7 @@
                                     const name = live ? (live.name || pick.name) : pick.name;
                                     return (
                                     <button key={activeFlashPreviewReport.presetId + '-' + pick.overall} type="button" title={live ? 'Actual pick · open player card' : 'Open player card'} onClick={e => { e.stopPropagation(); openDraftPlayer(pid); }} style={live ? { borderLeft: '2px solid var(--good, #3fb950)' } : undefined}>
-                                        <span>{pick.round}.{String(pick.slot).padStart(2, '0')} · {pos} · {team}{live ? ' · ✓' : ''}</span>
+                                        <span>{pick.round}.{String(pick.pickInRound || pick.slot).padStart(2, '0')} · {pos} · {team}{live ? ' · ✓' : ''}</span>
                                         <em>{pick.ownerName || ('Team ' + pick.slot)}</em>
                                         <b>{name}</b>
                                     </button>
@@ -2644,7 +2659,13 @@
                                     {savedReports.length > 0 && (
                                         <div style={{ marginTop: 10, borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))', paddingTop: 8 }}>
                                             <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--silver)', opacity: 0.6, marginBottom: 6 }}>Saved Reports</div>
-                                            {savedReports.slice(0, 6).map(r => (
+                                            {/* Saved reports are stored AI reads — reopening one (wr:ask-show) is Pro,
+                                                even for a lapsed trial that generated them while paid. */}
+                                            {!isPro ? (
+                                                window.WrGatedMoreRow
+                                                    ? React.createElement(window.WrGatedMoreRow, { title: savedReports.length + ' saved report' + (savedReports.length === 1 ? '' : 's'), sub: 'Reopen your AI scouting reports with Scout Pro.', feature: 'draft_ai_reports' })
+                                                    : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Saved Reports', 'draft_ai_reports', 'Reopen your AI scouting reports with Scout Pro.') : '' }} />
+                                            ) : savedReports.slice(0, 6).map(r => (
                                                 <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
                                                     <button type="button" title="Reopen report" onClick={() => window.dispatchEvent(new CustomEvent('wr:ask-show', { detail: { title: r.title, prompt: r.prompt, answer: r.content, kind: r.kind } }))} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'transparent', border: 0, color: 'var(--silver)', cursor: 'pointer', font: 'inherit', fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: 0 }}>
                                                         <span style={{ color: 'var(--gold)' }}>{'★'}</span> {r.title} <span style={{ opacity: 0.45 }}>{new Date(r.createdAt).toLocaleDateString()}</span>

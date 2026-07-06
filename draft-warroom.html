@@ -366,6 +366,16 @@
             const [aiLoading,   setAiLoading]   = useState(false);
             const [aiError,     setAiError]     = useState(null);
             const [aiChatInput, setAiChatInput] = useState('');
+            // Scout-free vs Pro (js/shared/pro-gate.js, loaded above the React
+            // chain). Ranked-by-fit recs + Ask AI are Pro; raw board/pick values
+            // stay free. The trigger gate here matters because BYOK users bypass
+            // the OD.callAI server tripwire.
+            const isPro = typeof window.wrIsPro !== 'function' || window.wrIsPro();
+            // One re-render once the async server tier resolves — a paying user
+            // whose local trial stamp lapsed reads 'free' pre-resolve and must
+            // not stay locked (trade-calculator.html tierTick pattern).
+            const [, setTierTick] = useState(0);
+            useEffect(() => { Promise.resolve(window.loadUserTier?.()).catch(() => {}).then(() => setTierTick(t => t + 1)); }, []);
 
             const userIdRef = useRef('');
             useEffect(() => { userIdRef.current = userId; }, [userId]);
@@ -590,6 +600,12 @@
             }
 
             async function runAnalysis() {
+                // Trigger gate (not just the server tripwire): free never calls AI.
+                if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) {
+                    if (window.showProLaunchPage) window.showProLaunchPage();
+                    else if (window.showUpgradePrompt) window.showUpgradePrompt('draft_ai_standalone');
+                    return;
+                }
                 setAiLoading(true); setAiError(null); setAiAnalysis(null);
                 try {
                     const ctx = buildContext();
@@ -878,7 +894,7 @@
                                                                 {r.name}
                                                                 <span className="player-team"> {r.team||'UFA'}</span>
                                                             </a>
-                                                            <span style={{ fontSize:'0.6rem', fontWeight:700, color: fitColor(fit), flexShrink:0 }}>FIT {fit}%</span>
+                                                            {isPro && <span style={{ fontSize:'0.6rem', fontWeight:700, color: fitColor(fit), flexShrink:0 }}>FIT {fit}%</span>}
                                                         </div>
                                                     );
                                                 })}
@@ -905,7 +921,7 @@
                                                                 {r.name}
                                                                 <span className="player-team"> {r.team||'UFA'}</span>
                                                             </a>
-                                                            <span style={{ fontSize:'0.6rem', fontWeight:700, color: fitColor(fit), flexShrink:0 }}>FIT {fit}%</span>
+                                                            {isPro && <span style={{ fontSize:'0.6rem', fontWeight:700, color: fitColor(fit), flexShrink:0 }}>FIT {fit}%</span>}
                                                         </div>
                                                     );
                                                 })}
@@ -932,7 +948,7 @@
                                                                 {r.name}
                                                                 <span className="player-team"> {r.team||'UFA'}</span>
                                                             </a>
-                                                            <span style={{ fontSize:'0.6rem', fontWeight:700, color: fitColor(fit), flexShrink:0 }}>FIT {fit}%</span>
+                                                            {isPro && <span style={{ fontSize:'0.6rem', fontWeight:700, color: fitColor(fit), flexShrink:0 }}>FIT {fit}%</span>}
                                                         </div>
                                                     );
                                                 })}
@@ -957,7 +973,7 @@
                                                         {r.name}
                                                         <span className="player-team"> {r.team||'UFA'}</span>
                                                     </a>
-                                                    <span style={{ fontSize:'0.6rem', fontWeight:700, color: fitColor(fit), flexShrink:0 }}>FIT {fit}%</span>
+                                                    {isPro && <span style={{ fontSize:'0.6rem', fontWeight:700, color: fitColor(fit), flexShrink:0 }}>FIT {fit}%</span>}
                                                 </div>
                                             );
                                         })}
@@ -976,7 +992,7 @@
                                         <span style={{ background:'var(--gold)', color:'var(--black)', fontFamily:'Inter,sans-serif', fontSize:'0.52rem', fontWeight:700, padding:'0.1rem 0.35rem', borderRadius:'3px', letterSpacing:'0.06em', marginLeft:'0.4rem' }}>BETA</span>
                                     </div>
                                     <div className="ph-sub" style={{ gap:'0.35rem' }}>
-                                        {AI_MODES.map(m => (
+                                        {isPro && AI_MODES.map(m => (
                                             <button key={m.id} className={`ai-mode-btn${aiMode===m.id?' active':''}`}
                                                 onClick={() => setAiMode(m.id)}>{m.label}</button>
                                         ))}
@@ -985,8 +1001,16 @@
 
                                 <div className="panel-body" style={{ padding:'0.85rem 0.8rem' }}>
 
+                                    {/* Free: one lock card replaces the rec/AI stack; the raw
+                                        pick-value row below stays. */}
+                                    {!isPro && (
+                                        <div dangerouslySetInnerHTML={{ __html: window.wrLockCard
+                                            ? window.wrLockCard('Draft AI', 'draft_ai_standalone', 'Fit-ranked rookie targets and Ask AI are Scout Pro.')
+                                            : '' }} />
+                                    )}
+
                                     {/* Auto-generated pick recommendations */}
-                                    {nextPick && autoRecs.length > 0 && (
+                                    {isPro && nextPick && autoRecs.length > 0 && (
                                         <div style={{ marginBottom:'0.9rem', padding:'0.5rem', background:'rgba(212,175,55,0.05)', border:'1px solid rgba(212,175,55,0.18)', borderRadius:'6px' }}>
                                             <div style={{ fontFamily:'Inter,sans-serif', fontSize:'0.82rem', color:'var(--gold)', letterSpacing:'0.08em', marginBottom:'0.15rem' }}>
                                                 AT YOUR NEXT PICK ({nextPick.year} Rd {nextPick.round})
@@ -1014,6 +1038,7 @@
                                         </div>
                                     )}
 
+                                    {isPro && <React.Fragment>
                                     <div style={{ fontSize:'0.68rem', color:'var(--silver)', opacity:0.55, marginBottom:'0.75rem', lineHeight:1.5 }}>
                                         {AI_MODES.find(m => m.id === aiMode)?.desc}
                                     </div>
@@ -1039,6 +1064,7 @@
                                             Select a mode and run analysis
                                         </div>
                                     )}
+                                    </React.Fragment>}
                                 </div>
                             </div>
 

@@ -182,11 +182,9 @@
         function goToManagePlan() {
             window.location.href = 'onboarding.html?manage=true';
         }
-
-        function handleCancelPlan() {
-            if (!confirm('Open plan management to cancel or change your plan?')) return;
-            goToManagePlan();
-        }
+        // No Stripe customer portal exists yet — onboarding.html?manage=true is the
+        // plan wizard, so nothing here may claim to be a cancellation ('Cancel'
+        // affordances were merged into the honest 'Change Plan' button, 2026-07-06).
 
         function handleDisplayNameSave() {
             if (typeof onDisplayNameSave === 'function') onDisplayNameSave(displayName);
@@ -378,7 +376,6 @@
                                     <button onClick={goToManagePlan} style={{ ...btnPrimary, fontSize: 'var(--text-label, 0.75rem)' }}>Upgrade</button>
                                     <button onClick={goToManagePlan} style={{ ...btnOutline, fontSize: 'var(--text-label, 0.75rem)' }}>Change Plan</button>
                                     <button onClick={goToManagePlan} style={{ ...btnOutline, fontSize: 'var(--text-label, 0.75rem)' }}>Gift Sub</button>
-                                    <button onClick={handleCancelPlan} style={{ ...btnOutline, fontSize: 'var(--text-label, 0.75rem)', borderColor: 'rgba(231,76,60,0.35)', color: 'var(--k-e74c3c, #e74c3c)' }}>Cancel</button>
                                 </div>
                             </div>
                             <div style={moduleSectionStyle}>
@@ -459,6 +456,16 @@
                             </div>
                             <button onClick={goToManagePlan} style={{ ...btnOutline, flex: 'none', padding: '0.5rem 0.9rem' }}>Manage</button>
                         </div>
+                        {/* Community / Discord — hidden until the owner sets WR_DISCORD_URL (js/app.js) */}
+                        {window.WR_DISCORD_URL && (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '12px 14px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.18))', borderRadius: '10px' }}>
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={labelStyle}>Community</div>
+                                    <div style={{ marginTop: '2px', fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--white)' }}>Dynasty HQ Discord</div>
+                                </div>
+                                <a href={window.WR_DISCORD_URL} target="_blank" rel="noopener" style={{ ...btnOutline, flex: 'none', padding: '0.5rem 0.9rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Join</a>
+                            </div>
+                        )}
                         <button onClick={handleLogout} style={{ padding: '0.8rem', background: 'rgba(231,76,60,0.14)', border: '1px solid rgba(231,76,60,0.4)', borderRadius: '10px', color: 'var(--k-fca5a5, #fca5a5)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>Sign out</button>
                     </div>
                 </div>
@@ -591,7 +598,6 @@
                             <button onClick={goToManagePlan} style={{ ...btnPrimary, fontSize: 'var(--text-label, 0.75rem)' }}>Upgrade</button>
                             <button onClick={goToManagePlan} style={{ ...btnOutline, fontSize: 'var(--text-label, 0.75rem)' }}>Change Plan</button>
                             <button onClick={goToManagePlan} style={{ ...btnOutline, fontSize: 'var(--text-label, 0.75rem)' }}>Gift Sub</button>
-                            <button onClick={handleCancelPlan} style={{ ...btnOutline, fontSize: 'var(--text-label, 0.75rem)', borderColor: 'rgba(231,76,60,0.35)', color: 'var(--k-e74c3c, #e74c3c)' }}>Cancel</button>
                         </div>
                         <div style={{ marginTop: '0.6rem', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--ov-8, rgba(255,255,255,0.3))', textAlign: 'center' }}>Manage your Dynasty HQ subscription</div>
                     </div>

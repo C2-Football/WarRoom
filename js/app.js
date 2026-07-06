@@ -10,9 +10,10 @@
         || /\/warroom-sandbox(\/|$)/i.test(WR_PATH)
         || window.SANDBOX_MODE === true
         || ['localhost', '127.0.0.1'].includes(WR_HOST);
-    // MFL is GA on production (no longer sandbox-beta-only). ESPN/Yahoo remain
-    // sandbox-gated via PLATFORM_SANDBOX_ACCESS. Flip to false to re-gate MFL.
-    const MFL_ENABLED = true;
+    // MFL is re-gated to sandbox-beta-only (2026-07-06; was GA). ESPN/Yahoo remain
+    // sandbox-gated via PLATFORM_SANDBOX_ACCESS. Flip to true to relaunch MFL on
+    // production — and mirror the mfl-api.js splice in index.html when you do.
+    const MFL_ENABLED = false;
     const MFL_SANDBOX_ACCESS = MFL_ENABLED || PLATFORM_SANDBOX_ACCESS;
     function platformAccessAllowed(platform) {
         platform = platform || 'sleeper';
@@ -34,6 +35,17 @@
     // Flip to false (or delete) to restore the paid gate before going live.
     const EMPIRE_FREE_PRELIVE = true;
     window.App.EMPIRE_FREE_PRELIVE = EMPIRE_FREE_PRELIVE;
+
+    // ── Empire Dashboard is sandbox-only while it bakes. Flip EMPIRE_SANDBOX_ONLY
+    // to false to relaunch it on production (EMPIRE_FREE_PRELIVE above then decides
+    // whether the relaunched surface is paid-gated). ──
+    const EMPIRE_SANDBOX_ONLY = true;
+    const EMPIRE_ENABLED = PLATFORM_SANDBOX_ACCESS || !EMPIRE_SANDBOX_ONLY;
+    window.App.EMPIRE_ENABLED = EMPIRE_ENABLED;
+
+    const WR_DISCORD_URL = ''; // owner: paste the Discord invite URL here — hub button + settings row stay hidden until set
+    window.App.WR_DISCORD_URL = WR_DISCORD_URL;
+    window.WR_DISCORD_URL = WR_DISCORD_URL;
 
     // ── Owner default: bigloco's locked-in MFL franchise in the "MLS Dynasty
     // League" (id 41969). Used to auto-select the team on rehydrate when no
@@ -699,6 +711,15 @@
             })();
         }, [proMode, empirePlayersLoaded]);
 
+        // Defense-in-depth: Empire is sandbox-only — even if stale history state or
+        // a stray caller flips proMode on in production, never mount the surface.
+        // (Render-phase reset is safe here: all hooks above have already run, and
+        // the condition is false on the immediate re-render.)
+        if (proMode && !EMPIRE_ENABLED) {
+            setProMode(false);
+            return null;
+        }
+
         if (proMode && !selectedLeague && !_EmpireDash) {
             // Empire module still injecting (or failed) — hold the surface instead of
             // flashing the hub. Escape hatch mirrors the Empire onBack handler.
@@ -868,48 +889,9 @@
             if (error && sleeperLeagues.length === 0) return <div style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--k-e74c3c, #e74c3c)', fontSize: 'var(--text-body, 1rem)' }}>{error}</div>;
             if (!loading && sleeperLeagues.length === 0) return <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--silver)', fontSize: 'var(--text-body, 1rem)' }}>No leagues found for {selectedYear}</div>;
 
-            const tier = typeof getUserTier === 'function' ? getUserTier() : 'free';
-            // Pre-live: treat everyone as paid so Empire is a free tool for now.
-            const isPaid = EMPIRE_FREE_PRELIVE || tier === 'pro' || tier === 'warroom' || tier === 'war_room' || tier === 'commissioner';
-            const showProCard = true; // Always show — changes label based on tier
-
             return (
                 <div className="hub-league-selector">
                     <label>Select League</label>
-
-                    {/* Pro tier card — launcher for paid, upgrade for free */}
-                    {showProCard && !isPaid && (
-                        <div onClick={() => { if (typeof window.showProLaunchPage === 'function') window.showProLaunchPage(); else window.location.href = 'landing.html'; }}
-                            style={{ cursor: 'pointer', marginBottom: '12px', borderRadius: '12px', padding: '14px 16px', background: 'linear-gradient(135deg, var(--acc-fill2, rgba(212,175,55,0.12)), var(--acc-fill1, rgba(212,175,55,0.04)))', border: '1.5px solid var(--acc-line2, rgba(212,175,55,0.35))', display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.18s' }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--acc-line4, rgba(212,175,55,0.6))'; e.currentTarget.style.boxShadow = '0 6px 24px var(--acc-fill3, rgba(212,175,55,0.15))'; }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--acc-line2, rgba(212,175,55,0.35))'; e.currentTarget.style.boxShadow = 'none'; }}>
-                            <div style={{ width: '36px', height: '36px', flexShrink: 0 }}><ProTierIcon size={36} /></div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                                    <span style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--white)' }}>Upgrade to Dynasty HQ</span>
-                                    <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: 'var(--gold)', background: 'var(--acc-fill3, rgba(212,175,55,0.15))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '10px', padding: '1px 7px', letterSpacing: '0.04em' }}>$4.99/mo</span>
-                                </div>
-                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6 }}>Unlock full AI analysis · All leagues · Owner DNA</div>
-                            </div>
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--acc-line3, rgba(212,175,55,0.5))" strokeWidth="2.5" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6"/></svg>
-                        </div>
-                    )}
-                    {showProCard && isPaid && (
-                        <div onClick={() => setProMode(true)}
-                            style={{ cursor: 'pointer', marginBottom: '12px', borderRadius: '12px', padding: '14px 16px', background: 'linear-gradient(135deg, var(--acc-fill2, rgba(212,175,55,0.1)), rgba(0,0,0,0.3))', border: '1.5px solid var(--acc-line3, rgba(212,175,55,0.4))', display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.18s' }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--acc-line4, rgba(212,175,55,0.7))'; e.currentTarget.style.boxShadow = '0 6px 24px var(--acc-line1, rgba(212,175,55,0.2))'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--acc-line3, rgba(212,175,55,0.4))'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}>
-                            <div style={{ width: '36px', height: '36px', flexShrink: 0 }}><ProTierIcon size={36} /></div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                                    <span style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--gold)' }}>Launch Empire Dashboard</span>
-                                    <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: 'var(--k-2ecc71, #2ecc71)', background: 'rgba(46,204,113,0.15)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: '10px', padding: '1px 7px', letterSpacing: '0.04em' }}>PRO</span>
-                                </div>
-                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6 }}>All {sleeperLeagues.length} league{sleeperLeagues.length !== 1 ? 's' : ''} · Cross-league intel · Player exposure</div>
-                            </div>
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--gold)" strokeWidth="2" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6"/></svg>
-                        </div>
-                    )}
 
                     <div className="hub-league-list">
                         {sleeperLeagues.map(l => {
@@ -946,7 +928,7 @@
             const isPaid = EMPIRE_FREE_PRELIVE || tier === 'pro' || tier === 'warroom' || tier === 'war_room' || tier === 'commissioner';
             return (
                 <div className="hub-franchise-picker" style={{ padding: '4px 12px 14px' }}>
-                    {isPaid ? (
+                    {EMPIRE_ENABLED && (isPaid ? (
                         <div className="empire-hero" onClick={() => setProMode(true)}
                             style={{ cursor: 'pointer', marginBottom: '14px', borderRadius: '14px', padding: '16px', background: 'linear-gradient(135deg, rgba(212,175,55,0.16), rgba(212,175,55,0.04))', border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 0 0 1px var(--acc-line1, rgba(212,175,55,0.12)), 0 0 22px rgba(212,175,55,0.10)', transition: 'all .16s' }}
                             onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 0 1px var(--gold), 0 0 28px rgba(212,175,55,0.22)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
@@ -978,9 +960,9 @@
                             </div>
                             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--gold)', whiteSpace: 'nowrap', flexShrink: 0 }}>Unlock ›</span>
                         </div>
-                    )}
+                    ))}
 
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-label, 0.75rem)', letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.7, margin: '2px 0 10px' }}>{isPaid ? 'Or enter a single league' : 'Select franchise'}</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-label, 0.75rem)', letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.7, margin: '2px 0 10px' }}>{EMPIRE_ENABLED && isPaid ? 'Or enter a single league' : 'Select franchise'}</div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
                         {leagues.map(l => {
@@ -1136,18 +1118,33 @@
         const allLeagues = [...sleeperLeagues, ...visibleEspnLeagues, ...visibleMflLeagues];
         const hasLeagues = allLeagues.length > 0;
         const resumeLeague = allLeagues.find(l => l.id === lastLeagueId);
-        const iconSrc = ((window.location.pathname || '').includes('/dist-preview/') ? '../' : '') + 'icon-192.png';
+        const distPrefix = (window.location.pathname || '').includes('/dist-preview/') ? '../' : '';
+        const iconSrc = distPrefix + 'icon-192.png';
+        // `loading` starts true and only resolves via loadSleeperData, which never
+        // runs without a username — so treat the hub as syncing only when a Sleeper
+        // fetch is actually in flight (a signed-out user goes straight to connect).
+        const hubSyncing = loading && !!sleeperUsername;
+        const hubCtrlStyle = { fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 600, letterSpacing: '.12em', color: 'var(--silver)', background: 'transparent', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: '4px', padding: '7px 11px', cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', lineHeight: 1 };
 
         return (
             <div className="app-container">
                 {/* ── Header ── */}
                 <header className="header">
-                    <div className="header-brand">
+                    <div className="header-brand" role="link" aria-label="Dynasty HQ home"
+                        onClick={() => { window.location.href = distPrefix + 'landing.html'; }}
+                        style={{ cursor: 'pointer' }}>
                         <img src={iconSrc} alt="Logo" style={{ width:'44px',height:'44px',borderRadius:'10px',boxShadow:'0 2px 12px var(--acc-line2, rgba(212,175,55,.3))' }} />
                         <div className="header-text">
                             <h1 className="owner-name wr-wordmark" style={{ fontSize:'1.1rem',letterSpacing:'.06em' }}>DYNASTY HQ</h1>
                             <div className="header-subtitle">{String(displayName)}</div>
                         </div>
+                    </div>
+                    {/* Calm control row — sits left of the absolutely-positioned gear (44px + gutter) */}
+                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '52px' }}>
+                        <button onClick={() => { window.location.href = 'onboarding.html?manage=true'; }} style={hubCtrlStyle}>BILLING</button>
+                        {WR_DISCORD_URL && (
+                            <a href={WR_DISCORD_URL} target="_blank" rel="noopener" style={hubCtrlStyle}>DISCORD</a>
+                        )}
                     </div>
                     <svg className="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" onClick={() => setShowSettings(true)} style={{ cursor: 'pointer' }}>
                         <circle cx="12" cy="12" r="3" stroke="var(--gold)"/>
@@ -1156,13 +1153,11 @@
                 </header>
 
                 {/* ── Session Strip (only in connect/add-league view; picker shows LAST inline) ── */}
-                {resumeLeague && !loading && (!hasLeagues || showConnect) && (
+                {resumeLeague && ((!hubSyncing && !hasLeagues) || showConnect) && (
                     <div className="session-strip">
                         <span className="session-strip-label">Last Session:</span>
                         <span className="session-strip-league">{lastLeagueName}</span>
                         <button className="session-strip-btn primary" onClick={() => handleSelectLeague(resumeLeague)}>Resume</button>
-                        <button className="session-strip-btn secondary" onClick={() => handleSelectLeague(resumeLeague)}>View Alerts</button>
-                        <button className="session-strip-btn secondary" onClick={() => handleSelectLeague(resumeLeague)}>Open Draft Room</button>
                     </div>
                 )}
 
@@ -1171,8 +1166,33 @@
                     <FranchisePicker leagues={allLeagues} onSelect={handleSelectLeague} />
                 )}
 
+                {/* ── Hub skeleton — holds the surface while the first league streams in
+                     so the old connect grid never flashes underneath the picker ── */}
+                {hubSyncing && !hasLeagues && !showConnect && (
+                    <div className="hub-franchise-picker" style={{ padding: '4px 12px 14px' }}>
+                        <style>{'@keyframes wr-hub-shimmer{0%,100%{opacity:.3}50%{opacity:.75}}'}</style>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-label, 0.75rem)', letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.7, margin: '2px 0 10px' }}>Syncing franchises…</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+                            {[0, 1, 2].map(i => (
+                                <div key={i} style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.18))', borderRadius: '12px', padding: '14px', background: 'var(--ov-1, rgba(255,255,255,0.02))', animation: 'wr-hub-shimmer 1.4s ease-in-out infinite', animationDelay: (i * 0.18) + 's' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
+                                        <div style={{ width: '40px', height: '40px', flexShrink: 0, borderRadius: '50%', border: '1.5px solid var(--acc-line2, rgba(212,175,55,0.3))', background: 'var(--black)' }} />
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ height: '10px', width: '70%', background: 'var(--ov-3, rgba(255,255,255,0.04))', borderRadius: '3px' }} />
+                                            <div style={{ height: '8px', width: '45%', background: 'var(--ov-2, rgba(255,255,255,0.025))', borderRadius: '3px', marginTop: '8px' }} />
+                                        </div>
+                                    </div>
+                                    <div style={{ marginTop: '11px', paddingTop: '10px', borderTop: '1px solid var(--acc-line1, rgba(212,175,55,0.12))' }}>
+                                        <div style={{ height: '8px', width: '60%', background: 'var(--ov-2, rgba(255,255,255,0.025))', borderRadius: '3px' }} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* ── Connect / add-league view (platform cards) ── */}
-                {(!hasLeagues || showConnect) && (<>
+                {((!hubSyncing && !hasLeagues) || showConnect) && (<>
                 {showConnect && hasLeagues && (
                     <button onClick={() => setShowConnect(false)} className="hub-cta ghost" style={{ margin: '0 12px 10px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>‹ Back to franchises</button>
                 )}
@@ -1197,15 +1217,14 @@
                                     <button className="hub-cta gold" onClick={() => { const v = document.getElementById('wr-sleeper-input')?.value?.trim(); if (v) { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:v})); window.location.reload(); } }}>CONNECT</button>
                                     <button className="hub-cta ghost" style={{ marginTop: '6px' }} onClick={() => { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:'bigloco'})); AppStorage.set(APP_WR_KEYS.DEMO_MODE, '1'); window.location.reload(); }}>Demo League</button>
                                 </div>
+                            ) : hasLeagues ? (
+                                /* Add-a-league view is connect-forms only — the league list
+                                   lives on the franchise picker, not duplicated here. */
+                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', lineHeight: 1.6 }}>
+                                    Signed in as <strong style={{ color: 'var(--white)' }}>{sleeperUsername}</strong>. Sleeper leagues sync automatically — new ones appear on the franchise board.
+                                </div>
                             ) : (
-                                <>
-                                    <LeagueSelector onSelect={handleSelectLeague} accent="gold" />
-                                    {resumeLeague ? (
-                                        <button className="hub-cta gold" onClick={() => handleSelectLeague(resumeLeague)}>ENTER {lastLeagueName?.toUpperCase()}</button>
-                                    ) : sleeperLeagues.length > 0 ? (
-                                        <button className="hub-cta gold" onClick={() => handleSelectLeague(sleeperLeagues[0])}>ENTER {sleeperLeagues[0].name?.toUpperCase()}</button>
-                                    ) : null}
-                                </>
+                                <LeagueSelector onSelect={handleSelectLeague} accent="gold" />
                             )}
                         </div>
                     </div>

@@ -892,6 +892,21 @@ function DashboardPanel({
                 },
             };
         }
+        // Sleeper trades carry every traded player in BOTH adds{} (keyed to the
+        // receiving roster) and drops{} (keyed to the sending roster) — without
+        // a side split a 2-for-2 renders '+A +B -A -B'. Render the trade from
+        // roster_ids[0]'s perspective (the owner named on the row): + what they
+        // received, - what they sent. Non-trades are one-sided already.
+        function tickerAddPids(txn) {
+            const pids = Object.keys(txn.adds || {});
+            if (txn.type !== 'trade' || txn.roster_ids?.[0] == null) return pids;
+            return pids.filter(pid => String(txn.adds[pid]) === String(txn.roster_ids[0]));
+        }
+        function tickerDropPids(txn) {
+            const pids = Object.keys(txn.drops || {});
+            if (txn.type !== 'trade' || txn.roster_ids?.[0] == null) return pids;
+            return pids.filter(pid => String(txn.drops[pid]) === String(txn.roster_ids[0]));
+        }
         const hiddenCount = Math.max(0, (transactions || []).length - visibleTransactions.length);
         return (
             <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)', maxHeight: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -923,13 +938,13 @@ function DashboardPanel({
                             )}
                         </div>
                         <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: W, paddingLeft: '42px' }}>
-                            {Object.keys(txn.adds || {}).map(pid => (
+                            {tickerAddPids(txn).map(pid => (
                                 <span key={'a'+pid} style={{ color: 'var(--good)', cursor: 'pointer', marginRight: '5px' }}
                                     {...tickerPlayerProps(pid)}>
                                     +{getPlayerName(pid)}
                                 </span>
                             ))}
-                            {Object.keys(txn.drops || {}).map(pid => (
+                            {tickerDropPids(txn).map(pid => (
                                 <span key={'d'+pid} style={{ color: 'var(--bad)', cursor: 'pointer', marginRight: '5px' }}
                                     {...tickerPlayerProps(pid)}>
                                     -{getPlayerName(pid)}

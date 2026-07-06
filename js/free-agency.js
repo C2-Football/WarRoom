@@ -204,7 +204,7 @@
         const briefDraftInfo = args.briefDraftInfo || null;
         const leagueSkin = args.leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
         const skinFeatures = leagueSkin?.features || {};
-        const valueShortLabel = leagueSkin?.vocabulary?.valueShortLabel || 'DHQ';
+        const _valueShortLabel = leagueSkin?.vocabulary?.valueShortLabel || 'DHQ';
         const rosterState = args.rosterState || window.App?.getRosterDataState?.({ roster: myRoster, currentLeague, rosters: currentLeague?.rosters, leagueSkin }) || { isUsable: true };
         if (!rosterState.isUsable) return { priorityAdds: [], actionBoardPlayers: [] };
         // Free/Pro: FAAB bids stay null and nothing is published to the shared
@@ -301,12 +301,13 @@
             if (dhq < 500) return null;
             if (isRebuilding && (playerAge || 30) > 25 && dhq < 2000) return null;
             const floor = faabMinBid || 1;
+            if (remaining < floor) return null; // FAAB exhausted — no legal bid left to suggest
             const base = Math.round((dhq / 250) * getScarcityMultiplier(pos));
             const cap = Math.round(remaining * 0.15);
             const modeMultiplier = isRebuilding ? 0.6 : isContending ? 1.2 : 1.0;
-            const sug = Math.max(floor, Math.min(cap, Math.round(base * modeMultiplier)));
-            const lo = Math.max(floor, Math.round(sug * 0.7));
-            const hi = Math.min(remaining, Math.round(sug * 1.4));
+            const sug = Math.min(remaining, Math.max(floor, Math.min(cap, Math.round(base * modeMultiplier))));
+            const lo = Math.min(remaining, Math.max(floor, Math.round(sug * 0.7)));
+            const hi = Math.max(lo, Math.min(remaining, Math.round(sug * 1.4)));
             return { sug, lo, hi, scarcity: getScarcityMultiplier(pos), modeMultiplier };
         }
         function decorateFaCandidate(x) {
@@ -334,8 +335,11 @@
                     formatReasons,
                 })
                 : null;
+            // urgency vocabulary is 'deficit' | 'thin' (team-assess) — 'thin' needs the noun phrase.
             const whyBase = fit.need
-                ? 'Addresses your ' + posName + ' ' + fit.need.urgency + ' and keeps the bid in a controlled range.'
+                ? (fit.need.urgency === 'thin'
+                    ? 'Shores up your thin ' + posName + ' room and keeps the bid in a controlled range.'
+                    : 'Addresses your ' + posName + ' deficit and keeps the bid in a controlled range.')
                 : win.peakYrs > 0
                     ? (skinFeatures.showDynastyValue === false ? 'Adds usable production runway without forcing a major FAAB commitment.' : 'Adds usable dynasty runway without forcing a major FAAB commitment.')
                     : 'Short-window depth. Treat as a tactical add, not a core asset.';
@@ -922,6 +926,7 @@
             }
 
             const floor = faabMinBid || 1;
+            if (remaining < floor) return null; // FAAB exhausted — no legal bid left to suggest
             // Apply scarcity multiplier to base valuation
             const scarcity = getScarcityMultiplier(pos);
             const base = Math.round((dhq / 250) * scarcity);
@@ -933,9 +938,9 @@
             if (isContending) modeMultiplier = 1.2; // Contenders bid aggressively on starters
 
             const adjusted = Math.round(base * modeMultiplier);
-            const sug = Math.max(floor, Math.min(cap, adjusted));
-            const lo = Math.max(floor, Math.round(sug * 0.7));
-            const hi = Math.min(remaining, Math.round(sug * 1.4));
+            const sug = Math.min(remaining, Math.max(floor, Math.min(cap, adjusted)));
+            const lo = Math.min(remaining, Math.max(floor, Math.round(sug * 0.7)));
+            const hi = Math.max(lo, Math.min(remaining, Math.round(sug * 1.4)));
 
             // Competition: count teams with deficit at this position
             let competitors = 0;
@@ -1092,8 +1097,11 @@
                 })
                 : null;
             const posName = window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos);
+            // urgency vocabulary is 'deficit' | 'thin' (team-assess) — 'thin' needs the noun phrase.
             const whyBase = fit.need
-                ? 'Addresses your ' + posName + ' ' + fit.need.urgency + ' and keeps the bid in a controlled range.'
+                ? (fit.need.urgency === 'thin'
+                    ? 'Shores up your thin ' + posName + ' room and keeps the bid in a controlled range.'
+                    : 'Addresses your ' + posName + ' deficit and keeps the bid in a controlled range.')
                 : win.peakYrs > 0
                     ? (skinFeatures.showDynastyValue === false ? 'Adds usable production runway without forcing a major FAAB commitment.' : 'Adds usable dynasty runway without forcing a major FAAB commitment.')
                     : 'Short-window depth. Treat as a tactical add, not a core asset.';

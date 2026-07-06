@@ -62,6 +62,10 @@
         const [view, setView] = React.useState(() => window._wrPrView || 'blended');
         React.useEffect(() => { window._wrPrView = view; }, [view]);
 
+        // Free/Pro (fail-open): ranks + gap math stay free (owner Q7); the
+        // Roster Identity build read + riser/win-now framing are Pro.
+        const pro = typeof window.wrIsPro !== 'function' || window.wrIsPro();
+
         const assessments = React.useMemo(() => {
             if (typeof window.assessAllTeamsFromGlobal === 'function') {
                 try { return window.assessAllTeamsFromGlobal() || []; } catch { return []; }
@@ -610,12 +614,19 @@
                         gap: '8px',
                     }
                 },
-                    React.createElement(StatTile, {
+                    pro ? React.createElement(StatTile, {
                         compact: true,
                         label: 'Roster Identity',
                         value: identity,
                         sub: myContenderRank && myDynastyRank ? 'Now #' + myContenderRank + ' · Future #' + myDynastyRank : 'cross-view pending',
                         tone: identityTone,
+                    }) : React.createElement(StatTile, {
+                        // Free: raw cross-rank fact only — no build classification.
+                        compact: true,
+                        label: 'Cross-View Rank',
+                        value: myContenderRank && myDynastyRank ? 'Now #' + myContenderRank + ' · Future #' + myDynastyRank : '—',
+                        sub: 'contender vs dynasty',
+                        tone: TONE.middle,
                     }),
                     React.createElement(StatTile, {
                         compact: true,
@@ -732,8 +743,9 @@
                     ),
                     React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', minHeight: 0, overflowY: 'auto' } },
                         React.createElement(TierStrip, null),
-                        React.createElement(DeltaList, { title: 'Dynasty Risers', rows: upside, tone: TONE.elite }),
-                        React.createElement(DeltaList, { title: 'Win-Now Profiles', rows: winNow, tone: TONE.gold })
+                        // Free: neutral rank-delta titles — no build-type read on rivals.
+                        React.createElement(DeltaList, { title: pro ? 'Dynasty Risers' : 'Future Rank Lead', rows: upside, tone: TONE.elite }),
+                        React.createElement(DeltaList, { title: pro ? 'Win-Now Profiles' : 'Now Rank Lead', rows: winNow, tone: TONE.gold })
                     )
                 ),
                 React.createElement(StrategicRail, null),

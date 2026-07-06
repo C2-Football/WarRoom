@@ -37,6 +37,20 @@
             );
         }
 
+        // MFL rosters never expose platform starters (starters: []), so the
+        // delta would compare optimal vs nothing and claim the entire optimal
+        // total is "pts on your bench". Show a neutral build prompt instead
+        // (mirrors the MFL seeding caveat in js/tabs/lineup.js).
+        const platformStarters = ((myRoster && myRoster.starters) || []).filter(pid => pid && String(pid) !== '0');
+        if (!platformStarters.length) {
+            return (
+                <div style={base} onClick={go}>
+                    <div style={{ fontSize: '0.7rem', letterSpacing: '0.07em', color: SILVER, fontWeight: 700 }}>LINEUP CHECK</div>
+                    <div style={{ marginTop: 'auto', color: SILVER, opacity: 0.7, fontSize: '0.8rem' }}>No lineup set on platform — open Lineup to build one.</div>
+                </div>
+            );
+        }
+
         const d = result.delta;
         const optimal = d.isOptimal;
         const headline = optimal ? 'SET' : d.delta.toFixed(1);

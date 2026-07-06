@@ -38,7 +38,9 @@
         const myRid = myRoster?.roster_id;
 
         // Trade success: net DHQ delta across all trades I was part of.
-        let tradeNetDhq = 0, tradeCount = 0;
+        // tradeWins = trades with a positive net for me — the real per-trade
+        // win rate (never a fabricated 100/65/40 heuristic).
+        let tradeNetDhq = 0, tradeCount = 0, tradeWins = 0;
         (LI.tradeHistory || []).forEach(t => {
             if (!t.sides || !t.sides[myRid]) return;
             tradeCount++;
@@ -49,7 +51,9 @@
                 if (String(rid) === String(myRid)) return;
                 (side.players || []).forEach(pid => { myOut += LI.playerScores?.[pid] || 0; });
             });
-            tradeNetDhq += (myIn - myOut);
+            const net = myIn - myOut;
+            tradeNetDhq += net;
+            if (net > 0) tradeWins++;
         });
 
         // Waiver hit rate: % of waiver/FA adds still on my roster.
@@ -82,7 +86,7 @@
 
         // Best decision type: whichever hit rate is highest and has a sample.
         const candidates = [
-            { label: 'TRADES',  pct: tradeCount >= 3 && tradeNetDhq > 0 ? 100 : (tradeCount >= 1 ? (tradeNetDhq > 0 ? 65 : 40) : null) },
+            { label: 'TRADES',  pct: tradeCount >= 1 ? Math.round((tradeWins / tradeCount) * 100) : null },
             { label: 'WAIVERS', pct: waiverHitPct },
             { label: 'DRAFT',   pct: draftHitPct },
         ].filter(c => c.pct != null).sort((a, b) => b.pct - a.pct);
@@ -156,7 +160,10 @@
             out.push({
                 focus: 'trades', severity: 'opportunity', confidence: 78,
                 title: 'You trade less than half as often as your league',
-                body: 'You\u2019ve been part of ' + kpis.tradeCount + ' trade' + (kpis.tradeCount === 1 ? '' : 's') + ' vs. a league average of ~' + Math.round(leagueTradeAvg) + '. Your analytical style tends to translate into good trades \u2014 you\u2019re leaving value on the table.',
+                // Only claim their trades are good when the ledger says so.
+                body: 'You\u2019ve been part of ' + kpis.tradeCount + ' trade' + (kpis.tradeCount === 1 ? '' : 's') + ' vs. a league average of ~' + Math.round(leagueTradeAvg) + '. ' + (kpis.tradeNetDhq > 0
+                    ? 'Your trades have netted positive value \u2014 you\u2019re leaving value on the table.'
+                    : 'More reps on the trade market is the fastest lever you\u2019re not pulling.'),
                 ctaLabel: 'Explore trade targets',
             });
         }
@@ -407,7 +414,12 @@
             const p = playersData?.[pid];
             return p && (p.position === 'K' || p.position === 'DEF');
         });
-        if (streamables.length === 0 && currentLeague?.settings) {
+        // Only nag about K/DEF in leagues that actually start those slots.
+        const kdefSlots = (currentLeague?.roster_positions || []).some(s => {
+            const slot = String(s).toUpperCase();
+            return slot === 'K' || slot === 'DEF' || slot === 'DST' || slot === 'D/ST';
+        });
+        if (streamables.length === 0 && kdefSlots) {
             out.push({
                 focus: 'streaming', severity: 'opportunity', confidence: 60,
                 title: 'You don\u2019t roster a K or DEF',
@@ -968,9 +980,17 @@
             const biggestWinner = winners.length ? winners.reduce((a, b) => a.net > b.net ? a : b) : null;
             const sd = 'ai-val:' + partners.length + ':' + winners.length;
             if (biggestLoser && Math.abs(biggestLoser.net) >= 3000) {
+                // 'Solid overall' only when winners are an actual majority;
+                // otherwise frame the losing record honestly.
+                if (winners.length * 2 > partners.length) {
+                    return avPick(sd, [
+                        'You come out ahead against ' + winners.length + ' of ' + partners.length + ' partners \u2014 but ' + biggestLoser.name + ' has gotten you for ' + (Math.abs(biggestLoser.net) / 1000).toFixed(1) + 'k DHQ. Run their next offer through the analyzer before you say yes.',
+                        'Solid overall \u2014 ' + winners.length + ' of ' + partners.length + ' partners \u2014 but watch ' + biggestLoser.name + '. They\u2019re up ' + (Math.abs(biggestLoser.net) / 1000).toFixed(1) + 'k on you. Slow down on their proposals.',
+                    ]);
+                }
                 return avPick(sd, [
-                    'You come out ahead against ' + winners.length + ' of ' + partners.length + ' partners \u2014 but ' + biggestLoser.name + ' has gotten you for ' + (Math.abs(biggestLoser.net) / 1000).toFixed(1) + 'k DHQ. Run their next offer through the analyzer before you say yes.',
-                    'Solid overall \u2014 ' + winners.length + ' of ' + partners.length + ' partners \u2014 but watch ' + biggestLoser.name + '. They\u2019re up ' + (Math.abs(biggestLoser.net) / 1000).toFixed(1) + 'k on you. Slow down on their proposals.',
+                    'You\u2019re only ahead against ' + winners.length + ' of ' + partners.length + ' partners, and ' + biggestLoser.name + ' has gotten you for ' + (Math.abs(biggestLoser.net) / 1000).toFixed(1) + 'k DHQ. Run their next offer through the analyzer before you say yes.',
+                    biggestLoser.name + ' is up ' + (Math.abs(biggestLoser.net) / 1000).toFixed(1) + 'k on you, and the ledger only favors you against ' + winners.length + ' of ' + partners.length + ' partners. Slow down on their proposals.',
                 ]);
             }
             if (biggestWinner && winners.length >= partners.length / 2) {

@@ -102,6 +102,11 @@
         const boardContext = state.draftContext?.boardContext || null;
         const lanes = boardContext?.lanes || {};
         const defaultLane = boardContext?.activeLane || 'dhq';
+        // Free/Pro (fail-open): the AI Recommended lane is strategy-fit optimizer
+        // output → Pro. context.js already degrades lanes.ai DATA to the raw DHQ
+        // order for free; here we hide the lane UI + SEED so free never sees a
+        // board framed as an AI recommendation.
+        const pro = typeof window.wrIsPro !== 'function' || window.wrIsPro();
 
         const [posFilter, setPosFilter] = React.useState('');
         const [search, setSearch] = React.useState('');
@@ -138,7 +143,9 @@
         // renders the DHQ order as a draggable starting point, and the first drag
         // persists the manual order. (Otherwise an empty My Board silently falls
         // back to DHQ and can never be reordered.)
-        const activeLane = (boardLane === 'my' || lanes[boardLane]) ? boardLane : 'dhq';
+        // For free, treat the Pro-only 'ai' lane as unknown — a persisted
+        // activeLane:'ai' must clamp to 'dhq', never auto-open the optimizer lane.
+        const activeLane = ((pro || boardLane !== 'ai') && (boardLane === 'my' || lanes[boardLane])) ? boardLane : 'dhq';
         const activeLaneData = lanes[activeLane] || lanes.dhq || { order: [] };
         const activeRanks = React.useMemo(() => rankMap(activeLaneData.order || []), [activeLaneData]);
         const dhqRanks = React.useMemo(() => rankMap(lanes.dhq?.order || []), [lanes.dhq]);
@@ -280,7 +287,7 @@
             persistBoardPatch({ activeLane: 'my', myOrder: aiOrder.slice() });
         };
 
-        const onCycleTag = (player) => {
+        const _onCycleTag = (player) => {
             const pid = idOf(player);
             if (!pid) return;
             const current = entryFor(player).tag || null;
@@ -289,7 +296,7 @@
             persistBoardPatch({ tags: { [pid]: next }, activeLane: boardLane });
         };
 
-        const onEditNote = (player) => {
+        const _onEditNote = (player) => {
             const pid = idOf(player);
             if (!pid) return;
             const current = entryFor(player).note || '';
@@ -317,7 +324,7 @@
             persistBoardPatch({ activeLane: 'my', myOrder: order });
         }, [persistBoardPatch]);
 
-        const onMovePlayer = (player, delta) => {
+        const _onMovePlayer = (player, delta) => {
             const pid = idOf(player);
             const order = manualOrderIds();
             const idx = order.indexOf(pid);
@@ -342,7 +349,7 @@
             saveManualOrder(order);
         };
 
-        const onEditTier = (player) => {
+        const _onEditTier = (player) => {
             const pid = idOf(player);
             if (!pid) return;
             const current = entryFor(player).tier || player.tier || player.csv?.tier || '';
@@ -410,9 +417,13 @@
         const rowHeight = activeLane === 'my' ? 84 : 46;
         const scrollMaxHeight = bucket === 'desktop' ? undefined : (ROWS_VISIBLE * rowHeight) + 'px';
 
+        const laneOptions = pro ? ['dhq', 'ai', 'my'] : ['dhq', 'my'];
+
         const laneSource = activeLaneData.source || '';
+        // For free, the my-lane default seed IS the raw DHQ order (context.js
+        // degrades aiOrder) — don't caption it as AI.
         const laneCopy = activeLane === 'my' && laneSource === 'seeded_from_ai'
-            ? 'Seeded from AI. Edits create your manual fork.'
+            ? (pro ? 'Seeded from AI. Edits create your manual fork.' : 'Starts from the DHQ order. Edits create your manual fork.')
             : activeLane === 'ai'
                 ? 'Generated from GM strategy, roster fit, and format.'
                 : activeLane === 'dhq'
@@ -430,8 +441,8 @@
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px', marginBottom: '6px' }}>
-                    {['dhq', 'ai', 'my'].map(lane => {
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(' + laneOptions.length + ', 1fr)', gap: '4px', marginBottom: '6px' }}>
+                    {laneOptions.map(lane => {
                         const active = activeLane === lane;
                         return (
                             <button key={lane} onClick={() => onLaneSelect(lane)} style={{
@@ -454,7 +465,7 @@
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '7px', minHeight: 18 }}>
                     <span style={{ flex: 1, minWidth: 0, color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_UI, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{laneCopy}</span>
-                    {activeLane === 'my' && boardContext?.canSeedMyBoardFromAi && (
+                    {pro && activeLane === 'my' && boardContext?.canSeedMyBoardFromAi && (
                         <button onClick={onSeedMyBoardFromAi} style={{
                             padding: '2px 6px',
                             border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))',

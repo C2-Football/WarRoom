@@ -73,7 +73,7 @@
             });
         };
 
-        const gradeCol = offer.grade?.col || 'var(--gold)';
+        const gradeCol = offer.grade?.col || offer.grade?.color || 'var(--gold)';
 
         return (
             <div style={{
@@ -320,7 +320,7 @@
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'center' }}>
                 {(picks || []).map((p, i) => (
                     <div key={'pick' + i} style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--white)', fontFamily: FONT_DISPL, letterSpacing: '0.02em' }}>
-                        R{p.round}.{String(p.slot || 0).padStart(2, '0')}
+                        R{p.round}.{String(p.pickInRound || p.slot || 0).padStart(2, '0')}
                     </div>
                 ))}
                 {(playerIds || []).map(pid => (

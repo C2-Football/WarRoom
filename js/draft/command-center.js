@@ -46,7 +46,10 @@
             const saved = window.DraftCC?.context?._private?.loadStoredBoard
                 ? window.DraftCC.context._private.loadStoredBoard(leagueId, draftType)
                 : null;
-            const lane = saved?.activeLane || saved?.boardMode || 'dhq';
+            let lane = saved?.activeLane || saved?.boardMode || 'dhq';
+            // Free tier: persisted aiOrder may be a real optimizer order saved by a
+            // Pro/trial session — treat a saved 'ai' lane as 'dhq' (raw value order).
+            if (lane === 'ai' && !ccIsPro()) lane = 'dhq';
             const savedOrder = lane === 'ai' && Array.isArray(saved?.aiOrder) && saved.aiOrder.length
                 ? saved.aiOrder
                 : lane === 'my' && Array.isArray(saved?.myOrder) && saved.myOrder.length
@@ -78,9 +81,21 @@
         return (name || '').toLowerCase().replace(/[''`.]/g, '').replace(/\s+(jr\.?|sr\.?|ii|iii|iv)$/, '').replace(/\s+/g, ' ').trim();
     }
 
+    // Pick labels follow the universal round.pick-in-round convention ("R2.01" =
+    // first pick of round 2). `slot` on pickOrder rows is the team's draft COLUMN
+    // (ownership key), so never label with it directly — derive from overall for
+    // saved drafts that predate pickInRound.
+    function pickInRoundOf(pick, leagueSize) {
+        if (!pick) return 0;
+        if (Number(pick.pickInRound) > 0) return Number(pick.pickInRound);
+        const ls = Number(leagueSize) || 0;
+        if (ls > 0 && Number(pick.overall) > 0) return ((Number(pick.overall) - 1) % ls) + 1;
+        return Number(pick.slot) || 0;
+    }
+
     function formatTradeAssetPick(pick) {
         if (!pick) return '';
-        return 'R' + pick.round + '.' + String(pick.slot || 0).padStart(2, '0');
+        return 'R' + pick.round + '.' + String(pickInRoundOf(pick) || 0).padStart(2, '0');
     }
 
     function formatTradeAssetPlayer(pid) {
@@ -104,9 +119,22 @@
     }
 
     function liveTradeTimingLabel(tradeWindow) {
-        if (tradeWindow?.onClock) return 'On clock now';
+        if (tradeWindow?.onClock || !(tradeWindow?.picksAway > 0)) return 'On clock now';
         if (tradeWindow?.picksAway === 1) return 'Next pick';
-        return (tradeWindow?.picksAway || 0) + ' picks away';
+        return tradeWindow.picksAway + ' picks away';
+    }
+
+    // picksAway between the user's next pick and the CURRENT pick: overall is
+    // 1-based, currentIdx is 0-based, so subtract 1 — 0 means on the clock now.
+    function userPicksAway(nextUserSlot, currentIdx) {
+        return Math.max(0, (Number(nextUserSlot?.overall) || 0) - 1 - (Number(currentIdx) || 0));
+    }
+
+    function userPicksAwayDetail(nextUserSlot, currentIdx) {
+        if (!nextUserSlot) return 'Watch the room';
+        const away = userPicksAway(nextUserSlot, currentIdx);
+        if (away === 0) return 'On the clock';
+        return away + (away === 1 ? ' pick away' : ' picks away');
     }
 
     function describeLiveTradeWindow(tradeWindow) {
@@ -1002,6 +1030,7 @@
 
             // Round change banner (rule-triggered, free)
             if (lastPick.round !== lastAlexRoundRef.current && lastAlexRoundRef.current > 0) {
+                const picksRemaining = state.pickOrder.length - state.currentIdx;
                 dispatch({
                     type: 'ALEX_EVENT_ADD',
                     event: {
@@ -1009,7 +1038,7 @@
                         badge: 'R',
                         color: 'var(--gold)',
                         title: 'Round ' + lastPick.round + ' begins',
-                        text: state.pickOrder.length - state.currentIdx + ' picks remain.',
+                        text: picksRemaining + (picksRemaining === 1 ? ' pick remains.' : ' picks remain.'),
                         relatedPickNo: lastPick.overall,
                     },
                 });
@@ -1024,8 +1053,8 @@
                     badge: projectedAlexRead ? 'A' : (lastPick.isUser ? '★' : '•'),
                     color: projectedAlexRead ? 'var(--gold)' : (lastPick.isUser ? 'var(--gold)' : 'var(--silver)'),
                     title: projectedAlexRead
-                        ? 'Alex read · R' + lastPick.round + '.' + String(lastPick.slot).padStart(2, '0') + ' · ' + lastPick.name
-                        : 'R' + lastPick.round + '.' + String(lastPick.slot).padStart(2, '0') + ' · ' + lastPick.name,
+                        ? 'Alex read · R' + lastPick.round + '.' + String(pickInRoundOf(lastPick, state.leagueSize)).padStart(2, '0') + ' · ' + lastPick.name
+                        : 'R' + lastPick.round + '.' + String(pickInRoundOf(lastPick, state.leagueSize)).padStart(2, '0') + ' · ' + lastPick.name,
                     text: projectedAlexRead || ((lastPick.isUser ? 'You selected ' : '') + lastPick.pos + (lastPick.dhq > 0 ? ' · ' + lastPick.dhq.toLocaleString() + ' DHQ' : '')),
                     relatedPickNo: lastPick.overall,
                 },
@@ -1063,9 +1092,18 @@
                         const needs = up?.assessment?.needs || [];
                         return needs.some(n => (typeof n === 'string' ? n : n?.pos) === run.pos);
                     })();
+                    // Only claim a hard cliff when the tier-break signal confirms the
+                    // position's top tier is actually down to its last man; otherwise
+                    // keep the read non-quantified.
+                    const runSignals = window.DraftCC.liveDecisionEngine?.liveStreamSignals?.(state) || {};
+                    const runCliff = runSignals.tierBreak && runSignals.tierBreak.pos === run.pos;
                     const implication = userNeedsRun
-                        ? `You need ${run.pos} — the cliff is one turn away. If you want one, this is the window.`
-                        : `If you want one, the cliff is one turn away. Otherwise let the room thin it out and pivot.`;
+                        ? (runCliff
+                            ? `You need ${run.pos} — the tier is down to its last man. If you want one, this is the window.`
+                            : `You need ${run.pos} — the pocket is thinning fast. If you want one, this is the window.`)
+                        : (runCliff
+                            ? `The tier is down to its last man — move now if you want one. Otherwise let the room thin it out and pivot.`
+                            : `If you want one, don't wait long. Otherwise let the room thin it out and pivot.`);
                     dispatch({
                         type: 'ALEX_EVENT_ADD',
                         event: {
@@ -1089,9 +1127,12 @@
                     const tbKey = tb.pos + ':' + (tb.tier || '?') + ':' + tb.lastPlayer;
                     if (lastTierBreakRef.current !== tbKey) {
                         lastTierBreakRef.current = tbKey;
+                        // "A real step down" only when the tier gap actually is one
+                        // (2+ tiers); otherwise describe the break without grading it.
+                        const bigTierDrop = Number(tb.nextTier) > 0 && Number(tb.tier) > 0 && (Number(tb.nextTier) - Number(tb.tier) >= 2);
                         const stepDown = tb.nextPlayer
-                            ? `Next up is ${tb.nextPlayer}${tb.nextTier ? ' (tier ' + tb.nextTier + ')' : ''} — a real step down.`
-                            : `The next tier is a real step down.`;
+                            ? `Next up is ${tb.nextPlayer}${tb.nextTier ? ' (tier ' + tb.nextTier + ')' : ''}${bigTierDrop ? ' — a real step down.' : '.'}`
+                            : `The board steps down from here.`;
                         dispatch({
                             type: 'ALEX_EVENT_ADD',
                             event: {
@@ -1118,7 +1159,7 @@
                                 badge: '⬇',
                                 color: 'var(--k-e67e22, #e67e22)',
                                 title: 'VALUE CLIFF · after ' + vc.afterPlayer,
-                                text: `Big value drop after ${vc.afterPlayer} (${vc.afterPos}) — ${Math.round(vc.dropPct * 100)}% gap to ${vc.nextPlayer}. Grab now or wait a full round for similar.`,
+                                text: `Big value drop after ${vc.afterPlayer} (${vc.afterPos}) — ${Math.round(vc.dropPct * 100)}% gap to ${vc.nextPlayer}. Grab now — comparable value isn't close behind.`,
                                 relatedPickNo: lastPick.overall,
                             },
                         });
@@ -1172,7 +1213,7 @@
                     : '';
                 const contextLines = [
                     (window.WR?.AIContext?.buildFormatPreamble?.(window.S?.currentLeague) || '').trim(),
-                    `Draft pick: ${lastPick.name} (${lastPick.pos}) at R${lastPick.round}.${String(lastPick.slot).padStart(2, '0')}, overall #${lastPick.overall}.`,
+                    `Draft pick: ${lastPick.name} (${lastPick.pos}) at R${lastPick.round}.${String(pickInRoundOf(lastPick, state.leagueSize)).padStart(2, '0')}, overall #${lastPick.overall}.`,
                     `By: ${persona?.teamName || 'Team ' + lastPick.teamIdx}, DNA: ${persona?.draftDna?.label || '—'}, Trade DNA: ${persona?.tradeDna?.label || '—'}, Posture: ${persona?.posture?.label || '—'}.`,
                     ownerIntelText ? `Owner intel: ${ownerIntelText}.` : '',
                     nudgesText ? `Picker reasoning: ${nudgesText}.` : '',
@@ -1844,7 +1885,7 @@
 	                leagueSize: state.leagueSize,
 	                rounds: state.rounds,
 	            });
-	            return { round, slot, overall, value: pickValue?.value || 0, ownerName: slotOwner, traded: false };
+	            return { round, slot, pickInRound: slot, overall, value: pickValue?.value || 0, ownerName: slotOwner, traded: false };
 	        });
 	        const pickPreviewRows = userPickPreview.length ? userPickPreview : fallbackPickPreview;
 	        const fmtDhqValue = n => Number(n || 0) > 0 ? Number(n || 0).toLocaleString() + ' DHQ' : 'value pending';
@@ -2129,7 +2170,7 @@
                         <div className="draft-setup-timeline">
                             {pickPreviewRows.map((p, i) => (
 	                                <div key={p.round + '-' + p.slot + '-' + i}>
-	                                    <strong>{p.round}.{String(p.slot).padStart(2, '0')}</strong>
+	                                    <strong>{p.round}.{String(pickInRoundOf(p, state.leagueSize) || p.slot).padStart(2, '0')}</strong>
 	                                    <span>Overall {p.overall} - {p.ownerName || slotOwner}</span>
 	                                    <em>{fmtDhqValue(p.value)}{p.traded ? ' - acquired' : ''}</em>
 	                                </div>
@@ -2237,7 +2278,7 @@
                     {recaps.map(recap => (
                         <div key={(recap.id || recap.savedAt) + '-' + refresh} style={{ padding: '10px 11px', borderRadius: 8, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'var(--ov-2, rgba(255,255,255,0.025))' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                                <strong style={{ color: 'var(--gold)', fontFamily: FONT_DISPL, fontSize: '1.08rem', lineHeight: 1 }}>{recap.grade?.letter || '?'}</strong>
+                                <strong style={{ color: 'var(--gold)', fontFamily: FONT_DISPL, fontSize: '1.08rem', lineHeight: 1 }}>{ccIsPro() ? (recap.grade?.letter || '?') : '🔒'}</strong>
                                 <div style={{ minWidth: 0 }}>
                                     <div style={{ color: 'var(--white)', fontWeight: 800, fontSize: '0.72rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{recap.variant || 'draft'} recap</div>
                                     <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)' }}>{when(recap.savedAt)}</div>
@@ -2247,7 +2288,8 @@
                                 #{recap.rank || '-'} league rank - {fmt(recap.totalDHQ)} DHQ - {recap.actionPlan?.length || 0} actions
                             </div>
                             <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                                <button type="button" onClick={() => exportRecap(recap)} style={{ flex: 1, padding: '5px 7px', borderRadius: 5, border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', fontFamily: FONT_UI, fontWeight: 800, cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)' }}>EXPORT</button>
+                                {/* share text embeds the grade + value calls → Pro */}
+                                {ccIsPro() && <button type="button" onClick={() => exportRecap(recap)} style={{ flex: 1, padding: '5px 7px', borderRadius: 5, border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', fontFamily: FONT_UI, fontWeight: 800, cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)' }}>EXPORT</button>}
                                 <button type="button" onClick={() => deleteRecap(recap.id)} style={{ padding: '5px 7px', borderRadius: 5, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'transparent', color: 'var(--silver)', fontFamily: FONT_UI, fontWeight: 700, cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)' }}>DELETE</button>
                             </div>
                         </div>
@@ -2564,7 +2606,7 @@
                                                 cursor: 'pointer',
                                             }}>
                                                 <div style={{ display: 'grid', gridTemplateColumns: '42px minmax(0,1fr) 62px', gap: 8, alignItems: 'start' }}>
-                                                    <span style={{ color: isMine ? 'var(--k-2ecc71, #2ecc71)' : 'var(--gold)', fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)' }}>{p.round}.{String(p.slot).padStart(2, '0')}</span>
+                                                    <span style={{ color: isMine ? 'var(--k-2ecc71, #2ecc71)' : 'var(--gold)', fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)' }}>{p.round}.{String(pickInRoundOf(p, state.leagueSize) || 0).padStart(2, '0')}</span>
                                                     <span style={{ minWidth: 0 }}>
                                                         <strong style={{ display: 'block', color: 'var(--white)', fontSize: '0.72rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name} <span style={{ color: 'var(--gold)', fontSize: 'var(--text-micro, 0.6875rem)' }}>{p.pos}</span></strong>
                                                         <em style={{ display: 'block', color: 'var(--silver)', opacity: 0.66, fontSize: 'var(--text-micro, 0.6875rem)', fontStyle: 'normal', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.ownerName}</em>
@@ -3501,7 +3543,7 @@
                 age: playerAge(p.pid, p.age || p.csv?.age || null),
                 dhq: p.dhq || 0,
                 projected5: projectDhq(p.dhq || 0, p.pos, playerAge(p.pid, p.age || p.csv?.age || null), 5),
-                source: 'Pick ' + p.round + '.' + String(p.slot).padStart(2, '0'),
+                source: 'Pick ' + p.round + '.' + String(pickInRoundOf(p, state.leagueSize) || 0).padStart(2, '0'),
                 isPick: true,
             }));
             return [...baseRows, ...pickRows].filter(r => r.pos && r.dhq > 0).sort((a, b) => {
@@ -3609,7 +3651,7 @@
                 key: pick.id || ('picked-' + pick.overall + '-' + idx),
                 pick,
                 slot: orderSlot,
-                label: 'R' + (pick.round || orderSlot.round || '?') + '.' + String(pick.slot || orderSlot.slot || 0).padStart(2, '0'),
+                label: 'R' + (pick.round || orderSlot.round || '?') + '.' + String(pickInRoundOf(pick, state.leagueSize) || pickInRoundOf(orderSlot, state.leagueSize) || 0).padStart(2, '0'),
                 stale: idx < arr.length - 1,
             };
         });
@@ -3618,7 +3660,7 @@
             key: 'upcoming-' + (slot.overall || idx),
             slot,
             pick: null,
-            label: 'R' + (slot.round || '?') + '.' + String(slot.slot || 0).padStart(2, '0'),
+            label: 'R' + (slot.round || '?') + '.' + String(pickInRoundOf(slot, state.leagueSize) || 0).padStart(2, '0'),
         }));
         const rows = [...completedRows, ...upcomingRows];
         const currentOverall = currentSlot?.overall || order[state.currentIdx || 0]?.overall;
@@ -3722,9 +3764,9 @@
         return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(Math.round(n));
     }
 
-    function mockPickLabel(slot) {
+    function mockPickLabel(slot, leagueSize) {
         if (!slot) return '--';
-        return 'R' + (slot.round || '?') + '.' + String(slot.slot || 0).padStart(2, '0');
+        return 'R' + (slot.round || '?') + '.' + String(pickInRoundOf(slot, leagueSize) || 0).padStart(2, '0');
     }
 
     function mockPlayerTeam(player) {
@@ -3769,7 +3811,7 @@
         }
     }
 
-    function mockRunText(state) {
+    function _mockRunText(state) {
         const counts = {};
         (state.picks || []).slice(-8).forEach(p => {
             const pos = p.pos || '?';
@@ -3797,7 +3839,8 @@
         const second = last16.slice(0, 3).map(([pos, count]) => pos + ' x' + count);
         return {
             value: top ? top[0] + ' run: ' + top[1] + ' in last 8' : 'No run yet',
-            detail: next.length ? 'AI expects pressure next: ' + next.join(', ') : 'AI waiting on more board movement',
+            // Raw counts only — no "AI expects" prediction phrasing (free-reachable tile).
+            detail: next.length ? 'Top of remaining board: ' + next.join(', ') : 'Waiting on more board movement',
             bullets: [
                 second.length ? 'Last 16: ' + second.join(', ') : 'Last 16: not enough picks',
                 next.length ? 'Upcoming board: ' + next.join(', ') : 'Upcoming board: flat',
@@ -3879,7 +3922,15 @@
 
     function MockTradeOfferPanel({ state, dispatch }) {
         const offer = state.activeOffer;
-        if (!offer) return null;
+        // Belt-and-suspenders: offer GENERATION is Pro-gated, but a draft persisted
+        // mid-negotiation by a Pro/trial session resumes with the persona dialogue
+        // (likelihood %, psych reads) live. Free never renders it — auto-decline so
+        // the paused room resumes.
+        const offerIsPro = ccIsPro();
+        React.useEffect(() => {
+            if (offer && !offerIsPro) dispatch({ type: 'DECLINE_TRADE' });
+        }, [offer, offerIsPro, dispatch]);
+        if (!offer || !offerIsPro) return null;
         const round = Number(offer.negotiationRound || 0);
         const maxRounds = Number(offer.maxNegotiationRounds || 3);
         const counterClosed = !!offer.counterClosed || round >= maxRounds;
@@ -3965,7 +4016,11 @@
         const [sortDir, setSortDir] = React.useState(-1);
         const boardContext = state.draftContext?.boardContext || {};
         const isRedraftBoard = state.variant === 'redraft' || state.draftContext?.draftType === 'redraft' || state.draftContext?.leagueFormat?.draftType === 'redraft';
-        const initialLane = ['dhq', 'ai', 'my'].includes(boardContext.activeLane) ? boardContext.activeLane : 'dhq';
+        // Free tier: the AI Recommended lane is a strategy-optimizer ranked board →
+        // Pro (mirror draft-room.js). Clamp any persisted 'ai' lane back to raw DHQ.
+        const boardIsPro = ccIsPro();
+        const laneChoices = boardIsPro ? ['dhq', 'ai', 'my'] : ['dhq', 'my'];
+        const initialLane = laneChoices.includes(boardContext.activeLane) ? boardContext.activeLane : 'dhq';
         const [boardLane, setBoardLane] = React.useState(initialLane);
         const posColors = window.App?.POS_COLORS || {};
         const normPos = window.App?.normPos || (p => p);
@@ -4060,10 +4115,17 @@
                 </div>
                 <div className="mock-board-lanes">
                     {['dhq', 'ai', 'my'].map(lane => (
-                        <button key={lane} type="button" className={boardLane === lane ? 'is-active' : ''} onClick={() => { setBoardLane(lane); setSortKey('board'); }}>
-                            <strong>{boardLaneMeta[lane].label}</strong>
-                            <span>{boardLaneMeta[lane].detail}</span>
-                        </button>
+                        lane === 'ai' && !boardIsPro ? (
+                            <button key={lane} type="button" title="The AI Recommended board is Scout Pro" onClick={() => { if (window.showProLaunchPage) window.showProLaunchPage(); else if (window.showUpgradePrompt) window.showUpgradePrompt('draft_ai_board'); }}>
+                                <strong>{'🔒 AI Recommended'}</strong>
+                                <span>Scout Pro</span>
+                            </button>
+                        ) : (
+                            <button key={lane} type="button" className={boardLane === lane ? 'is-active' : ''} onClick={() => { setBoardLane(lane); setSortKey('board'); }}>
+                                <strong>{boardLaneMeta[lane].label}</strong>
+                                <span>{boardLaneMeta[lane].detail}</span>
+                            </button>
+                        )
                     ))}
                 </div>
                 <div className="mock-board-tools">
@@ -4122,7 +4184,7 @@
         const best = pool[0] || null;
         const safe = pool.find(p => Number(p.tier || p.csv?.tier || 99) <= 2 && p !== best) || pool[1] || best;
         const upside = pool.find(p => (p.fit?.score || 0) >= 55 && p !== best && p !== safe) || pool[2] || best;
-        const slotLabel = mockPickLabel(currentSlot);
+        const slotLabel = mockPickLabel(currentSlot, state.leagueSize);
         const pickWhy = (player, lane) => {
             if (!player) return 'I am waiting on the board to load.';
             const pos = player.pos || 'this spot';
@@ -4226,7 +4288,7 @@
                 <div className="mock-log-scroll">
                     {currentSlot && (
                         <div className="mock-log-row is-current">
-                            <span>{mockPickLabel(currentSlot)}</span>
+                            <span>{mockPickLabel(currentSlot, state.leagueSize)}</span>
                             <strong>{mockTeamName(state, currentSlot.rosterId, currentSlot)}</strong>
                             <em>On clock</em>
                             <b>#{currentSlot.overall || '--'}</b>
@@ -4237,7 +4299,7 @@
                         const valueNote = pick.reachSteal?.label || pick.valueLabel || (pick.dhq ? 'Value' : 'Logged');
                         return (
                             <div key={pick.id || pick.overall + '-' + pick.pid} className="mock-log-row" onClick={() => mockOpenPlayer(pick)}>
-                                <span>{mockPickLabel(pick)}</span>
+                                <span>{mockPickLabel(pick, state.leagueSize)}</span>
                                 <strong>{mockTeamName(state, pick.rosterId, slot)}</strong>
                                 <em><i style={{ color: posColors[pick.pos] || 'var(--gold)' }}>{pick.pos || '--'}</i> {pick.name}</em>
                                 <b>{mockFmt(pick.dhq)} <small>{valueNote}</small></b>
@@ -4376,8 +4438,8 @@
         const currentDisplayName = currentName.length > 36 ? currentName.slice(0, 35) + '...' : currentName;
         const timerLabel = state.activeOffer ? 'Paused' : state.speed === 'paused' ? 'Paused' : state.speed === 'fast' ? '0:35' : state.speed === 'slow' ? '4:00' : '2:15';
         const statusTiles = [
-            { label: 'On Clock', value: currentName, detail: currentSlot ? '#' + (currentSlot.overall || '--') + ' · ' + mockPickLabel(currentSlot) : 'No active pick' },
-            { label: 'Our Next Pick', value: nextUserSlot ? mockPickLabel(nextUserSlot) : 'No pick left', detail: nextUserSlot ? Math.max(0, (nextUserSlot.overall || 0) - (state.currentIdx || 0)) + ' picks away' : 'Watch the room' },
+            { label: 'On Clock', value: currentName, detail: currentSlot ? '#' + (currentSlot.overall || '--') + ' · ' + mockPickLabel(currentSlot, state.leagueSize) : 'No active pick' },
+            { label: 'Our Next Pick', value: nextUserSlot ? mockPickLabel(nextUserSlot, state.leagueSize) : 'No pick left', detail: userPicksAwayDetail(nextUserSlot, state.currentIdx) },
             { label: 'Last Pick', value: lastPick ? lastPick.name : 'No picks yet', detail: lastPick ? (lastPick.pos || '--') + ' · DHQ ' + mockFmt(lastPick.dhq) : 'Start the draft' },
             { label: 'League Evolution', value: runReport.value, detail: state.activeOffer ? 'Draft paused for negotiation' : runReport.detail, extra: runReport.bullets },
         ];
@@ -4394,7 +4456,7 @@
                     </div>
                     <div className="mock-cast-clock">
                         <span>{state.activeOffer ? 'TRADE OFFER PAUSED' : 'ON THE CLOCK'}</span>
-                        <strong>{currentDisplayName} - Pick {currentSlot ? mockPickLabel(currentSlot).replace('R', '') : '--'}</strong>
+                        <strong>{currentDisplayName} - Pick {currentSlot ? mockPickLabel(currentSlot, state.leagueSize).replace('R', '') : '--'}</strong>
                         <div><i style={{ width: progress + '%' }} /></div>
                         <em>{state.currentIdx || 0} / {totalPicks || '--'}</em>
                     </div>
@@ -4476,6 +4538,14 @@
             }),
             [myPicks, state.originalPool, state.personas, state.userRosterId, state.variant, state.leagueSize, state.rounds, state.auctionBudget]
         );
+
+        // Belt-and-suspenders: a draft persisted mid-negotiation by a Pro/trial
+        // session resumes with the persona trade dialogue (likelihood %, psych
+        // reads) live. Free never renders the modal — auto-decline so the room resumes.
+        const tradeIsPro = ccIsPro();
+        React.useEffect(() => {
+            if (state.activeOffer && !tradeIsPro) dispatch({ type: 'DECLINE_TRADE' });
+        }, [state.activeOffer, tradeIsPro, dispatch]);
 
         const BigBoardPanel = window.DraftCC.BigBoardPanel;
         const OpponentIntelPanel = window.DraftCC.OpponentIntelPanel;
@@ -4599,7 +4669,7 @@
         const canUndoManualPick = state.phase === 'drafting' && lastPick && (
             state.mode === 'manual' || lastPick.source === 'manual-live' || lastPick.source === 'manual-draft'
         );
-        const pickLabelFor = slot => slot ? ('R' + (slot.round || '?') + '.' + String(slot.slot || 0).padStart(2, '0')) : '--';
+        const pickLabelFor = slot => slot ? ('R' + (slot.round || '?') + '.' + String(pickInRoundOf(slot, state.leagueSize) || 0).padStart(2, '0')) : '--';
         const shortDhq = n => {
             const v = Number(n || 0);
             return v >= 1000 ? (v / 1000).toFixed(1) + 'k' : String(Math.round(v));
@@ -4655,7 +4725,7 @@
             {
                 label: 'Your next pick',
                 value: nextUserSlot ? pickLabelFor(nextUserSlot) : 'No pick left',
-                detail: nextUserSlot ? Math.max(0, (nextUserSlot.overall || 0) - (state.currentIdx || 0)) + ' picks away' : 'Watch the room',
+                detail: userPicksAwayDetail(nextUserSlot, state.currentIdx),
                 tone: 'var(--k-2ecc71, #2ecc71)',
             },
             {
@@ -4705,7 +4775,7 @@
                         grade={grade}
                         canUndoManualPick={canUndoManualPick}
                     />
-                    {state.activeOffer && TradeModal && <TradeModal state={state} dispatch={dispatch} />}
+                    {tradeIsPro && state.activeOffer && TradeModal && <TradeModal state={state} dispatch={dispatch} />}
                     {state.proposerDrawer && TradeProposer && <TradeProposer state={state} dispatch={dispatch} />}
                 </>
             );
@@ -5202,7 +5272,7 @@
                 {AlexEdgeGlow && <AlexEdgeGlow state={state} isUserTurn={isUserTurn} />}
 
                 {/* Phase 3: CPU trade offer modal (fixed-position) */}
-                {state.activeOffer && TradeModal && <TradeModal state={state} dispatch={dispatch} />}
+                {tradeIsPro && state.activeOffer && TradeModal && <TradeModal state={state} dispatch={dispatch} />}
 
                 {/* Phase 3: User trade proposer drawer (fixed-position) */}
                 {state.proposerDrawer && TradeProposer && <TradeProposer state={state} dispatch={dispatch} />}
@@ -5232,7 +5302,13 @@
                     const POS_ORDER = ['QB','RB','WR','TE','K','DEF','DL','LB','DB'];
                     const orderedPositions = POS_ORDER.filter(p => posSummary[p]).concat(Object.keys(posSummary).filter(p => !POS_ORDER.includes(p)));
 
-                    const gradeColor = grade.letter.startsWith('A') ? 'var(--k-2ecc71, #2ecc71)' : grade.letter.startsWith('B') ? 'var(--k-d4af37, #d4af37)' : grade.letter.startsWith('C') ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
+                    // Free recap keeps the raw haul (DHQ totals, rank, pick list,
+                    // positional counts, trade volume); the A–F grade, efficiency
+                    // read, best/reach/worst calls, storylines, and team grades/
+                    // tiers are Pro. Neutral color for free so the border/hero
+                    // tint doesn't leak the grade.
+                    const recapPro = ccIsPro();
+                    const gradeColor = !recapPro ? 'var(--silver)' : grade.letter.startsWith('A') ? 'var(--k-2ecc71, #2ecc71)' : grade.letter.startsWith('B') ? 'var(--k-d4af37, #d4af37)' : grade.letter.startsWith('C') ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
                     const teamRecaps = recap?.teamRecaps || [];
                     const leagueStorylines = recap?.leagueStorylines || [];
                     // Post-draft power/tier per team: existing roster health (assessTeam)
@@ -5326,8 +5402,8 @@
                                     <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '6px' }}>Draft Complete — Recap</div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
                                         <div style={{ textAlign: 'center', flexShrink: 0 }}>
-                                            <div style={{ fontFamily: FONT_DISPL, fontSize: '5.5rem', fontWeight: 700, color: gradeColor, lineHeight: 1 }}>{grade.letter}</div>
-                                            <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '2px' }}>Overall Grade</div>
+                                            <div style={{ fontFamily: FONT_DISPL, fontSize: '5.5rem', fontWeight: 700, color: gradeColor, lineHeight: 1 }}>{recapPro ? grade.letter : '🔒'}</div>
+                                            <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '2px' }}>{recapPro ? 'Overall Grade' : 'Grade — Scout Pro'}</div>
                                         </div>
                                         <div style={{ flex: 1 }}>
                                             <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.7, lineHeight: 1.45 }}>Grade weighs board value, roster fit, and value vs your expected slots.</div>
@@ -5340,7 +5416,7 @@
                                                 </div>
                                             )}
                                         </div>
-                                        {effPct != null && (
+                                        {recapPro && effPct != null && (
                                             <div style={{ textAlign: 'center', flexShrink: 0, padding: '12px 18px', borderRadius: '12px', background: wrAlpha(effColor, '12'), border: '1px solid ' + wrAlpha(effColor, '40'), minWidth: '128px' }}>
                                                 <div style={{ fontFamily: FONT_DISPL, fontSize: '2.6rem', fontWeight: 700, color: effColor, lineHeight: 1 }}>{effPct}%</div>
                                                 <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '4px' }}>{gradeBasis === 'vs $ spent' ? <>of expected value<br/>for your spend</> : <>of expected DHQ<br/>for your slots</>}</div>
@@ -5353,6 +5429,12 @@
                                 {/* P4 strategic readout */}
                                 <div style={{ padding: '22px 32px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
                                     <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>Strategic Readout</div>
+                                    {/* best/reach/worst/alternative calls are grade reads → Pro */}
+                                    {!recapPro ? (
+                                        window.WrGatedMoreRow
+                                            ? React.createElement(window.WrGatedMoreRow, { title: 'Best pick, biggest reach, worst pick', sub: 'The value calls behind your grade are Scout Pro.', feature: 'draft_recap_reads' })
+                                            : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Strategic Readout', 'draft_recap_reads', 'Post-draft value calls are Scout Pro.') : '' }} />
+                                    ) : (
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px' }}>
                                         {insightCard(
                                             'Best Pick',
@@ -5390,6 +5472,7 @@
                                             null
                                         )}
                                     </div>
+                                    )}
                                 </div>
 
                                 {/* Per-position breakdown */}
@@ -5443,6 +5526,8 @@
                                 {/* Around the league — extremes + draft-day trade volume */}
                                 <div style={{ padding: '22px 32px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
                                     <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>Around the League</div>
+                                    {/* league best/reach/worst calls → Pro; raw trade volume below stays */}
+                                    {recapPro && (
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px' }}>
                                         {insightCard(
                                             'League Best Pick',
@@ -5451,13 +5536,20 @@
                                             'var(--k-2ecc71, #2ecc71)',
                                             leagueExtremes.bestPick?.pid ? () => openRecapPlayer(leagueExtremes.bestPick.pid) : null
                                         )}
-                                        {insightCard(
-                                            'League Biggest Reach',
-                                            leagueExtremes.biggestReach ? `${leagueExtremes.biggestReach.name} #${leagueExtremes.biggestReach.overall}` : '—',
-                                            leagueExtremes.biggestReach ? `${leagueExtremes.biggestReach.teamName} · ${Math.abs(leagueExtremes.biggestReach.valueDelta || 0)} slots ahead of board` : 'None flagged.',
-                                            'var(--k-f0a500, #f0a500)',
-                                            leagueExtremes.biggestReach?.pid ? () => openRecapPlayer(leagueExtremes.biggestReach.pid) : null
-                                        )}
+                                        {(() => {
+                                            // Only a negative delta is a genuine reach — guards
+                                            // recaps saved before the aggregation-side filter.
+                                            const reach = leagueExtremes.biggestReach && (leagueExtremes.biggestReach.valueDelta || 0) < 0
+                                                ? leagueExtremes.biggestReach
+                                                : null;
+                                            return insightCard(
+                                                'League Biggest Reach',
+                                                reach ? `${reach.name} #${reach.overall}` : '—',
+                                                reach ? `${reach.teamName} · ${Math.abs(reach.valueDelta || 0)} slots ahead of board` : 'None flagged.',
+                                                'var(--k-f0a500, #f0a500)',
+                                                reach?.pid ? () => openRecapPlayer(reach.pid) : null
+                                            );
+                                        })()}
                                         {insightCard(
                                             'League Worst Pick',
                                             leagueExtremes.worstPick ? `${leagueExtremes.worstPick.name} #${leagueExtremes.worstPick.overall}` : '—',
@@ -5466,6 +5558,7 @@
                                             leagueExtremes.worstPick?.pid ? () => openRecapPlayer(leagueExtremes.worstPick.pid) : null
                                         )}
                                     </div>
+                                    )}
                                     <div style={{ marginTop: '14px' }}>
                                         <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Draft-Day Trades — {tradeVolume.total} total</div>
                                         {tradeVolume.total > 0 ? (
@@ -5481,7 +5574,8 @@
                                 {/* League-wide recap — where teams stand after the draft */}
                                 <div style={{ padding: '22px 32px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
                                     <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>Where Teams Stand After the Draft</div>
-                                    {leagueStorylines.length > 0 && (
+                                    {/* narrative storylines are reads → Pro */}
+                                    {recapPro && leagueStorylines.length > 0 && (
                                         <div style={{ display: 'grid', gap: '6px', marginBottom: '12px' }}>
                                             {leagueStorylines.slice(0, 4).map((line, i) => (
                                                 <div key={i} style={{ fontSize: '0.76rem', color: 'var(--silver)', lineHeight: 1.45, padding: '7px 10px', background: 'var(--ov-2, rgba(255,255,255,0.025))', borderRadius: '6px' }}>{line}</div>
@@ -5516,11 +5610,12 @@
                                                         >
                                                             <div style={{ fontWeight: 800, fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                 {team.teamName}
-                                                                {teamPower[String(team.rosterId)]?.tier && <span style={{ marginLeft: '6px', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: teamPower[String(team.rosterId)].tierColor || 'var(--silver)' }}>{teamPower[String(team.rosterId)].tier}</span>}
+                                                                {/* competitive-tier badge is an assessment read → Pro (Open Q7 ruling) */}
+                                                                {recapPro && teamPower[String(team.rosterId)]?.tier && <span style={{ marginLeft: '6px', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: teamPower[String(team.rosterId)].tierColor || 'var(--silver)' }}>{teamPower[String(team.rosterId)].tier}</span>}
                                                             </div>
                                                             <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{team.buildLabel}</div>
                                                         </button>
-                                                        <div style={{ color: gradeCol, fontFamily: FONT_DISPL, fontSize: '1rem', fontWeight: 900 }}>{team.grade}</div>
+                                                        <div style={{ color: recapPro ? gradeCol : 'var(--silver)', fontFamily: FONT_DISPL, fontSize: '1rem', fontWeight: 900 }}>{recapPro ? team.grade : '🔒'}</div>
                                                         <div style={{ color: 'var(--silver)', fontSize: '0.7rem', fontFamily: FONT_MONO, textAlign: 'right' }}>{fmtDhq(team.totalDHQ)} DHQ</div>
                                                         <button
                                                             type="button"
@@ -5552,7 +5647,9 @@
                                             alert('Draft recap saved to archive (' + key + ')');
                                         } catch (e) { alert('Save failed: ' + e.message); }
                                     }} style={{ padding: '10px 22px', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>SAVE RECAP</button>
-                                    <button onClick={() => {
+                                    {/* share/export text embeds the A–F grade + value calls → Pro
+                                        (clean absence; save-to-archive above stays free) */}
+                                    {recapPro && <button onClick={() => {
                                         try {
                                             const text = stateHelpers.formatDraftShareReport
                                                 ? stateHelpers.formatDraftShareReport(recap || stateHelpers.buildDraftRecap(state, { grade }))
@@ -5560,8 +5657,8 @@
                                             if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(() => alert('Share report copied.'));
                                             else alert('Clipboard unavailable in this browser.');
                                         } catch (e) { alert('Copy failed: ' + e.message); }
-                                    }} style={{ padding: '10px 22px', background: 'var(--ov-3, rgba(255,255,255,0.035))', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.14))', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>COPY REPORT</button>
-                                    <button onClick={() => {
+                                    }} style={{ padding: '10px 22px', background: 'var(--ov-3, rgba(255,255,255,0.035))', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.14))', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>COPY REPORT</button>}
+                                    {recapPro && <button onClick={() => {
                                         try {
                                             const text = stateHelpers.formatDraftShareReport
                                                 ? stateHelpers.formatDraftShareReport(recap || stateHelpers.buildDraftRecap(state, { grade }))
@@ -5571,7 +5668,7 @@
                                             const blob = new Blob([text], { type: 'text/markdown' });
                                             const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'draft-recap-' + Date.now() + '.md'; a.click(); URL.revokeObjectURL(url);
                                         } catch (e) { alert('Export failed: ' + e.message); }
-                                    }} style={{ padding: '10px 22px', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.15))', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>EXPORT REPORT</button>
+                                    }} style={{ padding: '10px 22px', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.15))', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>EXPORT REPORT</button>}
                                     <button onClick={onExit} style={{ padding: '10px 22px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>{forcedMode === 'live-sync' ? 'VIEW DRAFT BOARD →' : 'DRAFT AGAIN'}</button>
                                 </div>
                             </div>
@@ -5617,7 +5714,7 @@
         const currentPersona = currentSlot ? state.personas?.[String(currentSlot.rosterId)] : null;
         const teamAvatarUrl = currentPersona?.avatar ? 'https://sleepercdn.com/avatars/thumbs/' + currentPersona.avatar : '';
         const pickMeta = currentSlot
-            ? 'R' + (currentSlot.round || '?') + '.' + String(currentSlot.slot || 0).padStart(2, '0') + ' · #' + (currentSlot.overall || '--')
+            ? 'R' + (currentSlot.round || '?') + '.' + String(pickInRoundOf(currentSlot, state.leagueSize) || 0).padStart(2, '0') + ' · #' + (currentSlot.overall || '--')
             : 'No active pick';
         const onClockLabel = state.activeOffer ? 'Trade offer on deck' : 'On the clock';
 
@@ -5814,16 +5911,31 @@
             : status === 'waiting' ? 'var(--k-f0a500, #f0a500)'
                 : status === 'complete' ? 'var(--gold)'
                     : 'var(--k-e74c3c, #e74c3c)';
-        const pickLabel = pick => pick ? 'R' + (pick.round || '?') + '.' + String(pick.slot || 0).padStart(2, '0') : '';
+        const pickLabel = pick => pick ? 'R' + (pick.round || '?') + '.' + String(pickInRoundOf(pick, state.leagueSize) || 0).padStart(2, '0') : '';
+        // Free tier: Alex's seeded live narration is an Alex-branded read (and
+        // promises Pro-only reads) → Pro. Free keeps the shell with a neutral raw
+        // status line + the Manual Pick control.
+        const readIsPro = ccIsPro();
         const liveRead = (() => {
+            if (!readIsPro) {
+                if (nextUserSlot && currentSlot) {
+                    const picksAway = userPicksAway(nextUserSlot, state.currentIdx);
+                    if (picksAway === 0) return 'You are on the clock at ' + pickLabel(nextUserSlot) + '.';
+                    return 'Next pick: ' + pickLabel(nextUserSlot) + ' · ' + picksAway + (picksAway === 1 ? ' pick away.' : ' picks away.');
+                }
+                return status === 'complete' ? 'Draft complete. Board and rosters are synced.' : 'Live room synced.';
+            }
             if (state.activeOffer) return 'I paused the room for the trade offer. Resolve or counter before the clock moves.';
             if (nextUserSlot && currentSlot) {
-                const picksAway = Math.max(0, (nextUserSlot.overall || 0) - (state.currentIdx || 0));
-                return 'Your next decision is ' + pickLabel(nextUserSlot) + ' in ' + picksAway + ' picks. I am watching ' + (trendText || 'the board') + ' and will flag the best value pocket before you are on deck.';
+                const picksAway = userPicksAway(nextUserSlot, state.currentIdx);
+                if (picksAway === 0) {
+                    return 'You are on the clock at ' + pickLabel(nextUserSlot) + '. I am watching ' + (trendText || 'the board') + ' and will flag the best value pocket.';
+                }
+                return 'Your next decision is ' + pickLabel(nextUserSlot) + ' in ' + picksAway + (picksAway === 1 ? ' pick. ' : ' picks. ') + 'I am watching ' + (trendText || 'the board') + ' and will flag the best value pocket before you are on deck.';
             }
             return 'No user pick is currently loaded. I will keep the board and opponent intel synced while the room moves.';
         })();
-        const readout = (state.activeOffer || typeof window.DraftCC?.liveDecisionEngine?.buildLiveReadout !== 'function')
+        const readout = (!readIsPro || state.activeOffer || typeof window.DraftCC?.liveDecisionEngine?.buildLiveReadout !== 'function')
             ? null
             : window.DraftCC.liveDecisionEngine.buildLiveReadout(state);
         return (
@@ -5844,7 +5956,7 @@
             }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ color, fontWeight: 900, fontFamily: FONT_DISPL, fontSize: '0.76rem', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
-                        Alex Live Read
+                        {readIsPro ? 'Alex Live Read' : 'Live Room'}
                     </div>
                     {readout && readout.available.length ? (
                         <>
@@ -6052,7 +6164,11 @@
         const otherAlerts = (deck?.alerts || []).filter(a => a.type !== 'owner_tendency');
         const next = deck?.nextUserPick;
         const nextLabel = next
-            ? (next.picksAway === 0 ? 'You are on deck now' : next.picksAway + ' picks to your next turn')
+            ? (next.picksAway === 0
+                ? 'You are on the clock'
+                : next.picksAway === 1
+                    ? 'You are on deck — 1 pick to your next turn'
+                    : next.picksAway + ' picks to your next turn')
             : 'No user pick remaining';
         return (
             <div style={{

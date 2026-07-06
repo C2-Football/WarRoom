@@ -81,8 +81,10 @@
             const pvFn = window.App?.PlayerValue?.getPickValue;
             for (let yr = parseInt(season); yr <= parseInt(season) + 2; yr++) {
                 for (let rd = 1; rd <= draftRounds; rd++) {
+                    // tradedAway and acquired are independent — dealing your own
+                    // pick in a round must NOT drop picks acquired in that same
+                    // round (mirrors the leagueCapital memo below).
                     const tradedAway = tradedPicks.find(p => parseInt(p.season) === yr && p.round === rd && p.roster_id === myRid && p.owner_id !== myRid);
-                    if (tradedAway) continue;
                     const acquired = tradedPicks.filter(p => parseInt(p.season) === yr && p.round === rd && p.owner_id === myRid && p.roster_id !== myRid);
                     if (!tradedAway) {
                         const val = pvFn ? pvFn(yr, rd, totalTeams, Math.ceil(totalTeams / 2)) : Math.max(500, 10000 - rd * 2000);
@@ -104,11 +106,14 @@
         const pickCount = picks.length;
         const maxRoundVal = Math.max(...picks.map(p => p.value || 0), 1);
 
-        // Draft countdown
+        // Draft countdown — 'LIVE' only when the draft is actually underway;
+        // a lapsed start_time with status still pre_draft just means the room
+        // hasn't opened yet.
         const countdown = React.useMemo(() => {
+            if (briefDraftInfo?.status === 'drafting') return { text: 'LIVE', live: true };
             if (!briefDraftInfo?.start_time || briefDraftInfo.status !== 'pre_draft') return null;
             const diff = briefDraftInfo.start_time - Date.now();
-            if (diff <= 0) return { text: 'LIVE', live: true };
+            if (diff <= 0) return { text: 'Today', live: false };
             const days = Math.floor(diff / 86400000);
             const hours = Math.floor((diff % 86400000) / 3600000);
             return { text: days > 0 ? days + 'd ' + hours + 'h' : hours + 'h', live: false };
@@ -404,16 +409,14 @@
                 .filter((t, i) => i < (myCapIdx >= capBudget ? capBudget - 1 : capBudget) || t.isMe);
             const capHidden = leagueCapital.length - capRows.length;
 
-            // Pick strategy: pair top 4 picks with user's needs
+            // Pick strategy: top picks + biggest roster needs, side by side.
+            // No per-pick target mapping — we have no positional-value/ADP
+            // logic tying a specific pick to a specific need, so don't invent one.
             const myAssess = typeof window.assessTeamFromGlobal === 'function' && myRid
                 ? window.assessTeamFromGlobal(myRid)
                 : null;
             const myNeeds = (myAssess?.needs || []).map(n => typeof n === 'string' ? n : n?.pos).filter(Boolean);
             const topPicks = [...picks].sort((a, b) => b.value - a.value).slice(0, 4);
-            const strategy = topPicks.map((p, i) => ({
-                pick: p,
-                target: myNeeds[i] || myNeeds[0] || '—',
-            }));
 
             return (
                 <div style={{ ...cardStyle, padding: 'var(--card-pad, 16px 18px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -451,31 +454,39 @@
                     <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
                         {/* Pick Strategy */}
                         <div style={{ padding: '8px 10px', background: wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '0D'), border: '1px solid ' + wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '33'), borderRadius: '6px' }}>
-                            <div style={{ fontSize: fs(0.6), fontWeight: 700, color: colors.warn || 'var(--k-f0a500, #f0a500)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px', fontFamily: fonts.ui }}>Pick Strategy · Targets by Round</div>
-                            {/* targets pair picks with the roster-needs assessment — a rec → Pro */}
+                            <div style={{ fontSize: fs(0.6), fontWeight: 700, color: colors.warn || 'var(--k-f0a500, #f0a500)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px', fontFamily: fonts.ui }}>Pick Strategy · Capital & Needs</div>
+                            {/* pairs pick capital with the roster-needs assessment — a rec → Pro */}
                             {!pro ? (
                                 typeof window.WrGatedMoreRow === 'function'
-                                    ? React.createElement(window.WrGatedMoreRow, { title: 'Round-by-round targets', sub: 'Pairs each pick with your biggest roster needs', feature: 'draft_archetypes' })
+                                    ? React.createElement(window.WrGatedMoreRow, { title: 'Capital & needs read', sub: 'Your top picks alongside your biggest roster needs', feature: 'draft_archetypes' })
                                     : null
                             ) : (
                             <React.Fragment>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px 12px' }}>
-                                {strategy.map((s, i) => {
-                                    const targetCol = window.App?.POS_COLORS?.[s.target] || colors.accent;
-                                    return (
-                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: fs(0.6), fontFamily: fonts.ui }}>
-                                            <span style={{ minWidth: 50, fontWeight: 700, color: colors.text }}>{s.pick.label}</span>
-                                            <span style={{ fontSize: fs(0.52), color: colors.textMuted, fontFamily: fonts.mono }}>{s.pick.value >= 1000 ? (s.pick.value / 1000).toFixed(1) + 'k' : s.pick.value}</span>
-                                            <span style={{ color: colors.textFaint }}>→</span>
-                                            <span style={{ fontWeight: 700, color: targetCol, fontFamily: fonts.ui }}>{s.target}</span>
-                                            <span style={{ fontSize: fs(0.52), color: colors.textFaint, fontFamily: fonts.ui }}>{pickEquiv(s.pick.value)}</span>
-                                        </div>
-                                    );
-                                })}
+                                {topPicks.map((p, i) => (
+                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: fs(0.6), fontFamily: fonts.ui }}>
+                                        <span style={{ minWidth: 50, fontWeight: 700, color: colors.text }}>{p.label}</span>
+                                        <span style={{ fontSize: fs(0.52), color: colors.textMuted, fontFamily: fonts.mono }}>{p.value >= 1000 ? (p.value / 1000).toFixed(1) + 'k' : p.value}</span>
+                                        <span style={{ fontSize: fs(0.52), color: colors.textFaint, fontFamily: fonts.ui }}>{pickEquiv(p.value)}</span>
+                                    </div>
+                                ))}
                             </div>
-                            {strategy.length === 0 && (
-                                <div style={{ fontSize: fs(0.6), color: colors.textFaint, fontStyle: 'italic' }}>No assessment available</div>
+                            {topPicks.length === 0 && (
+                                <div style={{ fontSize: fs(0.6), color: colors.textFaint, fontStyle: 'italic' }}>No picks owned</div>
                             )}
+                            <div style={{ marginTop: '4px', fontSize: fs(0.58), fontFamily: fonts.ui, color: colors.textMuted }}>
+                                {myNeeds.length
+                                    ? <React.Fragment>
+                                        Biggest needs:{' '}
+                                        {myNeeds.slice(0, 3).map((pos, i) => (
+                                            <React.Fragment key={pos + i}>
+                                                {i > 0 ? ', ' : ''}
+                                                <span style={{ fontWeight: 700, color: window.App?.POS_COLORS?.[pos] || colors.accent }}>{pos}</span>
+                                            </React.Fragment>
+                                        ))}
+                                    </React.Fragment>
+                                    : 'No roster assessment available'}
+                            </div>
                             </React.Fragment>
                             )}
                         </div>

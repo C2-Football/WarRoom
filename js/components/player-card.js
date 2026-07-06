@@ -445,6 +445,9 @@
         // "Alex NFL Fit" — deterministic real-situation read from the engine's
         // signals (depth-chart role, named blockers + PPG, status, trend). No LLM
         // here to keep card opens cheap; the draft board layers a live read on top.
+        // Seeded-template Alex verdict copy ("upside hold, not a weekly starter")
+        // → Pro at render (clean absence), matching draft-room's teamFitInsight
+        // gate; the raw dhqContext facts line above it stays free.
         const nflFit = (() => {
             try { return window.App?.computeNFLFit?.(pid, { pos, player: p, dhq }) || null; }
             catch (e) { return null; }
@@ -535,7 +538,7 @@
                         lineHeight: 1.45,
                     }
                 }, dhqContext),
-                nflFit && nflFit.narrative && React.createElement('div', {
+                isPro && nflFit && nflFit.narrative && React.createElement('div', {
                     style: {
                         margin: '10px 20px 0',
                         padding: '9px 11px',

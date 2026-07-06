@@ -722,6 +722,19 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
     window.App.WrIDB = WrIDB;
     window.App.fetchAllPlayers = fetchAllPlayers;
 
+    // Clears core.js's in-memory data caches + the players IDB entry so the
+    // next fetch hits the network. MUST live in this file: _wrPlayersCache is a
+    // closure variable of this text/babel script, so the old external
+    // `window._wrPlayersCache = null` never touched the real cache. Callers
+    // (sidebar "Refresh Data") should also call window.Sleeper.clearSeasonCaches()
+    // to flush the shared season/players caches.
+    window.App.clearDataCaches = function clearDataCaches() {
+        _wrPlayersCache = null;
+        _wrStatsCache = {};
+        _projectionsCache = {};
+        WrIDB.del(WR_KEYS.PLAYERS_CACHE).catch(e => wrLog('clearDataCaches.players', e));
+    };
+
     window.App.getRosterDataState = function getRosterDataState(opts = {}) {
         const roster = opts.roster || opts.myRoster || (typeof window.myR === 'function' ? window.myR() : null);
         const rosters = opts.rosters || opts.currentLeague?.rosters || window.S?.rosters || [];
@@ -858,37 +871,33 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
     const STATS_YEAR = '2025'; // Most recent completed season — used until Sleeper publishes projections
 
-    // Prefer the shared IndexedDB-backed, in-flight-deduped season cache
-    // (window.Sleeper.fetchSeasonStats) so these multi-MB blobs persist across
-    // reloads and are shared with the DHQ engine + player modal instead of being
-    // re-downloaded per session. Local memory cache + raw fetch is the fallback
-    // when the shared API hasn't loaded yet.
+    // Delegate to the shared IndexedDB-backed, TTL'd, in-flight-deduped season
+    // cache (window.Sleeper.fetchSeasonStats) — it owns freshness, so no memo
+    // layer in front of it: a local no-TTL memo pinned the first response for
+    // the whole session and defeated in-season revalidation. The local memo is
+    // used ONLY on the raw-fetch fallback path (shared API not loaded).
     let _wrStatsCache = {};
     async function fetchSeasonStats(season) {
-        if (_wrStatsCache[season]) return _wrStatsCache[season];
         try {
-            _wrStatsCache[season] = window.Sleeper?.fetchSeasonStats
-                ? await window.Sleeper.fetchSeasonStats(season)
-                : await fetchJSON(`${SLEEPER_BASE_URL}/stats/nfl/regular/${season}`);
+            if (window.Sleeper?.fetchSeasonStats) return await window.Sleeper.fetchSeasonStats(season);
+            if (!_wrStatsCache[season]) _wrStatsCache[season] = await fetchJSON(`${SLEEPER_BASE_URL}/stats/nfl/regular/${season}`);
+            return _wrStatsCache[season];
         } catch (e) {
             console.warn('Stats fetch failed:', e);
-            _wrStatsCache[season] = {};
+            return _wrStatsCache[season] || {};
         }
-        return _wrStatsCache[season];
     }
 
     let _projectionsCache = {};
     async function fetchSeasonProjections(season) {
-        if (_projectionsCache[season]) return _projectionsCache[season];
         try {
-            _projectionsCache[season] = window.Sleeper?.fetchSeasonProjections
-                ? await window.Sleeper.fetchSeasonProjections(season)
-                : await fetchJSON(`${SLEEPER_BASE_URL}/projections/nfl/regular/${season}`);
+            if (window.Sleeper?.fetchSeasonProjections) return await window.Sleeper.fetchSeasonProjections(season);
+            if (!_projectionsCache[season]) _projectionsCache[season] = await fetchJSON(`${SLEEPER_BASE_URL}/projections/nfl/regular/${season}`);
+            return _projectionsCache[season];
         } catch (e) {
             console.warn('Projections fetch failed:', e);
-            _projectionsCache[season] = {};
+            return _projectionsCache[season] || {};
         }
-        return _projectionsCache[season];
     }
 
     // ── SeasonContext ────────────────────────────────────────────────────────

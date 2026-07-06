@@ -164,27 +164,34 @@ function LineupTab({
         if (!result || !result.optimal) return null;
         const proj = result.projections;
         const curIds = Object.values(currentAssign).filter(Boolean);
-        const curTotal = curIds.reduce((s, pid) => { const p = proj[pid]; return s + (p && p.available ? (p.points[result.objective] || 0) : 0); }, 0);
-        const benchPts = Math.round((result.optimal.total - curTotal) * 10) / 10;
+        // MFL never exposes platform starters (starters:[]) — fall back to the
+        // optimal lineup so the note forecasts the same lineup as the hero.
+        // With the fallback there IS no visible bench gap: benchPts reads 0 and
+        // no upgrade is pitched (a delta vs an empty platform lineup would
+        // claim the whole optimal total is "stranded on the bench").
+        const noPlatformLineup = !curIds.length;
+        const noteIds = noPlatformLineup ? result.optimal.starters.map(s => String(s.pid)) : curIds;
+        const curTotal = noteIds.reduce((s, pid) => { const p = proj[pid]; return s + (p && p.available ? (p.points[result.objective] || 0) : 0); }, 0);
+        const benchPts = noPlatformLineup ? 0 : Math.round((result.optimal.total - curTotal) * 10) / 10;
         let topStart = null;
-        (result.delta && result.delta.startInstead || []).forEach(s => { if (!topStart || s.pts > topStart.pts) topStart = s; });
+        if (!noPlatformLineup) (result.delta && result.delta.startInstead || []).forEach(s => { if (!topStart || s.pts > topStart.pts) topStart = s; });
         let winPct = null, oppName = null, margin = null;
         const M = window.App && window.App.Matchup;
         if (M && oppResult && oppResult.res) {
             const oppOpt = oppResult.res.optimal.starters.map(s => s.pid);
-            const fc = M.forecast(M.dist(curIds, proj, 'median'), M.dist(oppOpt, oppResult.res.projections, 'median'));
+            const fc = M.forecast(M.dist(noteIds, proj, 'median'), M.dist(oppOpt, oppResult.res.projections, 'median'));
             winPct = fc.winPct; margin = fc.margin;
             const users = (currentLeague && currentLeague.users) || [];
             const u = users.find(x => String(x.user_id) === String(oppResult.roster.owner_id));
             oppName = (oppResult.roster.metadata && oppResult.roster.metadata.team_name) || (u && u.display_name) || ('Team ' + oppResult.roster.roster_id);
         }
-        const injuries = curIds.map(pid => { const p = proj[pid]; const st = p && p.injuryStatus; return st ? { name: pmeta(pid).name, status: st } : null; }).filter(Boolean);
+        const injuries = noteIds.map(pid => { const p = proj[pid]; const st = p && p.injuryStatus; return st ? { name: pmeta(pid).name, status: st } : null; }).filter(Boolean);
         const topName = topStart ? pmeta(topStart.pid).name : null;
         const byeWatch = (seasonData && seasonData.byeWatch) || [];
         const topBye = byeWatch.length ? byeWatch[0] : null;   // worst upcoming bye week
         return {
             week: result.week, benchPts, topStart, topName, winPct, oppName, margin, injuries, mode: result.mode, topBye,
-            ctx: { week: result.week, winPct, margin, opponent: oppName, pointsLeftOnBench: benchPts, topUpgrade: topName, topUpgradeSlot: topStart ? topStart.slot : null, injuries: injuries.map(i => i.name + ' (' + i.status + ')'), byeWatch: byeWatch.slice(0, 3).map(b => ({ week: b.week, count: b.count, unfilled: b.unfilled, positions: b.positions })), objective: result.objective, mode: result.mode },
+            ctx: { week: result.week, winPct, margin, opponent: oppName, pointsLeftOnBench: benchPts, topUpgrade: topName, topUpgradeSlot: topStart ? topStart.slot : null, injuries: injuries.map(i => i.name + ' (' + i.status + ')'), byeWatch: byeWatch.slice(0, 3).map(b => ({ week: b.week, count: b.count, unfilled: b.unfilled, reason: b.reason, positions: b.positions })), objective: result.objective, mode: result.mode },
         };
     }
     function seededNote(f) {
@@ -193,8 +200,9 @@ function LineupTab({
         const seed = (currentLeague && (currentLeague.league_id || currentLeague.id) || '') + '|w' + f.week;
         let lead;
         if (f.winPct != null && f.oppName) {
-            if (f.winPct >= 62) lead = AV.pick(seed + 'a', ['You’re favored this week', 'The numbers like your side', 'You’ve got the edge this week']) + ' — about ' + f.winPct + '% to beat ' + f.oppName + '.';
-            else if (f.winPct >= 45) lead = AV.pick(seed + 'a', ['Coin-flip week', 'This one’s tight', 'Dead heat']) + ' against ' + f.oppName + ' (~' + f.winPct + '%).';
+            // Thresholds match the hero's win% coloring: ≥55 favored, ≤45 uphill.
+            if (f.winPct >= 55) lead = AV.pick(seed + 'a', ['You’re favored this week', 'The numbers like your side', 'You’ve got the edge this week']) + ' — about ' + f.winPct + '% to beat ' + f.oppName + '.';
+            else if (f.winPct > 45) lead = AV.pick(seed + 'a', ['Coin-flip week', 'This one’s tight', 'Dead heat']) + ' against ' + f.oppName + ' (~' + f.winPct + '%).';
             else lead = AV.pick(seed + 'a', ['Uphill week', 'You’re the underdog', 'Tough draw']) + ' vs ' + f.oppName + ' (~' + f.winPct + '%) — chase ceiling.';
         } else {
             lead = AV.pick(seed + 'a', ['Let’s set the week', 'Here’s your week', 'Locking in the lineup']) + '.';
@@ -207,9 +215,16 @@ function LineupTab({
         let byeTail = '';
         if (f.topBye && (f.topBye.unfilled || f.topBye.count >= 2)) {
             const b = f.topBye;
-            const c = {}; (b.positions || []).forEach(p => { c[p] = (c[p] || 0) + 1; });
-            const posLabel = Object.keys(c).map(p => c[p] > 1 ? c[p] + ' ' + p + 's' : p).join(' + ');
-            byeTail = ' ' + AV.pick(seed + 'd', ['Bye watch —', 'Plan ahead —', 'Down the road —']) + ' Week ' + b.week + (b.unfilled ? ' leaves a hole' : ' you’re thin') + (posLabel ? ' at ' + posLabel : '') + ', so line up cover.';
+            // Only blame byes when bye starters actually drive the hole —
+            // count===0 means a roster gap (position unrostered / players OUT).
+            const byeDriven = b.reason ? b.reason === 'bye' : b.count > 0;
+            if (byeDriven) {
+                const c = {}; (b.positions || []).forEach(p => { c[p] = (c[p] || 0) + 1; });
+                const posLabel = Object.keys(c).map(p => c[p] > 1 ? c[p] + ' ' + p + 's' : p).join(' + ');
+                byeTail = ' ' + AV.pick(seed + 'd', ['Bye watch —', 'Plan ahead —', 'Down the road —']) + ' Week ' + b.week + (b.unfilled ? ' leaves a hole' : ' you’re thin') + (posLabel ? ' at ' + posLabel : '') + ', so line up cover.';
+            } else if (b.unfilled) {
+                byeTail = ' ' + AV.pick(seed + 'd', ['Plan ahead —', 'Heads up —', 'Down the road —']) + ' Week ' + b.week + ' you can’t field a full lineup as rostered, so line up cover.';
+            }
         }
         return (lead + mid + tail + byeTail).trim();
     }
@@ -232,14 +247,16 @@ function LineupTab({
         const AV = window.AlexVoice;
         if (AV && AV.enhance && (typeof AV.hasAmbientAI !== 'function' || AV.hasAmbientAI())) {
             // Bucket win% into the cache key so a materially different matchup
-            // outlook re-generates rather than reusing an early note.
+            // outlook re-generates rather than reusing an early note. v2: the
+            // facts source changed (optimal-lineup fallback) — don't let notes
+            // cached off the old empty-lineup facts survive the fix.
             const wpBucket = facts.winPct == null ? 'na' : Math.round(facts.winPct / 10);
             AV.enhance({
                 type: 'start-sit',
                 message: 'Give me a punchy 1-2 sentence game-day coaching note for my fantasy team this week. Are we favored? Any must-start upgrade sitting on the bench? Any injuries to watch, or an upcoming bye-week hole to plan for? Natural prose, no lists, no sign-off.',
                 context: JSON.stringify(facts.ctx),
                 fallback: seeded,
-                cacheKey: 'gd-note-' + lineupKey + '-w' + facts.week + '-' + wpBucket + (facts.topBye ? '-b' + facts.topBye.week + (facts.topBye.unfilled ? 'x' : '') : ''),
+                cacheKey: 'gd-note-v2-' + lineupKey + '-w' + facts.week + '-' + wpBucket + (facts.topBye ? '-b' + facts.topBye.week + (facts.topBye.unfilled ? 'x' : '') : ''),
             }).then(txt => { if (alive && txt && typeof txt === 'string') setNote(txt); }).catch(() => {});
         }
         return () => { alive = false; };
@@ -378,7 +395,7 @@ function LineupTab({
     const optimalTotal = result.optimal.total;
     const benchPts = Math.round((optimalTotal - workingTotal) * 10) / 10;
     const isOptimal = benchPts <= 0.05;
-    const scaleMax = Math.max(1, ...result.optimal.starters.map(s => { const p = projOf(s.pid); return (p && p.points && p.points.ceiling) || 0; }));
+    const _scaleMax = Math.max(1, ...result.optimal.starters.map(s => { const p = projOf(s.pid); return (p && p.points && p.points.ceiling) || 0; }));
 
     function applyOptimal() {
         const byName = {};
@@ -460,10 +477,12 @@ function LineupTab({
     let matchup = null;
     {
         const M = window.App && window.App.Matchup;
-        if (M && oppResult && oppResult.res) {
+        // No matchup card without at least one working starter — forecasting an
+        // empty lineup would read as a confident 1% off a zero-point side.
+        const myStarters = Object.values(workingAssign).filter(Boolean);
+        if (M && oppResult && oppResult.res && myStarters.length) {
             const oppProj = oppResult.res.projections;
             const oppOpt = oppResult.res.optimal.starters;
-            const myStarters = Object.values(workingAssign).filter(Boolean);
             const myDist = M.dist(myStarters, result.projections, 'median');
             const oppDist = M.dist(oppOpt.map(s => s.pid), oppProj, 'median');
             const fc = M.forecast(myDist, oppDist);
@@ -552,7 +571,8 @@ function LineupTab({
         const byeWatch = (d && d.byeWatch) || [];
         const byeLabel = (bw) => {
             const c = {}; (bw.positions || []).forEach(p => { c[p] = (c[p] || 0) + 1; });
-            return Object.keys(c).map(p => c[p] > 1 ? c[p] + ' ' + p + 's' : p).join(', ') || (bw.count + ' on bye');
+            // count===0 = a roster-gap hole, not a bye week — never say "0 on bye".
+            return Object.keys(c).map(p => c[p] > 1 ? c[p] + ' ' + p + 's' : p).join(', ') || (bw.count > 0 ? bw.count + ' on bye' : 'lineup hole');
         };
         return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', position: isNarrow ? 'static' : 'sticky', top: '16px' }}>
@@ -595,7 +615,7 @@ function LineupTab({
                             <div key={bw.week} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px', padding: '3px 0', fontSize: '0.74rem' }}>
                                 <span style={{ minWidth: 0 }}>
                                     <span style={{ color: bw.unfilled ? RED : AMBER, fontWeight: 700 }}>Wk {bw.week}</span>
-                                    <span style={{ color: SILVER, marginLeft: '6px' }}>{byeLabel(bw)}{bw.unfilled ? ' · no cover' : ''}</span>
+                                    <span style={{ color: SILVER, marginLeft: '6px' }}>{byeLabel(bw)}{bw.unfilled && bw.count > 0 ? ' · no cover' : ''}</span>
                                 </span>
                                 <span style={{ color: bw.unfilled ? RED : AMBER, fontWeight: 800 }}>{bw.unfilled ? '⚠' : bw.count}</span>
                             </div>
@@ -726,15 +746,17 @@ function LineupTab({
                                 <span style={{ color: SILVER, fontSize: '0.8rem' }}>them</span>
                             </div>
                             <div style={{ color: SILVER, fontSize: '0.75rem', marginTop: '5px' }}>
-                                Their lineup: current {matchup.oppCurTotal.toFixed(1)} · ideal {matchup.oppIdealTotal.toFixed(1)}
-                                {matchup.oppIdealTotal - matchup.oppCurTotal > 0.5 ? <span style={{ color: AMBER }}> · {(matchup.oppIdealTotal - matchup.oppCurTotal).toFixed(1)} on their bench</span> : null}
+                                {/* MFL never exposes platform starters — 0 means "unknown", not an empty lineup. */}
+                                Their lineup: current {matchup.oppCurTotal > 0 ? matchup.oppCurTotal.toFixed(1) : '—'} · ideal {matchup.oppIdealTotal.toFixed(1)}
+                                {matchup.oppCurTotal > 0 && matchup.oppIdealTotal - matchup.oppCurTotal > 0.5 ? <span style={{ color: AMBER }}> · {(matchup.oppIdealTotal - matchup.oppCurTotal).toFixed(1)} on their bench</span> : null}
                                 <span onClick={() => setShowOpp(v => !v)} style={{ color: GOLD, cursor: 'pointer', marginLeft: '8px', fontWeight: 600 }}>{showOpp ? 'hide' : 'view their lineup'}</span>
                             </div>
                         </div>
                         <div style={{ textAlign: 'center', minWidth: '96px' }}>
-                            <div style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1, color: matchup.fc.winPct >= 55 ? GREEN : matchup.fc.winPct <= 45 ? RED : GOLD }}>{matchup.fc.winPct}%</div>
+                            {/* winPct null = one side has no projectable players — no forecast. */}
+                            <div style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1, color: matchup.fc.winPct == null ? SILVER : matchup.fc.winPct >= 55 ? GREEN : matchup.fc.winPct <= 45 ? RED : GOLD }}>{matchup.fc.winPct == null ? '—' : matchup.fc.winPct + '%'}</div>
                             <div style={{ fontSize: '0.6rem', color: SILVER, letterSpacing: '0.06em', marginTop: '3px' }}>WIN PROBABILITY</div>
-                            <div style={{ fontSize: '0.66rem', color: SILVER, marginTop: '4px' }}>{matchup.fc.margin >= 0 ? '+' : ''}{matchup.fc.margin.toFixed(1)} proj margin</div>
+                            <div style={{ fontSize: '0.66rem', color: SILVER, marginTop: '4px' }}>{matchup.fc.margin == null ? '—' : (matchup.fc.margin >= 0 ? '+' : '') + matchup.fc.margin.toFixed(1) + ' proj margin'}</div>
                         </div>
                     </div>
                     {showOpp ? (

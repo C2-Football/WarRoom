@@ -788,7 +788,7 @@
             ? beforeUserPositions.map(p => p.key + ' x' + p.count).join(', ')
             : 'No pre-user pressure yet';
         const userPath = userPicks.length
-            ? userPicks.slice(0, 4).map(p => p.round + '.' + String(p.slot).padStart(2, '0') + ' ' + p.name).join(' / ')
+            ? userPicks.slice(0, 4).map(p => p.round + '.' + String(p.pickInRound || p.slot).padStart(2, '0') + ' ' + p.name).join(' / ')
             : 'No user picks inside this projection window';
         const topTeam = teamSummaries[0] || null;
         return {
@@ -836,7 +836,7 @@
         const roundCount = report?.assumptions?.rounds || 0;
         const roundLabel = roundCount ? roundCount + ' round' + (Number(roundCount) === 1 ? '' : 's') : 'projection';
         const userPath = userPicks.length
-            ? userPicks.slice(0, 4).map(p => p.round + '.' + String(p.slot).padStart(2, '0') + ' ' + p.name).join(' / ')
+            ? userPicks.slice(0, 4).map(p => p.round + '.' + String(p.pickInRound || p.slot).padStart(2, '0') + ' ' + p.name).join(' / ')
             : 'No user pick inside this window.';
 
         return {
@@ -855,7 +855,7 @@
                 const team = pick.ownerName || ('Team ' + pick.slot);
                 return {
                     overall: pick.overall,
-                    pickLabel: pick.round + '.' + String(pick.slot).padStart(2, '0'),
+                    pickLabel: pick.round + '.' + String(pick.pickInRound || pick.slot).padStart(2, '0'),
                     team,
                     player: pick.name,
                     pos: normalizedPos(pick.pos),
@@ -998,6 +998,7 @@
             picks.push({
                 round: slot.round,
                 slot: slot.slot,
+                pickInRound: slot.pickInRound || slot.slot,
                 overall: slot.overall,
                 teamIdx: slot.teamIdx,
                 rosterId: slot.rosterId || null,
@@ -1011,6 +1012,7 @@
                 photoUrl: player.photoUrl || (player.pid ? 'https://sleepercdn.com/content/nfl/players/thumb/' + player.pid + '.jpg' : null),
                 dhq: Number(player.dhq || 0),
                 consensusRank: player.consensusRank || player.analystBoardRank || null,
+                analystBoardRank: player.analystBoardRank || null,
                 tier: player.tier || player.csv?.tier || null,
                 confidence,
                 drivers,
@@ -1032,8 +1034,12 @@
         });
 
         const userPicks = picks.filter(p => idKey(p.rosterId) === userRosterId || (!p.rosterId && Number(p.slot) === Number(state.userSlot)));
-        const reaches = picks.filter(p => p.consensusRank && p.consensusRank > p.overall + 8).slice(0, 8);
-        const steals = picks.filter(p => p.consensusRank && p.consensusRank < p.overall - 8).slice(0, 8);
+        // Grade the watch lists on the SAME board (and thresholds) the per-pick
+        // commentary uses (boardWindowPhrase: analystBoardRank first), so a pick
+        // can't sit in Reaches while its own blurb says it fits the board window.
+        const watchRankOf = p => Number(p.analystBoardRank || p.consensusRank || 0);
+        const reaches = picks.filter(p => watchRankOf(p) && watchRankOf(p) >= p.overall + 10).slice(0, 8);
+        const steals = picks.filter(p => watchRankOf(p) && watchRankOf(p) <= p.overall - 8).slice(0, 8);
         const tradeSignals = picks.filter(p => p.drivers.some(d => d.code === 'trade_logic')).slice(0, 10);
 
         const reportBrief = buildReportBrief(picks, state, reaches, steals, tradeSignals);
@@ -1085,6 +1091,7 @@
             .map(p => ({
                 round: p.round,
                 slot: p.slot,
+                pickInRound: p.pickInRound || p.slot,
                 overall: p.overall,
                 teamIdx: p.teamIdx,
                 rosterId: p.rosterId,

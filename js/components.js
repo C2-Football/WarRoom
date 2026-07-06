@@ -82,10 +82,11 @@
         const [pLo, pHi] = curve.peak;
         const declineHi = curve.decline[1];
         const age = p.age || 0;
-        const peakYrs = Math.max(0, pHi - age);
-        const valueYrs = Math.max(0, declineHi - age);
-        const peakLabel = age < pLo ? 'Rising' : age <= pHi ? 'Prime' : age <= declineHi ? 'Veteran' : 'Post-Window';
-        const peakCol = age < pLo ? 'var(--k-2ecc71, #2ecc71)' : age <= pHi ? 'var(--k-d4af37, #d4af37)' : age <= declineHi ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
+        // Unknown age (0) must not read as 29 peak years / 'Rising' — mirror the '—' guard used by My Roster / League Map.
+        const peakYrs = age ? Math.max(0, pHi - age) : 0;
+        const valueYrs = age ? Math.max(0, declineHi - age) : 0;
+        const peakLabel = !age ? '—' : age < pLo ? 'Rising' : age <= pHi ? 'Prime' : age <= declineHi ? 'Veteran' : 'Post-Window';
+        const peakCol = !age ? 'var(--k-d0d0d0, #d0d0d0)' : age < pLo ? 'var(--k-2ecc71, #2ecc71)' : age <= pHi ? 'var(--k-d4af37, #d4af37)' : age <= declineHi ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
         const dhqCol = dhq >= 7000 ? 'var(--k-2ecc71, #2ecc71)' : dhq >= 4000 ? 'var(--k-3498db, #3498db)' : dhq >= 2000 ? 'var(--k-d0d0d0, #d0d0d0)' : 'var(--ov-8, rgba(255,255,255,0.3))';
         // Use league scoring_settings for PPG (matches roster table calculation)
         const scoring = window.S?.leagues?.[0]?.scoring_settings;
@@ -94,7 +95,7 @@
         const trend = meta.trend || 0;
         // Use shared getPlayerAction if available (ownership-aware)
         const pa = typeof window.getPlayerAction === 'function' ? window.getPlayerAction(pid) : null;
-        const rec = pa ? pa.label.toUpperCase() : (peakYrs <= 0 && trend <= -10 ? 'SELL NOW' : peakYrs <= 0 ? 'SELL' : peakYrs <= 2 ? 'SELL' : dhq >= 7000 && peakYrs >= 3 ? 'HOLD CORE' : 'HOLD');
+        const rec = pa ? pa.label.toUpperCase() : !age ? 'HOLD' : (peakYrs <= 0 && trend <= -10 ? 'SELL NOW' : peakYrs <= 0 ? 'SELL' : peakYrs <= 2 ? 'SELL' : dhq >= 7000 && peakYrs >= 3 ? 'HOLD CORE' : 'HOLD');
         const recCol = rec.includes('SELL') ? 'var(--k-e74c3c, #e74c3c)' : rec.includes('BUY') ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-d4af37, #d4af37)';
         // Verdict chip is Pro at this render seam; getPlayerAction itself stays
         // callable for engine logic. Fail-open when pro-gate.js isn't loaded.
@@ -124,7 +125,7 @@
                 ...[
                     { val:dhq>0?dhq.toLocaleString():'\u2014', lbl:valueShortLabel, col:dhqCol, gauge:true },
                     { val:ppg||'\u2014', lbl:'PPG', col:ppg>=10?'var(--k-2ecc71, #2ecc71)':'var(--k-d0d0d0, #d0d0d0)' },
-                    { val:peakYrs>0?peakYrs+'yr':valueYrs+'yr', lbl:peakYrs>0?'PEAK':'VALUE', col:peakCol },
+                    { val:!age?'—':peakYrs>0?peakYrs+'yr':valueYrs+'yr', lbl:peakYrs>0?'PEAK':'VALUE', col:peakCol },
                     ...(inlinePro ? [{ val:rec, lbl:'ACTION', col:recCol }] : [])
                 ].map(function(s,i){ var dhqFilled=s.gauge?Math.round(Math.min(10,dhq/1000)):0; var gCol=dhq>=7000?'filled-green':dhq>=4000?'filled':'filled-red'; return React.createElement('div', { key:i, style:{textAlign:'center'} },
                     React.createElement('div', { style:{ fontFamily:'JetBrains Mono, monospace', fontSize:'1rem', fontWeight:600, color:s.col } }, s.val),
@@ -136,7 +137,7 @@
             React.createElement('div', { style:{ padding:'8px 16px' } },
                 React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px' } },
                     React.createElement('div', { style:{ fontSize:'var(--text-label, 0.75rem)', color: 'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700 } }, 'Age Curve'),
-                    React.createElement('div', { style:{ fontSize:'var(--text-label, 0.75rem)', color:peakCol } }, peakLabel+' \u00B7 '+(peakYrs > 0 ? peakYrs+'yr peak left' : valueYrs > 0 ? valueYrs+'yr value left' : 'Past value window'))
+                    React.createElement('div', { style:{ fontSize:'var(--text-label, 0.75rem)', color:peakCol } }, !age ? 'Age unknown' : peakLabel+' \u00B7 '+(peakYrs > 0 ? peakYrs+'yr peak left' : valueYrs > 0 ? valueYrs+'yr value left' : 'Past value window'))
                 ),
                 React.createElement('div', { style:{ display:'flex', height:'16px', borderRadius:'4px', overflow:'hidden', gap:'1px' } },
                     ...Array.from({length:17}, function(_,i){ var a=i+20; var col=a<pLo-3?'rgba(96,165,250,0.3)':a<pLo?'rgba(46,204,113,0.45)':(a>=pLo&&a<=pHi)?'rgba(46,204,113,0.75)':a<=declineHi?'var(--acc-line3, rgba(212,175,55,0.45))':'rgba(231,76,60,0.35)'; return React.createElement('div', { key:a, style:{ flex:1, background:col, opacity:a===age?1:0.55, outline:a===age?'2px solid var(--k-d4af37, #d4af37)':'none', outlineOffset:'-1px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'var(--text-label, 0.75rem)', fontWeight:700, color:a===age?'var(--text-primary)':'transparent' } }, a===age?String(age):''); })
@@ -396,12 +397,15 @@
             return pct > 0 ? '\u2191 ' + pct + '% above league avg' : pct < 0 ? '\u2193 ' + Math.abs(pct) + '% below league avg' : '\u2192 At league average';
         }
         if (kpiKey === 'health-score') {
-            const v = parseInt(value) || 0;
+            const v = parseInt(value);
+            if (isNaN(v)) return ''; // value renders '\u2014' before assessment loads \u2014 no verdict from missing data
             return v >= 85 ? '\u2191 Championship caliber' : v >= 70 ? '\u2192 Playoff contender' : v >= 55 ? '\u2193 Work to do' : '\u2193 Rebuild mode';
         }
         if (kpiKey === 'aging-cliff') {
-            const v = parseInt(value) || 0;
-            return v > 30 ? '\u26A0 High risk \u2014 sell aging assets' : v > 15 ? '\u2192 Moderate \u2014 monitor closely' : '\u2191 Sustainable roster age';
+            const v = parseInt(value);
+            if (isNaN(v)) return '';
+            // Bands match computeKpiValue's colors (league-detail): green \u226420 / amber \u226435 / red >35
+            return v > 35 ? '\u26A0 High risk \u2014 sell aging assets' : v > 20 ? '\u2192 Moderate \u2014 monitor closely' : '\u2191 Sustainable roster age';
         }
         return '';
     }

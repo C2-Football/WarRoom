@@ -14,6 +14,17 @@
 (function() {
     const { FONT_UI, FONT_DISPL, FONT_MONO } = window.DraftCC.styles;
 
+    // Pick-in-round for "R2.01"-style labels. pick.slot is the team's draft
+    // COLUMN (ownership key), so prefer pickInRound, then derive from overall
+    // when a league size is available (saved drafts predating pickInRound).
+    function pickPP(pick, leagueSize) {
+        if (!pick) return 0;
+        if (Number(pick.pickInRound) > 0) return Number(pick.pickInRound);
+        const ls = Number(leagueSize) || 0;
+        if (ls > 0 && Number(pick.overall) > 0) return ((Number(pick.overall) - 1) % ls) + 1;
+        return Number(pick.slot) || 0;
+    }
+
     // Compact error boundary for the embedded Find-a-Trade tab: a render failure in the
     // borrowed Trade Center component degrades to a switch-to-Build hint instead of
     // unmounting the whole drawer.
@@ -76,7 +87,7 @@
         const fmtDhq = (v) => { const n = Number(v) || 0; return (n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(Math.round(n))) + ' DHQ'; };
         const seasonPrefix = state.season ? state.season + ' ' : '';
         const remaining = (state.pickOrder || []).slice(state.currentIdx || 0).filter(p => String(p.rosterId) === String(rosterId));
-        const pickOpts = remaining.map(p => ({ key: 'pick:' + p.round + '-' + p.teamIdx, type: 'pick', label: seasonPrefix + 'R' + p.round + '.' + String(p.slot || 0).padStart(2, '0'), sub: sim.pickValueFor ? fmtDhq(sim.pickValueFor(state, p)) : '', asset: p }));
+        const pickOpts = remaining.map(p => ({ key: 'pick:' + p.round + '-' + p.teamIdx, type: 'pick', label: seasonPrefix + 'R' + p.round + '.' + String(pickPP(p, state.leagueSize) || 0).padStart(2, '0'), sub: sim.pickValueFor ? fmtDhq(sim.pickValueFor(state, p)) : '', asset: p }));
         const futures = (stt.buildFuturePickPool ? stt.buildFuturePickPool(state) : []).filter(fp => String(fp.ownerRosterId) === String(rosterId));
         const futureOpts = futures.map(fp => ({ key: 'fut:' + fp.year + ':' + fp.round + ':' + fp.fromRosterId, type: 'future', label: fp.year + ' R' + fp.round, sub: stt.futurePickValueFor ? fmtDhq(stt.futurePickValueFor(state, fp)) : '', asset: fp }));
         const pickedPids = new Set((state.picks || []).map(p => p.pid).filter(Boolean));
@@ -378,7 +389,7 @@
         const pdata = window.S?.players || {};
         const playerName = (pid) => { const p = pdata[pid] || {}; return p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || pid; };
         const seasonPrefix = state.season ? state.season + ' ' : '';
-        const pickOpts = (picks) => (picks || []).map(p => ({ key: p.round + '-' + p.teamIdx, type: 'pick', label: seasonPrefix + 'R' + p.round + '.' + String(p.slot || 0).padStart(2, '0'), sub: simulator ? fmtDhq(simulator.pickValueFor(state, p)) : '', asset: p }));
+        const pickOpts = (picks) => (picks || []).map(p => ({ key: p.round + '-' + p.teamIdx, type: 'pick', label: seasonPrefix + 'R' + p.round + '.' + String(pickPP(p, state.leagueSize) || 0).padStart(2, '0'), sub: simulator ? fmtDhq(simulator.pickValueFor(state, p)) : '', asset: p }));
         const playerOpts = (pids) => (pids || []).map(pid => ({ pid, val: simulator ? simulator.playerValueFor(pid) : 0 })).sort((a, b) => b.val - a.val).slice(0, 60).map(({ pid, val }) => { const pd = pdata[pid] || {}; const pos = pd.position || pd.fantasy_positions?.[0] || ''; return { key: pid, type: 'player', label: playerName(pid) + (pos ? ' · ' + pos : ''), sub: fmtDhq(val), asset: pid }; });
         const futureOpts = (picks) => (picks || []).map(fp => ({ key: futureKeyOf(fp), type: 'future', label: fp.year + ' R' + fp.round, sub: window.DraftCC?.state?.futurePickValueFor ? fmtDhq(window.DraftCC.state.futurePickValueFor(state, fp)) : '', asset: fp }));
         // Picks of all years (current draft + future seasons) share one group, ordered
@@ -496,7 +507,7 @@
             });
         };
 
-        const gradeCol = evaluation.grade?.col || 'var(--gold)';
+        const gradeCol = evaluation.grade?.col || evaluation.grade?.color || 'var(--gold)';
         const likelihoodCol = evaluation.likelihood >= 60 ? 'var(--good)'
             : evaluation.likelihood >= 40 ? 'var(--warn)'
             : 'var(--bad)';
@@ -1014,7 +1025,7 @@
     }
 
     function formatPick(pick) {
-        return 'R' + pick.round + '.' + String(pick.slot || 0).padStart(2, '0');
+        return 'R' + pick.round + '.' + String(pickPP(pick) || 0).padStart(2, '0');
     }
 
     function playerName(pid) {
@@ -1116,7 +1127,7 @@
             profile.liquidity?.label,
         ].filter(Boolean).slice(0, 4);
         const needs = (profile.needs || []).slice(0, 5);
-        const picks = (profile.movablePicks || []).slice(0, 3).map(p => 'R' + p.round + '.' + String(p.slot || 0).padStart(2, '0'));
+        const picks = (profile.movablePicks || []).slice(0, 3).map(p => 'R' + p.round + '.' + String(pickPP(p) || 0).padStart(2, '0'));
         const players = (profile.tradablePlayers || []).slice(0, 3).map(p => p.name);
         return (
             <div style={{
@@ -1295,7 +1306,7 @@
                                     borderRadius: '3px',
                                     background: 'var(--ov-4, rgba(255,255,255,0.06))',
                                     color: 'var(--white)',
-                                }}>R{p.round}.{String(p.slot || 0).padStart(2, '0')}</span>
+                                }}>R{p.round}.{String(pickPP(p) || 0).padStart(2, '0')}</span>
                             ))}
                             {(playerIds || []).map((pid) => (
                                 <span key={'pl'+pid} title={playerName(pid)} style={{

@@ -315,7 +315,12 @@
         const nm = c => c.player?.name || c.player?.full_name || c.player?.pid || 'Player';
         const ps = c => posOf(c.player) || '';
         const slot = next.slot;
-        const pickLabel = 'R' + (slot.round || '?') + '.' + String(slot.slot || 0).padStart(2, '0');
+        // Universal round.pick-in-round label — slot.slot is the team column, so
+        // derive from overall for saved drafts that predate pickInRound.
+        const teams = num(state?.leagueSize, 0);
+        const pp = num(slot.pickInRound, 0)
+            || (teams > 0 && num(slot.overall, 0) > 0 ? ((num(slot.overall, 0) - 1) % teams) + 1 : num(slot.slot, 0));
+        const pickLabel = 'R' + (slot.round || '?') + '.' + String(pp || 0).padStart(2, '0');
         // Heuristic: the ~picksAway top-ranked players are likely gone before our turn.
         const survivors = rows.filter(c => c.rank > picksAway + 1);
         const gone = rows.filter(c => c.rank <= picksAway);

@@ -517,7 +517,9 @@ function RosterPlayerDossier({ x, playersData, statsData, currentLeague, normPos
     const peakWin = curve.peak || (App.peakWindows || {})[nP] || [24, 29];
     const [pLo, pHi] = peakWin;
     const declineHi = (curve.decline && curve.decline[1]) || (pHi + 3);
-    const peakPhase = !age ? '—' : age < pLo ? 'PRE' : age <= pHi ? 'PEAK' : 'POST';
+    // VET = past peak but inside the decline band (mirrors My Roster's phases) —
+    // without it a 30yo with value years left reads as POST/"past the window".
+    const peakPhase = !age ? '—' : age < pLo ? 'PRE' : age <= pHi ? 'PEAK' : age <= declineHi ? 'VET' : 'POST';
     const peakYrsLeft = age && age <= pHi ? Math.max(0, pHi - age) : 0;
     const valueYrsLeft = age && age <= declineHi ? Math.max(0, declineHi - age) : 0;
 
@@ -540,13 +542,16 @@ function RosterPlayerDossier({ x, playersData, statsData, currentLeague, normPos
     // the framed take ("weigh present value over a long-term hold") is Pro.
     const dynastyRead = (() => {
         const lead = band + ' ' + posLabel(pos) + (age ? ', age ' + age : '') + '.';
+        const vetYrs = valueYrsLeft > 0 ? '~' + valueYrsLeft + ' value yr' + (valueYrsLeft > 1 ? 's' : '') + ' left' : 'final value year';
         const tail = isPro
             ? (peakPhase === 'PRE' ? ' Ascending — value should climb as the role solidifies.'
                 : peakPhase === 'PEAK' ? ' In his prime window — production and value are at their height.'
+                : peakPhase === 'VET' ? ' In the veteran value band — ' + vetYrs + '; lean on present production.'
                 : peakPhase === 'POST' ? ' Past peak — weigh present value over a long-term hold.'
                 : ' Limited age data — judge on role and production.')
             : (peakPhase === 'PRE' ? ' Before the prime window.'
                 : peakPhase === 'PEAK' ? ' Inside the prime window.'
+                : peakPhase === 'VET' ? ' In the veteran value band — ' + vetYrs + '.'
                 : peakPhase === 'POST' ? ' Past the normal value window.'
                 : ' Limited age data.');
         const own = x.isPool ? ' Currently in the draft pool (unrostered).' : x.isMe ? ' On your roster.' : x.teamName ? ' Rostered by ' + x.teamName + '.' : '';
@@ -2046,18 +2051,20 @@ function LeagueMapTab({
 
             return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {/* Franchise narrative */}
-                    <GMMessage>
+                    {/* Franchise narrative — drafter/trader skill read (Q3 parity with
+                        the analytics hit-rate reads), Pro. Raw history stays below. */}
+                    {isPro && <GMMessage>
                         {narrativeParts.join(' ')}
                         {bestAsset && bestAsset.dhq > 0 ? ` Crown jewel: ${playersData[bestAsset.pid]?.full_name || '?'} (${bestAsset.dhq.toLocaleString()} DHQ).` : ''}
-                    </GMMessage>
+                    </GMMessage>}
 
                     {/* Header stats */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(' + (isPro ? 4 : 3) + ', 1fr)', gap: '8px' }}>
                         {[
                             { label: 'Championships', value: h.championships, sub: h.champSeasons.join(', ') || 'None', color: h.championships > 0 ? 'var(--gold)' : 'var(--silver)' },
                             { label: 'Playoff Record', value: h.playoffRecord, sub: h.playoffAppearances + ' appearances', color: h.playoffWins > h.playoffLosses ? 'var(--good)' : 'var(--silver)' },
-                            { label: 'Draft Hit Rate', value: h.draftHitRate + '%', sub: h.draftHits + '/' + h.draftTotal + ' starters', color: h.draftHitRate >= 50 ? 'var(--good)' : h.draftHitRate >= 30 ? 'var(--warn)' : 'var(--bad)' },
+                            // Hit rate = draft-skill verdict (same read the analytics tab gates) — Pro
+                            ...(isPro ? [{ label: 'Draft Hit Rate', value: h.draftHitRate + '%', sub: h.draftHits + '/' + h.draftTotal + ' starters', color: h.draftHitRate >= 50 ? 'var(--good)' : h.draftHitRate >= 30 ? 'var(--warn)' : 'var(--bad)' }] : []),
                             { label: 'Trade Record', value: h.tradesWon + '-' + h.tradesLost + '-' + h.tradesFair, sub: (h.avgValueDiff >= 0 ? '+' : '') + h.avgValueDiff + ' avg DHQ', color: h.avgValueDiff >= 0 ? 'var(--good)' : 'var(--bad)' },
                         ].map((stat, i) => (
                             <div key={i} style={{ background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
@@ -2096,8 +2103,8 @@ function LeagueMapTab({
                         </div>
                     )}
 
-                    {/* Best + Worst Picks */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    {/* Best + Worst Picks — hit/bust verdicts, Pro */}
+                    {isPro && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                         {h.bestPick && (
                             <div style={{ background: 'rgba(46,204,113,0.06)', border: '1px solid rgba(46,204,113,0.15)', borderRadius: '8px', padding: '10px 14px' }}>
                                 <div style={{ fontSize: '0.7rem', color: 'var(--good)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', marginBottom: '4px' }}>Best Draft Pick</div>
@@ -2113,7 +2120,7 @@ function LeagueMapTab({
                                 ))}
                             </div>
                         )}
-                    </div>
+                    </div>}
 
                     {/* Rivalries */}
                     {h.rivalries.length > 0 && (
