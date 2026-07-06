@@ -320,20 +320,32 @@
             } else if (alive) setGameLog([]);
             // Matchup-aware news (graceful — CTA if AI unavailable). Loads once per open.
             if (scoutNews == null) {
-                const AV = window.AlexVoice;
-                const hasAI = (AV && AV.hasAI && AV.hasAI()) || (window.OD && typeof window.OD.callAI === 'function');
-                if (!hasAI) setScoutNews({ status: 'off' });
-                else {
-                    setScoutNews({ status: 'loading' });
-                    const week = (A.WeeklyProj && A.WeeklyProj.currentWeek && A.WeeklyProj.currentWeek()) || 1;
-                    const ctx = { pid, name: player.full_name || pid, team: player.team, pos: (A.normPos && A.normPos(player.position)) || player.position, age: player.age, season, week };
-                    const run = (window.OD && typeof window.OD.callAI === 'function')
-                        ? window.OD.callAI({ type: 'dynasty_read', context: JSON.stringify(ctx) }).then(res => (res && (res.text || res.analysis || res.response)) || (typeof res === 'string' ? res : ''))
-                        : window.dhqAI('dynasty_read', '', JSON.stringify(ctx));
-                    Promise.resolve(run).then(txt => {
-                        const clean = window.AlexVoice ? window.AlexVoice.sanitize(String(txt || '')) : String(txt || '').trim();
-                        if (alive) setScoutNews(clean ? { status: 'done', text: clean } : { status: 'error' });
-                    }).catch(() => { if (alive) setScoutNews({ status: 'error' }); });
+                // Trigger gate is the guarantee: a free BYOK user (S.apiKey set)
+                // routes dhqAI→provider and never touches the OD.callAI tripwire,
+                // so the auto-fire itself must be Pro-gated here.
+                if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) {
+                    setScoutNews({ status: 'locked' });
+                } else {
+                    const AV = window.AlexVoice;
+                    const hasAI = (AV && AV.hasAI && AV.hasAI()) || (window.OD && typeof window.OD.callAI === 'function');
+                    if (!hasAI) setScoutNews({ status: 'off' });
+                    else {
+                        setScoutNews({ status: 'loading' });
+                        const week = (A.WeeklyProj && A.WeeklyProj.currentWeek && A.WeeklyProj.currentWeek()) || 1;
+                        const ctx = { pid, name: player.full_name || pid, team: player.team, pos: (A.normPos && A.normPos(player.position)) || player.position, age: player.age, season, week };
+                        // Prefer shared fetchDynastyRead: routes through OD.callAI
+                        // (shared weekly Supabase cache) with BYOK fallback +
+                        // format-aware client cache (dhq-shared/dhq-ai.js).
+                        const run = (typeof window.fetchDynastyRead === 'function')
+                            ? window.fetchDynastyRead(ctx, { fallback: '' })
+                            : (window.OD && typeof window.OD.callAI === 'function')
+                                ? window.OD.callAI({ type: 'dynasty_read', context: JSON.stringify(ctx) }).then(res => (res && (res.text || res.analysis || res.response)) || (typeof res === 'string' ? res : ''))
+                                : window.dhqAI('dynasty_read', '', JSON.stringify(ctx));
+                        Promise.resolve(run).then(txt => {
+                            const clean = window.AlexVoice ? window.AlexVoice.sanitize(String(txt || '')) : String(txt || '').trim();
+                            if (alive) setScoutNews(clean ? { status: 'done', text: clean } : { status: 'error' });
+                        }).catch(() => { if (alive) setScoutNews({ status: 'error' }); });
+                    }
                 }
             }
             return () => { alive = false; };
@@ -386,11 +398,15 @@
                 formatReasons: playerFormatReasons,
             })
             : null;
+        // Free/Pro seam: the BUY/SELL/HOLD verdict chip + roster recommendation
+        // are Pro reads; raw DHQ/PPG/tier/curve stay free. Fail-open when
+        // pro-gate.js isn't on the page.
+        const isPro = typeof window.wrIsPro !== 'function' || window.wrIsPro();
         const pa = typeof window.getPlayerAction === 'function' ? window.getPlayerAction(pid) : null;
         const rec = pa ? pa.label.toUpperCase() :
             (valueYrs <= 0 && trend <= -10 ? 'SELL NOW' : valueYrs <= 0 ? 'SELL' : peakYrs <= 1 ? 'SELL' : dhq >= 7000 && peakYrs >= 3 ? 'HOLD CORE' : 'HOLD');
         const recCol = rec.includes('SELL') ? 'var(--k-e74c3c, #e74c3c)' : rec.includes('BUY') ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-d4af37, #d4af37)';
-        const rosterRecommendation = typeof window.App?.Intelligence?.buildRosterRecommendation === 'function'
+        const rosterRecommendation = isPro && typeof window.App?.Intelligence?.buildRosterRecommendation === 'function'
             ? window.App.Intelligence.buildRosterRecommendation({
                 id: 'player_card_' + pid,
                 pid,
@@ -491,16 +507,18 @@
         // ── Overview section ──────────────────────────────────────
         function OverviewTab() {
             const compressed = compressHistory(historyRows || []);
+            // Action verdict cell is Pro; free gets the raw 4-stat row (clean absence).
+            const statCells = [
+                { v: dhq > 0 ? dhq.toLocaleString() : '—', l: 'DHQ', c: dhqCol },
+                { v: ppg || '—', l: 'PPG (curr)', c: ppg >= 10 ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-d0d0d0, #d0d0d0)' },
+                { v: peakYrs > 0 ? peakYrs + 'yr' : valueYrs + 'yr', l: peakYrs > 0 ? 'Peak Left' : 'Value Left', c: peakCol },
+                { v: tier.label, l: 'Tier', c: tier.color },
+            ];
+            if (isPro) statCells.push({ v: rec, l: 'Action', c: recCol });
             return React.createElement(React.Fragment, null,
                 // Stats grid
-                React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', padding: '14px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
-                    [
-                        { v: dhq > 0 ? dhq.toLocaleString() : '—', l: 'DHQ', c: dhqCol },
-                        { v: ppg || '—', l: 'PPG (curr)', c: ppg >= 10 ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-d0d0d0, #d0d0d0)' },
-                        { v: peakYrs > 0 ? peakYrs + 'yr' : valueYrs + 'yr', l: peakYrs > 0 ? 'Peak Left' : 'Value Left', c: peakCol },
-                        { v: tier.label, l: 'Tier', c: tier.color },
-                        { v: rec, l: 'Action', c: recCol },
-                    ].map((s, i) => React.createElement('div', { key: i, style: { textAlign: 'center' } },
+                React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(' + statCells.length + ', 1fr)', gap: '8px', padding: '14px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
+                    statCells.map((s, i) => React.createElement('div', { key: i, style: { textAlign: 'center' } },
                         React.createElement('div', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '1.05rem', fontWeight: 700, color: s.c } }, s.v),
                         React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '3px' } }, s.l)
                     ))
@@ -706,9 +724,18 @@
                         ? React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6 } }, 'Reading the latest…')
                         : scoutNews.status === 'done'
                             ? React.createElement('div', { style: { fontSize: 'var(--text-body, 0.95rem)', color: 'var(--k-d0d0d0, #d0d0d0)', lineHeight: 1.5 } }, scoutNews.text)
-                            : scoutNews.status === 'off'
-                                ? React.createElement('div', { style: { fontSize: 'var(--text-label, 0.82rem)', color: 'var(--text-muted)' } }, 'Sign in (or add an AI key) to pull live matchup news.')
-                                : React.createElement('div', { style: { fontSize: 'var(--text-label, 0.82rem)', color: 'var(--text-muted)' } }, 'No fresh news found.')
+                            : scoutNews.status === 'locked'
+                                ? React.createElement('button', {
+                                    onClick: () => { if (window.showProLaunchPage) window.showProLaunchPage(); else if (window.showUpgradePrompt) window.showUpgradePrompt('dynasty_read_ai'); },
+                                    style: { display: 'flex', alignItems: 'center', gap: '8px', width: '100%', textAlign: 'left', padding: '9px 11px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '7px', cursor: 'pointer' }
+                                },
+                                    React.createElement('span', { 'aria-hidden': true, style: { fontSize: '0.9rem' } }, '🔒'),
+                                    React.createElement('span', { style: { flex: 1, fontSize: 'var(--text-label, 0.82rem)', color: 'var(--silver)' } }, 'Live matchup news is a Pro read.'),
+                                    React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-label, 0.72rem)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)', border: '1px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius: '2px', padding: '2px 6px' } }, 'Pro')
+                                )
+                                : scoutNews.status === 'off'
+                                    ? React.createElement('div', { style: { fontSize: 'var(--text-label, 0.82rem)', color: 'var(--text-muted)' } }, 'Sign in (or add an AI key) to pull live matchup news.')
+                                    : React.createElement('div', { style: { fontSize: 'var(--text-label, 0.82rem)', color: 'var(--text-muted)' } }, 'No fresh news found.')
                 )
             );
         }

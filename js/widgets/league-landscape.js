@@ -23,14 +23,18 @@
         const fonts = theme.fonts || {};
         const cardStyle = window.WrTheme?.cardStyle?.() || {};
         const fs = (rem) => window.WrTheme?.fontSize?.(rem) || (rem + 'rem');
+        // Free/Pro (fail-open): standings/activity/health numbers stay free;
+        // the ELITE/…/REBUILDING tier verdicts + posture-target reads are Pro.
+        const pro = typeof window.wrIsPro !== 'function' || window.wrIsPro();
 
         // GM Strategy is the single source of truth — frame the field by posture.
         const gm = window.WR.GmMode.useGmEffects(currentLeague);
         const posture = gm?.marketPosture || 'hold';
         // buy_low → surface sellers/rebuilders (buy-FROM targets, low tiers);
         // sell_high → surface buyers/contenders (sell-TO targets, high tiers).
+        // Pro-only: it flags specific rivals as deal targets via tier reads.
         const postureFrame = React.useMemo(() => {
-            if (!gm?.hasStrategy) return null;
+            if (!pro || !gm?.hasStrategy) return null;
             if (posture === 'buy_low') return {
                 label: 'BUY-FROM TARGETS',
                 hint: 'Rebuilders to pry talent from',
@@ -44,7 +48,7 @@
                 tiers: new Set(['ELITE', 'CONTENDER']),
             };
             return null;
-        }, [gm?.hasStrategy, posture, colors.positive, colors.accent]);
+        }, [pro, gm?.hasStrategy, posture, colors.positive, colors.accent]);
 
         function postureBadge() {
             if (!postureFrame) return null;
@@ -151,7 +155,8 @@
                             const isMe = a.rosterId && (currentLeague?.rosters || []).find(r => r.roster_id === a.rosterId)?.owner_id === sleeperUserId;
                             const name = getOwnerName ? getOwnerName(a.rosterId) : ('Team ' + (i + 1));
                             const pct = ((a.healthScore || 0) / maxH) * 100;
-                            const tc = tierCol(a.tier);
+                            // tier colors encode the verdict — neutral for free
+                            const tc = pro ? tierCol(a.tier) : (colors.textMuted || 'var(--silver)');
                             return (
                                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                     <span style={{ fontSize: fs(0.7), color: i < 3 ? colors.accent : colors.textMuted, fontWeight: 700, width: 14, textAlign: 'right', fontFamily: fonts.mono }}>{i + 1}</span>
@@ -203,7 +208,7 @@
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0 4px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
                         <span style={{ width: 14 }} />
                         <span style={{ flex: 1, fontSize: fs(0.54), color: colors.textFaint, textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: fonts.ui }}>Owner</span>
-                        {showCols === 'all' && <span style={{ fontSize: fs(0.54), color: colors.textFaint, textTransform: 'uppercase', fontFamily: fonts.ui, minWidth: 32, textAlign: 'right' }}>Tier</span>}
+                        {showCols === 'all' && pro && <span style={{ fontSize: fs(0.54), color: colors.textFaint, textTransform: 'uppercase', fontFamily: fonts.ui, minWidth: 32, textAlign: 'right' }}>Tier</span>}
                         {showCols === 'all' && <span style={{ fontSize: fs(0.54), color: colors.textFaint, textTransform: 'uppercase', fontFamily: fonts.ui, minWidth: 28, textAlign: 'right' }}>DHQ</span>}
                         <span style={{ fontSize: fs(0.54), color: colors.textFaint, textTransform: 'uppercase', fontFamily: fonts.ui, minWidth: 22, textAlign: 'right' }}>HP</span>
                     </div>
@@ -227,7 +232,7 @@
                                 <span style={{ flex: 1, fontSize: fs(0.66), fontWeight: isMe ? 700 : 500, color: isMe ? colors.accent : colors.text, fontFamily: fonts.ui, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                     {isMe ? '★ ' : ''}{(name || '').slice(0, 18)}
                                 </span>
-                                {showCols === 'all' && <span style={{ fontSize: fs(0.54), padding: '1px 4px', borderRadius: 3, background: wrAlpha(tc, '18'), color: tc, fontWeight: 700, minWidth: 32, textAlign: 'center' }}>{(a.tier || '—').slice(0, 4)}</span>}
+                                {showCols === 'all' && pro && <span style={{ fontSize: fs(0.54), padding: '1px 4px', borderRadius: 3, background: wrAlpha(tc, '18'), color: tc, fontWeight: 700, minWidth: 32, textAlign: 'center' }}>{(a.tier || '—').slice(0, 4)}</span>}
                                 {showCols === 'all' && <span style={{ fontSize: fs(0.54), color: colors.textMuted, minWidth: 28, textAlign: 'right', fontFamily: fonts.mono }}>{rosterDHQ >= 1000 ? Math.round(rosterDHQ / 1000) + 'k' : rosterDHQ}</span>}
                                 <span style={{ fontSize: fs(0.6), fontWeight: 700, color: colors.textMuted, minWidth: 22, textAlign: 'right', fontFamily: fonts.mono }}>{a.healthScore || 0}</span>
                             </div>
@@ -237,8 +242,9 @@
             );
         }
 
-        // ── Tier distribution strip ──
+        // ── Tier distribution strip (tier verdicts → Pro only) ──
         function renderTierStrip() {
+            if (!pro) return null;
             return (
                 <div style={{
                     display: 'flex', gap: '8px', padding: '6px 8px',
@@ -271,7 +277,7 @@
                         <span style={{ fontSize: fs(0.62), color: colors.textMuted, fontFamily: fonts.ui }}>{txnCount} moves</span>
                         {analyticsButton()}
                     </div>
-                    <div style={{ marginBottom: '6px', flexShrink: 0 }}>{renderTierStrip()}</div>
+                    {pro && <div style={{ marginBottom: '6px', flexShrink: 0 }}>{renderTierStrip()}</div>}
                     <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
                         {renderStandings(top8, { compact: true, cols: 'all' })}
                     </div>
@@ -294,7 +300,7 @@
                         <span style={{ fontSize: fs(0.66), color: colors.textMuted, fontFamily: fonts.ui }}>{txnCount} moves</span>
                         {analyticsButton()}
                     </div>
-                    <div style={{ marginBottom: '8px', flexShrink: 0 }}>{renderTierStrip()}</div>
+                    {pro && <div style={{ marginBottom: '8px', flexShrink: 0 }}>{renderTierStrip()}</div>}
                     <div style={{ marginBottom: '10px' }}>{renderStandings(top12, { compact: true, cols: 'all' })}</div>
                     {movers.length > 0 && (
                         <div style={{ marginBottom: '8px' }}>
@@ -330,7 +336,7 @@
                         <span style={{ fontSize: fs(0.62), color: colors.textMuted, fontFamily: fonts.ui }}>{txnCount} moves · You #{myRank || '—'}</span>
                         {analyticsButton()}
                     </div>
-                    <div style={{ marginBottom: '8px', flexShrink: 0 }}>{renderTierStrip()}</div>
+                    {pro && <div style={{ marginBottom: '8px', flexShrink: 0 }}>{renderTierStrip()}</div>}
                     <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 1fr)', gap: '14px', overflow: 'hidden' }}>
                         <div style={{ minWidth: 0, overflow: 'hidden' }}>
                             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '4px' }}>
@@ -372,7 +378,7 @@
                         <span style={{ fontSize: fs(0.66), color: colors.textMuted, fontFamily: fonts.ui }}>{txnCount} moves · You #{myRank || '—'} of {total}</span>
                         {analyticsButton()}
                     </div>
-                    <div style={{ marginBottom: '10px', flexShrink: 0 }}>{renderTierStrip()}</div>
+                    {pro && <div style={{ marginBottom: '10px', flexShrink: 0 }}>{renderTierStrip()}</div>}
                     <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr)', gap: '16px', overflow: 'hidden' }}>
                         {/* Left col: full standings + dhq chart */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0, minHeight: 0 }}>
@@ -390,7 +396,7 @@
                                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                             <span style={{ flex: 1, fontSize: fs(0.54), color: o.isMe ? colors.accent : colors.textMuted, fontWeight: o.isMe ? 700 : 500, fontFamily: fonts.ui, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(o.name || '').slice(0, 12)}</span>
                                             <div style={{ width: 80, height: 6, background: 'var(--ov-3, rgba(255,255,255,0.04))', borderRadius: 2, overflow: 'hidden' }}>
-                                                <div style={{ width: ((o.dhq / maxDHQ) * 100) + '%', height: '100%', background: tierCol(o.tier), opacity: o.isMe ? 1 : 0.6 }} />
+                                                <div style={{ width: ((o.dhq / maxDHQ) * 100) + '%', height: '100%', background: pro ? tierCol(o.tier) : (colors.textMuted || 'var(--silver)'), opacity: o.isMe ? 1 : 0.6 }} />
                                             </div>
                                             <span style={{ fontSize: fs(0.5), color: colors.textFaint, fontFamily: fonts.mono, minWidth: 28, textAlign: 'right' }}>{o.dhq >= 1000 ? Math.round(o.dhq / 1000) + 'k' : o.dhq}</span>
                                         </div>

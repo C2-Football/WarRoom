@@ -1100,6 +1100,19 @@
             const [aiError,     setAiError]     = useState(null);
             const [aiChatInput, setAiChatInput] = useState('');
 
+            // Scout-free vs Pro: every AI Scout mode (recs + chat) is Pro. Re-render
+            // once the async server tier resolves so a paying user whose local trial
+            // stamp lapsed isn't stuck on the lock (and free can't race the resolve).
+            // loadUserTier() is safe to call again — pro-gate.js already booted it.
+            const [, setTierTick] = useState(0);
+            useEffect(() => {
+                let live = true;
+                const p = (typeof window.loadUserTier === 'function') ? window.loadUserTier() : null;
+                Promise.resolve(p).catch(() => {}).then(() => { if (live) setTierTick(t => t + 1); });
+                return () => { live = false; };
+            }, []);
+            const aiIsPro = (typeof window.wrIsPro === 'function') ? window.wrIsPro() : true;
+
             const FA_AI_MODES = [
                 { id: 'fa_targets', label: 'FA Pickups',   desc: 'Recommend free agents based on your roster needs and remaining FAAB' },
                 { id: 'rookies',    label: 'Rookies',      desc: 'Rookie draft targets ranked by fit with your roster needs' },
@@ -1190,6 +1203,10 @@
             }
 
             async function runFAAnalysis() {
+                // Trigger gate (BYOK-safe): never fire an AI call for a free user.
+                // The locked panel below means this is unreachable UI-side; keep it
+                // as the guarantee in case another path ever invokes it.
+                if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) return;
                 setAiLoading(true); setAiError(null); setAiAnalysis(null);
                 try {
                     const ctx = buildFAContext();
@@ -1834,10 +1851,12 @@
                                         </div>
                                     ) : (
                                         <div className="ph-sub" style={{ gap:'0.3rem' }}>
-                                            {FA_AI_MODES.map(m => (
+                                            {aiIsPro ? FA_AI_MODES.map(m => (
                                                 <button key={m.id} className={`ai-mode-btn${aiMode===m.id?' active':''}`}
                                                     onClick={() => setAiMode(m.id)}>{m.label}</button>
-                                            ))}
+                                            )) : (
+                                                <span style={{ fontSize:'0.58rem', fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--gold)', border:'1px solid rgba(212,175,55,0.45)', borderRadius:'3px', padding:'0.18rem 0.5rem' }}>🔒 Pro feature</span>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -1999,6 +2018,26 @@
                                             )}
                                         </div>
                                     </>
+                                ) : !aiIsPro ? (
+                                    /* AI Scout lock — CTA goes to landing.html directly: the shared
+                                       upgrade modal styles with Scout CSS vars this page doesn't define */
+                                    <div className="panel-body" style={{ padding:'0.85rem 0.8rem' }}>
+                                        <div style={{ background:'var(--black)', border:'1px solid var(--charcoal)', borderLeft:'3px solid var(--gold)', borderRadius:'2px', padding:'12px 14px' }}>
+                                            <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+                                                <span aria-hidden="true" style={{ fontSize:'0.9rem' }}>🔒</span>
+                                                <span style={{ flex:1, fontFamily:'monospace', fontSize:'0.72rem', fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--white)' }}>AI Scout</span>
+                                                <span style={{ fontFamily:'monospace', fontSize:'0.68rem', letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--gold)', border:'1px solid rgba(212,175,55,0.45)', borderRadius:'2px', padding:'1px 6px' }}>Pro</span>
+                                            </div>
+                                            <div style={{ fontSize:'0.72rem', color:'var(--silver)', lineHeight:1.55, margin:'8px 0 0 22px' }}>
+                                                FA pickup recommendations, rookie targets ranked by fit, and Ask AI are Pro. Your targets list, FAAB tracking, and the full wire stay free.
+                                            </div>
+                                            <button type="button"
+                                                onClick={() => { window.location.href = 'landing.html'; }}
+                                                style={{ display:'block', margin:'10px 0 0 22px', padding:'6px 14px', background:'var(--gold)', color:'#1a1000', border:'none', borderRadius:'2px', fontFamily:'monospace', fontSize:'0.72rem', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase', cursor:'pointer' }}>
+                                                Unlock with Pro
+                                            </button>
+                                        </div>
+                                    </div>
                                 ) : (
                                     /* AI Scout tab content */
                                     <div className="panel-body" style={{ padding:'0.85rem 0.8rem' }}>

@@ -1464,6 +1464,38 @@
         fontFamily: FONT_UI,
     };
 
+    // The in-draft trade desk is Scout Pro end-to-end: quick packages ranked by
+    // acceptance likelihood, the live likelihood/grade read, psych-tax + DNA
+    // drivers, and the send verdict all come from the persona simulator — a
+    // raw-only builder here would dead-end at Send, so the whole drawer gates
+    // (stronger than the row-6 split; noted for review). Wrapper keeps the big
+    // component's hooks unmounted for free.
+    function GatedTradeProposer(props) {
+        const { state, dispatch } = props;
+        if (typeof window.wrIsPro !== 'function' || window.wrIsPro()) return <TradeProposer {...props} />;
+        if (!state.proposerDrawer) return null;
+        const GatedRow = window.WrGatedMoreRow;
+        return (
+            <div style={{
+                position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(420px, 90vw)',
+                background: 'var(--black)', borderLeft: '2px solid var(--gold)',
+                boxShadow: '-12px 0 40px rgba(0,0,0,0.6)', zIndex: 600,
+                display: 'flex', flexDirection: 'column', fontFamily: FONT_UI,
+                animation: 'wrFadeIn 0.25s ease',
+            }}>
+                <div style={{ padding: '14px 16px', borderBottom: 'var(--card-border)', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                    <div style={{ flex: 1, fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Propose Trade</div>
+                    <button onClick={() => dispatch({ type: 'CLOSE_PROPOSER' })} style={{ background: 'none', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', color: 'var(--silver)', fontSize: '0.9rem', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', cursor: 'pointer' }}>✕</button>
+                </div>
+                <div style={{ padding: '14px 16px' }}>
+                    {GatedRow
+                        ? <GatedRow title="Work the phones mid-draft" sub="Live acceptance odds, psych taxes, and owner-DNA trade reads are Scout Pro." feature="draft_trade_desk" />
+                        : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Draft Trade Desk', 'draft_trade_desk', 'In-draft trade negotiation is Scout Pro.') : '' }} />}
+                </div>
+            </div>
+        );
+    }
+
     window.DraftCC = window.DraftCC || {};
-    window.DraftCC.TradeProposer = TradeProposer;
+    window.DraftCC.TradeProposer = GatedTradeProposer;
 })();

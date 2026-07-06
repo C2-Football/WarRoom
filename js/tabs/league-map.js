@@ -490,6 +490,10 @@ function RosterPlayerDossier({ x, playersData, statsData, currentLeague, normPos
     const pid = x.pid;
     const dhq = x.dhq || 0;
     const age = x.age || p.age || null;
+    // Scout-free vs Pro: identity/value/age-curve raw data stays free; the
+    // Dynasty Read layer (AI fetch + framed template tail) is Pro (gate-map
+    // row 2 parity). wrIsPro only — never canAccess/getTier.
+    const isPro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
     const posColors = App.POS_COLORS || {};
     const posLabel = (pp) => App.posLabel?.(pp) || (pp === 'DEF' ? 'D/ST' : pp);
     const isElite = typeof App.isElitePlayer === 'function' ? App.isElitePlayer(pid) : dhq >= 7000;
@@ -532,12 +536,19 @@ function RosterPlayerDossier({ x, playersData, statsData, currentLeague, normPos
     })();
 
     // Dynasty read — plain-language summary from band + peak phase.
+    // Free keeps the raw restatement (value band, age window, ownership);
+    // the framed take ("weigh present value over a long-term hold") is Pro.
     const dynastyRead = (() => {
         const lead = band + ' ' + posLabel(pos) + (age ? ', age ' + age : '') + '.';
-        const tail = peakPhase === 'PRE' ? ' Ascending — value should climb as the role solidifies.'
-            : peakPhase === 'PEAK' ? ' In his prime window — production and value are at their height.'
-            : peakPhase === 'POST' ? ' Past peak — weigh present value over a long-term hold.'
-            : ' Limited age data — judge on role and production.';
+        const tail = isPro
+            ? (peakPhase === 'PRE' ? ' Ascending — value should climb as the role solidifies.'
+                : peakPhase === 'PEAK' ? ' In his prime window — production and value are at their height.'
+                : peakPhase === 'POST' ? ' Past peak — weigh present value over a long-term hold.'
+                : ' Limited age data — judge on role and production.')
+            : (peakPhase === 'PRE' ? ' Before the prime window.'
+                : peakPhase === 'PEAK' ? ' Inside the prime window.'
+                : peakPhase === 'POST' ? ' Past the normal value window.'
+                : ' Limited age data.');
         const own = x.isPool ? ' Currently in the draft pool (unrostered).' : x.isMe ? ' On your roster.' : x.teamName ? ' Rostered by ' + x.teamName + '.' : '';
         return lead + tail + own;
     })();
@@ -547,6 +558,10 @@ function RosterPlayerDossier({ x, playersData, statsData, currentLeague, normPos
     // the template only once it resolves; failures/empty keep the template.
     const [aiRead, setAiRead] = React.useState(null);
     React.useEffect(() => {
+        // Free: never auto-fire dynasty_read on dossier expand — BYOK users
+        // (S.apiKey → dhqAI) bypass the OD.callAI tripwire, so the trigger
+        // itself must gate (D9). Mirrors the My Roster dossier gate.
+        if (!isPro) return;
         if (!pid || typeof window.fetchDynastyRead !== 'function') return;
         let alive = true;
         const nfl = window.S?.nflState || {};
@@ -720,6 +735,18 @@ function LeagueMapTab({
   const resolvedLeagueSkin = leagueSkin || _seasonCtx.leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
   const skinFeatures = resolvedLeagueSkin?.features || {};
   const normPos = window.App.normPos;
+
+  // Scout-free vs Pro (gate-map row 15 + Q3/Q7 rulings): raw player/pick
+  // tables, search/filters, saved views, power rankings, and raw health
+  // numbers stay free; the team-tier assessments (ELITE/CONTENDER/…), need
+  // flags, and the Custom Reports builder are Pro. wrIsPro only — never
+  // canAccess.
+  const isPro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
+  const ProLock = ({ label, sub }) => (
+    window.wrLockCard
+      ? <div style={{ marginBottom: '12px' }} dangerouslySetInnerHTML={{ __html: window.wrLockCard(label, 'analytics_depth', sub) }} />
+      : null
+  );
 
   function calcRawPts(s) { return window.App.calcRawPts(s, currentLeague?.scoring_settings); }
   const sameId = (a, b) => a != null && b != null && String(a) === String(b);
@@ -1200,8 +1227,10 @@ function LeagueMapTab({
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Tier Overview */}
-            <div>
+            {/* Tier Overview — competitive-tier assessments are Pro (Q7);
+                power rankings below stay free (ranking, not advice). */}
+            {!isPro && <ProLock label="Competitive Tiers" sub="Where every team sits — ELITE, CONTENDER, CROSSROADS, REBUILDING — is a Pro read." />}
+            {isPro && <div>
               <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.125rem', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '10px' }}>COMPETITIVE TIERS</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
                 {Object.entries(tiers).map(([tierName, teams]) => (
@@ -1223,7 +1252,7 @@ function LeagueMapTab({
                   </div>
                 ))}
               </div>
-            </div>
+            </div>}
 
             {/* Power Rankings — 3 views */}
             {(() => {
@@ -1276,7 +1305,8 @@ function LeagueMapTab({
                             <div style={{ flex: 1, overflow: 'hidden' }}>
                               <span style={{ fontSize: '0.78rem', fontWeight: isMe ? 700 : 500, color: isMe ? 'var(--gold)' : 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.ownerName}{isMe ? ' (You)' : ''}</span>
                             </div>
-                            <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, flexShrink: 0 }}>{t.tier}</span>
+                            {/* Tier label = competitive-tier read → Pro; the ranking itself stays free (Q7). */}
+                            {isPro && <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, flexShrink: 0 }}>{t.tier}</span>}
                             <div style={{ width: '60px', height: '5px', borderRadius: '3px', background: 'var(--ov-4, rgba(255,255,255,0.06))', overflow: 'hidden', flexShrink: 0 }}>
                               <div style={{ width: pct + '%', height: '100%', borderRadius: '3px', background: view.colFn(val, i) }}></div>
                             </div>
@@ -1404,9 +1434,10 @@ function LeagueMapTab({
 
                 return (
                   <div style={{ fontSize: '0.74rem', color: 'var(--silver)', lineHeight: 1.4 }}>
-                    {/* Status tag + health */}
+                    {/* Status tag + health — tier badge is a competitive-tier
+                        read (Q7) → Pro; the raw health number stays free. */}
                     <div style={{ display: 'flex', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
-                      {tier2 && <span style={{ fontSize: '0.7rem', fontWeight: 700, color: tierCol2, background: wrAlpha(tierCol2, '15'), padding: '1px 8px', borderRadius: '4px', textTransform: 'uppercase', fontFamily: 'var(--font-body)' }}>{tier2}</span>}
+                      {isPro && tier2 && <span style={{ fontSize: '0.7rem', fontWeight: 700, color: tierCol2, background: wrAlpha(tierCol2, '15'), padding: '1px 8px', borderRadius: '4px', textTransform: 'uppercase', fontFamily: 'var(--font-body)' }}>{tier2}</span>}
                       {hs2 > 0 && <span style={{ fontSize: '0.72rem', color: hs2 >= 75 ? 'var(--good)' : hs2 >= 55 ? 'var(--warn)' : 'var(--bad)', fontWeight: 600 }}>{hs2} health</span>}
                     </div>
                     <div style={{ display: 'flex', gap: '8px', marginBottom: '4px', opacity: 0.7 }}>
@@ -1414,7 +1445,8 @@ function LeagueMapTab({
                       <span>{'\u00B7'} Avg {avgAge}yr</span>
                       <span>{'\u00B7'} {eliteCount} elite</span>
                     </div>
-                    {posNeeds.length > 0 && <div style={{ display: 'flex', gap: '4px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                    {/* "Need X" flags are directive reads → Pro. */}
+                    {isPro && posNeeds.length > 0 && <div style={{ display: 'flex', gap: '4px', marginBottom: '4px', flexWrap: 'wrap' }}>
                       {posNeeds.map(pos2 => <span key={pos2} style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--bad)', background: 'rgba(231,76,60,0.1)', padding: '1px 6px', borderRadius: '3px', fontWeight: 600 }}>Need {leagueMapPosLabel(pos2)}</span>)}
                     </div>}
                     {scored.sort((a2,b2) => b2.dhq - a2.dhq).slice(0, 3).map(x => (
@@ -1565,7 +1597,7 @@ function LeagueMapTab({
                         {allPlayersColPickerOpen && (
                             <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: 'var(--black)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', padding: '8px', zIndex: 20, minWidth: '180px', boxShadow: '0 6px 20px rgba(0,0,0,0.6)' }}>
                                 <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: '6px' }}>Visible Columns</div>
-                                {ALL_PLAYERS_COLUMNS.map(c => {
+                                {ALL_PLAYERS_COLUMNS.filter(c => isPro || c.key !== 'tier').map(c => {
                                     const on = allPlayersCols.includes(c.key);
                                     return (
                                         <label key={c.key} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '3px 0', fontSize: '0.72rem', color: 'var(--silver)', cursor: c.toggleable === false ? 'not-allowed' : 'pointer', opacity: c.toggleable === false ? 0.6 : 1 }}>
@@ -1603,7 +1635,11 @@ function LeagueMapTab({
                     )}
                 </div>
                 {(() => {
-                    const activeCols = ALL_PLAYERS_COLUMNS.filter(c => allPlayersCols.includes(c.key));
+                    // Owner Tier = the owning team's ELITE/CONTENDER/REBUILDING
+                    // assessment — a competitive-tier read (Q7) → Pro. Filtered at
+                    // the render seam so persisted column prefs and saved views
+                    // can't resurrect it for free.
+                    const activeCols = ALL_PLAYERS_COLUMNS.filter(c => allPlayersCols.includes(c.key) && (isPro || c.key !== 'tier'));
                     const gridTpl = ['24px', '28px'].concat(activeCols.map(c => c.width)).join(' ');
                     // Sum fixed (px) column widths + index/avatar cols + a 140px floor for the 1fr name col,
                     // so wide column selections scroll horizontally inside the card on iPad instead of crushing the name column.
@@ -1920,6 +1956,10 @@ function LeagueMapTab({
         );
       })()}
       {_activeSubView === 'reports' && (() => {
+        // Custom Reports builder = Pro (owner ruling Q3, ANALYTICS_DEPTH
+        // parity with reconai). One gate covers both entries: the Analytics
+        // embed and the legacy standalone League Intel path.
+        if (!isPro) return <div style={{ maxWidth: '560px' }}><ProLock label="Custom Reports" sub="Build, save, and run custom league reports with the Pro report engine." /></div>;
         // ── Reports Sub-View (self-contained state) ───────────────────
         return React.createElement(ReportSubView, {
           runReport, loadSavedReports, saveReportsToStorage, DEFAULT_REPORTS,

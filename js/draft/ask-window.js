@@ -291,6 +291,15 @@
         // Listen for open + show requests from any action button.
         React.useEffect(() => {
             const onOpen = (e) => {
+                // Draft AI reports are Scout Pro. Entry buttons are already
+                // Pro-gated; this backstops stray wr:ask-open dispatches (deep
+                // links, stale listeners) so free routes to the upsell instead
+                // of a dhqAI call (BYOK would bypass the server tripwire).
+                if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) {
+                    if (window.showProLaunchPage) window.showProLaunchPage();
+                    else if (window.showUpgradePrompt) window.showUpgradePrompt('draft_ai_reports');
+                    return;
+                }
                 const { title: t, prompt: p, kind: k } = e.detail || {};
                 ask(t, p, k);
             };

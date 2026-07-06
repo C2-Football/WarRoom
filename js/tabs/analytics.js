@@ -70,6 +70,19 @@ function AnalyticsPanel({
     // GM Strategy is the single source of truth for the displayed mode/strategy lens.
     // Live-updates on GM Strategy save; the tier assessment below is only a fallback.
     const gm = window.WR.GmMode.useGmEffects(currentLeague);
+    // Scout-free vs Pro (gate-map row 9, Q3 Scout parity): raw standings/KPI
+    // numbers + the assets Players & Picks tables stay free; position grades,
+    // the Priority Evidence queue, mode directives/theses, hit-rate + market
+    // reads, and the Custom Reports builder are Pro (ANALYTICS_DEPTH copy).
+    // wrIsPro only — never canAccess/getTier (shadowing hazard).
+    const isPro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
+    // Warroom-styled lock card (pro-gate.js helper) for gated interpretive
+    // blocks; renders nothing if the helper is absent (clean absence).
+    const ProLock = ({ label, sub }) => (
+        window.wrLockCard
+            ? <div style={{ marginBottom: 'var(--card-gap, 14px)' }} dangerouslySetInnerHTML={{ __html: window.wrLockCard(label, 'analytics_depth', sub) }} />
+            : null
+    );
     // _SS mirrors the window.S shape consumed throughout this component
     const _SS = {
         rosters: _seasonCtx.rosters?.length ? _seasonCtx.rosters : (window.S?.rosters || currentLeague?.rosters || []),
@@ -748,7 +761,10 @@ function AnalyticsPanel({
 
             return (
             <React.Fragment>
-                <AnalyticsCommandPanel
+                {/* Thesis + mode directive + tier/win-now reads = Pro; the raw
+                    proof-grid numbers below stay free (D7 raw math). */}
+                {!isPro && <ProLock label="Analytics Command" sub="The research thesis, suggested mode directive, and tier / win-now pressure reads for this roster are Pro." />}
+                {isPro && <AnalyticsCommandPanel
                     title="What exactly separates this roster from the league's winning build?"
                     thesis={'Analytics is reading your roster as evidence: winner-template gaps, room-level coverage, age-window risk, and the positions where a move actually changes your title path.'}
                     mode={{ label: modeLabel, directive: modeDirective + ' (' + modeSource + ')', color: modeColor }}
@@ -760,7 +776,7 @@ function AnalyticsPanel({
                         { label: 'Current Tier', value: tier || 'UNKNOWN', sub: myRank ? '#' + myRank + ' of ' + teamRankings.length + (rankPct != null ? ' · ' + rankPct + 'th pct' : '') : healthScore + ' health', color: tier === 'REBUILDING' ? badColor : tier === 'CONTENDER' || tier === 'ELITE' ? goodColor : warnColor },
                         { label: 'Win-Now Pressure', value: winNowScore, sub: rosterCliffPct + '% at cliff · ' + windowLabel, color: winNowColor },
                     ]}
-                />
+                />}
 
                 <AnalyticsProofGrid items={rosterProofItems} />
 
@@ -774,8 +790,10 @@ function AnalyticsPanel({
                     <div className="analytics-lab-card">
                         <span>Priority Evidence</span>
                         <strong>Rooms To Fix First</strong>
-                        <p>Roster-construction gaps ranked by urgency — what should drive your Trade Center and Free Agency moves. Hover a row for the underlying detail.</p>
-                        <AnalyticsDataStack rows={gapRows} compact />
+                        {isPro ? <React.Fragment>
+                            <p>Roster-construction gaps ranked by urgency — what should drive your Trade Center and Free Agency moves. Hover a row for the underlying detail.</p>
+                            <AnalyticsDataStack rows={gapRows} compact />
+                        </React.Fragment> : <ProLock label="Priority Evidence" sub="Roster gaps ranked by urgency — the fix-first queue is a Pro read." />}
                     </div>
                 </div>
 
@@ -783,6 +801,7 @@ function AnalyticsPanel({
                     <div className="analytics-lab-card">
                         <span>Coverage Matrix</span>
                         <strong>Starter Quality By Room</strong>
+                        {isPro ? <React.Fragment>
                         <p>Each room is graded on how many of your players rank inside the startable tier — the top (starting slots × {numTeams} teams) at the position by DHQ value. A = clear surplus, B = covered, C/D = startable but thin, F = no startable-tier body.</p>
                         <div className="analytics-chip-grid">
                             {coveragePosList.map(pos => {
@@ -798,6 +817,7 @@ function AnalyticsPanel({
                                 );
                             })}
                         </div>
+                        </React.Fragment> : <ProLock label="Position Grades" sub="A–F starter-quality grades for every room are a Pro read." />}
                     </div>
                 </div>
 
@@ -825,7 +845,10 @@ function AnalyticsPanel({
                     const win = d.window;
                     if (!proj || !proj.length) return null;
                     const maxDHQ = Math.max(...proj.map(p => p.projectedDHQ), 1);
-                    const tierColor = (tier) => tier === 'Contender' ? goodColor : tier === 'Playoff Team' ? warnColor : badColor;
+                    // Free keeps the raw projection bars (projections-as-numbers);
+                    // the Contender/Rebuilding tier interpretation (label +
+                    // semantic color) is Pro (D7 window/tier interpretations).
+                    const tierColor = (tier) => !isPro ? 'var(--acc-line3, rgba(212,175,55,0.6))' : tier === 'Contender' ? goodColor : tier === 'Playoff Team' ? warnColor : badColor;
                     return (
                         <div style={{ ...aCardStyle, marginTop: '12px' }}>
                             <div style={aHeaderStyle}><span>YOUR 5-YEAR OUTLOOK</span><span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>Model estimate — ages today's roster, no future trades/draft</span></div>
@@ -839,7 +862,7 @@ function AnalyticsPanel({
                                         </div>
                                     </div>
                                     <span style={{ color: tierColor(p.tier), fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', minWidth: '90px', textAlign: 'right' }}>
-                                        {p.tier} {p.tier === 'Rebuilding' || p.tier === 'Deep Rebuild' ? '\uD83D\uDD34' : p.tier === 'Playoff Team' ? '\u26A0\uFE0F' : ''}
+                                        {isPro ? p.tier : ''} {isPro ? (p.tier === 'Rebuilding' || p.tier === 'Deep Rebuild' ? '\uD83D\uDD34' : p.tier === 'Playoff Team' ? '\u26A0\uFE0F' : '') : ''}
                                     </span>
                                 </div>
                             ))}
@@ -857,6 +880,8 @@ function AnalyticsPanel({
                     const arPct2 = rosterCliffPct;
                     const arPlayers2 = rosterAtRiskPlayers;
                     if (!arPlayers2.length && arPct2 === 0) return null;
+                    // Sell-timing read ("TRADE NOW", cliff-risk framing) = Pro (D7 sell-by).
+                    if (!isPro) return <div style={{ marginTop: '12px' }}><ProLock label="Aging Cliff Alert" sub="Which assets are nearest the value cliff — and when to move them — is a Pro read." /></div>;
                     return (
                         <div style={{ ...aCardStyle, marginTop: '12px' }}>
                             <div style={aHeaderStyle}><span>AGING CLIFF ALERT</span></div>
@@ -1159,16 +1184,23 @@ function AnalyticsPanel({
             ];
             // Draft research-question header is bare (no stat boxes) \u2014 see AnalyticsCommandPanel call below.
 
+            // Free floor: raw pick capital only. The champion-benchmark
+            // hit-rate reads (row 9 "draft hit-rate reads") are Pro.
+            const freeDraftProofItems = hasDraftOutcomeHistory ? historicalProofItems.slice(0, 2) : historicalProofItems;
+
             return (
             <React.Fragment>
-                <AnalyticsCommandPanel
+                {!isPro && <ProLock label="Draft Intelligence Reads" sub="The draft research thesis and champion-benchmark conversion reads are Pro. Your raw pick capital stays below." />}
+                {isPro && <AnalyticsCommandPanel
                     title="What does this league actually reward in the draft?"
                     thesis="Anyone can count who picked what. Did your slots pay off, what did your champions spend early picks on, and how much value are you letting age out in future rounds?"
-                />
+                />}
 
-                <AnalyticsProofGrid items={draftProofItems} />
+                <AnalyticsProofGrid items={isPro ? draftProofItems : freeDraftProofItems} />
 
-                {hasDraftOutcomeHistory ? (
+                {hasDraftOutcomeHistory && !isPro ? (
+                    <ProLock label="Round Conversion + Winner Formula" sub="Hit-rate vs the champion standard and what title teams draft round-by-round are Pro reads." />
+                ) : hasDraftOutcomeHistory ? (
                     <React.Fragment>
                     {/* \u2550\u2550\u2550 ROUND CONVERSION \u2014 The Conversion Tape (full width) \u2550\u2550\u2550 */}
                     <div className="analytics-lab-grid" style={{ gridTemplateColumns: '1fr' }}>
@@ -1434,9 +1466,15 @@ function AnalyticsPanel({
             const myEarlyTrades = (tr.myLast5 || []).filter(t => Number(t.week || 99) <= 6).length;
             const myTradeWindow = !(tr.myLast5 || []).length ? null : myEarlyTrades >= Math.ceil((tr.myLast5 || []).length / 2) ? 'early' : 'mid/late';
 
+            // Free floor: raw trade/waiver numbers. The market reads (thesis,
+            // trade-pattern read, FAAB bargain call, clock verdict, alert
+            // cards) are Pro (row 9 "trades market reads").
+            const shownMarketProofItems = isPro ? marketProofItems : marketProofItems.filter(i => i.label !== 'FAAB Bargain Spot');
+
             return (
             <React.Fragment>
-                <AnalyticsCommandPanel
+                {!isPro && <ProLock label="Market Reads" sub="The market-mispricing thesis, trade-pattern read, and FAAB bargain calls are Pro. Raw trade and waiver numbers stay below." />}
+                {isPro && <AnalyticsCommandPanel
                     title="Where is the league market mispricing value?"
                     thesis="Market analytics should explain owner behavior and price movement. This view separates trade liquidity, deal quality, waiver pricing, FAAB leverage, and position flow before sending you to Trade Center or Free Agency."
                     stats={[
@@ -1445,9 +1483,9 @@ function AnalyticsPanel({
                         { label: 'FAAB Runway', value: faabRemaining == null ? '\u2014' : (runwayWeeks != null ? runwayWeeks + ' wk' : '$' + faabRemaining.toLocaleString()), sub: faabRemaining == null ? 'no FAAB budget' : (runwayWeeks != null ? '~$' + Math.round(burnPerWeek) + '/wk \u00b7 ' + faabPct + '% left' : faabPct + '% of budget left'), color: faabRemaining == null ? undefined : (runwayWeeks != null ? (runwayWeeks <= 2 ? warnColor : goodColor) : (faabPct != null && faabPct < 25 ? warnColor : goodColor)), tip: 'How long your remaining waiver budget lasts at your spend pace (FAAB left \u00f7 average weekly burn). The pace only becomes meaningful after ~4 scoring weeks \u2014 before that (offseason / early season) it shows your remaining budget and the % of FAAB still available instead of a misleading week count.' },
                         { label: 'Benchmark Confidence', value: benchHigh ? 'High' : 'Low', sub: (benchSource === 'brackets' ? 'bracket' : 'standings') + ', n=' + winnerN, color: benchConfColor, tip: 'How trustworthy this tab\u2019s champion benchmarks are. High = the title teams come from real playoff brackets with a healthy sample; Low = inferred from final standings or too small a sample (n = teams in the benchmark).' },
                     ]}
-                />
+                />}
 
-                <AnalyticsProofGrid items={marketProofItems} />
+                <AnalyticsProofGrid items={shownMarketProofItems} />
 
                 <div className="analytics-lab-grid">
                     <div className="analytics-lab-card">
@@ -1485,9 +1523,10 @@ function AnalyticsPanel({
                             );
                         })}
                         {myTradeWindow && <p style={{ fontSize: 'var(--text-micro)', color: 'var(--k-4ecdc4,#4ecdc4)', margin: '2px 0 9px' }}>You: {myEarlyTrades} of your last {(tr.myLast5 || []).length} deals landed in the early window.</p>}
-                        <div style={{ background: 'rgba(212,175,55,0.06)', borderLeft: '3px solid var(--gold)', borderRadius: 'var(--card-radius-sm)', padding: '9px 11px' }}>
+                        {/* Timing bars above are raw data; the verdict line is a Pro market read. */}
+                        {isPro && <div style={{ background: 'rgba(212,175,55,0.06)', borderLeft: '3px solid var(--gold)', borderRadius: 'var(--card-radius-sm)', padding: '9px 11px' }}>
                             <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--white)', lineHeight: 1.45 }}>{clockVerdict}</span>
-                        </div>
+                        </div>}
                     </div>
                 </div>
 
@@ -1553,7 +1592,8 @@ function AnalyticsPanel({
                 {/* ── BIGGEST WIN / LOSS (all-time, most lopsided) ── */}
 
                 {/* ── INSIGHT CARDS ROW ── */}
-                {alerts.length > 0 && (
+                {/* Behavioral warnings with directives ("run offers through the analyzer") — Pro reads. */}
+                {isPro && alerts.length > 0 && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                     {alerts.map((a, i) => (
                         <div key={i} style={{

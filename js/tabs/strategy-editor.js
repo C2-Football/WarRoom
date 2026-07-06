@@ -296,8 +296,12 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
     // ── Recommended mode — derived from the user's own team assessment ─────────
     // Maps the roster's competitive tier (health-score based) to a franchise mode
     // so the picker can flag the on-paper-right call. Advisory only — never auto-applies.
+    // Pro-only (gate-map row 17): the "★ Recommended for your roster" hint is a
+    // derived recommendation (tier read); the rest of the editor is build/set
+    // and stays free. Clean absence for free — teamRec null hides chip + line.
     const teamRec = React.useMemo(() => {
         try {
+            if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) return null;
             const rid = myRoster?.roster_id;
             const a = (rid != null && window.assessTeamFromGlobal) ? window.assessTeamFromGlobal(rid) : null;
             if (!a) return null;

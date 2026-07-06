@@ -22,6 +22,9 @@
         const fonts = theme.fonts || {};
         const cardStyle = window.WrTheme?.cardStyle?.() || {};
         const fs = (rem) => window.WrTheme?.fontSize?.(rem) || (rem + 'rem');
+        // Free/Pro split (fail-open): raw KPI numbers stay free; the
+        // ELITE/CONTENDER/… tier verdict badge and the Action Plan rec are Pro.
+        const pro = typeof window.wrIsPro !== 'function' || window.wrIsPro();
         const rosterState = window.App?.getRosterDataState?.({ roster: myRoster, currentLeague, rosters: currentLeague?.rosters }) || { isUsable: true };
 
         // ── GM Strategy (single source of truth) ────────────────
@@ -68,7 +71,7 @@
             if (key === 'contender-rank') return { label: 'CONTENDER', value: contenderKv.value, color: contenderKv.color || colors.accent, sub: contenderKv.sub || 'rank' };
             // default: health-score
             const healthCol = health >= 80 ? colors.positive : health >= 60 ? colors.accent : health >= 40 ? colors.warn : colors.negative;
-            return { label: 'HEALTH', value: health, color: healthCol, sub: tier };
+            return { label: 'HEALTH', value: health, color: healthCol, sub: pro ? tier : 'health score' };
         })();
 
         // Sparkline data: all teams' health scores sorted for the mini chart
@@ -112,9 +115,12 @@
             const grades = window.App?.calcPosGrades?.(myRoster?.roster_id, currentLeague?.rosters, playersData) || [];
             return grades.map(g => ({
                 ...g,
-                col: g.grade === 'A' ? colors.positive : g.grade === 'B' ? colors.accent : (g.grade === 'C' || g.grade === 'D') ? colors.warn : colors.negative,
+                // A-F letter grades are interpretations → Pro; free keeps the raw
+                // rank + strength bar in neutral color
+                col: !pro ? (colors.textMuted || 'var(--silver)')
+                    : g.grade === 'A' ? colors.positive : g.grade === 'B' ? colors.accent : (g.grade === 'C' || g.grade === 'D') ? colors.warn : colors.negative,
             }));
-        }, [assess, currentLeague, myRoster, playersData]);
+        }, [assess, currentLeague, myRoster, playersData, pro]);
 
         if (!rosterState.isUsable) {
             return window.App?.renderRosterDataBlocker?.(rosterState, {
@@ -149,14 +155,16 @@
                         textTransform: 'uppercase', letterSpacing: '0.1em',
                         marginTop: '4px', fontFamily: fonts.ui,
                     }}>{primary.label}</div>
-                    <div style={{
-                        marginTop: '6px', fontSize: fs(0.72), fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: theme.card?.radius === '0px' ? '0' : '10px',
-                        background: wrAlpha(tierCol, '18'), color: tierCol,
-                        border: '1px solid ' + wrAlpha(tierCol, '44'),
-                        fontFamily: fonts.ui,
-                    }}>{tier}</div>
+                    {pro && (
+                        <div style={{
+                            marginTop: '6px', fontSize: fs(0.72), fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: theme.card?.radius === '0px' ? '0' : '10px',
+                            background: wrAlpha(tierCol, '18'), color: tierCol,
+                            border: '1px solid ' + wrAlpha(tierCol, '44'),
+                            fontFamily: fonts.ui,
+                        }}>{tier}</div>
+                    )}
                 </div>
             );
         }
@@ -180,7 +188,7 @@
                         <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
                             <Badge label={contenderKv.value} color={contenderKv.color || colors.accent} theme={theme} />
                             <Badge label={windowKv.value + ' window'} color={windowKv.color || colors.textMuted} theme={theme} />
-                            <Badge label={tier} color={tierCol} theme={theme} />
+                            {pro && <Badge label={tier} color={tierCol} theme={theme} />}
                         </div>
                     </div>
                 </div>
@@ -214,7 +222,7 @@
 
             // Compact 4-vital grid for lg (no scroll); 6 for tall/xxl
             const vitals4 = [
-                { label: 'HEALTH', value: healthKv.value, color: healthKv.color || healthCol, sub: tier + ' · #' + (healthRank || '—') },
+                { label: 'HEALTH', value: healthKv.value, color: healthKv.color || healthCol, sub: (pro ? tier + ' · ' : '') + '#' + (healthRank || '—') },
                 { label: 'ELITES', value: eliteKv.value, color: eliteKv.color || colors.positive, sub: 'top-tier' },
                 { label: 'CONTEND.', value: contenderKv.value, color: contenderKv.color || colors.accent, sub: contenderKv.sub || 'this season' },
                 { label: 'WINDOW', value: windowKv.value, color: windowCol, sub: windowSub },
@@ -233,7 +241,8 @@
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexShrink: 0 }}>
                         <span style={{ fontSize: '1.1rem' }}>💊</span>
                         <span style={{ fontFamily: fonts.display, fontSize: fs(1.0), fontWeight: 700, color: colors.accent, letterSpacing: '0.07em', textTransform: 'uppercase', flex: 1 }}>Roster Pulse</span>
-                        <Badge label={tier + ' · #' + (healthRank || '—')} color={tierCol} theme={theme} />
+                        {/* free keeps the raw rank; the tier verdict word is Pro */}
+                        <Badge label={(pro ? tier + ' · ' : '') + '#' + (healthRank || '—')} color={pro ? tierCol : colors.accent} theme={theme} />
                         <button onClick={openMyRoster} title="Open My Roster" style={{ padding: '3px 8px', minHeight: '44px', marginTop: '-12px', marginBottom: '-12px', display: 'flex', alignItems: 'center', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '5px', cursor: 'pointer', fontSize: fs(0.58), fontFamily: fonts.ui, fontWeight: 700, whiteSpace: 'nowrap' }}>Roster</button>
                     </div>
 
@@ -275,7 +284,7 @@
                                     padding: '4px 2px', textAlign: 'center',
                                 }}>
                                     <div style={{ fontSize: fs(0.58), fontWeight: 700, color: colors.textMuted, fontFamily: fonts.ui, lineHeight: 1 }}>{window.App?.posLabel?.(p.pos) || (p.pos === 'DEF' ? 'D/ST' : p.pos)}</div>
-                                    <div style={{ fontFamily: fonts.mono, fontSize: fs(1.05), fontWeight: 800, color: p.col, lineHeight: 1, margin: '2px 0' }}>{p.grade}</div>
+                                    <div style={{ fontFamily: fonts.mono, fontSize: fs(1.05), fontWeight: 800, color: p.col, lineHeight: 1, margin: '2px 0' }}>{pro ? p.grade : '#' + p.rank}</div>
                                     <div style={{ height: 3, background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: 2, overflow: 'hidden' }}>
                                         <div style={{ width: p.pct + '%', height: '100%', background: p.col, transition: '0.3s' }} />
                                     </div>
@@ -298,8 +307,9 @@
                                 </div>
                                 <MiniBarChart data={healthSparkData} highlight={health} colors={colors} fonts={fonts} fs={fs} height={36} />
                             </div>
-                            {/* Needs + Strengths */}
-                            <div style={{ display: 'flex', gap: '12px', marginBottom: '8px', flexShrink: 0 }}>
+                            {/* Needs + Strengths — deficit/surplus directives (same species as
+                                gap-plan) → Pro; raw Top Players strip below stays free */}
+                            {pro && <div style={{ display: 'flex', gap: '12px', marginBottom: '8px', flexShrink: 0 }}>
                                 {needs.length > 0 && (
                                     <div style={{ flex: 1 }}>
                                         <div style={{ fontSize: fs(0.6), fontWeight: 700, color: colors.negative, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px', fontFamily: fonts.ui }}>Needs</div>
@@ -324,7 +334,7 @@
                                         </div>
                                     </div>
                                 )}
-                            </div>
+                            </div>}
                             {/* Top players — fills the empty bottom space */}
                             <TopPlayers
                                 myRoster={myRoster} playersData={playersData}
@@ -332,8 +342,14 @@
                                 untouchable={untouchable}
                                 limit={5}
                             />
-                            {/* Action plan */}
-                            <ActionPlan tier={tier} needs={needs} strengths={strengths} protectedPositions={protectedPositions} colors={colors} fonts={fonts} fs={fs} theme={theme} />
+                            {/* Action plan — a "do X" rec → Pro; free gets a teaser row */}
+                            {pro ? (
+                                <ActionPlan tier={tier} needs={needs} strengths={strengths} protectedPositions={protectedPositions} colors={colors} fonts={fonts} fs={fs} theme={theme} />
+                            ) : (
+                                typeof window.WrGatedMoreRow === 'function'
+                                    ? <div style={{ marginTop: 'auto', flexShrink: 0 }}>{React.createElement(window.WrGatedMoreRow, { title: 'Action plan', sub: "Alex's recommended next move for this roster", feature: 'analytics_depth' })}</div>
+                                    : null
+                            )}
                         </React.Fragment>
                     )}
 

@@ -1186,6 +1186,13 @@
         };
     }
 
+    // Projected league mocks (persona-driven simulation) are Scout Pro (owner
+    // ruling Q10). Gate the two simulation entry points at the engine seam so
+    // every caller — draft-room flash mock, scenario handoff, standalone pages —
+    // degrades to null (its documented "no report" shape). Fail-open when
+    // pro-gate.js isn't loaded. Render surfaces carry their own teasers.
+    const _amPro = () => typeof window.wrIsPro !== 'function' || window.wrIsPro();
+
     window.DraftCC = window.DraftCC || {};
     window.DraftCC.analystMock = {
         PRESETS,
@@ -1197,7 +1204,7 @@
         formatAlexSlackBrief,
         compareReports,
         applyReportFilters,
-        generateProjectedMock,
-        applyProjectedScenario,
+        generateProjectedMock: function () { return _amPro() ? generateProjectedMock.apply(null, arguments) : null; },
+        applyProjectedScenario: function () { return _amPro() ? applyProjectedScenario.apply(null, arguments) : null; },
     };
 })();

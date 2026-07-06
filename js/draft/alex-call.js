@@ -210,5 +210,11 @@
     }
 
     window.DraftCC = window.DraftCC || {};
-    window.DraftCC.AlexCall = AlexCall;
+    // Alex draft theater is Scout Pro — free never mounts the lower-third
+    // (clean absence; the stream panel carries the locked teaser). Wrapper keeps
+    // the inner component's hooks unmounted rather than conditionally skipped.
+    window.DraftCC.AlexCall = function GatedAlexCall(props) {
+        if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) return null;
+        return <AlexCall {...props} />;
+    };
 })();

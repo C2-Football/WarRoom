@@ -32,6 +32,11 @@ function CompareTab({
     const valueShortLabel = resolvedLeagueSkin?.vocabulary?.valueShortLabel || 'DHQ';
     const valueLabel = resolvedLeagueSkin?.vocabulary?.valueLabel || 'DHQ Value';
     const leagueId = currentLeague?.league_id || currentLeague?.id || '';
+    // Scout-free vs Pro: free keeps the full raw compare — matrix, per-row
+    // leaders, age curves, duel totals headline, GM-lens chip. The buy/sell
+    // Action row + the field-verdict Read gate on this predicate (mirrors
+    // reconai compare-scout.js, which filters its Verdict row for free).
+    const isPro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
     // Redraft → build ROS values so roster-strength comparisons reflect
     // rest-of-season production (no-op → DHQ for dynasty/keeper).
     React.useMemo(() => {
@@ -1124,11 +1129,13 @@ function CompareTab({
             const base = enrichFieldPlayer(pid);
             if (!base) return { pid: String(pid), missing: true };
             const meta = window.App?.LI?.playerMeta?.[pid] || window.App?.LI?.playerMeta?.[String(pid)] || {};
-            const pa = typeof window.getPlayerAction === 'function' ? window.getPlayerAction(pid) : null;
+            // Free: rec stays null — the seeded fallback is a rec too. The
+            // Action row/chip consumers render Pro-only below.
+            const pa = isPro && typeof window.getPlayerAction === 'function' ? window.getPlayerAction(pid) : null;
             const trend = meta.trend || 0;
-            const rec = pa ? String(pa.label).toUpperCase()
+            const rec = !isPro ? null : pa ? String(pa.label).toUpperCase()
                 : (base.valueYrs <= 0 && trend <= -10 ? 'SELL NOW' : base.valueYrs <= 0 ? 'SELL' : base.peakYrs <= 1 ? 'SELL' : base.dhq >= 7000 && base.peakYrs >= 3 ? 'HOLD CORE' : 'HOLD');
-            const recCol = rec.includes('SELL') ? 'var(--bad)' : rec.includes('BUY') ? 'var(--good)' : 'var(--gold)';
+            const recCol = rec && rec.includes('SELL') ? 'var(--bad)' : rec && rec.includes('BUY') ? 'var(--good)' : 'var(--gold)';
             const curve = typeof window.App?.getAgeCurve === 'function' ? window.App.getAgeCurve(base.pos) : { peak: [24, 29], decline: [30, 32] };
             const pLo = (curve.peak && curve.peak[0]) || 24;
             const pHi = (curve.peak && curve.peak[1]) || 29;
@@ -1223,10 +1230,12 @@ function CompareTab({
                         {statRow('Runway', pl.valueYrs > 0 ? pl.valueYrs + 'yr' : '—', multi && pl.valueYrs > 0 && pl.valueYrs === maxRunway)}
                         {statRow('Window', pl.phase.label, false, pl.phase.color)}
                         {statRow('Pos Rank', pl.posRank ? (posLabel(pl.pos) + ' #' + pl.posRank) : '—', multi && pl.posRank && pl.posRank === bestRank)}
+                        {isPro ? (
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', paddingTop: '9px', marginTop: '3px', borderTop: '1px solid var(--ov-3, rgba(255,255,255,0.04))' }}>
                             <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.66, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Action</span>
                             <span style={{ ...mono, fontWeight: 850, fontSize: '0.72rem', color: pl.recCol, border: '1px solid ' + pl.recCol, borderRadius: '4px', padding: '2px 7px' }}>{pl.rec}</span>
                         </div>
+                        ) : null}
                         {pl.ctx ? <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, marginTop: '8px', lineHeight: 1.4 }}>{pl.ctx}</div> : null}
                     </div>
                 </div>
@@ -1299,7 +1308,8 @@ function CompareTab({
                 mk('Experience', 'none', p => p.yrsExp || 0, (p, v) => v + 'y'),
                 mk('Depth Chart', 'low', p => depthOrd(p), (p) => p.depthChart || '—'),
                 mk('Size', 'none', p => 0, (p) => p.htWt || '—'),
-                mk('Action', 'none', p => 0, (p) => p.rec, { colors: p => p.recCol }),
+                // Action = buy/sell verdict row → Pro; free compares raw values.
+                ...(isPro ? [mk('Action', 'none', p => 0, (p) => p.rec, { colors: p => p.recCol })] : []),
             ];
             if (list.some(p => p.ctx)) metrics.push(mk('Context', 'none', p => 0, (p) => p.ctx || '—', { wrap: true }));
 
@@ -1433,10 +1443,17 @@ function CompareTab({
                         ) : null}
                     </div>
 
+                    {/* Field verdict = framing advice (Q9) → Pro; free gets the lock-row teaser. */}
+                    {isPro ? (
                     <div style={{ ...panelStyle, padding: '12px 14px', marginBottom: '12px', borderLeft: '3px solid var(--gold)' }}>
                         <div style={{ ...labelStyle, color: 'var(--gold)', opacity: 1, marginBottom: '4px' }}>The Read</div>
                         <div style={{ fontSize: '0.9rem', color: 'var(--white)', lineHeight: 1.5 }}>{verdict}</div>
                     </div>
+                    ) : window.WrGatedMoreRow ? (
+                    <div style={{ marginBottom: '12px' }}>
+                        {React.createElement(window.WrGatedMoreRow, { title: 'The Read — field verdict', sub: 'Who to value now vs later — Pro calls the field.', feature: 'analytics_depth' })}
+                    </div>
+                    ) : null}
 
                     <div style={{ ...panelStyle, padding: '4px 16px 12px', marginBottom: '12px', overflowX: 'auto' }}>
                         {metrics.map(renderRow)}

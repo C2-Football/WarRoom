@@ -43,6 +43,15 @@
     };
     const ROOKIE_DRAFT_LOCK_STATUSES = new Set(['pre_draft', 'drafting']);
     const ROOKIE_DHQ_SOURCES = new Set(['FC_ROOKIE', 'PROSPECT_ROOKIE']);
+    // Scout-free vs Pro: FAAB bid + roster-fit reads are Pro. Presets AND
+    // persisted/saved column prefs pass through faTierCols at every set-site
+    // plus once at render, so a stored 'faab'/'fit' pref can't resurrect the
+    // columns for a free user (mirrors the My Roster 'action' column).
+    const FA_PRO_COLS = new Set(['faab', 'fit']);
+    function faTierCols(cols) {
+        const pro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
+        return pro ? (cols || []) : (cols || []).filter(k => !FA_PRO_COLS.has(k));
+    }
 
     function faNormName(s) {
         return (s || '').toLowerCase().replace(/[''`.]/g, '').replace(/\s+(jr\.?|sr\.?|ii|iii|iv)$/, '').replace(/\s+/g, ' ').trim();
@@ -198,6 +207,10 @@
         const valueShortLabel = leagueSkin?.vocabulary?.valueShortLabel || 'DHQ';
         const rosterState = args.rosterState || window.App?.getRosterDataState?.({ roster: myRoster, currentLeague, rosters: currentLeague?.rosters, leagueSkin }) || { isUsable: true };
         if (!rosterState.isUsable) return { priorityAdds: [], actionBoardPlayers: [] };
+        // Free/Pro: FAAB bids stay null and nothing is published to the shared
+        // Intelligence rec stream for free users; consumers (brief, HQ, craze)
+        // gate their own display, this nulls the rec payloads at the source.
+        const faIsPro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
 
         const normPos = window.App?.normPos || (p => p);
         const scores = window.App?.LI?.playerScores || {};
@@ -283,6 +296,7 @@
             return mult;
         }
         function faabSuggest(dhq, pos, playerAge) {
+            if (!faIsPro) return null; // FAAB bid recommendations are Pro
             if (!hasFAAB || dhq <= 0) return null;
             if (dhq < 500) return null;
             if (isRebuilding && (playerAge || 30) > 25 && dhq < 2000) return null;
@@ -402,7 +416,7 @@
             .map(x => ({ ...x, seeded: crazeSeed.has(String(x.pid)), isStrategicTarget: gmTargets.has(x.pos) }))
             .sort((a, b) => (Number(b.seeded) - Number(a.seeded)) || (Number(b.isStrategicTarget) - Number(a.isStrategicTarget)) || ((b.fitScore * 5000 + b.dhq) - (a.fitScore * 5000 + a.dhq)))
             .slice(0, 5);
-        if (typeof window.App?.Intelligence?.publishRecommendations === 'function') {
+        if (faIsPro && typeof window.App?.Intelligence?.publishRecommendations === 'function') {
             window.App.Intelligence.publishRecommendations('waiver', priorityAdds.map(x => x.intelligence).filter(Boolean), { surface: 'free-agency-action-board' });
         }
         return { priorityAdds, actionBoardPlayers, availablePlayers, gmFaFilters: gmFa, gmHiddenCount: Math.max(0, availablePlayers.length - recPool.length) };
@@ -466,7 +480,7 @@
             return { pos, count: inPos.length, top: inPos[0] || null };
         }).filter(g => g.count > 0);
 
-        if (typeof window.App?.Intelligence?.publishRecommendations === 'function') {
+        if ((typeof window.wrIsPro !== 'function' || window.wrIsPro()) && typeof window.App?.Intelligence?.publishRecommendations === 'function') {
             window.App.Intelligence.publishRecommendations('waiver', candidates.slice(0, 8).map(x => x.intelligence).filter(Boolean), { surface: 'udfa-craze' });
         }
         return { total: candidates.length, groups, candidates };
@@ -509,6 +523,10 @@
         const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
         const skinFeatures = resolvedLeagueSkin?.features || {};
         const skinVocabulary = resolvedLeagueSkin?.vocabulary || {};
+        // Scout-free vs Pro (gate map row 7): recommendation surfaces (Action
+        // HQ, priority adds, FAAB bids, fit/window reads, UDFA craze) are Pro;
+        // the raw Market Explorer + filters stay free. Fail-open.
+        const isPro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
         // Redraft → build rest-of-season values so waiver/FA targets rank by ROS
         // production instead of dynasty DHQ. No-op (DHQ) for dynasty/keeper.
         React.useMemo(() => {
@@ -533,14 +551,14 @@
         const [visibleFaCols, setVisibleFaCols] = useState(() => {
             const stored = window.App?.WrStorage?.get?.('wr_fa_cols');
             const valid = Array.isArray(stored) ? stored.filter(k => FA_COLUMNS[k]) : [];
-            if (!valid.length) return FA_COLUMN_PRESETS.default;
+            if (!valid.length) return faTierCols(FA_COLUMN_PRESETS.default);
             // One-time migration: surface the new this-week projection column for
             // users whose saved column set predates it (insert after PPG/DHQ).
             if (!valid.includes('proj')) {
                 const at = valid.indexOf('ppg') >= 0 ? valid.indexOf('ppg') + 1 : valid.indexOf('dhq') >= 0 ? valid.indexOf('dhq') + 1 : valid.length;
                 valid.splice(at, 0, 'proj');
             }
-            return valid;
+            return faTierCols(valid);
         });
         const [faColPreset, setFaColPreset] = useState('default');
         const [showFaColPicker, setShowFaColPicker] = useState(false);
@@ -568,6 +586,12 @@
         }), [valueLabel, valueShortLabel, skinFeatures.showAgeCurve]);
 
         useEffect(() => { try { window.App?.WrStorage?.set?.('wr_fa_cols', visibleFaCols); } catch {} }, [visibleFaCols]);
+        // Resurrect-proofing: saved views / older persisted prefs can still
+        // carry Pro-only columns — normalize state whenever one sneaks in.
+        useEffect(() => {
+            if (isPro) return;
+            setVisibleFaCols(prev => prev.some(k => FA_PRO_COLS.has(k)) ? prev.filter(k => !FA_PRO_COLS.has(k)) : prev);
+        }, [isPro, visibleFaCols]);
 
         const normPos = window.App.normPos;
         const calcRawPts = (s) => window.App.calcRawPts(s, currentLeague?.scoring_settings);
@@ -607,6 +631,7 @@
         const crazeState = (window.App?.PostDraft?.getCraze?.(crazeLeagueId)) || null;
         const crazeOpen = !!(crazeState && crazeState.open && !crazeState.dismissed);
         const crazeBoard = useMemo(() => {
+            if (!isPro) return null; // craze board is Pro — free gets the lock row in renderCrazePanel
             if (!crazeOpen || typeof window.App?.buildUdfaCrazeBoard !== 'function') return null;
             try {
                 return window.App.buildUdfaCrazeBoard({
@@ -614,7 +639,7 @@
                     leagueSkin: resolvedLeagueSkin, briefDraftInfo, crazeSeed: (crazeState && crazeState.seed) || [],
                 });
             } catch (e) { return null; }
-        }, [crazeOpen, crazeTick, playersData, statsData, myRoster, currentLeague, timeRecomputeTs]);
+        }, [isPro, crazeOpen, crazeTick, playersData, statsData, myRoster, currentLeague, timeRecomputeTs]);
 
         // Load FA targets from Supabase/localStorage
         useEffect(() => {
@@ -669,6 +694,7 @@
         // Streaming opportunities: the best available FA per position that
         // out-projects the user's WEAKEST current starter at that position this week.
         const streaming = useMemo(() => {
+            if (!isPro) return []; // "stream X over your worst starter" is a rec — Pro
             const WP = window.App && window.App.WeeklyProj;
             if (!WP || !WP.projectPlayer || !myRoster) return [];
             const scoring = currentLeague?.scoring_settings || {};
@@ -686,7 +712,7 @@
                 if (delta >= 1.5) opps.push({ pos, fa, worstName: (playersData[worst.pid] || {}).full_name || worst.pid, worstProj: worst.m, delta });
             });
             return opps.sort((a, b) => b.delta - a.delta);
-        }, [availablePlayers, myRoster, playersData, statsData, prevStatsData, currentLeague, timeRecomputeTs]);
+        }, [isPro, availablePlayers, myRoster, playersData, statsData, prevStatsData, currentLeague, timeRecomputeTs]);
         const streamPosSet = new Set(streaming.map(o => o.pos));
 
         // GM-Office FA filters scope the recommendation surfaces (priority adds +
@@ -883,6 +909,7 @@
 
         // Smart FAAB recommendation — now with team mode + scarcity awareness
         function faabSuggest(dhq, pos, playerAge) {
+            if (!isPro) return null; // FAAB bid recommendations are Pro
             if (!hasFAAB || dhq <= 0) return null;
 
             // ── Quality gate: skip replacement-level players ──
@@ -927,6 +954,7 @@
 
         // Top recommendations at weak positions — with quality + mode filtering
         const recommendations = useMemo(() => {
+            if (!isPro) return []; // priority-add recs are Pro
             if (!rosterState.isUsable) return [];
             if (!assess?.needs?.length) return [];
             const needPositions = assess.needs.slice(0, 3).map(n => n.pos);
@@ -961,7 +989,7 @@
 	                    return { ...x, ppg, need, peakYrs, valueYrs, faab };
                 })
                 .filter(Boolean);
-        }, [rosterState.isUsable, recPool, assess, statsData]);
+        }, [isPro, rosterState.isUsable, recPool, assess, statsData]);
 
         // Selected player detail
         const selPlayer = faSelectedPid ? playersData[faSelectedPid] : null;
@@ -1125,14 +1153,16 @@
                 return (order[a.grade] ?? 2) - (order[b.grade] ?? 2) || (faPosOrder[a.pos] ?? 9) - (faPosOrder[b.pos] ?? 9);
             });
 
-        const actionBoardPlayers = recPool
+        // Free skips the rec pipeline entirely: nothing to render (Action HQ is
+        // gated below) and nothing published to the shared Intelligence stream.
+        const actionBoardPlayers = !isPro ? [] : recPool
             .map(decorateFaCandidate)
             .sort((a, b) => (b.fitScore * 5000 + b.dhq + (b.ppg || 0) * 35) - (a.fitScore * 5000 + a.dhq + (a.ppg || 0) * 35));
         const priorityAdds = (recommendations.length ? recommendations : actionBoardPlayers)
             .map(decorateFaCandidate)
             .sort((a, b) => (b.fitScore * 5000 + b.dhq) - (a.fitScore * 5000 + a.dhq))
             .slice(0, 5);
-        if (typeof window.App?.Intelligence?.publishRecommendations === 'function') {
+        if (isPro && typeof window.App?.Intelligence?.publishRecommendations === 'function') {
             window.App.Intelligence.publishRecommendations('waiver', priorityAdds.map(x => x.intelligence).filter(Boolean), { surface: 'free-agency' });
         }
         const dropCandidates = (myRoster?.players || [])
@@ -1342,7 +1372,16 @@
             return h + 'h ' + m + 'm';
         }
         function renderCrazePanel() {
-            if (!crazeOpen || !crazeBoard) return null;
+            if (!crazeOpen) return null;
+            if (!isPro) {
+                const GatedRow = window.WrGatedMoreRow;
+                return GatedRow ? (
+                    <div style={{ margin: '0 0 14px' }}>
+                        <GatedRow title="UDFA Craze is live" sub="The ranked post-draft UDFA board — roster fit, tiers, and league-calibrated FAAB — is Pro. The rookies themselves are in the Market Explorer below (Rookies filter)." feature="faab_intelligence" />
+                    </div>
+                ) : null;
+            }
+            if (!crazeBoard) return null;
             const groups = crazeBoard.groups || [];
             const total = crazeBoard.total || 0;
             if (!total) return null;
@@ -1411,12 +1450,23 @@
             );
         }
 
+        // Free teaser standing in for the Action HQ rec suite (analyst view).
+        function renderActionHqTeaser() {
+            const GatedRow = window.WrGatedMoreRow;
+            if (!GatedRow) return null;
+            return (
+                <div style={{ margin: '0 0 14px' }}>
+                    <GatedRow title="Waiver Action HQ" sub="Priority adds, FAAB bid ranges, add/drop upgrades, and the ranked waiver board are Pro. The full Market Explorer below stays free." feature="faab_intelligence" />
+                </div>
+            );
+        }
+
         // ── ANALYST VIEW: full market terminal ──
         return (
             <div className="fa-page wr-fade-in">
 
                 {renderCrazePanel()}
-                {renderActionHQ(false)}
+                {isPro ? renderActionHQ(false) : renderActionHqTeaser()}
 
                 <section className="fa-market-shell">
                 <div className="fa-market-head">
@@ -1475,7 +1525,7 @@
                     <span className="wr-module-toolbar-label">View</span>
                     <div className="wr-module-nav">
                     {Object.entries(FA_COLUMN_PRESETS).map(([key, cols]) => (
-                        <button key={key} className={faColPreset === key ? 'is-active' : ''} onClick={() => { setVisibleFaCols(cols); setFaColPreset(key); setRookieOnly(key === 'rookie'); if (key !== 'rookie') { setRookieTeamFilter(''); setRookieCollegeFilter(''); setRookieSlotFilter(''); } }}>{key}</button>
+                        <button key={key} className={faColPreset === key ? 'is-active' : ''} onClick={() => { setVisibleFaCols(faTierCols(cols)); setFaColPreset(key); setRookieOnly(key === 'rookie'); if (key !== 'rookie') { setRookieTeamFilter(''); setRookieCollegeFilter(''); setRookieSlotFilter(''); } }}>{key}</button>
                     ))}
                     <button className={showFaColPicker ? 'is-active' : ''} onClick={() => setShowFaColPicker(!showFaColPicker)}>Columns</button>
                     </div>
@@ -1494,7 +1544,7 @@
                                 leagueId: currentLeague?.id || currentLeague?.league_id,
                                 currentState: { columns: visibleFaCols, sort: faSort, filters: { faFilter, faSearch } },
                                 onApply: (v) => {
-                                    if (Array.isArray(v.columns) && v.columns.length) { setVisibleFaCols(v.columns); setFaColPreset('custom'); }
+                                    if (Array.isArray(v.columns) && v.columns.length) { setVisibleFaCols(faTierCols(v.columns)); setFaColPreset('custom'); }
                                     if (v.sort && v.sort.key) setFaSort({ key: v.sort.key, dir: v.sort.dir || 1 });
                                     if (v.filters && typeof v.filters.faFilter === 'string') setFaFilter(v.filters.faFilter);
                                     if (v.filters && typeof v.filters.faSearch === 'string') setFaSearch(v.filters.faSearch);
@@ -1528,7 +1578,7 @@
                         {/* All available columns — tick to add */}
                         <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', fontWeight: 700 }}>Available columns</div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '4px' }}>
-                            {Object.entries(faColumns).map(([key, col]) => {
+                            {Object.entries(faColumns).filter(([key]) => isPro || !FA_PRO_COLS.has(key)).map(([key, col]) => {
                                 const active = visibleFaCols.includes(key);
                                 return (
                                     <label key={key} style={{
@@ -1569,14 +1619,17 @@
 
                 {/* Dynamic grid — photo + Player + configured columns */}
                 {(() => {
-                    const gridTemplate = '32px minmax(150px, 1fr) ' + visibleFaCols.map(k => (faColumns[k]?.width || '44px')).join(' ');
-                    const tableMinWidth = 32 + 150 + 24 + visibleFaCols.reduce((s, k) => s + (parseInt(faColumns[k]?.width || '44', 10) || 44) + 4, 0);
+                    // Render-time tier filter — the normalize effect fixes state a
+                    // beat later, but the first paint must never show a Pro column.
+                    const shownFaCols = faTierCols(visibleFaCols);
+                    const gridTemplate = '32px minmax(150px, 1fr) ' + shownFaCols.map(k => (faColumns[k]?.width || '44px')).join(' ');
+                    const tableMinWidth = 32 + 150 + 24 + shownFaCols.reduce((s, k) => s + (parseInt(faColumns[k]?.width || '44', 10) || 44) + 4, 0);
                     return <div style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '10px', overflowX: 'auto' }}>
                         {/* Header */}
                         <div style={{ display: 'grid', gridTemplateColumns: gridTemplate, gap: '4px', padding: '8px 12px', minWidth: tableMinWidth + 'px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))' }}>
                             <span style={faHeaderStyle}></span>
                             <span style={faHeaderStyle} onClick={() => handleFaSort('name')}>Player{faSortIndicator('name')}</span>
-                            {visibleFaCols.map(k => {
+                            {shownFaCols.map(k => {
                                 const col = faColumns[k]; if (!col) return null;
                                 const clickable = !!col.sortKey;
                                 return <span key={k} style={{ ...faHeaderStyle, cursor: clickable ? 'pointer' : 'default' }} title={col.label}
@@ -1650,7 +1703,7 @@
                                         <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{playerName(p, pid)}</div>
                                         <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55 }}>{p.team || 'FA'}{p.injury_status ? ' · ' : ''}{p.injury_status ? <span style={{ color: 'var(--bad)' }}>{p.injury_status}</span> : ''}</div>
                                     </div>
-                                    {visibleFaCols.map(k => <span key={k} style={{ display: 'flex', alignItems: 'center' }}>{renderCell(k)}</span>)}
+                                    {shownFaCols.map(k => <span key={k} style={{ display: 'flex', alignItems: 'center' }}>{renderCell(k)}</span>)}
                                 </div>;
                             })}
                         </div>
@@ -1698,8 +1751,8 @@
                         </div>
                     </div>}
 
-                    {/* Roster Fit */}
-                    {assess && (() => {
+                    {/* Roster Fit — a fills-your-need read, Pro (raw stats below stay free) */}
+                    {isPro && assess && (() => {
                         const need = assess.needs?.find(n => n.pos === selPos);
                         const strength = assess.strengths?.includes(selPos);
                         return <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>

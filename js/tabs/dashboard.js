@@ -31,6 +31,15 @@ function resolveWidgetDestination(target) {
     return WIDGET_DESTINATIONS[target] || target;
 }
 
+// Gate metadata per module (shared seam — dashboard picker AND per-widget
+// render both consume it):
+//   pro: true       → free users get a compact teaser card, never the widget
+//   pro: false      → renders for everyone (splits, if any, live inside the
+//                     widget file — e.g. roster-pulse tier badge/action plan)
+//   proFeature      → tier.js FEATURES value string driving upgrade copy;
+//                     the gate CONDITION is always window.wrIsPro()
+//   formatFlag: null → reserved: the dynasty track fills this with the
+//                     league-format flag that hides/shows the module
 const WIDGET_MODULES = {
     'intel-brief': {
         label: 'Intel Brief',
@@ -40,6 +49,7 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['md', 'lg', 'tall', 'xl', 'xxl'],
         clickTarget: {},
+        pro: true, proFeature: 'briefing_reasoning', formatFlag: null,
     },
     'roster-pulse': {
         label: 'Roster Pulse',
@@ -53,6 +63,9 @@ const WIDGET_MODULES = {
         ],
         sizes: ['sm', 'md', 'lg', 'tall', 'xxl'],
         clickTarget: { sm: 'myteam', md: 'myteam' },
+        // Split widget: raw KPI numbers free; tier verdict badge + action-plan
+        // recs gated inside roster-pulse.js
+        pro: false, formatFlag: null,
     },
     'lineup-check': {
         label: 'Lineup Check',
@@ -62,6 +75,7 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['sm', 'md', 'lg'],
         clickTarget: { sm: 'lineup', md: 'lineup', lg: 'lineup' },
+        pro: true, proFeature: 'startsit_depth', formatFlag: null,
     },
     'window-forecast': {
         label: 'Window Forecast',
@@ -71,6 +85,7 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['sm', 'md', 'lg', 'tall'],
         clickTarget: { sm: 'myteam', md: 'myteam' },
+        pro: true, proFeature: 'analytics_depth', formatFlag: null,
     },
     'gap-plan': {
         label: 'Gap Plan',
@@ -80,6 +95,7 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['sm', 'md', 'lg'],
         clickTarget: { sm: 'myteam' },
+        pro: true, proFeature: 'analytics_depth', formatFlag: null,
     },
     'league-landscape': {
         label: 'League Landscape',
@@ -89,6 +105,9 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['sm', 'md', 'lg', 'tall', 'xl', 'xxl'],
         clickTarget: { sm: 'analytics', md: 'analytics' },
+        // Free widget: tier verdicts/posture-target reads gated inside
+        // league-landscape.js
+        pro: false, formatFlag: null,
     },
     'league-standings': {
         label: 'League Standings',
@@ -98,6 +117,7 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['md', 'lg'],
         clickTarget: { md: 'analytics' },
+        pro: false, formatFlag: null,
     },
     'transaction-ticker': {
         label: 'Transaction Ticker',
@@ -107,6 +127,7 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['md', 'lg'],
         clickTarget: {},
+        pro: false, formatFlag: null,
     },
     'market-radar': {
         label: 'Market Radar',
@@ -116,6 +137,7 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['sm', 'md', 'lg', 'xl', 'xxl'],
         clickTarget: { sm: 'trades', md: 'trades' },
+        pro: true, proFeature: 'faab_intelligence', formatFlag: null,
     },
     'draft-capital': {
         label: 'Draft Capital',
@@ -125,6 +147,9 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['sm', 'md', 'lg', 'xxl'],
         clickTarget: { sm: 'draft', md: 'draft' },
+        // Free widget: xxl "Pick Strategy" rec panel gated inside
+        // draft-capital.js
+        pro: false, formatFlag: null,
     },
     'field-notes': {
         label: 'Field Notes',
@@ -134,6 +159,7 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['slim', 'narrow', 'lg', 'tall'],
         clickTarget: {},
+        pro: false, formatFlag: null,
     },
     // Phase 3: League intelligence surfaced to Home (ex-League Map widgets)
     'competitive-tiers': {
@@ -144,6 +170,7 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['sm', 'md', 'lg', 'tall', 'xxl'],
         clickTarget: { sm: 'analytics', md: 'analytics' },
+        pro: true, proFeature: 'analytics_depth', formatFlag: null,
     },
     'power-rankings': {
         label: 'Power Rankings',
@@ -153,6 +180,7 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['sm', 'md', 'lg', 'tall', 'xxl'],
         clickTarget: { sm: 'analytics', md: 'analytics' },
+        pro: false, formatFlag: null, // ranking, not advice (owner Q7)
     },
     // SI-3: Tag-driven widgets — surface My Roster tags into Home
     'trade-block': {
@@ -163,6 +191,7 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['sm', 'md', 'lg', 'tall'],
         clickTarget: { sm: 'myteam', md: 'myteam' },
+        pro: false, formatFlag: null, // user's own tags
     },
     'cut-candidates': {
         label: 'Cut Candidates',
@@ -172,6 +201,7 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['sm', 'md', 'lg', 'tall'],
         clickTarget: { sm: 'myteam', md: 'myteam' },
+        pro: false, formatFlag: null, // user's own tags
     },
     'waiver-targets': {
         label: 'Waiver Targets',
@@ -181,6 +211,7 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['sm', 'md', 'lg', 'tall'],
         clickTarget: { sm: 'fa', md: 'fa' },
+        pro: false, formatFlag: null, // user's own tags
     },
     // Phase 9: My Trophies widget — surfaces user's championship count + HOF inductees
     'my-trophies': {
@@ -191,6 +222,7 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['sm', 'md', 'lg', 'tall', 'xxl'],
         clickTarget: { sm: 'trophies', md: 'trophies' },
+        pro: false, formatFlag: null,
     },
     // League Calendar widget — next league date + agenda (draft, deadline,
     // playoffs, waivers). Lives in the Trophy Room; opens its Calendar sub-view.
@@ -202,6 +234,7 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['sm', 'md', 'lg', 'tall', 'xl', 'xxl'],
         clickTarget: { sm: 'trophies', md: 'trophies' },
+        pro: false, formatFlag: null,
     },
 };
 
@@ -250,6 +283,9 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
     const [selectedSize, setSelectedSize] = React.useState(editWidget?.size || null);
     const [selectedMetric, setSelectedMetric] = React.useState(editWidget?.primaryMetric || null);
     const [hoverModule, setHoverModule] = React.useState(null);
+    // Free/Pro (fail-open) — Pro modules stay pickable for free users (adding
+    // one renders the teaser card); the picker just labels what's locked.
+    const pickerPro = typeof window.wrIsPro !== 'function' || window.wrIsPro();
 
     const mod = selectedModule ? WIDGET_MODULES[selectedModule] : null;
 
@@ -326,6 +362,11 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
                                     <div style={{ fontSize: '1.5rem', marginBottom: '4px', lineHeight: 1 }}>{m.icon}</div>
                                     <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--white)', letterSpacing: '0.04em', marginBottom: '2px' }}>{m.label}</div>
                                     <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, lineHeight: 1.3 }}>{m.description}</div>
+                                    {m.pro && !pickerPro && (
+                                        <div style={{ marginTop: '5px' }}>
+                                            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-label, 0.75rem)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)', border: '1px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius: '2px', padding: '1px 6px' }}>🔒 Pro</span>
+                                        </div>
+                                    )}
                                 </button>
                             ))}
                         </div>
@@ -505,9 +546,18 @@ function DashboardPanel({
     const rajFont = theme.fonts?.display || 'Rajdhani, sans-serif';
     const dmFont = theme.fonts?.ui || 'DM Sans, sans-serif';
 
+    // ── Free/Pro gate (fail-open) — consumed by renderWidget + KPI annotations ──
+    const wrPro = typeof window.wrIsPro !== 'function' || window.wrIsPro();
+
     // ── KPI value helper ──
     function kv(key) {
         try { return computeKpiValue(key); } catch { return { value: '—', sub: '', color: S }; }
+    }
+
+    // KPI annotations phrase interpretations/recs ("Championship caliber",
+    // "sell aging assets") — Pro only; the raw value keeps rendering.
+    function kpiAnn(key, value) {
+        return (wrPro && typeof getKpiAnnotation === 'function') ? getKpiAnnotation(key, value) : '';
     }
 
     // ── Module accent resolver — WIDGET_MODULES.accent is a function,
@@ -547,7 +597,7 @@ function DashboardPanel({
     function SmallKpiCard({ kpiKey, primaryMetric }) {
         const key = primaryMetric || kpiKey;
         const val = kv(key);
-        const ann = typeof getKpiAnnotation === 'function' ? getKpiAnnotation(key, val.value) : '';
+        const ann = kpiAnn(key, val.value);
         const mod = WIDGET_MODULES[kpiKey];
         const accentColor = modAccent(mod);
         return (
@@ -588,7 +638,7 @@ function DashboardPanel({
         if (!key) return null;
         const accent = modAccent(mod);
         const val = kv(key);
-        const ann = typeof getKpiAnnotation === 'function' ? getKpiAnnotation(key, val.value) : '';
+        const ann = kpiAnn(key, val.value);
         const metaLabel = mod.metrics.find(m => m.key === key)?.label || key;
 
         // Secondary metrics for context
@@ -657,7 +707,7 @@ function DashboardPanel({
         const allMetrics = mod.metrics.map(m => ({ ...m, val: kv(m.key) }));
         const primaryKey = primaryMetric || mod.metrics?.[0]?.key;
         const primaryVal = kv(primaryKey);
-        const ann = typeof getKpiAnnotation === 'function' ? getKpiAnnotation(primaryKey, primaryVal.value) : '';
+        const ann = kpiAnn(primaryKey, primaryVal.value);
 
         // League context for bar chart — find roster value for comparison
         const allDHQs = (() => {
@@ -1074,6 +1124,33 @@ function DashboardPanel({
         );
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // PRO TEASER CARD — rendered in place of a Pro widget for free
+    // users: title + lock + one-line what-you-get + upgrade CTA.
+    // Lives inside WidgetShell so layout editing stays free.
+    // ══════════════════════════════════════════════════════════════
+    function WidgetProTeaser({ moduleKey }) {
+        const mod = WIDGET_MODULES[moduleKey];
+        const openUpsell = () => {
+            if (window.showProLaunchPage) window.showProLaunchPage();
+            else if (window.showUpgradePrompt) window.showUpgradePrompt(mod?.proFeature || '');
+        };
+        return (
+            <div style={{ ...cardBase, borderLeft: '3px solid var(--gold)', padding: 'var(--card-pad, 14px 16px)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                    <span style={{ fontSize: '1rem', flexShrink: 0 }}>{mod?.icon}</span>
+                    <span style={{ flex: 1, minWidth: 0, fontFamily: rajFont, fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: W, letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mod?.label || moduleKey}</span>
+                    <span aria-hidden="true" style={{ fontSize: '0.85rem', flexShrink: 0 }}>🔒</span>
+                    <span style={{ fontFamily: monoFont, fontSize: 'var(--text-label, 0.75rem)', letterSpacing: '0.08em', textTransform: 'uppercase', color: G, border: '1px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius: '2px', padding: '1px 6px', flexShrink: 0 }}>Pro</span>
+                </div>
+                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: S, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{mod?.description}</div>
+                <button onClick={openUpsell} style={{ marginTop: 'auto', alignSelf: 'flex-start', padding: '6px 12px', minHeight: '32px', background: 'var(--gold)', color: 'var(--k-1a1000, #1a1000)', border: 'none', borderRadius: '2px', fontFamily: monoFont, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                    Unlock with Pro
+                </button>
+            </div>
+        );
+    }
+
     // ── Render a single widget based on module + size ──
     function renderWidget(widget, idx) {
         if (!widget?.key) return null;
@@ -1083,6 +1160,15 @@ function DashboardPanel({
         // v2 click targets use the module's clickTarget map; fall back to legacy
         const mod = WIDGET_MODULES[key];
         const clickTab = resolveWidgetDestination(mod?.clickTarget?.[size] || mod?.clickTarget?.sm || null);
+
+        // ── Free/Pro gate (WIDGET_MODULES.pro) — teaser card, never blank ──
+        if (mod?.pro && !wrPro) {
+            return (
+                <WidgetShell key={widget.id || key + idx} widget={widget} idx={idx}>
+                    <WidgetProTeaser moduleKey={key} />
+                </WidgetShell>
+            );
+        }
 
         // ── Delegate to module-specific external widgets if available ──
         const externalWidget = resolveExternalWidget(key, size, primaryMetric);

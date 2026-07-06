@@ -60,6 +60,12 @@ function MyTeamTab({
   const valueLabel = skinVocabulary.valueLabel || 'DHQ Dynasty Value';
   const valueShortLabel = skinVocabulary.valueShortLabel || 'Value';
 
+  // Scout-free vs Pro. Free keeps every raw column + sort/filter/tags/IR/taxi;
+  // the verdict layer (Move column, DROP? chips, row tints, Action lens,
+  // dossier roster call, START/SIT line, Dynasty Read AI) keys on this one
+  // predicate — wrIsPro only, never canAccess/getTier (shadowing hazard).
+  const isPro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
+
   function calcRawPts(s) { return window.App.calcRawPts(s, currentLeague?.scoring_settings); }
 
   function getPlayerName(playerId) {
@@ -242,7 +248,7 @@ function MyTeamTab({
     age:        { label: 'Age', shortLabel: 'Age', width: '38px', group: 'dynasty' },
     dhq:        { label: valueLabel, shortLabel: valueShortLabel, width: '60px', group: 'dynasty' },
     ppg:        { label: 'Points Per Game', shortLabel: 'PPG', width: '48px', group: 'stats' },
-    proj:       { label: 'This Week — projected pts + start/sit (league-scored)', shortLabel: 'Wk', width: '62px', group: 'stats' },
+    proj:       { label: isPro ? 'This Week — projected pts + start/sit (league-scored)' : 'This Week — projected pts (league-scored)', shortLabel: 'Wk', width: '62px', group: 'stats' },
     hi:         { label: 'Season High — most fantasy pts in a week', shortLabel: 'Hi', width: '40px', group: 'stats' },
     lo:         { label: 'Season Low — fewest fantasy pts in a played week', shortLabel: 'Lo', width: '40px', group: 'stats' },
     prev:       { label: 'Previous Season PPG', shortLabel: 'Last', width: '44px', group: 'stats' },
@@ -272,9 +278,15 @@ function MyTeamTab({
     rkTier:     { label: 'Rookie Tier', shortLabel: 'Tier', width: '64px', group: 'scout' },
     rkProfile:  { label: 'Rookie Profile (Ht · Wt · 40)', shortLabel: 'Profile', width: '112px', group: 'scout' },
   };
+  // Free: the Move/Trade-Recommendation column is a verdict → Pro. Dropping
+  // the def removes it everywhere at once — the Customize picker, the 'full'
+  // preset (derives from keys), the header + cell render, and persisted
+  // column prefs (both filter on ROSTER_COLUMNS[key]) — so a saved custom
+  // view can't resurrect it.
+  if (!isPro) delete ROSTER_COLUMNS.action;
 
   const COLUMN_PRESETS = {
-    default: ['pos','age','dhq','posRankLg','ppg','proj','durability','peak','action','sos'],
+    default: ['pos','age','dhq','posRankLg','ppg','proj','durability','peak','action','sos'].filter(k => ROSTER_COLUMNS[k]),
     redraft: ['pos','proj','ppg','prev','trend','hi','lo','sos'],
     stats:   ['pos','dhq','ppg','prev','trend','gp','durability','sos'],
     scout:   ['pos','age','college','slot','height','weight','depthChart','yrsExp','starterSzn','posRankNfl'],
@@ -355,15 +367,19 @@ function MyTeamTab({
     const valueYrsLeft = age ? Math.max(0, declineHi - age) : 0;
 
     const _pidElite = typeof window.App?.isElitePlayer === 'function' ? window.App.isElitePlayer(pid) : dhq >= 7000;
-    // Recommendation for MY roster — shared getPlayerAction() with simplified fallback
-    const pa = typeof window.getPlayerAction === 'function' ? window.getPlayerAction(pid) : null;
-    let rec = pa ? pa.label : (valueYrsLeft <= 0 ? 'Sell' : _pidElite && peakYrsLeft >= 3 ? 'Hold Core' : peakYrsLeft >= 4 && dhq < 4000 ? 'Stash' : 'Hold');
+    // Recommendation for MY roster — shared getPlayerAction() with simplified
+    // fallback. Free: rec stays null (the seeded fallback is a rec too), so
+    // every consumer — Move column, row tints, Action lens, dossier call,
+    // dynasty-read clause — degrades to raw-only even if a gate is missed.
+    const pa = isPro && typeof window.getPlayerAction === 'function' ? window.getPlayerAction(pid) : null;
+    let rec = !isPro ? null : pa ? pa.label : (valueYrsLeft <= 0 ? 'Sell' : _pidElite && peakYrsLeft >= 3 ? 'Hold Core' : peakYrsLeft >= 4 && dhq < 4000 ? 'Stash' : 'Hold');
 
     // GM Strategy nudge: if this player's position/age trips a sell rule or a
     // sell-position (and isn't strategy-untouchable / already a sell or build
     // call), steer the roster recommendation toward Sell. Flagged for the UI.
+    // Pro-only (Q8): it steers the app's verdict, unlike the passive accents.
     const gmIsUntouchable = gmUntouchable.has(String(pid));
-    const gmSellNudge = !gmIsUntouchable && !/sell|buy|build|core/i.test(rec) && gmTripsSell({ pos, age });
+    const gmSellNudge = isPro && !gmIsUntouchable && !/sell|buy|build|core/i.test(rec) && gmTripsSell({ pos, age });
     if (gmSellNudge) rec = 'Sell';
     const gmIsTarget = gmTargetPositions.has(String(pos));
     const gmIsSellPos = gmSellPositions.has(String(pos));
@@ -430,6 +446,13 @@ function MyTeamTab({
   React.useEffect(() => {
     try { localStorage.setItem('wr_roster_group_mode', rosterGroupMode); } catch {}
   }, [rosterGroupMode]);
+  // Free: the Action grouping lens organizes the board by verdict → Pro.
+  // Clamp a persisted pick back to position (the option is also filtered out
+  // of GROUP_MODES below). Safe pre-clamp render: free rows carry rec=null,
+  // so the lens has no verdicts to reveal.
+  React.useEffect(() => {
+    if (!isPro && rosterGroupMode === 'action') setRosterGroupMode('position');
+  }, [isPro, rosterGroupMode]);
   const [, forceAcquisitionRerender] = React.useState(0);
   // Force a re-render when weekly points become available so rolling-PPG cells update.
   const [, forcePpgRerender] = React.useState(0);
@@ -468,6 +491,10 @@ function MyTeamTab({
   React.useEffect(() => {
     setReadOpen(false);
     const pid = expandedPid;
+    // Free: never auto-fire dynasty_read on row expand — BYOK routes (S.apiKey
+    // → callClaude) bypass the OD.callAI tripwire, so the trigger itself must
+    // gate. The seeded buildDynastyRead template below still renders.
+    if (!isPro) return;
     if (!pid || aiReads[pid] || typeof window.fetchDynastyRead !== 'function') return;
     const p = playersData?.[pid];
     if (!p) return;
@@ -508,7 +535,7 @@ function MyTeamTab({
     { key: 'age', label: 'Age' },
     { key: 'peak', label: 'Peak' },
     { key: 'none', label: 'None' },
-  ];
+  ].filter(g => isPro || g.key !== 'action'); // Action lens = verdict grouping → Pro
   const activeGroupModeLabel = GROUP_MODES.find(g => g.key === rosterGroupMode)?.label || 'Position';
   const slotOrder = { starter: 0, bench: 1, taxi: 2, ir: 3 };
   const recGroup = (rec) => /sell/i.test(rec || '') ? 'Sell'
@@ -629,9 +656,12 @@ function MyTeamTab({
   // single "Filters" bar so it stops eating ~400px above the roster table.
   const isCompactRoster = rosterViewportWidth <= 1023;
   const [filtersOpen, setFiltersOpen] = React.useState(false);
-  const rosterTableCols = isNarrowRoster
-    ? ['pos', 'dhq', 'action'].filter(key => ROSTER_COLUMNS[key])
-    : visibleCols;
+  // Filtering visibleCols on ROSTER_COLUMNS here is what keeps a persisted
+  // 'action' pref from rendering for free (its def is deleted above); the
+  // narrow 3-col set swaps the Move slot for 'peak' on free.
+  const rosterTableCols = (isNarrowRoster
+    ? ['pos', 'dhq', isPro ? 'action' : 'peak']
+    : visibleCols).filter(key => ROSTER_COLUMNS[key]);
   const visibleColGroupStarts = new Set();
   rosterTableCols.forEach((key, idx) => {
     const prev = rosterTableCols[idx - 1];
@@ -688,7 +718,12 @@ function MyTeamTab({
     const productionLine = r.effectivePPG ? r.effectivePPG + ' PPG across ' + (r.effectiveGP || 0) + ' games' : 'No stable recent production sample';
     const ageLine = r.age ? 'Age ' + r.age + ' is ' + (r.peakPhase === 'PRE' ? 'before the prime window' : r.peakPhase === 'PRIME' ? 'inside the prime window' : r.peakPhase === 'VET' ? 'in the veteran value band' : 'past the normal value window') : 'Age window unknown';
     const trendLine = r.trend >= 15 ? 'production is rising' : r.trend <= -15 ? 'production is sliding' : 'production is steady';
-    return valueLine + ' makes him a ' + dynastyTierLabel(r) + '. ' + productionLine + '; ' + ageLine + ', so the current roster call is ' + String(r.rec || 'Hold').toLowerCase() + ' while ' + trendLine + '.';
+    // Free: the "roster call is X" clause is a verdict — the raw restatement
+    // (value, tier-from-value, production, age window, trend) stays.
+    const recClause = isPro
+      ? ', so the current roster call is ' + String(r.rec || 'Hold').toLowerCase() + ' while ' + trendLine
+      : ', and ' + trendLine;
+    return valueLine + ' makes him a ' + dynastyTierLabel(r) + '. ' + productionLine + '; ' + ageLine + recClause + '.';
   };
 
   // renderCell — renders each data cell with FM-style coloring
@@ -707,9 +742,11 @@ function MyTeamTab({
         const isStart = !!(weeklyLineup && weeklyLineup.starterSet.has(String(r.pid)));
         const g = p.matchupGrade;
         const gcol = g === 'A' ? 'var(--good)' : g === 'B' ? 'var(--gold)' : g === 'D' ? 'var(--warn)' : g === 'F' ? 'var(--bad)' : 'var(--silver)';
-        return <div key={colKey} style={{...base, flexDirection: 'column', gap: '0px'}} title={'Projected ' + pts.toFixed(1) + ' pts · matchup ' + g + (p.opponent && p.opponent.abbr ? ' vs ' + p.opponent.abbr : '')}>
+        // Free: raw projected pts keep rendering; START/SIT (optimizer output)
+        // + matchup grade (interpretive read) are the Pro line.
+        return <div key={colKey} style={{...base, flexDirection: 'column', gap: '0px'}} title={'Projected ' + pts.toFixed(1) + ' pts' + (isPro ? ' · matchup ' + g : '') + (p.opponent && p.opponent.abbr ? ' vs ' + p.opponent.abbr : '')}>
           <span style={{ color: 'var(--white)', fontWeight: 600, fontSize: '0.76rem', fontFamily: 'var(--font-body)' }}>{pts > 0 ? pts.toFixed(1) : '—'}</span>
-          <span style={{ fontSize: '0.54rem', fontWeight: 700, letterSpacing: '0.03em', color: isStart ? 'var(--good)' : 'var(--silver)' }}>{isStart ? 'START' : 'SIT'}<span style={{ color: gcol, marginLeft: '3px' }}>{g}</span></span>
+          {isPro && <span style={{ fontSize: '0.54rem', fontWeight: 700, letterSpacing: '0.03em', color: isStart ? 'var(--good)' : 'var(--silver)' }}>{isStart ? 'START' : 'SIT'}<span style={{ color: gcol, marginLeft: '3px' }}>{g}</span></span>}
         </div>;
       }
       case 'hi': { const fs = window.App?.WeeklyProj?.formStats?.(r.pid, 'season'); return <div key={colKey} style={{...base}}><span style={{ color: fs ? 'var(--good, #2ecc71)' : 'var(--silver)', opacity: fs ? 1 : 0.45, fontWeight: 550 }}>{fs ? fs.high.toFixed(1) : '—'}</span></div>; }
@@ -1060,7 +1097,7 @@ function MyTeamTab({
                       {/* GM Strategy: acquisition-focus / sell-candidate position accents */}
                       {!r.gmIsUntouchable && r.gmIsTarget && <span title="GM Strategy: acquisition-focus position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.28))', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>TGT</span>}
                       {!r.gmIsUntouchable && r.gmIsSellPos && <span title="GM Strategy: sell-candidate position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'rgba(240,165,0,0.13)', color: 'var(--warn)', border: '1px solid rgba(240,165,0,0.32)', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>SELL</span>}
-                      {dropCandidatePids.has(r.pid) && !dismissedDrops.has(r.pid) && <span onClick={e => { e.stopPropagation(); dismissDrop(r.pid); }} title="Drop candidate (click to dismiss)" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(231,76,60,0.2)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>DROP?</span>}
+                      {isPro && dropCandidatePids.has(r.pid) && !dismissedDrops.has(r.pid) && <span onClick={e => { e.stopPropagation(); dismissDrop(r.pid); }} title="Drop candidate (click to dismiss)" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(231,76,60,0.2)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>DROP?</span>}
                     </div>
                     <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, marginTop: '1px' }}>{r.p.team || 'FA'}{r.injury ? ' \u00B7 '+r.injury : ''}</div>
                   </div>
@@ -1110,11 +1147,22 @@ function MyTeamTab({
                             {r.injury ? <span style={{ color: 'var(--bad)', fontWeight: 700 }}> {'·'} {r.injury}</span> : null}
                           </div>
                         </div>
+                        {isPro ? (
                         <div style={{ textAlign: 'right', minWidth: '120px' }}>
                           <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Roster call</div>
                           <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.6rem', fontWeight: 700, color: vColor, lineHeight: 1.05, textTransform: 'uppercase' }}>{verdict}</div>
                           <div style={{ fontSize: '0.7rem', color: 'var(--silver)' }}>{callSub}</div>
                         </div>
+                        ) : (
+                        // Free: verdict + "sell high / buy low" sub are Pro — live lock teaser in the same slot.
+                        <button onClick={e => { e.stopPropagation(); if (window.showProLaunchPage) window.showProLaunchPage(); else if (window.showUpgradePrompt) window.showUpgradePrompt('analytics_depth'); }}
+                          title="Buy/sell roster calls are a Pro read"
+                          style={{ textAlign: 'right', minWidth: '120px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                          <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Roster call</div>
+                          <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.15rem', fontWeight: 700, color: 'var(--gold)', lineHeight: 1.2, textTransform: 'uppercase' }}>{'🔒'} Pro</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--silver)' }}>Unlock buy/sell calls</div>
+                        </button>
+                        )}
                       </div>
 
                       {/* Signals chip strip */}

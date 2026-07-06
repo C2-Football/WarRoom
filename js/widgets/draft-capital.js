@@ -18,6 +18,9 @@
         const fonts = theme.fonts || {};
         const cardStyle = window.WrTheme?.cardStyle?.() || {};
         const fs = (rem) => window.WrTheme?.fontSize?.(rem) || (rem + 'rem');
+        // Free/Pro (fail-open): pick inventory/values/countdown stay free;
+        // the xxl Pick Strategy target recs are Pro.
+        const pro = typeof window.wrIsPro !== 'function' || window.wrIsPro();
 
         const myRid = myRoster?.roster_id;
         const season = String(currentLeague?.season || new Date().getFullYear());
@@ -449,6 +452,13 @@
                         {/* Pick Strategy */}
                         <div style={{ padding: '8px 10px', background: wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '0D'), border: '1px solid ' + wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '33'), borderRadius: '6px' }}>
                             <div style={{ fontSize: fs(0.6), fontWeight: 700, color: colors.warn || 'var(--k-f0a500, #f0a500)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px', fontFamily: fonts.ui }}>Pick Strategy · Targets by Round</div>
+                            {/* targets pair picks with the roster-needs assessment — a rec → Pro */}
+                            {!pro ? (
+                                typeof window.WrGatedMoreRow === 'function'
+                                    ? React.createElement(window.WrGatedMoreRow, { title: 'Round-by-round targets', sub: 'Pairs each pick with your biggest roster needs', feature: 'draft_archetypes' })
+                                    : null
+                            ) : (
+                            <React.Fragment>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px 12px' }}>
                                 {strategy.map((s, i) => {
                                     const targetCol = window.App?.POS_COLORS?.[s.target] || colors.accent;
@@ -465,6 +475,8 @@
                             </div>
                             {strategy.length === 0 && (
                                 <div style={{ fontSize: fs(0.6), color: colors.textFaint, fontStyle: 'italic' }}>No assessment available</div>
+                            )}
+                            </React.Fragment>
                             )}
                         </div>
                         {/* League Capital Distribution */}

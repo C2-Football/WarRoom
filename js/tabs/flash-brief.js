@@ -404,6 +404,36 @@ function IntelligenceBriefWidget({
         );
     }
 
+    // ── FREE TEASER (all sizes) — Scout Today-brief precedent ────────
+    // Free sees the greeting + section titles with counts only: the tier
+    // read (tierMsg/briefText) and the action recs (waiver target, trade
+    // steers, CTAs) never reach the DOM. Defense-in-depth behind the
+    // dashboard registry gate (WIDGET_MODULES['intel-brief'].pro).
+    const briefPro = typeof window.wrIsPro !== 'function' || window.wrIsPro();
+    if (!briefPro) {
+        const tight = size === 'md' || size === 'lg' || size === 'xl';
+        const teaserRows = [
+            { label: "Alex's read", count: '1 briefing' },
+            { label: 'Action items', count: actions.length + ' queued' },
+        ];
+        return React.createElement('div', { style: cardStyle },
+            header({ tight }),
+            React.createElement('div', { style: { padding: tight ? '10px 14px' : '14px 20px', flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', overflow: 'hidden' } },
+                ...teaserRows.map((r, i) => React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '7px 10px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '2px', flexShrink: 0 } },
+                    React.createElement('span', { style: { fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em' } }, r.label),
+                    React.createElement('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, fontFamily: "'JetBrains Mono', monospace" } }, r.count),
+                )),
+                typeof window.WrGatedMoreRow === 'function'
+                    ? React.createElement(window.WrGatedMoreRow, {
+                        title: 'Unlock the full brief',
+                        sub: "Alex's roster read + " + actions.length + ' prioritized action' + (actions.length === 1 ? '' : 's'),
+                        feature: 'briefing_reasoning',
+                    })
+                    : null,
+            ),
+        );
+    }
+
     // ── md (2×1, 160px tall) — 3 sentences, no scroll ────────────────
     if (size === 'md') {
         return React.createElement('div', { onClick: () => goTo('alex'), style: { ...cardStyle, cursor: 'pointer' } },

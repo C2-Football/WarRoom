@@ -488,13 +488,22 @@
         };
     }
 
+    // Scout-free gate at the engine seam: every export here is an interpretive
+    // read (decision deck recs, predicted-available, tier-break/value-cliff/
+    // need-tension advice, trade-evolution narration) → Pro. Gating here covers
+    // all consumers (command-center memos + LiveCommandHeader + stream effects)
+    // with one seam. Fail-open when pro-gate.js isn't loaded; callers already
+    // handle null/{} (their normal "no signal" shape).
+    const _ldePro = () => typeof window.wrIsPro !== 'function' || window.wrIsPro();
+    const _gateNull = fn => function () { return _ldePro() ? fn.apply(null, arguments) : null; };
+
     window.DraftCC = window.DraftCC || {};
     window.DraftCC.liveDecisionEngine = {
-        buildDecisionDeck,
-        buildLiveReadout,
-        liveStreamSignals,
-        liveTradeEvolutionSignal,
-        tierAlert,
+        buildDecisionDeck: _gateNull(buildDecisionDeck),
+        buildLiveReadout: _gateNull(buildLiveReadout),
+        liveStreamSignals: function () { return _ldePro() ? liveStreamSignals.apply(null, arguments) : {}; },
+        liveTradeEvolutionSignal: _gateNull(liveTradeEvolutionSignal),
+        tierAlert: _gateNull(tierAlert),
         _private: {
             candidates,
             nextUserPick,

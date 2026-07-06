@@ -20,6 +20,15 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
     const [recapText, setRecapText] = useState('');
     const leagueId = currentLeague?.id || currentLeague?.league_id || '';
 
+    // Scout-free vs Pro (gate-map row 16): all history/records browsing,
+    // custom events, and manual chronicle browsing stay free; the two AI
+    // triggers (chronicles parse, season recap) are Pro. wrIsPro only.
+    const isPro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
+    const openProUpsell = (feature) => {
+        if (window.showProLaunchPage) window.showProLaunchPage();
+        else if (window.showUpgradePrompt) window.showUpgradePrompt(feature);
+    };
+
     // ── Export as image ──
     async function exportAsImage(elementId, filename) {
         const el = document.getElementById(elementId);
@@ -702,6 +711,9 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
     }
 
     async function parseChronicles() {
+        // AI trigger gate (D9 row 10): never fires for free — BYOK users
+        // would otherwise reach the provider directly via callClaude.
+        if (!isPro) { openProUpsell('league-chronicles'); return; }
         if (!importText.trim()) return;
         setImportStatus('parsing');
         try {
@@ -761,9 +773,10 @@ ${importText.substring(0, 8000)}`;
                     style: { width: '100%', minHeight: '200px', padding: '12px', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: '8px', color: 'var(--white)', fontSize: '0.78rem', fontFamily: 'JetBrains Mono, monospace', resize: 'vertical', boxSizing: 'border-box' }
                 }),
                 React.createElement('button', {
-                    onClick: parseChronicles, disabled: importStatus === 'parsing' || !importText.trim(),
+                    // Free: button stays live but opens the Pro upsell (parseChronicles gates).
+                    onClick: parseChronicles, disabled: importStatus === 'parsing' || (isPro && !importText.trim()),
                     style: { width: '100%', marginTop: '10px', padding: '10px', background: importStatus === 'parsing' ? 'var(--silver)' : 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700, cursor: importStatus === 'parsing' ? 'wait' : 'pointer', fontFamily: 'inherit' }
-                }, importStatus === 'parsing' ? 'Alex is parsing...' : importStatus === 'done' ? 'Imported!' : importStatus === 'error' ? 'Error \u2014 Try Again' : 'Import with Alex'),
+                }, !isPro ? '\ud83d\udd12 Import with Alex \u2014 Pro' : importStatus === 'parsing' ? 'Alex is parsing...' : importStatus === 'done' ? 'Imported!' : importStatus === 'error' ? 'Error \u2014 Try Again' : 'Import with Alex'),
             ),
         );
     }
@@ -1042,6 +1055,8 @@ ${importText.substring(0, 8000)}`;
     // SEASON RECAP GENERATOR
     // ══════════════════════════════════════════════════════════════
     async function generateSeasonRecap() {
+        // AI trigger gate (D9 row 11): never fires for free (BYOK included).
+        if (!isPro) { openProUpsell('season-recap'); return; }
         setRecapStatus('generating');
         try {
             const season = currentLeague?.season || new Date().getFullYear();
@@ -1109,7 +1124,7 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
                 key: 'recap-btn',
                 onClick: generateSeasonRecap, disabled: recapStatus === 'generating',
                 style: { marginLeft: 'auto', padding: '6px 12px', minHeight: '44px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '6px', color: 'var(--gold)', fontSize: '0.7rem', fontWeight: 700, cursor: recapStatus === 'generating' ? 'wait' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' },
-            }, recapStatus === 'generating' ? 'Alex is writing…' : '✨ Season Recap'),
+            }, !isPro ? '🔒 Season Recap — Pro' : recapStatus === 'generating' ? 'Alex is writing…' : '✨ Season Recap'),
         ),
 
         // Season Recap result card (only shown after generation)

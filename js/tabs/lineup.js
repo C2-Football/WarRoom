@@ -17,6 +17,15 @@ function LineupTab({
     const WP = window.App && window.App.WeeklyProj;
     const SS = window.App && window.App.StartSit;
     const normPos = (window.App && window.App.normPos) || (p => p);
+    // Partial free/Pro gate (owner ruling 2026-07-05): FREE keeps the manual
+    // builder, raw per-player projections, bye listing and the MFL push
+    // (incl. pre-season building). PRO = the optimizer layer: optimal
+    // hero/delta, floor–ceiling bands, matchup grades, win %, opponent
+    // strength, bye recs, the Alex note. Supersedes the old whole-tab
+    // STARTSIT_DEPTH gate.
+    const pro = typeof window.wrIsPro !== 'function' || window.wrIsPro();
+    const GatedRow = window.WrGatedMoreRow;
+    const STARTSIT_FEAT = (window.FEATURES && window.FEATURES.STARTSIT_DEPTH) || 'startsit_depth';
     const [ctxTick, setCtxTick] = React.useState(0); // bumps when NFL matchup context (opponent/weather/odds) loads
 
     const result = React.useMemo(() => {
@@ -35,7 +44,8 @@ function LineupTab({
     const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #9aa0a6)', TEXT = 'var(--text, #e8e8ea)';
     const GREEN = 'var(--k-2ecc71, #2ecc71)', RED = 'var(--k-e74c3c, #e74c3c)', AMBER = 'var(--k-f0a500, #f0a500)';
     const PANEL = 'var(--panel, #15151b)', LINE = 'var(--ov-4, rgba(255,255,255,0.08))';
-    const GRID = '50px minmax(0,1fr) 58px 50px 48px 38px 38px';
+    // Free drops the Mtch column (A–F matchup grade is a Pro interpretation).
+    const GRID = pro ? '50px minmax(0,1fr) 58px 50px 48px 38px 38px' : '50px minmax(0,1fr) 58px 48px 38px 38px';
     const SLOT_DISPLAY_ORDER = { QB: 1, RB: 2, WR: 3, TE: 4, REC_FLEX: 5, FLEX: 6, WRTQ: 7, SUPER_FLEX: 8, K: 20, DEF: 21, IDP_FLEX: 30, DL: 31, LB: 32, DB: 33, WILDCARD: 40 };
     const BENCH = new Set(['BN', 'BE', 'BENCH', 'IR', 'TAXI', 'RES']);
     const OBJ_LABEL = { floor: 'Floor · safe (win-now)', median: 'Median · balanced', ceiling: 'Ceiling · upside (rebuild)' };
@@ -204,6 +214,15 @@ function LineupTab({
         return (lead + mid + tail + byeTail).trim();
     }
     React.useEffect(() => {
+        // Composed note guard: the seeded copy is itself a rec ("X is the
+        // move"), so the whole note is Pro-only — free renders no note (and
+        // never builds facts, so no optimizer output is computed for free).
+        // Future format carve-outs (cross-track C5) compose in here, e.g.
+        // `pro && isDynastyFormat`. The AV.enhance AI upgrade below is
+        // additionally behind hasAmbientAI() (ambient-AI policy seam) — a Pro
+        // user without AI still keeps the seeded template.
+        const noteAllowed = pro;
+        if (!noteAllowed) { setNote(''); return; }
         if (!_projReady) return;                 // wait for real projections (avoid a stale AI-note cache)
         const facts = buildNoteFacts();
         if (!facts) { setNote(''); return; }
@@ -211,7 +230,7 @@ function LineupTab({
         setNote(seeded);
         let alive = true;
         const AV = window.AlexVoice;
-        if (AV && AV.enhance) {
+        if (AV && AV.enhance && (typeof AV.hasAmbientAI !== 'function' || AV.hasAmbientAI())) {
             // Bucket win% into the cache key so a materially different matchup
             // outlook re-generates rather than reusing an early note.
             const wpBucket = facts.winPct == null ? 'na' : Math.round(facts.winPct / 10);
@@ -271,7 +290,8 @@ function LineupTab({
         // benched. Refuse to push unless every starting slot is filled.
         const emptySlots = startingSlots.filter(sl => !workingAssign[sl.idx]);
         if (emptySlots.length) {
-            setSubmit({ status: 'error', msg: 'Fill all ' + startingSlots.length + ' starting slots first — ' + emptySlots.map(s => s.slotName.replace('_', ' ')).join(', ') + ' empty. Tap “Apply Optimal” to fill them. MFL benches anyone left out.' });
+            // Free has no "Apply Optimal" button — don't reference it.
+            setSubmit({ status: 'error', msg: 'Fill all ' + startingSlots.length + ' starting slots first — ' + emptySlots.map(s => s.slotName.replace('_', ' ')).join(', ') + ' empty. ' + (pro ? 'Tap “Apply Optimal” to fill them. ' : '') + 'MFL benches anyone left out.' });
             return;
         }
         const starterIds = startingSlots.map(sl => workingAssign[sl.idx]).filter(Boolean);
@@ -306,6 +326,10 @@ function LineupTab({
     // export doesn't include them.)
     const _optReady = !!(result && result.optimal && result.optimal.starters && result.optimal.starters.length);
     React.useEffect(() => {
+        // Pro only: the seed IS the optimizer's optimal lineup. Free MFL
+        // users start from an empty table and set slots manually (the free
+        // builder experience); the push guard message tells them to fill all.
+        if (!pro) return;
         if (!isMfl || !_optReady) return;
         if (Object.keys(currentAssign).length || Object.keys(workingAssign).length) return; // platform starters, or user already editing
         const byName = {};
@@ -315,20 +339,9 @@ function LineupTab({
         if (Object.keys(next).length) setWorkingAssign(next);
     }, [lineupKey, isMfl, _optReady]);
 
-    // Tier gate — matches app.js: free during pre-live, STARTSIT_DEPTH at launch.
-    const _preLiveFree = !!(window.App && window.App.EMPIRE_FREE_PRELIVE);
-    const _hasGameDay = _preLiveFree || typeof window.canAccess !== 'function' || !window.FEATURES || window.canAccess(window.FEATURES.STARTSIT_DEPTH);
-    if (!_hasGameDay) {
-        return (
-            <div style={{ maxWidth: '560px', margin: '0 auto', padding: '56px 24px', textAlign: 'center' }}>
-                <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: 'var(--silver, #9aa0a6)', fontWeight: 600 }}>GAME DAY CENTRAL</div>
-                <div style={{ fontSize: '1.3rem', color: 'var(--gold, #d4af37)', fontWeight: 700, margin: '10px 0' }}>Unlock your game-day command center</div>
-                <div style={{ color: 'var(--silver, #9aa0a6)', lineHeight: 1.6, marginBottom: '18px' }}>Weekly start/sit optimizer with floor–ceiling bands and real matchup context, opponent breakdown, a full-season schedule with win projections, and one-tap lineup push to MFL.</div>
-                <button onClick={() => { if (window.showProLaunchPage) window.showProLaunchPage(); else if (window.showUpgradePrompt) window.showUpgradePrompt(window.FEATURES.STARTSIT_DEPTH); }}
-                    style={{ padding: '10px 20px', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', borderRadius: '6px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.12)', color: 'var(--gold, #d4af37)' }}>Upgrade to War Room</button>
-            </div>
-        );
-    }
+    // No whole-tab gate: the partial free/Pro split above (`pro`) supersedes
+    // the old STARTSIT_DEPTH block — free users enter and use the manual
+    // builder; only the optimizer layer is locked inline.
 
     if (!WP || !SS) {
         return <div style={{ padding: '48px 24px', color: SILVER }}>Start/Sit engine not loaded.</div>;
@@ -398,7 +411,7 @@ function LineupTab({
         if (!pid) {
             return (<React.Fragment>
                 <span style={{ color: SILVER, opacity: 0.6, fontStyle: 'italic' }}>Empty — tap to set</span>
-                <span /><span /><span /><span /><span />
+                <span />{pro ? <span /> : null}<span /><span /><span />
             </React.Fragment>);
         }
         const meta = pmeta(pid);
@@ -421,9 +434,9 @@ function LineupTab({
             </span>
             <span style={{ textAlign: 'right' }}>
                 <span style={{ color: TEXT, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{pts ? (pts[objective] || 0).toFixed(1) : '—'}</span>
-                {pts ? <span style={{ display: 'block', color: SILVER, opacity: 0.6, fontSize: '0.56rem', fontVariantNumeric: 'tabular-nums' }}>{pts.floor.toFixed(0)}–{pts.ceiling.toFixed(0)}</span> : null}
+                {pro && pts ? <span style={{ display: 'block', color: SILVER, opacity: 0.6, fontSize: '0.56rem', fontVariantNumeric: 'tabular-nums' }}>{pts.floor.toFixed(0)}–{pts.ceiling.toFixed(0)}</span> : null}
             </span>
-            <span style={{ textAlign: 'center' }}><span title={opp && opp.abbr ? ('vs ' + opp.abbr) : ('Matchup ' + grade)} style={{ fontWeight: 700, color: gradeColor(grade), fontSize: '0.78rem' }}>{grade}</span></span>
+            {pro ? <span style={{ textAlign: 'center' }}><span title={opp && opp.abbr ? ('vs ' + opp.abbr) : ('Matchup ' + grade)} style={{ fontWeight: 700, color: gradeColor(grade), fontSize: '0.78rem' }}>{grade}</span></span> : null}
             {num(fs ? fs.rollingPPG.toFixed(1) : '—', TEXT)}
             {num(fs ? fs.high.toFixed(1) : '—', GREEN)}
             {num(fs ? fs.low.toFixed(1) : '—', SILVER)}
@@ -436,7 +449,7 @@ function LineupTab({
             <span title="Roster slot">Slot</span>
             <span title="Player · position · NFL team · this week's opponent">Player</span>
             <span title={projTip} style={{ textAlign: 'right' }}>Proj</span>
-            <span title="Matchup grade A (great) → F (tough), from the opponent's Vegas implied total" style={{ textAlign: 'center' }}>Mtch</span>
+            {pro ? <span title="Matchup grade A (great) → F (tough), from the opponent's Vegas implied total" style={{ textAlign: 'center' }}>Mtch</span> : null}
             <span title={'Rolling average over the last ' + (formWindow === 'season' ? 'full season' : formWindow + ' weeks') + ' (actual points)'} style={{ textAlign: 'right' }}>{formWinLabel}</span>
             <span title="Season high — most fantasy points in a week" style={{ textAlign: 'right' }}>Hi</span>
             <span title="Season low — fewest points in a played week" style={{ textAlign: 'right' }}>Lo</span>
@@ -546,7 +559,18 @@ function LineupTab({
                 {/* Season outlook (or a pre-season placeholder when no schedule yet) */}
                 <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
                     <div style={{ fontSize: '0.64rem', letterSpacing: '0.07em', color: SILVER, fontWeight: 600 }}>SEASON OUTLOOK</div>
-                    {scheduleUnset ? (
+                    {!pro ? (
+                        // Free: raw current record only — proj record / PF / win% are
+                        // season-sim (optimizer) outputs.
+                        <React.Fragment>
+                            {d && d.summary && d.summary.record ? (
+                                <div style={{ display: 'flex', gap: '16px', margin: '8px 0 10px' }}>
+                                    <div><div style={{ fontSize: '0.6rem', color: SILVER, letterSpacing: '0.04em' }}>NOW</div><div style={{ fontWeight: 700, color: TEXT }}>{d.summary.record}</div></div>
+                                </div>
+                            ) : <div style={{ height: '8px' }} />}
+                            {GatedRow ? <GatedRow title="Season projection" sub="Projected record, points-for and weekly win odds" feature={STARTSIT_FEAT} /> : null}
+                        </React.Fragment>
+                    ) : scheduleUnset ? (
                         <div style={{ color: SILVER, fontSize: '0.74rem', marginTop: '8px', lineHeight: 1.5 }}>Schedule posts closer to Week 1. Building your <span style={{ color: TEXT, fontWeight: 600 }}>Week 1</span> lineup now — record + win% light up once matchups are set.</div>
                     ) : d && d.summary ? (
                         <React.Fragment>
@@ -576,7 +600,8 @@ function LineupTab({
                                 <span style={{ color: bw.unfilled ? RED : AMBER, fontWeight: 800 }}>{bw.unfilled ? '⚠' : bw.count}</span>
                             </div>
                         ))}
-                        <div style={{ fontSize: '0.62rem', color: SILVER, opacity: 0.7, marginTop: '6px' }}>Plan waivers/draft around these.</div>
+                        {/* The raw bye listing is free; the "do X" line is a rec. */}
+                        {pro ? <div style={{ fontSize: '0.62rem', color: SILVER, opacity: 0.7, marginTop: '6px' }}>Plan waivers/draft around these.</div> : null}
                     </div>
                 ) : null}
 
@@ -584,9 +609,9 @@ function LineupTab({
                 <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', overflow: 'hidden' }}>
                     <div style={{ padding: '9px 14px', borderBottom: `1px solid ${LINE}`, fontSize: '0.64rem', letterSpacing: '0.07em', color: SILVER, fontWeight: 600 }}>SCHEDULE</div>
                     {scheduleUnset ? (
-                        <div style={{ padding: '10px 14px', color: SILVER, fontSize: '0.74rem', opacity: 0.8, lineHeight: 1.5 }}>Opponents + weekly win% appear here once your league posts the schedule.</div>
+                        <div style={{ padding: '10px 14px', color: SILVER, fontSize: '0.74rem', opacity: 0.8, lineHeight: 1.5 }}>{pro ? 'Opponents + weekly win% appear here once your league posts the schedule.' : 'Opponents appear here once your league posts the schedule.'}</div>
                     ) : d && d.weeks ? d.weeks.map(w => {
-                        const wp = w.winPct;
+                        const wp = pro ? w.winPct : null; // weekly win% is a Pro likelihood read
                         const color = w.result ? (w.result === 'W' ? GREEN : w.result === 'L' ? RED : SILVER) : (wp == null ? SILVER : wp >= 55 ? GREEN : wp <= 45 ? RED : GOLD);
                         const bye = w.byes || {};
                         return (
@@ -620,31 +645,75 @@ function LineupTab({
             <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : '1fr 300px', gap: '16px', alignItems: 'start' }}>
                 <div style={{ minWidth: 0 }}>
                     {renderMflPush()}
-                    {/* Hero — Your lineup vs Optimal */}
+                    {/* Hero — Pro: Your lineup vs Optimal. Free: raw working total
+                        (sum of the slots the user set) + optimizer teaser; the
+                        optimal total / bench delta are optimizer outputs. */}
                     <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '18px 20px', marginBottom: '14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
                     <div>
                         <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600 }}>WEEK {result.week} · GAME DAY CENTRAL</div>
-                        <div style={{ fontSize: '1.45rem', fontWeight: 700, color: isOptimal ? GREEN : GOLD, marginTop: '6px' }}>
-                            {isOptimal ? 'Lineup is optimal' : `${benchPts.toFixed(1)} pts below optimal`}
-                        </div>
-                        <div style={{ color: SILVER, fontSize: '0.82rem', marginTop: '4px' }}>
-                            Your lineup {workingTotal.toFixed(1)} · Optimal {optimalTotal.toFixed(1)}
-                        </div>
+                        {pro ? (
+                            <React.Fragment>
+                                <div style={{ fontSize: '1.45rem', fontWeight: 700, color: isOptimal ? GREEN : GOLD, marginTop: '6px' }}>
+                                    {isOptimal ? 'Lineup is optimal' : `${benchPts.toFixed(1)} pts below optimal`}
+                                </div>
+                                <div style={{ color: SILVER, fontSize: '0.82rem', marginTop: '4px' }}>
+                                    Your lineup {workingTotal.toFixed(1)} · Optimal {optimalTotal.toFixed(1)}
+                                </div>
+                            </React.Fragment>
+                        ) : (
+                            <React.Fragment>
+                                <div style={{ fontSize: '1.45rem', fontWeight: 700, color: GOLD, marginTop: '6px' }}>
+                                    Your lineup {workingTotal.toFixed(1)} pts
+                                </div>
+                                <div style={{ color: SILVER, fontSize: '0.82rem', marginTop: '4px' }}>
+                                    Tap a slot below to set your starters — the total updates live.
+                                </div>
+                            </React.Fragment>
+                        )}
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '0.66rem', color: SILVER, letterSpacing: '0.06em' }}>OPTIMIZING FOR</div>
-                        <div style={{ fontSize: '0.82rem', color: GOLD, fontWeight: 600, marginTop: '3px' }}>{OBJ_LABEL[objective] || objective}</div>
+                        {pro ? (
+                            <React.Fragment>
+                                <div style={{ fontSize: '0.66rem', color: SILVER, letterSpacing: '0.06em' }}>OPTIMIZING FOR</div>
+                                <div style={{ fontSize: '0.82rem', color: GOLD, fontWeight: 600, marginTop: '3px' }}>{OBJ_LABEL[objective] || objective}</div>
+                            </React.Fragment>
+                        ) : null}
                         <div style={{ display: 'flex', gap: '6px', marginTop: '10px', justifyContent: 'flex-end' }}>
-                            <button onClick={applyOptimal} style={{ ...actBtn, color: GOLD, borderColor: 'var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.12)' }}>Apply Optimal</button>
+                            {pro ? <button onClick={applyOptimal} style={{ ...actBtn, color: GOLD, borderColor: 'var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.12)' }}>Apply Optimal</button> : null}
                             <button onClick={() => { setWorkingAssign(currentAssign); setOpenSlot(null); }} style={actBtn}>Reset</button>
                         </div>
                     </div>
                 </div>
+                {!pro && GatedRow ? (
+                    <div style={{ marginTop: '12px' }}>
+                        <GatedRow title="Lineup optimizer" sub="Optimal lineup + points left on bench, floor–ceiling bands, matchup grades and win odds" feature={STARTSIT_FEAT} />
+                    </div>
+                ) : null}
             </div>
 
-            {/* Weekly matchup — opponent, projected scores, win probability */}
-            {matchup ? (
+            {/* Weekly matchup — opponent, projected scores, win probability.
+                Free keeps the raw head-to-head totals (your working lineup vs
+                their CURRENT lineup — their ideal is an optimizer read); win
+                probability, margin, position strength and the slot-by-slot
+                breakdown are Pro. */}
+            {matchup && !pro ? (
+                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '16px 20px', marginBottom: '14px' }}>
+                    <div style={{ fontSize: '0.7rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600 }}>WEEK {result.week} MATCHUP · vs {matchup.oppName}</div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '1.5rem', fontWeight: 700, color: TEXT, fontVariantNumeric: 'tabular-nums' }}>{matchup.fc.projMe.toFixed(1)}</span>
+                        <span style={{ color: SILVER, fontSize: '0.8rem' }}>you</span>
+                        <span style={{ color: SILVER, fontWeight: 700, margin: '0 2px' }}>–</span>
+                        <span style={{ fontSize: '1.5rem', fontWeight: 700, color: TEXT, fontVariantNumeric: 'tabular-nums' }}>{matchup.oppCurTotal > 0 ? matchup.oppCurTotal.toFixed(1) : '—'}</span>
+                        <span style={{ color: SILVER, fontSize: '0.8rem' }}>them{matchup.oppCurTotal > 0 ? ' (current lineup)' : ''}</span>
+                    </div>
+                    {GatedRow ? (
+                        <div style={{ marginTop: '12px' }}>
+                            <GatedRow title="Win probability + matchup breakdown" sub="Projected margin, slot-by-slot edges and position-strength bars" feature={STARTSIT_FEAT} />
+                        </div>
+                    ) : null}
+                </div>
+            ) : matchup ? (
                 <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '16px 20px', marginBottom: '14px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
                         <div style={{ minWidth: 0 }}>
@@ -753,7 +822,7 @@ function LineupTab({
             </div>
 
             <div style={{ color: SILVER, fontSize: '0.66rem', marginTop: '10px', lineHeight: 1.6, opacity: 0.9 }}>
-                <strong style={{ color: TEXT }}>Proj</strong> projected pts (your {objective} strategy) · <strong style={{ color: TEXT }}>Mtch</strong> matchup grade A–F (opponent's implied total) · <strong style={{ color: TEXT }}>{formWinLabel}</strong> rolling avg of actual pts · <strong style={{ color: TEXT }}>Hi/Lo</strong> season best/worst week
+                <strong style={{ color: TEXT }}>Proj</strong> projected pts (your {objective} strategy){pro ? <React.Fragment> · <strong style={{ color: TEXT }}>Mtch</strong> matchup grade A–F (opponent's implied total)</React.Fragment> : null} · <strong style={{ color: TEXT }}>{formWinLabel}</strong> rolling avg of actual pts · <strong style={{ color: TEXT }}>Hi/Lo</strong> season best/worst week
             </div>
             <div style={{ color: SILVER, fontSize: '0.72rem', marginTop: '8px', lineHeight: 1.5 }}>
                 Projections are league-scored from role, recent form{objective !== 'median' ? `, your ${result.mode.replace('_', '-')} strategy` : ''}, matchup and defense-vs-position; form columns are actual weekly points over the chosen window. Build and compare here{isMfl ? ' — then push straight to MFL above' : ' — set the final lineup on your platform'}.

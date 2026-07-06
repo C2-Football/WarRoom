@@ -623,19 +623,21 @@
     }
 
     // ── Overview sub-tab ──────────────────────────────────────────
-    function OverviewView({ kpis, insights, props, settings }) {
+    function OverviewView({ kpis, insights, props, settings, isPro = true, lockedInsightCount = 0 }) {
         const Kpi = window.WR.Kpi;
         const InsightCard = window.WR.InsightCard;
         const fmtK = (n) => n == null ? null : ((n > 0 ? '+' : '') + (n / 1000).toFixed(1) + 'k');
 
         // AI-generated insights — separate from heuristic insights, cached
         // for 24h, tagged with isAi so the card badge can distinguish them.
-        const [aiState, setAiState] = useState(() => loadCachedAiInsights(props));
+        // Free never loads (or decorates) the AI cache: the whole read layer
+        // is Pro (gate-map row 10) and no AI may fire for a free user.
+        const [aiState, setAiState] = useState(() => isPro ? loadCachedAiInsights(props) : { insights: [], ts: 0 });
         const [aiLoading, setAiLoading] = useState(false);
         const [aiError, setAiError] = useState(null);
         const decoratedAiInsights = React.useMemo(
-            () => decorateInsightRecommendations(aiState?.insights || [], props, kpis, 'ai'),
-            [aiState, props, kpis]
+            () => isPro ? decorateInsightRecommendations(aiState?.insights || [], props, kpis, 'ai') : [],
+            [aiState, props, kpis, isPro]
         );
         const aiInsights = React.useMemo(
             () => decoratedAiInsights.filter(x => !window.WR?.AlexSettings || window.WR.AlexSettings.shouldShow(x)),
@@ -644,15 +646,23 @@
         const merged = React.useMemo(() => [...insights, ...aiInsights], [insights, aiInsights]);
 
         useEffect(() => {
+            if (!isPro) return; // free publishes no recommendations app-wide
             publishInsightRecommendations(merged, 'gm-office-overview');
-        }, [merged]);
+        }, [merged, isPro]);
 
         useEffect(() => {
-            setAiState(loadCachedAiInsights(props));
+            setAiState(isPro ? loadCachedAiInsights(props) : { insights: [], ts: 0 });
             setAiError(null);
-        }, [props?.currentLeague?.id, props?.currentLeague?.league_id]);
+        }, [props?.currentLeague?.id, props?.currentLeague?.league_id, isPro]);
 
         const doGenerate = async () => {
+            // Trigger gate (D9 row 12): the button is hidden for free, but a
+            // BYOK user could still reach this path — never fire AI for free.
+            if (!isPro) {
+                if (window.showProLaunchPage) window.showProLaunchPage();
+                else if (window.showUpgradePrompt) window.showUpgradePrompt('briefing_reasoning');
+                return;
+            }
             setAiLoading(true); setAiError(null);
             const titles = insights.map(i => i.title);
             const r = await generateAiInsights(props, kpis, titles);
@@ -680,13 +690,20 @@
 
         return h(React.Fragment, null,
             h('div', { className: 'gm-office-kpi-grid' },
-                h(Kpi, {
+                // GM Grade is an A-F composite interpretation \u2014 Pro. The other
+                // tiles are the raw activity counts free keeps (gate-map row 10).
+                h(Kpi, isPro ? {
                     label: 'GM Grade',
                     value: gmGradeLetter(kpis.gmScore),
                     tone: gmGradeTone(kpis.gmScore),
                     sub: kpis.gmScore != null
                         ? (kpis.gmScore + '/100 \u00B7 ' + kpis.gmScoreSample + '-dim composite')
                         : 'Need more decision history',
+                } : {
+                    label: 'GM Grade',
+                    value: '\uD83D\uDD12',
+                    tone: 'mute',
+                    sub: 'Pro \u2014 Alex\u2019s composite grade',
                 }),
                 h(Kpi, {
                     label: 'Trade Net DHQ',
@@ -710,10 +727,12 @@
             h('div', { className: 'gm-office-section-head' },
                 h('h2', null, 'Behavioral Analysis'),
                 h('span', { className: 'gm-office-section-meta' },
-                    '\u2014 ' + merged.length + ' insight' + (merged.length === 1 ? '' : 's') + (aiInsights.length ? ' (' + aiInsights.length + ' AI)' : '')),
+                    '\u2014 ' + (isPro
+                        ? merged.length + ' insight' + (merged.length === 1 ? '' : 's') + (aiInsights.length ? ' (' + aiInsights.length + ' AI)' : '')
+                        : lockedInsightCount + ' insight' + (lockedInsightCount === 1 ? '' : 's'))),
                 // Spacer pushes the AI controls to the right
                 h('div', { className: 'gm-office-spacer' }),
-                h('button', {
+                isPro && h('button', {
                     onClick: doGenerate,
                     disabled: aiLoading,
                     style: {
@@ -742,7 +761,18 @@
             ),
             aiError && h('div', { style: { padding: '10px 14px', marginBottom: '12px', background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: '6px', fontSize: 'var(--text-body, 1rem)', color: 'var(--bad)' } },
                 'Alex couldn\u2019t generate insights: ', aiError),
-            merged.length === 0
+            // Free: section shell + one locked teaser row, zero real insight
+            // cards reach the DOM (mirrors reconai Field Log GM Insights).
+            !isPro
+                ? (window.WrGatedMoreRow
+                    ? h(window.WrGatedMoreRow, {
+                        title: 'Unlock Behavioral Analysis with Pro',
+                        sub: (lockedInsightCount > 0 ? lockedInsightCount + ' insight' + (lockedInsightCount === 1 ? '' : 's') + ' waiting \u2014 ' : '')
+                            + 'Alex\u2019s read on your trades, waivers, drafting, and roster patterns.',
+                        feature: 'briefing_reasoning',
+                    })
+                    : null)
+                : merged.length === 0
                 ? h(window.WR.Card, { padding: '24px' },
                     h('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.7, lineHeight: 1.55, textAlign: 'center' } },
                         'No behavioral patterns detected yet. Alex needs a bit of trade / waiver / draft history before it can speak confidently.')
@@ -788,7 +818,7 @@
     // Deep-dive charts over the user's managerial history. Every panel
     // is computed from window.App.LI + window.S, with soft-fail empty
     // states when a panel's data source is thin.
-    function PatternsView({ props }) {
+    function PatternsView({ props, isPro = true }) {
         const { myRoster, currentLeague, playersData } = props || {};
         const LI = window.App?.LI || {};
         const myRid = myRoster?.roster_id;
@@ -1010,16 +1040,26 @@
         // data views that fully live in the Analytics tab. These four are
         // all behavior-specific (about how you play, not raw league data).
         return h('div', null,
-            h('div', { style: { marginBottom: '14px', padding: '12px 16px', background: 'rgba(124,107,248,0.04)', border: '1px solid rgba(124,107,248,0.15)', borderRadius: 'var(--card-radius, 10px)' } },
-                h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--purple)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px', fontFamily: 'var(--font-title)' } }, 'How this differs from Analytics'),
-                h('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.85, lineHeight: 1.5 } },
-                    'Analytics shows raw numbers. Patterns is Alex reading those numbers back to you \u2014 every chart below includes Alex\u2019s take on what it means for your play style.')
-            ),
+            // Free keeps the raw charts (raw history); Alex's per-chart reads
+            // are the Pro layer, so the banner becomes the locked teaser.
+            isPro
+                ? h('div', { style: { marginBottom: '14px', padding: '12px 16px', background: 'rgba(124,107,248,0.04)', border: '1px solid rgba(124,107,248,0.15)', borderRadius: 'var(--card-radius, 10px)' } },
+                    h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--purple)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px', fontFamily: 'var(--font-title)' } }, 'How this differs from Analytics'),
+                    h('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.85, lineHeight: 1.5 } },
+                        'Analytics shows raw numbers. Patterns is Alex reading those numbers back to you \u2014 every chart below includes Alex\u2019s take on what it means for your play style.')
+                )
+                : (window.WrGatedMoreRow
+                    ? h('div', { style: { marginBottom: '14px' } }, h(window.WrGatedMoreRow, {
+                        title: 'Alex\u2019s chart reads \u2014 Pro',
+                        sub: 'The charts stay free. Alex\u2019s take on what each one means for your play style is a Pro read.',
+                        feature: 'briefing_reasoning',
+                    }))
+                    : null),
             // Trade partners — volume
             h(Panel, {
                 title: 'Trade partners \u2014 who you deal with',
                 subtitle: partners.length + ' partner' + (partners.length === 1 ? '' : 's') + ' over ' + myTrades.length + ' trade' + (myTrades.length === 1 ? '' : 's'),
-                interpretation: tradePartnersInterp,
+                interpretation: isPro ? tradePartnersInterp : null,
                 empty: partners.length === 0 ? 'No trade history yet.' : null,
             },
                 partners.slice(0, 12).map(p => h(HBar, {
@@ -1035,7 +1075,7 @@
             h(Panel, {
                 title: 'Trade value \u2014 who you profit from',
                 subtitle: 'Net DHQ per partner; green = you won, red = they won',
-                interpretation: tradeValueInterp,
+                interpretation: isPro ? tradeValueInterp : null,
                 interpColor: partnerInterpColor,
                 empty: partners.length === 0 ? 'No trade history yet.' : null,
             },
@@ -1053,7 +1093,7 @@
             h(Panel, {
                 title: 'Draft hit rate by round',
                 subtitle: draftPicks.length + ' pick' + (draftPicks.length === 1 ? '' : 's') + ' tracked · contributor threshold 3000 DHQ',
-                interpretation: draftHitInterp,
+                interpretation: isPro ? draftHitInterp : null,
                 interpColor: draftHitInterpColor,
                 empty: draftPicks.length === 0 ? 'No draft history recorded yet.' : null,
             },
@@ -1070,7 +1110,7 @@
             h(Panel, {
                 title: 'Draft position mix',
                 subtitle: 'Where your picks land',
-                interpretation: draftPosInterp,
+                interpretation: isPro ? draftPosInterp : null,
                 empty: draftByPos.length === 0 ? 'No draft history recorded yet.' : null,
             },
                 draftByPos.map(p => h(HBar, {
@@ -1658,12 +1698,21 @@
             return window.WR.AlexSettings.subscribe((next) => setSettings(next || loadSettings()));
         }, []);
 
+        // Scout-free vs Pro (gate-map row 10): free keeps the raw activity
+        // counts (KPI inputs), Decision History, Model Settings, and the raw
+        // Patterns charts; the read layer (GM Grade composite, behavioral
+        // insight cards + Intelligence decoration/publish, Alex chart reads,
+        // AI insights) is Pro. wrIsPro only — never canAccess/getTier.
+        const isPro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
+
         // Safe read of derived data — handle mid-load states
         const kpis = React.useMemo(() => computeKpis(props), [props.myRoster, props.currentLeague, props.timeRecomputeTs]);
         const rawInsightBase = React.useMemo(() => computeInsights(props, kpis), [kpis, props.myRoster, props.playersData]);
+        // Free: never decorate (Intelligence.buildBehavioralRecommendation is
+        // the rec engine) — the raw count alone feeds the locked teaser row.
         const rawInsights = React.useMemo(
-            () => decorateInsightRecommendations(rawInsightBase, props, kpis, 'heuristic'),
-            [rawInsightBase, props, kpis]
+            () => isPro ? decorateInsightRecommendations(rawInsightBase, props, kpis, 'heuristic') : [],
+            [rawInsightBase, props, kpis, isPro]
         );
         // Filter through AlexSettings — applies alertThreshold + focus areas + maxAlertsPerWeek.
         const insights = React.useMemo(() => {
@@ -1677,9 +1726,9 @@
                 onChange: setSubTab,
                 tabs: alexTabs
             }),
-            activeSubTab === 'overview' && h(OverviewView, { kpis, insights, props, settings }),
+            activeSubTab === 'overview' && h(OverviewView, { kpis, insights, props, settings, isPro, lockedInsightCount: rawInsightBase.length }),
             !hideStrategyTab && activeSubTab === 'strategy' && h(StrategySubview, { props }),
-            activeSubTab === 'patterns' && h(PatternsView, { props }),
+            activeSubTab === 'patterns' && h(PatternsView, { props, isPro }),
             activeSubTab === 'history' && h(HistoryView, { props }),
             activeSubTab === 'settings' && h(SettingsView, { settings, setSettings, leagueSkin: props.leagueSkin, currentLeague: props.currentLeague })
         );

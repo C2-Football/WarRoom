@@ -18,6 +18,11 @@
     // DRAFT TAB — migrated from draft-warroom.html
     // ══════════════════════════════════════════════════════════════════════════
     function DraftTab({ playersData, statsData, myRoster, currentLeague, leagueSkin, sleeperUserId, setReconPanelOpen, sendReconMessage, timeRecomputeTs, viewMode }) {
+        // Scout-free vs Pro (js/shared/pro-gate.js). Fail-open so the tab never
+        // breaks if the gate isn't loaded. Evaluated per render (reconai precedent).
+        // Free keeps: raw board + tiers + tags + saved views, pick inventory,
+        // draft grid, plain BPA mock, pick-value chart. Recs/optimizers/AI = Pro.
+        const isPro = typeof window.wrIsPro !== 'function' || window.wrIsPro();
         const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
         const skinFeatures = resolvedLeagueSkin?.features || {};
         const valueShortLabel = resolvedLeagueSkin?.vocabulary?.valueShortLabel || 'DHQ';
@@ -257,6 +262,9 @@
         // returns null on the free tier, so the deterministic narrative stays the
         // baseline. Only fires for the currently-expanded player to limit LLM cost.
         useEffect(() => {
+            // Own trigger gate (BYOK bypasses fetchNFLFitNews's internal tier
+            // check path) — the whole "Alex NFL Fit" read is Pro-only below.
+            if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) return;
             const pid = expandedDraftPid;
             if (!pid || typeof window.App?.fetchNFLFitNews !== 'function') return;
             const row = (draftPoolRows || []).find(x => String(x.pid) === String(pid));
@@ -735,12 +743,15 @@
         }, [leagueKey, currentLeague, boardPoolForContext, assess, draftVariant]);
 
         const aiRecommendedOrder = useMemo(() => {
-            const fromContext = boardContextForRoom?.lanes?.ai?.order || boardContextForRoom?.lanes?.AI?.order || [];
+            // Free tier: the strategy-fit re-rank is an optimizer output → Pro.
+            // Fall through to the raw value order so the My-board seed and any
+            // persisted 'ai' board mode degrade to plain value math.
+            const fromContext = isPro ? (boardContextForRoom?.lanes?.ai?.order || boardContextForRoom?.lanes?.AI?.order || []) : [];
             if (fromContext.length) return fromContext;
             return draftPoolRows.slice()
                 .sort((a, b) => Number(b.dhq || 0) - Number(a.dhq || 0))
                 .map(r => r.pid);
-        }, [boardContextForRoom, draftPoolRows]);
+        }, [boardContextForRoom, draftPoolRows, isPro]);
 
         const applyAiOrderToUserBoard = useCallback((scope = 'master') => {
             if (!aiRecommendedOrder.length) return;
@@ -970,6 +981,8 @@
         }, []);
 
         const flashAnalystPreviewReports = useMemo(() => {
+            // Persona-projected mocks are a Scout Pro optimizer — free never simulates.
+            if (!isPro) return [];
             // Frozen once the live draft starts — stop re-simulating, show the locked board.
             if (frozenMock) return frozenMock.previewReports || [];
             const engine = window.DraftCC?.analystMock;
@@ -991,9 +1004,10 @@
                     return null;
                 }
             }).filter(Boolean);
-        }, [boardPoolForContext.length, flashAnalystPresetOptions, draftProjectionState, draftProjectionMeta, playersData, currentLeague, myRoster, frozenMock]);
+        }, [boardPoolForContext.length, flashAnalystPresetOptions, draftProjectionState, draftProjectionMeta, playersData, currentLeague, myRoster, frozenMock, isPro]);
 
         const generateFlashAnalystMock = useCallback(() => {
+            if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) return; // Pro (card is teasered for free)
             if (liveDraftOn) return; // locked once the live draft is detected — don't re-simulate
             const engine = window.DraftCC?.analystMock;
             if (!engine?.generateProjectedMock || !boardPoolForContext.length) return;
@@ -1217,6 +1231,9 @@
         }, [normPos, nextPickLabel, fmtDhq, valueShortLabel]);
 
         const pressureProjectionReport = useMemo(() => {
+            // Persona-projected pressure read is Pro; free's Board Pressure falls
+            // back to the raw board-order slice in likelyGoneBeforePick.
+            if (!isPro) return null;
             // Frozen once the live draft starts, alongside the preview mock.
             if (frozenMock) return frozenMock.pressureReport || null;
             const engine = window.DraftCC?.analystMock;
@@ -1237,7 +1254,7 @@
                 if (window.wrLog) window.wrLog('draftRoom.pressureProjection', e);
                 return null;
             }
-        }, [boardPoolForContext.length, draftProjectionState, draftProjectionMeta, playersData, currentLeague, myRoster, highestCurrentPickRound, draftRounds, frozenMock]);
+        }, [boardPoolForContext.length, draftProjectionState, draftProjectionMeta, playersData, currentLeague, myRoster, highestCurrentPickRound, draftRounds, frozenMock, isPro]);
         const draftPredictionReport = activeFlashAnalystReport || pressureProjectionReport || activeFlashPreviewReport;
 
         // Freeze the Analyst Mock on the live draft's first real pick; clear if it resets.
@@ -1738,6 +1755,10 @@
         // voice; we parse "POS: note" lines and swap them in over the seeded
         // template. If AI is unavailable or the call fails, the template stands.
         useEffect(() => {
+            // Trigger gate, not just the hasAI() tripwire: a BYOK user (S.apiKey)
+            // routes dhqAI straight to the provider, so free must never reach
+            // AV.enhance from this auto-fire (targets are Pro-gated anyway).
+            if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) return;
             if (liveDraftOn) return; // live draft: generation is locked — don't fire AI note calls
             const AV = window.AlexVoice;
             if (!AV || !AV.hasAI() || !needLabels.length) return;
@@ -2270,6 +2291,21 @@
         };
 
         const renderAnalystFlash = () => {
+            // Persona-projected league mock (analyst-mock.js) is an optimizer → Pro.
+            if (!isPro) {
+                const GatedRow = window.WrGatedMoreRow;
+                return (
+                    <section className="draft-hq-action-card draft-analyst-flash">
+                        <div className="draft-hq-panel-head draft-alex-head">
+                            <span>Alex Analyst Mock</span>
+                            <em>Pro</em>
+                        </div>
+                        {GatedRow
+                            ? <GatedRow title="Projected league mock" sub="Alex simulates every team's picks from their draft DNA — Scout Pro." feature="draft_analyst_mock" />
+                            : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Alex Analyst Mock', 'draft_analyst_mock', 'Projected league mocks are Scout Pro.') : '' }} />}
+                    </section>
+                );
+            }
             // Overlay actual live picks onto the (frozen) mock so it reflects what really happened.
             const liveByOverall = {};
             (liveDraftSnapshot.picks || []).forEach(p => { if (p && Number(p.overall)) liveByOverall[Number(p.overall)] = p; });
@@ -2374,6 +2410,24 @@
         // archetype, derived from roster slots + scoring (works with no
         // scheduled draft). Deterministic; no AI. App.DraftGameplan engine.
         const renderDraftGameplan = () => {
+            // Round-by-round blueprint is a draft optimizer output → Pro (mirrors
+            // reconai renderDraftGameplan). NOTE: the dynasty track adds a format
+            // flag to this SAME condition next step — keep it a single boolean.
+            const gameplanLocked = !isPro;
+            if (gameplanLocked) {
+                const GatedRow = window.WrGatedMoreRow;
+                return (
+                    <section className="draft-hq-action-card draft-gameplan">
+                        <div className="draft-hq-panel-head">
+                            <span>Draft Gameplan</span>
+                            <em>Pro</em>
+                        </div>
+                        {GatedRow
+                            ? <GatedRow title="Round-by-round gameplan" sub="Archetype blueprints from your roster slots + scoring are Scout Pro." feature="draft_gameplan" />
+                            : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Draft Gameplan', 'draft_gameplan', 'Round-by-round blueprints are Scout Pro.') : '' }} />}
+                    </section>
+                );
+            }
             const GP = window.App && window.App.DraftGameplan;
             if (!GP) return null;
             let plan = null;
@@ -2452,7 +2506,8 @@
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', marginBottom: 10, borderRadius: 8, border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', flexWrap: 'wrap' }}>
                                 <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--gold)', boxShadow: '0 0 0 3px rgba(212,175,55,0.22)', flexShrink: 0 }} />
                                 <strong style={{ color: 'var(--gold)', fontSize: '0.8rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Draft Complete</strong>
-                                {lastDraftRecap?.grade?.letter && (
+                                {/* A–F grade is an interpretation → Pro (clean absence for free) */}
+                                {isPro && lastDraftRecap?.grade?.letter && (
                                     <span style={{ padding: '2px 9px', borderRadius: 999, border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', color: 'var(--gold)', fontFamily: 'var(--font-display, Rajdhani, sans-serif)', fontWeight: 800, fontSize: '0.8rem', letterSpacing: '0.04em' }}>
                                         GRADE {lastDraftRecap.grade.letter}{lastDraftRecap.rank ? ' · #' + lastDraftRecap.rank + ' in class' : ''}
                                     </span>
@@ -2514,7 +2569,19 @@
                                     })}
                                 </div>
 
-                                {(() => { const hasGraded = rosterScorecard.some(r => r.kind === 'drafted'); return (<>
+                                {(() => {
+                                if (!isPro) {
+                                    // Positional targets + Alex notes + graded live scorecard are
+                                    // recs → Pro. Free keeps the raw pick capital above untouched.
+                                    const GatedRow = window.WrGatedMoreRow;
+                                    return (<>
+                                        <div className="draft-hq-subhead">Roster Targeting</div>
+                                        {GatedRow
+                                            ? <GatedRow title={'See your ' + (needLabels.length || '') + ' positional targets'} sub="Need-ranked targets, Alex notes, and the live pick scorecard are Scout Pro." feature="draft_targets" />
+                                            : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Roster Targeting', 'draft_targets', 'Need-ranked targets and pick grades are Scout Pro.') : '' }} />}
+                                    </>);
+                                }
+                                const hasGraded = rosterScorecard.some(r => r.kind === 'drafted'); return (<>
                                 <div className="draft-hq-subhead">{hasGraded ? 'Roster Targeting · Live Scorecard' : 'Roster Targeting'}</div>
                                 <div className="draft-target-header">
                                     <span>Pos</span>
@@ -2557,6 +2624,12 @@
                             <aside className="draft-hq-actions">
                                 <div className="draft-hq-action-card">
                                     <strong>Draft Plan</strong>
+                                    {/* AI draft plan / class read + AI-order board apply → Pro */}
+                                    {!isPro ? (
+                                        window.WrGatedMoreRow
+                                            ? React.createElement(window.WrGatedMoreRow, { title: 'Alex draft plan + class read', sub: 'AI scouting reports and the strategy-fit board order are Scout Pro.', feature: 'draft_ai_reports' })
+                                            : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Draft Plan', 'draft_ai_reports', 'AI draft plans and class reads are Scout Pro.') : '' }} />
+                                    ) : (
                                     <div className="draft-card-actions draft-card-actions-grouped">
                                         <div className="draft-card-actions-row">
                                             <button type="button" disabled={!rosterState.isUsable} title={!rosterState.isUsable ? rosterState.message : 'Generate draft scouting report'} onClick={requestFullDraftReport}>{rosterState.isUsable ? 'Generate Report' : 'Sync Required'}</button>
@@ -2567,6 +2640,7 @@
                                             <button type="button" disabled={!aiRecommendedOrder.length || !boardPosFilter} onClick={() => applyAiOrderToUserBoard('position')}>Apply Position</button>
                                         </div>
                                     </div>
+                                    )}
                                     {savedReports.length > 0 && (
                                         <div style={{ marginTop: 10, borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))', paddingTop: 8 }}>
                                             <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--silver)', opacity: 0.6, marginBottom: 6 }}>Saved Reports</div>
@@ -2599,11 +2673,18 @@
                                 <div className="draft-hq-panel-head">
                                     <span>Alex's Recommended Draft</span>
                                     <em>{(() => {
+                                        if (!isPro) return 'Pro';
                                         if (!aiDraftPathRows.length) return 'waiting on projection';
                                         const lockedN = aiDraftPathRows.filter(p => p.locked).length;
                                         return lockedN ? lockedN + ' locked / ' + (aiDraftPathRows.length - lockedN) + ' to come' : aiDraftPathRows.length + ' recommended picks';
                                     })()}</em>
                                 </div>
+                                {/* Ranked pick plan = recommendation list → Pro */}
+                                {!isPro ? (
+                                    window.WrGatedMoreRow
+                                        ? React.createElement(window.WrGatedMoreRow, { title: 'Alex picks your whole draft', sub: 'A slot-by-slot recommended pick plan for your capital — Scout Pro.', feature: 'draft_pick_plan' })
+                                        : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard("Alex's Recommended Draft", 'draft_pick_plan', 'The slot-by-slot pick plan is Scout Pro.') : '' }} />
+                                ) : (
                                 <div className="draft-rec-list">
                                     {aiDraftPathRows.length ? (() => { const firstFutureIdx = aiDraftPathRows.findIndex(p => !p.locked); return aiDraftPathRows.map((pick, i) => (
                                         <div
@@ -2642,6 +2723,7 @@
                                         </div>
                                     )); })() : <div className="draft-empty">No clean AI path yet. Sync the draft board or roster data, then Alex will publish our pick plan here.</div>}
                                 </div>
+                                )}
                             </section>
 
                             <section className="draft-hq-panel">
@@ -2655,7 +2737,8 @@
                                             <strong style={{ color: posColors[row.pos] || 'var(--gold)' }}>{row.pos}</strong>
                                             <span>{row.count} likely gone</span>
                                             <em>{row.names.join(', ')}</em>
-                                            <p>{row.note}</p>
+                                            {/* need-read note is advice — raw counts/names stay free */}
+                                            {isPro && <p>{row.note}</p>}
                                         </div>
                                     )) : <div className="draft-empty">No pick-pressure read yet.</div>}
                                 </div>
@@ -2671,7 +2754,8 @@
                                                 <button type="button" onClick={() => setBoardTags(prev => ({ ...prev, [row.topPid]: 'target' }))} style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', borderRadius: 5, padding: '1px 7px', fontSize: 'var(--text-micro)', fontFamily: 'var(--font-body)', cursor: 'pointer' }}>Tag</button>
                                                 {row.nextNames && row.nextNames.length ? <span style={{ opacity: 0.6 }}>{' · then ' + row.nextNames.join(', ')}</span> : null}
                                             </em>
-                                            <p>{row.alexBlurb}</p>
+                                            {/* seeded "attack/wait" plan is a rec — depth counts stay free */}
+                                            {isPro && <p>{row.alexBlurb}</p>}
                                         </div>
                                     ))}
                                 </div>
@@ -3135,7 +3219,8 @@
                                                         ))}
                                                     </div>
                                                     {compText && <div style={{ color: 'var(--white)', opacity: 0.82, fontSize: 'var(--text-micro, 0.6875rem)', marginTop: 7 }}>Comp: {compText}</div>}
-                                                    {teamFitInsight && (
+                                                    {/* fit READ is interpretation → Pro; raw scouting bits above stay free */}
+                                                    {isPro && teamFitInsight && (
                                                         <div style={{ border: '1px solid rgba(46,204,113,0.18)', background: 'rgba(46,204,113,0.045)', borderRadius: 6, padding: '7px 8px', marginTop: 7 }}>
                                                             <span style={{ display: 'block', color: 'var(--good)', fontSize: 'var(--text-micro)', fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Alex NFL Fit{nflFitAI[r.pid] ? ' · Live' : ''}</span>
                                                             <div style={{ color: 'var(--silver)', fontSize: '0.7rem', lineHeight: 1.42 }}>{nflFitAI[r.pid] || teamFitInsight}</div>
@@ -3162,7 +3247,8 @@
                                                         <a href={(isSeasonalDraft ? 'https://www.pro-football-reference.com/search/search.fcgi?search=' : 'https://www.sports-reference.com/cfb/search/search.fcgi?search=') + encodeURIComponent(pName(r.p))} target="_blank" rel="noopener" title={isSeasonalDraft ? 'Open Pro Football Reference player search in a new tab' : 'Open Sports Reference college stats in a new tab'} onClick={e => e.stopPropagation()} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(52,152,219,0.12)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>{isSeasonalDraft ? 'PRO STATS' : 'COLLEGE STATS'}</a>
                                                         <a href={'https://www.youtube.com/results?search_query=' + encodeURIComponent(pName(r.p) + ' highlights ' + leagueSeason)} target="_blank" rel="noopener" onClick={e => e.stopPropagation()} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(231,76,60,0.12)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>HIGHLIGHTS</a>
                                                         <a href={'https://www.fantasypros.com/nfl/players/' + encodeURIComponent(((r.p.first_name || '') + '-' + (r.p.last_name || '')).toLowerCase().replace(/[^a-z-]/g, '')) + '.php'} target="_blank" rel="noopener" title="Open FantasyPros player news and profile in a new tab" aria-label={'Open FantasyPros news for ' + pName(r.p)} onClick={e => e.stopPropagation()} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(52,152,219,0.15)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>FANTASYPROS NEWS</a>
-                                                        <button type="button" onClick={e => {
+                                                        {/* AI scouting chat entry point → Pro (clean absence for free) */}
+                                                        {isPro && <button type="button" onClick={e => {
                                                             e.stopPropagation();
                                                             const name = pName(r.p);
                                                             const sections = [];
@@ -3178,7 +3264,7 @@
                                                                 const context = isSeasonalDraft ? (posLabel(pos) + ', ' + (team || 'FA') + ', age ' + (age || 'unknown') + ', ' + rankStr + ' board rank, ' + tierStr + ' tier') : (posLabel(pos) + ', ' + college);
                                                                 sendReconMessage('Give me a full ' + (isSeasonalDraft ? 'redraft NFL player scouting report' : 'rookie scouting report') + ' on ' + name + ' (' + context + '). Include role, production profile, weekly floor, ceiling, risk, comparable players, and where I should draft him in this league format.');
                                                             }
-                                                        }} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(124,107,248,0.15)', color: 'var(--purple)', border: '1px solid rgba(124,107,248,0.3)', borderRadius: 6, cursor: 'pointer', fontWeight: 800 }}>ASK ALEX</button>
+                                                        }} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(124,107,248,0.15)', color: 'var(--purple)', border: '1px solid rgba(124,107,248,0.3)', borderRadius: 6, cursor: 'pointer', fontWeight: 800 }}>ASK ALEX</button>}
                                                         <button type="button" onClick={e => { e.stopPropagation(); setExpandedDraftPid(null); }} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 6, cursor: 'pointer', fontWeight: 800 }}>COLLAPSE</button>
                                                     </div>
                                                 </div>
@@ -3200,8 +3286,9 @@
                     const availableTeams = Array.from(teamSet).sort();
                     const boardModeOptions = [
                         { k: 'dhq', label: 'Default Board', sub: valueShortLabel + ' value rank', detail: 'Canonical value order from the value engine.' },
-                        { k: 'ai', label: 'AI Recommended', sub: 'GM strategy fit', detail: 'Re-ranked for your strategy, roster pressure, and league format.' },
-                        { k: 'my', label: 'User Board', sub: 'editable front office board', detail: myBoardOrder.length ? 'Manual order with your notes, tags, and draft prep.' : 'Starts from AI Recommended, then becomes yours when edited.' },
+                        // Strategy-fit re-rank lane is an optimizer output → Pro-only lane.
+                        ...(isPro ? [{ k: 'ai', label: 'AI Recommended', sub: 'GM strategy fit', detail: 'Re-ranked for your strategy, roster pressure, and league format.' }] : []),
+                        { k: 'my', label: 'User Board', sub: 'editable front office board', detail: myBoardOrder.length ? 'Manual order with your notes, tags, and draft prep.' : (isPro ? 'Starts from AI Recommended, then becomes yours when edited.' : 'Starts from the value order, then becomes yours when edited.') },
                     ];
                     const activeBoardInfo = boardModeOptions.find(opt => opt.k === boardMode) || boardModeOptions[0];
                     const allBoardPlayers = boardMode === 'my' ? myBoardPlayers : boardMode === 'ai' ? aiBoardPlayers : dhqBoardPlayers;
@@ -3416,7 +3503,7 @@
                                 {!detail && draftHistoryRecaps.map(r => (
                                     <button key={r.id} type="button" onClick={() => setHistoryRecapId(r.id)}
                                         style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', padding: '10px 12px', marginBottom: 6, borderRadius: 8, cursor: 'pointer', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'var(--ov-2, rgba(255,255,255,0.03))' }}>
-                                        <span style={{ width: 40, height: 40, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', color: 'var(--gold)', fontFamily: 'var(--font-display, Rajdhani, sans-serif)', fontWeight: 900, fontSize: '1.05rem', flexShrink: 0 }}>{r.grade?.letter || '—'}</span>
+                                        <span style={{ width: 40, height: 40, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', color: 'var(--gold)', fontFamily: 'var(--font-display, Rajdhani, sans-serif)', fontWeight: 900, fontSize: '1.05rem', flexShrink: 0 }}>{isPro ? (r.grade?.letter || '—') : '🔒'}</span>
                                         <span style={{ minWidth: 0, flex: 1 }}>
                                             <span style={{ display: 'block', color: 'var(--white)', fontFamily: 'var(--font-display, Rajdhani, sans-serif)', fontWeight: 800, fontSize: '0.9rem' }}>
                                                 {r.season} {variantLabel(r.variant)}
@@ -3431,7 +3518,7 @@
                                 {detail && (
                                     <div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
-                                            <span style={{ width: 64, height: 64, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', color: 'var(--gold)', fontFamily: 'var(--font-display, Rajdhani, sans-serif)', fontWeight: 900, fontSize: '1.8rem', flexShrink: 0 }}>{detail.grade?.letter || '—'}</span>
+                                            <span style={{ width: 64, height: 64, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', color: 'var(--gold)', fontFamily: 'var(--font-display, Rajdhani, sans-serif)', fontWeight: 900, fontSize: '1.8rem', flexShrink: 0 }}>{isPro ? (detail.grade?.letter || '—') : '🔒'}</span>
                                             <div>
                                                 <div style={{ color: 'var(--white)', fontFamily: 'var(--font-display, Rajdhani, sans-serif)', fontWeight: 800, fontSize: '1.1rem' }}>{detail.season} {variantLabel(detail.variant)}</div>
                                                 <div style={{ color: 'var(--silver)', opacity: 0.75, fontSize: '0.74rem', marginTop: 2 }}>{modeLabel(detail.mode)} · {fmtDate(detail.savedAt || detail.archivedAt)}{detail.percentile ? ' · ' + detail.percentile + 'th percentile in this league' : ''}</div>
@@ -3459,11 +3546,14 @@
                                                 ))}
                                             </div>
                                         )}
+                                        {/* best/reach/worst are grade reads → Pro; raw history above stays free */}
+                                        {isPro && (
                                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                                             {detail.bestPick?.name && heroNum('Best Pick', detail.bestPick.name)}
                                             {detail.biggestReach?.name && heroNum('Biggest Reach', detail.biggestReach.name)}
                                             {detail.worstPick?.name && heroNum('Lightest Hit', detail.worstPick.name)}
                                         </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

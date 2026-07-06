@@ -2156,6 +2156,13 @@
               ]);
             }
             setGmOnboardStep(5);
+            // Free: never auto-fire AI (BYOK routes dhqAI straight to the
+            // provider, bypassing the OD.callAI tripwire) — free gets the
+            // designed canned ack instead of the AI assessment.
+            if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) {
+              setReconMessages(prev => [...prev, { role: 'assistant', content: 'Strategy locked in. Let\'s get to work — ask me anything. — Alex' }]);
+              return;
+            }
             // Generate strategy assessment
             setReconMessages(prev => [...prev, { role: 'assistant', content: '...' }]);
             (async () => {
@@ -2227,13 +2234,28 @@
 	            module: activeTab,
 	            metadata: { chars: text.trim().length },
 	          });
-	          // Free tier: 1 AI call per day
-          if (!canUseAI()) {
-            setReconMessages(prev => [...prev, { role: 'user', content: text.trim() }, { role: 'assistant', content: 'You\'ve used your free AI query for today. Upgrade to Scout ($4.99/mo) or Dynasty HQ ($9.99/mo) for unlimited AI access.' }]);
-            return;
+	          // Free tier (owner ruling 2026-07-05): ONE Ask Alex send per day on
+          // the existing AI_DAILY counter. canUseAI() can't enforce this — it
+          // trusts the server whenever hasServerAI() and only ever limited the
+          // paid 'scout' tier — and BYOK (S.apiKey) never touches the server,
+          // so the counter is checked here at the send seam.
+          if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) {
+            const dayKey = window.App.WR_KEYS.AI_DAILY(new Date().toISOString().split('T')[0]);
+            if (parseInt(window.App.WrStorage.get(dayKey, '0')) >= 1) {
+              setReconInput('');
+              setReconMessages(prev => [...prev, { role: 'user', content: text.trim() }, { role: 'assistant', content: 'That\'s my one free scouting call for today — I\'m back tomorrow. Dynasty HQ Pro gets you unlimited Ask Alex, plus verdicts, optimizers and the full intel suite.' }]);
+              return;
+            }
+            trackAIUse(); // count this send even on the server path — the server doesn't know warroom's 1/day rule
+          } else {
+            // Paid/trial: untouched — legacy scout-tier limit + server-side rate limiting.
+            if (!canUseAI()) {
+              setReconMessages(prev => [...prev, { role: 'user', content: text.trim() }, { role: 'assistant', content: 'You\'ve used your free AI query for today. Upgrade to Scout ($4.99/mo) or Dynasty HQ ($9.99/mo) for unlimited AI access.' }]);
+              return;
+            }
+            // Only track local daily use if NOT using server AI (server handles its own rate limiting)
+            if (!(typeof hasServerAI === 'function' && hasServerAI())) trackAIUse();
           }
-          // Only track local daily use if NOT using server AI (server handles its own rate limiting)
-          if (!(typeof hasServerAI === 'function' && hasServerAI())) trackAIUse();
           setReconInput('');
           const userMsg = { role: 'user', content: text.trim() };
           setReconMessages(prev => [...prev, userMsg, { role: 'assistant', content: '...' }]);

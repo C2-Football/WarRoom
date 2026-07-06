@@ -96,6 +96,9 @@
         const pa = typeof window.getPlayerAction === 'function' ? window.getPlayerAction(pid) : null;
         const rec = pa ? pa.label.toUpperCase() : (peakYrs <= 0 && trend <= -10 ? 'SELL NOW' : peakYrs <= 0 ? 'SELL' : peakYrs <= 2 ? 'SELL' : dhq >= 7000 && peakYrs >= 3 ? 'HOLD CORE' : 'HOLD');
         const recCol = rec.includes('SELL') ? 'var(--k-e74c3c, #e74c3c)' : rec.includes('BUY') ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-d4af37, #d4af37)';
+        // Verdict chip is Pro at this render seam; getPlayerAction itself stays
+        // callable for engine logic. Fail-open when pro-gate.js isn't loaded.
+        const inlinePro = typeof window.wrIsPro !== 'function' || window.wrIsPro();
         const initials = ((p.first_name||'?')[0] + (p.last_name||'?')[0]).toUpperCase();
 
         // Smart positioning: ensure card is fully visible
@@ -116,13 +119,13 @@
                 ),
                 React.createElement('button', { onClick:onClose, style:{ background:'none', border:'none', color: 'var(--text-muted)', cursor:'pointer', fontSize:'1.1rem', padding:'2px', minWidth:'44px', minHeight:'44px', display:'flex', alignItems:'center', justifyContent:'center' } }, '\u2715')
             ),
-            // Stats row
-            React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'4px', padding:'10px 16px', borderBottom:'1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
+            // Stats row \u2014 ACTION verdict cell is Pro; free gets the raw 3-cell row.
+            React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat('+(inlinePro?4:3)+',1fr)', gap:'4px', padding:'10px 16px', borderBottom:'1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
                 ...[
                     { val:dhq>0?dhq.toLocaleString():'\u2014', lbl:valueShortLabel, col:dhqCol, gauge:true },
                     { val:ppg||'\u2014', lbl:'PPG', col:ppg>=10?'var(--k-2ecc71, #2ecc71)':'var(--k-d0d0d0, #d0d0d0)' },
                     { val:peakYrs>0?peakYrs+'yr':valueYrs+'yr', lbl:peakYrs>0?'PEAK':'VALUE', col:peakCol },
-                    { val:rec, lbl:'ACTION', col:recCol }
+                    ...(inlinePro ? [{ val:rec, lbl:'ACTION', col:recCol }] : [])
                 ].map(function(s,i){ var dhqFilled=s.gauge?Math.round(Math.min(10,dhq/1000)):0; var gCol=dhq>=7000?'filled-green':dhq>=4000?'filled':'filled-red'; return React.createElement('div', { key:i, style:{textAlign:'center'} },
                     React.createElement('div', { style:{ fontFamily:'JetBrains Mono, monospace', fontSize:'1rem', fontWeight:600, color:s.col } }, s.val),
                     s.gauge ? React.createElement('div', { className:'wr-gauge', style:{marginTop:'2px'} }, Array.from({length:10}, function(_,gi){ return React.createElement('div', { key:gi, className:'wr-gauge-seg'+(gi<dhqFilled?' '+gCol:'') }); })) : null,

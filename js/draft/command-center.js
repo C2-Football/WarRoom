@@ -21,6 +21,11 @@
     const { DRAFT_CC_LAYOUT, FONT_UI, FONT_DISPL, FONT_MONO, panelCard, bpBucket } = window.DraftCC.styles;
     const SpeedMap = { slow: 1600, medium: 700, fast: 250, paused: -1 };
     const avPick = (seed, arr) => (window.AlexVoice ? window.AlexVoice.pick(seed, arr) : arr[0]);
+    // Scout-free vs Pro (js/shared/pro-gate.js). Fail-open so the room never
+    // breaks without the gate. Free keeps the raw draft mechanics (board, grid,
+    // BPA mock, pick log, raw DHQ totals); Alex layer, decision decks, grades,
+    // persona reads, and every AI trigger are Pro.
+    const ccIsPro = () => typeof window.wrIsPro !== 'function' || window.wrIsPro();
 
     const FEATURE_FLAG_KEY = 'wr_draft_cc_enabled';
     function isFeatureEnabled() {
@@ -729,6 +734,9 @@
         const lastOfferIdxRef = React.useRef(-Infinity);
         const lastPickCountRef = React.useRef(0);
         React.useEffect(() => {
+            // CPU trade offers are persona-simulated negotiations (likelihood,
+            // psych taxes) → Pro. Free mocks stay pure BPA pick-making.
+            if (!ccIsPro()) return;
             if (state.phase !== 'drafting') return;
             if (state.mode === 'live-sync' || state.mode === 'manual') return;
             if (state.activeOffer) return;            // don't stack offers
@@ -977,6 +985,12 @@
         const lastTradeEvoRef = React.useRef(0);
         const lastTradeEvoRoundRef = React.useRef(0);
         React.useEffect(() => {
+            // The whole Alex layer (rule events with seeded advice + the auto
+            // Sonnet pick-analysis at the bottom) is Scout Pro. The trigger gate
+            // here — not just the OD.callAI tripwire — is what stops a BYOK free
+            // user's dhqAI from auto-firing per pick (mirrors reconai
+            // _mockFireAlexInsight: free runs the draft old-school).
+            if (!ccIsPro()) return;
             if (state.phase !== 'drafting') return;
             if (state.picks.length === lastAlexPickCountRef.current) return;
             const prevCount = lastAlexPickCountRef.current;
@@ -1206,6 +1220,7 @@
         // Fires only when completedTrades grows. Live-sync keeps that array empty
         // (read-only), so this is inert in live drafts and never narrates there.
         React.useEffect(() => {
+            if (!ccIsPro()) return; // trade-evolution narration feeds the Pro Alex stream
             if (state.phase !== 'drafting') return;
             const trades = state.completedTrades || [];
             const tradeCount = trades.length;
@@ -4299,7 +4314,8 @@
                 <div className="mock-roster-kpis">
                     <div><span>Roster DHQ</span><strong>{mockFmt(totalDhq)}</strong></div>
                     <div><span>Draft Added</span><strong>{mockFmt(draftDhq)}</strong></div>
-                    <div><span>Draft Grade</span><strong>{grade?.letter || '--'}</strong><em>{grade?.letter ? mockFmt(grade.totalDHQ) + ' DHQ captured' : 'pending'}</em></div>
+                    {/* A–F grade is an interpretation → Pro; raw DHQ stays */}
+                    <div><span>Draft Grade</span><strong>{ccIsPro() ? (grade?.letter || '--') : '🔒'}</strong><em>{ccIsPro() && grade?.letter ? mockFmt(grade.totalDHQ) + ' DHQ captured' : ccIsPro() ? 'pending' : 'Scout Pro'}</em></div>
                 </div>
                 <div className="mock-roster-section">Position Health</div>
                 <div className="mock-roster-legend" title="Soft track shows player count against the target. Bright track shows DHQ value weight against your strongest position.">
@@ -4411,7 +4427,20 @@
                 <div className="mock-cockpit-grid">
                     <MockBigBoardTable state={state} dispatch={dispatch} isUserTurn={isUserTurn} />
                     <div className="mock-center-stack">
-                        <MockDecisionDeck state={state} dispatch={dispatch} isUserTurn={isUserTurn} currentSlot={currentSlot} onOpenTradeDesk={openTradeDesk} />
+                        {/* "Take X" decision deck = the app picking for you → Pro (mirrors reconai _rbHero) */}
+                        {ccIsPro() ? (
+                            <MockDecisionDeck state={state} dispatch={dispatch} isUserTurn={isUserTurn} currentSlot={currentSlot} onOpenTradeDesk={openTradeDesk} />
+                        ) : (
+                            <section className="mock-panel mock-decision-deck">
+                                <div className="mock-panel-head">
+                                    <span>Alex Decision Deck</span>
+                                    <em>Pro</em>
+                                </div>
+                                {window.WrGatedMoreRow
+                                    ? React.createElement(window.WrGatedMoreRow, { title: 'Alex hands you the pick', sub: 'Recommended / safe / upside cards each turn are Scout Pro. Draft from the raw board.', feature: 'draft_decision_deck' })
+                                    : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Alex Decision Deck', 'draft_decision_deck', 'Per-turn pick recommendations are Scout Pro.') : '' }} />}
+                            </section>
+                        )}
                         <MockPickLog state={state} currentSlot={currentSlot} />
                     </div>
                     <div className={'mock-right-stack' + (state.activeOffer ? ' has-trade-offer' : '')}>
@@ -4490,6 +4519,7 @@
         });
 
         const liveTradeWindow = React.useMemo(() => {
+            if (!ccIsPro()) return null; // sell-the-pick windows are likelihood reads → Pro
             if (state.mode !== 'live-sync' || state.phase !== 'drafting') return null;
             try {
                 const windows = window.DraftCC.tradeSimulator?.buildLiveTradeWindows?.(state, { lookahead: 1, currentOnly: true }) || [];
@@ -4869,7 +4899,7 @@
                             fontWeight: 700,
                             color: 'var(--gold)',
                         }}>
-                            {grade.letter} · {grade.totalDHQ >= 1000 ? (grade.totalDHQ / 1000).toFixed(1) + 'k' : grade.totalDHQ} DHQ
+                            {ccIsPro() ? grade.letter : '🔒'} · {grade.totalDHQ >= 1000 ? (grade.totalDHQ / 1000).toFixed(1) + 'k' : grade.totalDHQ} DHQ
                         </div>
                     )}
 
@@ -4884,7 +4914,8 @@
                         </div>
                     )}
 
-                    {state.phase === 'drafting' && (
+                    {/* League-wide A–F grades are interpretations → Pro (clean absence for free) */}
+                    {state.phase === 'drafting' && ccIsPro() && (
                         <button
                             onClick={() => setShowLeagueGrades(true)}
                             title="Live A–F draft grades for every team"
@@ -5177,7 +5208,7 @@
                 {state.proposerDrawer && TradeProposer && <TradeProposer state={state} dispatch={dispatch} />}
 
                 {/* Live league-wide draft grades overlay (toggled from header) */}
-                {showLeagueGrades && LeagueGradesPanel && (
+                {showLeagueGrades && LeagueGradesPanel && ccIsPro() && (
                     <LeagueGradesPanel state={state} onClose={() => setShowLeagueGrades(false)} />
                 )}
 
@@ -5679,7 +5710,7 @@
                         <button onClick={() => dispatch({ type: 'SET_OVERRIDE', enabled: !state.overrideMode })} title={state.overrideMode ? 'Return to read-only Sleeper mirror' : 'Apply the next pick manually from the Big Board'} style={btn(state.overrideMode ? 'rgba(155,138,251,0.22)' : 'rgba(155,138,251,0.16)', '#d6d0ff', 'rgba(155,138,251,0.45)')}>
                             {state.overrideMode ? 'MANUAL ON' : '✎ Manual Pick'}
                         </button>
-                        <button onClick={onShowGrades} title="Live A–F draft grades for every team" style={btn('var(--ov-2, rgba(255,255,255,0.04))', 'var(--silver)', 'var(--ov-6, rgba(255,255,255,0.12))')}>{'🏆 Grades'}</button>
+                        {ccIsPro() && <button onClick={onShowGrades} title="Live A–F draft grades for every team" style={btn('var(--ov-2, rgba(255,255,255,0.04))', 'var(--silver)', 'var(--ov-6, rgba(255,255,255,0.12))')}>{'🏆 Grades'}</button>}
                         {canUndoManualPick && (
                             <button onClick={() => dispatch({ type: 'UNDO_LAST_PICK', manualOnly: true })} title="Undo the last manual pick entry" style={btn('rgba(155,138,251,0.12)', '#d6d0ff', 'rgba(155,138,251,0.35)')}>UNDO</button>
                         )}
@@ -5697,6 +5728,14 @@
                         <span style={{ color: GOLD, fontFamily: FONT_DISPL, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: '0.78rem' }}>Alex</span>
                     </div>
 
+                    {/* Alex's live reads (takes, predicted-available, trade-up, trade window)
+                        are Scout Pro — free gets one locked teaser instead of the read stack. */}
+                    {!ccIsPro() ? (
+                        window.WrGatedMoreRow
+                            ? React.createElement(window.WrGatedMoreRow, { title: 'Alex reads the live room', sub: 'Live takes, predicted-available, and trade windows are Scout Pro.', feature: 'draft_live_reads' })
+                            : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Alex Live Reads', 'draft_live_reads', 'Live draft reads are Scout Pro.') : '' }} />
+                    ) : (
+                    <React.Fragment>
                     {/* Read 1 — latest decision-relevant take */}
                     {alexThinking ? (
                         <div style={readRow}>
@@ -5762,6 +5801,8 @@
                             <button onClick={openTradeDesk} style={{ flexShrink: 0, padding: '4px 9px', borderRadius: 5, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', border: '1px solid rgba(155,138,251,0.4)', background: 'rgba(155,138,251,0.16)', color: '#d6d0ff' }}>Open Trade Desk</button>
                         )}
                     </div>
+                    </React.Fragment>
+                    )}
                 </div>
             </div>
         );
