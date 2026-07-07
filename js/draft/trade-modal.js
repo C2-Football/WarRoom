@@ -78,7 +78,7 @@
         return (
             <div style={{
                 position: 'fixed',
-                bottom: '80px',
+                bottom: 'calc(80px + var(--wr-bottom-inset, 0px))',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 width: 'calc(100% - 32px)',

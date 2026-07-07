@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://c2-football.github.io https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://sxshiqyxhhifvtfqawbq.supabase.co https://api.sleeper.app https://api.myfantasyleague.com https://*.myfantasyleague.com https://lm-api-reads.fantasy.espn.com https://fantasysports.yahooapis.com https://api.fantasycalc.com https://*.sentry.io; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; object-src 'none';">
 
     <title>Dynasty HQ</title>
@@ -157,6 +157,41 @@ WRShared.preloadMany(WR_SHARED_FILES);
             --row-height: 32px;
             --row-compact: 24px;
             --row-relaxed: 40px;
+
+            /* Safe-area insets — iPhone notch / Dynamic Island / home indicator.
+               viewport-fit=cover (meta above) + apple-mobile-web-app-status-bar-style
+               black-translucent mean content draws under the status bar in the
+               installed PWA; fixed/floating elements pad by these tokens.
+               env() resolves to 0px on desktop, so global use is a no-op there. */
+            --sat: env(safe-area-inset-top, 0px);
+            --sar: env(safe-area-inset-right, 0px);
+            --sab: env(safe-area-inset-bottom, 0px);
+            --sal: env(safe-area-inset-left, 0px);
+
+            /* Fixed-layer z-index registry (mobile plan D3) — the league
+               shell's fixed/floating stack, low→high. New fixed elements
+               should consume one of these instead of a fresh magic number.
+               Observed inline values today: sidebar overlay 99 < sidebar +
+               phone tab bar 100 < chat panels 200 < hamburger/Alex FAB 201 <
+               corner toast 202 < GMMessage sheet 250 < DHQ bubble / PWA
+               install / chat welcome 300 < player card 400 < confirm scrims
+               500–1000 < scout drawer 9000 < dropdown popover 9999. */
+            --wr-z-nav-overlay: 99;
+            --wr-z-nav: 100;      /* sidebar drawer + phone bottom tab bar */
+            --wr-z-sheet: 200;    /* chat panels / bottom sheets */
+            --wr-z-fab: 201;
+            --wr-z-toast: 202;
+            --wr-z-banner: 300;   /* DHQ bubble, PWA install, chat welcome */
+            --wr-z-card: 400;     /* player card scrim */
+            --wr-z-modal: 1000;   /* settings/dashboard modal scrims */
+
+            /* Bottom clearance for floating/fixed elements: phone bottom
+               tab-bar height + home indicator on phones, just the safe-area
+               everywhere else. --wr-tab-bar-h flips to its real height inside
+               the ≤767 PHONE TIER block, so consuming this var is a no-op on
+               tablet/desktop. */
+            --wr-tab-bar-h: 0px;
+            --wr-bottom-inset: calc(var(--wr-tab-bar-h) + var(--sab));
         }
 
     /* Draft-surface readability floor. The global --text-micro (line 79) is an
@@ -460,10 +495,14 @@ WRShared.preloadMany(WR_SHARED_FILES);
         margin: 0 auto;
     }
 
-    /* Header — compact brand bar */
+    /* Header — compact brand bar. Top/side padding absorbs the safe-area
+       insets so the hub header clears the status bar in installed-PWA mode
+       (black-translucent draws content under it); 0px on desktop. The league
+       header (league-detail.js) overrides paddingTop/Bottom inline and is
+       offset by its own shell. */
     .header {
         background: linear-gradient(135deg, var(--black) 0%, var(--off-black) 100%);
-        padding: 0.75rem 1.5rem;
+        padding: calc(0.75rem + var(--sat)) calc(1.5rem + var(--sar)) 0.75rem calc(1.5rem + var(--sal));
         border-bottom: 2px solid var(--gold);
         box-shadow: 0 2px 12px rgba(212, 175, 55, 0.15);
         display: flex;
@@ -1459,7 +1498,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 
 	    .draft-alex-toolbar { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 10px; }
 	    .draft-alex-presets { display: flex; flex-wrap: nowrap; gap: 6px; min-width: 0; }
-	    .draft-scout-drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.62); backdrop-filter: blur(2px); z-index: 9000; display: flex; align-items: flex-start; justify-content: center; padding: 6vh 2vw; animation: wrFadeIn 0.16s ease; }
+	    .draft-scout-drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.62); backdrop-filter: blur(2px); z-index: 9000; display: flex; align-items: flex-start; justify-content: center; padding: max(6vh, calc(var(--sat) + 12px)) max(2vw, var(--sar)) calc(6vh + var(--sab)) max(2vw, var(--sal)); animation: wrFadeIn 0.16s ease; }
 	    .draft-scout-drawer { width: min(960px, 96vw); max-height: 88vh; overflow-y: auto; background: linear-gradient(160deg, rgba(18,18,18,0.98), rgba(28,22,12,0.96)); border: 1px solid rgba(212,175,55,0.35); border-radius: 12px; box-shadow: 0 22px 64px rgba(0,0,0,0.55); animation: wrFadeIn 0.2s ease; }
 	    .draft-scout-drawer-head { display: grid; grid-template-columns: 56px minmax(0,1fr) 36px; gap: 12px; align-items: center; padding: 14px 16px; border-bottom: 1px solid rgba(212,175,55,0.18); }
 	    .draft-scout-drawer-photo { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; object-position: top; border: 1px solid rgba(212,175,55,0.32); background: rgba(255,255,255,0.04); }
@@ -1926,7 +1965,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 
     /* ── App shell rhythm ─────────────────────────────────── */
     .wr-main-content { min-height:100vh; min-width:0; max-width:100vw; overflow-x:clip; overflow-y:visible; box-sizing:border-box; background:var(--page-bg); transition:margin-left .18s ease; }
-    .wr-content-frame { width:100%; min-width:0; max-width:1760px; overflow-x:clip; overflow-y:visible; box-sizing:border-box; margin:0 auto; padding:14px clamp(12px, 1.2vw, 20px) 48px; }
+    .wr-content-frame { width:100%; min-width:0; max-width:1760px; overflow-x:clip; overflow-y:visible; box-sizing:border-box; margin:0 auto; padding:14px max(clamp(12px, 1.2vw, 20px), var(--sar)) 48px max(clamp(12px, 1.2vw, 20px), var(--sal)); }
     .wr-content-frame > * { max-width:100%; }
 
     .wr-sidebar { color:var(--silver); }
@@ -1963,7 +2002,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
         .gm-office-section-head .gm-office-spacer { display:none; }
     }
     @media(max-width:1023px){
-        .wr-content-frame { width:100%; padding:10px 10px 36px; }
+        .wr-content-frame { width:100%; padding:10px max(10px, var(--sar)) 36px max(10px, var(--sal)); }
         .wr-main-content { margin-left:0 !important; }
         .wr-sidebar { width:176px !important; }
         .wr-sidebar.is-collapsed .wr-sidebar-label,
@@ -1972,6 +2011,177 @@ WRShared.preloadMany(WR_SHARED_FILES);
         .wr-sidebar.is-collapsed .wr-sidebar-extra { display:initial !important; }
         .wr-sidebar.is-collapsed .wr-sidebar-icon { display:none !important; }
         .wr-sidebar.is-collapsed .wr-sidebar-nav-btn { justify-content:flex-start !important; padding-left:20px !important; padding-right:16px !important; }
+    }
+
+    /* ══ PHONE TIER (≤767) — safe-area offsets, bottom tab bar, and touch
+       scaffold for the league-shell fixed layer. Scoped to the phone tier so
+       the just-shipped 768–1023 tablet tier is untouched (iPad installed-PWA
+       has a nonzero top inset too — deliberately left alone). !important
+       beats the inline React styles on these elements (js/league-detail.js
+       hamburger, .wr-sidebar, .wr-alex-fab, .wr-corner-toast, .wr-dhq-bubble). ══ */
+    @media(max-width:767px){
+        /* Bottom tab bar height becomes real — --wr-bottom-inset (registry,
+           :root above) resolves to bar + home indicator on this tier only. */
+        :root { --wr-tab-bar-h: 56px; }
+
+        .wr-hamburger { top:calc(10px + var(--sat) + var(--wr-dev-banner-height, 0px)) !important; left:calc(10px + var(--sal)) !important; }
+
+        /* Sidebar drawer: the ~800px nav stack overflows a 667px SE in
+           portrait (and any phone in landscape) — make the drawer itself the
+           scroll container. Bottom padding clears the tab bar + home
+           indicator so "Refresh Data" stays reachable. */
+        .wr-sidebar {
+            padding-top:calc(16px + var(--sat)) !important;
+            padding-bottom:calc(16px + var(--wr-bottom-inset)) !important;
+            overflow-y:auto;
+            -webkit-overflow-scrolling:touch;
+            overscroll-behavior:contain;
+        }
+
+        /* ── Bottom tab bar (PhoneTabBar, js/league-detail.js) ──
+           Terminal chrome: near-black bar, 1px gold hairline top, mono
+           micro-caps, silver inactive / gold + 2px top border active.
+           z = --wr-z-nav (100): same layer as the sidebar drawer but later
+           in the DOM so it paints above it; chat (200) / FAB (201) / toast
+           (202) / sheets stack on top. JS already unmounts it off-phone and
+           while the iOS keyboard is open. */
+        .wr-phone-tab-bar {
+            display:flex;
+            align-items:stretch;
+            position:fixed;
+            left:0; right:0; bottom:0;
+            z-index:var(--wr-z-nav, 100);
+            height:calc(var(--wr-tab-bar-h) + var(--sab));
+            padding:0 var(--sar) var(--sab) var(--sal);
+            background:var(--black, #0a0a0a);
+            border-top:1px solid rgba(212,175,55,0.28);
+            box-shadow:0 -6px 18px rgba(0,0,0,0.45);
+        }
+        .wr-phone-tab {
+            flex:1 1 0;
+            min-width:0;
+            min-height:44px;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            gap:3px;
+            padding:4px 2px 2px;
+            margin:0;
+            background:transparent;
+            border:none;
+            border-top:2px solid transparent;
+            cursor:pointer;
+            color:var(--silver, #8a8f98);
+            font-family:var(--font-mono, 'JetBrains Mono', monospace);
+            font-size:var(--text-micro, 0.6875rem); /* 11px floor — no new sub-11px text */
+            font-weight:600;
+            letter-spacing:0.05em;
+            line-height:1;
+            text-transform:uppercase;
+        }
+        .wr-phone-tab svg { width:20px; height:20px; flex-shrink:0; }
+        .wr-phone-tab span { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .wr-phone-tab.is-active { color:var(--gold); border-top-color:var(--gold); font-weight:700; }
+        .wr-phone-tab:active { background:rgba(212,175,55,0.12); }
+
+        /* League shell content clears the tab bar (60px was the pre-bar
+           clearance; keep it above the bar). Attribute-scoped so the hub
+           page's .app-container (js/app.js — no tab bar there) is untouched. */
+        .app-container[data-league-skin-type] { padding-bottom:calc(60px + var(--wr-bottom-inset)) !important; }
+
+        /* Floating elements ride above the bar via the registry offset var.
+           Original desktop geometry: FAB bottom 24 / toast 82 (= FAB + 52px
+           FAB + 6px gap — the 58px relationship is preserved). DHQ bubble
+           goes full-width; its inline left:80px was desktop-sidebar
+           clearance. */
+        .wr-alex-fab { bottom:calc(12px + var(--wr-bottom-inset)) !important; right:12px !important; }
+        .wr-corner-toast { bottom:calc(70px + var(--wr-bottom-inset)) !important; right:12px !important; }
+        .wr-dhq-bubble { bottom:calc(12px + var(--wr-bottom-inset)) !important; left:12px !important; right:12px !important; min-width:0 !important; }
+
+        /* iOS zoom-on-focus guard: Safari zooms any focused input under
+           16px. Phone tier only (plan D7). */
+        input, select, textarea { font-size:16px !important; }
+
+        /* Sub-tab strips: one-line momentum scroll instead of 2–3 wrapped
+           44px rows of chrome (Analytics / Trade Center). */
+        .wr-module-nav {
+            flex-wrap:nowrap;
+            overflow-x:auto;
+            overflow-y:hidden;
+            -webkit-overflow-scrolling:touch;
+            scrollbar-width:none;
+        }
+        .wr-module-nav::-webkit-scrollbar { display:none; }
+
+        /* Touch feedback: kill the gray iOS tap flash, give terminal-gold
+           :active states on the nav surfaces instead (inline hover styles
+           are mouse-only, so touch needs these). */
+        * { -webkit-tap-highlight-color:transparent; }
+        .wr-sidebar-nav-btn:active,
+        .wr-module-nav button:active,
+        .wr-module-nav-item:active { background:rgba(212,175,55,0.14) !important; }
+
+        /* ── Lane H smoke-pass fixes (My Roster / Dashboard / FA / Trade Desk) ── */
+
+        /* Dashboard widget picker: 18 modules render ~9 two-column rows at a
+           ~345px panel — the overflow:hidden 90vh panel hid most of them with
+           no scroll path. Body scrolls; panel capped in dynamic-viewport units
+           so Safari's collapsing URL bar can't clip the confirm button (85vh
+           fallback for pre-15.4 iOS). !important beats the inline 90vh. */
+        .wr-widget-picker-panel { max-height:85vh !important; max-height:85dvh !important; }
+        .wr-widget-picker-body {
+            min-height:0;
+            overflow-y:auto;
+            -webkit-overflow-scrolling:touch;
+            overscroll-behavior:contain;
+        }
+
+        /* FA detail drawer (fixed right panel, top:0/bottom:0): pad for the
+           notch + home indicator — installed-PWA (black-translucent) draws it
+           under both. z 200 covers the tab bar, so --sab (not the bar inset)
+           is the right bottom clearance. Close ✕ rides below the notch. */
+        .fa-detail-drawer {
+            padding-top:calc(20px + var(--sat)) !important;
+            padding-bottom:calc(20px + var(--sab)) !important;
+            padding-right:calc(20px + var(--sar)) !important;
+        }
+        .fa-detail-close { top:calc(12px + var(--sat)) !important; }
+
+        /* FA column-picker ◀/▶/× reorder buttons: 32px → 44px targets (plan
+           D7 straggler list); glyph size unchanged, hit-padding only. */
+        .fa-colpick-btn { min-width:44px !important; min-height:44px !important; }
+
+        /* Trade Desk builder strip: stack YOU SEND above YOU GET — the inline
+           1fr 1fr grid makes two ~165px columns at 375px (owner select +
+           roster picker unusable). ≥768 keeps side-by-side. */
+        .tc-builder-sides { grid-template-columns:1fr !important; }
+
+        /* Trade Desk touch bump: intent/partner chips, deal-card actions,
+           Why?/Browse toggles, show-more — all ~22-29px tall from the shared
+           chip rule (index.html base CSS). Same glyphs, taller targets. */
+        .tc-dhq-modebar button,
+        .tc-dhq-actions button,
+        .tc-dhq-hero-actions button,
+        .tc-dhq-browser-controls button,
+        .tc-dhq-browser-controls select,
+        .tc-dhq-detail-toggle,
+        .tc-dhq-show-more { min-height:44px; }
+        /* Builder/FAAB remove-X (~10px glyph, padding:0 base rule): pure
+           hit-area expansion — padding grows the target, negative margin
+           cancels the layout shift. Later-in-sheet equal specificity wins. */
+        .tc-ta-remove { padding:12px; margin:-12px; }
+    }
+    /* Short-viewport phones (landscape): slimmer bar so it doesn't eat a
+       375px-tall viewport. Same tier, height-guarded (plan D9). */
+    @media(max-width:767px) and (max-height:520px){
+        :root { --wr-tab-bar-h: 48px; }
+        .wr-phone-tab { gap:2px; padding-top:2px; }
+    }
+    /* Belt-and-braces: the bar is JS-unmounted off-phone (WR.useViewport),
+       but the viewport store debounces ~100ms — never paint it above 767. */
+    @media(min-width:768px){
+        .wr-phone-tab-bar { display:none !important; }
     }
 
     /* ── Micro-animations ────────────────────────────────── */
@@ -2103,6 +2313,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" src="js/core.js?v=20260701gdc1"></script>
 <!-- 1a. Central data-sync manager — window.WR.Sync — stale-while-revalidate on tab return + in-season interval (plain JS) -->
 <script src="js/shared/sync-manager.js?v=20260706sync1"></script>
+<!-- 1a2. Shared viewport seam — WR.useViewport() hook + WR.viewport() snapshot (plain JS; must precede components.js and all tab files) -->
+<script src="js/shared/viewport.js?v=20260707vp1"></script>
 <!-- 1b. Format/phase skin contract for league-type-aware modules -->
 <script src="js/league-skin.js?v=20260702bye1"></script>
 <!-- 2. Shared components: UpgradeGate, GMMessage, PlayerInlineCard -->
@@ -2239,10 +2451,10 @@ WRShared.preloadMany(WR_SHARED_FILES);
   window.addEventListener('DOMContentLoaded', function() { setTimeout(check, 500); });
 })();
 </script>
-<footer style="text-align:center;padding:16px;font-size:12px;color:#666;border-top:1px solid #1a1a1a;margin-top:32px;">&copy; 2026 C2Football. All rights reserved.</footer>
+<footer style="text-align:center;padding:16px 16px calc(16px + var(--sab, 0px));font-size:12px;color:#666;border-top:1px solid #1a1a1a;margin-top:32px;">&copy; 2026 C2Football. All rights reserved.</footer>
 
-<!-- PWA Install Prompt -->
-<div id="pwa-install" style="display:none;position:fixed;bottom:72px;left:50%;transform:translateX(-50%);max-width:340px;width:calc(100% - 32px);background:var(--off-black);border:1px solid var(--gold);border-radius:12px;padding:12px 16px;z-index:300;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+<!-- PWA Install Prompt (bottom pads --sab so it clears the home indicator on iPhone) -->
+<div id="pwa-install" style="display:none;position:fixed;bottom:calc(72px + var(--sab, 0px));left:50%;transform:translateX(-50%);max-width:340px;width:calc(100% - 32px);background:var(--off-black);border:1px solid var(--gold);border-radius:12px;padding:12px 16px;z-index:300;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
   <div style="display:flex;align-items:center;gap:10px">
     <img src="icon-192.png" style="width:36px;height:36px;border-radius:8px" alt=""/>
     <div style="flex:1">

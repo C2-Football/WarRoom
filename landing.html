@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://c2-football.github.io https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://sxshiqyxhhifvtfqawbq.supabase.co https://api.sleeper.app https://api.myfantasyleague.com https://*.myfantasyleague.com https://lm-api-reads.fantasy.espn.com https://fantasysports.yahooapis.com https://*.sentry.io; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; object-src 'none';">
   <title>Dynasty HQ — Your price. Not the market's.</title>
   <link rel="icon" href="icon-192.png">
@@ -22,10 +22,13 @@
       --font-mono:'IBM Plex Mono','SFMono-Regular',ui-monospace,monospace;
       --font-sans:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
       --radius:2px;--maxw:1180px;
+      /* Safe-area insets (iPhone notch / home indicator); 0px on desktop */
+      --sat:env(safe-area-inset-top,0px);--sar:env(safe-area-inset-right,0px);
+      --sab:env(safe-area-inset-bottom,0px);--sal:env(safe-area-inset-left,0px);
     }
     html{scroll-behavior:smooth}
     html,body{min-height:100%;background:var(--bg-0);color:var(--text-1);overflow-x:hidden;-webkit-font-smoothing:antialiased}
-    body{font-family:var(--font-sans);font-size:14px;line-height:1.55}
+    body{font-family:var(--font-sans);font-size:14px;line-height:1.55;padding-left:var(--sal);padding-right:var(--sar);padding-bottom:var(--sab)}
     a{color:var(--tactical);text-decoration:none}
     button{font-family:inherit;cursor:pointer}
     .mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
@@ -34,7 +37,7 @@
     :focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 
     /* ── Nav ─────────────────────────────────────────── */
-    .nav{position:sticky;top:0;z-index:40;background:rgba(10,12,16,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+    .nav{position:sticky;top:0;z-index:40;background:rgba(10,12,16,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding-top:var(--sat)}
     .nav-in{max-width:var(--maxw);margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:12px 24px}
     .nav-brand{display:flex;align-items:center;gap:10px}
     .nav-logo{width:30px;height:30px;border-radius:var(--radius);border:1px solid var(--border-strong)}
@@ -268,6 +271,11 @@
       .auth{padding:0 16px 64px}
       .hero-actions{flex-direction:column;align-items:stretch}
       .hero-cta,.hero-secondary{justify-content:center}
+    }
+    /* Phone tier: 44px tap floor + 16px auth inputs (kills iOS zoom-on-focus) */
+    @media(max-width:767px){
+      .btn,.nav-btn{min-height:44px}
+      .auth-input{font-size:16px}
     }
     @media(prefers-reduced-motion:reduce){
       html{scroll-behavior:auto}

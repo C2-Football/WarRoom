@@ -66,6 +66,10 @@
 
     // ===== PLAYER INLINE CARD (bottom-right, non-blocking) =====
     function PlayerInlineCard({ pid, playersData, statsData, onClose, onFullProfile }) {
+        // Live viewport (shared seam, js/shared/viewport.js) — replaces the
+        // render-time innerWidth read that went stale on rotation. Hook must
+        // run before the !p early return (rules of hooks).
+        const viewportWidth = window.WR.useViewport().width;
         const p = playersData?.[pid];
         if (!p) return null;
         const pos = p.position || '?';
@@ -103,9 +107,9 @@
         const initials = ((p.first_name||'?')[0] + (p.last_name||'?')[0]).toUpperCase();
 
         // Smart positioning: ensure card is fully visible
-        const isMobile = typeof window !== 'undefined' && window.innerWidth < 440;
+        const isMobile = viewportWidth < 440; // sheet threshold unchanged (D4 owns the ≤767 raise)
         const cardStyle = isMobile
-            ? { position:'fixed', bottom:0, left:0, right:0, width:'100%', maxHeight:'85vh', overflowY:'auto', background:'var(--black)', border:'none', borderTop:'2px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius:'14px 14px 0 0', zIndex:250, boxShadow:'0 -12px 48px rgba(0,0,0,0.7)', animation:'wrFadeIn 0.2s ease' }
+            ? { position:'fixed', bottom:0, left:0, right:0, width:'100%', maxHeight:'85vh', overflowY:'auto', background:'var(--black)', border:'none', borderTop:'2px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius:'14px 14px 0 0', zIndex:250, boxShadow:'0 -12px 48px rgba(0,0,0,0.7)', animation:'wrFadeIn 0.2s ease', paddingBottom:'calc(12px + var(--sab, env(safe-area-inset-bottom, 0px)))' }
             : { position:'fixed', bottom:'80px', right:'24px', width:'360px', maxHeight:'calc(100vh - 100px)', overflowY:'auto', background:'var(--black)', border:'2px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius:'14px', zIndex:250, boxShadow:'0 12px 48px rgba(0,0,0,0.7)', animation:'wrFadeIn 0.2s ease' };
 
         return React.createElement('div', { style: cardStyle },

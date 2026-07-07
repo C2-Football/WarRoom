@@ -177,6 +177,66 @@
     // END DRAFT TAB
     // ══════════════════════════════════════════════════════════════════════════
 
+    // ── Phone bottom tab bar (≤767 only — mobile plan D3) ──
+    // 5-slot thumb nav: Home · Roster · [Game Day | Draft] · Trade · More.
+    // Drives the SAME activeTab state as the sidebar; "More" toggles the
+    // existing hamburger drawer. Returns null outside the phone tier and
+    // while the iOS keyboard is open (WR.useViewport kbOpen — the bar would
+    // otherwise ride up on the keyboard), so tablet/desktop render
+    // byte-identical. Visuals live in index.html's PHONE TIER block
+    // (.wr-phone-tab-bar / .wr-phone-tab); z + bottom offsets come from the
+    // fixed-layer registry (--wr-z-nav / --wr-tab-bar-h / --wr-bottom-inset).
+    function PhoneTabBar({ activeTab, showGameDay, sidebarOpen, onSelectTab, onToggleDrawer }) {
+        const vp = window.WR.useViewport();
+        if (!vp.isPhone || vp.kbOpen) return null;
+        // Icon paths mirror LeagueDetail's sidebar iconPaths (same 24×24
+        // stroke grammar); 'gameday' (bolt) and 'more' are bar-specific.
+        const icons = {
+            home: ['M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-8.5Z'],
+            roster: ['M12 3l7 3.5v5.2c0 4.5-3 7.5-7 8.3-4-.8-7-3.8-7-8.3V6.5L12 3Z', 'M8.7 12.2l2.1 2.1 4.5-4.7'],
+            gameday: ['M13 3 5 14h5l-1 7 8-11h-5l1-7Z'],
+            draft: ['M12 3l8 16H4L12 3Z', 'M12 8v5'],
+            trade: ['M7 7h11m0 0-3-3m3 3-3 3', 'M17 17H6m0 0 3 3m-3-3 3-3'],
+            more: ['M4 6.5h16', 'M4 12h16', 'M4 17.5h16'],
+        };
+        const slots = [
+            { label: 'HOME', tab: 'dashboard', icon: 'home' },
+            { label: 'ROSTER', tab: 'myteam', icon: 'roster' },
+            // Slot 3 keys off the FINAL leagueSkin.features.showGameDay flag
+            // (passed in by LeagueDetail with the same ?? phase fallback the
+            // sidebar uses) — Game Day when true, else Draft.
+            showGameDay
+                ? { label: 'GAME DAY', tab: 'lineup', icon: 'gameday' }
+                : { label: 'DRAFT', tab: 'draft', icon: 'draft' },
+            { label: 'TRADE', tab: 'trades', icon: 'trade' },
+            { label: 'MORE', more: true, icon: 'more' },
+        ];
+        const barTabs = slots.filter(s => s.tab).map(s => s.tab);
+        return (
+            <nav className="wr-phone-tab-bar" aria-label="Primary">
+                {slots.map(slot => {
+                    // While the drawer is open, only MORE reads active; when the
+                    // current tab lives off-bar (Compare, FA, Settings, …) MORE
+                    // lights up as the "you are elsewhere" indicator.
+                    const isActive = slot.more
+                        ? (sidebarOpen || !barTabs.includes(activeTab))
+                        : (!sidebarOpen && activeTab === slot.tab);
+                    return (
+                        <button key={slot.label}
+                            className={'wr-phone-tab' + (isActive ? ' is-active' : '')}
+                            aria-current={isActive ? 'page' : undefined}
+                            onClick={() => slot.more ? onToggleDrawer() : onSelectTab(slot.tab)}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                {icons[slot.icon].map((d, i) => <path key={i} d={d} />)}
+                            </svg>
+                            <span>{slot.label}</span>
+                        </button>
+                    );
+                })}
+            </nav>
+        );
+    }
+
     // League Detail Component
     function LeagueDetail({ league, onBack, sleeperUserId, onOpenSettings, settingsProps = {}, activeTab: propActiveTab, onTabChange }) {
         const [loading, setLoading] = useState(true);
@@ -1216,6 +1276,19 @@
         }
         const [reconPanelOpen, setReconPanelOpen] = useState(false);
         const [reconExpanded, setReconExpanded] = useState(false);
+        // ── Phone tier (≤767): the Alex chat renders as a full-width bottom
+        // sheet in all three modes (welcome / docked / expanded). Desktop and
+        // tablet keep the exact pre-existing floating-panel styles.
+        // WR.useViewport = js/shared/viewport.js (loaded before this file).
+        const alexVp = window.WR.useViewport();
+        const alexPhone = alexVp.isPhone;
+        // Keyboard lift: px gap reported by visualViewport while the iOS
+        // keyboard is up (0 when closed / off-phone). The sheet's bottom is
+        // offset by this so the composer stays visible above the keyboard.
+        const alexKb = (alexPhone && alexVp.kbOpen) ? alexVp.kbHeight : 0;
+        // Shared height cap for the phone sheet: dynamic viewport minus
+        // keyboard, notch (--sat) and an 8px top gap.
+        const alexSheetCap = 'calc(100dvh - ' + alexKb + 'px - var(--sat, 0px) - 8px)';
         const [showNotifications, setShowNotifications] = useState(false);
         // showAlerts removed — alerts now live on Brief tab
         const [briefDraftInfo, setBriefDraftInfo] = useState(null);
@@ -2487,19 +2560,29 @@
 
         if (loading) {
             return (
-                <div className="app-container" style={{ paddingBottom: '60px' }}>
+                <div className="app-container wr-skel-shell" style={{ paddingBottom: '60px' }}>
+                    {/* Phone tier (≤767): no dead 160px rail — full-width single column.
+                        !important beats the inline styles below; tablet (768–1023) and
+                        desktop keep the rail exactly as-is. */}
+                    <style>{`@media(max-width:767px){
+                        .wr-skel-shell{padding-bottom:calc(60px + var(--sab, env(safe-area-inset-bottom, 0px))) !important}
+                        .wr-skel-rail{display:none !important}
+                        .wr-skel-main{margin-left:0 !important;padding:calc(16px + var(--sat, env(safe-area-inset-top, 0px))) 12px 24px !important}
+                        .wr-skel-kpis{grid-template-columns:repeat(auto-fit,minmax(120px,1fr)) !important}
+                        .wr-skel-cols{grid-template-columns:1fr !important}
+                    }`}</style>
                     {/* Skeleton left nav */}
-                    <div style={{ position:'fixed', left:0, top:0, bottom:0, width:'160px', background:'var(--black)', borderRight:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', padding:'16px 0', zIndex:100 }}>
+                    <div className="wr-skel-rail" style={{ position:'fixed', left:0, top:0, bottom:0, width:'160px', background:'var(--black)', borderRight:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', padding:'16px 0', zIndex:100 }}>
                         <div className="wr-wordmark" style={{ fontFamily:'Rajdhani, sans-serif', fontSize:'1.3rem', color:'var(--gold)', padding:'0 16px', marginBottom:'20px' }}>DYNASTY HQ</div>
                         {['Home','My Team','League','Analytics','Trades','Free Agency','Draft'].map((label,i) => (
                             <div key={i} style={{ padding:'10px 16px', fontSize:'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', color: i===0?'var(--gold)':'var(--ov-8, rgba(255,255,255,0.3))', borderLeft: i===0?'3px solid var(--gold)':'3px solid transparent', background: i===0?'var(--acc-fill2, rgba(212,175,55,0.12))':'transparent' }}>{label}</div>
                         ))}
                     </div>
                     {/* Skeleton main content */}
-                    <div style={{ marginLeft:'160px', padding:'24px 32px' }}>
+                    <div className="wr-skel-main" style={{ marginLeft:'160px', padding:'24px 32px' }}>
                         <div style={{ fontFamily:'Rajdhani, sans-serif', fontSize:'1.1rem', color:'var(--gold)', marginBottom:'16px' }}>{currentLeague.name}</div>
                         {/* KPI skeleton row */}
-                        <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:'12px', marginBottom:'24px' }}>
+                        <div className="wr-skel-kpis" style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:'12px', marginBottom:'24px' }}>
                             <SkeletonKPI /><SkeletonKPI /><SkeletonKPI /><SkeletonKPI /><SkeletonKPI />
                         </div>
                         {/* Hero skeleton */}
@@ -2509,7 +2592,7 @@
                             <div className="skel skel-line" style={{ width:'50%' }} />
                         </div>
                         {/* Two-column skeleton */}
-                        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
+                        <div className="wr-skel-cols" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
                             <div className="skel-card"><div className="skel skel-line" style={{width:'40%',marginBottom:'12px'}} /><SkeletonRows count={5} /></div>
                             <div className="skel-card"><div className="skel skel-line" style={{width:'40%',marginBottom:'12px'}} /><SkeletonRows count={5} /></div>
                         </div>
@@ -2796,9 +2879,10 @@
         return (
           <window.App.SeasonContext.Provider value={_seasonCtxValue}>
             <div className={'app-container ' + leagueSkinClassName} data-league-skin-type={leagueSkin?.type || 'unknown'} data-league-skin-theme={leagueSkin?.theme?.id || 'war-room-default'} onWheel={rerouteWheelToPage} style={{ paddingBottom: '60px' }}>
-                {/* DHQ Loading Bubble */}
+                {/* DHQ Loading Bubble — .wr-dhq-bubble: phone tier repoints it
+                    above the bottom tab bar (index.html PHONE TIER block). */}
                 {dhqStatus.loading && (
-                    <div style={{
+                    <div className="wr-dhq-bubble" style={{
                         position: 'fixed', bottom: '24px', left: '80px', zIndex: 300,
                         background: 'var(--black)', border: '2px solid var(--acc-line3, rgba(212,175,55,0.4))',
                         borderRadius: '16px', padding: '16px 20px', minWidth: '280px',
@@ -2832,12 +2916,14 @@
                     </div>
                 )}
 
-                {/* Mobile hamburger toggle */}
-                <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{
+                {/* Mobile hamburger toggle \u2014 hidden while the phone Alex sheet is
+                    open (it would paint above the sheet and toggle the drawer
+                    invisibly beneath it; the tab bar's MORE slot covers access). */}
+                {!(alexPhone && reconPanelOpen) && <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{
                     display: 'none', position: 'fixed', top: 'calc(10px + var(--wr-dev-banner-height, 0px))', left: '10px', zIndex: 201,
                     background: 'var(--black)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px',
                     padding: '6px 10px', cursor: 'pointer', color: 'var(--gold)', fontSize: '1.2rem', lineHeight: 1
-                }} className="wr-hamburger">{sidebarOpen ? '\u2715' : '\u2630'}</button>
+                }} className="wr-hamburger">{sidebarOpen ? '\u2715' : '\u2630'}</button>}
                 <style>{`@media(max-width:1023px){
                     html,body,#root{max-width:100%;overflow-x:clip;overflow-y:visible}
                     .wr-hamburger{display:block !important}
@@ -3555,8 +3641,27 @@
                 }}
             />}
 
-            {/* Alex Ingram Chat — centered welcome or bottom-right */}
-            {reconPanelOpen && <div style={welcomeMode ? {
+            {/* Alex Ingram Chat — centered welcome or bottom-right.
+                Phone (≤767): all three modes collapse into ONE full-width
+                bottom sheet (top-rounded, gold hairline top, keyboard-aware
+                via the alexKb bottom offset). Tablet/desktop: untouched. */}
+            {reconPanelOpen && <div style={alexPhone ? {
+              position: 'fixed', left: 0, right: 0, bottom: alexKb ? (alexKb + 'px') : 0,
+              width: '100%',
+              height: (!welcomeMode && reconExpanded) ? alexSheetCap : 'auto',
+              maxHeight: welcomeMode ? 'min(600px, ' + alexSheetCap + ')'
+                : reconExpanded ? alexSheetCap
+                : 'min(70dvh, ' + alexSheetCap + ')',
+              background: 'var(--k-0a0b0d, #0a0b0d)',
+              border: 'none',
+              borderTop: '2px solid ' + (welcomeMode ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--acc-line2, rgba(212,175,55,0.3))'),
+              borderRadius: '16px 16px 0 0',
+              zIndex: welcomeMode ? 300 : 'var(--wr-z-sheet, 200)',
+              display: 'flex', flexDirection: 'column',
+              boxShadow: '0 -12px 48px rgba(0,0,0,0.6), 0 0 0 1px var(--acc-fill2, rgba(212,175,55,0.1))',
+              animation: 'wrFadeIn 0.2s ease',
+              transition: 'bottom 0.2s ease'
+            } : welcomeMode ? {
               position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
               width: '480px', maxHeight: '600px',
               background: 'var(--k-0a0b0d, #0a0b0d)', border: '2px solid var(--acc-line3, rgba(212,175,55,0.4))',
@@ -3596,7 +3701,7 @@
                   <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', color: 'var(--gold)', letterSpacing: '0.04em', lineHeight: 1, display: 'flex', alignItems: 'center', gap: '4px' }}>{(() => { const k = localStorage.getItem('wr_alex_avatar') || 'brain'; const m = { brain:'\u{1F9E0}', target:'\u{1F3AF}', chart:'\u{1F4CA}', football:'\u{1F3C8}', bolt:'\u26A1', fire:'\u{1F525}', medal:'\u{1F396}\uFE0F', trophy:'\u{1F3C6}' }; return m[k] || ''; })()}Alex Ingram</div>
                   <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5 }}>AI General Manager</div>
                 </div>
-                <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--text-muted)' }}>Cmd+K</span>
+                {!alexPhone && <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--text-muted)' }}>Cmd+K</span>}
                 <span style={{ flex: 1 }}></span>
                 {reconMessages.length > 1 && (
                   <button onClick={() => {
@@ -3610,11 +3715,11 @@
                 )}
                 <button onClick={() => setReconExpanded(v => !v)} title={reconExpanded ? 'Collapse' : 'Expand'} aria-label={reconExpanded ? 'Collapse panel' : 'Expand panel'} style={{
                   background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer',
-                  fontSize: '1rem', padding: '2px', lineHeight: 1
+                  fontSize: '1rem', padding: alexPhone ? '10px' : '2px', lineHeight: 1
                 }}>{reconExpanded ? '−' : '⛶'}</button>
-                <button onClick={() => { setReconPanelOpen(false); setReconExpanded(false); }} style={{
+                <button onClick={() => { setReconPanelOpen(false); setReconExpanded(false); }} aria-label="Close chat" style={{
                   background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer',
-                  fontSize: '1rem', padding: '2px'
+                  fontSize: '1rem', padding: alexPhone ? '10px' : '2px'
                 }}>&#10005;</button>
               </div>
 
@@ -3656,11 +3761,13 @@
                 ))}
               </div>
 
-              {/* Messages */}
+              {/* Messages — phone: no fixed cap (the sheet's maxHeight governs);
+                  scrolls independently with iOS momentum + contained overscroll. */}
               <div style={{
                 flex: 1, overflow: 'auto', padding: '10px 12px',
                 display: 'flex', flexDirection: 'column', gap: '6px',
-                maxHeight: reconExpanded ? 'none' : '320px'
+                maxHeight: (reconExpanded || alexPhone) ? 'none' : '320px',
+                ...(alexPhone ? { WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' } : {})
               }}>
                 {reconMessages.map((msg, i) => (
                   msg.role === 'user' ? (
@@ -3821,10 +3928,14 @@
                 ))}
               </div>
 
-              {/* Input */}
+              {/* Input — phone: --sab clearance while the keyboard is closed
+                  (the sheet is keyboard-lifted when open, so plain 10px then),
+                  16px input font (no iOS zoom-on-focus), 44px send target. */}
               <div style={{
-                padding: '10px 12px', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.07))',
-                display: 'flex', gap: '8px', background: 'var(--k-111318, #111318)', borderRadius: '0 0 14px 14px'
+                padding: alexPhone ? ('10px 12px ' + (alexKb ? '10px' : 'calc(10px + var(--sab, 0px))')) : '10px 12px',
+                borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.07))',
+                display: 'flex', gap: '8px', background: 'var(--k-111318, #111318)',
+                borderRadius: alexPhone ? '0' : '0 0 14px 14px'
               }}>
                 <input
                   value={reconInput}
@@ -3833,13 +3944,15 @@
                   placeholder="Ask anything..."
                   style={{
                     flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                    color: 'var(--text-primary)', fontSize: 'var(--text-body, 1rem)', fontFamily: 'inherit'
+                    color: 'var(--text-primary)', fontSize: alexPhone ? '16px' : 'var(--text-body, 1rem)', fontFamily: 'inherit'
                   }}
                 />
                 <button onClick={() => sendReconMessage(reconInput)} style={{
                   background: 'linear-gradient(135deg, var(--k-7c6bf8, #7c6bf8), var(--k-9b8afb, #9b8afb))',
-                  border: 'none', borderRadius: '8px', width: '32px', height: '32px',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  border: 'none', borderRadius: '8px',
+                  width: alexPhone ? '44px' : '32px', height: alexPhone ? '44px' : '32px',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  ...(alexPhone ? { flexShrink: 0 } : {})
                 }}>
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" strokeWidth="2.5">
                     <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -3848,9 +3961,10 @@
               </div>
             </div>}
 
-            {/* "I'll be down here" toast */}
+            {/* "I'll be down here" toast — .wr-corner-toast: phone tier lifts
+                it above the bottom tab bar via --wr-bottom-inset. */}
             {showCornerToast && (
-              <div style={{
+              <div className="wr-corner-toast" style={{
                 position: 'fixed', bottom: '82px', right: '24px',
                 background: 'var(--k-0a0b0d, #0a0b0d)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
                 borderRadius: '12px', padding: '10px 16px', zIndex: 202,
@@ -3864,8 +3978,11 @@
               </div>
             )}
 
-            {/* Alex Ingram Bubble Button — bottom right corner */}
-            <button onClick={() => { setReconPanelOpen(!reconPanelOpen); setWelcomeMode(false); }} style={{
+            {/* Alex Ingram Bubble Button — bottom right corner. .wr-alex-fab:
+                phone tier lifts it above the bottom tab bar via --wr-bottom-inset.
+                Hidden on phone while the chat sheet is open (the sheet's own
+                ✕ closes it; the FAB would sit under/behind the sheet). */}
+            {!(alexPhone && reconPanelOpen) && <button className="wr-alex-fab" onClick={() => { setReconPanelOpen(!reconPanelOpen); setWelcomeMode(false); }} style={{
               position: 'fixed', bottom: '24px', right: '24px',
               width: '52px', height: '52px', borderRadius: '14px',
               background: reconPanelOpen ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
@@ -3879,7 +3996,19 @@
                 ? <span style={{ color: 'var(--gold)', fontSize: '1.2rem' }}>&#10005;</span>
                 : <AlexAvatar size={48} />
               }
-            </button>
+            </button>}
+
+            {/* Phone bottom tab bar (≤767 only) — null on tablet/desktop and
+                while the iOS keyboard is open. Slot 3 = Game Day when the
+                final showGameDay flag is on, else Draft (same expression as
+                the sidebar nav item above). */}
+            <PhoneTabBar
+                activeTab={activeTab}
+                showGameDay={leagueSkin?.features?.showGameDay ?? (leagueSkin?.phase === 'in_season')}
+                sidebarOpen={sidebarOpen}
+                onSelectTab={(tab) => { setSidebarOpen(false); setActiveTab(tab); }}
+                onToggleDrawer={() => setSidebarOpen(o => !o)}
+            />
 
             </div>
           </window.App.SeasonContext.Provider>

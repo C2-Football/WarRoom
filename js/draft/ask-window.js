@@ -341,7 +341,7 @@
                     onClick={() => setMinimized(false)}
                     title="Restore report"
                     style={{
-                        position: 'fixed', bottom: '20px', left: '20px', zIndex: 600,
+                        position: 'fixed', bottom: 'calc(20px + var(--wr-bottom-inset, 0px))', left: '20px', zIndex: 600,
                         display: 'flex', alignItems: 'center', gap: '8px',
                         maxWidth: 'min(320px, 80vw)',
                         padding: '8px 12px',

@@ -3508,7 +3508,11 @@
                                     <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px', lineHeight: 1.5 }}>
                                         Values sourced from <strong style={{ color: 'var(--gold)' }}>{skinVocabulary.valueShortLabel || 'DHQ'} Engine</strong> ({valueSourceLabel}).
                                     </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'start' }}>
+                                    {/* .tc-builder-sides: phone tier (index.html ≤767 CSS) stacks the
+                                        two sides vertically (send above, get below) — the hard 1fr 1fr
+                                        yields two ~165px columns at 375px, unusable for the owner
+                                        select + roster picker. ≥768 keeps side-by-side. */}
+                                    <div className="tc-builder-sides" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'start' }}>
                                         {TcTradeSide({ side: 'A', color: 'var(--k-5dade2, #5dade2)', label: 'YOU SEND', ..._tsDeps })}
                                         {TcTradeSide({ side: 'B', color: 'var(--k-e74c3c, #e74c3c)', label: 'YOU GET', ..._tsDeps })}
                                     </div>

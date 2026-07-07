@@ -239,6 +239,13 @@
         const [tab, setTab] = useState(initialTab || 'overview');
         const [tagMenu, setTagMenu] = useState(false);
         const closeRef = useRef(null);
+        // Phone tier (<768): the card renders as a WR.Sheet bottom sheet
+        // instead of the centered 640px modal (plan D4). Hook comes from
+        // js/shared/viewport.js (plain script, always ahead of this babel
+        // file, so the branch is fixed for the page's lifetime) and is
+        // called before the `if (!p)` early return for hook-order safety.
+        const _useVp = window.WR && window.WR.useViewport;
+        const isPhone = _useVp ? !!_useVp().isPhone : false;
         const sleeperPlayer = playersData?.[pid];
 
         // Resolve a draft prospect for this card via window.findProspect (keyed by
@@ -519,9 +526,11 @@
             ];
             if (isPro) statCells.push({ v: rec, l: 'Action', c: recCol });
             return React.createElement(React.Fragment, null,
-                // Stats grid
-                React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(' + statCells.length + ', 1fr)', gap: '8px', padding: '14px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
-                    statCells.map((s, i) => React.createElement('div', { key: i, style: { textAlign: 'center' } },
+                // Stats grid. Phone: 2-col reflow (D4) — statCells is 4 (free)
+                // or 5 (Pro, +Action) tiles; an odd last tile spans full width
+                // so the Pro verdict cell reads as the decision row.
+                React.createElement('div', { style: { display: 'grid', gridTemplateColumns: isPhone ? 'repeat(2, 1fr)' : 'repeat(' + statCells.length + ', 1fr)', gap: '8px', padding: '14px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
+                    statCells.map((s, i) => React.createElement('div', { key: i, style: { textAlign: 'center', gridColumn: (isPhone && statCells.length % 2 === 1 && i === statCells.length - 1) ? '1 / -1' : undefined } },
                         React.createElement('div', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '1.05rem', fontWeight: 700, color: s.c } }, s.v),
                         React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '3px' } }, s.l)
                     ))
@@ -583,8 +592,9 @@
                         React.createElement('span', null, '36')
                     )
                 ),
-                // Attributes row (depth chart clarified, no "News" button)
-                React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', padding: '14px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
+                // Attributes row (depth chart clarified, no "News" button).
+                // Phone: 2x2 instead of 4-across (~80px cells at 375 otherwise).
+                React.createElement('div', { style: { display: 'grid', gridTemplateColumns: isPhone ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '10px', padding: '14px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
                     [
                         { l: 'Experience', v: (p.years_exp || 0) + ' yr' + ((p.years_exp || 0) === 1 ? '' : 's') },
                         { l: 'NFL Depth Chart', v: depthChart || '—' },
@@ -645,7 +655,9 @@
             if (typeof InlineCareerStats !== 'function') {
                 return React.createElement('div', { style: { padding: '28px 20px', color: 'var(--silver)', opacity: 0.6 } }, 'Stats module not loaded.');
             }
-            return React.createElement('div', { style: { padding: '14px 20px' } },
+            // Phone: the career-stats tables can outgrow 375px — this wrapper
+            // owns the horizontal scroll so the sheet body never pans sideways.
+            return React.createElement('div', { style: { padding: '14px 20px', ...(isPhone ? { overflowX: 'auto', WebkitOverflowScrolling: 'touch', maxWidth: '100%' } : null) } },
                 React.createElement(InlineCareerStats, {
                     pid, pos, player: p,
                     scoringSettings: sc,
@@ -760,8 +772,8 @@
             animation: 'wrFadeIn 0.2s ease'
         };
 
-        return React.createElement('div', { style: backdrop, onClick: (e) => { if (e.target === e.currentTarget) onClose && onClose(); } },
-            React.createElement('div', { style: modal, onClick: (e) => e.stopPropagation() },
+        // Card content is tier-agnostic; only the shell differs (sheet vs modal).
+        const cardBody = React.createElement(React.Fragment, null,
                 // Hero
                 React.createElement('div', { style: { padding: '18px 20px', background: 'linear-gradient(135deg, var(--acc-fill2, rgba(212,175,55,0.10)), transparent 60%)', borderBottom: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', display: 'flex', gap: '14px', alignItems: 'center' } },
                     React.createElement('div', { className: 'wr-ring wr-ring-' + nPos, style: { width: '60px', height: '60px', borderRadius: '12px', overflow: 'hidden', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } },
@@ -790,8 +802,12 @@
                     React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--gold)', marginBottom: '4px' } }, '📝 Your scouting note'),
                     React.createElement('div', { style: { fontSize: 'var(--text-label, 0.8rem)', color: 'var(--k-d0d0d0, #d0d0d0)', lineHeight: 1.45, whiteSpace: 'pre-wrap' } }, scoutNote)
                 ),
-                // Tabs
-                React.createElement('div', { style: { display: 'flex', gap: '2px', padding: '0 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
+                // Tabs. Phone: one-line momentum scroll strip (D4), scrollbar
+                // hidden via the shared .wr-hscroll rules from wr-primitives.
+                React.createElement('div', {
+                    className: isPhone ? 'wr-hscroll' : undefined,
+                    style: { display: 'flex', gap: '2px', padding: '0 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', ...(isPhone ? { overflowX: 'auto', WebkitOverflowScrolling: 'touch' } : null) }
+                },
                     ['overview', 'stats', 'scouting'].map(t =>
                         React.createElement('button', {
                             key: t,
@@ -800,15 +816,18 @@
                                 padding: '10px 14px', minHeight: '44px', background: 'transparent',
                                 border: 'none', borderBottom: tab === t ? '2px solid var(--gold)' : '2px solid transparent',
                                 color: tab === t ? 'var(--gold)' : 'var(--silver)',
-                                fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: 'pointer'
+                                fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: 'pointer',
+                                ...(isPhone ? { flexShrink: 0, whiteSpace: 'nowrap' } : null)
                             }
                         }, t === 'overview' ? 'Overview' : t === 'stats' ? 'Career Stats' : 'Scouting')
                     )
                 ),
                 // Tab body
                 tab === 'overview' ? OverviewTab() : tab === 'stats' ? StatsTab() : ScoutingTab(),
-                // Actions — Compare, Trade Finder, Tag As (no News button)
-                React.createElement('div', { style: { padding: '14px 20px', display: 'flex', gap: '8px', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))', position: 'relative' } },
+                // Actions — Compare, Trade Finder, Tag As (no News button).
+                // Phone: the 4 buttons outgrow 375px — wrap instead of forcing
+                // the sheet body to pan sideways.
+                React.createElement('div', { style: { padding: '14px 20px', display: 'flex', gap: '8px', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))', position: 'relative', ...(isPhone ? { flexWrap: 'wrap' } : null) } },
                     React.createElement('button', { onClick: goCompare, style: btnStyle() }, 'Compare'),
                     React.createElement('button', { onClick: goTradeFinder, style: btnStyle('primary') }, isOnMyTeam ? 'Trade Finder' : 'Find Trade'),
                     React.createElement('button', { onClick: () => setTagMenu(!tagMenu), style: btnStyle() }, 'Tag As ▾'),
@@ -824,7 +843,17 @@
                     ) : null,
                     React.createElement('button', { onClick: onClose, style: btnStyle('ghost', { marginLeft: 'auto' }) }, 'Close')
                 )
-            )
+        );
+
+        // Phone (<768): full-width bottom sheet via the shared WR.Sheet
+        // primitive (plan D4). showClose:false — the hero already carries the
+        // card's own 44px ✕; the sheet adds grab-strip drag-down + scrim tap.
+        // Tablet/desktop: the centered 640px modal below, unchanged.
+        if (isPhone && window.WR && window.WR.Sheet) {
+            return React.createElement(window.WR.Sheet, { open: true, onClose: onClose, showClose: false }, cardBody);
+        }
+        return React.createElement('div', { style: backdrop, onClick: (e) => { if (e.target === e.currentTarget) onClose && onClose(); } },
+            React.createElement('div', { style: modal, onClick: (e) => e.stopPropagation() }, cardBody)
         );
     }
 

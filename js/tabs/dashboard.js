@@ -316,7 +316,11 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
         }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
             <style>{`@keyframes wrFadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
-            <div style={{
+            {/* .wr-widget-picker-panel/-body: phone tier (index.html ≤767 CSS) makes
+                the step body scrollable — 18 modules at 2 columns (~345px panel)
+                overflow the overflow:hidden panel and are unreachable otherwise.
+                No visual change ≥768 (classes unstyled there). */}
+            <div className="wr-widget-picker-panel" style={{
                 background: 'var(--k-0d0d0d, #0d0d0d)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))',
                 borderRadius: '20px', width: 'min(600px, 92vw)', maxHeight: '90vh',
                 overflow: 'hidden', display: 'flex', flexDirection: 'column',
@@ -345,7 +349,7 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
 
                 {/* Step 1: Module grid — 3×2 compact, no scroll */}
                 {step === 'module' && (
-                    <div style={{ padding: '16px 20px' }}>
+                    <div className="wr-widget-picker-body" style={{ padding: '16px 20px' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '10px' }}>
                             {Object.entries(WIDGET_MODULES).map(([key, m]) => (
                                 <button key={key}
@@ -375,7 +379,7 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
 
                 {/* Step 2: Size picker — compact, no scroll */}
                 {step === 'size' && mod && (
-                    <div style={{ padding: '16px 20px' }}>
+                    <div className="wr-widget-picker-body" style={{ padding: '16px 20px' }}>
                         {/* Module info — compact */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', padding: '10px 14px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderRadius: '8px' }}>
                             <span style={{ fontSize: '1.4rem' }}>{mod.icon}</span>

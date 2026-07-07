@@ -651,13 +651,9 @@ function MyTeamTab({
   const activePresetKey = Object.entries(COLUMN_PRESETS).find(([, cols]) => sameColumnSet(cols, visibleCols))?.[0] || 'custom';
   const activePresetMeta = COLUMN_PRESET_META[activePresetKey] || { label: 'Custom', tone: visibleCols.length + ' fields' };
   const isDeepData = activePresetKey === 'full';
-  const [rosterViewportWidth, setRosterViewportWidth] = React.useState(() => typeof window !== 'undefined' ? window.innerWidth : 1024);
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const onResize = () => setRosterViewportWidth(window.innerWidth);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
+  // Shared viewport seam (js/shared/viewport.js) — one debounced app-wide
+  // listener; thresholds below (560/820/834/1023) are unchanged.
+  const rosterViewportWidth = window.WR.useViewport().width;
   const isNarrowRoster = rosterViewportWidth <= 560;
   const isTabletRoster = rosterViewportWidth > 560 && rosterViewportWidth <= 1023;
   // iPad/phone: collapse the Scope/View/PPG/Rows/Group control stack behind a
@@ -908,8 +904,12 @@ function MyTeamTab({
         );
       })()}
 
+      {/* Phone (≤767): the expanded filter row must wrap — 6 selects + Customize
+          + SavedViewBar are ~700px of nowrap controls, which overflow a 375px
+          viewport with no scroll path (body is overflow-x:clip). Tablet/desktop
+          keep the shipped single-line nowrap bar. */}
       {(!isCompactRoster || filtersOpen) && (
-      <section style={{ background: 'var(--surf-solid, rgba(20,20,26,0.72))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 'var(--card-radius)', padding: 'var(--card-pad-sm)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap', minWidth: 0 }}>
+      <section style={{ background: 'var(--surf-solid, rgba(20,20,26,0.72))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 'var(--card-radius)', padding: 'var(--card-pad-sm)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: rosterViewportWidth <= 767 ? 'wrap' : 'nowrap', minWidth: 0 }}>
         <span className="wr-module-toolbar-label">Scope</span>
         <select value={rosterFilter} onChange={e => setRosterFilter(e.target.value)} style={rosterSelectStyle(rosterFilter !== 'All')} title="Show a slot or position group">
           {rosterFilterOptions.map(f => <option key={f} value={f}>{f}</option>)}
