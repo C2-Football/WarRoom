@@ -193,8 +193,8 @@
                                     borderRadius: '5px', color: 'var(--silver)', cursor: 'pointer', fontFamily: FONT_UI,
                                 }}>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 'var(--text-label, 0.75rem)', lineHeight: 1.35, marginBottom: 6 }}>
-                                        <span style={{ color: 'var(--silver)' }}><strong style={{ color: 'var(--bad)' }}>Give:</strong> {proposalAssets(c.proposal, 'my')}</span>
-                                        <span style={{ color: 'var(--silver)' }}><strong style={{ color: 'var(--good)' }}>Get:</strong> {proposalAssets(c.proposal, 'their')}</span>
+                                        <span style={{ color: 'var(--silver)' }}><strong style={{ color: 'var(--bad)' }}>Give:</strong> {proposalAssets(c.proposal, 'my', state.leagueSize)}</span>
+                                        <span style={{ color: 'var(--silver)' }}><strong style={{ color: 'var(--good)' }}>Get:</strong> {proposalAssets(c.proposal, 'their', state.leagueSize)}</span>
                                     </div>
                                     <div style={{ display: 'flex', gap: 6, paddingTop: 6, borderTop: '1px solid var(--ov-5, rgba(255,255,255,0.08))' }}>
                                         {metric('DHQ variance', (variance > 0 ? '+' : '') + variance.toLocaleString(), vCol)}
@@ -720,7 +720,7 @@
                     <AnalyzerModeToggle mode={analyzerMode} onChange={setAnalyzerMode} disabled={isSending || isAccepted} />
 
                     {/* Partner needs + tradable assets — always visible (Build AND Find) */}
-                    <OwnerIntelCard profile={partnerProfile} />
+                    <OwnerIntelCard profile={partnerProfile} leagueSize={state.leagueSize} />
 
                     {analyzerMode === 'find' ? (
                         <DraftTradeFinder state={state} dispatch={dispatch} />
@@ -812,6 +812,7 @@
                                 faab={counterOffer.myGiveFaab}
                                 dhq={counterOffer.myGiveDHQ}
                                 empty="Nothing selected"
+                                leagueSize={state.leagueSize}
                             />
                             <PickSide
                                 label="Counter: you get"
@@ -821,6 +822,7 @@
                                 faab={counterOffer.theirGiveFaab}
                                 dhq={counterOffer.myGainDHQ}
                                 empty="Nothing selected"
+                                leagueSize={state.leagueSize}
                             />
                         </div>
                     )}
@@ -835,6 +837,7 @@
                             faab={drawer.myGiveFaab}
                             dhq={evaluation.myGiveDHQ}
                             empty="Nothing selected"
+                            leagueSize={state.leagueSize}
                         />
                         <PickSide
                             label="You get"
@@ -844,6 +847,7 @@
                             faab={drawer.theirGiveFaab}
                             dhq={evaluation.theirGiveDHQ}
                             empty="Nothing selected"
+                            leagueSize={state.leagueSize}
                         />
                     </div>
 
@@ -1025,8 +1029,8 @@
         );
     }
 
-    function formatPick(pick) {
-        return 'R' + pick.round + '.' + String(pickPP(pick) || 0).padStart(2, '0');
+    function formatPick(pick, leagueSize) {
+        return 'R' + pick.round + '.' + String(pickPP(pick, leagueSize) || 0).padStart(2, '0');
     }
 
     function playerName(pid) {
@@ -1035,13 +1039,13 @@
         return full || pid;
     }
 
-    function proposalAssets(proposal, side) {
+    function proposalAssets(proposal, side, leagueSize) {
         const picks = side === 'my' ? proposal.myGive : proposal.theirGive;
         const futures = side === 'my' ? proposal.myGiveFuture : proposal.theirGiveFuture;
         const players = side === 'my' ? proposal.myGivePlayers : proposal.theirGivePlayers;
         const faab = side === 'my' ? proposal.myGiveFaab : proposal.theirGiveFaab;
         const items = [];
-        (picks || []).slice(0, 3).forEach(p => items.push(formatPick(p)));
+        (picks || []).slice(0, 3).forEach(p => items.push(formatPick(p, leagueSize)));
         (futures || []).slice(0, 2).forEach(fp => items.push(fp.year + ' R' + fp.round));
         (players || []).slice(0, 2).forEach(pid => items.push(playerName(pid)));
         if (faab > 0) items.push('$' + faab + ' FAAB');
@@ -1052,8 +1056,8 @@
     }
 
     function buildLiveOfferHandoff(state, targetPersona, proposal, result) {
-        const giveText = proposalAssets(proposal, 'my');
-        const getText = proposalAssets(proposal, 'their');
+        const giveText = proposalAssets(proposal, 'my', state?.leagueSize);
+        const getText = proposalAssets(proposal, 'their', state?.leagueSize);
         const partnerName = targetPersona?.teamName || ('Team ' + proposal?.targetRosterId);
         const line = result?.acceptanceLine || 70;
         const likelihood = result?.likelihood || 0;
@@ -1119,7 +1123,7 @@
         };
     }
 
-    function OwnerIntelCard({ profile }) {
+    function OwnerIntelCard({ profile, leagueSize }) {
         if (!profile) return null;
         const chips = [
             profile.tradeDna?.label || 'Balanced',
@@ -1128,7 +1132,7 @@
             profile.liquidity?.label,
         ].filter(Boolean).slice(0, 4);
         const needs = (profile.needs || []).slice(0, 5);
-        const picks = (profile.movablePicks || []).slice(0, 3).map(p => 'R' + p.round + '.' + String(pickPP(p) || 0).padStart(2, '0'));
+        const picks = (profile.movablePicks || []).slice(0, 3).map(p => 'R' + p.round + '.' + String(pickPP(p, leagueSize) || 0).padStart(2, '0'));
         const players = (profile.tradablePlayers || []).slice(0, 3).map(p => p.name);
         return (
             <div style={{
@@ -1178,7 +1182,7 @@
         );
     }
 
-    function SuggestionRail({ suggestions, onLoad, disabled }) {
+    function SuggestionRail({ suggestions, onLoad, disabled, state }) {
         // Render even when the only item is a MOONSHOT (the no-viable-deal
         // fallback) — that is precisely the case where the user most needs a
         // surfaced path "in." Only bail when the rail is genuinely empty.
@@ -1238,8 +1242,8 @@
                                     </span>
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 'var(--text-label, 0.75rem)', lineHeight: 1.35, marginBottom: 6 }}>
-                                    <span style={{ color: 'var(--silver)' }}><strong style={{ color: 'var(--bad)' }}>Give:</strong> {proposalAssets(s.proposal, 'my')}</span>
-                                    <span style={{ color: 'var(--silver)' }}><strong style={{ color: 'var(--good)' }}>Get:</strong> {proposalAssets(s.proposal, 'their')}</span>
+                                    <span style={{ color: 'var(--silver)' }}><strong style={{ color: 'var(--bad)' }}>Give:</strong> {proposalAssets(s.proposal, 'my', state?.leagueSize)}</span>
+                                    <span style={{ color: 'var(--silver)' }}><strong style={{ color: 'var(--good)' }}>Get:</strong> {proposalAssets(s.proposal, 'their', state?.leagueSize)}</span>
                                 </div>
                                 {/* DHQ variance · Acceptance · Grade — the numbers the user judges by */}
                                 {(() => {
@@ -1273,7 +1277,7 @@
         );
     }
 
-    function PickSide({ label, color, picks, playerIds, faab, dhq, empty }) {
+    function PickSide({ label, color, picks, playerIds, faab, dhq, empty, leagueSize }) {
         const hasAny = (picks && picks.length > 0) || (playerIds && playerIds.length > 0) || (faab && faab > 0);
         const pdata = window.S?.players || {};
         const playerName = (pid) => {
@@ -1307,7 +1311,7 @@
                                     borderRadius: '3px',
                                     background: 'var(--ov-4, rgba(255,255,255,0.06))',
                                     color: 'var(--white)',
-                                }}>R{p.round}.{String(pickPP(p) || 0).padStart(2, '0')}</span>
+                                }}>R{p.round}.{String(pickPP(p, leagueSize) || 0).padStart(2, '0')}</span>
                             ))}
                             {(playerIds || []).map((pid) => (
                                 <span key={'pl'+pid} title={playerName(pid)} style={{

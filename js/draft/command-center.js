@@ -93,9 +93,9 @@
         return Number(pick.slot) || 0;
     }
 
-    function formatTradeAssetPick(pick) {
+    function formatTradeAssetPick(pick, leagueSize) {
         if (!pick) return '';
-        return 'R' + pick.round + '.' + String(pickInRoundOf(pick) || 0).padStart(2, '0');
+        return 'R' + pick.round + '.' + String(pickInRoundOf(pick, leagueSize) || 0).padStart(2, '0');
     }
 
     function formatTradeAssetPlayer(pid) {
@@ -104,12 +104,12 @@
         return full || pid;
     }
 
-    function formatTradePackageSide(proposal, side) {
+    function formatTradePackageSide(proposal, side, leagueSize) {
         const picks = side === 'my' ? (proposal?.myGive || []) : (proposal?.theirGive || []);
         const players = side === 'my' ? (proposal?.myGivePlayers || []) : (proposal?.theirGivePlayers || []);
         const faab = side === 'my' ? (proposal?.myGiveFaab || 0) : (proposal?.theirGiveFaab || 0);
         const items = [];
-        picks.slice(0, 2).forEach(p => items.push(formatTradeAssetPick(p)));
+        picks.slice(0, 2).forEach(p => items.push(formatTradeAssetPick(p, leagueSize)));
         players.slice(0, 1).forEach(pid => items.push(formatTradeAssetPlayer(pid)));
         const displayedAssets = Math.min(2, picks.length) + Math.min(1, players.length);
         if (faab > 0) items.push('$' + faab + ' FAAB');
@@ -137,11 +137,11 @@
         return away + (away === 1 ? ' pick away' : ' picks away');
     }
 
-    function describeLiveTradeWindow(tradeWindow) {
+    function describeLiveTradeWindow(tradeWindow, leagueSize) {
         const suggestion = tradeWindow?.suggestion || {};
         const proposal = suggestion.proposal || {};
-        const give = formatTradePackageSide(proposal, 'my');
-        const get = formatTradePackageSide(proposal, 'their');
+        const give = formatTradePackageSide(proposal, 'my', leagueSize);
+        const get = formatTradePackageSide(proposal, 'their', leagueSize);
         // Lead with the trade-cluster's reasoning headline when present, so the
         // narration explains WHY before it lists the mechanics.
         const headline = suggestion.reasoning?.headline;
@@ -1366,7 +1366,7 @@
                     badge: 'T',
                     color: clears ? 'var(--k-2ecc71, #2ecc71)' : 'var(--gold)',
                     title: 'Live trade window · ' + best.teamName,
-                    text: describeLiveTradeWindow(best) + ' ' + (clears ? 'This clears their line.' : 'This is close enough to stage before the room moves.'),
+                    text: describeLiveTradeWindow(best, state.leagueSize) + ' ' + (clears ? 'This clears their line.' : 'This is close enough to stage before the room moves.'),
                     relatedPickNo: best.overall || null,
                 },
             });
@@ -3936,9 +3936,9 @@
         return "I would counter. They are light. Ask for the next clean pick or keep the board.";
     }
 
-    function mockAssetText(picks, playerIds, faab) {
+    function mockAssetText(picks, playerIds, faab, leagueSize) {
         const items = [];
-        (picks || []).slice(0, 3).forEach(p => items.push(mockPickLabel(p)));
+        (picks || []).slice(0, 3).forEach(p => items.push(mockPickLabel(p, leagueSize)));
         (playerIds || []).slice(0, 2).forEach(pid => items.push(formatTradeAssetPlayer(pid)));
         if (Number(faab || 0) > 0) items.push('$' + faab + ' FAAB');
         return items.length ? items.join(' + ') : 'No assets';
@@ -4005,8 +4005,8 @@
                 },
             });
         };
-        const give = mockAssetText(offer.myGive, offer.myGivePlayers, offer.myGiveFaab);
-        const get = mockAssetText(offer.theirGive, offer.theirGivePlayers, offer.theirGiveFaab);
+        const give = mockAssetText(offer.myGive, offer.myGivePlayers, offer.myGiveFaab, state.leagueSize);
+        const get = mockAssetText(offer.theirGive, offer.theirGivePlayers, offer.theirGiveFaab, state.leagueSize);
         return (
             <section className="mock-trade-card">
                 <div className="mock-panel-head">
@@ -5164,6 +5164,7 @@
                             tradeWindow={liveTradeWindow}
                             ownerTell={(liveDecisionDeck?.alerts || []).find(a => a.type === 'owner_tendency') || null}
                             onOpen={() => liveTradeWindow?.rosterId && onPropose(liveTradeWindow.rosterId)}
+                            leagueSize={state.leagueSize}
                             inline
                         />
                     </div>
@@ -5172,6 +5173,7 @@
                         tradeWindow={liveTradeWindow}
                         ownerTell={(liveDecisionDeck?.alerts || []).find(a => a.type === 'owner_tendency') || null}
                         onOpen={() => liveTradeWindow?.rosterId && onPropose(liveTradeWindow.rosterId)}
+                        leagueSize={state.leagueSize}
                         layoutGap={L.GRID_GAP}
                     />
                 )}
@@ -6320,12 +6322,12 @@
         );
     }
 
-    function LiveTradeWindowBanner({ tradeWindow, onOpen, layoutGap, ownerTell, inline = false }) {
+    function LiveTradeWindowBanner({ tradeWindow, onOpen, layoutGap, ownerTell, inline = false, leagueSize }) {
         if (!tradeWindow) return null;
             const suggestion = tradeWindow.suggestion || {};
             const proposal = suggestion.proposal || {};
-            const give = formatTradePackageSide(proposal, 'my');
-            const get = formatTradePackageSide(proposal, 'their');
+            const give = formatTradePackageSide(proposal, 'my', leagueSize);
+            const get = formatTradePackageSide(proposal, 'their', leagueSize);
             const viable = tradeWindow.viable !== false;
             const clears = tradeWindow.likelihood >= tradeWindow.acceptanceLine;
             const statusColor = !viable ? 'var(--silver)' : (clears ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-f0a500, #f0a500)');

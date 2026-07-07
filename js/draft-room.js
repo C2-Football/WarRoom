@@ -173,6 +173,12 @@
         // Draft-of-record id captured alongside the status — keys the auto-open
         // marker below so each newly completed draft auto-shows exactly once.
         const [liveDraftId, setLiveDraftId] = useState(null);
+        // Freshness signals for the completed-draft auto-open: did THIS session's
+        // poll watch the draft finish (drafting → complete), and when did the
+        // draft of record complete (last_picked, ms — Sleeper native, and the
+        // MFL mapper emits the same field). 0 = unknown → treated as stale.
+        const draftJustCompletedRef = useRef(false);
+        const draftCompletedAtRef = useRef(0);
         useEffect(() => {
             const lid = window.S?.currentLeagueId || currentLeague?.league_id || currentLeague?.id;
             if (!lid) return;
@@ -212,9 +218,14 @@
                     // A draft finishing changes rosters/picks league-wide — revalidate
                     // the league data instead of rendering stale pre-draft state.
                     if (prevStatus === 'drafting' && status === 'complete') {
+                        draftJustCompletedRef.current = true; // fresh completion seen live this session
                         try { window.WR?.Sync?.refresh?.('draft-complete'); } catch (e) {}
                     }
                     prevStatus = status;
+                    // Completion timestamp for the auto-open recency bound below.
+                    draftCompletedAtRef.current = status === 'complete'
+                        ? (Number(active?.last_picked) || 0)
+                        : 0;
                     setLiveDraftStatus(status);
                     setLiveDraftId(active?.draft_id != null ? String(active.draft_id) : null);
                     // Slow heartbeat post-completion so the tab rotates to the next
@@ -331,6 +342,19 @@
             let shown = null;
             try { shown = DraftStorage.get('wr_draft_autoshown_' + leagueKey, null); } catch (e) {}
             if (String(shown ?? '') === String(liveDraftId)) return;
+            // Recency bound: only auto-open a FRESH completion — either this
+            // session's poll observed drafting → complete, or the draft finished
+            // within the last 7 days (last_picked). A stale completed draft with
+            // no marker (e.g. every existing league at rollout) gets the marker
+            // written silently instead — the header chip + banner remain the
+            // entry points. No timestamp at all = stale (safe default).
+            const completedAt = draftCompletedAtRef.current || 0;
+            const fresh = draftJustCompletedRef.current
+                || (completedAt > 0 && (Date.now() - completedAt) < 7 * 24 * 60 * 60 * 1000);
+            if (!fresh) {
+                try { DraftStorage.set('wr_draft_autoshown_' + leagueKey, String(liveDraftId)); } catch (e) {}
+                return;
+            }
             setLiveAutoStartToken(Date.now());
             setDraftView('live');
         }, [liveDraftStatus, liveDraftId, leagueKey, draftView]);

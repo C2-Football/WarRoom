@@ -274,6 +274,8 @@
         // When the hub's league cards (records/rosters) last finished loading —
         // drives the return-to-hub freshness check below (audit:refresh-stale step 10).
         const hubSyncedAtRef = React.useRef(0);
+        // Guards against overlapping background hub revalidations.
+        const hubRevalidatingRef = React.useRef(false);
         // ESPN state
         const [espnLeagues, setEspnLeagues] = useState([]);
         const [espnConnecting, setEspnConnecting] = useState(false);
@@ -527,17 +529,74 @@
             }
         }
 
+        // Background hub revalidation — non-destructive loadSleeperData variant.
+        // The return-to-hub freshness check must never yank a working franchise
+        // picker: no loading/error toggles, no upfront sleeperLeagues clear.
+        // Fresh data replaces state only on success; any failure (user lookup,
+        // league list, per-league detail) silently keeps what's already on
+        // screen and console.warns. Initial + year-change loads keep using
+        // loadSleeperData's destructive reset.
+        async function revalidateSleeperData() {
+            if (hubRevalidatingRef.current) return;
+            hubRevalidatingRef.current = true;
+            try {
+                const user = await fetchSleeperUser(sleeperUsername);
+                if (!user) { console.warn('Hub revalidation: Sleeper user lookup failed — keeping cached leagues'); return; }
+                setSleeperUser(user);
+                const leagues = (await fetchUserLeagues(user.user_id, selectedYear)) || [];
+                if (!leagues.length) { console.warn('Hub revalidation: no leagues returned — keeping cached leagues'); return; }
+                const byId = new Map();
+                await Promise.all(
+                    leagues.map(async (league) => {
+                        try {
+                            const [rosters, users] = await Promise.all([
+                                fetchLeagueRosters(league.league_id),
+                                fetchLeagueUsers(league.league_id)
+                            ]);
+                            const myRoster = rosters.find(r => r.owner_id === user.user_id);
+                            byId.set(league.league_id, {
+                                id: league.league_id,
+                                name: league.name,
+                                wins: myRoster?.settings?.wins || 0,
+                                losses: myRoster?.settings?.losses || 0,
+                                ties: myRoster?.settings?.ties || 0,
+                                season: selectedYear,
+                                scoring_settings: league.scoring_settings || {},
+                                roster_positions: league.roster_positions || [],
+                                settings: league.settings || {},
+                                rosters,
+                                users
+                            });
+                        } catch (e) {
+                            console.warn(`Hub revalidation: failed to refresh league ${league.name} — keeping cached copy:`, e);
+                        }
+                    })
+                );
+                // Single swap at the end: fresh entries where the refetch worked,
+                // the existing card where it didn't — a league never disappears
+                // because one background request hiccupped.
+                setSleeperLeagues(prev => leagues
+                    .map(lg => byId.get(lg.league_id) || (prev || []).find(p => String(p.id) === String(lg.league_id)))
+                    .filter(Boolean));
+                hubSyncedAtRef.current = Date.now();
+            } catch (err) {
+                console.warn('Hub revalidation failed — keeping cached league data:', err);
+            } finally {
+                hubRevalidatingRef.current = false;
+            }
+        }
+
         // Hub freshness (audit:refresh-stale step 10): league cards load once per
         // year selection and then sit stale for the whole session. When the user
         // closes a league and lands back on the hub with data older than 5 min,
-        // re-pull records/rosters. loadSleeperData streams per-league, so the
-        // re-run repaints cards progressively instead of blocking the hub.
+        // re-pull records/rosters in the background (revalidateSleeperData) — the
+        // existing cards stay up while fresh data swaps in on success.
         useEffect(() => {
             if (selectedLeague || proMode) return;   // only when the hub itself is showing
             if (!sleeperUsername || loading) return;
             if (!hubSyncedAtRef.current) return;     // first load is owned by the [selectedYear] effect
             if (Date.now() - hubSyncedAtRef.current < 5 * 60 * 1000) return;
-            loadSleeperData();
+            revalidateSleeperData();
         }, [selectedLeague, proMode]);
 
         // Hook must be above the early return to maintain consistent hook order

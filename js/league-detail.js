@@ -315,11 +315,19 @@
                     // pre_draft — so a just-completed draft keeps a header entry
                     // point ('View Draft Results') instead of vanishing.
                     const sel = window.DraftCC?.state?.selectCurrentDraft?.(drafts);
-                    const active = sel !== undefined
-                        ? (sel.draft || null)
-                        : (drafts.find(d => d.status === 'drafting')
-                            || drafts.find(d => d.status === 'pre_draft')
-                            || null);
+                    // DraftCC lives in the deferred 'draft' module group and this
+                    // effect runs once per league open — when it isn't loaded yet,
+                    // mirror the draft-of-record rule locally (live > next
+                    // pre_draft > most recently completed) so the completed-draft
+                    // "View Draft Results" chip still renders without the module.
+                    const localDraftOfRecord = () =>
+                        drafts.find(d => d.status === 'drafting')
+                        || drafts.find(d => d.status === 'pre_draft')
+                        || drafts.filter(d => d.status === 'complete')
+                            .sort((a, b) => (Number(b.last_picked || b.start_time || b.created) || 0)
+                                - (Number(a.last_picked || a.start_time || a.created) || 0))[0]
+                        || null;
+                    const active = sel !== undefined ? (sel.draft || null) : localDraftOfRecord();
                     setHeaderDraftInfo(active);
                 })
                 .catch(() => { if (!cancelled) setHeaderDraftInfo(null); });
@@ -1590,9 +1598,18 @@
         // refresh) invalidates any in-flight background revalidation from the
         // previous load (same idea as the _wppFetchToken guard below).
         const loadSeqRef = useRef(0);
+        // Last successful rolling weekly-points fetch (league-tagged). The block
+        // fires up to 18 parallel /matchups/{week} requests — background
+        // revalidations only re-run it when the week rolled or this is stale.
+        const wppFetchedAtRef = useRef({ ts: 0, leagueId: null });
         // League closed / component unmounted: drop the background revalidator
         // so WR.Sync stops syncing a dead closure (also resets its lastSyncedAt).
-        useEffect(() => () => { window.WR?.Sync?.registerRevalidator?.(null); }, []);
+        // Also bump loadSeqRef so any ALREADY in-flight background hydrate fails
+        // its token check and can't apply into a re-pointed window.S.
+        useEffect(() => () => {
+            loadSeqRef.current++;
+            window.WR?.Sync?.registerRevalidator?.(null);
+        }, []);
 
         useEffect(() => {
             loadLeagueDetails();
@@ -1714,6 +1731,20 @@
                         });
                         if (loadSeq !== loadSeqRef.current) return;
                         if (window.S?.currentLeagueId && String(window.S.currentLeagueId) !== String(bgLeagueId)) return;
+                        // Integrity gate (background only): hydrate's inner fetches
+                        // degrade to {}/[] on failure, so a network blip could
+                        // otherwise overwrite live on-screen data with empties and
+                        // still count as a successful sync. If core datasets came
+                        // back empty while the current state has them, THROW so
+                        // WR.Sync.refresh records a failed sync (lastSyncedAt stays
+                        // honest) and the stale-but-real data stays up.
+                        const _bgRosters = bgHydrated?.rosters || [];
+                        const _bgUsers = bgHydrated?.leagueUsers || [];
+                        const _haveRosters = !!(window.S?.rosters?.length || currentLeague.rosters?.length);
+                        const _haveUsers = !!(window.S?.leagueUsers?.length || currentLeague.users?.length);
+                        if ((_haveRosters && !_bgRosters.length) || (_haveUsers && !_bgUsers.length)) {
+                            throw new Error('Background revalidation returned empty rosters/users — keeping current data');
+                        }
                         applyHydrated(bgHydrated, { provider, sleeperPlayers: bgPlayers, nflState: bgNfl, currentWeek: bgWeek, myRosterData, background: true });
                     });
                 }
@@ -1874,7 +1905,14 @@
                 // Single-flight + league-tagged: rapidly switching leagues must not
                 // let a stale fetch from league A overwrite league B's results.
                 const _wppLeagueId = currentLeague.id || currentLeague.league_id;
-                if (provider.id === 'sleeper' && _wppLeagueId && currentWeek > 0) {
+                // Background syncs (~5min focus cadence): skip the 18-fetch
+                // weekly-points reload unless the week rolled or the last
+                // successful fetch for THIS league is older than ~15 minutes.
+                // Foreground (league open / manual refresh) always runs.
+                const _wppFresh = wppFetchedAtRef.current.leagueId === _wppLeagueId
+                    && (Date.now() - wppFetchedAtRef.current.ts) < 15 * 60 * 1000;
+                const _wppSkipBg = background && !weekRolled && _wppFresh;
+                if (provider.id === 'sleeper' && _wppLeagueId && currentWeek > 0 && !_wppSkipBg) {
                     const fetchToken = (window._wppFetchToken = (window._wppFetchToken || 0) + 1);
                     const fetchLeagueId = _wppLeagueId;
                     (async () => {
@@ -1906,6 +1944,7 @@
                             });
                             window.S.weeklyPlayerPoints = wpp;
                             window.S.weeklyPlayerPointsLeagueId = fetchLeagueId;
+                            wppFetchedAtRef.current = { ts: Date.now(), leagueId: fetchLeagueId };
                             window.dispatchEvent(new CustomEvent('wr:weekly-points-loaded', { detail: { leagueId: fetchLeagueId } }));
                         } catch (e) { /* non-fatal */ }
                     })();
@@ -2444,18 +2483,21 @@
             if (window._leagueDocsContext) {
                 context += '\n\n--- LEAGUE DOCUMENTS ---\n' + window._leagueDocsContext;
             }
-            // GM Strategy directive — the FULL committed plan via the canonical
-            // serializer (mode directive, timeline, floor, postures, positions,
-            // sell rules, untouchable names). Falls back to the mode-only preset
-            // sentence when no strategy has been saved yet.
+            // GM Strategy directive — dhqContext() above already serializes the
+            // committed strategy into its canonical [GM_STRATEGY] block (the same
+            // WR.GmMode.promptBlock output), so never prepend a second copy here.
+            // Only when that block is absent (dhq-ai not loaded, or no strategy
+            // saved yet) fall back to the local prepend / mode-only preset.
             try {
-                const gmBlock = window.WR?.GmMode?.promptBlock?.(currentLeague?.league_id || currentLeague?.id);
-                if (gmBlock) {
-                    context = '--- GM STRATEGY DIRECTIVE ---\n' + gmBlock + '\n\n' + context;
-                } else {
-                    const gm = window.WR?.GmMode?.describe?.(gmStrategy?.mode);
-                    if (gm && gm.prompt) {
-                        context = '--- GM MODE DIRECTIVE ---\n' + gm.prompt + '\n\n' + context;
+                if (!context.includes('[GM_STRATEGY]')) {
+                    const gmBlock = window.WR?.GmMode?.promptBlock?.(currentLeague?.league_id || currentLeague?.id);
+                    if (gmBlock) {
+                        context = '--- GM STRATEGY DIRECTIVE ---\n' + gmBlock + '\n\n' + context;
+                    } else {
+                        const gm = window.WR?.GmMode?.describe?.(gmStrategy?.mode);
+                        if (gm && gm.prompt) {
+                            context = '--- GM MODE DIRECTIVE ---\n' + gm.prompt + '\n\n' + context;
+                        }
                     }
                 }
             } catch (e) { /* ignore */ }
