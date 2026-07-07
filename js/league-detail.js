@@ -3750,9 +3750,18 @@
                                     }}>Copy DM</button>
                                   )}
                                   <button onClick={() => {
-                                    const saved = LeagueStorage.get(LEAGUE_WR_KEYS.SAVED_TRADES(currentLeague?.league_id)) || [];
-                                    saved.push({ ...tradeCard, savedAt: Date.now() });
-                                    LeagueStorage.set(LEAGUE_WR_KEYS.SAVED_TRADES(currentLeague?.league_id), saved.slice(-20));
+                                    // Save into the Trade Log pipeline (WrTradePipeline schema, cap 60 —
+                                    // canonical helpers live in trade-calc.js). trade-calc.js is a DEFERRED
+                                    // script (data-wr-defer="trade"), so if it hasn't loaded yet, write the
+                                    // legacy card shape — WrTradePipeline.normalizeAll migrates it to the
+                                    // schema on the next Trade Log read. Fallback cap mirrors WrTradePipeline.CAP.
+                                    const lid = currentLeague?.league_id;
+                                    if (!lid) return;
+                                    const P = window.WrTradePipeline;
+                                    if (P) { P.append(lid, P.fromAlexCard(tradeCard)); return; }
+                                    const saved = LeagueStorage.get(LEAGUE_WR_KEYS.SAVED_TRADES(lid)) || [];
+                                    saved.unshift({ ...tradeCard, savedAt: Date.now() });
+                                    LeagueStorage.set(LEAGUE_WR_KEYS.SAVED_TRADES(lid), saved.slice(0, 60));
                                   }} style={{
                                     padding: '5px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)',
                                     background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)',

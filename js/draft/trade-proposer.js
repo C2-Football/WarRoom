@@ -76,8 +76,9 @@
     }
 
     // NOTE: the draft "Find a Trade" tab is a native reimplementation (DraftTradeFinder,
-    // below) built on sim.findFairPackages — it does NOT mount the main app's
-    // window.TradeFinderTab. Keep the two analyzers in sync when changing trade logic.
+    // below) built on sim.findFairPackages — it does NOT use the main app's trade
+    // evaluator (window.App.TradeEngine / trade-calc.js buildDeal). Keep the two
+    // analyzers in sync when changing trade logic.
     // Asset option groups for a roster — picks of all years (current draft + future) in
     // ONE group, players in another. Shared shape with the Build dropdowns.
     function buildAssetGroups(state, rosterId) {

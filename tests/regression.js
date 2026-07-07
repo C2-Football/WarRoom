@@ -312,7 +312,7 @@ test('decision history renders complete trade assets and dedupes DHQ mirror rows
 test('model settings controls map to live behavior or clearly disabled future delivery', () => {
   sourceHas(alexSettingsSrc, 's.channel?.inApp === false', 'in-app notification setting must affect surfaced cards');
   sourceHas(alexSettingsSrc, 'insight.pointsDelta != null', 'min point delta setting must be enforced for point-swing insights');
-  sourceHas(alexSettingsSrc, 'function actionableTradeAcceptanceFloor(settings)', 'trade aggression must own the actionable trade acceptance floor');
+  sourceHas(alexSettingsSrc, 'function actionableTradeAcceptanceFloor(settings, leagueId)', 'trade aggression must own the actionable trade acceptance floor');
   sourceHas(alexSettingsSrc, 'return Math.round(75 - ((aggression - 50) / 50) * 20);', 'balanced trade aggression should default to a 75% acceptance floor and loosen upward');
   sourceHas(alexInsightsSrc, 'pointsDelta: Math.max(...lowWeekDeltas)', 'start/sit insight must expose a point delta for settings filtering');
   sourceHas(alexInsightsSrc, "chanChip('email', 'Email (coming soon)', { disabled: true", 'email notification control should be visibly disabled until wired');
@@ -323,18 +323,18 @@ test('Deal HQ reflects reviewed trade-center UX requirements', () => {
   ok(!tradeCalcSrc.includes('Trade command center'), 'Deal HQ should not render the removed hero command bar');
   ok(!tradeCalcSrc.includes('No surplus edge'), 'roster leverage empty state should use football-oriented wording');
   ok(!tradeCalcSrc.includes('they have ${theyHaveNeed}'), 'partner cards should not show the removed lanes-you-need sentence');
-  sourceHas(tradeCalcSrc, 'Roster Leverage', 'roster edge metric should be renamed');
+  ok(!tradeCalcSrc.includes('Roster Leverage'), 'the Deal HQ metrics strip stays cut from the Trade Desk');
   sourceHas(tradeCalcSrc, 'assetBrowserSorts', 'Deal HQ should expose an asset browser sort model');
   sourceHas(tradeCalcSrc, "key:'owner', label:'Owned Team'", 'asset browser should sort by current owned team');
   sourceHas(tradeCalcSrc, "key:'points', label:'Last FP'", 'asset browser should sort by last-season fantasy points');
   sourceHas(tradeCalcSrc, "key:'prime', label:'Prime Years'", 'asset browser should sort by prime years remaining');
-  sourceHas(tradeCalcSrc, 'Head-to-head trade history', 'partner dossier should include prior trades with the user');
+  sourceHas(tradeCalcSrc, '<b>Head-to-head vs me</b>', 'owner detail card must keep head-to-head trade history with the user');
   sourceHas(tradeCalcSrc, '<p><b>You got</b> {summarizeTradeAssets(received)}</p>', 'head-to-head received assets should have readable spacing');
   sourceHas(tradeCalcSrc, '<p><b>You sent</b> {summarizeTradeAssets(sent)}</p>', 'head-to-head sent assets should have readable spacing');
-  sourceHas(tradeCalcSrc, 'savedQueueRef.current || generatedPackagesRef.current', 'saved queue metric should jump to live queue content');
+  sourceHas(tradeCalcSrc, 'window.WrTradePipeline = { CAP, STATUSES, fromDeal, fromAlexCard, normalizeRow, normalizeAll, append };', 'saved deals must flow through the WrTradePipeline store');
   sourceHas(tradeCalcSrc, 'dealActionableAcceptanceFloor', 'Deal HQ should keep low-acceptance moonshots out of default package cards');
-  sourceHas(tradeCalcSrc, 'configuredActionableAcceptanceFloor(alexSettings)', 'Deal HQ should honor the GM strategy trade-aggression floor');
-  sourceHas(componentsSrc, 'currentTradeFinderAcceptanceFloor', 'Trade Finder should honor the same actionable acceptance floor');
+  sourceHas(tradeCalcSrc, 'const gmFloor = dealActionableAcceptanceFloor(_gmTuning);', 'Trade Desk must derive the actionable floor from GM strategy tuning');
+  sourceHas(tradeCalcSrc, 'const finderActionFloor = dealActionableAcceptanceFloor(finderTuning);', 'Trade Finder must honor the same actionable acceptance floor');
   ok(!componentsSrc.includes('ACTIONABLE_ACCEPTANCE_FLOOR = 45'), 'Trade Finder must not use the old 45% default floor');
   ok(!/className="tc-dhq-eyebrow"/.test(tradeCalcSrc), 'generated package cards should not render the old package-type header');
 });

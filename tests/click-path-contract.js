@@ -220,7 +220,7 @@ const surfaces = [
     checks: [
       ['const [tradeContext, setTradeContext] = useState(() => window._wrTradeContext || null);', 'keeps trade context from originating surfaces'],
       ["wr:open-trade-context", 'listens for trade-context navigation'],
-      ["setTcTab('dealhq');", 'opens Deal HQ for transaction context'],
+      ["setTcTab('desk');", 'opens the Trade Desk for transaction context'],
       ['Trade Context', 'renders visible trade context'],
       ['formatTradeContextSummary(tradeContext)', 'summarizes the opened deal'],
     ],

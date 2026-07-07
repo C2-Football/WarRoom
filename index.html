@@ -1067,10 +1067,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
     .tc-trade-root .wr-module-context strong { font-size: 1.05rem; }
     .tc-trade-root .wr-module-context em { color: rgba(207,207,214,0.92); opacity: 1; }
     .tc-trade-root .tc-dhq-panel,
-    .tc-trade-root .tc-ta-side,
-    .tc-trade-root .tc-scout-panel { background: rgba(16,16,22,0.96); }
+    .tc-trade-root .tc-ta-side { background: rgba(16,16,22,0.96); }
     .tc-trade-root .tc-dhq-hero p,
-    .tc-trade-root .tc-dhq-partner-main span,
     .tc-trade-root .tc-dhq-dossier-card p,
     .tc-trade-root .tc-dhq-dossier-block p,
     .tc-trade-root .tc-dhq-dossier-block li,
@@ -1110,12 +1108,6 @@ WRShared.preloadMany(WR_SHARED_FILES);
     .tc-likelihood-bar-wrap { height: 10px; background: rgba(255,255,255,0.07); border-radius: 5px; overflow: hidden; }
     .tc-likelihood-bar-fill { height: 100%; border-radius: 5px; transition: width 0.5s ease; }
 
-    .tc-scout-panel { background: var(--off-black); border: 1px solid rgba(212,175,55,0.2); border-radius: 8px; padding: 0.75rem; overflow-y: auto; max-height: 320px; display: flex; flex-direction: column; gap: 0.45rem; grid-column: 1 / -1; grid-row: 2; }
-    @media(min-width:1150px){ .tc-scout-panel { grid-column: 3; grid-row: 1; max-height: 660px; } }
-    .tc-scout-team-card { background: var(--charcoal); border: 1px solid rgba(255,255,255,0.07); border-radius: 6px; padding: 0.6rem 0.7rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; display: flex; flex-direction: column; gap: 0.3rem; }
-    .tc-scout-team-card:hover { border-color: rgba(212,175,55,0.4); background: rgba(212,175,55,0.04); }
-    .tc-scout-team-card.tc-scout-selected { border-color: var(--gold); background: rgba(212,175,55,0.08); }
-
     .tc-tax-table { display: flex; flex-direction: column; gap: 0; border: 1px solid rgba(255,255,255,0.07); border-radius: 6px; overflow: hidden; }
     .tc-tax-table-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.38rem 0.7rem; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.72rem; }
     .tc-tax-table-row:last-child { border-bottom: none; }
@@ -1137,19 +1129,9 @@ WRShared.preloadMany(WR_SHARED_FILES);
     .tc-dhq-hero-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
     .tc-dhq-hero-actions button, .tc-dhq-actions button, .tc-dhq-modebar button, .tc-dhq-browser-controls button, .tc-dhq-detail-toggle { border: 1px solid rgba(212,175,55,0.22); background: rgba(255,255,255,0.045); color: var(--silver); border-radius: 5px; font-family: var(--font-body); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 6px 10px; cursor: pointer; }
     .tc-dhq-hero-actions button:hover, .tc-dhq-actions button:hover, .tc-dhq-modebar button:hover, .tc-dhq-browser-controls button:hover, .tc-dhq-detail-toggle:hover { border-color: rgba(212,175,55,0.45); color: var(--gold); }
-    .tc-dhq-metrics { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
-    .tc-dhq-metric-card { border: 1px solid rgba(212,175,55,0.14); background: rgba(255,255,255,0.03); border-radius: 8px; padding: 11px 12px; min-width: 0; text-align: left; font-family: var(--font-body); }
-    button.tc-dhq-metric-card { cursor: pointer; }
-    button.tc-dhq-metric-card:hover, button.tc-dhq-metric-card:focus-visible { border-color: rgba(212,175,55,0.42); background: rgba(212,175,55,0.055); outline: none; }
-    .tc-dhq-metrics span, .tc-dhq-panel-head em, .tc-dhq-breakdown, .tc-dhq-side-head span, .tc-dhq-score-stack span, .tc-dhq-saved span { display: block; color: var(--silver); opacity: 0.64; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; }
-    .tc-dhq-metrics strong { display: block; color: var(--white); font-family: 'Rajdhani', sans-serif; font-size: 1.15rem; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .tc-dhq-metrics em { display: block; color: var(--gold); opacity: 0.78; font-size: 0.72rem; font-style: normal; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tc-dhq-panel-head em, .tc-dhq-breakdown, .tc-dhq-side-head span, .tc-dhq-score-stack span { display: block; color: var(--silver); opacity: 0.64; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; }
     .tc-dhq-notice { align-self: flex-start; color: var(--black); background: var(--gold); border-radius: 5px; padding: 6px 10px; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; animation: tcDqhNotice 2.4s ease both; }
     @keyframes tcDqhNotice { 0% { opacity: 0; transform: translateY(-4px); } 15%,80% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-4px); } }
-    .tc-dhq-grid { display: grid; grid-template-columns: minmax(250px, 0.78fr) minmax(300px, 0.92fr) minmax(430px, 1.35fr); grid-template-areas: "partners dossier packages"; gap: 12px; align-items: stretch; grid-auto-rows: clamp(680px, 72vh, 780px); }
-    .tc-dhq-partners { grid-area: partners; }
-    .tc-dhq-dossier { grid-area: dossier; }
-    .tc-dhq-packages { grid-area: packages; }
     .tc-dhq-panel { border: 1px solid rgba(212,175,55,0.16); background: var(--off-black); border-radius: 8px; padding: 12px; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
     .tc-dhq-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(212,175,55,0.12); flex: 0 0 auto; }
     .tc-dhq-panel-head span { color: var(--gold); font-family: 'Rajdhani', sans-serif; font-size: 1rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; }
@@ -1163,21 +1145,11 @@ WRShared.preloadMany(WR_SHARED_FILES);
     .tc-dhq-panel-body::-webkit-scrollbar { width: 6px; }
     .tc-dhq-panel-body::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.22); border-radius: 999px; }
     .tc-dhq-panel-body::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); border-radius: 999px; }
-    .tc-dhq-partner-list { display: flex; flex-direction: column; gap: 8px; }
-    .tc-dhq-partner { width: 100%; text-align: left; border: 1px solid rgba(255,255,255,0.07); background: var(--charcoal); border-radius: 7px; padding: 10px; color: var(--white); cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 7px 8px; }
-    .tc-dhq-partner:hover, .tc-dhq-partner.is-selected { border-color: rgba(212,175,55,0.45); background: rgba(212,175,55,0.08); }
-    .tc-dhq-partner-main { min-width: 0; }
-    .tc-dhq-partner-main strong { display: block; font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .tc-dhq-partner-main span { display: block; color: var(--silver); opacity: 0.64; font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
-    .tc-dhq-partner-score { text-align: right; }
-    .tc-dhq-partner-score strong { display: block; font-family: 'JetBrains Mono', monospace; font-size: 1rem; }
-    .tc-dhq-partner-score span { display: block; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.07em; }
     .tc-dhq-chipline { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
     .tc-dhq-chipline span, .tc-dhq-chipline i { border: 1px solid rgba(212,175,55,0.18); background: rgba(255,255,255,0.035); color: var(--silver); border-radius: 4px; padding: 2px 6px; font-size: 0.66rem; line-height: 1.25; font-style: normal; font-weight: 700; }
     .tc-dhq-chipline i.need { border-color: rgba(231,76,60,0.35); color: var(--bad); background: rgba(231,76,60,0.08); }
     .tc-dhq-chipline i.need.soft { color: var(--warn); border-color: rgba(240,165,0,0.32); background: rgba(240,165,0,0.07); }
     .tc-dhq-chipline i.strength { border-color: rgba(46,204,113,0.32); color: var(--good); background: rgba(46,204,113,0.07); }
-    .tc-dhq-partner-why { grid-column: 1 / -1; color: rgba(255,255,255,0.52); font-size: 0.68rem; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tc-dhq-package-list { display: flex; flex-direction: column; gap: 10px; }
     .tc-dhq-modebar { display: flex; flex-wrap: wrap; gap: 6px; }
     .tc-dhq-modebar button.is-active, .tc-dhq-browser-controls button.is-active { background: var(--gold); color: var(--black); border-color: var(--gold); }
@@ -1243,9 +1215,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
     .tc-dhq-deal-stage-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 10px; align-items: start; }
     .tc-dhq-package-note { border: 1px solid rgba(212,175,55,0.16); background: rgba(212,175,55,0.06); border-radius: 8px; padding: 12px; color: var(--silver); font-size: 0.8rem; line-height: 1.45; }
     .tc-dhq-package-note b { display: block; color: var(--gold); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
-    .tc-dhq-dossier { overflow: visible; }
     .tc-dhq-dossier-body { display: flex; flex-direction: column; gap: 10px; }
-    .tc-dhq-dossier .tc-dhq-panel-body { flex: 0 0 auto; min-height: auto; overflow: visible; padding-right: 0; }
     .tc-dhq-dossier-card p { margin: 7px 0 0; }
     .tc-dhq-dossier-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
     .tc-dhq-dossier-grid div { border: 1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.14); border-radius: 7px; padding: 8px; }
@@ -1260,32 +1230,23 @@ WRShared.preloadMany(WR_SHARED_FILES);
     .tc-dhq-history-row p { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tc-dhq-history-row p b { display: inline; margin: 0 4px 0 0; color: var(--gold); font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; }
     .tc-dhq-history-row em { grid-column: 2; grid-row: 2 / span 2; align-self: center; font-style: normal; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 800; white-space: nowrap; }
-    .tc-dhq-saved { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 5px; margin-top: 6px; }
-    .tc-dhq-saved button { border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.035); color: var(--silver); border-radius: 5px; padding: 6px 7px; font-size: 0.72rem; text-align: left; cursor: pointer; }
-    .tc-dhq-saved button:last-child { color: rgba(231,76,60,0.75); text-align: center; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
     .tc-dhq-empty { color: var(--silver); opacity: 0.6; border: 1px dashed rgba(212,175,55,0.18); border-radius: 8px; padding: 20px; text-align: center; font-size: 0.82rem; }
-    @media(max-width:1280px){ .tc-dhq-grid { grid-template-columns: minmax(250px, 0.85fr) minmax(420px, 1.45fr); grid-template-areas: "partners dossier" "packages packages"; grid-auto-rows: clamp(620px, 70vh, 740px); } }
-    @media(max-width:900px){ .tc-dhq-hero { align-items: flex-start; flex-direction: column; } .tc-dhq-metrics { grid-template-columns: repeat(2, 1fr); } .tc-dhq-grid { grid-template-columns: 1fr; grid-template-areas: "partners" "dossier" "packages"; grid-auto-rows: auto; } .tc-dhq-panel { overflow: visible; } .tc-dhq-panel-body { overflow: visible; padding-right: 0; } .tc-dhq-deal-grid, .tc-dhq-readout, .tc-dhq-deal-stage-body { grid-template-columns: 1fr; } .tc-dhq-browser-head { align-items: flex-start; flex-direction: column; } .tc-dhq-browser-controls { justify-content: flex-start; } }
-    @media(max-width:560px){ .tc-dhq-metrics, .tc-dhq-dossier-grid { grid-template-columns: 1fr; } .tc-dhq-panel { padding: 9px; } .tc-dhq-hero h2 { font-size: 1.3rem; } .tc-dhq-actions { justify-content: flex-start; } .tc-dhq-deal-stage { min-height: 0; } }
+    @media(max-width:900px){ .tc-dhq-hero { align-items: flex-start; flex-direction: column; } .tc-dhq-panel { overflow: visible; } .tc-dhq-panel-body { overflow: visible; padding-right: 0; } .tc-dhq-deal-grid, .tc-dhq-readout, .tc-dhq-deal-stage-body { grid-template-columns: 1fr; } .tc-dhq-browser-head { align-items: flex-start; flex-direction: column; } .tc-dhq-browser-controls { justify-content: flex-start; } }
+    @media(max-width:560px){ .tc-dhq-dossier-grid { grid-template-columns: 1fr; } .tc-dhq-panel { padding: 9px; } .tc-dhq-hero h2 { font-size: 1.3rem; } .tc-dhq-actions { justify-content: flex-start; } .tc-dhq-deal-stage { min-height: 0; } }
 
-    /* ── Adaptive canvas Context Rail (morphing Dossier ⇄ DNA ⇄ Verdict) ──
-       Desktop-only: at ≥1281px the rail owns the dossier (Deal HQ slims to partners+packages
-       and the expanded builder's inline verdict hides). Narrower viewports keep today's
-       layout untouched — the rail simply doesn't display. */
+    /* ── Trade Desk Context Rail — fixed two cards (Verdict + Owner DNA mini) ──
+       ≥1281px: sticky right column, scrolls as one unit. Narrower viewports keep the
+       same two cards but stack them inline below the builder strip (Verdict first,
+       DNA-mini below) — no morphing, no pinning, no state machine. */
     .tc-adaptive-canvas, .tc-adaptive-main { min-width: 0; }
-    .tc-context-rail { display: none; }
-    .tc-rail-badges { display: flex; gap: 6px; margin-bottom: 10px; flex: 0 0 auto; }
-    .tc-rail-badges button { flex: 1; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.09); border-radius: 6px; color: var(--silver); cursor: pointer; font-family: var(--font-body); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; padding: 6px 0; text-transform: uppercase; }
-    .tc-rail-badges button.is-active { background: rgba(212,175,55,0.1); border-color: rgba(212,175,55,0.35); color: var(--gold); }
-    .tc-rail-badges .tc-rail-pin { flex: 0 0 36px; padding: 6px 0; }
-    .tc-rail-badges .tc-rail-pin.is-on { background: rgba(53,208,214,0.1); border-color: rgba(53,208,214,0.4); color: #35d0d6; }
+    .tc-context-rail { display: flex; flex-direction: column; gap: 12px; min-width: 0; margin-top: 12px; }
+    .tc-context-rail .tc-rail-card { flex: 0 0 auto; overflow: visible; }
+    .tc-context-rail .tc-rail-card .tc-dhq-panel-body { flex: 0 0 auto; min-height: auto; overflow: visible; padding-right: 0; }
+    .tc-context-rail .tc-ta-sticky-summary { position: static; box-shadow: none; } /* verdict panel must scroll with the rail, not pin over the DNA card */
     .tc-rail-dna-link { width: 100%; margin-top: 10px; background: rgba(212,175,55,0.06); border: 1px solid rgba(212,175,55,0.2); border-radius: 6px; color: var(--gold); cursor: pointer; font-family: var(--font-body); font-size: 0.74rem; font-weight: 600; padding: 8px 10px; }
     @media(min-width:1281px){
         .tc-adaptive-canvas.has-rail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(296px, 330px); gap: 12px; align-items: start; }
-        .tc-adaptive-canvas.has-rail .tc-context-rail { display: flex; position: sticky; top: 10px; max-height: calc(100vh - 84px); }
-        .tc-adaptive-canvas.has-rail .tc-dhq-grid { grid-template-columns: minmax(250px, 0.8fr) minmax(430px, 1.45fr); grid-template-areas: "partners packages"; }
-        .tc-adaptive-canvas.has-rail .tc-dhq-dossier { display: none; }
-        .tc-adaptive-canvas.has-rail .tc-rail-wide-hide { display: none; }
+        .tc-adaptive-canvas.has-rail .tc-context-rail { margin-top: 0; position: sticky; top: 10px; max-height: calc(100vh - 84px); overflow-y: auto; }
     }
 
     /* DNA Grid */
@@ -2144,8 +2105,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script src="js/shared/sync-manager.js?v=20260706sync1"></script>
 <!-- 1b. Format/phase skin contract for league-type-aware modules -->
 <script src="js/league-skin.js?v=20260702bye1"></script>
-<!-- 2. Shared components: UpgradeGate, GMMessage, PlayerInlineCard, TradeFinderTab -->
-<script type="text/babel" src="js/components.js?v=20260613gm1"></script>
+<!-- 2. Shared components: UpgradeGate, GMMessage, PlayerInlineCard -->
+<script type="text/babel" src="js/components.js?v=20260707desk1"></script>
 <!-- 2b. Unified Player Card (SI-2) — window.WR.openPlayerCard — replaces CDN modal -->
 <!-- Shared visual primitives (WR.Card / Badge / Chip / ConfChip / DeltaLine / Kpi / InsightCard) -->
 <script type="text/babel" src="js/components/wr-primitives.js?v=20260427font1"></script>
@@ -2185,7 +2146,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
      group, when the owning surface first calls wrLoadModuleGroup('<group>'). -->
 <script src="js/module-loader.js?v=20260612modlazy1"></script>
 <script type="text/babel" src="js/settings.js?v=20260613strip1"></script>
-<script type="text/babel" data-wr-defer="trade" src="js/trade-calc.js?v=20260614dealhq1"></script>
+<script type="text/babel" data-wr-defer="trade" src="js/trade-calc.js?v=20260707desk1"></script>
 <script type="text/babel" src="js/post-draft.js?v=20260609postdraft1"></script>
 <script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260613strip1"></script>
 <script type="text/babel" data-wr-defer="lineup" src="js/tabs/lineup.js?v=20260702bye1"></script>
@@ -2259,7 +2220,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
      "alex" lazy group — inert at boot, loaded on first GM's Office / Strategy open. -->
 <script type="text/babel" data-wr-defer="alex" src="js/tabs/strategy-editor.js?v=20260613rec1"></script>
 <!-- 7. League detail: coordinator shell, depends on all above -->
-    <script type="text/babel" src="js/league-detail.js?v=20260619cal1"></script>
+    <script type="text/babel" src="js/league-detail.js?v=20260707desk1"></script>
 <!-- 8. App: OwnerDashboard + ReactDOM.render (loads last) -->
 <script type="text/babel" src="js/app.js?v=20260706hub1"></script>
 
