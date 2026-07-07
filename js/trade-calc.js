@@ -3702,6 +3702,7 @@
             // Key the response to the deal's contents so editing the deal invalidates a stale verdict.
             const dealKey = [tradeIds.A.join(','), tradeIds.B.join(','), tradePickIds.A.join(','), tradePickIds.B.join(','), tradeFaab.A, tradeFaab.B].join('|');
             const current = alexVerdict && alexVerdict.dealKey === dealKey ? alexVerdict : null;
+            const ClampedRead = window.WR?.ClampedRead; // guarded — shared primitive, script-order safe
             const verdictHtml = current?.text ? current.text
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                 .replace(/\*\*([^*\n]+)\*\*/g, '<strong style="color:var(--gold);font-weight:700">$1</strong>')
@@ -3716,7 +3717,7 @@
                             ✨ Ask Alex for a second opinion
                         </button>
                     )}
-                    {current?.loading && <GMMessage compact>Reading the deal — checking mode fit, format premiums, and what {(v.theirPosture?.label || 'the other owner').toLowerCase()} energy means for your leverage…</GMMessage>}
+                    {current?.loading && <GMMessage compact>Reading the deal…</GMMessage>}
                     {current?.error && (
                         <div style={{ fontSize:'0.78rem', color:'var(--loss-red)', padding:'6px 2px' }}>
                             {current.error}{' '}
@@ -3725,7 +3726,12 @@
                     )}
                     {current?.text && (
                         <GMMessage title="Second Opinion">
-                            <div dangerouslySetInnerHTML={{ __html: verdictHtml }} />
+                            {/* Clamp the read to ~4 lines with a "Full read" expand;
+                                fall back to the unclamped render if the shared
+                                primitive hasn't loaded (script-order safety). */}
+                            {ClampedRead
+                                ? <ClampedRead maxHeight={104}><div dangerouslySetInnerHTML={{ __html: verdictHtml }} /></ClampedRead>
+                                : <div dangerouslySetInnerHTML={{ __html: verdictHtml }} />}
                             <div style={{ display:'flex', alignItems:'center', gap:'8px', marginTop:'8px' }}>
                                 {current.feedback
                                     ? <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.6 }}>{current.feedback === 'up' ? 'Glad it helped.' : 'Noted — Alex learns from this.'}</span>

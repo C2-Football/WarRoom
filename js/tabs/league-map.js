@@ -538,8 +538,10 @@ function RosterPlayerDossier({ x, playersData, statsData, currentLeague, normPos
     })();
 
     // Dynasty read — plain-language summary from band + peak phase.
-    // Free keeps the raw restatement (value band, age window, ownership);
-    // the framed take ("weigh present value over a long-term hold") is Pro.
+    // Free keeps the raw restatement (value band, age window); the framed
+    // take ("weigh present value over a long-term hold") is Pro. No
+    // ownership sentence — the Decision Stack Owner cell beside it already
+    // says it (never narrate adjacent numbers).
     const dynastyRead = (() => {
         const lead = band + ' ' + posLabel(pos) + (age ? ', age ' + age : '') + '.';
         const vetYrs = valueYrsLeft > 0 ? '~' + valueYrsLeft + ' value yr' + (valueYrsLeft > 1 ? 's' : '') + ' left' : 'final value year';
@@ -554,8 +556,7 @@ function RosterPlayerDossier({ x, playersData, statsData, currentLeague, normPos
                 : peakPhase === 'VET' ? ' In the veteran value band — ' + vetYrs + '.'
                 : peakPhase === 'POST' ? ' Past the normal value window.'
                 : ' Limited age data.');
-        const own = x.isPool ? ' Currently in the draft pool (unrostered).' : x.isMe ? ' On your roster.' : x.teamName ? ' Rostered by ' + x.teamName + '.' : '';
-        return lead + tail + own;
+        return lead + tail;
     })();
 
     // Dynasty Read — paid-tier web-search news synthesis (template-first; the
@@ -628,10 +629,12 @@ function RosterPlayerDossier({ x, playersData, statsData, currentLeague, normPos
                         {p.injury_status && <div style={{ fontSize: '0.72rem', color: 'var(--bad)', fontWeight: 700, marginTop: '5px' }}>{p.injury_status}</div>}
                     </div>
                 </div>
-                {/* Dynasty Read */}
+                {/* Dynasty Read — AI swap clamped to the box, "Full read" expand */}
                 <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: '8px', padding: '9px 11px', minWidth: 0 }}>
                     <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '5px' }}>Dynasty Read</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--k-d8d8de, #d8d8de)', lineHeight: 1.42 }}>{aiRead || dynastyRead}</div>
+                    {window.WR?.ClampedRead
+                        ? React.createElement(window.WR.ClampedRead, { text: aiRead || dynastyRead, maxHeight: 104, style: { fontSize: '0.8rem', color: 'var(--k-d8d8de, #d8d8de)', lineHeight: 1.42 } })
+                        : <div style={{ fontSize: '0.8rem', color: 'var(--k-d8d8de, #d8d8de)', lineHeight: 1.42 }}>{aiRead || dynastyRead}</div>}
                 </div>
                 {/* Decision Stack */}
                 <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: '8px', padding: '9px 11px', minWidth: 0 }}>

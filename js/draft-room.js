@@ -82,6 +82,7 @@
         const toggleHideDrafted = () => setHideDrafted(v => { const next = !v; try { DraftStorage.set('wr_bb_hide_drafted', next); } catch (e) {} return next; });
         const [expandedDraftPid, setExpandedDraftPid] = useState(null);
         const [scoutDrawerPid, setScoutDrawerPid] = useState(null);
+        const [depthReadPos, setDepthReadPos] = useState(null); // Class Depth row with the full Alex read expanded
         const [nflFitAI, setNflFitAI] = useState({}); // pid -> live web-search "Alex NFL Fit" read (premium)
         const [dragPid, setDragPid] = useState(null); // currently dragging pid
         const [draftStrategyEditing, setDraftStrategyEditing] = useState(false);
@@ -1098,7 +1099,10 @@
         const activeFlashAlexBrief = useMemo(() => {
             const engine = window.DraftCC?.analystMock;
             if (!engine?.formatAlexSlackBrief || !activeFlashAnalystReport) return null;
-            return engine.formatAlexSlackBrief(activeFlashAnalystReport, draftProjectionState, { maxLines: 'all' });
+            // maxLines:'all' keeps every data row (numeric limits slice the rows
+            // themselves); commentary is capped to user picks + round 1 — full
+            // pick reads live in Mock Draft Center's expander.
+            return engine.formatAlexSlackBrief(activeFlashAnalystReport, draftProjectionState, { maxLines: 'all', commentaryFor: 'user+r1' });
         }, [activeFlashAnalystReport, draftProjectionState]);
 
         const openDraftPlayer = useCallback((pid) => {
@@ -1661,7 +1665,9 @@
                         'I\'d watch the tier break and stay flexible.',
                     ]));
                 }
-                return { ...row, alexBlurb: sentences.join(' '), starterCount, nextNames: pool.slice(1, 3).map(r => pName(r.p)) };
+                // De-busy: lead = the count/format read only; headliner + plan
+                // sentences live behind the row's "Full read" expander.
+                return { ...row, blurbLead: sentences[0] || '', blurbMore: sentences.slice(1).join(' '), starterCount, nextNames: pool.slice(1, 3).map(r => pName(r.p)) };
             });
         }, [topProspects, normPos, leagueDraftProfile]);
 
@@ -2432,7 +2438,7 @@
                                         <span className="draft-alex-pick-main">
                                             <strong>{line.player} <em>{line.pos}</em></strong>
                                             <small>{line.nflTeam} - {line.school}</small>
-                                            <i>{line.commentary}</i>
+                                            {line.commentary ? <i>{line.commentary}</i> : null}
                                         </span>
                                         <span className="draft-alex-pick-value">
                                             <strong>{line.dhq}</strong>
@@ -2839,7 +2845,18 @@
                                                 {row.nextNames && row.nextNames.length ? <span style={{ opacity: 0.6 }}>{' · then ' + row.nextNames.join(', ')}</span> : null}
                                             </em>
                                             {/* seeded "attack/wait" plan is a rec — depth counts stay free */}
-                                            {isPro && <p>{row.alexBlurb}</p>}
+                                            {/* De-busy: one-line lead by default; headliner + plan behind "Full read" */}
+                                            {isPro && (
+                                                <p>
+                                                    {row.blurbLead}
+                                                    {row.blurbMore ? (
+                                                        <button type="button" onClick={() => setDepthReadPos(prev => (prev === row.pos ? null : row.pos))} style={{ border: 0, background: 'transparent', color: 'var(--gold)', padding: 0, marginLeft: 6, font: 'inherit', fontSize: 'var(--text-micro)', cursor: 'pointer' }}>
+                                                            {depthReadPos === row.pos ? '▾ Less' : '▸ Full read'}
+                                                        </button>
+                                                    ) : null}
+                                                </p>
+                                            )}
+                                            {isPro && depthReadPos === row.pos && row.blurbMore ? <p>{row.blurbMore}</p> : null}
                                         </div>
                                     ))}
                                 </div>

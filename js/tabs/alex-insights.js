@@ -161,9 +161,9 @@
                 focus: 'trades', severity: 'opportunity', confidence: 78,
                 title: 'You trade less than half as often as your league',
                 // Only claim their trades are good when the ledger says so.
-                body: 'You\u2019ve been part of ' + kpis.tradeCount + ' trade' + (kpis.tradeCount === 1 ? '' : 's') + ' vs. a league average of ~' + Math.round(leagueTradeAvg) + '. ' + (kpis.tradeNetDhq > 0
-                    ? 'Your trades have netted positive value \u2014 you\u2019re leaving value on the table.'
-                    : 'More reps on the trade market is the fastest lever you\u2019re not pulling.'),
+                body: kpis.tradeCount + ' trade' + (kpis.tradeCount === 1 ? '' : 's') + ' against a league average of ~' + Math.round(leagueTradeAvg) + ' \u2014 ' + (kpis.tradeNetDhq > 0
+                    ? 'you win when you deal, so more reps is value you\u2019re leaving on the table.'
+                    : 'more reps on the trade market is the fastest lever you\u2019re not pulling.'),
                 ctaLabel: 'Explore trade targets',
             });
         }
@@ -171,7 +171,7 @@
             out.push({
                 focus: 'trades', severity: 'edge', confidence: 84,
                 title: 'Your trades net +' + (kpis.tradeNetDhq / 1000).toFixed(1) + 'k DHQ across ' + kpis.tradeCount + ' deals',
-                body: 'You\u2019re a net winner on trade value. Keep hunting deals \u2014 this is your highest-ROI activity.',
+                body: 'Keep hunting deals \u2014 this is your highest-ROI activity.',
                 ctaLabel: 'Continue & scale',
             });
         }
@@ -179,7 +179,7 @@
             out.push({
                 focus: 'trades', severity: 'warning', confidence: 82,
                 title: 'Your trades are net -' + Math.abs(Math.round(kpis.tradeNetDhq / 1000)) + 'k DHQ',
-                body: 'Across ' + kpis.tradeCount + ' trades you\u2019re giving up more value than you receive. Run proposals through Trade Center\u2019s analyzer before accepting.',
+                body: 'Across ' + kpis.tradeCount + ' trades you\u2019re giving up more than you get \u2014 run proposals through the Trade Center analyzer before accepting.',
                 ctaLabel: 'Review trade history',
             });
         }
@@ -198,14 +198,14 @@
                 out.push({
                     focus: 'trades', severity: 'pattern', confidence: 72,
                     title: 'Most of your trades go through just 2 managers',
-                    body: Math.round(top2Share * 100) + '% of your ' + kpis.tradeCount + ' trades are concentrated with 2 partners out of ' + partners.length + ' total. Broadening the pool opens mismatched-need exchanges that tight partner loops miss.',
+                    body: Math.round(top2Share * 100) + '% of your ' + kpis.tradeCount + ' trades sit with 2 of ' + partners.length + ' partners — broaden the pool and the mismatched-need deals open up.',
                     ctaLabel: 'See all owners',
                 });
             } else if (partners.length >= Math.min(10, rosterCount - 2)) {
                 out.push({
                     focus: 'trades', severity: 'edge', confidence: 78,
                     title: 'You\u2019ve traded with ' + partners.length + ' different owners',
-                    body: 'Broad trade network across ' + kpis.tradeCount + ' deals. You\u2019re reading the whole league, not just a couple of usual suspects \u2014 exactly why your trade DHQ net is positive.',
+                    body: 'You\u2019re working the whole room across ' + kpis.tradeCount + ' deals, not a couple of usual suspects \u2014 breadth is where mismatched needs surface.',
                     ctaLabel: 'Keep hunting',
                 });
             }
@@ -215,7 +215,7 @@
             out.push({
                 focus: 'trades', severity: 'edge', confidence: 75,
                 title: 'You\u2019re a high-volume trader (' + kpis.tradeCount + ' deals)',
-                body: 'Most managers in this league sit under 20. Your activity alone is a signal you read the market differently. Stay disciplined \u2014 volume without net value is churn.',
+                body: 'Most managers in this league sit under 20 deals \u2014 stay disciplined, volume without net value is churn.',
                 ctaLabel: 'Open Trade Center',
             });
         }
@@ -225,7 +225,7 @@
             out.push({
                 focus: 'waivers', severity: 'edge', confidence: 80,
                 title: 'You retain ' + kpis.waiverHitPct + '% of your waiver adds',
-                body: 'That\u2019s above league-average stickiness. Your FA targeting instincts are working \u2014 keep adding aggressively at the position-scarcity windows.',
+                body: 'That\u2019s above league-average stickiness \u2014 keep adding aggressively at the position-scarcity windows.',
                 ctaLabel: 'Continue & scale',
             });
         }
@@ -233,7 +233,7 @@
             out.push({
                 focus: 'waivers', severity: 'pattern', confidence: 78,
                 title: 'Your waiver retention rate is ' + kpis.waiverHitPct + '%',
-                body: Math.round(kpis.waiverTotal - kpis.waiverKept) + ' of ' + kpis.waiverTotal + ' waiver/FA adds were dropped within weeks. Slow down and run DHQ + tier checks before burning FAAB.',
+                body: Math.round(kpis.waiverTotal - kpis.waiverKept) + ' of ' + kpis.waiverTotal + ' waiver/FA adds were dropped within weeks — run DHQ + tier checks before burning FAAB.',
                 ctaLabel: 'Review FAAB log',
             });
         }
@@ -255,7 +255,7 @@
                 out.push({
                     focus: 'waivers', severity: 'opportunity', confidence: 72,
                     title: 'You\u2019re sitting on ' + Math.round((1 - spentPct) * 100) + '% of your FAAB',
-                    body: 'League average is ' + Math.round(leagueAvgPct * 100) + '% spent. Unspent FAAB at season end is zero value \u2014 bid aggressively on the 2\u20133 impact adds you\u2019re tracking.',
+                    body: 'League average is ' + Math.round(leagueAvgPct * 100) + '% spent \u2014 unspent FAAB is worth nothing in December, so bid aggressively on the impact adds you\u2019re tracking.',
                     ctaLabel: 'Open Free Agency',
                 });
             }
@@ -263,7 +263,7 @@
                 out.push({
                     focus: 'waivers', severity: 'warning', confidence: 70,
                     title: 'You\u2019ve burned ' + Math.round(spentPct * 100) + '% of your FAAB',
-                    body: 'Only $' + Math.round(budget * (1 - spentPct)) + ' left. Playoff-push adds are expensive \u2014 conserve for clear upgrades.',
+                    body: 'Only $' + Math.round(budget * (1 - spentPct)) + ' left \u2014 conserve it for clear playoff-push upgrades.',
                     ctaLabel: 'Review waiver log',
                 });
             }
@@ -276,7 +276,7 @@
             out.push({
                 focus: 'draft', severity: 'pattern', confidence: 82,
                 title: 'Your draft hit rate (' + kpis.draftHitPct + '%) trails starter caliber',
-                body: 'Only ' + kpis.draftHits + ' of ' + kpis.draftTotal + ' drafted players reached contributor DHQ (3000+). Consider leaning harder on DHQ rankings over gut in rounds 1\u20133.',
+                body: 'Only ' + kpis.draftHits + ' of ' + kpis.draftTotal + ' picks reached contributor DHQ (3000+) \u2014 lean harder on DHQ rankings over gut in rounds 1\u20133.',
                 ctaLabel: 'Review draft board',
             });
         }
@@ -284,7 +284,7 @@
             out.push({
                 focus: 'draft', severity: 'edge', confidence: 80,
                 title: 'Your drafts hit ' + kpis.draftHitPct + '% \u2014 elite',
-                body: kpis.draftHits + '/' + kpis.draftTotal + ' of your picks reached contributor DHQ. You\u2019re outdrafting the league. Prioritize draft capital in any trade.',
+                body: kpis.draftHits + '/' + kpis.draftTotal + ' picks reached contributor DHQ \u2014 you\u2019re outdrafting the league, so prioritize draft capital in any trade.',
                 ctaLabel: 'See pick values',
             });
         }
@@ -298,7 +298,7 @@
                 out.push({
                     focus: 'draft', severity: 'pattern', confidence: 74,
                     title: 'You draft ' + topPos[0] + ' ' + Math.round(topPos[1] / draftPicks.length * 100) + '% of the time',
-                    body: 'Over ' + draftPicks.length + ' career picks, ' + topPos[1] + ' went to ' + topPos[0] + '. Heavy concentration can starve depth at other positions \u2014 worth checking your roster-construction tier.',
+                    body: topPos[1] + ' of your ' + draftPicks.length + ' career picks went to ' + topPos[0] + ' \u2014 concentration that heavy starves depth elsewhere.',
                     ctaLabel: 'Open Roster Analytics',
                 });
             }
@@ -319,7 +319,7 @@
             out.push({
                 focus: 'gmStyle', severity: 'warning', confidence: 91,
 	                title: Math.round((agingDhq / totalDhq) * 100) + '% of your roster DHQ is past the value window',
-	                body: agingPids.length + ' players are beyond their position\u2019s valuable decline band. Sell windows are closing \u2014 cash in now or commit to a rebuild.',
+	                body: agingPids.length + ' players sit past their position\u2019s value window \u2014 cash in now or commit to the rebuild.',
                 ctaLabel: 'See aging assets',
             });
         }
@@ -333,14 +333,14 @@
             out.push({
                 focus: 'gmStyle', severity: 'warning', confidence: 85,
                 title: 'Your roster has zero elite-tier players',
-                body: 'Championship cores are built around 2\u20134 elites (7000+ DHQ or top-5 at their position). Without one, you\u2019re capped at \u201Cgood\u201D \u2014 accumulate picks and flip mid-tier depth for a cornerstone.',
+                body: 'Championship cores run on 2\u20134 elites (7000+ DHQ or top-5 at position) \u2014 flip mid-tier depth and picks for a cornerstone.',
                 ctaLabel: 'Find a cornerstone target',
             });
         } else if (eliteCount >= 4) {
             out.push({
                 focus: 'gmStyle', severity: 'edge', confidence: 80,
                 title: 'You hold ' + eliteCount + ' elite-tier players',
-                body: 'Championship-caliber concentration. Protect this core \u2014 prioritize ageing-RB insurance and depth at FLEX before chasing another star.',
+                body: 'Protect this core \u2014 prioritize ageing-RB insurance and FLEX depth before chasing another star.',
                 ctaLabel: 'Stabilize lineup',
             });
         }
@@ -354,7 +354,7 @@
             out.push({
                 focus: 'gmStyle', severity: 'opportunity', confidence: 76,
                 title: 'You\u2019re sitting on ' + risingPids.length + ' rising mid-tier players',
-                body: 'Pre-peak players at 4000+ DHQ are your highest-appreciation assets. If you aren\u2019t contending, bundle 2 of them for a proven elite now.',
+                body: 'Pre-peak 4000+ DHQ players are your highest-appreciation assets \u2014 if you aren\u2019t contending, bundle two for a proven elite now.',
                 ctaLabel: 'Explore consolidation trades',
             });
         }
@@ -377,7 +377,7 @@
                         focus: 'startSit', severity: 'pattern', confidence: 70,
                         pointsDelta: Math.max(...lowWeekDeltas),
                         title: lowWeeks + ' of ' + mine.length + ' weeks were 25%+ below your average',
-                        body: 'Lineup variance is eating wins. Either volatile plays or frequent start-sit misses. Use the Compare tab\u2019s matchup view to pre-commit starters.',
+                        body: 'Lineup variance is eating wins \u2014 pre-commit starters with the Compare tab\u2019s matchup view.',
                         ctaLabel: 'Open Compare',
                     });
                 }
@@ -394,7 +394,7 @@
             out.push({
                 focus: 'injury', severity: 'warning', confidence: 73,
                 title: injuredHigh.length + ' high-DHQ players are injured',
-                body: 'Contributor-tier assets stacked in Out/Doubtful/IR status. Deploy IR slots + hunt short-term-upside replacements before the news breaks league-wide.',
+                body: 'Deploy IR slots and hunt short-term-upside replacements before the news breaks league-wide.',
                 ctaLabel: 'Open Free Agency',
             });
         }
@@ -404,7 +404,7 @@
             out.push({
                 focus: 'gmStyle', severity: 'edge', confidence: 70,
                 title: 'You win value on the trade market without leaning on FAAB',
-                body: 'Only ' + Math.round((myFaab / budget) * 100) + '% of your FAAB spent but your trades net +' + Math.round((kpis.tradeNetDhq || 0) / 1000) + 'k DHQ across ' + kpis.tradeCount + ' deals. Trade-first managers tend to beat FAAB-first managers in dynasty \u2014 you\u2019re in the right bucket.',
+                body: 'Only ' + Math.round((myFaab / budget) * 100) + '% of your FAAB spent and still a positive trade ledger \u2014 trade-first managers beat FAAB-first in dynasty.',
                 ctaLabel: 'Keep trading',
             });
         }
@@ -423,7 +423,7 @@
             out.push({
                 focus: 'streaming', severity: 'opportunity', confidence: 60,
                 title: 'You don\u2019t roster a K or DEF',
-                body: 'Streaming these weekly based on matchup is fine \u2014 just don\u2019t leave the slot empty. Auto-pilot settings may cost you 6\u20138 pts per week.',
+                body: 'Stream them weekly by matchup \u2014 an empty slot can cost you 6\u20138 points a week.',
                 ctaLabel: 'Check Free Agency',
             });
         }
@@ -447,9 +447,8 @@
                     gmCards.push({
                         focus: 'gmStyle', severity: 'warning', confidence: 82,
                         title: recentConflicts.length + ' of your recent moves cut against your ' + gmFx.modeLabel + ' plan',
-                        body: 'Alex logged ' + recentConflicts.length + ' actions in the last two weeks that conflict with your committed strategy'
-                            + (recentConflicts[0]?.reasons?.length ? ' (' + recentConflicts[0].reasons[0] + ')' : '')
-                            + '. Recommit to the plan or update it — a strategy you trade against steers every surface wrong.',
+                        body: 'Recommit to the plan or update it — a strategy you trade against steers every surface wrong'
+                            + (recentConflicts[0]?.reasons?.length ? ' (latest: ' + recentConflicts[0].reasons[0] + ')' : '') + '.',
                         ctaLabel: 'Review GM Strategy',
                     });
                 }
@@ -458,7 +457,7 @@
                     gmCards.push({
                         focus: 'gmStyle', severity: 'warning', confidence: 78,
                         title: Math.round((agingDhq / totalDhq) * 100) + '% of your value sits in vets your ' + gmFx.modeLabel + ' plan says to move',
-                        body: agingPids.length + ' player' + (agingPids.length === 1 ? ' is' : 's are') + ' past the value window while your plan points long. Sell windows close fast — convert them to picks and youth before the market does it for you.',
+                        body: agingPids.length + ' player' + (agingPids.length === 1 ? ' sits' : 's sit') + ' past the value window — convert them to picks and youth before the market does it for you.',
                         ctaLabel: 'Open Trade Center',
                     });
                 }
@@ -481,7 +480,7 @@
                         gmCards.push({
                             focus: 'gmStyle', severity: 'opportunity', confidence: 74,
                             title: flagged.length + ' rostered players trip your own sell rules',
-                            body: 'Your GM Strategy flags these positions/ages as sells, yet ' + flagged.length + ' of them are still on your roster. Shop the ones with real markets — rules only pay off when you act on them.',
+                            body: 'Shop the ones with real markets — sell rules only pay off when you act on them.',
                             ctaLabel: 'See flagged players',
                         });
                     }
@@ -654,7 +653,7 @@
                 ? '"trades" | "waivers" | "draft" | "startSit" | "injury" | "streaming" | "gmStyle"'
                 : '"trades" | "waivers" | "draft" | "injury" | "gmStyle"') + ',',
             '  "title": "short headline, under 80 chars",',
-            '  "body": "2 sentences with a specific number or detail",',
+            '  "body": "1 sentence with a specific number or detail",',
             '  "ctaLabel": "action verb phrase, e.g. \'Open Trade Center\'"',
             '}]',
             '',
@@ -864,9 +863,14 @@
                         'No behavioral patterns detected yet. Alex needs a bit of trade / waiver / draft history before it can speak confidently.')
                 )
                 : h('div', { className: 'gm-office-insight-grid' },
-                    merged.map((ins, i) => h('div', { key: i, style: { position: 'relative' } },
+                    merged.map((ins, i) => {
+                        // Chips win: when the why-chips render under a card, the
+                        // body would just restate them — suppress it (never body
+                        // + why-chips together).
+                        const cardIns = ins.recommendationWhy?.length > 0 ? { ...ins, body: null } : ins;
+                        return h('div', { key: i, style: { position: 'relative' } },
                         h(InsightCard, ins.isAi ? {
-                            ...ins,
+                            ...cardIns,
                             // Learning loop: thumbs feed the ai_feedback rollup that
                             // tunes future prompts for this owner.
                             feedback: {
@@ -874,7 +878,7 @@
                                 onUp: () => sendInsightFeedback(ins, 'up'),
                                 onDown: () => sendInsightFeedback(ins, 'down'),
                             },
-                        } : ins),
+                        } : cardIns),
                         ins.recommendationWhy?.length > 0 && h('div', {
                             style: {
                                 display: 'flex', flexWrap: 'wrap', gap: '5px',
@@ -895,7 +899,8 @@
                             }, line))
                         ),
                         ins.isAi && h('div', { style: { position: 'absolute', top: 10, right: 10, fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro)', fontWeight: 700, letterSpacing: '0.12em', padding: '2px 6px', borderRadius: '4px', background: 'rgba(124,107,248,0.2)', color: 'var(--purple)', border: '1px solid rgba(124,107,248,0.4)' } }, '\u2728 AI')
-                    ))
+                        );
+                    })
                 )
         );
     }
@@ -1030,18 +1035,18 @@
             const sd = 'ai-net:' + partners.length + ':' + top.name + ':' + top.count;
             if (partners.length >= 10 && top2Share < 0.5) {
                 return avPick(sd, [
-                    'You work the whole room \u2014 ' + partners.length + ' different partners. ' + top.name + ' is your go-to at ' + top.count + ' deals.',
-                    'Broad network here: ' + partners.length + ' partners, no real favorites. ' + top.name + ' shows up most at ' + top.count + ' deals.',
+                    'You work the whole room \u2014 ' + partners.length + ' different partners, with ' + top.name + ' your go-to at ' + top.count + ' deals.',
+                    'Broad network here: ' + partners.length + ' partners, no real favorites \u2014 ' + top.name + ' shows up most at ' + top.count + ' deals.',
                 ]);
             }
             if (top2Share >= 0.6) {
                 return avPick(sd, [
-                    'You\u2019re funneling ' + Math.round(top2Share * 100) + '% of your trades through just two managers. I\u2019d branch out \u2014 the best value usually hides with the people you\u2019re not talking to.',
-                    Math.round(top2Share * 100) + '% of your deals run through two guys. That\u2019s a narrow market \u2014 widen it and you\u2019ll find softer spots.',
+                    'You\u2019re funneling ' + Math.round(top2Share * 100) + '% of your trades through just two managers \u2014 the best value usually hides with the people you\u2019re not talking to.',
+                    Math.round(top2Share * 100) + '% of your deals run through two guys \u2014 widen that narrow market and you\u2019ll find softer spots.',
                 ]);
             }
             return avPick(sd, [
-                'Nice balance across ' + partners.length + ' partners. ' + top.name + ' is your most frequent counter at ' + top.count + ' deals.',
+                'Nice balance across ' + partners.length + ' partners \u2014 ' + top.name + ' is your most frequent counter at ' + top.count + ' deals.',
                 'You spread it around \u2014 ' + partners.length + ' partners, with ' + top.name + ' your most common (' + top.count + ' deals).',
             ]);
         })();
@@ -1055,27 +1060,28 @@
             const sd = 'ai-val:' + partners.length + ':' + winners.length;
             if (biggestLoser && Math.abs(biggestLoser.net) >= 3000) {
                 // 'Solid overall' only when winners are an actual majority;
-                // otherwise frame the losing record honestly.
+                // otherwise frame the losing record honestly. The bars below
+                // already name who's up on you \u2014 don't restate them (Q5 cut).
                 if (winners.length * 2 > partners.length) {
                     return avPick(sd, [
-                        'You come out ahead against ' + winners.length + ' of ' + partners.length + ' partners \u2014 but ' + biggestLoser.name + ' has gotten you for ' + (Math.abs(biggestLoser.net) / 1000).toFixed(1) + 'k DHQ. Run their next offer through the analyzer before you say yes.',
-                        'Solid overall \u2014 ' + winners.length + ' of ' + partners.length + ' partners \u2014 but watch ' + biggestLoser.name + '. They\u2019re up ' + (Math.abs(biggestLoser.net) / 1000).toFixed(1) + 'k on you. Slow down on their proposals.',
+                        'You come out ahead against ' + winners.length + ' of ' + partners.length + ' partners \u2014 run offers from the red bars through the analyzer before you say yes.',
+                        'Solid overall \u2014 up on ' + winners.length + ' of ' + partners.length + ' partners \u2014 but slow down on proposals from the red side of this chart.',
                     ]);
                 }
                 return avPick(sd, [
-                    'You\u2019re only ahead against ' + winners.length + ' of ' + partners.length + ' partners, and ' + biggestLoser.name + ' has gotten you for ' + (Math.abs(biggestLoser.net) / 1000).toFixed(1) + 'k DHQ. Run their next offer through the analyzer before you say yes.',
-                    biggestLoser.name + ' is up ' + (Math.abs(biggestLoser.net) / 1000).toFixed(1) + 'k on you, and the ledger only favors you against ' + winners.length + ' of ' + partners.length + ' partners. Slow down on their proposals.',
+                    'You\u2019re only ahead against ' + winners.length + ' of ' + partners.length + ' partners \u2014 run every incoming offer through the analyzer before you say yes.',
+                    'The ledger only favors you against ' + winners.length + ' of ' + partners.length + ' partners \u2014 tighten up before the next yes.',
                 ]);
             }
             if (biggestWinner && winners.length >= partners.length / 2) {
                 return avPick(sd, [
-                    biggestWinner.name + ' has been your favorite mark (+' + (biggestWinner.net / 1000).toFixed(1) + 'k). Keep sending them offers \u2014 your edge there is real.',
-                    'You\u2019ve got ' + biggestWinner.name + '\u2019s number (+' + (biggestWinner.net / 1000).toFixed(1) + 'k). Stay on the offer side with them.',
+                    biggestWinner.name + ' has been your favorite mark (+' + (biggestWinner.net / 1000).toFixed(1) + 'k) \u2014 keep sending them offers.',
+                    'You\u2019ve got ' + biggestWinner.name + '\u2019s number (+' + (biggestWinner.net / 1000).toFixed(1) + 'k) \u2014 stay on the offer side with them.',
                 ]);
             }
             return avPick(sd, [
-                'Your trade value\u2019s scattered \u2014 nobody\u2019s really winning or losing. You\u2019re playing the market fair and square.',
-                'No clear edge or leak across partners. You\u2019re trading the whole league pretty evenly.',
+                'Your trade value\u2019s scattered \u2014 nobody\u2019s really winning or losing.',
+                'No clear edge or leak across partners \u2014 you\u2019re trading the whole league pretty evenly.',
             ]);
         })();
 
@@ -1086,19 +1092,19 @@
             const sd = 'ai-hit:' + draftPicks.length + ':' + rate;
             if (rate === 0) {
                 return avPick(sd, [
-                    'None of your ' + draftPicks.length + ' tracked picks have hit contributor value yet. Your draft isn\u2019t the engine \u2014 your trades are. Lean into flipping rookies for proven vets.',
-                    'Rough drafting so far \u2014 0 of ' + draftPicks.length + ' picks at contributor DHQ. That\u2019s fine if you keep winning on the trade side; consider dealing picks for known production.',
+                    'None of your ' + draftPicks.length + ' tracked picks have hit contributor value yet \u2014 lean into flipping rookies for proven vets.',
+                    'Rough drafting so far \u2014 0 of ' + draftPicks.length + ' picks at contributor DHQ, so consider dealing picks for known production.',
                 ]);
             }
             if (rate >= 50) {
                 return avPick(sd, [
-                    rate + '% hit rate across ' + draftPicks.length + ' picks \u2014 that\u2019s elite. Hoard picks in trades; they compound in your hands.',
-                    'You draft. ' + rate + '% hits on ' + draftPicks.length + ' picks. I\u2019d be collecting picks every chance you get.',
+                    rate + '% hit rate across ' + draftPicks.length + ' picks is elite \u2014 hoard picks in trades, they compound in your hands.',
+                    'You draft: ' + rate + '% hits on ' + draftPicks.length + ' picks \u2014 I\u2019d be collecting picks every chance you get.',
                 ]);
             }
             return avPick(sd, [
-                rate + '% hit rate over ' + draftPicks.length + ' picks \u2014 middle of the pack. No single round has become your sweet spot yet.',
-                'You\u2019re right around average: ' + rate + '% on ' + draftPicks.length + ' picks. Nothing\u2019s jumped out as your money round.',
+                rate + '% hit rate over ' + draftPicks.length + ' picks is middle of the pack \u2014 no single round has become your sweet spot yet.',
+                'You\u2019re right around average \u2014 ' + rate + '% on ' + draftPicks.length + ' picks, with nothing jumping out as your money round.',
             ]);
         })();
 
@@ -1109,8 +1115,8 @@
             const sd = 'ai-pos:' + top.pos + ':' + topPct;
             if (topPct >= 40) {
                 return avPick(sd, [
-                    'You lean hard on ' + top.pos + ' \u2014 ' + topPct + '% of your picks. Either that\u2019s a real thesis or a blind spot; mixing it up next draft is cheap insurance.',
-                    top.pos + ' is clearly your comfort pick (' + topPct + '% of the board). Worth asking whether it\u2019s strategy or habit.',
+                    'You lean hard on ' + top.pos + ' \u2014 ' + topPct + '% of your picks \u2014 and mixing it up next draft is cheap insurance.',
+                    top.pos + ' is clearly your comfort pick (' + topPct + '% of the board) \u2014 worth asking whether it\u2019s strategy or habit.',
                 ]);
             }
             return avPick(sd, [
@@ -1136,12 +1142,10 @@
         return h('div', null,
             // Free keeps the raw charts (raw history); Alex's per-chart reads
             // are the Pro layer, so the banner becomes the locked teaser.
+            // (Pro explainer box removed \u2014 the per-panel Alex strips make the
+            // difference from Analytics self-evident.)
             isPro
-                ? h('div', { style: { marginBottom: '14px', padding: '12px 16px', background: 'rgba(124,107,248,0.04)', border: '1px solid rgba(124,107,248,0.15)', borderRadius: 'var(--card-radius, 10px)' } },
-                    h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--purple)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px', fontFamily: 'var(--font-title)' } }, 'How this differs from Analytics'),
-                    h('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.85, lineHeight: 1.5 } },
-                        'Analytics shows raw numbers. Patterns is Alex reading those numbers back to you \u2014 every chart below includes Alex\u2019s take on what it means for your play style.')
-                )
+                ? null
                 : (window.WrGatedMoreRow
                     ? h('div', { style: { marginBottom: '14px' } }, h(window.WrGatedMoreRow, {
                         title: 'Alex\u2019s chart reads \u2014 Pro',

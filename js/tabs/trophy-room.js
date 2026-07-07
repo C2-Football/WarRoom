@@ -1127,10 +1127,14 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
             }, !isPro ? '🔒 Season Recap — Pro' : recapStatus === 'generating' ? 'Alex is writing…' : '✨ Season Recap'),
         ),
 
-        // Season Recap result card (only shown after generation)
+        // Season Recap result card (only shown after generation). Long-form
+        // starts collapsed past ~12 lines (268px ≈ 12 × 1.7-line-height) with
+        // a "Full read" expand — the de-busying long-form rule.
         view === 'league' && recapStatus === 'done' && recapText && React.createElement('div', { style: { ...cardStyle, whiteSpace: 'pre-wrap' } },
             React.createElement('div', { style: headerStyle }, 'SEASON RECAP'),
-            React.createElement('div', { style: { fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.7 } }, recapText),
+            (window.WR && window.WR.ClampedRead)
+                ? React.createElement(window.WR.ClampedRead, { text: recapText, maxHeight: 268, style: { fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.7 }, fadeColor: 'var(--black, #000)' })
+                : React.createElement('div', { style: { fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.7 } }, recapText),
         ),
 
         view === 'league' ? renderLeagueView()

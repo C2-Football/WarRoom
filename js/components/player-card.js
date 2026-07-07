@@ -726,7 +726,11 @@
                     (!scoutNews || scoutNews.status === 'loading')
                         ? React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6 } }, 'Reading the latest…')
                         : scoutNews.status === 'done'
-                            ? React.createElement('div', { style: { fontSize: 'var(--text-body, 0.95rem)', color: 'var(--k-d0d0d0, #d0d0d0)', lineHeight: 1.5 } }, scoutNews.text)
+                            // Clamp the AI read to ~4 lines with a "Full read" expand
+                            // (de-busying rule: long-form stays behind a disclosure).
+                            ? (window.WR && window.WR.ClampedRead
+                                ? React.createElement(window.WR.ClampedRead, { text: scoutNews.text, maxHeight: 104, style: { fontSize: 'var(--text-body, 0.95rem)', color: 'var(--k-d0d0d0, #d0d0d0)', lineHeight: 1.5 }, fadeColor: 'var(--k-0a0b0d, #0a0b0d)' })
+                                : React.createElement('div', { style: { fontSize: 'var(--text-body, 0.95rem)', color: 'var(--k-d0d0d0, #d0d0d0)', lineHeight: 1.5 } }, scoutNews.text))
                             : scoutNews.status === 'locked'
                                 ? React.createElement('button', {
                                     onClick: () => { if (window.showProLaunchPage) window.showProLaunchPage(); else if (window.showUpgradePrompt) window.showUpgradePrompt('dynasty_read_ai'); },

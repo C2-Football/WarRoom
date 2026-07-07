@@ -8,13 +8,34 @@
 
 function ordinal(n) { const s = ['th','st','nd','rd']; const v = n % 100; return n + (s[(v-20)%10] || s[v] || s[0]); }
 
+// The four tier-message keys (elite/contender/crossroads/rebuilding) are
+// POOLS — AlexVoice.pick chooses one per league+week seed, so the read is
+// stable across re-renders but the phrasing rolls when the week does.
+// Greeting/waiver/trade/draft/rank stay single-variant by design (owner
+// call, de-busying plan Q4 — wider seeding waits for the hybrid-AI voice).
 const BRIEF_PERSONALITY = {
     default: {
         greeting: (t, name) => (t < 12 ? 'Good morning' : t < 17 ? 'Good afternoon' : 'Good evening') + ', ' + name + '.',
-        elite: (rank, hs) => "Your roster is elite — top of the food chain right now.",
-        contender: (rank, hs) => "Your roster's sitting in solid shape — " + ordinal(rank) + " in the league with a health score of " + hs + ". You're right in the mix.",
-        crossroads: (rank, hs) => "You're at a crossroads — ranked " + ordinal(rank) + " with a health score of " + hs + ". Some decisions coming up that'll define your direction.",
-        rebuilding: (rank, hs) => "Rebuilding mode — ranked " + ordinal(rank) + ". Health score is " + hs + ". But that's where the opportunity is.",
+        elite: [
+            (rank, hs) => "Your roster is elite — top of the food chain right now.",
+            (rank, hs) => "This roster is the class of the league — the target's on your back now.",
+            (rank, hs) => "Elite territory. Everyone else is chasing you.",
+        ],
+        contender: [
+            (rank, hs) => "Your roster's sitting in solid shape — " + ordinal(rank) + " in the league with a health score of " + hs + ". You're right in the mix.",
+            (rank, hs) => "You're a legit contender — " + ordinal(rank) + " with a health score of " + hs + ", well within striking distance.",
+            (rank, hs) => "Sitting " + ordinal(rank) + " with a health score of " + hs + " — one sharp move could tip this your way.",
+        ],
+        crossroads: [
+            (rank, hs) => "You're at a crossroads — ranked " + ordinal(rank) + " with a health score of " + hs + ". Some decisions coming up that'll define your direction.",
+            (rank, hs) => "Ranked " + ordinal(rank) + ", health score " + hs + " — you could push in or pull back, and I'd rather we choose than drift.",
+            (rank, hs) => "This is a fork-in-the-road roster — " + ordinal(rank) + ", health score " + hs + ". The next move sets your direction.",
+        ],
+        rebuilding: [
+            (rank, hs) => "Rebuilding mode — ranked " + ordinal(rank) + ". Health score is " + hs + ". But that's where the opportunity is.",
+            (rank, hs) => "You're rebuilding from " + ordinal(rank) + " with a health score of " + hs + " — the goal right now is assets, not wins.",
+            (rank, hs) => "Ranked " + ordinal(rank) + ", health score " + hs + ". Rebuilds reward patience — stack picks and youth.",
+        ],
         waiver: (name, pos, dhq) => "I've been watching the wire — " + name + " is sitting out there unclaimed.",
         trade: (count) => "I've mapped out the owners in your league. A few look ripe for a deal.",
         draft: (days, date) => "Draft is " + days + " day" + (days !== 1 ? 's' : '') + " out. Time to sharpen your board.",
@@ -22,10 +43,26 @@ const BRIEF_PERSONALITY = {
     },
     general: {
         greeting: (t, name) => name + ". Listen up.",
-        elite: (rank, hs) => "Health score " + hs + ". That's dominance. Don't get comfortable — maintain that edge.",
-        contender: (rank, hs) => "Ranked " + ordinal(rank) + ". Health score " + hs + ". Solid, but solid doesn't win championships. Push harder.",
-        crossroads: (rank, hs) => "Ranked " + ordinal(rank) + ". Health score " + hs + ". You're at a crossroads and I need you to make a decision. Now.",
-        rebuilding: (rank, hs) => "Ranked " + ordinal(rank) + ". Health score " + hs + ". We're in rebuild mode. That means discipline, not panic.",
+        elite: [
+            (rank, hs) => "Health score " + hs + ". That's dominance. Don't get comfortable — maintain that edge.",
+            (rank, hs) => "Top of the league at " + hs + " health. Champions get hunted — stay sharp.",
+            (rank, hs) => "Elite roster. Dominance is rented, and the rent's due every week.",
+        ],
+        contender: [
+            (rank, hs) => "Ranked " + ordinal(rank) + ". Health score " + hs + ". Solid, but solid doesn't win championships. Push harder.",
+            (rank, hs) => ordinal(rank) + " place, health score " + hs + ". Close only counts in horseshoes. Close the gap.",
+            (rank, hs) => "You're " + ordinal(rank) + " at " + hs + " health. Contender status — now act like one.",
+        ],
+        crossroads: [
+            (rank, hs) => "Ranked " + ordinal(rank) + ". Health score " + hs + ". You're at a crossroads and I need you to make a decision. Now.",
+            (rank, hs) => ordinal(rank) + ", health score " + hs + ". Sitting on the fence loses championships. Pick a side.",
+            (rank, hs) => "Ranked " + ordinal(rank) + " at " + hs + ". Indecision is a decision — and it's the wrong one.",
+        ],
+        rebuilding: [
+            (rank, hs) => "Ranked " + ordinal(rank) + ". Health score " + hs + ". We're in rebuild mode. That means discipline, not panic.",
+            (rank, hs) => ordinal(rank) + " place, health " + hs + ". Rebuilds are won with discipline. Stick to the plan.",
+            (rank, hs) => "Health score " + hs + ", ranked " + ordinal(rank) + ". Tear it down right and you only do it once.",
+        ],
         waiver: (name, pos, dhq) => name + " is available on the wire. Pick him up before your opponents wake up.",
         trade: (count) => "I've profiled every owner in this league. Time to exploit their weaknesses.",
         draft: (days, date) => days + " days until the draft. You better have your board locked in.",
@@ -33,10 +70,26 @@ const BRIEF_PERSONALITY = {
     },
     enthusiast: {
         greeting: (t, name) => "Hey! " + (t < 12 ? 'Good morning' : t < 17 ? 'Good afternoon' : 'Good evening') + "! LET'S GO, " + name + "!",
-        elite: (rank, hs) => "ELITE! Man, you are COOKING right now! Health score " + hs + " — that's what I'm talking about!",
-        contender: (rank, hs) => "Dude, " + ordinal(rank) + " in the league! Health score " + hs + "! You've got JUICE right now, let's keep it rolling!",
-        crossroads: (rank, hs) => "Okay okay okay — ranked " + ordinal(rank) + ", health score " + hs + ". We're at a CROSSROADS but that's where the MAGIC happens!",
-        rebuilding: (rank, hs) => "Alright, " + ordinal(rank) + " place, health score " + hs + " — REBUILDING BABY! This is where you lay the foundation for something SPECIAL!",
+        elite: [
+            (rank, hs) => "ELITE! Man, you are COOKING right now! Health score " + hs + " — that's what I'm talking about!",
+            (rank, hs) => "Health score " + hs + " — this roster is LOADED! Keep your foot on the gas!",
+            (rank, hs) => "ELITE ROSTER ALERT! You're the team everybody else is scared of right now!",
+        ],
+        contender: [
+            (rank, hs) => "Dude, " + ordinal(rank) + " in the league! Health score " + hs + "! You've got JUICE right now, let's keep it rolling!",
+            (rank, hs) => ordinal(rank) + " place with a " + hs + " health score — you are RIGHT THERE! One move away!",
+            (rank, hs) => "Health score " + hs + ", sitting " + ordinal(rank) + " — I LOVE this team's ceiling!",
+        ],
+        crossroads: [
+            (rank, hs) => "Okay okay okay — ranked " + ordinal(rank) + ", health score " + hs + ". We're at a CROSSROADS but that's where the MAGIC happens!",
+            (rank, hs) => "Ranked " + ordinal(rank) + ", health " + hs + " — big decisions ahead, and honestly? I'm PUMPED about the options!",
+            (rank, hs) => ordinal(rank) + " place, health score " + hs + ". Crossroads time — pick a lane and FLOOR IT!",
+        ],
+        rebuilding: [
+            (rank, hs) => "Alright, " + ordinal(rank) + " place, health score " + hs + " — REBUILDING BABY! This is where you lay the foundation for something SPECIAL!",
+            (rank, hs) => "Health score " + hs + ", ranked " + ordinal(rank) + " — every dynasty started somewhere! Let's stack some assets!",
+            (rank, hs) => "REBUILD SZN! " + ordinal(rank) + " now, health " + hs + " — but the future? OH, it's bright!",
+        ],
         waiver: (name, pos, dhq) => "OH MAN — " + name + " is just sitting there on the wire! You GOTTA grab this guy!",
         trade: (count) => "I've been studying every owner in this league and I am FIRED UP about some trade targets!",
         draft: (days, date) => "DRAFT IN " + days + " DAYS! Oh man I love this time of year! Let's get your board DIALED IN!",
@@ -44,10 +97,26 @@ const BRIEF_PERSONALITY = {
     },
     bayou: {
         greeting: (t, name) => "Mornin', cher. How we doin' today, " + name + "?",
-        elite: (rank, hs) => "Boy I tell you what, this roster is NASTY good. Health score " + hs + ". Ain't nobody touchin' us right now.",
-        contender: (rank, hs) => "We sittin' at " + ordinal(rank) + ", health score " + hs + ". That's a good gumbo right there — just need a little more seasoning.",
-        crossroads: (rank, hs) => "We at a crossroads, " + ordinal(rank) + " place, health score " + hs + ". Time to fish or cut bait, ya heard me?",
-        rebuilding: (rank, hs) => "Look, we " + ordinal(rank) + " right now. Health score " + hs + ". But down here we know how to build somethin' from nothin'.",
+        elite: [
+            (rank, hs) => "Boy I tell you what, this roster is NASTY good. Health score " + hs + ". Ain't nobody touchin' us right now.",
+            (rank, hs) => "Cher, this roster's the best gumbo in the parish — health score " + hs + ". Don't let it burn.",
+            (rank, hs) => "Health score " + hs + ". We eatin' good at the top — but gators circle the fattest boat.",
+        ],
+        contender: [
+            (rank, hs) => "We sittin' at " + ordinal(rank) + ", health score " + hs + ". That's a good gumbo right there — just need a little more seasoning.",
+            (rank, hs) => ordinal(rank) + " place, health " + hs + ". Roux's almost ready, cher — one more ingredient.",
+            (rank, hs) => "We " + ordinal(rank) + " with a " + hs + " health score. Close enough to smell the crawfish boil.",
+        ],
+        crossroads: [
+            (rank, hs) => "We at a crossroads, " + ordinal(rank) + " place, health score " + hs + ". Time to fish or cut bait, ya heard me?",
+            (rank, hs) => ordinal(rank) + " place, health score " + hs + ". Current's pullin' both ways — pick a channel and paddle.",
+            (rank, hs) => "We sittin' " + ordinal(rank) + " at " + hs + ". Can't stand in the middle of the river forever, cher.",
+        ],
+        rebuilding: [
+            (rank, hs) => "Look, we " + ordinal(rank) + " right now. Health score " + hs + ". But down here we know how to build somethin' from nothin'.",
+            (rank, hs) => ordinal(rank) + " place, health " + hs + ". Swamp teaches patience — plant now, feast later.",
+            (rank, hs) => "Health score " + hs + ", cher. We lettin' the pot simmer — good gumbo don't rush.",
+        ],
         waiver: (name, pos, dhq) => name + " just fell off somebody's bayou boat and landed right on the wire. Go get 'em.",
         trade: (count) => "I been watchin' these owners real close. Got a few that's ready to make a deal.",
         draft: (days, date) => "Draft's " + days + " days out. Time to set them trotlines and see what we catch.",
@@ -55,10 +124,26 @@ const BRIEF_PERSONALITY = {
     },
     wit: {
         greeting: (t, name) => (t < 12 ? 'Morning' : t < 17 ? 'Afternoon' : 'Evening') + ", " + name + ". Your opponents didn't get any smarter overnight.",
-        elite: (rank, hs) => "Elite tier. Health score " + hs + ". Try not to let it go to your head — though I suppose your leaguemates already have.",
-        contender: (rank, hs) => ordinal(rank) + " place, health score " + hs + ". Solid enough to be dangerous, not quite good enough to be cocky about it.",
-        crossroads: (rank, hs) => "Ranked " + ordinal(rank) + ", health score " + hs + ". You're at a crossroads — which, historically, is where people make their worst decisions. Let's not do that.",
-        rebuilding: (rank, hs) => ordinal(rank) + " place. Health score " + hs + ". Rebuilding. The good news? It's hard to get worse. The bad news? Your leaguemates know it too.",
+        elite: [
+            (rank, hs) => "Elite tier. Health score " + hs + ". Try not to let it go to your head — though I suppose your leaguemates already have.",
+            (rank, hs) => "Health score " + hs + ". Elite. Your leaguemates are drafting their consolation speeches as we speak.",
+            (rank, hs) => "Elite roster, health score " + hs + ". The hard part now is pretending it was all skill. It mostly was.",
+        ],
+        contender: [
+            (rank, hs) => ordinal(rank) + " place, health score " + hs + ". Solid enough to be dangerous, not quite good enough to be cocky about it.",
+            (rank, hs) => ordinal(rank) + " with a health score of " + hs + ". Contender — a word that means 'good, with homework'.",
+            (rank, hs) => "Health score " + hs + ", ranked " + ordinal(rank) + ". One smart move from scary. Or one dumb one from average.",
+        ],
+        crossroads: [
+            (rank, hs) => "Ranked " + ordinal(rank) + ", health score " + hs + ". You're at a crossroads — which, historically, is where people make their worst decisions. Let's not do that.",
+            (rank, hs) => ordinal(rank) + ", health score " + hs + ". Crossroads teams either commit or collect regrets. Your call.",
+            (rank, hs) => "Health " + hs + ", ranked " + ordinal(rank) + ". Two roads diverged; Robert Frost wasn't in a dynasty league.",
+        ],
+        rebuilding: [
+            (rank, hs) => ordinal(rank) + " place. Health score " + hs + ". Rebuilding. The good news? It's hard to get worse. The bad news? Your leaguemates know it too.",
+            (rank, hs) => ordinal(rank) + " place, health score " + hs + ". Rebuilding — a marathon your leaguemates keep mistaking for a nap.",
+            (rank, hs) => "Health score " + hs + ", ranked " + ordinal(rank) + ". The rebuild is on schedule, which is more than most can say.",
+        ],
         waiver: (name, pos, dhq) => name + " is sitting on the waiver wire like a forgotten lunch. Someone's going to eat eventually — might as well be you.",
         trade: (count) => "I've studied every owner in your league. Some of them actually think they're good at this.",
         draft: (days, date) => days + " days to the draft. Plenty of time for your opponents to overthink their boards.",
@@ -66,10 +151,26 @@ const BRIEF_PERSONALITY = {
     },
     closer: {
         greeting: (t, name) => "Let's go to work, " + name + ".",
-        elite: (rank, hs) => "Elite. Period. Health score " + hs + ". Now protect it.",
-        contender: (rank, hs) => ordinal(rank) + " place. Health score " + hs + ". You play to win the game.",
-        crossroads: (rank, hs) => ordinal(rank) + ". Health score " + hs + ". Crossroads. Make a decision and commit. No half-measures.",
-        rebuilding: (rank, hs) => ordinal(rank) + ". Health score " + hs + ". Rebuilding. You don't build a house by wishing — you lay bricks. Let's go.",
+        elite: [
+            (rank, hs) => "Elite. Period. Health score " + hs + ". Now protect it.",
+            (rank, hs) => "Health score " + hs + ". Elite. Champions defend. Defend.",
+            (rank, hs) => "Elite roster. Nobody remembers who almost held the title. Hold it.",
+        ],
+        contender: [
+            (rank, hs) => ordinal(rank) + " place. Health score " + hs + ". You play to win the game.",
+            (rank, hs) => ordinal(rank) + ". Health " + hs + ". Contender. Contenders who wait become spectators.",
+            (rank, hs) => "Health score " + hs + ", " + ordinal(rank) + " place. One move separates you. Find it.",
+        ],
+        crossroads: [
+            (rank, hs) => ordinal(rank) + ". Health score " + hs + ". Crossroads. Make a decision and commit. No half-measures.",
+            (rank, hs) => ordinal(rank) + " place. Health " + hs + ". Pick a direction. Today.",
+            (rank, hs) => "Health score " + hs + ", " + ordinal(rank) + ". Crossroads. Coffee is for closers — close something.",
+        ],
+        rebuilding: [
+            (rank, hs) => ordinal(rank) + ". Health score " + hs + ". Rebuilding. You don't build a house by wishing — you lay bricks. Let's go.",
+            (rank, hs) => ordinal(rank) + ". Health " + hs + ". Rebuild. Every asset. Every edge. No days off.",
+            (rank, hs) => "Health score " + hs + ", " + ordinal(rank) + " place. Rebuilding is a job. Show up. Do the work.",
+        ],
         waiver: (name, pos, dhq) => name + " is on the wire. Go get him. Done.",
         trade: (count) => "Owners profiled. Weaknesses identified. Time to make moves.",
         draft: (days, date) => days + " days. Draft. Be ready.",
@@ -77,10 +178,26 @@ const BRIEF_PERSONALITY = {
     },
     strategist: {
         greeting: (t, name) => (t < 12 ? 'Good morning' : t < 17 ? 'Good afternoon' : 'Good evening') + ", " + name + ". Let's review the board.",
-        elite: (rank, hs) => "Health score " + hs + ". Elite positioning. Portfolio is optimized — focus shifts to sustaining competitive advantage.",
-        contender: (rank, hs) => "Position: " + ordinal(rank) + ". Health score: " + hs + ". Contender-class roster. Key variable: positional gaps and trade leverage.",
-        crossroads: (rank, hs) => "Position: " + ordinal(rank) + ". Health score: " + hs + ". Crossroads classification. Decision matrix: commit to competing or pivot to accumulation.",
-        rebuilding: (rank, hs) => "Position: " + ordinal(rank) + ". Health score: " + hs + ". Rebuild phase. Optimal strategy: maximize asset acquisition, minimize win-now spending.",
+        elite: [
+            (rank, hs) => "Health score " + hs + ". Elite positioning. Portfolio is optimized — focus shifts to sustaining competitive advantage.",
+            (rank, hs) => "Health score " + hs + ". Elite classification. Priority: retain leverage, avoid overpaying at the margins.",
+            (rank, hs) => "Elite-tier portfolio, health " + hs + ". Optimal play: consolidate strengths, sell surplus into demand.",
+        ],
+        contender: [
+            (rank, hs) => "Position: " + ordinal(rank) + ". Health score: " + hs + ". Contender-class roster. Key variable: positional gaps and trade leverage.",
+            (rank, hs) => ordinal(rank) + " position, health score " + hs + ". Contender profile — marginal upgrades carry outsized playoff value.",
+            (rank, hs) => "Health " + hs + " at " + ordinal(rank) + ". Window open. Allocate capital toward the weakest starting slot.",
+        ],
+        crossroads: [
+            (rank, hs) => "Position: " + ordinal(rank) + ". Health score: " + hs + ". Crossroads classification. Decision matrix: commit to competing or pivot to accumulation.",
+            (rank, hs) => ordinal(rank) + " at health " + hs + ". Crossroads profile — expected value favors committing to one direction this window.",
+            (rank, hs) => "Position " + ordinal(rank) + ", health score " + hs + ". Two viable paths; hedging between them erodes both.",
+        ],
+        rebuilding: [
+            (rank, hs) => "Position: " + ordinal(rank) + ". Health score: " + hs + ". Rebuild phase. Optimal strategy: maximize asset acquisition, minimize win-now spending.",
+            (rank, hs) => ordinal(rank) + ", health " + hs + ". Rebuild horizon is 2+ seasons — trade present production for future capital.",
+            (rank, hs) => "Health score " + hs + ", position " + ordinal(rank) + ". Accumulation phase — draft capital compounds faster than veteran value decays.",
+        ],
         waiver: (name, pos, dhq) => "Waiver wire analysis: " + name + " at " + pos + " (DHQ " + dhq.toLocaleString() + ") available. Addresses your positional deficit.",
         trade: (count) => count > 0
             ? "Owner analysis complete. " + count + " owner profile" + (count === 1 ? "" : "s") + " analyzed for trade leverage."
@@ -280,28 +397,24 @@ function IntelligenceBriefWidget({
 
     // Build Alex's conversational briefing
     const needPos = needs.length ? (typeof needs[0] === 'string' ? needs[0] : needs[0]?.pos) : '';
+    // Seeded tier read: stable within a league+week (no flicker across
+    // re-renders), fresh phrasing when the week rolls over.
+    const tierSeed = String(currentLeague?.league_id || currentLeague?.id || 'wr') + ':w' + (window.S?.currentWeek || 0) + ':' + tier;
+    const pickTier = (pool) => {
+        const arr = Array.isArray(pool) ? pool : [pool];
+        const fn = (window.AlexVoice && typeof window.AlexVoice.pick === 'function') ? window.AlexVoice.pick(tierSeed, arr) : arr[0];
+        return typeof fn === 'function' ? fn(myRank, hs) : String(fn || '');
+    };
     // UNKNOWN tier = assessment hasn't loaded — never let it fall through to
     // the rebuilding copy ('ranked 0th, health score 0' as fact). Same for a
     // known tier with no rank yet: don't interpolate ordinal(0).
     const tierMsg = !rosterState.isUsable ? (rosterState.brief || 'Roster sync incomplete. I paused roster, trade, waiver, and league-rank recommendations until player IDs finish loading.')
         : (!myAssess || tier === 'UNKNOWN') ? 'Still syncing your league read — I’ll have your tier, rank, and health score once the data lands.'
-        : tier === 'ELITE' ? p.elite(myRank, hs)
+        : tier === 'ELITE' ? pickTier(p.elite)
         : myRank <= 0 ? ('Your roster reads ' + tier + ' with a health score of ' + hs + ' — league rank is still syncing.')
-        : tier === 'CONTENDER' ? p.contender(myRank, hs)
-        : tier === 'CROSSROADS' ? p.crossroads(myRank, hs)
-        : p.rebuilding(myRank, hs);
-
-    // Portfolio vs league average
-    const portfolioComparison = (() => {
-        const myDHQ = (myRoster?.players || []).reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0);
-        const allDHQs = (currentLeague?.rosters || []).map(r => (r.players || []).reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0));
-        const avgDHQ = allDHQs.length ? allDHQs.reduce((a, b) => a + b, 0) / allDHQs.length : 0;
-        if (avgDHQ > 0) {
-            const pct = Math.round((myDHQ - avgDHQ) / avgDHQ * 100);
-            return pct > 0 ? `Your portfolio is ${pct}% above league average.` : pct < 0 ? `Your portfolio trails the league average by ${Math.abs(pct)}%.` : '';
-        }
-        return '';
-    })();
+        : tier === 'CONTENDER' ? pickTier(p.contender)
+        : tier === 'CROSSROADS' ? pickTier(p.crossroads)
+        : pickTier(p.rebuilding);
 
     // AlexSettings focus areas — the narrative fragments are gated by whichever
     // areas the user has enabled, so turning off "trades" or "waivers" in
@@ -315,15 +428,11 @@ function IntelligenceBriefWidget({
         ? 'Your plan: ' + (gm.modeLabel || gm.mode) + ', ' + (TIMELINE_FRAME[gm.timeline] || 'on your timeline') + ' — everything below is read against that.'
         : '';
 
-    // Full briefing text — used at tall/xl/xxl
-    let briefText = strategyFrame ? strategyFrame + ' ' + tierMsg : tierMsg;
-    if (rosterState.isUsable) {
-        if (portfolioComparison) briefText += ' ' + portfolioComparison;
-        if (elites > 0 && alexFocus.gmStyle !== false) briefText += ` You've got ${elites} elite player${elites > 1 ? 's' : ''} anchoring the roster.`;
-        if (needPos && alexFocus.gmStyle !== false) briefText += ` Your biggest gap is at ${needPos} — I've been keeping an eye on options for you.`;
-        if (activeTrades > 0 && alexFocus.trades !== false) briefText += ` ${activeTrades} trade${activeTrades > 1 ? 's have' : ' has'} gone down in the league recently. Worth watching who's moving what.`;
-        if (budget > 0 && alexFocus.waivers !== false) briefText += ` You've got $${faabRemaining} of $${budget} FAAB left to work with.`;
-    }
+    // Brief prose at tall/xl/default: strategy frame (lead) + tier read, and
+    // nothing else. Elites, gaps, trades, and FAAB all render as KPIs or
+    // action rows on this same widget — never narrated twice (de-busying
+    // rule: prose is a lead, not a summary).
+    const briefText = strategyFrame ? strategyFrame + ' ' + tierMsg : tierMsg;
 
     // Three-sentence summary — fits a 160px-tall md row, no scroll
     const threeSentence = (() => {
@@ -588,15 +697,12 @@ function IntelligenceBriefWidget({
                         )),
                     ),
                 ),
-                React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 1fr)', gap: '16px', flex: 1, minHeight: 0, overflow: 'hidden' } },
-                    React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 } },
-                        React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em' } }, 'Alex\u2019s Read'),
-                        React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.7, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 7, WebkitBoxOrient: 'vertical' } }, briefText),
-                    ),
-                    React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 } },
-                        React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em' } }, 'Action Items'),
-                        ...actions.slice(0, 5).map((a, i) => renderActionBtn(a, 'xxl-' + i, { compact: true, titleClamp: 2 })),
-                    ),
+                // "Alex's Read" column dropped (de-busying Q2): its prose only
+                // restated the KPI row above. Actions stand alone, full width,
+                // non-compact so the detail lines carry the specifics.
+                React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minHeight: 0, overflow: 'hidden' } },
+                    React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em' } }, 'Action Items'),
+                    ...actions.slice(0, 5).map((a, i) => renderActionBtn(a, 'xxl-' + i)),
                 ),
             ),
         );

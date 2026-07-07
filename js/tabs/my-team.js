@@ -480,14 +480,9 @@ function MyTeamTab({
   // currently expanded row (one open at a time), template-first. Result is keyed
   // by pid; the shared weekly cache means repeat opens are an instant hit.
   const [aiReads, setAiReads] = React.useState({});
-  const [readOpen, setReadOpen] = React.useState(false);
-  // Only clamp the Dynasty Read when it actually overflows (short reads show in full).
-  const [readOverflow, setReadOverflow] = React.useState(false);
-  const readRef = React.useRef(null);
-  React.useLayoutEffect(() => {
-    const el = readRef.current;
-    setReadOverflow(!!el && el.scrollHeight > 112);
-  }, [expandedPid, aiReads, rosterViewportWidth]);
+  // The clamp+fade+"Full read" disclosure that used to live here was extracted
+  // to the shared WR.ClampedRead (js/components/wr-primitives.js); it measures
+  // its own overflow and remounts (collapsed) per expanded row.
   // Track the roster board's VISIBLE width so the expand card pins to the viewport
   // instead of stretching to the full (horizontally-scrolling) table width.
   const boardScrollRef = React.useRef(null);
@@ -503,7 +498,6 @@ function MyTeamTab({
     return () => { if (ro) ro.disconnect(); window.removeEventListener('resize', measure); };
   }, []);
   React.useEffect(() => {
-    setReadOpen(false);
     const pid = expandedPid;
     // Free: never auto-fire dynasty_read on row expand — BYOK routes (S.apiKey
     // → callClaude) bypass the OD.callAI tripwire, so the trigger itself must
@@ -1205,11 +1199,9 @@ function MyTeamTab({
                       <div style={{ display: 'grid', gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: '10px', marginBottom: '10px', alignItems: 'start' }}>
                         <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: '8px', padding: '9px 11px', minWidth: 0 }}>
                           <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '5px' }}>Dynasty Read</div>
-                          <div style={{ position: 'relative', maxHeight: (readOverflow && !readOpen) ? '104px' : 'none', overflow: (readOverflow && !readOpen) ? 'hidden' : 'visible' }}>
-                            <div ref={readRef} style={{ fontSize: '0.8rem', color: 'var(--k-d8d8de, #d8d8de)', lineHeight: 1.45 }}>{aiReads[r.pid] || buildDynastyRead(r)}</div>
-                            {(readOverflow && !readOpen) ? <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '38px', background: 'linear-gradient(180deg, transparent, var(--surf-solid, rgba(12,12,18,0.99)))', pointerEvents: 'none' }} /> : null}
-                          </div>
-                          {readOverflow ? <button onClick={e => { e.stopPropagation(); setReadOpen(v => !v); }} style={{ marginTop: '6px', fontSize: '0.72rem', color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)' }}>{readOpen ? '▴ Show less' : '▾ Full read'}</button> : null}
+                          {window.WR?.ClampedRead
+                            ? React.createElement(window.WR.ClampedRead, { text: aiReads[r.pid] || buildDynastyRead(r), maxHeight: 104, style: { fontSize: '0.8rem', color: 'var(--k-d8d8de, #d8d8de)', lineHeight: 1.45 } })
+                            : <div style={{ fontSize: '0.8rem', color: 'var(--k-d8d8de, #d8d8de)', lineHeight: 1.45 }}>{aiReads[r.pid] || buildDynastyRead(r)}</div>}
                         </div>
                         <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: '8px', padding: '9px 11px', minWidth: 0 }}>
                           <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.58, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '4px' }}>Signals</div>

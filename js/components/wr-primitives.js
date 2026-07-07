@@ -13,6 +13,7 @@
 //   WR.ConfChip    — AI-confidence chip (auto-classifies pct → HIGH/MED/LOW)
 //   WR.DeltaLine   — "↑ +4.1%" / "↓ 2000 → 1850" delta renderer
 //   WR.InsightCard — severity-tagged behavioral card with CTA
+//   WR.ClampedRead — long-read disclosure: max-height clamp + fade + "Full read"
 //
 // Depends on: React (loaded globally).
 // ══════════════════════════════════════════════════════════════════
@@ -243,6 +244,50 @@
         );
     }
 
+    // ── ClampedRead ───────────────────────────────────────────────
+    // Long-read disclosure, extracted from the My Roster Dynasty Read
+    // pattern (js/tabs/my-team.js): clamps content to `maxHeight` px with
+    // a gradient fade + "▾ Full read" toggle. Only clamps when the content
+    // actually overflows (short reads render in full, zero extra chrome).
+    //   text      — plain string content (styled via `style`), OR
+    //   children  — pre-styled content nodes (text wins if both given).
+    //   maxHeight — collapsed height in px (default 104 ≈ 4 lines).
+    //   style     — style object for the content div (both modes).
+    //   fadeColor — color the fade dissolves into (match the surface bg).
+    // Consume guarded: window.WR?.ClampedRead (script-order safety).
+    function ClampedRead({ text, children, maxHeight, style, fadeColor }) {
+        const limit = maxHeight || 104;
+        const [open, setOpen] = React.useState(false);
+        const [overflow, setOverflow] = React.useState(false);
+        const ref = React.useRef(null);
+        // Measure the UNclamped inner div (it grows freely inside the hidden-
+        // overflow wrapper, so scrollHeight is the true content height). The
+        // ResizeObserver catches async content swaps (AI text replacing a
+        // template) and container reflow without extra deps.
+        React.useLayoutEffect(() => {
+            const el = ref.current;
+            if (!el) return;
+            const measure = () => setOverflow(el.scrollHeight > limit + 8);
+            measure();
+            if (typeof ResizeObserver === 'undefined') return;
+            const ro = new ResizeObserver(measure);
+            ro.observe(el);
+            return () => ro.disconnect();
+        }, [text, limit]);
+        const clamped = overflow && !open;
+        const fade = fadeColor || 'var(--surf-solid, rgba(12,12,18,0.99))';
+        return h('div', null,
+            h('div', { style: { position: 'relative', maxHeight: clamped ? limit + 'px' : 'none', overflow: clamped ? 'hidden' : 'visible' } },
+                h('div', { ref: ref, style: style }, text != null ? text : children),
+                clamped ? h('div', { style: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '38px', background: 'linear-gradient(180deg, transparent, ' + fade + ')', pointerEvents: 'none' } }) : null
+            ),
+            overflow ? h('button', {
+                onClick: (e) => { e.stopPropagation(); setOpen(v => !v); },
+                style: { marginTop: '6px', fontSize: '0.72rem', color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)' }
+            }, open ? '▴ Show less' : '▾ Full read') : null
+        );
+    }
+
     window.WR = window.WR || {};
     window.WR.Card = Card;
     window.WR.Badge = Badge;
@@ -251,4 +296,5 @@
     window.WR.DeltaLine = DeltaLine;
     window.WR.Kpi = Kpi;
     window.WR.InsightCard = InsightCard;
+    window.WR.ClampedRead = ClampedRead;
 })();

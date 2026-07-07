@@ -828,6 +828,11 @@
             ? picks.length
             : clamp(opts.maxLines, 1, 500, Math.min(16, picks.length || 1));
         const shown = picks.slice(0, limit);
+        // commentaryFor: 'user+r1' emits per-pick commentary only for the user's
+        // picks + round-1 picks ('' otherwise — the data row still renders).
+        // Absent/any other value keeps commentary on every pick. Full pick reads
+        // always live in Mock Draft Center's expander regardless of this option.
+        const commentaryFor = opts.commentaryFor;
         const userPicks = picks.filter(p => isUserPick(p, state));
         const pressure = report?.summary?.reportBrief?.positionPressure || [];
         const pressureText = pressure.length
@@ -853,6 +858,8 @@
                 const dhq = Math.round(Number(pick.dhq || 0)).toLocaleString();
                 const commentary = pick.alexCommentary?.roomImpact || pick.alexCommentary?.teamImpact || pick.note || '';
                 const team = pick.ownerName || ('Team ' + pick.slot);
+                const isUser = isUserPick(pick, state);
+                const wantsCommentary = commentaryFor !== 'user+r1' || isUser || Number(pick.round) === 1;
                 return {
                     overall: pick.overall,
                     pickLabel: pick.round + '.' + String(pick.pickInRound || pick.slot).padStart(2, '0'),
@@ -862,14 +869,14 @@
                     value: valuePhrase(pick),
                     dhq,
                     driver: drivers,
-                    commentary: stripLeadingTeamName(pick.alexCommentary?.teamImpact || commentary, team),
+                    commentary: wantsCommentary ? stripLeadingTeamName(pick.alexCommentary?.teamImpact || commentary, team) : '',
                     teamImpact: pick.alexCommentary?.teamImpact || '',
                     ownerFit: pick.alexCommentary?.ownerFit || '',
                     nflTeam: pick.nflTeam || pick.team || 'Team TBD',
                     school: pick.school || pick.college || 'School TBD',
                     photoUrl: pick.photoUrl || (pick.pid ? 'https://sleepercdn.com/content/nfl/players/thumb/' + pick.pid + '.jpg' : ''),
                     pid: pick.pid,
-                    isUser: isUserPick(pick, state),
+                    isUser,
                 };
             }),
             footer: shown.length < picks.length
