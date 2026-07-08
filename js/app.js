@@ -1204,6 +1204,23 @@
 
         return (
             <div className="app-container">
+                {/* ── PHONE TIER (≤767), hub view only — iPhone plan Phase 2 item 14.
+                    (1) .header: the index.html mobile-hub rule (.header{padding:0.6rem 1rem})
+                    overrides the base rule's safe-area padding at exactly the tier that
+                    needs it (installed-PWA draws under the notch, black-translucent) —
+                    restore it here; equal specificity, later in the document, so it wins.
+                    (2) Connect grid: the inline repeat(2) template makes two ~165px
+                    platform cards at 375 — stack to one column.
+                    (3) Touch bumps are hit-area only (CTAs, MFL franchise/cancel rows);
+                    ≥768 is untouched. --sa* vars resolve to 0 off-notch. */}
+                <style>{`
+                    @media (max-width: 767px) {
+                        .header { padding: calc(0.6rem + var(--sat, 0px)) calc(1rem + var(--sar, 0px)) 0.6rem calc(1rem + var(--sal, 0px)); }
+                        .hub-platform-grid { grid-template-columns: 1fr !important; padding-left: calc(12px + var(--sal, 0px)) !important; padding-right: calc(12px + var(--sar, 0px)) !important; }
+                        .hub-franchise-picker { padding-left: calc(12px + var(--sal, 0px)) !important; padding-right: calc(12px + var(--sar, 0px)) !important; }
+                        .hub-cta, .hub-platform-grid button { min-height: 44px; }
+                    }
+                `}</style>
                 {/* ── Header ── */}
                 <header className="header">
                     <div className="header-brand" role="link" aria-label="Dynasty HQ home"

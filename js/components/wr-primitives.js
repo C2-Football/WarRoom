@@ -349,7 +349,10 @@
         if (!vp.isPhone) return (desktop !== undefined ? desktop : children) || null;
 
         ensureSheetCss();
-        const maxH = height || '85dvh';
+        // Landscape phones (SE at 667×375 stays in the phone tier): the 85dvh
+        // default leaves ~320px — take the full height; the kbOpen min() at
+        // the style site still shrinks it when a keyboard is up.
+        const maxH = vp.height <= 520 ? '100dvh' : (height || '85dvh');
         const lift = vp.kbOpen ? vp.kbHeight : 0;
         const hasHeaderRow = !!title || showClose !== false;
 

@@ -1506,6 +1506,25 @@
         return (
             <div className="fa-page wr-fade-in">
 
+                {/* ── PHONE TIER (≤767) — iPhone plan Phase 2 item 14 (FA leftovers).
+                    The market explorer already scrolls horizontally (overflowX +
+                    minWidth); this pins the Player column while the 15+ data columns
+                    scroll under it (D6 pattern 1, proven on My Roster). Class hooks
+                    only — ≥768 is pixel-identical. Sticky cells need SOLID
+                    backgrounds: hexes are the composites of the semi-transparent
+                    gold tints over the --black (#121217) table card. */}
+                <style>{`
+                    @media (max-width: 767px) {
+                        .fa-mkt-head > :nth-child(2), .fa-mkt-row > :nth-child(2) {
+                            position: sticky; left: 0; z-index: 1;
+                            background: var(--black, #121217);
+                            box-shadow: 6px 0 8px -6px rgba(0,0,0,0.6);
+                        }
+                        .fa-mkt-head > :nth-child(2) { background: #1e1b19; }
+                        .fa-mkt-row.is-sel > :nth-child(2) { background: #221f1a; }
+                    }
+                `}</style>
+
                 {renderCrazePanel()}
                 {isPro ? renderActionHQ(false) : renderActionHqTeaser()}
 
@@ -1668,7 +1687,7 @@
                     const tableMinWidth = 32 + 150 + 24 + shownFaCols.reduce((s, k) => s + (parseInt(faColumns[k]?.width || '44', 10) || 44) + 4, 0);
                     return <div style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '10px', overflowX: 'auto' }}>
                         {/* Header */}
-                        <div style={{ display: 'grid', gridTemplateColumns: gridTemplate, gap: '4px', padding: '8px 12px', minWidth: tableMinWidth + 'px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))' }}>
+                        <div className="fa-mkt-head" style={{ display: 'grid', gridTemplateColumns: gridTemplate, gap: '4px', padding: '8px 12px', minWidth: tableMinWidth + 'px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))' }}>
                             <span style={faHeaderStyle}></span>
                             <span style={faHeaderStyle} onClick={() => handleFaSort('name')}>Player{faSortIndicator('name')}</span>
                             {shownFaCols.map(k => {
@@ -1737,7 +1756,7 @@
                                 };
                                 return <div key={pid} role="button" tabIndex={0} title="Open player card" onClick={() => {
                                     openFaPlayer(pid);
-                                }} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFaPlayer(pid); } }} style={{ display: 'grid', gridTemplateColumns: gridTemplate, background: faSelectedPid === pid ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'transparent', gap: '4px', padding: '7px 12px', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))', cursor: 'pointer', alignItems: 'center', transition: 'background 0.1s' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--acc-fill1, rgba(212,175,55,0.05))'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                }} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFaPlayer(pid); } }} className={'fa-mkt-row' + (faSelectedPid === pid ? ' is-sel' : '')} style={{ display: 'grid', gridTemplateColumns: gridTemplate, background: faSelectedPid === pid ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'transparent', gap: '4px', padding: '7px 12px', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))', cursor: 'pointer', alignItems: 'center', transition: 'background 0.1s' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--acc-fill1, rgba(212,175,55,0.05))'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                                     <div className={'wr-ring wr-ring-' + pos} style={{ width: '26px', height: '26px', borderRadius: '50%', overflow: 'hidden', background: 'var(--acc-fill3, rgba(212,175,55,0.15))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                         <img src={'https://sleepercdn.com/content/nfl/players/' + pid + '.jpg'} alt="" style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))' }} onError={e => { e.target.style.display='none'; const s=document.createElement('span'); s.style.cssText='font-size:var(--text-label, 0.75rem);font-weight:700;color:var(--gold)'; s.textContent=((p.first_name||'?')[0]+(p.last_name||'?')[0]).toUpperCase(); e.target.after(s); }} />
                                     </div>

@@ -399,9 +399,9 @@ function ReportSubView({
             <button onClick={() => setReportView('list')} style={sortBtnStyle(false)}>Back</button>
           </div>
         </div>
-        <div style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '8px', overflow: 'hidden' }}>
+        <div className="lm-rp-card" style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '8px', overflow: 'hidden' }}>
           {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: columns.map(() => '1fr').join(' '), gap: '4px', padding: '6px 10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', fontSize: '0.74rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase' }}>
+          <div className="lm-rp-head" style={{ display: 'grid', gridTemplateColumns: columns.map(() => '1fr').join(' '), gap: '4px', padding: '6px 10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', fontSize: '0.74rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase' }}>
             {columns.map(col => (
               <span key={col.key} style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleResort(col.key)}>
                 {col.label}{viewSort && viewSort.field === col.key ? (viewSort.dir === 'desc' ? ' \u25BC' : ' \u25B2') : ''}
@@ -414,7 +414,7 @@ function ReportSubView({
             {rows.map((row, idx) => {
               if (row._groupHeader) {
                 return (
-                  <div key={'gh_' + row._groupKey} style={{ padding: '8px 10px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderBottom: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', fontSize: '0.8rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-title)', letterSpacing: '0.04em' }}>
+                  <div key={'gh_' + row._groupKey} className="lm-rp-group" style={{ padding: '8px 10px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderBottom: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', fontSize: '0.8rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-title)', letterSpacing: '0.04em' }}>
                     {report.groupBy === 'pos' ? leagueMapPosLabel(row._groupKey) : row._groupKey} <span style={{ fontWeight: 400, fontSize: '0.72rem', color: 'var(--silver)', fontFamily: 'var(--font-body)' }}>({row._count})</span>
                   </div>
                 );
@@ -422,7 +422,7 @@ function ReportSubView({
               const canOpenPlayer = canOpenReportPlayer(row, report);
               const canOpenTeam = canOpenReportTeam(row, report);
               return (
-                <div key={idx} className={(canOpenPlayer || canOpenTeam) ? 'is-clickable-report-row' : ''} style={{ display: 'grid', gridTemplateColumns: columns.map(() => '1fr').join(' '), gap: '4px', padding: '5px 10px', borderBottom: '1px solid var(--ov-2, rgba(255,255,255,0.03))', fontSize: '0.74rem', alignItems: 'center', transition: 'background 0.1s', cursor: (canOpenPlayer || canOpenTeam) ? 'pointer' : 'default', outline: 'none' }}
+                <div key={idx} className={'lm-rp-row' + ((canOpenPlayer || canOpenTeam) ? ' is-clickable-report-row' : '')} style={{ display: 'grid', gridTemplateColumns: columns.map(() => '1fr').join(' '), gap: '4px', padding: '5px 10px', borderBottom: '1px solid var(--ov-2, rgba(255,255,255,0.03))', fontSize: '0.74rem', alignItems: 'center', transition: 'background 0.1s', cursor: (canOpenPlayer || canOpenTeam) ? 'pointer' : 'default', outline: 'none' }}
                   {...reportPlayerRowProps(row, report)}
                   {...reportTeamRowProps(row, report)}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--acc-fill1, rgba(212,175,55,0.05))'}
@@ -1194,6 +1194,81 @@ function LeagueMapTab({
 
   return (
     <div style={{ padding: _isEmbed ? '0' : '16px' }}>
+      {/* ── PHONE TIER (≤767) — iPhone plan Phase 2 item 14 (Analytics embed).
+          The dense asset/report ledgers keep their desktop inline styles and
+          get min-width scroll containers + a sticky label column via class
+          hooks only, so ≥768 (tablet/desktop) is pixel-identical. Sticky
+          cells need SOLID backgrounds: the hex values are the composites of
+          the semi-transparent gold tints over the --black (#121217) /
+          --off-black (#1B1B22) cards they sit on. ── */}
+      <style>{`
+        @media (max-width: 767px) {
+            /* All Players ledger (free tier): already a min-width scroll table
+               (iPad pass) — pin the name column (3rd cell: # · avatar · name). */
+            .lm-ap-head > :nth-child(3), .lm-ap-row > :nth-child(3) {
+                position: sticky; left: 0; z-index: 1;
+                background: var(--black, #121217);
+                box-shadow: 6px 0 8px -6px rgba(0,0,0,0.6);
+            }
+            .lm-ap-head > :nth-child(3) { background: #221f1a; }
+            .lm-ap-row.is-hl > :nth-child(3) { background: #1a1818; }
+
+            /* Draft Picks ledger (free tier): 240px of fixed columns + two 1fr
+               owner columns crush inside an overflow:hidden card at 375 — the
+               card becomes the scroll container, grids get a real min width,
+               and the Pick label pins. */
+            .lm-pk-card { overflow-x: auto !important; overflow-y: hidden !important; -webkit-overflow-scrolling: touch; }
+            .lm-pk-head, .lm-pk-row { min-width: 560px; }
+            .lm-pk-head > :nth-child(1), .lm-pk-row > :nth-child(1) {
+                position: sticky; left: 0; z-index: 1;
+                background: var(--black, #121217);
+                box-shadow: 6px 0 8px -6px rgba(0,0,0,0.6);
+            }
+            .lm-pk-head > :nth-child(1) { background: #221f1a; }
+            .lm-pk-row.is-hl > :nth-child(1) { background: #1a1818; }
+
+            /* Saved-report view (Pro): N × 1fr columns crush at 375. Fixed
+               implicit tracks keep every row's columns aligned (each row is
+               its own grid); width:max-content extends header/rows past the
+               scrolling card; min-width:100% keeps narrow reports full-bleed. */
+            .lm-rp-card { overflow-x: auto !important; overflow-y: hidden !important; -webkit-overflow-scrolling: touch; }
+            .lm-rp-head, .lm-rp-row {
+                grid-template-columns: 132px !important;
+                grid-auto-flow: column;
+                grid-auto-columns: 104px;
+                width: max-content;
+                min-width: 100%;
+            }
+            .lm-rp-head > :nth-child(1), .lm-rp-row > :nth-child(1) {
+                position: sticky; left: 0; z-index: 1;
+                background: var(--black, #121217);
+                box-shadow: 6px 0 8px -6px rgba(0,0,0,0.6);
+            }
+            .lm-rp-head > :nth-child(1) { background: #221f1a; }
+            /* The un-classed rows wrapper is only card-wide; widen it to the
+               scroll width so group-header bands span the whole table instead
+               of stopping at the viewport edge mid-scroll. */
+            .lm-rp-card > div:last-child { width: max-content; min-width: 100%; }
+
+            /* Report-builder live preview (Pro): same fixed-track treatment via
+               its existing classes; the un-classed wrapper div (not the
+               evidence head) is the scroll container. */
+            .analytics-report-preview > div:not(.analytics-evidence-head) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .analytics-report-preview-head, .analytics-report-preview-row {
+                grid-template-columns: 132px !important;
+                grid-auto-flow: column;
+                grid-auto-columns: 104px;
+                width: max-content;
+                min-width: 100%;
+            }
+            .analytics-report-preview-head > span:first-child, .analytics-report-preview-row > span:first-child {
+                position: sticky; left: 0; z-index: 1;
+                background: var(--off-black, #1B1B22);
+                box-shadow: 6px 0 8px -6px rgba(0,0,0,0.6);
+            }
+            .analytics-report-preview-head > span:first-child { background: #292624; }
+        }
+      `}</style>
       {!_isEmbed && <>
       <div className="wr-module-strip">
         <div className="wr-module-context">
@@ -1664,7 +1739,7 @@ function LeagueMapTab({
                     };
                     return (
                 <div style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: gridTpl, gap: '4px', padding: '6px 10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', minWidth: gridMinWidth }}>
+                    <div className="lm-ap-head" style={{ display: 'grid', gridTemplateColumns: gridTpl, gap: '4px', padding: '6px 10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', minWidth: gridMinWidth }}>
                         <span>#</span><span></span>
                         {activeCols.map(c => {
                             if (c.sortable && c.sortKey) {
@@ -1768,6 +1843,7 @@ function LeagueMapTab({
                             return (
                             <React.Fragment key={x.pid}>
                             <div onClick={() => setAllPlayersExpandedPid(prev => String(prev) === String(x.pid) ? null : x.pid)}
+                                className={'lm-ap-row' + (rowBg !== 'transparent' ? ' is-hl' : '')}
                                 style={{ display: 'grid', gridTemplateColumns: gridTpl, gap: '4px', padding: '5px 10px', borderBottom: '1px solid var(--ov-2, rgba(255,255,255,0.03))', cursor: 'pointer', fontSize: '0.72rem', alignItems: 'center', background: rowBg, transition: 'background 0.1s' }}
                                 onMouseEnter={e => e.currentTarget.style.background = 'var(--acc-fill1, rgba(212,175,55,0.06))'}
                                 onMouseLeave={e => e.currentTarget.style.background = rowBg}>
@@ -1927,13 +2003,13 @@ function LeagueMapTab({
                 {years.map(yr => (
                     <div key={yr} style={{ marginBottom: '16px' }}>
                         <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', color: 'var(--gold)', marginBottom: '8px' }}>{yr} DRAFT PICKS</div>
-                        <div style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '8px', overflow: 'hidden' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 1fr 90px 80px', gap: '4px', padding: '6px 10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase' }}>
+                        <div className="lm-pk-card" style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '8px', overflow: 'hidden' }}>
+                            <div className="lm-pk-head" style={{ display: 'grid', gridTemplateColumns: '70px 1fr 1fr 90px 80px', gap: '4px', padding: '6px 10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase' }}>
                                 <span>Pick</span><span>Current Owner</span><span>Original Owner</span><span>Status</span><span>Value</span>
                             </div>
                             <div style={_analyticsEmbed ? {} : { maxHeight: '500px', overflow: 'auto' }}>
                                 {filteredRows.filter(row => row.year === yr).map(row => (
-                                            <div key={yr+'-'+row.round+'-'+row.originalRid} {...pickRowProps(row)} style={{
+                                            <div key={yr+'-'+row.round+'-'+row.originalRid} {...pickRowProps(row)} className={'lm-pk-row' + (row.isMyPick ? ' is-hl' : '')} style={{
                                                 display: 'grid', gridTemplateColumns: '70px 1fr 1fr 90px 80px', gap: '4px',
                                                 padding: '5px 10px', borderBottom: '1px solid var(--ov-2, rgba(255,255,255,0.03))',
                                                 fontSize: '0.72rem', alignItems: 'center',

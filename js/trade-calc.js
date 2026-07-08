@@ -1011,6 +1011,9 @@
         // Canonical surfaces: 'desk' | 'dna' | 'log'. setTcTab is the single alias-safe
         // seam: legacy values from ANY producer land correctly (dealhq→desk,
         // finder→desk+find-seed, analyzer→desk+builder-expanded, profiles→dna, inbox→log).
+        // Phone tier (plan D1/D7): shared viewport seam — js/shared/viewport.js
+        // loads before the babel chain, so the hook always exists here.
+        const _vp = window.WR.useViewport();
         const [tcTab, _setTcTabRaw] = useState('desk');
         const [builderExpanded, setBuilderExpanded] = useState(false); // persistent builder panel open/closed
         // ── Typed finder query (Phase 4a) — the single finder input, replacing the
@@ -2359,12 +2362,18 @@
             // list, right pane renders renderOwnerDetailCard for the selected owner
             // (defaults to my team, else the top-ranked owner). The legacy grid-of-cards
             // was deleted in the foundation pass; this split is the only DNA layout.
-            const selectedRid = expandedDnaOwner != null ? expandedDnaOwner : (myRosterId || sortedAssessments[0]?.rosterId);
-            const selectedAssessment = sortedAssessments.find(a => a.rosterId === selectedRid) || sortedAssessments[0];
+            // Phone (≤767, plan D10): single pane — the full-width owner LIST until a
+            // row is tapped, then the detail card with a back affordance. Deep links
+            // (rail "Full profile ▸") set expandedDnaOwner and land on the detail.
+            const phone = _vp.isPhone;
+            const selectedRid = expandedDnaOwner != null ? expandedDnaOwner : (phone ? null : (myRosterId || sortedAssessments[0]?.rosterId));
+            const selectedAssessment = selectedRid == null ? null : (sortedAssessments.find(a => a.rosterId === selectedRid) || sortedAssessments[0]);
+            const showList = !phone || !selectedAssessment;
+            const showDetail = !phone || !!selectedAssessment;
             return (
                 <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                    {/* Left pane: PR-sorted owner list */}
-                    <div style={{ flex: '0 0 240px', minWidth: '200px', maxHeight: '78vh', overflowY: 'auto', background: 'var(--off-black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: '10px', padding: '6px' }}>
+                    {/* Left pane: PR-sorted owner list (phone: the whole surface until a pick) */}
+                    {showList && <div style={{ flex: phone ? '1 1 100%' : '0 0 240px', minWidth: phone ? 0 : '200px', maxHeight: phone ? 'none' : '78vh', overflowY: phone ? 'visible' : 'auto', background: 'var(--off-black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: '10px', padding: '6px' }}>
                         <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '6px 8px' }}>Owners · sorted by power</div>
                         {sortedAssessments.map((a, idx) => {
                             const rid = a.rosterId;
@@ -2378,7 +2387,7 @@
                             return (
                                 <div key={rid} onClick={() => setExpandedDnaOwner(rid)} style={{
                                     display: 'flex', alignItems: 'center', gap: '8px',
-                                    padding: '7px 8px', borderRadius: '6px', cursor: 'pointer',
+                                    padding: '7px 8px', minHeight: phone ? '44px' : undefined, borderRadius: '6px', cursor: 'pointer',
                                     background: isSel ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'transparent',
                                     border: '1px solid ' + (isSel ? 'var(--acc-line2, rgba(212,175,55,0.35))' : 'transparent'),
                                     marginBottom: '2px', transition: 'background 0.15s'
@@ -2397,10 +2406,13 @@
                                 </div>
                             );
                         })}
-                    </div>
+                    </div>}
 
-                    {/* Right pane: selected owner detail */}
-                    <div style={{ flex: '1 1 480px', minWidth: '320px' }}>
+                    {/* Right pane: selected owner detail (phone: single pane + back) */}
+                    {showDetail && <div style={{ flex: phone ? '1 1 100%' : '1 1 480px', minWidth: phone ? 0 : '320px' }}>
+                        {phone && (
+                            <button type="button" onClick={() => setExpandedDnaOwner(null)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px', marginBottom: '8px', padding: '6px 14px 6px 10px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '6px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>‹ All owners</button>
+                        )}
                         <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px', lineHeight: 1.5 }}>
                             Profile each owner's behavioral DNA. {React.createElement(Tip, null, 'Owner DNA classifies each league member\'s trading personality. DNA now affects acceptance through psychological tax drivers, not separate multiplier curves.')}
                             {' '}
@@ -2427,7 +2439,7 @@
                             })}
                         </div>
                         {selectedAssessment ? renderOwnerDetailCard(selectedAssessment) : <div style={{ padding: '40px', textAlign: 'center', color: 'var(--silver)', opacity: 0.6, fontSize: '0.82rem' }}>Select an owner on the left to view their full profile.</div>}
-                    </div>
+                    </div>}
                 </div>
             );
         }
@@ -2633,7 +2645,7 @@
 
                     {/* Observed behavior: facts first, inference second */}
                     {behaviorProfile && (
-                        <div style={{ marginBottom: '14px', display: 'grid', gridTemplateColumns: 'minmax(0, 1.15fr) minmax(0, 0.85fr)', gap: '10px' }}>
+                        <div style={{ marginBottom: '14px', display: 'grid', gridTemplateColumns: _vp.isPhone ? '1fr' : 'minmax(0, 1.15fr) minmax(0, 0.85fr)', gap: '10px' }}>
                             <div style={{ border: '1px solid rgba(125,183,232,0.16)', borderRadius: '7px', background: 'rgba(125,183,232,0.04)', padding: '9px 10px' }}>
                                 <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--k-7db7e8, #7db7e8)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Observed Behavior</div>
                                 <div style={{ display: 'grid', gap: '5px' }}>
@@ -3228,16 +3240,35 @@
                                 role="combobox"
                                 aria-expanded={typeaheadFlat.length > 0}
                                 aria-autocomplete="list"
-                                style={{ width: '100%', minHeight: '38px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: '5px', background: 'rgba(255,255,255,0.045)', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '0.8rem', padding: '8px 10px' }}
+                                style={{ width: '100%', minHeight: _vp.isPhone ? '44px' : '38px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: '5px', background: 'rgba(255,255,255,0.045)', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '0.8rem', padding: '8px 10px' }}
                             />
                             {typeaheadFlat.length > 0 && (
-                                <div role="listbox" aria-label="Focus matches" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 40, marginTop: '4px', background: 'var(--off-black, #10141b)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', maxHeight: '320px', overflowY: 'auto', boxShadow: '0 12px 26px rgba(0,0,0,0.6)' }}>
+                                <div role="listbox" aria-label="Focus matches" ref={node => {
+                                    // Phone (D5): fit the dropdown to the VISIBLE viewport — the iOS
+                                    // keyboard eats ~300px of a 667px screen and env(safe-area) can't
+                                    // see it. kbHeight already includes the visual-viewport pan, so
+                                    // visible bottom in layout coords = innerHeight − kbHeight. With
+                                    // the keyboard closed (hardware kb edge case) reserve 64px so the
+                                    // list also never runs under the bottom tab bar (z 40 < bar 100).
+                                    // Callback ref re-runs every render, so kbOpen/kbHeight changes
+                                    // (viewport store re-render) re-measure automatically.
+                                    if (!node || !_vp.isPhone) return;
+                                    // Keyboard closed: measure the REAL tab-bar extent (56px bar +
+                                    // home-indicator inset ≈ 90px on notched phones) instead of a
+                                    // fixed 64px so the last rows never render under the bar.
+                                    const _bar = document.querySelector('.wr-phone-tab-bar');
+                                    const bottomGuard = _vp.kbOpen ? _vp.kbHeight
+                                        : (_bar ? Math.max(0, window.innerHeight - _bar.getBoundingClientRect().top) + 8 : 64);
+                                    const visibleBottom = window.innerHeight - bottomGuard;
+                                    const maxH = Math.max(140, Math.min(320, visibleBottom - node.getBoundingClientRect().top - 8));
+                                    node.style.maxHeight = maxH + 'px';
+                                }} style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 40, marginTop: '4px', background: 'var(--off-black, #10141b)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', maxHeight: '320px', overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', boxShadow: '0 12px 26px rgba(0,0,0,0.6)' }}>
                                     {typeaheadGroups.map(group => (
                                         <div key={group.label}>
                                             <div style={{ padding: '6px 10px 3px', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.6 }}>{group.label}</div>
                                             {group.rows.map(row => {
                                                 const active = typeaheadFlat.indexOf(row) === finderTypeaheadIdx;
-                                                return <button key={row.key} type="button" role="option" aria-selected={active} onMouseDown={e => e.preventDefault()} onClick={() => selectFinderFocus(row)} style={{ width: '100%', display: 'flex', alignItems: 'baseline', gap: '8px', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.04)', background: active ? 'rgba(212,175,55,0.12)' : 'transparent', color: active ? 'var(--white)' : 'var(--silver)', textAlign: 'left', padding: '7px 10px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>
+                                                return <button key={row.key} type="button" role="option" aria-selected={active} onMouseDown={e => e.preventDefault()} onClick={() => selectFinderFocus(row)} style={{ width: '100%', display: 'flex', alignItems: _vp.isPhone ? 'center' : 'baseline', gap: '8px', minHeight: _vp.isPhone ? '44px' : undefined, border: 'none', borderBottom: '1px solid rgba(255,255,255,0.04)', background: active ? 'rgba(212,175,55,0.12)' : 'transparent', color: active ? 'var(--white)' : 'var(--silver)', textAlign: 'left', padding: '7px 10px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>
                                                     <strong style={{ color: 'var(--white)', fontWeight: 600, whiteSpace: 'nowrap' }}>{row.label}</strong>
                                                     <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.68rem', opacity: 0.7 }}>{row.sub}</span>
                                                     {row.value != null && <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{row.value.toLocaleString()}</span>}
@@ -3255,7 +3286,9 @@
                                     <em style={{ fontStyle: 'normal', fontSize: '0.6rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)' }}>{focusR.kind === 'pick' ? 'Pick' : focusR.kind === 'owner' ? 'Owner' : (focusR.pos || 'Player')}</em>
                                     <strong style={{ fontWeight: 600 }}>{focusR.label}</strong>
                                     {focusR.kind !== 'owner' && <span style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>{String(focusR.rosterId) === String(myRosterId) ? 'yours' : (ownerNameForRosterId(focusR.rosterId) || 'league')}</span>}
-                                    <button type="button" onClick={clearFinderFocus} aria-label="Clear focus" style={{ border: 'none', background: 'transparent', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.8rem', padding: '0 2px', lineHeight: 1 }}>✕</button>
+                                    {/* Phone: hit-padding only (negative margin cancels the layout
+                                        shift) so the chip row's height doesn't change — plan D7. */}
+                                    <button type="button" onClick={clearFinderFocus} aria-label="Clear focus" style={{ border: 'none', background: 'transparent', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.8rem', padding: _vp.isPhone ? '12px 10px' : '0 2px', margin: _vp.isPhone ? '-12px -8px' : 0, lineHeight: 1 }}>✕</button>
                                 </span>
                                 {focusR.kind === 'pick' && <span style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.65 }}>{String(focusR.rosterId) === String(myRosterId) ? 'Shopping this pick league-wide for value back.' : 'Packages are built to pry this pick from its owner.'}</span>}
                             </div>
@@ -3459,6 +3492,21 @@
                 || railBoard[0] || null;
             return (
                 <div className="tc-trade-root">
+                    {/* Phone-tier touch bumps for the class-styled Trade Desk controls
+                        (index.html base CSS sizes them ~28-32px). Scoped ≤767 so the
+                        tablet/desktop tiers are untouched (cardinal guardrail); scoped
+                        under .tc-trade-root so nothing leaks to other tabs. Glyph and
+                        font sizes unchanged — hit areas only (plan D7). */}
+                    <style>{`
+                        @media (max-width: 767px) {
+                            .tc-trade-root .tc-ta-owner-select,
+                            .tc-trade-root .tc-ta-roster-filter,
+                            .tc-trade-root .tc-dna-select { min-height: 44px; }
+                            .tc-trade-root .tc-ta-roster-item { min-height: 44px; }
+                            .tc-trade-root button.tc-dhq-asset-row { min-height: 44px; }
+                            .tc-trade-root .tc-rail-dna-link { min-height: 44px; }
+                        }
+                    `}</style>
                     <div className="wr-module-strip">
                         <div className="wr-module-context">
                             <span>Trade</span>
@@ -3816,8 +3864,10 @@
             const outcomeType = row.outcome?.grudgeType || null;
             const gt = outcomeType ? GRUDGE_TYPES[outcomeType] : null;
             const outcomeColor = !gt ? 'var(--silver)' : gt.cat === 'rejected' ? 'var(--loss-red)' : gt.cat === 'counter' ? 'var(--warn)' : 'var(--win-green)';
-            const selStyle = { padding: '3px 6px', fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'var(--charcoal)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer' };
-            const btnStyle = { padding: '3px 8px', fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer' };
+            // Phone: 44px touch bumps on the lane controls (status select, outcome
+            // select, Load in Builder, remove X) — glyph sizes unchanged, plan D7.
+            const selStyle = { padding: '3px 6px', minHeight: _vp.isPhone ? '44px' : undefined, fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'var(--charcoal)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer' };
+            const btnStyle = { padding: '3px 8px', minHeight: _vp.isPhone ? '44px' : undefined, minWidth: _vp.isPhone ? '44px' : undefined, fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer' };
             return (
                 <div key={row.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', padding: '7px 10px', marginBottom: '5px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '6px' }}>
                     <div style={{ flex: '1 1 240px', minWidth: 0 }}>
@@ -3938,11 +3988,11 @@
                             {usingRaw ? 'Raw league trades (Sleeper) valued with DHQ.' : 'League history analyzed with DHQ values.'}
                         </div>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <select value={ledgerTeamFilter} onChange={e => { setLedgerTeamFilter(e.target.value); setLedgerShown(20); }} style={{ padding: '4px 8px', fontSize: '0.74rem', fontFamily: 'var(--font-body)', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer' }}>
+                            <select value={ledgerTeamFilter} onChange={e => { setLedgerTeamFilter(e.target.value); setLedgerShown(20); }} style={{ padding: '4px 8px', minHeight: _vp.isPhone ? '44px' : undefined, fontSize: '0.74rem', fontFamily: 'var(--font-body)', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer' }}>
                                 <option value="all">All Teams</option>
                                 {allRosters.map(r => <option key={r.roster_id} value={r.roster_id}>{ownerNameForRosterId(r.roster_id) || 'Team ' + r.roster_id}</option>)}
                             </select>
-                            {usingRaw && <button onClick={() => refreshLedger(true)} disabled={ledgerSyncing} style={{ padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '4px', cursor: ledgerSyncing ? 'default' : 'pointer', opacity: ledgerSyncing ? 0.6 : 1 }}>{ledgerSyncing ? 'Refreshing…' : 'Refresh'}</button>}
+                            {usingRaw && <button onClick={() => refreshLedger(true)} disabled={ledgerSyncing} style={{ padding: '4px 10px', minHeight: _vp.isPhone ? '44px' : undefined, fontSize: '0.72rem', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '4px', cursor: ledgerSyncing ? 'default' : 'pointer', opacity: ledgerSyncing ? 0.6 : 1 }}>{ledgerSyncing ? 'Refreshing…' : 'Refresh'}</button>}
                         </div>
                     </div>
                     {loading ? (

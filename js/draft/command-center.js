@@ -5705,7 +5705,7 @@
                 {/* Memorialized live draft: recap dismissed → floating reopen button */}
                 {state.phase === 'complete' && recapDismissed && (
                     <button type="button" onClick={onShowRecap} title="Reopen the draft recap"
-                        style={{ position: 'fixed', right: '20px', bottom: '20px', zIndex: 850, padding: '11px 18px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '999px', fontFamily: FONT_DISPL, fontWeight: 800, fontSize: '0.84rem', letterSpacing: '0.04em', cursor: 'pointer', boxShadow: '0 8px 28px rgba(0,0,0,0.5)' }}>
+                        style={{ position: 'fixed', right: '20px', bottom: 'calc(20px + var(--wr-bottom-inset, 0px))', zIndex: 850, padding: '11px 18px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '999px', fontFamily: FONT_DISPL, fontWeight: 800, fontSize: '0.84rem', letterSpacing: '0.04em', cursor: 'pointer', boxShadow: '0 8px 28px rgba(0,0,0,0.5)' }}>
                         📋 VIEW RECAP
                     </button>
                 )}
@@ -5714,7 +5714,7 @@
                 {state.phase === 'complete' && recapDismissed && nextUpDraft && (
                     <button type="button" onClick={onOpenNextDraft}
                         title="Move this draft to Draft History and open the next draft's room"
-                        style={{ position: 'fixed', right: '20px', bottom: '72px', zIndex: 850, padding: '11px 18px', background: 'var(--ink, #101418)', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: '999px', fontFamily: FONT_DISPL, fontWeight: 800, fontSize: '0.84rem', letterSpacing: '0.04em', cursor: 'pointer', boxShadow: '0 8px 28px rgba(0,0,0,0.5)' }}>
+                        style={{ position: 'fixed', right: '20px', bottom: 'calc(72px + var(--wr-bottom-inset, 0px))', zIndex: 850, padding: '11px 18px', background: 'var(--ink, #101418)', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: '999px', fontFamily: FONT_DISPL, fontWeight: 800, fontSize: '0.84rem', letterSpacing: '0.04em', cursor: 'pointer', boxShadow: '0 8px 28px rgba(0,0,0,0.5)' }}>
                         {nextUpDraft.status === 'drafting' ? '🔴 NEXT DRAFT IS LIVE — OPEN ROOM' : '⏭ OPEN NEXT DRAFT ROOM'}
                     </button>
                 )}
@@ -6451,7 +6451,82 @@
             );
         }
 
-        // ── Mobile: read-only feed ───────────────────────────────────────
+        // ── Mobile: sticky on-the-clock bar for the phone feed ──────────
+        // Who's up, pick meta (R#.## · #overall), and how far away the user's
+        // next pick is. Sticks against the page scroll; top offset = --sat so
+        // it clears the notch in the installed PWA (0px in a Safari tab). z 60
+        // paints it over the league shell's sticky time bar (z 50) while both
+        // are stuck; the fixed layer (hamburger 201, tab bar 100) stays above.
+        // Left padding reserves the phone hamburger's 42px corner, matching the
+        // .wr-league-header-row convention. Single-line ellipsis so 375px never
+        // wraps or overflows (MobileFeed only mounts at <768).
+        function MobileClockBar({ state, currentSlot, isUserTurn }) {
+            const personas = state.personas || {};
+            const userRosterId = String(state.userRosterId || '');
+            const order = state.pickOrder || [];
+            const idx = state.currentIdx || 0;
+            const made = (state.picks || []).length;
+            const total = order.length || 0;
+            const slot = currentSlot || order[idx] || null;
+            const rosterId = String(slot?.rosterId || '');
+            const done = state.phase === 'complete';
+            const teamName = personas[rosterId]?.teamName
+                || (rosterId && rosterId === userRosterId ? 'Your Team' : (slot?.slot ? 'Team ' + slot.slot : 'Draft Room'));
+            // Picks until the user is back on the clock (0 = now).
+            const away = React.useMemo(() => {
+                if (!userRosterId || !order.length || done) return null;
+                const n = order.slice(idx).findIndex(s => String(s.rosterId) === userRosterId);
+                return n < 0 ? null : n;
+            }, [userRosterId, order, idx, done]);
+            const userUp = (isUserTurn || away === 0) && !done;
+            const statusLabel = done ? 'Draft complete'
+                : state.activeOffer ? 'Trade offer paused'
+                    : userUp ? "You're on the clock"
+                        : 'On the clock';
+            const statusColor = done ? 'var(--silver)'
+                : state.activeOffer ? 'var(--k-f0a500, #f0a500)'
+                    : 'var(--gold)';
+            const rightLabel = done ? (made + ' picks')
+                : userUp ? 'YOU'
+                    : away != null ? 'You in ' + away
+                        : (made + '/' + (total || '--'));
+            return (
+                <div style={{
+                    position: 'sticky', top: 'var(--sat, 0px)', zIndex: 60,
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    minHeight: 44, padding: '6px 10px 6px 52px', marginBottom: 8,
+                    background: 'var(--black, #0a0a0a)',
+                    border: '1px solid ' + (userUp ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--acc-fill3, rgba(212,175,55,0.16))'),
+                    borderRadius: 4,
+                    boxShadow: '0 6px 14px rgba(0,0,0,0.45)',
+                }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, color: statusColor, fontFamily: FONT_UI, textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {statusLabel}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--white)', fontFamily: FONT_UI, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {done ? 'Board is final' : teamName}
+                        </div>
+                    </div>
+                    {!done && slot && (
+                        <span style={{ flexShrink: 0, fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.85, whiteSpace: 'nowrap' }}>
+                            {mockPickLabel(slot, state.leagueSize)} · #{slot.overall || '--'}
+                        </span>
+                    )}
+                    <span style={{
+                        flexShrink: 0, fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800,
+                        padding: '3px 7px', borderRadius: 3, whiteSpace: 'nowrap',
+                        border: '1px solid ' + (userUp ? 'var(--acc-line3, rgba(212,175,55,0.45))' : 'var(--ov-5, rgba(255,255,255,0.1))'),
+                        color: userUp ? 'var(--gold)' : 'var(--silver)',
+                        background: userUp ? 'var(--acc-fill3, rgba(212,175,55,0.14))' : 'var(--ov-2, rgba(255,255,255,0.03))',
+                    }}>
+                        {rightLabel}
+                    </span>
+                </div>
+            );
+        }
+
+        // ── Mobile: draft feed (Big Board / Alex / pick log) ─────────────
         function MobileFeed({ state, dispatch, onStart, isUserTurn, currentSlot, onPropose }) {
         const BigBoardPanel = window.DraftCC.BigBoardPanel;
         const AlexStreamPanel = window.DraftCC.AlexStreamPanel;
@@ -6472,8 +6547,9 @@
                         color: 'var(--k-f0a500, #f0a500)',
                         lineHeight: 1.5,
                     }}>
-                        📱 Run mock drafts on desktop for the full 6-panel experience.
-                        Mobile supports a read-only feed view.
+                        📱 Phone runs the draft feed — Big Board, Alex's reads, and the
+                        pick log. You can draft from here; the full 6-panel cockpit
+                        lives on desktop.
                     </div>
                     <button onClick={onStart} style={{
                         width: '100%',
@@ -6496,6 +6572,11 @@
 
         return (
             <div style={{ fontFamily: FONT_UI, padding: '4px 0' }}>
+                {/* Bottom clearance for the phone tab bar comes from the league
+                    shell: .app-container[data-league-skin-type] pads by
+                    calc(60px + var(--wr-bottom-inset)) at ≤767 (index.html phone
+                    tier) — do not double-pad here. */}
+                <MobileClockBar state={state} currentSlot={currentSlot} isUserTurn={isUserTurn} />
                 <div style={{ minHeight: 320, maxHeight: '56vh', marginBottom: 10 }}>
                     <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} />
                 </div>

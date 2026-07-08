@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://c2-football.github.io https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://sxshiqyxhhifvtfqawbq.supabase.co https://api.sleeper.app https://api.myfantasyleague.com https://*.myfantasyleague.com https://lm-api-reads.fantasy.espn.com https://fantasysports.yahooapis.com https://*.sentry.io; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; object-src 'none';">
 
     <title>Waiver Wire - Dynasty HQ</title>
@@ -21,6 +21,12 @@
             --charcoal: #2A2A2A;
             --silver: #C0C0C0;
             --white: #FFFFFF;
+            /* iPhone safe-area tokens (viewport-fit=cover above) — same names
+               as index.html so the idiom carries across pages. 0px elsewhere. */
+            --sat: env(safe-area-inset-top, 0px);
+            --sar: env(safe-area-inset-right, 0px);
+            --sab: env(safe-area-inset-bottom, 0px);
+            --sal: env(safe-area-inset-left, 0px);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -30,6 +36,11 @@
             min-height: 100vh;
             overflow-x: hidden;
         }
+        /* App root: full-height flex shell (height lives here, not inline, so
+           the dvh line can fall back to vh on pre-15.4 iOS). dvh tracks the
+           visual viewport — Safari's URL bar can't permanently clip the
+           bottom panel rows, since inner-panel scrolling never collapses it. */
+        .page-shell { height: 100vh; height: 100dvh; }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: rgba(212,175,55,0.05); }
         ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 2px; }
@@ -431,6 +442,7 @@
             .tracker-grid {
                 grid-template-columns: 1fr 1fr !important;
                 height: calc(100vh - 46px) !important;
+                height: calc(100dvh - 46px) !important; /* visual-viewport height; invalid → vh line above stands (pre-15.4 iOS) */
                 gap: 0.22rem !important;
                 padding: 0.22rem !important;
             }
@@ -517,8 +529,36 @@
             .filter-btn,
             .search-input,
             .fa-tab-btn,
+            .t-submit,
+            .ai-analyze-btn,
             .ai-mode-btn { min-height: 44px; }
             .player-row { min-height: 44px; }
+            /* Small glyph controls (26px add circle, del ✕): expand the HIT
+               area to ≥44px via an invisible pseudo-halo — the visual stays
+               the page's compact idiom. */
+            .add-circle, .del-btn { position: relative; }
+            .add-circle::after, .del-btn::after { content: ''; position: absolute; inset: -10px; }
+        }
+
+        /* ---- iPhone pass (≤767, plan Phase 3 item 17): safe-area chrome,
+             16px inputs (iOS zoom-on-focus guard), home-indicator clearance.
+             Phone-scoped — the tablet tier above is untouched. ---- */
+        @media (max-width: 767px) {
+            /* Header rides below the notch/status bar (installed-PWA draws
+               under it with viewport-fit=cover); !important beats the inline
+               JSX padding on the header row. */
+            .tracker-header { padding: calc(0.4rem + var(--sat)) calc(1rem + var(--sar)) 0.4rem calc(1rem + var(--sal)) !important; }
+            /* Safari zooms any focused input under 16px (same rule as the
+               main app's phone tier). Overrides the ≤640 compact sizes. */
+            input, select, textarea { font-size: 16px !important; }
+            /* The 100dvh page shell is overflow:hidden inline; let the page
+               scroll if content outgrows the viewport (641–767 band where
+               the grid is height:auto). At ≤640 the grid fits exactly, so
+               no scrollbar appears. */
+            .page-shell { overflow-y: auto !important; }
+            /* Bottom row of panels clears the home indicator. Placed after
+               the ≤640 rules so the later padding-bottom wins. */
+            .tracker-grid { padding-bottom: calc(0.32rem + var(--sab)) !important; }
         }
     </style>
 </head>
@@ -1259,7 +1299,7 @@
 
             // ---- Main render ----
             return (
-                <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden' }}>
+                <div className="page-shell" style={{ display:'flex', flexDirection:'column', overflow:'hidden' }}>
 
                     {/* HEADER */}
                     <div className="tracker-header" style={{ flexDirection:'column', gap:'0.3rem', padding:'0.4rem 1rem' }}>

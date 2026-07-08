@@ -148,7 +148,7 @@
         </>);
     }
 
-    function SettingsContent({ onClose, initDisplayName, onDisplayNameSave, leagueMates, mode = 'modal', accountOnly = false }) {
+    function SettingsContent({ onClose, initDisplayName, onDisplayNameSave, leagueMates, mode = 'modal', accountOnly = false, phoneSheet = false }) {
         const [settingsTab, setSettingsTab] = React.useState('account');
         const [showPw, setShowPw] = React.useState(false);
         const [pwMsg, setPwMsg] = React.useState('');
@@ -261,9 +261,14 @@
         const btnPrimary = { flex: 1, padding: '0.6rem', minHeight: '44px', background: 'var(--gold)', border: 'none', borderRadius: '6px', color: 'var(--black)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' };
         const btnOutline = { flex: 1, padding: '0.6rem', minHeight: '44px', background: 'transparent', border: '1px solid var(--gold)', borderRadius: '6px', color: 'var(--gold)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' };
         const isModule = mode === 'module';
+        // phoneSheet (≤767 via WR.Sheet in SettingsModal): the sheet owns the
+        // border/radius/scroll/safe-area chrome, so the content shell goes flat
+        // and full-width. Desktop/tablet keep the centered 720px dialog untouched.
         const shellStyle = isModule
             ? { background: 'linear-gradient(135deg, var(--off-black) 0%, var(--charcoal) 100%)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', borderRadius: '10px', padding: '1.1rem', width: '100%', boxSizing: 'border-box', boxShadow: '0 12px 28px rgba(0,0,0,0.22)' }
-            : { background: 'linear-gradient(135deg, var(--off-black) 0%, var(--charcoal) 100%)', border: '3px solid var(--gold)', borderRadius: '12px', padding: '1.5rem', maxWidth: 'min(720px, calc(100vw - 48px))', width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.8)', maxHeight: '90vh', overflowY: 'auto' };
+            : phoneSheet
+                ? { background: 'transparent', padding: '0.25rem 1rem 1rem', width: '100%', boxSizing: 'border-box' }
+                : { background: 'linear-gradient(135deg, var(--off-black) 0%, var(--charcoal) 100%)', border: '3px solid var(--gold)', borderRadius: '12px', padding: '1.5rem', maxWidth: 'min(720px, calc(100vw - 48px))', width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.8)', maxHeight: '90vh', overflowY: 'auto' };
 
         if (isModule) {
             const moduleSectionStyle = { ...sectionStyle, marginBottom: '0.7rem', background: 'var(--ov-2, rgba(255,255,255,0.025))' };
@@ -420,14 +425,16 @@
             const ini = String(displayName || uname || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || '★';
             const labelStyle = { fontFamily: 'var(--font-title)', fontSize: 'var(--text-label, 0.8rem)', letterSpacing: '0.1em', color: 'var(--silver)', textTransform: 'uppercase', marginBottom: '8px' };
             return (
-                <div className="wr-settings-modal wr-account-modal" style={{ background: 'linear-gradient(135deg, var(--off-black) 0%, var(--charcoal) 100%)', border: '1px solid var(--gold)', borderRadius: '14px', maxWidth: 'min(440px, calc(100vw - 40px))', width: '100%', boxShadow: '0 16px 48px rgba(0,0,0,0.7)', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+                <div className="wr-settings-modal wr-account-modal" style={phoneSheet
+                    ? { background: 'transparent', width: '100%', boxSizing: 'border-box' }
+                    : { background: 'linear-gradient(135deg, var(--off-black) 0%, var(--charcoal) 100%)', border: '1px solid var(--gold)', borderRadius: '14px', maxWidth: 'min(440px, calc(100vw - 40px))', width: '100%', boxShadow: '0 16px 48px rgba(0,0,0,0.7)', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '18px 18px 14px', borderBottom: '1px solid var(--acc-line1, rgba(212,175,55,0.18))' }}>
                         <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: '1.5px solid var(--gold)', background: 'var(--black)', color: 'var(--gold)', fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{ini}</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.15rem', letterSpacing: '0.1em', color: 'var(--gold)' }}>ACCOUNT</div>
                             <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Signed in as {uname || '—'}{isGiftedAccount ? ' · gifted' : ''}</div>
                         </div>
-                        <button onClick={onClose} aria-label="Close" style={{ flexShrink: 0, width: '32px', height: '32px', borderRadius: '8px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', color: 'var(--silver)', fontSize: '1.2rem', cursor: 'pointer', lineHeight: 1 }}>×</button>
+                        <button onClick={onClose} aria-label="Close" style={{ flexShrink: 0, width: phoneSheet ? '44px' : '32px', height: phoneSheet ? '44px' : '32px', borderRadius: '8px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', color: 'var(--silver)', fontSize: '1.2rem', cursor: 'pointer', lineHeight: 1 }}>×</button>
                     </div>
                     <div style={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
                         <div>
@@ -652,10 +659,26 @@
     }
 
     function SettingsModal(props) {
-        return (
+        // Phone (≤767): the centered dialog becomes a WR.Sheet bottom sheet —
+        // keyboard lift, body-scroll lock, safe-area bottom padding, and
+        // drag/scrim dismiss come from the primitive (plan D4 "sheet policy").
+        // showClose=false + no title: both content variants carry their own
+        // headers and close controls (accountOnly header ×, full modal SETTINGS
+        // h2 + bottom Close), so the sheet contributes only the grab strip.
+        // Sheet renders the `desktop` element unchanged at ≥768, so tablet and
+        // desktop are untouched; the availability check is page-constant (no
+        // conditional-hook hazard).
+        const overlay = (
             <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }} onClick={props.onClose}>
                 <SettingsContent {...props} mode="modal" />
             </div>
+        );
+        const Sheet = window.WR && window.WR.Sheet;
+        if (!Sheet) return overlay;
+        return (
+            <Sheet open={true} onClose={props.onClose} showClose={false} height="92dvh" desktop={overlay}>
+                <SettingsContent {...props} mode="modal" phoneSheet={true} />
+            </Sheet>
         );
     }
 

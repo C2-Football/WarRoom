@@ -3179,6 +3179,20 @@
 
                         return (
 		                        <div style={{ background: 'var(--black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: 'var(--card-radius-sm)', maxHeight: 'none', overflowX: 'auto', WebkitOverflowScrolling: 'touch', overflowY: 'clip' }}>
+	                          {/* Phone-tier tap-target bump for the ▲/▼ board-move fallback
+	                              (mobile plan D7/D10): HTML5 drag is inert on iOS, so these
+	                              buttons are the only reorder path — 16×14px is untappable.
+	                              44px-wide buttons stacked under the rank number (the rank
+	                              cell flips to a column so they fit the 58px # column).
+	                              Scoped ≤767 only; tablet/desktop keep the dense 16×14. */}
+	                          <style>{`@media (max-width:767px){
+	                              .wr-brd-numcell{flex-direction:column !important;gap:3px !important;padding:6px 0;}
+	                              .wr-brd-move{gap:4px !important;}
+	                              .wr-brd-move-btn{width:44px !important;height:36px !important;font-size:0.8rem !important;position:relative;}
+	                              /* Invisible ±4px vertical hit halo → effective 44px target
+	                                 without moving the 36px visual or the 4px gap. */
+	                              .wr-brd-move-btn::after{content:'';position:absolute;left:0;right:0;top:-4px;bottom:-4px;}
+	                          }`}</style>
 	                          <div style={{ minWidth: '100%' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: boardGridCols, minHeight: '34px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', alignItems: 'center', position: 'sticky', top: 0, zIndex: 1 }}>
                                 <div style={{ textAlign: 'center' }}>#</div>
@@ -3273,12 +3287,12 @@
                                         style={{ display: 'grid', gridTemplateColumns: boardGridCols, alignItems: 'center', minHeight: '42px', opacity: isDrafted ? 0.35 : 1, borderBottom: isExp ? 'none' : '1px solid var(--ov-3, rgba(255,255,255,0.035))', cursor: 'pointer', background: isExp ? 'var(--acc-fill1, rgba(212,175,55,0.065))' : idx % 2 === 1 ? 'var(--ov-1, rgba(255,255,255,0.016))' : 'transparent', transition: 'background 0.1s', position: 'relative' }}
                                         onMouseEnter={e => { if (!isExp) e.currentTarget.style.background = 'var(--acc-fill1, rgba(212,175,55,0.04))'; }}
                                         onMouseLeave={e => { if (!isExp) e.currentTarget.style.background = idx % 2 === 1 ? 'var(--ov-1, rgba(255,255,255,0.016))' : 'transparent'; }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, fontFamily: 'var(--font-body)', fontSize: '0.74rem', color: idx < 3 ? 'var(--gold)' : 'var(--silver)', fontWeight: 800 }}>
+                                        <div className="wr-brd-numcell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, fontFamily: 'var(--font-body)', fontSize: '0.74rem', color: idx < 3 ? 'var(--gold)' : 'var(--silver)', fontWeight: 800 }}>
                                             <span>{idx + 1}</span>
                                             {!isDhq && (
-                                                <span style={{ display: 'inline-grid', gap: 2 }}>
-                                                    <button type="button" title="Move up" onClick={e => { e.stopPropagation(); handleBoardMove(r.pid, -1); }} style={{ width: 16, height: 14, lineHeight: 1, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 3, background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', padding: 0 }}>▲</button>
-                                                    <button type="button" title="Move down" onClick={e => { e.stopPropagation(); handleBoardMove(r.pid, 1); }} style={{ width: 16, height: 14, lineHeight: 1, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 3, background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', padding: 0 }}>▼</button>
+                                                <span className="wr-brd-move" style={{ display: 'inline-grid', gap: 2 }}>
+                                                    <button type="button" className="wr-brd-move-btn" title="Move up" onClick={e => { e.stopPropagation(); handleBoardMove(r.pid, -1); }} style={{ width: 16, height: 14, lineHeight: 1, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 3, background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', padding: 0 }}>▲</button>
+                                                    <button type="button" className="wr-brd-move-btn" title="Move down" onClick={e => { e.stopPropagation(); handleBoardMove(r.pid, 1); }} style={{ width: 16, height: 14, lineHeight: 1, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 3, background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', padding: 0 }}>▼</button>
                                                 </span>
                                             )}
                                         </div>

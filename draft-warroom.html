@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com https://c2-football.github.io https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://sxshiqyxhhifvtfqawbq.supabase.co https://api.sleeper.app https://api.myfantasyleague.com https://*.myfantasyleague.com https://lm-api-reads.fantasy.espn.com https://fantasysports.yahooapis.com https://*.sentry.io; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; object-src 'none';">
 
     <title>Draft Command Center - Dynasty HQ</title>
@@ -21,9 +21,20 @@
             --charcoal: #2A2A2A;
             --silver: #C0C0C0;
             --white: #FFFFFF;
+            /* iPhone safe-area tokens (viewport-fit=cover above) — same names
+               as index.html so the idiom carries across pages. 0px elsewhere. */
+            --sat: env(safe-area-inset-top, 0px);
+            --sar: env(safe-area-inset-right, 0px);
+            --sab: env(safe-area-inset-bottom, 0px);
+            --sal: env(safe-area-inset-left, 0px);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: var(--black); color: var(--white); min-height: 100vh; overflow-x: hidden; }
+        /* App root: full-height flex shell (height lives here, not inline, so
+           the dvh line can fall back to vh on pre-15.4 iOS). dvh tracks the
+           visual viewport — Safari's URL bar can't permanently clip the
+           bottom, since inner-panel scrolling never collapses it. */
+        .page-shell { height: 100vh; height: 100dvh; }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: rgba(212,175,55,0.05); }
         ::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 2px; }
@@ -132,8 +143,28 @@
             .back-btn,
             .league-select,
             .filter-btn,
+            .search-input,
+            .ai-analyze-btn,
             .ai-mode-btn { min-height: 44px; }
             .player-row { min-height: 44px; }
+        }
+
+        /* ---- iPhone pass (≤767, plan Phase 3 item 17): safe-area chrome,
+             16px inputs (iOS zoom-on-focus guard), home-indicator clearance.
+             Phone-scoped — the tablet tier above is untouched. ---- */
+        @media (max-width: 767px) {
+            /* Header rides below the notch/status bar (installed-PWA draws
+               under it with viewport-fit=cover). */
+            .wr-header { padding: calc(0.55rem + var(--sat)) calc(1rem + var(--sar)) 0.55rem calc(1rem + var(--sal)); }
+            /* Safari zooms any focused input under 16px (same rule as the
+               main app's phone tier). */
+            input, select, textarea { font-size: 16px !important; }
+            /* The 100dvh page shell is overflow:hidden inline; at ≤1023 the
+               grid is height:auto, so the page itself must scroll or the
+               stacked panels get clipped at the viewport edge. */
+            .page-shell { overflow-y: auto !important; }
+            /* Last stacked panel clears the home indicator. */
+            .wr-grid { padding-bottom: calc(0.6rem + var(--sab)); }
         }
     </style>
 </head>
@@ -749,7 +780,7 @@
             );
 
             return (
-                <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden' }}>
+                <div className="page-shell" style={{ display:'flex', flexDirection:'column', overflow:'hidden' }}>
 
                     {/* HEADER */}
                     <div className="wr-header">

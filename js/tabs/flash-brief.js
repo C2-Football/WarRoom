@@ -8,6 +8,24 @@
 
 function ordinal(n) { const s = ['th','st','nd','rd']; const v = n % 100; return n + (s[(v-20)%10] || s[v] || s[0]); }
 
+// Phone tier (≤767, plan Phase 2 item 11 wave 1): the xl brief splits into
+// two ~160px columns at 375 (prose | 2×2 action grid) and the xxl KPI /
+// position strips cut ~343px of content into 6–8 cells of ~40-50px. Stack
+// the xl split and re-wrap the strips to 3×2 / 4×2. Injected once at load;
+// !important beats the inline grid styles. ≥768 (tablet/desktop) unchanged.
+(function injectBriefPhoneCss() {
+    if (typeof document === 'undefined' || document.getElementById('wr-brief-phone-css')) return;
+    const st = document.createElement('style');
+    st.id = 'wr-brief-phone-css';
+    st.textContent = '@media(max-width:767px){' +
+        '.wr-ib-xl-body{grid-template-columns:minmax(0,1fr) !important;}' +
+        '.wr-ib-xl-actions{grid-template-columns:minmax(0,1fr) !important;}' +
+        '.wr-ib-kpi-strip{grid-template-columns:repeat(3,1fr) !important;}' +
+        '.wr-ib-pos-strip{grid-template-columns:repeat(4,1fr) !important;}' +
+        '}';
+    document.head.appendChild(st);
+})();
+
 // The four tier-message keys (elite/contender/crossroads/rebuilding) are
 // POOLS — AlexVoice.pick chooses one per league+week seed, so the read is
 // stable across re-renders but the phrasing rolls when the week does.
@@ -649,9 +667,9 @@ function IntelligenceBriefWidget({
         const top4 = actions.slice(0, 4);
         return React.createElement('div', { style: cardStyle },
             header({ tight: true }),
-            React.createElement('div', { style: { padding: '10px 14px', flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '14px', overflow: 'hidden' } },
+            React.createElement('div', { className: 'wr-ib-xl-body', style: { padding: '10px 14px', flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '14px', overflow: 'hidden' } },
                 React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.65, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 9, WebkitBoxOrient: 'vertical' } }, briefText),
-                React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', minHeight: 0 } },
+                React.createElement('div', { className: 'wr-ib-xl-actions', style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', minHeight: 0 } },
                     ...top4.map((a, i) => renderActionBtn(a, 'xl-' + i, { compact: true, titleClamp: 2 })),
                 ),
             ),
@@ -675,7 +693,7 @@ function IntelligenceBriefWidget({
         return React.createElement('div', { style: cardStyle },
             header(),
             React.createElement('div', { style: { padding: '14px 20px', flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' } },
-                React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '6px', flexShrink: 0 } },
+                React.createElement('div', { className: 'wr-ib-kpi-strip', style: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '6px', flexShrink: 0 } },
                     ...kpis.map((k, i) => React.createElement('div', {
                         key: i,
                         style: { background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '6px', padding: '8px 6px', textAlign: 'center' },
@@ -686,7 +704,7 @@ function IntelligenceBriefWidget({
                 ),
                 React.createElement('div', { style: { flexShrink: 0 } },
                     React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' } }, 'Position Health'),
-                    React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '6px' } },
+                    React.createElement('div', { className: 'wr-ib-pos-strip', style: { display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '6px' } },
                         ...posBars.map((pb, i) => React.createElement('div', { key: i, style: { textAlign: 'center' } },
                             React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: 'var(--silver)' } }, pb.pos),
                             React.createElement('div', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '1rem', fontWeight: 700, color: pb.col, lineHeight: 1, margin: '2px 0' } }, pb.grade),

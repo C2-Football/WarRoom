@@ -314,7 +314,13 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             animation: 'wrFadeIn 0.18s ease',
         }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-            <style>{`@keyframes wrFadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}`}</style>
+            <style>{`@keyframes wrFadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+                /* Phone tier: the Primary Stat chips are ~26px tall from their
+                   inline 4px padding — 44px touch targets at ≤767 only (glyph
+                   size unchanged; hit-height only). ≥768 untouched. */
+                @media(max-width:767px){
+                    .wr-picker-metric-chip{ min-height:44px; }
+                }`}</style>
 
             {/* .wr-widget-picker-panel/-body: phone tier (index.html ≤767 CSS) makes
                 the step body scrollable — 18 modules at 2 columns (~345px panel)
@@ -426,7 +432,7 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
                                     {mod.metrics.map(m => {
                                         const accentCol = typeof mod.accent === 'function' ? mod.accent() : mod.accent;
                                         return (
-                                            <button key={m.key} onClick={() => setSelectedMetric(m.key)} style={{
+                                            <button key={m.key} className="wr-picker-metric-chip" onClick={() => setSelectedMetric(m.key)} style={{
                                                 padding: '4px 10px', borderRadius: '14px', cursor: 'pointer',
                                                 border: '1px solid ' + (selectedMetric === m.key ? (accentCol || 'var(--gold)') : 'var(--ov-6, rgba(255,255,255,0.1))'),
                                                 background: selectedMetric === m.key ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
@@ -487,6 +493,12 @@ function DashboardPanel({
     const [pickerOpen, setPickerOpen] = React.useState(false);
     const [editingWidget, setEditingWidget] = React.useState(null); // { widgetId, widget }
     const [dragIdx, setDragIdx] = React.useState(null);
+    // Phone/touch tier (plan Phase 2 item 11): HTML5 DnD never fires on iOS
+    // Safari, so coarse-pointer/phone gets ▲/▼ move controls in the widget
+    // shell (same selectedWidgets order the DnD writes). Fine-pointer desktop
+    // keeps drag-only — no new buttons there.
+    const dashViewport = window.WR.useViewport();
+    const touchReorder = dashViewport.isPhone || dashViewport.isCoarse;
     const [starredWidgets, setStarredWidgets] = React.useState(() => window.WrStarWidget?.getAll() || []);
     const navigateWidget = React.useCallback((target) => {
         const tab = resolveWidgetDestination(target);
@@ -1065,6 +1077,19 @@ function DashboardPanel({
         const sizeSpan = { sm: 'span 1', slim: 'span 1', narrow: 'span 1', md: 'span 2', lg: 'span 2', tall: 'span 2', xl: 'span 4', xxl: 'span 4' };
         const rowSpan = { sm: 'span 1', slim: 'span 2', narrow: 'span 4', md: 'span 1', lg: 'span 2', tall: 'span 4', xl: 'span 2', xxl: 'span 4' };
 
+        // Touch reorder: move this widget one slot earlier/later in the same
+        // layout array the desktop drag-and-drop mutates.
+        function moveWidget(delta) {
+            const to = idx + delta;
+            if (to < 0 || to >= selectedWidgets.length) return;
+            const updated = [...selectedWidgets];
+            const [moved] = updated.splice(idx, 1);
+            updated.splice(to, 0, moved);
+            setSelectedWidgets(updated);
+        }
+        const canMoveUp = idx > 0;
+        const canMoveDown = idx < selectedWidgets.length - 1;
+
         return (
             <div
                 className="wr-widget"
@@ -1139,6 +1164,38 @@ function DashboardPanel({
                             transition: 'all 0.12s', pointerEvents: 'none',
                         }}>✕</span></button>
                 )}
+
+                {/* Touch reorder ▲/▼ — HTML5 drag events never fire on iOS
+                    Safari, so coarse-pointer/phone reorders with these instead.
+                    44px hit areas (glyph circle stays 22px, hit-padding only),
+                    same float row as the gear/remove affordance. Fine-pointer
+                    desktop never renders them (touchReorder false). */}
+                {showGear && touchReorder && [
+                    { glyph: '▼', delta: 1, ok: canMoveDown, right: '77px', label: 'Move widget down' },
+                    { glyph: '▲', delta: -1, ok: canMoveUp, right: '121px', label: 'Move widget up' },
+                ].map(b => (
+                    <button
+                        key={b.glyph}
+                        onClick={e => { e.stopPropagation(); if (b.ok) moveWidget(b.delta); }}
+                        disabled={!b.ok}
+                        aria-label={b.label}
+                        title={b.label}
+                        style={{
+                            position: 'absolute', top: '-11px', right: b.right,
+                            width: '44px', height: '44px', padding: 0,
+                            border: 'none', background: 'transparent',
+                            cursor: b.ok ? 'pointer' : 'default', fontSize: 'var(--text-label, 0.75rem)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            zIndex: 5, opacity: b.ok ? 1 : 0.35,
+                        }}
+                    ><span style={{
+                            width: '22px', height: '22px', borderRadius: '50%',
+                            border: '1px solid var(--ov-6, rgba(255,255,255,0.15))',
+                            background: 'var(--surf-solid, rgba(10,10,10,0.85))', backdropFilter: 'blur(4px)',
+                            color: S, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            transition: 'all 0.12s', pointerEvents: 'none',
+                        }}>{b.glyph}</span></button>
+                ))}
             </div>
         );
     }
@@ -1382,7 +1439,10 @@ function DashboardPanel({
                     <span style={{ fontSize: '1.1rem' }}>✨</span>
                     <div style={{ flex: 1, lineHeight: 1.5 }}>
                         <strong style={{ color: G }}>This dashboard is yours to customize.</strong>
-                        {' '}Hover any widget to resize or remove it. Drag to reorder. Click <strong>+ Add Widget</strong> to build your layout.
+                        {touchReorder
+                            ? ' Tap the ⚙ on any widget to resize it, ✕ to remove, ▲▼ to reorder. Tap '
+                            : ' Hover any widget to resize or remove it. Drag to reorder. Click '}
+                        <strong>+ Add Widget</strong> to build your layout.
                     </div>
                     <button onClick={dismissHint} style={{
                         padding: '5px 14px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: dmFont, fontWeight: 600,

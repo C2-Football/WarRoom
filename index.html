@@ -2171,12 +2171,33 @@ WRShared.preloadMany(WR_SHARED_FILES);
            hit-area expansion — padding grows the target, negative margin
            cancels the layout shift. Later-in-sheet equal specificity wins. */
         .tc-ta-remove { padding:12px; margin:-12px; }
+
+        /* dvh audit (plan Phase 3): full-height overlay tracks the visual
+           viewport so Safari's collapsing URL bar can't clip the bottom.
+           Later-in-sheet rule wins where dvh is supported; on pre-15.4 iOS
+           the declaration is invalid and the base 88vh (line ~1502) stands.
+           Phone-scoped so the tablet/desktop tiers keep the audited vh. */
+        .draft-scout-drawer { max-height:88dvh; }
     }
     /* Short-viewport phones (landscape): slimmer bar so it doesn't eat a
-       375px-tall viewport. Same tier, height-guarded (plan D9). */
+       375px-tall viewport. Same tier, height-guarded (plan D9). Only
+       SE-class (667) and 8-Plus-class (736) iPhones stay <768 wide in
+       landscape — everything newer rotates into the tablet tier, where the
+       bar and sheets are unmounted anyway. */
     @media(max-width:767px) and (max-height:520px){
         :root { --wr-tab-bar-h: 48px; }
         .wr-phone-tab { gap:2px; padding-top:2px; }
+        /* WR.Sheet landscape full-height lives INSIDE the Sheet component
+           (wr-primitives.js maxH branch) so the keyboard-open shrink still
+           composes — a CSS !important override here would defeat it. */
+    }
+    /* Landscape phones of ANY width (SE 667 → Pro Max 932 all pass
+       max-height:520px; pointer:coarse keeps short desktop windows and all
+       tablets out): the mock-draft cockpit's 760px floor is meaningless in a
+       ~390px-tall viewport. The ≤1320px rule above already sets height:auto,
+       so this only releases the min-height floor (plan D9). */
+    @media(max-height:520px) and (pointer:coarse){
+        .mock-cockpit-grid { min-height:0; }
     }
     /* Belt-and-braces: the bar is JS-unmounted off-phone (WR.useViewport),
        but the viewport store debounces ~100ms — never paint it above 767. */
