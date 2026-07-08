@@ -5,56 +5,38 @@
     // ── Sub-components (hooks require stable component boundaries) ──
 
     function AlexTab({ sectionStyle, sectionTitle }) {
-        const styles = window.ALEX_STYLES || { default: { name: 'Default', tone: 'Confident but not arrogant. Direct, data-driven, with personality.' }, general: { name: 'The General', tone: 'Intense, demanding, motivational. Short powerful sentences.' }, enthusiast: { name: 'The Enthusiast', tone: 'Excitable, passionate, full of energy. Uses vivid football jargon.' }, bayou: { name: 'The Bayou', tone: 'Folksy, raw, passionate. Southern warmth and earthiness.' }, wit: { name: 'The Wit', tone: 'Sarcastic, confident, clever. Sharp tongue and sharper mind.' }, closer: { name: 'The Closer', tone: 'Direct, emphatic, no-nonsense. Every sentence is declarative.' }, strategist: { name: 'The Strategist', tone: 'Calculated, competitive, analytical. Cold precision.' } };
-        const [currentStyle, setCurrentStyleLocal] = React.useState(localStorage.getItem('wr_alex_style') || 'default');
-        const [currentAvatar, setCurrentAvatar] = React.useState(localStorage.getItem('wr_alex_avatar') || 'brain');
+        // One canonical Alex voice (owner ruling 2026-07-08): the coaching-style
+        // picker (ALEX_STYLES / wr_alex_style) is retired. Any stored
+        // wr_alex_style value is ignored by readers — tolerated, never migrated.
+        // Avatar vocabulary is unified on components.js ALEX_AVATARS (photo ids:
+        // badge/exec/analyst/coach/scout) — the set the chat/GMMessage renderer
+        // (AlexAvatar) actually displays. Legacy emoji ids (brain/target/chart/…)
+        // stored on wr_alex_avatar normalize to 'badge' (no broken images).
+        const avatars = window.ALEX_AVATARS || [{ id: 'badge', label: 'Gold Badge', src: null }];
+        const readAvatar = () => {
+            const id = localStorage.getItem('wr_alex_avatar') || 'badge';
+            return avatars.some(a => a.id === id) ? id : 'badge';
+        };
+        const [currentAvatar, setCurrentAvatar] = React.useState(readAvatar);
         return (<>
-        <div style={sectionStyle}>
-            <div style={sectionTitle}>COMMUNICATION STYLE</div>
-            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginBottom: '0.75rem' }}>Choose how Alex communicates. This affects all AI responses — briefings, chat, trade analysis, draft scouting.</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {Object.entries(styles).map(([key, style]) => (
-                    <button key={key} onClick={() => { localStorage.setItem('wr_alex_style', key); setCurrentStyleLocal(key); }}
-                        style={{
-                            padding: '12px 14px', textAlign: 'left',
-                            background: currentStyle === key ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'var(--ov-1, rgba(255,255,255,0.02))',
-                            border: currentStyle === key ? '2px solid var(--gold)' : '1px solid var(--ov-5, rgba(255,255,255,0.08))',
-                            borderRadius: '10px', cursor: 'pointer', transition: 'all 0.15s',
-                        }}>
-                        <div style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: currentStyle === key ? 'var(--gold)' : 'var(--white)', marginBottom: '3px' }}>
-                            {style.name} {currentStyle === key && '\u2713'}
-                        </div>
-                        <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', lineHeight: 1.4 }}>
-                            {style.tone.substring(0, 120)}{style.tone.length > 120 ? '...' : ''}
-                        </div>
-                    </button>
-                ))}
-            </div>
-            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5, marginTop: '8px' }}>Changes take effect on next page load.</div>
-        </div>
         <div style={sectionStyle}>
             <div style={sectionTitle}>AVATAR</div>
             <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginBottom: '0.75rem' }}>Choose Alex's look. Displayed in briefings and chat.</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-                {[
-                    { key: 'brain', emoji: '\u{1F9E0}', label: 'The Analyst' },
-                    { key: 'target', emoji: '\u{1F3AF}', label: 'The Scout' },
-                    { key: 'chart', emoji: '\u{1F4CA}', label: 'The Strategist' },
-                    { key: 'football', emoji: '\u{1F3C8}', label: 'The Coach' },
-                    { key: 'bolt', emoji: '\u26A1', label: 'The Spark' },
-                    { key: 'fire', emoji: '\u{1F525}', label: 'The Motivator' },
-                    { key: 'medal', emoji: '\u{1F396}\uFE0F', label: 'The General' },
-                    { key: 'trophy', emoji: '\u{1F3C6}', label: 'The Winner' },
-                ].map(av => {
-                    const isActive = currentAvatar === av.key;
-                    return <button key={av.key} onClick={() => { localStorage.setItem('wr_alex_avatar', av.key); setCurrentAvatar(av.key); }}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '8px' }}>
+                {avatars.map(av => {
+                    const isActive = currentAvatar === av.id;
+                    return <button key={av.id} onClick={() => { localStorage.setItem('wr_alex_avatar', av.id); setCurrentAvatar(av.id); }}
                         style={{
                             padding: '12px 8px', textAlign: 'center',
                             background: isActive ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'var(--ov-1, rgba(255,255,255,0.02))',
                             border: isActive ? '2px solid var(--gold)' : '1px solid var(--ov-5, rgba(255,255,255,0.08))',
                             borderRadius: '10px', cursor: 'pointer',
                         }}>
-                        <div style={{ fontSize: '1.6rem', marginBottom: '4px' }}>{av.emoji}</div>
+                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
+                            {av.src
+                                ? <img src={av.src} alt="" style={{ width: '44px', height: '44px', borderRadius: '8px', objectFit: 'cover', border: '2px solid var(--acc-line3, rgba(212,175,55,0.4))' }} />
+                                : <div style={{ width: '44px', height: '44px', borderRadius: '8px', background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: 'var(--k-0a0a0a, #0a0a0a)', fontFamily: 'Rajdhani, sans-serif' }}>AI</div>}
+                        </div>
                         <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: isActive ? 'var(--gold)' : 'var(--silver)' }}>{av.label}</div>
                     </button>;
                 })}
@@ -532,7 +514,7 @@
                     {/* Phase 10: Leaguemate Access card removed per user feedback (2026-04-18) */}
                     </>)}
 
-                    {/* ══ ALEX TAB — Coaching Style + Avatar ══ */}
+                    {/* ══ ALEX TAB — Avatar + GM Briefing replay ══ */}
                     {settingsTab === 'alex' && <AlexTab sectionStyle={sectionStyle} sectionTitle={sectionTitle} />}
 
                     {/* ══ DISPLAY TAB ══ */}

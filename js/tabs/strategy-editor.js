@@ -62,7 +62,10 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
             draftStyle: saved.draftStyle || 'bpa',
             marketPosture: saved.marketPosture || 'hold',
             timeline: saved.timeline || '2_3_years',
-            alexPersonality: saved.alexPersonality || 'balanced',
+            // saved.alexPersonality (legacy per-strategy voice knob) is
+            // deliberately NOT carried into the draft — one canonical Alex voice
+            // (owner ruling 2026-07-08). Old synced profiles still carry the
+            // field; dropping it here (tolerate, never crash) is the migration.
             targetPositions: normalizePositions(saved.targetPositions),
             sellPositions: normalizePositions(saved.sellPositions),
             sellRules: saved.sellRules || [],
@@ -84,7 +87,10 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
     // acceptance floor from the preset's aggression — "driven by aggression").
     const applyPreset = (modeId) => {
         const preset = window.WR?.GmMode?.getPreset?.(modeId);
-        const cfg = preset?.config || {};
+        const cfg = { ...(preset?.config || {}) };
+        // Presets may still carry a legacy alexPersonality — strip it so it
+        // never re-enters the draft/save (single Alex voice, 2026-07-08).
+        delete cfg.alexPersonality;
         setDraft(d => ({
             ...d,
             ...cfg,
@@ -284,12 +290,6 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
         { value: 'dynasty_long', label: 'Dynasty Long', desc: 'Build a program, not just a season.' },
     ];
 
-    const PERSONALITIES = [
-        { value: 'aggressive',    label: 'Aggressive',     desc: 'Alex hunts for wins, pushes hard on every move.' },
-        { value: 'value_hunter',  label: 'Value Hunter',   desc: 'Alex obsesses over undervalued assets and market gaps.' },
-        { value: 'balanced',      label: 'Balanced',       desc: 'Alex weighs all options before recommending a move.' },
-    ];
-
     const currentMode = MODES.find(m => m.value === draft.mode);
     const currentAggression = AGGRESSION.find(a => a.value === draft.aggression);
 
@@ -375,7 +375,7 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                 )}
                 {!isCustom && (
                     <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 6, fontSize: 'var(--text-label)', color: 'var(--ov-9, rgba(255,255,255,0.7))', fontFamily: 'var(--font-body)', lineHeight: 1.5 }}>
-                        <strong style={{ color: 'var(--gold)' }}>Preset applied:</strong> aggression <em>{draft.aggression}</em> · draft <em>{draft.draftStyle}</em> · market <em>{draft.marketPosture}</em> · timeline <em>{draft.timeline}</em> · personality <em>{draft.alexPersonality}</em>
+                        <strong style={{ color: 'var(--gold)' }}>Preset applied:</strong> aggression <em>{draft.aggression}</em> · draft <em>{draft.draftStyle}</em> · market <em>{draft.marketPosture}</em> · timeline <em>{draft.timeline}</em>
                     </div>
                 )}
             </div>
@@ -613,29 +613,8 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                 )}
             </div>}
 
-            {/* ── Alex Personality (Custom only) ── */}
-            {isCustom && <div style={styles.card}>
-                <SectionHeader title="Alex Personality" sub="How Alex frames advice and makes recommendations." />
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
-                    {PERSONALITIES.map(p => {
-                        const active = draft.alexPersonality === p.value;
-                        return (
-                            <button key={p.value} onClick={() => set('alexPersonality', p.value)} style={{
-                                padding: '12px 14px',
-                                border: active ? '1px solid var(--gold)' : '1px solid var(--ov-6, rgba(255,255,255,0.1))',
-                                borderRadius: 8,
-                                background: active ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'var(--ov-2, rgba(255,255,255,0.03))',
-                                cursor: 'pointer',
-                                textAlign: 'left',
-                                transition: 'all 0.15s',
-                            }}>
-                                <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-body)', fontWeight: 700, color: active ? 'var(--gold)' : 'var(--ov-9, rgba(255,255,255,0.8))' }}>{p.label}</div>
-                                <div style={{ fontSize: 'var(--text-micro)', color: 'var(--ov-8, rgba(255,255,255,0.4))', marginTop: 3, fontFamily: 'var(--font-body)', lineHeight: 1.3 }}>{p.desc}</div>
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>}
+            {/* Alex Personality card removed — one canonical Alex voice
+                (owner ruling 2026-07-08). Strategy substance above is untouched. */}
 
             {/* ── Bottom save bar ── */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 12, paddingBottom: 40 }}>

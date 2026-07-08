@@ -197,7 +197,12 @@
         { id: 'scout', label: 'The Scout', src: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&h=120&fit=crop&crop=face' },
     ];
     function getAlexAvatar() {
-        return ComponentsStorage.get(COMPONENTS_WR_KEYS.ALEX_AVATAR, 'badge') || 'badge';
+        const id = ComponentsStorage.get(COMPONENTS_WR_KEYS.ALEX_AVATAR, 'badge') || 'badge';
+        // Tolerate legacy emoji-picker ids (brain/target/chart/football/bolt/
+        // fire/medal/trophy — the retired settings.js vocabulary) and anything
+        // else unknown: fall back to the default badge, never a broken image.
+        // Stored legacy values are ignored, not migrated.
+        return ALEX_AVATARS.some(a => a.id === id) ? id : 'badge';
     }
     function setAlexAvatar(id) {
         ComponentsStorage.set(COMPONENTS_WR_KEYS.ALEX_AVATAR, id);

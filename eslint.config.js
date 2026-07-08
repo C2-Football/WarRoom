@@ -202,7 +202,6 @@ module.exports = [
         getKpiAnnotation: "readonly",
         getPlayerAnnotation: "readonly",
         projectPlayerValue: "readonly",
-        getAlexStyle: "readonly",
         buildOwnerHistory: "readonly",
         detectRivalries: "readonly",
         dhqContext: "readonly",
