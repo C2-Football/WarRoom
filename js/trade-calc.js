@@ -3249,14 +3249,14 @@
                                     // see it. kbHeight already includes the visual-viewport pan, so
                                     // visible bottom in layout coords = innerHeight − kbHeight. With
                                     // the keyboard closed (hardware kb edge case) reserve 64px so the
-                                    // list also never runs under the bottom tab bar (z 40 < bar 100).
+                                    // list also never runs under the bottom dock (z 40 < dock 100).
                                     // Callback ref re-runs every render, so kbOpen/kbHeight changes
                                     // (viewport store re-render) re-measure automatically.
                                     if (!node || !_vp.isPhone) return;
-                                    // Keyboard closed: measure the REAL tab-bar extent (56px bar +
-                                    // home-indicator inset ≈ 90px on notched phones) instead of a
-                                    // fixed 64px so the last rows never render under the bar.
-                                    const _bar = document.querySelector('.wr-phone-tab-bar');
+                                    // Keyboard closed: measure the REAL dock extent (PhoneDock bar
+                                    // + home-indicator inset on notched phones) instead of a fixed
+                                    // 64px so the last rows never render under the dock.
+                                    const _bar = document.querySelector('.wr-phone-dock');
                                     const bottomGuard = _vp.kbOpen ? _vp.kbHeight
                                         : (_bar ? Math.max(0, window.innerHeight - _bar.getBoundingClientRect().top) + 8 : 64);
                                     const visibleBottom = window.innerHeight - bottomGuard;

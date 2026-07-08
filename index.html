@@ -172,12 +172,12 @@ WRShared.preloadMany(WR_SHARED_FILES);
                shell's fixed/floating stack, low→high. New fixed elements
                should consume one of these instead of a fresh magic number.
                Observed inline values today: sidebar overlay 99 < sidebar +
-               phone tab bar 100 < chat panels 200 < hamburger/Alex FAB 201 <
-               corner toast 202 < GMMessage sheet 250 < DHQ bubble / PWA
-               install / chat welcome 300 < player card 400 < confirm scrims
-               500–1000 < scout drawer 9000 < dropdown popover 9999. */
+               phone bottom dock 100 < chat panels 200 < hamburger/Alex FAB
+               201 < corner toast 202 < GMMessage sheet 250 < DHQ bubble /
+               PWA install / chat welcome 300 < player card 400 < confirm
+               scrims 500–1000 < scout drawer 9000 < dropdown popover 9999. */
             --wr-z-nav-overlay: 99;
-            --wr-z-nav: 100;      /* sidebar drawer + phone bottom tab bar */
+            --wr-z-nav: 100;      /* sidebar drawer + phone bottom dock */
             --wr-z-sheet: 200;    /* chat panels / bottom sheets */
             --wr-z-fab: 201;
             --wr-z-toast: 202;
@@ -186,9 +186,10 @@ WRShared.preloadMany(WR_SHARED_FILES);
             --wr-z-modal: 1000;   /* settings/dashboard modal scrims */
 
             /* Bottom clearance for floating/fixed elements: phone bottom
-               tab-bar height + home indicator on phones, just the safe-area
-               everywhere else. --wr-tab-bar-h flips to its real height inside
-               the ≤767 PHONE TIER block, so consuming this var is a no-op on
+               dock height + home indicator on phones, just the safe-area
+               everywhere else. --wr-tab-bar-h flips to its real static
+               height (56px; 48px landscape-compact) inside the ≤767 PHONE
+               TIER block, so consuming this var is a no-op on
                tablet/desktop. */
             --wr-tab-bar-h: 0px;
             --wr-bottom-inset: calc(var(--wr-tab-bar-h) + var(--sab));
@@ -2013,22 +2014,22 @@ WRShared.preloadMany(WR_SHARED_FILES);
         .wr-sidebar.is-collapsed .wr-sidebar-nav-btn { justify-content:flex-start !important; padding-left:20px !important; padding-right:16px !important; }
     }
 
-    /* ══ PHONE TIER (≤767) — safe-area offsets, bottom tab bar, and touch
+    /* ══ PHONE TIER (≤767) — safe-area offsets, bottom dock, and touch
        scaffold for the league-shell fixed layer. Scoped to the phone tier so
        the just-shipped 768–1023 tablet tier is untouched (iPad installed-PWA
        has a nonzero top inset too — deliberately left alone). !important
        beats the inline React styles on these elements (js/league-detail.js
-       hamburger, .wr-sidebar, .wr-alex-fab, .wr-corner-toast, .wr-dhq-bubble). ══ */
+       hamburger, .wr-sidebar, .wr-corner-toast, .wr-dhq-bubble). ══ */
     @media(max-width:767px){
-        /* Bottom tab bar height becomes real — --wr-bottom-inset (registry,
-           :root above) resolves to bar + home indicator on this tier only. */
+        /* Bottom dock height becomes real — --wr-bottom-inset (registry,
+           :root above) resolves to dock + home indicator on this tier only. */
         :root { --wr-tab-bar-h: 56px; }
 
         .wr-hamburger { top:calc(10px + var(--sat) + var(--wr-dev-banner-height, 0px)) !important; left:calc(10px + var(--sal)) !important; }
 
         /* Sidebar drawer: the ~800px nav stack overflows a 667px SE in
            portrait (and any phone in landscape) — make the drawer itself the
-           scroll container. Bottom padding clears the tab bar + home
+           scroll container. Bottom padding clears the dock + home
            indicator so "Refresh Data" stays reachable. */
         .wr-sidebar {
             padding-top:calc(16px + var(--sat)) !important;
@@ -2038,14 +2039,20 @@ WRShared.preloadMany(WR_SHARED_FILES);
             overscroll-behavior:contain;
         }
 
-        /* ── Bottom tab bar (PhoneTabBar, js/league-detail.js) ──
-           Terminal chrome: near-black bar, 1px gold hairline top, mono
-           micro-caps, silver inactive / gold + 2px top border active.
+        /* ── Bottom dock (PhoneDock, js/league-detail.js) ──
+           ONE row, Scout mobile-nav idiom: sliding module strip (every
+           sidebar nav item, icon over mono micro-caps label) + the PINNED
+           Ask Alex item at the right end behind a 1px gold-line divider.
+           Terminal chrome: near-black, 1px gold hairline top, silver
+           inactive / gold + 2px top rule active; gold otherwise reserved
+           for the Alex glyph ring + divider (structure).
+           Height = the STATIC --wr-tab-bar-h (56px; 48px landscape-compact)
+           + --sab, so the --wr-bottom-inset plumbing needs no JS.
            z = --wr-z-nav (100): same layer as the sidebar drawer but later
-           in the DOM so it paints above it; chat (200) / FAB (201) / toast
-           (202) / sheets stack on top. JS already unmounts it off-phone and
-           while the iOS keyboard is open. */
-        .wr-phone-tab-bar {
+           in the DOM so it paints above it; the Alex sheet (200) covers the
+           dock while open — the dock stays mounted beneath it. JS unmounts
+           the dock off-phone and while the iOS keyboard is open. */
+        .wr-phone-dock {
             display:flex;
             align-items:stretch;
             position:fixed;
@@ -2057,16 +2064,46 @@ WRShared.preloadMany(WR_SHARED_FILES);
             border-top:1px solid rgba(212,175,55,0.28);
             box-shadow:0 -6px 18px rgba(0,0,0,0.45);
         }
-        .wr-phone-tab {
-            flex:1 1 0;
+        /* Module strip: one-line momentum scroll, no scrollbar. Edge fade
+           masks are DRIVEN BY SCROLL STATE (.has-left/.has-right toggled by
+           PhoneDockInner) so a fade only appears where chips are actually
+           cut off — a static mask would dim the last chip at full scroll
+           and give no "more this way" cue on the left. The mask ends at
+           the Ask Alex divider — the pinned item never fades. */
+        .wr-dock-strip {
+            flex:1 1 auto;
             min-width:0;
+            display:flex;
+            align-items:stretch;
+            overflow-x:auto;
+            overflow-y:hidden;
+            -webkit-overflow-scrolling:touch;
+            overscroll-behavior-x:contain;
+            scrollbar-width:none;
+        }
+        .wr-dock-strip.has-right {
+            -webkit-mask-image:linear-gradient(90deg, #000 0, #000 calc(100% - 18px), transparent 100%);
+            mask-image:linear-gradient(90deg, #000 0, #000 calc(100% - 18px), transparent 100%);
+        }
+        .wr-dock-strip.has-left {
+            -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 18px, #000 100%);
+            mask-image:linear-gradient(90deg, transparent 0, #000 18px, #000 100%);
+        }
+        .wr-dock-strip.has-left.has-right {
+            -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+            mask-image:linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+        }
+        .wr-dock-strip::-webkit-scrollbar { display:none; }
+        .wr-dock-chip {
+            flex:0 0 auto;
+            min-width:56px;
             min-height:44px;
             display:flex;
             flex-direction:column;
             align-items:center;
             justify-content:center;
             gap:3px;
-            padding:4px 2px 2px;
+            padding:4px 10px 2px;
             margin:0;
             background:transparent;
             border:none;
@@ -2079,24 +2116,62 @@ WRShared.preloadMany(WR_SHARED_FILES);
             letter-spacing:0.05em;
             line-height:1;
             text-transform:uppercase;
+            white-space:nowrap;
         }
-        .wr-phone-tab svg { width:20px; height:20px; flex-shrink:0; }
-        .wr-phone-tab span { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .wr-phone-tab.is-active { color:var(--gold); border-top-color:var(--gold); font-weight:700; }
-        .wr-phone-tab:active { background:rgba(212,175,55,0.12); }
+        /* 20px matches Scout's icon-dominant nav weight + the Alex avatar. */
+        .wr-dock-chip svg { width:20px; height:20px; flex-shrink:0; }
+        .wr-dock-chip.is-active { color:var(--gold); border-top-color:var(--gold); font-weight:700; }
+        .wr-dock-chip:active { background:rgba(212,175,55,0.12); }
+        /* Ask Alex — pinned marquee peer item (Scout's AI slot precedent):
+           same chip anatomy, slightly wider, gold-line left divider; avatar
+           (or ✦ ring) over the ALEX label. Tap opens the Alex chat sheet. */
+        .wr-dock-ask {
+            flex:0 0 auto;
+            min-width:68px;
+            min-height:44px;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            gap:3px;
+            padding:4px 16px 2px;
+            margin:0;
+            background:transparent;
+            border:none;
+            border-top:2px solid transparent;
+            border-left:1px solid rgba(212,175,55,0.28);
+            cursor:pointer;
+            color:var(--silver, #8a8f98);
+            font-family:var(--font-mono, 'JetBrains Mono', monospace);
+            font-size:var(--text-micro, 0.6875rem);
+            font-weight:600;
+            letter-spacing:0.05em;
+            line-height:1;
+            white-space:nowrap;
+        }
+        .wr-dock-ask:active { background:rgba(212,175,55,0.12); }
+        .wr-dock-ask-glyph {
+            width:18px; height:18px; flex-shrink:0;
+            display:flex; align-items:center; justify-content:center;
+            border:1px solid rgba(212,175,55,0.45);
+            border-radius:50%;
+            color:var(--gold);
+            font-size:0.625rem;
+            line-height:1;
+        }
 
-        /* League shell content clears the tab bar (60px was the pre-bar
-           clearance; keep it above the bar). Attribute-scoped so the hub
-           page's .app-container (js/app.js — no tab bar there) is untouched. */
+        /* League shell content clears the dock (60px was the pre-dock
+           clearance; keep it above the dock). Attribute-scoped so the hub
+           page's .app-container (js/app.js — no dock there) is untouched. */
         .app-container[data-league-skin-type] { padding-bottom:calc(60px + var(--wr-bottom-inset)) !important; }
 
-        /* Floating elements ride above the bar via the registry offset var.
-           Original desktop geometry: FAB bottom 24 / toast 82 (= FAB + 52px
-           FAB + 6px gap — the 58px relationship is preserved). DHQ bubble
-           goes full-width; its inline left:80px was desktop-sidebar
-           clearance. */
-        .wr-alex-fab { bottom:calc(12px + var(--wr-bottom-inset)) !important; right:12px !important; }
-        .wr-corner-toast { bottom:calc(70px + var(--wr-bottom-inset)) !important; right:12px !important; }
+        /* Floating elements ride above the dock via the registry offset
+           var. (.wr-alex-fab needs no phone override anymore — the FAB
+           renders tablet/desktop only; the dock's pinned Ask Alex item
+           replaces it here.) Toast sits just above the dock's right end,
+           pointing its 👇 at the Ask Alex item. DHQ bubble goes full-width;
+           its inline left:80px was desktop-sidebar clearance. */
+        .wr-corner-toast { bottom:calc(12px + var(--wr-bottom-inset)) !important; right:12px !important; }
         .wr-dhq-bubble { bottom:calc(12px + var(--wr-bottom-inset)) !important; left:12px !important; right:12px !important; min-width:0 !important; }
 
         /* iOS zoom-on-focus guard: Safari zooms any focused input under
@@ -2139,7 +2214,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 
         /* FA detail drawer (fixed right panel, top:0/bottom:0): pad for the
            notch + home indicator — installed-PWA (black-translucent) draws it
-           under both. z 200 covers the tab bar, so --sab (not the bar inset)
+           under both. z 200 covers the dock, so --sab (not the dock inset)
            is the right bottom clearance. Close ✕ rides below the notch. */
         .fa-detail-drawer {
             padding-top:calc(20px + var(--sat)) !important;
@@ -2179,14 +2254,14 @@ WRShared.preloadMany(WR_SHARED_FILES);
            Phone-scoped so the tablet/desktop tiers keep the audited vh. */
         .draft-scout-drawer { max-height:88dvh; }
     }
-    /* Short-viewport phones (landscape): slimmer bar so it doesn't eat a
+    /* Short-viewport phones (landscape): slimmer dock so it doesn't eat a
        375px-tall viewport. Same tier, height-guarded (plan D9). Only
        SE-class (667) and 8-Plus-class (736) iPhones stay <768 wide in
        landscape — everything newer rotates into the tablet tier, where the
-       bar and sheets are unmounted anyway. */
+       dock and sheets are unmounted anyway. */
     @media(max-width:767px) and (max-height:520px){
         :root { --wr-tab-bar-h: 48px; }
-        .wr-phone-tab { gap:2px; padding-top:2px; }
+        .wr-dock-chip, .wr-dock-ask { gap:2px; padding-top:2px; }
         /* WR.Sheet landscape full-height lives INSIDE the Sheet component
            (wr-primitives.js maxH branch) so the keyboard-open shrink still
            composes — a CSS !important override here would defeat it. */
@@ -2199,10 +2274,10 @@ WRShared.preloadMany(WR_SHARED_FILES);
     @media(max-height:520px) and (pointer:coarse){
         .mock-cockpit-grid { min-height:0; }
     }
-    /* Belt-and-braces: the bar is JS-unmounted off-phone (WR.useViewport),
+    /* Belt-and-braces: the dock is JS-unmounted off-phone (WR.useViewport),
        but the viewport store debounces ~100ms — never paint it above 767. */
     @media(min-width:768px){
-        .wr-phone-tab-bar { display:none !important; }
+        .wr-phone-dock { display:none !important; }
     }
 
     /* ── Micro-animations ────────────────────────────────── */

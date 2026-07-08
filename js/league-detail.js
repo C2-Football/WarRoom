@@ -177,62 +177,141 @@
     // END DRAFT TAB
     // ══════════════════════════════════════════════════════════════════════════
 
-    // ── Phone bottom tab bar (≤767 only — mobile plan D3) ──
-    // 5-slot thumb nav: Home · Roster · [Game Day | Draft] · Trade · More.
-    // Drives the SAME activeTab state as the sidebar; "More" toggles the
-    // existing hamburger drawer. Returns null outside the phone tier and
-    // while the iOS keyboard is open (WR.useViewport kbOpen — the bar would
-    // otherwise ride up on the keyboard), so tablet/desktop render
-    // byte-identical. Visuals live in index.html's PHONE TIER block
-    // (.wr-phone-tab-bar / .wr-phone-tab); z + bottom offsets come from the
-    // fixed-layer registry (--wr-z-nav / --wr-tab-bar-h / --wr-bottom-inset).
-    function PhoneTabBar({ activeTab, showGameDay, sidebarOpen, onSelectTab, onToggleDrawer }) {
+    // ── League nav definition — SINGLE SOURCE OF TRUTH ──
+    // Consumed by BOTH the sidebar drawer (LeagueDetail render) and the
+    // phone bottom dock strip (PhoneDock below). Add/remove/gate items
+    // here only. `{ section }` rows render as sidebar dividers and are
+    // filtered out of the dock strip.
+    const NAV_ICON_PATHS = {
+        home: ['M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-8.5Z'],
+        roster: ['M12 3l7 3.5v5.2c0 4.5-3 7.5-7 8.3-4-.8-7-3.8-7-8.3V6.5L12 3Z', 'M8.7 12.2l2.1 2.1 4.5-4.7'],
+        gameday: ['M13 3 5 14h5l-1 7 8-11h-5l1-7Z'],
+        compare: ['M7 7h10M7 17h10', 'M9 4 6 7l3 3', 'M15 14l3 3-3 3'],
+        trade: ['M7 7h11m0 0-3-3m3 3-3 3', 'M17 17H6m0 0 3 3m-3-3 3-3'],
+        fa: ['M12 3v18', 'M7 7.5c0-1.8 2-3 5-3 2.8 0 4.8 1.2 4.8 3.4 0 2.4-2.2 3.2-4.8 3.2S7.2 12 7.2 14.4 9.4 18 12.3 18c2.3 0 4.2-.8 5.1-2.2'],
+        draft: ['M12 3l8 16H4L12 3Z', 'M12 8v5'],
+        analytics: ['M5 19V9', 'M12 19V5', 'M19 19v-7'],
+        film: ['M4 7h16v10H4z', 'M8 7l2-3h4l2 3', 'M10 11l4 2-4 2v-4Z'],
+        office: ['M4 8h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z', 'M9 8V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3', 'M4 12h16', 'M10 14h4'],
+        trophy: ['M8 4h8v4a4 4 0 0 1-8 0V4Z', 'M6 5H4v2a3 3 0 0 0 4 2', 'M18 5h2v2a3 3 0 0 1-4 2', 'M12 12v5', 'M8 21h8', 'M9 17h6'],
+        calendar: ['M5 5h14v15H5z', 'M8 3v4', 'M16 3v4', 'M5 9h14'],
+        strategy: ['M12 3l7 7-7 11-7-11 7-7Z', 'M12 8v5l3 2'],
+        settings: ['M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z', 'M12 3v2', 'M12 19v2', 'M3 12h2', 'M19 12h2', 'M5.6 5.6 7 7', 'M17 17l1.4 1.4', 'M18.4 5.6 17 7', 'M7 17l-1.4 1.4'],
+        legend: ['M4 5h16', 'M4 12h16', 'M4 19h16', 'M7 5v14', 'M11 5v14'],
+        refresh: ['M21 12a9 9 0 0 1-14.8 6.9', 'M3 12A9 9 0 0 1 17.8 5.1', 'M17 3v4h4', 'M7 21v-4H3'],
+    };
+    // showGameDay = the FINAL leagueSkin.features.showGameDay flag
+    // (callers apply the same `?? phase === 'in_season'` fallback in one place).
+    function buildLeagueNavItems(showGameDay) {
+        return [
+            { section: 'FRONT OFFICE' },
+            { label: 'Home', tab: 'dashboard', iconKey: 'home' },
+            { label: 'My Roster', tab: 'myteam', iconKey: 'roster' },
+            // Game Day Central — only surfaced for in-season leagues.
+            ...(showGameDay ? [{ label: 'Game Day', tab: 'lineup', iconKey: 'gameday' }] : []),
+            { label: 'Compare', tab: 'compare', iconKey: 'compare' },
+            { section: 'LEAGUE' },
+            { label: 'Trade Center', tab: 'trades', iconKey: 'trade' },
+            { label: 'Free Agency', tab: 'fa', iconKey: 'fa' },
+            { label: 'Draft', tab: 'draft', iconKey: 'draft' },
+            { label: 'Analytics', tab: 'analytics', iconKey: 'analytics' },
+            { section: 'DOSSIER' },
+            { label: 'GM\'s Office', tab: 'alex', iconKey: 'office' },
+            { label: 'Trophy Room', tab: 'trophies', iconKey: 'trophy' },
+            { section: 'SETTINGS' },
+            { label: 'Settings', tab: 'settings', iconKey: 'settings' },
+            { label: 'Legend', tab: 'legend', iconKey: 'legend' },
+        ];
+    }
+    // Shared active test (sidebar + dock): the Strategy editor lives under
+    // GM's Office, so 'strategy' lights the 'alex' item.
+    function navItemIsActive(item, activeTab) {
+        return !!item.tab && (activeTab === item.tab || (item.tab === 'alex' && activeTab === 'strategy'));
+    }
+
+    // ── Phone bottom dock (≤767 only) ──
+    // ONE fixed bottom row, Scout mobile-nav idiom: a sliding module strip
+    // of EVERY nav item from buildLeagueNavItems above (same array instance
+    // the sidebar maps — no 'More' slot; the hamburger drawer stays as
+    // redundant access), plus a PINNED Ask Alex peer item at the right end
+    // (gold-hairline left divider) that opens the Alex chat sheet — it
+    // replaces the FAB on phone. Returns null outside the phone tier and
+    // while the iOS keyboard is open (WR.useViewport kbOpen), so
+    // tablet/desktop render byte-identical; it STAYS mounted while the Alex
+    // sheet is open (sheet z 200 covers the dock at z 100 — expected).
+    // Visuals live in index.html's PHONE TIER block (.wr-phone-dock /
+    // .wr-dock-*); z + bottom offsets come from the fixed-layer registry
+    // (--wr-z-nav / --wr-tab-bar-h / --wr-bottom-inset — heights are the
+    // STATIC 56px / 48px landscape-compact CSS values, no JS measuring).
+    // The gate lives in this thin wrapper so PhoneDockInner's hooks
+    // mount/unmount cleanly.
+    function PhoneDock(props) {
         const vp = window.WR.useViewport();
         if (!vp.isPhone || vp.kbOpen) return null;
-        // Icon paths mirror LeagueDetail's sidebar iconPaths (same 24×24
-        // stroke grammar); 'gameday' (bolt) and 'more' are bar-specific.
-        const icons = {
-            home: ['M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-8.5Z'],
-            roster: ['M12 3l7 3.5v5.2c0 4.5-3 7.5-7 8.3-4-.8-7-3.8-7-8.3V6.5L12 3Z', 'M8.7 12.2l2.1 2.1 4.5-4.7'],
-            gameday: ['M13 3 5 14h5l-1 7 8-11h-5l1-7Z'],
-            draft: ['M12 3l8 16H4L12 3Z', 'M12 8v5'],
-            trade: ['M7 7h11m0 0-3-3m3 3-3 3', 'M17 17H6m0 0 3 3m-3-3 3-3'],
-            more: ['M4 6.5h16', 'M4 12h16', 'M4 17.5h16'],
-        };
-        const slots = [
-            { label: 'HOME', tab: 'dashboard', icon: 'home' },
-            { label: 'ROSTER', tab: 'myteam', icon: 'roster' },
-            // Slot 3 keys off the FINAL leagueSkin.features.showGameDay flag
-            // (passed in by LeagueDetail with the same ?? phase fallback the
-            // sidebar uses) — Game Day when true, else Draft.
-            showGameDay
-                ? { label: 'GAME DAY', tab: 'lineup', icon: 'gameday' }
-                : { label: 'DRAFT', tab: 'draft', icon: 'draft' },
-            { label: 'TRADE', tab: 'trades', icon: 'trade' },
-            { label: 'MORE', more: true, icon: 'more' },
-        ];
-        const barTabs = slots.filter(s => s.tab).map(s => s.tab);
+        return <PhoneDockInner {...props} />;
+    }
+    function PhoneDockInner({ activeTab, navItems, onSelectTab, onAskAlex }) {
+        const stripRef = useRef(null);
+        const chips = navItems.filter(item => item.tab);
+
+        // Keep the active chip visible whenever the tab changes (sidebar,
+        // deep links, and dock taps all funnel through activeTab).
+        useEffect(() => {
+            const strip = stripRef.current;
+            if (!strip) return;
+            const chip = strip.querySelector('.wr-dock-chip.is-active');
+            if (chip && typeof chip.scrollIntoView === 'function') {
+                try { chip.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); }
+                catch (_) { /* older WebKit: options-object form unsupported */ }
+            }
+        }, [activeTab]);
+
+        // Edge-fade masks only where chips are actually cut off (.has-left /
+        // .has-right drive the CSS) — a static mask dims the last chip at
+        // full scroll and gives no "more this way" cue on the left.
+        useEffect(() => {
+            const strip = stripRef.current;
+            if (!strip) return;
+            const update = () => {
+                const max = strip.scrollWidth - strip.clientWidth;
+                strip.classList.toggle('has-left', strip.scrollLeft > 4);
+                strip.classList.toggle('has-right', strip.scrollLeft < max - 4);
+            };
+            update();
+            strip.addEventListener('scroll', update, { passive: true });
+            window.addEventListener('resize', update);
+            return () => { strip.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
+        }, [navItems]);
+
         return (
-            <nav className="wr-phone-tab-bar" aria-label="Primary">
-                {slots.map(slot => {
-                    // While the drawer is open, only MORE reads active; when the
-                    // current tab lives off-bar (Compare, FA, Settings, …) MORE
-                    // lights up as the "you are elsewhere" indicator.
-                    const isActive = slot.more
-                        ? (sidebarOpen || !barTabs.includes(activeTab))
-                        : (!sidebarOpen && activeTab === slot.tab);
-                    return (
-                        <button key={slot.label}
-                            className={'wr-phone-tab' + (isActive ? ' is-active' : '')}
-                            aria-current={isActive ? 'page' : undefined}
-                            onClick={() => slot.more ? onToggleDrawer() : onSelectTab(slot.tab)}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                {icons[slot.icon].map((d, i) => <path key={i} d={d} />)}
-                            </svg>
-                            <span>{slot.label}</span>
-                        </button>
-                    );
-                })}
+            <nav className="wr-phone-dock" aria-label="Primary">
+                <div ref={stripRef} className="wr-dock-strip">
+                    {chips.map(item => {
+                        const isActive = navItemIsActive(item, activeTab);
+                        return (
+                            <button key={item.tab} type="button"
+                                className={'wr-dock-chip' + (isActive ? ' is-active' : '')}
+                                aria-current={isActive ? 'page' : undefined}
+                                onClick={() => onSelectTab(item.tab)}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                    {(NAV_ICON_PATHS[item.iconKey] || NAV_ICON_PATHS.home).map((d, i) => <path key={i} d={d} />)}
+                                </svg>
+                                <span>{item.label}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+                {/* Ask Alex — pinned marquee peer item (Scout's AI slot
+                    precedent): never scrolls with the strip. Free tier sees
+                    it too — the 1/day quota is enforced in the send path,
+                    not here. */}
+                <button type="button" className="wr-dock-ask" onClick={onAskAlex}
+                    aria-label="Ask Alex — open chat">
+                    {window.AlexAvatar
+                        ? <span aria-hidden="true" style={{ display: 'inline-flex' }}><window.AlexAvatar size={20} /></span>
+                        : <span className="wr-dock-ask-glyph" aria-hidden="true">{'✦'}</span>}
+                    <span aria-hidden="true">ALEX</span>
+                </button>
             </nav>
         );
     }
@@ -1284,6 +1363,19 @@
         }
         const [reconPanelOpen, setReconPanelOpen] = useState(false);
         const [reconExpanded, setReconExpanded] = useState(false);
+        // PhoneDock "Ask Alex" bar: after the sheet opens, best-effort focus
+        // of the chat composer input (ref attached below). iOS may keep the
+        // keyboard down — programmatic focus outside the original tap
+        // gesture doesn't reliably raise it — so opening the sheet alone is
+        // the guaranteed behavior; the focus is a progressive enhancement.
+        const reconComposerRef = useRef(null);
+        const reconComposerFocusPending = useRef(false);
+        useEffect(() => {
+            if (reconPanelOpen && reconComposerFocusPending.current) {
+                reconComposerFocusPending.current = false;
+                try { reconComposerRef.current && reconComposerRef.current.focus(); } catch (_) { /* no-op */ }
+            }
+        }, [reconPanelOpen]);
         // ── Phone tier (≤767): the Alex chat renders as a full-width bottom
         // sheet in all three modes (welcome / docked / expanded). Desktop and
         // tablet keep the exact pre-existing floating-panel styles.
@@ -2887,23 +2979,9 @@
         }
 
         const sidebarWidth = sidebarCollapsed ? 72 : 176;
-        const iconPaths = {
-            home: ['M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-8.5Z'],
-            roster: ['M12 3l7 3.5v5.2c0 4.5-3 7.5-7 8.3-4-.8-7-3.8-7-8.3V6.5L12 3Z', 'M8.7 12.2l2.1 2.1 4.5-4.7'],
-            compare: ['M7 7h10M7 17h10', 'M9 4 6 7l3 3', 'M15 14l3 3-3 3'],
-            trade: ['M7 7h11m0 0-3-3m3 3-3 3', 'M17 17H6m0 0 3 3m-3-3 3-3'],
-            fa: ['M12 3v18', 'M7 7.5c0-1.8 2-3 5-3 2.8 0 4.8 1.2 4.8 3.4 0 2.4-2.2 3.2-4.8 3.2S7.2 12 7.2 14.4 9.4 18 12.3 18c2.3 0 4.2-.8 5.1-2.2'],
-            draft: ['M12 3l8 16H4L12 3Z', 'M12 8v5'],
-            analytics: ['M5 19V9', 'M12 19V5', 'M19 19v-7'],
-            film: ['M4 7h16v10H4z', 'M8 7l2-3h4l2 3', 'M10 11l4 2-4 2v-4Z'],
-            office: ['M4 8h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z', 'M9 8V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3', 'M4 12h16', 'M10 14h4'],
-            trophy: ['M8 4h8v4a4 4 0 0 1-8 0V4Z', 'M6 5H4v2a3 3 0 0 0 4 2', 'M18 5h2v2a3 3 0 0 1-4 2', 'M12 12v5', 'M8 21h8', 'M9 17h6'],
-            calendar: ['M5 5h14v15H5z', 'M8 3v4', 'M16 3v4', 'M5 9h14'],
-            strategy: ['M12 3l7 7-7 11-7-11 7-7Z', 'M12 8v5l3 2'],
-            settings: ['M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z', 'M12 3v2', 'M12 19v2', 'M3 12h2', 'M19 12h2', 'M5.6 5.6 7 7', 'M17 17l1.4 1.4', 'M18.4 5.6 17 7', 'M7 17l-1.4 1.4'],
-            legend: ['M4 5h16', 'M4 12h16', 'M4 19h16', 'M7 5v14', 'M11 5v14'],
-            refresh: ['M21 12a9 9 0 0 1-14.8 6.9', 'M3 12A9 9 0 0 1 17.8 5.1', 'M17 3v4h4', 'M7 21v-4H3'],
-        };
+        // Icon paths live at module scope (NAV_ICON_PATHS, above PhoneDock)
+        // so the sidebar and the phone dock strip draw the same glyphs.
+        const iconPaths = NAV_ICON_PATHS;
         const renderNavIcon = (key) => React.createElement('svg', {
             className: 'wr-sidebar-icon',
             viewBox: '0 0 24 24',
@@ -2915,6 +2993,12 @@
             'aria-hidden': 'true',
         }, ...(iconPaths[key] || iconPaths.home).map((d, idx) => React.createElement('path', { key: idx, d })));
 
+        // Nav definition — single source of truth (module-scope
+        // buildLeagueNavItems). The sidebar maps this array below and the
+        // SAME array instance feeds the PhoneDock strip at the bottom of
+        // this render, so the two surfaces can never drift.
+        const navItems = buildLeagueNavItems(leagueSkin?.features?.showGameDay ?? (leagueSkin?.phase === 'in_season'));
+
         const _seasonCtxValue = { ...seasonCtxData, leagueSkin, selectPlayer };
         const leagueSkinClassName = leagueSkin?.theme?.className || (leagueSkin?.type ? 'wr-league-skin-' + leagueSkin.type : 'wr-league-skin-default');
 
@@ -2922,7 +3006,7 @@
           <window.App.SeasonContext.Provider value={_seasonCtxValue}>
             <div className={'app-container ' + leagueSkinClassName} data-league-skin-type={leagueSkin?.type || 'unknown'} data-league-skin-theme={leagueSkin?.theme?.id || 'war-room-default'} onWheel={rerouteWheelToPage} style={{ paddingBottom: '60px' }}>
                 {/* DHQ Loading Bubble — .wr-dhq-bubble: phone tier repoints it
-                    above the bottom tab bar (index.html PHONE TIER block). */}
+                    above the bottom dock (index.html PHONE TIER block). */}
                 {dhqStatus.loading && (
                     <div className="wr-dhq-bubble" style={{
                         position: 'fixed', bottom: '24px', left: '80px', zIndex: 300,
@@ -2960,7 +3044,9 @@
 
                 {/* Mobile hamburger toggle \u2014 hidden while the phone Alex sheet is
                     open (it would paint above the sheet and toggle the drawer
-                    invisibly beneath it; the tab bar's MORE slot covers access). */}
+                    invisibly beneath it). Redundant access on phone \u2014 the dock
+                    strip covers every nav item \u2014 but kept as the drawer's
+                    familiar entry point. */}
                 {!(alexPhone && reconPanelOpen) && <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{
                     display: 'none', position: 'fixed', top: 'calc(10px + var(--wr-dev-banner-height, 0px))', left: '10px', zIndex: 201,
                     background: 'var(--black)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px',
@@ -3101,26 +3187,10 @@
                         );
                     })}
 
-                    {/* Nav items — grouped: FRONT OFFICE / LEAGUE / DOSSIER / SETTINGS. */}
-                    {[
-                        { section: 'FRONT OFFICE' },
-                        { label: 'Home', tab: 'dashboard', iconKey: 'home' },
-                        { label: 'My Roster', tab: 'myteam', iconKey: 'roster' },
-                        // Game Day Central — only surfaced for in-season leagues.
-                        ...((leagueSkin?.features?.showGameDay ?? (leagueSkin?.phase === 'in_season')) ? [{ label: 'Game Day', tab: 'lineup', iconKey: 'roster' }] : []),
-                        { label: 'Compare', tab: 'compare', iconKey: 'compare' },
-                        { section: 'LEAGUE' },
-                        { label: 'Trade Center', tab: 'trades', iconKey: 'trade' },
-                        { label: 'Free Agency', tab: 'fa', iconKey: 'fa' },
-                        { label: 'Draft', tab: 'draft', iconKey: 'draft' },
-                        { label: 'Analytics', tab: 'analytics', iconKey: 'analytics' },
-                        { section: 'DOSSIER' },
-                        { label: 'GM\'s Office', tab: 'alex', iconKey: 'office' },
-                        { label: 'Trophy Room', tab: 'trophies', iconKey: 'trophy' },
-                        { section: 'SETTINGS' },
-                        { label: 'Settings', tab: 'settings', iconKey: 'settings' },
-                        { label: 'Legend', tab: 'legend', iconKey: 'legend' },
-                    ].map((item, i) => {
+                    {/* Nav items — grouped: FRONT OFFICE / LEAGUE / DOSSIER / SETTINGS.
+                        Definition = buildLeagueNavItems (module scope) — the
+                        same navItems array also drives the PhoneDock strip. */}
+                    {navItems.map((item, i) => {
                         if (item.section) {
                             // Hairline divider only — section labels removed for a
                             // cleaner list. The grouping rhythm still reads via the
@@ -3131,7 +3201,7 @@
                                 <div key={i} className="wr-sidebar-divider" style={{ height: '1px', margin: '8px 16px', background: 'var(--ov-4, rgba(255,255,255,0.06))' }} aria-hidden="true" />
                             );
                         }
-                        const isActive = item.tab && (activeTab === item.tab || (item.tab === 'alex' && activeTab === 'strategy'));
+                        const isActive = navItemIsActive(item, activeTab);
                         return (
                         <button key={i} onClick={() => { setSidebarOpen(false); item.tab ? setActiveTab(item.tab) : item.action ? item.action() : window.location.href = item.url; }}
                             className="wr-sidebar-nav-btn"
@@ -3980,6 +4050,7 @@
                 borderRadius: alexPhone ? '0' : '0 0 14px 14px'
               }}>
                 <input
+                  ref={reconComposerRef}
                   value={reconInput}
                   onChange={e => setReconInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') sendReconMessage(reconInput); }}
@@ -4004,7 +4075,9 @@
             </div>}
 
             {/* "I'll be down here" toast — .wr-corner-toast: phone tier lifts
-                it above the bottom tab bar via --wr-bottom-inset. */}
+                it above the bottom dock via --wr-bottom-inset (points at the
+                dock's pinned Ask Alex item there; at the FAB on
+                tablet/desktop). */}
             {showCornerToast && (
               <div className="wr-corner-toast" style={{
                 position: 'fixed', bottom: '82px', right: '24px',
@@ -4020,11 +4093,11 @@
               </div>
             )}
 
-            {/* Alex Ingram Bubble Button — bottom right corner. .wr-alex-fab:
-                phone tier lifts it above the bottom tab bar via --wr-bottom-inset.
-                Hidden on phone while the chat sheet is open (the sheet's own
-                ✕ closes it; the FAB would sit under/behind the sheet). */}
-            {!(alexPhone && reconPanelOpen) && <button className="wr-alex-fab" onClick={() => { setReconPanelOpen(!reconPanelOpen); setWelcomeMode(false); }} style={{
+            {/* Alex Ingram Bubble Button — bottom right corner. Tablet +
+                desktop ONLY: on phone the PhoneDock's pinned Ask Alex item
+                is the entry point (same open path), so the FAB never
+                renders there. */}
+            {!alexPhone && <button className="wr-alex-fab" onClick={() => { setReconPanelOpen(!reconPanelOpen); setWelcomeMode(false); }} style={{
               position: 'fixed', bottom: '24px', right: '24px',
               width: '52px', height: '52px', borderRadius: '14px',
               background: reconPanelOpen ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
@@ -4040,16 +4113,16 @@
               }
             </button>}
 
-            {/* Phone bottom tab bar (≤767 only) — null on tablet/desktop and
-                while the iOS keyboard is open. Slot 3 = Game Day when the
-                final showGameDay flag is on, else Draft (same expression as
-                the sidebar nav item above). */}
-            <PhoneTabBar
+            {/* Phone bottom dock (≤767 only) — null on tablet/desktop and
+                while the iOS keyboard is open. ONE row: sliding strip of
+                EVERY sidebar nav item (same navItems array — single source
+                of truth) + the pinned Ask Alex item at the right end
+                (replaces the FAB on phone; same open path as the FAB). */}
+            <PhoneDock
                 activeTab={activeTab}
-                showGameDay={leagueSkin?.features?.showGameDay ?? (leagueSkin?.phase === 'in_season')}
-                sidebarOpen={sidebarOpen}
+                navItems={navItems}
                 onSelectTab={(tab) => { setSidebarOpen(false); setActiveTab(tab); }}
-                onToggleDrawer={() => setSidebarOpen(o => !o)}
+                onAskAlex={() => { reconComposerFocusPending.current = true; setReconPanelOpen(true); setWelcomeMode(false); }}
             />
 
             </div>

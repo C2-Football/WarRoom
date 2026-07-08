@@ -6456,7 +6456,7 @@
         // next pick is. Sticks against the page scroll; top offset = --sat so
         // it clears the notch in the installed PWA (0px in a Safari tab). z 60
         // paints it over the league shell's sticky time bar (z 50) while both
-        // are stuck; the fixed layer (hamburger 201, tab bar 100) stays above.
+        // are stuck; the fixed layer (hamburger 201, phone dock 100) stays above.
         // Left padding reserves the phone hamburger's 42px corner, matching the
         // .wr-league-header-row convention. Single-line ellipsis so 375px never
         // wraps or overflows (MobileFeed only mounts at <768).
@@ -6572,7 +6572,7 @@
 
         return (
             <div style={{ fontFamily: FONT_UI, padding: '4px 0' }}>
-                {/* Bottom clearance for the phone tab bar comes from the league
+                {/* Bottom clearance for the phone bottom dock comes from the league
                     shell: .app-container[data-league-skin-type] pads by
                     calc(60px + var(--wr-bottom-inset)) at ≤767 (index.html phone
                     tier) — do not double-pad here. */}

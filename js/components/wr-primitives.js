@@ -313,7 +313,7 @@
     // compresses instead of hiding under the keyboard; any input focused
     // inside the body re-centers after a ~320ms keyboard-settle delay.
     // Body scroll is locked while a phone sheet is open. z sits at
-    // var(--wr-z-sheet, 200) — above the tab bar (100), below toasts.
+    // var(--wr-z-sheet, 200) — above the phone dock (100), below toasts.
     function ensureSheetCss() {
         if (document.getElementById('wr-sheet-css')) return;
         const st = document.createElement('style');

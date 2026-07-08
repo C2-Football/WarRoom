@@ -35,7 +35,7 @@
         if (!vv) return { kbOpen: false, kbHeight: 0 };
         // Pinch-zoom shrinks vv.height by the zoom factor with no keyboard
         // present — bail outright while zoomed so kbOpen can't false-positive
-        // (which would unmount the tab bar and mis-lift every sheet).
+        // (which would unmount the phone dock and mis-lift every sheet).
         if ((vv.scale || 1) > 1.05) return { kbOpen: false, kbHeight: 0 };
         // vv.offsetTop: iOS pans the visual viewport to reveal the caret, but
         // fixed elements anchor to the LAYOUT viewport — the lift must include
