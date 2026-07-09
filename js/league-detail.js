@@ -1393,6 +1393,13 @@
         // showAlerts removed — alerts now live on Brief tab
         const [briefDraftInfo, setBriefDraftInfo] = useState(null);
         const [sidebarOpen, setSidebarOpen] = useState(false);
+        // One-row phone header (owner ruling 2026-07-09): title + SWITCH only;
+        // the badges/draft-clock/refresh demote into this sheet. The compact
+        // header (and the hamburger removal that rides with it) engages only
+        // while the sheet primitive is actually live, so a kit-load failure
+        // falls back to the stacked header + hamburger instead of stranding nav.
+        const [phHdrSheetOpen, setPhHdrSheetOpen] = useState(false);
+        const phoneHdrKit = alexPhone && !!(window.WR && window.WR.Sheet);
         const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
             try { return localStorage.getItem('wr_sidebar_collapsed') === '1'; } catch (_) { return false; }
         });
@@ -3044,10 +3051,11 @@
 
                 {/* Mobile hamburger toggle \u2014 hidden while the phone Alex sheet is
                     open (it would paint above the sheet and toggle the drawer
-                    invisibly beneath it). Redundant access on phone \u2014 the dock
-                    strip covers every nav item \u2014 but kept as the drawer's
-                    familiar entry point. */}
-                {!(alexPhone && reconPanelOpen) && <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{
+                    invisibly beneath it). PHONE (one-row header live): removed
+                    entirely \u2014 the dock strip covers every nav item and Refresh
+                    moved into the header sheet (owner ruling 2026-07-09). The
+                    768-1023 drawer tier keeps it \u2014 no dock there. */}
+                {!phoneHdrKit && !(alexPhone && reconPanelOpen) && <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{
                     display: 'none', position: 'fixed', top: 'calc(10px + var(--wr-dev-banner-height, 0px))', left: '10px', zIndex: 201,
                     background: 'var(--black)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px',
                     padding: '6px 10px', cursor: 'pointer', color: 'var(--gold)', fontSize: '1.2rem', lineHeight: 1
@@ -3057,17 +3065,20 @@
                     .wr-hamburger{display:block !important}
                     .wr-sidebar{left:-220px !important;top:var(--wr-dev-banner-height,0px) !important;transform:none !important}
                     .wr-sidebar.open{left:0 !important}
-                    .wr-main-content{margin-left:0 !important;width:100% !important;max-width:100vw;overflow-x:clip;overflow-y:visible;box-sizing:border-box;padding-top:var(--wr-dev-banner-height,0px)}
+                    .wr-main-content{margin-left:0 !important;width:100% !important;max-width:100vw !important;overflow-x:clip;overflow-y:visible;box-sizing:border-box;padding-top:var(--wr-dev-banner-height,0px)}
                 }
                 @media(max-width:767px){
-                    .wr-league-header-row{display:grid !important;grid-template-columns:minmax(0,1fr) auto;align-items:start !important;gap:6px 8px !important;padding-left:42px}
-                    .wr-league-header-row .header-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--text-body, 1rem) !important;line-height:1.2}
-                    .wr-league-switch{grid-column:2;grid-row:1}
-                    .wr-gm-mode-badge{grid-column:1 / 3;justify-self:start;max-width:100%;min-width:0}
-                    .wr-league-type-badge{grid-column:1 / 3;grid-row:3;justify-self:start;max-width:100%;min-width:0}
-                    .wr-league-phase-badge{grid-column:1 / 3;grid-row:4;justify-self:start;max-width:100%;min-width:0}
-                    .wr-draft-header-clock{grid-column:1 / 3;grid-row:5;justify-self:start;max-width:100%;min-width:0;overflow:hidden}
-                    .wr-draft-header-clock>span{max-width:86px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+                    /* Phone header: compact two-zone layout — title + SWITCH share the
+                       top line, and the status badges flow inline (wrapping) on the
+                       line(s) below, instead of one full-width row per badge (which
+                       stacked the header to ~180px tall). */
+                    .wr-league-header-row{display:flex !important;flex-wrap:wrap !important;align-items:center !important;gap:6px !important;padding-left:44px}
+                    .wr-league-header-row .header-title{flex:1 1 auto;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--text-body, 1rem) !important;line-height:1.2}
+                    .wr-league-switch{flex:0 0 auto;margin-left:auto}
+                    .wr-hdr-break{display:block !important;flex-basis:100%;width:100%;height:0;margin:0;padding:0;border:0}
+                    .wr-gm-mode-badge,.wr-league-type-badge,.wr-league-phase-badge,.wr-draft-header-clock{flex:0 0 auto;min-width:0;max-width:100%;padding-top:3px !important;padding-bottom:3px !important}
+                    .wr-draft-header-clock{overflow:hidden}
+                    .wr-draft-header-clock>span{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
                     .wr-draft-header-clock>strong{flex-shrink:0}
                     .wr-time-bar{align-items:flex-start !important;padding:8px 10px !important;gap:6px !important}
                     .wr-time-years{width:auto;max-width:100%;overflow:visible;flex-wrap:wrap !important;padding-bottom:2px}
@@ -3303,10 +3314,82 @@
                 {/* Header — collapsed into a single left-aligned strip.
                     Removed: redundant "{year} SEASON" subtitle (year picker below handles this)
                     and the duplicate league-name/team-count in the time context bar. */}
-                <header className="header" style={{ position: 'relative', marginBottom: '0', paddingTop: '0.6rem', paddingBottom: '0.6rem' }}>
+                <header className="header" style={{ position: 'relative', marginBottom: '0', paddingTop: phoneHdrKit ? '0.35rem' : '0.6rem', paddingBottom: phoneHdrKit ? '0.35rem' : '0.6rem' }}>
+                    {phoneHdrKit ? (() => {
+                        // ── ONE-ROW PHONE HEADER ── phase dot + name (tap = league
+                        // sheet) + SWITCH. Everything else lives in the sheet below.
+                        const gm = (leagueSkin?.type !== 'redraft') ? window.WR?.GmMode?.describe?.(gmStrategy?.mode || 'compete') : null;
+                        const phaseColor = (leagueSkin?.phaseMeta && leagueSkin.phase !== 'unknown') ? leagueSkin.phaseMeta.color : 'var(--text-muted)';
+                        const rowSt = { display: 'flex', alignItems: 'center', gap: '10px', minHeight: '48px', padding: '2px 4px', borderBottom: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', background: 'transparent', border: 'none', width: '100%', textAlign: 'left' };
+                        const rowLbl = { fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', width: '92px', flex: 'none' };
+                        const rowVal = { fontFamily: 'var(--font-body)', fontSize: '0.85rem', fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+                        const doDraftJump = () => {
+                            const jump = headerDraftInfo?.status === 'drafting' || headerDraftInfo?.status === 'complete';
+                            if (jump) window._wrOpenLiveDraft = true;
+                            setPhHdrSheetOpen(false);
+                            setActiveTab('draft');
+                            if (jump) window.dispatchEvent(new CustomEvent('wr:open-live-draft'));
+                        };
+                        const doRefresh = async () => {
+                            setPhHdrSheetOpen(false);
+                            try {
+                                Object.keys(localStorage).filter(k => k.startsWith('dhq_leagueintel_') || k.startsWith('dhq_hist_')).forEach(k => localStorage.removeItem(k));
+                                window.App?.clearDataCaches?.();
+                                window.Sleeper?.clearSeasonCaches?.();
+                                if (window.App) { window.App.LI = {}; window.App.LI_LOADED = false; window._liLoading = false; }
+                            } catch (e) { window.wrLog('refresh.cleanup', e); }
+                            await loadLeagueDetails();
+                        };
+                        return (
+                            <React.Fragment>
+                                <div className="wr-phone-lhdr" style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, paddingLeft: '2px' }}>
+                                    <div role="button" tabIndex={0} aria-label="League status and actions"
+                                        onClick={() => setPhHdrSheetOpen(true)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPhHdrSheetOpen(true); } }}
+                                        style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', minHeight: '44px' }}>
+                                        <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', flex: 'none', background: phaseColor }} />
+                                        <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.02em', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentLeague.name}</span>
+                                        <span aria-hidden="true" style={{ color: 'var(--text-muted)', fontSize: '0.65rem', flex: 'none' }}>▾</span>
+                                    </div>
+                                    <button className="wr-league-switch" onClick={onBack} style={{ padding: '7px 12px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--acc-fill2, rgba(212,175,55,0.10))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, minHeight: '36px' }}>SWITCH</button>
+                                </div>
+                                {phHdrSheetOpen && <WR.Sheet open={true} onClose={() => setPhHdrSheetOpen(false)} title={currentLeague.name}>
+                                    <div style={{ padding: '2px 16px 8px' }}>
+                                        {gm && <button style={rowSt} onClick={() => { setPhHdrSheetOpen(false); if (setActiveTab) setActiveTab('strategy'); }}>
+                                            <span style={rowLbl}>GM mode</span>
+                                            <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: gm.badgeColor, flex: 'none' }} />
+                                            <span style={{ ...rowVal, color: gm.badgeColor }}>{gm.label}</span>
+                                            <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.8rem' }}>›</span>
+                                        </button>}
+                                        {headerLeagueType && <div style={{ ...rowSt, cursor: 'default' }}>
+                                            <span style={rowLbl}>Type</span>
+                                            <span style={{ ...rowVal, color: headerLeagueType.color }}>{headerLeagueType.label === 'League Type Unknown' ? 'Type ?' : headerLeagueType.label}</span>
+                                        </div>}
+                                        {leagueSkin?.phaseMeta && leagueSkin.phase !== 'unknown' && leagueSkin.phase !== 'drafting' && <div style={{ ...rowSt, cursor: 'default' }}>
+                                            <span style={rowLbl}>Phase</span>
+                                            <span style={{ ...rowVal, color: leagueSkin.phaseMeta.color }}>{leagueSkin.phaseMeta.label}</span>
+                                        </div>}
+                                        {headerDraftClock && <button style={rowSt} onClick={doDraftJump}>
+                                            <span style={rowLbl}>Draft</span>
+                                            <span style={{ ...rowVal, color: 'var(--gold)', fontFamily: "'JetBrains Mono', monospace" }}>{[headerDraftClock.label, headerDraftClock.clock].filter(Boolean).join(' · ')}</span>
+                                            <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.8rem' }}>›</span>
+                                        </button>}
+                                        <button style={{ ...rowSt, borderBottom: 'none' }} onClick={doRefresh} title="Reload DHQ values, league history, and AI data">
+                                            <span style={rowLbl}>Data</span>
+                                            <span style={{ ...rowVal, color: 'var(--gold)' }}>Refresh Data</span>
+                                            <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.8rem' }}>›</span>
+                                        </button>
+                                    </div>
+                                </WR.Sheet>}
+                            </React.Fragment>
+                        );
+                    })() : (
                     <div className="wr-league-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '8px 10px', flexWrap: 'wrap', minWidth: 0 }}>
                         <div className="header-title" style={{ fontSize: '1.05rem', minWidth: 0, maxWidth: 'min(460px, 100%)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentLeague.name}</div>
                         <button className="wr-league-switch" onClick={onBack} style={{ padding: '4px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--acc-fill2, rgba(212,175,55,0.10))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>SWITCH</button>
+                        {/* Phone-only flex break: forces the status badges onto the line
+                            below the title/SWITCH row. Inert (display:none) on desktop. */}
+                        <div className="wr-hdr-break" aria-hidden="true" style={{ display: 'none' }} />
                         {(() => {
                             // Redraft leagues don't surface the GM Mode badge (it's dynasty-flavored).
                             if (leagueSkin?.type === 'redraft') return null;
@@ -3407,6 +3490,7 @@
                             React.createElement('strong', { style: { color: 'var(--white)', fontFamily: "'JetBrains Mono', monospace", fontSize: 'var(--text-label, 0.75rem)' } }, headerDraftClock.clock)
                         )}
                     </div>
+                    )}
                 </header>
 
                 {/* Load stage progress indicator */}

@@ -168,20 +168,27 @@ async function main() {
       localStorage.setItem('dynastyhq_username', u);
     }, USER);
     await page.goto(`http://127.0.0.1:${port}${BASE_PATH}?dev=true&user=${USER}#league=${LEAGUE_ID}&tab=dashboard`, { waitUntil: 'domcontentloaded', timeout: 12000 });
-    await page.locator('.wr-hamburger').waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
+    // One-row phone header (owner ruling 2026-07-09): at ≤767 the hamburger is
+    // REMOVED (dock covers nav; Refresh lives in the header sheet) and the
+    // compact .wr-phone-lhdr row renders instead. The drawer + hamburger remain
+    // the contract for the 768-1023 tablet tier only.
+    await page.locator('.wr-phone-lhdr').waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
 
-    const hamburger = page.locator('.wr-hamburger');
-    if (await hamburger.count() !== 1) {
-      failures.push('dashboard-shell@390: hamburger control not found');
+    if (await page.locator('.wr-hamburger').count() !== 0) {
+      failures.push('dashboard-shell@390: hamburger should not render on phone (one-row header)');
+    }
+    const phoneHdr = page.locator('.wr-phone-lhdr');
+    if (await phoneHdr.count() !== 1) {
+      failures.push('dashboard-shell@390: one-row phone header not found');
     } else {
-      await hamburger.click({ timeout: 4000 }).catch(err => {
-        failures.push(`dashboard-shell@390: hamburger click failed (${err.message})`);
+      await phoneHdr.locator('[role="button"]').first().click({ timeout: 4000 }).catch(err => {
+        failures.push(`dashboard-shell@390: phone header tap failed (${err.message})`);
       });
-      await page.waitForTimeout(150);
-      const open = await page.locator('.wr-sidebar.open').count();
-      if (open !== 1) failures.push('dashboard-shell@390: hamburger did not open sidebar');
-      const overlay = page.locator('.wr-sidebar-overlay');
-      if (await overlay.count()) await overlay.click({ timeout: 4000 }).catch(() => {});
+      await page.waitForTimeout(250);
+      const sheet = await page.locator('.wr-sheet').count();
+      if (sheet !== 1) failures.push('dashboard-shell@390: header league sheet did not open');
+      const closeBtn = page.locator('.wr-sheet [aria-label="Close"]');
+      if (await closeBtn.count()) await closeBtn.click({ timeout: 4000 }).catch(() => {});
       await page.waitForTimeout(150);
     }
 
