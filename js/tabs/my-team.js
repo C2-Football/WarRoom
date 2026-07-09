@@ -1472,8 +1472,10 @@ function MyTeamTab({
 
       <div>
 
-      {/* Column picker dropdown */}
-      {showColPicker && (
+      {/* Column picker dropdown — desktop/tablet only; the phone tier re-homes
+          the SAME showColPicker state into the WR.FilterSheet below (shared
+          customizer treatment with Free Agency's colpick). */}
+      {showColPicker && !_phone && (
         <div style={{ background: 'linear-gradient(180deg, var(--surf-solid, rgba(22,22,29,0.98)), var(--surf-solid, rgba(10,10,14,0.98)))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '10px', padding: '12px', marginBottom: '10px', boxShadow: '0 10px 28px rgba(0,0,0,0.24)' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
             <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', color: 'var(--white)', fontWeight: 700, letterSpacing: '0.04em' }}>Customize Columns</div>
@@ -1541,6 +1543,67 @@ function MyTeamTab({
           </div>
         </div>
       )}
+
+      {/* Phone column customizer — the shared P3 FilterSheet treatment (same
+          anatomy as Free Agency's colpick sheet): "Active (n)" 44px rows with
+          the EXISTING ▲▼ move + × remove setters (moveVisibleColumn /
+          removeVisibleColumn — same functions the desktop ‹ › buttons call),
+          then "Available" add chips grouped by the EXISTING columnGroups
+          metadata (addVisibleColumn). Free/Pro: ROSTER_COLUMNS.action is
+          deleted upstream for free, so the option never exists here. */}
+      {_phone && React.createElement(window.WR.FilterSheet, {
+        open: !!showColPicker,
+        onClose: () => setShowColPicker(false),
+        title: 'Customize columns',
+        sections: [
+          { label: 'Active (' + activeColumnOrder.length + ')', node: (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              {activeColumnOrder.length === 0 ? (
+                <div style={{ padding: '12px', borderRadius: '8px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', color: 'var(--silver)', opacity: 0.62, fontSize: '0.74rem' }}>Only the player column is visible.</div>
+              ) : activeColumnOrder.map((key, idx) => {
+                const col = ROSTER_COLUMNS[key];
+                return (
+                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0, 1fr) 44px 44px 44px', gap: '3px', alignItems: 'center', minHeight: '44px', padding: '0 2px 0 8px', borderRadius: '7px', background: 'var(--acc-fill2, rgba(212,175,55,0.075))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.14))' }}>
+                    <span style={{ color: 'var(--silver)', opacity: 0.55, fontSize: 'var(--text-micro, 0.6875rem)', textAlign: 'right' }}>{idx + 1}</span>
+                    <span title={col.label} style={{ color: 'var(--white)', fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.shortLabel || col.label}</span>
+                    <button disabled={idx === 0} onClick={() => moveVisibleColumn(key, -1)} title="Move up" style={{ minWidth: '44px', minHeight: '44px', borderRadius: '5px', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: idx === 0 ? 'var(--ov-2, rgba(255,255,255,0.025))' : 'var(--ov-4, rgba(255,255,255,0.06))', color: idx === 0 ? 'var(--ov-7, rgba(255,255,255,0.24))' : 'var(--silver)', cursor: idx === 0 ? 'default' : 'pointer' }}>{'▲'}</button>
+                    <button disabled={idx === activeColumnOrder.length - 1} onClick={() => moveVisibleColumn(key, 1)} title="Move down" style={{ minWidth: '44px', minHeight: '44px', borderRadius: '5px', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: idx === activeColumnOrder.length - 1 ? 'var(--ov-2, rgba(255,255,255,0.025))' : 'var(--ov-4, rgba(255,255,255,0.06))', color: idx === activeColumnOrder.length - 1 ? 'var(--ov-7, rgba(255,255,255,0.24))' : 'var(--silver)', cursor: idx === activeColumnOrder.length - 1 ? 'default' : 'pointer' }}>{'▼'}</button>
+                    <button onClick={() => removeVisibleColumn(key)} title="Hide column" style={{ minWidth: '44px', minHeight: '44px', borderRadius: '5px', border: '1px solid rgba(231,76,60,0.22)', background: 'rgba(231,76,60,0.08)', color: 'var(--bad)', cursor: 'pointer' }}>{'×'}</button>
+                  </div>
+                );
+              })}
+            </div>
+          ) },
+          { label: 'Available', node: (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {inactiveColumnCount === 0 && (
+                <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: '0.74rem' }}>All columns are active.</div>
+              )}
+              {columnGroups.map(({ group, columns }) => {
+                const inactive = columns.filter(([key]) => !visibleCols.includes(key));
+                if (!inactive.length) return null;
+                return (
+                  <div key={group}>
+                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '6px' }}>{group}</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {inactive.map(([key, col]) => (
+                        <button key={key} onClick={() => addVisibleColumn(key)} title={'Add ' + col.label} style={{ minHeight: '44px', padding: '7px 12px', fontSize: '0.74rem', fontFamily: 'var(--font-body)', background: 'var(--ov-1, rgba(255,255,255,0.018))', color: 'var(--silver)', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap' }}>+ {col.shortLabel || col.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) },
+        ],
+        footer: (
+          <React.Fragment>
+            <button onClick={() => setCustomColumns(Object.keys(ROSTER_COLUMNS))} style={{ ...controlBtn(inactiveColumnCount === 0), minHeight: '44px', flex: 1 }}>All fields</button>
+            <button onClick={() => setCustomColumns(COLUMN_PRESETS.default)} style={{ ...controlBtn(false), minHeight: '44px', flex: 1 }}>Reset</button>
+            <button onClick={() => setShowColPicker(false)} style={{ ...controlBtn(true), minHeight: '44px', flex: 1 }}>Done</button>
+          </React.Fragment>
+        ),
+      })}
 
       {/* Roster table with inline expand cards — desktop/tablet renders the
           hoisted board verbatim; the phone tier re-homes it: AssetRow card

@@ -1729,30 +1729,89 @@
             });
             // Column picker sheet — the phone home for the EXISTING
             // showFaColPicker state (the desktop inline panel lives in the
-            // analyst return below and never renders on phone). Same
-            // add/remove handlers + the same isPro/FA_PRO_COLS option gate.
-            const _faColSheetEl = React.createElement(window.WR.Sheet, {
+            // analyst return below and never renders on phone). The shared
+            // P3 FilterSheet customizer treatment (same anatomy as My
+            // Roster's): "Active (n)" 44px rows with ▲▼ move + × remove
+            // (the same setVisibleFaCols/setFaColPreset('custom') swaps the
+            // desktop ◀▶/× chips run — key-indexed so a free user's stored
+            // Pro column can't skew the reorder), then "Available" add chips
+            // grouped by the EXISTING col.group metadata, behind the same
+            // isPro/FA_PRO_COLS option gate. Active rows map over
+            // shownFaCols — the same render-time tier filter as the market
+            // table, so a Pro column never renders for free.
+            const _faColMove = (key, delta) => {
+                setFaColPreset('custom');
+                setVisibleFaCols(prev => {
+                    const at = prev.indexOf(key);
+                    const to = at + delta;
+                    if (at < 0 || to < 0 || to >= prev.length) return prev;
+                    const next = [...prev];
+                    [next[to], next[at]] = [next[at], next[to]];
+                    return next;
+                });
+            };
+            const _faColRemove = (key) => { setFaColPreset('custom'); setVisibleFaCols(prev => prev.filter(c => c !== key)); };
+            const _faColAdd = (key) => { setFaColPreset('custom'); setVisibleFaCols(prev => prev.includes(key) ? prev : [...prev, key]); };
+            const _faColGroups = [];
+            Object.entries(faColumns).filter(([key]) => isPro || !FA_PRO_COLS.has(key)).forEach(([key, col]) => {
+                if (visibleFaCols.includes(key)) return;
+                let g = _faColGroups.find(x => x.group === col.group);
+                if (!g) { g = { group: col.group, cols: [] }; _faColGroups.push(g); }
+                g.cols.push([key, col]);
+            });
+            const _faColSheetEl = React.createElement(window.WR.FilterSheet, {
                 open: !!showFaColPicker,
                 onClose: () => setShowFaColPicker(false),
                 title: 'Market columns',
-                desktop: null,
-            }, (
-                <div style={{ padding: '4px 16px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, lineHeight: 1.5, marginBottom: '6px' }}>
-                        The first three stat-capable picks ride each market card; the full set applies to the desktop table.
-                    </div>
-                    {Object.entries(faColumns).filter(([key]) => isPro || !FA_PRO_COLS.has(key)).map(([key, col]) => {
-                        const active = visibleFaCols.includes(key);
-                        return (
-                            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', minHeight: '44px', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', background: active ? 'var(--acc-fill2, rgba(212,175,55,0.1))' : 'transparent', color: active ? 'var(--gold)' : 'var(--silver)', fontSize: '0.9rem' }}>
-                                <input type="checkbox" checked={active} onChange={() => { setVisibleFaCols(prev => active ? prev.filter(c => c !== key) : [...prev, key]); setFaColPreset('custom'); }} style={{ accentColor: 'var(--gold)' }} />
-                                {col.label}
-                                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', opacity: 0.6, marginLeft: 'auto' }}>{col.group}</span>
-                            </label>
-                        );
-                    })}
-                </div>
-            ));
+                sections: [
+                    { label: 'Active (' + shownFaCols.length + ')', node: (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, lineHeight: 1.5 }}>
+                                The first three stat-capable picks ride each market card; the full set applies to the desktop table.
+                            </div>
+                            {shownFaCols.map((key, i) => {
+                                const col = faColumns[key]; if (!col) return null;
+                                return (
+                                    <div key={key} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0, 1fr) 44px 44px 44px', gap: '3px', alignItems: 'center', minHeight: '44px', padding: '0 2px 0 8px', borderRadius: '7px', background: 'var(--acc-fill2, rgba(212,175,55,0.075))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.14))' }}>
+                                        <span style={{ color: 'var(--silver)', opacity: 0.55, fontSize: 'var(--text-micro, 0.6875rem)', textAlign: 'right' }}>{i + 1}</span>
+                                        <span title={col.label} style={{ color: 'var(--white, #f5f5f5)', fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.shortLabel || col.label}</span>
+                                        <button disabled={i === 0} onClick={() => _faColMove(key, -1)} title="Move up" style={{ minWidth: '44px', minHeight: '44px', borderRadius: '5px', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: i === 0 ? 'var(--ov-2, rgba(255,255,255,0.025))' : 'var(--ov-4, rgba(255,255,255,0.06))', color: i === 0 ? 'var(--ov-7, rgba(255,255,255,0.24))' : 'var(--silver)', cursor: i === 0 ? 'default' : 'pointer' }}>{'▲'}</button>
+                                        <button disabled={i === shownFaCols.length - 1} onClick={() => _faColMove(key, 1)} title="Move down" style={{ minWidth: '44px', minHeight: '44px', borderRadius: '5px', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: i === shownFaCols.length - 1 ? 'var(--ov-2, rgba(255,255,255,0.025))' : 'var(--ov-4, rgba(255,255,255,0.06))', color: i === shownFaCols.length - 1 ? 'var(--ov-7, rgba(255,255,255,0.24))' : 'var(--silver)', cursor: i === shownFaCols.length - 1 ? 'default' : 'pointer' }}>{'▼'}</button>
+                                        <button onClick={() => _faColRemove(key)} title="Remove" style={{ minWidth: '44px', minHeight: '44px', borderRadius: '5px', border: '1px solid rgba(231,76,60,0.22)', background: 'rgba(231,76,60,0.08)', color: 'var(--bad)', cursor: 'pointer' }}>{'×'}</button>
+                                    </div>
+                                );
+                            })}
+                            {!shownFaCols.length && (
+                                <div style={{ padding: '12px', borderRadius: '8px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', color: 'var(--silver)', opacity: 0.62, fontSize: '0.74rem' }}>Only the player column is visible.</div>
+                            )}
+                        </div>
+                    ) },
+                    { label: 'Available', node: (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {!_faColGroups.length && (
+                                <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: '0.74rem' }}>All columns are active.</div>
+                            )}
+                            {_faColGroups.map(({ group, cols }) => (
+                                <div key={group}>
+                                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '6px' }}>{group}</div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                        {cols.map(([key, col]) => (
+                                            <button key={key} onClick={() => _faColAdd(key)} title={'Add ' + col.label} style={{ minHeight: '44px', padding: '7px 12px', fontSize: '0.74rem', fontFamily: 'var(--font-body)', background: 'var(--ov-1, rgba(255,255,255,0.018))', color: 'var(--silver)', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap' }}>+ {col.shortLabel || col.label}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) },
+                ],
+                footer: (
+                    <React.Fragment>
+                        <button onClick={() => { setFaColPreset('custom'); setVisibleFaCols(faTierCols(Object.keys(faColumns))); }} style={{ ..._faChipBtn(!_faColGroups.length), flex: 1 }}>All fields</button>
+                        <button onClick={() => { setVisibleFaCols(faTierCols(FA_COLUMN_PRESETS.default)); setFaColPreset('default'); }} style={{ ..._faChipBtn(false), flex: 1 }}>Reset</button>
+                        <button onClick={() => setShowFaColPicker(false)} style={{ ..._faChipBtn(true), flex: 1 }}>Done</button>
+                    </React.Fragment>
+                ),
+            });
 
             // ── P1 card list — market rows + Pro streaming/drop groups.
             const _faMktRows = sortedPlayers.map(x => {
