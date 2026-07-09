@@ -662,6 +662,7 @@ function MyTeamTab({
   // single "Filters" bar so it stops eating ~400px above the roster table.
   const isCompactRoster = rosterViewportWidth <= 1023;
   const [filtersOpen, setFiltersOpen] = React.useState(false);
+  const [reviewOpen, setReviewOpen] = React.useState(false); // phone "review flagged players" sheet
   // Filtering visibleCols on ROSTER_COLUMNS here is what keeps a persisted
   // 'action' pref from rendering for free (its def is deleted above).
   // (The old ≤560 3-col survival set is deleted: ≤560 is always inside the
@@ -1143,7 +1144,7 @@ function MyTeamTab({
   };
 
   // Hero + pill strip + filter sheet (P5/P3) — computed only on phone.
-  let _phoneHeroEl = null, _phonePillsEl = null, _phoneSheetEl = null;
+  let _phoneHeroEl = null, _phonePillsEl = null, _phoneSheetEl = null, _reviewSheetEl = null;
   if (_phone) {
     // Decision hero: drop-alert count + GM window, all from data the tab
     // already computes (dropCandidatePids / dismissedDrops are Pro
@@ -1166,17 +1167,7 @@ function MyTeamTab({
       headline: heroHeadline,
       facts: heroFacts,
       ctaGhost: heroGhost,
-      onCtaGhost: heroGhost ? () => {
-        // Take the user straight to the first flagged player: open its
-        // dossier (sell/drop reasoning) and scroll it into view. Expanding
-        // first makes the tap unmistakably "go somewhere" — a bare scroll to
-        // an already-visible row read as a no-op.
-        const first = dropAlerts[0];
-        if (first) setExpandedPid(first.pid);
-        setTimeout(() => {
-          try { const el = document.querySelector('[data-wr-drop-flag]'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
-        }, 80);
-      } : undefined,
+      onCtaGhost: heroGhost ? () => setReviewOpen(true) : undefined,
     });
 
     const totalCols = Object.keys(ROSTER_COLUMNS).length;
@@ -1263,6 +1254,37 @@ function MyTeamTab({
         </React.Fragment>
       ),
     });
+
+    // Review sheet — the flagged players (drop alerts + sell calls) as a
+    // tappable list; tapping jumps to that player's dossier. Opened by the
+    // hero's Review CTA.
+    const _reviewRow = (r) => React.createElement(window.WR.AssetRow, {
+      key: 'rv-' + r.pid,
+      pos: r.pos,
+      name: getPlayerName(r.pid),
+      tag: _phoneTagFor(r),
+      slots: [{ label: 'DHQ', value: r.dhq > 0 ? r.dhq.toLocaleString() : '—', strong: true }],
+      verdict: _phoneVerdictChip(r),
+      title: 'Open ' + getPlayerName(r.pid),
+      onClick: () => {
+        setReviewOpen(false);
+        setExpandedPid(r.pid);
+        setTimeout(() => { try { const el = document.querySelector('[data-wr-roster-pid="' + r.pid + '"]'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {} }, 90);
+      },
+    });
+    const _dropPidSet = new Set(dropAlerts.map(r => r.pid));
+    const _sellRows = isPro ? rows.filter(r => /sell/i.test(r.rec || '') && !_dropPidSet.has(r.pid)) : [];
+    const _reviewGroups = [];
+    if (dropAlerts.length) _reviewGroups.push({ label: 'Drop alerts', sub: String(dropAlerts.length), rows: dropAlerts.map(_reviewRow) });
+    if (_sellRows.length) _reviewGroups.push({ label: 'Sell calls', sub: String(_sellRows.length), rows: _sellRows.map(_reviewRow) });
+    if (_reviewGroups.length) {
+      _reviewSheetEl = React.createElement(window.WR.Sheet, { open: reviewOpen, onClose: () => setReviewOpen(false), title: 'Review roster' },
+        React.createElement('div', { style: { padding: '2px 12px 8px', display: 'flex', flexDirection: 'column', gap: '12px' } },
+          React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: '0.8rem', color: 'var(--text-muted)', padding: '0 2px', lineHeight: 1.4 } }, 'Players flagged to move or cut. Tap one to open its full read.'),
+          React.createElement(window.WR.CardList, { groups: _reviewGroups })
+        )
+      );
+    }
   }
 
   // P1 card list — the phone board: groups follow the EXISTING group mode
@@ -1293,6 +1315,7 @@ function MyTeamTab({
         onClick: () => setExpandedPid(prev => prev === r.pid ? null : r.pid),
         title: 'Open roster player detail',
         'data-wr-drop-flag': isDropFlag ? '1' : undefined,
+        'data-wr-roster-pid': r.pid,
       }, isExpanded ? renderExpandBody(r) : null));
     });
     if (!groups.length) {
@@ -1424,6 +1447,7 @@ function MyTeamTab({
         {_phoneHeroEl}
         {_phonePillsEl}
         {_phoneSheetEl}
+        {_reviewSheetEl}
       </React.Fragment>}
       {!_phone && <React.Fragment>
       {isCompactRoster && (() => {
