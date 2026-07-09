@@ -581,6 +581,103 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
 // ══════════════════════════════════════════════════════════════════
 // DashboardPanel — main component
 // ══════════════════════════════════════════════════════════════════
+// ── Phone widget-reorder sheet ──────────────────────────────────────
+// A dedicated "move them around" window (owner ask 2026-07-09): drag any
+// widget by its grip to reslot it. Operates on the whole selectedWidgets
+// array (sm tiles + stack, in layout order) and commits via onReorder on
+// each drop. Pointer-based so it works on iOS touch; the grip owns
+// touch-action:none so a drag reorders instead of scrolling the sheet.
+function WrDashReorder({ widgets, modules, onReorder, onClose }) {
+    const Sheet = window.WR && window.WR.Sheet;
+    const [order, setOrder] = React.useState(() => (widgets || []).slice());
+    const orderRef = React.useRef(order);
+    orderRef.current = order;
+    const listRef = React.useRef(null);
+    const dragRef = React.useRef(null); // the widget object currently dragged
+    const [dragKey, setDragKey] = React.useState(null);
+
+    if (!Sheet) return null;
+
+    const labelFor = (w) => (modules[w.key] && modules[w.key].label) || w.key || 'Widget';
+    const iconFor = (w) => (modules[w.key] && modules[w.key].icon) || '▦';
+    const keyFor = (w, i) => (w.id || w.key || 'w') + '::' + i;
+
+    function onMove(e) {
+        const dragged = dragRef.current;
+        if (!dragged || !listRef.current) return;
+        e.preventDefault();
+        const cur = orderRef.current;
+        const from = cur.indexOf(dragged);
+        if (from < 0) return;
+        const rows = Array.prototype.slice.call(listRef.current.querySelectorAll('[data-ro-row]'));
+        let target = rows.length - 1;
+        for (let k = 0; k < rows.length; k++) {
+            const r = rows[k].getBoundingClientRect();
+            if (e.clientY < r.top + r.height / 2) { target = k; break; }
+        }
+        if (target !== from) {
+            const next = cur.slice();
+            next.splice(from, 1);
+            next.splice(target, 0, dragged);
+            orderRef.current = next;
+            setOrder(next);
+        }
+    }
+    function endDrag() {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', endDrag);
+        window.removeEventListener('pointercancel', endDrag);
+        if (dragRef.current) {
+            dragRef.current = null;
+            setDragKey(null);
+            onReorder(orderRef.current.slice());
+        }
+    }
+    function startDrag(e, w) {
+        e.preventDefault();
+        dragRef.current = w;
+        setDragKey(keyFor(w, orderRef.current.indexOf(w)));
+        window.addEventListener('pointermove', onMove, { passive: false });
+        window.addEventListener('pointerup', endDrag);
+        window.addEventListener('pointercancel', endDrag);
+    }
+
+    return React.createElement(Sheet, { open: true, onClose: onClose, title: 'Reorder widgets' },
+        React.createElement('div', { style: { padding: '2px 12px 8px' } },
+            React.createElement('div', { style: { fontFamily: "'DM Sans', sans-serif", fontSize: '0.8rem', color: 'var(--text-muted)', padding: '2px 4px 10px', lineHeight: 1.4 } }, 'Drag a widget by its handle to move it. Changes save as you go.'),
+            React.createElement('div', { ref: listRef, style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
+                order.map((w, i) => {
+                    const k = keyFor(w, i);
+                    const isDrag = dragKey === k;
+                    return React.createElement('div', {
+                        key: k, 'data-ro-row': '',
+                        style: {
+                            display: 'flex', alignItems: 'center', gap: '10px',
+                            padding: '10px', minHeight: '52px',
+                            background: isDrag ? 'var(--surface-3, #27262E)' : 'var(--black, #121217)',
+                            border: '1px solid ' + (isDrag ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.07)'),
+                            borderRadius: '9px',
+                            boxShadow: isDrag ? '0 8px 22px rgba(0,0,0,0.5)' : 'none',
+                            opacity: (dragRef.current && !isDrag) ? 0.7 : 1,
+                            touchAction: 'pan-y',
+                            transition: isDrag ? 'none' : 'background 0.12s, border-color 0.12s',
+                        },
+                    },
+                        React.createElement('span', {
+                            'aria-label': 'Drag to reorder', role: 'button',
+                            onPointerDown: (e) => startDrag(e, w),
+                            style: { flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '40px', minHeight: '44px', marginLeft: '-4px', color: 'var(--text-muted)', cursor: 'grab', touchAction: 'none', fontSize: '1.15rem' },
+                        }, '⠿'),
+                        React.createElement('span', { 'aria-hidden': 'true', style: { flex: 'none', fontSize: '1.05rem', width: '22px', textAlign: 'center' } }, iconFor(w)),
+                        React.createElement('span', { style: { flex: '1 1 auto', minWidth: 0, fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem', fontWeight: 600, color: 'var(--white, #F5F2EA)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, labelFor(w)),
+                        w.size ? React.createElement('span', { style: { flex: 'none', fontFamily: "'JetBrains Mono', monospace", fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' } }, w.size) : null
+                    );
+                })
+            )
+        )
+    );
+}
+
 function DashboardPanel({
     selectedWidgets,
     setSelectedWidgets,
@@ -608,6 +705,7 @@ function DashboardPanel({
     const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
     const valueShortLabel = resolvedLeagueSkin?.vocabulary?.valueShortLabel || 'DHQ';
     const [pickerOpen, setPickerOpen] = React.useState(false);
+    const [reorderOpen, setReorderOpen] = React.useState(false); // phone widget-reorder sheet
     const [editingWidget, setEditingWidget] = React.useState(null); // { widgetId, widget }
     const [dragIdx, setDragIdx] = React.useState(null);
     // Phone/touch tier (plan Phase 2 item 11): HTML5 DnD never fires on iOS
@@ -1289,11 +1387,12 @@ function DashboardPanel({
                 )}
 
                 {/* Touch reorder ▲/▼ — HTML5 drag events never fire on iOS
-                    Safari, so coarse-pointer/phone reorders with these instead.
-                    44px hit areas (glyph circle stays 22px, hit-padding only),
-                    same float row as the gear/remove affordance. Fine-pointer
-                    desktop never renders them (touchReorder false). */}
-                {showGear && touchReorder && [
+                    Safari. PHONE reorders via the dedicated reorder sheet
+                    (⇅ Reorder toolbar → drag list) so the cards stay clean;
+                    these per-card arrows are the fallback for coarse-pointer
+                    TABLETS only (isCoarse && !isPhone). Fine-pointer desktop
+                    never renders them (touchReorder false). */}
+                {showGear && touchReorder && !shellPhone && [
                     { glyph: '▼', delta: 1, ok: canMoveDown, right: '77px', label: 'Move widget down' },
                     { glyph: '▲', delta: -1, ok: canMoveUp, right: '121px', label: 'Move widget up' },
                 ].map(b => (
@@ -1762,7 +1861,7 @@ function DashboardPanel({
                         fontFamily: dmFont, fontSize: 'var(--text-label, 0.75rem)', color: S,
                     }}>
                         <div style={{ flex: 1, lineHeight: 1.45 }}>
-                            <strong style={{ color: G }}>Yours to customize.</strong> Tap ⋯ on any card to edit or remove it, ▲▼ to reorder. <strong>+ Add Widget</strong> sits at the bottom.
+                            <strong style={{ color: G }}>Yours to customize.</strong> Tap ⋯ on any card to edit or remove it, or <strong>⇅ Reorder</strong> to rearrange. <strong>+ Add Widget</strong> sits at the bottom.
                         </div>
                         <button onClick={dismissHint} style={{
                             padding: '6px 12px', minHeight: '36px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: dmFont, fontWeight: 600,
@@ -1786,6 +1885,20 @@ function DashboardPanel({
                         </div>
                     )}
                 </div>
+
+                {/* Reorder entry — opens the drag-to-rearrange sheet. Replaces
+                    the per-card ▲▼ arrows on phone (owner ask). */}
+                {widgets.length >= 2 && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px var(--space-md) 0', background: BK }}>
+                        <button type="button" onClick={() => setReorderOpen(true)} style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '40px', padding: '0 14px',
+                            background: 'var(--acc-fill2, rgba(212,175,55,0.10))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
+                            borderRadius: '8px', color: G, cursor: 'pointer', fontFamily: dmFont, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, letterSpacing: '0.04em',
+                        }}>
+                            <span aria-hidden="true" style={{ fontSize: '1rem', lineHeight: 1 }}>⇅</span> Reorder
+                        </button>
+                    </div>
+                )}
 
                 {/* md+ widget cards — existing stack order, original indices */}
                 <div className="wr-dashboard-grid" style={{
@@ -1838,6 +1951,16 @@ function DashboardPanel({
                                 setSelectedWidgets([...selectedWidgets, newWidget]);
                             }
                         }}
+                    />
+                )}
+
+                {/* Drag-to-reorder sheet (phone). Mounts fresh each open. */}
+                {reorderOpen && (
+                    <WrDashReorder
+                        widgets={widgets}
+                        modules={WIDGET_MODULES}
+                        onReorder={setSelectedWidgets}
+                        onClose={() => setReorderOpen(false)}
                     />
                 )}
             </React.Fragment>

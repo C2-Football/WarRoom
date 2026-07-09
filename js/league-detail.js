@@ -310,7 +310,7 @@
                     {window.AlexAvatar
                         ? <span aria-hidden="true" style={{ display: 'inline-flex' }}><window.AlexAvatar size={20} /></span>
                         : <span className="wr-dock-ask-glyph" aria-hidden="true">{'✦'}</span>}
-                    <span aria-hidden="true">ALEX</span>
+                    <span aria-hidden="true">Alex</span>
                 </button>
             </nav>
         );
