@@ -18,6 +18,19 @@
 //                    tablet/desktop it renders `desktop` (or bare children)
 //                    so callers keep their existing centered-modal path
 //
+// Phone pattern kit (iPhone program Phase 0 — CSS partners live in the
+// index.html ≤767 block: .wr-seg / .wr-kpi-strip / .wr-sticky-table-wrap /
+// .wr-phone-actionbar):
+//   WR.HeroCard    — P5 decision hero (kicker / Rajdhani headline / mono
+//                    facts / ≤1 solid gold CTA + optional ghost CTA)
+//   WR.AssetRow    — P1 56–64px two-line stat-card row (pos badge, name +
+//                    tag, ≤3 mono stat slots, verdict chip, chevron)
+//   WR.CardList    — P1 grouped AssetRow list w/ gold mono group dividers
+//   WR.FilterPill  — P3 trigger pill (mono chip, gold value, 44px on phone)
+//   WR.FilterSheet — P3 WR.Sheet wrapper: labeled sections + sticky footer
+//   WR.ActionBar   — P6 fixed live-decision strip above the dock; renders
+//                    null off-phone / when hidden / while keyboard is open
+//
 // Depends on: React (loaded globally). WR.Sheet additionally reads
 // WR.useViewport from js/shared/viewport.js (a plain script that runs
 // before this babel chain — presence is fixed for the page's lifetime).
@@ -460,6 +473,250 @@
         );
     }
 
+    // ══ Phone pattern kit (iPhone program Phase 0) ════════════════════
+    // Design source: mockups/_gallery/screens (approved phone panes).
+    // All kit components are plain h() function components. HeroCard /
+    // AssetRow / CardList render on ANY tier (callers gate on
+    // WR.useViewport().isPhone); FilterSheet gates via WR.Sheet;
+    // ActionBar and FilterPill call WR.useViewport themselves —
+    // unconditionally, so hook order stays stable across resizes.
+
+    // Shared tone → color table for slot values / ActionBar value.
+    const TONE_COLORS = {
+        good: 'var(--good, #2ecc71)',
+        bad:  'var(--bad, #e74c3c)',
+        warn: 'var(--warn, #f0a500)',
+        gold: 'var(--gold, #d4af37)',
+        mute: 'var(--text-muted, #8B8B96)',
+    };
+    const toneColor = (tone) => TONE_COLORS[tone] || 'var(--white, #f5f5f5)';
+
+    // Position badge tints — the calm desaturated scheme from the approved
+    // mockup design system (QB red / RB green / WR blue / TE amber /
+    // K purple / DEF silver); IDP + unknown fall back to neutral.
+    const POS_TINTS = {
+        QB:  { bg: 'rgba(231,76,60,0.16)',   fg: '#F0997B' },
+        RB:  { bg: 'rgba(46,204,113,0.14)',  fg: '#5DCAA5' },
+        WR:  { bg: 'rgba(93,173,226,0.16)',  fg: '#85B7EB' },
+        TE:  { bg: 'rgba(240,165,0,0.15)',   fg: '#FAC775' },
+        K:   { bg: 'rgba(155,138,251,0.15)', fg: '#B4A9F7' },
+        PK:  { bg: 'rgba(155,138,251,0.15)', fg: '#B4A9F7' },
+        DEF: { bg: 'rgba(189,184,173,0.12)', fg: 'var(--silver, #BDB8AD)' },
+    };
+
+    // ── HeroCard (P5 decision hero) ───────────────────────────────
+    // Gold-bordered card: mono gold caps kicker → Rajdhani headline →
+    // mono silver facts → ≤1 solid gold CTA + optional ghost CTA.
+    function HeroCard({ kicker, headline, facts, cta, ctaGhost, onCta, onCtaGhost, children }) {
+        const ctaBase = {
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            marginTop: '9px', minHeight: '44px', padding: '8px 14px',
+            borderRadius: '6px', cursor: 'pointer',
+            fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+            fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700,
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+        };
+        return h('div', {
+            style: {
+                background: 'var(--black, #121217)',
+                border: '1px solid var(--acc-line3, rgba(212,175,55,0.4))',
+                borderRadius: 'var(--card-radius, 10px)',
+                padding: '12px 14px',
+            }
+        },
+            kicker != null && h('div', {
+                style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase' }
+            }, kicker),
+            headline != null && h('div', {
+                style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.25rem', fontWeight: 700, color: 'var(--white)', letterSpacing: '0.02em', lineHeight: 1.15, margin: '3px 0 1px' }
+            }, headline),
+            facts != null && h('div', {
+                style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 500, color: 'var(--silver)', lineHeight: 1.5 }
+            }, facts),
+            children,
+            (cta || ctaGhost) && h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
+                cta && h('button', {
+                    onClick: onCta,
+                    style: { ...ctaBase, background: 'var(--gold)', color: 'var(--page-bg, #0A0A0F)', border: 'none' }
+                }, cta),
+                ctaGhost && h('button', {
+                    onClick: onCtaGhost,
+                    style: { ...ctaBase, background: 'transparent', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.5)' }
+                }, ctaGhost)
+            )
+        );
+    }
+
+    // ── AssetRow (P1 stat-card row) ───────────────────────────────
+    // 56–64px two-line row: pos badge · name+tag · up to 3 mono stat
+    // slots [{label, value, tone}] · `verdict` node · chevron.
+    //   accent   — 'gold' | 'risk' border tint.
+    //   expanded — renders `children` full-width below the row inside
+    //              the same card (row tap is the only toggle; children
+    //              clicks don't re-toggle).
+    //   ...rest  — forwarded to the card root (data-* hooks etc.).
+    function AssetRow({ pos, name, tag, slots, verdict, onClick, expanded, children, accent, ...rest }) {
+        const tint = POS_TINTS[String(pos || '').toUpperCase()] || { bg: 'var(--ov-4, rgba(255,255,255,0.06))', fg: 'var(--silver, #BDB8AD)' };
+        const borderColor = accent === 'gold' ? 'rgba(212,175,55,0.4)'
+            : accent === 'risk' ? 'rgba(240,165,0,0.4)'
+            : 'rgba(255,255,255,0.06)';
+        const onKey = onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(e); } } : undefined;
+        return h('div', {
+            style: {
+                background: 'var(--black, #121217)',
+                border: '1px solid ' + borderColor,
+                borderRadius: '9px',
+                overflow: 'hidden',
+            },
+            ...rest,
+        },
+            h('div', {
+                role: onClick ? 'button' : undefined,
+                tabIndex: onClick ? 0 : undefined,
+                onClick: onClick,
+                onKeyDown: onKey,
+                style: {
+                    display: 'flex', alignItems: 'center', gap: '9px',
+                    minHeight: '56px', padding: '9px 10px',
+                    cursor: onClick ? 'pointer' : 'default',
+                },
+            },
+                h('span', {
+                    style: {
+                        width: '30px', height: '30px', borderRadius: '7px', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: tint.bg, color: tint.fg,
+                        fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+                        fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700,
+                    }
+                }, pos),
+                h('div', { style: { flex: 1, minWidth: 0 } },
+                    h('div', { style: { fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontSize: '0.85rem', fontWeight: 600, color: 'var(--white)', lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, name),
+                    tag != null && h('div', { style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 500, color: 'var(--text-muted, #8B8B96)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '1px' } }, tag)
+                ),
+                h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 } },
+                    ...(slots || []).slice(0, 3).map((s, i) => h('div', { key: 'slot-' + i, style: { textAlign: 'right', minWidth: '32px' } },
+                        h('div', { style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 500, color: 'var(--text-muted, #55555f)', textTransform: 'uppercase', letterSpacing: '0.02em' } }, s.label),
+                        h('div', { style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: '0.8rem', fontWeight: 600, color: toneColor(s.tone) } }, s.value != null && s.value !== '' ? s.value : '—')
+                    )),
+                    verdict || null,
+                    h('span', { 'aria-hidden': 'true', style: { color: 'var(--text-muted, #55555f)', fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: '0.9rem', fontWeight: 600, transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' } }, '›')
+                )
+            ),
+            expanded && children ? h('div', {
+                // Children carry their own interactive controls — don't let
+                // taps inside the dossier re-toggle the row.
+                onClick: (e) => e.stopPropagation(),
+                style: { borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.07))', padding: '10px 12px' },
+            }, children) : null
+        );
+    }
+
+    // ── CardList (P1 grouped list) ────────────────────────────────
+    // groups: [{ label, sub, rows }] — rows are prebuilt nodes (normally
+    // AssetRows). `label` null/'' skips the divider (group mode "none").
+    function CardList({ groups }) {
+        const out = [];
+        (groups || []).forEach((g, gi) => {
+            if (g.label) {
+                out.push(h('div', { key: 'div-' + gi, style: { display: 'flex', alignItems: 'center', gap: '8px', marginTop: gi === 0 ? 0 : '2px' } },
+                    h('span', { style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase' } }, g.label),
+                    g.sub != null && h('span', { style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' } }, g.sub),
+                    h('span', { 'aria-hidden': 'true', style: { flex: 1, height: '1px', background: 'rgba(212,175,55,0.25)' } })
+                ));
+            }
+            out.push.apply(out, g.rows || []);
+        });
+        return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } }, out);
+    }
+
+    // ── FilterPill (P3 trigger pill) ──────────────────────────────
+    // Mono chip w/ gold value. 44px tap height on the phone tier only —
+    // hook called unconditionally (hook-order safety), tiers just style.
+    function FilterPill({ label, value, onClick }) {
+        const useVp = window.WR && window.WR.useViewport;
+        const vp = useVp ? useVp() : { isPhone: false };
+        return h('button', {
+            onClick: onClick,
+            style: {
+                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                minHeight: vp.isPhone ? '44px' : undefined,
+                background: 'var(--black, #121217)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '16px', padding: '7px 11px',
+                fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+                fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600,
+                color: 'var(--silver)', letterSpacing: '0.03em',
+                textTransform: 'uppercase', whiteSpace: 'nowrap', cursor: 'pointer',
+                flexShrink: 0,
+            }
+        },
+            label,
+            value != null && value !== '' ? h('b', { style: { color: 'var(--gold)', fontWeight: 600 } }, value) : null
+        );
+    }
+
+    // ── FilterSheet (P3 filter/controls sheet) ────────────────────
+    // WR.Sheet wrapper: `sections` [{label, node}] with mono caps labels
+    // + a sticky `footer` row (Reset/Apply area) pinned inside the sheet
+    // body scroller. Phone-only by construction — WR.Sheet gates, and
+    // `desktop: null` keeps a rotation-mid-open from dumping the controls
+    // inline on tablet/desktop.
+    function FilterSheet({ open, onClose, title, sections, footer }) {
+        return h(Sheet, { open: open, onClose: onClose, title: title, desktop: null },
+            h('div', { style: { display: 'flex', flexDirection: 'column', gap: '14px', padding: '10px 16px 0' } },
+                ...(sections || []).map((s, i) => h('div', { key: 'sec-' + i },
+                    s.label != null && h('div', {
+                        style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--silver)', opacity: 0.65, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '6px' }
+                    }, s.label),
+                    s.node
+                ))
+            ),
+            footer ? h('div', {
+                style: {
+                    position: 'sticky', bottom: 0, marginTop: '14px',
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '10px 16px',
+                    background: 'var(--k-0a0b0d, #0a0b0d)',
+                    borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.07))',
+                }
+            }, footer) : null
+        );
+    }
+
+    // ── ActionBar (P6 live-decision strip) ────────────────────────
+    // Fixed .wr-phone-actionbar above the dock (z --wr-z-actionbar, bottom
+    // --wr-bottom-inset+8px — both from the index.html ≤767 block). Whole
+    // bar taps → onOpen; the gold `actionLabel ▸` taps → onAction. Renders
+    // null unless phone && visible && keyboard closed (mirrors the dock).
+    // Hook-order safety: WR.useViewport is called unconditionally.
+    function ActionBar({ visible, label, value, tone, actionLabel, onAction, onOpen }) {
+        const useVp = window.WR && window.WR.useViewport;
+        const vp = useVp ? useVp() : { isPhone: false, kbOpen: false };
+        if (!vp.isPhone || !visible || vp.kbOpen) return null;
+        return h('div', {
+            className: 'wr-phone-actionbar',
+            role: 'button',
+            tabIndex: 0,
+            onClick: onOpen,
+            onKeyDown: onOpen ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(e); } } : undefined,
+            style: { cursor: onOpen ? 'pointer' : 'default' },
+        },
+            label != null && h('span', { style: { color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flexShrink: 0 } }, label),
+            value != null && h('span', { style: { color: toneColor(tone), minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, value),
+            actionLabel != null && h('button', {
+                onClick: onAction ? (e) => { e.stopPropagation(); onAction(e); } : undefined,
+                style: {
+                    marginLeft: 'auto', flexShrink: 0,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--gold)', fontFamily: 'inherit', fontSize: 'inherit',
+                    fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase',
+                    padding: '4px 0 4px 8px',
+                }
+            }, actionLabel + ' ▸')
+        );
+    }
+
     window.WR = window.WR || {};
     window.WR.Card = Card;
     window.WR.Badge = Badge;
@@ -470,6 +727,13 @@
     window.WR.InsightCard = InsightCard;
     window.WR.ClampedRead = ClampedRead;
     window.WR.Sheet = Sheet;
+    // Phone pattern kit (Phase 0)
+    window.WR.HeroCard = HeroCard;
+    window.WR.AssetRow = AssetRow;
+    window.WR.CardList = CardList;
+    window.WR.FilterPill = FilterPill;
+    window.WR.FilterSheet = FilterSheet;
+    window.WR.ActionBar = ActionBar;
     // Inject the shared sheet/hscroll CSS up front (idempotent) so the
     // .wr-hscroll scrollbar-hiding rules exist before any consumer renders.
     ensureSheetCss();

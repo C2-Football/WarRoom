@@ -653,7 +653,9 @@ function MyTeamTab({
   const isDeepData = activePresetKey === 'full';
   // Shared viewport seam (js/shared/viewport.js) — one debounced app-wide
   // listener; thresholds below (560/820/834/1023) are unchanged.
-  const rosterViewportWidth = window.WR.useViewport().width;
+  const _vp = window.WR.useViewport();
+  const rosterViewportWidth = _vp.width;
+  const _isPhone = !!_vp.isPhone;
   const isNarrowRoster = rosterViewportWidth <= 560;
   const isTabletRoster = rosterViewportWidth > 560 && rosterViewportWidth <= 1023;
   // iPad/phone: collapse the Scope/View/PPG/Rows/Group control stack behind a
@@ -661,11 +663,11 @@ function MyTeamTab({
   const isCompactRoster = rosterViewportWidth <= 1023;
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   // Filtering visibleCols on ROSTER_COLUMNS here is what keeps a persisted
-  // 'action' pref from rendering for free (its def is deleted above); the
-  // narrow 3-col set swaps the Move slot for 'peak' on free.
-  const rosterTableCols = (isNarrowRoster
-    ? ['pos', 'dhq', isPro ? 'action' : 'peak']
-    : visibleCols).filter(key => ROSTER_COLUMNS[key]);
+  // 'action' pref from rendering for free (its def is deleted above).
+  // (The old ≤560 3-col survival set is deleted: ≤560 is always inside the
+  // phone tier (<768) — the AssetRow card list supersedes it, and Deep
+  // Data keeps the full column set inside its scoped scroll container.)
+  const rosterTableCols = visibleCols.filter(key => ROSTER_COLUMNS[key]);
   const visibleColGroupStarts = new Set();
   rosterTableCols.forEach((key, idx) => {
     const prev = rosterTableCols[idx - 1];
@@ -886,245 +888,12 @@ function MyTeamTab({
     }
   }
 
-  return (
-    <div style={{ padding: 'var(--card-pad, 16px 18px)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-      {isCompactRoster && (() => {
-        const ppgLabelMap = { season: 'Season', l5: 'L5', l3: 'L3' };
-        const rowLabelMap = { comfortable: 'Comfort', compact: 'Compact' };
-        const groupLabel = (GROUP_MODES.find(g => g.key === rosterGroupMode) || {}).label || 'None';
-        const viewLabel = (COLUMN_PRESET_META[activePresetKey] || {}).label || activePresetKey;
-        const summary = [rosterFilter, viewLabel, ppgLabelMap[ppgWindow] || ppgWindow, rowLabelMap[rowDensity] || rowDensity, groupLabel].join(' · ');
-        return (
-          <button onClick={() => setFiltersOpen(o => !o)} aria-expanded={filtersOpen} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--surf-solid, rgba(20,20,26,0.72))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 'var(--card-radius)', padding: '10px 12px', minHeight: '44px', cursor: 'pointer', textAlign: 'left' }}>
-            <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.04em', flexShrink: 0 }}>Filters</span>
-            {!filtersOpen && <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{summary}</span>}
-            <span style={{ marginLeft: 'auto', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, whiteSpace: 'nowrap', flexShrink: 0 }}>{filtered.length}/{allPlayers.length}</span>
-            <span style={{ color: 'var(--gold)', fontSize: 'var(--text-body, 1rem)', flexShrink: 0, transition: 'transform 0.15s', transform: filtersOpen ? 'rotate(180deg)' : 'none' }}>{'▾'}</span>
-          </button>
-        );
-      })()}
-
-      {/* Phone (≤767): the expanded filter row must wrap — 6 selects + Customize
-          + SavedViewBar are ~700px of nowrap controls, which overflow a 375px
-          viewport with no scroll path (body is overflow-x:clip). Tablet/desktop
-          keep the shipped single-line nowrap bar. */}
-      {(!isCompactRoster || filtersOpen) && (
-      <section style={{ background: 'var(--surf-solid, rgba(20,20,26,0.72))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 'var(--card-radius)', padding: 'var(--card-pad-sm)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: rosterViewportWidth <= 767 ? 'wrap' : 'nowrap', minWidth: 0 }}>
-        <span className="wr-module-toolbar-label">Scope</span>
-        <select value={rosterFilter} onChange={e => setRosterFilter(e.target.value)} style={rosterSelectStyle(rosterFilter !== 'All')} title="Show a slot or position group">
-          {rosterFilterOptions.map(f => <option key={f} value={f}>{f}</option>)}
-        </select>
-
-        <span className="wr-module-toolbar-label">View</span>
-        <select value={activePresetKey} onChange={e => { const key = e.target.value; const cols = COLUMN_PRESETS[key]; if (!cols) return; setVisibleCols(cols); setColPreset(key); if (key === 'rookie') setRosterFilter('Rookies'); else if (rosterFilter === 'Rookies') setRosterFilter('All'); }} style={rosterSelectStyle(activePresetKey !== 'default')} title="Column preset">
-          {Object.keys(COLUMN_PRESETS).map(key => <option key={key} value={key}>{COLUMN_PRESET_META[key]?.label || key}</option>)}
-          {activePresetKey === 'custom' && <option value="custom">Custom</option>}
-        </select>
-        <button onClick={() => setShowColPicker(!showColPicker)} style={{ ...controlBtn(showColPicker || activePresetKey === 'custom'), minHeight: '44px', flexShrink: 0 }} title="Add, remove, or reorder columns">Customize</button>
-
-        <span className="wr-module-toolbar-label">PPG</span>
-        <select value={ppgWindow} onChange={e => setPpgWindow(e.target.value)} style={rosterSelectStyle(ppgWindow !== 'season')} title="Points-per-game window">
-          <option value="season">Season</option>
-          <option value="l5">L5</option>
-          <option value="l3">L3</option>
-        </select>
-
-        <span className="wr-module-toolbar-label">Rows</span>
-        <select value={rowDensity} onChange={e => setRowDensity(e.target.value)} style={rosterSelectStyle(rowDensity !== 'comfortable')} title="Row density">
-          <option value="comfortable">Comfort</option>
-          <option value="compact">Compact</option>
-        </select>
-
-        <span className="wr-module-toolbar-label">Group</span>
-        <select value={rosterGroupMode} onChange={e => setRosterGroupMode(e.target.value)} style={rosterSelectStyle(rosterGroupMode !== 'position')} title="Group rows by">
-          {GROUP_MODES.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
-        </select>
-
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-          <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, whiteSpace: 'nowrap' }}>{filtered.length} / {allPlayers.length} shown</span>
-          {window.WR?.SavedViews?.SavedViewBar && React.createElement(window.WR.SavedViews.SavedViewBar, {
-            surface: 'roster',
-            leagueId: currentLeague?.id,
-            currentState: { columns: visibleCols, sort: rosterSort, filters: { rosterFilter, rosterGroupMode, rowDensity } },
-            onApply: (v) => {
-              if (Array.isArray(v.columns) && v.columns.length) { setVisibleCols(v.columns); setColPreset('custom'); }
-              if (v.sort && v.sort.key) setRosterSort({ key: v.sort.key, dir: v.sort.dir || 1 });
-              if (v.filters && typeof v.filters.rosterFilter === 'string') setRosterFilter(v.filters.rosterFilter);
-              if (v.filters && typeof v.filters.rosterGroupMode === 'string') setRosterGroupMode(v.filters.rosterGroupMode);
-              if (v.filters && typeof v.filters.rowDensity === 'string') setRowDensity(v.filters.rowDensity);
-            },
-          })}
-        </div>
-      </section>
-      )}
-
-      <div>
-
-      {/* Column picker dropdown */}
-      {showColPicker && (
-        <div style={{ background: 'linear-gradient(180deg, var(--surf-solid, rgba(22,22,29,0.98)), var(--surf-solid, rgba(10,10,14,0.98)))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '10px', padding: '12px', marginBottom: '10px', boxShadow: '0 10px 28px rgba(0,0,0,0.24)' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
-            <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', color: 'var(--white)', fontWeight: 700, letterSpacing: '0.04em' }}>Customize Columns</div>
-            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.58 }}>{visibleCols.length} of {Object.keys(ROSTER_COLUMNS).length} active</div>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <button onClick={() => setCustomColumns(Object.keys(ROSTER_COLUMNS))} style={controlBtn(inactiveColumnCount === 0)}>All Fields</button>
-              <button onClick={() => setCustomColumns(COLUMN_PRESETS.default)} style={controlBtn(activePresetKey === 'default')}>Reset Default</button>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: rosterViewportWidth <= 820 ? '1fr' : 'minmax(280px, 0.9fr) minmax(360px, 1.4fr)', gap: '12px', alignItems: 'start' }}>
-            <div style={{ background: 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: '8px', padding: '10px', minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
-                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800 }}>Active Order</div>
-                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.54 }}>{activeColumnOrder.length} visible</div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', paddingRight: '2px' }}>
-                {activeColumnOrder.length === 0 ? (
-                  <div style={{ padding: '12px', borderRadius: '8px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', color: 'var(--silver)', opacity: 0.62, fontSize: '0.74rem' }}>Only the player column is visible.</div>
-                ) : activeColumnOrder.map((key, idx) => {
-                  const col = ROSTER_COLUMNS[key];
-                  return (
-                    <div key={key} style={{ display: 'grid', gridTemplateColumns: '22px minmax(0, 1fr) 26px 26px 26px', gap: '5px', alignItems: 'center', padding: '5px 6px', borderRadius: '7px', background: 'var(--acc-fill2, rgba(212,175,55,0.075))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.14))' }}>
-                      <span style={{ color: 'var(--silver)', opacity: 0.55, fontSize: 'var(--text-micro, 0.6875rem)', textAlign: 'right' }}>{idx + 1}</span>
-                      <span title={col.label} style={{ color: 'var(--white)', fontSize: '0.74rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.shortLabel || col.label}</span>
-                      <button disabled={idx === 0} onClick={() => moveVisibleColumn(key, -1)} title="Move left" style={{ height: '24px', borderRadius: '5px', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: idx === 0 ? 'var(--ov-2, rgba(255,255,255,0.025))' : 'var(--ov-4, rgba(255,255,255,0.06))', color: idx === 0 ? 'var(--ov-7, rgba(255,255,255,0.24))' : 'var(--silver)', cursor: idx === 0 ? 'default' : 'pointer' }}>{'\u2039'}</button>
-                      <button disabled={idx === activeColumnOrder.length - 1} onClick={() => moveVisibleColumn(key, 1)} title="Move right" style={{ height: '24px', borderRadius: '5px', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: idx === activeColumnOrder.length - 1 ? 'var(--ov-2, rgba(255,255,255,0.025))' : 'var(--ov-4, rgba(255,255,255,0.06))', color: idx === activeColumnOrder.length - 1 ? 'var(--ov-7, rgba(255,255,255,0.24))' : 'var(--silver)', cursor: idx === activeColumnOrder.length - 1 ? 'default' : 'pointer' }}>{'\u203A'}</button>
-                      <button onClick={() => removeVisibleColumn(key)} title="Hide column" style={{ height: '24px', borderRadius: '5px', border: '1px solid rgba(231,76,60,0.22)', background: 'rgba(231,76,60,0.08)', color: 'var(--bad)', cursor: 'pointer' }}>{'\u00D7'}</button>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.07))' }}>
-                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '7px' }}>Group Rows By</div>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {GROUP_MODES.map(opt => (
-                    <button key={opt.key} onClick={() => setRosterGroupMode(opt.key)} style={controlBtn(rosterGroupMode === opt.key)}>{opt.label}</button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px' }}>
-              {columnGroups.map(({ group, columns }) => (
-                <div key={group} style={{ background: 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: '8px', padding: '8px' }}>
-                  <div style={{ marginBottom: '6px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800 }}>{group}</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    {columns.map(([key, col]) => {
-                      const active = visibleCols.includes(key);
-                      return (
-                        <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '5px 7px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.74rem', background: active ? 'var(--acc-fill2, rgba(212,175,55,0.1))' : 'var(--ov-1, rgba(255,255,255,0.018))', color: active ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (active ? 'var(--acc-fill3, rgba(212,175,55,0.18))' : 'var(--ov-3, rgba(255,255,255,0.04))') }}>
-                          <input type="checkbox" checked={active} onChange={() => {
-                            if (active) removeVisibleColumn(key);
-                            else addVisibleColumn(key);
-                          }} style={{ accentColor: 'var(--gold)' }} />
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Roster table with inline expand cards */}
-      <div style={{ border: '1px solid var(--ov-5, rgba(255,255,255,0.075))', borderRadius: 'var(--card-radius)', overflow: 'hidden', background: 'var(--surf-solid, rgba(12,12,17,0.98))', boxShadow: '0 10px 24px rgba(0,0,0,0.2)' }}>
-        <div style={{ padding: '7px 10px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', background: 'var(--ov-1, rgba(255,255,255,0.018))' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <div style={{ fontFamily: 'Rajdhani, sans-serif', color: 'var(--white)', fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700 }}>Roster Board</div>
-            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: isDeepData ? 'var(--gold)' : 'var(--silver)', opacity: isDeepData ? 0.86 : 0.58 }}>{activePresetMeta.label} · {visibleCols.length} fields</div>
-            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: rosterGroupMode === 'none' ? 'var(--silver)' : 'var(--gold)', opacity: 0.62 }}>Grouped by {activeGroupModeLabel}</div>
-            <div style={{ marginLeft: 'auto', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.52, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Sort: {ROSTER_COLUMNS[rosterSort.key]?.shortLabel || (rosterSort.key === 'name' ? 'Player' : rosterSort.key)}
-            </div>
-          </div>
-        </div>
-        <div ref={boardScrollRef} style={{ overflowX: 'auto', overflowY: 'clip', background: 'linear-gradient(90deg, var(--ov-1, rgba(255,255,255,0.02)), transparent 12%, transparent 88%, var(--ov-1, rgba(255,255,255,0.018)))' }}>
-          <div style={{ minWidth: tableMinWidth + 'px' }}>
-            {/* Header row */}
-            <div style={{ display: 'flex', height: '32px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderBottom: '1px solid var(--ov-6, rgba(255,255,255,0.12))', position: 'sticky', top: 0, zIndex: 5 }}>
-              <div title="Player" style={{ width: playerColWidth + 'px', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '0.72rem', fontWeight: 600, color: rosterSort.key === 'name' ? 'var(--gold)' : 'var(--silver)', fontFamily: 'var(--font-body)', letterSpacing: '0.035em', cursor: 'pointer', userSelect: 'none', borderRight: '1px solid var(--ov-6, rgba(255,255,255,0.1))', textTransform: 'uppercase', position: 'sticky', left: 0, zIndex: 7, background: 'linear-gradient(180deg, var(--k-1b1d23, #1b1d23), var(--k-15161b, #15161b))', boxShadow: '8px 0 14px rgba(0,0,0,0.2)' }}
-                onClick={() => setRosterSort(prev => prev.key === 'name' ? {...prev, dir: prev.dir*-1} : {key: 'name', dir: 1})}>
-                Player{rosterSort.key === 'name' ? (rosterSort.dir === -1 ? ' v' : ' ^') : ''}
-              </div>
-              <div style={{ flex: 1, display: 'flex' }}>
-                {rosterTableCols.map(colKey => {
-                  const col = ROSTER_COLUMNS[colKey];
-                  if (!col) return null;
-                  const isSorted = rosterSort.key === colKey;
-                  const isGroupStart = visibleColGroupStarts.has(colKey);
-                  return (
-                    <div key={colKey} title={col.label} onClick={() => setRosterSort(prev => prev.key === colKey ? {...prev, dir: prev.dir*-1} : {key: colKey, dir: 1})}
-                      style={{ width: col.width, minWidth: col.width, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: isSorted ? 700 : 600, color: isSorted ? 'var(--gold)' : 'var(--silver)', fontFamily: 'var(--font-body)', letterSpacing: '0.025em', cursor: 'pointer', userSelect: 'none', textTransform: 'uppercase', borderLeft: isGroupStart ? '1px solid var(--ov-4, rgba(255,255,255,0.06))' : '1px solid var(--ov-3, rgba(255,255,255,0.035))', padding: '0 3px', textAlign: 'center', lineHeight: 1.05, background: isSorted ? 'var(--acc-fill1, rgba(212,175,55,0.06))' : 'transparent' }}>
-                      <span>{col.shortLabel || col.label}{rosterSort.key === colKey ? (rosterSort.dir === -1 ? ' v' : ' ^') : ''}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Player rows + inline expand */}
-            {filtered.map((r, idx) => {
-              const isExpanded = expandedPid === r.pid;
-              const rowGroupKey = getRowGroupKey(r);
-              const startsPositionGroup = rosterGroupMode !== 'none' && (idx === 0 || getRowGroupKey(filtered[idx - 1]) !== rowGroupKey);
-              const rowBg = isExpanded ? 'var(--acc-fill1, rgba(212,175,55,0.058))' : idx % 2 === 1 ? 'var(--ov-1, rgba(255,255,255,0.018))' : 'var(--ov-1, rgba(255,255,255,0.006))';
-
-              const _recLower = (r.rec || '').toLowerCase();
-          const actionClass = _recLower === 'sell now' || _recLower === 'sell' ? 'wr-row-sell' :
-            _recLower === 'sell high' ? 'wr-row-sell-high' :
-            _recLower === 'hold core' || _recLower === 'build around' ? 'wr-row-core' : '';
-          const untouchables = (window._wrGmStrategy?.untouchable || []);
-          const isUntouchable = untouchables.includes(r.pid);
-
-          return (
-            <React.Fragment key={r.pid}>
-              {startsPositionGroup && (
-	                <div style={{ display: 'flex', height: isCompactRows ? '24px' : '28px', borderTop: idx === 0 ? 'none' : '2px solid var(--acc-line3, rgba(212,175,55,0.45))', borderBottom: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'var(--ov-2, rgba(255,255,255,0.045))' }}>
-	                  <div style={{ width: playerColWidth + 'px', flexShrink: 0, position: 'sticky', left: 0, zIndex: 4, display: 'flex', alignItems: 'center', gap: '8px', padding: '0 10px', background: 'var(--k-1b1d23, #1b1d23)', borderLeft: '3px solid var(--gold)', borderRight: '1px solid var(--ov-5, rgba(255,255,255,0.08))', boxShadow: '8px 0 14px rgba(0,0,0,0.16)' }}>
-	                    <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.84rem', color: getRowGroupColor(r), fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{getRowGroupLabel(r)}</span>
-	                    <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{filteredPosCounts[rowGroupKey]} players</span>
-                  </div>
-                  <div style={{ flex: 1, borderLeft: '1px solid var(--ov-2, rgba(255,255,255,0.025))' }} />
-                </div>
-              )}
-              {/* Normal row */}
-              <div className={[actionClass, isUntouchable ? 'wr-untouchable' : ''].filter(Boolean).join(' ')} role="button" tabIndex={0} title="Open roster player detail" style={{ display: 'flex', overflow: 'visible', borderTop: 'none', borderBottom: isExpanded ? 'none' : '1px solid var(--ov-3, rgba(255,255,255,0.035))', cursor: 'pointer', background: rowBg, transition: 'background 0.1s' }}
-                onClick={() => setExpandedPid(prev => prev === r.pid ? null : r.pid)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedPid(prev => prev === r.pid ? null : r.pid); } }}
-                onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = 'var(--acc-fill1, rgba(212,175,55,0.06))'; }}
-                onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = rowBg; }}>
-                {/* Frozen player info */}
-	                <div style={{ width: playerColWidth + 'px', flexShrink: 0, height: rowHeight + 'px', display: 'flex', alignItems: 'center', gap: '8px', padding: '0 10px', borderRight: '1px solid var(--acc-fill2, rgba(212,175,55,0.1))', position: 'sticky', left: 0, zIndex: 3, background: 'inherit', boxShadow: '8px 0 14px rgba(0,0,0,0.16)' }}>
-                  <div style={{ width: avatarSize + 'px', height: avatarSize + 'px', flexShrink: 0 }}><img src={'https://sleepercdn.com/content/nfl/players/thumb/'+r.pid+'.jpg'} alt="" onError={e=>e.target.style.display='none'} style={{ width: avatarSize + 'px', height: avatarSize + 'px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))' }} /></div>
-                  <div style={{ overflow: 'hidden', flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-	                      <span style={{ fontWeight: 650, color: 'var(--white)', fontSize: playerNameSize, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getPlayerName(r.pid)}</span>
-                      {inlineTag(slotTagMeta[r.section], 'slot-' + r.pid)}
-                      {inlineTag(rosterTagMeta[window._playerTags?.[r.pid]], 'tag-' + r.pid)}
-                      {/* GM Strategy: untouchable lock — distinct from manual tag system */}
-                      {r.gmIsUntouchable && <span title="GM Strategy: untouchable — locked from sell flags" style={{ fontSize: 'var(--text-micro, 0.6875rem)', flexShrink: 0, lineHeight: 1, color: 'var(--good)' }}>{'🛡'}</span>}
-                      {/* GM Strategy: acquisition-focus / sell-candidate position accents */}
-                      {!r.gmIsUntouchable && r.gmIsTarget && <span title="GM Strategy: acquisition-focus position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.28))', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>TGT</span>}
-                      {!r.gmIsUntouchable && r.gmIsSellPos && <span title="GM Strategy: sell-candidate position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'rgba(240,165,0,0.13)', color: 'var(--warn)', border: '1px solid rgba(240,165,0,0.32)', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>SELL</span>}
-                      {isPro && dropCandidatePids.has(r.pid) && !dismissedDrops.has(r.pid) && <span onClick={e => { e.stopPropagation(); dismissDrop(r.pid); }} title="Drop candidate (click to dismiss)" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(231,76,60,0.2)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>DROP?</span>}
-                    </div>
-                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, marginTop: '1px' }}>{r.p.team || 'FA'}{r.injury ? ' \u00B7 '+r.injury : ''}</div>
-                  </div>
-                  <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', opacity: 0.42 }}>{isExpanded ? '\u25B2' : '\u25BC'}</span>
-                </div>
-                {/* Data columns */}
-                <div style={{ flex: 1, display: 'flex', height: rowHeight + 'px', overflow: 'hidden' }}>
-                  {rosterTableCols.map(colKey => ROSTER_COLUMNS[colKey] ? renderCell(colKey, r) : null)}
-                </div>
-              </div>
-
-              {/* Inline expand card — Madden/FM style */}
-              {isExpanded && (
-                <div style={{ borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', background: 'linear-gradient(180deg, var(--surf-solid, rgba(18,18,24,0.99)), var(--surf-solid, rgba(6,6,10,0.99)))', padding: '12px 14px', animation: 'wrFadeIn 0.2s ease', position: 'sticky', left: 0, zIndex: 3, width: boardWidth ? boardWidth + 'px' : '100%', boxSizing: 'border-box' }}>
+  // ── Expand-card dossier body (identity → signals → dynasty read → age
+  // curve → career stats → actions) — HOISTED VERBATIM from the desktop
+  // board's inline expand card so the phone AssetRow expansion renders the
+  // identical dossier. The desktop boardWidth pinning wrapper stays inside
+  // _renderRosterBoard below; the phone card path never mounts it.
+  const renderExpandBody = (r) => (<React.Fragment>
                   {/* ── Dossier (02 "clear hierarchy"): identity + roster call → signals strip → read + signals → curve → stats ── */}
                   {(() => {
                     const verdict = r.rec || 'Hold';
@@ -1254,6 +1023,358 @@ function MyTeamTab({
                     })}
                     <button onClick={e => { e.stopPropagation(); setExpandedPid(null); }} style={{ padding: '7px 16px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: '6px', cursor: 'pointer' }}>COLLAPSE</button>
                   </div>
+  </React.Fragment>);
+
+  // ══ PHONE (<768) — Phase 0 pilot (iPhone program) ═══════════════════
+  // Everything in this section renders ONLY when `_phone` is true; the
+  // desktop/tablet render path below is byte-identical to the pre-phase
+  // file (blocks are wrapped or hoisted, never edited). Kit presence
+  // (wr-primitives.js loads earlier in the babel chain) is fixed for the
+  // page's lifetime, so `_phone` can gate render without hook hazards.
+  const _kitReady = !!(window.WR && window.WR.HeroCard && window.WR.AssetRow && window.WR.CardList && window.WR.FilterPill && window.WR.FilterSheet);
+  const _phone = _isPhone && _kitReady;
+
+  // Preset → "which 3 stat slots ride the card row" (P1 AssetRow). Slot
+  // values are produced by _phoneSlotFor, which calls the SAME sources the
+  // desktop renderCell uses (projFor / App.computeRollingPPG /
+  // App.PlayerValue.getRosPoints / App.WeeklyProj.formStats /
+  // App.RookieFields.fields) — lookups reused, no formulas duplicated.
+  const PHONE_SLOT_PRESETS = {
+    default: ['dhq', 'proj', 'ppg'],
+    redraft: ['proj', 'ppg', 'trend'],
+    stats:   ['ppg', 'prev', 'trend'],
+    scout:   ['yrsExp', 'starterSzn', 'posRankNfl'],
+    rookie:  ['rkSlot', 'rkRank', 'rkTier'],
+  };
+  const PHONE_SLOT_KEYS = new Set(['dhq', 'proj', 'ppg', 'prev', 'trend', 'age', 'gp', 'hi', 'lo', 'yrsExp', 'starterSzn', 'posRankNfl', 'posRankLg', 'sos', 'peak', 'rkSlot', 'rkRank', 'rkTier']);
+  // Custom column sets ride the first 3 slot-capable picks; empty → default.
+  let _phoneSlotKeys = PHONE_SLOT_PRESETS[activePresetKey]
+    || visibleCols.filter(k => PHONE_SLOT_KEYS.has(k)).slice(0, 3);
+  if (!_phoneSlotKeys.length) _phoneSlotKeys = PHONE_SLOT_PRESETS.default;
+  const _phoneSlotFor = (colKey, r) => {
+    const short = ROSTER_COLUMNS[colKey]?.shortLabel || colKey;
+    switch (colKey) {
+      case 'dhq': {
+        // Same redraft ROS-points swap as renderCell's dhq cell.
+        const rosPts = (resolvedLeagueSkin?.type === 'redraft' && window.App?.PlayerValue?.getRosPoints) ? window.App.PlayerValue.getRosPoints(r.pid) : null;
+        const disp = rosPts != null ? (rosPts > 0 ? Math.round(rosPts).toLocaleString() : '—') : (r.dhq > 0 ? r.dhq.toLocaleString() : '—');
+        return { label: short, value: disp };
+      }
+      case 'proj': {
+        const p = projFor(r.pid);
+        if (!p) return { label: 'Wk', value: '—', tone: 'mute' };
+        if (!p.available) return { label: 'Wk', value: p.injuryStatus || 'OUT', tone: 'warn' };
+        const pts = p.points[weeklyLineup?.objective || 'median'] || 0;
+        return { label: 'Wk', value: pts > 0 ? pts.toFixed(1) : '—' };
+      }
+      case 'ppg': {
+        // Same rolling-window override + seasonal fallback as renderCell;
+        // the window rides the LABEL (L5/L3) since card slots have no room
+        // for the " · L5" marker.
+        let shown = r.effectivePPG;
+        let lbl = 'PPG';
+        if (ppgWindow !== 'season') {
+          const n = ppgWindow === 'l3' ? 3 : 5;
+          const rolling = typeof window.App?.computeRollingPPG === 'function' ? window.App.computeRollingPPG(r.pid, n) : 0;
+          if (rolling > 0) { shown = rolling; lbl = 'L' + n; } else { lbl = 'SZN'; }
+        }
+        return { label: lbl, value: shown > 0 ? shown : '—' };
+      }
+      case 'prev': return { label: short, value: r.prevPPG > 0 ? r.prevPPG : '—', tone: 'mute' };
+      case 'trend': return { label: short, value: r.trend > 0 ? '+' + r.trend + '%' : r.trend < 0 ? r.trend + '%' : '—', tone: 'mute' };
+      case 'age': return { label: short, value: r.age || '—', tone: 'mute' };
+      case 'gp': return { label: short, value: r.effectiveGP > 0 ? r.effectiveGP : '—', tone: 'mute' };
+      case 'hi': { const fs = window.App?.WeeklyProj?.formStats?.(r.pid, 'season'); return { label: short, value: fs ? fs.high.toFixed(1) : '—', tone: fs ? 'good' : 'mute' }; }
+      case 'lo': { const fs = window.App?.WeeklyProj?.formStats?.(r.pid, 'season'); return { label: short, value: fs ? fs.low.toFixed(1) : '—', tone: 'mute' }; }
+      case 'yrsExp': return { label: short, value: r.p.years_exp ?? '—', tone: 'mute' };
+      case 'starterSzn': return { label: short, value: r.meta?.starterSeasons ?? '—', tone: 'mute' };
+      case 'posRankNfl': return { label: short, value: r.meta?.fcRank ? '#' + r.meta.fcRank : '—', tone: 'mute' };
+      case 'posRankLg': { const rank = getLeaguePositionRank(r); return { label: short, value: rank ? '#' + rank : '—', tone: 'mute' }; }
+      case 'sos': { const s = window.App?.SOS?.ready ? window.App.SOS.getPlayerSOS(r.pid, r.pos, r.p?.team) : null; return { label: short, value: s ? s.avgRank : '—', tone: 'mute' }; }
+      case 'peak': return { label: short, value: r.peakPhase || '—', tone: 'mute' };
+      case 'rkSlot': case 'rkRank': case 'rkTier': {
+        const rf = window.App?.RookieFields?.fields?.(prospectForRow(r)) || null;
+        if (!rf) return { label: short, value: '—', tone: 'mute' };
+        if (colKey === 'rkSlot') return { label: short, value: rf.draftSlot || '—' };
+        if (colKey === 'rkRank') return { label: short, value: rf.consensusRank != null ? rf.consensusRank : '—' };
+        return { label: short, value: rf.tierLabel || '—' };
+      }
+      default: return { label: short, value: '—', tone: 'mute' };
+    }
+  };
+  // Two-line tag under the name: team · age · injury-or-slot.
+  const _phoneTagFor = (r) => {
+    const bits = [r.p.team || 'FA'];
+    if (r.age) bits.push(String(r.age));
+    bits.push(r.injury ? r.injury : _slotLabel(r));
+    return bits.join(' · ');
+  };
+  // Verdict chip (Move-column analog) — Pro-only, exactly mirroring the
+  // desktop `delete ROSTER_COLUMNS.action` gate: free rows carry rec=null
+  // and render no chip even if a gate upstream is ever missed. Tones per
+  // the approved mockup: SELL amber / CORE-BUILD gold / rest calm blue.
+  const _phoneVerdictChip = (r) => {
+    if (!isPro || !r.rec) return null;
+    const col = /sell/i.test(r.rec) ? 'var(--warn)' : /buy|build|core/i.test(r.rec) ? 'var(--gold)' : 'var(--k-5dade2, #5DADE2)';
+    return (
+      <span title={r.gmSellNudge ? 'Nudged to Sell by GM Strategy (position/age trips a sell rule)' : ''} style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, padding: '2px 6px', borderRadius: '4px', border: '1px solid ' + wrAlpha(col, '80'), color: col, letterSpacing: '0.02em', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
+        {r.rec}{r.gmSellNudge ? ' ·GM' : ''}
+      </span>
+    );
+  };
+
+  // Hero + pill strip + filter sheet (P5/P3) — computed only on phone.
+  let _phoneHeroEl = null, _phonePillsEl = null, _phoneSheetEl = null;
+  if (_phone) {
+    // Decision hero: drop-alert count + GM window, all from data the tab
+    // already computes (dropCandidatePids / dismissedDrops are Pro
+    // verdicts — free renders raw roster facts, zero gate drift).
+    const dropAlerts = isPro ? rows.filter(r => dropCandidatePids.has(r.pid) && !dismissedDrops.has(r.pid)) : [];
+    const modeLabel = String((gm && gm.modeLabel) || 'Compete');
+    const sellCalls = isPro ? rows.filter(r => /sell/i.test(r.rec || '')).length : 0;
+    const heroHeadline = (isPro
+      ? (dropAlerts.length > 0 ? dropAlerts.length + ' DROP ALERT' + (dropAlerts.length === 1 ? '' : 'S') : 'ROSTER CLEAN')
+      : allPlayers.length + ' PLAYERS') + ' · WINDOW: ' + modeLabel.toUpperCase();
+    const heroFacts = isPro
+      ? ((dropAlerts.length > 0
+          ? dropAlerts.slice(0, 2).map(r => r.p.last_name || getPlayerName(r.pid)).join(' + ') + ' flagged dead weight'
+          : 'no drop flags on the bench')
+        + (sellCalls > 0 ? ' · ' + sellCalls + ' sell call' + (sellCalls === 1 ? '' : 's') : ''))
+      : ((myRoster.starters || []).length + ' starters · strategy ' + modeLabel);
+    const heroGhost = dropAlerts.length > 0 ? 'Review' : null;
+    _phoneHeroEl = React.createElement(window.WR.HeroCard, {
+      kicker: 'Roster call',
+      headline: heroHeadline,
+      facts: heroFacts,
+      ctaGhost: heroGhost,
+      onCtaGhost: heroGhost ? () => {
+        try { const el = document.querySelector('[data-wr-drop-flag]'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
+      } : undefined,
+    });
+
+    const totalCols = Object.keys(ROSTER_COLUMNS).length;
+    const openSheet = () => setFiltersOpen(true);
+    _phonePillsEl = (
+      <div className="wr-hscroll" style={{ display: 'flex', gap: '6px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
+        {React.createElement(window.WR.FilterPill, { label: 'Filters', value: rosterFilter, onClick: openSheet })}
+        {React.createElement(window.WR.FilterPill, { label: 'View', value: activePresetMeta.label, onClick: openSheet })}
+        {React.createElement(window.WR.FilterPill, { label: 'Cols', value: visibleCols.length + '/' + totalCols, onClick: openSheet })}
+        {React.createElement(window.WR.FilterPill, {
+          label: 'Deep Data', value: isDeepData ? 'ON' : null,
+          onClick: () => {
+            // Same setters as the desktop View select — 'full' ⇄ 'default'.
+            if (isDeepData) { setVisibleCols(COLUMN_PRESETS.default); setColPreset('default'); }
+            else { setVisibleCols(COLUMN_PRESETS.full); setColPreset('full'); }
+          },
+        })}
+      </div>
+    );
+
+    // FilterSheet re-homes the EXISTING toolbar controls behind one sheet;
+    // every control drives the exact same state setters as the desktop
+    // toolbar (which stays untouched for tablet/desktop).
+    const sheetSelectStyle = (active) => ({ ...rosterSelectStyle(active), width: '100%' });
+    _phoneSheetEl = React.createElement(window.WR.FilterSheet, {
+      open: filtersOpen,
+      onClose: () => setFiltersOpen(false),
+      title: 'Roster filters',
+      sections: [
+        { label: 'Scope', node: (
+          <select value={rosterFilter} onChange={e => setRosterFilter(e.target.value)} style={sheetSelectStyle(rosterFilter !== 'All')} title="Show a slot or position group">
+            {rosterFilterOptions.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+        ) },
+        { label: 'View', node: (
+          <select value={activePresetKey} onChange={e => { const key = e.target.value; const cols = COLUMN_PRESETS[key]; if (!cols) return; setVisibleCols(cols); setColPreset(key); if (key === 'rookie') setRosterFilter('Rookies'); else if (rosterFilter === 'Rookies') setRosterFilter('All'); }} style={sheetSelectStyle(activePresetKey !== 'default')} title="Column preset">
+            {Object.keys(COLUMN_PRESETS).map(key => <option key={key} value={key}>{COLUMN_PRESET_META[key]?.label || key}</option>)}
+            {activePresetKey === 'custom' && <option value="custom">Custom</option>}
+          </select>
+        ) },
+        { label: 'Columns', node: (
+          <button onClick={() => { setShowColPicker(true); setFiltersOpen(false); }} style={{ ...controlBtn(showColPicker || activePresetKey === 'custom'), minHeight: '44px', width: '100%' }} title="Add, remove, or reorder columns">Customize · {visibleCols.length}/{Object.keys(ROSTER_COLUMNS).length} fields</button>
+        ) },
+        { label: 'PPG window', node: (
+          <select value={ppgWindow} onChange={e => setPpgWindow(e.target.value)} style={sheetSelectStyle(ppgWindow !== 'season')} title="Points-per-game window">
+            <option value="season">Season</option>
+            <option value="l5">L5</option>
+            <option value="l3">L3</option>
+          </select>
+        ) },
+        { label: 'Rows', node: (
+          <select value={rowDensity} onChange={e => setRowDensity(e.target.value)} style={sheetSelectStyle(rowDensity !== 'comfortable')} title="Row density">
+            <option value="comfortable">Comfort</option>
+            <option value="compact">Compact</option>
+          </select>
+        ) },
+        { label: 'Group', node: (
+          <select value={rosterGroupMode} onChange={e => setRosterGroupMode(e.target.value)} style={sheetSelectStyle(rosterGroupMode !== 'position')} title="Group rows by">
+            {GROUP_MODES.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
+          </select>
+        ) },
+        { label: 'Saved views', node: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, whiteSpace: 'nowrap' }}>{filtered.length} / {allPlayers.length} shown</span>
+            {window.WR?.SavedViews?.SavedViewBar && React.createElement(window.WR.SavedViews.SavedViewBar, {
+              surface: 'roster',
+              leagueId: currentLeague?.id,
+              currentState: { columns: visibleCols, sort: rosterSort, filters: { rosterFilter, rosterGroupMode, rowDensity } },
+              onApply: (v) => {
+                if (Array.isArray(v.columns) && v.columns.length) { setVisibleCols(v.columns); setColPreset('custom'); }
+                if (v.sort && v.sort.key) setRosterSort({ key: v.sort.key, dir: v.sort.dir || 1 });
+                if (v.filters && typeof v.filters.rosterFilter === 'string') setRosterFilter(v.filters.rosterFilter);
+                if (v.filters && typeof v.filters.rosterGroupMode === 'string') setRosterGroupMode(v.filters.rosterGroupMode);
+                if (v.filters && typeof v.filters.rowDensity === 'string') setRowDensity(v.filters.rowDensity);
+              },
+            })}
+          </div>
+        ) },
+      ],
+      footer: (
+        <React.Fragment>
+          <button onClick={() => { setRosterFilter('All'); setVisibleCols(COLUMN_PRESETS.default); setColPreset('default'); setPpgWindow('season'); setRowDensity('comfortable'); setRosterGroupMode('position'); }} style={{ ...controlBtn(false), minHeight: '44px', flex: 1 }}>Reset</button>
+          <button onClick={() => setFiltersOpen(false)} style={{ ...controlBtn(true), minHeight: '44px', flex: 2 }}>Apply</button>
+        </React.Fragment>
+      ),
+    });
+  }
+
+  // P1 card list — the phone board: groups follow the EXISTING group mode
+  // (filtered is already group-sorted), each row is a WR.AssetRow, and row
+  // tap toggles the EXISTING expandedPid state. The expand renders the
+  // hoisted dossier as AssetRow children — the desktop boardWidth pinning
+  // wrapper is bypassed here (cards are viewport-width already).
+  const _renderPhoneCards = () => {
+    const groups = [];
+    filtered.forEach(r => {
+      const key = getRowGroupKey(r);
+      let g = groups[groups.length - 1];
+      if (!g || g.key !== key) {
+        g = { key, label: rosterGroupMode === 'none' ? null : getRowGroupLabel(r), rows: [] };
+        groups.push(g);
+      }
+      const isExpanded = expandedPid === r.pid;
+      const isDropFlag = isPro && dropCandidatePids.has(r.pid) && !dismissedDrops.has(r.pid);
+      g.rows.push(React.createElement(window.WR.AssetRow, {
+        key: r.pid,
+        pos: r.pos,
+        name: getPlayerName(r.pid),
+        tag: _phoneTagFor(r),
+        slots: _phoneSlotKeys.map(k => _phoneSlotFor(k, r)),
+        verdict: _phoneVerdictChip(r),
+        accent: (r.gmIsUntouchable || (isPro && /build|core/i.test(r.rec || ''))) ? 'gold' : (r.injury || isDropFlag) ? 'risk' : undefined,
+        expanded: isExpanded,
+        onClick: () => setExpandedPid(prev => prev === r.pid ? null : r.pid),
+        title: 'Open roster player detail',
+        'data-wr-drop-flag': isDropFlag ? '1' : undefined,
+      }, isExpanded ? renderExpandBody(r) : null));
+    });
+    if (!groups.length) {
+      return <div style={{ padding: '14px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', borderRadius: '9px', color: 'var(--silver)', opacity: 0.7, fontSize: '0.78rem' }}>No roster rows match this view.</div>;
+    }
+    return React.createElement(window.WR.CardList, {
+      groups: groups.map(g => ({ label: g.label, sub: g.rows.length + (g.rows.length === 1 ? ' player' : ' players'), rows: g.rows })),
+    });
+  };
+
+  // ── Desktop/tablet roster board — HOISTED VERBATIM from the return so
+  // the phone Deep Data view can reuse it inside the scoped scroll wrap.
+  // Desktop output is byte-identical: the return renders this directly.
+  const _renderRosterBoard = () => (
+      <div style={{ border: '1px solid var(--ov-5, rgba(255,255,255,0.075))', borderRadius: 'var(--card-radius)', overflow: 'hidden', background: 'var(--surf-solid, rgba(12,12,17,0.98))', boxShadow: '0 10px 24px rgba(0,0,0,0.2)' }}>
+        <div style={{ padding: '7px 10px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', background: 'var(--ov-1, rgba(255,255,255,0.018))' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ fontFamily: 'Rajdhani, sans-serif', color: 'var(--white)', fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700 }}>Roster Board</div>
+            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: isDeepData ? 'var(--gold)' : 'var(--silver)', opacity: isDeepData ? 0.86 : 0.58 }}>{activePresetMeta.label} · {visibleCols.length} fields</div>
+            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: rosterGroupMode === 'none' ? 'var(--silver)' : 'var(--gold)', opacity: 0.62 }}>Grouped by {activeGroupModeLabel}</div>
+            <div style={{ marginLeft: 'auto', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.52, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Sort: {ROSTER_COLUMNS[rosterSort.key]?.shortLabel || (rosterSort.key === 'name' ? 'Player' : rosterSort.key)}
+            </div>
+          </div>
+        </div>
+        <div ref={boardScrollRef} style={{ overflowX: 'auto', overflowY: 'clip', background: 'linear-gradient(90deg, var(--ov-1, rgba(255,255,255,0.02)), transparent 12%, transparent 88%, var(--ov-1, rgba(255,255,255,0.018)))' }}>
+          <div style={{ minWidth: tableMinWidth + 'px' }}>
+            {/* Header row */}
+            <div style={{ display: 'flex', height: '32px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderBottom: '1px solid var(--ov-6, rgba(255,255,255,0.12))', position: 'sticky', top: 0, zIndex: 5 }}>
+              <div title="Player" style={{ width: playerColWidth + 'px', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '0.72rem', fontWeight: 600, color: rosterSort.key === 'name' ? 'var(--gold)' : 'var(--silver)', fontFamily: 'var(--font-body)', letterSpacing: '0.035em', cursor: 'pointer', userSelect: 'none', borderRight: '1px solid var(--ov-6, rgba(255,255,255,0.1))', textTransform: 'uppercase', position: 'sticky', left: 0, zIndex: 7, background: 'linear-gradient(180deg, var(--k-1b1d23, #1b1d23), var(--k-15161b, #15161b))', boxShadow: '8px 0 14px rgba(0,0,0,0.2)' }}
+                onClick={() => setRosterSort(prev => prev.key === 'name' ? {...prev, dir: prev.dir*-1} : {key: 'name', dir: 1})}>
+                Player{rosterSort.key === 'name' ? (rosterSort.dir === -1 ? ' v' : ' ^') : ''}
+              </div>
+              <div style={{ flex: 1, display: 'flex' }}>
+                {rosterTableCols.map(colKey => {
+                  const col = ROSTER_COLUMNS[colKey];
+                  if (!col) return null;
+                  const isSorted = rosterSort.key === colKey;
+                  const isGroupStart = visibleColGroupStarts.has(colKey);
+                  return (
+                    <div key={colKey} title={col.label} onClick={() => setRosterSort(prev => prev.key === colKey ? {...prev, dir: prev.dir*-1} : {key: colKey, dir: 1})}
+                      style={{ width: col.width, minWidth: col.width, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: isSorted ? 700 : 600, color: isSorted ? 'var(--gold)' : 'var(--silver)', fontFamily: 'var(--font-body)', letterSpacing: '0.025em', cursor: 'pointer', userSelect: 'none', textTransform: 'uppercase', borderLeft: isGroupStart ? '1px solid var(--ov-4, rgba(255,255,255,0.06))' : '1px solid var(--ov-3, rgba(255,255,255,0.035))', padding: '0 3px', textAlign: 'center', lineHeight: 1.05, background: isSorted ? 'var(--acc-fill1, rgba(212,175,55,0.06))' : 'transparent' }}>
+                      <span>{col.shortLabel || col.label}{rosterSort.key === colKey ? (rosterSort.dir === -1 ? ' v' : ' ^') : ''}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Player rows + inline expand */}
+            {filtered.map((r, idx) => {
+              const isExpanded = expandedPid === r.pid;
+              const rowGroupKey = getRowGroupKey(r);
+              const startsPositionGroup = rosterGroupMode !== 'none' && (idx === 0 || getRowGroupKey(filtered[idx - 1]) !== rowGroupKey);
+              const rowBg = isExpanded ? 'var(--acc-fill1, rgba(212,175,55,0.058))' : idx % 2 === 1 ? 'var(--ov-1, rgba(255,255,255,0.018))' : 'var(--ov-1, rgba(255,255,255,0.006))';
+
+              const _recLower = (r.rec || '').toLowerCase();
+          const actionClass = _recLower === 'sell now' || _recLower === 'sell' ? 'wr-row-sell' :
+            _recLower === 'sell high' ? 'wr-row-sell-high' :
+            _recLower === 'hold core' || _recLower === 'build around' ? 'wr-row-core' : '';
+          const untouchables = (window._wrGmStrategy?.untouchable || []);
+          const isUntouchable = untouchables.includes(r.pid);
+
+          return (
+            <React.Fragment key={r.pid}>
+              {startsPositionGroup && (
+	                <div style={{ display: 'flex', height: isCompactRows ? '24px' : '28px', borderTop: idx === 0 ? 'none' : '2px solid var(--acc-line3, rgba(212,175,55,0.45))', borderBottom: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'var(--ov-2, rgba(255,255,255,0.045))' }}>
+	                  <div style={{ width: playerColWidth + 'px', flexShrink: 0, position: 'sticky', left: 0, zIndex: 4, display: 'flex', alignItems: 'center', gap: '8px', padding: '0 10px', background: 'var(--k-1b1d23, #1b1d23)', borderLeft: '3px solid var(--gold)', borderRight: '1px solid var(--ov-5, rgba(255,255,255,0.08))', boxShadow: '8px 0 14px rgba(0,0,0,0.16)' }}>
+	                    <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.84rem', color: getRowGroupColor(r), fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{getRowGroupLabel(r)}</span>
+	                    <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{filteredPosCounts[rowGroupKey]} players</span>
+                  </div>
+                  <div style={{ flex: 1, borderLeft: '1px solid var(--ov-2, rgba(255,255,255,0.025))' }} />
+                </div>
+              )}
+              {/* Normal row */}
+              <div className={[actionClass, isUntouchable ? 'wr-untouchable' : ''].filter(Boolean).join(' ')} role="button" tabIndex={0} title="Open roster player detail" style={{ display: 'flex', overflow: 'visible', borderTop: 'none', borderBottom: isExpanded ? 'none' : '1px solid var(--ov-3, rgba(255,255,255,0.035))', cursor: 'pointer', background: rowBg, transition: 'background 0.1s' }}
+                onClick={() => setExpandedPid(prev => prev === r.pid ? null : r.pid)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedPid(prev => prev === r.pid ? null : r.pid); } }}
+                onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = 'var(--acc-fill1, rgba(212,175,55,0.06))'; }}
+                onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = rowBg; }}>
+                {/* Frozen player info */}
+	                <div style={{ width: playerColWidth + 'px', flexShrink: 0, height: rowHeight + 'px', display: 'flex', alignItems: 'center', gap: '8px', padding: '0 10px', borderRight: '1px solid var(--acc-fill2, rgba(212,175,55,0.1))', position: 'sticky', left: 0, zIndex: 3, background: 'inherit', boxShadow: '8px 0 14px rgba(0,0,0,0.16)' }}>
+                  <div style={{ width: avatarSize + 'px', height: avatarSize + 'px', flexShrink: 0 }}><img src={'https://sleepercdn.com/content/nfl/players/thumb/'+r.pid+'.jpg'} alt="" onError={e=>e.target.style.display='none'} style={{ width: avatarSize + 'px', height: avatarSize + 'px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))' }} /></div>
+                  <div style={{ overflow: 'hidden', flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+	                      <span style={{ fontWeight: 650, color: 'var(--white)', fontSize: playerNameSize, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getPlayerName(r.pid)}</span>
+                      {inlineTag(slotTagMeta[r.section], 'slot-' + r.pid)}
+                      {inlineTag(rosterTagMeta[window._playerTags?.[r.pid]], 'tag-' + r.pid)}
+                      {/* GM Strategy: untouchable lock — distinct from manual tag system */}
+                      {r.gmIsUntouchable && <span title="GM Strategy: untouchable — locked from sell flags" style={{ fontSize: 'var(--text-micro, 0.6875rem)', flexShrink: 0, lineHeight: 1, color: 'var(--good)' }}>{'🛡'}</span>}
+                      {/* GM Strategy: acquisition-focus / sell-candidate position accents */}
+                      {!r.gmIsUntouchable && r.gmIsTarget && <span title="GM Strategy: acquisition-focus position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.28))', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>TGT</span>}
+                      {!r.gmIsUntouchable && r.gmIsSellPos && <span title="GM Strategy: sell-candidate position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'rgba(240,165,0,0.13)', color: 'var(--warn)', border: '1px solid rgba(240,165,0,0.32)', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>SELL</span>}
+                      {isPro && dropCandidatePids.has(r.pid) && !dismissedDrops.has(r.pid) && <span onClick={e => { e.stopPropagation(); dismissDrop(r.pid); }} title="Drop candidate (click to dismiss)" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(231,76,60,0.2)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>DROP?</span>}
+                    </div>
+                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, marginTop: '1px' }}>{r.p.team || 'FA'}{r.injury ? ' \u00B7 '+r.injury : ''}</div>
+                  </div>
+                  <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', opacity: 0.42 }}>{isExpanded ? '\u25B2' : '\u25BC'}</span>
+                </div>
+                {/* Data columns */}
+                <div style={{ flex: 1, display: 'flex', height: rowHeight + 'px', overflow: 'hidden' }}>
+                  {rosterTableCols.map(colKey => ROSTER_COLUMNS[colKey] ? renderCell(colKey, r) : null)}
+                </div>
+              </div>
+
+              {/* Inline expand card — Madden/FM style */}
+              {isExpanded && (
+                <div style={{ borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', background: 'linear-gradient(180deg, var(--surf-solid, rgba(18,18,24,0.99)), var(--surf-solid, rgba(6,6,10,0.99)))', padding: '12px 14px', animation: 'wrFadeIn 0.2s ease', position: 'sticky', left: 0, zIndex: 3, width: boardWidth ? boardWidth + 'px' : '100%', boxSizing: 'border-box' }}>
+                  {renderExpandBody(r)}
                 </div>
               )}
             </React.Fragment>
@@ -1268,6 +1389,168 @@ function MyTeamTab({
           </div>
         </div>
       </div>
+  );
+
+  return (
+    <div style={{ padding: 'var(--card-pad, 16px 18px)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+      {_phone && <React.Fragment>
+        {_phoneHeroEl}
+        {_phonePillsEl}
+        {_phoneSheetEl}
+      </React.Fragment>}
+      {!_phone && <React.Fragment>
+      {isCompactRoster && (() => {
+        const ppgLabelMap = { season: 'Season', l5: 'L5', l3: 'L3' };
+        const rowLabelMap = { comfortable: 'Comfort', compact: 'Compact' };
+        const groupLabel = (GROUP_MODES.find(g => g.key === rosterGroupMode) || {}).label || 'None';
+        const viewLabel = (COLUMN_PRESET_META[activePresetKey] || {}).label || activePresetKey;
+        const summary = [rosterFilter, viewLabel, ppgLabelMap[ppgWindow] || ppgWindow, rowLabelMap[rowDensity] || rowDensity, groupLabel].join(' · ');
+        return (
+          <button onClick={() => setFiltersOpen(o => !o)} aria-expanded={filtersOpen} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--surf-solid, rgba(20,20,26,0.72))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 'var(--card-radius)', padding: '10px 12px', minHeight: '44px', cursor: 'pointer', textAlign: 'left' }}>
+            <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.04em', flexShrink: 0 }}>Filters</span>
+            {!filtersOpen && <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{summary}</span>}
+            <span style={{ marginLeft: 'auto', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, whiteSpace: 'nowrap', flexShrink: 0 }}>{filtered.length}/{allPlayers.length}</span>
+            <span style={{ color: 'var(--gold)', fontSize: 'var(--text-body, 1rem)', flexShrink: 0, transition: 'transform 0.15s', transform: filtersOpen ? 'rotate(180deg)' : 'none' }}>{'▾'}</span>
+          </button>
+        );
+      })()}
+
+      {/* Phone (≤767): the expanded filter row must wrap — 6 selects + Customize
+          + SavedViewBar are ~700px of nowrap controls, which overflow a 375px
+          viewport with no scroll path (body is overflow-x:clip). Tablet/desktop
+          keep the shipped single-line nowrap bar. */}
+      {(!isCompactRoster || filtersOpen) && (
+      <section style={{ background: 'var(--surf-solid, rgba(20,20,26,0.72))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 'var(--card-radius)', padding: 'var(--card-pad-sm)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: rosterViewportWidth <= 767 ? 'wrap' : 'nowrap', minWidth: 0 }}>
+        <span className="wr-module-toolbar-label">Scope</span>
+        <select value={rosterFilter} onChange={e => setRosterFilter(e.target.value)} style={rosterSelectStyle(rosterFilter !== 'All')} title="Show a slot or position group">
+          {rosterFilterOptions.map(f => <option key={f} value={f}>{f}</option>)}
+        </select>
+
+        <span className="wr-module-toolbar-label">View</span>
+        <select value={activePresetKey} onChange={e => { const key = e.target.value; const cols = COLUMN_PRESETS[key]; if (!cols) return; setVisibleCols(cols); setColPreset(key); if (key === 'rookie') setRosterFilter('Rookies'); else if (rosterFilter === 'Rookies') setRosterFilter('All'); }} style={rosterSelectStyle(activePresetKey !== 'default')} title="Column preset">
+          {Object.keys(COLUMN_PRESETS).map(key => <option key={key} value={key}>{COLUMN_PRESET_META[key]?.label || key}</option>)}
+          {activePresetKey === 'custom' && <option value="custom">Custom</option>}
+        </select>
+        <button onClick={() => setShowColPicker(!showColPicker)} style={{ ...controlBtn(showColPicker || activePresetKey === 'custom'), minHeight: '44px', flexShrink: 0 }} title="Add, remove, or reorder columns">Customize</button>
+
+        <span className="wr-module-toolbar-label">PPG</span>
+        <select value={ppgWindow} onChange={e => setPpgWindow(e.target.value)} style={rosterSelectStyle(ppgWindow !== 'season')} title="Points-per-game window">
+          <option value="season">Season</option>
+          <option value="l5">L5</option>
+          <option value="l3">L3</option>
+        </select>
+
+        <span className="wr-module-toolbar-label">Rows</span>
+        <select value={rowDensity} onChange={e => setRowDensity(e.target.value)} style={rosterSelectStyle(rowDensity !== 'comfortable')} title="Row density">
+          <option value="comfortable">Comfort</option>
+          <option value="compact">Compact</option>
+        </select>
+
+        <span className="wr-module-toolbar-label">Group</span>
+        <select value={rosterGroupMode} onChange={e => setRosterGroupMode(e.target.value)} style={rosterSelectStyle(rosterGroupMode !== 'position')} title="Group rows by">
+          {GROUP_MODES.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
+        </select>
+
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+          <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, whiteSpace: 'nowrap' }}>{filtered.length} / {allPlayers.length} shown</span>
+          {window.WR?.SavedViews?.SavedViewBar && React.createElement(window.WR.SavedViews.SavedViewBar, {
+            surface: 'roster',
+            leagueId: currentLeague?.id,
+            currentState: { columns: visibleCols, sort: rosterSort, filters: { rosterFilter, rosterGroupMode, rowDensity } },
+            onApply: (v) => {
+              if (Array.isArray(v.columns) && v.columns.length) { setVisibleCols(v.columns); setColPreset('custom'); }
+              if (v.sort && v.sort.key) setRosterSort({ key: v.sort.key, dir: v.sort.dir || 1 });
+              if (v.filters && typeof v.filters.rosterFilter === 'string') setRosterFilter(v.filters.rosterFilter);
+              if (v.filters && typeof v.filters.rosterGroupMode === 'string') setRosterGroupMode(v.filters.rosterGroupMode);
+              if (v.filters && typeof v.filters.rowDensity === 'string') setRowDensity(v.filters.rowDensity);
+            },
+          })}
+        </div>
+      </section>
+      )}
+      </React.Fragment>}
+
+      <div>
+
+      {/* Column picker dropdown */}
+      {showColPicker && (
+        <div style={{ background: 'linear-gradient(180deg, var(--surf-solid, rgba(22,22,29,0.98)), var(--surf-solid, rgba(10,10,14,0.98)))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '10px', padding: '12px', marginBottom: '10px', boxShadow: '0 10px 28px rgba(0,0,0,0.24)' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
+            <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', color: 'var(--white)', fontWeight: 700, letterSpacing: '0.04em' }}>Customize Columns</div>
+            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.58 }}>{visibleCols.length} of {Object.keys(ROSTER_COLUMNS).length} active</div>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <button onClick={() => setCustomColumns(Object.keys(ROSTER_COLUMNS))} style={controlBtn(inactiveColumnCount === 0)}>All Fields</button>
+              <button onClick={() => setCustomColumns(COLUMN_PRESETS.default)} style={controlBtn(activePresetKey === 'default')}>Reset Default</button>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: rosterViewportWidth <= 820 ? '1fr' : 'minmax(280px, 0.9fr) minmax(360px, 1.4fr)', gap: '12px', alignItems: 'start' }}>
+            <div style={{ background: 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: '8px', padding: '10px', minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
+                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800 }}>Active Order</div>
+                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.54 }}>{activeColumnOrder.length} visible</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', paddingRight: '2px' }}>
+                {activeColumnOrder.length === 0 ? (
+                  <div style={{ padding: '12px', borderRadius: '8px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', color: 'var(--silver)', opacity: 0.62, fontSize: '0.74rem' }}>Only the player column is visible.</div>
+                ) : activeColumnOrder.map((key, idx) => {
+                  const col = ROSTER_COLUMNS[key];
+                  return (
+                    <div key={key} style={{ display: 'grid', gridTemplateColumns: '22px minmax(0, 1fr) 26px 26px 26px', gap: '5px', alignItems: 'center', padding: '5px 6px', borderRadius: '7px', background: 'var(--acc-fill2, rgba(212,175,55,0.075))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.14))' }}>
+                      <span style={{ color: 'var(--silver)', opacity: 0.55, fontSize: 'var(--text-micro, 0.6875rem)', textAlign: 'right' }}>{idx + 1}</span>
+                      <span title={col.label} style={{ color: 'var(--white)', fontSize: '0.74rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.shortLabel || col.label}</span>
+                      <button disabled={idx === 0} onClick={() => moveVisibleColumn(key, -1)} title="Move left" style={{ height: '24px', borderRadius: '5px', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: idx === 0 ? 'var(--ov-2, rgba(255,255,255,0.025))' : 'var(--ov-4, rgba(255,255,255,0.06))', color: idx === 0 ? 'var(--ov-7, rgba(255,255,255,0.24))' : 'var(--silver)', cursor: idx === 0 ? 'default' : 'pointer' }}>{'\u2039'}</button>
+                      <button disabled={idx === activeColumnOrder.length - 1} onClick={() => moveVisibleColumn(key, 1)} title="Move right" style={{ height: '24px', borderRadius: '5px', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: idx === activeColumnOrder.length - 1 ? 'var(--ov-2, rgba(255,255,255,0.025))' : 'var(--ov-4, rgba(255,255,255,0.06))', color: idx === activeColumnOrder.length - 1 ? 'var(--ov-7, rgba(255,255,255,0.24))' : 'var(--silver)', cursor: idx === activeColumnOrder.length - 1 ? 'default' : 'pointer' }}>{'\u203A'}</button>
+                      <button onClick={() => removeVisibleColumn(key)} title="Hide column" style={{ height: '24px', borderRadius: '5px', border: '1px solid rgba(231,76,60,0.22)', background: 'rgba(231,76,60,0.08)', color: 'var(--bad)', cursor: 'pointer' }}>{'\u00D7'}</button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.07))' }}>
+                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '7px' }}>Group Rows By</div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {GROUP_MODES.map(opt => (
+                    <button key={opt.key} onClick={() => setRosterGroupMode(opt.key)} style={controlBtn(rosterGroupMode === opt.key)}>{opt.label}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px' }}>
+              {columnGroups.map(({ group, columns }) => (
+                <div key={group} style={{ background: 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: '8px', padding: '8px' }}>
+                  <div style={{ marginBottom: '6px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800 }}>{group}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {columns.map(([key, col]) => {
+                      const active = visibleCols.includes(key);
+                      return (
+                        <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '5px 7px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.74rem', background: active ? 'var(--acc-fill2, rgba(212,175,55,0.1))' : 'var(--ov-1, rgba(255,255,255,0.018))', color: active ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (active ? 'var(--acc-fill3, rgba(212,175,55,0.18))' : 'var(--ov-3, rgba(255,255,255,0.04))') }}>
+                          <input type="checkbox" checked={active} onChange={() => {
+                            if (active) removeVisibleColumn(key);
+                            else addVisibleColumn(key);
+                          }} style={{ accentColor: 'var(--gold)' }} />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Roster table with inline expand cards — desktop/tablet renders the
+          hoisted board verbatim; the phone tier re-homes it: AssetRow card
+          list by default, or the full board inside the scoped Deep Data
+          scroll wrap (P7) so no column is ever lost. */}
+      {!_phone && _renderRosterBoard()}
+      {_phone && isDeepData && (
+        <div className="wr-sticky-table-wrap" style={{ border: 'none' }}>{_renderRosterBoard()}</div>
+      )}
+      {_phone && !isDeepData && _renderPhoneCards()}
 
       </div>
     </div>

@@ -178,6 +178,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
                scrims 500–1000 < scout drawer 9000 < dropdown popover 9999. */
             --wr-z-nav-overlay: 99;
             --wr-z-nav: 100;      /* sidebar drawer + phone bottom dock */
+            --wr-z-actionbar: 150; /* WR.ActionBar live-decision strip — above nav (100), below sheet (200) */
             --wr-z-sheet: 200;    /* chat panels / bottom sheets */
             --wr-z-fab: 201;
             --wr-z-toast: 202;
@@ -2253,6 +2254,108 @@ WRShared.preloadMany(WR_SHARED_FILES);
            the declaration is invalid and the base 88vh (line ~1502) stands.
            Phone-scoped so the tablet/desktop tiers keep the audited vh. */
         .draft-scout-drawer { max-height:88dvh; }
+
+        /* ── Phase 0 phone pattern kit (P2/P4/P6/P7) — brand-new classes,
+           never referenced by desktop CSS or markup. Component partners
+           live in js/components/wr-primitives.js (HeroCard / AssetRow /
+           CardList / FilterPill / FilterSheet / ActionBar). ── */
+
+        /* P2 .wr-seg — one segmented sub-nav idiom for tabs-within-tabs
+           surfaces. 4+ items scroll horizontally (scrollbar hidden);
+           children keep flex:1 so short sets distribute evenly. */
+        .wr-seg {
+            display:flex;
+            background:#101015;
+            border:1px solid rgba(255,255,255,0.08);
+            border-radius:8px;
+            overflow-x:auto;
+            overflow-y:hidden;
+            -webkit-overflow-scrolling:touch;
+            scrollbar-width:none;
+        }
+        .wr-seg::-webkit-scrollbar { display:none; }
+        .wr-seg > * {
+            flex:1 1 0;
+            min-width:fit-content;
+            text-align:center;
+            font-family:var(--font-mono, 'JetBrains Mono', monospace);
+            font-size:var(--text-micro, 0.6875rem); /* 11px floor */
+            font-weight:600;
+            letter-spacing:0.04em;
+            text-transform:uppercase;
+            white-space:nowrap;
+            color:#8B8B96;
+            background:transparent;
+            border:none;
+            border-top:2px solid transparent;
+            padding:9px 10px;
+            cursor:pointer;
+        }
+        .wr-seg > .is-on { color:var(--gold); border-top-color:var(--gold); background:var(--surface-2, #1B1B22); }
+
+        /* P4 .wr-kpi-strip — horizontally snapping KPI band (~2.3 tiles
+           visible at 390px) replacing stacked 1-col KPI grids. */
+        .wr-kpi-strip {
+            display:flex;
+            gap:8px;
+            overflow-x:auto;
+            overflow-y:hidden;
+            -webkit-overflow-scrolling:touch;
+            scroll-snap-type:x mandatory;
+            scrollbar-width:none;
+        }
+        .wr-kpi-strip::-webkit-scrollbar { display:none; }
+        .wr-kpi-strip > * {
+            flex:none;
+            min-width:96px;
+            scroll-snap-align:start;
+        }
+
+        /* P7 .wr-sticky-table-wrap — the SANCTIONED horizontal-scroll escape
+           (body is overflow-x:clip): scoped overflow-x container + sticky
+           first column so "Deep Data" demotion never means removal. */
+        .wr-sticky-table-wrap {
+            overflow-x:auto;
+            -webkit-overflow-scrolling:touch;
+            overscroll-behavior-x:contain;
+            border:1px solid rgba(255,255,255,0.07);
+            border-radius:8px;
+            scrollbar-width:none;
+        }
+        .wr-sticky-table-wrap::-webkit-scrollbar { display:none; }
+        .wr-sticky-table th:first-child,
+        .wr-sticky-table td:first-child,
+        .wr-sticky-table .wr-stick-col {
+            position:sticky;
+            left:0;
+            z-index:1;
+            background:var(--black, #121217); /* solid — scrolling cells must not ghost through */
+            border-right:1px solid rgba(255,255,255,0.08);
+        }
+
+        /* P6 .wr-phone-actionbar — fixed live-decision strip riding above
+           the dock on --wr-z-actionbar (150: nav 100 < bar < sheet 200).
+           WR.ActionBar (wr-primitives.js) unmounts it off-phone and while
+           the keyboard is open. */
+        .wr-phone-actionbar {
+            position:fixed;
+            left:10px;
+            right:10px;
+            bottom:calc(var(--wr-bottom-inset) + 8px);
+            z-index:var(--wr-z-actionbar, 150);
+            display:flex;
+            flex-direction:row;
+            align-items:center;
+            gap:10px;
+            padding:10px 12px;
+            background:var(--surface-2, #1B1B22);
+            border:1px solid rgba(212,175,55,0.5);
+            border-radius:9px;
+            font-family:var(--font-mono, 'JetBrains Mono', monospace);
+            font-size:0.75rem; /* 12px */
+            font-weight:600;
+            box-shadow:0 8px 22px rgba(0,0,0,0.45);
+        }
     }
     /* Short-viewport phones (landscape): slimmer dock so it doesn't eat a
        375px-tall viewport. Same tier, height-guarded (plan D9). Only
