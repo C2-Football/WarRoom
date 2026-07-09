@@ -276,6 +276,7 @@ const LEGACY_MODULE_MAP = {
 
 // ══════════════════════════════════════════════════════════════════
 // DashboardWidgetPicker — full-screen iPhone-style overlay
+// (phone tier <768 renders as a WR.Sheet — see the _phonePicker branch)
 // ══════════════════════════════════════════════════════════════════
 function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
     const [step, setStep] = React.useState(editWidget ? 'size' : 'module');
@@ -305,6 +306,122 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
         const metric = selectedMetric || (mod?.metrics?.[0]?.key || null);
         onAdd({ id: selectedModule + '_' + Date.now(), key: selectedModule, size: selectedSize, primaryMetric: metric });
         onClose();
+    }
+
+    // ── Phone tier (iPhone Phase 4): the picker opens as a WR.Sheet
+    // instead of the capped centered modal. Module list = full-width
+    // AssetRow rows (icon + name + one-line description, 🔒 Pro badge at
+    // the exact `m.pro && !pickerPro` boundary the desktop grid labels —
+    // zero gate movement); tapping a row expands its 44px size chips
+    // (+ Primary Stat chips when the module offers a choice); the sticky
+    // sheet-footer ADD/UPDATE button runs the same handleConfirm →
+    // onAdd({id,key,size,primaryMetric}) layout-slot semantics. The
+    // desktop modal return below is byte-identical to the pre-phase
+    // file. Hook-order safety: viewport.js + wr-primitives.js are plain
+    // scripts loaded before the babel chain, so the branch condition is
+    // fixed for the picker's lifetime.
+    const _pickerVp = (window.WR && window.WR.useViewport) ? window.WR.useViewport() : { isPhone: false };
+    const _phonePicker = _pickerVp.isPhone && !!(window.WR && window.WR.Sheet && window.WR.AssetRow);
+    // Edit mode opens with its module row pre-expanded — 18 rows scroll
+    // well past one sheet height, so center the row once on mount.
+    const _phoneEditRowRef = React.useCallback(node => {
+        if (node) { try { node.scrollIntoView({ block: 'center' }); } catch (e) { /* noop */ } }
+    }, []);
+
+    if (_phonePicker) {
+        const Sheet = window.WR.Sheet;
+        const AssetRow = window.WR.AssetRow;
+        const monoCaps = { fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' };
+        const chipBase = (active, accentCol) => ({
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            minHeight: '44px', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer',
+            border: '1px solid ' + (active ? (accentCol || 'var(--gold)') : 'var(--ov-6, rgba(255,255,255,0.1))'),
+            background: active ? 'var(--acc-fill2, rgba(212,175,55,0.1))' : 'var(--ov-1, rgba(255,255,255,0.02))',
+            color: active ? 'var(--gold)' : 'var(--silver)',
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600,
+        });
+        // Row tap toggles selection/expansion. Switching modules keeps the
+        // metric default in sync (same setter pair as the desktop grid tap)
+        // and drops a carried size the new module doesn't offer, so the
+        // footer can never confirm an invalid module+size pair.
+        const pickModule = (key, m) => {
+            if (selectedModule === key) { setSelectedModule(null); return; }
+            setSelectedModule(key);
+            setSelectedMetric(m.metrics?.[0]?.key || null);
+            if (selectedSize && !(m.sizes || []).includes(selectedSize)) setSelectedSize(null);
+        };
+        return (
+            <Sheet open={true} onClose={onClose} title={editWidget ? 'Edit widget' : 'Add widget'}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px 14px 0' }}>
+                    {Object.entries(WIDGET_MODULES).map(([key, m]) => {
+                        const isSel = selectedModule === key;
+                        const accentCol = typeof m.accent === 'function' ? m.accent() : m.accent;
+                        const row = (
+                            <AssetRow
+                                key={key}
+                                data-picker-module={key}
+                                pos={<span aria-hidden="true" style={{ fontSize: '1rem', lineHeight: 1 }}>{m.icon}</span>}
+                                name={m.label}
+                                tag={m.description}
+                                verdict={m.pro && !pickerPro ? (
+                                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-micro, 0.6875rem)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)', border: '1px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius: '2px', padding: '1px 6px', whiteSpace: 'nowrap' }}>🔒 Pro</span>
+                                ) : null}
+                                accent={isSel ? 'gold' : undefined}
+                                expanded={isSel}
+                                onClick={() => pickModule(key, m)}
+                            >
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    <div>
+                                        <div style={{ ...monoCaps, color: 'var(--silver)', opacity: 0.65, marginBottom: '6px' }}>Size</div>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                            {m.sizes.map(sz => {
+                                                const meta = SIZE_META[sz];
+                                                if (!meta) return null;
+                                                const on = selectedSize === sz;
+                                                return (
+                                                    <button key={sz} type="button" onClick={() => setSelectedSize(sz)} style={chipBase(on, accentCol)}>
+                                                        {meta.label}
+                                                        <span style={{ opacity: 0.55, fontWeight: 500 }}>{meta.dims}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                    {m.metrics.length > 1 && (
+                                        <div>
+                                            <div style={{ ...monoCaps, color: 'var(--gold)', marginBottom: '6px' }}>Primary Stat</div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                                {m.metrics.map(mt => (
+                                                    <button key={mt.key} type="button" onClick={() => setSelectedMetric(mt.key)} style={chipBase(selectedMetric === mt.key, accentCol)}>{mt.label}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </AssetRow>
+                        );
+                        return editWidget && editWidget.key === key
+                            ? <div key={'edit-' + key} ref={_phoneEditRowRef}>{row}</div>
+                            : row;
+                    })}
+                </div>
+                {/* Sticky footer — FilterSheet idiom: pinned inside the sheet-body scroller */}
+                <div style={{
+                    position: 'sticky', bottom: 0, marginTop: '12px', padding: '10px 14px',
+                    background: 'var(--k-0a0b0d, #0a0b0d)',
+                    borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.07))',
+                }}>
+                    <button type="button" onClick={handleConfirm} disabled={!selectedModule || !selectedSize} style={{
+                        width: '100%', minHeight: '48px', padding: '12px', borderRadius: '8px',
+                        cursor: (selectedModule && selectedSize) ? 'pointer' : 'not-allowed',
+                        background: (selectedModule && selectedSize) ? 'var(--gold)' : 'var(--ov-4, rgba(255,255,255,0.06))',
+                        border: 'none', color: (selectedModule && selectedSize) ? 'var(--k-000000, #000000)' : 'var(--silver)',
+                        fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-body, 1rem)', fontWeight: 700,
+                        letterSpacing: '0.06em',
+                    }}>{editWidget ? 'UPDATE WIDGET' : 'ADD TO DASHBOARD'}</button>
+                </div>
+            </Sheet>
+        );
     }
 
     return (
