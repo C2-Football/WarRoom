@@ -86,6 +86,7 @@ function CompareTab({
         try { return localStorage.getItem('wr_compare_division_' + (leagueId || 'default')) || ''; } catch { return ''; }
     });
     const [h2hState, setH2hState] = React.useState({ loading: false, meetings: [], error: null, loadedFor: null });
+    const [heatPos, setHeatPos] = React.useState(null); // phone Position Heatmap: selected position (null → first)
 
     // Phone tier (≤767): shared viewport seam (js/shared/viewport.js) — every
     // phone-conditional style below keys off this so tablet/desktop never change.
@@ -1128,16 +1129,43 @@ function CompareTab({
                             (My Roster pattern; zebra differs here, so each sticky cell paints
                             its translucent fill over an opaque --black underlay instead of
                             background:'inherit'). Tablet/desktop: identical to before. */}
-                        <div style={{ display: 'grid', gridTemplateColumns: (isPhone ? 'minmax(92px,1.2fr)' : 'minmax(112px,1.2fr)') + ' repeat(8,minmax(38px,1fr))', gap: '5px', alignItems: 'stretch', ...(isPhone ? { overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '4px' } : null) }}>
-                            {/* opacity:1 at phone — element opacity would make the sticky
-                                cell's opaque bg translucent and let scrolled cells bleed through */}
-                            <div style={{ ...labelStyle, ...(isPhone ? { position: 'sticky', left: 0, zIndex: 1, background: 'var(--black)', opacity: 1 } : null) }}>Team</div>
+                        {isPhone ? (() => {
+                            // Phone: the 9-column grid is unreadable at 375px, so
+                            // pivot to a position toggle + a ranked team leaderboard
+                            // for the picked position (owner ask). Desktop keeps the
+                            // grid (the else branch below, untouched).
+                            const activePos = (heatPos && allPositions.includes(heatPos)) ? heatPos : allPositions[0];
+                            const ranked = [...sortedProfiles].sort((a, b) => (b.posTotals[activePos] || 0) - (a.posTotals[activePos] || 0));
+                            const maxV = maxByPos[activePos] || 1;
+                            const myRank = ranked.findIndex(p => p.isMine) + 1;
+                            return (
+                            <React.Fragment>
+                                <div className="wr-hscroll" style={{ display: 'flex', gap: '6px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '6px' }}>
+                                    {allPositions.map(pos => { const on = pos === activePos, c = posColors[pos] || 'var(--silver)'; return <button key={pos} onClick={() => setHeatPos(pos)} style={{ flex: 'none', minHeight: '40px', padding: '7px 13px', borderRadius: '8px', ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap', color: on ? c : 'var(--silver)', background: on ? 'rgba(255,255,255,0.06)' : 'transparent', border: '1px solid ' + (on ? c : 'var(--ov-6, rgba(255,255,255,0.12))') }}>{posLabel(pos)}</button>; })}
+                                </div>
+                                <div style={{ fontSize: '0.76rem', color: 'var(--silver)', margin: '2px 2px 8px', lineHeight: 1.4 }}>Every team's <b style={{ color: posColors[activePos] || 'var(--white)' }}>{posLabel(activePos)}</b> value{myRank > 0 ? <React.Fragment> — you rank <b style={{ color: 'var(--gold)' }}>#{myRank} of {ranked.length}</b></React.Fragment> : ''}.</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    {ranked.map((p, i) => { const val = p.posTotals[activePos] || 0, isLead = i === 0; const barC = p.isMine ? 'var(--gold)' : isLead ? 'var(--good)' : 'var(--k-7c6bf8, #7c6bf8)'; return (
+                                        <div key={p.rosterId} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '8px', background: p.isMine ? 'var(--acc-fill2, rgba(212,175,55,0.1))' : 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid ' + (p.isMine ? 'rgba(212,175,55,0.4)' : 'var(--ov-4, rgba(255,255,255,0.06))') }}>
+                                            <span style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: p.isMine ? 'var(--gold)' : 'var(--text-muted, #8B8B96)', minWidth: '20px' }}>{i + 1}</span>
+                                            <span style={{ flex: 1, minWidth: 0, fontSize: '0.85rem', fontWeight: 600, color: p.isMine ? 'var(--gold)' : 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                                            {isLead ? <span style={{ ...mono, fontSize: '0.56rem', fontWeight: 800, color: 'var(--good)', letterSpacing: '0.06em' }}>TOP</span> : null}
+                                            <div style={{ flex: '0 0 82px', height: '6px', background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '3px', overflow: 'hidden' }}><div style={{ width: (val / maxV * 100) + '%', height: '100%', background: barC }} /></div>
+                                            <span style={{ ...mono, fontSize: '0.78rem', fontWeight: 700, color: p.isMine ? 'var(--gold)' : 'var(--silver)', minWidth: '34px', textAlign: 'right' }}>{Math.round(val / 1000)}k</span>
+                                        </div>
+                                    ); })}
+                                </div>
+                            </React.Fragment>
+                            );
+                        })() : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(112px,1.2fr) repeat(8,minmax(38px,1fr))', gap: '5px', alignItems: 'stretch' }}>
+                            <div style={{ ...labelStyle }}>Team</div>
                             {allPositions.map(pos => <div key={pos} style={{ ...labelStyle, textAlign: 'center', color: posColors[pos] || 'var(--silver)' }}>{posLabel(pos)}</div>)}
                             {sortedProfiles.map(profile => {
                                 const teamFill = profile.isMine ? 'var(--acc-fill2, rgba(212,175,55,0.11))' : 'var(--ov-2, rgba(255,255,255,0.025))';
                                 return (
                                 <React.Fragment key={'hm-' + profile.rosterId}>
-                                    <div style={{ padding: '7px 6px', borderRadius: '5px', background: isPhone ? 'linear-gradient(' + teamFill + ', ' + teamFill + ') var(--black)' : teamFill, color: profile.isMine ? 'var(--gold)' : 'var(--white)', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', ...(isPhone ? { position: 'sticky', left: 0, zIndex: 1 } : null) }}>{profile.name}</div>
+                                    <div style={{ padding: '7px 6px', borderRadius: '5px', background: teamFill, color: profile.isMine ? 'var(--gold)' : 'var(--white)', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile.name}</div>
                                     {allPositions.map(pos => {
                                         const val = profile.posTotals[pos] || 0;
                                         const isBest = bestByPos[pos] === profile.rosterId;
@@ -1153,6 +1181,7 @@ function CompareTab({
                                 );
                             })}
                         </div>
+                        )}
                     </div>
                 </div>
 
