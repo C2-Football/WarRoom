@@ -663,6 +663,26 @@ function MyTeamTab({
   const isCompactRoster = rosterViewportWidth <= 1023;
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [reviewOpen, setReviewOpen] = React.useState(false); // phone "review flagged players" sheet
+  // Manual verdict overrides (owner ask): the user can set their own
+  // Hold/Stash/Sell/Drop on a player, overriding the engine's r.rec.
+  // Per-league localStorage, mirroring the dismissedDrops pattern. Phone
+  // display + editor for now (desktop keeps the engine read).
+  const [verdictOverrides, setVerdictOverrides] = React.useState(() => {
+    try { const lid = currentLeague?.id || currentLeague?.league_id || ''; return JSON.parse(localStorage.getItem('dhq_roster_verdict_v1:' + lid) || '{}') || {}; } catch (e) { return {}; }
+  });
+  const [tagEditPid, setTagEditPid] = React.useState(null); // which player's verdict picker is open
+  const setPlayerVerdict = (pid, v) => {
+    setVerdictOverrides(prev => {
+      const next = { ...prev };
+      if (v) next[pid] = v; else delete next[pid];
+      try { const lid = currentLeague?.id || currentLeague?.league_id || ''; localStorage.setItem('dhq_roster_verdict_v1:' + lid, JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
+  };
+  const _effRec = (r) => verdictOverrides[r.pid] || r.rec;
+  // Verdict → accent color (shared by chip + badge + picker). Drop=red,
+  // Sell=amber, Buy/Build/Core=green, Stash=blue, Hold/else=gold.
+  const _recColor = (rec) => /drop|cut/i.test(rec || '') ? 'var(--bad)' : /sell/i.test(rec || '') ? 'var(--warn)' : /buy|build|core/i.test(rec || '') ? 'var(--good)' : /stash/i.test(rec || '') ? 'var(--k-3498db, #3498db)' : 'var(--gold)';
   // Filtering visibleCols on ROSTER_COLUMNS here is what keeps a persisted
   // 'action' pref from rendering for free (its def is deleted above).
   // (The old ≤560 3-col survival set is deleted: ≤560 is always inside the
@@ -948,9 +968,13 @@ function MyTeamTab({
                             DESKTOP/tablet keep the original block byte-identical
                             (renderExpandBody is shared with the roster board). */}
                         {isPhoneCard ? (
-                          isPro ? (
-                        <span style={{ flexShrink: 0, alignSelf: 'center', display: 'inline-block', fontFamily: 'Rajdhani, sans-serif', fontSize: '1.15rem', fontWeight: 700, color: vColor, textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1, padding: '6px 15px', borderRadius: '999px', border: '1px solid ' + wrAlpha(vColor, '55'), background: wrAlpha(vColor, '16'), whiteSpace: 'nowrap' }}>{verdict}</span>
-                          ) : (
+                          isPro ? (() => {
+                            const ev = _effRec(r) || 'Hold';
+                            const evc = _recColor(ev);
+                            return (
+                        <button onClick={e => { e.stopPropagation(); setTagEditPid(p => p === r.pid ? null : r.pid); }} title="Tap to set your own call" aria-expanded={tagEditPid === r.pid} style={{ flexShrink: 0, alignSelf: 'center', display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: 'Rajdhani, sans-serif', fontSize: '1.15rem', fontWeight: 700, color: evc, textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1, padding: '6px 13px', borderRadius: '999px', border: '1px solid ' + wrAlpha(evc, '55'), background: wrAlpha(evc, '16'), whiteSpace: 'nowrap', cursor: 'pointer' }}>{ev}<span aria-hidden="true" style={{ fontSize: '0.7rem', opacity: 0.65 }}>{'▾'}</span></button>
+                            );
+                          })() : (
                         <button onClick={e => { e.stopPropagation(); if (window.showProLaunchPage) window.showProLaunchPage(); else if (window.showUpgradePrompt) window.showUpgradePrompt('analytics_depth'); }}
                           title="Buy/sell roster calls are a Pro read"
                           style={{ flexShrink: 0, alignSelf: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
@@ -974,6 +998,20 @@ function MyTeamTab({
                         </button>
                         )}
                       </div>
+
+                      {/* Verdict picker (phone) — set your own Hold/Stash/Sell/Drop,
+                          overriding the engine call; Auto clears back to it. */}
+                      {isPhoneCard && isPro && tagEditPid === r.pid && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', marginBottom: '10px' }}>
+                        <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.08em', marginRight: '2px' }}>Your call</span>
+                        {['Hold', 'Stash', 'Sell', 'Drop'].map(t => {
+                          const active = String(_effRec(r) || 'Hold').toLowerCase() === t.toLowerCase();
+                          const c = _recColor(t);
+                          return <button key={t} onClick={e => { e.stopPropagation(); setPlayerVerdict(r.pid, t); setTagEditPid(null); }} style={{ minHeight: '38px', padding: '6px 13px', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', borderRadius: '6px', cursor: 'pointer', color: active ? c : 'var(--silver)', background: active ? wrAlpha(c, '22') : 'transparent', border: '1px solid ' + (active ? wrAlpha(c, '99') : 'var(--ov-6, rgba(255,255,255,0.12))') }}>{t}</button>;
+                        })}
+                        {verdictOverrides[r.pid] && <button onClick={e => { e.stopPropagation(); setPlayerVerdict(r.pid, null); setTagEditPid(null); }} title="Revert to the DHQ engine call" style={{ minHeight: '38px', padding: '6px 13px', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', borderRadius: '6px', cursor: 'pointer', color: 'var(--text-muted)', background: 'transparent', border: '1px dashed var(--ov-6, rgba(255,255,255,0.14))' }}>{'↺'} Auto</button>}
+                      </div>
+                      )}
 
                       {/* Signals chip strip */}
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
@@ -1134,11 +1172,13 @@ function MyTeamTab({
   // and render no chip even if a gate upstream is ever missed. Tones per
   // the approved mockup: SELL amber / CORE-BUILD gold / rest calm blue.
   const _phoneVerdictChip = (r) => {
-    if (!isPro || !r.rec) return null;
-    const col = /sell/i.test(r.rec) ? 'var(--warn)' : /buy|build|core/i.test(r.rec) ? 'var(--gold)' : 'var(--k-5dade2, #5DADE2)';
+    const rec = _effRec(r);
+    if (!isPro || !rec) return null;
+    const isManual = !!verdictOverrides[r.pid];
+    const col = _recColor(rec);
     return (
-      <span title={r.gmSellNudge ? 'Nudged to Sell by GM Strategy (position/age trips a sell rule)' : ''} style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, padding: '2px 6px', borderRadius: '4px', border: '1px solid ' + wrAlpha(col, '80'), color: col, letterSpacing: '0.02em', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
-        {r.rec}{r.gmSellNudge ? ' ·GM' : ''}
+      <span title={isManual ? 'Your call (tap the badge in the player card to change)' : (r.gmSellNudge ? 'Nudged to Sell by GM Strategy (position/age trips a sell rule)' : '')} style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, padding: '2px 6px', borderRadius: '4px', border: '1px solid ' + wrAlpha(col, '80'), color: col, letterSpacing: '0.02em', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
+        {rec}{isManual ? ' *' : (r.gmSellNudge ? ' ·GM' : '')}
       </span>
     );
   };
@@ -1273,7 +1313,7 @@ function MyTeamTab({
       },
     });
     const _dropPidSet = new Set(dropAlerts.map(r => r.pid));
-    const _sellRows = isPro ? rows.filter(r => /sell/i.test(r.rec || '') && !_dropPidSet.has(r.pid)) : [];
+    const _sellRows = isPro ? rows.filter(r => /sell/i.test(_effRec(r) || '') && !_dropPidSet.has(r.pid)) : [];
     const _reviewGroups = [];
     if (dropAlerts.length) _reviewGroups.push({ label: 'Drop alerts', sub: String(dropAlerts.length), rows: dropAlerts.map(_reviewRow) });
     if (_sellRows.length) _reviewGroups.push({ label: 'Sell calls', sub: String(_sellRows.length), rows: _sellRows.map(_reviewRow) });
