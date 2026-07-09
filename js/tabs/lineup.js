@@ -41,6 +41,7 @@ function LineupTab({
     const [openSlot, setOpenSlot] = React.useState(null);  // slot idx whose picker is expanded
     const [workingAssign, setWorkingAssign] = React.useState({}); // slotIdx -> pid (the user's working lineup)
     const [applyOpen, setApplyOpen] = React.useState(false);      // phone-only: WR.ActionBar apply/push sheet (inert off-phone)
+    const [phoneView, setPhoneView] = React.useState('week');     // phone Game Day: 'week' (matchup + lineup) | 'season' (outlook + schedule)
 
     const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #9aa0a6)', TEXT = 'var(--text, #e8e8ea)';
     const GREEN = 'var(--k-2ecc71, #2ecc71)', RED = 'var(--k-e74c3c, #e74c3c)', AMBER = 'var(--k-f0a500, #f0a500)';
@@ -792,12 +793,15 @@ function LineupTab({
 
         return (
             <div style={{ padding: '14px 12px 72px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {heroEl}
+                {/* This Week ⇄ Season toggle (owner ask) — week = matchup +
+                    lineup; season = outlook + schedule. */}
+                <div className="wr-seg">
+                    <button className={phoneView === 'week' ? 'is-on' : ''} onClick={() => setPhoneView('week')}>This Week</button>
+                    <button className={phoneView === 'season' ? 'is-on' : ''} onClick={() => setPhoneView('season')}>Season</button>
+                </div>
 
-                {/* P1 slot table — the working lineup as card rows */}
-                <CardList groups={[{ label: 'Starters', sub: 'Proj ' + workingTotal.toFixed(1), rows: dispSlots.map(slotRow) }]} />
-
-                {/* P4 matchup strip — H2H stakes below the lineup work. Free
+                {phoneView === 'week' ? (<React.Fragment>
+                {/* Matchup + breakdown LEAD the week view (owner ask). Free
                     keeps the raw you-vs-their-current totals; win%, margin,
                     their-ideal and the breakdown stay Pro (existing gates). */}
                 {matchup ? (
@@ -860,12 +864,14 @@ function LineupTab({
                     </div>
                 ) : null}
 
-                {/* Rail sections (season outlook / bye watch / schedule) re-pour
-                    BELOW the lineup as stacked cards — renderRail carries every
-                    existing free/Pro gate; the desktop 2-col grid + right-rail
-                    column never mounts on phone. */}
-                {goldDiv('Season')}
+                {/* Optimizer + working lineup, below the matchup lead. */}
+                {heroEl}
+                <CardList groups={[{ label: 'Starters', sub: 'Proj ' + workingTotal.toFixed(1), rows: dispSlots.map(slotRow) }]} />
+                </React.Fragment>) : (<React.Fragment>
+                {/* Season view — outlook + week-by-week schedule (renderRail
+                    carries every existing free/Pro gate). */}
                 {renderRail()}
+                </React.Fragment>)}
 
                 {/* P3-style picker sheet — bench players for the open slot */}
                 <Sheet open={!!openSl} onClose={() => setOpenSlot(null)} title={openSl ? 'Set ' + openSl.slotName.replace('_', ' ') : ''} desktop={null}>
@@ -914,7 +920,7 @@ function LineupTab({
                 {/* P6 action bar — live while the working lineup differs from
                     the platform lineup. APPLY = the same applyOptimal path
                     (Pro); bar tap opens the apply/push sheet. */}
-                <ActionBar visible={dirty} label="WORKING LINEUP"
+                <ActionBar visible={dirty && phoneView === 'week'} label="WORKING LINEUP"
                     value={pro ? (isOptimal ? workingTotal.toFixed(1) + ' PROJ' : '+' + benchPts.toFixed(1)) : workingTotal.toFixed(1) + ' PROJ'}
                     tone="good" actionLabel="APPLY"
                     onAction={pro ? applyOptimal : () => setApplyOpen(true)}
