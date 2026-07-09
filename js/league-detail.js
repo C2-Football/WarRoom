@@ -3366,6 +3366,24 @@
                                             <span style={{ ...rowVal, color: gm.badgeColor }}>{gm.label}</span>
                                             <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.8rem' }}>›</span>
                                         </button>}
+                                        {/* Season selector — relocated from the (now phone-hidden) time bar.
+                                            Native select → the iOS wheel picker; same handleTimeYearChange. */}
+                                        <div style={{ ...rowSt, cursor: 'default' }}>
+                                            <span style={rowLbl}>Season</span>
+                                            <select value={timeYear} onChange={e => handleTimeYearChange(Number(e.target.value))} aria-label="Season year" style={{ flex: 1, minWidth: 0, background: 'var(--ov-2, rgba(255,255,255,0.04))', color: isCurrentYear ? 'var(--gold)' : 'var(--k-45b7d1, #45b7d1)', border: '1px solid var(--ov-4, rgba(255,255,255,0.08))', borderRadius: '6px', padding: '8px 10px', minHeight: '40px', fontFamily: 'var(--font-body)', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
+                                                {(() => {
+                                                    const opt = (yr) => <option key={yr} value={yr} style={{ background: 'var(--black)', color: 'var(--white)' }}>{yr}{yr === currentSeason ? ' • current' : ''}</option>;
+                                                    const past = timeYears.filter(y => y < currentSeason);
+                                                    const cur = timeYears.filter(y => y === currentSeason);
+                                                    const future = timeYears.filter(y => y > currentSeason);
+                                                    return [
+                                                        past.length ? <optgroup key="p" label="Past seasons">{past.map(opt)}</optgroup> : null,
+                                                        cur.length ? <optgroup key="c" label="Current">{cur.map(opt)}</optgroup> : null,
+                                                        future.length ? <optgroup key="f" label="Projected">{future.map(opt)}</optgroup> : null,
+                                                    ];
+                                                })()}
+                                            </select>
+                                        </div>
                                         {headerLeagueType && <div style={{ ...rowSt, cursor: 'default' }}>
                                             <span style={rowLbl}>Type</span>
                                             <span style={{ ...rowVal, color: headerLeagueType.color }}>{headerLeagueType.label === 'League Type Unknown' ? 'Type ?' : headerLeagueType.label}</span>
@@ -3507,8 +3525,14 @@
                 )}
 
                 {/* ── GLOBAL TIME CONTEXT BAR ── */}
+                {/* Phone (one-row header, kit live): the sticky season bar is
+                    hidden — season selection moves into the league header sheet
+                    (Season row) so the top chrome stays one row. Kit-aware, not
+                    media-queried: phoneHdrKit is only true <768 WITH WR.Sheet, so
+                    desktop + iPad (≥768) and the no-kit phone fallback keep the
+                    bar and its inline season selector. */}
                 <div className="wr-time-bar" style={{
-                    display: 'flex', alignItems: 'center', gap: '8px', padding: '8px clamp(12px, 4vw, 24px)', flexWrap: 'wrap',
+                    display: phoneHdrKit ? 'none' : 'flex', alignItems: 'center', gap: '8px', padding: '8px clamp(12px, 4vw, 24px)', flexWrap: 'wrap',
                     background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))',
                     position: 'sticky', top: 0, zIndex: 50
                 }}>
