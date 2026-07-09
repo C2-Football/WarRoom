@@ -1886,19 +1886,21 @@ function DashboardPanel({
                     )}
                 </div>
 
-                {/* Reorder entry — opens the drag-to-rearrange sheet. Replaces
-                    the per-card ▲▼ arrows on phone (owner ask). */}
-                {widgets.length >= 2 && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px var(--space-md) 0', background: BK }}>
+                {/* Customizable-widgets section header + reorder entry. The
+                    ⇅ Reorder button opens the drag-to-rearrange sheet (replaces
+                    the per-card ▲▼ arrows on phone, owner ask). */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '16px var(--space-md) 2px', background: BK }}>
+                    <div role="heading" aria-level={2} style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '1.05rem', fontWeight: 700, letterSpacing: '0.03em', color: W, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Customizable Widgets</div>
+                    {widgets.length >= 2 && (
                         <button type="button" onClick={() => setReorderOpen(true)} style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '40px', padding: '0 14px',
+                            flex: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '40px', padding: '0 14px',
                             background: 'var(--acc-fill2, rgba(212,175,55,0.10))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
                             borderRadius: '8px', color: G, cursor: 'pointer', fontFamily: dmFont, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, letterSpacing: '0.04em',
                         }}>
                             <span aria-hidden="true" style={{ fontSize: '1rem', lineHeight: 1 }}>⇅</span> Reorder
                         </button>
-                    </div>
-                )}
+                    )}
+                </div>
 
                 {/* md+ widget cards — existing stack order, original indices */}
                 <div className="wr-dashboard-grid" style={{
