@@ -2026,6 +2026,18 @@ WRShared.preloadMany(WR_SHARED_FILES);
            :root above) resolves to dock + home indicator on this tier only. */
         :root { --wr-tab-bar-h: 56px; }
 
+        /* Shell width clamp, belt-and-suspenders. The canonical clamp lives
+           in the league shell's emitted style block (league-detail.js) at
+           ≤1023; a real-device report (iPhone, 2026-07-09) showed the app
+           column stuck at the desktop inline calc(100vw - sidebar) with the
+           landing backdrop peeking on the right — i.e. that one emitted rule
+           lost on-device while this index.html block demonstrably applied
+           (the dock rendered styled). Phones must never depend on a single
+           React-emitted rule for shell width, so pin it here too. */
+        html, body, #root { max-width:100% !important; }
+        .app-container { width:100% !important; max-width:100vw !important; }
+        .wr-main-content { margin-left:0 !important; width:100% !important; max-width:100vw !important; }
+
         .wr-hamburger { top:calc(10px + var(--sat) + var(--wr-dev-banner-height, 0px)) !important; left:calc(10px + var(--sal)) !important; }
 
         /* Sidebar drawer: the ~800px nav stack overflows a 667px SE in
