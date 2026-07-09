@@ -42,6 +42,7 @@ function LineupTab({
     const [workingAssign, setWorkingAssign] = React.useState({}); // slotIdx -> pid (the user's working lineup)
     const [applyOpen, setApplyOpen] = React.useState(false);      // phone-only: WR.ActionBar apply/push sheet (inert off-phone)
     const [phoneView, setPhoneView] = React.useState('week');     // phone Game Day: 'week' (matchup + lineup) | 'season' (outlook + schedule)
+    const [appliedMoves, setAppliedMoves] = React.useState(null); // phone: swap list shown after Apply Optimal ({sl,cur,opt,gain}[])
 
     const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #9aa0a6)', TEXT = 'var(--text, #e8e8ea)';
     const GREEN = 'var(--k-2ecc71, #2ecc71)', RED = 'var(--k-e74c3c, #e74c3c)', AMBER = 'var(--k-f0a500, #f0a500)';
@@ -708,6 +709,14 @@ function LineupTab({
             ? swaps.length + ' swap' + (swaps.length === 1 ? '' : 's') + ': ' + (topSwap.cur ? pmeta(topSwap.cur).name : 'Empty') + ' → ' + (topSwap.opt ? pmeta(topSwap.opt).name : 'Empty') + ' · ' + topSwap.sl.slotName.replace('_', ' ') + ' slot'
             : 'No swaps — your best lineup is in';
 
+        // Apply Optimal, then show the moves it made as a list (owner ask).
+        // Capture the swaps BEFORE applying (post-apply they recompute to []).
+        const applyOptimalWithSummary = () => {
+            const moves = swaps.slice();
+            applyOptimal();
+            if (moves.length) setAppliedMoves(moves);
+        };
+
         // Matchup-grade verdict chip (Pro interpretation — mirrors the Mtch column gate).
         const gradeChip = (grade) => (
             <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, padding: '3px 8px', borderRadius: '5px', border: '1px solid ' + gradeColor(grade), color: gradeColor(grade), whiteSpace: 'nowrap' }}>{grade}</span>
@@ -767,7 +776,7 @@ function LineupTab({
             <HeroCard kicker="Optimizer"
                 headline={isOptimal ? 'LINEUP OPTIMAL · ' + workingTotal.toFixed(1) + ' PROJ' : 'OPTIMAL LINEUP +' + benchPts.toFixed(1) + ' PROJ'}
                 facts={isOptimal ? 'No changes needed · yours ' + workingTotal.toFixed(1) + ' = optimal ' + optimalTotal.toFixed(1) : swapFacts}
-                cta={isOptimal ? null : 'APPLY OPTIMAL'} onCta={applyOptimal} />
+                cta={isOptimal ? null : 'APPLY OPTIMAL'} onCta={applyOptimalWithSummary} />
         ) : (
             <HeroCard kicker={'Week ' + result.week + ' · Game Day'}
                 headline={'YOUR LINEUP ' + workingTotal.toFixed(1) + ' PTS'}
@@ -917,13 +926,41 @@ function LineupTab({
                     </div>
                 </Sheet>
 
+                {/* Apply-Optimal results — the moves it just made (owner ask). */}
+                <Sheet open={!!appliedMoves} onClose={() => setAppliedMoves(null)} title={(appliedMoves ? appliedMoves.length : 0) + ' move' + ((appliedMoves && appliedMoves.length === 1) ? '' : 's') + ' applied'} desktop={null}>
+                    {appliedMoves ? (() => {
+                        const totalGain = appliedMoves.reduce((s, m) => s + (m.gain || 0), 0);
+                        return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '6px 14px 4px' }}>
+                            <div style={{ fontSize: '0.8rem', color: SILVER, lineHeight: 1.45 }}>Lineup set to optimal — <span style={{ color: GREEN, fontWeight: 700 }}>+{totalGain.toFixed(1)}</span> proj. Here's what changed:</div>
+                            {appliedMoves.map((m, i) => {
+                                const outN = m.cur ? pmeta(m.cur).name : 'Empty';
+                                const inN = m.opt ? pmeta(m.opt).name : 'Empty';
+                                return (
+                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', background: PANEL, border: `1px solid ${LINE}`, borderRadius: '8px' }}>
+                                        <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, color: GOLD, minWidth: '44px', whiteSpace: 'nowrap' }}>{m.sl.slotName.replace('_', ' ')}</span>
+                                        <span style={{ flex: 1, minWidth: 0, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                                            <span style={{ color: m.cur ? SILVER : 'var(--text-muted, #8B8B96)', textDecoration: m.cur ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{outN}</span>
+                                            <span style={{ color: SILVER, flexShrink: 0 }}>→</span>
+                                            <span style={{ color: TEXT, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{inN}</span>
+                                        </span>
+                                        <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, color: GREEN, whiteSpace: 'nowrap' }}>+{(m.gain || 0).toFixed(1)}</span>
+                                    </div>
+                                );
+                            })}
+                            <button onClick={() => setAppliedMoves(null)} style={{ ...actBtn, marginTop: '4px', minHeight: '44px' }}>Done</button>
+                        </div>
+                        );
+                    })() : null}
+                </Sheet>
+
                 {/* P6 action bar — live while the working lineup differs from
                     the platform lineup. APPLY = the same applyOptimal path
                     (Pro); bar tap opens the apply/push sheet. */}
                 <ActionBar visible={dirty && phoneView === 'week'} label="WORKING LINEUP"
                     value={pro ? (isOptimal ? workingTotal.toFixed(1) + ' PROJ' : '+' + benchPts.toFixed(1)) : workingTotal.toFixed(1) + ' PROJ'}
                     tone="good" actionLabel="APPLY"
-                    onAction={pro ? applyOptimal : () => setApplyOpen(true)}
+                    onAction={pro ? applyOptimalWithSummary : () => setApplyOpen(true)}
                     onOpen={() => setApplyOpen(true)} />
             </div>
         );
