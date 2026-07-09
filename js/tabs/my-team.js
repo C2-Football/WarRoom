@@ -919,7 +919,11 @@ function MyTeamTab({
                       : actionFam === 'BUY' ? 'buy low'
                       : "don't overpay";
                     const callSub = tier + ' ' + posLbl + ' · ' + marketCall;
-                    const sigRow = (label, val, last) => (<div style={{ display: 'flex', gap: '9px', alignItems: 'baseline', padding: '6px 0', borderBottom: last ? 'none' : '1px solid rgba(255,255,255,0.05)', fontSize: '0.74rem' }}><span style={{ minWidth: '52px', color: 'var(--silver)', opacity: 0.65 }}>{label}</span><span style={{ color: 'var(--white)', fontWeight: 600 }}>{val}</span></div>);
+                    // renderExpandBody is shared with the desktop roster board
+                    // (_renderRosterBoard); the cleaned-up verdict badge is
+                    // phone-only so desktop stays byte-identical.
+                    const isPhoneCard = rosterViewportWidth <= 767;
+                    const sigRow = (label, val, last) =>(<div style={{ display: 'flex', gap: '9px', alignItems: 'baseline', padding: '6px 0', borderBottom: last ? 'none' : '1px solid rgba(255,255,255,0.05)', fontSize: '0.74rem' }}><span style={{ minWidth: '52px', color: 'var(--silver)', opacity: 0.65 }}>{label}</span><span style={{ color: 'var(--white)', fontWeight: 600 }}>{val}</span></div>);
                     return (<React.Fragment>
                       {/* Identity + roster call */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px', flexWrap: 'wrap' }}>
@@ -937,7 +941,22 @@ function MyTeamTab({
                             {r.injury ? <span style={{ color: 'var(--bad)', fontWeight: 700 }}> {'·'} {r.injury}</span> : null}
                           </div>
                         </div>
-                        {isPro ? (
+                        {/* PHONE: verdict as a single clean pill — dropped the
+                            "Roster call" eyebrow + tier/market filler subline
+                            (DHQ/tier/window live in the signals chips below).
+                            DESKTOP/tablet keep the original block byte-identical
+                            (renderExpandBody is shared with the roster board). */}
+                        {isPhoneCard ? (
+                          isPro ? (
+                        <span style={{ flexShrink: 0, alignSelf: 'center', display: 'inline-block', fontFamily: 'Rajdhani, sans-serif', fontSize: '1.15rem', fontWeight: 700, color: vColor, textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1, padding: '6px 15px', borderRadius: '999px', border: '1px solid ' + wrAlpha(vColor, '55'), background: wrAlpha(vColor, '16'), whiteSpace: 'nowrap' }}>{verdict}</span>
+                          ) : (
+                        <button onClick={e => { e.stopPropagation(); if (window.showProLaunchPage) window.showProLaunchPage(); else if (window.showUpgradePrompt) window.showUpgradePrompt('analytics_depth'); }}
+                          title="Buy/sell roster calls are a Pro read"
+                          style={{ flexShrink: 0, alignSelf: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                          <span style={{ display: 'inline-block', fontFamily: 'Rajdhani, sans-serif', fontSize: '1.05rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.02em', lineHeight: 1, padding: '6px 15px', borderRadius: '999px', border: '1px solid ' + wrAlpha('var(--gold)', '55'), background: wrAlpha('var(--gold)', '16'), whiteSpace: 'nowrap' }}>{'🔒'} Pro</span>
+                        </button>
+                          )
+                        ) : isPro ? (
                         <div style={{ textAlign: 'right', minWidth: '120px' }}>
                           <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Roster call</div>
                           <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.6rem', fontWeight: 700, color: vColor, lineHeight: 1.05, textTransform: 'uppercase' }}>{verdict}</div>
@@ -1058,7 +1077,7 @@ function MyTeamTab({
         // Same redraft ROS-points swap as renderCell's dhq cell.
         const rosPts = (resolvedLeagueSkin?.type === 'redraft' && window.App?.PlayerValue?.getRosPoints) ? window.App.PlayerValue.getRosPoints(r.pid) : null;
         const disp = rosPts != null ? (rosPts > 0 ? Math.round(rosPts).toLocaleString() : '—') : (r.dhq > 0 ? r.dhq.toLocaleString() : '—');
-        return { label: short, value: disp };
+        return { label: short, value: disp, strong: true };
       }
       case 'proj': {
         const p = projFor(r.pid);
@@ -1148,7 +1167,15 @@ function MyTeamTab({
       facts: heroFacts,
       ctaGhost: heroGhost,
       onCtaGhost: heroGhost ? () => {
-        try { const el = document.querySelector('[data-wr-drop-flag]'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
+        // Take the user straight to the first flagged player: open its
+        // dossier (sell/drop reasoning) and scroll it into view. Expanding
+        // first makes the tap unmistakably "go somewhere" — a bare scroll to
+        // an already-visible row read as a no-op.
+        const first = dropAlerts[0];
+        if (first) setExpandedPid(first.pid);
+        setTimeout(() => {
+          try { const el = document.querySelector('[data-wr-drop-flag]'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
+        }, 80);
       } : undefined,
     });
 
