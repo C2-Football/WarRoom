@@ -83,6 +83,14 @@ function AnalyticsPanel({
             ? <div style={{ marginBottom: 'var(--card-gap, 14px)' }} dangerouslySetInnerHTML={{ __html: window.wrLockCard(label, 'analytics_depth', sub) }} />
             : null
     );
+    // Phone tier (≤767, iPhone program Phase 3): shared viewport seam
+    // (js/shared/viewport.js, one debounced app-wide listener) + kit gate.
+    // Kit presence (wr-primitives.js loads earlier in the babel chain) is
+    // fixed for the page's lifetime, so `_phone` can gate render without
+    // hook hazards. Desktop/tablet markup below stays byte-identical —
+    // phone re-pours ride {_phone ? …} wraps and early returns only.
+    const _vp = window.WR.useViewport();
+    const _phone = !!_vp.isPhone && !!(window.WR && window.WR.HeroCard);
     // _SS mirrors the window.S shape consumed throughout this component
     const _SS = {
         rosters: _seasonCtx.rosters?.length ? _seasonCtx.rosters : (window.S?.rosters || currentLeague?.rosters || []),
@@ -205,6 +213,41 @@ function AnalyticsPanel({
     };
     const AnalyticsCommandPanel = ({ title, thesis, mode, stats = [], note = "Elite player = 7000+ DHQ or top 5 at position. Elite team benchmarks compare against the league's proven top teams." }) => {
         const hasStats = Array.isArray(stats) && stats.length > 0;
+        // ══ PHONE (≤767) — P5 re-pour (gallery scr-analytics-roster IMPL
+        // CONTRACT): Research Question → HeroCard kicker, title → Rajdhani
+        // headline, thesis → mono facts, mode callout inline, the stats
+        // aside → a snapping .wr-kpi-strip band under the hero. The
+        // boilerplate `note` is dropped on phone (calm spec). Early return —
+        // the desktop panel below is untouched. Only rendered inside the
+        // existing isPro branches, so the gate boundary never moves.
+        if (_phone) {
+            return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: 'var(--card-gap, 14px)' }}>
+                    {React.createElement(window.WR.HeroCard, {
+                        kicker: 'Research Question',
+                        headline: title,
+                        facts: thesis,
+                    }, mode ? (
+                        <div style={{ borderLeft: '3px solid ' + (mode.color || 'var(--gold)'), background: 'var(--ov-2, rgba(255,255,255,0.03))', borderRadius: '0 6px 6px 0', padding: '6px 10px', marginTop: '8px' }}>
+                            <div style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Suggested Mode</div>
+                            <div style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: '0.8rem', fontWeight: 700, color: mode.color || 'var(--gold)' }}>{mode.label}</div>
+                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', lineHeight: 1.45, marginTop: '2px' }}>{mode.directive}</div>
+                        </div>
+                    ) : null)}
+                    {hasStats && (
+                        <div className="wr-kpi-strip">
+                            {stats.map((s, i) => (
+                                <div key={i} style={{ background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '9px', padding: '9px 11px' }}>
+                                    <div style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--text-muted, #8B8B96)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{s.label}</div>
+                                    <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.3rem', fontWeight: 700, color: s.color || 'var(--white)', lineHeight: 1.15, marginTop: '2px', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{s.value}</div>
+                                    {s.sub ? <div style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '132px' }}>{s.sub}</div> : null}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        }
         return (
         <div className={'analytics-command-panel' + (hasStats ? '' : ' is-bare')}>
             <div>
@@ -259,7 +302,10 @@ function AnalyticsPanel({
                     const yPct = Math.max(2, Math.min(100, Math.abs(yours) / max * 100));
                     const bPct = Math.max(0, Math.min(100, Math.abs(bench) / max * 100));
                     return (
-                        <div key={i} className="analytics-delta-row">
+                        // Phone: same bar idiom, 44px touch rows (grid already
+                        // centers via align-items). undefined off-phone —
+                        // desktop/tablet rows are byte-identical.
+                        <div key={i} className="analytics-delta-row" style={_phone ? { minHeight: '44px' } : undefined}>
                             <strong>{r.label}</strong>
                             <div className="analytics-delta-track">
                                 <div className="analytics-delta-fill" style={{ width: yPct + '%', background: r.color || 'var(--k-4ecdc4, #4ecdc4)' }} />
@@ -302,6 +348,20 @@ function AnalyticsPanel({
 
     return (
     <div className="analytics-shell" style={{ padding: 'var(--space-md) var(--space-lg) var(--space-lg)' }}>
+        {/* PHONE (≤767): the 5 sub-tabs re-pour as the shared P2 .wr-seg
+            (scrollable 4+ variant — min-width:fit-content children); long
+            labels compress for the 390px strip per the gallery spec. Same
+            setAnalyticsTab setter. Desktop/tablet keep the module strip
+            below, byte-identical. */}
+        {_phone ? (
+            <div className="wr-seg" style={{ marginBottom: '10px' }}>
+                {subTabs.map(t => (
+                    <button key={t.key} className={analyticsViewTab === t.key ? 'is-on' : ''} onClick={() => setAnalyticsTab(t.key)}>
+                        {{ trades: 'Market', assets: 'Players', reports: 'Reports' }[t.key] || t.label}
+                    </button>
+                ))}
+            </div>
+        ) : (
         <div className="wr-module-strip">
             <div className="wr-module-actions">
                 <div className="wr-module-nav">
@@ -312,6 +372,7 @@ function AnalyticsPanel({
                 <span className="wr-module-pill">{d?.computedAt ? 'Updated ' + new Date(d.computedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Loading'}</span>
             </div>
         </div>
+        )}
 
         {!d ? (
             <div style={{ ...aCardStyle, color: 'var(--silver)', textAlign: 'center', padding: '40px' }}>

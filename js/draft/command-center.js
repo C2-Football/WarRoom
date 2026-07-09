@@ -4770,16 +4770,13 @@
         const stageSummaryCards = baseStageSummaryCards;
 
         // Width-aware cockpit sizing. The global 'desktop' bucket only triggers at
-        // 1440, so most laptops (1280-1439) were stuck in the 2-col collapse. Track the
-        // live width: give the rich 3-col layout to anything >= 1200px, and below that a
-        // compact 2-col layout whose panel heights adapt to the viewport (not fixed px).
-        const [winW, setWinW] = React.useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1440));
-        React.useEffect(() => {
-            const onResize = () => setWinW(window.innerWidth);
-            window.addEventListener('resize', onResize);
-            return () => window.removeEventListener('resize', onResize);
-        }, []);
-        const isCompact = winW < 1200;
+        // 1440, so most laptops (1280-1439) were stuck in the 2-col collapse. Read the
+        // live width from the shared WR.useViewport store (js/shared/viewport.js — one
+        // debounced app-wide listener; replaces the old local winW resize state with
+        // identical <1200 threshold semantics): give the rich 3-col layout to anything
+        // >= 1200px, and below that a compact 2-col layout whose panel heights adapt
+        // to the viewport (not fixed px).
+        const isCompact = window.WR.useViewport().width < 1200;
         // Condensed "Split HUD" header replaces the strip + Alex Live Read + trade
         // window banner during a live draft only; other phases keep the full header.
         const isLiveDraftHud = state.mode === 'live-sync' && state.phase === 'drafting';
@@ -6451,10 +6448,14 @@
             );
         }
 
-        // ── Mobile: sticky on-the-clock bar for the phone feed ──────────
-        // Who's up, pick meta (R#.## · #overall), and how far away the user's
-        // next pick is. Sticks against the page scroll; top offset = --sat so
-        // it clears the notch in the installed PWA (0px in a Safari tab). z 60
+        // ── Mobile: sticky on-the-clock status card for the phone feed ──
+        // (iPhone program Phase 3 re-composition of the old one-line bar.)
+        // Who's up, pick meta (R#.## · #overall), how far away the user's next
+        // pick is, and a big mono clock read from EXISTING clock state — the
+        // mock speed→timer mapping (MockDraftCockpit's timerLabel) or the live
+        // made/total mirror. Red-accent treatment when the user is on the
+        // clock. Sticks against the page scroll; top offset = --sat so it
+        // clears the notch in the installed PWA (0px in a Safari tab). z 60
         // paints it over the league shell's sticky time bar (z 50) while both
         // are stuck; the fixed layer (hamburger 201, phone dock 100) stays above.
         // Left padding reserves the phone hamburger's 42px corner, matching the
@@ -6485,54 +6486,84 @@
                         : 'On the clock';
             const statusColor = done ? 'var(--silver)'
                 : state.activeOffer ? 'var(--k-f0a500, #f0a500)'
-                    : 'var(--gold)';
+                    : userUp ? 'var(--bad, #e5534b)'
+                        : 'var(--gold)';
             const rightLabel = done ? (made + ' picks')
                 : userUp ? 'YOU'
                     : away != null ? 'You in ' + away
                         : (made + '/' + (total || '--'));
+            // Existing clock state only: mock speed → pick-timer label (same
+            // mapping as MockDraftCockpit), live-sync → made/total mirror.
+            const clockText = done ? 'FINAL'
+                : state.activeOffer ? '⏸'
+                    : state.mode === 'live-sync' ? (made + '/' + (total || '—'))
+                        : state.speed === 'paused' ? '⏸'
+                            : state.speed === 'fast' ? '0:35'
+                                : state.speed === 'slow' ? '4:00' : '2:15';
             return (
                 <div style={{
                     position: 'sticky', top: 'var(--sat, 0px)', zIndex: 60,
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    minHeight: 44, padding: '6px 10px 6px 52px', marginBottom: 8,
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    minHeight: 52, padding: '7px 12px 7px 52px', marginBottom: 8,
                     background: 'var(--black, #0a0a0a)',
-                    border: '1px solid ' + (userUp ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--acc-fill3, rgba(212,175,55,0.16))'),
-                    borderRadius: 4,
+                    border: '1px solid ' + (userUp ? 'rgba(231,76,60,0.5)' : 'var(--acc-fill3, rgba(212,175,55,0.16))'),
+                    borderRadius: 6,
                     boxShadow: '0 6px 14px rgba(0,0,0,0.45)',
                 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, color: statusColor, fontFamily: FONT_UI, textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {statusLabel}
                         </div>
-                        <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--white)', fontFamily: FONT_UI, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--white)', fontFamily: FONT_UI, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {done ? 'Board is final' : teamName}
                         </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                            {!done && slot && (
+                                <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.85, whiteSpace: 'nowrap' }}>
+                                    {mockPickLabel(slot, state.leagueSize)} · #{slot.overall || '--'}
+                                </span>
+                            )}
+                            <span style={{
+                                fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800,
+                                padding: '1px 6px', borderRadius: 3, whiteSpace: 'nowrap',
+                                border: '1px solid ' + (userUp ? 'rgba(231,76,60,0.5)' : 'var(--ov-5, rgba(255,255,255,0.1))'),
+                                color: userUp ? 'var(--bad, #e5534b)' : 'var(--silver)',
+                                background: userUp ? 'rgba(231,76,60,0.12)' : 'var(--ov-2, rgba(255,255,255,0.03))',
+                            }}>
+                                {rightLabel}
+                            </span>
+                        </div>
                     </div>
-                    {!done && slot && (
-                        <span style={{ flexShrink: 0, fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.85, whiteSpace: 'nowrap' }}>
-                            {mockPickLabel(slot, state.leagueSize)} · #{slot.overall || '--'}
-                        </span>
-                    )}
-                    <span style={{
-                        flexShrink: 0, fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800,
-                        padding: '3px 7px', borderRadius: 3, whiteSpace: 'nowrap',
-                        border: '1px solid ' + (userUp ? 'var(--acc-line3, rgba(212,175,55,0.45))' : 'var(--ov-5, rgba(255,255,255,0.1))'),
-                        color: userUp ? 'var(--gold)' : 'var(--silver)',
-                        background: userUp ? 'var(--acc-fill3, rgba(212,175,55,0.14))' : 'var(--ov-2, rgba(255,255,255,0.03))',
-                    }}>
-                        {rightLabel}
-                    </span>
+                    <div style={{ flexShrink: 0, fontFamily: FONT_MONO, fontSize: '1.45rem', fontWeight: 700, lineHeight: 1, color: userUp ? 'var(--bad, #e5534b)' : done ? 'var(--silver)' : 'var(--gold)', fontVariantNumeric: 'tabular-nums' }}>
+                        {clockText}
+                    </div>
                 </div>
             );
         }
 
-        // ── Mobile: draft feed (Big Board / Alex / pick log) ─────────────
+        // ── Mobile: stacked live/mock decision flow (iPhone program Phase 3 —
+        // the one sanctioned re-composition of the 3-col cockpit). Top to
+        // bottom: on-clock status card → Alex's pick card (Decision Deck
+        // boundary, Pro) → Best Available (BigBoardPanel's phone AssetRows,
+        // existing pick handlers) → a chip row that opens the demoted side
+        // panels as WR.Sheets (Roster Build / Opp Intel / Board+Log /
+        // Analytics — each sheet renders the EXISTING panel unchanged) →
+        // WR.ActionBar with the live pick + one decision CTA. Falls back to
+        // the pre-Phase-3 stacked feed if the phone kit isn't loaded.
         function MobileFeed({ state, dispatch, onStart, isUserTurn, currentSlot, onPropose }) {
         const BigBoardPanel = window.DraftCC.BigBoardPanel;
         const AlexStreamPanel = window.DraftCC.AlexStreamPanel;
         const AskAnswerWindow = window.DraftCC.AskAnswerWindow;
         const AlexCall = window.DraftCC.AlexCall;
         const AlexEdgeGlow = window.DraftCC.AlexEdgeGlow;
+        const OpponentIntelPanel = window.DraftCC.OpponentIntelPanel;
+        const LiveAnalyticsPanel = window.DraftCC.LiveAnalyticsPanel;
+        const Sheet = window.WR && window.WR.Sheet;
+        const ActionBar = window.WR && window.WR.ActionBar;
+        // Which demoted side panel is open: 'build'|'intel'|'board'|'analytics'.
+        // Hook sits above every early return so hook order never varies.
+        const [phPanel, setPhPanel] = React.useState(null);
+        const _kitOk = !!(Sheet && ActionBar);
 
         if (state.phase === 'setup') {
             return (
@@ -6570,22 +6601,159 @@
             );
         }
 
+        if (!_kitOk) {
+            // Pre-Phase-3 fallback stack (phone kit not loaded).
+            return (
+                <div style={{ fontFamily: FONT_UI, padding: '4px 0' }}>
+                    {/* Bottom clearance for the phone bottom dock comes from the league
+                        shell: .app-container[data-league-skin-type] pads by
+                        calc(60px + var(--wr-bottom-inset)) at ≤767 (index.html phone
+                        tier) — do not double-pad here. */}
+                    <MobileClockBar state={state} currentSlot={currentSlot} isUserTurn={isUserTurn} />
+                    <div style={{ minHeight: 320, maxHeight: '56vh', marginBottom: 10 }}>
+                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} />
+                    </div>
+                    <div style={{ minHeight: 300, marginBottom: 10 }}>
+                        <AlexStreamPanel state={state} dispatch={dispatch} />
+                    </div>
+                    <div style={{ minHeight: 260, maxHeight: '44vh' }}>
+                        <DraftPickListPanel state={state} currentSlot={currentSlot} onPropose={onPropose} />
+                    </div>
+                    {AskAnswerWindow && <AskAnswerWindow state={state} />}
+                    {AlexCall && <AlexCall state={state} isUserTurn={isUserTurn} />}
+                    {AlexEdgeGlow && <AlexEdgeGlow state={state} isUserTurn={isUserTurn} />}
+                </div>
+            );
+        }
+
+        const drafting = state.phase === 'drafting';
+        const pro = ccIsPro();
+        // Same canPick guard as BigBoardPanel's onDraft — the existing pick path.
+        const canPick = drafting && (isUserTurn || state.overrideMode || state.mode === 'manual');
+        const bpa = (state.pool || [])[0] || null;
+        const bpaShort = bpa ? String(bpa.name || '').trim().split(/\s+/).slice(-1)[0].toUpperCase() : '';
+        const pickNow = currentSlot ? mockPickLabel(currentSlot, state.leagueSize).replace(/^R/, '') : '--';
+        const abClock = state.activeOffer ? 'PAUSED'
+            : state.mode === 'live-sync' ? ((state.picks || []).length + '/' + ((state.pickOrder || []).length || '—'))
+                : state.speed === 'paused' ? 'PAUSED'
+                    : state.speed === 'fast' ? '0:35'
+                        : state.speed === 'slow' ? '4:00' : '2:15';
+        // ActionBar DRAFT ▸ — identical MAKE_PICK contract to BigBoardPanel's
+        // onDraft (js/draft/big-board.js), aimed at the top of the board (BPA).
+        const draftBpa = () => {
+            if (!bpa || !canPick) return;
+            dispatch({
+                type: 'MAKE_PICK',
+                player: bpa,
+                isUser: isUserTurn,
+                reasoning: state.overrideMode
+                    ? { primary: state.mode === 'live-sync' ? 'Manual live correction' : 'User override', baseVal: bpa.dhq, nudges: [] }
+                    : state.mode === 'manual'
+                        ? { primary: 'Manual room entry', baseVal: bpa.dhq, nudges: [] }
+                        : { primary: 'User selection', baseVal: bpa.dhq, nudges: [] },
+                confidence: 1.0,
+                source: state.mode === 'live-sync' && state.overrideMode ? 'manual-live' : state.mode === 'manual' ? 'manual-draft' : null,
+            });
+        };
+        // Alex's pick card: the Alex Whisper line (latest stream take) over the
+        // board's top name. Same Pro boundary as the Decision Deck — free gets
+        // the exact desktop WrGatedMoreRow teaser and drafts from the raw board.
+        const ALEXC = 'var(--k-9b8afb, #9b8afb)';
+        const alexFeedItems = (state.alex && state.alex.stream) || [];
+        const alexThinking = !!(state.alex && state.alex.thinking);
+        const DECISION_BADGES = new Set(['✦', '⚖', '◇', 'A', '↑', '↓']);
+        const alexItem = alexThinking ? null
+            : (isUserTurn ? (alexFeedItems.find(e => DECISION_BADGES.has(e.badge)) || alexFeedItems[0]) : alexFeedItems[0]);
+        const chipDefs = [
+            { key: 'build', label: 'Roster Build' },
+            { key: 'intel', label: 'Opp Intel' },
+            { key: 'board', label: 'Board + Log' },
+            { key: 'analytics', label: 'Analytics' },
+        ];
         return (
-            <div style={{ fontFamily: FONT_UI, padding: '4px 0' }}>
-                {/* Bottom clearance for the phone bottom dock comes from the league
-                    shell: .app-container[data-league-skin-type] pads by
-                    calc(60px + var(--wr-bottom-inset)) at ≤767 (index.html phone
-                    tier) — do not double-pad here. */}
+            <div style={{ fontFamily: FONT_UI, padding: '4px 0 ' + (drafting ? '66px' : '0') }}>
+                {/* Bottom clearance for the phone dock comes from the league shell
+                    (.app-container[data-league-skin-type] pads by --wr-bottom-inset
+                    at ≤767); the extra 66px here only clears the fixed ActionBar. */}
                 <MobileClockBar state={state} currentSlot={currentSlot} isUserTurn={isUserTurn} />
-                <div style={{ minHeight: 320, maxHeight: '56vh', marginBottom: 10 }}>
+                {drafting && (pro ? (
+                    <section style={{ marginBottom: 10, padding: '10px 12px', background: wrAlpha(ALEXC, '0a'), border: '1px solid ' + wrAlpha(ALEXC, '3d'), borderRadius: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                            <span style={{ color: ALEXC, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', flexShrink: 0 }}>Alex's pick</span>
+                            {bpa && (
+                                <span style={{ color: 'var(--silver)', opacity: 0.72, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+                                    {(bpa.pos || '—') + ' · ' + mockPlayerTeam(bpa) + ' · DHQ ' + mockFmt(bpa.dhq)}
+                                </span>
+                            )}
+                        </div>
+                        {bpa && (
+                            <button type="button" onClick={() => mockOpenPlayer(bpa)} title="Open player card" style={{ display: 'block', minWidth: 0, maxWidth: '100%', padding: 0, margin: '3px 0 0', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'var(--white)', fontFamily: FONT_DISPL, fontSize: '1.15rem', fontWeight: 800, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {bpa.name}
+                            </button>
+                        )}
+                        <div style={{ marginTop: 4, fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.85, lineHeight: 1.4 }}>
+                            {alexThinking
+                                ? 'Alex is reading the board…'
+                                : alexItem
+                                    ? ((alexItem.title || '').replace(/^Alex\s*[·:—-]?\s*/i, '') + (alexItem.text ? ' — ' + alexItem.text : ''))
+                                    : 'Alex is watching the board…'}
+                        </div>
+                    </section>
+                ) : (
+                    <section style={{ marginBottom: 10 }}>
+                        {window.WrGatedMoreRow
+                            ? React.createElement(window.WrGatedMoreRow, { title: 'Alex hands you the pick', sub: 'Recommended / safe / upside cards each turn are Scout Pro. Draft from the raw board.', feature: 'draft_decision_deck' })
+                            : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Alex Decision Deck', 'draft_decision_deck', 'Per-turn pick recommendations are Scout Pro.') : '' }} />}
+                    </section>
+                ))}
+                <div style={{ marginBottom: 10 }}>
                     <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} />
                 </div>
-                <div style={{ minHeight: 300, marginBottom: 10 }}>
-                    <AlexStreamPanel state={state} dispatch={dispatch} />
+                <div className="wr-seg" style={{ marginBottom: 10 }}>
+                    {chipDefs.map(c => (
+                        <button key={c.key} type="button" className={phPanel === c.key ? 'is-on' : ''} onClick={() => setPhPanel(c.key)}>{c.label} ▾</button>
+                    ))}
                 </div>
-                <div style={{ minHeight: 260, maxHeight: '44vh' }}>
-                    <DraftPickListPanel state={state} currentSlot={currentSlot} onPropose={onPropose} />
-                </div>
+                <Sheet open={phPanel === 'build'} onClose={() => setPhPanel(null)} title="Roster Build" desktop={null}>
+                    <div style={{ padding: '4px 12px 10px', height: '68dvh' }}>
+                        <MyDraftRosterPanel state={state} />
+                    </div>
+                </Sheet>
+                <Sheet open={phPanel === 'intel'} onClose={() => setPhPanel(null)} title="Opponent Intel" desktop={null}>
+                    <div style={{ padding: '4px 12px 10px', height: '68dvh' }}>
+                        {OpponentIntelPanel ? <OpponentIntelPanel state={state} dispatch={dispatch} currentSlot={currentSlot} onPropose={onPropose} /> : null}
+                    </div>
+                </Sheet>
+                <Sheet open={phPanel === 'board'} onClose={() => setPhPanel(null)} title="Draft Board + Log" desktop={null}>
+                    <div style={{ padding: '4px 12px 10px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ height: '52dvh' }}>
+                            <DraftPickListPanel state={state} currentSlot={currentSlot} onPropose={onPropose} />
+                        </div>
+                        <div style={{ minHeight: 280 }}>
+                            {AlexStreamPanel ? <AlexStreamPanel state={state} dispatch={dispatch} /> : null}
+                        </div>
+                    </div>
+                </Sheet>
+                <Sheet open={phPanel === 'analytics'} onClose={() => setPhPanel(null)} title="Draft Analytics" desktop={null}>
+                    <div style={{ padding: '4px 12px 10px' }}>
+                        {/* Live grade/value analytics are interpretation reads → Pro
+                            (same A–F boundary as the desktop header grade chip). */}
+                        {pro
+                            ? (LiveAnalyticsPanel ? <LiveAnalyticsPanel state={state} /> : null)
+                            : (window.WrGatedMoreRow
+                                ? React.createElement(window.WrGatedMoreRow, { title: 'Live draft analytics', sub: 'Live grade, value-vs-board curve, and position flow are Scout Pro.', feature: 'draft_live_analytics' })
+                                : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Draft Analytics', 'draft_live_analytics', 'Live draft analytics are Scout Pro.') : '' }} />)}
+                    </div>
+                </Sheet>
+                <ActionBar
+                    visible={drafting}
+                    label={'PICK ' + pickNow}
+                    value={abClock + (isUserTurn ? ' · YOU' : '')}
+                    tone={isUserTurn ? 'bad' : 'gold'}
+                    actionLabel={canPick && bpa ? 'DRAFT ' + bpaShort : undefined}
+                    onAction={draftBpa}
+                    onOpen={() => setPhPanel('board')}
+                />
                 {AskAnswerWindow && <AskAnswerWindow state={state} />}
                 {AlexCall && <AlexCall state={state} isUserTurn={isUserTurn} />}
                 {AlexEdgeGlow && <AlexEdgeGlow state={state} isUserTurn={isUserTurn} />}
