@@ -1310,7 +1310,9 @@ function MyTeamTab({
         tag: _phoneTagFor(r),
         slots: _phoneSlotKeys.map(k => _phoneSlotFor(k, r)),
         verdict: _phoneVerdictChip(r),
-        accent: (r.gmIsUntouchable || (isPro && /build|core/i.test(r.rec || ''))) ? 'gold' : (r.injury || isDropFlag) ? 'risk' : undefined,
+        // No colored row accent — the verdict chip + injury tag already carry
+        // the status; the outline read as ambiguous (owner call). Rows keep
+        // AssetRow's default faint border.
         expanded: isExpanded,
         onClick: () => setExpandedPid(prev => prev === r.pid ? null : r.pid),
         title: 'Open roster player detail',
