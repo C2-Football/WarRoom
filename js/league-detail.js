@@ -3351,6 +3351,11 @@
                                         <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.02em', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentLeague.name}</span>
                                         <span aria-hidden="true" style={{ color: 'var(--text-muted)', fontSize: '0.65rem', flex: 'none' }}>▾</span>
                                     </div>
+                                    <button className="wr-phone-hdr-refresh" onClick={doRefresh} disabled={!!loadStage} aria-label="Refresh data" title="Reload DHQ values, league history, and AI data" style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px', minHeight: '36px', padding: '6px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', color: 'var(--gold)', cursor: loadStage ? 'default' : 'pointer' }}>
+                                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={loadStage ? { animation: 'dhqSpin 0.8s linear infinite' } : undefined}>
+                                            <path d="M21 12a9 9 0 0 1-14.8 6.9" /><path d="M3 12A9 9 0 0 1 17.8 5.1" /><path d="M17 3v4h4" /><path d="M7 21v-4H3" />
+                                        </svg>
+                                    </button>
                                     <button className="wr-league-switch" onClick={onBack} style={{ padding: '7px 12px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--acc-fill2, rgba(212,175,55,0.10))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, minHeight: '36px' }}>SWITCH</button>
                                 </div>
                                 {phHdrSheetOpen && <WR.Sheet open={true} onClose={() => setPhHdrSheetOpen(false)} title={currentLeague.name}>
@@ -3374,11 +3379,6 @@
                                             <span style={{ ...rowVal, color: 'var(--gold)', fontFamily: "'JetBrains Mono', monospace" }}>{[headerDraftClock.label, headerDraftClock.clock].filter(Boolean).join(' · ')}</span>
                                             <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.8rem' }}>›</span>
                                         </button>}
-                                        <button style={{ ...rowSt, borderBottom: 'none' }} onClick={doRefresh} title="Reload DHQ values, league history, and AI data">
-                                            <span style={rowLbl}>Data</span>
-                                            <span style={{ ...rowVal, color: 'var(--gold)' }}>Refresh Data</span>
-                                            <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.8rem' }}>›</span>
-                                        </button>
                                     </div>
                                 </WR.Sheet>}
                             </React.Fragment>
