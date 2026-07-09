@@ -663,26 +663,51 @@ function MyTeamTab({
   const isCompactRoster = rosterViewportWidth <= 1023;
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [reviewOpen, setReviewOpen] = React.useState(false); // phone "review flagged players" sheet
-  // Manual verdict overrides (owner ask): the user can set their own
-  // Hold/Stash/Sell/Drop on a player, overriding the engine's r.rec.
-  // Per-league localStorage, mirroring the dismissedDrops pattern. Phone
-  // display + editor for now (desktop keeps the engine read).
+  // Manual verdict/tag override (owner ask): one picker sets the player's
+  // call, rolling the old TRADE BLOCK/CUT/UNTOUCHABLE/WATCH tags in with
+  // Hold/Stash/Sell/Drop. Runs on ALL versions. The 4 tag-values sync to the
+  // shared window._playerTags store so existing consumers (untouchable
+  // protection, trade finder, the desktop row tag badge) keep working; the
+  // verdict-values live in verdictOverrides. Per-league localStorage.
+  const VERDICT_OPTIONS = ['Untouchable', 'Hold', 'Watch', 'Stash', 'Trade Block', 'Sell', 'Cut', 'Drop'];
+  const _LABEL_TO_TAG = { 'Trade Block': 'trade', 'Cut': 'cut', 'Untouchable': 'untouchable', 'Watch': 'watch' };
+  const _TAG_TO_LABEL = { trade: 'Trade Block', cut: 'Cut', untouchable: 'Untouchable', watch: 'Watch' };
   const [verdictOverrides, setVerdictOverrides] = React.useState(() => {
     try { const lid = currentLeague?.id || currentLeague?.league_id || ''; return JSON.parse(localStorage.getItem('dhq_roster_verdict_v1:' + lid) || '{}') || {}; } catch (e) { return {}; }
   });
   const [tagEditPid, setTagEditPid] = React.useState(null); // which player's verdict picker is open
   const setPlayerVerdict = (pid, v) => {
+    // Sync the shared player-tag store for the 4 tag-values (else clear it).
+    try {
+      const lid = currentLeague?.id || currentLeague?.league_id || '';
+      const tags = window._playerTags || {};
+      const tag = v ? _LABEL_TO_TAG[v] : null;
+      if (tag) tags[pid] = tag; else delete tags[pid];
+      window._playerTags = { ...tags };
+      if (window.OD?.savePlayerTags) window.OD.savePlayerTags(lid, tags);
+    } catch (e) {}
     setVerdictOverrides(prev => {
       const next = { ...prev };
       if (v) next[pid] = v; else delete next[pid];
       try { const lid = currentLeague?.id || currentLeague?.league_id || ''; localStorage.setItem('dhq_roster_verdict_v1:' + lid, JSON.stringify(next)); } catch (e) {}
       return next;
     });
+    try { setTimeRecomputeTs(Date.now()); } catch (e) {}
   };
-  const _effRec = (r) => verdictOverrides[r.pid] || r.rec;
-  // Verdict → accent color (shared by chip + badge + picker). Drop=red,
-  // Sell=amber, Buy/Build/Core=green, Stash=blue, Hold/else=gold.
-  const _recColor = (rec) => /drop|cut/i.test(rec || '') ? 'var(--bad)' : /sell/i.test(rec || '') ? 'var(--warn)' : /buy|build|core/i.test(rec || '') ? 'var(--good)' : /stash/i.test(rec || '') ? 'var(--k-3498db, #3498db)' : 'var(--gold)';
+  // Effective call: manual override → existing player-tag → engine r.rec.
+  const _effRec = (r) => verdictOverrides[r.pid] || _TAG_TO_LABEL[window._playerTags && window._playerTags[r.pid]] || r.rec;
+  // Call → accent color, shared by chip + badge + picker + desktop action col.
+  const _recColor = (rec) => {
+    const s = String(rec || '');
+    if (/untouchable/i.test(s)) return 'var(--good)';
+    if (/watch/i.test(s)) return 'var(--k-3498db, #3498db)';
+    if (/trade.?block/i.test(s)) return 'var(--warn)';
+    if (/drop|cut/i.test(s)) return 'var(--bad)';
+    if (/sell/i.test(s)) return 'var(--warn)';
+    if (/buy|build|core/i.test(s)) return 'var(--good)';
+    if (/stash/i.test(s)) return 'var(--k-3498db, #3498db)';
+    return 'var(--gold)';
+  };
   // Filtering visibleCols on ROSTER_COLUMNS here is what keeps a persisted
   // 'action' pref from rendering for free (its def is deleted above).
   // (The old ≤560 3-col survival set is deleted: ≤560 is always inside the
@@ -833,9 +858,11 @@ function MyTeamTab({
       case 'action': {
         const ann = getPlayerAnnotation(r.pid);
         const gmNudgeTitle = r.gmSellNudge ? 'Nudged to Sell by GM Strategy (position/age trips a sell rule)' : '';
-        return <div key={colKey} style={{...base, flexDirection:'column', gap:'2px', alignItems:'center'}} title={gmNudgeTitle || ann?.text || ''}>
-          <span style={{ fontSize:'var(--text-micro, 0.6875rem)',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.03em',color:/sell/i.test(r.rec)?'var(--bad)':/buy|build|core/i.test(r.rec)?'var(--good)':'var(--silver)' }}>{r.rec}</span>
-          {r.gmSellNudge && <span style={{ fontSize: '0.56rem', fontWeight: 800, color: 'var(--warn)', letterSpacing: '0.05em', opacity: 0.85, lineHeight: 1 }}>GM</span>}
+        const _ar = _effRec(r);
+        const _amanual = !!(verdictOverrides[r.pid] || (window._playerTags && window._playerTags[r.pid]));
+        return <div key={colKey} style={{...base, flexDirection:'column', gap:'2px', alignItems:'center'}} title={_amanual ? 'Your call — set in the player card' : (gmNudgeTitle || ann?.text || '')}>
+          <span style={{ fontSize:'var(--text-micro, 0.6875rem)',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.03em',color: _recColor(_ar) }}>{_ar}</span>
+          {_amanual ? <span style={{ fontSize: '0.56rem', fontWeight: 800, color: 'var(--gold)', letterSpacing: '0.05em', opacity: 0.85, lineHeight: 1 }}>YOU</span> : (r.gmSellNudge && <span style={{ fontSize: '0.56rem', fontWeight: 800, color: 'var(--warn)', letterSpacing: '0.05em', opacity: 0.85, lineHeight: 1 }}>GM</span>)}
         </div>;
       }
       case 'gp': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.74rem' }}>{r.effectiveGP > 0 ? r.effectiveGP : '\u2014'}{r.curGP === 0 && r.prevGP > 0 ? '*' : ''}</span></div>;
@@ -917,10 +944,7 @@ function MyTeamTab({
   const renderExpandBody = (r) => (<React.Fragment>
                   {/* ── Dossier (02 "clear hierarchy"): identity + roster call → signals strip → read + signals → curve → stats ── */}
                   {(() => {
-                    const verdict = r.rec || 'Hold';
-                    const isSell = /sell/i.test(verdict), isBuy = /buy|build|core/i.test(verdict);
-                    const vColor = isSell ? 'var(--bad)' : isBuy ? 'var(--good)' : 'var(--gold)';
-                    const tier = (typeof window.App?.isElitePlayer === 'function' ? window.App.isElitePlayer(r.pid) : r.dhq >= 7000) ? 'Elite' : r.dhq >= 4000 ? 'Starter' : r.dhq >= 2000 ? 'Depth' : 'Stash';
+                    const tier =(typeof window.App?.isElitePlayer === 'function' ? window.App.isElitePlayer(r.pid) : r.dhq >= 7000) ? 'Elite' : r.dhq >= 4000 ? 'Starter' : r.dhq >= 2000 ? 'Depth' : 'Stash';
                     const field = (currentLeague.rosters || []).flatMap(ros => (ros.players || []).filter(pid2 => normPos(playersData[pid2]?.position) === r.pos)).map(pid2 => ({ pid: pid2, dhq: window.App?.LI?.playerScores?.[pid2] || 0 })).filter(x => x.dhq > 0).sort((a, b) => b.dhq - a.dhq);
                     const rank = field.findIndex(x => x.pid === r.pid) + 1;
                     const narrow = rosterViewportWidth <= 834;
@@ -931,19 +955,6 @@ function MyTeamTab({
                     const sigRisk = r.injury ? r.injury : (r.durabilityGP && r.durabilityGP < 13 ? '~' + r.durabilityGP + ' GP/yr' : 'no current flags');
                     const sigFloor = r.isStarter ? 'weekly starter' : (r.p.depth_chart_order != null && r.p.depth_chart_order <= 1 ? 'rotation role' : 'bench / depth');
                     const sigCeiling = r.trend >= 10 ? 'trending up' : (tier === 'Elite' || tier === 'Starter') ? 'proven ' + tier.toLowerCase() : r.peakPhase === 'PRE' ? 'developing' : 'limited upside';
-                    // Market posture tracks the actual action family from getPlayerAction —
-                    // a "past value window" SELL must not read as "sell high".
-                    const actionFam = r.recAction || (/sell high/i.test(verdict) ? 'SELL_HIGH' : /sell/i.test(verdict) ? 'SELL' : /buy/i.test(verdict) ? 'BUY' : /build|core/i.test(verdict) ? 'CORE' : /stash/i.test(verdict) ? 'STASH' : 'HOLD');
-                    const marketCall = actionFam === 'SELL_HIGH' ? 'sell high'
-                      : actionFam === 'SELL' ? 'sell while value remains'
-                      : (actionFam === 'CORE' || actionFam === 'BUILD') ? "cornerstone — don't move cheap"
-                      : actionFam === 'BUY' ? 'buy low'
-                      : "don't overpay";
-                    const callSub = tier + ' ' + posLbl + ' · ' + marketCall;
-                    // renderExpandBody is shared with the desktop roster board
-                    // (_renderRosterBoard); the cleaned-up verdict badge is
-                    // phone-only so desktop stays byte-identical.
-                    const isPhoneCard = rosterViewportWidth <= 767;
                     const sigRow = (label, val, last) =>(<div style={{ display: 'flex', gap: '9px', alignItems: 'baseline', padding: '6px 0', borderBottom: last ? 'none' : '1px solid rgba(255,255,255,0.05)', fontSize: '0.74rem' }}><span style={{ minWidth: '52px', color: 'var(--silver)', opacity: 0.65 }}>{label}</span><span style={{ color: 'var(--white)', fontWeight: 600 }}>{val}</span></div>);
                     return (<React.Fragment>
                       {/* Identity + roster call */}
@@ -962,56 +973,42 @@ function MyTeamTab({
                             {r.injury ? <span style={{ color: 'var(--bad)', fontWeight: 700 }}> {'·'} {r.injury}</span> : null}
                           </div>
                         </div>
-                        {/* PHONE: verdict as a single clean pill — dropped the
-                            "Roster call" eyebrow + tier/market filler subline
-                            (DHQ/tier/window live in the signals chips below).
-                            DESKTOP/tablet keep the original block byte-identical
-                            (renderExpandBody is shared with the roster board). */}
-                        {isPhoneCard ? (
-                          isPro ? (() => {
-                            const ev = _effRec(r) || 'Hold';
-                            const evc = _recColor(ev);
-                            return (
-                        <button onClick={e => { e.stopPropagation(); setTagEditPid(p => p === r.pid ? null : r.pid); }} title="Tap to set your own call" aria-expanded={tagEditPid === r.pid} style={{ flexShrink: 0, alignSelf: 'center', display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: 'Rajdhani, sans-serif', fontSize: '1.15rem', fontWeight: 700, color: evc, textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1, padding: '6px 13px', borderRadius: '999px', border: '1px solid ' + wrAlpha(evc, '55'), background: wrAlpha(evc, '16'), whiteSpace: 'nowrap', cursor: 'pointer' }}>{ev}<span aria-hidden="true" style={{ fontSize: '0.7rem', opacity: 0.65 }}>{'▾'}</span></button>
-                            );
-                          })() : (
+                        {/* Verdict badge — editable on ALL versions. Tap to open
+                            the picker (Hold/Stash/Sell/Drop + Trade Block/Watch/
+                            Untouchable/Cut, the old tag buttons rolled in). */}
+                        {isPro ? (() => {
+                          const ev = _effRec(r) || 'Hold';
+                          const evc = _recColor(ev);
+                          return (
+                        <button onClick={e => { e.stopPropagation(); setTagEditPid(p => p === r.pid ? null : r.pid); }} title="Tap to set your own call" aria-expanded={tagEditPid === r.pid} style={{ flexShrink: 0, alignSelf: 'center', display: 'inline-flex', alignItems: 'center', gap: '5px', fontFamily: 'Rajdhani, sans-serif', fontSize: '1.25rem', fontWeight: 700, color: evc, textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1, padding: '7px 14px', borderRadius: '999px', border: '1px solid ' + wrAlpha(evc, '55'), background: wrAlpha(evc, '16'), whiteSpace: 'nowrap', cursor: 'pointer' }}>{ev}<span aria-hidden="true" style={{ fontSize: '0.75rem', opacity: 0.65 }}>{'▾'}</span></button>
+                          );
+                        })() : (
                         <button onClick={e => { e.stopPropagation(); if (window.showProLaunchPage) window.showProLaunchPage(); else if (window.showUpgradePrompt) window.showUpgradePrompt('analytics_depth'); }}
                           title="Buy/sell roster calls are a Pro read"
                           style={{ flexShrink: 0, alignSelf: 'center', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                          <span style={{ display: 'inline-block', fontFamily: 'Rajdhani, sans-serif', fontSize: '1.05rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.02em', lineHeight: 1, padding: '6px 15px', borderRadius: '999px', border: '1px solid ' + wrAlpha('var(--gold)', '55'), background: wrAlpha('var(--gold)', '16'), whiteSpace: 'nowrap' }}>{'🔒'} Pro</span>
-                        </button>
-                          )
-                        ) : isPro ? (
-                        <div style={{ textAlign: 'right', minWidth: '120px' }}>
-                          <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Roster call</div>
-                          <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.6rem', fontWeight: 700, color: vColor, lineHeight: 1.05, textTransform: 'uppercase' }}>{verdict}</div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--silver)' }}>{callSub}</div>
-                        </div>
-                        ) : (
-                        // Free: verdict + "sell high / buy low" sub are Pro — live lock teaser in the same slot.
-                        <button onClick={e => { e.stopPropagation(); if (window.showProLaunchPage) window.showProLaunchPage(); else if (window.showUpgradePrompt) window.showUpgradePrompt('analytics_depth'); }}
-                          title="Buy/sell roster calls are a Pro read"
-                          style={{ textAlign: 'right', minWidth: '120px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                          <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Roster call</div>
-                          <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.15rem', fontWeight: 700, color: 'var(--gold)', lineHeight: 1.2, textTransform: 'uppercase' }}>{'🔒'} Pro</div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--silver)' }}>Unlock buy/sell calls</div>
+                          <span style={{ display: 'inline-block', fontFamily: 'Rajdhani, sans-serif', fontSize: '1.15rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.02em', lineHeight: 1, padding: '7px 15px', borderRadius: '999px', border: '1px solid ' + wrAlpha('var(--gold)', '55'), background: wrAlpha('var(--gold)', '16'), whiteSpace: 'nowrap' }}>{'🔒'} Pro</span>
                         </button>
                         )}
                       </div>
 
-                      {/* Verdict picker (phone) — set your own Hold/Stash/Sell/Drop,
-                          overriding the engine call; Auto clears back to it. */}
-                      {isPhoneCard && isPro && tagEditPid === r.pid && (
+                      {/* Verdict/tag picker — all versions. Sets your own call
+                          (Hold/Stash/Sell/Drop + the rolled-in Trade Block/Watch/
+                          Untouchable/Cut); Auto reverts to the DHQ engine read. */}
+                      {isPro && tagEditPid === r.pid && (() => {
+                        const hasOverride = !!(verdictOverrides[r.pid] || (window._playerTags && window._playerTags[r.pid]));
+                        const cur = String(_effRec(r) || 'Hold').toLowerCase();
+                        return (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', marginBottom: '10px' }}>
                         <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.08em', marginRight: '2px' }}>Your call</span>
-                        {['Hold', 'Stash', 'Sell', 'Drop'].map(t => {
-                          const active = String(_effRec(r) || 'Hold').toLowerCase() === t.toLowerCase();
+                        {VERDICT_OPTIONS.map(t => {
+                          const active = cur === t.toLowerCase();
                           const c = _recColor(t);
-                          return <button key={t} onClick={e => { e.stopPropagation(); setPlayerVerdict(r.pid, t); setTagEditPid(null); }} style={{ minHeight: '38px', padding: '6px 13px', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', borderRadius: '6px', cursor: 'pointer', color: active ? c : 'var(--silver)', background: active ? wrAlpha(c, '22') : 'transparent', border: '1px solid ' + (active ? wrAlpha(c, '99') : 'var(--ov-6, rgba(255,255,255,0.12))') }}>{t}</button>;
+                          return <button key={t} onClick={e => { e.stopPropagation(); setPlayerVerdict(r.pid, t); setTagEditPid(null); }} style={{ minHeight: '38px', padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', borderRadius: '6px', cursor: 'pointer', color: active ? c : 'var(--silver)', background: active ? wrAlpha(c, '22') : 'transparent', border: '1px solid ' + (active ? wrAlpha(c, '99') : 'var(--ov-6, rgba(255,255,255,0.12))') }}>{t}</button>;
                         })}
-                        {verdictOverrides[r.pid] && <button onClick={e => { e.stopPropagation(); setPlayerVerdict(r.pid, null); setTagEditPid(null); }} title="Revert to the DHQ engine call" style={{ minHeight: '38px', padding: '6px 13px', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', borderRadius: '6px', cursor: 'pointer', color: 'var(--text-muted)', background: 'transparent', border: '1px dashed var(--ov-6, rgba(255,255,255,0.14))' }}>{'↺'} Auto</button>}
+                        {hasOverride && <button onClick={e => { e.stopPropagation(); setPlayerVerdict(r.pid, null); setTagEditPid(null); }} title="Revert to the DHQ engine call" style={{ minHeight: '38px', padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', borderRadius: '6px', cursor: 'pointer', color: 'var(--text-muted)', background: 'transparent', border: '1px dashed var(--ov-6, rgba(255,255,255,0.14))' }}>{'↺'} Auto</button>}
                       </div>
-                      )}
+                        );
+                      })()}
 
                       {/* Signals chip strip */}
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
@@ -1075,10 +1072,8 @@ function MyTeamTab({
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     <button onClick={e => { e.stopPropagation(); const playerName = r.p.full_name || getPlayerName(r.pid); setReconPanelOpen(true); sendReconMessage("I'd like help with " + playerName + ". Here are my options:\n1. Who are the best trade partners for " + playerName + "?\n2. What's the long-term projection for " + playerName + "?\n3. Should I hold or sell " + playerName + " right now?"); }} style={{ padding: '7px 16px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'rgba(124,107,248,0.15)', color: 'var(--purple)', border: '1px solid rgba(124,107,248,0.3)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>ASK ALEX</button>
                     {/* Phase 2: News button removed per user feedback (2026-04-18) */}
-                    {[{tag:'trade',label:'TRADE BLOCK',bg:'rgba(240,165,0,0.15)',col:'var(--warn)',border:'rgba(240,165,0,0.3)'},{tag:'cut',label:'CUT',bg:'rgba(231,76,60,0.15)',col:'var(--bad)',border:'rgba(231,76,60,0.3)'},{tag:'untouchable',label:'UNTOUCHABLE',bg:'rgba(46,204,113,0.15)',col:'var(--good)',border:'rgba(46,204,113,0.3)'},{tag:'watch',label:'WATCH',bg:'rgba(52,152,219,0.15)',col:'var(--k-3498db, #3498db)',border:'rgba(52,152,219,0.3)'}].map(t => {
-                      const isActive = window._playerTags?.[r.pid] === t.tag;
-                      return <button key={t.tag} onClick={e => { e.stopPropagation(); const leagueId = currentLeague.id || currentLeague.league_id || ''; const tags = window._playerTags || {}; const wasActive = tags[r.pid] === t.tag; if (wasActive) delete tags[r.pid]; else tags[r.pid] = t.tag; window._playerTags = { ...tags }; if (window.OD?.savePlayerTags) window.OD.savePlayerTags(leagueId, tags); if (!wasActive) { const playerName = r.p.full_name || getPlayerName(r.pid); window.wrLogAction?.('\uD83C\uDFF7\uFE0F', 'Tagged ' + playerName + ' as ' + t.label, 'roster', { players: [{ name: playerName, pid: r.pid }], actionType: 'tag' }); } setTimeRecomputeTs(Date.now()); }} style={{ padding: '7px 12px', minHeight: '44px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', background: isActive ? t.bg : 'transparent', color: isActive ? t.col : 'var(--silver)', border: '1px solid ' + (isActive ? t.border : 'var(--ov-6, rgba(255,255,255,0.1))'), borderRadius: '6px', cursor: 'pointer', fontWeight: isActive ? 700 : 400, letterSpacing: '0.03em' }}>{t.label}</button>;
-                    })}
+                    {/* TRADE BLOCK/CUT/UNTOUCHABLE/WATCH buttons removed 2026-07-09 \u2014
+                        rolled into the verdict picker (tap the call badge above). */}
                     <button onClick={e => { e.stopPropagation(); setExpandedPid(null); }} style={{ padding: '7px 16px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: '6px', cursor: 'pointer' }}>COLLAPSE</button>
                   </div>
   </React.Fragment>);
