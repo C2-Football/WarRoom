@@ -1074,6 +1074,12 @@ function DashboardPanel({
     function WidgetShell({ widget, idx, children }) {
         const isTouch = (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
         const [showGear, setShowGear] = React.useState(isTouch);
+        // Phone (<768) chrome (iPhone program Phase 1): the ⚙/✕ pair
+        // collapses behind ONE ⋯ toggle per card; the shipped 44px ▲/▼
+        // touch-reorder controls below stay exactly as they are. Desktop
+        // and tablet never render the phone chrome (shellPhone false).
+        const shellPhone = dashViewport.isPhone;
+        const [phoneMenu, setPhoneMenu] = React.useState(false);
         const sizeSpan = { sm: 'span 1', slim: 'span 1', narrow: 'span 1', md: 'span 2', lg: 'span 2', tall: 'span 2', xl: 'span 4', xxl: 'span 4' };
         const rowSpan = { sm: 'span 1', slim: 'span 2', narrow: 'span 4', md: 'span 1', lg: 'span 2', tall: 'span 4', xl: 'span 2', xxl: 'span 4' };
 
@@ -1122,7 +1128,7 @@ function DashboardPanel({
                 {children}
 
                 {/* Gear button */}
-                {showGear && (
+                {!shellPhone && showGear && (
                     <button
                         onClick={e => { e.stopPropagation(); setEditingWidget({ widget, idx }); setPickerOpen(true); }}
                         title="Widget settings"
@@ -1144,7 +1150,7 @@ function DashboardPanel({
                 )}
 
                 {/* Remove button */}
-                {showGear && (
+                {!shellPhone && showGear && (
                     <button
                         onClick={e => { e.stopPropagation(); setSelectedWidgets(selectedWidgets.filter((_, i) => i !== idx)); }}
                         title="Remove widget"
@@ -1196,6 +1202,50 @@ function DashboardPanel({
                             transition: 'all 0.12s', pointerEvents: 'none',
                         }}>{b.glyph}</span></button>
                 ))}
+
+                {/* Phone ⋯ chrome — one toggle per card; tap opens a small
+                    inline action row (⚙ Edit / ✕ Remove) wired to the same
+                    setters the desktop gear/remove buttons use. ▲/▼ above
+                    stay as shipped. */}
+                {shellPhone && (
+                    <button
+                        onClick={e => { e.stopPropagation(); setPhoneMenu(v => !v); }}
+                        aria-label="Widget actions"
+                        aria-expanded={phoneMenu}
+                        title="Widget actions"
+                        style={{
+                            position: 'absolute', top: '-11px', right: '-11px',
+                            width: '44px', height: '44px', padding: 0,
+                            border: 'none', background: 'transparent',
+                            cursor: 'pointer', fontSize: 'var(--text-label, 0.75rem)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            zIndex: 6,
+                        }}
+                    ><span style={{
+                            width: '22px', height: '22px', borderRadius: '50%',
+                            border: '1px solid ' + (phoneMenu ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.15))'),
+                            background: 'var(--surf-solid, rgba(10,10,10,0.85))', backdropFilter: 'blur(4px)',
+                            color: phoneMenu ? G : S, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            transition: 'all 0.12s', pointerEvents: 'none', fontWeight: 700, letterSpacing: '1px',
+                        }}>⋯</span></button>
+                )}
+                {shellPhone && phoneMenu && (
+                    <div style={{
+                        position: 'absolute', top: '26px', right: '2px', zIndex: 7,
+                        display: 'flex', gap: '4px', padding: '3px 4px',
+                        background: 'var(--surf-solid, rgba(10,10,10,0.92))', backdropFilter: 'blur(4px)',
+                        border: '1px solid var(--ov-6, rgba(255,255,255,0.15))', borderRadius: '9px',
+                    }}>
+                        <button
+                            onClick={e => { e.stopPropagation(); setPhoneMenu(false); setEditingWidget({ widget, idx }); setPickerOpen(true); }}
+                            style={{ minHeight: '44px', padding: '0 12px', background: 'transparent', border: 'none', color: W, cursor: 'pointer', fontFamily: dmFont, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600 }}
+                        >⚙ Edit</button>
+                        <button
+                            onClick={e => { e.stopPropagation(); setPhoneMenu(false); setSelectedWidgets(selectedWidgets.filter((_, i) => i !== idx)); }}
+                            style={{ minHeight: '44px', padding: '0 12px', background: 'transparent', border: 'none', color: 'var(--bad, #e74c3c)', cursor: 'pointer', fontFamily: dmFont, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600 }}
+                        >✕ Remove</button>
+                    </div>
+                )}
             </div>
         );
     }
@@ -1421,6 +1471,261 @@ function DashboardPanel({
         setShowHint(false);
         try { localStorage.setItem(HINT_KEY, '1'); } catch {}
     };
+
+    // ══ PHONE (<768) — Phase 1 re-pour (iPhone program) ═══════════
+    // Early-return branch: everything inside `if (_phone)` below renders
+    // ONLY at the phone tier; the desktop/tablet MAIN RENDER further down
+    // stays byte-identical to the pre-phase file. Kit presence
+    // (wr-primitives.js loads earlier in the babel chain) is fixed for
+    // the page's lifetime. Layout: severity hero → ONE .wr-kpi-strip band
+    // (all sm widgets) → md+ widget cards in existing stack order →
+    // Add-widget tile at the bottom → Pinned.
+    const _kitReady = !!(window.WR && window.WR.HeroCard);
+    const _phone = dashViewport.isPhone && _kitReady;
+
+    // Severity source #1 — lineup delta. Same engine call + MFL empty-
+    // starters guard as LineupCheckWidget (js/widgets/lineup-check.js).
+    // Pro-only at the exact wrPro boundary that already gates the
+    // lineup-check widget (pro: true / startsit_depth) — zero gate drift.
+    // Hook runs unconditionally (order safety); short-circuits off-phone.
+    const _phoneLineup = React.useMemo(() => {
+        if (!_phone || !wrPro) return null;
+        const WP = window.App && window.App.WeeklyProj;
+        if (!WP || typeof WP.optimalForRoster !== 'function' || !myRoster || !currentLeague) return null;
+        const platformStarters = (myRoster.starters || []).filter(pid => pid && String(pid) !== '0');
+        if (!platformStarters.length) return null;
+        try { return WP.optimalForRoster(myRoster, currentLeague, { playersData, statsData, priorData: prevStatsData }); }
+        catch (e) { if (window.wrLog) window.wrLog('dashboard.phoneHero', e); return null; }
+    }, [_phone, wrPro, myRoster, currentLeague, playersData, statsData, prevStatsData]);
+
+    if (_phone) {
+        // ── Severity hero: lineup alert (Pro) → latest pinned insight →
+        // franchise pulse. Every input is data this panel already receives
+        // or computes — no new engine work.
+        let _phoneHeroEl = null;
+        const _ld = _phoneLineup && _phoneLineup.delta;
+        if (_ld && !_ld.isOptimal && _ld.delta > 0) {
+            const _swap = (_ld.startInstead || [])[0];
+            _phoneHeroEl = React.createElement(window.WR.HeroCard, {
+                kicker: 'Lineup alert',
+                headline: _ld.delta.toFixed(1) + ' PTS ON YOUR BENCH',
+                facts: _swap
+                    ? 'Start ' + getPlayerName(_swap.pid) + ' · ' + ((_swap.pos || '') + ' → ' + String(_swap.slot || '').replace('_', ' ')).trim() + ' · Wk ' + _phoneLineup.week
+                    : 'Optimal swap ready · Wk ' + _phoneLineup.week,
+                cta: 'Review lineup',
+                onCta: () => navigateWidget('lineup'),
+            });
+        } else if (starredWidgets.length > 0) {
+            const _pin = [...starredWidgets].sort((a, b) => (b.ts || 0) - (a.ts || 0))[0];
+            const _pinDest = WIDGET_DESTINATIONS[_pin.sourceModule] ? resolveWidgetDestination(_pin.sourceModule) : null;
+            _phoneHeroEl = React.createElement(window.WR.HeroCard, {
+                kicker: _pin.sourceModule ? String(_pin.sourceModule) : 'Pinned intel',
+                headline: _pin.title || 'Pinned intel',
+                facts: _pin.content ? String(_pin.content).slice(0, 120) : 'Starred from across the app',
+                cta: _pinDest ? 'Open' : null,
+                onCta: _pinDest ? () => navigateWidget(_pinDest) : undefined,
+            });
+        } else {
+            const _hs = kv('health-score');
+            const _order = [...(standings || [])].sort((a, b) => {
+                if (b.wins !== a.wins) return b.wins - a.wins;
+                if (a.losses !== b.losses) return a.losses - b.losses;
+                return b.pointsFor - a.pointsFor;
+            });
+            const _mineIdx = _order.findIndex(t => t.userId === sleeperUserId);
+            const _mine = _mineIdx >= 0 ? _order[_mineIdx] : null;
+            _phoneHeroEl = React.createElement(window.WR.HeroCard, {
+                kicker: 'Franchise pulse',
+                headline: 'HEALTH ' + _hs.value + (_mine ? ' · #' + (_mineIdx + 1) + ' OF ' + _order.length : ''),
+                facts: _mine
+                    ? _mine.wins + '-' + _mine.losses + (_mine.pointsFor > 0 ? ' · ' + _mine.pointsFor.toFixed(0) + ' PF' : '') + ' · no alerts on the board'
+                    : 'No alerts on the board',
+                ctaGhost: 'My Roster',
+                onCtaGhost: () => navigateWidget('myteam'),
+            });
+        }
+
+        // ── Layout split: ALL size-sm widgets merge into one KPI strip;
+        // everything else keeps its card form in existing stack order.
+        // Original selectedWidgets indices ride along so ▲▼/edit/remove in
+        // WidgetShell keep mutating the exact same layout array slots.
+        const _phoneSm = [];
+        const _phoneStack = [];
+        widgets.forEach((w, i) => { ((w && w.size === 'sm') ? _phoneSm : _phoneStack).push({ w, i }); });
+
+        // Strip-tile value ladder (no new engines): Pro-locked teaser at
+        // the exact renderWidget gate → KPI value via the same
+        // computeKpiValue feed the desktop SmallKpiCard reads (plus two
+        // existing-KPI fallbacks for metric-less modules) → the lineup
+        // delta already computed above → icon launcher to the module's
+        // existing sm clickTarget.
+        const _PHONE_SM_KPI = { 'draft-capital': 'pick-capital', 'market-radar': 'faab-efficiency' };
+        const _phoneKpiTile = (widget) => {
+            const mod = WIDGET_MODULES[widget.key];
+            const clickTab = resolveWidgetDestination(mod?.clickTarget?.sm || mod?.clickTarget?.md || null);
+            const tileBase = {
+                background: BK, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
+                borderRadius: '9px', padding: '9px 11px', minHeight: '68px', maxWidth: '150px',
+                display: 'flex', flexDirection: 'column', gap: '2px', cursor: 'pointer', boxSizing: 'border-box',
+            };
+            const labelCss = { fontFamily: monoFont, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, color: S, opacity: 0.65, letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+            const subCss = { fontFamily: dmFont, fontSize: 'var(--text-micro, 0.6875rem)', color: S, opacity: 0.65, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 'auto' };
+            const valCss = (col) => ({ fontFamily: monoFont, fontSize: '1.15rem', fontWeight: 700, color: col || W, lineHeight: 1.15, whiteSpace: 'nowrap' });
+            const tileKey = widget.id || widget.key;
+            // Tiles keep the WidgetShell data-widget-* hooks so live click
+            // QA (tests/live-click-paths.js) finds sm widgets at the phone
+            // breakpoint too.
+            const tileProps = (onTap, label) => ({
+                role: 'button', tabIndex: 0, title: label,
+                'data-widget-id': widget.id || '',
+                'data-widget-key': widget.key || '',
+                'data-widget-size': widget.size || '',
+                onClick: onTap,
+                onKeyDown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTap && onTap(e); } },
+                style: tileBase,
+            });
+            // 1) Pro module + free user — same condition renderWidget gates
+            //    on; tap routes to the same upsell WidgetProTeaser opens.
+            if (mod?.pro && !wrPro) {
+                const openUpsell = () => {
+                    if (window.showProLaunchPage) window.showProLaunchPage();
+                    else if (window.showUpgradePrompt) window.showUpgradePrompt(mod?.proFeature || '');
+                };
+                return (
+                    <div key={tileKey} {...tileProps(openUpsell, (mod?.label || widget.key) + ' — Pro')}>
+                        <div style={labelCss}>{mod?.label || widget.key}</div>
+                        <div style={valCss(G)}>🔒</div>
+                        <div style={subCss}>Pro</div>
+                    </div>
+                );
+            }
+            const goTab = () => { if (clickTab) navigateWidget(clickTab); };
+            // 2) KPI-backed tile — label / value / delta.
+            const kpiKey = widget.primaryMetric || mod?.metrics?.[0]?.key || _PHONE_SM_KPI[widget.key] || null;
+            if (kpiKey) {
+                const val = kv(kpiKey);
+                const metricLabel = (mod?.metrics || []).find(m => m.key === kpiKey)?.label || KPI_OPTIONS?.[kpiKey]?.label || mod?.label || kpiKey;
+                return (
+                    <div key={tileKey} {...tileProps(goTab, metricLabel)}>
+                        <div style={labelCss}>{metricLabel}</div>
+                        <div style={valCss(val.color)}>{val.value}{trendArrow(val.sparkData, val.color)}</div>
+                        <div style={subCss}>{val.sub || ' '}</div>
+                    </div>
+                );
+            }
+            // 3) Lineup check — reuse the delta already computed for the hero.
+            if (widget.key === 'lineup-check' && _ld) {
+                return (
+                    <div key={tileKey} {...tileProps(() => navigateWidget('lineup'), 'Lineup Check')}>
+                        <div style={labelCss}>Lineup Check</div>
+                        <div style={valCss(_ld.isOptimal ? 'var(--good, #2ecc71)' : G)}>{_ld.isOptimal ? 'SET' : _ld.delta.toFixed(1)}</div>
+                        <div style={subCss}>{_ld.isOptimal ? 'optimal' : 'pts on bench'}</div>
+                    </div>
+                );
+            }
+            // 4) Launcher tile — module icon, taps through to its tab.
+            return (
+                <div key={tileKey} {...tileProps(goTab, mod?.label || widget.key)}>
+                    <div style={labelCss}>{mod?.label || widget.key}</div>
+                    <div style={valCss(W)}>{mod?.icon || '▦'}</div>
+                    <div style={subCss}>Open ›</div>
+                </div>
+            );
+        };
+
+        return (
+            <React.Fragment>
+                {/* First-visit hint — same state/dismiss as desktop, phone wording */}
+                {showHint && (
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        padding: '10px 14px',
+                        background: 'linear-gradient(90deg, var(--acc-fill2, rgba(212,175,55,0.1)), var(--acc-fill1, rgba(212,175,55,0.02)))',
+                        borderBottom: '1px solid var(--acc-line1, rgba(212,175,55,0.2))',
+                        fontFamily: dmFont, fontSize: 'var(--text-label, 0.75rem)', color: S,
+                    }}>
+                        <div style={{ flex: 1, lineHeight: 1.45 }}>
+                            <strong style={{ color: G }}>Yours to customize.</strong> Tap ⋯ on any card to edit or remove it, ▲▼ to reorder. <strong>+ Add Widget</strong> sits at the bottom.
+                        </div>
+                        <button onClick={dismissHint} style={{
+                            padding: '6px 12px', minHeight: '36px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: dmFont, fontWeight: 600,
+                            background: 'var(--acc-fill2, rgba(212,175,55,0.12))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
+                            borderRadius: '5px', color: G, cursor: 'pointer', flexShrink: 0,
+                        }}>Got it</button>
+                    </div>
+                )}
+
+                {/* Widgets carry inline grid spans — flatten them to the 1-col stack */}
+                <style>{`@media(max-width:767px){
+                    .wr-dashboard-grid>.wr-widget{ grid-column:1 / -1 !important; grid-row:auto !important; min-width:0; }
+                }`}</style>
+
+                {/* Severity hero + KPI strip */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: 'var(--space-md) var(--space-md) 0', background: BK }}>
+                    {_phoneHeroEl}
+                    {_phoneSm.length > 0 && (
+                        <div className="wr-kpi-strip">
+                            {_phoneSm.map(({ w }) => _phoneKpiTile(w))}
+                        </div>
+                    )}
+                </div>
+
+                {/* md+ widget cards — existing stack order, original indices */}
+                <div className="wr-dashboard-grid" style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(0,1fr)',
+                    gridAutoRows: 'minmax(160px,auto)',
+                    gap: 'var(--space-md)',
+                    padding: 'var(--space-md) var(--space-md) 0',
+                    background: BK,
+                    minWidth: 0,
+                    maxWidth: '100%',
+                    overflowX: 'hidden',
+                }}>
+                    {_phoneStack.map(({ w, i }) => renderWidget(w, i))}
+                </div>
+
+                {/* Add widget — bottom of the phone stack */}
+                <div style={{ padding: 'var(--space-md)', background: BK, borderBottom: '1px solid ' + (theme.colors?.border || 'var(--acc-fill2, rgba(212,175,55,0.12))') }}>
+                    <button
+                        type="button"
+                        className="wr-add-widget"
+                        onClick={() => { setEditingWidget(null); setPickerOpen(true); }}
+                        style={{
+                            width: '100%', minHeight: '56px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                            border: '1px dashed var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '10px',
+                            background: 'transparent', cursor: 'pointer',
+                            color: 'var(--acc-line2, rgba(212,175,55,0.35))', fontFamily: 'inherit',
+                        }}
+                    >
+                        <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>+</span>
+                        <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontFamily: dmFont, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Add Widget</span>
+                    </button>
+                </div>
+
+                {/* Pinned / starred section */}
+                <PinnedSection />
+
+                {/* Full-screen widget picker overlay (same wiring as desktop) */}
+                {pickerOpen && (
+                    <DashboardWidgetPicker
+                        editWidget={editingWidget?.widget || null}
+                        onClose={() => { setPickerOpen(false); setEditingWidget(null); }}
+                        onAdd={newWidget => {
+                            if (editingWidget !== null) {
+                                const updated = [...selectedWidgets];
+                                updated[editingWidget.idx] = { ...newWidget, id: editingWidget.widget?.id || newWidget.id };
+                                setSelectedWidgets(updated);
+                            } else {
+                                setSelectedWidgets([...selectedWidgets, newWidget]);
+                            }
+                        }}
+                    />
+                )}
+            </React.Fragment>
+        );
+    }
 
     // ══════════════════════════════════════════════════════════════
     // MAIN RENDER

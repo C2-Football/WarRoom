@@ -40,6 +40,7 @@ function LineupTab({
     const [formWindow, setFormWindow] = React.useState(5); // rolling-PPG window: 3 | 5 | 8 | 'season'
     const [openSlot, setOpenSlot] = React.useState(null);  // slot idx whose picker is expanded
     const [workingAssign, setWorkingAssign] = React.useState({}); // slotIdx -> pid (the user's working lineup)
+    const [applyOpen, setApplyOpen] = React.useState(false);      // phone-only: WR.ActionBar apply/push sheet (inert off-phone)
 
     const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #9aa0a6)', TEXT = 'var(--text, #e8e8ea)';
     const GREEN = 'var(--k-2ecc71, #2ecc71)', RED = 'var(--k-e74c3c, #e74c3c)', AMBER = 'var(--k-f0a500, #f0a500)';
@@ -659,6 +660,265 @@ function LineupTab({
                         );
                     }) : <div style={{ padding: '10px 14px', color: SILVER, fontSize: '0.74rem', opacity: 0.7 }}>Loading schedule…</div>}
                 </div>
+            </div>
+        );
+    }
+
+    // ══ PHONE (<768) — Game Day Central phone branch (iPhone program Phase 1).
+    // EARLY RETURN: everything below the closing brace renders only off-phone,
+    // so the desktop/tablet return underneath stays byte-identical. Kit
+    // presence (wr-primitives.js loads earlier in the babel chain) is fixed
+    // for the page's lifetime, so gating the return on it has no hook hazard.
+    // Free/Pro: every phone surface re-pours gated content at the EXACT
+    // existing `pro` boundaries — optimal hero/delta, matchup grades, win%,
+    // breakdown and the Alex note stay Pro; the manual builder, raw
+    // projections, bye listing and the MFL push stay free.
+    const _kitReady = !!(window.WR && window.WR.HeroCard && window.WR.AssetRow && window.WR.CardList && window.WR.Sheet && window.WR.ActionBar);
+    if (isPhone && _kitReady) {
+        const HeroCard = window.WR.HeroCard, AssetRow = window.WR.AssetRow, CardList = window.WR.CardList, Sheet = window.WR.Sheet, ActionBar = window.WR.ActionBar;
+        const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
+        const MICRO = 'var(--text-micro, 0.6875rem)';
+        const SLOT_SHORT = { SUPER_FLEX: 'SF', REC_FLEX: 'RF', FLEX: 'FLX', WRTQ: 'WRT', IDP_FLEX: 'IDP', WILDCARD: 'WC' };
+        const dispSlots = [...startingSlots].sort((a, b) => (SLOT_DISPLAY_ORDER[a.slotName] ?? 50) - (SLOT_DISPLAY_ORDER[b.slotName] ?? 50));
+
+        // Working-vs-platform dirtiness drives the ActionBar (P6). MFL rosters
+        // never expose platform starters (currentAssign = {}), so any set slot
+        // reads as "unpushed" — exactly when the push path matters.
+        const dirty = startingSlots.some(sl => String(workingAssign[sl.idx] || '') !== String(currentAssign[sl.idx] || ''));
+
+        // Optimal swap summary for the hero facts — the same per-slot
+        // assignment walk as applyOptimal(), diffed against the working
+        // lineup. Pro only (the optimizer layer).
+        let swaps = [], topSwap = null;
+        if (pro) {
+            const byName = {};
+            result.optimal.starters.forEach(s => { (byName[s.slot] = byName[s.slot] || []).push(s.pid); });
+            const optAssign = {};
+            startingSlots.forEach(sl => { const arr = byName[sl.slotName]; if (arr && arr.length) optAssign[sl.idx] = String(arr.shift()); });
+            startingSlots.forEach(sl => {
+                const cur = String(workingAssign[sl.idx] || ''), opt = String(optAssign[sl.idx] || '');
+                if (cur === opt) return;
+                const sw = { sl, cur, opt, gain: objPts(opt) - objPts(cur) };
+                swaps.push(sw);
+                if (!topSwap || sw.gain > topSwap.gain) topSwap = sw;
+            });
+        }
+        const swapFacts = topSwap
+            ? swaps.length + ' swap' + (swaps.length === 1 ? '' : 's') + ': ' + (topSwap.cur ? pmeta(topSwap.cur).name : 'Empty') + ' → ' + (topSwap.opt ? pmeta(topSwap.opt).name : 'Empty') + ' · ' + topSwap.sl.slotName.replace('_', ' ') + ' slot'
+            : 'No swaps — your best lineup is in';
+
+        // Matchup-grade verdict chip (Pro interpretation — mirrors the Mtch column gate).
+        const gradeChip = (grade) => (
+            <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, padding: '3px 8px', borderRadius: '5px', border: '1px solid ' + gradeColor(grade), color: gradeColor(grade), whiteSpace: 'nowrap' }}>{grade}</span>
+        );
+
+        // P1 slot row — the shipped phone column-set (GRID above: slot /
+        // player / proj / mtch) recast as a WR.AssetRow: slot label rides the
+        // tag, PROJ is the stat slot, the Pro matchup grade is the verdict
+        // chip. Row tap = the EXISTING openSlot toggle.
+        const slotRow = (sl) => {
+            const pid = workingAssign[sl.idx] || null;
+            const slotLabel = sl.slotName.replace('_', ' ');
+            const open = openSlot === sl.idx;
+            if (!pid) {
+                return <AssetRow key={sl.idx} pos={SLOT_SHORT[sl.slotName] || sl.slotName} name="Empty — tap to set" tag={slotLabel}
+                    slots={[{ label: 'PROJ', value: '—', tone: 'mute' }]} accent={open ? 'gold' : undefined}
+                    onClick={() => setOpenSlot(open ? null : sl.idx)} />;
+            }
+            const meta = pmeta(pid), proj = projOf(pid), pts = proj && proj.points;
+            const status = (proj && proj.injuryStatus) || '';
+            const opp = proj && proj.opponent;
+            const tag = [slotLabel, meta.team || 'FA', opp && opp.abbr ? (opp.home ? 'vs ' : '@ ') + opp.abbr : null, status || null].filter(Boolean).join(' · ');
+            const atRisk = !!status || (proj && proj.available === false);
+            return <AssetRow key={sl.idx} pos={meta.pos || '?'} name={meta.name} tag={tag}
+                slots={[{ label: 'PROJ', value: pts ? (pts[objective] || 0).toFixed(1) : '—' }]}
+                verdict={pro ? gradeChip((proj && proj.matchupGrade) || '—') : null}
+                accent={open ? 'gold' : atRisk ? 'risk' : undefined}
+                onClick={() => setOpenSlot(open ? null : sl.idx)} />;
+        };
+
+        // Eligible-player picker (openSlot) — a WR.Sheet instead of the
+        // desktop inline expansion; rows drive the EXACT same assign/empty
+        // setters. Form stats + the L3/L5/L8/SZN window ride here (the
+        // Form/Hi/Lo columns stay dropped from phone rows).
+        const openSl = openSlot != null ? startingSlots.find(sl => sl.idx === openSlot) : null;
+        const openPid = openSl ? (workingAssign[openSl.idx] || null) : null;
+        const openElig = openSl ? eligibleFor(openSl) : [];
+        const openFs = openPid ? formOf(openPid) : null;
+        const pickRow = (epid) => {
+            const isCur = String(openPid) === String(epid);
+            const meta = pmeta(epid), proj = projOf(epid), pts = proj && proj.points;
+            const status = (proj && proj.injuryStatus) || '';
+            const opp = proj && proj.opponent;
+            const fs = formOf(epid);
+            return <AssetRow key={epid} pos={meta.pos || '?'} name={meta.name}
+                tag={[isCur ? 'IN' : null, meta.team || 'FA', opp && opp.abbr ? (opp.home ? 'vs ' : '@ ') + opp.abbr : null, status || null].filter(Boolean).join(' · ')}
+                slots={[{ label: 'PROJ', value: pts ? (pts[objective] || 0).toFixed(1) : '—' }, { label: formWinLabel, value: fs ? fs.rollingPPG.toFixed(1) : '—', tone: 'mute' }]}
+                verdict={pro ? gradeChip((proj && proj.matchupGrade) || '—') : null}
+                accent={isCur ? 'gold' : undefined}
+                onClick={() => { setWorkingAssign(w => ({ ...w, [openSl.idx]: epid })); setOpenSlot(null); }} />;
+        };
+
+        // P5 decision hero. Pro: optimal-vs-working delta + one-swap summary
+        // + APPLY OPTIMAL → the existing applyOptimal(). Free: matchup
+        // context + raw working total, optimizer teaser at the existing gate.
+        const heroEl = pro ? (
+            <HeroCard kicker="Optimizer"
+                headline={isOptimal ? 'LINEUP OPTIMAL · ' + workingTotal.toFixed(1) + ' PROJ' : 'OPTIMAL LINEUP +' + benchPts.toFixed(1) + ' PROJ'}
+                facts={isOptimal ? 'No changes needed · yours ' + workingTotal.toFixed(1) + ' = optimal ' + optimalTotal.toFixed(1) : swapFacts}
+                cta={isOptimal ? null : 'APPLY OPTIMAL'} onCta={applyOptimal} />
+        ) : (
+            <HeroCard kicker={'Week ' + result.week + ' · Game Day'}
+                headline={'YOUR LINEUP ' + workingTotal.toFixed(1) + ' PTS'}
+                facts={matchup ? 'vs ' + matchup.oppName + (matchup.oppCurTotal > 0 ? ' · them ' + matchup.oppCurTotal.toFixed(1) + ' (current lineup)' : '') : 'Tap a slot below to set your starters — the total updates live.'}>
+                {GatedRow ? <div style={{ marginTop: '10px' }}><GatedRow title="Lineup optimizer" sub="Optimal lineup + points left on bench, floor–ceiling bands, matchup grades and win odds" feature={STARTSIT_FEAT} /></div> : null}
+            </HeroCard>
+        );
+
+        const kpiTile = (label, value, sub, valColor) => (
+            <div key={label} style={{ background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '9px', padding: '9px 11px' }}>
+                <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--text-muted, #8B8B96)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.3rem', fontWeight: 700, color: valColor || TEXT, lineHeight: 1.15, marginTop: '2px', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+                {sub ? <div style={{ fontFamily: MONO, fontSize: MICRO, color: SILVER, opacity: 0.65, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '110px' }}>{sub}</div> : null}
+            </div>
+        );
+        const goldDiv = (label) => (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 600, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{label}</span>
+                <span aria-hidden="true" style={{ flex: 1, height: '1px', background: 'rgba(212,175,55,0.25)' }} />
+            </div>
+        );
+        const winColor = matchup && matchup.fc.winPct != null ? (matchup.fc.winPct >= 55 ? GREEN : matchup.fc.winPct <= 45 ? RED : GOLD) : SILVER;
+
+        return (
+            <div style={{ padding: '14px 12px 72px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {heroEl}
+
+                {/* P1 slot table — the working lineup as card rows */}
+                <CardList groups={[{ label: 'Starters', sub: 'Proj ' + workingTotal.toFixed(1), rows: dispSlots.map(slotRow) }]} />
+
+                {/* P4 matchup strip — H2H stakes below the lineup work. Free
+                    keeps the raw you-vs-their-current totals; win%, margin,
+                    their-ideal and the breakdown stay Pro (existing gates). */}
+                {matchup ? (
+                    <React.Fragment>
+                        {goldDiv('Matchup · vs ' + matchup.oppName)}
+                        <div className="wr-kpi-strip">
+                            {pro ? [
+                                kpiTile('Win%', matchup.fc.winPct == null ? '—' : matchup.fc.winPct + '%', matchup.fc.margin == null ? null : (matchup.fc.margin >= 0 ? '+' : '') + matchup.fc.margin.toFixed(1) + ' margin', winColor),
+                                kpiTile('You', matchup.fc.projMe.toFixed(1), 'working proj'),
+                                kpiTile('Them', matchup.fc.projOpp.toFixed(1), matchup.oppName),
+                                kpiTile('Their ideal', matchup.oppIdealTotal.toFixed(1), matchup.oppCurTotal > 0 ? 'current ' + matchup.oppCurTotal.toFixed(1) : 'current —'),
+                            ] : [
+                                kpiTile('You', matchup.fc.projMe.toFixed(1), 'working proj'),
+                                kpiTile('Them', matchup.oppCurTotal > 0 ? matchup.oppCurTotal.toFixed(1) : '—', 'current lineup'),
+                            ]}
+                        </div>
+                        {!pro && GatedRow ? <GatedRow title="Win probability + matchup breakdown" sub="Projected margin, slot-by-slot edges and position-strength bars" feature={STARTSIT_FEAT} /> : null}
+                        {pro ? (
+                            <div onClick={() => setShowOpp(v => !v)} style={{ fontFamily: MONO, fontSize: MICRO, color: GOLD, fontWeight: 600, cursor: 'pointer', letterSpacing: '0.04em', textTransform: 'uppercase', padding: '2px 0' }}>{showOpp ? '▴ Hide matchup breakdown' : '▸ Matchup breakdown · you lead ' + matchup.myEdges + ' of ' + matchup.slotCount}</div>
+                        ) : null}
+                        {pro && showOpp ? (
+                            <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '9px', padding: '10px 12px' }}>
+                                <div style={{ fontFamily: MONO, fontSize: MICRO, letterSpacing: '0.06em', color: SILVER, marginBottom: '6px', textTransform: 'uppercase' }}>Position strength · you vs them</div>
+                                {matchup.posStrength.map(ps => {
+                                    const tot = (ps.mine + ps.theirs) || 1, myShare = ps.mine / tot * 100, meLead = ps.mine >= ps.theirs;
+                                    return (
+                                        <div key={ps.pos} style={{ display: 'grid', gridTemplateColumns: '30px 44px 1fr 44px', gap: '7px', alignItems: 'center', padding: '3px 0' }}>
+                                            <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, color: GOLD }}>{ps.pos}</span>
+                                            <span style={{ textAlign: 'right', fontSize: '0.72rem', fontWeight: meLead ? 700 : 400, color: meLead ? GREEN : SILVER, fontVariantNumeric: 'tabular-nums' }}>{ps.mine.toFixed(1)}</span>
+                                            <span style={{ position: 'relative', height: '6px', background: 'var(--ov-3, rgba(255,255,255,0.05))', borderRadius: '3px' }}>
+                                                <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: myShare + '%', background: meLead ? 'rgba(46,204,113,0.5)' : 'rgba(212,175,55,0.32)', borderRadius: '3px' }} />
+                                            </span>
+                                            <span style={{ fontSize: '0.72rem', fontWeight: !meLead ? 700 : 400, color: !meLead ? RED : SILVER, fontVariantNumeric: 'tabular-nums' }}>{ps.theirs.toFixed(1)}</span>
+                                        </div>
+                                    );
+                                })}
+                                <div style={{ fontFamily: MONO, fontSize: MICRO, letterSpacing: '0.06em', color: SILVER, margin: '10px 0 4px', textTransform: 'uppercase' }}>Slot-by-slot</div>
+                                {matchup.h2h.map((r, i) => {
+                                    const me = pmeta(r.myPid), them = pmeta(r.theirPid);
+                                    const meWin = r.myMed > r.theirMed, theyWin = r.theirMed > r.myMed;
+                                    return (
+                                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '38px 1fr 44px 1fr', gap: '6px', alignItems: 'center', padding: '4px 0', borderBottom: `1px solid ${LINE}`, fontSize: '0.74rem' }}>
+                                            <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, color: GOLD }}>{r.slot.replace('_', ' ')}</span>
+                                            <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: meWin ? TEXT : SILVER, fontWeight: meWin ? 600 : 400 }}>{r.myPid ? me.name : '—'}</span>
+                                            <span style={{ textAlign: 'center', fontFamily: MONO, fontSize: MICRO, fontWeight: 700, color: meWin ? GREEN : theyWin ? RED : SILVER }}>{meWin ? '◄' + (r.myMed - r.theirMed).toFixed(1) : theyWin ? (r.theirMed - r.myMed).toFixed(1) + '►' : 'even'}</span>
+                                            <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', textAlign: 'right', color: theyWin ? TEXT : SILVER, fontWeight: theyWin ? 600 : 400 }}>{r.theirPid ? them.name : '—'}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : null}
+                    </React.Fragment>
+                ) : null}
+
+                {/* Alex game-day note as a card (note state is Pro-gated upstream: free = '') */}
+                {note ? (
+                    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '6px', padding: '12px 14px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: fz('0.6rem'), fontWeight: 800, letterSpacing: '0.08em', color: GOLD, marginTop: '3px', whiteSpace: 'nowrap' }}>ALEX ·</span>
+                        <span style={{ fontSize: '0.86rem', color: TEXT, lineHeight: 1.5 }}>{note}</span>
+                    </div>
+                ) : null}
+
+                {/* Rail sections (season outlook / bye watch / schedule) re-pour
+                    BELOW the lineup as stacked cards — renderRail carries every
+                    existing free/Pro gate; the desktop 2-col grid + right-rail
+                    column never mounts on phone. */}
+                {goldDiv('Season')}
+                {renderRail()}
+
+                {/* P3-style picker sheet — bench players for the open slot */}
+                <Sheet open={!!openSl} onClose={() => setOpenSlot(null)} title={openSl ? 'Set ' + openSl.slotName.replace('_', ' ') : ''} desktop={null}>
+                    {openSl ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px 14px 4px' }}>
+                            <div className="wr-seg">
+                                {[['L3', 3], ['L5', 5], ['L8', 8], ['SZN', 'season']].map(opt => (
+                                    <button key={opt[0]} className={formWindow === opt[1] ? 'is-on' : ''} onClick={() => setFormWindow(opt[1])}>{opt[0]}</button>
+                                ))}
+                            </div>
+                            {openPid && openFs ? (
+                                <div style={{ fontSize: '0.74rem', color: SILVER, fontVariantNumeric: 'tabular-nums' }}>
+                                    {pmeta(openPid).name} · {formWinLabel} <span style={{ color: TEXT, fontWeight: 700 }}>{openFs.rollingPPG.toFixed(1)}</span>
+                                    {' · Hi '}<span style={{ color: GREEN, fontWeight: 700 }}>{openFs.high.toFixed(1)}</span>
+                                    {' · Lo '}<span style={{ color: SILVER, fontWeight: 700 }}>{openFs.low.toFixed(1)}</span>
+                                </div>
+                            ) : null}
+                            <div style={{ fontFamily: MONO, fontSize: MICRO, letterSpacing: '0.05em', color: SILVER, textTransform: 'uppercase' }}>Eligible for {openSl.slotName.replace('_', ' ')} — tap to start</div>
+                            {openElig.map(pickRow)}
+                            {!openElig.length ? <div style={{ color: SILVER, fontSize: '0.74rem', opacity: 0.7 }}>No eligible bench players.</div> : null}
+                            {openPid ? (
+                                <div onClick={() => { setWorkingAssign(w => { const n = { ...w }; delete n[openSl.idx]; return n; }); setOpenSlot(null); }}
+                                    style={{ padding: '13px 0', cursor: 'pointer', color: RED, fontSize: '0.74rem', fontWeight: 600 }}>✕ Empty this slot</div>
+                            ) : null}
+                        </div>
+                    ) : null}
+                </Sheet>
+
+                {/* P6 apply/push sheet — the MFL push card re-homes here on
+                    phone (never inline); same handlers, same submit machine. */}
+                <Sheet open={applyOpen} onClose={() => setApplyOpen(false)} title="Working lineup" desktop={null}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '10px 14px 4px' }}>
+                        <div style={{ fontSize: '0.82rem', color: TEXT }}>
+                            {pro ? (isOptimal ? <span style={{ color: GREEN, fontWeight: 700 }}>Lineup is optimal</span> : <span style={{ color: GOLD, fontWeight: 700 }}>{benchPts.toFixed(1)} pts below optimal</span>) : <span style={{ fontWeight: 700 }}>Your lineup {workingTotal.toFixed(1)} pts</span>}
+                            {pro ? <span style={{ color: SILVER, fontSize: '0.76rem' }}> · yours {workingTotal.toFixed(1)} · optimal {optimalTotal.toFixed(1)}</span> : null}
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {pro ? <button onClick={applyOptimal} style={{ ...actBtn, color: GOLD, borderColor: 'var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.12)' }}>Apply Optimal</button> : null}
+                            <button onClick={() => { setWorkingAssign(currentAssign); setOpenSlot(null); }} style={actBtn}>Reset</button>
+                        </div>
+                        {renderMflPush()}
+                        {!isMfl ? <div style={{ fontSize: '0.72rem', color: SILVER, lineHeight: 1.5 }}>Your platform has no public lineup-write API — build and compare here, then set the final lineup on your platform.</div> : null}
+                    </div>
+                </Sheet>
+
+                {/* P6 action bar — live while the working lineup differs from
+                    the platform lineup. APPLY = the same applyOptimal path
+                    (Pro); bar tap opens the apply/push sheet. */}
+                <ActionBar visible={dirty} label="WORKING LINEUP"
+                    value={pro ? (isOptimal ? workingTotal.toFixed(1) + ' PROJ' : '+' + benchPts.toFixed(1)) : workingTotal.toFixed(1) + ' PROJ'}
+                    tone="good" actionLabel="APPLY"
+                    onAction={pro ? applyOptimal : () => setApplyOpen(true)}
+                    onOpen={() => setApplyOpen(true)} />
             </div>
         );
     }
