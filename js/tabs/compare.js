@@ -87,6 +87,8 @@ function CompareTab({
     });
     const [h2hState, setH2hState] = React.useState({ loading: false, meetings: [], error: null, loadedFor: null });
     const [heatPos, setHeatPos] = React.useState(null); // phone Position Heatmap: selected position (null → first)
+    const [searchPos, setSearchPos] = React.useState('ALL');   // phone add-player search: position-group filter
+    const [searchTeam, setSearchTeam] = React.useState('ALL'); // phone add-player search: owned-by-team filter (rosterId)
 
     // Phone tier (≤767): shared viewport seam (js/shared/viewport.js) — every
     // phone-conditional style below keys off this so tablet/desktop never change.
@@ -828,8 +830,8 @@ function CompareTab({
             : '34px minmax(0,1.15fr) minmax(0,.58fr) minmax(0,.58fr) minmax(0,.58fr) minmax(0,.46fr) minmax(0,.4fr) minmax(0,.4fr) minmax(0,.62fr)';
         const fieldLead = focusProfile.isMine ? 'You' : focusProfile.name;
         const fieldRead = focusProfile.total >= fieldAvg
-            ? (focusProfile.isMine ? 'You are above this field' : 'Focus is above field avg')
-            : (focusProfile.isMine ? 'This field is above you' : 'Focus is below field avg');
+            ? (focusProfile.isMine ? 'You lead this field' : 'Focus is above field avg')
+            : (focusProfile.isMine ? 'You trail this field' : 'Focus is below field avg');
 
         const renderTeamChip = (profile) => (
             <div key={profile.rosterId} style={{ padding: '9px 10px', background: profile.isMine ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid ' + (profile.isMine ? 'var(--acc-line2, rgba(212,175,55,0.35))' : 'var(--ov-4, rgba(255,255,255,0.07))'), borderRadius: '7px' }}>
@@ -882,9 +884,9 @@ function CompareTab({
                     minWidth: 0,
                 }}>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', minWidth: 0 }}>
-                        <img src={'https://sleepercdn.com/content/nfl/players/thumb/'+player.pid+'.jpg'} onError={e=>e.target.style.display='none'} style={{ width:'24px',height:'24px',borderRadius:'50%',objectFit:'cover', flexShrink: 0 }} />
+                        {!isPhone && <img src={'https://sleepercdn.com/content/nfl/players/thumb/'+player.pid+'.jpg'} onError={e=>e.target.style.display='none'} style={{ width:'24px',height:'24px',borderRadius:'50%',objectFit:'cover', flexShrink: 0 }} />}
                         <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ color: 'var(--white)', fontSize: '0.76rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{player.p?.full_name || '?'}</div>
+                            <div style={{ color: 'var(--white)', fontSize: '0.76rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{isPhone ? ((player.p?.first_name ? player.p.first_name[0] + '. ' : '') + (player.p?.last_name || player.p?.full_name || '?')) : (player.p?.full_name || '?')}</div>
                             <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.66, marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {player.team} {player.age != null ? '· ' + player.age + 'yo' : ''}{player.ppg > 0 ? ' · ' + player.ppg + ' PPG' : ''} · {player.peakYrs > 0 ? player.peakYrs + 'yr peak' : player.valueYrs + 'yr value'}
                             </div>
@@ -1207,9 +1209,13 @@ function CompareTab({
                     </div>
                 ) : null}
 
+                {/* Team-card field grid — redundant with the phone rank table
+                    above, so desktop-only on phone (owner ask). */}
+                {!isPhone && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '8px' }}>
                     {profiles.map(renderTeamChip)}
                 </div>
+                )}
             </div>
         );
     };
@@ -1746,23 +1752,35 @@ function CompareTab({
     // Phone add-player search (P3/P6): same pool filter as the desktop
     // dropdown (renderPlayerSearch), re-homed in a WR.Sheet list with a
     // 16px input (iOS zoom floor). Computed only while the sheet is open.
+    // Add-player search (phone): owned-by-team map + result pool. Filters by
+    // name, position group, and/or owning team — any active filter is enough
+    // to browse (name not required when a pos/team filter is set).
+    const searchTeams = (currentLeague?.rosters || [])
+        .map(ros => ({ rid: String(ros.roster_id), name: getOwnerName(ros, 'Team ' + ros.roster_id), pids: new Set((ros.players || []).map(String)) }))
+        .filter(t => t.pids.size);
+    const pidOwnerRid = {}; const ridName = {};
+    searchTeams.forEach(t => { ridName[t.rid] = t.name; t.pids.forEach(pid => { pidOwnerRid[pid] = t.rid; }); });
     let phoneSearchResults = [];
     if (_phoneKit && compareScope === 'players' && searchOpen) {
         const q = playerQuery.trim().toLowerCase();
-        if (q.length >= 2 && comparePlayerIds.length < 4) {
+        const posOn = searchPos !== 'ALL', teamOn = searchTeam !== 'ALL';
+        if (comparePlayerIds.length < 4 && (q.length >= 2 || posOn || teamOn)) {
             const seen = new Set(comparePlayerIds.map(String));
             for (const pid of Object.keys(playersData || {})) {
                 const p = playersData[pid];
                 if (!p) continue;
                 const pos = normPos(p.position);
                 if (!allPositions.includes(pos)) continue;
+                if (posOn && pos !== searchPos) continue;
+                if (teamOn && pidOwnerRid[String(pid)] !== searchTeam) continue;
                 const nm = p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim();
-                if (!nm || !nm.toLowerCase().includes(q)) continue;
+                if (!nm) continue;
+                if (q.length >= 2 && !nm.toLowerCase().includes(q)) continue;
                 if (seen.has(String(pid))) continue;
-                phoneSearchResults.push({ pid, name: nm, pos, team: p.team || 'FA', dhq: scores[pid] || scores[String(pid)] || 0 });
+                phoneSearchResults.push({ pid, name: nm, pos, team: p.team || 'FA', dhq: scores[pid] || scores[String(pid)] || 0, owner: ridName[pidOwnerRid[String(pid)]] || null });
             }
             phoneSearchResults.sort((a, b) => b.dhq - a.dhq);
-            phoneSearchResults = phoneSearchResults.slice(0, 20);
+            phoneSearchResults = phoneSearchResults.slice(0, 40);
         }
     }
     const phoneAtMax = comparePlayerIds.length >= 4;
@@ -2160,6 +2178,8 @@ function CompareTab({
                     </div>
                 </div>
 
+                {/* Leverage/exposure cards — removed on phone (owner ask). */}
+                {!isPhone && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginBottom: '16px' }}>
                     <div style={{ ...panelStyle, padding: '14px' }}>
                         <div style={{ ...labelStyle, color: 'var(--gold)', opacity: 1, marginBottom: '8px' }}>Where you can press</div>
@@ -2182,6 +2202,7 @@ function CompareTab({
                         )) : <div style={{ color: 'var(--silver)', opacity: 0.68, fontSize: '0.8rem' }}>No obvious room where this opponent has a strong value edge.</div>}
                     </div>
                 </div>
+                )}
 
                 <div style={{ ...panelStyle, padding: '14px', marginBottom: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'baseline', marginBottom: '10px' }}>
@@ -2311,19 +2332,31 @@ function CompareTab({
             <WrPhoneSheet open={searchOpen} onClose={() => setSearchOpen(false)} title="Add player to compare" desktop={null}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px 14px 4px' }}>
                     <input value={playerQuery} onChange={e => setPlayerQuery(e.target.value)}
-                        placeholder={phoneAtMax ? 'Four players max — remove one to swap' : 'Search a player to compare…'}
+                        placeholder={phoneAtMax ? 'Four players max — remove one to swap' : 'Search players by name…'}
                         disabled={phoneAtMax}
                         style={{ ...selectStyle, width: '100%', fontSize: '16px', opacity: phoneAtMax ? 0.5 : 1 }} />
+                    {/* Position-group filter */}
+                    <div className="wr-hscroll" style={{ display: 'flex', gap: '5px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '2px' }}>
+                        {['ALL', ...allPositions].map(pos => { const on = searchPos === pos, c = pos === 'ALL' ? 'var(--gold)' : (posColors[pos] || 'var(--silver)'); return <button key={pos} onClick={() => setSearchPos(pos)} disabled={phoneAtMax} style={{ flex: 'none', minHeight: '38px', padding: '6px 11px', borderRadius: '7px', ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap', color: on ? c : 'var(--silver)', background: on ? 'rgba(255,255,255,0.06)' : 'transparent', border: '1px solid ' + (on ? c : 'var(--ov-6, rgba(255,255,255,0.12))') }}>{pos === 'ALL' ? 'All pos' : posLabel(pos)}</button>; })}
+                    </div>
+                    {/* Owned-by-team filter */}
+                    <select value={searchTeam} onChange={e => setSearchTeam(e.target.value)} disabled={phoneAtMax} style={{ ...selectStyle, width: '100%', fontSize: '16px' }}>
+                        <option value="ALL">Any team — all rosters</option>
+                        {searchTeams.map(t => <option key={t.rid} value={t.rid}>{t.name}</option>)}
+                    </select>
+                    {(searchPos !== 'ALL' || searchTeam !== 'ALL') ? (
+                        <div onClick={() => { setSearchPos('ALL'); setSearchTeam('ALL'); }} style={{ fontSize: '0.72rem', color: 'var(--gold)', cursor: 'pointer', padding: '0 2px 2px' }}>{'↺'} Clear filters</div>
+                    ) : null}
                     {phoneSearchResults.map(r => (
-                        <WrAssetRow key={r.pid} pos={r.pos} name={r.name} tag={r.team}
+                        <WrAssetRow key={r.pid} pos={r.pos} name={r.name} tag={r.team + (r.owner ? ' · ' + r.owner : ' · FA')}
                             slots={[{ label: valueShortLabel, value: r.dhq > 0 ? r.dhq.toLocaleString() : '—' }]}
                             onClick={() => { addComparePlayer(r.pid); setSearchOpen(false); }} />
                     ))}
-                    {!phoneAtMax && playerQuery.trim().length < 2 ? (
-                        <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, padding: '6px 2px' }}>Type at least two letters to search the player pool.</div>
+                    {!phoneAtMax && playerQuery.trim().length < 2 && searchPos === 'ALL' && searchTeam === 'ALL' ? (
+                        <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, padding: '6px 2px' }}>Search by name, or filter by position or team above.</div>
                     ) : null}
-                    {!phoneAtMax && playerQuery.trim().length >= 2 && !phoneSearchResults.length ? (
-                        <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, padding: '6px 2px' }}>No players match "{playerQuery.trim()}".</div>
+                    {!phoneAtMax && (playerQuery.trim().length >= 2 || searchPos !== 'ALL' || searchTeam !== 'ALL') && !phoneSearchResults.length ? (
+                        <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, padding: '6px 2px' }}>No players match those filters.</div>
                     ) : null}
                 </div>
             </WrPhoneSheet>
