@@ -1439,8 +1439,12 @@ function CompareTab({
                 <div style={{ ...panelStyle, padding: '30px 28px', textAlign: 'center' }}>
                     <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-title)', color: 'var(--white)', fontWeight: 800, marginBottom: '7px', letterSpacing: 0 }}>Compare players head-to-head</div>
                     <div style={{ fontSize: '0.86rem', color: 'var(--silver)', lineHeight: 1.55, maxWidth: '560px', margin: '0 auto 16px' }}>
-                        Add up to four players to see their {valueLabel} and key signals side by side across four quadrants. Search above, hit <strong style={{ color: 'var(--gold)' }}>Compare</strong> on any player card, or start with your top players:
+                        {isPhone
+                            ? 'Add up to four players to compare their ' + valueLabel + ' and key signals side by side. Tap Add player above to search by name, position, or owning team.'
+                            : <React.Fragment>Add up to four players to see their {valueLabel} and key signals side by side across four quadrants. Search above, hit <strong style={{ color: 'var(--gold)' }}>Compare</strong> on any player card, or start with your top players:</React.Fragment>}
                     </div>
+                    {/* Quick-start top-player cards — desktop only (owner ask); phone uses the search. */}
+                    {!isPhone && (
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
                         {myTopForQuick.length ? myTopForQuick.map(pl => (
                             <button key={pl.pid} onClick={() => addComparePlayer(pl.pid)} style={quickButtonStyle(false)}>
@@ -1449,6 +1453,7 @@ function CompareTab({
                             </button>
                         )) : <div style={{ fontSize: '0.8rem', color: 'var(--silver)', opacity: 0.6 }}>Use the search above to add players.</div>}
                     </div>
+                    )}
                 </div>
             );
         }
