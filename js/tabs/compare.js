@@ -829,9 +829,13 @@ function CompareTab({
             ? '34px minmax(0,1.5fr) minmax(0,.75fr) minmax(0,.9fr)'
             : '34px minmax(0,1.15fr) minmax(0,.58fr) minmax(0,.58fr) minmax(0,.58fr) minmax(0,.46fr) minmax(0,.4fr) minmax(0,.4fr) minmax(0,.62fr)';
         const fieldLead = focusProfile.isMine ? 'You' : focusProfile.name;
-        const fieldRead = focusProfile.total >= fieldAvg
-            ? (focusProfile.isMine ? 'You lead this field' : 'Focus is above field avg')
-            : (focusProfile.isMine ? 'You trail this field' : 'Focus is below field avg');
+        // Tiered standing by percentile (rank among the field), owner ask.
+        const fieldTier = percentile >= 80 ? { label: 'Top of the heap', color: 'var(--good)' }
+            : percentile >= 55 ? { label: 'Front runner', color: 'var(--gold)' }
+            : percentile >= 30 ? { label: 'Middle of the pack', color: 'var(--silver)' }
+            : { label: 'Back of the pack', color: 'var(--bad)' };
+        const fieldRead = focusProfile.isMine ? fieldTier.label : (focusProfile.total >= fieldAvg ? 'Above field avg' : 'Below field avg');
+        const fieldReadColor = focusProfile.isMine ? fieldTier.color : (focusProfile.total >= fieldAvg ? 'var(--good)' : 'var(--bad)');
 
         const renderTeamChip = (profile) => (
             <div key={profile.rosterId} style={{ padding: '9px 10px', background: profile.isMine ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid ' + (profile.isMine ? 'var(--acc-line2, rgba(212,175,55,0.35))' : 'var(--ov-4, rgba(255,255,255,0.07))'), borderRadius: '7px' }}>
@@ -1046,6 +1050,16 @@ function CompareTab({
         return (
             <div>
                 <div style={{ ...panelStyle, padding: '18px 20px', marginBottom: '14px', background: 'linear-gradient(135deg, var(--acc-fill1, rgba(212,175,55,0.055)), rgba(52,152,219,0.045))' }}>
+                    {isPhone ? (
+                        // Phone (owner ask): lead with the tier verdict, then rank
+                        // + strongest/weakest room — no floating right-aligned block.
+                        <div style={{ marginBottom: '14px' }}>
+                            <div style={labelStyle}>{fieldLabel}</div>
+                            <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.55rem', fontWeight: 850, color: fieldReadColor, letterSpacing: 0, lineHeight: 1.08, margin: '2px 0 5px' }}>{fieldRead}</div>
+                            <div style={{ fontSize: '0.82rem', color: 'var(--silver)' }}>{fieldLead} vs {comparisonProfiles.length}-team field · <b style={{ color: 'var(--white)' }}>#{focusRank} of {profiles.length}</b></div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--silver)', marginTop: '5px' }}>Strongest room <b style={{ color: 'var(--good)' }}>{strongest ? posLabel(strongest.pos) : '—'}</b> · Weakest room <b style={{ color: 'var(--bad)' }}>{weakest ? posLabel(weakest.pos) : '—'}</b></div>
+                        </div>
+                    ) : (
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', marginBottom: '14px' }}>
                         <div>
                             <div style={labelStyle}>{fieldLabel}</div>
@@ -1054,14 +1068,15 @@ function CompareTab({
                         </div>
                         <div style={{ textAlign: 'right' }}>
                             <div style={labelStyle}>Field Read</div>
-                            <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-title)', fontWeight: 850, color: focusProfile.total >= fieldAvg ? 'var(--good)' : 'var(--bad)', letterSpacing: 0 }}>
+                            <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-title)', fontWeight: 850, color: fieldReadColor, letterSpacing: 0 }}>
                                 {fieldRead}
                             </div>
                             <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.7 }}>
-                                Best pressure point: {strongest ? posLabel(strongest.pos) : 'Roster'}; watch spot: {weakest ? posLabel(weakest.pos) : 'depth'}.
+                                Strongest room: {strongest ? posLabel(strongest.pos) : 'Roster'}; weakest room: {weakest ? posLabel(weakest.pos) : 'depth'}.
                             </div>
                         </div>
                     </div>
+                    )}
                     {/* Phone (P4): the KPI cards ride a horizontally snapping
                         .wr-kpi-strip instead of a stacked grid. */}
                     <div className={isPhone ? 'wr-kpi-strip' : undefined} style={isPhone ? undefined : { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '9px' }}>
