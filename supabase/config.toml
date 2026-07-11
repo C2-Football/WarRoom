@@ -19,6 +19,12 @@ verify_jwt = false
 [functions.ai-feedback]
 verify_jwt = false
 
+[functions.report-bug]
+verify_jwt = false
+
+[functions.feature-requests]
+verify_jwt = false
+
 [functions.admin-analytics-report]
 verify_jwt = false
 

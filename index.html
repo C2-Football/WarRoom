@@ -2186,6 +2186,10 @@ WRShared.preloadMany(WR_SHARED_FILES);
            its inline left:80px was desktop-sidebar clearance. */
         .wr-corner-toast { bottom:calc(12px + var(--wr-bottom-inset)) !important; right:12px !important; }
         .wr-dhq-bubble { bottom:calc(12px + var(--wr-bottom-inset)) !important; left:12px !important; right:12px !important; min-width:0 !important; }
+        /* Shared feedback launcher sits at bottom:12/16px → lands on the PhoneDock.
+           Lift the button (and its popup menu) above the dock so it's not in the way. */
+        .dhqfb-launch { bottom:calc(12px + var(--wr-bottom-inset)) !important; }
+        .dhqfb-menu { bottom:calc(56px + var(--wr-bottom-inset)) !important; }
 
         /* iOS zoom-on-focus guard: Safari zooms any focused input under
            16px. Phone tier only (plan D7). */
@@ -2557,6 +2561,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script src="js/shared/snapshot-store.js?v=20260601a"></script>
 
 <script src="js/shared/wr-ai-context.js?v=20260610a"></script>
+<!-- 2h2. Feedback hub — floating launcher, bug reports + crash capture, feature voting board -->
+<script src="js/shared/feedback-hub.js?v=20260711fb1"></script>
 <!-- 2i. Per-league transaction cache — window.WrTxns — cross-league activity + DNA substrate -->
 <script src="js/shared/txn-store.js?v=20260601a"></script>
 <!-- 3. Shared utilities: player valuation constants + projection engine -->
