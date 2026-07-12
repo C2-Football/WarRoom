@@ -12,20 +12,18 @@
         // badge/exec/analyst/coach/scout) — the set the chat/GMMessage renderer
         // (AlexAvatar) actually displays. Legacy emoji ids (brain/target/chart/…)
         // stored on wr_alex_avatar normalize to 'badge' (no broken images).
-        const avatars = window.ALEX_AVATARS || [{ id: 'badge', label: 'Gold Badge', src: null }];
-        const readAvatar = () => {
-            const id = localStorage.getItem('wr_alex_avatar') || 'badge';
-            return avatars.some(a => a.id === id) ? id : 'badge';
-        };
-        const [currentAvatar, setCurrentAvatar] = React.useState(readAvatar);
+        // Alex is always the "AI" badge now (photos retired) — the user picks its
+        // COLOR (owner ask). Stored via components.js window.setAlexBadgeColor.
+        const badgeColors = window.ALEX_BADGE_COLORS || [{ id: 'gold', label: 'Gold', from: '#d4af37', to: '#b8941e', text: '#0a0a0a' }];
+        const [currentBadge, setCurrentBadge] = React.useState(() => (window.getAlexBadgeColor && window.getAlexBadgeColor().id) || 'gold');
         return (<>
         <div style={sectionStyle}>
-            <div style={sectionTitle}>AVATAR</div>
-            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginBottom: '0.75rem' }}>Choose Alex's look. Displayed in briefings and chat.</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '8px' }}>
-                {avatars.map(av => {
-                    const isActive = currentAvatar === av.id;
-                    return <button key={av.id} onClick={() => { localStorage.setItem('wr_alex_avatar', av.id); setCurrentAvatar(av.id); }}
+            <div style={sectionTitle}>ALEX BADGE</div>
+            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginBottom: '0.75rem' }}>Pick the color of Alex's badge. Shown in briefings and chat.</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: '8px' }}>
+                {badgeColors.map(bc => {
+                    const isActive = currentBadge === bc.id;
+                    return <button key={bc.id} onClick={() => { if (window.setAlexBadgeColor) window.setAlexBadgeColor(bc.id); setCurrentBadge(bc.id); window.dispatchEvent(new CustomEvent('wr:alex-badge-changed')); }}
                         style={{
                             padding: '12px 8px', textAlign: 'center',
                             background: isActive ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'var(--ov-1, rgba(255,255,255,0.02))',
@@ -33,19 +31,17 @@
                             borderRadius: '10px', cursor: 'pointer',
                         }}>
                         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
-                            {av.src
-                                ? <img src={av.src} alt="" style={{ width: '44px', height: '44px', borderRadius: '8px', objectFit: 'cover', border: '2px solid var(--acc-line3, rgba(212,175,55,0.4))' }} />
-                                : <div style={{ width: '44px', height: '44px', borderRadius: '8px', background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: 'var(--k-0a0a0a, #0a0a0a)', fontFamily: 'Rajdhani, sans-serif' }}>AI</div>}
+                            <div style={{ width: '44px', height: '44px', borderRadius: '8px', background: 'linear-gradient(135deg, ' + bc.from + ', ' + bc.to + ')', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: bc.text, fontFamily: 'Rajdhani, sans-serif', boxShadow: isActive ? '0 0 0 2px var(--acc-line3, rgba(212,175,55,0.4))' : 'none' }}>AI</div>
                         </div>
-                        <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: isActive ? 'var(--gold)' : 'var(--silver)' }}>{av.label}</div>
+                        <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: isActive ? 'var(--gold)' : 'var(--silver)' }}>{bc.label}</div>
                     </button>;
                 })}
             </div>
         </div>
         <div style={sectionStyle}>
             <div style={sectionTitle}>GM BRIEFING</div>
-            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginBottom: '0.75rem', lineHeight: 1.45 }}>Replay the first-launch War Room briefing any time you want to re-orient the room.</div>
-            <button onClick={() => { if (window.replayWRTutorial) window.replayWRTutorial(); }} style={{ width: '100%', padding: '0.65rem 0.85rem', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: '6px', color: 'var(--gold)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>Replay GM Briefing</button>
+            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginBottom: '0.75rem', lineHeight: 1.45 }}>Re-open Alex's welcome briefing in the chat any time you want to re-orient the room.</div>
+            <button onClick={() => window.dispatchEvent(new CustomEvent('wr:replay-welcome'))} style={{ width: '100%', padding: '0.65rem 0.85rem', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: '6px', color: 'var(--gold)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>Replay GM Briefing</button>
         </div>
         </>);
     }
@@ -340,9 +336,6 @@
                                                     color: isActive ? 'var(--gold)' : 'var(--white)',
                                                     letterSpacing: '0.06em',
                                                 }}>{t.name || themeId}</div>
-                                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginTop: '4px' }}>
-                                                    {themeId === 'default' ? 'Dark mode - gold accent' : themeId === 'light' ? 'Light mode - clean and bright' : 'Custom theme'}
-                                                </div>
                                                 {isActive && (
                                                     <div style={{
                                                         marginTop: '8px',
@@ -376,13 +369,7 @@
                                     <button onClick={goToManagePlan} style={{ ...btnOutline, fontSize: 'var(--text-label, 0.75rem)' }}>Gift Sub</button>
                                 </div>
                             </div>
-                            <div style={moduleSectionStyle}>
-                                <div style={sectionTitle}>AI KEY</div>
-                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', lineHeight: 1.55, marginBottom: '0.75rem' }}>
-                                    Session-only BYO keys are supported during onboarding and in the AI controls.
-                                </div>
-                                <button onClick={() => { window.location.href = 'onboarding.html?manage=true#byo'; }} style={{ ...btnOutline, width: '100%', flex: 'none', fontSize: 'var(--text-body, 1rem)' }}>Review AI Setup</button>
-                            </div>
+                            {/* AI KEY section removed (owner ask). */}
                             <div style={moduleSectionStyle}>
                                 <div style={sectionTitle}>DATA</div>
                                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -399,12 +386,7 @@
                                     </button>
                                 </div>
                             </div>
-                            <div style={moduleSectionStyle}>
-                                <div style={sectionTitle}>ABOUT</div>
-                                <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.65 }}>
-                                    Dynasty HQ v2.0 &middot; Powered by DHQ Engine
-                                </div>
-                            </div>
+                            {/* ABOUT section removed (owner ask). */}
                         </div>
                     </div>
                 </div>

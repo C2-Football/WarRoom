@@ -1856,7 +1856,9 @@ function LeagueMapTab({
         }, {})).sort((a, b) => b[1] - a[1])[0];
         return (
             <div>
-                {_analyticsEmbed && (
+                {/* Summary cards are desktop-only (owner ask): on phone they were
+                    four stacked full-width cards eating a screen before the table. */}
+                {_analyticsEmbed && !_phone && (
                     <div className="analytics-embed-summary">
                         <div><span>Player Pool</span><strong>{playerSummary.total.toLocaleString()}</strong><em>{filtered.length.toLocaleString()} shown</em></div>
                         <div><span>Elite Assets</span><strong>{playerSummary.elite}</strong><em>7000+ DHQ or top 5 pos</em></div>
@@ -1865,6 +1867,76 @@ function LeagueMapTab({
                     </div>
                 )}
                 {/* Phase 8 deferred: search + position chips + SavedViewBar */}
+                {/* ══ PHONE (≤767) — mobile-first toolbar (owner ask): full-width
+                    search, ONE momentum-scroll chip line for positions + rookies
+                    (+ live count), a compact PPG/Columns row, then the saved-view
+                    bar. Same state setters as the desktop toolbar (untouched). */}
+                {_phone ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', marginBottom: '8px' }}>
+                        <input
+                            type="text"
+                            value={lpSearch || ''}
+                            onChange={e => setLpSearch && setLpSearch(e.target.value)}
+                            placeholder="Search by player name or owner…"
+                            style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', fontSize: '16px', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: '7px', color: 'var(--white)', fontFamily: 'var(--font-body)', outline: 'none', minHeight: '44px' }}
+                        />
+                        <div className="wr-hscroll" style={{ display: 'flex', gap: '5px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', paddingBottom: '2px', alignItems: 'center' }}>
+                            {['', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB', '__ROOKIE__'].map(pos => {
+                                const on = lpFilter === pos;
+                                const label = pos === '' ? 'All' : pos === '__ROOKIE__' ? 'Rookies' : (window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos));
+                                return (
+                                    <button key={pos || 'all'} onClick={() => setLpFilter(pos === '__ROOKIE__' && lpFilter === '__ROOKIE__' ? '' : pos)} style={{ flex: 'none', minHeight: '38px', padding: '6px 12px', borderRadius: '7px', fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap', color: on ? 'var(--gold)' : 'var(--silver)', background: on ? 'rgba(212,175,55,0.14)' : 'transparent', border: '1px solid ' + (on ? 'var(--gold)' : 'var(--ov-6, rgba(255,255,255,0.12))') }}>{label}</button>
+                                );
+                            })}
+                            <span style={{ flex: 'none', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', color: 'var(--silver)', opacity: 0.55, paddingLeft: '2px', whiteSpace: 'nowrap' }}>{filtered.length} players</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>PPG</span>
+                            {[{ k: 'season', l: 'Season' }, { k: 'l5', l: 'L5' }, { k: 'l3', l: 'L3' }].map(opt => (
+                                <button key={opt.k} onClick={() => setPpgWindow(opt.k)} title={opt.k === 'season' ? 'Season-to-date PPG' : 'Last ' + (opt.k === 'l5' ? 5 : 3) + ' games'} style={{ minHeight: '38px', padding: '6px 12px', borderRadius: '7px', fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', color: ppgWindow === opt.k ? 'var(--gold)' : 'var(--silver)', background: ppgWindow === opt.k ? 'rgba(212,175,55,0.14)' : 'transparent', border: '1px solid ' + (ppgWindow === opt.k ? 'var(--gold)' : 'var(--ov-6, rgba(255,255,255,0.12))') }}>{opt.l}</button>
+                            ))}
+                            <div style={{ position: 'relative', marginLeft: 'auto' }}>
+                                <button onClick={() => setAllPlayersColPickerOpen(o => !o)} style={{ minHeight: '38px', padding: '6px 12px', borderRadius: '7px', fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, textTransform: 'uppercase', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', cursor: 'pointer' }}>⚙ Columns ({allPlayersCols.length})</button>
+                                {allPlayersColPickerOpen && (
+                                    <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: 'var(--black)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', padding: '8px', zIndex: 20, minWidth: '200px', boxShadow: '0 6px 20px rgba(0,0,0,0.6)' }}>
+                                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: '6px' }}>Visible Columns</div>
+                                        {ALL_PLAYERS_COLUMNS.filter(c => isPro || c.key !== 'tier').map(c => {
+                                            const on = allPlayersCols.includes(c.key);
+                                            return (
+                                                <label key={c.key} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 0', fontSize: '0.76rem', color: 'var(--silver)', cursor: c.toggleable === false ? 'not-allowed' : 'pointer', opacity: c.toggleable === false ? 0.6 : 1 }}>
+                                                    <input type="checkbox" checked={on} disabled={c.toggleable === false} onChange={() => {
+                                                        if (c.toggleable === false) return;
+                                                        setAllPlayersCols(prev => prev.includes(c.key) ? prev.filter(k => k !== c.key) : [...prev, c.key]);
+                                                    }} />
+                                                    {c.label}
+                                                </label>
+                                            );
+                                        })}
+                                        <div style={{ display: 'flex', gap: '4px', marginTop: '8px', borderTop: '1px solid var(--ov-5, rgba(255,255,255,0.08))', paddingTop: '6px' }}>
+                                            <button onClick={() => setAllPlayersCols(ALL_PLAYERS_COLUMNS.map(c => c.key))} style={{ flex: 1, padding: '8px 4px', fontSize: 'var(--text-micro, 0.6875rem)', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: '3px', color: 'var(--silver)', cursor: 'pointer', fontFamily: 'inherit' }}>All</button>
+                                            <button onClick={() => setAllPlayersCols(ALL_PLAYERS_DEFAULT_VISIBLE.slice())} style={{ flex: 1, padding: '8px 4px', fontSize: 'var(--text-micro, 0.6875rem)', background: 'var(--acc-fill3, rgba(212,175,55,0.15))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '3px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'inherit' }}>Reset</button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        {window.WR?.SavedViews?.SavedViewBar && (
+                            React.createElement(window.WR.SavedViews.SavedViewBar, {
+                                surface: 'all_players',
+                                leagueId: currentLeague?.id || currentLeague?.league_id,
+                                currentState: { columns: allPlayersCols, sort: lpSort, filters: { lpFilter, lpSearch: lpSearch || '' } },
+                                onApply: v => {
+                                    if (Array.isArray(v.columns) && v.columns.length) setAllPlayersCols(v.columns);
+                                    if (v.sort && v.sort.key) setLpSort({ key: v.sort.key, dir: v.sort.dir || -1 });
+                                    if (v.filters) {
+                                        if (typeof v.filters.lpFilter === 'string') setLpFilter(v.filters.lpFilter);
+                                        if (typeof v.filters.lpSearch === 'string' && setLpSearch) setLpSearch(v.filters.lpSearch);
+                                    }
+                                },
+                            })
+                        )}
+                    </div>
+                ) : (
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <input
                         type="text"
@@ -1950,6 +2022,7 @@ function LeagueMapTab({
                         </div>
                     )}
                 </div>
+                )}
                 {(() => {
                     // ══ PHONE (≤767) — the All Players ledger re-pours as P1
                     // AssetRows (iPhone program Phase 3, Analytics assets
@@ -2224,7 +2297,10 @@ function LeagueMapTab({
 
         return (
             <div>
-                {_analyticsEmbed && (
+                {/* Summary cards, evidence head, and leader strip are desktop-only
+                    (owner ask) — on phone they stacked into screens of chrome
+                    before the pick ledger. */}
+                {_analyticsEmbed && !_phone && (
                     <div className="analytics-embed-summary">
                         <div><span>My Pick Capital</span><strong>{myValue.toLocaleString()}</strong><em>{myRows.length} slot-adjusted picks</em></div>
 	                        <div><span>Early Picks</span><strong>{myRows.filter(r => r.round <= 2).length}</strong><em>{years.length === 1 ? 'R1-R2 this draft' : 'R1-R2 through ' + (leagueSeason + 2)}</em></div>
@@ -2232,7 +2308,7 @@ function LeagueMapTab({
                         <div><span>Capital Leader</span><strong>{leaders[0] ? getOwnerName(leaders[0].rid) : '\u2014'}</strong><em>{leaders[0] ? leaders[0].value.toLocaleString() + ' DHQ' : 'no data'}</em></div>
                     </div>
                 )}
-                {_analyticsEmbed && (
+                {_analyticsEmbed && !_phone && (
                     <div className="analytics-evidence-head">
                         <div>
                             <span>Evidence Layer</span>
@@ -2257,11 +2333,13 @@ function LeagueMapTab({
                         ['traded', 'Moved'],
                         ['acquired', 'Acquired'],
                         ['away', 'Traded Away'],
-                    ].map(([key, label]) => (
+                    // 'Moved' (league-wide traded picks) is dropped on phone (owner
+                    // ask) — Acquired/Traded Away cover the decisions that matter.
+                    ].filter(([key]) => !_phone || key !== 'traded').map(([key, label]) => (
                         <button key={key} onClick={() => setPickStatusFilter(key)} className={pickStatusFilter === key ? 'is-active' : ''}>{label}</button>
                     ))}
                 </div>
-                {_analyticsEmbed && (
+                {_analyticsEmbed && !_phone && (
                     <div className="analytics-pick-leaders">
                         {leaders.map(leader => (
                             <div key={leader.rid}>

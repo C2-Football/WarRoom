@@ -1747,7 +1747,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 	    .draft-setup-hero-action strong { display: block; color: var(--good); font-family: var(--font-title); font-size: 1rem; letter-spacing: 0.06em; }
 	    .draft-setup-hero-action span { display: block; color: var(--silver); opacity: 0.74; font-size: 0.68rem; margin-top: 2px; }
 	    .draft-setup-hero-action:disabled { opacity: 0.55; cursor: not-allowed; border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.035); }
-	    .draft-setup-grid.draft-setup-grid-pro { grid-template-columns: minmax(0, 1.42fr) minmax(360px, 0.58fr); grid-template-rows: auto 1fr; gap: 10px; align-items: stretch; }
+	    .draft-setup-grid.draft-setup-grid-pro { grid-template-columns: minmax(0, 1.42fr) minmax(360px, 0.58fr); grid-template-rows: auto; gap: 10px; align-items: stretch; } /* 2 panels since the league hero card was removed */
 	    .draft-setup-league-card { grid-column: 1; grid-row: 1; border-color: rgba(46,204,113,0.22); background: linear-gradient(135deg, rgba(46,204,113,0.08), rgba(212,175,55,0.045), rgba(255,255,255,0.018)); }
 	    .draft-setup-league-card.is-synced { border-color: rgba(46,204,113,0.34); }
 	    .draft-league-primary { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 12px; align-items: center; margin-bottom: 9px; }
@@ -1766,8 +1766,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 	    .draft-league-metrics em { display: block; color: var(--silver); opacity: 0.66; font-size: 0.62rem; font-style: normal; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	    .draft-setup-choice-pro { margin-top: 6px; margin-bottom: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 	    .draft-setup-field-grid { display: grid; grid-template-columns: repeat(4, minmax(128px, 1fr)); gap: 8px; }
-	    .draft-setup-config-card { grid-column: 1; grid-row: 2; min-height: 0; }
-	    .draft-setup-launch-card { grid-column: 2; grid-row: 1 / span 2; min-height: 0; display: flex; flex-direction: column; }
+	    .draft-setup-config-card { grid-column: 1; grid-row: 1; min-height: 0; }
+	    .draft-setup-launch-card { grid-column: 2; grid-row: 1; min-height: 0; display: flex; flex-direction: column; }
 	    .draft-setup-launch-card .draft-setup-start { margin: 0 0 10px; }
 	    .draft-setup-launch-card .draft-setup-timeline { flex: 1; }
 	    .draft-setup-strategy-card { margin-top: 10px; padding: 12px; }
@@ -2123,7 +2123,9 @@ WRShared.preloadMany(WR_SHARED_FILES);
             border-top:2px solid transparent;
             cursor:pointer;
             color:var(--silver, #8a8f98);
-            font-family:var(--font-mono, 'JetBrains Mono', monospace);
+            /* Owner ask (2026-07-12): match the desktop/iPad sidebar nav font
+               (var(--font-body)) so all three surfaces read as one menu. */
+            font-family:var(--font-body, 'DM Sans', sans-serif);
             font-size:var(--text-micro, 0.6875rem); /* 11px floor — no new sub-11px text */
             font-weight:600;
             letter-spacing:0.05em;
@@ -2155,7 +2157,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
             border-left:1px solid rgba(212,175,55,0.28);
             cursor:pointer;
             color:var(--silver, #8a8f98);
-            font-family:var(--font-mono, 'JetBrains Mono', monospace);
+            font-family:var(--font-body, 'DM Sans', sans-serif);
             font-size:var(--text-micro, 0.6875rem);
             font-weight:600;
             letter-spacing:0.05em;
@@ -2186,14 +2188,22 @@ WRShared.preloadMany(WR_SHARED_FILES);
            its inline left:80px was desktop-sidebar clearance. */
         .wr-corner-toast { bottom:calc(12px + var(--wr-bottom-inset)) !important; right:12px !important; }
         .wr-dhq-bubble { bottom:calc(12px + var(--wr-bottom-inset)) !important; left:12px !important; right:12px !important; min-width:0 !important; }
-        /* Shared feedback launcher sits at bottom:12/16px → lands on the PhoneDock.
-           Lift the button (and its popup menu) above the dock so it's not in the way. */
-        .dhqfb-launch { bottom:calc(12px + var(--wr-bottom-inset)) !important; }
-        .dhqfb-menu { bottom:calc(56px + var(--wr-bottom-inset)) !important; }
 
         /* iOS zoom-on-focus guard: Safari zooms any focused input under
            16px. Phone tier only (plan D7). */
         input, select, textarea { font-size:16px !important; }
+
+        /* Mock Draft setup on phone: the full SetupScreen renders ≤767 now
+           (mobile mock drafting) — bump the tap targets that ship at desktop
+           density. Media-gated: zero desktop impact. */
+        .draft-setup-choice button, .draft-setup-speed button,
+        .draft-league-actions button, .draft-setup-secondary > button { min-height: 44px; }
+
+        /* Analytics phone re-pour: the Waiver Economy price map collapses to a
+           full-width card PER POSITION at ≤720 — pack it 2-up instead; and the
+           shell's desktop padding (inline style, hence !important) tightens. */
+        .analytics-mini-table { grid-template-columns: repeat(2, minmax(0,1fr)); }
+        .analytics-shell { padding: 10px 12px 18px !important; }
 
         /* Sub-tab strips: one-line momentum scroll instead of 2–3 wrapped
            44px rows of chrome (Analytics / Trade Center). */
@@ -2559,10 +2569,14 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script src="js/shared/league-history.js?v=20260426p20"></script>
 <!-- 2h. Weekly DHQ/health snapshot store — window.WrSnapshots — time-series for ▲/▼ deltas -->
 <script src="js/shared/snapshot-store.js?v=20260601a"></script>
+<!-- 2h1. NFL draft capital dataset — window.WR_DRAFT_PROFILE — static historical
+     [year, round, overall, team] by Sleeper id (Sleeper's API has none).
+     Regenerate with scripts/build-draft-profile.cjs. -->
+<script src="js/shared/draft-profile-data.js?v=20260712draft1"></script>
 
 <script src="js/shared/wr-ai-context.js?v=20260610a"></script>
 <!-- 2h2. Feedback hub — floating launcher, bug reports + crash capture, feature voting board -->
-<script src="js/shared/feedback-hub.js?v=20260711fb1"></script>
+<script src="js/shared/feedback-hub.js?v=20260711fb2"></script>
 <!-- 2i. Per-league transaction cache — window.WrTxns — cross-league activity + DNA substrate -->
 <script src="js/shared/txn-store.js?v=20260601a"></script>
 <!-- 3. Shared utilities: player valuation constants + projection engine -->

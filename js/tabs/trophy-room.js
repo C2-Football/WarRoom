@@ -947,6 +947,23 @@ ${importText.substring(0, 8000)}`;
 
         // Sort the All-Time roster by appearances → totalPoints
         const sortedRoster = [...champEntries].sort((a, b) => b.appearances - a.appearances || b.totalPoints - a.totalPoints);
+        // Group by position group (owner ask): groups ordered by most titles then
+        // pts; players within a group by titles (appearances) then pts.
+        const _normPos = window.App?.normPos;
+        const posGroups = (() => {
+            const g = {};
+            sortedRoster.forEach(p => {
+                const meta = resolve(p.pid);
+                const key = (_normPos ? _normPos(meta.pos) : meta.pos) || meta.pos || '?';
+                if (!g[key]) g[key] = { key, players: [], titles: 0, pts: 0 };
+                g[key].players.push(p);
+                g[key].titles += (p.appearances || 0);
+                g[key].pts += (p.totalPoints || 0);
+            });
+            Object.values(g).forEach(grp => grp.players.sort((a, b) => (b.appearances - a.appearances) || (b.totalPoints - a.totalPoints)));
+            return Object.values(g).sort((a, b) => (b.titles - a.titles) || (b.pts - a.pts));
+        })();
+        const _posLabelOf = (window.App && window.App.posLabel) || (p => p);
 
         return React.createElement('div', null,
             // ── Stats banner ──
@@ -1025,8 +1042,8 @@ ${importText.substring(0, 8000)}`;
                 ),
             ),
 
-            // ── Full champion-roster table ──
-            _phone ? _renderChampRosterPhone(sortedRoster, resolve) :
+            // ── Full champion-roster table (grouped by position group) ──
+            _phone ? _renderChampRosterPhone(posGroups, resolve) :
             React.createElement('div', { style: cardStyle },
                 React.createElement('div', { style: { ...headerStyle, display: 'flex', alignItems: 'center', gap: '6px' } },
                     React.createElement('span', { style: { fontSize: '1rem' } }, '📜'),
@@ -1042,24 +1059,31 @@ ${importText.substring(0, 8000)}`;
                         React.createElement('span', { style: { textAlign: 'right' } }, 'Avg'),
                         React.createElement('span', null, 'Seasons'),
                     ),
-                    ...sortedRoster.map(p => {
-                        const meta = resolve(p.pid);
-                        const posCol = POS_COLORS[meta.pos] || 'var(--k-8d887e, #8d887e)';
-                        const avg = (p.totalPoints / p.appearances).toFixed(1);
-                        return React.createElement('div', {
-                            key: p.pid, onClick: () => { if (typeof window.openPlayerModal === 'function') window.openPlayerModal(p.pid); },
-                            style: { display: 'grid', gridTemplateColumns: '40px 1fr 60px 70px 60px 1fr', gap: '8px', padding: '5px 8px', fontSize: '0.74rem', alignItems: 'center', cursor: 'pointer', background: p.appearances >= 2 ? 'var(--acc-fill1, rgba(212,175,55,0.04))' : 'var(--ov-1, rgba(255,255,255,0.01))', borderRadius: '4px' },
-                        },
-                            React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: posCol, padding: '2px 5px', borderRadius: '3px', background: wrAlpha(posCol, '22'), textAlign: 'center' } }, meta.pos),
-                            React.createElement('span', { style: { color: 'var(--white)', fontWeight: p.appearances >= 2 ? 700 : 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, meta.name + (p.appearances >= 2 ? ' 🎓' : '')),
-                            React.createElement('span', { style: { textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', color: 'var(--gold)', fontWeight: 700 } }, p.appearances + '🏆'),
-                            React.createElement('span', { style: { textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', color: 'var(--white)' } }, Math.round(p.totalPoints)),
-                            React.createElement('span', { style: { textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', color: 'var(--silver)' } }, avg),
-                            React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
-                                p.championships.map(c => c.season).join(', '),
-                            ),
-                        );
-                    }),
+                    ...posGroups.flatMap(grp => [
+                        React.createElement('div', { key: 'grp-' + grp.key, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 8px 3px' } },
+                            React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: POS_COLORS[grp.key] || 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em' } }, _posLabelOf(grp.key)),
+                            React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.55, fontFamily: 'JetBrains Mono, monospace' } }, grp.titles + ' titles · ' + Math.round(grp.pts).toLocaleString() + ' pts'),
+                            React.createElement('span', { 'aria-hidden': 'true', style: { flex: 1, height: '1px', background: wrAlpha(POS_COLORS[grp.key] || 'var(--gold)', '2e') } }),
+                        ),
+                        ...grp.players.map(p => {
+                            const meta = resolve(p.pid);
+                            const posCol = POS_COLORS[meta.pos] || 'var(--k-8d887e, #8d887e)';
+                            const avg = (p.totalPoints / p.appearances).toFixed(1);
+                            return React.createElement('div', {
+                                key: p.pid, onClick: () => { if (typeof window.openPlayerModal === 'function') window.openPlayerModal(p.pid); },
+                                style: { display: 'grid', gridTemplateColumns: '40px 1fr 60px 70px 60px 1fr', gap: '8px', padding: '5px 8px', fontSize: '0.74rem', alignItems: 'center', cursor: 'pointer', background: p.appearances >= 2 ? 'var(--acc-fill1, rgba(212,175,55,0.04))' : 'var(--ov-1, rgba(255,255,255,0.01))', borderRadius: '4px' },
+                            },
+                                React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: posCol, padding: '2px 5px', borderRadius: '3px', background: wrAlpha(posCol, '22'), textAlign: 'center' } }, meta.pos),
+                                React.createElement('span', { style: { color: 'var(--white)', fontWeight: p.appearances >= 2 ? 700 : 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, meta.name + (p.appearances >= 2 ? ' 🎓' : '')),
+                                React.createElement('span', { style: { textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', color: 'var(--gold)', fontWeight: 700 } }, p.appearances + '🏆'),
+                                React.createElement('span', { style: { textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', color: 'var(--white)' } }, Math.round(p.totalPoints)),
+                                React.createElement('span', { style: { textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', color: 'var(--silver)' } }, avg),
+                                React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
+                                    p.championships.map(c => c.season).join(', '),
+                                ),
+                            );
+                        }),
+                    ]),
                 ),
             ),
         );
@@ -1139,7 +1163,7 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
         return React.createElement(React.Fragment, null,
             React.createElement('div', { className: 'wr-seg', style: { marginBottom: 'var(--space-sm, 8px)' } },
                 segBtn('League', 'league'),
-                segBtn('Mine', 'personal', () => { setView('personal'); if (!selectedOwner) setSelectedOwner(myRoster?.roster_id); }),
+                segBtn('Me', 'personal', () => { setView('personal'); if (!selectedOwner) setSelectedOwner(myRoster?.roster_id); }),
                 segBtn('All-Time', 'alltime'),
                 segBtn('Calendar', 'calendar'),
                 chronicles && segBtn('Chronicles', 'chronicles'),
@@ -1278,12 +1302,14 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
     // All-time champion roster → P1 AssetRows: pos badge · seasons tag ·
     // titles/pts/avg slots (gold spent on the title count only). Row tap =
     // the same openPlayerModal path as the desktop rows.
-    function _renderChampRosterPhone(sortedRoster, resolve) {
+    function _renderChampRosterPhone(posGroups, resolve) {
+        const posLabelOf = (window.App && window.App.posLabel) || (p => p);
         return React.createElement(window.WR.CardList, {
-            groups: [{
-                label: 'All-Time Champion Roster',
-                sub: sortedRoster.length + ' players',
-                rows: sortedRoster.map(p => {
+            // One group per position group (owner ask), ordered by titles then pts.
+            groups: posGroups.map(grp => ({
+                label: posLabelOf(grp.key),
+                sub: grp.titles + (grp.titles === 1 ? ' title · ' : ' titles · ') + grp.players.length + (grp.players.length === 1 ? ' player' : ' players'),
+                rows: grp.players.map(p => {
                     const meta = resolve(p.pid);
                     const avg = (p.totalPoints / p.appearances).toFixed(1);
                     return React.createElement(window.WR.AssetRow, {
@@ -1300,7 +1326,7 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
                         onClick: () => { if (typeof window.openPlayerModal === 'function') window.openPlayerModal(p.pid); },
                     });
                 }),
-            }],
+            })),
         });
     }
 

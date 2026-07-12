@@ -827,41 +827,12 @@ function LineupTab({
                                 kpiTile('Them', matchup.oppCurTotal > 0 ? matchup.oppCurTotal.toFixed(1) : '—', 'current lineup'),
                             ]}
                         </div>
-                        {!pro && GatedRow ? <GatedRow title="Win probability + matchup breakdown" sub="Projected margin, slot-by-slot edges and position-strength bars" feature={STARTSIT_FEAT} /> : null}
-                        {pro ? (
-                            <div onClick={() => setShowOpp(v => !v)} style={{ fontFamily: MONO, fontSize: MICRO, color: GOLD, fontWeight: 600, cursor: 'pointer', letterSpacing: '0.04em', textTransform: 'uppercase', padding: '2px 0' }}>{showOpp ? '▴ Hide matchup breakdown' : '▸ Matchup breakdown · you lead ' + matchup.myEdges + ' of ' + matchup.slotCount}</div>
-                        ) : null}
-                        {pro && showOpp ? (
-                            <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '9px', padding: '10px 12px' }}>
-                                <div style={{ fontFamily: MONO, fontSize: MICRO, letterSpacing: '0.06em', color: SILVER, marginBottom: '6px', textTransform: 'uppercase' }}>Position strength · you vs them</div>
-                                {matchup.posStrength.map(ps => {
-                                    const tot = (ps.mine + ps.theirs) || 1, myShare = ps.mine / tot * 100, meLead = ps.mine >= ps.theirs;
-                                    return (
-                                        <div key={ps.pos} style={{ display: 'grid', gridTemplateColumns: '30px 44px 1fr 44px', gap: '7px', alignItems: 'center', padding: '3px 0' }}>
-                                            <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, color: GOLD }}>{ps.pos}</span>
-                                            <span style={{ textAlign: 'right', fontSize: '0.72rem', fontWeight: meLead ? 700 : 400, color: meLead ? GREEN : SILVER, fontVariantNumeric: 'tabular-nums' }}>{ps.mine.toFixed(1)}</span>
-                                            <span style={{ position: 'relative', height: '6px', background: 'var(--ov-3, rgba(255,255,255,0.05))', borderRadius: '3px' }}>
-                                                <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: myShare + '%', background: meLead ? 'rgba(46,204,113,0.5)' : 'rgba(212,175,55,0.32)', borderRadius: '3px' }} />
-                                            </span>
-                                            <span style={{ fontSize: '0.72rem', fontWeight: !meLead ? 700 : 400, color: !meLead ? RED : SILVER, fontVariantNumeric: 'tabular-nums' }}>{ps.theirs.toFixed(1)}</span>
-                                        </div>
-                                    );
-                                })}
-                                <div style={{ fontFamily: MONO, fontSize: MICRO, letterSpacing: '0.06em', color: SILVER, margin: '10px 0 4px', textTransform: 'uppercase' }}>Slot-by-slot</div>
-                                {matchup.h2h.map((r, i) => {
-                                    const me = pmeta(r.myPid), them = pmeta(r.theirPid);
-                                    const meWin = r.myMed > r.theirMed, theyWin = r.theirMed > r.myMed;
-                                    return (
-                                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '38px 1fr 44px 1fr', gap: '6px', alignItems: 'center', padding: '4px 0', borderBottom: `1px solid ${LINE}`, fontSize: '0.74rem' }}>
-                                            <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, color: GOLD }}>{r.slot.replace('_', ' ')}</span>
-                                            <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: meWin ? TEXT : SILVER, fontWeight: meWin ? 600 : 400 }}>{r.myPid ? me.name : '—'}</span>
-                                            <span style={{ textAlign: 'center', fontFamily: MONO, fontSize: MICRO, fontWeight: 700, color: meWin ? GREEN : theyWin ? RED : SILVER }}>{meWin ? '◄' + (r.myMed - r.theirMed).toFixed(1) : theyWin ? (r.theirMed - r.myMed).toFixed(1) + '►' : 'even'}</span>
-                                            <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', textAlign: 'right', color: theyWin ? TEXT : SILVER, fontWeight: theyWin ? 600 : 400 }}>{r.theirPid ? them.name : '—'}</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : null}
+                        {!pro && GatedRow ? <GatedRow title="Win probability" sub="Projected margin and your win odds this week" feature={STARTSIT_FEAT} /> : null}
+                        {/* Matchup breakdown (toggle + position-strength / slot-by-slot
+                            panel) removed on phone (owner ask 2026-07-12) — the Win% ·
+                            You · Them · Their-ideal KPI row above carries the matchup
+                            read; the verbose breakdown was noise on a small screen.
+                            Desktop Game Day is a separate render and is untouched. */}
                     </React.Fragment>
                 ) : null}
 

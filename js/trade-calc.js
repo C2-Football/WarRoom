@@ -1026,7 +1026,7 @@
         // The query drives the generator through deriveFinderMode (legacy modes
         // fillNeed/sellSurplus/shop/acquire/picks); pick-kind focuses route through the
         // dedicated pick paths in generateDealsForPartner (receivePicks/givePicks).
-        const [finderQuery, setFinderQuery] = useState({ intent: 'best', focus: null, partnerFilter: null });
+        const [finderQuery, setFinderQuery] = useState({ intent: 'help', focus: null, partnerFilter: null });
         const setTcTab = useCallback((v) => {
             if (v === 'finder') {
                 setFinderQuery(qr => ({ ...qr, intent: 'shop' }));
@@ -1044,10 +1044,11 @@
         const [assetBrowserPos, setAssetBrowserPos] = useState('ALL');
         const [assetBrowserSort, setAssetBrowserSort] = useState('dhq');
         const [assetBrowserRookieOnly, setAssetBrowserRookieOnly] = useState(false);
+        const [phPicksScope, setPhPicksScope] = useState('owned');   // 'owned' | 'league' — phone picks board (Intent=Picks)
         // Phone tier (iPhone program Phase 2) — Trade Center phone-branch sheet
         // state. Declared unconditionally (hook-order safety); inert off-phone.
         const [phBuilderOpen, setPhBuilderOpen] = useState(false);   // WR.ActionBar → builder + verdict WR.Sheet
-        const [phFinderOpen, setPhFinderOpen] = useState(false);     // WR.FilterSheet (finder controls)
+        const [phFinderPanel, setPhFinderPanel] = useState(null);    // inline finder-control disclosure: null|'intent'|'partner'|'pos'|'sort'
         const [phLogRowId, setPhLogRowId] = useState(null);          // Trade Log row → deal WR.Sheet
         // Rookie/prospect join — name→prospect index rebuilt when the rookie CSV lands
         // (timeRecomputeTs). getProspects/findProspect are defined eagerly at boot
@@ -2598,7 +2599,7 @@
                         stale intent from an earlier hunt would misdirect the scan. */}
                     {!isMyTeam && (
                         <button type="button" className="tc-rail-dna-link" style={{ marginBottom: '14px' }} onClick={() => {
-                            setFinderQuery({ intent: 'best', focus: null, partnerFilter: a.ownerId });
+                            setFinderQuery({ intent: 'help', focus: null, partnerFilter: a.ownerId });
                             setShowAllDeals(false);
                             setTcTab('desk');
                         }}>Find trades with this owner ▸</button>
@@ -2911,13 +2912,30 @@
         // derived mode across the whole board (Shop/Get Help/Picks league-wide).
         const finderDualBest = finderQuery.intent === 'best' && !focusR;
         const finderFocusKey = finderQuery.focus ? `${finderQuery.focus.kind}:${finderQuery.focus.id}` : null;
+        // Stable signature of the partner SET (sorted owner IDs). The scan loop
+        // keys on this, NOT on finderDataEpoch: the epoch bumps on every
+        // timeRecomputeTs heartbeat (assessments re-derive with identical
+        // content), which used to tear down and restart the idle-chunked league
+        // scan at 0 on each tick — so it never resolved ("Scanning partners
+        // 0/15…"). The set signature only changes when the actual teams in the
+        // board change; evalPartnerDeals still reads fresh data via its
+        // epoch-versioned cache whenever the scan does run.
+        const finderBoardSig = partnerBoard.map(p => p.assessment.ownerId).sort().join(',');
         const finderLoopKey = finderActive && effPartnerId == null && partnerBoard.length
-            ? JSON.stringify([finderQuery.intent, effMode, finderFocusKey, finderDataEpoch, finderTuningHash])
+            ? JSON.stringify([finderQuery.intent, effMode, finderFocusKey, finderTuningHash, finderBoardSig])
             : null;
+        // On-demand scan (owner ask): the league-wide scan runs ONLY after the
+        // user taps "Scan for moves". scanForKey holds the finderLoopKey the scan
+        // was requested for; changing any finder input (new finderLoopKey)
+        // disarms it and re-shows the button so nothing scans unprompted.
+        const [scanForKey, setScanForKey] = useState(null);
+        const scanArmed = finderLoopKey != null && scanForKey === finderLoopKey;
         const finderActionFloor = dealActionableAcceptanceFloor(finderTuning);
         const [finderPool, setFinderPool] = useState({ key: null, deals: [], scanned: 0, total: 0, done: false });
         useEffect(() => {
-            if (!finderLoopKey) {
+            // Only scan once armed (button tapped for the current inputs). Not
+            // armed → keep the pool empty so the UI shows the Scan button.
+            if (!scanArmed) {
                 setFinderPool(p => (p.key === null ? p : { key: null, deals: [], scanned: 0, total: 0, done: false }));
                 return undefined;
             }
@@ -2939,15 +2957,21 @@
                 if (cancelled) return;
                 const item = partners[idx];
                 if (item) {
-                    for (const mode of modes) {
-                        for (const deal of evalPartnerDeals(item.assessment, mode, focusPlayerPid, focusPickR)) {
-                            if (deal._sig) {
-                                if (seen.has(deal._sig)) continue;
-                                seen.add(deal._sig);
+                    // Per-partner deal gen is wrapped so one partner that throws
+                    // can't halt the whole league scan at scanned:0 (there is no
+                    // outer catch — an uncaught error here would silently stop
+                    // the idle-callback loop). Skip the bad partner, keep going.
+                    try {
+                        for (const mode of modes) {
+                            for (const deal of evalPartnerDeals(item.assessment, mode, focusPlayerPid, focusPickR)) {
+                                if (deal._sig) {
+                                    if (seen.has(deal._sig)) continue;
+                                    seen.add(deal._sig);
+                                }
+                                pooled.push({ ...deal, partnerScore: item.score });
                             }
-                            pooled.push({ ...deal, partnerScore: item.score });
                         }
-                    }
+                    } catch (e) { try { window.wrLog && window.wrLog('trade.finderScan', e); } catch (_e) {} }
                 }
                 idx += 1;
                 const enough = idx >= minPartners && pooled.filter(d => d.likelihood >= finderActionFloor).length >= 8;
@@ -2957,7 +2981,7 @@
             };
             schedule(step);
             return () => { cancelled = true; };
-        }, [finderLoopKey]);
+        }, [finderLoopKey, scanArmed]);
         const finderPoolOn = finderLoopKey != null;
         // Pooled ranking: per-deal recommendation score (likelihood/fit/value, GM-band
         // penalized) + a small partner-board term, grade letter then accept % as ties.
@@ -3026,9 +3050,8 @@
             const moonshotCount = finderMoonshotCount;
             const visibleDeals = finderVisibleDeals;
             const finderIntents = [
-                { key: 'best', label: 'Best Moves' },
-                { key: 'help', label: 'Get Help' },
-                { key: 'shop', label: 'Shop Target' },
+                { key: 'help', label: 'Add' },
+                { key: 'shop', label: 'Sell' },
                 { key: 'picks', label: 'Picks' },
             ];
             const intentLabel = (finderIntents.find(i => i.key === finderQuery.intent) || finderIntents[0]).label;
@@ -3039,7 +3062,7 @@
                 : effMode === 'sellSurplus' ? 'shopping your surplus'
                 : 'filling roster needs');
             const finderScopeLabel = finderPoolOn
-                ? (finderPool.done ? 'league-wide scan' : `scanning ${finderPool.scanned}/${finderPool.total}…`)
+                ? (!scanArmed ? 'tap Scan to run' : finderPool.done ? 'league-wide scan' : `scanning ${finderPool.scanned}/${finderPool.total}…`)
                 : selectedPartner ? `vs ${selectedPartner.ownerName}` : 'no partner scored yet';
             const assetBrowserSorts = [
                 { key:'dhq', label:'DHQ' },
@@ -3367,11 +3390,16 @@
                             </div>
                         ) : <div className="tc-dhq-empty">No tradeable assets to browse for this scope.</div>)}
 
-                        {deals.length
-                            ? <div className="tc-dhq-package-note"><b>{actionableDeals.length ? 'Ready' : 'Moonshots only'}</b> {actionableDeals.length || 0} actionable package{actionableDeals.length === 1 ? '' : 's'}{moonshotCount ? ` · ${moonshotCount} moonshot${moonshotCount === 1 ? '' : 's'} hidden` : ''}{finderPoolOn && !finderPool.done ? ` · scanning ${finderPool.scanned}/${finderPool.total}` : ''}</div>
-                            : finderPoolOn && !finderPool.done
-                                ? <div className="tc-dhq-package-note"><b>Scanning</b> partner {finderPool.scanned}/{finderPool.total} — rows appear as the league scan runs.</div>
-                                : <div className="tc-dhq-empty">No package found for this intent. Try another partner chip, clear the focus, or open the builder below.</div>}
+                        {finderPoolOn && !scanArmed
+                            ? <div className="tc-dhq-empty" style={{ textAlign: 'center', padding: '18px 14px' }}>
+                                <button type="button" onClick={() => setScanForKey(finderLoopKey)} style={{ padding: '11px 20px', borderRadius: '6px', border: '1px solid var(--gold)', background: 'var(--gold)', color: 'var(--page-bg, #0A0A0F)', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.82rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>Scan the league for moves</button>
+                                <div style={{ marginTop: '9px', fontSize: '0.8rem', opacity: 0.72 }}>Runs a league-wide {intentLabel.toLowerCase()} scan across {partnerBoard.length} partners.</div>
+                              </div>
+                            : deals.length
+                                ? <div className="tc-dhq-package-note"><b>{actionableDeals.length ? 'Ready' : 'Moonshots only'}</b> {actionableDeals.length || 0} actionable package{actionableDeals.length === 1 ? '' : 's'}{moonshotCount ? ` · ${moonshotCount} moonshot${moonshotCount === 1 ? '' : 's'} hidden` : ''}{scanArmed && !finderPool.done ? ` · scanning ${finderPool.scanned}/${finderPool.total}` : ''}</div>
+                                : scanArmed && !finderPool.done
+                                    ? <div className="tc-dhq-package-note"><b>Scanning</b> partner {finderPool.scanned}/{finderPool.total} — rows appear as the league scan runs.</div>
+                                    : <div className="tc-dhq-empty">No package found for this intent. Try another partner chip, clear the focus, or open the builder below.</div>}
                     </div>
                 </section>
 
@@ -4093,9 +4121,8 @@
             // setPartnerFacet), re-declared here because those closures live inside
             // renderDealHQ, which stays untouched for tablet/desktop.
             const finderIntents = [
-                { key: 'best', label: 'Best Moves' },
-                { key: 'help', label: 'Get Help' },
-                { key: 'shop', label: 'Shop Target' },
+                { key: 'help', label: 'Add' },
+                { key: 'shop', label: 'Sell' },
                 { key: 'picks', label: 'Picks' },
             ];
             const intentLabel = (finderIntents.find(i => i.key === finderQuery.intent) || finderIntents[0]).label;
@@ -4117,7 +4144,7 @@
                     : { ...qr, focus: { kind: item.kind, id: item.id, label: item.label, pos: item.pos || null, ownerId: item.ownerId, rosterId: item.rosterId } });
                 setFinderSearch('');
                 setShowAllDeals(false);
-                setPhFinderOpen(false);
+                setPhFinderPanel(null);
             }
             function phClearFocus() {
                 // An owner focus and its partnerFilter were set together — clear both.
@@ -4141,7 +4168,7 @@
 
             // ── Focus typeahead (sheet-inline list, not a dropdown) — same sources
             // and caps as the desktop typeahead: owners, my/league players, picks.
-            const phTypeQ = phFinderOpen ? finderSearch.trim().toLowerCase() : '';
+            const phTypeQ = phFinderPanel === 'partner' ? finderSearch.trim().toLowerCase() : '';
             const phTypeGroups = [];
             if (phTypeQ.length >= 2) {
                 const matches = s => String(s || '').toLowerCase().includes(phTypeQ);
@@ -4209,6 +4236,32 @@
                     return b.value - a.value;
                 });
             const phVisibleAssets = phSortedAssets.slice(0, assetBrowserOpen ? 28 : 8);
+            // ── Picks board (owner ask): when Intent=Picks the Add-assets board
+            // lists DRAFT PICKS instead of players, with an Owned/League scope
+            // toggle. Owned = your picks (→ YOU SEND); League = every other
+            // owner's picks (→ YOU GET). Ranked by pick value.
+            const phPicksMode = effMode === 'picks';
+            const phPicksScopeMine = phPicksScope === 'owned';
+            // Hide picks whose rookie draft has already been held (owner ask): any
+            // PAST season, plus the CURRENT NFL season once its draft is done —
+            // proxied by the regular season / playoffs having started, since rookie
+            // drafts run pre-season. Future picks always show. (MFL already drops
+            // made current-year slots per-slot at build time; this is the backstop
+            // and the Sleeper fix — its synthetic picks include the current season.)
+            const _phNfl = (typeof window !== 'undefined' && window.S && window.S.nflState) || {};
+            const _phNflSeason = Number(_phNfl.season) || parseInt(currentLeague.season) || new Date().getFullYear();
+            const _phDraftHeld = ['regular', 'post'].includes(String(_phNfl.season_type || '').toLowerCase());
+            const phPickUndrafted = pk => { const y = Number(pk.year); return !Number.isFinite(y) || y > _phNflSeason || (y === _phNflSeason && !_phDraftHeld); };
+            const phPickRowsAll = (_pro && active === 'desk' && rosterState.isUsable && phPicksMode)
+                ? assessments
+                    .filter(a => phPicksScopeMine ? String(a.rosterId) === String(myRosterId) : String(a.rosterId) !== String(myRosterId))
+                    .flatMap(a => pickAssetsForOwner(a.ownerId).map(pk => ({ ...pk, ownerId: a.ownerId, rosterId: a.rosterId, ownerName: a.ownerName || a.teamName || ('Team ' + a.rosterId) })))
+                    .filter(phPickUndrafted)
+                    // Draft order: year, then all rounds within that year, then slot
+                    // (owner ask) — not value-ranked, so 2027 1st→2nd→3rd… then 2028.
+                    .sort(comparePicksByDraftOrder)
+                : [];
+            const phVisiblePicks = phPickRowsAll.slice(0, assetBrowserOpen ? 40 : 12);
             // Gold "+" add affordance → the EXISTING builder add handler
             // (buildTradeSideDeps().addPlayer) plus the owner-select seam for
             // side B (mirrors TcTradeSide's owner <select>, which keeps any
@@ -4242,6 +4295,34 @@
                         }} />
                 );
             };
+
+            // Pick "+" → the builder's addPick (mirrors phAddToBuilder for
+            // players): your pick → YOU SEND (side A), any other owner's pick →
+            // YOU GET (side B), pinning that partner on B.
+            function phAddPickToBuilder(row) {
+                const mine = String(row.rosterId) === String(myRosterId);
+                const side = mine ? 'A' : 'B';
+                if (tradePickIds[side].includes(row.id)) { setDealHqNotice('Already in the live deal'); return; }
+                if (!mine && tradeOwner.B !== row.ownerId) setTradeOwner(prev => ({ ...prev, B: row.ownerId }));
+                _tsDeps.addPick(side, row.id);
+                setDealHqNotice(mine ? 'Added to YOU SEND' : 'Added to YOU GET');
+            }
+            const phPickPlusChip = (row) => (
+                <button type="button" aria-label={'Add ' + row.label + ' to the builder'}
+                    onClick={e => { e.stopPropagation(); phAddPickToBuilder(row); }}
+                    style={{ width: '34px', height: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '7px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.10)', color: 'var(--gold)', fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer', fontFamily: MONO, lineHeight: 1, padding: 0 }}>+</button>
+            );
+            const phPickRow = (row) => (
+                <AssetRow key={`${row.rosterId}-${row.id}`} pos="PK" name={row.label}
+                    tag={(phPicksScopeMine ? 'Your pick' : row.ownerName) + (row.via && row.via !== row.ownerName ? ' · via ' + row.via : '')}
+                    slots={[{ label: 'DHQ', value: row.value.toLocaleString(), strong: true }]}
+                    verdict={phPickPlusChip(row)}
+                    accent={finderQuery.focus && finderQuery.focus.kind === 'pick' && String(finderQuery.focus.id) === String(row.id) ? 'gold' : undefined}
+                    onClick={() => {
+                        setFinderQuery(qr => ({ ...qr, focus: { kind: 'pick', id: row.id, label: row.label, ownerId: row.ownerId, rosterId: row.rosterId } }));
+                        setShowAllDeals(false);
+                    }} />
+            );
 
             // ── Finder deal cards — TcDealCard re-poured for phone: send/receive
             // as the approved two-column card, decision chips, same Load/Save/Why
@@ -4305,30 +4386,18 @@
             // grade/label/diff/side totals free, accept-odds Pro (the top-finder
             // branch only exists for Pro — finderDeals is empty on free).
             const liveDealPartner = _verdict.hasTrade && tradeOwner.B ? (assessments.find(a => a.ownerId === tradeOwner.B) || null) : null;
-            const topDeal = _pro ? (finderVisibleDeals[0] || finderDeals[0] || null) : null;
-            let heroEl;
+            // Hero renders ONLY for a live deal you're actively building. The
+            // "top finder move" hero and the empty-state "build a deal" hero were
+            // both cut (owner ask): the top move is redundant with the #1 scan
+            // row right below it and it hogged the top of the desk. The finder now
+            // leads with a compact Scan / Re-run control instead of a hero.
+            let heroEl = null;
             if (_verdict.hasTrade) {
                 heroEl = (
                     <HeroCard kicker={liveDealPartner ? 'Live deal · vs ' + liveDealPartner.ownerName : 'Live deal'}
                         headline={_verdict.verdictText + ' · ' + _verdict.diffDisplay}
                         facts={'gave ' + _verdict.totalA.toLocaleString() + ' / received ' + _verdict.totalB.toLocaleString() + (_pro ? ' · accept ' + _verdict.likelihood + '%' : '')}
                         cta="BUILDER" onCta={() => setPhBuilderOpen(true)} />
-                );
-            } else if (topDeal) {
-                heroEl = (
-                    <HeroCard kicker={'Top move · vs ' + topDeal.partnerName}
-                        headline={topDeal.grade + ' · ' + (topDeal.userGain >= 0 ? '+' : '') + Math.round(topDeal.userGain).toLocaleString() + ' DHQ'}
-                        facts={'Accept ' + topDeal.likelihood + '% · ' + (topDeal.type || 'Deal') + (topDeal.viability ? ' · ' + topDeal.viability : '')}
-                        cta="LOAD IN BUILDER" onCta={() => { loadDealIntoBuilder(topDeal); setPhBuilderOpen(true); }}
-                        ctaGhost="SAVE" onCtaGhost={() => saveDeal(topDeal)} />
-                );
-            } else {
-                heroEl = (
-                    <HeroCard kicker="Trade Desk" headline="BUILD A DEAL"
-                        facts={_pro
-                            ? (finderPoolOn && !finderPool.done ? 'Scanning partners ' + finderPool.scanned + '/' + finderPool.total + '…' : 'No packaged move yet — adjust the finder controls or open the builder.')
-                            : 'Manual builder + instant verdict — the finder\'s auto-generated moves are Pro.'}
-                        cta="OPEN BUILDER" onCta={() => setPhBuilderOpen(true)} />
                 );
             }
 
@@ -4374,77 +4443,101 @@
             );
 
             // ── P3 finder-controls sheet (Pro — the finder region's gate) ──
-            const finderSheetEl = _pro ? (
-                <FilterSheet open={phFinderOpen} onClose={() => setPhFinderOpen(false)} title="Finder controls"
-                    sections={[
-                        { label: 'Intent', node: (
-                            <div className="wr-seg">
-                                {finderIntents.map(i => (
-                                    <button key={i.key} type="button" className={finderQuery.intent === i.key ? 'is-on' : ''}
-                                        onClick={() => { setFinderQuery(qr => ({ ...qr, intent: i.key })); setAssetBrowserPos('ALL'); setShowAllDeals(false); }}>{i.label}</button>
-                                ))}
-                            </div>
-                        ) },
-                        { label: 'Focus', node: (
-                            <div>
-                                {focusR && (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: '1px solid rgba(212,175,55,0.35)', borderRadius: '5px', background: 'rgba(212,175,55,0.08)', padding: '6px 9px', fontSize: '0.76rem', color: 'var(--white)', minWidth: 0 }}>
-                                            <em style={{ fontStyle: 'normal', fontSize: '0.6rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)' }}>{focusR.kind === 'pick' ? 'Pick' : focusR.kind === 'owner' ? 'Owner' : (focusR.pos || 'Player')}</em>
-                                            <strong style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{focusR.label}</strong>
-                                        </span>
-                                        <button type="button" onClick={phClearFocus} aria-label="Clear focus" style={{ ...actBtn(false), padding: '6px 12px' }}>✕ Clear</button>
-                                    </div>
-                                )}
-                                <input type="text" value={finderSearch}
-                                    onChange={e => setFinderSearch(e.target.value)}
-                                    placeholder="Search players, picks, owners"
-                                    aria-label="Finder focus search"
-                                    style={{ width: '100%', minHeight: '44px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: '5px', background: 'rgba(255,255,255,0.045)', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '16px', padding: '8px 10px' }} />
-                                {phTypeGroups.map(group => (
-                                    <div key={group.label}>
-                                        <div style={{ padding: '8px 2px 3px', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.6 }}>{group.label}</div>
-                                        {group.rows.map(row => (
-                                            <button key={row.key} type="button" onClick={() => phSelectFocus(row)}
-                                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', minHeight: '44px', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.04)', background: 'transparent', color: 'var(--silver)', textAlign: 'left', padding: '7px 2px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>
-                                                <strong style={{ color: 'var(--white)', fontWeight: 600, whiteSpace: 'nowrap' }}>{row.label}</strong>
-                                                <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.68rem', opacity: 0.7 }}>{row.sub}</span>
-                                                {row.value != null && <span style={{ marginLeft: 'auto', fontFamily: MONO, fontSize: '0.72rem' }}>{row.value.toLocaleString()}</span>}
-                                            </button>
-                                        ))}
-                                    </div>
-                                ))}
-                            </div>
-                        ) },
-                        { label: 'Partner', node: (
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                                <button type="button" style={actBtn(effPartnerId == null)} onClick={() => phSetPartner(null)}>Auto</button>
-                                {partnerBoard.slice(0, 6).map(item => {
-                                    const a = item.assessment;
-                                    const on = effPartnerId != null && String(a.ownerId) === String(effPartnerId);
-                                    return <button key={a.rosterId} type="button" style={actBtn(on)} onClick={() => phSetPartner(on ? null : a.ownerId)}>{a.ownerName} {item.score}</button>;
-                                })}
-                            </div>
-                        ) },
-                        { label: 'Asset browser', node: (
-                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                <select value={assetBrowserPos} onChange={e => setAssetBrowserPos(e.target.value)} style={{ ...phSelStyle, flex: 1 }} title="Position filter">
-                                    {phBrowserPositions.map(pos => <option key={pos} value={pos}>{pos === 'ALL' ? 'All positions' : pos}</option>)}
-                                </select>
-                                <select value={assetBrowserSort} onChange={e => setAssetBrowserSort(e.target.value)} style={{ ...phSelStyle, flex: 1 }} title="Sort assets">
-                                    {assetBrowserSorts.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
-                                </select>
-                                {tcRookieFields && <button type="button" style={actBtn(assetBrowserRookieOnly)} onClick={() => setAssetBrowserRookieOnly(v => !v)}>Rookies</button>}
-                            </div>
-                        ) },
-                    ]}
-                    footer={(
-                        <React.Fragment>
-                            <button type="button" style={{ ...actBtn(false), flex: 1 }} onClick={() => { setFinderQuery({ intent: 'best', focus: null, partnerFilter: null }); setFinderSearch(''); setAssetBrowserPos('ALL'); setAssetBrowserSort('dhq'); setAssetBrowserRookieOnly(false); setShowAllDeals(false); }}>Reset</button>
-                            <button type="button" style={{ ...actBtn(true), flex: 2 }} onClick={() => setPhFinderOpen(false)}>Done</button>
-                        </React.Fragment>
-                    )} />
-            ) : null;
+            // ── Inline finder-control choosers (owner ask: no modal window) ──
+            // Each top pill toggles its own inline chooser rendered right under
+            // the pill row — tap a value and it applies immediately + closes.
+            // Replaces the old single "Finder controls" FilterSheet.
+            const finderPanelWrap = body => (
+                <div style={{ background: 'var(--black, #121217)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '8px', padding: '10px 11px' }}>{body}</div>
+            );
+            let finderPanelEl = null;
+            if (_pro && rosterState.isUsable && phFinderPanel === 'intent') {
+                finderPanelEl = finderPanelWrap(
+                    <div className="wr-seg">
+                        {finderIntents.map(i => (
+                            <button key={i.key} type="button" className={finderQuery.intent === i.key ? 'is-on' : ''}
+                                onClick={() => { setFinderQuery(qr => ({ ...qr, intent: i.key })); setAssetBrowserPos('ALL'); setShowAllDeals(false); setPhFinderPanel(null); }}>{i.label}</button>
+                        ))}
+                    </div>
+                );
+            } else if (_pro && rosterState.isUsable && phFinderPanel === 'partner') {
+                // Full scrollable partner list (owner ask: a dropdown showing ALL
+                // partners, not a capped chip set). Ranked by board score; tap a
+                // row to pin, tap the pinned row again to clear back to Auto.
+                const partnerRow = on => ({ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', minHeight: '44px', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)', background: on ? 'rgba(212,175,55,0.12)' : 'transparent', textAlign: 'left', padding: '7px 10px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.8rem' });
+                finderPanelEl = finderPanelWrap(
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ maxHeight: '42vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: '6px' }}>
+                            <button type="button" style={partnerRow(effPartnerId == null)} onClick={() => { phSetPartner(null); setPhFinderPanel(null); }}>
+                                <strong style={{ color: effPartnerId == null ? 'var(--gold)' : 'var(--white)', fontWeight: 600 }}>Auto</strong>
+                                <span style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.65, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Best partner picked for you</span>
+                            </button>
+                            {partnerBoard.map(item => {
+                                const a = item.assessment;
+                                const on = effPartnerId != null && String(a.ownerId) === String(effPartnerId);
+                                return (
+                                    <button key={a.rosterId} type="button" style={partnerRow(on)} onClick={() => { phSetPartner(on ? null : a.ownerId); setPhFinderPanel(null); }}>
+                                        <strong style={{ color: on ? 'var(--gold)' : 'var(--white)', fontWeight: 600, minWidth: 0, flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.ownerName}</strong>
+                                        {item.posture && <span style={{ fontSize: '0.58rem', letterSpacing: '0.06em', textTransform: 'uppercase', color: item.posture.color, whiteSpace: 'nowrap' }}>{item.posture.label}</span>}
+                                        <span style={{ fontFamily: MONO, fontSize: '0.72rem', color: 'var(--silver)' }}>{item.score}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <div>
+                            <div style={{ fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.6, marginBottom: '5px' }}>Or target a player / pick</div>
+                            {focusR && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: '1px solid rgba(212,175,55,0.35)', borderRadius: '5px', background: 'rgba(212,175,55,0.08)', padding: '6px 9px', fontSize: '0.76rem', color: 'var(--white)', minWidth: 0 }}>
+                                        <em style={{ fontStyle: 'normal', fontSize: '0.6rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)' }}>{focusR.kind === 'pick' ? 'Pick' : focusR.kind === 'owner' ? 'Owner' : (focusR.pos || 'Player')}</em>
+                                        <strong style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{focusR.label}</strong>
+                                    </span>
+                                    <button type="button" onClick={phClearFocus} aria-label="Clear focus" style={{ ...actBtn(false), padding: '6px 12px' }}>✕ Clear</button>
+                                </div>
+                            )}
+                            <input type="text" value={finderSearch}
+                                onChange={e => setFinderSearch(e.target.value)}
+                                placeholder="Search players, picks, owners"
+                                aria-label="Finder focus search"
+                                style={{ width: '100%', minHeight: '44px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: '5px', background: 'rgba(255,255,255,0.045)', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '16px', padding: '8px 10px' }} />
+                            {phTypeGroups.map(group => (
+                                <div key={group.label}>
+                                    <div style={{ padding: '8px 2px 3px', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.6 }}>{group.label}</div>
+                                    {group.rows.map(row => (
+                                        <button key={row.key} type="button" onClick={() => phSelectFocus(row)}
+                                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', minHeight: '44px', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.04)', background: 'transparent', color: 'var(--silver)', textAlign: 'left', padding: '7px 2px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>
+                                            <strong style={{ color: 'var(--white)', fontWeight: 600, whiteSpace: 'nowrap' }}>{row.label}</strong>
+                                            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.68rem', opacity: 0.7 }}>{row.sub}</span>
+                                            {row.value != null && <span style={{ marginLeft: 'auto', fontFamily: MONO, fontSize: '0.72rem' }}>{row.value.toLocaleString()}</span>}
+                                        </button>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            } else if (_pro && rosterState.isUsable && phFinderPanel === 'pos') {
+                finderPanelEl = finderPanelWrap(
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            {phBrowserPositions.map(pos => {
+                                const on = assetBrowserPos === pos;
+                                return <button key={pos} type="button" style={actBtn(on)} onClick={() => { setAssetBrowserPos(pos); setPhFinderPanel(null); }}>{pos === 'ALL' ? 'All pos' : pos}</button>;
+                            })}
+                        </div>
+                        {tcRookieFields && <button type="button" style={actBtn(assetBrowserRookieOnly)} onClick={() => setAssetBrowserRookieOnly(v => !v)}>Rookies only</button>}
+                    </div>
+                );
+            } else if (_pro && rosterState.isUsable && phFinderPanel === 'sort') {
+                finderPanelEl = finderPanelWrap(
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {assetBrowserSorts.map(opt => {
+                            const on = assetBrowserSort === opt.key;
+                            return <button key={opt.key} type="button" style={actBtn(on)} onClick={() => { setAssetBrowserSort(opt.key); setPhFinderPanel(null); }}>{opt.label}</button>;
+                        })}
+                    </div>
+                );
+            }
 
             // ── P6 builder sheet — the persistent builder strip's content plus the
             // FULL TcVerdictPanel (its internal free/Pro split unchanged) and the
@@ -4486,11 +4579,11 @@
             if (active === 'desk') {
                 const pillsEl = (_pro && rosterState.isUsable) ? (
                     <div className="wr-hscroll" style={{ display: 'flex', gap: '6px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
-                        {React.createElement(FilterPill, { label: 'Intent', value: intentLabel, onClick: () => setPhFinderOpen(true) })}
-                        {React.createElement(FilterPill, { label: 'Partner', value: pinnedPartnerName, onClick: () => setPhFinderOpen(true) })}
+                        {React.createElement(FilterPill, { label: 'Intent', value: intentLabel, onClick: () => setPhFinderPanel(p => p === 'intent' ? null : 'intent') })}
+                        {React.createElement(FilterPill, { label: 'Partner', value: pinnedPartnerName, onClick: () => setPhFinderPanel(p => p === 'partner' ? null : 'partner') })}
                         {focusR ? React.createElement(FilterPill, { label: '✕', value: focusR.label, onClick: phClearFocus }) : null}
-                        {React.createElement(FilterPill, { label: 'Pos', value: assetBrowserPos, onClick: () => setPhFinderOpen(true) })}
-                        {React.createElement(FilterPill, { label: 'Sort', value: sortLabel, onClick: () => setPhFinderOpen(true) })}
+                        {React.createElement(FilterPill, { label: 'Pos', value: assetBrowserPos, onClick: () => setPhFinderPanel(p => p === 'pos' ? null : 'pos') })}
+                        {React.createElement(FilterPill, { label: 'Sort', value: sortLabel, onClick: () => setPhFinderPanel(p => p === 'sort' ? null : 'sort') })}
                     </div>
                 ) : null;
                 deskBody = (
@@ -4514,13 +4607,19 @@
                             style: { minHeight: '180px' },
                         })}
                         {pillsEl}
+                        {finderPanelEl}
                         {_pro && rosterState.isUsable && (
-                            finderDeals.length
+                            (finderPoolOn && !scanArmed)
+                                ? <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                    <button type="button" onClick={() => setScanForKey(finderLoopKey)} style={{ flex: 'none', minHeight: '40px', padding: '9px 16px', borderRadius: '8px', border: 'none', background: 'var(--gold)', color: 'var(--page-bg, #0A0A0F)', fontFamily: MONO, fontSize: MICRO, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>{scanForKey != null ? 'Re-run scan' : 'Scan for moves'}</button>
+                                    <span style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--silver)', opacity: 0.7 }}>{scanForKey != null ? 'Settings changed — re-run to refresh moves.' : `League-wide across ${partnerBoard.length} partners.`}</span>
+                                </div>
+                                : finderDeals.length
                                 ? <React.Fragment>
                                     {goldDiv('Finder rows', finderPoolOn ? 'league-wide' : (selectedPartner ? 'vs ' + selectedPartner.ownerName : null))}
-                                    <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--silver)', opacity: 0.7 }}>{finderActionable.length} actionable · {finderMoonshotCount} moonshot{finderMoonshotCount === 1 ? '' : 's'}{finderPoolOn && !finderPool.done ? ` · scanning ${finderPool.scanned}/${finderPool.total}` : ''}</div>
+                                    <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--silver)', opacity: 0.7 }}>{finderActionable.length} actionable · {finderMoonshotCount} moonshot{finderMoonshotCount === 1 ? '' : 's'}{scanArmed && !finderPool.done ? ` · scanning ${finderPool.scanned}/${finderPool.total}` : ''}</div>
                                 </React.Fragment>
-                                : (finderPoolOn && !finderPool.done
+                                : (scanArmed && !finderPool.done
                                     ? <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--silver)', opacity: 0.7 }}>Scanning partner {finderPool.scanned}/{finderPool.total} — moves appear as the league scan runs.</div>
                                     : <div className="tc-dhq-empty">No package found for this intent — change the partner or focus in the finder controls.</div>)
                         )}
@@ -4529,12 +4628,38 @@
                             <button type="button" style={{ ...actBtn(false), width: '100%' }} onClick={() => setShowAllDeals(!showAllDeals)}>{showAllDeals ? 'Hide moonshots' : finderMoonshotCount ? `Show ${finderMoonshotCount} moonshot${finderMoonshotCount === 1 ? '' : 's'}` : `Show ${finderDeals.length - finderVisibleDeals.length} more`}</button>
                         )}
                         {!_pro && React.createElement(TcProTeaser, { label: 'Trade Finder', feature: 'trade-finder', sub: 'Auto-generate deals every owner in your league would actually consider — ranked by acceptance odds, owner psychology, and roster fit.' })}
-                        {_pro && rosterState.isUsable && phVisibleAssets.length > 0 && (
+                        {/* Intent=Picks → a draft-pick board with an Owned/League scope toggle. */}
+                        {_pro && rosterState.isUsable && phPicksMode && (
                             <React.Fragment>
-                                {React.createElement(CardList, { groups: [{ label: 'Add assets', sub: browsingMyRoster ? 'Your roster' : 'League board', rows: phVisibleAssets.map(phAssetRow) }] })}
-                                {phSortedAssets.length > 8 && (
-                                    <button type="button" style={{ ...actBtn(false), width: '100%' }} onClick={() => setAssetBrowserOpen(v => !v)}>{assetBrowserOpen ? 'Show fewer assets ▴' : `Show more assets ▾ (${Math.min(28, phSortedAssets.length)} of ${phSortedAssets.length})`}</button>
-                                )}
+                                {goldDiv('Add picks', phPicksScopeMine ? 'Your picks' : 'League picks')}
+                                <div className="wr-seg">
+                                    <button type="button" className={phPicksScopeMine ? 'is-on' : ''} onClick={() => { setPhPicksScope('owned'); setAssetBrowserOpen(false); }}>Owned</button>
+                                    <button type="button" className={!phPicksScopeMine ? 'is-on' : ''} onClick={() => { setPhPicksScope('league'); setAssetBrowserOpen(false); }}>League</button>
+                                </div>
+                                {phVisiblePicks.length > 0
+                                    ? <React.Fragment>
+                                        {React.createElement(CardList, { groups: [{ label: null, rows: phVisiblePicks.map(phPickRow) }] })}
+                                        {phPickRowsAll.length > 12 && (
+                                            <button type="button" style={{ ...actBtn(false), width: '100%' }} onClick={() => setAssetBrowserOpen(v => !v)}>{assetBrowserOpen ? 'Show fewer picks ▴' : `Show more picks ▾ (${Math.min(40, phPickRowsAll.length)} of ${phPickRowsAll.length})`}</button>
+                                        )}
+                                      </React.Fragment>
+                                    : <div className="tc-dhq-empty">No {phPicksScopeMine ? 'owned' : 'league'} picks to browse.</div>}
+                            </React.Fragment>
+                        )}
+                        {_pro && rosterState.isUsable && !phPicksMode && phAssetRowsAll.length > 0 && (
+                            <React.Fragment>
+                                {goldDiv('Add assets', browsingMyRoster ? 'Your roster' : 'League board')}
+                                {/* Position filter lives in the top "Pos" pill chooser now
+                                    (assetBrowserPos) — no duplicate inline row here. The
+                                    active filter still shows in the pill value + empty note. */}
+                                {phVisibleAssets.length > 0
+                                    ? <React.Fragment>
+                                        {React.createElement(CardList, { groups: [{ label: null, rows: phVisibleAssets.map(phAssetRow) }] })}
+                                        {phSortedAssets.length > 8 && (
+                                            <button type="button" style={{ ...actBtn(false), width: '100%' }} onClick={() => setAssetBrowserOpen(v => !v)}>{assetBrowserOpen ? 'Show fewer assets ▴' : `Show more assets ▾ (${Math.min(28, phSortedAssets.length)} of ${phSortedAssets.length})`}</button>
+                                        )}
+                                      </React.Fragment>
+                                    : <div className="tc-dhq-empty">No {assetBrowserPos === 'ALL' ? '' : assetBrowserPos + ' '}assets to browse.</div>}
                             </React.Fragment>
                         )}
                         {dnaMiniEl}
@@ -4693,7 +4818,6 @@
                     {deskBody}
                     {dnaTabBody}
                     {logBody}
-                    {finderSheetEl}
                     {builderSheetEl}
                     {logSheetEl}
                     {actionBarEl}

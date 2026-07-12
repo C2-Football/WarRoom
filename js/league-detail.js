@@ -182,23 +182,43 @@
     // phone bottom dock strip (PhoneDock below). Add/remove/gate items
     // here only. `{ section }` rows render as sidebar dividers and are
     // filtered out of the dock strip.
+    // Glyphs = Lucide icon path data (ISC license, lucide.dev), flattened to
+    // path-only form because every consumer maps plain <path d> elements
+    // (rects/circles/polylines hand-converted to arcs). Owner ask 2026-07-12:
+    // replace the hand-drawn set with a professional icon family.
     const NAV_ICON_PATHS = {
-        home: ['M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-8.5Z'],
-        roster: ['M12 3l7 3.5v5.2c0 4.5-3 7.5-7 8.3-4-.8-7-3.8-7-8.3V6.5L12 3Z', 'M8.7 12.2l2.1 2.1 4.5-4.7'],
-        gameday: ['M13 3 5 14h5l-1 7 8-11h-5l1-7Z'],
-        compare: ['M7 7h10M7 17h10', 'M9 4 6 7l3 3', 'M15 14l3 3-3 3'],
-        trade: ['M7 7h11m0 0-3-3m3 3-3 3', 'M17 17H6m0 0 3 3m-3-3 3-3'],
-        fa: ['M12 3v18', 'M7 7.5c0-1.8 2-3 5-3 2.8 0 4.8 1.2 4.8 3.4 0 2.4-2.2 3.2-4.8 3.2S7.2 12 7.2 14.4 9.4 18 12.3 18c2.3 0 4.2-.8 5.1-2.2'],
-        draft: ['M12 3l8 16H4L12 3Z', 'M12 8v5'],
-        analytics: ['M5 19V9', 'M12 19V5', 'M19 19v-7'],
-        film: ['M4 7h16v10H4z', 'M8 7l2-3h4l2 3', 'M10 11l4 2-4 2v-4Z'],
-        office: ['M4 8h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8Z', 'M9 8V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3', 'M4 12h16', 'M10 14h4'],
-        trophy: ['M8 4h8v4a4 4 0 0 1-8 0V4Z', 'M6 5H4v2a3 3 0 0 0 4 2', 'M18 5h2v2a3 3 0 0 1-4 2', 'M12 12v5', 'M8 21h8', 'M9 17h6'],
-        calendar: ['M5 5h14v15H5z', 'M8 3v4', 'M16 3v4', 'M5 9h14'],
-        strategy: ['M12 3l7 7-7 11-7-11 7-7Z', 'M12 8v5l3 2'],
-        settings: ['M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z', 'M12 3v2', 'M12 19v2', 'M3 12h2', 'M19 12h2', 'M5.6 5.6 7 7', 'M17 17l1.4 1.4', 'M18.4 5.6 17 7', 'M7 17l-1.4 1.4'],
-        legend: ['M4 5h16', 'M4 12h16', 'M4 19h16', 'M7 5v14', 'M11 5v14'],
-        refresh: ['M21 12a9 9 0 0 1-14.8 6.9', 'M3 12A9 9 0 0 1 17.8 5.1', 'M17 3v4h4', 'M7 21v-4H3'],
+        // house
+        home: ['m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', 'M9 22V12h6v10'],
+        // clipboard-list — a roster is a clipboard
+        roster: ['M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z', 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2', 'M12 11h4', 'M12 16h4', 'M8 11h.01', 'M8 16h.01'],
+        // zap
+        gameday: ['M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z'],
+        // scale — weighing two options
+        compare: ['m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z', 'm2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z', 'M7 21h10', 'M12 3v18', 'M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2'],
+        // arrow-right-left
+        trade: ['m16 3 4 4-4 4', 'M20 7H4', 'm8 21-4-4 4-4', 'M4 17h16'],
+        // dollar-sign
+        fa: ['M12 2v20', 'M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'],
+        // list-ordered — the draft order
+        draft: ['M10 12h11', 'M10 18h11', 'M10 6h11', 'M4 10h2', 'M4 6h1v4', 'M6 18H4c0-1 2-2 2-3s-1-1.5-2-1'],
+        // chart-column
+        analytics: ['M3 3v16a2 2 0 0 0 2 2h16', 'M18 17V9', 'M13 17V5', 'M8 17v-3'],
+        // film
+        film: ['M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z', 'M7 3v18', 'M3 7.5h4', 'M3 12h18', 'M3 16.5h4', 'M17 3v18', 'M21 7.5h-4', 'M21 16.5h-4'],
+        // briefcase
+        office: ['M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16', 'M4 6h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z'],
+        // trophy
+        trophy: ['M6 9H4.5a2.5 2.5 0 0 1 0-5H6', 'M18 9h1.5a2.5 2.5 0 0 0 0-5H18', 'M4 22h16', 'M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22', 'M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22', 'M18 2H6v7a6 6 0 0 0 12 0V2Z'],
+        // calendar
+        calendar: ['M8 2v4', 'M16 2v4', 'M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z', 'M3 10h18'],
+        // target
+        strategy: ['M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z', 'M18 12a6 6 0 1 1-12 0 6 6 0 0 1 12 0Z', 'M14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z'],
+        // settings (gear)
+        settings: ['M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z', 'M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z'],
+        // book-open — the reference key
+        legend: ['M12 7v14', 'M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z'],
+        // refresh-cw
+        refresh: ['M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8', 'M21 3v5h-5', 'M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16', 'M8 16H3v5'],
     };
     // showGameDay = the FINAL leagueSkin.features.showGameDay flag
     // (callers apply the same `?? phase === 'in_season'` fallback in one place).
@@ -1566,27 +1586,28 @@
           return () => window.removeEventListener('wheel', rerouteWheelToPage, { capture: true });
         }, []);
 
-        // First-time welcome — auto-open chat with Alex's intro
+        // First-time intro — auto-open the Alex chat greeting (replaces the old
+        // 7-step tutorial modal, owner ask). A Settings "Replay" bumps
+        // introReplayNonce, which re-runs this effect and re-opens the chat.
+        const [introReplayNonce, setIntroReplayNonce] = useState(0);
         useEffect(() => {
           if (!myRoster?.players?.length || !currentLeague?.league_id) return;
           const welcomeKey = LEAGUE_WR_KEYS.WELCOMED(currentLeague.league_id);
-          if (LeagueStorage.get(welcomeKey)) return;
-          LeagueStorage.set(welcomeKey, '1');
-          // Small delay so the app finishes rendering first
-          const t = setTimeout(async () => {
-            if (window.App?.AssistantTutorial?.isActive?.()) return;
-            if (window.WR_TUTORIAL_CONFIG && window.App?.AssistantTutorial?.shouldShow) {
-              try {
-                if (await window.App.AssistantTutorial.shouldShow(window.WR_TUTORIAL_CONFIG)) return;
-              } catch (e) { window.wrLog?.('welcome.tutorialCheck', e); }
-            }
+          // First run gates on the stored flag; a replay bump (nonce > 0) bypasses it.
+          if (introReplayNonce === 0) {
+            if (LeagueStorage.get(welcomeKey)) return;
+            LeagueStorage.set(welcomeKey, '1');
+          }
+          // Small delay so the app finishes rendering first. (The old tutorial
+          // pre-empt was removed — the intro IS this chat now, per owner ask.)
+          const t = setTimeout(() => {
             setWelcomeMode(true);
             setReconPanelOpen(true);
             setReconMessages([{
               role: 'assistant',
               // Phase 10/1: strategy is now driven by GM Mode (header badge + GM's Office),
               // not a per-chat prompt. Welcome copy references the persistent badge instead.
-              content: 'Hey! I\'m **Alex Ingram** — your AI General Manager. I\'ll be sitting in the war room with you, analyzing your roster, scouting trade targets, and helping you build a dynasty.\n\nA few things to get us started:\n\n' +
+              content: 'Hey — I\'m **Alex Ingram**, your AI GM, and War Room is your whole football office: **Home** and **My Roster** are your command center (every value read against *your* league scoring, not a generic list), **Trade Center** is where you build deals and read the owner across the table, **Free Agency** is the waiver desk where FAAB is leverage, and **Draft & Analytics** is draft command plus the league\'s full memory.\n\nA couple things to get us started:\n\n' +
                 '\u2022 **Ask me anything** — trades, waivers, draft strategy, player analysis\n' +
                 '\u2022 **Your GM Mode** (top of every page) already tells me whether we\'re rebuilding, competing, or winning now — change it anytime in GM\'s Office\n\n' +
                 'Let\'s get to work. What\'s on your mind? \u2014 Alex',
@@ -1596,9 +1617,16 @@
               ]
             }]);
             setGmOnboardStep(0); // reset so strategy onboarding can trigger next
-          }, 1500);
+          }, introReplayNonce === 0 ? 1500 : 0);
           return () => clearTimeout(t);
-        }, [myRoster?.players?.length, currentLeague?.league_id]);
+        }, [myRoster?.players?.length, currentLeague?.league_id, introReplayNonce]);
+
+        // Settings "Replay GM Briefing" → re-open the Alex intro chat anytime.
+        useEffect(() => {
+          const h = () => setIntroReplayNonce(n => n + 1);
+          window.addEventListener('wr:replay-welcome', h);
+          return () => window.removeEventListener('wr:replay-welcome', h);
+        }, []);
 
         // Handle welcome choices — exit welcome mode, show corner toast
         function handleWelcomeChoice(value) {
@@ -1886,20 +1914,9 @@
                     }).catch(err => window.wrLog('tags.load', err));
                 }
 
-                // Show tutorial for first-time users only while they are still on Home.
-                if (typeof window.startWRTutorial === 'function') {
-                    setTimeout(async () => {
-                        const hashTab = new URLSearchParams((window.location.hash || '').replace(/^#/, '')).get('tab') || 'dashboard';
-                        if (hashTab !== 'dashboard') return;
-                        if (window.App?.AssistantTutorial?.isActive?.()) return;
-                        if (window.WR_TUTORIAL_CONFIG && typeof window.shouldShowWRTutorial === 'function') {
-                            try {
-                                if (!await window.shouldShowWRTutorial()) return;
-                            } catch (e) { window.wrLog?.('tutorial.shouldShow', e); }
-                        }
-                        window.startWRTutorial();
-                    }, 1000);
-                }
+                // First-time intro is now the Alex chat greeting (seedWelcomeChat /
+                // the wr:replay-welcome path), not the old 7-step click-through modal
+                // — owner ask. startWRTutorial() is intentionally no longer launched.
 
                 // Load league docs context for commissioner mode (fire-and-forget)
                 if (window.OD?.getLeagueDocsContext) {
@@ -3353,12 +3370,19 @@
                                     </div>
                                     <button className="wr-phone-hdr-refresh" onClick={doRefresh} disabled={!!loadStage} aria-label="Refresh data" title="Reload DHQ values, league history, and AI data" style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px', minHeight: '36px', padding: '6px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', color: 'var(--gold)', cursor: loadStage ? 'default' : 'pointer' }}>
                                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={loadStage ? { animation: 'dhqSpin 0.8s linear infinite' } : undefined}>
-                                            <path d="M21 12a9 9 0 0 1-14.8 6.9" /><path d="M3 12A9 9 0 0 1 17.8 5.1" /><path d="M17 3v4h4" /><path d="M7 21v-4H3" />
+                                            {NAV_ICON_PATHS.refresh.map((d, i) => <path key={i} d={d} />)}
                                         </svg>
                                     </button>
+                                    {/* Feedback (bug report + feature board) — re-homed here from the
+                                        floating bottom-right launcher that sat over the dock. */}
+                                    {window.WR?.Feedback?.toggleMenu && (
+                                        <button onClick={(e) => { e.stopPropagation(); window.WR.Feedback.toggleMenu(e.currentTarget); }} aria-label="Feedback" title="Report a bug or request a feature" style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px', minHeight: '36px', padding: '6px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', color: 'var(--gold)', cursor: 'pointer' }}>
+                                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                                        </button>
+                                    )}
                                     <button className="wr-league-switch" onClick={onBack} style={{ padding: '7px 12px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--acc-fill2, rgba(212,175,55,0.10))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, minHeight: '36px' }}>SWITCH</button>
                                 </div>
-                                {phHdrSheetOpen && <WR.Sheet open={true} onClose={() => setPhHdrSheetOpen(false)} title={currentLeague.name}>
+                                {phHdrSheetOpen && <window.WR.Sheet open={true} onClose={() => setPhHdrSheetOpen(false)} title={currentLeague.name}>
                                     <div style={{ padding: '2px 16px 8px' }}>
                                         {gm && <button style={rowSt} onClick={() => { setPhHdrSheetOpen(false); if (setActiveTab) setActiveTab('strategy'); }}>
                                             <span style={rowLbl}>GM mode</span>
@@ -3398,13 +3422,20 @@
                                             <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.8rem' }}>›</span>
                                         </button>}
                                     </div>
-                                </WR.Sheet>}
+                                </window.WR.Sheet>}
                             </React.Fragment>
                         );
                     })() : (
                     <div className="wr-league-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '8px 10px', flexWrap: 'wrap', minWidth: 0 }}>
                         <div className="header-title" style={{ fontSize: '1.05rem', minWidth: 0, maxWidth: 'min(460px, 100%)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentLeague.name}</div>
                         <button className="wr-league-switch" onClick={onBack} style={{ padding: '4px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--acc-fill2, rgba(212,175,55,0.10))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>SWITCH</button>
+                        {/* Feedback (bug report + feature board) — re-homed here from the
+                            floating bottom-right launcher that covered page content. */}
+                        {window.WR?.Feedback?.toggleMenu && (
+                            <button onClick={(e) => { e.stopPropagation(); window.WR.Feedback.toggleMenu(e.currentTarget); }} aria-label="Feedback" title="Report a bug or request a feature" style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '30px', minHeight: '28px', padding: '4px 8px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', color: 'var(--gold)', cursor: 'pointer' }}>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                            </button>
+                        )}
                         {/* Phone-only flex break: forces the status badges onto the line
                             below the title/SWITCH row. Inert (display:none) on desktop. */}
                         <div className="wr-hdr-break" aria-hidden="true" style={{ display: 'none' }} />
@@ -3866,7 +3897,10 @@
                 bottom sheet (top-rounded, gold hairline top, keyboard-aware
                 via the alexKb bottom offset). Tablet/desktop: untouched. */}
             {reconPanelOpen && <div style={alexPhone ? {
-              position: 'fixed', left: 0, right: 0, bottom: alexKb ? (alexKb + 'px') : 0,
+              // Sit ABOVE the phone dock when the keyboard is closed (owner ask:
+              // the chat was covering the nav bar). Keyboard-open keeps bottom at
+              // the keyboard top (the dock hides with the keyboard anyway).
+              position: 'fixed', left: 0, right: 0, bottom: alexKb ? (alexKb + 'px') : 'var(--wr-bottom-inset, 0px)',
               width: '100%',
               height: (!welcomeMode && reconExpanded) ? alexSheetCap : 'auto',
               maxHeight: welcomeMode ? 'min(600px, ' + alexSheetCap + ')'
@@ -3943,26 +3977,25 @@
                 }}>&#10005;</button>
               </div>
 
-              {/* Avatar picker (toggled) */}
+              {/* Badge-color picker (toggled) — photos retired; tap Alex's badge to recolor it. */}
               {showAvatarPicker && (
                 <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', background: 'var(--acc-fill1, rgba(212,175,55,0.04))' }}>
-                  <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginBottom: '6px', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Choose Alex's look</div>
+                  <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginBottom: '6px', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Alex's badge color</div>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {ALEX_AVATARS.map(av => (
-                      <button key={av.id} onClick={() => { setAlexAvatar(av.id); setShowAvatarPicker(false); setAvatarKey(k => k+1); }} style={{
+                    {(window.ALEX_BADGE_COLORS || []).map(bc => {
+                      const on = (window.getAlexBadgeColor && window.getAlexBadgeColor().id) === bc.id;
+                      return (
+                      <button key={bc.id} onClick={() => { window.setAlexBadgeColor && window.setAlexBadgeColor(bc.id); setShowAvatarPicker(false); setAvatarKey(k => k+1); }} title={bc.label} aria-label={bc.label} style={{
                         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
-                        padding: '6px', background: getAlexAvatar() === av.id ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'var(--ov-2, rgba(255,255,255,0.03))',
-                        border: '1px solid ' + (getAlexAvatar() === av.id ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                        borderRadius: '8px', cursor: 'pointer', minWidth: '56px'
+                        padding: '6px', background: on ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'var(--ov-2, rgba(255,255,255,0.03))',
+                        border: '1px solid ' + (on ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.08))'),
+                        borderRadius: '8px', cursor: 'pointer', minWidth: '52px'
                       }}>
-                        {av.src ? (
-                          <img src={av.src} alt={av.label} style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover' }} />
-                        ) : (
-                          <div style={{ width: '36px', height: '36px', borderRadius: '6px', background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 800, color: 'var(--k-0a0a0a, #0a0a0a)', fontFamily: 'Rajdhani, sans-serif' }}>AI</div>
-                        )}
-                        <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', textAlign: 'center' }}>{av.label}</span>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '6px', background: 'linear-gradient(135deg, ' + bc.from + ', ' + bc.to + ')', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 800, color: bc.text, fontFamily: 'Rajdhani, sans-serif' }}>AI</div>
+                        <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', textAlign: 'center' }}>{bc.label}</span>
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -4169,13 +4202,13 @@
                   }}
                 />
                 <button onClick={() => sendReconMessage(reconInput)} style={{
-                  background: 'linear-gradient(135deg, var(--k-7c6bf8, #7c6bf8), var(--k-9b8afb, #9b8afb))',
+                  background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))',
                   border: 'none', borderRadius: '8px',
                   width: alexPhone ? '44px' : '32px', height: alexPhone ? '44px' : '32px',
                   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   ...(alexPhone ? { flexShrink: 0 } : {})
                 }}>
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" strokeWidth="2.5">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--k-0a0a0a, #0a0a0a)" strokeWidth="2.5">
                     <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
                   </svg>
                 </button>

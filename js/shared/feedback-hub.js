@@ -158,6 +158,7 @@
   function closeOverlay() { if (_openOverlay) { _openOverlay.remove(); _openOverlay = null; document.removeEventListener('keydown', onEsc); } }
   function onEsc(e) { if (e.key === 'Escape') closeOverlay(); }
   function mountOverlay(modal) {
+    injectStyles(); // launcher no longer auto-mounts, so styles ride with any entry point
     closeOverlay();
     var ov = el('div', { class: 'dhqfb-ov', onclick: function (e) { if (e.target === ov) closeOverlay(); } }, [modal]);
     document.body.appendChild(ov);
@@ -400,10 +401,20 @@
   function onDocClick() { closeMenu(); }
   function toggleMenu(anchorBtn) {
     if (_menu) { closeMenu(); return; }
+    injectStyles();
     var menu = el('div', { class: 'dhqfb-menu' }, [
       el('button', { html: '🐞&nbsp; Report a bug', onclick: function () { closeMenu(); reportBug(); } }),
       el('button', { html: '💡&nbsp; Feature requests', onclick: function () { closeMenu(); openBoard(); } }),
     ]);
+    // Anchor the menu just under the button that opened it (the header
+    // feedback icon). Without an anchor it keeps the legacy bottom-right
+    // float from the old floating launcher.
+    if (anchorBtn && anchorBtn.getBoundingClientRect) {
+      var r = anchorBtn.getBoundingClientRect();
+      menu.style.top = Math.round(r.bottom + 8) + 'px';
+      menu.style.bottom = 'auto';
+      menu.style.right = Math.max(8, Math.round(window.innerWidth - r.right)) + 'px';
+    }
     document.body.appendChild(menu);
     _menu = menu;
     setTimeout(function () { document.addEventListener('click', onDocClick, true); }, 0);
@@ -421,12 +432,11 @@
   }
 
   // ── boot ────────────────────────────────────────────────────────
-  window.WR.Feedback = { reportBug: reportBug, openBoard: openBoard, mountLauncher: mountLauncher };
+  window.WR.Feedback = { reportBug: reportBug, openBoard: openBoard, toggleMenu: toggleMenu, mountLauncher: mountLauncher };
 
   installErrorHandlers(); // as early as possible
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', mountLauncher);
-  } else {
-    mountLauncher();
-  }
+  // The floating bottom-right launcher no longer auto-mounts (owner ask —
+  // it sat on top of the phone dock / content on every surface). Feedback
+  // now opens from the league-header icon via WR.Feedback.toggleMenu(btn);
+  // mountLauncher stays exported as an escape hatch for other pages.
 })();

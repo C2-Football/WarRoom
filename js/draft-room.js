@@ -89,9 +89,10 @@
         const [hideDrafted, setHideDrafted] = useState(() => { try { return DraftStorage.get('wr_bb_hide_drafted', false) === true; } catch (e) { return false; } });
         const toggleHideDrafted = () => setHideDrafted(v => { const next = !v; try { DraftStorage.set('wr_bb_hide_drafted', next); } catch (e) {} return next; });
         const [expandedDraftPid, setExpandedDraftPid] = useState(null);
-        // Phone Big Board controls sheet (P3 WR.FilterSheet) — hoisted here
-        // because the board view renders inside an IIFE (no hooks allowed).
-        const [phBoardControlsOpen, setPhBoardControlsOpen] = useState(false);
+        // Phone Big Board controls — inline Lane/Pos/Filters choosers (like the
+        // Trade Center). Hoisted here because the board view renders inside an
+        // IIFE (no hooks allowed). null | 'lane' | 'pos' | 'filters'.
+        const [phBoardPanel, setPhBoardPanel] = useState(null);
         const [scoutDrawerPid, setScoutDrawerPid] = useState(null);
         const [depthReadPos, setDepthReadPos] = useState(null); // Class Depth row with the full Alex read expanded
         const [nflFitAI, setNflFitAI] = useState({}); // pid -> live web-search "Alex NFL Fit" read (premium)
@@ -116,6 +117,44 @@
         // Draft History — archived recaps of finished drafts (local + Supabase-synced)
         const [showDraftHistory, setShowDraftHistory] = useState(false);
         const [historyRecapId, setHistoryRecapId] = useState(null);
+        // The league's REAL cross-season draft history (owner ask): walk the
+        // Sleeper previous_league_id chain once when the modal opens and list
+        // every platform draft; MFL falls back to the hydrated current drafts.
+        const [histDrafts, setHistDrafts] = useState(null);
+        useEffect(() => {
+            if (!showDraftHistory || histDrafts !== null) return undefined;
+            let cancelled = false;
+            (async () => {
+                try {
+                    const out = [];
+                    const isMflL = !!(currentLeague?._mfl || String(currentLeague?.id || currentLeague?.league_id || '').startsWith('mfl_'));
+                    if (isMflL) {
+                        ((window.S?.drafts || currentLeague?.drafts) || []).forEach(d => out.push({
+                            season: Number(d.season) || null, draftId: String(d.draft_id || ''), status: String(d.status || ''),
+                            rounds: Number(d?.settings?.rounds) || null, playerType: Number(d?.settings?.player_type),
+                        }));
+                    } else {
+                        let lid = currentLeague?.league_id;
+                        for (let hop = 0; lid && hop < 8 && !cancelled; hop++) {
+                            const [info, drafts] = await Promise.all([
+                                fetch('https://api.sleeper.app/v1/league/' + lid).then(r => r.ok ? r.json() : null).catch(() => null),
+                                fetch('https://api.sleeper.app/v1/league/' + lid + '/drafts').then(r => r.ok ? r.json() : []).catch(() => []),
+                            ]);
+                            (Array.isArray(drafts) ? drafts : []).forEach(d => out.push({
+                                season: Number(d.season) || null, draftId: String(d.draft_id || ''), status: String(d.status || ''),
+                                rounds: Number(d?.settings?.rounds) || null, playerType: Number(d?.settings?.player_type),
+                            }));
+                            lid = info?.previous_league_id || null;
+                        }
+                    }
+                    if (!cancelled) setHistDrafts(out.sort((a, b) => (b.season || 0) - (a.season || 0)));
+                } catch (e) {
+                    if (!cancelled) setHistDrafts([]);
+                    window.wrLog?.('draftHistory.chain', e);
+                }
+            })();
+            return () => { cancelled = true; };
+        }, [showDraftHistory, histDrafts, currentLeague?.league_id]);
         const [recapPullTick, setRecapPullTick] = useState(0);
 
         // ── Live-draft bridge (shared by the Analyst Mock lock + Recommended Draft lock) ──
@@ -707,6 +746,12 @@
 
         // Determine active view: global viewMode overrides to 'command' when set
         const activeView = viewMode === 'command' ? 'command' : draftView;
+        // Draft is over → lock the War Room sub-tab to a results-only view (owner
+        // ask): hide every pre-draft planning surface (pick capital, draft plan,
+        // analyst mock, recommended draft, board pressure + class depth) and keep
+        // only the graded pick scorecard + the completion banner. Everything comes
+        // back automatically when a new draft is scheduled (status flips off 'complete').
+        const draftLocked = liveDraftStatus === 'complete';
 
         useEffect(() => {
             if (!isRookieDraft && boardRoundFilter) setBoardRoundFilter('');
@@ -2615,7 +2660,31 @@
                 )}
 
                 {/* ═══════════════════ VIEW 1: FLASH BRIEF ═══════════════════ */}
-                {activeView === 'command' && (
+                {/* Draft complete → the War Room IS the report card: the shared
+                    DraftRecapReport (the same recap the live room shows on
+                    completion) rendered inline from the archived recap. Tabs
+                    above stay; the planning shell returns automatically when a
+                    new draft is scheduled. */}
+                {activeView === 'command' && draftLocked && (
+                    <div className="draft-hq-shell">
+                        {(window.DraftCC?.DraftRecapReport && lastDraftRecap) ? (
+                            React.createElement(window.DraftCC.DraftRecapReport, {
+                                recap: lastDraftRecap,
+                                userRosterId: myRoster?.roster_id,
+                                inline: true,
+                                primaryLabel: 'VIEW FULL BOARD →',
+                                onPrimary: launchLiveDraft,
+                            })
+                        ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderRadius: 8, border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', flexWrap: 'wrap' }}>
+                                <strong style={{ color: 'var(--gold)', fontSize: '0.8rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Draft Complete</strong>
+                                <span style={{ color: 'var(--silver)', fontSize: '0.8rem' }}>Open the results once to build your graded report card — it lives here after that.</span>
+                                <button type="button" onClick={launchLiveDraft} style={{ marginLeft: 'auto', padding: '4px 12px', minHeight: 32, borderRadius: 6, cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.76rem', fontWeight: 800, border: 'none', background: 'var(--gold)', color: 'var(--black)' }}>View Draft Results</button>
+                            </div>
+                        )}
+                    </div>
+                )}
+                {activeView === 'command' && !draftLocked && (
                     <div className="draft-hq-shell">
                         {liveDraftOn && liveDraftStatus !== 'complete' && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', marginBottom: 10, borderRadius: 8, border: '1px solid var(--bad, #e5534b)', background: 'rgba(229,83,75,0.10)', flexWrap: 'wrap' }}>
@@ -2631,27 +2700,9 @@
                                 )}
                             </div>
                         )}
-                        {liveDraftStatus === 'complete' && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', marginBottom: 10, borderRadius: 8, border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', flexWrap: 'wrap' }}>
-                                <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--gold)', boxShadow: '0 0 0 3px rgba(212,175,55,0.22)', flexShrink: 0 }} />
-                                <strong style={{ color: 'var(--gold)', fontSize: '0.8rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Draft Complete</strong>
-                                {/* A–F grade is an interpretation → Pro (clean absence for free) */}
-                                {isPro && lastDraftRecap?.grade?.letter && (
-                                    <span style={{ padding: '2px 9px', borderRadius: 999, border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', color: 'var(--gold)', fontFamily: 'var(--font-display, Rajdhani, sans-serif)', fontWeight: 800, fontSize: '0.8rem', letterSpacing: '0.04em' }}>
-                                        GRADE {lastDraftRecap.grade.letter}{lastDraftRecap.rank ? ' · #' + lastDraftRecap.rank + ' in class' : ''}
-                                    </span>
-                                )}
-                                <span style={{ color: 'var(--silver)', fontSize: '0.8rem' }}>
-                                    {completedBoardSaved
-                                        ? 'Your board and grade are saved — this draft stays here until the next one is scheduled.'
-                                        : 'Draft finished — View Draft Results rebuilds the full board, picks, and grade.'}
-                                </span>
-                                <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                                    <button type="button" onClick={launchLiveDraft} style={{ padding: '4px 12px', minHeight: '32px', borderRadius: 6, cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.76rem', fontWeight: 800, border: 'none', background: 'var(--gold)', color: 'var(--black)' }}>View Draft Results</button>
-                                    <button type="button" onClick={() => setShowDraftHistory(true)} style={{ padding: '4px 12px', minHeight: '32px', borderRadius: 6, cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.76rem', fontWeight: 700, border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', background: 'transparent', color: 'var(--gold)' }}>Draft History</button>
-                                </div>
-                            </div>
-                        )}
+                        {/* (The old DRAFT COMPLETE banner lived here — unreachable now:
+                            this planning shell only renders while the draft ISN'T
+                            complete; the locked branch above owns the post-draft view.) */}
                         {/* Phone decision hero + snapping KPI band (P5/P4) — all
                             values come from data this view already computes
                             (nextPick / pick capital / live status); the desktop
@@ -2971,10 +3022,12 @@
                             const draftStr = draftRound
                                 ? window.App.formatNFLDraftSlot(draftRound, draftPick)
                                 : draftPick ? '#' + draftPick : isTrueUdfa(cs) ? 'UDFA' : 'Capital TBD';
-                            const rankStr = (isRookieDraft && (cs.consensusRank || cs.rank))
-                                ? '#' + Math.round(cs.consensusRank || cs.rank)
+                            // Rookie boards: rank/tier are consensus data — csv-null rows show
+                            // '—' rather than a DHQ-order rank or veteran tier labels ('Elite').
+                            const rankStr = isRookieDraft
+                                ? ((cs.consensusRank || cs.rank) ? '#' + Math.round(cs.consensusRank || cs.rank) : '—')
                                 : (valueRank ? '#' + valueRank : '-');
-                            const tierStr = (isRookieDraft && cs.tier) ? cs.tier : tierMeta.label;
+                            const tierStr = isRookieDraft ? (cs.tier || '—') : tierMeta.label;
                             const summaryBits = String(cs.summary || '')
                                 .split(/(?<=[.!?])\s+/)
                                 .map(s => s.trim())
@@ -3139,8 +3192,10 @@
                             else if (k === 'school') { va = ((isSeasonalDraft ? (a.csv?.nflTeam || a.p?.team) : (a.csv?.college || a.p.college)) || '').toLowerCase(); vb = ((isSeasonalDraft ? (b.csv?.nflTeam || b.p?.team) : (b.csv?.college || b.p.college)) || '').toLowerCase(); }
                             else if (k === 'team')   { va = (a.csv?.nflTeam || a.p?.team || '').toLowerCase(); vb = (b.csv?.nflTeam || b.p?.team || '').toLowerCase(); }
                             else if (k === 'draft')  { va = draftSortKey(a); vb = draftSortKey(b); }
-                            else if (k === 'rank')   { va = a.csv?.consensusRank ?? a.csv?.rank ?? valueRankMap.get(String(a.pid)) ?? 9999; vb = b.csv?.consensusRank ?? b.csv?.rank ?? valueRankMap.get(String(b.pid)) ?? 9999; }
-                            else if (k === 'tier')   { va = a.csv?.tier ?? valueTierMeta(a.dhq, valueRankMap.get(String(a.pid))).order; vb = b.csv?.tier ?? valueTierMeta(b.dhq, valueRankMap.get(String(b.pid))).order; }
+                            // Rank/tier sorts stay in ONE scale per board: consensus data on
+                            // rookie boards (csv-null rows last), value-derived elsewhere.
+                            else if (k === 'rank')   { va = a.csv?.consensusRank ?? a.csv?.rank ?? (isRookieDraft ? 9999 : valueRankMap.get(String(a.pid))) ?? 9999; vb = b.csv?.consensusRank ?? b.csv?.rank ?? (isRookieDraft ? 9999 : valueRankMap.get(String(b.pid))) ?? 9999; }
+                            else if (k === 'tier')   { va = isRookieDraft ? (a.csv?.tier ?? 99) : valueTierMeta(a.dhq, valueRankMap.get(String(a.pid))).order; vb = isRookieDraft ? (b.csv?.tier ?? 99) : valueTierMeta(b.dhq, valueRankMap.get(String(b.pid))).order; }
                             else if (k === 'size')   { va = parseSizeIn(a.csv?.size) || (a.p?.height || 0); vb = parseSizeIn(b.csv?.size) || (b.p?.height || 0); }
                             else if (k === 'weight') { va = parseFloat(a.csv?.weight) || parseFloat(a.p?.weight) || 0; vb = parseFloat(b.csv?.weight) || parseFloat(b.p?.weight) || 0; }
                             else if (k === 'speed')  { va = parseFloat(a.csv?.speed) || 99; vb = parseFloat(b.csv?.speed) || 99; }
@@ -3294,8 +3349,12 @@
                                 const posRankList = posRankMaps[pos] || [];
                                 const posRank = posRankList.indexOf(String(r.pid)) >= 0 ? posRankList.indexOf(String(r.pid)) + 1 : null;
                                 const tierMeta = valueTierMeta(r.dhq, valueRank, posRank);
-                                const rankStr = (isRookieDraft && (cs.consensusRank || cs.rank)) ? '#' + Math.round(cs.consensusRank || cs.rank) : (valueRank ? '#' + valueRank : '-');
-                                const tierStr = (isRookieDraft && cs.tier) ? cs.tier : tierMeta.label;
+                                // Rookie boards: rank/tier are consensus data — csv-null rows show
+                                // '—' rather than a DHQ-order rank or veteran tier labels ('Elite').
+                                const rankStr = isRookieDraft
+                                    ? ((cs.consensusRank || cs.rank) ? '#' + Math.round(cs.consensusRank || cs.rank) : '—')
+                                    : (valueRank ? '#' + valueRank : '-');
+                                const tierStr = isRookieDraft ? (cs.tier || '—') : tierMeta.label;
                                 const compText = cs.nflComp || cs.comp || '';
                                 // "Alex NFL Fit" — real-situation read built from the signals the DHQ
                                 // engine already computes (depth-chart role, the specific teammates
@@ -3527,13 +3586,6 @@
                         const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
                         const MICRO = 'var(--text-micro, 0.6875rem)';
                         const phChipBtn = (on, color) => ({ padding: '9px 12px', minHeight: '44px', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', borderRadius: '5px', fontFamily: 'var(--font-body)', border: '1px solid ' + (on ? (color || 'var(--acc-line2, rgba(212,175,55,0.4))') : 'rgba(255,255,255,0.14)'), background: on ? 'rgba(212,175,55,0.12)' : 'transparent', color: on ? (color || 'var(--gold)') : 'var(--silver)' });
-                        // Tier dividers replace the TIER column — group CONSECUTIVE
-                        // rows by tier label so any active sort stays honest.
-                        const phTierOf = (r) => {
-                            const cs = r.csv || {};
-                            if (isRookieDraft && cs.tier) return 'Tier ' + cs.tier;
-                            return valueTierMeta(r.dhq, valueRankMap.get(String(r.pid)) || null).label;
-                        };
                         const phDossier = (r) => {
                             const pos = normPos(r.p.position) || r.p.position;
                             const cs = r.csv || {};
@@ -3547,8 +3599,13 @@
                             const draftRound = Number(cs.draftRound) || 0;
                             const draftPick = Number(cs.draftPick) || 0;
                             const draftStr = draftRound ? window.App.formatNFLDraftSlot(draftRound, draftPick) : draftPick ? '#' + draftPick : isTrueUdfa(cs) ? 'UDFA' : 'Capital TBD';
-                            const rankStr = (isRookieDraft && (cs.consensusRank || cs.rank)) ? '#' + Math.round(cs.consensusRank || cs.rank) : (valueRank ? '#' + valueRank : '-');
-                            const tierStr = (isRookieDraft && cs.tier) ? cs.tier : tierMeta.label;
+                            // Rookie boards: rank/tier are CONSENSUS data — when the CSV join
+                            // is missing show '—' instead of leaking the DHQ-order rank or the
+                            // veteran value-tier labels ('Elite' etc.) into the rookie scale.
+                            const rankStr = isRookieDraft
+                                ? ((cs.consensusRank || cs.rank) ? '#' + Math.round(cs.consensusRank || cs.rank) : '—')
+                                : (valueRank ? '#' + valueRank : '-');
+                            const tierStr = isRookieDraft ? (cs.tier || '—') : tierMeta.label;
                             const summaryBits = String(cs.summary || '').split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean).slice(0, 4);
                             const reportBits = isSeasonalDraft
                                 ? generatedScoutingBits(r, { pos, team, age, valueRank, posRank, tierMeta })
@@ -3636,15 +3693,67 @@
                                 </div>
                             );
                         };
-                        // Consecutive-tier grouping → WR.CardList gold dividers.
-                        const phGroups = [];
-                        visibleBoardPlayers.forEach((r, idx) => {
-                            const label = phTierOf(r);
-                            let g = phGroups[phGroups.length - 1];
-                            if (!g || g.key !== label) { g = { key: label, rows: [], idx0: idx }; phGroups.push(g); }
-                            g.rows.push(phRow(r, idx));
-                        });
+                        // Flat list — the old consecutive-run tier dividers produced
+                        // interleaved/repeating headers (TIER 1 → TIER 3 → TIER 1 → ELITE)
+                        // because no lane is sorted by consensus tier and csv-null rows
+                        // fell back to the veteran label scale. Tier stays available as a
+                        // per-row datum in the expanded dossier tile.
+                        const phGroups = visibleBoardPlayers.length
+                            ? [{ key: null, rows: visibleBoardPlayers.map((r, idx) => phRow(r, idx)) }]
+                            : [];
                         const phPosOptions = (typeof getLeaguePositions === 'function' ? getLeaguePositions() : ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB']);
+                        // Inline chooser panel for the active pill (Lane / Pos / Filters),
+                        // rendered right under the pill row — no modal sheet. Lane/Pos are
+                        // single-select (apply + close); Filters bundles search/team/round.
+                        const phBoardPanelWrap = (body) => (
+                            <div style={{ background: 'var(--black, #121217)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '8px', padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: '9px' }}>{body}</div>
+                        );
+                        const phBoardPanelLbl = (t) => <div style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, color: 'var(--silver)', opacity: 0.6, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{t}</div>;
+                        let phBoardPanelEl = null;
+                        if (phBoardPanel === 'lane') {
+                            phBoardPanelEl = phBoardPanelWrap(
+                                <div style={{ display: 'grid', gap: 6 }}>
+                                    {boardModeOptions.map(opt => (
+                                        <button key={opt.k} type="button" style={{ ...phChipBtn(boardMode === opt.k), textAlign: 'left' }} onClick={() => { setBoardMode(opt.k); setPhBoardPanel(null); }}>
+                                            <strong style={{ display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{opt.label}</strong>
+                                            <span style={{ display: 'block', opacity: 0.66, fontSize: MICRO, marginTop: 2, textTransform: 'none', letterSpacing: 0 }}>{opt.sub}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            );
+                        } else if (phBoardPanel === 'pos') {
+                            phBoardPanelEl = phBoardPanelWrap(
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                    <button type="button" style={phChipBtn(!boardPosFilter)} onClick={() => { setBoardPosFilter(''); setPhBoardPanel(null); }}>Master</button>
+                                    {phPosOptions.map(pos => (
+                                        <button key={pos} type="button" style={phChipBtn(boardPosFilter === pos, posColors[pos])} onClick={() => { setBoardPosFilter(boardPosFilter === pos ? '' : pos); setPhBoardPanel(null); }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</button>
+                                    ))}
+                                </div>
+                            );
+                        } else if (phBoardPanel === 'filters') {
+                            phBoardPanelEl = phBoardPanelWrap(
+                                <React.Fragment>
+                                    {phBoardPanelLbl('Search')}
+                                    <input type="text" value={boardSearch} onChange={e => setBoardSearch(e.target.value)} placeholder="Players, teams, colleges..." style={{ width: '100%', padding: '9px 12px', minHeight: '44px', fontSize: '16px', fontFamily: 'var(--font-body)', background: 'var(--ov-2, rgba(255,255,255,0.03))', color: 'var(--white)', border: '1px solid ' + (boardSearch ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'), borderRadius: '10px', outline: 'none', boxSizing: 'border-box' }} />
+                                    {phBoardPanelLbl('NFL team')}
+                                    <select value={boardTeamFilter} onChange={e => setBoardTeamFilter(e.target.value)} style={{ width: '100%', padding: '9px 10px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)', background: 'var(--charcoal, #0e0e12)', color: boardTeamFilter ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (boardTeamFilter ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'), borderRadius: '6px', cursor: 'pointer', outline: 'none' }}>
+                                        <option value="">All teams</option>
+                                        {availableTeams.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                    {isRookieDraft && (
+                                        <React.Fragment>
+                                            {phBoardPanelLbl('NFL draft round')}
+                                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                                {[{ k: '', label: 'All' }, { k: '1', label: 'R1' }, { k: '2', label: 'R2' }, { k: '3', label: 'R3' }, { k: '4', label: 'R4' }, { k: '5', label: 'R5' }, { k: '6', label: 'R6' }, { k: '7', label: 'R7' }, { k: 'UDFA', label: 'UDFA' }].map(opt => (
+                                                    <button key={opt.k} type="button" style={phChipBtn(boardRoundFilter === opt.k)} onClick={() => setBoardRoundFilter(boardRoundFilter === opt.k ? '' : opt.k)}>{opt.label}</button>
+                                                ))}
+                                            </div>
+                                        </React.Fragment>
+                                    )}
+                                    <button type="button" style={{ ...phChipBtn(false), marginTop: '2px' }} onClick={() => { setBoardSearch(''); setBoardPosFilter(''); setBoardTeamFilter(''); setBoardRoundFilter(''); }}>Reset</button>
+                                </React.Fragment>
+                            );
+                        }
                         return (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
@@ -3652,11 +3761,12 @@
                                     <span style={{ color: 'var(--silver)', opacity: 0.6, fontSize: MICRO, fontFamily: MONO, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeBoardInfo.label} · {visibleBoardPlayers.length} players</span>
                                 </div>
                                 <div className="wr-hscroll" style={{ display: 'flex', gap: '6px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
-                                    {React.createElement(window.WR.FilterPill, { label: 'Lane', value: activeBoardInfo.label, onClick: () => setPhBoardControlsOpen(true) })}
-                                    {React.createElement(window.WR.FilterPill, { label: 'Pos', value: boardPosFilter || 'ALL', onClick: () => setPhBoardControlsOpen(true) })}
-                                    {React.createElement(window.WR.FilterPill, { label: 'Filters', value: [boardTeamFilter, boardRoundFilter && ('R' + boardRoundFilter).replace('RUDFA', 'UDFA'), boardSearch && '"' + boardSearch + '"'].filter(Boolean).join(' · ') || null, onClick: () => setPhBoardControlsOpen(true) })}
+                                    {React.createElement(window.WR.FilterPill, { label: 'Lane', value: activeBoardInfo.label, onClick: () => setPhBoardPanel(p => p === 'lane' ? null : 'lane') })}
+                                    {React.createElement(window.WR.FilterPill, { label: 'Pos', value: boardPosFilter || 'ALL', onClick: () => setPhBoardPanel(p => p === 'pos' ? null : 'pos') })}
+                                    {React.createElement(window.WR.FilterPill, { label: 'Filters', value: [boardTeamFilter, boardRoundFilter && ('R' + boardRoundFilter).replace('RUDFA', 'UDFA'), boardSearch && '"' + boardSearch + '"'].filter(Boolean).join(' · ') || null, onClick: () => setPhBoardPanel(p => p === 'filters' ? null : 'filters') })}
                                     {React.createElement(window.WR.FilterPill, { label: 'Hide drafted', value: hideDrafted ? 'ON' : null, onClick: toggleHideDrafted })}
                                 </div>
+                                {phBoardPanelEl}
                                 {boardMode === 'my' ? (
                                     <React.Fragment>
                                         <div style={{ color: 'var(--gold)', opacity: 0.72, fontSize: MICRO, fontFamily: MONO }}>{'↕'} Tap ▲ / ▼ in the # column to reorder your board</div>
@@ -3692,58 +3802,9 @@
                                         </div>
                                     </React.Fragment>
                                 )}
-                                {/* Board controls sheet (P3) — every control drives the exact
-                                    same setters as the desktop toolbar. */}
-                                {React.createElement(window.WR.FilterSheet, {
-                                    open: phBoardControlsOpen,
-                                    onClose: () => setPhBoardControlsOpen(false),
-                                    title: 'Board controls',
-                                    sections: [
-                                        { label: 'Lane', node: (
-                                            <div style={{ display: 'grid', gap: 6 }}>
-                                                {boardModeOptions.map(opt => (
-                                                    <button key={opt.k} type="button" style={{ ...phChipBtn(boardMode === opt.k), textAlign: 'left' }} onClick={() => setBoardMode(opt.k)}>
-                                                        <strong style={{ display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{opt.label}</strong>
-                                                        <span style={{ display: 'block', opacity: 0.66, fontSize: MICRO, marginTop: 2, textTransform: 'none', letterSpacing: 0 }}>{opt.sub}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        ) },
-                                        { label: 'Search', node: (
-                                            <input type="text" value={boardSearch} onChange={e => setBoardSearch(e.target.value)} placeholder="Players, teams, colleges..." style={{ width: '100%', padding: '9px 12px', minHeight: '44px', fontSize: '16px', fontFamily: 'var(--font-body)', background: 'var(--ov-2, rgba(255,255,255,0.03))', color: 'var(--white)', border: '1px solid ' + (boardSearch ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'), borderRadius: '10px', outline: 'none', boxSizing: 'border-box' }} />
-                                        ) },
-                                        { label: 'Position', node: (
-                                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                                <button type="button" style={phChipBtn(!boardPosFilter)} onClick={() => setBoardPosFilter('')}>Master</button>
-                                                {phPosOptions.map(pos => (
-                                                    <button key={pos} type="button" style={phChipBtn(boardPosFilter === pos, posColors[pos])} onClick={() => setBoardPosFilter(boardPosFilter === pos ? '' : pos)}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</button>
-                                                ))}
-                                            </div>
-                                        ) },
-                                        { label: 'NFL team', node: (
-                                            <select value={boardTeamFilter} onChange={e => setBoardTeamFilter(e.target.value)} style={{ width: '100%', padding: '9px 10px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)', background: 'var(--charcoal, #0e0e12)', color: boardTeamFilter ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (boardTeamFilter ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'), borderRadius: '6px', cursor: 'pointer', outline: 'none' }}>
-                                                <option value="">All teams</option>
-                                                {availableTeams.map(t => <option key={t} value={t}>{t}</option>)}
-                                            </select>
-                                        ) },
-                                        ...(isRookieDraft ? [{ label: 'NFL draft round', node: (
-                                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                                {[{ k: '', label: 'All' }, { k: '1', label: 'R1' }, { k: '2', label: 'R2' }, { k: '3', label: 'R3' }, { k: '4', label: 'R4' }, { k: '5', label: 'R5' }, { k: '6', label: 'R6' }, { k: '7', label: 'R7' }, { k: 'UDFA', label: 'UDFA' }].map(opt => (
-                                                    <button key={opt.k} type="button" style={phChipBtn(boardRoundFilter === opt.k)} onClick={() => setBoardRoundFilter(boardRoundFilter === opt.k ? '' : opt.k)}>{opt.label}</button>
-                                                ))}
-                                            </div>
-                                        ) }] : []),
-                                        { label: 'Drafted', node: (
-                                            <button type="button" style={phChipBtn(hideDrafted)} onClick={toggleHideDrafted}>{hideDrafted ? '✓ Hide drafted' : 'Hide drafted'}</button>
-                                        ) },
-                                    ],
-                                    footer: (
-                                        <React.Fragment>
-                                            <button type="button" style={{ ...phChipBtn(false), flex: 1 }} onClick={() => { setBoardSearch(''); setBoardPosFilter(''); setBoardTeamFilter(''); setBoardRoundFilter(''); }}>Reset</button>
-                                            <button type="button" style={{ ...phChipBtn(true), flex: 2 }} onClick={() => setPhBoardControlsOpen(false)}>Apply</button>
-                                        </React.Fragment>
-                                    ),
-                                })}
+                                {/* Board controls are inline choosers now (phBoardPanelEl,
+                                    rendered under the pill row) — the modal FilterSheet was
+                                    removed per the Trade-Center-style owner ask. */}
                             </div>
                         );
                     }
@@ -3927,9 +3988,33 @@
                                     {detail && (
                                         <button type="button" onClick={() => setHistoryRecapId(null)} style={{ padding: '4px 10px', minHeight: 32, borderRadius: 6, cursor: 'pointer', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', background: 'transparent', color: 'var(--silver)', fontFamily: 'var(--font-body)', fontSize: '0.74rem' }}>← All drafts</button>
                                     )}
-                                    <strong style={{ color: 'var(--gold)', fontFamily: 'var(--font-display, Rajdhani, sans-serif)', fontSize: '1rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>🏛 Draft History</strong>
+                                    <strong style={{ color: 'var(--gold)', fontFamily: 'var(--font-display, Rajdhani, sans-serif)', fontSize: '1rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Draft History</strong>
                                     <button type="button" onClick={closeHistory} style={{ marginLeft: 'auto', padding: '4px 11px', minHeight: 32, borderRadius: 6, cursor: 'pointer', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', background: 'transparent', color: 'var(--silver)', fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>✕ Close</button>
                                 </div>
+                                {/* The league's REAL draft history (platform chain) leads;
+                                    War Room's graded recaps follow. */}
+                                {!detail && (
+                                    <div style={{ marginBottom: 4 }}>
+                                        <div style={{ color: 'var(--gold)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>League Draft History</div>
+                                        {histDrafts === null && <div style={{ color: 'var(--silver)', opacity: 0.6, fontSize: '0.78rem', padding: '4px 2px 10px' }}>Loading the league's draft history…</div>}
+                                        {Array.isArray(histDrafts) && !histDrafts.length && <div style={{ color: 'var(--silver)', opacity: 0.6, fontSize: '0.78rem', padding: '4px 2px 10px' }}>No platform drafts found for this league.</div>}
+                                        {(histDrafts || []).map(d => {
+                                            const recap = draftHistoryRecaps.find(r => String(r.sleeperDraftId || '') === d.draftId) || null;
+                                            const label = (d.season || '?') + ' ' + (d.playerType === 1 ? 'Rookie Draft' : 'Draft');
+                                            return (
+                                                <button key={d.draftId} type="button" disabled={!recap} onClick={() => recap && setHistoryRecapId(recap.id)}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', padding: '9px 12px', marginBottom: 5, borderRadius: 8, cursor: recap ? 'pointer' : 'default', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'var(--ov-2, rgba(255,255,255,0.03))', opacity: recap ? 1 : 0.6 }}>
+                                                    <span style={{ minWidth: 0, flex: 1 }}>
+                                                        <span style={{ display: 'block', color: 'var(--white)', fontFamily: 'var(--font-display, Rajdhani, sans-serif)', fontWeight: 800, fontSize: '0.88rem' }}>{label}</span>
+                                                        <span style={{ display: 'block', color: 'var(--silver)', opacity: 0.75, fontSize: '0.72rem', marginTop: 2 }}>{(d.status || 'draft')}{d.rounds ? ' · ' + d.rounds + ' rounds' : ''}{recap ? ' · recap saved' : ' · no War Room recap'}</span>
+                                                    </span>
+                                                    {recap && <span style={{ color: 'var(--silver)', opacity: 0.5, fontSize: '0.9rem' }}>›</span>}
+                                                </button>
+                                            );
+                                        })}
+                                        <div style={{ color: 'var(--gold)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '14px 0 6px' }}>War Room Recaps</div>
+                                    </div>
+                                )}
                                 {!detail && !draftHistoryRecaps.length && (
                                     <div style={{ padding: '22px 14px', textAlign: 'center', color: 'var(--silver)', fontSize: '0.82rem', lineHeight: 1.6 }}>
                                         No archived drafts yet.<br />When a draft finishes, its board, grade, and recap are archived here automatically.

@@ -18,5 +18,6 @@ android/
 icon.PNG
 .claude/worktrees/
 .playwright-cli/
+tmp/
 .DS_Store
 **/.DS_Store

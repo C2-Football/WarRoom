@@ -207,16 +207,34 @@
     function setAlexAvatar(id) {
         ComponentsStorage.set(COMPONENTS_WR_KEYS.ALEX_AVATAR, id);
     }
+    // Owner ask (2026-07-12): retire the stock-photo avatars — Alex is always the
+    // "AI" badge, but its COLOR is user-configurable. Stored id → gradient/text.
+    const ALEX_BADGE_COLORS = [
+        { id: 'gold',   label: 'Gold',   from: '#d4af37', to: '#b8941e', text: '#0a0a0a' },
+        { id: 'blue',   label: 'Blue',   from: '#5dade2', to: '#2e86c1', text: '#0a0a0a' },
+        { id: 'violet', label: 'Violet', from: '#9b8afb', to: '#7c6bf8', text: '#ffffff' },
+        { id: 'green',  label: 'Green',  from: '#2ecc71', to: '#239b56', text: '#07100b' },
+        { id: 'red',    label: 'Red',    from: '#e5534b', to: '#c0392b', text: '#ffffff' },
+        { id: 'teal',   label: 'Teal',   from: '#4ecdc4', to: '#2c9c94', text: '#07100b' },
+    ];
+    function getAlexBadgeColor() {
+        let id;
+        try { id = localStorage.getItem('wr_alex_badge_color') || 'gold'; } catch (e) { id = 'gold'; }
+        return ALEX_BADGE_COLORS.find(c => c.id === id) || ALEX_BADGE_COLORS[0];
+    }
+    function setAlexBadgeColor(id) {
+        try { localStorage.setItem('wr_alex_badge_color', id); } catch (e) { /* no-op */ }
+    }
     function AlexAvatar({ size }) {
         const sz = size || 28;
-        const av = ALEX_AVATARS.find(a => a.id === getAlexAvatar());
-        if (av && av.src) {
-            return React.createElement('img', { src: av.src, alt: 'Alex', style: { width: sz+'px', height: sz+'px', borderRadius: sz > 24 ? '8px' : '6px', objectFit: 'cover', flexShrink: 0, border: '2px solid var(--acc-line3, rgba(212,175,55,0.4))' } });
-        }
-        return React.createElement('div', { style: { width: sz+'px', height: sz+'px', borderRadius: sz > 24 ? '8px' : '6px', background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: (sz * 0.024) + 'rem', fontWeight: 800, color: 'var(--k-0a0a0a, #0a0a0a)', fontFamily: 'Rajdhani, sans-serif' } }, 'AI');
+        const c = getAlexBadgeColor();
+        return React.createElement('div', { style: { width: sz+'px', height: sz+'px', borderRadius: sz > 24 ? '8px' : '6px', background: 'linear-gradient(135deg, ' + c.from + ', ' + c.to + ')', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: (sz * 0.024) + 'rem', fontWeight: 800, color: c.text, fontFamily: 'Rajdhani, sans-serif' } }, 'AI');
     }
     window.AlexAvatar = AlexAvatar;
     window.ALEX_AVATARS = ALEX_AVATARS;
+    window.ALEX_BADGE_COLORS = ALEX_BADGE_COLORS;
+    window.getAlexBadgeColor = getAlexBadgeColor;
+    window.setAlexBadgeColor = setAlexBadgeColor;
 
     // ===== ALEX INGRAM — AI GM MESSAGE COMPONENT (Slack-style) =====
     function GMMessage({ children, timestamp, compact, title }) {
@@ -489,9 +507,11 @@
     const newSession   = (() => { try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch { return null; } })();
     const isAuthed     = !!(legacyAuth || newSession?.token || DEV_MODE);
 
-    if (!isAuthed) {
-        window.location.href = 'landing.html';
-    }
+    // Franchise picker is now the default landing — logged-out visitors are no
+    // longer bounced to landing.html. They arrive on the hub and connect a league
+    // (which doubles as sign-in) via the "Add a league" tile. Marketing/landing
+    // stays reachable from the DHQ logo and the Empire upsell card.
+    void isAuthed;
 
     let sleeperUsername = '';
     // Dev mode: use URL param or default test username
@@ -508,6 +528,7 @@
             }
         }
     } catch (e) {
+        // Corrupt legacy auth blob — clear it and let the hub handle the
+        // logged-out state (no forced bounce to landing.html anymore).
         localStorage.removeItem(AUTH_KEY);
-        if (!newSession?.token) window.location.href = 'landing.html';
     }

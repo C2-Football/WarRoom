@@ -177,6 +177,51 @@ function IntelligenceBriefWidget({
         return candidates[0] || null;
 	    }, [rosterState.isUsable, needs, playersData, statsData, prevStatsData, myRoster, currentLeague, briefDraftInfo, scores, timeRecomputeTs, faModuleTick, gm.faFilters]);
 
+    // Lineup gap — the weekly start/sit read, promoted INTO the brief (owner
+    // ask 2026-07-12): the dashboard's standalone phone "lineup alert" hero is
+    // retired; bench points are now something Alex offers up here, competing
+    // with waivers and sell rules in the action queue. Same engine call + MFL
+    // empty-starters guard the old hero used (WeeklyProj.optimalForRoster is
+    // itself GM-mode aware — rebuild lineups optimize a different objective).
+    const lineupAlert = useMemo(() => {
+        if (!rosterState.isUsable) return null;
+        const WP = window.App?.WeeklyProj;
+        if (!WP || typeof WP.optimalForRoster !== 'function' || !myRoster || !currentLeague) return null;
+        const platformStarters = (myRoster.starters || []).filter(pid => pid && String(pid) !== '0');
+        if (!platformStarters.length) return null;
+        let res = null;
+        try { res = WP.optimalForRoster(myRoster, currentLeague, { playersData, statsData, priorData: prevStatsData }); } catch (e) { return null; }
+        const ld = res && res.delta;
+        if (!ld || ld.isOptimal || !(ld.delta > 0)) return null;
+        const s = (ld.startInstead || [])[0] || null;
+        return {
+            week: res.week,
+            delta: ld.delta,
+            swap: s ? { pid: s.pid, name: playersData?.[s.pid]?.full_name || '', pos: s.pos || '', slot: String(s.slot || '').replace('_', ' ') } : null,
+        };
+    }, [rosterState.isUsable, myRoster, currentLeague, playersData, statsData, prevStatsData, timeRecomputeTs]);
+
+    // Publish the lineup read onto the shared intelligence bus (scope
+    // 'lineup') — the first lineup-type publisher app-wide. The store's one
+    // reader is Alex's AI digest ([TOP_RECOMMENDATIONS]), so the same gap the
+    // brief shows gets offered up in Alex chat with zero reader changes.
+    useEffect(() => {
+        if (!lineupAlert) return;
+        if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) return; // free publishes nothing app-wide
+        const I = window.App?.Intelligence;
+        if (!I || typeof I.buildLineupRecommendation !== 'function' || typeof I.publishRecommendations !== 'function') return;
+        try {
+            const rec = I.buildLineupRecommendation({
+                week: lineupAlert.week,
+                delta: lineupAlert.delta,
+                rosterId: myRoster?.roster_id,
+                swaps: lineupAlert.swap ? [lineupAlert.swap] : [],
+                gmPlanNote: gm.hasStrategy && gm.mode === 'win_now' ? 'Win-now plan — weekly points are the priority.' : null,
+            });
+            if (rec) I.publishRecommendations('lineup', [rec], { surface: 'intel-brief' });
+        } catch (e) { /* the brief renders fine without the bus */ }
+    }, [lineupAlert, gm.hasStrategy, gm.mode, myRoster?.roster_id]);
+
     // Sell-rule trips — rostered players whose position/age trips a GM sell
     // rule or sell-position (untouchables excluded). Feeds the 'GM plan says
     // move them' action below; same parse the My Roster nudge uses.
@@ -200,6 +245,78 @@ function IntelligenceBriefWidget({
             return { pid, name: p.full_name || pid, pos, dhq: scores[pid] || 0 };
         }).filter(Boolean).sort((a, b) => b.dhq - a.dhq).slice(0, 3);
     }, [gm.hasStrategy, gm.sellRules, gm.sellPositions, gm.untouchable, myRoster, playersData, scores, rosterState.isUsable]);
+
+    // Trade-scope warm (owner ask 2026-07-12) — the brief eagerly seeds the
+    // shared intelligence bus's 'trade' scope the way it already warms
+    // 'waiver'. The real deal engine is desk-bound (component state inside
+    // trade-calc), so the warm publishes PARTNER-FIT intel — their needs ×
+    // your surplus, GM-plan target overlap, owner liquidity — not fabricated
+    // deals. A Deal HQ visit overwrites the scope with real deals; the warm
+    // never clobbers those (meta.surface guard in the publish effect below).
+    const tradeWarm = useMemo(() => {
+        if (!rosterState.isUsable || !myAssess) return [];
+        if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) return [];
+        if (typeof window.assessTeamFromGlobal !== 'function') return [];
+        const myNeeds = new Set((myAssess.needs || []).map(n => String(typeof n === 'string' ? n : n?.pos || '').toUpperCase()).filter(Boolean));
+        const myStrengths = new Set((myAssess.strengths || []).map(s => String(typeof s === 'string' ? s : s?.pos || '').toUpperCase()).filter(Boolean));
+        const gmTargets = gm.hasStrategy && gm.targetPositions instanceof Set ? gm.targetPositions : new Set();
+        const fits = [];
+        (currentLeague?.rosters || []).forEach(r => {
+            if (!r || String(r.roster_id) === String(myRoster?.roster_id)) return;
+            let a = null;
+            try { a = window.assessTeamFromGlobal(r.roster_id); } catch (e) { a = null; }
+            if (!a) return;
+            const theirNeeds = (a.needs || []).map(n => String(typeof n === 'string' ? n : n?.pos || '').toUpperCase()).filter(Boolean);
+            const theirStrengths = (a.strengths || []).map(s => String(typeof s === 'string' ? s : s?.pos || '').toUpperCase()).filter(Boolean);
+            const iCanSell = theirNeeds.filter(pos => myStrengths.has(pos));
+            const iCanGet = theirStrengths.filter(pos => myNeeds.has(pos));
+            const planHits = theirStrengths.filter(pos => gmTargets.has(pos));
+            if (!iCanSell.length && !iCanGet.length && !planHits.length) return;
+            const prof = ownerProfiles[r.owner_id] || {};
+            const liquidity = Math.min(15, (Number(prof.trades) || Number(prof.tradeCount) || 0) * 3);
+            fits.push({
+                rosterId: r.roster_id,
+                ownerId: r.owner_id,
+                name: a.ownerName || a.teamName || prof.name || ('Roster ' + r.roster_id),
+                iCanSell, iCanGet, planHits,
+                liquidity,
+                score: Math.min(96, 40 + iCanSell.length * 12 + iCanGet.length * 12 + planHits.length * 8 + liquidity),
+            });
+        });
+        return fits.sort((a, b) => b.score - a.score).slice(0, 3);
+    }, [rosterState.isUsable, myAssess, currentLeague, myRoster, ownerProfiles, gm.hasStrategy, gm.targetPositions, timeRecomputeTs]);
+
+    useEffect(() => {
+        if (!tradeWarm.length) return;
+        const I = window.App?.Intelligence;
+        if (!I || typeof I.buildTradeRecommendation !== 'function' || typeof I.publishRecommendations !== 'function') return;
+        // Never overwrite REAL desk deals with warm partner fits — the desk's
+        // publish (meta.surface 'trade-desk') is strictly richer intel.
+        const cur = I.recommendationStore?.trade;
+        if (cur?.meta?.surface === 'trade-desk') return;
+        try {
+            const recs = tradeWarm.map(f => I.buildTradeRecommendation({
+                id: 'trade_warm_' + f.rosterId,
+                partnerName: f.name,
+                partnerRosterId: f.rosterId,
+                partnerOwnerId: f.ownerId,
+                score: f.score,
+                reasons: [
+                    f.iCanSell.length ? { code: 'roster_need', detail: 'They need ' + f.iCanSell.join('/') + ' — you have the surplus.' } : null,
+                    f.iCanGet.length ? { code: 'roster_surplus', detail: 'They are deep at ' + f.iCanGet.join('/') + ' — your gap.' } : null,
+                    f.planHits.length ? { code: 'gm_plan', detail: 'They hold ' + f.planHits.join('/') + ' — positions your GM plan targets.' } : null,
+                    f.liquidity > 0 ? { code: 'partner_liquidity', detail: 'Active trader — deals get answered.' } : null,
+                ].filter(Boolean),
+                headline: f.name + ' — complementary roster',
+                detail: [
+                    f.iCanSell.length ? 'needs ' + f.iCanSell.join('/') : null,
+                    f.iCanGet.length ? 'deep at ' + f.iCanGet.join('/') : null,
+                ].filter(Boolean).join(' · ') || 'Roster shapes line up.',
+                badge: 'Partner fit',
+            }));
+            if (recs.length) I.publishRecommendations('trade', recs, { surface: 'intel-brief-warm' });
+        } catch (e) { /* warm is best-effort */ }
+    }, [tradeWarm]);
 
     // Key drops (high-value players dropped in last 3 weeks)
     const keyDrops = useMemo(() => {
@@ -293,7 +410,8 @@ function IntelligenceBriefWidget({
         const parts = [];
         if (strategyFrame) parts.push(strategyFrame);
         parts.push(tierMsg);
-        if (needPos && alexFocus.gmStyle !== false) parts.push(`Biggest gap: ${needPos}.`);
+        if (lineupAlert && alexFocus.startSit !== false) parts.push(`${lineupAlert.delta.toFixed(1)} pts on your bench this week.`);
+        else if (needPos && alexFocus.gmStyle !== false) parts.push(`Biggest gap: ${needPos}.`);
         else if (elites > 0) parts.push(`${elites} elite anchor${elites > 1 ? 's' : ''}.`);
         if (waiverTarget && alexFocus.waivers !== false) parts.push(`${waiverTarget.name} (${waiverTarget.pos}) sitting on the wire.`);
         else if (draftCountdown) parts.push(draftCountdown.days === 0 ? 'Draft is today.' : `Draft in ${draftCountdown.days} day${draftCountdown.days !== 1 ? 's' : ''}.`);
@@ -329,6 +447,20 @@ function IntelligenceBriefWidget({
             detail: rosterState.message + ' ' + rosterState.detail,
         });
     } else {
+    // Lineup gap leads the queue — it's the one item with a weekly deadline.
+    // One exception below: rebuild / sell-high plans still unshift the
+    // sell-rule action to the very front (asset moves outrank weekly points
+    // when the plan says so) — strategy-aware ordering, not a fixed ladder.
+    if (alexFocus.startSit !== false && lineupAlert) {
+        actions.push({
+            icon: '⚡', tab: 'lineup',
+            title: lineupAlert.delta.toFixed(1) + ' projected pts sitting on your bench.',
+            detail: (lineupAlert.swap && lineupAlert.swap.name
+                ? 'Start ' + lineupAlert.swap.name + (lineupAlert.swap.pos ? ' · ' + lineupAlert.swap.pos + (lineupAlert.swap.slot ? ' → ' + lineupAlert.swap.slot : '') : '') + ' · Wk ' + lineupAlert.week + '. '
+                : 'Optimal swap ready for Wk ' + lineupAlert.week + '. ')
+                + (gm.hasStrategy && gm.mode === 'win_now' ? 'Your plan is win-now — every weekly point counts.' : 'Set it before kickoff.'),
+        });
+    }
     // GM Strategy annotation: flag the waiver target when it fills a position
     // the plan says to acquire (same tag FA's priority adds compute).
     const waiverIsGmTarget = !!(waiverTarget && gm.hasStrategy && gm.targetPositions instanceof Set && gm.targetPositions.has(String(waiverTarget.pos)));
@@ -368,10 +500,19 @@ function IntelligenceBriefWidget({
         else actions.push(sellAction);
     }
     if (alexFocus.trades !== false) {
+        // Warm partner-fit intel upgrades the generic CTA into a named call:
+        // best complementary roster + why, straight from the tradeWarm scan.
+        const topFit = tradeWarm[0] || null;
         actions.push({
             icon: '🔄', tab: 'trades',
-            title: p.trade(Object.keys(ownerProfiles).length),
-            detail: 'Let me show you who needs what — and what you could get in return.',
+            title: topFit ? (topFit.name + ' looks like your best call.') : p.trade(Object.keys(ownerProfiles).length),
+            detail: topFit
+                ? [
+                    topFit.iCanSell.length ? 'They need ' + topFit.iCanSell.join('/') + ' — you’re deep.' : null,
+                    topFit.iCanGet.length ? 'They’re stacked at ' + topFit.iCanGet.join('/') + ' — your gap.' : null,
+                    topFit.planHits.length ? 'GM plan: they hold ' + topFit.planHits.join('/') + '.' : null,
+                  ].filter(Boolean).join(' ') + ' Open Deal HQ and I’ll build it.'
+                : 'Let me show you who needs what — and what you could get in return.',
         });
     }
     if (alexFocus.draft !== false && draftCountdown) {
@@ -414,6 +555,42 @@ function IntelligenceBriefWidget({
                     Array.isArray(a.detail) ? a.detail : a.detail
                 ),
             ),
+        );
+    }
+
+    // ── GM Plan strip — the brief's strategy spine made visible ─────
+    // Renders at tall/xl, with numeric guardrails added at xxl (deep) —
+    // the bigger the widget, the deeper the plan readout. This is the first
+    // deterministic consumer of the effects() depth fields (aggressionKey,
+    // acceptanceFloor, horizonYears) outside trade tooling. Tap → strategy
+    // editor. No plan set → a single "Set your strategy" chip.
+    const POSTURE_CHIP = { buy_low: 'Buying low', sell_high: 'Selling high', hold: 'Holding assets', exploit: 'Exploiting edges' };
+    const DRAFT_CHIP = { accumulate: 'Stockpiling picks', consolidate: 'Consolidating up', positional_need: 'Drafting for need', bpa: 'Best available' };
+    const AGGR_CHIP = { conservative: 'Conservative', medium: 'Balanced', aggressive: 'Aggressive' };
+    const TIMELINE_CHIP = { '1_year': 'This year', '2_3_years': '2-3 yr window', 'dynasty_long': 'Long game' };
+    function planChips(opts = {}) {
+        const deep = !!opts.deep;
+        const chips = gm.hasStrategy ? [
+            gm.modeLabel || gm.mode,
+            TIMELINE_CHIP[gm.timeline],
+            POSTURE_CHIP[gm.marketPosture],
+            DRAFT_CHIP[gm.draftStyle],
+            AGGR_CHIP[gm.aggressionKey],
+            ...(deep ? [
+                gm.acceptanceFloor ? 'Deal floor ' + gm.acceptanceFloor + '%' : null,
+                gm.horizonYears ? 'Horizon ~' + gm.horizonYears + 'y' : null,
+            ] : []),
+        ].filter(Boolean) : null;
+        const chipStyle = { fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: "'JetBrains Mono', monospace", color: 'var(--silver)', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'var(--ov-1, rgba(255,255,255,0.02))', borderRadius: '4px', padding: '2px 7px', whiteSpace: 'nowrap' };
+        return React.createElement('div', {
+            onClick: (e) => { e.stopPropagation(); goTo('strategy'); },
+            title: gm.hasStrategy ? 'Your GM plan — tap to adjust' : 'No GM plan set — tap to set one',
+            style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '5px', cursor: 'pointer', flexShrink: 0 },
+        },
+            React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'JetBrains Mono', monospace" } }, 'GM PLAN'),
+            ...(chips
+                ? chips.map((c, i) => React.createElement('span', { key: i, style: chipStyle }, c))
+                : [React.createElement('span', { key: 'none', style: { ...chipStyle, color: 'var(--gold)', border: '1px dashed var(--acc-line2, rgba(212,175,55,0.35))' } }, 'Set your strategy →')]),
         );
     }
 
@@ -488,7 +665,8 @@ function IntelligenceBriefWidget({
         return React.createElement('div', { style: cardStyle },
             header(),
             React.createElement('div', { style: { padding: '16px 20px', flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' } },
-                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.75, marginBottom: '20px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical', flexShrink: 0 } }, briefText),
+                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.75, marginBottom: '12px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical', flexShrink: 0 } }, briefText),
+                React.createElement('div', { style: { marginBottom: '14px' } }, planChips()),
                 React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
                     ...actions.slice(0, 5).map((a, i) => renderActionBtn(a, 'tall-' + i)),
                 ),
@@ -502,7 +680,10 @@ function IntelligenceBriefWidget({
         return React.createElement('div', { style: cardStyle },
             header({ tight: true }),
             React.createElement('div', { className: 'wr-ib-xl-body', style: { padding: '10px 14px', flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '14px', overflow: 'hidden' } },
-                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.65, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 9, WebkitBoxOrient: 'vertical' } }, briefText),
+                React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '10px', minHeight: 0, overflow: 'hidden' } },
+                    React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.65, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 7, WebkitBoxOrient: 'vertical' } }, briefText),
+                    planChips(),
+                ),
                 React.createElement('div', { className: 'wr-ib-xl-actions', style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', minHeight: 0 } },
                     ...top4.map((a, i) => renderActionBtn(a, 'xl-' + i, { compact: true, titleClamp: 2 })),
                 ),
@@ -549,6 +730,10 @@ function IntelligenceBriefWidget({
                         )),
                     ),
                 ),
+                // Deep plan readout — xxl is the flagship size, so it carries
+                // the numeric guardrails (deal floor, horizon) no other
+                // surface renders deterministically.
+                planChips({ deep: true }),
                 // "Alex's Read" column dropped (de-busying Q2): its prose only
                 // restated the KPI row above. Actions stand alone, full width,
                 // non-compact so the detail lines carry the specifics.

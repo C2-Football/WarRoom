@@ -86,6 +86,16 @@ function MyTeamTab({
     return RookieFields ? RookieFields.isRookie(r.p, pr, { cur: statsData, prev: stats2025Data }) : false;
   }, [prospectForRow, statsData, stats2025Data]);
 
+  // NFL draft capital for EVERYONE (vets included) — static vendored dataset
+  // (js/shared/draft-profile-data.js → window.WR_DRAFT_PROFILE): [year, round,
+  // OVERALL pick, team]; round 0 = confirmed UDFA. Rookie prospect records
+  // (prospectForRow) stay the richer source and take precedence where present.
+  const draftCapFor = (pid) => {
+    const d = window.WR_DRAFT_PROFILE?.[pid];
+    if (!d) return null;
+    return { year: d[0] || 0, round: d[1] || 0, overall: d[2] || 0, team: d[3] || '' };
+  };
+
   // ── GM Strategy — single source of truth. Live-updates on GM Strategy save. ──
   // Drives untouchable lock badges, target/sell position accents, and a sell-rule
   // nudge on the roster recommendation. Hook is called once, unconditionally.
@@ -225,13 +235,26 @@ function MyTeamTab({
         const getSosRank = (r) => { const s = window.App?.SOS?.getPlayerSOS?.(r.pid, r.pos, r.p?.team); return s?.avgRank || 16; };
         return (getSosRank(b) - getSosRank(a)) * dir; // higher rank = easier = sort first by default
       }
-      // Rookie columns — resolve the prospect record; non-rookies sort last.
+      // Draft-capital columns — prospect record first, then the static NFL
+      // draft dataset (vets); players with neither sort last.
       if (key === 'rkSlot' || key === 'rkTeam' || key === 'rkRank' || key === 'rkTier' || key === 'rkProfile') {
         const pa = prospectForRow(a), pb = prospectForRow(b);
-        if (key === 'rkTeam') { const ta = (pa?.nflTeam || ''), tb = (pb?.nflTeam || ''); if (!ta !== !tb) return ta ? -dir : dir; return (ta < tb ? -1 : ta > tb ? 1 : 0) * dir; }
+        if (key === 'rkTeam') {
+          const team = (p, row) => p?.nflTeam || draftCapFor(row.pid)?.team || '';
+          const ta = team(pa, a), tb = team(pb, b);
+          if (!ta !== !tb) return ta ? -dir : dir;
+          return (ta < tb ? -1 : ta > tb ? 1 : 0) * dir;
+        }
         if (key === 'rkSlot') {
-          const slot = p => !p ? 1e9 : (Number(p.draftRound) > 0 ? Number(p.draftRound) * 100 + (Number(p.draftPick) || 99) : 9000);
-          return (slot(pa) - slot(pb)) * dir;
+          // Unified ordinal ≈ overall selection: prospects approximate it from
+          // round+pick-in-round; vets carry the true overall. UDFA = 9000.
+          const slot = (p, row) => {
+            if (p && Number(p.draftRound) > 0) return (Number(p.draftRound) - 1) * 32 + (Number(p.draftPick) || 32);
+            const d = draftCapFor(row.pid);
+            if (d) return d.round > 0 ? (d.overall || (d.round - 1) * 32 + 32) : 9000;
+            return p ? 9000 : 1e9;
+          };
+          return (slot(pa, a) - slot(pb, b)) * dir;
         }
         if (key === 'rkProfile') {
           const spd = p => { const s = parseFloat(p?.speed); return Number.isFinite(s) && s > 0 ? s : 1e9; };
@@ -277,13 +300,16 @@ function MyTeamTab({
     acquired:   { label: 'Acquisition Method', shortLabel: 'Added', width: '74px', group: 'core' },
     acquiredDate: { label: 'Date Acquired', shortLabel: 'When', width: '60px', group: 'core' },
     sos:        { label: 'Sched Strength (1=hardest, 32=easiest)', shortLabel: 'SOS', width: '44px', group: 'stats' },
-    // Rookie/prospect columns — sourced from the rookie-data record (prospectForRow),
-    // NOT the Sleeper object (Sleeper draft capital is unreliable). '—' for vets.
-    rkSlot:     { label: 'NFL Draft Slot (rookie)', shortLabel: 'Draft', width: '54px', group: 'scout' },
-    rkTeam:     { label: 'Drafted NFL Team (rookie)', shortLabel: 'Drafted', width: '50px', group: 'scout' },
-    rkRank:     { label: 'Rookie Consensus Rank', shortLabel: 'Cons #', width: '48px', group: 'scout' },
-    rkTier:     { label: 'Rookie Tier', shortLabel: 'Tier', width: '64px', group: 'scout' },
-    rkProfile:  { label: 'Rookie Profile (Ht · Wt · 40)', shortLabel: 'Profile', width: '112px', group: 'scout' },
+    // Draft-capital + profile columns. Rookies use the rookie-data record
+    // (prospectForRow); vets fall back to the static NFL draft dataset
+    // (draftCapFor — Sleeper's own API carries no draft capital).
+    // Owner ask 2026-07-12: dropped the rookie-only Consensus Rank (rkRank)
+    // and Tier (rkTier) columns — they read '—' for every veteran, so they
+    // were dead weight in a roster board. The rich rookie tier/rank still
+    // surface in the prospect scouting card, just not as roster columns.
+    rkSlot:     { label: 'NFL Draft Capital — round + overall pick (UDFA = undrafted)', shortLabel: 'Draft', width: '54px', group: 'scout' },
+    rkTeam:     { label: 'NFL Team That Drafted Him', shortLabel: 'Drafted', width: '50px', group: 'scout' },
+    rkProfile:  { label: 'Profile — Ht · Wt (· 40 time for rookies)', shortLabel: 'Profile', width: '112px', group: 'scout' },
   };
   // Free: the Move/Trade-Recommendation column is a verdict → Pro. Dropping
   // the def removes it everywhere at once — the Customize picker, the 'full'
@@ -299,7 +325,7 @@ function MyTeamTab({
     ...(wkVerdict ? { redraft: ['pos','proj','ppg','prev','trend','hi','lo','sos'] } : {}),
     stats:   ['pos','dhq','ppg','prev','trend','gp','durability','sos'],
     scout:   ['pos','age','college','slot','height','weight','depthChart','yrsExp','starterSzn','posRankNfl'],
-    rookie:  ['pos','age','college','rkSlot','rkTeam','rkRank','rkTier','rkProfile'],
+    rookie:  ['pos','age','college','rkSlot','rkTeam','rkProfile'],
     full:    Object.keys(ROSTER_COLUMNS),
   };
   const COLUMN_PRESET_META = {
@@ -696,6 +722,19 @@ function MyTeamTab({
   };
   // Effective call: manual override → existing player-tag → engine r.rec.
   const _effRec = (r) => verdictOverrides[r.pid] || _TAG_TO_LABEL[window._playerTags && window._playerTags[r.pid]] || r.rec;
+  // The user's own call for a player (manual verdict or synced tag), IGNORING
+  // the engine's r.rec — null when they haven't weighed in.
+  const _manualCall = (r) => verdictOverrides[r.pid] || _TAG_TO_LABEL[window._playerTags && window._playerTags[r.pid]] || null;
+  // Owner ask 2026-07-12: the Review-roster drop list is a to-do of the app's
+  // drop flags. Once the user tags a flagged player as anything that ISN'T
+  // Drop/Cut (Hold/Stash/Untouchable/Watch…), they've decided to keep him —
+  // the flag is resolved, so he leaves the list. No manual call = flag stands.
+  // (SELL CALLS already self-resolves because its filter reads _effRec.)
+  const _isActiveDrop = (r) => {
+    if (!isPro || !dropCandidatePids.has(r.pid) || dismissedDrops.has(r.pid)) return false;
+    const manual = _manualCall(r);
+    return !(manual && !/drop|cut/i.test(manual));
+  };
   // Call → accent color, shared by chip + badge + picker + desktop action col.
   const _recColor = (rec) => {
     const s = String(rec || '');
@@ -925,12 +964,33 @@ function MyTeamTab({
       }
       case 'rkSlot': case 'rkTeam': case 'rkRank': case 'rkTier': case 'rkProfile': {
         const rf = window.App?.RookieFields?.fields?.(prospectForRow(r)) || null;
-        if (!rf) return <div key={colKey} style={{...base}}><span style={{ color: 'var(--ov-8, rgba(255,255,255,0.3))' }}>{'\u2014'}</span></div>;
-        if (colKey === 'rkSlot') return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.74rem', fontWeight: 600 }}>{rf.draftSlot || '\u2014'}</span></div>;
-        if (colKey === 'rkTeam') return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)' }}>{rf.nflTeam || '\u2014'}</span></div>;
+        const dp = draftCapFor(r.pid);
+        const dim = <span style={{ color: 'var(--ov-8, rgba(255,255,255,0.3))' }}>{'\u2014'}</span>;
+        if (colKey === 'rkSlot') {
+          // Prospect slot ("1.05") wins; vets show round + overall ("R2 #47")
+          // with the class year underneath, or UDFA.
+          const slotTxt = rf?.draftSlot || (dp ? (dp.round > 0 ? 'R' + dp.round + ' #' + dp.overall : 'UDFA') : null);
+          if (!slotTxt) return <div key={colKey} style={{...base}}>{dim}</div>;
+          const yr = dp?.year ? '\u2019' + String(dp.year).slice(2) : '';
+          const tip = dp ? (dp.round > 0 ? dp.year + ' draft \u2014 round ' + dp.round + ', pick ' + dp.overall + ' overall' + (dp.team ? ' (' + dp.team + ')' : '') : 'Undrafted free agent' + (dp.year ? ' \u2014 entered ' + dp.year : '')) : slotTxt;
+          return <div key={colKey} title={tip} style={{...base, flexDirection: 'column', gap: '1px'}}>
+            <span style={{ color: 'var(--silver)', fontSize: '0.72rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{slotTxt}</span>
+            {yr ? <span style={{ color: 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', opacity: 0.6 }}>{yr}</span> : null}
+          </div>;
+        }
+        if (colKey === 'rkTeam') {
+          const tm = rf?.nflTeam || dp?.team || '';
+          return <div key={colKey} style={{...base}}>{tm ? <span style={{ color: 'var(--silver)' }}>{tm}</span> : dim}</div>;
+        }
+        if (colKey === 'rkProfile') {
+          // Rookies carry the full Ht \u00b7 Wt \u00b7 40 scouting line; vets compose
+          // Ht \u00b7 Wt from the Sleeper record.
+          const prof = rf?.profile || [formatHeight(r.p.height), r.p.weight ? r.p.weight + ' lb' : null].filter(Boolean).join(' \u00b7 ');
+          return <div key={colKey} style={{...base, justifyContent: 'flex-start'}}>{prof ? <span title={prof} style={{ color: 'var(--silver)', fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prof}</span> : dim}</div>;
+        }
+        if (!rf) return <div key={colKey} style={{...base}}>{dim}</div>;
         if (colKey === 'rkRank') return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontFamily: 'var(--font-mono)' }}>{rf.consensusRank != null ? rf.consensusRank : '\u2014'}</span></div>;
-        if (colKey === 'rkTier') return <div key={colKey} style={{...base, justifyContent: 'flex-start'}}><span style={{ color: 'var(--silver)', fontWeight: 600, fontSize: '0.72rem' }}>{rf.tierLabel || '\u2014'}</span></div>;
-        return <div key={colKey} style={{...base, justifyContent: 'flex-start'}}><span title={rf.profile} style={{ color: 'var(--silver)', fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rf.profile || '\u2014'}</span></div>;
+        return <div key={colKey} style={{...base, justifyContent: 'flex-start'}}><span style={{ color: 'var(--silver)', fontWeight: 600, fontSize: '0.72rem' }}>{rf.tierLabel || '\u2014'}</span></div>;
       }
       default: return <div key={colKey} style={{...base}}>{'\u2014'}</div>;
     }
@@ -970,6 +1030,7 @@ function MyTeamTab({
                             {posLbl} {'·'} {r.p.team || 'FA'} {'·'} Age {r.age || '?'} {'·'} {r.p.years_exp || 0}yr exp
                             {formatHeight(r.p.height) ? ' · ' + formatHeight(r.p.height) : ''}
                             {r.p.college ? ' · ' + r.p.college : ''}
+                            {(() => { const d = draftCapFor(r.pid); if (!d) return ''; return ' · ' + (d.round > 0 ? 'R' + d.round + ' #' + d.overall + (d.year ? ' ’' + String(d.year).slice(2) : '') + (d.team ? ' ' + d.team : '') : 'UDFA' + (d.year ? ' ’' + String(d.year).slice(2) : '')); })()}
                             {r.injury ? <span style={{ color: 'var(--bad)', fontWeight: 700 }}> {'·'} {r.injury}</span> : null}
                           </div>
                         </div>
@@ -1097,9 +1158,9 @@ function MyTeamTab({
     redraft: ['proj', 'ppg', 'trend'],
     stats:   ['ppg', 'prev', 'trend'],
     scout:   ['yrsExp', 'starterSzn', 'posRankNfl'],
-    rookie:  ['rkSlot', 'rkRank', 'rkTier'],
+    rookie:  ['rkSlot', 'age', 'dhq'],
   };
-  const PHONE_SLOT_KEYS = new Set(['dhq', 'proj', 'ppg', 'prev', 'trend', 'age', 'gp', 'hi', 'lo', 'yrsExp', 'starterSzn', 'posRankNfl', 'posRankLg', 'sos', 'peak', 'rkSlot', 'rkRank', 'rkTier']);
+  const PHONE_SLOT_KEYS = new Set(['dhq', 'proj', 'ppg', 'prev', 'trend', 'age', 'gp', 'hi', 'lo', 'yrsExp', 'starterSzn', 'posRankNfl', 'posRankLg', 'sos', 'peak', 'rkSlot']);
   // Custom column sets ride the first 3 slot-capable picks; empty → default.
   let _phoneSlotKeys = PHONE_SLOT_PRESETS[activePresetKey]
     || visibleCols.filter(k => PHONE_SLOT_KEYS.has(k)).slice(0, 3);
@@ -1147,8 +1208,13 @@ function MyTeamTab({
       case 'peak': return { label: short, value: r.peakPhase || '—', tone: 'mute' };
       case 'rkSlot': case 'rkRank': case 'rkTier': {
         const rf = window.App?.RookieFields?.fields?.(prospectForRow(r)) || null;
+        if (colKey === 'rkSlot') {
+          // Vet fallback mirrors the desktop cell: R<rd> #<overall> or UDFA.
+          const dp = draftCapFor(r.pid);
+          const slotTxt = rf?.draftSlot || (dp ? (dp.round > 0 ? 'R' + dp.round + ' #' + dp.overall : 'UDFA') : null);
+          return { label: short, value: slotTxt || '—', tone: slotTxt ? undefined : 'mute' };
+        }
         if (!rf) return { label: short, value: '—', tone: 'mute' };
-        if (colKey === 'rkSlot') return { label: short, value: rf.draftSlot || '—' };
         if (colKey === 'rkRank') return { label: short, value: rf.consensusRank != null ? rf.consensusRank : '—' };
         return { label: short, value: rf.tierLabel || '—' };
       }
@@ -1184,9 +1250,11 @@ function MyTeamTab({
     // Decision hero: drop-alert count + GM window, all from data the tab
     // already computes (dropCandidatePids / dismissedDrops are Pro
     // verdicts — free renders raw roster facts, zero gate drift).
-    const dropAlerts = isPro ? rows.filter(r => dropCandidatePids.has(r.pid) && !dismissedDrops.has(r.pid)) : [];
+    const dropAlerts = isPro ? rows.filter(_isActiveDrop) : [];
     const modeLabel = String((gm && gm.modeLabel) || 'Compete');
-    const sellCalls = isPro ? rows.filter(r => /sell/i.test(r.rec || '')).length : 0;
+    // Override-aware (owner ask): a user-kept player drops out of the hero
+    // count too, matching the review list below (both read _effRec).
+    const sellCalls = isPro ? rows.filter(r => /sell/i.test(_effRec(r) || '')).length : 0;
     const heroHeadline = (isPro
       ? (dropAlerts.length > 0 ? dropAlerts.length + ' DROP ALERT' + (dropAlerts.length === 1 ? '' : 'S') : 'ROSTER CLEAN')
       : allPlayers.length + ' PLAYERS') + ' · WINDOW: ' + modeLabel.toUpperCase();
@@ -1408,6 +1476,20 @@ function MyTeamTab({
               const rowGroupKey = getRowGroupKey(r);
               const startsPositionGroup = rosterGroupMode !== 'none' && (idx === 0 || getRowGroupKey(filtered[idx - 1]) !== rowGroupKey);
               const rowBg = isExpanded ? 'var(--acc-fill1, rgba(212,175,55,0.058))' : idx % 2 === 1 ? 'var(--ov-1, rgba(255,255,255,0.018))' : 'var(--ov-1, rgba(255,255,255,0.006))';
+              // Frozen player cell needs an OPAQUE background — 'inherit' picks up
+              // the translucent row tint and the h-scrolled data columns bleed
+              // through under the sticky cell. Compose tint-over-solid instead.
+              const frozenBase = 'var(--surf-solid, rgba(12,12,17,0.98))';
+              const frozenBg = 'linear-gradient(' + rowBg + ', ' + rowBg + '), ' + frozenBase;
+              const frozenHoverBg = 'linear-gradient(var(--acc-fill1, rgba(212,175,55,0.06)), var(--acc-fill1, rgba(212,175,55,0.06))), ' + frozenBase;
+              // Phone Deep Data (owner ask 2026-07-12): the frozen name cell is
+              // just photo + "F. Last" + team — 30 scrolling columns leave no
+              // room for the full name + slot/GM/drop tag cluster the desktop
+              // board carries. Shorten to first-initial · last-name so it never
+              // truncates. Desktop/tablet keep the full card (gated on !_phone).
+              const frozenName = _phone && r.p.first_name && r.p.last_name
+                ? r.p.first_name.charAt(0) + '. ' + r.p.last_name
+                : getPlayerName(r.pid);
 
               const _recLower = (r.rec || '').toLowerCase();
           const actionClass = _recLower === 'sell now' || _recLower === 'sell' ? 'wr-row-sell' :
@@ -1431,14 +1513,17 @@ function MyTeamTab({
               <div className={[actionClass, isUntouchable ? 'wr-untouchable' : ''].filter(Boolean).join(' ')} role="button" tabIndex={0} title="Open roster player detail" style={{ display: 'flex', overflow: 'visible', borderTop: 'none', borderBottom: isExpanded ? 'none' : '1px solid var(--ov-3, rgba(255,255,255,0.035))', cursor: 'pointer', background: rowBg, transition: 'background 0.1s' }}
                 onClick={() => setExpandedPid(prev => prev === r.pid ? null : r.pid)}
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedPid(prev => prev === r.pid ? null : r.pid); } }}
-                onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = 'var(--acc-fill1, rgba(212,175,55,0.06))'; }}
-                onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = rowBg; }}>
+                onMouseEnter={e => { if (!isExpanded) { e.currentTarget.style.background = 'var(--acc-fill1, rgba(212,175,55,0.06))'; const fc = e.currentTarget.firstElementChild; if (fc) fc.style.background = frozenHoverBg; } }}
+                onMouseLeave={e => { if (!isExpanded) { e.currentTarget.style.background = rowBg; const fc = e.currentTarget.firstElementChild; if (fc) fc.style.background = frozenBg; } }}>
                 {/* Frozen player info */}
-	                <div style={{ width: playerColWidth + 'px', flexShrink: 0, height: rowHeight + 'px', display: 'flex', alignItems: 'center', gap: '8px', padding: '0 10px', borderRight: '1px solid var(--acc-fill2, rgba(212,175,55,0.1))', position: 'sticky', left: 0, zIndex: 3, background: 'inherit', boxShadow: '8px 0 14px rgba(0,0,0,0.16)' }}>
+	                <div style={{ width: playerColWidth + 'px', flexShrink: 0, height: rowHeight + 'px', display: 'flex', alignItems: 'center', gap: '8px', padding: '0 10px', borderRight: '1px solid var(--acc-fill2, rgba(212,175,55,0.1))', position: 'sticky', left: 0, zIndex: 3, background: frozenBg, boxShadow: '8px 0 14px rgba(0,0,0,0.16)' }}>
                   <div style={{ width: avatarSize + 'px', height: avatarSize + 'px', flexShrink: 0 }}><img src={'https://sleepercdn.com/content/nfl/players/thumb/'+r.pid+'.jpg'} alt="" onError={e=>e.target.style.display='none'} style={{ width: avatarSize + 'px', height: avatarSize + 'px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))' }} /></div>
                   <div style={{ overflow: 'hidden', flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-	                      <span style={{ fontWeight: 650, color: 'var(--white)', fontSize: playerNameSize, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getPlayerName(r.pid)}</span>
+	                      <span style={{ fontWeight: 650, color: 'var(--white)', fontSize: playerNameSize, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{frozenName}</span>
+                      {/* Tag cluster (slot/roster/GM/drop) is desktop + tablet only —
+                          phone Deep Data keeps the name cell to photo · name · team. */}
+                      {!_phone && <React.Fragment>
                       {inlineTag(slotTagMeta[r.section], 'slot-' + r.pid)}
                       {inlineTag(rosterTagMeta[window._playerTags?.[r.pid]], 'tag-' + r.pid)}
                       {/* GM Strategy: untouchable lock — distinct from manual tag system */}
@@ -1447,8 +1532,9 @@ function MyTeamTab({
                       {!r.gmIsUntouchable && r.gmIsTarget && <span title="GM Strategy: acquisition-focus position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.28))', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>TGT</span>}
                       {!r.gmIsUntouchable && r.gmIsSellPos && <span title="GM Strategy: sell-candidate position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'rgba(240,165,0,0.13)', color: 'var(--warn)', border: '1px solid rgba(240,165,0,0.32)', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>SELL</span>}
                       {isPro && dropCandidatePids.has(r.pid) && !dismissedDrops.has(r.pid) && <span onClick={e => { e.stopPropagation(); dismissDrop(r.pid); }} title="Drop candidate (click to dismiss)" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(231,76,60,0.2)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>DROP?</span>}
+                      </React.Fragment>}
                     </div>
-                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, marginTop: '1px' }}>{r.p.team || 'FA'}{r.injury ? ' \u00B7 '+r.injury : ''}</div>
+                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, marginTop: '1px' }}>{r.p.team || 'FA'}{!_phone && r.injury ? ' \u00B7 '+r.injury : ''}</div>
                   </div>
                   <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', opacity: 0.42 }}>{isExpanded ? '\u25B2' : '\u25BC'}</span>
                 </div>

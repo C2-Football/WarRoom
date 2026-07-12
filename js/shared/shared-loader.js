@@ -11,7 +11,7 @@
         } catch (e) {}
         return 'https://c2-football.github.io/ReconAI/shared/';
     })();
-    const DEFAULT_VERSION = '20260705fdn1';
+    const DEFAULT_VERSION = '20260711baileyfix1'; // bumped: rookie-data identity-join + ED normPos fixes must bust cached shared modules
     const config = {
         localBase: null,
         remoteBase: REMOTE_BASE,

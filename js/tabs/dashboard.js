@@ -1699,8 +1699,9 @@ function DashboardPanel({
     const _kitReady = !!(window.WR && window.WR.HeroCard);
     const _phone = dashViewport.isPhone && _kitReady;
 
-    // Severity source #1 — lineup delta. Same engine call + MFL empty-
-    // starters guard as LineupCheckWidget (js/widgets/lineup-check.js).
+    // Lineup delta — feeds the phone sm-strip lineup-check tile (the hero
+    // rung it used to drive moved into the Intel Brief). Same engine call +
+    // MFL empty-starters guard as LineupCheckWidget (js/widgets/lineup-check.js).
     // Pro-only at the exact wrPro boundary that already gates the
     // lineup-check widget (pro: true / startsit_depth) — zero gate drift.
     // Hook runs unconditionally (order safety); short-circuits off-phone.
@@ -1715,23 +1716,16 @@ function DashboardPanel({
     }, [_phone, wrPro, myRoster, currentLeague, playersData, statsData, prevStatsData]);
 
     if (_phone) {
-        // ── Severity hero: lineup alert (Pro) → latest pinned insight →
-        // franchise pulse. Every input is data this panel already receives
-        // or computes — no new engine work.
+        // ── Hero: latest pinned insight only. The old rung-1 "lineup alert"
+        // hero moved INTO the Intel Brief (owner ask 2026-07-12,
+        // flash-brief.js lineupAlert), and the "Franchise pulse" fallback is
+        // deleted outright (same ask) — its health/rank stats already render
+        // in the KPI strip and the brief's xxl band, so the card was pure
+        // repetition. No pinned intel → no hero; the widget stack leads.
+        // _ld stays: it still feeds the sm-strip lineup-check tile below.
         let _phoneHeroEl = null;
         const _ld = _phoneLineup && _phoneLineup.delta;
-        if (_ld && !_ld.isOptimal && _ld.delta > 0) {
-            const _swap = (_ld.startInstead || [])[0];
-            _phoneHeroEl = React.createElement(window.WR.HeroCard, {
-                kicker: 'Lineup alert',
-                headline: _ld.delta.toFixed(1) + ' PTS ON YOUR BENCH',
-                facts: _swap
-                    ? 'Start ' + getPlayerName(_swap.pid) + ' · ' + ((_swap.pos || '') + ' → ' + String(_swap.slot || '').replace('_', ' ')).trim() + ' · Wk ' + _phoneLineup.week
-                    : 'Optimal swap ready · Wk ' + _phoneLineup.week,
-                cta: 'Review lineup',
-                onCta: () => navigateWidget('lineup'),
-            });
-        } else if (starredWidgets.length > 0) {
+        if (starredWidgets.length > 0) {
             const _pin = [...starredWidgets].sort((a, b) => (b.ts || 0) - (a.ts || 0))[0];
             const _pinDest = WIDGET_DESTINATIONS[_pin.sourceModule] ? resolveWidgetDestination(_pin.sourceModule) : null;
             _phoneHeroEl = React.createElement(window.WR.HeroCard, {
@@ -1740,24 +1734,6 @@ function DashboardPanel({
                 facts: _pin.content ? String(_pin.content).slice(0, 120) : 'Starred from across the app',
                 cta: _pinDest ? 'Open' : null,
                 onCta: _pinDest ? () => navigateWidget(_pinDest) : undefined,
-            });
-        } else {
-            const _hs = kv('health-score');
-            const _order = [...(standings || [])].sort((a, b) => {
-                if (b.wins !== a.wins) return b.wins - a.wins;
-                if (a.losses !== b.losses) return a.losses - b.losses;
-                return b.pointsFor - a.pointsFor;
-            });
-            const _mineIdx = _order.findIndex(t => t.userId === sleeperUserId);
-            const _mine = _mineIdx >= 0 ? _order[_mineIdx] : null;
-            _phoneHeroEl = React.createElement(window.WR.HeroCard, {
-                kicker: 'Franchise pulse',
-                headline: 'HEALTH ' + _hs.value + (_mine ? ' · #' + (_mineIdx + 1) + ' OF ' + _order.length : ''),
-                facts: _mine
-                    ? _mine.wins + '-' + _mine.losses + (_mine.pointsFor > 0 ? ' · ' + _mine.pointsFor.toFixed(0) + ' PF' : '') + ' · no alerts on the board'
-                    : 'No alerts on the board',
-                ctaGhost: 'My Roster',
-                onCtaGhost: () => navigateWidget('myteam'),
             });
         }
 
@@ -1851,40 +1827,27 @@ function DashboardPanel({
 
         return (
             <React.Fragment>
-                {/* First-visit hint — same state/dismiss as desktop, phone wording */}
-                {showHint && (
-                    <div style={{
-                        display: 'flex', alignItems: 'center', gap: '10px',
-                        padding: '10px 14px',
-                        background: 'linear-gradient(90deg, var(--acc-fill2, rgba(212,175,55,0.1)), var(--acc-fill1, rgba(212,175,55,0.02)))',
-                        borderBottom: '1px solid var(--acc-line1, rgba(212,175,55,0.2))',
-                        fontFamily: dmFont, fontSize: 'var(--text-label, 0.75rem)', color: S,
-                    }}>
-                        <div style={{ flex: 1, lineHeight: 1.45 }}>
-                            <strong style={{ color: G }}>Yours to customize.</strong> Tap ⋯ on any card to edit or remove it, or <strong>⇅ Reorder</strong> to rearrange. <strong>+ Add Widget</strong> sits at the bottom.
-                        </div>
-                        <button onClick={dismissHint} style={{
-                            padding: '6px 12px', minHeight: '36px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: dmFont, fontWeight: 600,
-                            background: 'var(--acc-fill2, rgba(212,175,55,0.12))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
-                            borderRadius: '5px', color: G, cursor: 'pointer', flexShrink: 0,
-                        }}>Got it</button>
-                    </div>
-                )}
+                {/* Phone "Yours to customize" hint banner removed (owner ask
+                    2026-07-12) — the ⋯ / Reorder / + Add Widget affordances are
+                    self-evident. Desktop banner (showHint, further down) is
+                    untouched. */}
 
                 {/* Widgets carry inline grid spans — flatten them to the 1-col stack */}
                 <style>{`@media(max-width:767px){
                     .wr-dashboard-grid>.wr-widget{ grid-column:1 / -1 !important; grid-row:auto !important; min-width:0; }
                 }`}</style>
 
-                {/* Severity hero + KPI strip */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: 'var(--space-md) var(--space-md) 0', background: BK }}>
-                    {_phoneHeroEl}
-                    {_phoneSm.length > 0 && (
-                        <div className="wr-kpi-strip">
-                            {_phoneSm.map(({ w }) => _phoneKpiTile(w))}
-                        </div>
-                    )}
-                </div>
+                {/* Severity hero only — the sm KPI strip (Health Score /
+                    Power Rankings tiles) is removed on phone (owner ask
+                    2026-07-12): that read lives in the Intel Brief now and the
+                    strip was clutter above the widget stack. sm widgets still
+                    render on desktop/tablet via the grid; _phoneSm is left
+                    built (unrendered) so re-enabling is a one-line change. */}
+                {_phoneHeroEl && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: 'var(--space-md) var(--space-md) 0', background: BK }}>
+                        {_phoneHeroEl}
+                    </div>
+                )}
 
                 {/* Customizable-widgets section header + reorder entry. The
                     ⇅ Reorder button opens the drag-to-rearrange sheet (replaces
