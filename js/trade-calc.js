@@ -3340,11 +3340,16 @@
                         </div>
                     </div>
                     <div className="tc-dhq-panel-body" style={{ overflow: 'visible', paddingRight: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        <div className="tc-dhq-modebar" role="group" aria-label="Finder intent">
+                        {/* Organized control rows (owner ask 2026-07-12): INTENT seg +
+                            focus search share one line; PARTNER is a labeled row below;
+                            the GM-lens read rides as a caption just above the board. */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.65, flex: 'none' }}>Intent</span>
+                        <div className="tc-dhq-modebar" role="group" aria-label="Finder intent" style={{ flex: 'none' }}>
                             {finderIntents.map(i => <button key={i.key} type="button" className={finderQuery.intent === i.key ? 'is-active' : ''} onClick={() => { setFinderQuery(qr => ({ ...qr, intent: i.key })); setAssetBrowserPos('ALL'); setShowAllDeals(false); }}>{i.label}</button>)}
                         </div>
 
-                        <div style={{ position: 'relative', minWidth: 0 }}>
+                        <div style={{ position: 'relative', minWidth: '240px', flex: '1 1 240px' }}>
                             <input
                                 type="text"
                                 value={finderSearch}
@@ -3401,6 +3406,7 @@
                                 </div>
                             )}
                         </div>
+                        </div>
 
                         {focusR && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -3416,11 +3422,9 @@
                             </div>
                         )}
 
-                        <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.75 }}>
-                            GM lens: <strong style={{ color: 'var(--gold)', fontWeight: 700 }}>{focusTuning.modeLabel}</strong> · acceptance bar {actionFloor}% · {focusTuning.untouchable.size} untouchable{focusTuning.untouchable.size === 1 ? '' : 's'} · {modeDescriptor}
-                        </div>
-
-                        <div className="tc-dhq-modebar" role="group" aria-label="Partner filter">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.65, flex: 'none' }}>Partner</span>
+                        <div className="tc-dhq-modebar" role="group" aria-label="Partner filter" style={{ flex: '1 1 auto', minWidth: 0 }}>
                             <button type="button" className={effPartnerId == null ? 'is-active' : ''} onClick={() => setPartnerFacet(null)}>Auto</button>
                             {partnerBoard.slice(0, 6).map(item => {
                                 const a = item.assessment;
@@ -3430,6 +3434,7 @@
                             {partnerBoard.length > 6 && (
                                 <button type="button" className={partnerListOpen ? 'is-active' : ''} aria-expanded={partnerListOpen} onClick={() => setPartnerListOpen(v => !v)}>{partnerListOpen ? 'Less ▴' : 'More ▾'}</button>
                             )}
+                        </div>
                         </div>
                         {/* Full ranked partner list (owner ask 2026-07-12) — every
                             partner, not the capped 6-chip facet; same setPartnerFacet
@@ -3466,11 +3471,9 @@
                             .tc-dhq-add-btn { width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; justify-self: end; border-radius: 6px; border: 1px solid var(--acc-line2, rgba(212,175,55,0.4)); background: rgba(212,175,55,0.10); color: var(--gold); font-family: var(--font-mono, monospace); font-size: 0.95rem; font-weight: 700; line-height: 1; padding: 0; cursor: pointer; }
                             .tc-dhq-add-btn:hover { background: rgba(212,175,55,0.22); border-color: var(--gold); }
                         `}</style>
-                        {boardRowCount > 8 && (
-                            <div>
-                                <button type="button" className="tc-dhq-detail-toggle" onClick={() => setAssetBrowserOpen(v => !v)}>{assetBrowserOpen ? 'Show less ▴' : `Show all ▾ (${boardRowCount})`}</button>
-                            </div>
-                        )}
+                        <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.75 }}>
+                            GM lens: <strong style={{ color: 'var(--gold)', fontWeight: 700 }}>{focusTuning.modeLabel}</strong> · acceptance bar {actionFloor}% · {focusTuning.untouchable.size} untouchable{focusTuning.untouchable.size === 1 ? '' : 's'} · {modeDescriptor}
+                        </div>
                         {finderPicksMode ? (
                             /* Intent=Picks → a draft-pick board with an Owned/League scope
                                toggle (the phone board, ported): Owned = your picks (→ YOU
@@ -3484,6 +3487,7 @@
                                     <div className="tc-dhq-browser-controls" role="group" aria-label="Picks scope">
                                         <button type="button" className={picksScopeMine ? 'is-active' : ''} onClick={() => { setPhPicksScope('owned'); setAssetBrowserOpen(false); }}>Owned</button>
                                         <button type="button" className={!picksScopeMine ? 'is-active' : ''} onClick={() => { setPhPicksScope('league'); setAssetBrowserOpen(false); }}>League</button>
+                                        {boardRowCount > 8 && <button type="button" onClick={() => setAssetBrowserOpen(v => !v)}>{assetBrowserOpen ? 'Less ▴' : `All ${boardRowCount} ▾`}</button>}
                                     </div>
                                 </div>
                                 <div className="tc-dhq-asset-table is-picks" role="table" aria-label="Trade Finder pick board">
@@ -3527,6 +3531,10 @@
                                             </select>
                                         </label>
                                         {tcRookieFields && <button type="button" className={assetBrowserRookieOnly ? 'is-active' : ''} title="Show only rookies — college, draft slot, and tier appear under each name" onClick={() => setAssetBrowserRookieOnly(v => !v)}>Rookies</button>}
+                                        {/* Show-all lives ON the board head with the other board
+                                            controls (owner ask 2026-07-12) — it floated alone above
+                                            the board before. */}
+                                        {boardRowCount > 8 && <button type="button" onClick={() => setAssetBrowserOpen(v => !v)}>{assetBrowserOpen ? 'Less ▴' : `All ${boardRowCount} ▾`}</button>}
                                     </div>
                                 </div>
                                 <div className="tc-dhq-asset-table has-add" role="table" aria-label="Trade Finder asset browser">
