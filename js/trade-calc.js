@@ -3072,9 +3072,12 @@
                 { key:'prime', label:'Prime Years' },
             ];
             const browsingMyRoster = effMode === 'shop' || effMode === 'sellSurplus' || effMode === 'picks';
+            // Partner pinned + acquire-side browse → only that partner's roster
+            // (owner ask 2026-07-12, same rule as the phone board).
             const assetBrowserRosters = browsingMyRoster
                 ? allRosters.filter(r => String(r.roster_id) === String(myRosterId))
-                : allRosters.filter(r => String(r.roster_id) !== String(myRosterId));
+                : allRosters.filter(r => String(r.roster_id) !== String(myRosterId)
+                    && (effPartnerId == null || String(r.owner_id) === String(effPartnerId)));
             const rosterLabel = roster => {
                 const assessment = assessments.find(a => String(a.rosterId) === String(roster?.roster_id));
                 return assessment?.teamName || ownerNameForRosterId(roster?.roster_id) || `Team ${roster?.roster_id || '?'}`;
@@ -3095,9 +3098,14 @@
                         ownerLabel: rosterLabel(roster),
                     };
                 }));
-            const browserPositions = ['ALL', ...Object.keys(TC_POS_ORDER).filter(pos => assetBrowserRows.some(row => row.pos === pos))];
+            // Flex-group chips (league-derived) + group-aware predicate — same
+            // vocabulary as the phone browser.
+            const dtFlexGroups = (window.App?.getLeagueFlexGroups?.({ league: currentLeague }) || [])
+                .filter(g => (window.App?.FLEX_GROUP_POSITIONS?.[g] || []).some(pos => assetBrowserRows.some(row => row.pos === pos)));
+            const browserPositions = ['ALL', ...Object.keys(TC_POS_ORDER).filter(pos => assetBrowserRows.some(row => row.pos === pos)), ...dtFlexGroups];
+            const _dtPosMatch = window.App?.posMatchesFilter || ((pos, f) => !f || f === 'ALL' || pos === f);
             const visibleAssetRows = assetBrowserRows
-                .filter(row => assetBrowserPos === 'ALL' || row.pos === assetBrowserPos)
+                .filter(row => _dtPosMatch(row.pos, assetBrowserPos))
                 .filter(row => !assetBrowserRookieOnly || !!tcRookieInfoFor(row.pid))
                 .sort((a, b) => {
                     if (assetBrowserSort === 'age') return (a.age || 99) - (b.age || 99) || b.value - a.value;
@@ -4213,9 +4221,12 @@
             // phone surface) re-poured as WR.AssetRows. Pro-only, exactly like the
             // desktop finder region; same row source, filters and sorts.
             const browsingMyRoster = effMode === 'shop' || effMode === 'sellSurplus' || effMode === 'picks';
+            // Partner pinned + Intent=Add → browse ONLY that partner's roster
+            // (owner ask 2026-07-12); no pin keeps the full league board.
             const phBrowserRosters = browsingMyRoster
                 ? allRosters.filter(r => String(r.roster_id) === String(myRosterId))
-                : allRosters.filter(r => String(r.roster_id) !== String(myRosterId));
+                : allRosters.filter(r => String(r.roster_id) !== String(myRosterId)
+                    && (effPartnerId == null || String(r.owner_id) === String(effPartnerId)));
             const phAssetRowsAll = (_pro && active === 'desk' && rosterState.isUsable) ? phBrowserRosters.flatMap(roster => assetsForRoster(roster)
                 .filter(p => !browsingMyRoster || !isUntouchableAsset(p, finderTuning))
                 .map(asset => {
@@ -4224,9 +4235,15 @@
                     const lastPoints = Math.round(calcSeasonPts(asset.pid, currentLeague.scoring_settings) || 0);
                     return { ...asset, age, lastPoints, primeYears: primeYearsRemaining(asset.pos, age), ownerId: roster.owner_id, rosterId: roster.roster_id, ownerLabel: phRosterLabel(roster) };
                 })) : [];
-            const phBrowserPositions = ['ALL', ...Object.keys(TC_POS_ORDER).filter(pos => phAssetRowsAll.some(row => row.pos === pos))];
+            // League-derived flex groups (FLEX / SFLEX / IDP FLEX…) join the
+            // plain positions as filter chips (owner ask 2026-07-12); the
+            // posMatchesFilter twin expands a group key to its position set.
+            const phFlexGroups = (window.App?.getLeagueFlexGroups?.({ league: currentLeague }) || [])
+                .filter(g => (window.App?.FLEX_GROUP_POSITIONS?.[g] || []).some(pos => phAssetRowsAll.some(row => row.pos === pos)));
+            const phBrowserPositions = ['ALL', ...Object.keys(TC_POS_ORDER).filter(pos => phAssetRowsAll.some(row => row.pos === pos)), ...phFlexGroups];
+            const _phPosMatch = window.App?.posMatchesFilter || ((pos, f) => !f || f === 'ALL' || pos === f);
             const phSortedAssets = phAssetRowsAll
-                .filter(row => assetBrowserPos === 'ALL' || row.pos === assetBrowserPos)
+                .filter(row => _phPosMatch(row.pos, assetBrowserPos))
                 .filter(row => !assetBrowserRookieOnly || !!tcRookieInfoFor(row.pid))
                 .sort((a, b) => {
                     if (assetBrowserSort === 'age') return (a.age || 99) - (b.age || 99) || b.value - a.value;
@@ -4648,7 +4665,7 @@
                         )}
                         {_pro && rosterState.isUsable && !phPicksMode && phAssetRowsAll.length > 0 && (
                             <React.Fragment>
-                                {goldDiv('Add assets', browsingMyRoster ? 'Your roster' : 'League board')}
+                                {goldDiv('Add assets', browsingMyRoster ? 'Your roster' : (effPartnerId != null ? pinnedPartnerName : 'League board'))}
                                 {/* Position filter lives in the top "Pos" pill chooser now
                                     (assetBrowserPos) — no duplicate inline row here. The
                                     active filter still shows in the pill value + empty note. */}

@@ -4038,7 +4038,12 @@
             (state.draftContext?.leagueFormat?.activeRosterSlots || state.draftContext?.leagueFormat?.rosterSlots || []).forEach(addPos);
             if (isRedraftBoard && !set.has('DEF')) set.add('DEF');
             const order = { QB: 1, RB: 2, WR: 3, TE: 4, K: 5, DEF: 6, DL: 7, LB: 8, DB: 9 };
-            return Array.from(set).sort((a, b) => (order[a] || 99) - (order[b] || 99));
+            const base = Array.from(set).sort((a, b) => (order[a] || 99) - (order[b] || 99));
+            // League-derived flex groups (FLEX/SFLEX/IDP FLEX…) as extra chips
+            // when their positions exist on this board (owner ask 2026-07-12).
+            const groups = (window.App?.getLeagueFlexGroups?.() || [])
+                .filter(g => (window.App?.FLEX_GROUP_POSITIONS?.[g] || []).some(pos => set.has(pos)));
+            return [...base, ...groups];
         }, [state.pool, state.draftContext?.leagueFormat, isRedraftBoard]);
         const lanePool = React.useMemo(() => {
             const pool = state.pool || [];
@@ -4066,7 +4071,8 @@
             const q = search.trim().toLowerCase();
             return lanePool.filter(p => {
                 const rowPos = normPos(p.pos || p.position) || p.pos || p.position || '';
-                if (posFilter && rowPos !== posFilter) return false;
+                // Group-aware: posFilter may be a flex-group key (FLEX/SFLEX/…)
+                if (posFilter && !(window.App?.posMatchesFilter ? window.App.posMatchesFilter(rowPos, posFilter) : rowPos === posFilter)) return false;
                 if (!q) return true;
                 const hay = [p.name, p.pos, mockPlayerTeam(p), mockPlayerSchool(p)].join(' ').toLowerCase();
                 return hay.includes(q);

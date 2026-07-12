@@ -781,10 +781,14 @@
         const posColors = window.App.POS_COLORS;
         const faPosOrder = { QB:0, RB:1, WR:2, TE:3, K:4, DEF:5, DL:6, LB:7, DB:8 };
 
-        // League-specific position chips (only groups this league rosters).
+        // League-specific position chips (only groups this league rosters),
+        // plus league-derived flex groups (FLEX / SFLEX / IDP FLEX…, owner ask
+        // 2026-07-12) — the filter predicate below expands them via
+        // posMatchesFilter.
         const leaguePositions = useMemo(() => {
             const lp = leaguePlayablePositions(currentLeague?.roster_positions);
-            return lp.length ? lp : ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
+            const base = lp.length ? lp : ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
+            return [...base, ...(window.App?.getLeagueFlexGroups?.({ league: currentLeague }) || [])];
         }, [currentLeague]);
         // Rookies filter — UDFAs fold into the FA pool post-draft; this isolates them.
         const [rookieOnly, setRookieOnly] = useState(false);
@@ -854,7 +858,8 @@
             const q = faSearch.trim().toLowerCase();
             const filtered = availablePlayers.filter(x => {
                 const pos = normPos(x.p.position) || x.p.position || '';
-                if (faFilter && pos !== faFilter) return false;
+                // Group-aware: faFilter may be a flex-group key (FLEX/SFLEX/…)
+                if (faFilter && !(window.App?.posMatchesFilter ? window.App.posMatchesFilter(pos, faFilter) : pos === faFilter)) return false;
                 if (rookieOnly) {
                     if (!isRookiePlayer(x.pid, x.p)) return false;
                     if (rookieTeamFilter && rookieTeamOf(x) !== rookieTeamFilter) return false;

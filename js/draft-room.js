@@ -724,7 +724,7 @@
 
         const sortedRookies = useMemo(() => {
             let filtered = draftPoolRows.slice();
-            if (boardPosFilter) filtered = filtered.filter(r => normPos(r.p.position) === boardPosFilter);
+            if (boardPosFilter) filtered = filtered.filter(r => (window.App?.posMatchesFilter ? window.App.posMatchesFilter(normPos(r.p.position), boardPosFilter) : normPos(r.p.position) === boardPosFilter));
             return filtered.sort((a, b) => {
                 const dir = draftSort.dir;
                 const k = draftSort.key;
@@ -897,7 +897,7 @@
         const applyAiOrderToUserBoard = useCallback((scope = 'master') => {
             if (!aiRecommendedOrder.length) return;
             if (scope === 'position' && boardPosFilter) {
-                const positionSet = new Set(draftPoolRows.filter(r => normPos(r.p.position) === boardPosFilter).map(r => r.pid));
+                const positionSet = new Set(draftPoolRows.filter(r => (window.App?.posMatchesFilter ? window.App.posMatchesFilter(normPos(r.p.position), boardPosFilter) : normPos(r.p.position) === boardPosFilter)).map(r => r.pid));
                 setMyBoardOrder(prev => {
                     const base = prev.length ? prev.slice() : aiRecommendedOrder.slice();
                     const locked = base.filter(pid => !positionSet.has(pid));
@@ -3174,7 +3174,7 @@
 
                     // Apply filters: position, team, round
                     let dhqBoardPlayers = [...draftPoolRows];
-                    if (boardPosFilter) dhqBoardPlayers = dhqBoardPlayers.filter(r => normPos(r.p.position) === boardPosFilter);
+                    if (boardPosFilter) dhqBoardPlayers = dhqBoardPlayers.filter(r => (window.App?.posMatchesFilter ? window.App.posMatchesFilter(normPos(r.p.position), boardPosFilter) : normPos(r.p.position) === boardPosFilter));
                     if (boardTeamFilter) dhqBoardPlayers = dhqBoardPlayers.filter(r => (r.csv?.nflTeam || r.p?.team || '') === boardTeamFilter);
                     if (isRookieDraft && boardRoundFilter) dhqBoardPlayers = dhqBoardPlayers.filter(r => {
                         const cs = r.csv || {};
@@ -3247,7 +3247,7 @@
                     };
                     const applyActiveFilters = (players) => {
                         let out = players.slice();
-                        if (boardPosFilter) out = out.filter(r => normPos(r.p.position) === boardPosFilter);
+                        if (boardPosFilter) out = out.filter(r => (window.App?.posMatchesFilter ? window.App.posMatchesFilter(normPos(r.p.position), boardPosFilter) : normPos(r.p.position) === boardPosFilter));
                         if (boardTeamFilter) out = out.filter(r => (r.csv?.nflTeam || r.p?.team || '') === boardTeamFilter);
                         if (isRookieDraft && boardRoundFilter) out = out.filter(r => {
                             const cs = r.csv || {};
@@ -3701,7 +3701,7 @@
                         const phGroups = visibleBoardPlayers.length
                             ? [{ key: null, rows: visibleBoardPlayers.map((r, idx) => phRow(r, idx)) }]
                             : [];
-                        const phPosOptions = (typeof getLeaguePositions === 'function' ? getLeaguePositions() : ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB']);
+                        const phPosOptions = [...(typeof getLeaguePositions === 'function' ? getLeaguePositions() : ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB']), ...(window.App?.getLeagueFlexGroups?.() || [])];
                         // Inline chooser panel for the active pill (Lane / Pos / Filters),
                         // rendered right under the pill row — no modal sheet. Lane/Pos are
                         // single-select (apply + close); Filters bundles search/team/round.
@@ -3866,7 +3866,7 @@
                         {/* Position filters */}
                         <div style={{ display: 'flex', gap: '4px', marginBottom: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                             <button onClick={() => setBoardPosFilter('')} style={{ padding: '4px 10px', minHeight: '44px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', borderRadius: '14px', cursor: 'pointer', border: '1px solid ' + (!boardPosFilter ? 'var(--acc-line2, rgba(212,175,55,0.3))' : 'var(--ov-5, rgba(255,255,255,0.08))'), background: !boardPosFilter ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'transparent', color: !boardPosFilter ? 'var(--gold)' : 'var(--silver)' }}>Master</button>
-                            {(typeof getLeaguePositions === 'function' ? getLeaguePositions() : ['QB','RB','WR','TE','K','DEF','DL','LB','DB']).map(pos => (
+                            {[...(typeof getLeaguePositions === 'function' ? getLeaguePositions() : ['QB','RB','WR','TE','K','DEF','DL','LB','DB']), ...(window.App?.getLeagueFlexGroups?.() || [])].map(pos => (
                                 <button key={pos} onClick={() => setBoardPosFilter(boardPosFilter === pos ? '' : pos)} style={{ padding: '4px 10px', minHeight: '44px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', borderRadius: '14px', cursor: 'pointer', border: '1px solid ' + (boardPosFilter === pos ? (posColors[pos] || 'var(--k-666666, #666666)') + '55' : 'var(--ov-5, rgba(255,255,255,0.08))'), background: boardPosFilter === pos ? (posColors[pos] || 'var(--k-666666, #666666)') + '18' : 'transparent', color: boardPosFilter === pos ? posColors[pos] : 'var(--silver)' }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</button>
                             ))}
                             <span style={{ marginLeft: 'auto', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.4 }}>Click row to expand {'\u00B7'} Use arrows or drag to reorder My Board</span>

@@ -249,7 +249,8 @@
         const available = React.useMemo(() => {
             const filtered = decoratedPool.filter(p => {
                 if (hideDrafted && p._drafted) return false;
-                if (posFilter && normEdPos(p.pos) !== posFilter) return false;
+                // Group-aware: posFilter may be a flex-group key (FLEX/SFLEX/…)
+                if (posFilter && !(window.App?.posMatchesFilter ? window.App.posMatchesFilter(normEdPos(p.pos), posFilter) : normEdPos(p.pos) === posFilter)) return false;
                 if (search) {
                     const q = search.toLowerCase();
                     const hay = [p.name, p.team, p.nflTeam, p.college, p.csv?.college].filter(Boolean).join(' ').toLowerCase();
@@ -275,7 +276,12 @@
             const set = new Set();
             (state.pool || []).slice(0, 120).forEach(p => { if (p.pos) set.add(normEdPos(p.pos)); });
             const priority = { QB: 1, RB: 2, WR: 3, TE: 4, DL: 5, LB: 6, DB: 7, K: 8 };
-            return Array.from(set).sort((a, b) => (priority[a] || 99) - (priority[b] || 99));
+            const base = Array.from(set).sort((a, b) => (priority[a] || 99) - (priority[b] || 99));
+            // League-derived flex groups (FLEX/SFLEX/IDP FLEX…) join the chip
+            // row when their positions exist in this pool (owner ask 2026-07-12).
+            const groups = (window.App?.getLeagueFlexGroups?.() || [])
+                .filter(g => (window.App?.FLEX_GROUP_POSITIONS?.[g] || []).some(pos => set.has(pos)));
+            return [...base, ...groups];
         }, [state.pool]);
 
         const persistBoardPatch = React.useCallback((patch) => {
