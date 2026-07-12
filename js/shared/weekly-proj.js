@@ -63,6 +63,52 @@
         return w > 0 ? w : 1;
     }
 
+    // ── Provider weekly projections (Sleeper) ─────────────────────────
+    // https://api.sleeper.app/v1/projections/nfl/regular/{season}/{week}
+    // returns raw projected STAT LINES by pid (same stat keys as Sleeper
+    // stats), so they score through the exact same league-scoring path as
+    // everything else (owner tenet: league rules, never generic points).
+    // This is what makes ROOKIES projectable — no NFL history required
+    // (owner ask 2026-07-12: "projected should look at the upcoming week").
+    // Lazily fetched once per (season, week), cached in-module; consumers
+    // hear 'wr:projections-loaded' and recompute.
+    const _prov = { key: null, byPid: null, fetching: null };
+    function providerSeason() {
+        const s = root.S || {};
+        const lg = (s.leagues || []).find(l => l.league_id === s.currentLeagueId) || s.league;
+        return String(s.nflState?.season || (lg && lg.season) || new Date().getFullYear());
+    }
+    function ensureWeekProjections(week) {
+        const w = Number(week) || currentWeek();
+        const season = providerSeason();
+        const key = season + '|' + w;
+        if (_prov.key === key && (_prov.byPid || _prov.fetching)) return _prov.fetching || Promise.resolve(_prov.byPid);
+        if (typeof fetch !== 'function') return Promise.resolve(null);
+        _prov.key = key; _prov.byPid = null;
+        _prov.fetching = fetch('https://api.sleeper.app/v1/projections/nfl/regular/' + season + '/' + w)
+            .then(r => (r && r.ok ? r.json() : null))
+            .then(map => {
+                if (_prov.key !== key) return null;
+                _prov.byPid = map || {};
+                _prov.fetching = null;
+                try { root.dispatchEvent(new CustomEvent('wr:projections-loaded', { detail: { season, week: w } })); } catch (e) { /* headless */ }
+                return _prov.byPid;
+            })
+            .catch(() => { if (_prov.key === key) { _prov.byPid = {}; _prov.fetching = null; } return null; });
+        return _prov.fetching;
+    }
+    // Published provider line for a pid, or null. Pre-season most rows are
+    // all-zero shells until analysts publish — only trust lines with real
+    // projected volume. A cold cache self-warms (fire-and-forget fetch).
+    function providerLine(pid, week) {
+        const w = Number(week) || currentWeek();
+        if (_prov.key !== (providerSeason() + '|' + w) || !_prov.byPid) { ensureWeekProjections(w); return null; }
+        const line = _prov.byPid[pid];
+        if (!line) return null;
+        const vol = Number(line.pts_ppr) || Number(line.pts_std) || Number(line.pass_att) || Number(line.rush_att) || Number(line.rec_tgt) || Number(line.rec) || Number(line.idp_tkl) || Number(line.fga) || Number(line.xpm) || 0;
+        return vol > 0 ? line : null;
+    }
+
     // Weekly actuals are stored league-scored as weeklyPlayerPoints[week][pid].
     // Returns [{week, pts}] ascending for a player (only weeks with a value).
     function weeklyHistory(pid) {
@@ -148,7 +194,10 @@
         const pos = (App.normPos && App.normPos(player && player.position)) || (player && player.position) || '';
         const season = (statsData && statsData[pid]) || null;
         const prior = (priorData && priorData[pid]) || null;
-        const baseline = buildBaseline(pid, season, prior, scoring, week);
+        // Provider analyst line anchors the baseline when published (already a
+        // single-week line) — the internal season/prior blend is the fallback.
+        const prov = providerLine(pid, week);
+        const baseline = prov || buildBaseline(pid, season, prior, scoring, week);
 
         const team = player && player.team;
         const ctx = teamWeekCtx(team, week);
@@ -156,9 +205,11 @@
         const injuryStatus = isByeOrOut(player, ctx, pid, week);
 
         // Blend any live-context DvP with the SOS-derived defense-vs-position
-        // multiplier (real DvP layer). Neutral 1.0 when SOS isn't ready.
+        // multiplier (real DvP layer). Neutral 1.0 when SOS isn't ready — and
+        // neutral for provider lines, which are already matchup-aware (no
+        // double-counting the opponent).
         const ctxDvp = ctx && Number.isFinite(ctx.dvpMult) ? ctx.dvpMult : 1;
-        const dvpMult = (ctxDvp !== 1 ? ctxDvp : 1) * dvpMultFor(oppTeam, pos);
+        const dvpMult = prov ? 1 : (ctxDvp !== 1 ? ctxDvp : 1) * dvpMultFor(oppTeam, pos);
 
         const proj = ss.projectPlayerWeek({
             pid, week, position: pos, baseline,
@@ -225,6 +276,7 @@
     App.WeeklyProj = App.WeeklyProj || {
         setContext, currentWeek, recentPPG, weeklyHistory, formStats, buildBaseline,
         projectPlayer, projectRoster, optimalForRoster,
+        ensureWeekProjections, providerLine,
         objectiveForMode, modeFor,
         _ctx,
     };

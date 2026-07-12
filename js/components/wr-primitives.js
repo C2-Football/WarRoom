@@ -334,8 +334,10 @@
         st.textContent = [
             '@keyframes wrSheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}',
             '@keyframes wrSheetScrim{from{opacity:0}to{opacity:1}}',
-            /* Shared: horizontal scroll strips (tab strips, chip rows) hide their scrollbar. */
-            '.wr-hscroll{scrollbar-width:none}',
+            /* Shared: horizontal scroll strips (tab strips, chip rows) hide their
+               scrollbar; scroll-padding keeps the first/last chip off the hard
+               container edge (owner iPhone pass 2026-07-12). */
+            '.wr-hscroll{scrollbar-width:none;scroll-padding-inline:8px}',
             '.wr-hscroll::-webkit-scrollbar{display:none}',
             /* Media/charts inside a sheet never force horizontal scroll (D4). */
             '.wr-sheet-body img,.wr-sheet-body svg,.wr-sheet-body canvas{max-width:100%}',
@@ -601,7 +603,10 @@
                         h('div', { style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: s.strong ? 700 : 500, color: s.strong ? 'var(--gold)' : 'var(--text-muted, #55555f)', textTransform: 'uppercase', letterSpacing: '0.02em' } }, s.label),
                         h('div', { style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: s.strong ? '0.98rem' : '0.8rem', fontWeight: s.strong ? 700 : 600, color: s.strong ? 'var(--gold)' : toneColor(s.tone) } }, s.value != null && s.value !== '' ? s.value : '—')
                     )),
-                    verdict || null,
+                    // Verdict clamp (owner iPhone pass 2026-07-12): an unclamped
+                    // chip here squeezed the name column to ~2 chars on 375px
+                    // rows with three slots — cap and ellipsize.
+                    verdict ? h('div', { style: { maxWidth: '92px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 } }, verdict) : null,
                     h('span', { 'aria-hidden': 'true', style: { color: 'var(--text-muted, #55555f)', fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: '0.9rem', fontWeight: 600, transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' } }, '›')
                 )
             ),
@@ -654,7 +659,9 @@
             }
         },
             label,
-            value != null && value !== '' ? h('b', { style: { color: 'var(--gold)', fontWeight: 600 } }, value) : null
+            // Value clamp (owner iPhone pass 2026-07-12): partner/team names
+            // ride in pills (Trade Desk) — a 20-char name ballooned the pill.
+            value != null && value !== '' ? h('b', { style: { color: 'var(--gold)', fontWeight: 600, maxWidth: '96px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', verticalAlign: 'bottom' } }, value) : null
         );
     }
 

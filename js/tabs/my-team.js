@@ -1565,7 +1565,7 @@ function MyTeamTab({
   );
 
   return (
-    <div style={{ padding: 'var(--card-pad, 16px 18px)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+    <div style={{ padding: _phone ? '12px var(--wr-phone-gutter, 12px) 8px' : 'var(--card-pad, 16px 18px)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
       {_phone && <React.Fragment>
         {_phoneHeroEl}
         {_phonePillsEl}

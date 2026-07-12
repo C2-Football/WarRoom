@@ -2605,7 +2605,11 @@ function LeagueMapTab({
 
         {leagueViewMode === 'roster' && (
         <div>
-        <div style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '8px', overflow: 'hidden' }}>
+        {/* Phone (owner iPhone pass 2026-07-12): the 307px of fixed columns
+            crushed the 1fr name track at 375px — scope an h-scroll with a
+            min-width floor instead. Desktop/tablet render unchanged. */}
+        <div style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '8px', overflow: 'hidden', overflowX: _phone ? 'auto' : 'hidden' }}>
+        <div style={{ minWidth: _phone ? '540px' : undefined }}>
           <div style={{ display: 'grid', gridTemplateColumns: '3px 28px 1fr 36px 32px 54px 42px 60px 52px', gap: '4px', padding: '6px 10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase' }}>
             <span></span><span></span><span>Player</span><span>Pos</span><span>Age</span><span>DHQ</span><span>PPG</span><span>Acquired</span><span>Date</span>
           </div>
@@ -2631,6 +2635,7 @@ function LeagueMapTab({
               </div>
             ))}
           </div>
+        </div>
         </div>
         </div>
         )}

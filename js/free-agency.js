@@ -25,7 +25,6 @@
         depthChart: { label: 'NFL Depth Chart Position',shortLabel: 'Depth',  width: '50px', group: 'scout'   },
         injury:     { label: 'Injury Status',           shortLabel: 'Inj',    width: '46px', sortKey: 'injury',  group: 'stats' },
         faab:       { label: 'Suggested FAAB Bid',      shortLabel: 'FAAB',   width: '60px', group: 'stats'   },
-        fit:        { label: 'Roster Fit',              shortLabel: 'Fit',    width: '76px', group: 'stats'   },
         // Draft-capital + profile columns. Rookies use the rookie-data prospect
         // record (window.App.RookieFields); vets fall back to the static NFL
         // draft dataset (faDraftCap below). Consensus rank/tier stay rookie-only.
@@ -48,19 +47,22 @@
         return dp ? (dp.round > 0 ? 'R' + dp.round + ' #' + dp.overall : 'UDFA') : null;
     }
     const FA_COLUMN_PRESETS = {
-        default: ['pos','team','age','dhq','ppg','proj','faab','fit'],
+        default: ['pos','team','age','dhq','ppg','proj','faab'],
         scout:   ['pos','age','college','height','weight','depthChart'],
-        bidding: ['pos','team','dhq','ppg','faab','fit','injury'],
+        bidding: ['pos','team','dhq','ppg','faab','injury'],
         rookie:  ['pos','college','rkSlot','rkTeam','rkRank','rkTier','rkProfile','dhq'],
         full:    Object.keys(FA_COLUMNS),
     };
     const ROOKIE_DRAFT_LOCK_STATUSES = new Set(['pre_draft', 'drafting']);
     const ROOKIE_DHQ_SOURCES = new Set(['FC_ROOKIE', 'PROSPECT_ROOKIE']);
-    // Scout-free vs Pro: FAAB bid + roster-fit reads are Pro. Presets AND
-    // persisted/saved column prefs pass through faTierCols at every set-site
-    // plus once at render, so a stored 'faab'/'fit' pref can't resurrect the
-    // columns for a free user (mirrors the My Roster 'action' column).
-    const FA_PRO_COLS = new Set(['faab', 'fit']);
+    // Scout-free vs Pro: the FAAB bid read is Pro. Presets AND persisted/saved
+    // column prefs pass through faTierCols at every set-site plus once at
+    // render, so a stored 'faab' pref can't resurrect the column for a free
+    // user (mirrors the My Roster 'action' column). The 'fit' column is gone
+    // entirely (owner ask 2026-07-12) — the roster-fit read (fitRead + the
+    // team-assess needs) still powers the drawer's Roster Fit panel,
+    // decorateFaCandidate, and the action board.
+    const FA_PRO_COLS = new Set(['faab']);
     function faTierCols(cols) {
         const pro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
         return pro ? (cols || []) : (cols || []).filter(k => !FA_PRO_COLS.has(k));
@@ -153,6 +155,15 @@
 
     function isRookieWaiverLockedCandidate(pid, p, { rookiesLocked, prospectNames, statsData, prevStatsData }) {
         if (!rookiesLocked || !p) return false;
+        // Exact vet excluder first (owner ask 2026-07-12: vets were leaking into
+        // the UDFA craze). WR_DRAFT_PROFILE (static NFL draft-capital dataset via
+        // faDraftCap; round 0 = confirmed UDFA) carries the entry year — any year
+        // before the current rookie class is definitively a veteran, no matter
+        // what the name/exp/gp heuristics below say (years_exp is null for some
+        // vets, e.g. a 2023 R4 pick with no recent gp).
+        const rookieClassSeason = Number(window.S?.league?.season || window.S?.nflState?.season) || new Date().getFullYear();
+        const dc = faDraftCap(pid);
+        if (dc && dc.year && dc.year < rookieClassSeason) return false;
         const source = String(window.App?.LI?.playerMeta?.[pid]?.source || '').toUpperCase();
         if (ROOKIE_DHQ_SOURCES.has(source) || source.includes('ROOKIE')) return true;
         const name = faNormName(p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim());
@@ -532,8 +543,22 @@
         const now = rookiesLockedForWaivers(currentLeague, briefDraftInfo);
         if (store) store.set(key, now);
         if (prev === true && now === false) {
+            // 21-day shelf life anchored to draft COMPLETION (owner ask 2026-07-12):
+            // this flip can be observed months after the real-platform draft ended
+            // (FA tab simply not opened), and openCraze would otherwise start a
+            // fresh window from Date.now(). Completion ts = last_picked ||
+            // start_time || created — same triple league-detail.js uses.
+            const CRAZE_MAX_MS = 21 * 24 * 3600 * 1000;
+            const completionTs = collectFaDrafts(currentLeague, briefDraftInfo)
+                .filter(d => sameDraftSeason(d, currentLeague) && isRookieDraftLike(d, currentLeague) && String(d.status || '').toLowerCase() === 'complete')
+                .reduce((ts, d) => Math.max(ts, Number(d.last_picked || d.start_time || d.created) || 0), 0);
+            if (completionTs && Date.now() > completionTs + CRAZE_MAX_MS) return null; // stale flip — lock flag stored above, craze stays shut
             if (window.App?.PostDraft?.openCraze) {
-                try { window.App.PostDraft.openCraze(leagueId, { league: currentLeague }); } catch (_) {}
+                // Cap the window at completion+21d; the (shorter) waiver-cadence default wins otherwise.
+                const defaultEnd = window.App.PostDraft.computeWindowEnd ? window.App.PostDraft.computeWindowEnd(currentLeague, Date.now()) : 0;
+                const crazeOpts = { league: currentLeague };
+                if (completionTs) crazeOpts.windowEnd = Math.min(defaultEnd || Infinity, completionTs + CRAZE_MAX_MS);
+                try { window.App.PostDraft.openCraze(leagueId, crazeOpts); } catch (_) {}
             }
             try { window.dispatchEvent(new CustomEvent('wr:udfa-craze-open', { detail: { leagueId, season: currentLeague?.season } })); } catch (_) {}
             return leagueId;
@@ -605,6 +630,13 @@
             return faTierCols(valid);
         });
         const [faColPreset, setFaColPreset] = useState('default');
+        // Derive the ACTIVE view from the PERSISTED columns (my-team idiom) —
+        // faColPreset is session-only and snapped to 'default' on reload, which
+        // froze the phone stat slots + VIEW pill no matter which view was saved
+        // (owner ask 2026-07-12). Tier-filter the preset side so a free user's
+        // default (faab stripped) still matches. Derived key wins over faColPreset.
+        const sameFaColSet = (a, b) => a.length === b.length && a.every((key, idx) => key === b[idx]);
+        const faActivePresetKey = Object.entries(FA_COLUMN_PRESETS).find(([, cols]) => sameFaColSet(faTierCols(cols), visibleFaCols))?.[0] || 'custom';
         const [showFaColPicker, setShowFaColPicker] = useState(false);
         // Rolling PPG window — shared localStorage key with My Roster so the setting persists across tabs.
         const [ppgWindow, setPpgWindow] = useState(() => { try { return localStorage.getItem('wr_ppg_window') || 'season'; } catch { return 'season'; } });
@@ -1379,41 +1411,34 @@
                                 <span>Market Leverage</span>
                                 <em>{canOutbidRows.length ? canOutbidRows.length + ' teams can outbid you' : 'You control most bids'}</em>
                             </div>
+                            {/* Consolidated to ~half height (owner ask 2026-07-12): one-line FAAB
+                                card, competitors as a chip line, Position Threats merged into the
+                                gap matrix (both keyed by position). */}
                             {hasFAAB && <div className="fa-hq-faab-card">
                                 <strong style={{ color: faabColor }}>${remaining}</strong>
-                                <span>of ${budget} left · #{myFaabRank || '—'} in FAAB</span>
+                                <span> of ${budget} · #{myFaabRank || '—'} FAAB</span>
                                 <i style={{ width: budget > 0 ? Math.max(3, Math.round((remaining / budget) * 100)) + '%' : '0%', background: faabColor }} />
                             </div>}
-                            <div className="fa-hq-competitors">
+                            <div className="fa-hq-chipline">
                                 {(canOutbidRows.length ? canOutbidRows : faabMarketRows.filter(r => !r.isMe).slice(0, 4)).map(r => (
-                                    <div key={r.rosterId}>
-                                        <span>{r.name}</span>
-                                        <strong>${r.remaining}</strong>
-                                    </div>
+                                    <span key={r.rosterId}>{r.name} ${r.remaining}</span>
                                 ))}
-                            </div>
-
-                            <div className="fa-hq-subhead">Position Threats</div>
-                            <div className="fa-hq-threats">
-                                {positionThreats.length ? positionThreats.map(t => (
-                                    <div key={t.pos}>
-                                        <span style={{ color: posColors[t.pos] || 'var(--silver)' }}>{window.App?.posLabel?.(t.pos) || (t.pos === 'DEF' ? 'D/ST' : t.pos)}</span>
-                                        <em>{t.top.name}</em>
-                                        <strong>${t.top.remaining}</strong>
-                                    </div>
-                                )) : <div className="fa-hq-empty">No clear outbid threat by position.</div>}
                             </div>
 
                             <div className="fa-hq-subhead">Roster Gap Matrix</div>
                             <div className="fa-hq-gap-matrix">
-                                {rosterGapRows.map(row => (
-                                    <div key={row.pos} style={{ background: row.bg }}>
-                                        <span style={{ color: posColors[row.pos] || row.color }}>{window.App?.posLabel?.(row.pos) || (row.pos === 'DEF' ? 'D/ST' : row.pos)}</span>
-                                        <strong className="fa-gap-badge" style={{ color: row.color, borderColor: row.color }}>{row.label}</strong>
-                                        <em>{row.data.nflStarters || Math.min(row.data.actual || 0, row.data.minQuality || row.data.startingReq || 0)}/{row.data.minQuality || row.data.startingReq || 0}</em>
-                                        <i>{row.bestWire ? playerName(row.bestWire.p) : '—'}</i>
-                                    </div>
-                                ))}
+                                {rosterGapRows.map(row => {
+                                    const threat = positionThreats.find(t => t.pos === row.pos)?.top || null;
+                                    return (
+                                        <div key={row.pos} style={{ background: row.bg }}>
+                                            <span style={{ color: posColors[row.pos] || row.color }}>{window.App?.posLabel?.(row.pos) || (row.pos === 'DEF' ? 'D/ST' : row.pos)}</span>
+                                            <strong className="fa-gap-badge" style={{ color: row.color, borderColor: row.color }} title={row.label}>{row.grade}</strong>
+                                            <em>{row.data.nflStarters || Math.min(row.data.actual || 0, row.data.minQuality || row.data.startingReq || 0)}/{row.data.minQuality || row.data.startingReq || 0}</em>
+                                            <i>{row.bestWire ? playerName(row.bestWire.p) : '—'}</i>
+                                            {threat ? <b title={threat.name + ' also needs ' + row.pos + ' — $' + threat.remaining + ' FAAB left'}>${threat.remaining}</b> : null}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </aside>
                     </div>
@@ -1551,19 +1576,20 @@
             // market table below: a Pro column can never ride a free slot.
             const shownFaCols = faTierCols(visibleFaCols);
             // Preset → "which 3 stat slots ride the card row" (P1 AssetRow);
-            // custom column sets ride their first 3 slot-capable picks.
-            // Each view maps to a DISTINCT 3-slot card readout on phone (owner ask:
-            // "full" was showing the same columns as default). AssetRow caps at 3
-            // slots, so views differ by WHICH three, not how many.
+            // keyed off faActivePresetKey (derived from the PERSISTED columns,
+            // not session faColPreset) so the slots track the saved view across
+            // reloads (owner ask 2026-07-12). Named views map to a DISTINCT trio;
+            // 'full' is deliberately ABSENT — full/custom ride the first 3
+            // slot-capable picks of the actual columns ("full = your columns").
+            // PEAK left the default path; the this-week projection replaced it.
             const FA_PHONE_SLOT_PRESETS = {
-                default: ['dhq', 'ppg', 'faab'],   // value · production · bid
+                default: ['dhq', 'ppg', 'proj'],   // value · production · this-week projection
                 scout:   ['age', 'height', 'weight'],
                 bidding: ['dhq', 'faab', 'proj'],  // value · bid · this-week projection
                 rookie:  ['rkSlot', 'rkRank', 'rkTier'],
-                full:    ['dhq', 'ppg', 'peakYr'], // value · production · career window
             };
             const FA_PHONE_SLOT_KEYS = new Set(['age', 'dhq', 'ppg', 'proj', 'peakYr', 'yrsExp', 'height', 'weight', 'depthChart', 'injury', 'faab', 'rkSlot', 'rkTeam', 'rkRank', 'rkTier']);
-            let _faSlotKeys = FA_PHONE_SLOT_PRESETS[faColPreset]
+            let _faSlotKeys = FA_PHONE_SLOT_PRESETS[faActivePresetKey]
                 || shownFaCols.filter(k => FA_PHONE_SLOT_KEYS.has(k)).slice(0, 3);
             _faSlotKeys = faTierCols(_faSlotKeys);
             if (!_faSlotKeys.length) _faSlotKeys = faTierCols(FA_PHONE_SLOT_PRESETS.default);
@@ -1620,19 +1646,6 @@
                     default: return { label: short, value: '—', tone: 'mute' };
                 }
             };
-            // Fit chip = the single semantic color on a market card. Renders
-            // ONLY when the fit column is available to this tier + view —
-            // identical availability to the desktop 'fit' column.
-            const _faFitChip = (pos) => {
-                if (!shownFaCols.includes('fit')) return null;
-                const fit = fitRead(pos);
-                return (
-                    <span style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, padding: '2px 6px', borderRadius: '4px', border: '1px solid', color: fit.color, letterSpacing: '0.02em', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
-                        {fit.short}
-                    </span>
-                );
-            };
-
             // ── P5 hero — the #1 priority add + bid + FAAB standing in one
             // read. Bid/why reads are Pro (priorityAdds is [] for free — the
             // exact existing boundary); free sees the top market name + raw
@@ -1671,7 +1684,7 @@
                 <div className="wr-hscroll" style={{ display: 'flex', gap: '6px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
                     {React.createElement(window.WR.FilterPill, { label: 'Filters', value: (faFilter ? (window.App?.posLabel?.(faFilter) || faFilter) : 'All') + (rookieOnly ? ' +RK' : ''), onClick: () => _faTogglePanel('filters') })}
                     {React.createElement(window.WR.FilterPill, { label: 'Sort', value: ((_sortCol && _sortCol.shortLabel) || faSort.key) + (faSort.dir === -1 ? ' ↓' : ' ↑'), onClick: () => _faTogglePanel('sort') })}
-                    {React.createElement(window.WR.FilterPill, { label: 'View', value: FA_COLUMN_PRESETS[faColPreset] ? faColPreset : 'custom', onClick: () => _faTogglePanel('view') })}
+                    {React.createElement(window.WR.FilterPill, { label: 'View', value: faActivePresetKey, onClick: () => _faTogglePanel('view') })}
                 </div>
             );
             const _faSheetSelect = (active) => ({ width: '100%', minHeight: '44px', padding: '8px 10px', fontSize: '16px', fontFamily: 'var(--font-body)', background: 'var(--ov-3, rgba(255,255,255,0.04))', color: active ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (active ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'), borderRadius: '6px' });
@@ -1746,12 +1759,12 @@
                 _faPanelEl = _faPanelWrap(
                     <React.Fragment>
                         {_faPanelLbl('Preset')}
-                        <select value={FA_COLUMN_PRESETS[faColPreset] ? faColPreset : 'custom'} onChange={e => { const key = e.target.value; const cols = FA_COLUMN_PRESETS[key]; if (!cols) return; setVisibleFaCols(faTierCols(cols)); setFaColPreset(key); setRookieOnly(key === 'rookie'); if (key !== 'rookie') { setRookieTeamFilter(''); setRookieCollegeFilter(''); setRookieSlotFilter(''); } }} style={_faSheetSelect(faColPreset !== 'default')} title="Column preset">
+                        <select value={faActivePresetKey} onChange={e => { const key = e.target.value; const cols = FA_COLUMN_PRESETS[key]; if (!cols) return; setVisibleFaCols(faTierCols(cols)); setFaColPreset(key); setRookieOnly(key === 'rookie'); if (key !== 'rookie') { setRookieTeamFilter(''); setRookieCollegeFilter(''); setRookieSlotFilter(''); } }} style={_faSheetSelect(faActivePresetKey !== 'default')} title="Column preset">
                             {Object.keys(FA_COLUMN_PRESETS).map(k => <option key={k} value={k}>{k}</option>)}
-                            {!FA_COLUMN_PRESETS[faColPreset] && <option value="custom">custom</option>}
+                            {faActivePresetKey === 'custom' && <option value="custom">custom</option>}
                         </select>
                         {_faPanelLbl('Columns')}
-                        <button onClick={() => { setShowFaColPicker(true); setFaPanel(null); }} style={{ ..._faChipBtn(showFaColPicker || !FA_COLUMN_PRESETS[faColPreset]), width: '100%' }} title="Add or remove market columns">Customize · {shownFaCols.length} fields active</button>
+                        <button onClick={() => { setShowFaColPicker(true); setFaPanel(null); }} style={{ ..._faChipBtn(showFaColPicker || faActivePresetKey === 'custom'), width: '100%' }} title="Add or remove market columns">Customize · {shownFaCols.length} fields active</button>
                         {window.WR?.SavedViews?.SavedViewBar ? (
                             <React.Fragment>
                                 {_faPanelLbl('Saved views')}
@@ -1760,7 +1773,7 @@
                                     leagueId: currentLeague?.id || currentLeague?.league_id,
                                     currentState: { columns: visibleFaCols, sort: faSort, filters: { faFilter, faSearch } },
                                     onApply: (v) => {
-                                        if (Array.isArray(v.columns) && v.columns.length) { setVisibleFaCols(faTierCols(v.columns)); setFaColPreset('custom'); }
+                                        if (Array.isArray(v.columns) && v.columns.length) { setVisibleFaCols(faTierCols(v.columns.filter(k => FA_COLUMNS[k]))); setFaColPreset('custom'); }
                                         if (v.sort && v.sort.key) setFaSort({ key: v.sort.key, dir: v.sort.dir || 1 });
                                         if (v.filters && typeof v.filters.faFilter === 'string') setFaFilter(v.filters.faFilter);
                                         if (v.filters && typeof v.filters.faSearch === 'string') setFaSearch(v.filters.faSearch);
@@ -1873,9 +1886,10 @@
                     tag: bits.join(' · '),
                     slots: _faSlotKeys.map(k => _faSlotFor(k, x)),
                     // Roster-fit verdict chip (Thin / Fills thin room / …) removed
-                    // from phone FA rows (owner ask 2026-07-12) — the pos badge +
-                    // stat slots carry the read; the extra chip was noise. Desktop
-                    // FA table keeps its fit column.
+                    // from phone FA rows, and the desktop Fit column + _faFitChip
+                    // helper went with it (owner ask 2026-07-12) — the pos badge +
+                    // stat slots carry the read; the roster-fit read still powers
+                    // the drawer's Roster Fit panel and the rec surfaces.
                     accent: (_heroPro && _heroPro.pid === x.pid) ? 'gold' : undefined,
                     onClick: () => openFaPlayer(x.pid),
                     title: 'Open player card',
@@ -2014,7 +2028,7 @@
                     <span className="wr-module-toolbar-label">View</span>
                     <div className="wr-module-nav">
                     {Object.entries(FA_COLUMN_PRESETS).map(([key, cols]) => (
-                        <button key={key} className={faColPreset === key ? 'is-active' : ''} onClick={() => { setVisibleFaCols(faTierCols(cols)); setFaColPreset(key); setRookieOnly(key === 'rookie'); if (key !== 'rookie') { setRookieTeamFilter(''); setRookieCollegeFilter(''); setRookieSlotFilter(''); } }}>{key}</button>
+                        <button key={key} className={faActivePresetKey === key ? 'is-active' : ''} onClick={() => { setVisibleFaCols(faTierCols(cols)); setFaColPreset(key); setRookieOnly(key === 'rookie'); if (key !== 'rookie') { setRookieTeamFilter(''); setRookieCollegeFilter(''); setRookieSlotFilter(''); } }}>{key}</button>
                     ))}
                     <button className={showFaColPicker ? 'is-active' : ''} onClick={() => setShowFaColPicker(!showFaColPicker)}>Columns</button>
                     </div>
@@ -2033,7 +2047,7 @@
                                 leagueId: currentLeague?.id || currentLeague?.league_id,
                                 currentState: { columns: visibleFaCols, sort: faSort, filters: { faFilter, faSearch } },
                                 onApply: (v) => {
-                                    if (Array.isArray(v.columns) && v.columns.length) { setVisibleFaCols(faTierCols(v.columns)); setFaColPreset('custom'); }
+                                    if (Array.isArray(v.columns) && v.columns.length) { setVisibleFaCols(faTierCols(v.columns.filter(k => FA_COLUMNS[k]))); setFaColPreset('custom'); }
                                     if (v.sort && v.sort.key) setFaSort({ key: v.sort.key, dir: v.sort.dir || 1 });
                                     if (v.filters && typeof v.filters.faFilter === 'string') setFaFilter(v.filters.faFilter);
                                     if (v.filters && typeof v.filters.faSearch === 'string') setFaSearch(v.filters.faSearch);
@@ -2148,13 +2162,11 @@
                                     if (rolling > 0) { ppg = rolling; ppgMarker = ' · L' + n; }
                                     else { ppgMarker = ' · Szn'; }
                                 }
-	                                const dhqCol = dhq >= 7000 ? 'var(--good)' : dhq >= 4000 ? 'var(--k-3498db, #3498db)' : dhq >= 2000 ? 'var(--silver)' : 'var(--ov-7, rgba(255,255,255,0.25))';
 	                                const faab = faabSuggest(dhq, pos);
 		                                const peakYrs = peakYearsFor(pos, p.age);
 		                                const valueYrs = valueYearsFor(pos, p.age);
 		                                const peakLabel = peakYrs >= 4 ? 'Rising' : peakYrs >= 1 ? 'Prime' : valueYrs >= 1 ? 'Vet' : 'Post';
 		                                const peakCol = peakYrs >= 4 ? 'var(--good)' : peakYrs >= 1 ? 'var(--gold)' : valueYrs >= 1 ? 'var(--warn)' : 'var(--bad)';
-                                const fit = fitRead(pos);
                                 // Rookie/prospect fields for this row (null for vets) — resolved once.
                                 const rf = window.App?.RookieFields?.fields?.(prospectFor(p)) || null;
                                 const rkDash = <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--ov-8, rgba(255,255,255,0.3))' }}>{'—'}</span>;
@@ -2163,7 +2175,8 @@
                                         case 'pos':        return <span style={{ fontSize: '0.78rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)' }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</span>;
                                         case 'team':       return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', fontWeight: 600 }}>{p.team || 'FA'}</span>;
                                         case 'age':        return <span style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>{p.age || '\u2014'}</span>;
-                                        case 'dhq':        return <span style={{ fontSize: '0.78rem', fontWeight: 700, fontFamily: 'var(--font-body)', color: dhqCol }}>{dhq > 0 ? dhq.toLocaleString() : '\u2014'}</span>;
+                                        // DHQ reads white here \u2014 no tier colors in the market table (owner ask 2026-07-12)
+                                        case 'dhq':        return <span style={{ fontSize: '0.78rem', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--white)' }}>{dhq > 0 ? dhq.toLocaleString() : '\u2014'}</span>;
                                         case 'ppg':        return <span style={{ fontSize: '0.78rem', color: ppg >= 10 ? 'var(--good)' : ppg >= 5 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{ppg > 0 ? ppg : '\u2014'}{ppgMarker}</span>;
                                         case 'proj':       return <span title="This week's projected points (league-scored)" style={{ fontSize: '0.78rem', fontWeight: 600, color: proj >= 14 ? 'var(--good)' : proj >= 8 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{proj > 0 ? proj.toFixed(1) : '\u2014'}</span>;
                                         case 'peakYr':     return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: peakCol, fontWeight: 600 }}>{peakLabel}</span>;
@@ -2174,7 +2187,6 @@
                                         case 'depthChart': return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: p.depth_chart_order != null ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{p.depth_chart_order != null ? pos + (p.depth_chart_order + 1) : '\u2014'}</span>;
                                         case 'injury':     return <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, color: p.injury_status ? 'var(--bad)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{p.injury_status || '—'}</span>;
                                         case 'faab':       return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', fontWeight: 700 }}>{faab ? '$' + faab.lo + '-' + faab.hi : '\u2014'}</span>;
-                                        case 'fit':        return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: fit.color, fontWeight: 700 }}>{fit.short}</span>;
                                         case 'rkSlot': {
                                             // Prospect slot wins; vets show R<rd> #<overall> / UDFA from the static dataset.
                                             const dp = faDraftCap(pid);

@@ -105,6 +105,10 @@ function CompareTab({
     const WrFilterPill = _kitReady ? window.WR.FilterPill : null;
     const WrPhoneSheet = _kitReady ? window.WR.Sheet : null;
     const WrPhoneActionBar = _kitReady ? window.WR.ActionBar : null;
+    // Phone duel formatting (owner ask 2026-07-12): the Full-Roster-by-Position
+    // section caps each room to the top rows with a per-position expander —
+    // uncapped it ran 30+ rows × 9 rooms and the page scrolled forever.
+    const [expandedRosterPos, setExpandedRosterPos] = React.useState(() => new Set());
 
     // GM Strategy is the single source of truth — re-renders live on save.
     const gm = window.WR.GmMode.useGmEffects(currentLeague);
@@ -610,7 +614,7 @@ function CompareTab({
         else if (typeof window._wrSelectPlayer === 'function') window._wrSelectPlayer(pid);
     };
 
-    const pageStyle = { padding: isPhone ? '12px 10px 60px' : 'var(--space-xl) var(--space-xl) 60px', maxWidth: '1540px', margin: '0 auto' };
+    const pageStyle = { padding: isPhone ? '12px var(--wr-phone-gutter, 12px) 60px' : 'var(--space-xl) var(--space-xl) 60px', maxWidth: '1540px', margin: '0 auto' };
     const panelStyle = { background: 'var(--black)', border: 'var(--card-border)', borderRadius: 'var(--card-radius)' };
     const labelStyle = { fontSize: 'var(--text-micro)', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.66 };
     const mono = { fontFamily: 'JetBrains Mono, monospace' };
@@ -2033,15 +2037,17 @@ function CompareTab({
                         cursor: 'pointer',
                         borderRight: opponent ? 'none' : '1px solid var(--ov-3, rgba(255,255,255,0.04))',
                     }}>
-                        <img src={'https://sleepercdn.com/content/nfl/players/thumb/'+r.pid+'.jpg'} onError={e=>e.target.style.display='none'} style={{ width:'22px',height:'22px',borderRadius:'50%',objectFit:'cover', flexShrink: 0 }} />
+                        {!isPhone && <img src={'https://sleepercdn.com/content/nfl/players/thumb/'+r.pid+'.jpg'} onError={e=>e.target.style.display='none'} style={{ width:'22px',height:'22px',borderRadius:'50%',objectFit:'cover', flexShrink: 0 }} />}
                         <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ color: 'var(--white)', fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.p?.full_name || '?'}</div>
-                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.68, marginTop: '1px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            {/* Phone: "F. Last" + 3 meta chips — five chips wrapped to a
+                                second line in a half-width cell (owner ask 2026-07-12). */}
+                            <div style={{ color: 'var(--white)', fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{isPhone ? ((r.p?.first_name ? r.p.first_name[0] + '. ' : '') + (r.p?.last_name || r.p?.full_name || '?')) : (r.p?.full_name || '?')}</div>
+                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.68, marginTop: '1px', display: 'flex', gap: '6px', flexWrap: 'wrap', ...(isPhone ? { whiteSpace: 'nowrap', overflow: 'hidden', flexWrap: 'nowrap' } : null) }}>
                                 <span>{r.team}</span>
                                 {r.age != null ? <span>{r.age}yo</span> : null}
                                 {r.ppg > 0 ? <span>{r.ppg} PPG</span> : null}
-                                <span>{r.yrsExp}y exp</span>
-                                <span>{r.peakYrs > 0 ? r.peakYrs + 'yr peak' : r.valueYrs + 'yr value'}</span>
+                                {!isPhone && <span>{r.yrsExp}y exp</span>}
+                                {!isPhone && <span>{r.peakYrs > 0 ? r.peakYrs + 'yr peak' : r.valueYrs + 'yr value'}</span>}
                             </div>
                         </div>
                         <span style={{ ...mono, fontWeight: 700, fontSize: '0.76rem', color: dhqCol, flexShrink: 0 }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '-'}</span>
@@ -2130,13 +2136,16 @@ function CompareTab({
                             </div>
                             <div style={{ ...mono, fontSize: '0.82rem', color: youLead >= theyLead ? 'var(--good)' : 'var(--bad)', fontWeight: 800 }}>{youLead}-{theyLead}</div>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '9px' }}>
+                        {/* Phone: 2-up compact grid — the 190px-min auto-fit collapsed
+                            to ONE column at 375-430px and stacked 9 full-width cards
+                            (owner ask 2026-07-12: Compare formatting pass). */}
+                        <div style={{ display: 'grid', gridTemplateColumns: isPhone ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(190px, 1fr))', gap: isPhone ? '7px' : '9px' }}>
                             {positionSummaries.map(summary => {
                                 const total = Math.max(1, summary.myPosDHQ + summary.theirPosDHQ);
                                 const minePct = summary.myPosDHQ / total * 100;
                                 const edgeColor = summary.diff > 0 ? 'var(--good)' : summary.diff < 0 ? 'var(--bad)' : 'var(--silver)';
                                 return (
-                                    <div key={summary.pos} style={{ padding: '10px', background: 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '7px' }}>
+                                    <div key={summary.pos} style={{ padding: isPhone ? '8px' : '10px', background: 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '7px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '7px' }}>
                                             <span style={{ fontWeight: 900, color: posColors[summary.pos] || 'var(--gold)' }}>{posLabel(summary.pos)}</span>
                                             <span style={{ ...mono, color: edgeColor, fontWeight: 800, fontSize: '0.78rem' }}>{summary.diff > 0 ? '+' : ''}{summary.diff.toLocaleString()}</span>
@@ -2301,16 +2310,35 @@ function CompareTab({
                                         </div>
                                     </div>
                                 </div>
-                                {Array.from({ length: maxLen }).map((_, i) => {
-                                    const mine = summary.myAtPos[i];
-                                    const theirs = summary.theirAtPos[i];
+                                {(() => {
+                                    // Phone: top 4 rows per room, rest behind a per-position
+                                    // expander (owner ask 2026-07-12 — uncapped, 30-man IDP
+                                    // rosters made this section scroll forever).
+                                    const PHONE_ROW_CAP = 4;
+                                    const capped = isPhone && !expandedRosterPos.has(summary.pos) && maxLen > PHONE_ROW_CAP + 1;
+                                    const shownLen = capped ? PHONE_ROW_CAP : maxLen;
                                     return (
-                                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid var(--ov-2, rgba(255,255,255,0.03))' }}>
-                                            {renderRosterCell(mine, false, theirs)}
-                                            {renderRosterCell(theirs, true, mine)}
-                                        </div>
+                                        <React.Fragment>
+                                            {Array.from({ length: shownLen }).map((_, i) => {
+                                                const mine = summary.myAtPos[i];
+                                                const theirs = summary.theirAtPos[i];
+                                                return (
+                                                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid var(--ov-2, rgba(255,255,255,0.03))' }}>
+                                                        {renderRosterCell(mine, false, theirs)}
+                                                        {renderRosterCell(theirs, true, mine)}
+                                                    </div>
+                                                );
+                                            })}
+                                            {isPhone && maxLen > PHONE_ROW_CAP + 1 && (
+                                                <button type="button"
+                                                    onClick={() => setExpandedRosterPos(prev => { const next = new Set(prev); if (next.has(summary.pos)) next.delete(summary.pos); else next.add(summary.pos); return next; })}
+                                                    style={{ width: '100%', minHeight: '40px', background: 'var(--ov-1, rgba(255,255,255,0.015))', border: 'none', borderTop: '1px solid var(--ov-3, rgba(255,255,255,0.04))', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                                                    {capped ? ('Show all ' + maxLen + ' ▾') : ('Show top ' + PHONE_ROW_CAP + ' ▴')}
+                                                </button>
+                                            )}
+                                        </React.Fragment>
                                     );
-                                })}
+                                })()}
                             </div>
                         );
                     })}

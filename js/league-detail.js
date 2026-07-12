@@ -1628,6 +1628,30 @@
           return () => window.removeEventListener('wr:replay-welcome', h);
         }, []);
 
+        // Provider weekly projections landed (WeeklyProj lazy fetch) → re-tick
+        // so FA proj cells / Game Day / lineup widgets recompute with the
+        // analyst lines instead of the internal fallback.
+        useEffect(() => {
+          const h = () => setTimeRecomputeTs(Date.now());
+          window.addEventListener('wr:projections-loaded', h);
+          return () => window.removeEventListener('wr:projections-loaded', h);
+        }, []);
+
+        // wr:ask-alex — any tab can open the Alex chat pre-loaded with a message
+        // (first consumer: the Trade Builder's "Talk it through with Alex",
+        // owner ask 2026-07-12). Ref indirection keeps the listener stable while
+        // always calling the latest sendReconMessage closure.
+        const askAlexHandlerRef = useRef(null);
+        askAlexHandlerRef.current = (message) => {
+          setReconPanelOpen(true);
+          if (message) sendReconMessage(String(message));
+        };
+        useEffect(() => {
+          const h = (e) => { if (askAlexHandlerRef.current) askAlexHandlerRef.current(e?.detail?.message); };
+          window.addEventListener('wr:ask-alex', h);
+          return () => window.removeEventListener('wr:ask-alex', h);
+        }, []);
+
         // Handle welcome choices — exit welcome mode, show corner toast
         function handleWelcomeChoice(value) {
           setWelcomeMode(false);
@@ -3331,7 +3355,16 @@
                 {/* Header — collapsed into a single left-aligned strip.
                     Removed: redundant "{year} SEASON" subtitle (year picker below handles this)
                     and the duplicate league-name/team-count in the time context bar. */}
-                <header className="header" style={{ position: 'relative', marginBottom: '0', paddingTop: phoneHdrKit ? '0.35rem' : '0.6rem', paddingBottom: phoneHdrKit ? '0.35rem' : '0.6rem' }}>
+                {/* Phone header (kit tier): STICKY with safe-area top padding — the
+                    solid .header gradient doubles as the status-bar/Dynamic-Island
+                    backdrop, fixing (owner iPhone screenshots 2026-07-12): title
+                    under the island, header scrolling away, and content bleeding
+                    under the transparent status bar. z 60 sits above content +
+                    sticky table columns (z≤50) and below drawer/dock/sheets
+                    (99/100/150/200). Desktop/tablet branch byte-identical. */}
+                <header className="header" style={phoneHdrKit
+                    ? { position: 'sticky', top: 'var(--wr-dev-banner-height, 0px)', zIndex: 60, marginBottom: '0', paddingTop: 'calc(0.35rem + var(--sat, 0px))', paddingBottom: '0.35rem' }
+                    : { position: 'relative', marginBottom: '0', paddingTop: '0.6rem', paddingBottom: '0.6rem' }}>
                     {phoneHdrKit ? (() => {
                         // ── ONE-ROW PHONE HEADER ── phase dot + name (tap = league
                         // sheet) + SWITCH. Everything else lives in the sheet below.
@@ -3565,7 +3598,7 @@
                 <div className="wr-time-bar" style={{
                     display: phoneHdrKit ? 'none' : 'flex', alignItems: 'center', gap: '8px', padding: '8px clamp(12px, 4vw, 24px)', flexWrap: 'wrap',
                     background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))',
-                    position: 'sticky', top: 0, zIndex: 50
+                    position: 'sticky', top: 'var(--sat, 0px)', zIndex: 50
                 }}>
                     {/* Year pills — grouped as a timeline: past · current · projected */}
                     <div className="wr-time-years" style={{ display: 'flex', alignItems: 'center', gap: '3px', flexWrap: 'wrap', minWidth: 0 }}>
@@ -4185,7 +4218,10 @@
                   (the sheet is keyboard-lifted when open, so plain 10px then),
                   16px input font (no iOS zoom-on-focus), 44px send target. */}
               <div style={{
-                padding: alexPhone ? ('10px 12px ' + (alexKb ? '10px' : 'calc(10px + var(--sab, 0px))')) : '10px 12px',
+                // Flat 10px on every tier: the phone sheet already sits above the
+                // dock, which absorbs --sab — adding it again double-padded the
+                // composer (~34px of dead space under the send row).
+                padding: '10px 12px',
                 borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.07))',
                 display: 'flex', gap: '8px', background: 'var(--k-111318, #111318)',
                 borderRadius: alexPhone ? '0' : '0 0 14px 14px'

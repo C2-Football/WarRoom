@@ -6964,7 +6964,8 @@
                 style={{
                     position: 'fixed', inset: 0, background: 'var(--surf-solid, rgba(5,6,9,0.78))',
                     zIndex: 880, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: 'var(--space-xl)', animation: 'wrFadeIn 0.18s ease',
+                    // 24px alone is less than the ~47-59px notch inset — clear it.
+                    padding: 'var(--space-xl)', paddingTop: 'calc(var(--space-xl) + var(--sat, 0px))', animation: 'wrFadeIn 0.18s ease',
                 }}
                 onClick={e => { if (e.target === e.currentTarget) onClose && onClose(); }}
             >

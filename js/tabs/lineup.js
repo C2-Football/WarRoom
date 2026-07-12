@@ -801,7 +801,7 @@ function LineupTab({
         const winColor = matchup && matchup.fc.winPct != null ? (matchup.fc.winPct >= 55 ? GREEN : matchup.fc.winPct <= 45 ? RED : GOLD) : SILVER;
 
         return (
-            <div style={{ padding: '14px 12px 72px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ padding: '14px var(--wr-phone-gutter, 12px) 72px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {/* This Week ⇄ Season toggle (owner ask) — week = matchup +
                     lineup; season = outlook + schedule. */}
                 <div className="wr-seg">

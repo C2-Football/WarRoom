@@ -1016,6 +1016,7 @@
         const _vp = window.WR.useViewport();
         const [tcTab, _setTcTabRaw] = useState('desk');
         const [builderExpanded, setBuilderExpanded] = useState(false); // persistent builder panel open/closed
+        const [railHidden, setRailHidden] = useState(false); // Deal-intel side panel (verdict + Owner DNA) manually hidden while building (owner ask 2026-07-12)
         // ── Typed finder query (Phase 4a) — the single finder input, replacing the
         // legacy mode/focus-pid/partner trio of states ──
         // { intent: 'best'|'help'|'shop'|'picks',
@@ -1044,7 +1045,8 @@
         const [assetBrowserPos, setAssetBrowserPos] = useState('ALL');
         const [assetBrowserSort, setAssetBrowserSort] = useState('dhq');
         const [assetBrowserRookieOnly, setAssetBrowserRookieOnly] = useState(false);
-        const [phPicksScope, setPhPicksScope] = useState('owned');   // 'owned' | 'league' — phone picks board (Intent=Picks)
+        const [phPicksScope, setPhPicksScope] = useState('owned');   // 'owned' | 'league' — picks board scope, shared phone + desktop (Intent=Picks)
+        const [partnerListOpen, setPartnerListOpen] = useState(false); // desktop finder "More ▾" full partner dropdown (owner ask 2026-07-12)
         // Phone tier (iPhone program Phase 2) — Trade Center phone-branch sheet
         // state. Declared unconditionally (hook-order safety); inert off-phone.
         const [phBuilderOpen, setPhBuilderOpen] = useState(false);   // WR.ActionBar → builder + verdict WR.Sheet
@@ -1970,8 +1972,11 @@
                 deal.partnerOwnerId,
                 deal.givePlayers.map(p => p.pid).sort(),
                 deal.receivePlayers.map(p => p.pid).sort(),
-                deal.givePicks.map(p => p.id).sort(),
-                deal.receivePicks.map(p => p.id).sort(),
+                // Key picks by DISPLAYED identity (label+value), not p.id — two same-round
+                // future picks (own + acquired) render identically, so id-distinct deals
+                // were duplicate cards (owner ask 2026-07-12).
+                deal.givePicks.map(p => `${p.label || p.id}|${p.value || 0}`).sort(),
+                deal.receivePicks.map(p => `${p.label || p.id}|${p.value || 0}`).sort(),
                 deal.giveFaab,
                 deal.receiveFaab,
             ]);
@@ -2099,7 +2104,9 @@
                     if (total <= 0) return;
                     const sig = JSON.stringify([
                         comboPlayers.map(p => p.id || p.pid).sort(),
-                        comboPicks.map(p => p.id).sort(),
+                        // Displayed identity, same as addCandidate — duplicate same-round
+                        // picks must not eat combo slots (owner ask 2026-07-12).
+                        comboPicks.map(p => `${p.label || p.id}|${p.value || 0}`).sort(),
                     ]);
                     if (seen.has(sig)) return;
                     seen.add(sig);
@@ -3018,6 +3025,50 @@
             }
         }, [finderPublishKey]);
 
+        // ── Shared board→builder helpers (owner ask 2026-07-12) — hoisted from the
+        // phone branch (ex phAddToBuilder / phAddPickToBuilder / phPickUndrafted) so
+        // the desktop finder's gold "+" and picks board run the exact same recipes.
+        // Hide picks whose rookie draft has already been held: any PAST season, plus
+        // the CURRENT NFL season once its draft is done — proxied by the regular
+        // season / playoffs having started, since rookie drafts run pre-season.
+        // Future picks always show. (MFL already drops made current-year slots
+        // per-slot at build time; this is the backstop and the Sleeper fix — its
+        // synthetic picks include the current season.)
+        function pickUndrafted(pk) {
+            const nfl = (typeof window !== 'undefined' && window.S && window.S.nflState) || {};
+            const nflSeason = Number(nfl.season) || parseInt(currentLeague.season) || new Date().getFullYear();
+            const draftHeld = ['regular', 'post'].includes(String(nfl.season_type || '').toLowerCase());
+            const y = Number(pk.year);
+            return !Number.isFinite(y) || y > nflSeason || (y === nflSeason && !draftHeld);
+        }
+        // Gold "+" add affordance → the EXISTING builder add handler
+        // (buildTradeSideDeps().addPlayer — a cheap prop bag of closures over
+        // component state) plus the owner-select seam for side B (mirrors
+        // TcTradeSide's owner <select>, which keeps any already-added assets —
+        // same semantics). Returns false on a dup so callers can skip success
+        // follow-ups (the desktop "+" expands the builder strip only on success).
+        function addAssetToBuilder(row) {
+            const mine = String(row.rosterId) === String(myRosterId);
+            const side = mine ? 'A' : 'B';
+            if (tradeIds[side].includes(row.pid)) { setDealHqNotice('Already in the live deal'); return false; }
+            if (!mine && tradeOwner.B !== row.ownerId) setTradeOwner(prev => ({ ...prev, B: row.ownerId }));
+            buildTradeSideDeps().addPlayer(side, row.pid);
+            setDealHqNotice(mine ? 'Added to YOU SEND' : 'Added to YOU GET');
+            return true;
+        }
+        // Pick "+" → the builder's addPick (mirrors addAssetToBuilder for players):
+        // your pick → YOU SEND (side A), any other owner's pick → YOU GET (side B),
+        // pinning that partner on B.
+        function addPickRowToBuilder(row) {
+            const mine = String(row.rosterId) === String(myRosterId);
+            const side = mine ? 'A' : 'B';
+            if (tradePickIds[side].includes(row.id)) { setDealHqNotice('Already in the live deal'); return false; }
+            if (!mine && tradeOwner.B !== row.ownerId) setTradeOwner(prev => ({ ...prev, B: row.ownerId }));
+            buildTradeSideDeps().addPick(side, row.id);
+            setDealHqNotice(mine ? 'Added to YOU SEND' : 'Added to YOU GET');
+            return true;
+        }
+
         function renderDealHQ() {
             if (!rosterState.isUsable) {
                 return <div className="tc-dhq-shell wr-fade-in">
@@ -3071,7 +3122,11 @@
                 { key:'points', label:'Last FP' },
                 { key:'prime', label:'Prime Years' },
             ];
-            const browsingMyRoster = effMode === 'shop' || effMode === 'sellSurplus' || effMode === 'picks';
+            // Intent=Picks swaps the browser to the PICKS board below — the
+            // player-table "your roster" semantics no longer apply there
+            // (owner ask 2026-07-12).
+            const finderPicksMode = effMode === 'picks';
+            const browsingMyRoster = effMode === 'shop' || effMode === 'sellSurplus';
             // Partner pinned + acquire-side browse → only that partner's roster
             // (owner ask 2026-07-12, same rule as the phone board).
             const assetBrowserRosters = browsingMyRoster
@@ -3082,7 +3137,12 @@
                 const assessment = assessments.find(a => String(a.rosterId) === String(roster?.roster_id));
                 return assessment?.teamName || ownerNameForRosterId(roster?.roster_id) || `Team ${roster?.roster_id || '?'}`;
             };
-            const assetBrowserRows = (assetBrowserOpen ? assetBrowserRosters : []).flatMap(roster => assetsForRoster(roster)
+            // Default-visible board (owner ask 2026-07-12): rows always compute —
+            // the same pipeline the phone always runs — so the first 8 render
+            // without the old Browse toggle; assetBrowserOpen now only expands to
+            // the full list. Pro + roster gating unchanged (renderDealHQ only runs
+            // Pro with a usable roster). Picks mode feeds the pick board instead.
+            const assetBrowserRows = (finderPicksMode ? [] : assetBrowserRosters).flatMap(roster => assetsForRoster(roster)
                 .filter(p => !browsingMyRoster || !isUntouchableAsset(p, focusTuning))
                 .map(asset => {
                     const player = playersData[asset.pid] || {};
@@ -3104,7 +3164,7 @@
                 .filter(g => (window.App?.FLEX_GROUP_POSITIONS?.[g] || []).some(pos => assetBrowserRows.some(row => row.pos === pos)));
             const browserPositions = ['ALL', ...Object.keys(TC_POS_ORDER).filter(pos => assetBrowserRows.some(row => row.pos === pos)), ...dtFlexGroups];
             const _dtPosMatch = window.App?.posMatchesFilter || ((pos, f) => !f || f === 'ALL' || pos === f);
-            const visibleAssetRows = assetBrowserRows
+            const sortedAssetRows = assetBrowserRows
                 .filter(row => _dtPosMatch(row.pos, assetBrowserPos))
                 .filter(row => !assetBrowserRookieOnly || !!tcRookieInfoFor(row.pid))
                 .sort((a, b) => {
@@ -3115,6 +3175,21 @@
                     return b.value - a.value;
                 })
                 .slice(0, 28);
+            const visibleAssetRows = assetBrowserOpen ? sortedAssetRows : sortedAssetRows.slice(0, 8);
+            // Desktop picks board (Intent=Picks) — the phone pipeline verbatim:
+            // Owned/League scope (shared phPicksScope state), drafted-pick
+            // exclusion (shared pickUndrafted), draft-order sort (owner ask
+            // 2026-07-12) — not value-ranked, so 2027 1st→2nd→3rd… then 2028.
+            const picksScopeMine = phPicksScope === 'owned';
+            const pickBoardRows = finderPicksMode
+                ? assessments
+                    .filter(a => picksScopeMine ? String(a.rosterId) === String(myRosterId) : String(a.rosterId) !== String(myRosterId))
+                    .flatMap(a => pickAssetsForOwner(a.ownerId).map(pk => ({ ...pk, ownerId: a.ownerId, rosterId: a.rosterId, ownerName: a.ownerName || a.teamName || ('Team ' + a.rosterId) })))
+                    .filter(pickUndrafted)
+                    .sort(comparePicksByDraftOrder)
+                : [];
+            const visiblePickRows = assetBrowserOpen ? pickBoardRows : pickBoardRows.slice(0, 8);
+            const boardRowCount = finderPicksMode ? pickBoardRows.length : sortedAssetRows.length;
 
             // ── Focus typeahead sources — players (mine AND league-wide), picks, owners ──
             // Built inline per keystroke (only when 2+ chars typed); no memo needed at
@@ -3198,6 +3273,14 @@
                 setShowAllDeals(false);
             }
 
+            function selectPickFocus(row) {
+                // Pick-board row tap = focus the finder on this pick (the phone
+                // phPickRow onClick, ported).
+                if (!row) return;
+                setFinderQuery(qr => ({ ...qr, focus: { kind: 'pick', id: row.id, label: row.label, ownerId: row.ownerId, rosterId: row.rosterId } }));
+                setShowAllDeals(false);
+            }
+
             function assetLine(asset) {
                 if (!asset) return null;
                 if (asset.type === 'pick') {
@@ -3251,7 +3334,10 @@
                 <section className="tc-dhq-panel" style={{ overflow: 'visible' }}>
                     <div className="tc-dhq-panel-head">
                         <span>Trade Finder</span>
-                        <em>{intentLabel} · {finderScopeLabel}</em>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                            <em>{intentLabel} · {finderScopeLabel}</em>
+                            {renderTcTabNav()}
+                        </div>
                     </div>
                     <div className="tc-dhq-panel-body" style={{ overflow: 'visible', paddingRight: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div className="tc-dhq-modebar" role="group" aria-label="Finder intent">
@@ -3341,12 +3427,88 @@
                                 const active = effPartnerId != null && String(a.ownerId) === String(effPartnerId);
                                 return <button key={a.rosterId} type="button" className={active ? 'is-active' : ''} title={`${item.score} fit · ${item.tag} · ${item.scoreReasons.slice(0, 2).join(' · ')}`} onClick={() => setPartnerFacet(active ? null : a.ownerId)}>{a.ownerName} {item.score}</button>;
                             })}
+                            {partnerBoard.length > 6 && (
+                                <button type="button" className={partnerListOpen ? 'is-active' : ''} aria-expanded={partnerListOpen} onClick={() => setPartnerListOpen(v => !v)}>{partnerListOpen ? 'Less ▴' : 'More ▾'}</button>
+                            )}
                         </div>
+                        {/* Full ranked partner list (owner ask 2026-07-12) — every
+                            partner, not the capped 6-chip facet; same setPartnerFacet
+                            pin path as the chips (the phone full list, ported). */}
+                        {partnerListOpen && partnerBoard.length > 6 && (
+                            <div style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '6px', background: 'var(--off-black, #10141b)', maxHeight: '260px', overflowY: 'auto', overscrollBehavior: 'contain' }}>
+                                {partnerBoard.map(item => {
+                                    const a = item.assessment;
+                                    const on = effPartnerId != null && String(a.ownerId) === String(effPartnerId);
+                                    return (
+                                        <button key={a.rosterId} type="button" title={`${item.score} fit · ${item.tag} · ${item.scoreReasons.slice(0, 2).join(' · ')}`}
+                                            onClick={() => { setPartnerFacet(on ? null : a.ownerId); setPartnerListOpen(false); }}
+                                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)', background: on ? 'rgba(212,175,55,0.12)' : 'transparent', textAlign: 'left', padding: '7px 10px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>
+                                            <strong style={{ color: on ? 'var(--gold)' : 'var(--white)', fontWeight: 600, minWidth: 0, flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.ownerName}</strong>
+                                            {item.posture && <span style={{ fontSize: '0.58rem', letterSpacing: '0.06em', textTransform: 'uppercase', color: item.posture.color, whiteSpace: 'nowrap' }}>{item.posture.label}</span>}
+                                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--silver)' }}>{item.score}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
 
-                        <div>
-                            <button type="button" className="tc-dhq-detail-toggle" onClick={() => setAssetBrowserOpen(v => !v)}>{assetBrowserOpen ? 'Hide asset browser ▴' : 'Browse assets ▾'}</button>
-                        </div>
-                        {assetBrowserOpen && (assetBrowserRows.length > 0 ? (
+                        {/* Board is default-visible now (owner ask 2026-07-12): the first
+                            8 rows always render with the Pos/Sort controls; the old
+                            "Browse assets" toggle is just a Show all / Show less expander.
+                            The extra Add column and the div-row affordances override the
+                            index.html base grid (7-col template) — scoped inline since
+                            this port touches only trade-calc.js. */}
+                        <style>{`
+                            .tc-dhq-asset-table.has-add .tc-dhq-asset-row { grid-template-columns: minmax(150px,1.5fr) 46px 72px 48px minmax(118px,1fr) 68px 58px 36px; min-width: 764px; }
+                            .tc-dhq-asset-table.is-picks .tc-dhq-asset-row { grid-template-columns: minmax(170px,1.6fr) 56px minmax(130px,1fr) 80px 36px; min-width: 520px; }
+                            div.tc-dhq-asset-row[tabindex] { cursor: pointer; }
+                            div.tc-dhq-asset-row[tabindex]:hover, div.tc-dhq-asset-row.is-active { background: rgba(212,175,55,0.07); color: var(--white); }
+                            .tc-dhq-add-btn { width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; justify-self: end; border-radius: 6px; border: 1px solid var(--acc-line2, rgba(212,175,55,0.4)); background: rgba(212,175,55,0.10); color: var(--gold); font-family: var(--font-mono, monospace); font-size: 0.95rem; font-weight: 700; line-height: 1; padding: 0; cursor: pointer; }
+                            .tc-dhq-add-btn:hover { background: rgba(212,175,55,0.22); border-color: var(--gold); }
+                        `}</style>
+                        {boardRowCount > 8 && (
+                            <div>
+                                <button type="button" className="tc-dhq-detail-toggle" onClick={() => setAssetBrowserOpen(v => !v)}>{assetBrowserOpen ? 'Show less ▴' : `Show all ▾ (${boardRowCount})`}</button>
+                            </div>
+                        )}
+                        {finderPicksMode ? (
+                            /* Intent=Picks → a draft-pick board with an Owned/League scope
+                               toggle (the phone board, ported): Owned = your picks (→ YOU
+                               SEND), League = every other owner's picks (→ YOU GET). */
+                            <div className="tc-dhq-asset-browser">
+                                <div className="tc-dhq-browser-head">
+                                    <div>
+                                        <span>Pick capital</span>
+                                        <strong>{picksScopeMine ? 'Your picks' : 'League picks'}</strong>
+                                    </div>
+                                    <div className="tc-dhq-browser-controls" role="group" aria-label="Picks scope">
+                                        <button type="button" className={picksScopeMine ? 'is-active' : ''} onClick={() => { setPhPicksScope('owned'); setAssetBrowserOpen(false); }}>Owned</button>
+                                        <button type="button" className={!picksScopeMine ? 'is-active' : ''} onClick={() => { setPhPicksScope('league'); setAssetBrowserOpen(false); }}>League</button>
+                                    </div>
+                                </div>
+                                <div className="tc-dhq-asset-table is-picks" role="table" aria-label="Trade Finder pick board">
+                                    <div className="tc-dhq-asset-row tc-dhq-asset-head" role="row">
+                                        <span>Pick</span>
+                                        <span>Year</span>
+                                        <span>Owner</span>
+                                        <span>Value</span>
+                                        <span>Add</span>
+                                    </div>
+                                    {visiblePickRows.length ? visiblePickRows.map(row => (
+                                        <div key={`${row.rosterId}-${row.id}`} role="row" tabIndex={0}
+                                            className={`tc-dhq-asset-row${finderQuery.focus && finderQuery.focus.kind === 'pick' && String(finderQuery.focus.id) === String(row.id) ? ' is-active' : ''}`}
+                                            onClick={() => selectPickFocus(row)}
+                                            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectPickFocus(row); } }}>
+                                            <span title={row.label}>{row.label}{row.via && row.via !== row.ownerName ? <em style={{ fontStyle:'normal', opacity:0.65 }}> via {row.via}</em> : null}</span>
+                                            <span>{row.year}</span>
+                                            <span title={picksScopeMine ? 'Your pick' : row.ownerName}>{picksScopeMine ? 'Your pick' : row.ownerName}</span>
+                                            <span>{row.value.toLocaleString()}</span>
+                                            <button type="button" className="tc-dhq-add-btn" aria-label={'Add ' + row.label + ' to the builder'} title="Add to the live deal" onClick={e => { e.stopPropagation(); if (addPickRowToBuilder(row)) setBuilderExpanded(true); }}>+</button>
+                                        </div>
+                                    )) : <div className="tc-dhq-empty">No {picksScopeMine ? 'owned' : 'league'} picks to browse.</div>}
+                                </div>
+                            </div>
+                        ) : assetBrowserRows.length > 0 ? (
                             <div className="tc-dhq-asset-browser">
                                 <div className="tc-dhq-browser-head">
                                     <div>
@@ -3367,7 +3529,7 @@
                                         {tcRookieFields && <button type="button" className={assetBrowserRookieOnly ? 'is-active' : ''} title="Show only rookies — college, draft slot, and tier appear under each name" onClick={() => setAssetBrowserRookieOnly(v => !v)}>Rookies</button>}
                                     </div>
                                 </div>
-                                <div className="tc-dhq-asset-table" role="table" aria-label="Trade Finder asset browser">
+                                <div className="tc-dhq-asset-table has-add" role="table" aria-label="Trade Finder asset browser">
                                     <div className="tc-dhq-asset-row tc-dhq-asset-head" role="row">
                                         <span>Player</span>
                                         <span>Pos</span>
@@ -3376,9 +3538,17 @@
                                         <span>Current owned team</span>
                                         <span>Last FP</span>
                                         <span>Prime</span>
+                                        <span>Add</span>
                                     </div>
                                     {visibleAssetRows.length ? visibleAssetRows.map(row => (
-                                        <button key={`${row.rosterId}-${row.pid}`} type="button" role="row" className={`tc-dhq-asset-row${focusPlayerPid != null && String(focusPlayerPid) === String(row.pid) ? ' is-active' : ''}`} onClick={() => selectAssetFocus(row)}>
+                                        /* div row (not <button>) so the gold "+" can be a real
+                                           button — nested buttons are invalid HTML. Click/keys
+                                           keep the focus behavior; "+" adds to the builder
+                                           (owner ask 2026-07-12). */
+                                        <div key={`${row.rosterId}-${row.pid}`} role="row" tabIndex={0}
+                                            className={`tc-dhq-asset-row${focusPlayerPid != null && String(focusPlayerPid) === String(row.pid) ? ' is-active' : ''}`}
+                                            onClick={() => selectAssetFocus(row)}
+                                            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectAssetFocus(row); } }}>
                                             <span title={row.name}>{row.name}{(() => {
                                                 const rf = tcRookieInfoFor(row.pid);
                                                 if (!rf) return null;
@@ -3392,11 +3562,12 @@
                                             <span title={row.ownerLabel}>{row.ownerLabel}</span>
                                             <span>{row.lastPoints ? row.lastPoints.toLocaleString() : '--'}</span>
                                             <span>{row.primeYears != null ? row.primeYears : '--'}</span>
-                                        </button>
+                                            <button type="button" className="tc-dhq-add-btn" aria-label={'Add ' + row.name + ' to the builder'} title="Add to the live deal" onClick={e => { e.stopPropagation(); if (addAssetToBuilder(row)) setBuilderExpanded(true); }}>+</button>
+                                        </div>
                                     )) : <div className="tc-dhq-empty">{assetBrowserRookieOnly ? (tcRookieIndex.size === 0 ? 'Rookie data still loading…' : 'No tradeable rookies match this filter (rookies with no trade value yet are hidden).') : 'No assets match this position filter.'}</div>}
                                 </div>
                             </div>
-                        ) : <div className="tc-dhq-empty">No tradeable assets to browse for this scope.</div>)}
+                        ) : <div className="tc-dhq-empty">No tradeable assets to browse for this scope.</div>}
 
                         {finderPoolOn && !scanArmed
                             ? <div className="tc-dhq-empty" style={{ textAlign: 'center', padding: '18px 14px' }}>
@@ -3428,6 +3599,66 @@
 
                 {/* Saved queue moved to the Trade Log tab's My Pipeline (Phase 5). */}
             </div>;
+        }
+
+        // ── "Talk it through with Alex" — open the Alex chat pre-loaded with the
+        // live deal so the owner can interrogate it conversationally (grade,
+        // short-term vs long-term franchise impact, follow-ups). ON-REQUEST only
+        // (owner ask 2026-07-12: a button is cheaper than auto-firing an AI read
+        // on every builder edit). league-detail owns the chat; the wr:ask-alex
+        // window event is the cross-tab seam.
+        function askAlexAboutDeal() {
+            const pickText = (pkId) => {
+                const p = String(pkId).split('-');
+                const slot = (p[4] || '').charAt(0) === 's' ? Number(p[4].slice(1)) : null;
+                return formatPickLabel(p[1], Number(p[2]), p[3], slot);
+            };
+            const nameOf = pid => playersData[pid]?.full_name || ('player ' + pid);
+            const sideText = (side) => {
+                const bits = [...tradeIds[side].map(nameOf), ...tradePickIds[side].map(pickText)];
+                if ((tradeFaab[side] || 0) > 0) bits.push('$' + tradeFaab[side] + ' FAAB');
+                return bits.join(', ');
+            };
+            const partner = assessments.find(a => String(a.ownerId) === String(tradeOwner.B));
+            const msg = 'Evaluate the trade on my builder: I send ' + (sideText('A') || 'nothing yet')
+                + ' and get ' + (sideText('B') || 'nothing yet')
+                + (partner ? ' from ' + partner.ownerName : '')
+                + '. How does it grade for my franchise — impact this season and long term?';
+            setPhBuilderOpen(false); // phone: the chat sheet takes the stage
+            try { window.dispatchEvent(new CustomEvent('wr:ask-alex', { detail: { message: msg } })); } catch (e) { /* headless */ }
+        }
+
+        // ── Builder-in-use test — drives the top-of-desk builder position and the
+        // conditional Deal Intel rail (owner ask 2026-07-12: the intel side panel
+        // only appears while a trade is actually being built).
+        function tcBuilderInUse() {
+            return builderExpanded || tradeIds.A.length > 0 || tradeIds.B.length > 0 || tradePickIds.A.length > 0 || tradePickIds.B.length > 0;
+        }
+
+        // ── Desk/DNA/Log tabs — relocated from the retired wr-module-strip banner
+        // into the panel-head level (owner ask 2026-07-12: tabs sit on the Trade
+        // Finder line, not their own banner row). Rendered inside the finder head
+        // on the Pro desk; the other views get a slim right-aligned bar. Also
+        // hosts the "◂ Deal intel" reopen pill when the rail is hidden mid-build.
+        function renderTcTabNav() {
+            const surfaces = [
+                { key: 'desk', label: 'Trade Desk' },
+                { key: 'dna', label: 'Owner DNA' },
+                { key: 'log', label: 'Trade Log' },
+            ];
+            return (
+                <div className="wr-module-nav" style={{ flex: 'none' }}>
+                    {tcTab === 'desk' && tcBuilderInUse() && railHidden && (
+                        <button type="button" onClick={() => setRailHidden(false)} title="Reopen the deal-intel side panel (verdict + Owner DNA)" style={{ color: 'var(--gold)' }}>◂ Deal intel</button>
+                    )}
+                    {surfaces.map(s => (
+                        <button key={s.key} className={tcTab === s.key ? 'is-active' : ''} onClick={() => setTcTab(s.key)}>
+                            {s.label}
+                            {s.key === 'log' && savedDeals.length > 0 && <span style={{ color: 'var(--silver)', fontWeight: 500, opacity: 0.8 }}>{' · ' + savedDeals.length}</span>}
+                        </button>
+                    ))}
+                </div>
+            );
         }
 
         // ── renderContextRail — fixed two-card right rail (no morphing, no pinning) ──
@@ -3465,7 +3696,10 @@
                     <div className="tc-dhq-panel tc-rail-card">
                         <div className="tc-dhq-panel-head">
                             <span>Live Verdict</span>
-                            <em>{_verdict.hasTrade ? 'Tracks the builder' : 'No live deal'}</em>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 'none' }}>
+                                <em>{_verdict.hasTrade ? 'Tracks the builder' : 'No live deal'}</em>
+                                <button type="button" onClick={() => setRailHidden(true)} title="Hide the deal-intel panel — reopen from the tab row" style={{ background: 'transparent', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.68rem', padding: '2px 7px', flex: 'none' }}>Hide ▸</button>
+                            </div>
                         </div>
                         <div className="tc-dhq-panel-body tc-dhq-dossier-body">
                             {_verdict.hasTrade
@@ -3497,11 +3731,6 @@
         function renderAdaptiveWorkspace() {
             const active = tcTab; // canonical: 'desk' | 'dna' | 'log'
             const _pro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
-            const surfaces = [
-                { key: 'desk', label: 'Trade Desk' },
-                { key: 'dna', label: 'Owner DNA' },
-                { key: 'log', label: 'Trade Log' },
-            ];
             let body;
             if (active === 'dna') {
                 body = _pro ? renderOwnerDna() : React.createElement(TcProTeaser, { label: 'Owner DNA', feature: 'owner-dna', sub: 'Profile every manager\'s trading psychology. Know who\'s a Fleecer, who\'s Desperate, and exactly how to approach each trade conversation.' });
@@ -3519,66 +3748,26 @@
             // Persistent live verdict — the in-progress deal's verdict follows the Desk.
             const _verdict = computeManualVerdict();
             const _tsDeps = buildTradeSideDeps();
-            // Context Rail: Desk-only per the approved IA — Owner DNA and Trade Log are
-            // full-width tabs. Sticky column ≥1281px, inline stack below the builder
-            // otherwise (index.html CSS). DNA-mini partner precedence: live-deal partner
-            // → finder query's effective partner (owner focus > league-asset focus's
-            // owner > facet) → top partner. Free never receives a ranked partner
-            // (the board pick itself is partner intel — a Pro read).
-            const railOn = active === 'desk';
+            // Builder-in-use: hoists the builder to the TOP of the desk and mounts
+            // the Deal Intel rail (owner ask 2026-07-12 — intel only while building).
+            const buildingLive = active === 'desk' && tcBuilderInUse();
+            // Context Rail: Desk-only AND build-only (owner ask 2026-07-12), user-
+            // hideable via railHidden. Sticky column ≥1281px, inline stack below the
+            // builder otherwise (index.html CSS). DNA-mini partner precedence:
+            // live-deal partner → finder query's effective partner (owner focus >
+            // league-asset focus's owner > facet) → top partner. Free never receives
+            // a ranked partner (the board pick itself is partner intel — a Pro read).
+            const railOn = buildingLive && !railHidden;
             const railBoard = railOn && _pro ? partnerBoard : [];
             const liveDealOwnerId = _verdict.hasTrade ? tradeOwner.B : null;
             const railItem = (liveDealOwnerId != null && railBoard.find(p => String(p.assessment.ownerId) === String(liveDealOwnerId)))
                 || railBoard.find(p => String(p.assessment.ownerId) === String(effPartnerId))
                 || railBoard[0] || null;
-            return (
-                <div className="tc-trade-root">
-                    {/* Phone-tier touch bumps for the class-styled Trade Desk controls
-                        (index.html base CSS sizes them ~28-32px). Scoped ≤767 so the
-                        tablet/desktop tiers are untouched (cardinal guardrail); scoped
-                        under .tc-trade-root so nothing leaks to other tabs. Glyph and
-                        font sizes unchanged — hit areas only (plan D7). */}
-                    <style>{`
-                        @media (max-width: 767px) {
-                            .tc-trade-root .tc-ta-owner-select,
-                            .tc-trade-root .tc-ta-roster-filter,
-                            .tc-trade-root .tc-dna-select { min-height: 44px; }
-                            .tc-trade-root .tc-ta-roster-item { min-height: 44px; }
-                            .tc-trade-root button.tc-dhq-asset-row { min-height: 44px; }
-                            .tc-trade-root .tc-rail-dna-link { min-height: 44px; }
-                        }
-                    `}</style>
-                    <div className="wr-module-strip">
-                        <div className="wr-module-context">
-                            <span>Trade</span>
-                            <strong>Trade Center</strong>
-                        </div>
-                        <div className="wr-module-actions">
-                            <div className="wr-module-nav">
-                                {surfaces.map(s => (
-                                    <button key={s.key} className={active === s.key ? 'is-active' : ''} onClick={() => setTcTab(s.key)}>
-                                        {s.label}
-                                        {s.key === 'log' && savedDeals.length > 0 && <span style={{ color: 'var(--silver)', fontWeight: 500, opacity: 0.8 }}>{' · ' + savedDeals.length}</span>}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                    <div className={'tc-adaptive-canvas' + (railOn ? ' has-rail' : '')}>
-                    <div className="tc-adaptive-main">
-                    {active === 'desk' && tradeContext && (
-                        <div className="trade-context-banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
-                            <div style={{ minWidth: 0 }}>
-                                <span style={{ display: 'block', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Trade Context</span>
-                                <strong style={{ display: 'block', color: 'var(--white)', fontSize: '0.9rem', fontFamily: 'var(--font-title)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Opened from transaction ticker</strong>
-                                <em style={{ display: 'block', color: 'var(--silver)', fontSize: '0.74rem', fontStyle: 'normal' }}>{formatTradeContextSummary(tradeContext) || 'Use this deal as context while evaluating partner fit and packages.'}</em>
-                            </div>
-                            <button type="button" onClick={clearTradeContext} style={{ background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', borderRadius: '4px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.72rem', padding: '4px 10px', textTransform: 'uppercase' }}>Clear</button>
-                        </div>
-                    )}
-                    {body}
-                    {active === 'desk' && (
-                        <div style={{ marginTop: '12px', border: '1px solid rgba(53,208,214,0.28)', borderRadius: '8px', background: 'rgba(53,208,214,0.05)', overflow: 'hidden' }}>
+            // Builder strip — extracted so it can render at the TOP of the desk the
+            // moment a trade is being built (owner ask 2026-07-12), and at the
+            // bottom (its historical entry-point slot) when idle.
+            const builderEl = active === 'desk' && (
+                        <div style={{ margin: buildingLive ? '0 0 12px' : '12px 0 0', border: '1px solid rgba(53,208,214,0.28)', borderRadius: '8px', background: 'rgba(53,208,214,0.05)', overflow: 'hidden' }}>
                             <button type="button" onClick={() => setBuilderExpanded(v => !v)} title="Build or tweak a deal without leaving this view" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', textAlign: 'left', background: 'transparent', border: 'none', padding: '9px 13px', cursor: 'pointer' }}>
                                 <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#35d0d6' }}>{_verdict.hasTrade ? 'Live deal' : 'Trade builder'}</span>
                                 {_verdict.hasTrade ? (
@@ -3597,10 +3786,9 @@
                                     <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px', lineHeight: 1.5 }}>
                                         Values sourced from <strong style={{ color: 'var(--gold)' }}>{skinVocabulary.valueShortLabel || 'DHQ'} Engine</strong> ({valueSourceLabel}).
                                     </div>
-                                    {/* .tc-builder-sides: phone tier (index.html ≤767 CSS) stacks the
-                                        two sides vertically (send above, get below) — the hard 1fr 1fr
-                                        yields two ~165px columns at 375px, unusable for the owner
-                                        select + roster picker. ≥768 keeps side-by-side. */}
+                                    {/* .tc-builder-sides: side-by-side on EVERY tier (owner ask
+                                        2026-07-12 — phone included; index.html ≤767 CSS keeps the
+                                        two columns with a tighter gap). */}
                                     <div className="tc-builder-sides" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'start' }}>
                                         {TcTradeSide({ side: 'A', color: 'var(--k-5dade2, #5dade2)', label: 'YOU SEND', ..._tsDeps })}
                                         {TcTradeSide({ side: 'B', color: 'var(--k-e74c3c, #e74c3c)', label: 'YOU GET', ..._tsDeps })}
@@ -3608,7 +3796,46 @@
                                 </div>
                             )}
                         </div>
+            );
+            return (
+                <div className="tc-trade-root">
+                    {/* Phone-tier touch bumps for the class-styled Trade Desk controls
+                        (index.html base CSS sizes them ~28-32px). Scoped ≤767 so the
+                        tablet/desktop tiers are untouched (cardinal guardrail); scoped
+                        under .tc-trade-root so nothing leaks to other tabs. Glyph and
+                        font sizes unchanged — hit areas only (plan D7). */}
+                    <style>{`
+                        @media (max-width: 767px) {
+                            .tc-trade-root .tc-ta-owner-select,
+                            .tc-trade-root .tc-ta-roster-filter,
+                            .tc-trade-root .tc-dna-select { min-height: 44px; }
+                            .tc-trade-root .tc-ta-roster-item { min-height: 44px; }
+                            .tc-trade-root button.tc-dhq-asset-row { min-height: 44px; }
+                            .tc-trade-root .tc-rail-dna-link { min-height: 44px; }
+                        }
+                    `}</style>
+                    {/* wr-module-strip banner retired here (owner ask 2026-07-12):
+                        the Desk/DNA/Log tabs now live at panel-head level — inside
+                        the Trade Finder head on the Pro desk (renderDealHQ), and as
+                        this slim right-aligned bar on every other view. */}
+                    {(active !== 'desk' || !_pro) && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>{renderTcTabNav()}</div>
                     )}
+                    <div className={'tc-adaptive-canvas' + (railOn ? ' has-rail' : '')}>
+                    <div className="tc-adaptive-main">
+                    {buildingLive && builderEl}
+                    {active === 'desk' && tradeContext && (
+                        <div className="trade-context-banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
+                            <div style={{ minWidth: 0 }}>
+                                <span style={{ display: 'block', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Trade Context</span>
+                                <strong style={{ display: 'block', color: 'var(--white)', fontSize: '0.9rem', fontFamily: 'var(--font-title)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Opened from transaction ticker</strong>
+                                <em style={{ display: 'block', color: 'var(--silver)', fontSize: '0.74rem', fontStyle: 'normal' }}>{formatTradeContextSummary(tradeContext) || 'Use this deal as context while evaluating partner fit and packages.'}</em>
+                            </div>
+                            <button type="button" onClick={clearTradeContext} style={{ background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', borderRadius: '4px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.72rem', padding: '4px 10px', textTransform: 'uppercase' }}>Clear</button>
+                        </div>
+                    )}
+                    {body}
+                    {!buildingLive && builderEl}
                     </div>
                     {railOn && renderContextRail(_verdict, railItem)}
                     </div>
@@ -3791,7 +4018,15 @@
         function renderAlexVerdict() {
             const v = computeManualVerdict();
             if (!v.hasTrade) return null;
-            if (!canAccess('trade-quick-check')) return null;
+            // Chat handoff renders for EVERY tier (the chat send path enforces its
+            // own quota) — only the inline quick-check below is Pro-gated.
+            const chatBtn = (
+                <button type="button" onClick={askAlexAboutDeal} title="Open Alex chat pre-loaded with this deal — ask about short-term and long-term impact"
+                    style={{ width:'100%', marginTop:'8px', background:'transparent', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'6px', color:'var(--gold)', cursor:'pointer', fontFamily:'var(--font-body)', fontSize:'0.8rem', fontWeight:700, letterSpacing:'0.05em', padding:'9px 12px', minHeight:'44px' }}>
+                    💬 Talk it through with Alex
+                </button>
+            );
+            if (!canAccess('trade-quick-check')) return <div style={{ marginTop: '10px' }}>{chatBtn}</div>;
             // Key the response to the deal's contents so editing the deal invalidates a stale verdict.
             const dealKey = [tradeIds.A.join(','), tradeIds.B.join(','), tradePickIds.A.join(','), tradePickIds.B.join(','), tradeFaab.A, tradeFaab.B].join('|');
             const current = alexVerdict && alexVerdict.dealKey === dealKey ? alexVerdict : null;
@@ -3836,6 +4071,7 @@
                             </div>
                         </GMMessage>
                     )}
+                    {chatBtn}
                 </div>
             );
         }
@@ -4259,41 +4495,25 @@
             // owner's picks (→ YOU GET). Ranked by pick value.
             const phPicksMode = effMode === 'picks';
             const phPicksScopeMine = phPicksScope === 'owned';
-            // Hide picks whose rookie draft has already been held (owner ask): any
-            // PAST season, plus the CURRENT NFL season once its draft is done —
-            // proxied by the regular season / playoffs having started, since rookie
-            // drafts run pre-season. Future picks always show. (MFL already drops
-            // made current-year slots per-slot at build time; this is the backstop
-            // and the Sleeper fix — its synthetic picks include the current season.)
-            const _phNfl = (typeof window !== 'undefined' && window.S && window.S.nflState) || {};
-            const _phNflSeason = Number(_phNfl.season) || parseInt(currentLeague.season) || new Date().getFullYear();
-            const _phDraftHeld = ['regular', 'post'].includes(String(_phNfl.season_type || '').toLowerCase());
-            const phPickUndrafted = pk => { const y = Number(pk.year); return !Number.isFinite(y) || y > _phNflSeason || (y === _phNflSeason && !_phDraftHeld); };
+            // Drafted-pick exclusion = the hoisted component-scope pickUndrafted
+            // (shared with the desktop picks board since the 2026-07-12 port).
             const phPickRowsAll = (_pro && active === 'desk' && rosterState.isUsable && phPicksMode)
                 ? assessments
                     .filter(a => phPicksScopeMine ? String(a.rosterId) === String(myRosterId) : String(a.rosterId) !== String(myRosterId))
                     .flatMap(a => pickAssetsForOwner(a.ownerId).map(pk => ({ ...pk, ownerId: a.ownerId, rosterId: a.rosterId, ownerName: a.ownerName || a.teamName || ('Team ' + a.rosterId) })))
-                    .filter(phPickUndrafted)
+                    .filter(pickUndrafted)
                     // Draft order: year, then all rounds within that year, then slot
                     // (owner ask) — not value-ranked, so 2027 1st→2nd→3rd… then 2028.
                     .sort(comparePicksByDraftOrder)
                 : [];
             const phVisiblePicks = phPickRowsAll.slice(0, assetBrowserOpen ? 40 : 12);
-            // Gold "+" add affordance → the EXISTING builder add handler
-            // (buildTradeSideDeps().addPlayer) plus the owner-select seam for
-            // side B (mirrors TcTradeSide's owner <select>, which keeps any
-            // already-added assets — same semantics).
-            function phAddToBuilder(row) {
-                const mine = String(row.rosterId) === String(myRosterId);
-                const side = mine ? 'A' : 'B';
-                if (tradeIds[side].includes(row.pid)) { setDealHqNotice('Already in the live deal'); return; }
-                if (!mine && tradeOwner.B !== row.ownerId) setTradeOwner(prev => ({ ...prev, B: row.ownerId }));
-                _tsDeps.addPlayer(side, row.pid);
-                setDealHqNotice(mine ? 'Added to YOU SEND' : 'Added to YOU GET');
-            }
+            // Gold "+" add affordance → the hoisted component-scope
+            // addAssetToBuilder (ex phAddToBuilder — shared with the desktop
+            // browser's "+" since the 2026-07-12 port; same builder-add +
+            // side-B owner-select semantics).
             const phPlusChip = (row) => (
                 <button type="button" aria-label={'Add ' + row.name + ' to the builder'}
-                    onClick={e => { e.stopPropagation(); phAddToBuilder(row); }}
+                    onClick={e => { e.stopPropagation(); addAssetToBuilder(row); }}
                     style={{ width: '34px', height: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '7px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.10)', color: 'var(--gold)', fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer', fontFamily: MONO, lineHeight: 1, padding: 0 }}>+</button>
             );
             const phAssetRow = (row) => {
@@ -4313,20 +4533,12 @@
                 );
             };
 
-            // Pick "+" → the builder's addPick (mirrors phAddToBuilder for
-            // players): your pick → YOU SEND (side A), any other owner's pick →
-            // YOU GET (side B), pinning that partner on B.
-            function phAddPickToBuilder(row) {
-                const mine = String(row.rosterId) === String(myRosterId);
-                const side = mine ? 'A' : 'B';
-                if (tradePickIds[side].includes(row.id)) { setDealHqNotice('Already in the live deal'); return; }
-                if (!mine && tradeOwner.B !== row.ownerId) setTradeOwner(prev => ({ ...prev, B: row.ownerId }));
-                _tsDeps.addPick(side, row.id);
-                setDealHqNotice(mine ? 'Added to YOU SEND' : 'Added to YOU GET');
-            }
+            // Pick "+" → the hoisted component-scope addPickRowToBuilder
+            // (ex phAddPickToBuilder — shared with the desktop picks board
+            // since the 2026-07-12 port).
             const phPickPlusChip = (row) => (
                 <button type="button" aria-label={'Add ' + row.label + ' to the builder'}
-                    onClick={e => { e.stopPropagation(); phAddPickToBuilder(row); }}
+                    onClick={e => { e.stopPropagation(); addPickRowToBuilder(row); }}
                     style={{ width: '34px', height: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '7px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.10)', color: 'var(--gold)', fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer', fontFamily: MONO, lineHeight: 1, padding: 0 }}>+</button>
             );
             const phPickRow = (row) => (
@@ -4811,7 +5023,9 @@
                 : null;
 
             return (
-                <div className="tc-trade-root" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '12px 12px 96px' }}>
+                // Bottom pad clears the always-on ActionBar + home-indicator dock
+                // without relying on the shell backstop (owner ask 2026-07-12).
+                <div className="tc-trade-root" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '12px var(--wr-phone-gutter, 12px) calc(60px + var(--wr-bottom-inset, 0px))' }}>
                     {/* Same phone-tier touch bumps as the desktop workspace root —
                         the builder sheet (TcTradeSide) and DNA tab reuse the same
                         class-styled controls. Scoped ≤767 under .tc-trade-root. */}
