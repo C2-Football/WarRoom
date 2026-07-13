@@ -726,6 +726,116 @@
         );
     }
 
+    // ── dragReorderGrip: pointer-based drag-to-reorder (owner ask 2026-07-13) ──
+    // Grip-driven so it never fights list scrolling: spread the returned props
+    // onto a handle INSIDE a row that carries data-reorder-key="<key>". A fixed
+    // clone of the row follows the pointer, the source row dims, the row under
+    // the pointer gets an inset gold insertion line (top/bottom half), and the
+    // nearest scrollable ancestor auto-scrolls near its edges. On release,
+    // onDrop(dragKey, targetKey, after) fires — consumers keep their own order
+    // state. No React state: one module-level session (one pointer drags at a
+    // time), all feedback is direct DOM mutation restored on end, so it works
+    // identically for mouse, touch, and pencil without re-render churn.
+    let _dragSes = null;
+    function _dragCleanup() {
+        const s = _dragSes;
+        if (!s) return;
+        _dragSes = null;
+        if (s.raf) cancelAnimationFrame(s.raf);
+        try { if (s.ghost && s.ghost.parentNode) s.ghost.parentNode.removeChild(s.ghost); } catch (e) { /* detached */ }
+        try { s.row.style.opacity = s.rowOpacity; } catch (e) { /* row unmounted */ }
+        try { if (s.marked) s.marked.style.boxShadow = s.markedShadow; } catch (e) { /* row unmounted */ }
+    }
+    function _dragRetarget(s) {
+        const el = document.elementFromPoint(s.lastX, s.lastY);
+        const row = el && el.closest ? el.closest('[data-reorder-key]') : null;
+        let targetKey = null, after = false, targetEl = null;
+        if (row && row !== s.row) {
+            targetKey = row.getAttribute('data-reorder-key');
+            const r = row.getBoundingClientRect();
+            after = s.lastY > r.top + r.height / 2;
+            targetEl = row;
+        }
+        if (s.marked && (s.marked !== targetEl || s.after !== after)) {
+            try { s.marked.style.boxShadow = s.markedShadow; } catch (e) { /* row unmounted */ }
+            s.marked = null;
+        }
+        if (targetEl && (s.marked !== targetEl || s.after !== after)) {
+            s.markedShadow = targetEl.style.boxShadow || '';
+            targetEl.style.boxShadow = after ? 'inset 0 -2px 0 0 var(--gold, #d4af37)' : 'inset 0 2px 0 0 var(--gold, #d4af37)';
+            s.marked = targetEl;
+        }
+        s.targetKey = targetKey;
+        s.after = after;
+    }
+    function dragReorderGrip(opts) {
+        const key = opts && opts.key;
+        return {
+            onPointerDown: (e) => {
+                if (!opts || opts.disabled || _dragSes) return;
+                if (e.button != null && e.button !== 0) return;
+                const grip = e.currentTarget;
+                const row = grip.closest('[data-reorder-key]');
+                if (!row) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const rect = row.getBoundingClientRect();
+                let scroller = row.parentElement;
+                while (scroller && scroller !== document.body) {
+                    const cs = getComputedStyle(scroller);
+                    if (/(auto|scroll)/.test(cs.overflowY) && scroller.scrollHeight > scroller.clientHeight + 1) break;
+                    scroller = scroller.parentElement;
+                }
+                const ghost = row.cloneNode(true);
+                ghost.style.cssText += ';position:fixed;left:' + rect.left + 'px;top:' + rect.top + 'px;width:' + rect.width + 'px;height:' + rect.height + 'px;margin:0;z-index:9999;pointer-events:none;opacity:0.97;background:var(--black, #121217);border:1px solid var(--acc-line4, rgba(212,175,55,0.55));border-radius:8px;box-shadow:0 12px 30px rgba(0,0,0,0.55);transition:none;';
+                document.body.appendChild(ghost);
+                _dragSes = {
+                    key, grip, row, ghost,
+                    onDrop: opts.onDrop,
+                    startX: e.clientX, startY: e.clientY,
+                    lastX: e.clientX, lastY: e.clientY,
+                    scroller: scroller === document.body ? null : scroller,
+                    rowOpacity: row.style.opacity || '',
+                    marked: null, markedShadow: '', targetKey: null, after: false,
+                    scrollVel: 0, raf: 0,
+                };
+                row.style.opacity = '0.25';
+                try { grip.setPointerCapture(e.pointerId); } catch (err) { /* capture unsupported */ }
+                const tick = () => {
+                    const ss = _dragSes;
+                    if (!ss || ss.key !== key) return;
+                    if (ss.scroller && ss.scrollVel) { ss.scroller.scrollTop += ss.scrollVel; _dragRetarget(ss); }
+                    ss.raf = requestAnimationFrame(tick);
+                };
+                _dragSes.raf = requestAnimationFrame(tick);
+            },
+            onPointerMove: (e) => {
+                const s = _dragSes;
+                if (!s || s.key !== key) return;
+                s.lastX = e.clientX; s.lastY = e.clientY;
+                s.ghost.style.transform = 'translate(' + (e.clientX - s.startX) + 'px,' + (e.clientY - s.startY) + 'px)';
+                if (s.scroller) {
+                    const cr = s.scroller.getBoundingClientRect();
+                    const zone = 52;
+                    s.scrollVel = e.clientY < cr.top + zone ? -Math.ceil((cr.top + zone - e.clientY) / 6)
+                        : e.clientY > cr.bottom - zone ? Math.ceil((e.clientY - (cr.bottom - zone)) / 6) : 0;
+                }
+                _dragRetarget(s);
+            },
+            onPointerUp: () => {
+                const s = _dragSes;
+                if (!s || s.key !== key) return;
+                const targetKey = s.targetKey, after = s.after, onDrop = s.onDrop;
+                _dragCleanup();
+                if (targetKey != null && targetKey !== String(key) && typeof onDrop === 'function') onDrop(key, targetKey, after);
+            },
+            onPointerCancel: () => { const s = _dragSes; if (s && s.key === key) _dragCleanup(); },
+            onClick: (e) => { e.preventDefault(); e.stopPropagation(); },
+            onDragStart: (e) => e.preventDefault(),
+            style: { touchAction: 'none', cursor: 'grab', userSelect: 'none', WebkitUserSelect: 'none' },
+        };
+    }
+
     window.WR = window.WR || {};
     window.WR.Card = Card;
     window.WR.Badge = Badge;
@@ -743,6 +853,7 @@
     window.WR.FilterPill = FilterPill;
     window.WR.FilterSheet = FilterSheet;
     window.WR.ActionBar = ActionBar;
+    window.WR.dragReorderGrip = dragReorderGrip;
     // Inject the shared sheet/hscroll CSS up front (idempotent) so the
     // .wr-hscroll scrollbar-hiding rules exist before any consumer renders.
     ensureSheetCss();

@@ -2475,6 +2475,10 @@ WRShared.preloadMany(WR_SHARED_FILES);
         .tc-dhq-actions button::after, .tc-dhq-hero-actions button::after,
         .tc-rail-hide::after { content:''; position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); height:44px; }
         .wr-drop-chip::after { content:''; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:44px; height:44px; }
+        /* Drag-reorder grips (boards): small visual, full 44pt press target.
+           The halo inherits the grip's touch-action:none, so a press that
+           starts in it drags instead of scrolling. */
+        .wr-drag-grip::after { content:''; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:44px; height:44px; touch-action:none; }
 
         /* ── Tap feedback — iPad gets neither hover nor pressed states on
            the desktop surfaces. Gold pressed tint on every CLASSED touch
@@ -2488,7 +2492,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
         .tc-dhq-show-more:active, .tc-dhq-detail-toggle:active, .tc-dhq-add-btn:active,
         .wr-brd-move-btn:active, .tc-ta-roster-item:active, .tc-rail-dna-link:active,
         .session-strip-btn:active, .wr-drop-chip:active, .tc-rail-hide:active,
-        .fa-hq-mini-card:active, .fa-hq-swap:active, .fa-mkt-row:active {
+        .fa-hq-mini-card:active, .fa-hq-swap:active, .fa-mkt-row:active,
+        .wr-drag-grip:active {
             background:rgba(212,175,55,0.14) !important;
         }
     }
