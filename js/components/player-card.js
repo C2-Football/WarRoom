@@ -850,6 +850,18 @@
                 React.createElement('div', { style: { padding: '14px 20px', display: 'flex', gap: '8px', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))', position: 'relative', ...(isPhone ? { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' } : null) } },
                     React.createElement('button', { onClick: goCompare, style: btnStyle() }, 'Compare'),
                     React.createElement('button', { onClick: goTradeFinder, style: btnStyle('primary') }, isOnMyTeam ? 'Trade Finder' : 'Find Trade'),
+                    // Ask Alex (owner ask 2026-07-13, phone-crossover batch): open
+                    // the chat pre-loaded with this player via the wr:ask-alex
+                    // seam (league-detail listens; no-op on standalone pages).
+                    // Close the card first so the chat takes the stage.
+                    React.createElement('button', {
+                        onClick: () => {
+                            const nm = p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || 'this player';
+                            const msg = 'Give me your read on ' + nm + ' (' + (pos || '?') + (p.team ? ', ' + p.team : '') + ') for my franchise — value right now, short-term and long-term outlook, and whether I should buy, hold, or sell.';
+                            if (onClose) onClose();
+                            try { window.dispatchEvent(new CustomEvent('wr:ask-alex', { detail: { message: msg } })); } catch (e) { /* headless */ }
+                        }, style: btnStyle(),
+                    }, '💬 Ask Alex'),
                     React.createElement('button', { onClick: () => setTagMenu(!tagMenu), style: btnStyle() }, 'Tag As ▾'),
                     tagMenu ? React.createElement('div', {
                         // Phone: full-width above the grid so the 4 tag rows are

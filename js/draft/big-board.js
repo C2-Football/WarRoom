@@ -272,6 +272,14 @@
             return sorted.slice(0, 100);
         }, [decoratedPool, posFilter, search, sortKey, sortDir, hideDrafted]);
 
+        // Ask Alex about the board: opens recon chat pre-loaded with the
+        // top of the active lane (crossover, owner ask 2026-07-13).
+        const askAlexBoard = () => {
+            const top = available.filter(p => !p._drafted).slice(0, 3).map(p => p.name + (p.pos ? ' (' + normEdPos(p.pos) + ')' : '')).join(', ');
+            const msg = "I'm in a live draft" + (top ? ' — top of my board right now is ' + top : '') + '. Who should I target with my next pick and why, and is there a value falling that I should pivot to instead?';
+            try { window.dispatchEvent(new CustomEvent('wr:ask-alex', { detail: { message: msg } })); } catch (e) { /* chat seam unavailable */ }
+        };
+
         const availablePositions = React.useMemo(() => {
             const set = new Set();
             (state.pool || []).slice(0, 120).forEach(p => { if (p.pos) set.add(normEdPos(p.pos)); });
@@ -506,6 +514,7 @@
                 <div style={{ fontFamily: FONT_UI }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '7px' }}>
                         <div style={{ fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>Best Available</div>
+                        <button onClick={askAlexBoard} style={{ padding: '6px 10px', minHeight: '36px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', borderRadius: '4px', cursor: 'pointer', fontSize: MICRO, fontFamily: FONT_UI, fontWeight: 700, letterSpacing: '0.05em', flexShrink: 0, whiteSpace: 'nowrap' }}>💬 ASK ALEX</button>
                         <div style={{ fontSize: MICRO, color: 'var(--silver)', opacity: 0.65 }}>{state.pool.length} avail</div>
                     </div>
                     <div className="wr-seg" style={{ marginBottom: '7px' }}>
@@ -600,6 +609,7 @@
                     <div style={{ fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
                         Big Board
                     </div>
+                    <button onClick={askAlexBoard} style={{ padding: '3px 8px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', borderRadius: '4px', cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_UI, fontWeight: 700, letterSpacing: '0.05em', flexShrink: 0, whiteSpace: 'nowrap' }}>💬 ASK ALEX</button>
                     <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, fontFamily: FONT_UI }}>
                         {state.pool.length} avail
                     </div>

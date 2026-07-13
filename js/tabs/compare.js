@@ -2311,12 +2311,14 @@ function CompareTab({
                                     </div>
                                 </div>
                                 {(() => {
-                                    // Phone: top 4 rows per room, rest behind a per-position
-                                    // expander (owner ask 2026-07-12 — uncapped, 30-man IDP
-                                    // rosters made this section scroll forever).
-                                    const PHONE_ROW_CAP = 4;
-                                    const capped = isPhone && !expandedRosterPos.has(summary.pos) && maxLen > PHONE_ROW_CAP + 1;
-                                    const shownLen = capped ? PHONE_ROW_CAP : maxLen;
+                                    // Top rows per room + per-position expander at EVERY tier
+                                    // (phone crossover, owner ask 2026-07-13): uncapped, 30-man
+                                    // IDP rosters made this section scroll forever on desktop
+                                    // too. Phone shows the top 4; desktop/iPad get more room,
+                                    // so the cap is 6 there.
+                                    const ROW_CAP = isPhone ? 4 : 6;
+                                    const capped = !expandedRosterPos.has(summary.pos) && maxLen > ROW_CAP + 1;
+                                    const shownLen = capped ? ROW_CAP : maxLen;
                                     return (
                                         <React.Fragment>
                                             {Array.from({ length: shownLen }).map((_, i) => {
@@ -2329,11 +2331,11 @@ function CompareTab({
                                                     </div>
                                                 );
                                             })}
-                                            {isPhone && maxLen > PHONE_ROW_CAP + 1 && (
+                                            {maxLen > ROW_CAP + 1 && (
                                                 <button type="button"
                                                     onClick={() => setExpandedRosterPos(prev => { const next = new Set(prev); if (next.has(summary.pos)) next.delete(summary.pos); else next.add(summary.pos); return next; })}
                                                     style={{ width: '100%', minHeight: '40px', background: 'var(--ov-1, rgba(255,255,255,0.015))', border: 'none', borderTop: '1px solid var(--ov-3, rgba(255,255,255,0.04))', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                                                    {capped ? ('Show all ' + maxLen + ' ▾') : ('Show top ' + PHONE_ROW_CAP + ' ▴')}
+                                                    {capped ? ('Show all ' + maxLen + ' ▾') : ('Show top ' + ROW_CAP + ' ▴')}
                                                 </button>
                                             )}
                                         </React.Fragment>

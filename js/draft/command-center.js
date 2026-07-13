@@ -4975,6 +4975,27 @@
             textTransform: 'capitalize',
         });
 
+        // Room Feed ⇄ Ask Alex seg for the stream cell (owner ask 2026-07-13:
+        // phone crossover) — speedBtn's pill look at a compact height.
+        const streamTabBtn = on => ({
+            flex: 1,
+            padding: '4px 10px',
+            minHeight: '30px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 'var(--text-micro, 0.6875rem)',
+            fontFamily: FONT_UI,
+            fontWeight: 700,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            background: on ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
+            color: on ? 'var(--gold)' : 'var(--silver)',
+            border: '1px solid ' + (on ? 'var(--acc-line2, rgba(212,175,55,0.35))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
+            borderRadius: 'var(--card-radius-sm)',
+            cursor: 'pointer',
+        });
+
         const liveTradeWindow = React.useMemo(() => {
             if (!ccIsPro()) return null; // sell-the-pick windows are likelihood reads → Pro
             if (state.mode !== 'live-sync' || state.phase !== 'drafting') return null;
@@ -5017,6 +5038,10 @@
         // Live league-wide A–F draft grades (overlay, toggled from the header).
         const [showLeagueGrades, setShowLeagueGrades] = React.useState(false);
         const LeagueGradesPanel = window.DraftCC.LeagueGradesPanel;
+        // Stream cell toggle (owner ask 2026-07-13: phone crossover): 'feed' =
+        // the phone Room Feed (default — Alex's takes are IN it), 'alex' = the
+        // classic Alex stream panel with the ask-Alex input.
+        const [streamTab, setStreamTab] = React.useState('feed');
         const learningSaveKeyRef = React.useRef('');
         React.useEffect(() => {
             const helpers = window.DraftCC?.state || {};
@@ -5643,8 +5668,24 @@
 	                    <div style={{ minHeight: isCompact ? 'clamp(240px, 26vh, 320px)' : '100%', minWidth: 0 }}>
 	                        <DraftPickListPanel state={state} currentSlot={currentSlot} onPropose={onPropose} />
                     </div>
-                    <div style={{ minHeight: isCompact ? 'clamp(240px, 26vh, 320px)' : '100%', minWidth: 0 }}>
-                        <AlexStreamPanel state={state} dispatch={dispatch} />
+                    <div style={{ minHeight: isCompact ? 'clamp(240px, 26vh, 320px)' : '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {/* Room Feed ⇄ Ask Alex (owner ask 2026-07-13: phone crossover):
+                            default = the phone room feed (Alex's commentary is IN it);
+                            Ask Alex keeps the stream panel + input exactly as before. */}
+                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                            {[['feed', 'Room Feed'], ['alex', 'Ask Alex']].map(([k, l]) => (
+                                <button key={k} type="button" onClick={() => setStreamTab(k)} style={streamTabBtn(streamTab === k)}>{l}</button>
+                            ))}
+                        </div>
+                        <div style={{ flex: 1, minHeight: 0 }}>
+                            {streamTab === 'feed'
+                                ? (
+                                    <div style={panelCard({ height: '100%', display: 'flex', flexDirection: 'column', padding: '10px 12px', fontFamily: FONT_UI, overflow: 'hidden' })}>
+                                        <DraftRoomFeed state={state} heightStyle={{ flex: 1, minHeight: 0 }} />
+                                    </div>
+                                )
+                                : <AlexStreamPanel state={state} dispatch={dispatch} />}
+                        </div>
                     </div>
                 </div>
 
@@ -6561,6 +6602,150 @@
             );
         }
 
+    // ── Room Feed (shared, owner ask 2026-07-13: phone crossover) ──────
+    // The phone live-room's Twitter-style feed hoisted out of MobileFeed so
+    // the desktop stream cell renders it too: persona-attributed posts
+    // (Alex Ingram / League Wire / Board Watch / You) interwoven with rich
+    // pick cards (photo · NFL team · college · DHQ · folded REACH/STEAL).
+    // Renders ONLY the scrollable feed column — no DraftCast bar, no tabs;
+    // callers size the scroll container via heightStyle. All state-derived
+    // pieces (reach folds, team names, the pick/stream interleave) recompute
+    // per render exactly as the old MobileFeed inline copies did.
+    const ALEXC = 'var(--k-9b8afb, #9b8afb)'; // Alex accent (was MobileFeed-local)
+    function DraftRoomFeed({ state, maxRows = 140, heightStyle, emptyText }) {
+        const posColors = window.App?.POS_COLORS || {
+            QB: 'var(--k-ff6b6b, #ff6b6b)', RB: 'var(--k-4ecdc4, #4ecdc4)', WR: 'var(--k-45b7d1, #45b7d1)', TE: 'var(--k-f7dc6f, #f7dc6f)',
+            DL: 'var(--k-e67e22, #e67e22)', LB: 'var(--k-f0a500, #f0a500)', DB: 'var(--k-5dade2, #5dade2)', K: 'var(--k-bb8fce, #bb8fce)',
+        };
+        const fmtK = n => { const v = Number(n) || 0; return v >= 1000 ? (v / 1000).toFixed(1) + 'k' : String(Math.round(v)); };
+        const personas = state.personas || {};
+        const teamNameOf = pk => {
+            const rid = String(pk.rosterId || '');
+            if (personas[rid]?.teamName) return personas[rid].teamName;
+            if (pk.isUser || rid === String(state.userRosterId || '')) return 'Your Team';
+            return pk.slot ? 'Team ' + pk.slot : 'Draft Room';
+        };
+        // Reach/steal reads fold INTO their pick's card (owner ask) — collect
+        // them first and drop them from the standalone feed.
+        const reachByOverall = new Map();
+        const foldedIds = new Set();
+        ((state.alex && state.alex.stream) || []).forEach(ev => {
+            const t = String(ev.title || '');
+            if (ev.relatedPickNo && /^(REACH|STEAL)\s*·/i.test(t)) {
+                reachByOverall.set(Number(ev.relatedPickNo), { steal: /^STEAL/i.test(t), text: ev.text || t });
+                foldedIds.add(ev.id);
+            }
+            // The bare per-pick announcement line ("R2.06 · Name") duplicates the
+            // team's pick card on phone — drop it (owner ask). The "Alex read · …"
+            // commentary variant stays: that's Alex actually reacting to the pick.
+            if (/^R\d+\.\d+\s*·/.test(t)) foldedIds.add(ev.id);
+        });
+        const feedRows = (() => {
+            const picks = state.picks || [];
+            const events = ((state.alex && state.alex.stream) || []).filter(ev => !foldedIds.has(ev.id));
+            const used = new Set();
+            const items = [];
+            picks.forEach(pk => {
+                items.push({ kind: 'pick', ts: pk.ts || 0, pk });
+                events.forEach(ev => {
+                    if (ev.relatedPickNo && Number(ev.relatedPickNo) === Number(pk.overall) && !used.has(ev.id)) {
+                        used.add(ev.id);
+                        items.push({ kind: 'alex', ts: (pk.ts || 0) + 1, ev });
+                    }
+                });
+            });
+            events.forEach(ev => { if (!used.has(ev.id)) items.push({ kind: 'alex', ts: ev.ts || 0, ev }); });
+            items.sort((a, b) => a.ts - b.ts);
+            return items.reverse().slice(0, maxRows); // newest first
+        })();
+        // Twitter-style posters (owner ask): every feed entry is a post from a
+        // room voice — the drafting TEAM posts its pick, Alex reacts, the League
+        // Wire calls trades/room moves, Board Watch calls runs and tier breaks.
+        const FEED_VOICES = {
+            alex: { name: 'Alex Ingram', tag: 'AI GM', avatar: 'AI', color: ALEXC, bg: 'rgba(155,138,251,0.16)' },
+            wire: { name: 'League Wire', tag: 'trade desk', avatar: '⇄', color: 'var(--k-5dade2, #5dade2)', bg: 'rgba(93,173,226,0.14)' },
+            board: { name: 'Board Watch', tag: 'room trends', avatar: '▲', color: 'var(--k-f0a500, #f0a500)', bg: 'rgba(240,165,0,0.14)' },
+            you: { name: 'You', tag: 'room mic', avatar: 'Q', color: 'var(--gold)', bg: 'rgba(212,175,55,0.14)' },
+        };
+        const voiceOf = ev => {
+            const t = String(ev.title || '').toUpperCase();
+            if (ev.type === 'user') return FEED_VOICES.you;
+            if (/^TRADE\b|^ROOM EVOLUTION|TRADE OFFER|COUNTER|ACCEPTED|DECLINED/.test(t)) return FEED_VOICES.wire;
+            if (/^ROOM RUN|^TIER BREAK|POSITION RUN/.test(t)) return FEED_VOICES.board;
+            return FEED_VOICES.alex;
+        };
+        const agoOf = ts => {
+            if (!ts) return '';
+            const s = Math.max(0, (Date.now() - ts) / 1000);
+            if (s < 45) return 'now';
+            if (s < 3600) return Math.floor(s / 60) + 'm';
+            if (s < 86400) return Math.floor(s / 3600) + 'h';
+            return Math.floor(s / 86400) + 'd';
+        };
+        const avatarEl = (label, color, bg) => (
+            <span style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: bg, color, fontFamily: FONT_MONO, fontSize: '0.62rem', fontWeight: 900, border: '1px solid ' + color }}>{label}</span>
+        );
+        const initialsOf = s => String(s || '?').trim().split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+        const pickRowEl = pk => {
+            const rs = reachByOverall.get(Number(pk.overall)) || null;
+            const team = teamNameOf(pk);
+            const nflTeam = pk.csv?.nflTeam || window.S?.players?.[pk.pid]?.team || '';
+            const college = pk.college || pk.csv?.college || '';
+            const bits = [nflTeam, college].filter(Boolean).join(' · ');
+            const photo = pk.pid && !String(pk.pid).startsWith('csv_')
+                ? 'https://sleepercdn.com/content/nfl/players/thumb/' + pk.pid + '.jpg'
+                : (pk.photoUrl || '');
+            return (
+                <div key={pk.id || ('pk-' + pk.overall)} onClick={() => pk.pid && mockOpenPlayer(pk)} role="button" tabIndex={0}
+                    style={{ padding: '9px 11px', borderRadius: 10, cursor: pk.pid ? 'pointer' : 'default', background: pk.isUser ? 'var(--acc-fill1, rgba(212,175,55,0.07))' : 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid ' + (pk.isUser ? 'var(--acc-line2, rgba(212,175,55,0.32))' : 'var(--ov-4, rgba(255,255,255,0.05))') }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                        {avatarEl(initialsOf(team), pk.isUser ? 'var(--gold)' : 'var(--silver)', pk.isUser ? 'rgba(212,175,55,0.14)' : 'var(--ov-3, rgba(255,255,255,0.05))')}
+                        <span style={{ color: 'var(--white)', fontWeight: 800, fontSize: '0.76rem', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team}</span>
+                        <span style={{ color: 'var(--silver)', opacity: 0.55, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, flexShrink: 0, marginLeft: 'auto' }}>{'R' + (pk.round || '?') + '.' + String(pk.pickInRound || pk.slot || 0).padStart(2, '0')}{pk.ts ? ' · ' + agoOf(pk.ts) : ''}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 7 }}>
+                        <img src={photo} alt="" onError={e => { e.currentTarget.style.visibility = 'hidden'; }} style={{ width: 34, height: 34, borderRadius: 8, objectFit: 'cover', objectPosition: 'center top', background: 'var(--ov-3, rgba(255,255,255,0.05))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                                <span style={{ color: 'var(--white)', fontWeight: 800, fontSize: '0.84rem', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pk.name}</span>
+                                <span style={{ flexShrink: 0, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: posColors[pk.pos] || 'var(--silver)', padding: '1px 6px', borderRadius: 4, background: 'rgba(0,0,0,0.4)' }}>{pk.pos || '—'}</span>
+                            </div>
+                            <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1 }}>{bits || '—'}</div>
+                        </div>
+                        <span style={{ fontFamily: FONT_MONO, fontSize: '0.78rem', fontWeight: 700, color: 'var(--silver)', flexShrink: 0 }}>{fmtK(pk.dhq)}</span>
+                    </div>
+                    {rs && (
+                        <div style={{ marginTop: 7, padding: '5px 8px', borderRadius: 6, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.4, color: rs.steal ? 'var(--k-2ecc71, #2ecc71)' : 'var(--bad, #e5534b)', background: rs.steal ? 'rgba(46,204,113,0.08)' : 'rgba(231,76,60,0.08)', border: '1px solid ' + (rs.steal ? 'rgba(46,204,113,0.25)' : 'rgba(231,76,60,0.25)') }}>
+                            {(rs.steal ? '↓ STEAL — ' : '↑ REACH — ') + rs.text}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+        const alexRowEl = ev => {
+            const voice = voiceOf(ev);
+            return (
+                <div key={ev.id} style={{ padding: '8px 11px', borderRadius: 10, background: 'var(--ov-1, rgba(255,255,255,0.018))', border: '1px solid var(--ov-4, rgba(255,255,255,0.045))' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                        {avatarEl(voice.avatar, voice.color, voice.bg)}
+                        <span style={{ color: voice.color, fontWeight: 900, fontSize: '0.74rem', flexShrink: 0 }}>{voice.name}</span>
+                        <span style={{ color: 'var(--silver)', opacity: 0.5, fontSize: 'var(--text-micro, 0.6875rem)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{voice.tag}</span>
+                        <span style={{ color: 'var(--silver)', opacity: 0.5, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, flexShrink: 0, marginLeft: 'auto' }}>{agoOf(ev.ts)}</span>
+                    </div>
+                    {ev.title && <div style={{ marginTop: 5, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, color: ev.color || voice.color, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{(ev.badge ? ev.badge + ' ' : '') + ev.title}</div>}
+                    {ev.text && <div style={{ marginTop: 2, color: 'var(--silver)', fontSize: '0.76rem', lineHeight: 1.45 }}>{ev.text}</div>}
+                </div>
+            );
+        };
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', paddingRight: 2, ...(heightStyle || {}) }}>
+                {feedRows.length
+                    ? feedRows.map(row => (row.kind === 'pick' ? pickRowEl(row.pk) : alexRowEl(row.ev)))
+                    : <div style={{ padding: 14, border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 9, color: 'var(--silver)', opacity: 0.7, fontSize: '0.78rem' }}>{emptyText || "The feed starts when the first pick lands — picks and Alex's reads land here in order."}</div>}
+            </div>
+        );
+    }
+
         // ── Mobile live room (owner redesign, 2026-07-12): a permanent DraftCast
         // bar (clock + on-clock opponent intel row → intel sheet) over three
         // swipeable tabs — FEED (pick log with Alex's stream interwoven) /
@@ -6664,139 +6849,18 @@
         // Alex's pick card: the Alex Whisper line (latest stream take) over the
         // board's top name. Same Pro boundary as the Decision Deck — free gets
         // the exact desktop WrGatedMoreRow teaser and drafts from the raw board.
-        const ALEXC = 'var(--k-9b8afb, #9b8afb)';
+        // (ALEXC hoisted to module scope with <DraftRoomFeed/> — owner ask
+        // 2026-07-13: phone crossover.)
         const alexFeedItems = (state.alex && state.alex.stream) || [];
         const alexThinking = !!(state.alex && state.alex.thinking);
         const DECISION_BADGES = new Set(['✦', '⚖', '◇', 'A', '↑', '↓']);
         const alexItem = alexThinking ? null
             : (isUserTurn ? (alexFeedItems.find(e => DECISION_BADGES.has(e.badge)) || alexFeedItems[0]) : alexFeedItems[0]);
         // ── Live-room composition (owner redesign) ──────────────────
-        // FEED: the pick log with Alex's stream interwoven (relatedPickNo pins a
-        // take right under its pick; untied takes merge by timestamp).
-        const posColors = window.App?.POS_COLORS || {
-            QB: 'var(--k-ff6b6b, #ff6b6b)', RB: 'var(--k-4ecdc4, #4ecdc4)', WR: 'var(--k-45b7d1, #45b7d1)', TE: 'var(--k-f7dc6f, #f7dc6f)',
-            DL: 'var(--k-e67e22, #e67e22)', LB: 'var(--k-f0a500, #f0a500)', DB: 'var(--k-5dade2, #5dade2)', K: 'var(--k-bb8fce, #bb8fce)',
-        };
-        const fmtK = n => { const v = Number(n) || 0; return v >= 1000 ? (v / 1000).toFixed(1) + 'k' : String(Math.round(v)); };
+        // FEED: the pick log with Alex's stream interwoven — machinery hoisted
+        // to the shared <DraftRoomFeed/> so the desktop stream cell renders the
+        // same feed (owner ask 2026-07-13: phone crossover).
         const personas = state.personas || {};
-        const teamNameOf = pk => {
-            const rid = String(pk.rosterId || '');
-            if (personas[rid]?.teamName) return personas[rid].teamName;
-            if (pk.isUser || rid === String(state.userRosterId || '')) return 'Your Team';
-            return pk.slot ? 'Team ' + pk.slot : 'Draft Room';
-        };
-        // Reach/steal reads fold INTO their pick's card (owner ask) — collect
-        // them first and drop them from the standalone feed.
-        const reachByOverall = new Map();
-        const foldedIds = new Set();
-        ((state.alex && state.alex.stream) || []).forEach(ev => {
-            const t = String(ev.title || '');
-            if (ev.relatedPickNo && /^(REACH|STEAL)\s*·/i.test(t)) {
-                reachByOverall.set(Number(ev.relatedPickNo), { steal: /^STEAL/i.test(t), text: ev.text || t });
-                foldedIds.add(ev.id);
-            }
-            // The bare per-pick announcement line ("R2.06 · Name") duplicates the
-            // team's pick card on phone — drop it (owner ask). The "Alex read · …"
-            // commentary variant stays: that's Alex actually reacting to the pick.
-            if (/^R\d+\.\d+\s*·/.test(t)) foldedIds.add(ev.id);
-        });
-        const feedRows = (() => {
-            const picks = state.picks || [];
-            const events = ((state.alex && state.alex.stream) || []).filter(ev => !foldedIds.has(ev.id));
-            const used = new Set();
-            const items = [];
-            picks.forEach(pk => {
-                items.push({ kind: 'pick', ts: pk.ts || 0, pk });
-                events.forEach(ev => {
-                    if (ev.relatedPickNo && Number(ev.relatedPickNo) === Number(pk.overall) && !used.has(ev.id)) {
-                        used.add(ev.id);
-                        items.push({ kind: 'alex', ts: (pk.ts || 0) + 1, ev });
-                    }
-                });
-            });
-            events.forEach(ev => { if (!used.has(ev.id)) items.push({ kind: 'alex', ts: ev.ts || 0, ev }); });
-            items.sort((a, b) => a.ts - b.ts);
-            return items.reverse().slice(0, 140); // newest first
-        })();
-        // Twitter-style posters (owner ask): every feed entry is a post from a
-        // room voice — the drafting TEAM posts its pick, Alex reacts, the League
-        // Wire calls trades/room moves, Board Watch calls runs and tier breaks.
-        const FEED_VOICES = {
-            alex: { name: 'Alex Ingram', tag: 'AI GM', avatar: 'AI', color: ALEXC, bg: 'rgba(155,138,251,0.16)' },
-            wire: { name: 'League Wire', tag: 'trade desk', avatar: '⇄', color: 'var(--k-5dade2, #5dade2)', bg: 'rgba(93,173,226,0.14)' },
-            board: { name: 'Board Watch', tag: 'room trends', avatar: '▲', color: 'var(--k-f0a500, #f0a500)', bg: 'rgba(240,165,0,0.14)' },
-            you: { name: 'You', tag: 'room mic', avatar: 'Q', color: 'var(--gold)', bg: 'rgba(212,175,55,0.14)' },
-        };
-        const voiceOf = ev => {
-            const t = String(ev.title || '').toUpperCase();
-            if (ev.type === 'user') return FEED_VOICES.you;
-            if (/^TRADE\b|^ROOM EVOLUTION|TRADE OFFER|COUNTER|ACCEPTED|DECLINED/.test(t)) return FEED_VOICES.wire;
-            if (/^ROOM RUN|^TIER BREAK|POSITION RUN/.test(t)) return FEED_VOICES.board;
-            return FEED_VOICES.alex;
-        };
-        const agoOf = ts => {
-            if (!ts) return '';
-            const s = Math.max(0, (Date.now() - ts) / 1000);
-            if (s < 45) return 'now';
-            if (s < 3600) return Math.floor(s / 60) + 'm';
-            if (s < 86400) return Math.floor(s / 3600) + 'h';
-            return Math.floor(s / 86400) + 'd';
-        };
-        const avatarEl = (label, color, bg) => (
-            <span style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: bg, color, fontFamily: FONT_MONO, fontSize: '0.62rem', fontWeight: 900, border: '1px solid ' + color }}>{label}</span>
-        );
-        const initialsOf = s => String(s || '?').trim().split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
-        const pickRowEl = pk => {
-            const rs = reachByOverall.get(Number(pk.overall)) || null;
-            const team = teamNameOf(pk);
-            const nflTeam = pk.csv?.nflTeam || window.S?.players?.[pk.pid]?.team || '';
-            const college = pk.college || pk.csv?.college || '';
-            const bits = [nflTeam, college].filter(Boolean).join(' · ');
-            const photo = pk.pid && !String(pk.pid).startsWith('csv_')
-                ? 'https://sleepercdn.com/content/nfl/players/thumb/' + pk.pid + '.jpg'
-                : (pk.photoUrl || '');
-            return (
-                <div key={pk.id || ('pk-' + pk.overall)} onClick={() => pk.pid && mockOpenPlayer(pk)} role="button" tabIndex={0}
-                    style={{ padding: '9px 11px', borderRadius: 10, cursor: pk.pid ? 'pointer' : 'default', background: pk.isUser ? 'var(--acc-fill1, rgba(212,175,55,0.07))' : 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid ' + (pk.isUser ? 'var(--acc-line2, rgba(212,175,55,0.32))' : 'var(--ov-4, rgba(255,255,255,0.05))') }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-                        {avatarEl(initialsOf(team), pk.isUser ? 'var(--gold)' : 'var(--silver)', pk.isUser ? 'rgba(212,175,55,0.14)' : 'var(--ov-3, rgba(255,255,255,0.05))')}
-                        <span style={{ color: 'var(--white)', fontWeight: 800, fontSize: '0.76rem', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team}</span>
-                        <span style={{ color: 'var(--silver)', opacity: 0.55, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, flexShrink: 0, marginLeft: 'auto' }}>{'R' + (pk.round || '?') + '.' + String(pk.pickInRound || pk.slot || 0).padStart(2, '0')}{pk.ts ? ' · ' + agoOf(pk.ts) : ''}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 7 }}>
-                        <img src={photo} alt="" onError={e => { e.currentTarget.style.visibility = 'hidden'; }} style={{ width: 34, height: 34, borderRadius: 8, objectFit: 'cover', objectPosition: 'center top', background: 'var(--ov-3, rgba(255,255,255,0.05))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', flexShrink: 0 }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                                <span style={{ color: 'var(--white)', fontWeight: 800, fontSize: '0.84rem', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pk.name}</span>
-                                <span style={{ flexShrink: 0, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: posColors[pk.pos] || 'var(--silver)', padding: '1px 6px', borderRadius: 4, background: 'rgba(0,0,0,0.4)' }}>{pk.pos || '—'}</span>
-                            </div>
-                            <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1 }}>{bits || '—'}</div>
-                        </div>
-                        <span style={{ fontFamily: FONT_MONO, fontSize: '0.78rem', fontWeight: 700, color: 'var(--silver)', flexShrink: 0 }}>{fmtK(pk.dhq)}</span>
-                    </div>
-                    {rs && (
-                        <div style={{ marginTop: 7, padding: '5px 8px', borderRadius: 6, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.4, color: rs.steal ? 'var(--k-2ecc71, #2ecc71)' : 'var(--bad, #e5534b)', background: rs.steal ? 'rgba(46,204,113,0.08)' : 'rgba(231,76,60,0.08)', border: '1px solid ' + (rs.steal ? 'rgba(46,204,113,0.25)' : 'rgba(231,76,60,0.25)') }}>
-                            {(rs.steal ? '↓ STEAL — ' : '↑ REACH — ') + rs.text}
-                        </div>
-                    )}
-                </div>
-            );
-        };
-        const alexRowEl = ev => {
-            const voice = voiceOf(ev);
-            return (
-                <div key={ev.id} style={{ padding: '8px 11px', borderRadius: 10, background: 'var(--ov-1, rgba(255,255,255,0.018))', border: '1px solid var(--ov-4, rgba(255,255,255,0.045))' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-                        {avatarEl(voice.avatar, voice.color, voice.bg)}
-                        <span style={{ color: voice.color, fontWeight: 900, fontSize: '0.74rem', flexShrink: 0 }}>{voice.name}</span>
-                        <span style={{ color: 'var(--silver)', opacity: 0.5, fontSize: 'var(--text-micro, 0.6875rem)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{voice.tag}</span>
-                        <span style={{ color: 'var(--silver)', opacity: 0.5, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, flexShrink: 0, marginLeft: 'auto' }}>{agoOf(ev.ts)}</span>
-                    </div>
-                    {ev.title && <div style={{ marginTop: 5, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, color: ev.color || voice.color, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{(ev.badge ? ev.badge + ' ' : '') + ev.title}</div>}
-                    {ev.text && <div style={{ marginTop: 2, color: 'var(--silver)', fontSize: '0.76rem', lineHeight: 1.45 }}>{ev.text}</div>}
-                </div>
-            );
-        };
         // DraftCast bottom row: on YOUR turn it becomes the pick CTA (→ Board
         // tab); otherwise the on-clock team's predicted pick, tap → Opponent
         // Intel. (Prediction is a Pro read; the sheet carries the free gate.)
@@ -6842,11 +6906,8 @@
                 {/* Panes scroll IN PLACE (owner ask): fixed-height containers so the
                     DraftCast bar, tabs, and bottom chips all stay on screen. */}
                 {phTab === 'feed' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, height: '56dvh', minHeight: 300, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', paddingRight: 2 }}>
-                        {feedRows.length
-                            ? feedRows.map(row => (row.kind === 'pick' ? pickRowEl(row.pk) : alexRowEl(row.ev)))
-                            : <div style={{ padding: 14, border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 9, color: 'var(--silver)', opacity: 0.7, fontSize: '0.78rem' }}>The feed starts when the first pick lands — picks and Alex's reads land here in order. Swipe left for the Big Board.</div>}
-                    </div>
+                    <DraftRoomFeed state={state} heightStyle={{ height: '56dvh', minHeight: 300 }}
+                        emptyText="The feed starts when the first pick lands — picks and Alex's reads land here in order. Swipe left for the Big Board." />
                 )}
                 {phTab === 'board' && (<div style={{ height: '56dvh', minHeight: 320, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', paddingRight: 2 }}>
                     {drafting && (pro ? (

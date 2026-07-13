@@ -841,6 +841,11 @@ function LineupTab({
                     <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '6px', padding: '12px 14px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                         <span style={{ fontSize: fz('0.6rem'), fontWeight: 800, letterSpacing: '0.08em', color: GOLD, marginTop: '3px', whiteSpace: 'nowrap' }}>ALEX ·</span>
                         <span style={{ fontSize: '0.86rem', color: TEXT, lineHeight: 1.5 }}>{note}</span>
+                        {/* Ask Alex follow-up: opens recon chat pre-loaded with the game-plan ask (crossover, owner ask 2026-07-13) */}
+                        <button onClick={() => {
+                            const msg = 'Walk me through my Week ' + result.week + ' game plan' + (matchup && matchup.oppName ? ' against ' + matchup.oppName : '') + ' — the start/sit calls worth a second look, where I can attack this matchup, and what would change your read before kickoff.';
+                            try { window.dispatchEvent(new CustomEvent('wr:ask-alex', { detail: { message: msg } })); } catch (e) { /* chat seam unavailable */ }
+                        }} style={{ flexShrink: 0, alignSelf: 'flex-start', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: '5px', color: GOLD, fontFamily: MONO, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.05em', padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>💬 ASK</button>
                     </div>
                 ) : null}
 
@@ -944,6 +949,11 @@ function LineupTab({
                 <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '6px', padding: '12px 16px', marginBottom: '14px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                     <span style={{ fontSize: fz('0.6rem'), fontWeight: 800, letterSpacing: '0.08em', color: GOLD, marginTop: '3px', whiteSpace: 'nowrap' }}>ALEX ·</span>
                     <span style={{ fontSize: '0.86rem', color: TEXT, lineHeight: 1.5 }}>{note}</span>
+                    {/* Ask Alex follow-up: opens recon chat pre-loaded with the game-plan ask (phone crossover, owner ask 2026-07-13) */}
+                    <button onClick={() => {
+                        const msg = 'Walk me through my Week ' + result.week + ' game plan' + (matchup && matchup.oppName ? ' against ' + matchup.oppName : '') + ' — the start/sit calls worth a second look, where I can attack this matchup, and what would change your read before kickoff.';
+                        try { window.dispatchEvent(new CustomEvent('wr:ask-alex', { detail: { message: msg } })); } catch (e) { /* chat seam unavailable */ }
+                    }} style={{ flexShrink: 0, alignSelf: 'flex-start', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: '5px', color: GOLD, fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.05em', padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>💬 ASK ALEX</button>
                 </div>
             ) : null}
 
