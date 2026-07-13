@@ -3310,6 +3310,18 @@
 	                              /* Invisible ±4px vertical hit halo → effective 44px target
 	                                 without moving the 36px visual or the 4px gap. */
 	                              .wr-brd-move-btn::after{content:'';position:absolute;left:0;right:0;top:-4px;bottom:-4px;}
+	                          }
+	                          /* iPad pass F3: drag is inert on touch and these 16x14 buttons
+	                             are the ONLY reorder path at ≥768. Density is ruled frozen,
+	                             so grow the HIT AREA only — 44px-wide halos biased away from
+	                             each other (▲ up / ▼ down), zero overlap at the 2px gap.
+	                             hover:none keeps mouse desktops out; trackpad iPads still
+	                             match and keep row drag too. */
+	                          @media (hover:none) and (pointer:coarse) and (min-width:768px){
+	                              .wr-brd-move-btn{position:relative;}
+	                              .wr-brd-move-btn::after{content:'';position:absolute;left:-14px;right:-14px;top:-1px;bottom:-1px;}
+	                              .wr-brd-move .wr-brd-move-btn:first-child::after{top:-12px;}
+	                              .wr-brd-move .wr-brd-move-btn:last-child::after{bottom:-12px;}
 	                          }`}</style>
 	                          <div style={{ minWidth: '100%' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: boardGridCols, minHeight: '34px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', alignItems: 'center', position: 'sticky', top: 0, zIndex: 1 }}>

@@ -3414,9 +3414,10 @@
                                     <em style={{ fontStyle: 'normal', fontSize: '0.6rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)' }}>{focusR.kind === 'pick' ? 'Pick' : focusR.kind === 'owner' ? 'Owner' : (focusR.pos || 'Player')}</em>
                                     <strong style={{ fontWeight: 600 }}>{focusR.label}</strong>
                                     {focusR.kind !== 'owner' && <span style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>{String(focusR.rosterId) === String(myRosterId) ? 'yours' : (ownerNameForRosterId(focusR.rosterId) || 'league')}</span>}
-                                    {/* Phone: hit-padding only (negative margin cancels the layout
-                                        shift) so the chip row's height doesn't change — plan D7. */}
-                                    <button type="button" onClick={clearFinderFocus} aria-label="Clear focus" style={{ border: 'none', background: 'transparent', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.8rem', padding: _vp.isPhone ? '12px 10px' : '0 2px', margin: _vp.isPhone ? '-12px -8px' : 0, lineHeight: 1 }}>✕</button>
+                                    {/* Phone + coarse (iPad pass): hit-padding only (negative
+                                        margin cancels the layout shift) so the chip row's
+                                        height doesn't change — plan D7 / G4. */}
+                                    <button type="button" onClick={clearFinderFocus} aria-label="Clear focus" style={{ border: 'none', background: 'transparent', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.8rem', padding: (_vp.isPhone || _vp.isCoarse) ? '12px 10px' : '0 2px', margin: (_vp.isPhone || _vp.isCoarse) ? '-12px -8px' : 0, lineHeight: 1 }}>✕</button>
                                 </span>
                                 {focusR.kind === 'pick' && <span style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.65 }}>{String(focusR.rosterId) === String(myRosterId) ? 'Shopping this pick league-wide for value back.' : 'Packages are built to pry this pick from its owner.'}</span>}
                             </div>
@@ -3706,7 +3707,7 @@
                             <span>Live Verdict</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 'none' }}>
                                 <em>{_verdict.hasTrade ? 'Tracks the builder' : 'No live deal'}</em>
-                                <button type="button" onClick={() => setRailHidden(true)} title="Hide the deal-intel panel — reopen from the tab row" style={{ background: 'transparent', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.68rem', padding: '2px 7px', flex: 'none' }}>Hide ▸</button>
+                                <button type="button" className="tc-rail-hide" onClick={() => setRailHidden(true)} title="Hide the deal-intel panel — reopen from the tab row" style={{ background: 'transparent', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.68rem', padding: '2px 7px', flex: 'none' }}>Hide ▸</button>
                             </div>
                         </div>
                         <div className="tc-dhq-panel-body tc-dhq-dossier-body">
@@ -3818,7 +3819,7 @@
                             .tc-trade-root .tc-ta-roster-filter,
                             .tc-trade-root .tc-dna-select { min-height: 44px; }
                             .tc-trade-root .tc-ta-roster-item { min-height: 44px; }
-                            .tc-trade-root button.tc-dhq-asset-row { min-height: 44px; }
+                            .tc-trade-root button.tc-dhq-asset-row, .tc-trade-root div.tc-dhq-asset-row[tabindex] { min-height: 44px; }
                             .tc-trade-root .tc-rail-dna-link { min-height: 44px; }
                         }
                     `}</style>
@@ -5043,7 +5044,7 @@
                             .tc-trade-root .tc-ta-roster-filter,
                             .tc-trade-root .tc-dna-select { min-height: 44px; }
                             .tc-trade-root .tc-ta-roster-item { min-height: 44px; }
-                            .tc-trade-root button.tc-dhq-asset-row { min-height: 44px; }
+                            .tc-trade-root button.tc-dhq-asset-row, .tc-trade-root div.tc-dhq-asset-row[tabindex] { min-height: 44px; }
                             .tc-trade-root .tc-rail-dna-link { min-height: 44px; }
                         }
                     `}</style>
