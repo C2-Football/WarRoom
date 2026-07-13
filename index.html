@@ -2429,6 +2429,36 @@ WRShared.preloadMany(WR_SHARED_FILES);
         .wr-phone-dock { display:none !important; }
     }
 
+    /* ══ iPAD / COARSE-POINTER TIER (iPad pass, 2026-07-12) ═══════════════
+       Owner ruling: iPad keeps the DESKTOP layout, touch-optimized only.
+       ONE block for every width-independent touch rule: (hover:none) AND
+       (pointer:coarse) never matches a mouse-driven desktop (the freeze
+       gate at 1440×900 asserts fine-pointer), and still matches an iPad
+       with a trackpad attached (primary pointer stays touch) — hover/drag
+       JS wiring is untouched everywhere, so trackpads keep full behavior.
+       Growth is HIT-AREA only (halos / hit-padding): visual density is
+       ruled frozen — 30px rows stay 30px. */
+    @media (hover:none) and (pointer:coarse){
+        /* F1 — sidebar nav scrolls (iPad landscape ≥1024: the ~700px nav
+           stack clipped; the phone tier has its own copy at ≤767). */
+        .wr-sidebar { overflow-y:auto; overscroll-behavior:contain; }
+
+        /* F5 — FA detail drawer clears the notch/home bar (verbatim twin
+           of the ≤767 rules; idempotent where both match). */
+        .fa-detail-drawer {
+            padding-top:calc(20px + var(--sat)) !important;
+            padding-bottom:calc(20px + var(--sab)) !important;
+            padding-right:calc(20px + var(--sar)) !important;
+        }
+        .fa-detail-close { top:calc(12px + var(--sat)) !important; }
+    }
+    /* Home-indicator clearance for the ≥768 sidebar (fixed inset column).
+       The ≥768 guard keeps this from out-cascading the phone tier's larger
+       dock-aware !important padding. */
+    @media (hover:none) and (pointer:coarse) and (min-width:768px){
+        .wr-sidebar { padding-bottom:calc(16px + var(--sab, 0px)) !important; }
+    }
+
     /* ── Micro-animations ────────────────────────────────── */
     @keyframes wrFadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
     .wr-fade-in { animation:wrFadeIn 0.25s ease both }

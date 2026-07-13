@@ -3096,8 +3096,16 @@
                     entirely \u2014 the dock strip covers every nav item and Refresh
                     moved into the header sheet (owner ruling 2026-07-09). The
                     768-1023 drawer tier keeps it \u2014 no dock there. */}
+                {/* iPad pass: status-bar scrim — the non-phone header is NOT sticky
+                    (desktop-parity ruling), so scrolled content would bleed under
+                    the transparent status bar in installed-PWA. height = --sat →
+                    zero-height (invisible) everywhere else. Phone has the sticky
+                    header as its backdrop instead. */}
+                {!phoneHdrKit && <div aria-hidden="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 'var(--sat, 0px)', background: 'var(--black, #0a0a0a)', zIndex: 60 }} />}
                 {!phoneHdrKit && !(alexPhone && reconPanelOpen) && <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{
-                    display: 'none', position: 'fixed', top: 'calc(10px + var(--wr-dev-banner-height, 0px))', left: '10px', zIndex: 201,
+                    // iPad pass (G3): --sat/--sal terms are env()=0 everywhere but
+                    // installed-PWA on device — desktop stays byte-identical.
+                    display: 'none', position: 'fixed', top: 'calc(10px + var(--sat, 0px) + var(--wr-dev-banner-height, 0px))', left: 'calc(10px + var(--sal, 0px))', zIndex: 201,
                     background: 'var(--black)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px',
                     padding: '6px 10px', cursor: 'pointer', color: 'var(--gold)', fontSize: '1.2rem', lineHeight: 1
                 }} className="wr-hamburger">{sidebarOpen ? '\u2715' : '\u2630'}</button>}
@@ -3142,6 +3150,10 @@
                     .wr-league-header-row::-webkit-scrollbar{display:none}
                     .wr-time-bar{flex-wrap:nowrap !important;overflow-x:auto;scrollbar-width:none}
                     .wr-time-bar::-webkit-scrollbar{display:none}
+                    /* iPad pass F2b: the fixed hamburger (left ~10px, ~41px wide)
+                       overlapped the league title at the drawer tier — same 44px
+                       clearance the phone tier gets. */
+                    .wr-league-header-row{padding-left:44px}
                 }`}</style>
 
                 {/* Mobile overlay */}
@@ -3364,7 +3376,10 @@
                     (99/100/150/200). Desktop/tablet branch byte-identical. */}
                 <header className="header" style={phoneHdrKit
                     ? { position: 'sticky', top: 'var(--wr-dev-banner-height, 0px)', zIndex: 60, marginBottom: '0', paddingTop: 'calc(0.35rem + var(--sat, 0px))', paddingBottom: '0.35rem' }
-                    : { position: 'relative', marginBottom: '0', paddingTop: '0.6rem', paddingBottom: '0.6rem' }}>
+                    // iPad pass (G3): the inline paddingTop was overriding the base
+                    // .header --sat rule, putting the league title under the status
+                    // bar in installed-PWA. env()=0 off-device → desktop identical.
+                    : { position: 'relative', marginBottom: '0', paddingTop: 'calc(0.6rem + var(--sat, 0px))', paddingBottom: '0.6rem' }}>
                     {phoneHdrKit ? (() => {
                         // ── ONE-ROW PHONE HEADER ── phase dot + name (tap = league
                         // sheet) + SWITCH. Everything else lives in the sheet below.
