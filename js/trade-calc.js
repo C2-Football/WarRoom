@@ -3497,7 +3497,7 @@
                                         <span>Year</span>
                                         <span>Owner</span>
                                         <span>Value</span>
-                                        <span>Add</span>
+                                        <span>Add{_vp.isCoarse && typeof Tip === 'function' ? <Tip>The + drops the pick straight onto the live deal builder.</Tip> : null}</span>
                                     </div>
                                     {visiblePickRows.length ? visiblePickRows.map(row => (
                                         <div key={`${row.rosterId}-${row.id}`} role="row" tabIndex={0}
@@ -3547,7 +3547,9 @@
                                         <span>Current owned team</span>
                                         <span>Last FP</span>
                                         <span>Prime</span>
-                                        <span>Add</span>
+                                        {/* iPad pass: hover titles never fire on touch — one
+                                            coarse-only Tip on the header explains the + column. */}
+                                        <span>Add{_vp.isCoarse && typeof Tip === 'function' ? <Tip>The + drops the player straight onto the live deal builder.</Tip> : null}</span>
                                     </div>
                                     {visibleAssetRows.length ? visibleAssetRows.map(row => (
                                         /* div row (not <button>) so the gold "+" can be a real

@@ -689,6 +689,7 @@ function MyTeamTab({
   const isCompactRoster = rosterViewportWidth <= 1023;
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [reviewOpen, setReviewOpen] = React.useState(false); // phone "review flagged players" sheet
+  const [reviewStripOpen, setReviewStripOpen] = React.useState(false); // desktop/iPad flagged-players triage strip (owner-approved iPad pass)
   // Manual verdict/tag override (owner ask): one picker sets the player's
   // call, rolling the old TRADE BLOCK/CUT/UNTOUCHABLE/WATCH tags in with
   // Hold/Stash/Sell/Drop. Runs on ALL versions. The 4 tag-values sync to the
@@ -1778,6 +1779,41 @@ function MyTeamTab({
           </React.Fragment>
         ),
       })}
+
+      {/* Review Roster triage strip (iPad pass, owner-approved 2026-07-12):
+          the phone triage SHEET had no ≥768 equivalent — flags only lived
+          inline per row. Same data seams as the phone sheet (_isActiveDrop /
+          _effRec); chip tap expands the player on the board below. Collapsed
+          to a one-line count by default. */}
+      {!_phone && isPro && (() => {
+        const dropAlerts = rows.filter(_isActiveDrop);
+        const sellCalls = rows.filter(r => /sell/i.test(_effRec(r) || '') && !dropAlerts.some(d => d.pid === r.pid));
+        if (!dropAlerts.length && !sellCalls.length) return null;
+        const chip = (r, kind) => (
+          <button key={kind + '-' + r.pid} type="button" onClick={() => setExpandedPid(prev => prev === r.pid ? null : r.pid)}
+            title="Expand this player on the board below"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '999px', cursor: 'pointer', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid ' + (kind === 'DROP' ? 'rgba(231,76,60,0.4)' : 'rgba(240,165,0,0.35)'), color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '0.76rem', fontWeight: 600 }}>
+            <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: kind === 'DROP' ? 'var(--bad)' : 'var(--warn)', letterSpacing: '0.04em' }}>{kind}</span>
+            {getPlayerName(r.pid)}
+            <span style={{ color: 'var(--silver)', opacity: 0.6, fontSize: 'var(--text-micro, 0.6875rem)' }}>{r.pos}</span>
+          </button>
+        );
+        return (
+          <div style={{ marginBottom: '10px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '8px', background: 'var(--ov-1, rgba(255,255,255,0.015))', overflow: 'hidden' }}>
+            <button type="button" onClick={() => setReviewStripOpen(v => !v)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Review Roster</span>
+              <span style={{ fontSize: '0.76rem', color: 'var(--silver)' }}>{dropAlerts.length} drop alert{dropAlerts.length === 1 ? '' : 's'} · {sellCalls.length} sell call{sellCalls.length === 1 ? '' : 's'}</span>
+              <span style={{ marginLeft: 'auto', fontSize: '0.74rem', color: 'var(--gold)', fontWeight: 700 }}>{reviewStripOpen ? 'Hide ▴' : 'Review ▾'}</span>
+            </button>
+            {reviewStripOpen && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '2px 12px 10px' }}>
+                {dropAlerts.map(r => chip(r, 'DROP'))}
+                {sellCalls.map(r => chip(r, 'SELL'))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Roster table with inline expand cards — desktop/tablet renders the
           hoisted board verbatim; the phone tier re-homes it: AssetRow card
