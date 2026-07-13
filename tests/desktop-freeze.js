@@ -105,7 +105,7 @@ async function captureTab(page, args) {
     }, args);
 }
 
-async function run(mode, fileArg) {
+async function run(mode, fileArg, coarseDevice) {
     const port = await findOpenPort(PORT_START);
     const server = await startStaticServer(port);
     const browser = await chromium.launch({ executablePath: CHROME, headless: true });
@@ -113,7 +113,7 @@ async function run(mode, fileArg) {
     try {
         const coarse = mode === 'coarse';
         const context = await browser.newContext(coarse
-            ? { ...devices['iPad Pro 11 landscape'] }
+            ? { ...devices[coarseDevice || 'iPad Pro 11 landscape'] }
             : { viewport: { width: 1440, height: 900 } });
         await context.route('**/*', route => {
             const type = route.request().resourceType();
@@ -211,18 +211,30 @@ async function main() {
         return;
     }
     if (mode === 'coarse') {
-        const snap = await run('coarse');
-        let engaged = 0;
-        for (const tab of TABS) {
-            const shape = snap.tabs[tab] && snap.tabs[tab].__shape;
-            if (shape && shape.coarse && shape.hoverNone) engaged++;
+        // GATE (iPad pass, 2026-07-12): every tab must engage the coarse
+        // media context under iPad emulation — landscape (desktop-tier
+        // shell) AND portrait (768-1023 drawer-tier shell) — or the touch
+        // rules are dead. The F3 fix is a hit-area halo (::after), so the
+        // halo hit-test itself lives in browser-qa.js's coarse pass; this
+        // gate asserts context engagement per orientation.
+        const failures = [];
+        for (const device of ['iPad Pro 11 landscape', 'iPad Pro 11']) {
+            const snap = await run('coarse', null, device);
+            let engaged = 0;
+            for (const tab of TABS) {
+                const shape = snap.tabs[tab] && snap.tabs[tab].__shape;
+                if (shape && shape.coarse && shape.hoverNone) engaged++;
+                else failures.push(`${tab} [${device}]: coarse/hover-none not reported under iPad emulation`);
+            }
+            console.log(`\ncoarse emulation [${device}]: ${engaged}/${TABS.length} tabs report (pointer:coarse)+(hover:none)`);
+            const probe = snap.tabs.draft && snap.tabs.draft['.wr-brd-move-btn'];
+            if (probe && probe.count) console.log(`  .wr-brd-move-btn present: ${probe.count} (halo hit-test runs in browser-qa coarse pass)`);
         }
-        console.log(`\ncoarse emulation: ${engaged}/${TABS.length} tabs report (pointer:coarse)+(hover:none)`);
-        const probe = snap.tabs.draft && snap.tabs.draft['.wr-brd-move-btn'];
-        if (probe && probe.count) {
-            const h = probe.first[0] && probe.first[0].styles['min-height'];
-            console.log(`  .wr-brd-move-btn min-height under coarse: ${h || 'n/a'} (44px expected once the iPad coarse block lands)`);
+        if (failures.length) {
+            failures.forEach(f => console.error('  FAIL: ' + f));
+            process.exit(1);
         }
+        console.log('PASS desktop-freeze coarse - all tabs engage the coarse-pointer context in both orientations');
         return;
     }
     console.error('usage: desktop-freeze.js capture <out.json> | compare <baseline.json> | coarse');

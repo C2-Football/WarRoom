@@ -11,9 +11,17 @@ const ROOT = path.join(__dirname, '..');
 const LEAGUE_ID = process.env.WARROOM_QA_LEAGUE || '1312100327931019264';
 const USER = process.env.WARROOM_QA_USER || 'bigloco';
 const BASE_PATH = process.env.WARROOM_QA_PATH || '/dist-preview/';
-// Phone floor (390/430), iPad portrait (768 mini, 820 Air, 834 Pro 11", 1024 Pro 12.9"),
-// iPad landscape (1180), desktop (1365). iPad portrait is now a first-class layout tier.
-const WIDTHS = [390, 430, 768, 820, 834, 1024, 1180, 1365];
+// Phone floor (390/430), iPad mini portrait (744 — PHONE tier by ruling),
+// iPad portrait (768 9.7", 810 10.2", 820 Air, 834 Pro 11", 1024 Pro 12.9"),
+// iPad landscape (1180 + short-height variants), desktop (1365). Heights
+// matter for the sidebar-scroll (F1) and tier-contract checks.
+const SIZES = [
+  { width: 390, height: 900 }, { width: 430, height: 900 },
+  { width: 744, height: 1133 }, { width: 768, height: 900 },
+  { width: 810, height: 1080 }, { width: 820, height: 900 },
+  { width: 834, height: 900 }, { width: 1024, height: 768 },
+  { width: 1180, height: 820 }, { width: 1365, height: 900 },
+];
 const TABS = ['dashboard', 'myteam', 'compare', 'trades', 'fa', 'draft', 'analytics', 'alex', 'trophies', 'calendar', 'strategy'];
 const CHROME = process.env.PLAYWRIGHT_CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PORT_START = Number(process.env.WARROOM_QA_PORT || 3210);
@@ -134,8 +142,7 @@ async function main() {
       if (['image', 'font', 'media'].includes(type)) return route.abort();
       return route.continue();
     });
-    for (const width of WIDTHS) {
-      const height = width <= 430 ? 900 : 900;
+    for (const { width, height } of SIZES) {
       for (const tab of TABS) {
         const page = await context.newPage();
         await page.setViewportSize({ width, height });
@@ -244,6 +251,109 @@ async function main() {
     await page.close();
     checked++;
     process.stdout.write('.');
+
+    // ── iPad tier contracts (iPad pass, 2026-07-12) ──────────────────
+    // 744×1133 (iPad mini portrait) = PHONE tier by ruling: one-row phone
+    // header + dock, NO hamburger. 810×1080 (iPad 10.2 portrait) = tablet
+    // drawer tier: hamburger present and CLEAR of the league title.
+    {
+      const mini = await context.newPage();
+      await mini.setViewportSize({ width: 744, height: 1133 });
+      await mini.addInitScript(u => {
+        try { localStorage.setItem('wr_tutorial_done_v1', '1'); localStorage.setItem('dynastyhq_username', u); } catch (e) {}
+      }, USER);
+      await mini.goto(`http://127.0.0.1:${port}${BASE_PATH}?dev=true&user=${USER}#league=${LEAGUE_ID}&tab=dashboard`, { waitUntil: 'domcontentloaded', timeout: 12000 });
+      await mini.locator('.wr-phone-lhdr').waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
+      if (await mini.locator('.wr-hamburger').count() !== 0) failures.push('ipad-mini@744: hamburger should not render (phone tier by ruling)');
+      if (await mini.locator('.wr-phone-lhdr').count() !== 1) failures.push('ipad-mini@744: one-row phone header not found');
+      if (await mini.locator('.wr-phone-dock').count() !== 1) failures.push('ipad-mini@744: phone dock not found');
+      await mini.close();
+      checked++;
+      process.stdout.write('.');
+
+      const tab810 = await context.newPage();
+      await tab810.setViewportSize({ width: 810, height: 1080 });
+      await tab810.addInitScript(u => {
+        try { localStorage.setItem('wr_tutorial_done_v1', '1'); localStorage.setItem('dynastyhq_username', u); } catch (e) {}
+      }, USER);
+      await tab810.goto(`http://127.0.0.1:${port}${BASE_PATH}?dev=true&user=${USER}#league=${LEAGUE_ID}&tab=dashboard`, { waitUntil: 'domcontentloaded', timeout: 12000 });
+      await tab810.locator('.wr-hamburger').waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
+      const drawerSnap = await tab810.evaluate(() => {
+        const ham = document.querySelector('.wr-hamburger');
+        const row = document.querySelector('.wr-league-header-row');
+        const title = document.querySelector('.wr-league-header-row .header-title') || row;
+        return {
+          ham: !!ham, dock: !!document.querySelector('.wr-phone-dock'),
+          hamRect: ham ? ham.getBoundingClientRect().toJSON() : null,
+          titleRect: title ? title.getBoundingClientRect().toJSON() : null,
+          rowPadLeft: row ? parseFloat(getComputedStyle(row).paddingLeft) : -1,
+        };
+      });
+      if (!drawerSnap.ham) failures.push('ipad-tablet@810: hamburger missing (drawer-tier contract)');
+      if (drawerSnap.dock) failures.push('ipad-tablet@810: phone dock must not render at tablet tier');
+      if (drawerSnap.rowPadLeft < 44) failures.push(`ipad-tablet@810: header row padding-left ${drawerSnap.rowPadLeft} < 44 (title clearance)`);
+      if (drawerSnap.ham && drawerSnap.hamRect && drawerSnap.titleRect
+        && drawerSnap.titleRect.left < drawerSnap.hamRect.right - 1
+        && drawerSnap.titleRect.top < drawerSnap.hamRect.bottom
+        && drawerSnap.titleRect.bottom > drawerSnap.hamRect.top) {
+        failures.push(`ipad-tablet@810: league title intersects hamburger ${JSON.stringify({ ham: drawerSnap.hamRect, title: drawerSnap.titleRect })}`);
+      }
+      await tab810.close();
+      checked++;
+      process.stdout.write('.');
+    }
+
+    // ── Coarse-pointer pass (iPad pass, 2026-07-12) ──────────────────
+    // isMobile+hasTouch makes Chromium report (pointer:coarse)+(hover:none),
+    // so the iPad coarse block's rules are ASSERTED here, not just shipped.
+    // env(safe-area-inset-*) is 0 in emulation — the --sat probe overrides
+    // the token and asserts the plumbing moved the chrome by exactly 47px.
+    {
+      const coarseCtx = await browser.newContext({ hasTouch: true, isMobile: true, viewport: { width: 1180, height: 820 } });
+      await coarseCtx.route('**/*', route => {
+        const type = route.request().resourceType();
+        if (['image', 'font', 'media'].includes(type)) return route.abort();
+        return route.continue();
+      });
+      const cp = await coarseCtx.newPage();
+      await cp.addInitScript(u => {
+        try { localStorage.setItem('wr_tutorial_done_v1', '1'); localStorage.setItem('dynastyhq_username', u); } catch (e) {}
+      }, USER);
+      await cp.goto(`http://127.0.0.1:${port}${BASE_PATH}?dev=true&user=${USER}#league=${LEAGUE_ID}&tab=trades`, { waitUntil: 'domcontentloaded', timeout: 12000 });
+      await cp.waitForTimeout(900);
+      const coarseSnap = await cp.evaluate(() => {
+        const out = {
+          coarse: matchMedia('(hover: none) and (pointer: coarse)').matches,
+          sidebarOverflow: (() => { const sb = document.querySelector('.wr-sidebar'); return sb ? getComputedStyle(sb).overflowY : 'missing'; })(),
+        };
+        const hdr = document.querySelector('header.header');
+        const padBefore = hdr ? parseFloat(getComputedStyle(hdr).paddingTop) : -1;
+        document.documentElement.style.setProperty('--sat', '47px');
+        const padAfter = hdr ? parseFloat(getComputedStyle(hdr).paddingTop) : -1;
+        out.satDelta = Math.round(padAfter - padBefore);
+        document.documentElement.style.removeProperty('--sat');
+        return out;
+      });
+      if (!coarseSnap.coarse) failures.push('coarse@1180: (hover:none)+(pointer:coarse) did not match under touch emulation');
+      if (coarseSnap.sidebarOverflow !== 'auto') failures.push(`coarse@1180: .wr-sidebar overflow-y=${coarseSnap.sidebarOverflow}, expected auto (F1)`);
+      if (coarseSnap.satDelta !== 47) failures.push(`coarse@1180: header --sat plumbing moved ${coarseSnap.satDelta}px, expected 47`);
+      // Halo engagement: the 26px one-tap "+" must win taps 13px above its
+      // visual box (44×44 ::after). Needs Deal HQ rows (Pro dev login).
+      await cp.locator('.tc-dhq-add-btn').first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+      const haloHit = await cp.evaluate(() => {
+        const btn = document.querySelector('.tc-dhq-add-btn');
+        if (!btn) return 'no-btn';
+        const r = btn.getBoundingClientRect();
+        const el = document.elementFromPoint(r.left + r.width / 2, r.top - 8);
+        return el === btn || btn.contains(el) ? 'hit' : 'miss:' + (el ? el.className || el.tagName : 'null');
+      });
+      if (haloHit !== 'hit' && haloHit !== 'no-btn') failures.push(`coarse@1180: add-btn halo hit-test failed (${haloHit})`);
+      if (haloHit === 'no-btn') console.log('\n  note: coarse add-btn probe skipped (no Deal HQ rows rendered)');
+      await cp.close();
+      await coarseCtx.close();
+      checked++;
+      process.stdout.write('.');
+    }
 
     const empirePage = await context.newPage();
     await empirePage.setViewportSize({ width: 1365, height: 900 });
