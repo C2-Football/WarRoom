@@ -1354,6 +1354,12 @@
                                 <span>Priority Moves</span>
                                 <em>{topAdds.length} add targets · {swapRows.length} swaps</em>
                             </div>
+                            {/* Add targets | swaps ride side by side when the panel is
+                                wide (owner ask 2026-07-12 — stacked full-width cards
+                                left half the panel empty); auto-stacks below ~640px. */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '4px 16px', alignItems: 'start' }}>
+                            <div>
+                            <div className="fa-hq-subhead" style={{ marginTop: 0 }}>Add Targets</div>
                             <div className="fa-hq-stack">
                                 {topAdds.length ? topAdds.map((x, i) => (
                                     <button key={x.pid} className="fa-hq-mini-card" title="Open player card" onClick={() => openFaPlayer(x.pid)}>
@@ -1374,8 +1380,10 @@
                                     </div>
                                 );
                             })()}
+                            </div>
 
-                            <div className="fa-hq-subhead">Best Add/Drop Upgrades</div>
+                            <div>
+                            <div className="fa-hq-subhead" style={{ marginTop: 0 }}>Best Add/Drop Upgrades</div>
                             <div className="fa-hq-stack">
                                 {swapRows.length ? swapRows.map(pair => (
                                     <button key={pair.drop.pid + '-' + pair.add.pid} className="fa-hq-swap" title="Open player card" onClick={() => openFaPlayer(pair.add.pid)}>
@@ -1383,6 +1391,8 @@
                                         <span><b>Add</b>{playerName(pair.add.p)}<em>+{pair.gain.toLocaleString()}</em></span>
                                     </button>
                                 )) : <div className="fa-hq-empty">No obvious add/drop upgrade found from the current wire.</div>}
+                            </div>
+                            </div>
                             </div>
 
                             <div className="fa-hq-subhead">Fresh Drop Alerts</div>
