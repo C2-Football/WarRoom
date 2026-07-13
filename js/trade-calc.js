@@ -516,7 +516,7 @@
                                                 return (
                                                     <div key={pkId} className={`tc-ta-roster-item${added?' tc-added':''}`} onClick={() => !added && addPick(side, pkId)}>
                                                         <span className="tc-ta-pos-dot" style={{ background: pickColor }} />
-                                                        <span style={{ flex:1, fontWeight:600 }}>{pickLabel(year, round, fromRosterId, slot)}{!isOwn2 && via && <span style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.3rem' }}>via {via}</span>}</span>
+                                                        <span className="tc-ta-pick-name" style={{ flex:1, fontWeight:600 }}>{pickLabel(year, round, fromRosterId, slot)}{!isOwn2 && via && <span style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.3rem' }}>via {via}</span>}</span>
                                                         <span className="tc-ta-player-val" style={{ color: pickColor }}>{val.toLocaleString()}</span>
                                                     </div>
                                                 );
@@ -2441,7 +2441,7 @@
                                                     React.createElement('span', { style:{fontFamily:'var(--font-title)',fontSize:'0.9rem',color:d.color,fontWeight:700,letterSpacing:'0.03em'} }, d.label)
                                                 ),
                                                 React.createElement('div', { style:{fontSize:'0.7rem',color:'var(--silver)',lineHeight:1.45,marginBottom:'4px'} }, d.desc),
-                                                d.strategy ? React.createElement('div', { style:{fontSize:'var(--text-micro, 0.6875rem)',color:d.color,opacity:0.85,fontStyle:'italic',paddingTop:'4px',borderTop:'1px dashed '+wrAlpha(d.color, '33'),marginTop:'4px'} }, '→ ' + d.strategy) : null,
+                                                d.strategy ? React.createElement('div', { style:{fontSize:'var(--text-micro, 0.6875rem)',color:'var(--silver)',fontStyle:'italic',lineHeight:1.4,paddingTop:'4px',borderTop:'1px dashed '+wrAlpha(d.color, '33'),marginTop:'4px'} }, '→ ' + d.strategy) : null,
                                                 d.taxes && d.taxes.length ? React.createElement('div', { style:{display:'flex',flexWrap:'wrap',gap:'3px',marginTop:'5px'} },
                                                     ...d.taxes.slice(0, 3).map(function(t,i){ return React.createElement('span', { key:i, style:{fontSize:'var(--text-micro, 0.6875rem)',padding:'1px 4px',borderRadius:'3px',border:'1px solid '+wrAlpha(d.color, '40'),color:d.color,background:wrAlpha(d.color, '08')} }, t); })
                                                 ) : null
@@ -2651,7 +2651,7 @@
                         {dnaKey && dnaKey !== 'NONE' && dna.desc && (
                             <div style={{ marginTop: '8px', padding: '8px 10px', background: wrAlpha(dna.color, '08'), borderLeft: '3px solid ' + dna.color, borderRadius: '0 6px 6px 0' }}>
                                 <div style={{ fontSize: '0.74rem', color: 'var(--silver)', lineHeight: 1.5 }}>{dna.desc}</div>
-                                {dna.strategy && <div style={{ marginTop: '4px', fontSize: '0.72rem', color: dna.color, opacity: 0.9, fontStyle: 'italic' }}>→ {dna.strategy}</div>}
+                                {dna.strategy && <div style={{ marginTop: '4px', fontSize: '0.72rem', color: 'var(--silver)', fontStyle: 'italic', lineHeight: 1.4 }}>→ {dna.strategy}</div>}
                             </div>
                         )}
                     </div>

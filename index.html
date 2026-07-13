@@ -1802,6 +1802,13 @@ WRShared.preloadMany(WR_SHARED_FILES);
         .tc-ta-side { overflow: hidden; padding: 0.45rem 0.4rem; gap: 0.3rem; font-size: 0.72rem; }
         .tc-ta-player-row { padding: 0.28rem 0.35rem; gap: 0.3rem; }
         .tc-ta-roster-item { padding: 0.25rem 0.35rem; font-size: 0.82rem; }
+        /* Side-by-side trade builder (owner ask): the pick rows' "via {owner}"
+           names had no ellipsis and forced the roster list wider than the
+           ~180px column, so it scrolled horizontally and dragged every row
+           left. Clip the list and ellipsize the pick name — the value on the
+           right stays visible instead of scrolling off. */
+        .tc-ta-roster-list-tall { overflow-x: hidden; }
+        .tc-ta-pick-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .tc-ta-pos-group-hdr { font-size: 0.74rem; padding: 0.18rem 0.35rem; }
         .tc-ta-total-val { font-size: 1.15rem; }
         .tc-ta-val-col { width: 42px; }
