@@ -42,10 +42,8 @@ function MyTeamTab({
   setAlexAvatar,
   setAvatarKey,
 
-  // Navigation / Recon panel
+  // Navigation
   setActiveTab,
-  setReconPanelOpen,
-  sendReconMessage,
 
   // Misc
   timeRecomputeTs,
@@ -1132,7 +1130,9 @@ function MyTeamTab({
 
                   {/* Action buttons */}
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button onClick={e => { e.stopPropagation(); const playerName = r.p.full_name || getPlayerName(r.pid); setReconPanelOpen(true); sendReconMessage("I'd like help with " + playerName + ". Here are my options:\n1. Who are the best trade partners for " + playerName + "?\n2. What's the long-term projection for " + playerName + "?\n3. Should I hold or sell " + playerName + " right now?"); }} style={{ padding: '7px 16px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'rgba(124,107,248,0.15)', color: 'var(--purple)', border: '1px solid rgba(124,107,248,0.3)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>ASK ALEX</button>
+                    {/* Opens the player card, which has its own one-shot "Ask Alex"
+                        trade-idea button (chat handoff retired). */}
+                    <button onClick={e => { e.stopPropagation(); window.WR?.openPlayerCard?.(r.pid, { context: 'my-team-ask-alex' }); }} style={{ padding: '7px 16px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'rgba(124,107,248,0.15)', color: 'var(--purple)', border: '1px solid rgba(124,107,248,0.3)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>ASK ALEX</button>
                     {/* Phase 2: News button removed per user feedback (2026-04-18) */}
                     {/* TRADE BLOCK/CUT/UNTOUCHABLE/WATCH buttons removed 2026-07-09 \u2014
                         rolled into the verdict picker (tap the call badge above). */}

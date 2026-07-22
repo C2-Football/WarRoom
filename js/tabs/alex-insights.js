@@ -575,6 +575,70 @@
     }
     function clearCachedAiInsights(props) { try { localStorage.removeItem(getAiCacheKey(props)); } catch (_) {} }
 
+    // ── Team Diagnosis (one-shot AI card, resurrected — was only reachable
+    // via the now-retired chat onboarding wizard) ──────────────────────
+    const TEAM_DIAG_CACHE_KEY = 'wr_team_diagnosis';
+    function getTeamDiagCacheKey(props) {
+        const leagueId = getLeagueId(props);
+        const user = window.OD?.getCurrentUsername?.() || window.S?.user?.username || window.S?.user?.display_name || 'anon';
+        return TEAM_DIAG_CACHE_KEY + ':' + user + ':' + leagueId;
+    }
+    function loadCachedTeamDiagnosis(props) {
+        try {
+            const raw = JSON.parse(localStorage.getItem(getTeamDiagCacheKey(props)) || 'null');
+            return raw && raw.ts ? raw : { text: '', stateHash: '', ts: 0 };
+        } catch (_) { return { text: '', stateHash: '', ts: 0 }; }
+    }
+    function saveCachedTeamDiagnosis(props, text, stateHash) {
+        try { localStorage.setItem(getTeamDiagCacheKey(props), JSON.stringify({ text, stateHash, ts: Date.now() })); } catch (_) {}
+    }
+
+    // Same context shape the old onboarding-wizard call site built
+    // (league-detail.js, now retired) — full league-format detection,
+    // team-mode rules, and quality gates via the structured route.
+    async function generateTeamDiagnosis({ myRoster, currentLeague, playersData }) {
+        if (!window.OD?.callAI || !window.WR?.AIContext) return { error: 'AI not loaded' };
+        try {
+            const assessment = typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(myRoster?.roster_id) : null;
+            const base = window.WR.AIContext.buildStructuredBase(currentLeague, assessment, myRoster);
+            const diagRoster = (myRoster?.players || []).map(pid => {
+                const p = playersData?.[pid];
+                if (!p) return null;
+                return {
+                    name: p.full_name || `${p.first_name || ''} ${p.last_name || ''}`.trim(),
+                    pos: window.App?.normPos?.(p.position) || p.position,
+                    age: p.age || null,
+                    value: window.App?.LI?.playerScores?.[pid] || 0,
+                    isStarter: (myRoster?.starters || []).includes(pid),
+                };
+            }).filter(Boolean).sort((a, b) => b.value - a.value);
+            const context = {
+                ...base,
+                myOwner: window.S?.user?.display_name || window.S?.user?.username || '',
+                record: myRoster?.settings ? `${myRoster.settings.wins}-${myRoster.settings.losses}` : '',
+                needs: (assessment?.needs || []).map(n => n.urgency === 'deficit' ? `${n.pos}*` : n.pos),
+                strengths: assessment?.strengths || [],
+                myRoster: diagRoster,
+            };
+            const result = await window.OD.callAI({ type: 'team_diagnosis', context });
+            if (!result?.analysis) return { error: 'No diagnosis returned' };
+            return { text: result.analysis, stateHash: base.stateHash };
+        } catch (e) {
+            return { error: e?.message || 'AI call failed' };
+        }
+    }
+    // Alex-verdict-style markdown-lite → HTML (mirrors trade-calc.js's
+    // renderAlexVerdict formatter — same 4-section **HEADER** shape).
+    function teamDiagnosisHtml(text) {
+        if (!text) return '';
+        return text
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/\*\*([^*\n]+)\*\*/g, '<strong style="color:var(--gold);font-weight:700">$1</strong>')
+            .replace(/^- (.+)$/gm, '<div style="padding-left:0.8rem;margin:0.12rem 0">• $1</div>')
+            .replace(/\n\n/g, '<div style="margin:0.45rem 0"></div>')
+            .replace(/\n/g, '<br>');
+    }
+
     async function generateAiInsights({ myRoster, currentLeague, playersData }, kpis, heuristicTitles) {
         const structuredFn = (window.OD?.callAI && window.WR?.AIContext) ? window.OD.callAI : null;
         const aiFn = typeof window.dhqAI === 'function' ? window.dhqAI : null;
@@ -759,6 +823,43 @@
             setAiError(null);
         }, [props?.currentLeague?.id, props?.currentLeague?.league_id, isPro]);
 
+        // Team Diagnosis — one-shot, keyed to a hash of the current roster +
+        // league + GM strategy (same idiom as trade_verdict's dealKey). A
+        // strategy edit changes the hash, so the stale read is never shown
+        // as current — no event listener needed, just re-derive on render.
+        const [teamDiag, setTeamDiag] = useState(() => isPro ? loadCachedTeamDiagnosis(props) : { text: '', stateHash: '', ts: 0 });
+        const [teamDiagLoading, setTeamDiagLoading] = useState(false);
+        const [teamDiagError, setTeamDiagError] = useState(null);
+        const [teamDiagFeedback, setTeamDiagFeedback] = useState(null);
+        useEffect(() => {
+            setTeamDiag(isPro ? loadCachedTeamDiagnosis(props) : { text: '', stateHash: '', ts: 0 });
+            setTeamDiagError(null); setTeamDiagFeedback(null);
+        }, [props?.currentLeague?.id, props?.currentLeague?.league_id, isPro]);
+        const currentStateHash = React.useMemo(() => {
+            if (!window.WR?.AIContext) return '';
+            const { myRoster, currentLeague } = props || {};
+            return window.WR.AIContext.stateHashFor(currentLeague, myRoster, window.WR?.GmMode?.promptBlock?.(getLeagueId(props)) || '');
+        }, [props, kpis]);
+        const teamDiagStale = teamDiag.text && teamDiag.stateHash !== currentStateHash;
+        const doGenerateTeamDiag = async () => {
+            if (!isPro) {
+                if (window.showProLaunchPage) window.showProLaunchPage();
+                else if (window.showUpgradePrompt) window.showUpgradePrompt('briefing_reasoning');
+                return;
+            }
+            setTeamDiagLoading(true); setTeamDiagError(null);
+            const r = await generateTeamDiagnosis(props);
+            setTeamDiagLoading(false);
+            if (r.error) { setTeamDiagError(r.error); return; }
+            setTeamDiag({ text: r.text, stateHash: r.stateHash, ts: Date.now() });
+            setTeamDiagFeedback(null);
+            saveCachedTeamDiagnosis(props, r.text, r.stateHash);
+        };
+        const sendTeamDiagFeedback = (action) => {
+            setTeamDiagFeedback(action);
+            window.WR?.AIFeedback?.send?.({ leagueId: getLeagueId(props), surface: 'team_diagnosis', recId: teamDiag.stateHash || 'current', action });
+        };
+
         const doGenerate = async () => {
             // Trigger gate (D9 row 12): the button is hidden for free, but a
             // BYOK user could still reach this path — never fire AI for free.
@@ -793,6 +894,44 @@
         const cacheAge = aiState?.ts ? Math.round((Date.now() - aiState.ts) / 60000) : null;
 
         return h(React.Fragment, null,
+            // Team Diagnosis — one-shot card, ask once. Pro only; free sees
+            // nothing here (matches the rest of this tab's free/Pro split).
+            isPro && h('div', { style: { marginBottom: 'var(--card-gap, 16px)' } },
+                !teamDiag.text && h('button', {
+                    onClick: doGenerateTeamDiag,
+                    disabled: teamDiagLoading,
+                    style: {
+                        display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px',
+                        padding: '6px 12px', borderRadius: '6px', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600,
+                        fontFamily: 'var(--font-body)',
+                        background: teamDiagLoading ? 'rgba(124,107,248,0.08)' : 'rgba(124,107,248,0.12)',
+                        border: '1px solid rgba(124,107,248,0.35)', color: 'var(--purple)',
+                        cursor: teamDiagLoading ? 'wait' : 'pointer', opacity: teamDiagLoading ? 0.7 : 1,
+                    },
+                }, '✨ ', teamDiagLoading ? 'Reading your team…' : 'Get Alex’s Team Diagnosis'),
+                teamDiagError && h('div', { style: { padding: '10px 14px', background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: '6px', fontSize: 'var(--text-body, 1rem)', color: 'var(--bad)' } },
+                    'Alex couldn’t diagnose your team: ', teamDiagError),
+                teamDiag.text && h(window.GMMessage, { title: 'Team Diagnosis' },
+                    window.WR?.ClampedRead
+                        ? h(window.WR.ClampedRead, { maxHeight: 104 }, h('div', { dangerouslySetInnerHTML: { __html: teamDiagnosisHtml(teamDiag.text) } }))
+                        : h('div', { dangerouslySetInnerHTML: { __html: teamDiagnosisHtml(teamDiag.text) } }),
+                    teamDiagStale && h('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6, margin: '8px 0' } },
+                        'Your strategy or roster changed since this read.'),
+                    h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', flexWrap: 'wrap' } },
+                        h('button', {
+                            onClick: doGenerateTeamDiag, disabled: teamDiagLoading,
+                            style: { background: 'none', border: '1px solid rgba(124,107,248,0.35)', borderRadius: '4px', color: 'var(--purple)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px', minHeight: '32px' },
+                        }, teamDiagLoading ? 'Reading…' : (teamDiagStale ? 'Regenerate' : 'Refresh')),
+                        teamDiagFeedback
+                            ? h('span', { style: { fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6 } }, teamDiagFeedback === 'up' ? 'Glad it helped.' : 'Noted — Alex learns from this.')
+                            : h(React.Fragment, null,
+                                h('span', { style: { fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6 } }, 'Useful?'),
+                                h('button', { onClick: () => sendTeamDiagFeedback('up'), style: { background: 'none', border: '1px solid rgba(124,107,248,0.25)', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px' } }, 'Agree'),
+                                h('button', { onClick: () => sendTeamDiagFeedback('down'), style: { background: 'none', border: '1px solid rgba(124,107,248,0.25)', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px' } }, 'Disagree')
+                            )
+                    )
+                )
+            ),
             // Phone: the 4 tiles ride one horizontally-snapping band instead
             // of the stacked 1-col grid — same Kpi elements, same gates.
             h('div', { className: _phone ? 'wr-kpi-strip gmoff-kpis' : 'gm-office-kpi-grid' },

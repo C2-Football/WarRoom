@@ -17,7 +17,7 @@
     // ══════════════════════════════════════════════════════════════════════════
     // DRAFT TAB — migrated from draft-warroom.html
     // ══════════════════════════════════════════════════════════════════════════
-    function DraftTab({ playersData, statsData, myRoster, currentLeague, leagueSkin, sleeperUserId, setReconPanelOpen, sendReconMessage, timeRecomputeTs, viewMode }) {
+    function DraftTab({ playersData, statsData, myRoster, currentLeague, leagueSkin, sleeperUserId, timeRecomputeTs, viewMode }) {
         // Scout-free vs Pro (js/shared/pro-gate.js). Fail-open so the tab never
         // breaks if the gate isn't loaded. Evaluated per render (reconai precedent).
         // Free keeps: raw board + tiers + tags + saved views, pick inventory,
@@ -76,6 +76,26 @@
         const [draftedPids, setDraftedPids] = useState(new Set());
         const [boardNotes, setBoardNotes] = useState({});
         const [boardTags, setBoardTags] = useState({}); // pid -> 'target'|'avoid'|'sleeper'|'must'
+        // AI scouting report — one-shot, ask once (replaced the old chat handoff).
+        // Keyed by pid: null | {loading} | {error} | {text}
+        const [aiScoutReports, setAiScoutReports] = useState({});
+        async function requestAiScoutReport(r, pos, college, team, age, rankStr, tierStr, isSeasonalDraft) {
+            const pid = r.pid;
+            const name = pName(r.p);
+            setAiScoutReports(prev => ({ ...prev, [pid]: { loading: true } }));
+            try {
+                if (typeof window.dhqAI !== 'function') { setAiScoutReports(prev => ({ ...prev, [pid]: { error: 'AI not loaded' } })); return; }
+                const context = isSeasonalDraft
+                    ? (posLabel(pos) + ', ' + (team || 'FA') + ', age ' + (age || 'unknown') + ', ' + rankStr + ' board rank, ' + tierStr + ' tier')
+                    : (posLabel(pos) + ', ' + college);
+                const message = 'Give me a full ' + (isSeasonalDraft ? 'redraft NFL player scouting report' : 'rookie scouting report')
+                    + ' on ' + name + ' (' + context + '). Include role, production profile, weekly floor, ceiling, risk, comparable players, and where I should draft him in this league format.';
+                const text = await window.dhqAI('rookie-scout', message, null);
+                setAiScoutReports(prev => ({ ...prev, [pid]: { text: typeof text === 'string' ? text : '' } }));
+            } catch (e) {
+                setAiScoutReports(prev => ({ ...prev, [pid]: { error: e?.message || 'AI call failed' } }));
+            }
+        }
         const [boardMode, setBoardMode] = useState('dhq'); // 'dhq' | 'ai' | 'my'
         const [myBoardOrder, setMyBoardOrder] = useState([]); // custom ordered pid array
         const [boardPosFilter, setBoardPosFilter] = useState(''); // '' | 'QB' | 'RB' | 'WR' | 'TE' | 'DL' | 'LB' | 'DB'
@@ -3547,8 +3567,8 @@
                                                         <a href={(isSeasonalDraft ? 'https://www.pro-football-reference.com/search/search.fcgi?search=' : 'https://www.sports-reference.com/cfb/search/search.fcgi?search=') + encodeURIComponent(pName(r.p))} target="_blank" rel="noopener" title={isSeasonalDraft ? 'Open Pro Football Reference player search in a new tab' : 'Open Sports Reference college stats in a new tab'} onClick={e => e.stopPropagation()} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(52,152,219,0.12)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>{isSeasonalDraft ? 'PRO STATS' : 'COLLEGE STATS'}</a>
                                                         <a href={'https://www.youtube.com/results?search_query=' + encodeURIComponent(pName(r.p) + ' highlights ' + leagueSeason)} target="_blank" rel="noopener" onClick={e => e.stopPropagation()} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(231,76,60,0.12)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>HIGHLIGHTS</a>
                                                         <a href={'https://www.fantasypros.com/nfl/players/' + encodeURIComponent(((r.p.first_name || '') + '-' + (r.p.last_name || '')).toLowerCase().replace(/[^a-z-]/g, '')) + '.php'} target="_blank" rel="noopener" title="Open FantasyPros player news and profile in a new tab" aria-label={'Open FantasyPros news for ' + pName(r.p)} onClick={e => e.stopPropagation()} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(52,152,219,0.15)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.3)', borderRadius: 6, textDecoration: 'none', fontWeight: 800 }}>FANTASYPROS NEWS</a>
-                                                        {/* AI scouting chat entry point → Pro (clean absence for free) */}
-                                                        {isPro && <button type="button" onClick={e => {
+                                                        {/* AI scouting report — one-shot, ask once (chat handoff retired) → Pro */}
+                                                        {isPro && !aiScoutReports[r.pid]?.text && <button type="button" onClick={e => {
                                                             e.stopPropagation();
                                                             const name = pName(r.p);
                                                             const sections = [];
@@ -3559,14 +3579,16 @@
                                                             if (cs.notes) sections.push(cs.notes);
                                                             const fullText = sections.join('\n\n') || cs.summary || '';
                                                             window.dispatchEvent(new CustomEvent('wr:scouting-generate', { detail: { pid: r.pid, playerName: name, pos, college, summary: cs.summary || '', fullText } }));
-                                                            if (typeof sendReconMessage === 'function') {
-                                                                setReconPanelOpen(true);
-                                                                const context = isSeasonalDraft ? (posLabel(pos) + ', ' + (team || 'FA') + ', age ' + (age || 'unknown') + ', ' + rankStr + ' board rank, ' + tierStr + ' tier') : (posLabel(pos) + ', ' + college);
-                                                                sendReconMessage('Give me a full ' + (isSeasonalDraft ? 'redraft NFL player scouting report' : 'rookie scouting report') + ' on ' + name + ' (' + context + '). Include role, production profile, weekly floor, ceiling, risk, comparable players, and where I should draft him in this league format.');
-                                                            }
-                                                        }} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(124,107,248,0.15)', color: 'var(--purple)', border: '1px solid rgba(124,107,248,0.3)', borderRadius: 6, cursor: 'pointer', fontWeight: 800 }}>ASK ALEX</button>}
+                                                            requestAiScoutReport(r, pos, college, team, age, rankStr, tierStr, isSeasonalDraft);
+                                                        }} disabled={aiScoutReports[r.pid]?.loading} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(124,107,248,0.15)', color: 'var(--purple)', border: '1px solid rgba(124,107,248,0.3)', borderRadius: 6, cursor: 'pointer', fontWeight: 800 }}>{aiScoutReports[r.pid]?.loading ? 'THINKING…' : 'ASK ALEX'}</button>}
                                                         <button type="button" onClick={e => { e.stopPropagation(); setExpandedDraftPid(null); }} style={{ padding: '7px 10px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 6, cursor: 'pointer', fontWeight: 800 }}>COLLAPSE</button>
                                                     </div>
+                                                    {aiScoutReports[r.pid]?.error && (
+                                                        <div style={{ marginTop: 8, fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--bad)' }}>Alex couldn't generate a report: {aiScoutReports[r.pid].error}</div>
+                                                    )}
+                                                    {aiScoutReports[r.pid]?.text && (
+                                                        <div style={{ marginTop: 8, padding: '9px 10px', background: 'rgba(124,107,248,0.05)', border: '1px solid rgba(124,107,248,0.2)', borderRadius: 6, fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{aiScoutReports[r.pid].text}</div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>

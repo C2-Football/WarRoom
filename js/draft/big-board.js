@@ -98,7 +98,7 @@
         };
     }
 
-    function BigBoardPanel({ state, dispatch, isUserTurn }) {
+    function BigBoardPanel({ state, dispatch, isUserTurn, showPickAdvisory }) {
         const boardContext = state.draftContext?.boardContext || null;
         const lanes = boardContext?.lanes || {};
         const defaultLane = boardContext?.activeLane || 'dhq';
@@ -272,12 +272,37 @@
             return sorted.slice(0, 100);
         }, [decoratedPool, posFilter, search, sortKey, sortDir, hideDrafted]);
 
-        // Ask Alex about the board: opens recon chat pre-loaded with the
-        // top of the active lane (crossover, owner ask 2026-07-13).
-        const askAlexBoard = () => {
-            const top = available.filter(p => !p._drafted).slice(0, 3).map(p => p.name + (p.pos ? ' (' + normEdPos(p.pos) + ')' : '')).join(', ');
-            const msg = "I'm in a live draft" + (top ? ' — top of my board right now is ' + top : '') + '. Who should I target with my next pick and why, and is there a value falling that I should pivot to instead?';
-            try { window.dispatchEvent(new CustomEvent('wr:ask-alex', { detail: { message: msg } })); } catch (e) { /* chat seam unavailable */ }
+        // Pick advisory — deterministic (zero AI cost), same Recommended/Safe/
+        // Upside selection MockDecisionDeck already uses for the sim board
+        // (command-center.js), applied to the live pool. Replaces the old
+        // "💬 Ask Alex" chat handoff (chat is retired).
+        const pickAdvisory = React.useMemo(() => {
+            const pool = state.pool || [];
+            const best = pool[0] || null;
+            const safe = pool.find(p => Number(p.tier ?? p.csv?.tier ?? 99) <= 2 && p !== best) || pool[1] || best;
+            const upside = pool.find(p => (p.fit?.score || 0) >= 55 && p !== best && p !== safe) || pool[2] || best;
+            return { best, safe, upside };
+        }, [state.pool]);
+        const [alexTake, setAlexTake] = React.useState(null); // null | {loading} | {text}
+        const getAlexTake = async () => {
+            if (typeof window.AlexVoice?.enhance !== 'function' || typeof window.wrIsPro === 'function' && !window.wrIsPro()) return;
+            setAlexTake({ loading: true });
+            const { best, safe, upside } = pickAdvisory;
+            if (!best) { setAlexTake(null); return; }
+            const cacheKey = 'bb-take:' + [best, safe, upside].map(p => p?.pid || p?.name || '').join(',');
+            const context = JSON.stringify({
+                recommended: best && { name: best.name, pos: best.pos, dhq: best.dhq },
+                safe: safe && { name: safe.name, pos: safe.pos, dhq: safe.dhq },
+                upside: upside && { name: upside.name, pos: upside.pos, dhq: upside.dhq },
+            });
+            const text = await window.AlexVoice.enhance({
+                type: 'strategy-analysis',
+                message: 'In 1-2 sentences, give your gut take on this pick decision — lean toward the recommended name unless the upside swing is clearly worth it here.',
+                context,
+                fallback: null,
+                cacheKey,
+            });
+            setAlexTake(text ? { text } : null);
         };
 
         const availablePositions = React.useMemo(() => {
@@ -525,7 +550,6 @@
                 <div style={{ fontFamily: FONT_UI }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '7px' }}>
                         <div style={{ fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>Best Available</div>
-                        <button onClick={askAlexBoard} style={{ padding: '6px 10px', minHeight: '36px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', borderRadius: '4px', cursor: 'pointer', fontSize: MICRO, fontFamily: FONT_UI, fontWeight: 700, letterSpacing: '0.05em', flexShrink: 0, whiteSpace: 'nowrap' }}>💬 ASK ALEX</button>
                         <div style={{ fontSize: MICRO, color: 'var(--silver)', opacity: 0.65 }}>{state.pool.length} avail</div>
                     </div>
                     <div className="wr-seg" style={{ marginBottom: '7px' }}>
@@ -632,11 +656,36 @@
                     <div style={{ fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
                         Big Board
                     </div>
-                    <button onClick={askAlexBoard} style={{ padding: '3px 8px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', borderRadius: '4px', cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_UI, fontWeight: 700, letterSpacing: '0.05em', flexShrink: 0, whiteSpace: 'nowrap' }}>💬 ASK ALEX</button>
                     <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, fontFamily: FONT_UI }}>
                         {state.pool.length} avail
                     </div>
                 </div>
+
+                {/* Pick advisory — read-only (no click-to-draft; live picks are
+                    submitted on Sleeper, not here). Recommended/Safe/Upside are
+                    deterministic; "Alex's take" is an optional one-shot layer. */}
+                {showPickAdvisory && pickAdvisory.best && (
+                    <div style={{ marginBottom: '8px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
+                            {[
+                                { key: 'rec', label: 'Recommended', tone: '#2ecc71', p: pickAdvisory.best },
+                                { key: 'safe', label: 'Safe', tone: '#3498db', p: pickAdvisory.safe },
+                                { key: 'upside', label: 'Upside', tone: '#9b8afb', p: pickAdvisory.upside },
+                            ].map(row => row.p && (
+                                <div key={row.key} style={{ minWidth: 0, padding: '4px 6px', borderRadius: '5px', border: '1px solid ' + row.tone + '4d', background: row.tone + '14' }}>
+                                    <div style={{ fontSize: 'var(--text-micro, 0.625rem)', fontWeight: 800, color: row.tone, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{row.label}</div>
+                                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--text-primary)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.p.name}</div>
+                                    <div style={{ fontSize: 'var(--text-micro, 0.625rem)', color: 'var(--silver)', opacity: 0.7 }}>{row.p.pos || '—'} · DHQ {fmt(row.p.dhq)}</div>
+                                </div>
+                            ))}
+                        </div>
+                        {pro && (alexTake?.text
+                            ? <div style={{ marginTop: '5px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.85, lineHeight: 1.4 }}>✦ {alexTake.text}</div>
+                            : <button onClick={getAlexTake} disabled={alexTake?.loading} style={{ marginTop: '5px', padding: '2px 7px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', background: 'transparent', color: 'var(--gold)', borderRadius: '4px', cursor: 'pointer', fontSize: 'var(--text-micro, 0.625rem)', fontFamily: FONT_UI }}>
+                                {alexTake?.loading ? 'Thinking…' : '✨ Alex’s take'}
+                              </button>)}
+                    </div>
+                )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(' + laneOptions.length + ', 1fr)', gap: '4px', marginBottom: '6px' }}>
                     {laneOptions.map(lane => {

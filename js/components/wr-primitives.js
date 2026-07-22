@@ -262,6 +262,68 @@
         );
     }
 
+    // ── TradeIdeaCard ─────────────────────────────────────────────
+    // Renders a TRADE_CARD block (yourSide/theirSide/target/sleeperDM) —
+    // the structured trade proposal 'trade-chat' emits. Extracted from the
+    // Ask-Alex chat renderer (league-detail.js) so a one-shot trigger
+    // (player card, My Roster) gets the same fairness-bar/Copy-DM/Save
+    // treatment without needing the chat panel it used to live inside.
+    function TradeIdeaCard({ tradeCard, leagueId }) {
+        if (!tradeCard) return null;
+        const yours = (tradeCard.yourSide || []).reduce((s, a) => s + (a.dhq || 0), 0);
+        const theirs = (tradeCard.theirSide || []).reduce((s, a) => s + (a.dhq || 0), 0);
+        const diff = theirs - yours;
+        const pct = yours > 0 ? Math.round((diff / yours) * 100) : 0;
+        const color = pct >= 5 ? 'var(--k-2ecc71, #2ecc71)' : pct >= -5 ? 'var(--gold)' : 'var(--k-e74c3c, #e74c3c)';
+        const label = pct >= 5 ? 'You win by ' + pct + '%' : pct >= -5 ? 'Fair trade' : 'You lose by ' + Math.abs(pct) + '%';
+        const side = (assets, headLabel) => h('div', null,
+            h('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginBottom: '4px', fontFamily: 'var(--font-body)', textTransform: 'uppercase' } }, headLabel),
+            (assets || []).map((a, j) => h('div', { key: j, style: { padding: '3px 0', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))' } },
+                h('span', { style: { color: 'var(--text-primary)' } }, a.name),
+                h('span', { style: { color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)', marginLeft: '4px' } }, (a.dhq || 0).toLocaleString() + ' DHQ')
+            )),
+            h('div', { style: { marginTop: '4px', fontWeight: 700, color: 'var(--gold)', fontSize: 'var(--text-label, 0.75rem)' } },
+                'Total: ' + (assets || []).reduce((s, a) => s + (a.dhq || 0), 0).toLocaleString())
+        );
+        return h('div', { style: { marginTop: '10px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '10px', padding: '10px', fontSize: 'var(--text-body, 1rem)' } },
+            h('div', { style: { fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' } },
+                'Proposed Trade' + (tradeCard.target ? ' → ' + tradeCard.target : '')),
+            h('div', { style: { display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '8px', alignItems: 'start' } },
+                side(tradeCard.yourSide, 'You Give'),
+                h('div', { style: { display: 'flex', alignItems: 'center', fontSize: '1.2rem', color: 'var(--gold)', paddingTop: '16px' } }, '⇄'),
+                side(tradeCard.theirSide, 'You Get')
+            ),
+            h('div', { style: { marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' } },
+                h('div', { style: { flex: 1, height: '4px', borderRadius: '2px', background: 'var(--ov-5, rgba(255,255,255,0.08))', overflow: 'hidden' } },
+                    h('div', { style: { width: Math.min(100, 50 + pct) + '%', height: '100%', background: color, borderRadius: '2px' } })),
+                h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color, fontFamily: 'var(--font-body)' } }, label)
+            ),
+            h('div', { style: { display: 'flex', gap: '6px', marginTop: '8px' } },
+                tradeCard.sleeperDM && h('button', {
+                    onClick: () => { try { navigator.clipboard.writeText(tradeCard.sleeperDM); } catch (_) {} },
+                    style: { padding: '5px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', background: 'linear-gradient(135deg, var(--k-7c6bf8, #7c6bf8), var(--k-9b8afb, #9b8afb))', color: 'var(--k-ffffff, #ffffff)', border: 'none', borderRadius: '14px', cursor: 'pointer', minHeight: '32px' },
+                }, 'Copy DM'),
+                h('button', {
+                    onClick: () => {
+                        if (!leagueId) return;
+                        const P = window.WrTradePipeline;
+                        if (P) { P.append(leagueId, P.fromAlexCard(tradeCard)); return; }
+                        // trade-calc.js (WrTradePipeline's home) is deferred — if it
+                        // hasn't loaded yet, write the legacy shape; normalizeAll()
+                        // migrates it on the next Trade Log read.
+                        const keys = window.App?.WR_KEYS || window.WR_KEYS;
+                        const storage = window.App?.WrStorage || window.WrStorage;
+                        if (!keys?.SAVED_TRADES || !storage) return;
+                        const saved = storage.get(keys.SAVED_TRADES(leagueId)) || [];
+                        saved.unshift({ ...tradeCard, savedAt: Date.now() });
+                        storage.set(keys.SAVED_TRADES(leagueId), saved.slice(0, 60));
+                    },
+                    style: { padding: '5px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '14px', cursor: 'pointer', minHeight: '32px' },
+                }, 'Save')
+            )
+        );
+    }
+
     // ── ClampedRead ───────────────────────────────────────────────
     // Long-read disclosure, extracted from the My Roster Dynasty Read
     // pattern (js/tabs/my-team.js): clamps content to `maxHeight` px with
@@ -842,6 +904,7 @@
     window.WR.Chip = Chip;
     window.WR.ConfChip = ConfChip;
     window.WR.DeltaLine = DeltaLine;
+    window.WR.TradeIdeaCard = TradeIdeaCard;
     window.WR.Kpi = Kpi;
     window.WR.InsightCard = InsightCard;
     window.WR.ClampedRead = ClampedRead;

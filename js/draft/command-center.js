@@ -5639,7 +5639,7 @@
                     marginBottom: L.GRID_GAP + 'px',
                 }}>
                     <div style={{ minHeight: isCompact ? 'clamp(420px, 50vh, 560px)' : '100%', minWidth: 0 }}>
-                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} />
+                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={true} />
                     </div>
                     <div style={{ minHeight: isCompact ? 'clamp(420px, 50vh, 560px)' : '100%', minWidth: 0 }}>
                         <MyDraftRosterPanel state={state} />
@@ -6827,7 +6827,7 @@
                         tier) — do not double-pad here. */}
                     <MobileClockBar state={state} currentSlot={currentSlot} isUserTurn={isUserTurn} />
                     <div style={{ minHeight: 320, maxHeight: '56vh', marginBottom: 10 }}>
-                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} />
+                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={true} />
                     </div>
                     <div style={{ minHeight: 300, marginBottom: 10 }}>
                         <AlexStreamPanel state={state} dispatch={dispatch} />
@@ -6941,7 +6941,7 @@
                         </section>
                     ))}
                     <div style={{ marginBottom: 10 }}>
-                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} />
+                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={true} />
                     </div>
                 </div>)}
                 {phTab === 'roster' && (

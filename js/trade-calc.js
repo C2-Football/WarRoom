@@ -3612,33 +3612,6 @@
             </div>;
         }
 
-        // ── "Talk it through with Alex" — open the Alex chat pre-loaded with the
-        // live deal so the owner can interrogate it conversationally (grade,
-        // short-term vs long-term franchise impact, follow-ups). ON-REQUEST only
-        // (owner ask 2026-07-12: a button is cheaper than auto-firing an AI read
-        // on every builder edit). league-detail owns the chat; the wr:ask-alex
-        // window event is the cross-tab seam.
-        function askAlexAboutDeal() {
-            const pickText = (pkId) => {
-                const p = String(pkId).split('-');
-                const slot = (p[4] || '').charAt(0) === 's' ? Number(p[4].slice(1)) : null;
-                return formatPickLabel(p[1], Number(p[2]), p[3], slot);
-            };
-            const nameOf = pid => playersData[pid]?.full_name || ('player ' + pid);
-            const sideText = (side) => {
-                const bits = [...tradeIds[side].map(nameOf), ...tradePickIds[side].map(pickText)];
-                if ((tradeFaab[side] || 0) > 0) bits.push('$' + tradeFaab[side] + ' FAAB');
-                return bits.join(', ');
-            };
-            const partner = assessments.find(a => String(a.ownerId) === String(tradeOwner.B));
-            const msg = 'Evaluate the trade on my builder: I send ' + (sideText('A') || 'nothing yet')
-                + ' and get ' + (sideText('B') || 'nothing yet')
-                + (partner ? ' from ' + partner.ownerName : '')
-                + '. How does it grade for my franchise — impact this season and long term?';
-            setPhBuilderOpen(false); // phone: the chat sheet takes the stage
-            try { window.dispatchEvent(new CustomEvent('wr:ask-alex', { detail: { message: msg } })); } catch (e) { /* headless */ }
-        }
-
         // ── Builder-in-use test — drives the top-of-desk builder position and the
         // conditional Deal Intel rail (owner ask 2026-07-12: the intel side panel
         // only appears while a trade is actually being built).
@@ -4029,15 +4002,9 @@
         function renderAlexVerdict() {
             const v = computeManualVerdict();
             if (!v.hasTrade) return null;
-            // Chat handoff renders for EVERY tier (the chat send path enforces its
-            // own quota) — only the inline quick-check below is Pro-gated.
-            const chatBtn = (
-                <button type="button" onClick={askAlexAboutDeal} title="Open Alex chat pre-loaded with this deal — ask about short-term and long-term impact"
-                    style={{ width:'100%', marginTop:'8px', background:'transparent', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'6px', color:'var(--gold)', cursor:'pointer', fontFamily:'var(--font-body)', fontSize:'0.8rem', fontWeight:700, letterSpacing:'0.05em', padding:'9px 12px', minHeight:'44px' }}>
-                    💬 Talk it through with Alex
-                </button>
-            );
-            if (!canAccess('trade-quick-check')) return <div style={{ marginTop: '10px' }}>{chatBtn}</div>;
+            // Free tier: nothing renders here (AI is fully Pro-gated — chat's old
+            // free fallback is retired, not replaced, matching insight/waiver-take).
+            if (!canAccess('trade-quick-check')) return null;
             // Key the response to the deal's contents so editing the deal invalidates a stale verdict.
             const dealKey = [tradeIds.A.join(','), tradeIds.B.join(','), tradePickIds.A.join(','), tradePickIds.B.join(','), tradeFaab.A, tradeFaab.B].join('|');
             const current = alexVerdict && alexVerdict.dealKey === dealKey ? alexVerdict : null;
@@ -4082,7 +4049,6 @@
                             </div>
                         </GMMessage>
                     )}
-                    {chatBtn}
                 </div>
             );
         }

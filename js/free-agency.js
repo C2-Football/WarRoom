@@ -577,6 +577,63 @@
         return buildFreeAgencyActionBoard(args).priorityAdds[0] || null;
     };
 
+    // ── Waiver Take cache (24h, mirrors alex-insights.js's AI_CACHE_TTL_MS) ──
+    const WAIVER_TAKE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+    function waiverTakeCacheKey(currentLeague) {
+        const user = window.OD?.getCurrentUsername?.() || window.S?.user?.username || window.S?.user?.display_name || 'anon';
+        const leagueId = currentLeague?.league_id || currentLeague?.id || 'default';
+        return 'wr_waiver_take:' + user + ':' + leagueId;
+    }
+    function loadCachedWaiverTake(currentLeague) {
+        try {
+            const raw = JSON.parse(localStorage.getItem(waiverTakeCacheKey(currentLeague)) || 'null');
+            if (!raw || !raw.ts || Date.now() - raw.ts > WAIVER_TAKE_CACHE_TTL_MS) return { recommendations: [], ts: 0 };
+            return raw;
+        } catch (_) { return { recommendations: [], ts: 0 }; }
+    }
+    function saveCachedWaiverTake(currentLeague, recommendations) {
+        try { localStorage.setItem(waiverTakeCacheKey(currentLeague), JSON.stringify({ recommendations, ts: Date.now() })); } catch (_) {}
+    }
+    function clearCachedWaiverTake(currentLeague) {
+        try { localStorage.removeItem(waiverTakeCacheKey(currentLeague)); } catch (_) {}
+    }
+    // Defensive brace-matched JSON object extraction — the model is instructed
+    // to return raw JSON, but strips fences here in case it doesn't comply.
+    function extractWaiverTakeJson(reply) {
+        if (!reply || typeof reply !== 'string') return null;
+        let clean = reply.replace(/```(?:json)?\s*/gi, '').replace(/```\s*/g, '');
+        const first = clean.indexOf('{');
+        const last = clean.lastIndexOf('}');
+        if (first < 0 || last <= first) return null;
+        try {
+            const parsed = JSON.parse(clean.slice(first, last + 1));
+            return Array.isArray(parsed?.recommendations) ? parsed.recommendations : null;
+        } catch (_) { return null; }
+    }
+    async function generateWaiverTake(priorityAdds, currentLeague) {
+        if (typeof window.dhqAI !== 'function') return { error: 'AI not loaded' };
+        const gmBlock = window.WR?.GmMode?.promptBlock?.(currentLeague?.league_id || currentLeague?.id) || '';
+        const context = JSON.stringify({
+            gmStrategy: gmBlock || undefined,
+            // The board is pre-ranked/pre-filtered by the deterministic engine —
+            // this IS the "available list" waiver-agent's prompt is told never
+            // to stray from, so it can react/reorder but can't invent a player.
+            candidates: priorityAdds.slice(0, 6).map(x => ({
+                name: x.name, position: x.pos, dynastyValue: x.dhq,
+                fit: x.fit?.label, window: x.windowLabel,
+                faab_low: x.faab?.lo ?? null, faab_high: x.faab?.hi ?? null,
+            })),
+        });
+        try {
+            const reply = await window.dhqAI('waiver-agent', null, context);
+            const recommendations = extractWaiverTakeJson(reply);
+            if (!recommendations) return { error: 'Alex’s answer didn’t parse — try again' };
+            return { recommendations };
+        } catch (e) {
+            return { error: e?.message || 'AI call failed' };
+        }
+    }
+
     function FreeAgencyTab({ playersData, statsData, prevStatsData, myRoster, currentLeague, leagueSkin, sleeperUserId, timeRecomputeTs, viewMode, briefDraftInfo }) {
         const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
         const skinFeatures = resolvedLeagueSkin?.features || {};
@@ -585,6 +642,7 @@
         // HQ, priority adds, FAAB bids, fit/window reads, UDFA craze) are Pro;
         // the raw Market Explorer + filters stay free. Fail-open.
         const isPro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
+        const InsightCard = window.WR.InsightCard;
         // ══ PHONE (<768) — iPhone program Phase 1 (FA) ═══════════════════
         // Hooks are called HERE, unconditionally at the top of the component
         // (this file has conditional returns further down — roster blocker +
@@ -617,6 +675,19 @@
         const [faSort, setFaSort] = useState({ key: 'dhq', dir: -1 });
         const [faSelectedPid, setFaSelectedPid] = useState(null);
         const [faSearch, setFaSearch] = useState('');
+        // ── Waiver Take (one-shot AI card, no chat) ──────────────────────
+        // Ask once → structured take on the already-ranked Priority Moves list.
+        // Reuses the orphaned 'waiver-agent' DHQ_PROMPTS type — the deterministic
+        // board (priorityAdds, below) already IS the "available list" it's
+        // instructed never to stray from, so this can't invent players.
+        const [waiverTake, setWaiverTake] = useState(() => loadCachedWaiverTake(currentLeague));
+        const [waiverTakeLoading, setWaiverTakeLoading] = useState(false);
+        const [waiverTakeError, setWaiverTakeError] = useState(null);
+        const [waiverTakeFeedback, setWaiverTakeFeedback] = useState({});
+        useEffect(() => {
+            setWaiverTake(loadCachedWaiverTake(currentLeague));
+            setWaiverTakeError(null);
+        }, [currentLeague?.league_id, currentLeague?.id]);
         const [visibleFaCols, setVisibleFaCols] = useState(() => {
             const stored = window.App?.WrStorage?.get?.('wr_fa_cols');
             const valid = Array.isArray(stored) ? stored.filter(k => FA_COLUMNS[k]) : [];
@@ -1322,6 +1393,34 @@
             })
             .filter(x => x.top);
 
+        const doGenerateWaiverTake = async () => {
+            if (!isPro) {
+                if (window.showProLaunchPage) window.showProLaunchPage();
+                else if (window.showUpgradePrompt) window.showUpgradePrompt('briefing_reasoning');
+                return;
+            }
+            setWaiverTakeLoading(true); setWaiverTakeError(null);
+            const r = await generateWaiverTake(priorityAdds, currentLeague);
+            setWaiverTakeLoading(false);
+            if (r.error) { setWaiverTakeError(r.error); return; }
+            setWaiverTake({ recommendations: r.recommendations, ts: Date.now() });
+            saveCachedWaiverTake(currentLeague, r.recommendations);
+        };
+        const doClearWaiverTake = () => { clearCachedWaiverTake(currentLeague); setWaiverTake({ recommendations: [], ts: 0 }); };
+        const sendWaiverTakeFeedback = (rec, action) => {
+            setWaiverTakeFeedback(prev => ({ ...prev, [rec.name]: action }));
+            // 'fa_targets' is the pre-existing feedback surface allowlisted
+            // server-side for waiver/FA recs — no edge-function change needed.
+            window.WR?.AIFeedback?.send?.({
+                leagueId: currentLeague?.league_id || currentLeague?.id,
+                surface: 'fa_targets',
+                recId: 'waiver-take:' + rec.name,
+                action,
+                subject: { name: rec.name, position: rec.position },
+            });
+        };
+        const waiverTakeCacheAgeMin = waiverTake?.ts ? Math.round((Date.now() - waiverTake.ts) / 60000) : null;
+
         function renderCandidateRow(x, i, isPrimary) {
             const dhqCol = x.dhq >= 4000 ? 'var(--k-3498db, #3498db)' : x.dhq >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.45))';
             return (
@@ -1354,6 +1453,58 @@
                                 <span>Priority Moves</span>
                                 <em>{topAdds.length} add targets · {swapRows.length} swaps</em>
                             </div>
+                            {/* Waiver Take — one-shot AI card, ask once, no chat.
+                                Alex reacts to the deterministic board above, never
+                                picks players outside it. */}
+                            {isPro && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '2px 0 10px', flexWrap: 'wrap' }}>
+                                    <button
+                                        onClick={doGenerateWaiverTake}
+                                        disabled={waiverTakeLoading}
+                                        style={{
+                                            display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '32px',
+                                            padding: '5px 10px', borderRadius: '6px', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600,
+                                            fontFamily: 'var(--font-body)',
+                                            background: waiverTakeLoading ? 'rgba(124,107,248,0.08)' : 'rgba(124,107,248,0.12)',
+                                            border: '1px solid rgba(124,107,248,0.35)', color: 'var(--purple)',
+                                            cursor: waiverTakeLoading ? 'wait' : 'pointer', opacity: waiverTakeLoading ? 0.7 : 1,
+                                        }}
+                                    >✨ {waiverTakeLoading ? 'Thinking…' : (waiverTake.recommendations.length ? 'Regenerate Alex’s take' : 'Ask Alex')}</button>
+                                    {waiverTake.recommendations.length > 0 && (
+                                        <button onClick={doClearWaiverTake} style={{ minHeight: '32px', padding: '5px 8px', borderRadius: '6px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', background: 'transparent', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', color: 'var(--silver)', cursor: 'pointer' }}>Clear</button>
+                                    )}
+                                    {waiverTake.recommendations.length > 0 && waiverTakeCacheAgeMin != null && (
+                                        <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>
+                                            {waiverTakeCacheAgeMin < 1 ? 'just now' : waiverTakeCacheAgeMin < 60 ? waiverTakeCacheAgeMin + 'm ago' : Math.floor(waiverTakeCacheAgeMin / 60) + 'h ago'}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                            {waiverTakeError && (
+                                <div style={{ padding: '8px 10px', marginBottom: '10px', background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: '6px', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--bad)' }}>
+                                    Alex couldn't generate a take: {waiverTakeError}
+                                </div>
+                            )}
+                            {waiverTake.recommendations.length > 0 && (
+                                <div className="fa-hq-stack" style={{ marginBottom: '10px' }}>
+                                    {waiverTake.recommendations.slice(0, 3).map((rec, i) => (
+                                        <InsightCard
+                                            key={rec.name}
+                                            compact
+                                            severity={i === 0 ? 'opportunity' : 'pattern'}
+                                            title={rec.name + (rec.position ? ' · ' + rec.position : '')}
+                                            body={rec.reason}
+                                            ctaLabel={rec.faab_low != null ? 'Bid $' + rec.faab_low + '-' + rec.faab_high + ' FAAB' : (rec.copyText ? 'Copy Sleeper message' : null)}
+                                            ctaOnClick={() => { if (rec.copyText) { try { navigator.clipboard.writeText(rec.copyText); } catch (_) {} } }}
+                                            feedback={{
+                                                given: waiverTakeFeedback[rec.name] || null,
+                                                onUp: () => sendWaiverTakeFeedback(rec, 'up'),
+                                                onDown: () => sendWaiverTakeFeedback(rec, 'down'),
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            )}
                             {/* Add targets | swaps ride side by side when the panel is
                                 wide (owner ask 2026-07-12 — stacked full-width cards
                                 left half the panel empty); auto-stacks below ~640px. */}

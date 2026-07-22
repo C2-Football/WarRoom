@@ -55,17 +55,6 @@
     const CalendarTabLazy = wrLazyTab('calendar', 'Calendar', () => (typeof CalendarTab === 'function' ? CalendarTab : null));
     const LineupTabLazy = wrLazyTab('lineup', 'Lineup', () => (typeof window.LineupTab === 'function' ? window.LineupTab : null));
 
-    function escapeHtml(str) {
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
-    function markdownToHtml(str) {
-        return escapeHtml(str).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
-    }
 
     function wrCanPageScroll() {
         const doc = document.documentElement;
@@ -270,7 +259,7 @@
         if (!vp.isPhone || vp.kbOpen) return null;
         return <PhoneDockInner {...props} />;
     }
-    function PhoneDockInner({ activeTab, navItems, onSelectTab, onAskAlex }) {
+    function PhoneDockInner({ activeTab, navItems, onSelectTab }) {
         const stripRef = useRef(null);
         const chips = navItems.filter(item => item.tab);
 
@@ -321,17 +310,6 @@
                         );
                     })}
                 </div>
-                {/* Ask Alex — pinned marquee peer item (Scout's AI slot
-                    precedent): never scrolls with the strip. Free tier sees
-                    it too — the 1/day quota is enforced in the send path,
-                    not here. */}
-                <button type="button" className="wr-dock-ask" onClick={onAskAlex}
-                    aria-label="Ask Alex — open chat">
-                    {window.AlexAvatar
-                        ? <span aria-hidden="true" style={{ display: 'inline-flex' }}><window.AlexAvatar size={20} /></span>
-                        : <span className="wr-dock-ask-glyph" aria-hidden="true">{'✦'}</span>}
-                    <span aria-hidden="true">Alex</span>
-                </button>
             </nav>
         );
     }
@@ -952,10 +930,7 @@
         const [showColPicker, setShowColPicker] = useState(false);
         const [colPreset, setColPreset] = useState('default');
         const [expandedPid, setExpandedPid] = useState(null);
-        const [showAvatarPicker, setShowAvatarPicker] = useState(false);
         const [avatarKey, setAvatarKey] = useState(0); // force re-render when avatar changes
-        const [welcomeMode, setWelcomeMode] = useState(false); // centered modal for first-time welcome
-        const [showCornerToast, setShowCornerToast] = useState(false); // "I'll be down here" toast
         const [transactions, setTransactions] = useState([]);
         const [rankedTeams, setRankedTeams] = useState([]);
         const [dhqStatus, setDhqStatus] = useState({ loading: false, step: '', progress: 0 });
@@ -1381,34 +1356,11 @@
                 default: return { value: '\u2014', sub: '', color: 'var(--silver)' };
             }
         }
-        const [reconPanelOpen, setReconPanelOpen] = useState(false);
-        const [reconExpanded, setReconExpanded] = useState(false);
-        // PhoneDock "Ask Alex" bar: after the sheet opens, best-effort focus
-        // of the chat composer input (ref attached below). iOS may keep the
-        // keyboard down — programmatic focus outside the original tap
-        // gesture doesn't reliably raise it — so opening the sheet alone is
-        // the guaranteed behavior; the focus is a progressive enhancement.
-        const reconComposerRef = useRef(null);
-        const reconComposerFocusPending = useRef(false);
-        useEffect(() => {
-            if (reconPanelOpen && reconComposerFocusPending.current) {
-                reconComposerFocusPending.current = false;
-                try { reconComposerRef.current && reconComposerRef.current.focus(); } catch (_) { /* no-op */ }
-            }
-        }, [reconPanelOpen]);
-        // ── Phone tier (≤767): the Alex chat renders as a full-width bottom
-        // sheet in all three modes (welcome / docked / expanded). Desktop and
-        // tablet keep the exact pre-existing floating-panel styles.
+        // Phone-tier flag — used app-wide beyond the (now-retired) Alex chat
+        // sheet, e.g. the compact one-row phone header below.
         // WR.useViewport = js/shared/viewport.js (loaded before this file).
         const alexVp = window.WR.useViewport();
         const alexPhone = alexVp.isPhone;
-        // Keyboard lift: px gap reported by visualViewport while the iOS
-        // keyboard is up (0 when closed / off-phone). The sheet's bottom is
-        // offset by this so the composer stays visible above the keyboard.
-        const alexKb = (alexPhone && alexVp.kbOpen) ? alexVp.kbHeight : 0;
-        // Shared height cap for the phone sheet: dynamic viewport minus
-        // keyboard, notch (--sat) and an 8px top gap.
-        const alexSheetCap = 'calc(100dvh - ' + alexKb + 'px - var(--sat, 0px) - 8px)';
         const [showNotifications, setShowNotifications] = useState(false);
         // showAlerts removed — alerts now live on Brief tab
         const [briefDraftInfo, setBriefDraftInfo] = useState(null);
@@ -1551,15 +1503,6 @@
 
             return notes.sort((a, b) => (b.time || 0) - (a.time || 0)).slice(0, 10);
         }, [playersData, myRoster]);
-        // GM Onboarding wizard state
-        const gmIsUnconfigured = gmStrategy.mode === 'balanced' && !(gmStrategy.untouchable?.length) && !gmStrategy.notes && !(gmStrategy.targets?.length);
-        const [gmOnboardStep, setGmOnboardStep] = useState(0); // 0=not started, 1-4=steps, 5=done
-        const [reconMessages, setReconMessages] = useState(() => {
-            const saved = LeagueStorage.get(LEAGUE_WR_KEYS.CHAT(currentLeague?.league_id));
-            return (Array.isArray(saved) && saved.length > 1) ? saved
-                : [{ role: 'assistant', content: 'Ask me anything about your league, team, or players.' }];
-        });
-        const [reconInput, setReconInput] = useState('');
 
         useEffect(() => {
             if (activeTab === 'analytics' && !analyticsData && window.App?.LI_LOADED) {
@@ -1568,64 +1511,11 @@
             }
         }, [activeTab, analyticsData, timeRecomputeTs]);
 
-        // Keyboard shortcut: Cmd/Ctrl+K to toggle ReconAI panel
-        useEffect(() => {
-          const handler = e => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-              e.preventDefault();
-              setReconPanelOpen(prev => !prev);
-            }
-          };
-          window.addEventListener('keydown', handler);
-          return () => window.removeEventListener('keydown', handler);
-        }, []);
 
         useEffect(() => {
           window.__WR_SCROLL_FALLBACK_ACTIVE = true;
           window.addEventListener('wheel', rerouteWheelToPage, { passive: false, capture: true });
           return () => window.removeEventListener('wheel', rerouteWheelToPage, { capture: true });
-        }, []);
-
-        // First-time intro — auto-open the Alex chat greeting (replaces the old
-        // 7-step tutorial modal, owner ask). A Settings "Replay" bumps
-        // introReplayNonce, which re-runs this effect and re-opens the chat.
-        const [introReplayNonce, setIntroReplayNonce] = useState(0);
-        useEffect(() => {
-          if (!myRoster?.players?.length || !currentLeague?.league_id) return;
-          const welcomeKey = LEAGUE_WR_KEYS.WELCOMED(currentLeague.league_id);
-          // First run gates on the stored flag; a replay bump (nonce > 0) bypasses it.
-          if (introReplayNonce === 0) {
-            if (LeagueStorage.get(welcomeKey)) return;
-            LeagueStorage.set(welcomeKey, '1');
-          }
-          // Small delay so the app finishes rendering first. (The old tutorial
-          // pre-empt was removed — the intro IS this chat now, per owner ask.)
-          const t = setTimeout(() => {
-            setWelcomeMode(true);
-            setReconPanelOpen(true);
-            setReconMessages([{
-              role: 'assistant',
-              // Phase 10/1: strategy is now driven by GM Mode (header badge + GM's Office),
-              // not a per-chat prompt. Welcome copy references the persistent badge instead.
-              content: 'Hey — I\'m **Alex Ingram**, your AI GM, and War Room is your whole football office: **Home** and **My Roster** are your command center (every value read against *your* league scoring, not a generic list), **Trade Center** is where you build deals and read the owner across the table, **Free Agency** is the waiver desk where FAAB is leverage, and **Draft & Analytics** is draft command plus the league\'s full memory.\n\nA couple things to get us started:\n\n' +
-                '\u2022 **Ask me anything** — trades, waivers, draft strategy, player analysis\n' +
-                '\u2022 **Your GM Mode** (top of every page) already tells me whether we\'re rebuilding, competing, or winning now — change it anytime in GM\'s Office\n\n' +
-                'Let\'s get to work. What\'s on your mind? \u2014 Alex',
-              onboardChoices: [
-                { label: 'What should I do?', value: 'advice' },
-                { label: 'Pick Alex\'s look', value: 'avatar' }
-              ]
-            }]);
-            setGmOnboardStep(0); // reset so strategy onboarding can trigger next
-          }, introReplayNonce === 0 ? 1500 : 0);
-          return () => clearTimeout(t);
-        }, [myRoster?.players?.length, currentLeague?.league_id, introReplayNonce]);
-
-        // Settings "Replay GM Briefing" → re-open the Alex intro chat anytime.
-        useEffect(() => {
-          const h = () => setIntroReplayNonce(n => n + 1);
-          window.addEventListener('wr:replay-welcome', h);
-          return () => window.removeEventListener('wr:replay-welcome', h);
         }, []);
 
         // Provider weekly projections landed (WeeklyProj lazy fetch) → re-tick
@@ -1637,61 +1527,6 @@
           return () => window.removeEventListener('wr:projections-loaded', h);
         }, []);
 
-        // wr:ask-alex — any tab can open the Alex chat pre-loaded with a message
-        // (first consumer: the Trade Builder's "Talk it through with Alex",
-        // owner ask 2026-07-12). Ref indirection keeps the listener stable while
-        // always calling the latest sendReconMessage closure.
-        const askAlexHandlerRef = useRef(null);
-        askAlexHandlerRef.current = (message) => {
-          setReconPanelOpen(true);
-          if (message) sendReconMessage(String(message));
-        };
-        useEffect(() => {
-          const h = (e) => { if (askAlexHandlerRef.current) askAlexHandlerRef.current(e?.detail?.message); };
-          window.addEventListener('wr:ask-alex', h);
-          return () => window.removeEventListener('wr:ask-alex', h);
-        }, []);
-
-        // Handle welcome choices — exit welcome mode, show corner toast
-        function handleWelcomeChoice(value) {
-          setWelcomeMode(false);
-          if (value === 'strategy') {
-            setReconMessages(prev => [...prev.map(m => ({ ...m, onboardChoices: undefined })),
-              { role: 'user', content: 'Set my strategy' }
-            ]);
-            startGmOnboarding();
-          } else if (value === 'advice') {
-            setReconMessages(prev => prev.map(m => ({ ...m, onboardChoices: undefined })));
-            sendReconMessage('What are the top 3 moves I should make right now?');
-          } else if (value === 'avatar') {
-            setReconMessages(prev => prev.map(m => ({ ...m, onboardChoices: undefined })));
-            setShowAvatarPicker(true);
-          }
-          // Show "I'll be down here" toast after transition
-          if (value !== 'strategy' && value !== 'advice') {
-            setReconPanelOpen(false);
-            setTimeout(() => {
-              setShowCornerToast(true);
-              setTimeout(() => setShowCornerToast(false), 4000);
-            }, 300);
-          }
-        }
-
-        // Auto-trigger GM onboarding when panel opens with unconfigured strategy
-        // Phase 10/1: auto-triggered in-chat GM strategy onboarding removed.
-        // Strategy is now configured via the persistent GM Mode badge + GM's Office.
-        // Leaving startGmOnboarding() callable via the dead 'strategy' welcome-choice branch
-        // as a safety net in case any legacy link still passes value='strategy'.
-
-        // Persist chat messages to localStorage (cap at 20 messages)
-        useEffect(() => {
-          if (!currentLeague?.league_id || reconMessages.length <= 1) return;
-          // Don't persist if last message is loading indicator
-          const last = reconMessages[reconMessages.length - 1];
-          if (last?.content === '...') return;
-          const toSave = reconMessages.slice(-20).map(m => ({ role: m.role, content: m.content }));
-          LeagueStorage.set(LEAGUE_WR_KEYS.CHAT(currentLeague.league_id), toSave);
-        }, [reconMessages, currentLeague?.league_id]);
 
         // Compute power rankings when DHQ engine finishes or standings change
         useEffect(() => {
@@ -2422,313 +2257,6 @@
             return user?.display_name || user?.username || 'Unknown';
         }
 
-        // GM Onboarding wizard — conversational strategy setup
-        function startGmOnboarding() {
-          if (gmOnboardStep > 0) return;
-          setGmOnboardStep(1);
-          setReconMessages([{
-            role: 'assistant',
-            content: 'Welcome to Dynasty HQ. I\'m Alex — your AI General Manager. Before we get started, let me learn how you want to run this team.\n\n**First things first — are we competing for a title this year, or building for the future?**',
-            onboardChoices: [
-              { label: 'Win Now', value: 'contend' },
-              { label: 'Balanced', value: 'balanced' },
-              { label: 'Rebuilding', value: 'rebuild' }
-            ]
-          }]);
-        }
-
-        function handleOnboardChoice(value) {
-          const step = gmOnboardStep;
-          if (step === 1) {
-            const modeLabels = { contend: 'Win Now', balanced: 'Balanced', rebuild: 'Rebuilding' };
-            setGmStrategy(prev => ({ ...prev, mode: value }));
-            setReconMessages(prev => [...prev.map(m => ({ ...m, onboardChoices: undefined })),
-              { role: 'user', content: modeLabels[value] },
-              { role: 'assistant', content: value === 'contend'
-                ? 'Aggressive. I like it. We\'re going all-in.\n\n**How do you want to play it — conservative and calculated, or willing to swing big?**'
-                : value === 'rebuild'
-                ? 'Smart. Let\'s stack assets and build a dynasty.\n\n**How aggressive should we be with trades — swing for the fences, or play it safe?**'
-                : 'Flexible. We\'ll compete while keeping an eye on the future.\n\n**How aggressive should we be with trades?**',
-                onboardChoices: [
-                  { label: 'Conservative', value: 'conservative' },
-                  { label: 'Moderate', value: 'moderate' },
-                  { label: 'Aggressive', value: 'aggressive' }
-                ]
-              }
-            ]);
-            setGmOnboardStep(2);
-          } else if (step === 2) {
-            setGmStrategy(prev => ({ ...prev, riskTolerance: value }));
-            const topPlayers = (myRoster?.players || [])
-              .sort((a, b) => (window.App?.LI?.playerScores?.[b] || 0) - (window.App?.LI?.playerScores?.[a] || 0))
-              .slice(0, 6);
-            setReconMessages(prev => [...prev.map(m => ({ ...m, onboardChoices: undefined })),
-              { role: 'user', content: value.charAt(0).toUpperCase() + value.slice(1) },
-              { role: 'assistant', content: 'Got it.\n\n**Anyone on your roster you\'d never trade? Your untouchables.** Tap to select — or skip if everyone has a price.',
-                onboardChoices: topPlayers.map(pid => ({
-                  label: (playersData[pid]?.full_name || pid),
-                  value: pid,
-                  multi: true
-                })),
-                onboardMulti: true,
-                onboardSkip: true
-              }
-            ]);
-            setGmOnboardStep(3);
-          } else if (step === 3) {
-            // value is array of pids or 'skip'
-            if (value !== 'skip' && Array.isArray(value) && value.length) {
-              setGmStrategy(prev => ({ ...prev, untouchable: value }));
-              const names = value.map(pid => playersData[pid]?.full_name || pid).join(', ');
-              setReconMessages(prev => [...prev.map(m => ({ ...m, onboardChoices: undefined, onboardMulti: undefined, onboardSkip: undefined })),
-                { role: 'user', content: 'Untouchable: ' + names }
-              ]);
-            } else {
-              setReconMessages(prev => [...prev.map(m => ({ ...m, onboardChoices: undefined, onboardMulti: undefined, onboardSkip: undefined })),
-                { role: 'user', content: 'Everyone has a price' }
-              ]);
-            }
-            setReconMessages(prev => [...prev,
-              { role: 'assistant', content: '**Last question — any positions you\'re actively targeting in trades?** Tap all that apply, or skip.',
-                onboardChoices: [
-                  ['QB','QB'], ['RB','RB'], ['WR','WR'], ['TE','TE'], ['K','K'],
-                  ['D/ST','DEF'], ['DL','DL'], ['LB','LB'], ['DB','DB'], ['Picks','Picks']
-                ].map(([label, value]) => ({ label, value, multi: true })),
-                onboardMulti: true,
-                onboardSkip: true
-              }
-            ]);
-            setGmOnboardStep(4);
-          } else if (step === 4) {
-            if (value !== 'skip' && Array.isArray(value) && value.length) {
-              setGmStrategy(prev => ({ ...prev, targets: value }));
-              const labelTargets = value.map(v => window.App?.posLabel?.(v) || (v === 'DEF' ? 'D/ST' : v));
-              setReconMessages(prev => [...prev.map(m => ({ ...m, onboardChoices: undefined, onboardMulti: undefined, onboardSkip: undefined })),
-                { role: 'user', content: 'Targeting: ' + labelTargets.join(', ') }
-              ]);
-            } else {
-              setReconMessages(prev => [...prev.map(m => ({ ...m, onboardChoices: undefined, onboardMulti: undefined, onboardSkip: undefined })),
-                { role: 'user', content: 'No specific targets' }
-              ]);
-            }
-            setGmOnboardStep(5);
-            // Free: never auto-fire AI (BYOK routes dhqAI straight to the
-            // provider, bypassing the OD.callAI tripwire) — free gets the
-            // designed canned ack instead of the AI assessment.
-            if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) {
-              setReconMessages(prev => [...prev, { role: 'assistant', content: 'Strategy locked in. Let\'s get to work — ask me anything. — Alex' }]);
-              return;
-            }
-            // Generate strategy assessment
-            setReconMessages(prev => [...prev, { role: 'assistant', content: '...' }]);
-            (async () => {
-              try {
-                // Prefer the structured team_diagnosis route: full league-format
-                // detection, team-mode rules, and quality gates (the generic
-                // strategy-analysis path is blind to all three).
-                const reply = await (async () => {
-                  if (window.OD?.callAI && window.WR?.AIContext) {
-                    try {
-                      const assessment = typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(myRoster?.roster_id) : null;
-                      const diagRoster = (myRoster?.players || []).map(pid => {
-                        const p = playersData[pid];
-                        if (!p) return null;
-                        return {
-                          name: p.full_name || `${p.first_name || ''} ${p.last_name || ''}`.trim(),
-                          pos: window.App?.normPos?.(p.position) || p.position,
-                          age: p.age || null,
-                          value: window.App?.LI?.playerScores?.[pid] || 0,
-                          isStarter: (myRoster?.starters || []).includes(pid),
-                        };
-                      }).filter(Boolean).sort((a, b) => b.value - a.value);
-                      const context = {
-                        ...window.WR.AIContext.buildStructuredBase(currentLeague, assessment, myRoster),
-                        myOwner: window.S?.user?.display_name || window.S?.user?.username || '',
-                        record: myRoster?.settings ? `${myRoster.settings.wins}-${myRoster.settings.losses}` : '',
-                        needs: (assessment?.needs || []).map(n => n.urgency === 'deficit' ? `${n.pos}*` : n.pos),
-                        strengths: assessment?.strengths || [],
-                        // gmStrategy rides in from buildStructuredBase (the canonical
-                        // WR.GmMode.promptBlock serialization) — no legacy override here.
-                        myRoster: diagRoster,
-                      };
-                      const result = await window.OD.callAI({ type: 'team_diagnosis', context });
-                      if (result?.analysis) return result.analysis;
-                    } catch (err) { window.wrLog?.('teamDiagnosis.structured', err); }
-                  }
-                  // Fallback: legacy generic path, enriched with the format preamble.
-                  if (typeof dhqAI === 'function') {
-                    const preamble = window.WR?.AIContext?.buildFormatPreamble?.(currentLeague) || '';
-                    const ctx = preamble + (typeof dhqContext === 'function' ? dhqContext(false) : '');
-                    return await dhqAI('strategy-analysis', 'Give me a 3-sentence personalized strategic assessment of my team based on my GM strategy settings. Be direct and specific.', ctx);
-                  }
-                  return 'Strategy saved. Ask me anything about your team.';
-                })();
-                setReconMessages(prev => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = { role: 'assistant', content: reply };
-                  return updated;
-                });
-              } catch (e) {
-                setReconMessages(prev => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = { role: 'assistant', content: 'Strategy locked in. Let\'s get to work — ask me anything. — Alex' };
-                  return updated;
-                });
-              }
-            })();
-          }
-        }
-
-        // Multi-select state for onboarding
-        const [onboardSelections, setOnboardSelections] = useState([]);
-
-        // ReconAI: send message
-	        async function sendReconMessage(text) {
-	          if (!text?.trim()) return;
-	          window.OD?.track?.('alex_prompt_sent', {
-	            platform: 'warroom',
-	            leagueId: currentLeague?.league_id || currentLeague?.id || null,
-	            module: activeTab,
-	            metadata: { chars: text.trim().length },
-	          });
-	          // Free tier (owner ruling 2026-07-05): ONE Ask Alex send per day on
-          // the existing AI_DAILY counter. canUseAI() can't enforce this — it
-          // trusts the server whenever hasServerAI() and only ever limited the
-          // paid 'scout' tier — and BYOK (S.apiKey) never touches the server,
-          // so the counter is checked here at the send seam.
-          let isFreeCountedSend = false;
-          if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) {
-            const dayKey = window.App.WR_KEYS.AI_DAILY(new Date().toISOString().split('T')[0]);
-            if (parseInt(window.App.WrStorage.get(dayKey, '0')) >= 1) {
-              setReconInput('');
-              setReconMessages(prev => [...prev, { role: 'user', content: text.trim() }, { role: 'assistant', content: 'That\'s my one free scouting call for today — I\'m back tomorrow. Dynasty HQ Pro gets you unlimited Ask Alex, plus verdicts, optimizers and the full intel suite.' }]);
-              return;
-            }
-            isFreeCountedSend = true; // counted after the reply lands — a provider error must not burn the one daily send
-          } else {
-            // Paid/trial: untouched — legacy scout-tier limit + server-side rate limiting.
-            if (!canUseAI()) {
-              setReconMessages(prev => [...prev, { role: 'user', content: text.trim() }, { role: 'assistant', content: 'You\'ve used your free AI query for today. Upgrade to Scout ($4.99/mo) or Dynasty HQ ($9.99/mo) for unlimited AI access.' }]);
-              return;
-            }
-            // Only track local daily use if NOT using server AI (server handles its own rate limiting)
-            if (!(typeof hasServerAI === 'function' && hasServerAI())) trackAIUse();
-          }
-          setReconInput('');
-          const userMsg = { role: 'user', content: text.trim() };
-          setReconMessages(prev => [...prev, userMsg, { role: 'assistant', content: '...' }]);
-          try {
-            let context = '';
-            if (typeof dhqContext === 'function') context = dhqContext(true);
-            if (window._leagueDocsContext) {
-                context += '\n\n--- LEAGUE DOCUMENTS ---\n' + window._leagueDocsContext;
-            }
-            // GM Strategy directive — dhqContext() above already serializes the
-            // committed strategy into its canonical [GM_STRATEGY] block (the same
-            // WR.GmMode.promptBlock output), so never prepend a second copy here.
-            // Only when that block is absent (dhq-ai not loaded, or no strategy
-            // saved yet) fall back to the local prepend / mode-only preset.
-            try {
-                if (!context.includes('[GM_STRATEGY]')) {
-                    const gmBlock = window.WR?.GmMode?.promptBlock?.(currentLeague?.league_id || currentLeague?.id);
-                    if (gmBlock) {
-                        context = '--- GM STRATEGY DIRECTIVE ---\n' + gmBlock + '\n\n' + context;
-                    } else {
-                        const gm = window.WR?.GmMode?.describe?.(gmStrategy?.mode);
-                        if (gm && gm.prompt) {
-                            context = '--- GM MODE DIRECTIVE ---\n' + gm.prompt + '\n\n' + context;
-                        }
-                    }
-                }
-            } catch (e) { /* ignore */ }
-            // Format + quality preamble — the generic dhqAI path can't detect
-            // superflex/TEP/IDP or apply quality floors without this.
-            try {
-                const fmtPreamble = window.WR?.AIContext?.buildFormatPreamble?.(currentLeague);
-                if (fmtPreamble) context = fmtPreamble + '\n' + context;
-            } catch (e) { /* ignore */ }
-            const messages = [...reconMessages.slice(-4), userMsg].map((m, i, arr) => {
-              if (m.role === 'user' && i === arr.length - 1) {
-                return { role: 'user', content: context + '\n\n' + m.content };
-              }
-              if (m.role === 'assistant' && m.content.length > 400) {
-                return { role: 'assistant', content: m.content.substring(0, 400) + '...' };
-              }
-              return m;
-            });
-            // Route requests to optimal prompt type
-            const isScoutRequest = /^Scout\s/i.test(text.trim());
-            const isRookieScout = /SEARCH FOR CURRENT INFO.*scouting report|Full dynasty scouting report/i.test(text.trim());
-            const aiType = isRookieScout ? 'rookie-scout' : isScoutRequest ? 'trade-scout' : 'home-chat';
-            const reply = typeof dhqAI === 'function'
-              ? await dhqAI(aiType, null, null, { messages })
-              : typeof callClaude === 'function'
-                ? await callClaude(messages)
-                : 'AI not available. Add an API key in Settings.';
-            if (isFreeCountedSend && (typeof dhqAI === 'function' || typeof callClaude === 'function')) trackAIUse();
-            setReconMessages(prev => {
-              const updated = [...prev];
-              updated[updated.length - 1] = { role: 'assistant', content: reply };
-              return updated;
-            });
-          } catch(e) {
-            console.warn('[Alex Ingram] AI error:', e.message);
-            setReconMessages(prev => {
-              const updated = [...prev];
-              updated[updated.length - 1] = { role: 'assistant', content: 'Error: ' + e.message };
-              return updated;
-            });
-          }
-        }
-
-        // ReconAI: contextual chips
-        function getReconChips() {
-          const base = [
-            { label: 'What should I do?', prompt: 'What are the top 3 moves I should make right now?' },
-          ];
-          // Contextual starter prompt based on current tab
-          const starters = {
-            analytics: { label: 'What are my biggest weaknesses?', prompt: 'Analyze my team and tell me what my biggest weaknesses are — positional gaps, age concerns, and depth issues.' },
-            myteam: { label: 'Who should I trade?', prompt: 'Looking at my roster, which players should I be actively trying to trade and what kind of return should I target?' },
-            trades: { label: 'Best trade partner right now?', prompt: 'Which owner in my league is the best trade partner for me right now? Consider roster needs, tendencies, and mutual fit.' },
-            fa: { label: 'Best waiver pickup this week?', prompt: 'Who is the best waiver wire pickup I should target this week based on my roster needs and available players?' },
-            draft: { label: 'Best pick at my spot?', prompt: 'Given my draft position and roster needs, who is the best player I should target with my next pick?' },
-          };
-          const starter = starters[activeTab];
-          const chips = starter ? [starter, ...base] : [...base];
-
-          if (activeTab === 'dashboard') return [...chips,
-            { label: 'Top 3 moves', prompt: 'What are the top 3 moves I should make right now?' },
-            { label: 'League pulse', prompt: 'Give me a quick pulse check on my league — who is rising, falling, and what moves are being made.' },
-            { label: 'League recap', prompt: 'Summarize the key storylines in my league right now.' },
-            { label: 'Power rankings', prompt: 'Give me your power rankings for this league with one-line analysis per team.' },
-          ];
-          if (activeTab === 'myteam') return [...chips,
-            { label: 'Roster grade', prompt: 'Grade my roster position by position and identify the biggest weakness.' },
-            { label: 'Who to sell?', prompt: 'Which players on my roster should I sell high on right now?' },
-          ];
-          if (activeTab === 'league') return [...chips,
-            { label: 'League overview', prompt: 'Give me a quick overview of every team in the league — strengths, weaknesses, and dynasty outlook.' },
-            { label: 'Trade partners', prompt: 'Which teams in the league are the best trade partners for me right now and why?' },
-          ];
-          if (activeTab === 'analytics') return [...chips,
-            { label: 'Explain my gaps', prompt: 'Based on the winner analysis, what are my biggest gaps and how do I close them?' },
-            { label: 'Draft strategy', prompt: 'Based on historical draft success in this league, what should my draft strategy be?' },
-          ];
-          if (activeTab === 'trades') return [...chips,
-            { label: 'Best trade targets', prompt: 'Who are my best trade targets right now based on roster needs and trade partner compatibility?' },
-            { label: 'Sell high candidates', prompt: 'Which players on my roster should I sell high on in a trade?' },
-          ];
-          if (activeTab === 'fa') return [...chips,
-            { label: 'Best pickup?', prompt: 'Who is the best available free agent I should target right now?' },
-            { label: 'FAAB advice', prompt: 'How should I spend my remaining FAAB budget?' },
-          ];
-          if (activeTab === 'draft') return [...chips,
-            { label: 'Who at my pick?', prompt: 'Who should I target with my draft picks this year?' },
-            { label: 'Draft strategy', prompt: 'What should my draft strategy be based on my roster needs?' },
-          ];
-          return chips;
-        }
 
         if (error) {
             return (
@@ -3102,7 +2630,7 @@
                     zero-height (invisible) everywhere else. Phone has the sticky
                     header as its backdrop instead. */}
                 {!phoneHdrKit && <div aria-hidden="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 'var(--sat, 0px)', background: 'var(--black, #0a0a0a)', zIndex: 60 }} />}
-                {!phoneHdrKit && !(alexPhone && reconPanelOpen) && <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{
+                {!phoneHdrKit && <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{
                     // iPad pass (G3): --sat/--sal terms are env()=0 everywhere but
                     // installed-PWA on device — desktop stays byte-identical.
                     display: 'none', position: 'fixed', top: 'calc(10px + var(--sat, 0px) + var(--wr-dev-banner-height, 0px))', left: 'calc(10px + var(--sal, 0px))', zIndex: 201,
@@ -3789,8 +3317,6 @@
                     setAlexAvatar={setAlexAvatar}
                     setAvatarKey={setAvatarKey}
                     setActiveTab={setActiveTab}
-                    setReconPanelOpen={setReconPanelOpen}
-                    sendReconMessage={sendReconMessage}
                     timeRecomputeTs={timeRecomputeTs}
                     setTimeRecomputeTs={setTimeRecomputeTs}
                     getAcquisitionInfo={getAcquisitionInfo}
@@ -3873,8 +3399,6 @@
                     currentLeague={currentLeague}
                     leagueSkin={leagueSkin}
                     sleeperUserId={sleeperUserId}
-                    setReconPanelOpen={setReconPanelOpen}
-                    sendReconMessage={sendReconMessage}
                     timeRecomputeTs={timeRecomputeTs}
                     viewMode={viewMode}
                 /> : (activeTab === 'trophies' || activeTab === 'calendar') ? <TrophyRoomTabLazy
@@ -3946,381 +3470,14 @@
                 }}
             />}
 
-            {/* Alex Ingram Chat — centered welcome or bottom-right.
-                Phone (≤767): all three modes collapse into ONE full-width
-                bottom sheet (top-rounded, gold hairline top, keyboard-aware
-                via the alexKb bottom offset). Tablet/desktop: untouched. */}
-            {reconPanelOpen && <div style={alexPhone ? {
-              // Sit ABOVE the phone dock when the keyboard is closed (owner ask:
-              // the chat was covering the nav bar). Keyboard-open keeps bottom at
-              // the keyboard top (the dock hides with the keyboard anyway).
-              position: 'fixed', left: 0, right: 0, bottom: alexKb ? (alexKb + 'px') : 'var(--wr-bottom-inset, 0px)',
-              width: '100%',
-              height: (!welcomeMode && reconExpanded) ? alexSheetCap : 'auto',
-              maxHeight: welcomeMode ? 'min(600px, ' + alexSheetCap + ')'
-                : reconExpanded ? alexSheetCap
-                : 'min(70dvh, ' + alexSheetCap + ')',
-              background: 'var(--k-0a0b0d, #0a0b0d)',
-              border: 'none',
-              borderTop: '2px solid ' + (welcomeMode ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--acc-line2, rgba(212,175,55,0.3))'),
-              borderRadius: '16px 16px 0 0',
-              zIndex: welcomeMode ? 300 : 'var(--wr-z-sheet, 200)',
-              display: 'flex', flexDirection: 'column',
-              boxShadow: '0 -12px 48px rgba(0,0,0,0.6), 0 0 0 1px var(--acc-fill2, rgba(212,175,55,0.1))',
-              animation: 'wrFadeIn 0.2s ease',
-              transition: 'bottom 0.2s ease'
-            } : welcomeMode ? {
-              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-              width: '480px', maxHeight: '600px',
-              background: 'var(--k-0a0b0d, #0a0b0d)', border: '2px solid var(--acc-line3, rgba(212,175,55,0.4))',
-              borderRadius: '20px', zIndex: 300,
-              display: 'flex', flexDirection: 'column',
-              boxShadow: '0 24px 80px rgba(0,0,0,0.8), 0 0 0 1px var(--acc-fill3, rgba(212,175,55,0.15)), 0 0 120px var(--acc-fill1, rgba(212,175,55,0.06))',
-              animation: 'wrFadeIn 0.3s ease'
-            } : reconExpanded ? {
-              position: 'fixed', bottom: '80px', right: '24px',
-              width: 'min(760px, calc(100vw - 48px))', height: 'calc(100vh - 120px)', maxHeight: 'calc(100vh - 120px)',
-              background: 'var(--k-0a0b0d, #0a0b0d)', border: '2px solid var(--acc-line2, rgba(212,175,55,0.3))',
-              borderRadius: '16px', zIndex: 200,
-              display: 'flex', flexDirection: 'column',
-              boxShadow: '0 24px 80px rgba(0,0,0,0.75), 0 0 0 1px var(--acc-fill2, rgba(212,175,55,0.1))',
-              animation: 'wrFadeIn 0.2s ease'
-            } : {
-              position: 'fixed', bottom: '80px', right: '24px',
-              width: '380px', maxHeight: '520px',
-              background: 'var(--k-0a0b0d, #0a0b0d)', border: '2px solid var(--acc-line2, rgba(212,175,55,0.3))',
-              borderRadius: '16px', zIndex: 200,
-              display: 'flex', flexDirection: 'column',
-              boxShadow: '0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px var(--acc-fill2, rgba(212,175,55,0.1))',
-              animation: 'wrFadeIn 0.2s ease'
-            }}>
-            {/* Welcome backdrop */}
-            {welcomeMode && <div onClick={() => { setWelcomeMode(false); setReconPanelOpen(false); setTimeout(() => { setShowCornerToast(true); setTimeout(() => setShowCornerToast(false), 4000); }, 300); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: -1 }} />}
-              {/* Header */}
-              <div style={{
-                padding: '12px 16px', borderBottom: '1px solid var(--acc-line1, rgba(212,175,55,0.2))',
-                display: 'flex', alignItems: 'center', gap: '8px',
-                background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderRadius: '14px 14px 0 0'
-              }}>
-                <div key={avatarKey} onClick={e => { e.stopPropagation(); setShowAvatarPicker(p => !p); }} style={{ cursor: 'pointer' }} title="Change Alex's avatar">
-                  <AlexAvatar size={30} />
-                </div>
-                <div>
-                  <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', color: 'var(--gold)', letterSpacing: '0.04em', lineHeight: 1, display: 'flex', alignItems: 'center', gap: '4px' }}>Alex Ingram</div>
-                  <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5 }}>AI General Manager</div>
-                </div>
-                {!alexPhone && <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--text-muted)' }}>Cmd+K</span>}
-                <span style={{ flex: 1 }}></span>
-                {reconMessages.length > 1 && (
-                  <button onClick={() => {
-                    setReconMessages([{ role: 'assistant', content: 'Fresh start. What\'s on your mind? — Alex' }]);
-                    setGmOnboardStep(5);
-                    LeagueStorage.remove(LEAGUE_WR_KEYS.CHAT(currentLeague?.league_id));
-                  }} title="Clear chat history" style={{
-                    background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer',
-                    fontSize: 'var(--text-label, 0.75rem)', padding: '2px 4px', fontFamily: 'var(--font-body)', letterSpacing: '0.04em'
-                  }}>CLEAR</button>
-                )}
-                <button onClick={() => setReconExpanded(v => !v)} title={reconExpanded ? 'Collapse' : 'Expand'} aria-label={reconExpanded ? 'Collapse panel' : 'Expand panel'} style={{
-                  background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer',
-                  fontSize: '1rem', padding: alexPhone ? '10px' : '2px', lineHeight: 1
-                }}>{reconExpanded ? '−' : '⛶'}</button>
-                <button onClick={() => { setReconPanelOpen(false); setReconExpanded(false); }} aria-label="Close chat" style={{
-                  background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer',
-                  fontSize: '1rem', padding: alexPhone ? '10px' : '2px'
-                }}>&#10005;</button>
-              </div>
-
-              {/* Badge-color picker (toggled) — photos retired; tap Alex's badge to recolor it. */}
-              {showAvatarPicker && (
-                <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', background: 'var(--acc-fill1, rgba(212,175,55,0.04))' }}>
-                  <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginBottom: '6px', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Alex's badge color</div>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {(window.ALEX_BADGE_COLORS || []).map(bc => {
-                      const on = (window.getAlexBadgeColor && window.getAlexBadgeColor().id) === bc.id;
-                      return (
-                      <button key={bc.id} onClick={() => { window.setAlexBadgeColor && window.setAlexBadgeColor(bc.id); setShowAvatarPicker(false); setAvatarKey(k => k+1); }} title={bc.label} aria-label={bc.label} style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
-                        padding: '6px', background: on ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'var(--ov-2, rgba(255,255,255,0.03))',
-                        border: '1px solid ' + (on ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                        borderRadius: '8px', cursor: 'pointer', minWidth: '52px'
-                      }}>
-                        <div style={{ width: '36px', height: '36px', borderRadius: '6px', background: 'linear-gradient(135deg, ' + bc.from + ', ' + bc.to + ')', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 800, color: bc.text, fontFamily: 'Rajdhani, sans-serif' }}>AI</div>
-                        <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', textAlign: 'center' }}>{bc.label}</span>
-                      </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Context chips */}
-              <div style={{ padding: '6px 12px', display: 'flex', gap: '4px', flexWrap: 'wrap', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                {getReconChips().map((chip, i) => (
-                  <button key={i} onClick={() => sendReconMessage(chip.prompt)}
-                    style={{
-                      padding: '3px 8px', fontSize: 'var(--text-label, 0.75rem)', borderRadius: '14px',
-                      border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', background: 'var(--acc-fill1, rgba(212,175,55,0.06))',
-                      color: 'var(--gold)', cursor: 'pointer', fontFamily: 'inherit'
-                    }}>
-                    {chip.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Messages — phone: no fixed cap (the sheet's maxHeight governs);
-                  scrolls independently with iOS momentum + contained overscroll. */}
-              <div style={{
-                flex: 1, overflow: 'auto', padding: '10px 12px',
-                display: 'flex', flexDirection: 'column', gap: '6px',
-                maxHeight: (reconExpanded || alexPhone) ? 'none' : '320px',
-                ...(alexPhone ? { WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' } : {})
-              }}>
-                {reconMessages.map((msg, i) => (
-                  msg.role === 'user' ? (
-                    <div key={i} style={{
-                      alignSelf: 'flex-end', maxWidth: '85%', padding: '8px 12px', borderRadius: '12px',
-                      fontSize: 'var(--text-body, 1rem)', lineHeight: 1.4,
-                      background: 'rgba(124,107,248,0.12)', border: '1px solid rgba(124,107,248,0.18)',
-                      color: 'var(--text-primary)'
-                    }} dangerouslySetInnerHTML={{ __html: markdownToHtml(msg.content) }} />
-                  ) : (
-                    <div key={i} style={{
-                      alignSelf: 'flex-start', maxWidth: '90%', padding: '8px 10px',
-                      background: 'var(--acc-fill1, rgba(212,175,55,0.04))', borderLeft: '3px solid var(--acc-line3, rgba(212,175,55,0.4))',
-                      borderRadius: '0 10px 10px 0'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                        <AlexAvatar size={20} />
-                        <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', letterSpacing: '0.03em' }}>Alex Ingram</span>
-                      </div>
-                      {(() => {
-                        const tradeMatch = msg.content.match(/<!--\s*TRADE_CARD:([\s\S]*?)-->/);
-                        const textContent = msg.content.replace(/<!--\s*TRADE_CARD:[\s\S]*?-->/, '').trim();
-                        let tradeCard = null;
-                        if (tradeMatch) {
-                          try { tradeCard = JSON.parse(tradeMatch[1].trim()); } catch {}
-                        }
-                        return (
-                          <React.Fragment>
-                            <div style={{ fontSize: 'var(--text-body, 1rem)', lineHeight: 1.4, color: 'var(--text-primary)' }}
-                              dangerouslySetInnerHTML={{ __html: markdownToHtml(textContent) }} />
-                            {tradeCard && (
-                              <div style={{ marginTop: '10px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '10px', padding: '10px', fontSize: 'var(--text-body, 1rem)' }}>
-                                <div style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
-                                  Proposed Trade{tradeCard.target ? ' → ' + tradeCard.target : ''}
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '8px', alignItems: 'start' }}>
-                                  <div>
-                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginBottom: '4px', fontFamily: 'var(--font-body)', textTransform: 'uppercase' }}>You Give</div>
-                                    {(tradeCard.yourSide || []).map((a, j) => (
-                                      <div key={j} style={{ padding: '3px 0', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))' }}>
-                                        <span style={{ color: 'var(--text-primary)' }}>{a.name}</span>
-                                        <span style={{ color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)', marginLeft: '4px' }}>{a.dhq?.toLocaleString()} DHQ</span>
-                                      </div>
-                                    ))}
-                                    <div style={{ marginTop: '4px', fontWeight: 700, color: 'var(--gold)', fontSize: 'var(--text-label, 0.75rem)' }}>
-                                      Total: {(tradeCard.yourSide || []).reduce((s, a) => s + (a.dhq || 0), 0).toLocaleString()}
-                                    </div>
-                                  </div>
-                                  <div style={{ display: 'flex', alignItems: 'center', fontSize: '1.2rem', color: 'var(--gold)', paddingTop: '16px' }}>{'\u21C4'}</div>
-                                  <div>
-                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, marginBottom: '4px', fontFamily: 'var(--font-body)', textTransform: 'uppercase' }}>You Get</div>
-                                    {(tradeCard.theirSide || []).map((a, j) => (
-                                      <div key={j} style={{ padding: '3px 0', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))' }}>
-                                        <span style={{ color: 'var(--text-primary)' }}>{a.name}</span>
-                                        <span style={{ color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)', marginLeft: '4px' }}>{a.dhq?.toLocaleString()} DHQ</span>
-                                      </div>
-                                    ))}
-                                    <div style={{ marginTop: '4px', fontWeight: 700, color: 'var(--gold)', fontSize: 'var(--text-label, 0.75rem)' }}>
-                                      Total: {(tradeCard.theirSide || []).reduce((s, a) => s + (a.dhq || 0), 0).toLocaleString()}
-                                    </div>
-                                  </div>
-                                </div>
-                                {/* Fairness bar */}
-                                {(() => {
-                                  const yours = (tradeCard.yourSide || []).reduce((s, a) => s + (a.dhq || 0), 0);
-                                  const theirs = (tradeCard.theirSide || []).reduce((s, a) => s + (a.dhq || 0), 0);
-                                  const diff = theirs - yours;
-                                  const pct = yours > 0 ? Math.round((diff / yours) * 100) : 0;
-                                  const color = pct >= 5 ? 'var(--k-2ecc71, #2ecc71)' : pct >= -5 ? 'var(--gold)' : 'var(--k-e74c3c, #e74c3c)';
-                                  const label = pct >= 5 ? 'You win by ' + pct + '%' : pct >= -5 ? 'Fair trade' : 'You lose by ' + Math.abs(pct) + '%';
-                                  return (
-                                    <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: 'var(--ov-5, rgba(255,255,255,0.08))', overflow: 'hidden' }}>
-                                        <div style={{ width: Math.min(100, 50 + pct) + '%', height: '100%', background: color, borderRadius: '2px' }} />
-                                      </div>
-                                      <span style={{ fontSize: 'var(--text-label, 0.75rem)', color, fontFamily: 'var(--font-body)' }}>{label}</span>
-                                    </div>
-                                  );
-                                })()}
-                                {/* Action buttons */}
-                                <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
-                                  {tradeCard.sleeperDM && (
-                                    <button onClick={() => { navigator.clipboard.writeText(tradeCard.sleeperDM); }} style={{
-                                      padding: '5px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)',
-                                      background: 'linear-gradient(135deg, var(--k-7c6bf8, #7c6bf8), var(--k-9b8afb, #9b8afb))', color: 'var(--k-ffffff, #ffffff)',
-                                      border: 'none', borderRadius: '14px', cursor: 'pointer'
-                                    }}>Copy DM</button>
-                                  )}
-                                  <button onClick={() => {
-                                    // Save into the Trade Log pipeline (WrTradePipeline schema, cap 60 —
-                                    // canonical helpers live in trade-calc.js). trade-calc.js is a DEFERRED
-                                    // script (data-wr-defer="trade"), so if it hasn't loaded yet, write the
-                                    // legacy card shape — WrTradePipeline.normalizeAll migrates it to the
-                                    // schema on the next Trade Log read. Fallback cap mirrors WrTradePipeline.CAP.
-                                    const lid = currentLeague?.league_id;
-                                    if (!lid) return;
-                                    const P = window.WrTradePipeline;
-                                    if (P) { P.append(lid, P.fromAlexCard(tradeCard)); return; }
-                                    const saved = LeagueStorage.get(LEAGUE_WR_KEYS.SAVED_TRADES(lid)) || [];
-                                    saved.unshift({ ...tradeCard, savedAt: Date.now() });
-                                    LeagueStorage.set(LEAGUE_WR_KEYS.SAVED_TRADES(lid), saved.slice(0, 60));
-                                  }} style={{
-                                    padding: '5px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)',
-                                    background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)',
-                                    border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '14px', cursor: 'pointer'
-                                  }}>Save</button>
-                                </div>
-                              </div>
-                            )}
-                          </React.Fragment>
-                        );
-                      })()}
-                      {/* Onboarding choice buttons */}
-                      {msg.onboardChoices && (
-                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
-                          {msg.onboardChoices.map(c => {
-                            const isSelected = msg.onboardMulti && onboardSelections.includes(c.value);
-                            return (
-                              <button key={c.value} onClick={() => {
-                                if (msg.onboardMulti) {
-                                  setOnboardSelections(prev => prev.includes(c.value) ? prev.filter(v => v !== c.value) : [...prev, c.value]);
-                                } else if (gmOnboardStep === 0 && ['strategy','advice','avatar'].includes(c.value)) {
-                                  handleWelcomeChoice(c.value);
-                                } else {
-                                  handleOnboardChoice(c.value);
-                                }
-                              }} style={{
-                                padding: '6px 14px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)',
-                                background: isSelected ? 'var(--gold)' : 'var(--acc-fill2, rgba(212,175,55,0.08))',
-                                color: isSelected ? 'var(--black)' : 'var(--gold)',
-                                border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
-                                borderRadius: '16px', cursor: 'pointer', transition: 'all 0.15s'
-                              }}>{c.label}{isSelected ? ' \u2713' : ''}</button>
-                            );
-                          })}
-                          {msg.onboardMulti && (
-                            <React.Fragment>
-                              {onboardSelections.length > 0 && (
-                                <button onClick={() => { handleOnboardChoice(onboardSelections); setOnboardSelections([]); }} style={{
-                                  padding: '6px 14px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)',
-                                  background: 'linear-gradient(135deg, var(--k-2ecc71, #2ecc71), var(--k-27ae60, #27ae60))', color: 'var(--k-ffffff, #ffffff)',
-                                  border: 'none', borderRadius: '16px', cursor: 'pointer'
-                                }}>Confirm ({onboardSelections.length})</button>
-                              )}
-                              {msg.onboardSkip && (
-                                <button onClick={() => { handleOnboardChoice('skip'); setOnboardSelections([]); }} style={{
-                                  padding: '6px 14px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)',
-                                  background: 'var(--ov-3, rgba(255,255,255,0.04))', color: 'var(--silver)',
-                                  border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: '16px', cursor: 'pointer'
-                                }}>Skip</button>
-                              )}
-                            </React.Fragment>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                ))}
-              </div>
-
-              {/* Input — phone: --sab clearance while the keyboard is closed
-                  (the sheet is keyboard-lifted when open, so plain 10px then),
-                  16px input font (no iOS zoom-on-focus), 44px send target. */}
-              <div style={{
-                // Flat 10px on every tier: the phone sheet already sits above the
-                // dock, which absorbs --sab — adding it again double-padded the
-                // composer (~34px of dead space under the send row).
-                padding: '10px 12px',
-                borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.07))',
-                display: 'flex', gap: '8px', background: 'var(--k-111318, #111318)',
-                borderRadius: alexPhone ? '0' : '0 0 14px 14px'
-              }}>
-                <input
-                  ref={reconComposerRef}
-                  value={reconInput}
-                  onChange={e => setReconInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') sendReconMessage(reconInput); }}
-                  placeholder="Ask anything..."
-                  style={{
-                    flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                    color: 'var(--text-primary)', fontSize: alexPhone ? '16px' : 'var(--text-body, 1rem)', fontFamily: 'inherit'
-                  }}
-                />
-                <button onClick={() => sendReconMessage(reconInput)} style={{
-                  background: 'linear-gradient(135deg, var(--k-d4af37, #d4af37), var(--k-b8941e, #b8941e))',
-                  border: 'none', borderRadius: '8px',
-                  width: alexPhone ? '44px' : '32px', height: alexPhone ? '44px' : '32px',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  ...(alexPhone ? { flexShrink: 0 } : {})
-                }}>
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--k-0a0a0a, #0a0a0a)" strokeWidth="2.5">
-                    <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                  </svg>
-                </button>
-              </div>
-            </div>}
-
-            {/* "I'll be down here" toast — .wr-corner-toast: phone tier lifts
-                it above the bottom dock via --wr-bottom-inset (points at the
-                dock's pinned Ask Alex item there; at the FAB on
-                tablet/desktop). */}
-            {showCornerToast && (
-              <div className="wr-corner-toast" style={{
-                position: 'fixed', bottom: '82px', right: '24px',
-                background: 'var(--k-0a0b0d, #0a0b0d)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
-                borderRadius: '12px', padding: '10px 16px', zIndex: 202,
-                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-                animation: 'wrFadeIn 0.3s ease', maxWidth: '220px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <AlexAvatar size={22} />
-                  <span style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.4 }}>I'll be down here if you need me {'\uD83D\uDC47'}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Alex Ingram Bubble Button — bottom right corner. Tablet +
-                desktop ONLY: on phone the PhoneDock's pinned Ask Alex item
-                is the entry point (same open path), so the FAB never
-                renders there. */}
-            {!alexPhone && <button className="wr-alex-fab" onClick={() => { setReconPanelOpen(!reconPanelOpen); setWelcomeMode(false); }} style={{
-              position: 'fixed', bottom: '24px', right: '24px',
-              width: '52px', height: '52px', borderRadius: '14px',
-              background: reconPanelOpen ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
-              border: '2px solid var(--acc-line3, rgba(212,175,55,0.4))',
-              cursor: 'pointer', zIndex: 201,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 20px var(--acc-line2, rgba(212,175,55,0.3))',
-              transition: 'all 0.2s', overflow: 'hidden', padding: 0
-            }}>
-              {reconPanelOpen
-                ? <span style={{ color: 'var(--gold)', fontSize: '1.2rem' }}>&#10005;</span>
-                : <AlexAvatar size={48} />
-              }
-            </button>}
-
             {/* Phone bottom dock (≤767 only) — null on tablet/desktop and
                 while the iOS keyboard is open. ONE row: sliding strip of
                 EVERY sidebar nav item (same navItems array — single source
-                of truth) + the pinned Ask Alex item at the right end
-                (replaces the FAB on phone; same open path as the FAB). */}
+                of truth). */}
             <PhoneDock
                 activeTab={activeTab}
                 navItems={navItems}
                 onSelectTab={(tab) => { setSidebarOpen(false); setActiveTab(tab); }}
-                onAskAlex={() => { reconComposerFocusPending.current = true; setReconPanelOpen(true); setWelcomeMode(false); }}
             />
 
             </div>

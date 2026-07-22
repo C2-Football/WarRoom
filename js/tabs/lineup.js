@@ -140,6 +140,24 @@ function LineupTab({
     // ── Game Day Central: DvP, season schedule rail, Alex note, MFL push ──
     const [seasonData, setSeasonData] = React.useState(null);
     const [note, setNote] = React.useState('');
+    // Game-plan expansion — one-shot follow-up on the ambient note (replaced
+    // the old "ASK" chat handoff). Reuses the same AlexVoice.enhance()
+    // template-first pattern the note itself already uses.
+    const [gameplanTake, setGameplanTake] = React.useState(null); // null | {loading} | {text}
+    async function askGameplanTake() {
+        if (typeof window.AlexVoice?.enhance !== 'function') return;
+        setGameplanTake({ loading: true });
+        const facts = buildNoteFacts();
+        if (!facts) { setGameplanTake(null); return; }
+        const text = await window.AlexVoice.enhance({
+            type: 'start-sit',
+            message: 'Give me a fuller game-plan for this week in 3-4 sentences — the start/sit calls worth a second look, where I can attack this matchup, and what would change your read before kickoff. Natural prose, no lists, no sign-off.',
+            context: JSON.stringify(facts.ctx),
+            fallback: null,
+            cacheKey: 'gd-plan-v1-' + lineupKey + '-w' + facts.week,
+        });
+        setGameplanTake(text ? { text } : null);
+    }
     const [submit, setSubmit] = React.useState({ status: 'idle', msg: '' });
     // Real DvP: spin up the SOS engine (18-week defense-vs-position rankings),
     // then bump ctxTick so projections recompute with matchup context applied.
@@ -838,14 +856,21 @@ function LineupTab({
 
                 {/* Alex game-day note as a card (note state is Pro-gated upstream: free = '') */}
                 {note ? (
-                    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '6px', padding: '12px 14px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                        <span style={{ fontSize: fz('0.6rem'), fontWeight: 800, letterSpacing: '0.08em', color: GOLD, marginTop: '3px', whiteSpace: 'nowrap' }}>ALEX ·</span>
-                        <span style={{ fontSize: '0.86rem', color: TEXT, lineHeight: 1.5 }}>{note}</span>
-                        {/* Ask Alex follow-up: opens recon chat pre-loaded with the game-plan ask (crossover, owner ask 2026-07-13) */}
-                        <button onClick={() => {
-                            const msg = 'Walk me through my Week ' + result.week + ' game plan' + (matchup && matchup.oppName ? ' against ' + matchup.oppName : '') + ' — the start/sit calls worth a second look, where I can attack this matchup, and what would change your read before kickoff.';
-                            try { window.dispatchEvent(new CustomEvent('wr:ask-alex', { detail: { message: msg } })); } catch (e) { /* chat seam unavailable */ }
-                        }} style={{ flexShrink: 0, alignSelf: 'flex-start', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: '5px', color: GOLD, fontFamily: MONO, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.05em', padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>💬 ASK</button>
+                    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '6px', padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                            <span style={{ fontSize: fz('0.6rem'), fontWeight: 800, letterSpacing: '0.08em', color: GOLD, marginTop: '3px', whiteSpace: 'nowrap' }}>ALEX ·</span>
+                            <span style={{ fontSize: '0.86rem', color: TEXT, lineHeight: 1.5 }}>{note}</span>
+                            {/* Game-plan expansion — one-shot, ask once (chat retired). */}
+                            {!gameplanTake?.text && (
+                                <button onClick={askGameplanTake} disabled={gameplanTake?.loading}
+                                    style={{ flexShrink: 0, alignSelf: 'flex-start', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: '5px', color: GOLD, fontFamily: MONO, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.05em', padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                    {gameplanTake?.loading ? '…' : '✨ MORE'}
+                                </button>
+                            )}
+                        </div>
+                        {gameplanTake?.text && (
+                            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${LINE}`, fontSize: '0.82rem', color: TEXT, opacity: 0.9, lineHeight: 1.5 }}>{gameplanTake.text}</div>
+                        )}
                     </div>
                 ) : null}
 
@@ -946,14 +971,21 @@ function LineupTab({
         <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '20px 16px 60px' }}>
             {/* Alex's game-day note */}
             {note ? (
-                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '6px', padding: '12px 16px', marginBottom: '14px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: fz('0.6rem'), fontWeight: 800, letterSpacing: '0.08em', color: GOLD, marginTop: '3px', whiteSpace: 'nowrap' }}>ALEX ·</span>
-                    <span style={{ fontSize: '0.86rem', color: TEXT, lineHeight: 1.5 }}>{note}</span>
-                    {/* Ask Alex follow-up: opens recon chat pre-loaded with the game-plan ask (phone crossover, owner ask 2026-07-13) */}
-                    <button onClick={() => {
-                        const msg = 'Walk me through my Week ' + result.week + ' game plan' + (matchup && matchup.oppName ? ' against ' + matchup.oppName : '') + ' — the start/sit calls worth a second look, where I can attack this matchup, and what would change your read before kickoff.';
-                        try { window.dispatchEvent(new CustomEvent('wr:ask-alex', { detail: { message: msg } })); } catch (e) { /* chat seam unavailable */ }
-                    }} style={{ flexShrink: 0, alignSelf: 'flex-start', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: '5px', color: GOLD, fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.05em', padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>💬 ASK ALEX</button>
+                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '6px', padding: '12px 16px', marginBottom: '14px' }}>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: fz('0.6rem'), fontWeight: 800, letterSpacing: '0.08em', color: GOLD, marginTop: '3px', whiteSpace: 'nowrap' }}>ALEX ·</span>
+                        <span style={{ fontSize: '0.86rem', color: TEXT, lineHeight: 1.5 }}>{note}</span>
+                        {/* Game-plan expansion — one-shot, ask once (chat retired). */}
+                        {!gameplanTake?.text && (
+                            <button onClick={askGameplanTake} disabled={gameplanTake?.loading}
+                                style={{ flexShrink: 0, alignSelf: 'flex-start', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: '5px', color: GOLD, fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.05em', padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                {gameplanTake?.loading ? '…' : '✨ MORE FROM ALEX'}
+                            </button>
+                        )}
+                    </div>
+                    {gameplanTake?.text && (
+                        <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${LINE}`, fontSize: '0.86rem', color: TEXT, opacity: 0.9, lineHeight: 1.5 }}>{gameplanTake.text}</div>
+                    )}
                 </div>
             ) : null}
 
