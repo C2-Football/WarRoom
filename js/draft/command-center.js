@@ -4885,7 +4885,7 @@
                                             const text = stateHelpers.formatDraftShareReport
                                                 ? stateHelpers.formatDraftShareReport(recap)
                                                 : stateHelpers.formatDraftRecapText?.(recap);
-                                            if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(() => alert('Share report copied.'));
+                                            if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(() => alert('Share report copied.')).catch(e => alert('Copy failed: ' + e.message));
                                             else alert('Clipboard unavailable in this browser.');
                                         } catch (e) { alert('Copy failed: ' + e.message); }
                                     }} style={{ padding: '10px 22px', background: 'var(--ov-3, rgba(255,255,255,0.035))', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.14))', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>COPY REPORT</button>}

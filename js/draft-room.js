@@ -1289,9 +1289,13 @@
             return pickYears.map(yr => {
                 const picks = myPicks
                     .filter(pk => pk.year === yr)
+                    // Snake-mirror the position within the round, not the raw
+                    // draft-column slot — otherwise even rounds sort backwards
+                    // whenever two picks in the same round came from different
+                    // original slots (e.g. an owned pick + one acquired by trade).
                     .sort((a, b) => {
                         if (a.round !== b.round) return a.round - b.round;
-                        return (slotFor(a) || 99) - (slotFor(b) || 99);
+                        return (pickPosInRound(a.round, slotFor(a)) || 99) - (pickPosInRound(b.round, slotFor(b)) || 99);
                     })
                     .map(pk => ({ ...pk, slot: slotFor(pk), value: pickValueFor(pk) }));
                 return {
@@ -1300,7 +1304,7 @@
                     totalValue: picks.reduce((sum, pk) => sum + Number(pk.value || 0), 0),
                 };
             });
-        }, [pickYears, myPicks, slotFor, pickValueFor]);
+        }, [pickYears, myPicks, slotFor, pickValueFor, pickPosInRound]);
         const currentCapitalRow = pickCapitalRows.find(row => row.year === leagueSeason) || { year: leagueSeason, picks: [], totalValue: 0 };
         const futureCapitalRows = pickCapitalRows.filter(row => row.year !== leagueSeason);
         const totalPickCapital = pickCapitalRows.reduce((sum, row) => sum + row.totalValue, 0);
@@ -1311,11 +1315,12 @@
             return myPicks
                 .filter(pk => pk.year === leagueSeason)
                 .slice()
+                // Same snake-mirror fix as pickCapitalRows above.
                 .sort((a, b) => {
                     if (a.round !== b.round) return a.round - b.round;
-                    return (slotFor(a) || 99) - (slotFor(b) || 99);
+                    return (pickPosInRound(a.round, slotFor(a)) || 99) - (pickPosInRound(b.round, slotFor(b)) || 99);
                 })[0] || null;
-        }, [myPicks, leagueSeason, slotFor]);
+        }, [myPicks, leagueSeason, slotFor, pickPosInRound]);
 
         const nextSlot = nextPick ? slotFor(nextPick) : null;
         // Snake even rounds reverse the column → position-in-round mapping; without
