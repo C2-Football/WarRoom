@@ -785,6 +785,19 @@
             animation: 'wrFadeIn 0.2s ease'
         };
 
+        // Markdown-lite → HTML, same idiom as trade-calc.js's renderAlexVerdict
+        // and alex-insights.js's teamDiagnosisHtml — escape first (order matters:
+        // escaping after inserting tags would re-escape them), then bold/bullets/
+        // newlines only ever introduce known-safe static markup.
+        function tradeIdeaTextHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/\*\*([^*\n]+)\*\*/g, '<strong style="color:var(--gold);font-weight:700">$1</strong>')
+                .replace(/^- (.+)$/gm, '<div style="padding-left:0.8rem;margin:0.12rem 0">• $1</div>')
+                .replace(/\n\n/g, '<div style="margin:0.45rem 0"></div>')
+                .replace(/\n/g, '<br>');
+        }
         async function doAskAlexTradeIdea() {
             setTradeIdea({ loading: true });
             try {
@@ -933,7 +946,7 @@
                         ? React.createElement('div', { style: { fontSize: '0.78rem', color: 'var(--k-e74c3c, #e74c3c)', padding: '6px 2px' } },
                             'Alex couldn’t generate a trade idea: ' + tradeIdea.error)
                         : React.createElement(React.Fragment, null,
-                            tradeIdea.text && React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', lineHeight: 1.4, color: 'var(--text-primary)' } }, tradeIdea.text),
+                            tradeIdea.text && React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', lineHeight: 1.4, color: 'var(--text-primary)' }, dangerouslySetInnerHTML: { __html: tradeIdeaTextHtml(tradeIdea.text) } }),
                             tradeIdea.card && window.WR?.TradeIdeaCard && React.createElement(window.WR.TradeIdeaCard, { tradeCard: tradeIdea.card, leagueId: currentLeague?.league_id || currentLeague?.id }),
                             React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' } },
                                 tradeIdea.feedback
