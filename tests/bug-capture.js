@@ -6,12 +6,15 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const RECON_ROOT = path.resolve(ROOT, '..', 'reconai');
+// dhq-shared, not reconai (retired/archived) — dhq-shared is the canonical
+// source app-config.js/bug-capture.js are vendored from; reconai's copies
+// were always byte-identical, this just points at the source that still exists.
+const SHARED_ROOT = path.resolve(ROOT, '..', 'dhq-shared');
 const rootIndex = read(ROOT, 'index.html');
 const core = read(ROOT, 'js/core.js');
 const components = read(ROOT, 'js/components.js');
-const appConfig = read(RECON_ROOT, 'shared/app-config.js');
-const bugCapture = read(RECON_ROOT, 'shared/bug-capture.js');
+const appConfig = read(SHARED_ROOT, 'app-config.js');
+const bugCapture = read(SHARED_ROOT, 'bug-capture.js');
 
 let passed = 0;
 let failed = 0;

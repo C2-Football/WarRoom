@@ -34,7 +34,6 @@
     "test:live-click-paths": "npm run build:preview && node tests/live-click-paths.js",
     "test:launch-browser": "npm run build:preview && node tests/launch-browser-qa.js",
     "sync:shared": "node scripts/sync-reconai-shared.cjs",
-    "verify:deploy": "node ../reconai/scripts/verify-deploy-readiness.cjs",
     "build:preview": "npm run sync:shared && node scripts/build-preview.cjs",
     "preview:prod": "npm run build:preview && node scripts/serve-static.cjs --port=3002",
     "cap:sync": "npx cap sync",
