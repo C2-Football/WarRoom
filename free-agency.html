@@ -1250,7 +1250,12 @@
                 setAiLoading(true); setAiError(null); setAiAnalysis(null);
                 try {
                     const ctx = buildFAContext();
-                    const dhqEnrichment = (typeof dhqContext === 'function') ? dhqContext(false) : null;
+                    // dhqContext() (the old full-context builder) was retired with
+                    // Ask Alex chat — buildFormatPreamble is its still-live
+                    // successor for the superflex/TEP/IDP + quality-floor rules,
+                    // which buildFAContext's raw scoringSettings/rosterPositions
+                    // fields don't spell out as explicit prose the model follows.
+                    const dhqEnrichment = window.WR?.AIContext?.buildFormatPreamble?.(leagueInfo) || null;
                     const enrichedCtx = dhqEnrichment ? { ...ctx, _dhqContext: dhqEnrichment } : ctx;
                     const result = await window.OD.callAI({ type: aiMode, context: enrichedCtx });
                     setAiAnalysis(result.analysis);

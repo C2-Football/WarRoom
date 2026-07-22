@@ -288,6 +288,12 @@ function LineupTab({
         return () => { alive = false; };
     }, [lineupKey, ctxTick, oppRosterId, _projReady, seasonData]);
 
+    // Invalidate the game-plan expansion on the same signals the note above
+    // regenerates on — otherwise a stale plan for last week or a different
+    // league keeps showing, with the trigger button permanently hidden and
+    // no way to refresh it.
+    React.useEffect(() => { setGameplanTake(null); }, [lineupKey, ctxTick, oppRosterId, _projReady, seasonData]);
+
     // MFL is the only platform with a public lineup-write API (Sleeper has none).
     const _plat = (window.App && window.App.Matchup && window.App.Matchup._platform) ? window.App.Matchup._platform(currentLeague) : 'sleeper';
     const isMfl = _plat === 'mfl';

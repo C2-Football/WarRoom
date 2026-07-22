@@ -95,7 +95,7 @@
                         </div>
                     </div>
                     {GatedRow
-                        ? <GatedRow title="Alex calls your draft live" sub="Live commentary, room reads, and Ask Alex draft chat are Scout Pro." feature="draft_alex_stream" />
+                        ? <GatedRow title="Alex calls your draft live" sub="Live commentary, room reads, and Ask Alex pick advice are Scout Pro." feature="draft_alex_stream" />
                         : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Alex Stream', 'draft_alex_stream', 'Live draft commentary is Scout Pro.') : '' }} />}
                 </div>
             );

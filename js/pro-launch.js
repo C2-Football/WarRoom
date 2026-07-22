@@ -14,7 +14,7 @@
     {
       icon: '🧠',
       title: 'Full AI Intelligence',
-      desc: 'Unlimited AI chats with deep reasoning — trade analysis, waiver recommendations, draft intelligence, and daily briefings from Alex Ingram.',
+      desc: 'Unlimited AI reads with deep reasoning — trade ideas, waiver takes, draft advisories, and team diagnosis from Alex Ingram.',
       badge: 'Unlimited',
     },
     {
@@ -38,8 +38,8 @@
   ];
 
   const TIERS = [
-    { name: 'Free', price: '$0', period: '', features: ['1 league', 'DHQ dynasty values', 'Player cards + age curves', 'Team diagnosis', '1 AI query/day'], accent: 'rgba(255,255,255,0.3)' },
-    { name: 'War Room', price: '$9.99', period: '/mo', features: ['Everything in Free', 'Unlimited AI analysis', 'Owner DNA profiles', 'Behavioral trade model', 'Draft command center', 'Scout + War Room access'], accent: '#D4AF37', recommended: true },
+    { name: 'Free', price: '$0', period: '', features: ['1 league', 'DHQ dynasty values', 'Player cards + age curves'], accent: 'rgba(255,255,255,0.3)' },
+    { name: 'War Room', price: '$9.99', period: '/mo', features: ['Everything in Free', 'Unlimited AI reads', 'Team diagnosis, waiver takes, trade ideas', 'Owner DNA profiles', 'Behavioral trade model', 'Draft command center', 'Scout + War Room access'], accent: '#D4AF37', recommended: true },
     { name: 'Pro', price: '$12.99', period: '/mo', features: ['Everything in War Room', 'Global dashboard (all leagues)', 'Cross-league AI advice', 'Player exposure tracking', 'Unified Trophy Room', 'Season recap generator'], accent: '#60A5FA' },
     { name: 'Annual', price: '$79.99', period: '/yr', features: ['Everything in War Room', 'Locked-in annual rate', 'Save 33% — $6.67/mo', 'Priority feature access'], accent: '#2ECC71' },
   ];

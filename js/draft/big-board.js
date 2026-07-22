@@ -283,13 +283,19 @@
             const upside = pool.find(p => (p.fit?.score || 0) >= 55 && p !== best && p !== safe) || pool[2] || best;
             return { best, safe, upside };
         }, [state.pool]);
+        const pickAdvisoryKey = 'bb-take:' + [pickAdvisory.best, pickAdvisory.safe, pickAdvisory.upside].map(p => p?.pid || p?.name || '').join(',');
+        // Live draft pool moves fast (another manager can pick while this is in
+        // flight) — track the current board identity in a ref so a resolved
+        // response can be dropped if it's no longer describing what's on screen.
+        const pickAdvisoryKeyRef = React.useRef(pickAdvisoryKey);
+        pickAdvisoryKeyRef.current = pickAdvisoryKey;
         const [alexTake, setAlexTake] = React.useState(null); // null | {loading} | {text}
         const getAlexTake = async () => {
             if (typeof window.AlexVoice?.enhance !== 'function' || typeof window.wrIsPro === 'function' && !window.wrIsPro()) return;
             setAlexTake({ loading: true });
             const { best, safe, upside } = pickAdvisory;
             if (!best) { setAlexTake(null); return; }
-            const cacheKey = 'bb-take:' + [best, safe, upside].map(p => p?.pid || p?.name || '').join(',');
+            const cacheKey = pickAdvisoryKey;
             const context = JSON.stringify({
                 recommended: best && { name: best.name, pos: best.pos, dhq: best.dhq },
                 safe: safe && { name: safe.name, pos: safe.pos, dhq: safe.dhq },
@@ -302,8 +308,15 @@
                 fallback: null,
                 cacheKey,
             });
+            // Board moved on while this was in flight — drop the stale response
+            // rather than showing commentary about players no longer recommended.
+            if (pickAdvisoryKeyRef.current !== cacheKey) return;
             setAlexTake(text ? { text } : null);
         };
+        // Also clear an already-displayed take once the board moves past it —
+        // otherwise stale commentary sits under the new Recommended/Safe/Upside
+        // cards until the user happens to notice and re-click.
+        React.useEffect(() => { setAlexTake(null); }, [pickAdvisoryKey]);
 
         const availablePositions = React.useMemo(() => {
             const set = new Set();
