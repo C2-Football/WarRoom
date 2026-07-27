@@ -361,7 +361,12 @@ function MyTeamTab({
     const p = playersData[pid];
     if (!p) return null;
     const pos = normPos(p.position) || p.position || '?';
-    const dhq = window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid, { skin: resolvedLeagueSkin }) : (window.App?.LI?.playerScores?.[pid] || 0);
+    // league-skin.js already labels this column "Keeper-Adjusted Value" for
+    // keeper leagues (buildVocabulary) — route the actual number through the
+    // keeper blend so the label matches what's shown, not pure dynasty DHQ.
+    const dhq = resolvedLeagueSkin?.type === 'keeper' && window.App?.PlayerValue?.getKeeperValue
+        ? window.App.PlayerValue.getKeeperValue(pid, { skin: resolvedLeagueSkin })
+        : window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid, { skin: resolvedLeagueSkin }) : (window.App?.LI?.playerScores?.[pid] || 0);
     const meta = window.App?.LI?.playerMeta?.[pid];
     const st = statsData[pid] || {};
     const prev = stats2025Data?.[pid] || {};
@@ -453,6 +458,54 @@ function MyTeamTab({
       .sort((a, b) => a.dhq - b.dhq).slice(0, 3);
     return new Set(benchPlayers.map(r => r.pid));
   }, [rows]);
+
+  // Keeper recommendations — rows.dhq is already the keeper-blended value for
+  // keeper leagues (see the dhq computation above), so ranking by it here
+  // guarantees the recommendation list and the DHQ column never disagree.
+  const maxKeepers = Number(currentLeague?.settings?.max_keepers || currentLeague?.settings?.keeper_count || currentLeague?.metadata?.keeper_count || 0) || 3;
+  const keeperRanked = React.useMemo(() => {
+    if (resolvedLeagueSkin?.type !== 'keeper') return [];
+    return rows.slice().sort((a, b) => (b.dhq || 0) - (a.dhq || 0));
+  }, [rows, resolvedLeagueSkin?.type]);
+  const keeperTopPids = React.useMemo(
+    () => new Set(keeperRanked.slice(0, maxKeepers).map(r => r.pid)),
+    [keeperRanked, maxKeepers]
+  );
+  // Keeper take — one-shot, ask once, no back-and-forth (same idiom as the
+  // waiver-take/team-diagnosis/trade-idea cards). A single cached AI reaction
+  // to the WHOLE recommended set, not one call per player.
+  const [keeperTake, setKeeperTake] = React.useState(null); // null | {loading} | {text} | {error}
+  const keeperTakeKey = 'keeper-take:' + (currentLeague?.league_id || currentLeague?.id || '') + ':' + keeperRanked.slice(0, maxKeepers).map(r => r.pid).join(',');
+  async function getKeeperTake() {
+    if (typeof window.AlexVoice?.enhance !== 'function' || !isPro) return;
+    setKeeperTake({ loading: true });
+    try {
+      const context = JSON.stringify({
+        keeperSlots: maxKeepers,
+        topKeeps: keeperRanked.slice(0, maxKeepers).map(r => ({ name: getPlayerName(r.pid), pos: r.pos, keeperValue: r.dhq })),
+        bubble: keeperRanked.slice(maxKeepers, maxKeepers + 2).map(r => ({ name: getPlayerName(r.pid), pos: r.pos, keeperValue: r.dhq })),
+      });
+      const text = await window.AlexVoice.enhance({
+        type: 'pick-analysis',
+        message: 'In 1-2 sentences, react to this team’s keeper picks — call out if one is a clear reach, or if a bubble player should bump a top pick.',
+        context,
+        fallback: null,
+        cacheKey: keeperTakeKey,
+      });
+      setKeeperTake(text ? { text } : null);
+    } catch (e) {
+      setKeeperTake({ error: e?.message || 'AI call failed' });
+    }
+  }
+  function sendKeeperTakeFeedback(action) {
+    setKeeperTake(prev => prev ? { ...prev, feedback: action } : prev);
+    window.WR?.AIFeedback?.send?.({
+      leagueId: currentLeague?.league_id || currentLeague?.id,
+      surface: 'keeper_take',
+      recId: keeperTakeKey,
+      action,
+    });
+  }
 
   // Dismissed drop alerts (persisted in localStorage per league)
   const [dismissedDrops, setDismissedDrops] = React.useState(() => {
@@ -1227,6 +1280,7 @@ function MyTeamTab({
     const bits = [r.p.team || 'FA'];
     if (r.age) bits.push(String(r.age));
     bits.push(r.injury ? r.injury : _slotLabel(r));
+    if (isPro && resolvedLeagueSkin?.type === 'keeper' && keeperTopPids.has(r.pid)) bits.push('KEEP');
     return bits.join(' · ');
   };
   // Verdict chip (Move-column analog) — Pro-only, exactly mirroring the
@@ -1533,6 +1587,7 @@ function MyTeamTab({
                       {!r.gmIsUntouchable && r.gmIsTarget && <span title="GM Strategy: acquisition-focus position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.28))', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>TGT</span>}
                       {!r.gmIsUntouchable && r.gmIsSellPos && <span title="GM Strategy: sell-candidate position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'rgba(240,165,0,0.13)', color: 'var(--warn)', border: '1px solid rgba(240,165,0,0.32)', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>SELL</span>}
                       {isPro && dropCandidatePids.has(r.pid) && !dismissedDrops.has(r.pid) && <span className="wr-drop-chip" onClick={e => { e.stopPropagation(); dismissDrop(r.pid); }} title="Drop candidate (click to dismiss)" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(231,76,60,0.2)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>DROP?</span>}
+                      {isPro && resolvedLeagueSkin?.type === 'keeper' && keeperTopPids.has(r.pid) && <span title={'Recommended keep — top ' + maxKeepers + ' by keeper value'} style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.28))', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>KEEP</span>}
                       </React.Fragment>}
                     </div>
                     <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, marginTop: '1px' }}>{r.p.team || 'FA'}{!_phone && r.injury ? ' \u00B7 '+r.injury : ''}</div>
@@ -1779,6 +1834,68 @@ function MyTeamTab({
           </React.Fragment>
         ),
       })}
+
+      {/* Keeper recommendations — keeper leagues only, Pro-gated same as the
+          Move column / Dynasty Read. Additive to the existing roster board,
+          not a replacement for the Move column (different questions: "should
+          I trade him" vs "should I spend a keeper slot on him"). */}
+      {resolvedLeagueSkin?.type === 'keeper' && isPro && keeperRanked.length > 0 && (() => {
+        const keeperRowEl = (r, isBubble) => {
+          const ka = window.getKeeperAction ? window.getKeeperAction(r.pid) : null;
+          return React.createElement(window.WR.AssetRow, {
+            key: r.pid,
+            pos: r.pos,
+            name: getPlayerName(r.pid),
+            tag: [r.p?.team || 'FA', r.age ? String(r.age) : null].filter(Boolean).join(' · '),
+            slots: [{ label: 'KEEPER VAL', value: (r.dhq || 0).toLocaleString(), strong: true }],
+            verdict: ka && React.createElement('span', {
+              title: ka.reason,
+              style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', border: '1px solid ' + wrAlpha(ka.col, '80'), color: ka.col, letterSpacing: '0.02em', whiteSpace: 'nowrap', textTransform: 'uppercase' }
+            }, ka.label),
+            expanded: expandedPid === r.pid,
+            onClick: () => setExpandedPid(prev => prev === r.pid ? null : r.pid),
+            title: isBubble ? 'On the bubble — open full detail' : 'Recommended keep — open full detail',
+          }, expandedPid === r.pid && ka ? React.createElement('div', { style: { fontSize: '0.8rem', color: 'var(--silver)', lineHeight: 1.4 } }, ka.reason) : null);
+        };
+        const topRows = keeperRanked.slice(0, maxKeepers).map(r => keeperRowEl(r, false));
+        const bubbleRows = keeperRanked.slice(maxKeepers, maxKeepers + 2).map(r => keeperRowEl(r, true));
+        return (
+          <section style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius)', background: 'var(--surf-solid, rgba(20,20,26,0.72))', padding: 'var(--card-pad-sm)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.04em' }}>Keeper Recommendations</span>
+              <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{maxKeepers} keeper slot{maxKeepers === 1 ? '' : 's'}</span>
+            </div>
+            {React.createElement(window.WR.CardList, {
+              groups: [
+                { label: 'Recommended Keeps', sub: topRows.length + (topRows.length === 1 ? ' player' : ' players'), rows: topRows },
+                ...(bubbleRows.length ? [{ label: 'On the Bubble', sub: bubbleRows.length + (bubbleRows.length === 1 ? ' player' : ' players'), rows: bubbleRows }] : []),
+              ],
+            })}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {keeperTake?.error ? (
+                <span style={{ fontSize: '0.78rem', color: 'var(--k-e74c3c, #e74c3c)' }}>Alex couldn’t generate a take: {keeperTake.error}</span>
+              ) : keeperTake?.text ? (
+                <React.Fragment>
+                  <span style={{ fontSize: '0.84rem', color: 'var(--text-primary)', lineHeight: 1.4 }}>✦ {keeperTake.text}</span>
+                  {keeperTake.feedback
+                    ? <span style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6 }}>{keeperTake.feedback === 'up' ? 'Glad it helped.' : 'Noted — Alex learns from this.'}</span>
+                    : (
+                      <React.Fragment>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6 }}>Useful?</span>
+                        <button onClick={() => sendKeeperTakeFeedback('up')} style={{ background: 'none', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px' }}>👍</button>
+                        <button onClick={() => sendKeeperTakeFeedback('down')} style={{ background: 'none', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px' }}>👎</button>
+                      </React.Fragment>
+                    )}
+                </React.Fragment>
+              ) : (
+                <button onClick={getKeeperTake} disabled={keeperTake?.loading} style={{ padding: '6px 12px', fontSize: '0.8rem', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '6px', cursor: 'pointer' }}>
+                    {keeperTake?.loading ? '✨ Thinking…' : '✨ Alex’s take'}
+                  </button>
+                )}
+            </div>
+          </section>
+        );
+      })()}
 
       {/* Review Roster triage strip (iPad pass, owner-approved 2026-07-12):
           the phone triage SHEET had no ≥768 equivalent — flags only lived

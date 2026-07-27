@@ -22,7 +22,7 @@ import {
 const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW = 60 * 1000;
 
-const ALLOWED_SURFACES = new Set(['trade_verdict', 'team_diagnosis', 'insight', 'dashboard_digest', 'fa_targets']);
+const ALLOWED_SURFACES = new Set(['trade_verdict', 'team_diagnosis', 'insight', 'dashboard_digest', 'fa_targets', 'keeper_take']);
 const ALLOWED_ACTIONS = new Set(['up', 'down', 'acted', 'dismissed']);
 
 async function checkRateLimit(identifier: string): Promise<boolean> {
