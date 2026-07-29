@@ -206,3 +206,18 @@ jobs:
 
       - name: Deploy admin-analytics-report function
         run: supabase functions deploy admin-analytics-report --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
+
+      # ── League-connect proxies ────────────────────────────────────────────
+      # These three relay ESPN / Yahoo / MFL calls that browsers cannot make
+      # cross-origin. Their source and deploy pipeline used to live ONLY in
+      # C2-Football/ReconAI, which was archived (read-only) on 2026-07-08 —
+      # so until this repatriation they could not be patched, redeployed, or
+      # rolled back at all. They are now War Room's to own.
+      - name: Deploy espn-proxy function
+        run: supabase functions deploy espn-proxy --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
+
+      - name: Deploy mfl-proxy function
+        run: supabase functions deploy mfl-proxy --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
+
+      - name: Deploy yahoo-proxy function
+        run: supabase functions deploy yahoo-proxy --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
