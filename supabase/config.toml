@@ -58,5 +58,15 @@ verify_jwt = false
 [functions.mfl-proxy]
 verify_jwt = false
 
+# espn-proxy and yahoo-proxy were repatriated from the archived ReconAI repo,
+# which held their only verify_jwt pin. Both are browser-facing league-connect
+# relays with no Supabase JWT to present, so gateway verification would break
+# ESPN and Yahoo connects outright.
+[functions.espn-proxy]
+verify_jwt = false
+
+[functions.yahoo-proxy]
+verify_jwt = false
+
 [functions.set-password]
 verify_jwt = false
