@@ -48,7 +48,10 @@ function findSourceDir() {
     process.env.SHARED_SOURCE,
     process.env.RECONAI_SHARED_SOURCE, // back-compat alias
     path.resolve(ROOT, '..', 'dhq-shared'),
-    path.resolve(ROOT, '..', 'reconai', 'shared'), // legacy fallback
+    // No ../reconai/shared fallback. ReconAI was archived 2026-07-08 and a local
+    // checkout of it is frozen at that date — silently syncing from it would
+    // vendor months-stale engine code instead of failing loudly. dhq-shared is
+    // the only canonical source.
   ].filter(Boolean);
 
   return candidates.find(candidate => fs.existsSync(candidate)) || null;
@@ -82,6 +85,33 @@ for (const file of FILES) {
 }
 
 console.log(`[sync-reconai-shared] Copied ${FILES.length} files to ${path.relative(ROOT, TARGET)}/`);
+
+// ── Un-vendored twin: player-value.js ───────────────────────────────────────
+// player-value.js is deliberately NOT in FILES. index.html loads War Room's own
+// js/utils/player-value.js directly, and dhq-shared/player-value.js is a
+// hand-maintained twin kept byte-identical by convention only — this sync will
+// never propagate a change to it in either direction. That convention has no
+// enforcement, so a one-sided edit silently forks the value engine (DHQ, ROS,
+// keeper blend) between the two repos. Fail loudly instead.
+const TWIN = 'player-value.js';
+const twinLocal = path.join(ROOT, 'js', 'utils', TWIN);
+const twinShared = path.join(SOURCE, TWIN);
+
+if (fs.existsSync(twinLocal) && fs.existsSync(twinShared)) {
+  const localSrc = fs.readFileSync(twinLocal, 'utf8');
+  const sharedSrc = fs.readFileSync(twinShared, 'utf8');
+  if (localSrc !== sharedSrc) {
+    console.error(
+      `[sync-reconai-shared] DRIFT: ${TWIN} differs between the two repos.\n` +
+      `  warroom:    js/utils/${TWIN}\n` +
+      `  dhq-shared: ${path.relative(ROOT, twinShared)}\n` +
+      `  This file is not vendored — edit BOTH copies by hand, then re-run.\n` +
+      `  Diff them with: diff js/utils/${TWIN} ${path.relative(ROOT, twinShared)}`
+    );
+    process.exit(1);
+  }
+  console.log(`[sync-reconai-shared] ${TWIN} twin in sync (not vendored — hand-maintained)`);
+}
 
 // ── Rookie/prospect CSVs (shared data) ──────────────────────────────────────
 // Vendored from dhq-shared/draft-war-room into War Room's own draft-war-room/ so
