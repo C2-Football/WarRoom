@@ -9,6 +9,8 @@ const ROOT = path.join(__dirname, '..');
 const migration = read('supabase/migrations/20260502020000_security_baseline.sql');
 const permissionHardening = read('supabase/migrations/20260508000000_supabase_permission_hardening.sql');
 const shared = read('supabase/functions/_shared/security.ts');
+const cors = read('supabase/functions/_shared/cors.ts');
+const config = read('supabase/config.toml');
 const signin = read('supabase/functions/fw-signin/index.ts');
 const signup = read('supabase/functions/fw-signup/index.ts');
 const adminList = read('supabase/functions/admin-list-users/index.ts');
@@ -212,6 +214,49 @@ group('deploy');
 test('GitHub Actions deploy only production functions from main', () => {
   ok(!deployFunctionsWorkflow.includes('claude/*'), 'function deploy workflow must not run from claude/* branches');
   ok(deployFunctionsWorkflow.includes('branches: ["main"]'), 'function deploy workflow should be restricted to main');
+});
+
+test('every deployed edge function is pinned verify_jwt = false', () => {
+  // A plain `supabase functions deploy` defaults verify_jwt to TRUE, which puts
+  // Supabase's gateway JWT check in front of a function that authenticates
+  // internally (or is pre-auth, like the league-connect proxies) — breaking it
+  // outright. config.toml pins the correct value declaratively; this asserts
+  // nothing gets deployed without a pin. The espn/yahoo proxies shipped without
+  // one for weeks because their pin lived in the archived ReconAI repo.
+  const deployed = [...deployFunctionsWorkflow.matchAll(/supabase functions deploy (\S+)/g)].map(m => m[1]);
+  ok(deployed.length > 0, 'workflow should deploy at least one function');
+  for (const fn of deployed) {
+    ok(config.includes(`[functions.${fn}]`), `config.toml must pin verify_jwt for ${fn}`);
+    ok(
+      new RegExp(`\\[functions\\.${fn}\\]\\s*\\nverify_jwt = false`).test(config),
+      `${fn} must be pinned verify_jwt = false`,
+    );
+    ok(
+      fs.existsSync(path.join(ROOT, 'supabase', 'functions', fn, 'index.ts')),
+      `${fn} is deployed by CI but has no source in supabase/functions/`,
+    );
+  }
+});
+
+test('the two CORS allowlists have not drifted apart', () => {
+  // _shared/cors.ts (used by the repatriated espn/yahoo proxies) and
+  // _shared/security.ts (used by everything else) each carry their own copy of
+  // DEFAULT_ALLOWED_ORIGINS. They are deliberately NOT consolidated: cors.ts is
+  // dependency-free, while security.ts pulls supabase-js + jose, and making the
+  // lightweight proxies import that graph would add cold-start cost to the
+  // latency-sensitive league-connect path. Two copies is the right call — an
+  // unnoticed fork between them is not.
+  const origins = src => {
+    const block = src.match(/DEFAULT_ALLOWED_ORIGINS = \[([\s\S]*?)\]/);
+    ok(block, 'DEFAULT_ALLOWED_ORIGINS block not found');
+    return [...block[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1]).sort();
+  };
+  const a = origins(cors);
+  const b = origins(shared);
+  ok(
+    JSON.stringify(a) === JSON.stringify(b),
+    `cors.ts and security.ts allowlists differ:\n  cors.ts:     ${a.join(', ')}\n  security.ts: ${b.join(', ')}`,
+  );
 });
 
 test('GitHub Pages publishes a sanitized artifact instead of the repository root', () => {
