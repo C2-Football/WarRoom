@@ -2650,10 +2650,16 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- 2d. GM Mode helper (Phase 1) — window.WR.GmMode — canonical mode/preset source of truth -->
 <script type="text/babel" src="js/shared/gm-mode.js?v=20260613gm3"></script>
 <script src="js/shared/startsit-engine.js?v=20260701gdc4"></script>
-<script src="js/shared/weekly-proj.js?v=20260701gdc1"></script>
-<script src="js/shared/nfl-context.js?v=20260616wx1"></script>
+<script src="js/shared/weekly-proj.js?v=20260729rd1"></script>
+<script src="js/shared/nfl-context.js?v=20260729rd1"></script>
 <script src="js/shared/matchup.js?v=20260701gdc1"></script>
 <script src="js/utils/schedule-engine.js?v=20260702bye1"></script>
+<!-- Redraft add-ons (2026-07-29): luck ledger, playoff Monte Carlo, FAAB bid
+     model. Plain-JS engines (no JSX), eager like the rest of this block —
+     consumed by Analytics (Season Odds), Free Agency, and Game Day. -->
+<script src="js/shared/luck-engine.js?v=20260729rd1"></script>
+<script src="js/shared/playoff-odds.js?v=20260729rd1"></script>
+<script src="js/shared/faab-engine.js?v=20260729rd1"></script>
 <script src="js/utils/gamelog-engine.js?v=20260702scout1"></script>
 <script src="js/shared/draft-gameplan.js?v=20260616ros1"></script>
 <!-- 2e. Alex behavioral-insight settings — window.WR.AlexSettings — shared tuning for every Alex surface -->
@@ -2673,7 +2679,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- 2h2. Feedback hub — floating launcher, bug reports + crash capture, feature voting board -->
 <script src="js/shared/feedback-hub.js?v=20260711fb2"></script>
 <!-- 2i. Per-league transaction cache — window.WrTxns — cross-league activity + DNA substrate -->
-<script src="js/shared/txn-store.js?v=20260601a"></script>
+<script src="js/shared/txn-store.js?v=20260729rd1"></script>
 <!-- 3. Shared utilities: player valuation constants + projection engine -->
 <script type="text/babel" src="js/utils/sos-engine.js?v=20260702scout1"></script>
 <script type="text/babel" src="js/utils/player-value.js?v=20260517valuefix"></script>
@@ -2686,8 +2692,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" src="js/settings.js?v=20260613strip1"></script>
 <script type="text/babel" data-wr-defer="trade" src="js/trade-calc.js?v=20260707desk1"></script>
 <script type="text/babel" src="js/post-draft.js?v=20260609postdraft1"></script>
-<script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260613strip1"></script>
-<script type="text/babel" data-wr-defer="lineup" src="js/tabs/lineup.js?v=20260702bye1"></script>
+<script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260730rd7"></script>
+<script type="text/babel" data-wr-defer="lineup" src="js/tabs/lineup.js?v=20260729rd1"></script>
 <!-- 4b. Draft Command Center modules — group "draft" (~28 scripts, ~1.26MB),
      loaded on first Draft-tab open. -->
 <script type="text/babel" data-wr-defer="draft" src="js/draft/styles.js?v=20260427font1"></script>
@@ -2744,7 +2750,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="myteam" src="js/tabs/my-team.js?v=20260614card4"></script>
 <!-- Compare: extracted from My Roster's former sub-view, now a top-level ROSTER-group tab. -->
 <script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20260616compare5"></script>
-<script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260613strip1"></script>
+<script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260730rd7"></script>
 <script type="text/babel" data-wr-defer="trophies" src="js/tabs/trophy-room.js?v=20260619cal1"></script>
 <script type="text/babel" src="js/tabs/calendar.js?v=20260619cal1"></script>
 <!-- Alex Insights (Option A): top-level tab for behavioral analysis + AI settings -->
