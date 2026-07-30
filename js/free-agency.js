@@ -634,6 +634,112 @@
         }
     }
 
+    // ── FAAB Command (redraft add-ons batch) ─────────────────────────
+    // League-aware bid plan for a waiver target: what THIS league pays, who
+    // else needs the player, and the smallest bid that clears them. All
+    // deterministic (App.Faab) off the league's own transaction log — winning
+    // AND losing bids (WrTxns.getFailedWaivers). Pro-only, FAAB leagues only.
+    function FaabCommandCard({ league, myRoster, playersData, targets }) {
+        const [pick, setPick] = useState(0);
+        const [plan, setPlan] = useState(null);   // null | {loading} | {a} | {err}
+        // Fall back to the top target if the board shifted under a stale index
+        // (a new week's Priority Moves can be shorter than the old selection).
+        const target = (targets || [])[pick] || (targets || [])[0] || null;
+        const lid = league?.league_id || league?.id || '';
+        useEffect(() => {
+            if (!target || !window.App?.Faab || !window.WrTxns) { setPlan(null); return; }
+            let alive = true;
+            setPlan({ loading: true });
+            (async () => {
+                try {
+                    const txns = await window.WrTxns.fetchLeagueTxns(lid);
+                    const failed = window.WrTxns.getFailedWaivers(lid);
+                    const a = window.App.Faab.analyze({
+                        league, myRosterId: myRoster?.roster_id,
+                        txns: (txns || []).concat(failed || []),
+                        playersData,
+                        targetPid: target.pid, targetPos: target.pos,
+                        // Strength: DHQ vs an elite-FA benchmark (6000 ≈ a league-winning add).
+                        targetStrength: Math.max(0.15, Math.min(1, (Number(target.dhq) || 0) / 6000)),
+                    });
+                    if (alive) setPlan(a ? { a } : null);
+                } catch (e) { if (alive) setPlan({ err: true }); }
+            })();
+            return () => { alive = false; };
+        }, [lid, target?.pid]);
+        if (!target || (plan && plan.err)) return null;
+        if (plan && plan.loading) {
+            return <div style={{ padding: '10px 12px', marginBottom: '10px', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: '8px', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', fontFamily: 'var(--font-mono)' }}>Reading this league’s bid history…</div>;
+        }
+        const a = plan && plan.a;
+        if (!a) return null;    // pre-effect, non-FAAB league, or engine absent
+        const mono = { fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' };
+        const micro = { fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-mono)', letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted, #8D887E)' };
+        const needColor = n => n === 'HIGH' ? 'var(--warn)' : n === 'MED' ? 'var(--silver)' : 'var(--text-muted)';
+        const engaged = a.rivals.filter(r => r.engaged);
+        return (
+            <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '8px', padding: '12px 14px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                    <span style={{ ...micro, color: 'var(--gold)', fontWeight: 700 }}>FAAB Command</span>
+                    <span style={{ ...micro }}>${a.myLeft} of ${a.budget} left</span>
+                    {a.coldStart ? <span title="Fewer than 15 logged bids this season — showing league-size defaults, not per-rival reads" style={{ ...micro, color: 'var(--warn)' }}>league-median mode · {a.sampleSize} bids logged</span> : <span style={{ ...micro }}>{a.sampleSize} bids of evidence</span>}
+                </div>
+                {targets.length > 1 ? (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                        {targets.map((t, i) => (
+                            <button key={t.pid} onClick={() => setPick(i)}
+                                style={{ padding: '3px 8px', borderRadius: '5px', cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, fontFamily: 'var(--font-mono)', background: i === pick ? 'rgba(212,175,55,0.14)' : 'transparent', border: '1px solid ' + (i === pick ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.1))'), color: i === pick ? 'var(--gold)' : 'var(--silver)' }}>
+                                {t.name}
+                            </button>
+                        ))}
+                    </div>
+                ) : null}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '8px' }}>
+                    <span style={{ ...mono, fontSize: '1.5rem', fontWeight: 700, color: 'var(--gold)' }}>${a.rec.bid}</span>
+                    <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>
+                        {engaged.length
+                            ? Math.round(a.rec.winPct * 100) + '% to win' + (a.rec.capped ? ' — capped by your remaining budget' : '') + ' · ' + engaged.length + ' rival' + (engaged.length === 1 ? '' : 's') + ' in the market'
+                            : 'uncontested — no rival needs him'}
+                    </span>
+                </div>
+                {/* With nobody contesting him, every rung prices at the same
+                    capped 97% and the ladder reads as broken. Say the true
+                    thing instead: the minimum bid is enough. */}
+                {!engaged.length ? (
+                    <div style={{ ...micro, textTransform: 'none', letterSpacing: 0, lineHeight: 1.5 }}>
+                        No rival has both a need at {target.pos || 'this position'} and the budget to chase him — the league minimum (${a.minBid}) should land him. Spend the difference on someone contested.
+                    </div>
+                ) : a.ladder.map(l => (
+                    <div key={l.bid} style={{ display: 'grid', gridTemplateColumns: '44px 1fr 40px', gap: '10px', alignItems: 'center', padding: '3px 0' }}>
+                        <span style={{ ...mono, fontSize: 'var(--text-label, 0.75rem)', fontWeight: l.bid === a.rec.bid ? 700 : 500, color: l.bid === a.rec.bid ? 'var(--gold)' : 'var(--white)' }}>${l.bid}</span>
+                        <div style={{ height: '6px', background: '#0C0E13', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                            <i style={{ display: 'block', height: '100%', width: Math.round(l.winPct * 100) + '%', background: l.bid === a.rec.bid ? 'var(--gold)' : 'var(--info)' }} />
+                        </div>
+                        <span style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', textAlign: 'right', color: 'var(--silver)' }}>{Math.round(l.winPct * 100)}%</span>
+                    </div>
+                ))}
+                {!a.coldStart && engaged.length ? (
+                    <div style={{ marginTop: '10px' }}>
+                        <div style={{ ...micro, marginBottom: '4px' }}>Who else wants him</div>
+                        {engaged.slice(0, 4).map(r => (
+                            <div key={r.rosterId} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.4fr) 52px 46px 56px', gap: '8px', padding: '3px 0', fontSize: 'var(--text-label, 0.75rem)', ...mono }}>
+                                <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, color: 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                                <span style={{ textAlign: 'right', color: 'var(--silver)' }}>${r.faabLeft}</span>
+                                <span style={{ textAlign: 'right', color: needColor(r.need), fontWeight: 700, fontSize: 'var(--text-micro, 0.6875rem)' }}>{r.need}</span>
+                                <span style={{ textAlign: 'right', color: 'var(--silver)' }}>est ${r.estBid}</span>
+                            </div>
+                        ))}
+                    </div>
+                ) : null}
+                <div style={{ ...micro, marginTop: '8px', textTransform: 'none', letterSpacing: 0 }}>
+                    {a.coldStart
+                        ? 'Rival bid reads unlock as this league logs claims — recommendations use league-size medians until then.'
+                        : 'League median comparable: $' + a.medianBid + ' · you’ve spent ' + a.mySpentPct + '% vs a ' + a.leagueSpentPct + '% league average.'}
+                </div>
+            </div>
+        );
+    }
+
     function FreeAgencyTab({ playersData, statsData, prevStatsData, myRoster, currentLeague, leagueSkin, sleeperUserId, timeRecomputeTs, viewMode, briefDraftInfo }) {
         const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
         const skinFeatures = resolvedLeagueSkin?.features || {};
@@ -1453,6 +1559,12 @@
                                 <span>Priority Moves</span>
                                 <em>{topAdds.length} add targets · {swapRows.length} swaps</em>
                             </div>
+                            {/* FAAB Command — league-aware bid plan for the top targets
+                                (deterministic; the league's own bid history is the model). */}
+                            {isPro && topAdds.length > 0 && (
+                                <FaabCommandCard league={currentLeague} myRoster={myRoster} playersData={playersData}
+                                    targets={topAdds.slice(0, 3).map(x => ({ pid: x.pid, name: x.name, pos: x.pos, dhq: x.dhq }))} />
+                            )}
                             {/* Waiver Take — one-shot AI card, ask once, no chat.
                                 Alex reacts to the deterministic board above, never
                                 picks players outside it. */}
