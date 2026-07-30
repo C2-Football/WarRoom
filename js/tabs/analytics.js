@@ -83,6 +83,7 @@ function AnalyticsPanel({
             ? <div style={{ marginBottom: 'var(--card-gap, 14px)' }} dangerouslySetInnerHTML={{ __html: window.wrLockCard(label, 'analytics_depth', sub) }} />
             : null
     );
+
     // Phone tier (≤767, iPhone program Phase 3): shared viewport seam
     // (js/shared/viewport.js, one debounced app-wide listener) + kit gate.
     // Kit presence (wr-primitives.js loads earlier in the babel chain) is
@@ -134,6 +135,12 @@ function AnalyticsPanel({
         { key: 'roster', label: 'Roster' },
         { key: 'draft', label: 'Draft' },
         { key: 'trades', label: 'Market Moves' },
+        // Season Odds: playoff Monte Carlo + luck ledger (redraft add-ons batch).
+        // Shown only when a season actually has scores to talk about — live
+        // (odds + luck) or finished (luck recap). Hidden pre-draft/drafting,
+        // where it would be two "come back later" cards. NOT redraft-gated:
+        // playoff odds and schedule luck matter just as much in dynasty.
+        ...(['in_season', 'complete', 'offseason'].includes(leagueSkin?.phase) ? [{ key: 'season', label: 'Season Odds' }] : []),
         // 'assets' merges the former 'players' + 'picks' sub-tabs into one screen
         // with an internal Players/Picks toggle (handled inside LeagueMapTab).
         { key: 'assets', label: 'Players & Picks' },
@@ -142,10 +149,82 @@ function AnalyticsPanel({
     ];
     const activeSubTab = subTabs.find(t => t.key === analyticsTab) || subTabs[0];
     const analyticsViewTab = activeSubTab.key;
+
+    // ── Season Odds data (playoff Monte Carlo + luck ledger) ─────────
+    // Hooks live at panel level (render branches are conditional IIFEs);
+    // the fetch itself only fires once the Season Odds sub-tab is opened.
+    const _soLeagueId = currentLeague?.league_id || currentLeague?.id || '';
+    const [seasonOdds, setSeasonOdds] = React.useState({ status: 'idle' });
+    // Run-identity ref, NOT an effect-cleanup kill switch: the effect depends
+    // on seasonOdds.status, so its own setState re-runs it — a cleanup that
+    // flips `alive` would orphan the in-flight run on that very re-run. Late
+    // setState after a league switch is instead ignored by the key check.
+    const _soRun = React.useRef({ key: null });
+    React.useEffect(() => { _soRun.current.key = null; setSeasonOdds({ status: 'idle' }); }, [_soLeagueId]);
+    React.useEffect(() => {
+        if (analyticsViewTab !== 'season' || seasonOdds.status !== 'idle') return;
+        if (_soRun.current.key === _soLeagueId) return;   // already in flight
+        const Luck = window.App?.Luck, PO = window.App?.PlayoffOdds, WP = window.App?.WeeklyProj;
+        if (!Luck || !PO || !WP || !currentLeague) { setSeasonOdds({ status: 'unavailable' }); return; }
+        const runKey = _soLeagueId;
+        _soRun.current.key = runKey;
+        const live = () => _soRun.current.key === runKey;
+        setSeasonOdds({ status: 'loading' });
+        (async () => {
+            try {
+                const curWk = WP.currentWeek();
+                const pws = Number(currentLeague.settings?.playoff_week_start) || 15;
+                const lastReg = Math.max(1, Math.min(18, pws - 1));
+                // A finished season can't be read off the LIVE NFL week (which
+                // is 1 all offseason), so ask for the full regular season
+                // explicitly — that's what makes the end-of-year luck recap
+                // work at all. Guarded by the same flag that blocks the sim.
+                const seasonOver = leagueSkin?.phase === 'complete' || leagueSkin?.phase === 'offseason';
+                const ledger = await Luck.build({ league: currentLeague, throughWeek: seasonOver ? lastReg : undefined });
+                const playedWeeks = ledger.weeks.length;
+                // Kick SOS + playoff-week NFL context in the background for the
+                // SOS grid — non-blocking, the grid renders when they land.
+                try { window.App?.SOS?.initialize?.(currentLeague.season, playersData, () => { if (live()) setSeasonOdds(s => (s.status === 'ready' ? { ...s, sosTick: (s.sosTick || 0) + 1 } : s)); }); } catch (_) {}
+                const playoffTeams = Math.max(2, Number(currentLeague.settings?.playoff_teams) || 6);
+                const rounds = Math.ceil(Math.log2(playoffTeams));
+                const playoffWeeks = [];
+                for (let w = pws; w < pws + rounds && w <= 18; w++) playoffWeeks.push(w);
+                try { window.App?.NflContext?.load?.(playoffWeeks, currentLeague.season).then(() => { if (live()) setSeasonOdds(s => (s.status === 'ready' ? { ...s, sosTick: (s.sosTick || 0) + 1 } : s)); }); } catch (_) {}
+
+                let sim = null, futurePairs = {};
+                // !seasonOver is load-bearing: with a finished season curWk is
+                // 1, so without it every played week would be re-simulated as
+                // a "future" game on top of the record it already produced.
+                if (!seasonOver && playedWeeks >= 2 && curWk <= lastReg) {
+                    futurePairs = await PO.fetchFuturePairs({ league: currentLeague, fromWeek: curWk, toWeek: lastReg });
+                    sim = PO.simulate({ league: currentLeague, ledger, futurePairs, myRosterId: myRoster?.roster_id, sims: 10000 });
+                }
+                if (live()) setSeasonOdds({ status: 'ready', ledger, sim, playedWeeks, curWk, pws, playoffWeeks });
+            } catch (e) {
+                window.wrLog?.('analytics.seasonOdds', e);
+                if (live()) setSeasonOdds({ status: 'error' });
+            }
+        })();
+    }, [analyticsViewTab, seasonOdds.status, _soLeagueId]);
+    // Starters for the playoff-SOS grid (recomputes when SOS/NFL context land).
+    const _soSos = React.useMemo(() => {
+        if (seasonOdds.status !== 'ready' || !seasonOdds.playoffWeeks?.length) return null;
+        const WP = window.App?.WeeklyProj, PO = window.App?.PlayoffOdds;
+        if (!WP || !PO || !myRoster) return null;
+        try {
+            const res = WP.optimalForRoster(myRoster, currentLeague, { playersData, statsData, priorData: stats2025Data, week: seasonOdds.curWk });
+            const starters = (res.optimal?.starters || []).map(s => ({
+                pid: s.pid, pos: s.pos,
+                team: String(playersData?.[s.pid]?.team || '').toUpperCase() || null,
+            })).filter(s => s.team);
+            return PO.playoffSos({ starters, playersData, weeks: seasonOdds.playoffWeeks });
+        } catch (e) { return null; }
+    }, [seasonOdds.status, seasonOdds.sosTick, _soLeagueId]);
     const _analyticsContext = {
         roster: 'Winner-template gaps, room coverage, and roster construction evidence.',
         draft: 'Pick value, hit-rate patterns, and current-pick strategy.',
         trades: 'Trade efficiency, waiver activity, FAAB, and market pressure.',
+        season: 'Playoff odds from 10,000 season simulations, this-week leverage, and the luck ledger.',
         assets: 'Full player universe and draft-pick capital in one ledger — toggle Players / Picks.',
         reports: 'Custom report templates, saved views, and live preview.'
     };
@@ -1676,6 +1755,207 @@ function AnalyticsPanel({
                 )}
             </React.Fragment>
             );
+        })()}
+
+        {/* ── Season Odds: playoff Monte Carlo + leverage + playoff SOS + luck ledger ── */}
+        {analyticsViewTab === 'season' && (() => {
+            const so = seasonOdds;
+            const mono = { fontFamily: 'var(--font-mono, monospace)', fontVariantNumeric: 'tabular-nums' };
+            const microHdr = { font: '600 var(--text-micro, 0.6875rem) var(--font-mono, monospace)', color: 'var(--text-muted, #8D887E)', letterSpacing: '0.08em', textTransform: 'uppercase' };
+            if (so.status === 'loading' || so.status === 'idle') {
+                return <AnalyticsSection title="Season Odds" meta="10,000 season simulations"><div style={{ color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)', ...mono }}>{so.status === 'idle' ? 'Loading season data…' : 'Simulating the rest of the season…'}</div></AnalyticsSection>;
+            }
+            if (so.status === 'error' || so.status === 'unavailable') {
+                return <AnalyticsSection title="Season Odds"><div style={{ color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)' }}>Season odds are unavailable right now — weekly scores could not be loaded.</div></AnalyticsSection>;
+            }
+            const { ledger, sim, playedWeeks } = so;
+            const myId = String(myRoster?.roster_id ?? '');
+            const AV = window.AlexVoice;
+            // Nothing played yet (a league that rolled into a new season while
+            // still reporting phase 'offseason'): one honest line, not two
+            // separate "come back later" cards.
+            if (!playedWeeks) {
+                return (
+                    <AnalyticsSection title="Season Odds">
+                        <div style={{ color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)' }}>
+                            No games scored yet this season. Playoff odds, this-week leverage and the luck ledger all light up from Week 1 onward.
+                        </div>
+                    </AnalyticsSection>
+                );
+            }
+
+            // Luck ledger rows render for ANY played season; the sim needs ≥2
+            // weeks and a remaining schedule.
+            const luckRows = ledger?.rows || [];
+            const myLuck = luckRows.find(r => String(r.rosterId) === myId);
+
+            // Alex's seeded read: the buy-low seller = worst luck with a real
+            // all-play record (deterministic template — no AI call).
+            let alexRead = null;
+            if (AV && luckRows.length) {
+                const seller = [...luckRows].filter(r => r.luck < -0.8 && r.allPlayPct >= 0.5).sort((a, b) => a.luck - b.luck)[0];
+                const seed = _soLeagueId + ':' + playedWeeks;
+                if (seller && String(seller.rosterId) !== myId) {
+                    alexRead = AV.pick(seed, [
+                        seller.name + ' is ' + seller.wins + '-' + seller.losses + ' but would be ~' + Math.round(seller.expWins) + '-' + Math.round(playedWeeks - seller.expWins) + ' against an average schedule. Their record says sell — their roster says contender. Buy from them before they look at this table.',
+                        'Watch ' + seller.name + ': ' + Math.abs(seller.luck).toFixed(1) + ' wins BELOW what their scoring earned, hiding a top-half roster. That is your trade-deadline seller — move before the market reads the same number.',
+                        seller.name + ' has been robbed by the schedule — ' + Math.abs(seller.luck).toFixed(1) + ' wins short of what their points deserved. Frustrated managers sell low. Be the buyer.',
+                    ]);
+                } else if (myLuck && myLuck.luck >= 1) {
+                    alexRead = AV.pick(seed, [
+                        'You are ' + myLuck.wins + '-' + myLuck.losses + ' with ' + myLuck.expWins + ' expected wins — the schedule has been kind. Bank the standings cushion, but plan like a ' + Math.round(myLuck.expWins) + '-win roster.',
+                        'Your record is running ' + myLuck.luck + ' wins hot of your scoring. Nothing wrong with luck — just don’t pay contender prices at the deadline because of it.',
+                    ]);
+                }
+            }
+
+            const tagColor = t => t === 'EASY' ? 'var(--good)' : t === 'HARD' ? 'var(--bad)' : 'var(--silver)';
+            const oddsGrid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.6fr) 0.7fr 0.8fr 0.7fr 0.7fr 0.9fr', gap: '8px', alignItems: 'center', padding: '6px 10px', minWidth: 0 };
+            const luckGrid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.6fr) 0.7fr 0.9fr 0.8fr 0.7fr', gap: '8px', alignItems: 'center', padding: '6px 10px', minWidth: 0 };
+            const rowLine = { borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)', ...mono };
+            const myRowStyle = { background: 'rgba(212,175,55,0.07)', boxShadow: 'inset 3px 0 0 var(--gold)', color: 'var(--white)' };
+
+            return (<React.Fragment>
+                {sim ? (
+                    <AnalyticsSection title="Playoff Odds" meta={sim.simCount.toLocaleString() + ' season simulations · record then points-for tiebreak' + (sim.usedDivisions ? ' · division winners seeded' : '')}>
+                        {(() => {
+                            const mine = sim.rows.find(r => String(r.rosterId) === myId);
+                            return mine ? (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px', marginBottom: '12px' }}>
+                                    <AnalyticsKpi label="Make playoffs" value={mine.playoffPct + '%'} color="var(--gold)" />
+                                    {sim.byeSlots ? <AnalyticsKpi label="First-round bye" value={(mine.byePct ?? 0) + '%'} /> : null}
+                                    <AnalyticsKpi label="Win championship" value={mine.titlePct + '%'} />
+                                    <AnalyticsKpi label="Proj. final record" value={mine.projWins + '-' + mine.projLosses} sub={mine.avgSeed ? 'avg seed ' + mine.avgSeed : null} />
+                                </div>
+                            ) : null;
+                        })()}
+                        <div style={{ overflowX: 'auto' }}>
+                            <div style={{ minWidth: '520px' }}>
+                                <div style={{ ...oddsGrid, ...microHdr, borderBottom: '1px solid rgba(255,255,255,0.14)' }}>
+                                    <span>Team</span><span style={{ textAlign: 'right' }}>Rec</span><span style={{ textAlign: 'right' }}>Playoff</span>
+                                    {sim.byeSlots ? <span style={{ textAlign: 'right' }}>Bye</span> : <span />}
+                                    <span style={{ textAlign: 'right' }}>Title</span><span style={{ textAlign: 'right' }}>Proj W-L</span>
+                                </div>
+                                {sim.rows.map(r => (
+                                    <div key={r.rosterId} style={{ ...oddsGrid, ...rowLine, ...(String(r.rosterId) === myId ? myRowStyle : {}) }}>
+                                        <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                                        <span style={{ textAlign: 'right' }}>{r.record}</span>
+                                        <span style={{ textAlign: 'right', color: String(r.rosterId) === myId ? 'var(--gold)' : undefined }}>{r.playoffPct}%</span>
+                                        {sim.byeSlots ? <span style={{ textAlign: 'right' }}>{r.byePct != null ? r.byePct + '%' : '—'}</span> : <span />}
+                                        <span style={{ textAlign: 'right' }}>{r.titlePct}%</span>
+                                        <span style={{ textAlign: 'right', opacity: 0.8 }}>{r.projWins}-{r.projLosses}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </AnalyticsSection>
+                ) : (
+                    <AnalyticsSection title="Playoff Odds">
+                        <div style={{ color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)' }}>
+                            {playedWeeks < 2 ? 'Playoff odds unlock once two weeks of scores are in the books.' : 'The regular season is decided — playoff odds retire until next year.'}
+                        </div>
+                    </AnalyticsSection>
+                )}
+
+                {sim && isPro && sim.leverage ? (
+                    <AnalyticsSection title="This Week's Leverage" meta={'playoff odds conditioned on the Week ' + sim.leverage.week + ' result'}>
+                        {[['If you win', sim.leverage.ifWin, 'var(--good)'], ['Current', sim.leverage.current, 'var(--gold)'], ['If you lose', sim.leverage.ifLose, 'var(--bad)']].map(([lb, v, c]) => (
+                            <div key={lb} style={{ display: 'grid', gridTemplateColumns: '92px 1fr 48px', gap: '10px', alignItems: 'center', padding: '4px 0' }}>
+                                <span style={{ ...microHdr }}>{lb}</span>
+                                <div style={{ height: '6px', background: '#0C0E13', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                                    <i style={{ display: 'block', height: '100%', width: (v ?? 0) + '%', background: c }} />
+                                </div>
+                                <b style={{ ...mono, fontSize: 'var(--text-label, 0.75rem)', textAlign: 'right', color: 'var(--white)' }}>{v != null ? v + '%' : '—'}</b>
+                            </div>
+                        ))}
+                        <div style={{ color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)', marginTop: '8px' }}>
+                            A {Math.abs((sim.leverage.ifWin ?? 0) - (sim.leverage.ifLose ?? 0))}-point playoff-odds swing rides on this week{Math.abs((sim.leverage.ifWin ?? 0) - (sim.leverage.ifLose ?? 0)) >= 20 ? ' — high leverage favors the ceiling lineup over the safe one' : ''}.
+                        </div>
+                    </AnalyticsSection>
+                ) : sim && !isPro ? <ProLock label="This Week's Leverage" sub="How much of your playoff probability rides on this week's result — and when to chase ceiling over floor." /> : null}
+
+                {isPro && _soSos && _soSos.coverage > 0 ? (
+                    <AnalyticsSection title="Playoff-Weeks Strength of Schedule" meta={'your projected starters vs Wk ' + so.playoffWeeks[0] + '–' + so.playoffWeeks[so.playoffWeeks.length - 1] + ' defenses'}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(' + so.playoffWeeks.length + ', 1fr)', gap: '6px', maxWidth: '460px' }}>
+                            <span />
+                            {so.playoffWeeks.map(w => <span key={w} style={{ ...microHdr, textAlign: 'center' }}>WK {w}</span>)}
+                            {['QB', 'RB', 'WR', 'TE'].map(p => (<React.Fragment key={p}>
+                                <span style={{ ...microHdr, alignSelf: 'center' }}>{p}</span>
+                                {so.playoffWeeks.map((w, i) => {
+                                    const cell = _soSos.weeks[i]?.byPos?.[p];
+                                    return (
+                                        <span key={w} title={cell ? cell.team + ' vs ' + cell.opp + ' — allows rank ' + cell.rank + ' fantasy pts to ' + p : 'No starter / opponent unresolved'}
+                                            style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, textAlign: 'center', padding: '6px 2px', borderRadius: '4px', border: '1px solid ' + (cell ? (cell.tag === 'EASY' ? 'rgba(46,204,113,0.45)' : cell.tag === 'HARD' ? 'rgba(231,76,60,0.45)' : 'rgba(255,255,255,0.12)') : 'rgba(255,255,255,0.07)'), color: cell ? tagColor(cell.tag) : 'var(--text-muted)' }}>
+                                            {cell ? cell.tag : '—'}
+                                        </span>
+                                    );
+                                })}
+                            </React.Fragment>))}
+                        </div>
+                        {_soSos.coverage < 0.7 ? <div style={{ color: 'var(--text-muted)', fontSize: 'var(--text-micro, 0.6875rem)', marginTop: '8px', ...mono }}>Some opponents unresolved — the grid fills in as the NFL schedule context loads.</div> : null}
+                    </AnalyticsSection>
+                ) : !isPro ? <ProLock label="Playoff-Weeks SOS" sub="Which of your starters draw soft or brutal defenses in the weeks that decide the title." /> : null}
+
+                {/* playedWeeks >= 1 is guaranteed here — the zero-week case
+                    returned a single empty state above. */}
+                <AnalyticsSection title="Luck Ledger" meta={'all-play · expected wins · through ' + playedWeeks + ' week' + (playedWeeks === 1 ? '' : 's')}>
+                    <React.Fragment>
+                        {alexRead ? (
+                            <div style={{ background: 'var(--black)', border: '1px solid rgba(255,255,255,0.07)', borderLeft: '3px solid var(--gold)', borderRadius: '0 8px 8px 0', padding: '10px 12px', marginBottom: '12px' }}>
+                                <div style={{ ...microHdr, color: 'var(--gold)', marginBottom: '4px' }}>Alex Ingram</div>
+                                <div style={{ fontSize: '0.8rem', color: '#C9C9D2', lineHeight: 1.5 }}>{alexRead}</div>
+                            </div>
+                        ) : null}
+                        <div id="wr-export-luck" style={{ overflowX: 'auto', background: 'var(--black)' }}>
+                            <div style={{ minWidth: '480px' }}>
+                                <div style={{ ...luckGrid, ...microHdr, borderBottom: '1px solid rgba(255,255,255,0.14)' }}>
+                                    <span>Team</span><span style={{ textAlign: 'right' }}>Rec</span><span style={{ textAlign: 'right' }}>All-Play</span>
+                                    <span style={{ textAlign: 'right' }}>Exp. W</span><span style={{ textAlign: 'right' }}>Luck</span>
+                                </div>
+                                {luckRows.map(r => (
+                                    <div key={r.rosterId} style={{ ...luckGrid, ...rowLine, ...(String(r.rosterId) === myId ? myRowStyle : {}) }}>
+                                        <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                                        <span style={{ textAlign: 'right' }}>{r.wins}-{r.losses}{r.ties ? '-' + r.ties : ''}</span>
+                                        <span style={{ textAlign: 'right' }}>{r.allPlayW}-{r.allPlayL}</span>
+                                        {/* toFixed(1) on both: these are tabular mono columns, and a
+                                            bare 3 next to a 3.4 breaks digit alignment. */}
+                                        <span style={{ textAlign: 'right' }}>{r.expWins.toFixed(1)}</span>
+                                        <span style={{ textAlign: 'right', fontWeight: 700, color: r.luck >= 0.5 ? 'var(--good)' : r.luck <= -0.5 ? 'var(--bad)' : 'var(--silver)' }}>{r.luck > 0 ? '+' : ''}{r.luck.toFixed(1)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '10px', flexWrap: 'wrap' }}>
+                            {window.wrExport ? (
+                                <button onClick={() => window.wrExport.capture(document.getElementById('wr-export-luck'), 'luck-ledger')}
+                                    style={{ padding: '6px 12px', background: 'transparent', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.5)', borderRadius: '5px', font: '700 var(--text-micro, 0.6875rem) var(--font-mono, monospace)', letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                                    Export for league chat
+                                </button>
+                            ) : null}
+                            <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-micro, 0.6875rem)', ...mono }}>All-play = your record if you played everyone every week. Luck = actual wins − expected.</span>
+                        </div>
+                        {myLuck && myLuck.weekly.length ? (
+                            <div style={{ marginTop: '14px', overflowX: 'auto' }}>
+                                <div style={{ ...microHdr, marginBottom: '6px' }}>Your weekly ledger</div>
+                                <div style={{ minWidth: '400px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 1fr 1fr 1fr', gap: '8px', padding: '4px 10px', ...microHdr, borderBottom: '1px solid rgba(255,255,255,0.14)' }}>
+                                        <span>Wk</span><span style={{ textAlign: 'right' }}>PF</span><span style={{ textAlign: 'right' }}>Median</span><span style={{ textAlign: 'right' }}>Result</span><span style={{ textAlign: 'right' }}>All-Play</span>
+                                    </div>
+                                    {myLuck.weekly.map(g => (
+                                        <div key={g.week} style={{ display: 'grid', gridTemplateColumns: '44px 1fr 1fr 1fr 1fr', gap: '8px', padding: '5px 10px', ...rowLine }}>
+                                            <span>{g.week}</span>
+                                            <span style={{ textAlign: 'right', color: 'var(--white)' }}>{g.pts.toFixed(1)}</span>
+                                            <span style={{ textAlign: 'right', opacity: 0.7 }}>{g.median.toFixed(1)}</span>
+                                            <span style={{ textAlign: 'right', fontWeight: 700, color: g.result === 'W' ? 'var(--good)' : g.result === 'L' ? 'var(--bad)' : 'var(--silver)' }}>{g.result || '—'}</span>
+                                            <span style={{ textAlign: 'right', opacity: 0.8 }}>{g.allPlayW}-{g.allPlayL}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
+                    </React.Fragment>
+                </AnalyticsSection>
+            </React.Fragment>);
         })()}
 
         {/* Phase 8: All Players / Draft Picks / Custom Reports — ex-League Map sub-views
