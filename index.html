@@ -2693,7 +2693,10 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="trade" src="js/trade-calc.js?v=20260707desk1"></script>
 <script type="text/babel" src="js/post-draft.js?v=20260609postdraft1"></script>
 <script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260730rd7"></script>
-<script type="text/babel" data-wr-defer="lineup" src="js/tabs/lineup.js?v=20260729rd1"></script>
+<!-- Season Odds panel loads with Game Day (owner ruling 2026-07-30) — must
+     precede lineup.js in the group so window.WrSeasonOdds exists on first render. -->
+<script type="text/babel" data-wr-defer="lineup" src="js/components/season-odds-panel.js?v=20260730so1"></script>
+<script type="text/babel" data-wr-defer="lineup" src="js/tabs/lineup.js?v=20260730so1"></script>
 <!-- 4b. Draft Command Center modules — group "draft" (~28 scripts, ~1.26MB),
      loaded on first Draft-tab open. -->
 <script type="text/babel" data-wr-defer="draft" src="js/draft/styles.js?v=20260427font1"></script>
