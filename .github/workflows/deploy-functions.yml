@@ -59,6 +59,7 @@ jobs:
               '20260610000000': 'supabase/migrations/20260610000000_ai_response_cache.sql',
               '20260610010000': 'supabase/migrations/20260610010000_ai_feedback.sql',
               '20260615000000': 'supabase/migrations/20260615000000_mfl_connection.sql',
+              '20260729100000': 'supabase/migrations/20260729100000_nfl_week_context.sql',
           }
 
           def run_query(query):
@@ -125,6 +126,7 @@ jobs:
               '20260610000000': 'supabase/migrations/20260610000000_ai_response_cache.sql',
               '20260610010000': 'supabase/migrations/20260610010000_ai_feedback.sql',
               '20260615000000': 'supabase/migrations/20260615000000_mfl_connection.sql',
+              '20260729100000': 'supabase/migrations/20260729100000_nfl_week_context.sql',
           }
 
           for path in expected.values():
@@ -221,3 +223,8 @@ jobs:
 
       - name: Deploy yahoo-proxy function
         run: supabase functions deploy yahoo-proxy --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
+
+      # Cached ESPN scoreboard relay — the production half of nfl-context.js
+      # (Vegas / weather / future-week opponents for projections).
+      - name: Deploy nfl-scoreboard function
+        run: supabase functions deploy nfl-scoreboard --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt

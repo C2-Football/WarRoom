@@ -68,5 +68,11 @@ verify_jwt = false
 [functions.yahoo-proxy]
 verify_jwt = false
 
+# Public cached relay for ESPN's NFL scoreboard (Vegas/weather/schedule for
+# projections). Browser-facing with no Supabase JWT to present, like the
+# league-connect proxies above.
+[functions.nfl-scoreboard]
+verify_jwt = false
+
 [functions.set-password]
 verify_jwt = false

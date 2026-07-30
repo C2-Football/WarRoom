@@ -20,8 +20,15 @@
     function normTeam(a) { a = String(a || '').toUpperCase(); return ESPN_TO_SLEEPER[a] || a; }
 
     function endpoint() {
-        try { return (root.DYNASTY_HQ_CONFIG && root.DYNASTY_HQ_CONFIG.endpoints && root.DYNASTY_HQ_CONFIG.endpoints.nflScoreboard) || '/api/nfl-scoreboard'; }
-        catch (e) { return '/api/nfl-scoreboard'; }
+        // Prefer the RESOLVED config (app-config.js merges defaults into
+        // App.CONFIG/OD.CONFIG — the raw DYNASTY_HQ_CONFIG seed in index.html
+        // doesn't carry defaulted endpoints like nflScoreboard). Dev keeps the
+        // same-origin proxy so local work never burns the shared prod cache.
+        try {
+            if (root.location && /^(localhost|127\.0\.0\.1)$/.test(root.location.hostname)) return '/api/nfl-scoreboard';
+            const cfg = (root.App && root.App.CONFIG) || (root.OD && root.OD.CONFIG) || root.DYNASTY_HQ_CONFIG || {};
+            return (cfg.endpoints && cfg.endpoints.nflScoreboard) || '/api/nfl-scoreboard';
+        } catch (e) { return '/api/nfl-scoreboard'; }
     }
 
     // ESPN scoreboard → { `${TEAM}|${week}`: { opp, home, vegas:{impliedTotal,spread,opp}, weather } }

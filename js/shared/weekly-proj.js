@@ -231,6 +231,106 @@
         return out;
     }
 
+    // ── "Why this number" ledger ─────────────────────────────────────
+    // Re-runs the projectPlayer pipeline one stage at a time, scoring each
+    // intermediate stat line, so the UI can show the build-up instead of a
+    // bare number. Deltas are league-scored points. The final row scores the
+    // SAME median stat line under a neutral 0.5-PPR baseline — the honest
+    // version of "consensus": identical stat line, your rules vs generic.
+    const STANDARD_SCORING = {
+        pass_yd: 0.04, pass_td: 4, pass_int: -1, pass_2pt: 2,
+        rush_yd: 0.1, rush_td: 6, rush_2pt: 2,
+        rec: 0.5, rec_yd: 0.1, rec_td: 6, rec_2pt: 2,
+        fum_lost: -2,
+    };
+    function explainPlayer(pid, opts) {
+        const ss = SS();
+        if (!ss || !pid) return null;
+        const { playersData, statsData, priorData, scoring } = opts || {};
+        const week = (opts && opts.week) || currentWeek();
+        const player = (playersData && playersData[pid]) || null;
+        const pos = (App.normPos && App.normPos(player && player.position)) || (player && player.position) || '';
+        const season = (statsData && statsData[pid]) || null;
+        const prior = (priorData && priorData[pid]) || null;
+        const prov = providerLine(pid, week);
+        const baseline = prov || buildBaseline(pid, season, prior, scoring, week);
+        if (!baseline) return null;
+
+        const team = player && player.team;
+        const ctx = teamWeekCtx(team, week);
+        const oppTeam = opponentTeam(team, week, ctx);
+        const injuryStatus = isByeOrOut(player, ctx, pid, week);
+        const avail = ss.availability(injuryStatus);
+
+        const ctxDvp = ctx && Number.isFinite(ctx.dvpMult) ? ctx.dvpMult : 1;
+        const dvpMult = prov ? 1 : (ctxDvp !== 1 ? ctxDvp : 1) * dvpMultFor(oppTeam, pos);
+        const vegas = ctx ? ctx.vegas : null;
+        const weather = ctx ? ctx.weather : null;
+
+        // scoreProjection handles TE-premium; wrap one line in a throwaway proj.
+        // opts.calcFn lets Node tests inject a scorer (browser uses the global).
+        const scoreLine = (line, rules) =>
+            ss.scoreProjection({ position: pos, statLine: { median: line, floor: null, ceiling: null } }, rules, opts && opts.calcFn).points.median;
+
+        const stages = [];
+        let line = baseline;
+        let pts = scoreLine(line, scoring);
+        const dvpRank = (() => {
+            const r = App.SOS && App.SOS.defenseRankings;
+            const v = r && oppTeam && r[oppTeam] && r[oppTeam]['vs' + pos];
+            return v > 0 ? v : null;
+        })();
+        stages.push({
+            key: 'base',
+            label: prov ? 'Analyst line' : 'Usage baseline',
+            detail: prov
+                ? 'Sleeper weekly projection — already matchup-aware'
+                : 'Season + prior-year per-game blend, recent-form adjusted',
+            pts, delta: null,
+        });
+
+        const step = (key, label, detail, nextLine) => {
+            const nextPts = scoreLine(nextLine, scoring);
+            stages.push({ key, label, detail, pts: nextPts, delta: nextPts - pts });
+            line = nextLine; pts = nextPts;
+        };
+
+        if (!prov) {
+            step('dvp', 'Matchup — DvP',
+                oppTeam
+                    ? ('vs ' + oppTeam + (dvpRank ? ' — allows rank ' + dvpRank + ' fantasy pts to ' + pos : ' — defense-vs-position'))
+                    : 'No opponent resolved — neutral',
+                ss.applyMatchup(line, dvpMult));
+        }
+        step('vegas', 'Vegas',
+            (vegas && Number.isFinite(Number(vegas.impliedTotal)))
+                ? ('Implied total ' + vegas.impliedTotal + (Number.isFinite(Number(vegas.spread)) ? ' · spread ' + (vegas.spread > 0 ? '+' : '') + vegas.spread : ''))
+                : 'No line available — neutral',
+            ss.applyVegas(line, pos, vegas));
+        step('weather', 'Weather',
+            weather ? (weather.indoor ? 'Dome — no adjustment' : (weather.display || 'Outdoor') + (weather.temp != null ? ' · ' + Math.round(weather.temp) + '°' : '')) : 'No report — neutral',
+            weather ? ss.applyWeather(line, weather) : line);
+        step('avail', 'Injury / availability',
+            injuryStatus ? String(injuryStatus) : 'No designation',
+            avail.mult !== 1 ? ss.scaleLine(line, avail.mult) : line);
+
+        const standardPts = scoreLine(line, STANDARD_SCORING);
+        // Round once, then derive the edge from the ROUNDED pair — the three
+        // displayed numbers must reconcile exactly (17.8 − 13.1 = 4.7, never
+        // 4.8 from hidden precision).
+        const leagueR = Math.round(pts * 10) / 10;
+        const standardR = Math.round(standardPts * 10) / 10;
+        return {
+            pid, week, position: pos, opponent: oppTeam || null,
+            provider: !!prov,
+            injuryStatus: injuryStatus || '',
+            stages,
+            leaguePts: leagueR,
+            standardPts: standardR,
+            scoringEdge: Math.round((leagueR - standardR) * 10) / 10,
+        };
+    }
+
     // GM mode → optimization objective. win_now plays it safe (floor),
     // rebuild chases upside (ceiling), everyone else optimizes the median.
     function objectiveForMode(mode) {
@@ -275,7 +375,7 @@
 
     App.WeeklyProj = App.WeeklyProj || {
         setContext, currentWeek, recentPPG, weeklyHistory, formStats, buildBaseline,
-        projectPlayer, projectRoster, optimalForRoster,
+        projectPlayer, projectRoster, optimalForRoster, explainPlayer,
         ensureWeekProjections, providerLine,
         objectiveForMode, modeFor,
         _ctx,

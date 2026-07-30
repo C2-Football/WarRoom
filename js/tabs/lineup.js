@@ -43,6 +43,7 @@ function LineupTab({
     const [applyOpen, setApplyOpen] = React.useState(false);      // phone-only: WR.ActionBar apply/push sheet (inert off-phone)
     const [phoneView, setPhoneView] = React.useState('week');     // phone Game Day: 'week' (matchup + lineup) | 'season' (outlook + schedule)
     const [appliedMoves, setAppliedMoves] = React.useState(null); // phone: swap list shown after Apply Optimal ({sl,cur,opt,gain}[])
+    const [explainPid, setExplainPid] = React.useState(null);     // "why this number" ledger target (Pro; tap a projection)
 
     const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #9aa0a6)', TEXT = 'var(--text, #e8e8ea)';
     const GREEN = 'var(--k-2ecc71, #2ecc71)', RED = 'var(--k-e74c3c, #e74c3c)', AMBER = 'var(--k-f0a500, #f0a500)';
@@ -482,8 +483,10 @@ function LineupTab({
                 {wxTag(weather)}
                 {status ? <span style={{ color: status === 'BYE' ? SILVER : AMBER, fontSize: fz('0.62rem'), marginLeft: '6px', fontWeight: 700 }}>{status}</span> : null}
             </span>
-            <span style={{ textAlign: 'right' }}>
-                <span style={{ color: TEXT, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{pts ? (pts[objective] || 0).toFixed(1) : '—'}</span>
+            <span style={{ textAlign: 'right', ...(pro && pts ? { cursor: 'pointer' } : {}) }}
+                title={pro && pts ? 'Why this number — tap for the projection ledger' : undefined}
+                onClick={pro && pts ? (e => { e.stopPropagation(); setExplainPid(pid); }) : undefined}>
+                <span style={{ color: TEXT, fontWeight: 700, fontVariantNumeric: 'tabular-nums', ...(pro && pts ? { borderBottom: '1px dotted rgba(212,175,55,0.5)' } : {}) }}>{pts ? (pts[objective] || 0).toFixed(1) : '—'}</span>
                 {pro && pts ? <span style={{ display: 'block', color: SILVER, opacity: 0.6, fontSize: fz('0.56rem'), fontVariantNumeric: 'tabular-nums' }}>{pts.floor.toFixed(0)}–{pts.ceiling.toFixed(0)}</span> : null}
             </span>
             {pro ? <span style={{ textAlign: 'center' }}><span title={opp && opp.abbr ? ('vs ' + opp.abbr) : ('Matchup ' + grade)} style={{ fontWeight: 700, color: gradeColor(grade), fontSize: '0.78rem' }}>{grade}</span></span> : null}
@@ -494,6 +497,92 @@ function LineupTab({
             </React.Fragment>) : null}
         </React.Fragment>);
     }
+
+    // ── "Why this number" — projection ledger (Pro; tap any Proj cell) ──
+    // Re-derives the projection stage by stage via WeeklyProj.explainPlayer:
+    // baseline → DvP → Vegas → weather → availability — then scores the same
+    // stat line under a neutral 0.5-PPR baseline. The closing line is the
+    // league-scoring edge: identical stat line, your rules vs generic.
+    const ledgerNode = (() => {
+        if (!explainPid || !pro) return null;
+        const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
+        const close = () => setExplainPid(null);
+        const ex = WP.explainPlayer
+            ? WP.explainPlayer(explainPid, { playersData, statsData, priorData: stats2025Data, scoring: result.scoring, week: result.week })
+            : null;
+        const meta = pmeta(explainPid);
+        const proj = projOf(explainPid);
+        const pts = proj && proj.points;
+        const num = v => (v == null ? '—' : (Math.round(v * 10) / 10).toFixed(1));
+        const deltaCol = d => d > 0.05 ? GREEN : d < -0.05 ? RED : SILVER;
+        const band = pts && pts.ceiling > pts.floor ? Math.max(0, Math.min(1, (pts.median - pts.floor) / (pts.ceiling - pts.floor))) : 0.5;
+        const content = (
+            <div style={{ fontFamily: 'var(--font-body)', minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 700, color: TEXT, fontSize: fz('0.95rem') }}>{meta.name}</span>
+                    <span style={{ color: SILVER, fontSize: fz('0.7rem') }}>{meta.pos}{meta.team ? ' · ' + meta.team : ''}{ex && ex.opponent ? ' · vs ' + ex.opponent : ''} · Wk {result.week}</span>
+                </div>
+                {!ex ? (
+                    <div style={{ color: SILVER, fontSize: fz('0.78rem') }}>No ledger for this player yet — it needs a stat baseline or a published analyst line.</div>
+                ) : (
+                    <React.Fragment>
+                        {ex.stages.map((s, i) => (
+                            <div key={s.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 52px 52px', gap: '8px', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${LINE}` }}>
+                                <span style={{ minWidth: 0 }}>
+                                    <span style={{ display: 'block', color: TEXT, fontWeight: 600, fontSize: fz('0.76rem') }}>{s.label}</span>
+                                    <span style={{ display: 'block', color: SILVER, opacity: 0.75, fontSize: fz('0.62rem'), fontFamily: MONO }}>{s.detail}</span>
+                                </span>
+                                <span style={{ textAlign: 'right', fontFamily: MONO, fontVariantNumeric: 'tabular-nums', color: deltaCol(s.delta || 0), fontSize: fz('0.72rem') }}>
+                                    {i === 0 ? '' : (s.delta > 0 ? '+' : '') + num(s.delta)}
+                                </span>
+                                <span style={{ textAlign: 'right', fontFamily: MONO, fontVariantNumeric: 'tabular-nums', color: TEXT, fontWeight: i === ex.stages.length - 1 ? 700 : 400, fontSize: fz('0.74rem') }}>{num(s.pts)}</span>
+                            </div>
+                        ))}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 104px', gap: '8px', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${LINE}` }}>
+                            <span>
+                                <span style={{ display: 'block', color: GOLD, fontWeight: 700, fontSize: fz('0.76rem') }}>Your league's scoring</span>
+                                <span style={{ display: 'block', color: SILVER, opacity: 0.75, fontSize: fz('0.62rem'), fontFamily: MONO }}>same stat line · 0.5-PPR baseline scores it {num(ex.standardPts)}</span>
+                            </span>
+                            <span style={{ textAlign: 'right', fontFamily: MONO, fontVariantNumeric: 'tabular-nums', color: GOLD, fontWeight: 700, fontSize: fz('0.85rem') }}>
+                                {num(ex.leaguePts)} <span style={{ fontSize: fz('0.66rem'), color: ex.scoringEdge >= 0 ? GREEN : RED }}>({ex.scoringEdge > 0 ? '+' : ''}{num(ex.scoringEdge)})</span>
+                            </span>
+                        </div>
+                        {pts ? (
+                            <div style={{ marginTop: '10px' }}>
+                                <div style={{ position: 'relative', height: '8px', background: '#0C0E13', border: '1px solid rgba(255,255,255,0.09)', borderRadius: '3px' }}>
+                                    <i style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, background: 'rgba(93,173,226,0.16)', borderRadius: '3px' }} />
+                                    <b style={{ position: 'absolute', top: '-3px', bottom: '-3px', width: '2px', left: 'calc(' + Math.round(band * 100) + '% - 1px)', background: GOLD }} />
+                                </div>
+                                <div style={{ fontFamily: MONO, fontSize: fz('0.62rem'), color: SILVER, marginTop: '5px', fontVariantNumeric: 'tabular-nums' }}>
+                                    {pts.floor.toFixed(1)} floor — <span style={{ color: GOLD }}>{pts.median.toFixed(1)} proj</span> — {pts.ceiling.toFixed(1)} ceiling
+                                </div>
+                            </div>
+                        ) : null}
+                        {ex.provider ? (
+                            <div style={{ color: SILVER, opacity: 0.7, fontSize: fz('0.62rem'), fontFamily: MONO, marginTop: '8px' }}>
+                                Anchored to the published analyst line, which already prices the matchup — DvP is not double-counted.
+                            </div>
+                        ) : null}
+                    </React.Fragment>
+                )}
+            </div>
+        );
+        const overlay = (
+            <div onClick={close} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                <div onClick={e => e.stopPropagation()} style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '8px', padding: '16px 18px', maxWidth: '480px', width: '100%', maxHeight: '80vh', overflowY: 'auto' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
+                        <span style={{ fontFamily: MONO, fontSize: fz('0.66rem'), fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: GOLD }}>Why this number</span>
+                        <button onClick={close} style={{ marginLeft: 'auto', background: 'none', border: `1px solid ${LINE}`, borderRadius: '5px', color: SILVER, cursor: 'pointer', padding: '3px 9px', fontSize: fz('0.7rem') }}>✕</button>
+                    </div>
+                    {content}
+                </div>
+            </div>
+        );
+        const Sheet = window.WR && window.WR.Sheet;
+        return Sheet
+            ? <Sheet open onClose={close} title="Why this number" desktop={overlay}>{content}</Sheet>
+            : overlay;
+    })();
 
     const projTip = 'Projected points — optimizing for your ' + (objective === 'ceiling' ? 'ceiling (upside)' : objective === 'floor' ? 'floor (safe)' : 'median (balanced)') + ' strategy';
     const headerRow = (
@@ -826,6 +915,7 @@ function LineupTab({
 
         return (
             <div style={{ padding: '14px var(--wr-phone-gutter, 12px) 72px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {ledgerNode}
                 {/* This Week ⇄ Season toggle (owner ask) — week = matchup +
                     lineup; season = outlook + schedule. */}
                 <div className="wr-seg">
@@ -975,6 +1065,7 @@ function LineupTab({
 
     return (
         <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '20px 16px 60px' }}>
+            {ledgerNode}
             {/* Alex's game-day note */}
             {note ? (
                 <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '6px', padding: '12px 16px', marginBottom: '14px' }}>
