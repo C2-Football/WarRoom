@@ -43,6 +43,12 @@
     const EMPIRE_ENABLED = PLATFORM_SANDBOX_ACCESS || !EMPIRE_SANDBOX_ONLY;
     window.App.EMPIRE_ENABLED = EMPIRE_ENABLED;
 
+    // ── Commissioner's Office (vision doc §7) rides the same sandbox lever
+    // while it bakes; it graduates to the Labs waitlist per the monetization
+    // plan, never straight to a paid gate. ──
+    const COMMISH_ENABLED = EMPIRE_ENABLED;
+    window.App.COMMISH_ENABLED = COMMISH_ENABLED;
+
     const WR_DISCORD_URL = ''; // owner: paste the Discord invite URL here — hub button + settings row stay hidden until set
     window.App.WR_DISCORD_URL = WR_DISCORD_URL;
     window.WR_DISCORD_URL = WR_DISCORD_URL;
@@ -682,6 +688,38 @@
         }, [proMode, _EmpireDash]);
         const [empirePlayersLoaded, setEmpirePlayersLoaded] = useState(false);
         const [empirePlayers, setEmpirePlayers] = useState({});
+
+        // ── Commissioner's Office ─────────────────────────────────────
+        // Discovery is passive: fetch each Sleeper league's users once and
+        // count is_owner. The card only appears for actual commissioners —
+        // everyone else never sees the surface exists.
+        const [commishMode, setCommishMode] = useState(false);
+        const [commishCount, setCommishCount] = useState(0);
+        const [commishModuleState, setCommishModuleState] = useState(
+            typeof window.CommissionerOffice === 'function' ? 'ready' : 'idle'
+        );
+        useEffect(() => {
+            if (!COMMISH_ENABLED || !sleeperUser?.user_id || !sleeperLeagues.length) return;
+            if (!window.App?.Commish?.discoverCommissioned) return;
+            let alive = true;
+            (async () => {
+                try {
+                    await window.App.Commish.hydrateCommissioned(sleeperLeagues);
+                    const mine = window.App.Commish.discoverCommissioned({ leagues: sleeperLeagues, myUserId: String(sleeperUser.user_id) });
+                    if (alive) setCommishCount(mine.length);
+                } catch (e) { /* card stays hidden — discovery is best-effort */ }
+            })();
+            return () => { alive = false; };
+        }, [sleeperLeagues.length, sleeperUser?.user_id]);
+        const openCommishOffice = () => {
+            setCommishMode(true);
+            if (typeof window.CommissionerOffice === 'function') { setCommishModuleState('ready'); return; }
+            if (!window.wrLoadModuleGroup) { setCommishModuleState('error'); return; }
+            setCommishModuleState('loading');
+            window.wrLoadModuleGroup('commish')
+                .then(() => setCommishModuleState(typeof window.CommissionerOffice === 'function' ? 'ready' : 'error'))
+                .catch(() => setCommishModuleState('error'));
+        };
         // Bumped after background roster assessment so the Rolodex re-renders.
         const [, setEmpireAssessReady] = useState(0);
 
@@ -833,6 +871,40 @@
                                 history.pushState({ view: 'hub' }, '', routeUrl(''));
                             }
                         }}
+                    />
+                </ErrorBoundary>
+            );
+        }
+
+        // ── Commissioner's Office surface ─────────────────────────────
+        // Same defense-in-depth as Empire: stale state can't mount it when
+        // the sandbox lever is off.
+        if (commishMode && !COMMISH_ENABLED) {
+            setCommishMode(false);
+            return null;
+        }
+        if (commishMode && !selectedLeague) {
+            const _Office = typeof window.CommissionerOffice === 'function' ? window.CommissionerOffice : null;
+            if (!_Office) {
+                return (
+                    <div style={{ padding: '96px 24px', textAlign: 'center', color: 'var(--silver)', fontSize: 'var(--text-body, 1rem)' }}>
+                        {commishModuleState === 'error' ? "The Commissioner's Office failed to load." : "Opening the Commissioner's Office…"}
+                        <div>
+                            <button
+                                onClick={() => { if (commishModuleState === 'error') { window.location.reload(); return; } setCommishMode(false); }}
+                                style={{ marginTop: '16px', padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                            >{commishModuleState === 'error' ? 'Reload' : 'Back to Hub'}</button>
+                        </div>
+                    </div>
+                );
+            }
+            return (
+                <ErrorBoundary>
+                    <_Office
+                        leagues={sleeperLeagues}
+                        myUserId={String(sleeperUser?.user_id || '')}
+                        onBack={() => setCommishMode(false)}
+                        onEnterLeague={(league) => handleSelectLeague(league)}
                     />
                 </ErrorBoundary>
             );
@@ -1037,6 +1109,25 @@
                             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--gold)', whiteSpace: 'nowrap', flexShrink: 0 }}>Unlock ›</span>
                         </div>
                     ))}
+
+                    {COMMISH_ENABLED && commishCount >= 1 && (
+                        <div className="commish-hero" onClick={openCommishOffice}
+                            style={{ cursor: 'pointer', marginBottom: '14px', borderRadius: '14px', padding: '14px 16px', background: 'linear-gradient(135deg, rgba(93,173,226,0.10), rgba(93,173,226,0.02))', border: '1px solid var(--info, #5DADE2)', display: 'flex', alignItems: 'center', gap: '14px', transition: 'all .16s' }}
+                            onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 22px rgba(93,173,226,0.18)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}>
+                            <div style={{ width: '44px', height: '44px', flexShrink: 0, borderRadius: '50%', border: '1.5px solid var(--info, #5DADE2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--info, #5DADE2)" strokeWidth="2"><path d="M12 3l2 4h4l-3 3 1 5-4-2-4 2 1-5-3-3h4z"/><path d="M5 21h14"/></svg>
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                                    <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.15rem', letterSpacing: '.08em', color: 'var(--info, #5DADE2)' }}>COMMISSIONER'S OFFICE</span>
+                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '.06em', color: 'var(--black)', background: 'var(--info, #5DADE2)', borderRadius: '5px', padding: '1px 6px' }}>LABS</span>
+                                </div>
+                                <div style={{ fontSize: 'var(--text-label, 0.8rem)', color: 'var(--silver)', marginTop: '4px' }}>{commishCount} league{commishCount !== 1 ? 's' : ''} under your gavel · integrity, people, ops and programmes on one desk</div>
+                            </div>
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--info, #5DADE2)" strokeWidth="2" style={{ flexShrink: 0, opacity: 0.7 }}><polyline points="9 18 15 12 9 6"/></svg>
+                        </div>
+                    )}
 
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-label, 0.75rem)', letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.7, margin: '2px 0 10px' }}>{EMPIRE_ENABLED && isPaid ? 'Or enter a single league' : 'Select franchise'}</div>
 

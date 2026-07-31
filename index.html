@@ -2658,6 +2658,17 @@ WRShared.preloadMany(WR_SHARED_FILES);
      model. Plain-JS engines (no JSX), eager like the rest of this block —
      consumed by Analytics (Season Odds), Free Agency, and Game Day. -->
 <script src="js/shared/luck-engine.js?v=20260729rd1"></script>
+<!-- Commissioner's Office foundation — eager: the hub needs discoverCommissioned
+     (is_owner) at boot to decide whether the office card exists at all. The six
+     desk engines are eager too (small plain JS, no JSX) so the deferred group
+     only carries the React surface. -->
+<script src="js/shared/commish-engine.js?v=20260731co1"></script>
+<script src="js/shared/commish-coefficient.js?v=20260731co1"></script>
+<script src="js/shared/commish-radar.js?v=20260731co1"></script>
+<script src="js/shared/commish-bench.js?v=20260731co1"></script>
+<script src="js/shared/commish-drift.js?v=20260731co1"></script>
+<script src="js/shared/commish-calendar.js?v=20260731co1"></script>
+<script src="js/shared/commish-programme.js?v=20260731co1"></script>
 <script src="js/shared/playoff-odds.js?v=20260729rd1"></script>
 <script src="js/shared/faab-engine.js?v=20260729rd1"></script>
 <script src="js/utils/gamelog-engine.js?v=20260702scout1"></script>
@@ -2761,6 +2772,12 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- Group "empire": hub-level Empire Dashboard (Pro mode), loaded by app.js when
      Pro mode activates — also provides window.App.buildEmpireDna etc. -->
 <script type="text/babel" data-wr-defer="empire" src="js/tabs/global-view.js?v=20260427font1"></script>
+<!-- Group "commish": the Commissioner's Office React surface — panels first
+     (the office resolves window.WrCommish* at render), office last. -->
+<script type="text/babel" data-wr-defer="commish" src="js/components/commish-network-panel.js?v=20260731co1"></script>
+<script type="text/babel" data-wr-defer="commish" src="js/components/commish-people-panel.js?v=20260731co1"></script>
+<script type="text/babel" data-wr-defer="commish" src="js/components/commish-ops-panel.js?v=20260731co1"></script>
+<script type="text/babel" data-wr-defer="commish" src="js/tabs/commissioner-office.js?v=20260731co1"></script>
 <script src="js/tutorial.js?v=20260503tutorial1"></script>
 <!-- 6. Strategy editor: calls shared GMStrategy API, no logic duplication.
      Only consumed by alex-insights' Strategy sub-view, so it rides the same
