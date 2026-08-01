@@ -20,8 +20,13 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
 
     const C = window.App && window.App.Commish;
     const [state, setState] = React.useState({ status: 'idle' });
-    const [tab, setTab] = React.useState('network'); // network | people | ops | programmes
+    const [tab, setTab] = React.useState('network'); // network | people | ops | programmes | rulelab | genesis
     const [ackTick, setAckTick] = React.useState(0);
+    const [genTick, setGenTick] = React.useState(0);
+    // Rule Lab data loads lazily on first open — 18 weeks of league-independent
+    // stat lines plus per-league as-played lineups is too heavy for office boot.
+    const [ruleLab, setRuleLab] = React.useState({ status: 'idle' });
+    const [proposal, setProposal] = React.useState({});
     // Run-identity ref, not a cleanup kill switch (see season-odds-panel.js —
     // a status-dependent effect's own setState would orphan the run).
     const runRef = React.useRef({ key: null });
@@ -65,7 +70,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
 
                 if (live()) setState({ status: 'loading', step: 'Running the desk…' });
                 // 3. Engines (each guarded — a failed engine empties its wall, not the office).
-                let coefficient = null, radar = null, drift = [], calendar = { events: [] }, conflicts = [], programmes = [];
+                let coefficient = null, radar = null, drift = [], calendar = { events: [] }, conflicts = [], programmes = [], renewal = null;
                 try { coefficient = C.Coefficient?.buildCoefficient ? C.Coefficient.buildCoefficient({ graph, ledgers }) : null; } catch (e) { window.wrLog?.('commish.coefficient', e); }
                 try { radar = C.Radar?.buildRadar ? C.Radar.buildRadar({ graph, txnsByLeague, rostersByLeague, playersData, week, nowMs: now }) : null; } catch (e) { window.wrLog?.('commish.radar', e); }
                 try {
@@ -81,6 +86,20 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                     conflicts = C.Calendar?.findConflicts ? C.Calendar.findConflicts({ events: calendar.events, graph, nowMs: now }) : [];
                 } catch (e) { window.wrLog?.('commish.calendar', e); }
                 try { programmes = C.Programme?.buildAll ? C.Programme.buildAll({ leagues: mine, ledgers, weeklyScoresByLeague, graph, nowMs: now }) : []; } catch (e) { window.wrLog?.('commish.programme', e); }
+                try { renewal = C.Renewal?.buildForecast ? C.Renewal.buildForecast({ graph, radar, ledgers, week, nowMs: now }) : null; } catch (e) { window.wrLog?.('commish.renewal', e); }
+                // Bylaws: constitution text per league (league_docs, best-effort)
+                // → clause-parsed for search/rulings. Absence is a first-class
+                // state the governance wall renders honestly.
+                const constitutions = {};
+                if (C.Bylaws?.parseClauses && window.OD?.getLeagueDocsContext) {
+                    await Promise.all(mine.map(async l => {
+                        const lid = String(l.league_id || l.id);
+                        try {
+                            const text = await window.OD.getLeagueDocsContext(lid);
+                            constitutions[lid] = text ? { text, clauses: C.Bylaws.parseClauses(text) } : null;
+                        } catch (e) { constitutions[lid] = null; }
+                    }));
+                }
 
                 // 4. Seats → bench shortlists, prospectuses, day-one previews.
                 const seats = graph.seats || [];
@@ -100,8 +119,8 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
 
                 if (live()) setState({
                     status: 'ready',
-                    mine, graph, week,
-                    coefficient, radar, drift, calendar, conflicts, programmes,
+                    mine, graph, week, playersData, ledgers, constitutions,
+                    coefficient, radar, drift, calendar, conflicts, programmes, renewal,
                     seats, benches, prospectuses: prospectuses.filter(Boolean).length ? prospectuses : prospectuses,
                     folders: folders.filter(Boolean),
                 });
@@ -112,7 +131,163 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         })();
     }, [state.status, runKey]);
 
+    // ── Rule Lab dataset (lazy, first open of the tab) ────────────────
+    // Season choice: replay THIS season once it has ≥4 counted weeks; else
+    // last season — whose lineups live on previous_league_id (Sleeper renews
+    // league ids yearly) with last season's users/rosters for naming, scored
+    // under THIS season's rules as the baseline being amended.
+    const rlRun = React.useRef({ key: null });
+    React.useEffect(() => {
+        if (tab !== 'rulelab' || ruleLab.status !== 'idle' || state.status !== 'ready') return;
+        if (rlRun.current.key === runKey) return;
+        const RL = C && C.RuleLab;
+        if (!RL) { setRuleLab({ status: 'error' }); return; }
+        rlRun.current.key = runKey;
+        const live = () => rlRun.current.key === runKey;
+        setRuleLab({ status: 'loading' });
+        (async () => {
+            try {
+                const nfl = (window.S && window.S.nflState) || {};
+                const curSeason = Number(nfl.season || state.mine[0]?.season || 0);
+                const anyCounted = Object.values(state.ledgers || {}).some(ld => (ld.weeks || []).length >= 4);
+                const season = anyCounted ? curSeason : curSeason - 1;
+                const seasonStats = await RL.loadSeasonStats(season);
+                const perLeague = {};
+                await Promise.all(state.mine.map(async l => {
+                    const lid = String(l.league_id || l.id);
+                    let lineupLid = lid, nameLeague = l;
+                    if (!anyCounted) {
+                        // Hub league objects usually lack previous_league_id (the
+                        // hydrator only fetches league info when settings are
+                        // missing) — resolve it explicitly before declaring a
+                        // league first-season.
+                        let prevId = l.previous_league_id;
+                        if (!prevId && typeof window.fetchLeagueInfo === 'function') {
+                            try { prevId = (await window.fetchLeagueInfo(lid))?.previous_league_id; } catch (e) { /* stays null */ }
+                        }
+                        if (!prevId) { perLeague[lid] = null; return; }   // genuinely first-year — nothing to replay
+                        lineupLid = String(prevId);
+                        try {
+                            const [users, rosters] = await Promise.all([window.fetchLeagueUsers(lineupLid), window.fetchRosters(lineupLid)]);
+                            nameLeague = { ...l, users: users || l.users, rosters: rosters || l.rosters };
+                        } catch (e) { /* fall back to current names */ }
+                    }
+                    const weeks = []; for (let w = 1; w <= 18; w++) weeks.push(w);
+                    const lineups = await RL.loadSeasonLineups(lineupLid, weeks);
+                    perLeague[lid] = { lineups, nameLeague };
+                }));
+                if (live()) setRuleLab({ status: 'ready', season, seasonStats, perLeague });
+            } catch (e) { window.wrLog?.('commish.rulelab', e); if (live()) setRuleLab({ status: 'error' }); }
+        })();
+    }, [tab, ruleLab.status, state.status]);
+
+    // Proposal recompute is pure and fast (as-played sums over ~18 weeks);
+    // every knob change re-runs the whole omnibus synchronously.
+    const ruleLabResults = React.useMemo(() => {
+        if (ruleLab.status !== 'ready' || state.status !== 'ready' || !C?.RuleLab?.runProposal) return null;
+        return state.mine.map(l => {
+            const lid = String(l.league_id || l.id);
+            const pack = ruleLab.perLeague[lid];
+            if (!pack) return { leagueName: l.name, result: { empty: true, reason: 'first_season' } };
+            const mine = (pack.nameLeague.rosters || []).find(r => String(r.owner_id) === String(myUserId));
+            try {
+                return {
+                    leagueName: l.name,
+                    result: C.RuleLab.runProposal({
+                        league: { ...pack.nameLeague, scoring_settings: l.scoring_settings, settings: l.settings },
+                        seasonStats: ruleLab.seasonStats, lineups: pack.lineups, proposal,
+                        playersData: state.playersData, myRosterId: mine ? mine.roster_id : null,
+                        season: ruleLab.season,
+                    }),
+                };
+            } catch (e) { window.wrLog?.('commish.rulelab.run', e); return { leagueName: l.name, result: { empty: true, reason: 'error' } }; }
+        });
+    }, [ruleLab.status, state.status, proposal]);
+
+    // Season Genesis readiness — recomputes on drift acknowledgment and
+    // manual checklist toggles.
+    const genesis = React.useMemo(() => {
+        if (state.status !== 'ready' || !C?.Genesis?.buildAll) return null;
+        try {
+            return C.Genesis.buildAll({
+                leagues: state.mine,
+                calendarEvents: state.calendar.events,
+                driftByLeague: Object.fromEntries(state.drift.map(d => [d.leagueId, d.result])),
+                seats: state.seats,
+                constitutionByLeague: Object.fromEntries(state.mine.map(l => {
+                    const lid = String(l.league_id || l.id);
+                    return [lid, !!(state.constitutions && state.constitutions[lid] && state.constitutions[lid].clauses.length)];
+                })),
+                nowMs: Date.now(),
+            });
+        } catch (e) { window.wrLog?.('commish.genesis', e); return null; }
+    }, [state.status, ackTick, genTick]);
+    const onGenesisToggle = (leagueId, itemId) => {
+        try { C?.Genesis?.toggleManual?.(leagueId, itemId, { nowMs: Date.now() }); } catch (e) { /* unchanged */ }
+        setGenTick(t => t + 1);
+    };
+
+    // Governance state: treasuries re-read on any bookkeeping change.
+    const [treasuryTick, setTreasuryTick] = React.useState(0);
+    const treasuries = React.useMemo(() => {
+        if (state.status !== 'ready' || !C?.Treasury?.buildTreasury) return {};
+        const out = {};
+        for (const l of state.mine) {
+            const lid = String(l.league_id || l.id);
+            try { out[lid] = C.Treasury.buildTreasury({ graph: state.graph, leagueId: lid, ledger: C.Treasury.getLedger(lid) }); } catch (e) { out[lid] = null; }
+        }
+        return out;
+    }, [state.status, treasuryTick]);
+    const bylawAmendments = React.useMemo(() => {
+        if (state.status !== 'ready' || !C?.Bylaws?.amendments) return {};
+        const out = {};
+        for (const l of state.mine) { const lid = String(l.league_id || l.id); try { out[lid] = C.Bylaws.amendments(lid); } catch (e) { out[lid] = []; } }
+        return out;
+    }, [state.status, ackTick]);
+    const onMarkPaid = (lid, uid, paid) => { try { C?.Treasury?.markPaid?.(lid, uid, { paid }); } catch (e) { /* unchanged */ } setTreasuryTick(t => t + 1); };
+    const onSetLeagueSafe = (lid, url) => { const ok = !!C?.Treasury?.setLeagueSafeUrl?.(lid, url); setTreasuryTick(t => t + 1); return ok; };
+    const onSetSheet = (lid, url) => { const ok = !!C?.Treasury?.setSheetUrl?.(lid, url); setTreasuryTick(t => t + 1); return ok; };
+    const onPasteCsv = (lid, text) => {
+        try {
+            const members = Object.values(state.graph.people).filter(p => p.leagueIds.includes(lid));
+            const parsed = C.Treasury.parseDuesCsv(text, members);
+            if (!parsed.matched.length) return null;
+            const applied = C.Treasury.applyCsv(lid, parsed, { nowMs: Date.now() });
+            setTreasuryTick(t => t + 1);
+            return { applied, unmatched: parsed.unmatched };
+        } catch (e) { return null; }
+    };
+    const onFetchSheet = async (lid) => {
+        try {
+            const url = C.Treasury.getLedger(lid).sheetUrl;
+            const text = url ? await C.Treasury.fetchPublishedSheet(url) : null;
+            return text ? onPasteCsv(lid, text) : null;
+        } catch (e) { return null; }
+    };
+    // Ruling card: one-shot, grounded ONLY in quoted clauses (the context block
+    // carries the never-invent instruction) — same idiom as every AI card.
+    const onAsk = async (lid, q) => {
+        try {
+            const con = state.constitutions?.[lid];
+            if (!con || !window.AlexVoice?.enhance) return null;
+            const ctx = C.Bylaws.buildRulingContext({ clauses: con.clauses, question: q });
+            return await window.AlexVoice.enhance({
+                type: 'strategy-analysis',
+                message: 'Rule on this constitution question in 2-4 sentences, citing clause ids like [art-4]. Follow the INSTRUCTION in the context exactly.',
+                context: ctx,
+                fallback: null,
+                cacheKey: 'commish-ruling:' + lid + ':' + q.toLowerCase().trim(),
+            });
+        } catch (e) { return null; }
+    };
+
     const onAcknowledge = (leagueId) => {
+        // The constitutional-history link: an acknowledged drift change IS an
+        // amendment — record it before folding the baseline.
+        try {
+            const pending = (state.drift.find(d => d.leagueId === leagueId)?.result?.changes) || [];
+            pending.forEach(ch => C.Bylaws?.recordAmendment?.(leagueId, { path: ch.path, from: ch.from, to: ch.to, note: '', source: 'drift_ack', nowMs: Date.now() }));
+        } catch (e) { /* ledger only */ }
         try { C.Drift?.acknowledge?.(leagueId, { nowMs: Date.now() }); } catch (e) { /* keep pending */ }
         // Re-check just that league against the fresh baseline.
         setState(s => {
@@ -182,12 +357,37 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                 {seg('people', 'People' + (darkCount || state.seats.length ? ' · ' + (darkCount + state.seats.length) : ''))}
                 {seg('ops', 'Operations' + (driftCount || state.conflicts.length ? ' · ' + (driftCount + state.conflicts.length) : ''))}
                 {seg('programmes', 'Programmes')}
+                {seg('rulelab', 'Rule Lab')}
+                {seg('genesis', 'Genesis')}
+                {seg('governance', 'Bylaws & Dues')}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {tab === 'network' ? (Net ? <Net coefficient={state.coefficient} graph={state.graph} /> : missing('Coefficient')) : null}
                 {tab === 'people' ? (People ? <People radar={state.radar} seats={state.seats} benches={state.benches} prospectuses={state.prospectuses} folders={state.folders} onCopy={onCopy} /> : missing('People desk')) : null}
+                {tab === 'people' && state.renewal && window.WrCommishRenewalPanel ? <window.WrCommishRenewalPanel forecast={state.renewal} /> : null}
                 {tab === 'ops' ? (Ops ? <Ops drift={state.drift} calendar={state.calendar} conflicts={state.conflicts} onAcknowledge={onAcknowledge} ackTick={ackTick} /> : missing('Ops desk')) : null}
                 {tab === 'programmes' ? (Prog ? <Prog programmes={state.programmes} onExportAll={onExportAll} /> : missing('Programme rack')) : null}
+                {tab === 'rulelab' ? (window.WrCommishRuleLabPanel ? (
+                    <window.WrCommishRuleLabPanel
+                        status={ruleLab.status === 'ready' ? 'ready' : ruleLab.status}
+                        seasonUsed={ruleLab.season}
+                        proposal={proposal}
+                        onProposalChange={setProposal}
+                        results={ruleLabResults}
+                        presets={(C?.RuleLab && C.RuleLab.PRESETS) || []}
+                    />
+                ) : missing('Rule Lab')) : null}
+                {tab === 'genesis' ? (window.WrCommishGenesisPanel ? (
+                    genesis ? <window.WrCommishGenesisPanel readiness={genesis} onToggle={onGenesisToggle} /> : missing('Season Genesis')
+                ) : missing('Season Genesis')) : null}
+                {tab === 'governance' ? (window.WrCommishGovernancePanel ? (
+                    <window.WrCommishGovernancePanel
+                        leagues={state.mine} graph={state.graph}
+                        constitutions={state.constitutions || {}} amendments={bylawAmendments} treasuries={treasuries}
+                        onMarkPaid={onMarkPaid} onSetLeagueSafe={onSetLeagueSafe} onSetSheet={onSetSheet}
+                        onFetchSheet={onFetchSheet} onPasteCsv={onPasteCsv} onAsk={onAsk}
+                    />
+                ) : missing('Bylaws & Dues')) : null}
             </div>
         </React.Fragment>
     );
