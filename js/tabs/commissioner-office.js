@@ -14,13 +14,40 @@
 // Deferred module group "commish" — loaded when the hub card is opened.
 // ══════════════════════════════════════════════════════════════════
 function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
-    const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #9aa0a6)', TEXT = 'var(--text, #e8e8ea)';
-    const PANEL = 'var(--panel, #15151b)', LINE = 'var(--ov-4, rgba(255,255,255,0.08))';
+    // ── The token ladder ─────────────────────────────────────────────
+    // The office used to read as translucent for a reason that had nothing to
+    // do with opacity: --panel, --ov-4, --text, --acc-fill2 and --k-* are all
+    // UNDEFINED in this app, so every surface silently fell back to #15151b —
+    // four RGB points off the page, which is no figure/ground at all. Worse,
+    // --text-muted resolves identical to --silver (so there was no third text
+    // tier) and --charcoal is a translucent gold. These CO_* customs are
+    // defined on the shell below and are the only colors the office uses.
+    const GOLD = 'var(--gold, #D4AF37)', SILVER = 'var(--silver, #BDB8AD)', TEXT = 'var(--white, #F5F2EA)';
+    const MUTED = '#8D887E', ACCENT = 'var(--co-accent, #5DADE2)';
+    const PANEL = 'var(--co-surface, #121217)', LINE = 'var(--co-line, #27262E)';
     const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
+    const CO_TOKENS = {
+        '--co-page': '#08080B', '--co-surface': '#121217', '--co-surface-2': '#1B1B22',
+        '--co-surface-3': '#17171D', '--co-well': '#0F0F14',
+        '--co-line': '#27262E', '--co-line-soft': '#201F27',
+        '--co-accent': '#5DADE2', '--co-accent-fill': '#12212B', '--co-accent-line': '#2B4B63',
+        '--co-fill-bad': '#2A1512', '--co-fill-warn': '#2A2010', '--co-fill-good': '#14281C',
+    };
 
     const C = window.App && window.App.Commish;
     const [state, setState] = React.useState({ status: 'idle' });
-    const [tab, setTab] = React.useState('network'); // network | people | ops | programmes | rulelab | genesis
+    // View state. 'command' is the front door — the office used to land on the
+    // Coefficient, which is an empty table all offseason, which is a large part
+    // of why it read as broken. Hubs are reached FROM the command view and
+    // always have one fixed way back.
+    const [tab, setTab] = React.useState('command'); // command | network | people | ops | programmes | rulelab | genesis | governance
+    const [scopeLeagueId, setScopeLeagueId] = React.useState(null);
+    const [queueFilter, setQueueFilter] = React.useState({ tier: null, leagueId: null, domain: null });
+    const openHub = React.useCallback((hub, opts) => {
+        setScopeLeagueId((opts && opts.leagueId) || null);
+        setTab(hub);
+        try { window.scrollTo(0, 0); } catch (e) { /* headless */ }
+    }, []);
     const [ackTick, setAckTick] = React.useState(0);
     const [genTick, setGenTick] = React.useState(0);
     // Rule Lab data loads lazily on first open — 18 weeks of league-independent
@@ -222,6 +249,109 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
             });
         } catch (e) { window.wrLog?.('commish.genesis', e); return null; }
     }, [state.status, ackTick, genTick]);
+    // ── Command view derivations ─────────────────────────────────────
+    // The triage queue is the office's single ranked work list; the KPI band,
+    // pressure grid and desk cards are all views onto it, so they can never
+    // disagree with each other.
+    const isPhone = !!(window.WR && window.WR.useViewport && window.WR.useViewport().isPhone);
+    // Declared HERE, above every memo that reads them. Babel compiles const to
+    // a hoisted var, so a dep referenced above its declaration is silently
+    // `undefined` at memo-evaluation time rather than a loud TDZ error — the
+    // same trap that froze the Season Odds effect.
+    const darkCount = state.status === 'ready' && state.radar ? state.radar.people.filter(p => p.status === 'DARK_ALL' || p.status === 'DARK_ONE').length : 0;
+    const DOMAINS = [
+        { key: 'coefficient', label: 'Coefficient', hub: 'network' },
+        { key: 'people', label: 'People', hub: 'people' },
+        { key: 'operations', label: 'Operations', hub: 'ops' },
+        { key: 'programmes', label: 'Programmes', hub: 'programmes' },
+        { key: 'rulelab', label: 'Rule Lab', hub: 'rulelab' },
+        { key: 'genesis', label: 'Genesis', hub: 'genesis' },
+        { key: 'bylaws', label: 'Bylaws + Dues', hub: 'governance' },
+    ];
+    const tagFor = (name) => String(name || '').replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean).slice(0, 3).map(w => w[0]).join('').toUpperCase().slice(0, 3) || '???';
+
+    const queue = React.useMemo(() => {
+        if (state.status !== 'ready' || !C?.Triage?.buildQueue) return null;
+        try {
+            return C.Triage.buildQueue({
+                radar: state.radar, renewal: state.renewal, drift: state.drift,
+                calendar: state.calendar, conflicts: state.conflicts, genesis,
+                treasuries, constitutions: state.constitutions || {}, seats: state.seats,
+                graph: state.graph, mine: state.mine, week: state.week, nowMs: Date.now(),
+            });
+        } catch (e) { window.wrLog?.('commish.triage', e); return null; }
+    }, [state.status, genesis, treasuries, ackTick, genTick, treasuryTick]);
+
+    const commandKpis = React.useMemo(() => {
+        if (state.status !== 'ready') return null;
+        const readiness = (genesis || []).map(g => ({ leagueId: g.leagueId, tag: tagFor(g.leagueName), pct: g.pct }));
+        const avg = readiness.length ? Math.round(readiness.reduce((s, r) => s + r.pct, 0) / readiness.length) : 0;
+        const dated = (state.calendar.events || []).filter(e => e.ts && e.ts >= Date.now()).sort((a, b) => a.ts - b.ts)[0];
+        return {
+            leagues: state.mine.length,
+            humans: Object.keys(state.graph.people || {}).length,
+            crossover: (state.graph.overlap || []).length,
+            needsYou: (queue && queue.counts) || { now: 0, soon: 0, backlog: 0 },
+            readiness, readinessAvg: avg,
+            nextDate: dated ? {
+                label: new Date(dated.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase(),
+                sub: dated.leagueName + ' ' + dated.type + ' · in ' + Math.max(0, Math.round((dated.ts - Date.now()) / 86400000)) + 'd',
+                ts: dated.ts,
+            } : null,
+        };
+    }, [state.status, queue, genesis]);
+
+    const commandGrid = React.useMemo(() => {
+        if (state.status !== 'ready') return null;
+        const byCell = (queue && queue.byCell) || {};
+        const notYet = (queue && queue.notYet) || {};
+        const worst = {};
+        ((queue && queue.items) || []).forEach(it => {
+            (it.leagueIds || []).forEach(lid => {
+                const k = lid + ':' + it.domain;
+                const rank = { NOW: 3, SOON: 2, BACKLOG: 1 }[it.tier] || 0;
+                if (!worst[k] || rank > worst[k]) worst[k] = rank;
+            });
+        });
+        return {
+            leagues: state.mine.map(l => {
+                const lid = String(l.league_id || l.id);
+                return { leagueId: lid, tag: tagFor(l.name), name: l.name, pct: (genesis || []).find(g => g.leagueId === lid)?.pct ?? null };
+            }),
+            domains: DOMAINS,
+            cell: (leagueId, domainKey) => {
+                const k = leagueId + ':' + domainKey;
+                if (notYet[k]) return { n: 0, state: 'NOT_YET' };
+                const n = byCell[k] || 0;
+                if (!n) return { n: 0, state: 'CLEAR' };
+                return { n, state: ({ 3: 'NOW', 2: 'SOON', 1: 'BACKLOG' })[worst[k]] || 'BACKLOG' };
+            },
+        };
+    }, [state.status, queue, genesis]);
+
+    const commandDesks = React.useMemo(() => {
+        if (state.status !== 'ready') return null;
+        const items = (queue && queue.items) || [];
+        const forHub = (hub) => items.filter(it => it.hub === hub);
+        const worstSev = (rows) => rows.some(r => r.tier === 'NOW') ? 'bad' : rows.some(r => r.tier === 'SOON') ? 'warn' : null;
+        const badge = (hub) => { const rows = forHub(hub).filter(r => r.tier !== 'BACKLOG'); return rows.length ? { n: forHub(hub).length, severity: worstSev(rows) } : null; };
+        const scored = (state.week || 0) > 0 && Object.values(state.ledgers || {}).some(l => (l.weeks || []).length);
+        const lowest = [...(genesis || [])].sort((a, b) => a.pct - b.pct)[0];
+        const driftN = state.drift.reduce((s, d) => s + ((d.result && d.result.changes) || []).length, 0);
+        const duesTotals = Object.values(treasuries || {}).filter(Boolean).reduce((a, t) => ({ paid: a.paid + t.summary.paid, total: a.total + t.summary.total }), { paid: 0, total: 0 });
+        const noCon = state.mine.filter(l => !(state.constitutions || {})[String(l.league_id || l.id)]).length;
+        const avg = (genesis || []).length ? Math.round(genesis.reduce((s, g) => s + g.pct, 0) / genesis.length) : 0;
+        return [
+            { group: 'OPEN THE SEASON', hub: 'genesis', name: 'Genesis', badge: badge('genesis'), stat: avg + '%', unit: 'AVG READINESS', status: lowest ? ('Lowest: ' + lowest.leagueName + ' ' + lowest.pct + '% — ' + (lowest.blockers?.[0] || 'blockers open') + '.') : 'Readiness pending.', dormant: false },
+            { group: 'OPEN THE SEASON', hub: 'ops', name: 'Operations', badge: badge('ops'), stat: String(driftN), unit: 'UNRATIFIED EDITS', status: (state.conflicts.length ? state.conflicts.length + ' calendar conflict' + (state.conflicts.length === 1 ? '' : 's') : 'No collisions') + ' · ' + driftN + ' settings change' + (driftN === 1 ? '' : 's'), dormant: false },
+            { group: 'OPEN THE SEASON', hub: 'rulelab', name: 'Rule Lab', badge: null, stat: ruleLab.season ? String(ruleLab.season) : '—', unit: 'REPLAY SEASON', status: 'Test a scoring change against a finished season.', dormant: false },
+            { group: 'HOLD THE ROOM', hub: 'people', name: 'People', badge: badge('people'), stat: String(darkCount), unit: 'FLAGGED DARK', status: ((state.renewal?.summary?.atRisk ?? 0) + ' renewals at risk · ' + state.seats.length + ' seat' + (state.seats.length === 1 ? '' : 's') + ' open'), dormant: false },
+            { group: 'HOLD THE ROOM', hub: 'governance', name: 'Bylaws & Dues', badge: badge('governance'), stat: duesTotals.total ? (duesTotals.paid + '/' + duesTotals.total) : '—', unit: 'DUES MARKED', status: noCon ? ('No constitution on file in ' + noCon + ' of ' + state.mine.length + ' leagues.') : 'Constitutions on file.', dormant: false },
+            { group: 'THE BROADCAST', hub: 'network', name: 'The Coefficient', badge: scored ? badge('network') : null, stat: scored ? String((state.coefficient?.rows || []).length) : '—', unit: scored ? 'HUMANS RATED' : 'NO SCORED WEEKS', status: 'Rates every human across your leagues on one all-play scale. Starts Week 1 — ' + Object.keys(state.graph.people || {}).length + ' humans staged.', dormant: !scored },
+            { group: 'THE BROADCAST', hub: 'programmes', name: 'Programmes', badge: scored ? badge('programmes') : null, stat: '—', unit: 'WEEKS PUBLISHED', status: 'One shareable recap per league per week. The first one prints after Week 1.', dormant: !scored },
+        ];
+    }, [state.status, queue, genesis, treasuries, ruleLab.season]);
+
     const onGenesisToggle = (leagueId, itemId) => {
         try { C?.Genesis?.toggleManual?.(leagueId, itemId, { nowMs: Date.now() }); } catch (e) { /* unchanged */ }
         setGenTick(t => t + 1);
@@ -312,28 +442,87 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         });
     };
 
-    const seg = (k, label) => (
-        <button key={k} onClick={() => setTab(k)}
-            style={{ padding: '7px 15px', cursor: 'pointer', border: 'none', background: tab === k ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'transparent', color: tab === k ? GOLD : SILVER, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', fontFamily: MONO }}>
-            {label}
-        </button>
+    // ── Hub rail ─────────────────────────────────────────────────────
+    // Seven desks in three named groups, in the same order everywhere they
+    // appear. '‹ COMMAND' is always first and never moves — it is the only way
+    // back, so it must be muscle memory. Badge counts get their own span:
+    // string-concatenating them into the label (the old strip's bug) is why a
+    // 58 and a 2 were invisible.
+    const HUB_GROUPS = [
+        { name: 'OPEN THE SEASON', hubs: [['genesis', 'Genesis'], ['ops', 'Operations'], ['rulelab', 'Rule Lab']] },
+        { name: 'HOLD THE ROOM', hubs: [['people', 'People'], ['governance', 'Bylaws & Dues']] },
+        { name: 'THE BROADCAST', hubs: [['network', 'The Coefficient'], ['programmes', 'Programmes']] },
+    ];
+    const hubBadge = (hub) => {
+        if (state.status !== 'ready') return 0;
+        const q = queue;
+        if (!q) return 0;
+        return q.items.filter(it => it.hub === hub && it.tier !== 'BACKLOG').length;
+    };
+    const railTab = (k, label) => {
+        const active = tab === k;
+        const n = hubBadge(k);
+        return (
+            <button key={k} onClick={() => openHub(k)} role="tab" aria-selected={active}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '10px 14px 9px', marginBottom: '-1px', cursor: 'pointer', border: 'none', borderBottom: '2px solid ' + (active ? ACCENT : 'transparent'), background: active ? 'var(--co-accent-fill)' : 'transparent', color: active ? TEXT : MUTED, fontSize: '0.75rem', fontWeight: active ? 700 : 600, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: MONO, whiteSpace: 'nowrap' }}>
+                {label}
+                {n ? <span style={{ fontFamily: MONO, fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.08em', padding: '1px 6px', borderRadius: '999px', fontVariantNumeric: 'tabular-nums', background: active ? 'var(--bad, #E74C3C)' : 'var(--co-fill-bad)', color: active ? '#121217' : 'var(--bad, #E74C3C)' }}>{n}</span> : null}
+            </button>
+        );
+    };
+    const hubRail = (
+        <div role="tablist" style={{ position: 'sticky', top: 0, zIndex: 5, background: 'var(--co-page)', paddingTop: '8px', marginBottom: '16px', borderBottom: `1px solid ${LINE}`, display: 'flex', alignItems: 'center', gap: '2px', overflowX: 'auto', scrollbarWidth: 'none' }}>
+            <button onClick={() => { setScopeLeagueId(null); setTab('command'); }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '8px 12px', marginRight: '6px', cursor: 'pointer', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: ACCENT, fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>‹ COMMAND</button>
+            {HUB_GROUPS.map((g, gi) => (
+                <React.Fragment key={g.name}>
+                    {gi ? <span aria-hidden="true" style={{ width: '1px', height: '14px', background: LINE, margin: '0 6px', flex: 'none' }} /> : null}
+                    {g.hubs.map(([k, label]) => railTab(k, label))}
+                </React.Fragment>
+            ))}
+            {scopeLeagueId ? (
+                <button onClick={() => setScopeLeagueId(null)}
+                    style={{ marginLeft: 'auto', flex: 'none', padding: '5px 10px', cursor: 'pointer', background: 'var(--co-accent-fill)', border: `1px solid var(--co-accent-line)`, borderRadius: '6px', color: ACCENT, fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>
+                    {(state.mine || []).find(l => String(l.league_id || l.id) === scopeLeagueId)?.name || 'SCOPED'} ✕
+                </button>
+            ) : null}
+        </div>
     );
 
     // The app paints a fixed 0.05-opacity logo watermark on body::before at
     // z-index 0 (index.html:479). Any surface that doesn't paint its own
     // background lets it bleed through — which is exactly what the office was
     // doing. Own the full viewport with an opaque page-bg and sit above it.
+    // The app paints a fixed 0.05-opacity logo watermark on body::before at
+    // z-index 0 (index.html:479). Any surface that doesn't paint its own
+    // background lets it bleed through. Own the viewport, define the CO_*
+    // ladder here so every descendant resolves real colors, and isolate so no
+    // ancestor blend mode can reach in.
     const shell = (children) => (
-        <div style={{ position: 'relative', zIndex: 1, background: 'var(--page-bg, #08080B)', minHeight: '100vh' }}>
+        <div style={{ ...CO_TOKENS, position: 'relative', zIndex: 1, background: 'var(--co-page)', isolation: 'isolate', minHeight: '100vh' }}>
         <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '20px 16px 60px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '4px' }}>
-                <button onClick={onBack} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: SILVER, cursor: 'pointer', padding: '5px 12px', fontFamily: MONO, fontSize: '0.7rem', letterSpacing: '0.05em' }}>‹ HUB</button>
-                <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.25rem', letterSpacing: '.06em', color: GOLD }}>COMMISSIONER'S OFFICE</span>
-                <span style={{ fontFamily: MONO, fontSize: '0.66rem', fontWeight: 700, letterSpacing: '.06em', color: 'var(--black)', background: GOLD, borderRadius: '5px', padding: '1px 6px' }}>LABS</span>
-                {state.status === 'ready' ? <span style={{ fontFamily: MONO, fontSize: '0.7rem', color: SILVER }}>{state.mine.length} league{state.mine.length !== 1 ? 's' : ''} under your gavel</span> : null}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                <button onClick={onBack} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: SILVER, cursor: 'pointer', padding: '6px 12px', fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em' }}>‹ HUB</button>
+                {/* Blue wordmark, not gold: the cheapest signal that the Office
+                    is a different room from Empire. Gold survives in exactly two
+                    places office-wide — the LABS chip and the "this is you" row. */}
+                <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.5rem', letterSpacing: '.06em', textTransform: 'uppercase', color: TEXT, display: 'inline-block', borderBottom: `3px solid ${ACCENT}`, paddingBottom: '3px' }}>Commissioner's Office</span>
+                <span style={{ fontFamily: MONO, fontSize: '0.625rem', fontWeight: 700, letterSpacing: '.08em', color: '#121217', background: GOLD, borderRadius: '4px', padding: '2px 6px' }}>LABS</span>
+                {state.status === 'ready' ? (
+                    <span style={{ marginLeft: 'auto', fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
+                        {state.mine.length} LEAGUES · {Object.keys(state.graph?.people || {}).length} HUMANS · {(state.graph?.overlap || []).length} CROSSOVER
+                    </span>
+                ) : null}
             </div>
-            <div style={{ color: SILVER, fontSize: '0.78rem', marginBottom: '14px' }}>Every league you commission, one desk. Discovered from your Sleeper commissioner flag — nothing to configure.</div>
+            {state.status === 'ready' && tab !== 'command' ? hubRail : null}
             {children}
+            {/* The command panel prints its own provenance footer; only add one
+                here for the hub views, so the two never stack. */}
+            {tab !== 'command' ? (
+                <div style={{ marginTop: '24px', fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED }}>
+                    The office reads; it never writes to a platform.
+                </div>
+            ) : null}
         </div>
         </div>
     );
@@ -352,22 +541,15 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     const People = window.WrCommishPeoplePanel, Ops = window.WrCommishOpsPanel;
     const missing = (name) => <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '16px', color: SILVER, fontSize: '0.78rem', fontFamily: MONO }}>{name} module not loaded.</div>;
 
-    // Radar people carry `status` (DARK_ALL/DARK_ONE/FADING/ACTIVE), worst-first.
-    const darkCount = state.radar ? state.radar.people.filter(p => p.status === 'DARK_ALL' || p.status === 'DARK_ONE').length : 0;
-    const driftCount = state.drift.reduce((s, d) => s + ((d.result && d.result.changes) || []).length, 0);
-
     return shell(
         <React.Fragment>
-            <div style={{ display: 'inline-flex', border: `1px solid ${LINE}`, borderRadius: '6px', overflow: 'hidden', marginBottom: '14px', flexWrap: 'wrap' }}>
-                {seg('network', 'The Coefficient')}
-                {seg('people', 'People' + (darkCount || state.seats.length ? ' · ' + (darkCount + state.seats.length) : ''))}
-                {seg('ops', 'Operations' + (driftCount || state.conflicts.length ? ' · ' + (driftCount + state.conflicts.length) : ''))}
-                {seg('programmes', 'Programmes')}
-                {seg('rulelab', 'Rule Lab')}
-                {seg('genesis', 'Genesis')}
-                {seg('governance', 'Bylaws & Dues')}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {tab === 'command' ? (window.WrCommishCommandPanel ? (
+                    <window.WrCommishCommandPanel
+                        queue={queue} kpis={commandKpis} grid={commandGrid} desks={commandDesks}
+                        onOpenHub={openHub} onFilter={setQueueFilter} filter={queueFilter} phone={isPhone}
+                    />
+                ) : missing('Command')) : null}
                 {tab === 'network' ? (Net ? <Net coefficient={state.coefficient} graph={state.graph} /> : missing('Coefficient')) : null}
                 {tab === 'people' ? (People ? <People radar={state.radar} seats={state.seats} benches={state.benches} prospectuses={state.prospectuses} folders={state.folders} onCopy={onCopy} /> : missing('People desk')) : null}
                 {tab === 'people' && state.renewal && window.WrCommishRenewalPanel ? <window.WrCommishRenewalPanel forecast={state.renewal} /> : null}
