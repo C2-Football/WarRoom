@@ -319,7 +319,12 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         </button>
     );
 
+    // The app paints a fixed 0.05-opacity logo watermark on body::before at
+    // z-index 0 (index.html:479). Any surface that doesn't paint its own
+    // background lets it bleed through — which is exactly what the office was
+    // doing. Own the full viewport with an opaque page-bg and sit above it.
     const shell = (children) => (
+        <div style={{ position: 'relative', zIndex: 1, background: 'var(--page-bg, #08080B)', minHeight: '100vh' }}>
         <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '20px 16px 60px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '4px' }}>
                 <button onClick={onBack} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: SILVER, cursor: 'pointer', padding: '5px 12px', fontFamily: MONO, fontSize: '0.7rem', letterSpacing: '0.05em' }}>‹ HUB</button>
@@ -329,6 +334,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
             </div>
             <div style={{ color: SILVER, fontSize: '0.78rem', marginBottom: '14px' }}>Every league you commission, one desk. Discovered from your Sleeper commissioner flag — nothing to configure.</div>
             {children}
+        </div>
         </div>
     );
 
