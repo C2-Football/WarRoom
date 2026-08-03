@@ -820,7 +820,14 @@
             if (!window.DraftCC.liveSync) return;
 
             const normPos = window.App?.normPos || (p => p);
-            const getDHQ = (pid) => window.App?.LI?.playerScores?.[pid] || 0;
+            // Format-aware: resolvePlayerDhq is redraft-first (ROS values on a
+            // redraft board), and its explicit ros-zero is honored — never
+            // fall back to dynasty pricing for a redraft 0.
+            const getDHQ = (pid) => {
+                const resolved = window.DraftCC?.state?.resolvePlayerDhq?.({ pid });
+                if (resolved && (resolved.value > 0 || resolved.source === 'ros-zero')) return resolved.value;
+                return window.App?.LI?.playerScores?.[pid] || 0;
+            };
 
             const initialPickNo = Math.max(
                 Number(state.liveSync?.lastPickNo || 0),
@@ -3465,7 +3472,8 @@
 
     function MyDraftRosterPanel({ state }) {
         const players = window.S?.players || {};
-        const scores = window.App?.LI?.playerScores || {};
+        // valueMap proxies to ROS values in redraft leagues, dynasty elsewhere.
+        const scores = (window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap() : null) || window.App?.LI?.playerScores || {};
         const rosters = window.S?.rosters || [];
         const normPos = window.App?.normPos || (p => p);
         const posColors = window.App?.POS_COLORS || {
@@ -4317,7 +4325,8 @@
     function MockRosterBuildCard({ state, grade }) {
         const players = window.S?.players || {};
         const rosters = window.S?.rosters || [];
-        const scores = window.App?.LI?.playerScores || {};
+        // valueMap proxies to ROS values in redraft leagues, dynasty elsewhere.
+        const scores = (window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap() : null) || window.App?.LI?.playerScores || {};
         const normPos = window.App?.normPos || (p => p);
         const posColors = window.App?.POS_COLORS || {};
         const myPicks = (state.picks || []).filter(p => p.rosterId === state.userRosterId || p.isUser);

@@ -1054,7 +1054,8 @@
 
         function computeKpiValue(kpiKey) {
             const LI = window.App?.LI || {};
-            const scores = LI.playerScores || {};
+            // Format-aware: ROS values in redraft, dynasty elsewhere.
+            const scores = (window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap() : null) || LI.playerScores || {};
             const myPlayers = myRoster?.players || [];
             const profile = LI.ownerProfiles?.[myRoster?.roster_id];
             switch(kpiKey) {
@@ -1486,9 +1487,14 @@
                 });
                 const adds = Object.keys(t.adds || {});
                 adds.forEach(pid => {
-                    const dhq = window.App?.LI?.playerScores?.[pid] || 0;
-                    if (dhq > 3000 && !myPids.has(pid)) {
-                        notes.push({ type: 'info', text: (playersData[pid]?.full_name || pid) + ' (' + dhq.toLocaleString() + ' DHQ) was picked up', time: t.created });
+                    // Format-aware value + label: '(4,100 ROS) was picked up'
+                    // in redraft, DHQ elsewhere — same 3000+ notability bar
+                    // (both scales anchor their top asset to the same ceiling).
+                    const pv = window.App?.PlayerValue;
+                    const val = (pv?.isRedraftActive?.() ? pv.getValue(pid) : window.App?.LI?.playerScores?.[pid]) || 0;
+                    const lbl = window.App?.LeagueSkin?.getCurrent?.()?.vocabulary?.valueShortLabel || 'DHQ';
+                    if (val > 3000 && !myPids.has(pid)) {
+                        notes.push({ type: 'info', text: (playersData[pid]?.full_name || pid) + ' (' + val.toLocaleString() + ' ' + lbl + ') was picked up', time: t.created });
                     }
                 });
             });
@@ -1544,7 +1550,9 @@
                 allAssess.forEach(a => { if (a?.rosterId) assessMap[a.rosterId] = a; });
                 const ranked = standings.map(t => {
                     const r = currentLeague.rosters.find(r => r.owner_id === t.userId);
-                    const totalDHQ = r?.players?.reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0) || 0;
+                    // Format-aware roster sum: ROS in redraft, dynasty elsewhere.
+                    const vmap = (window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap() : null) || window.App?.LI?.playerScores || {};
+                    const totalDHQ = r?.players?.reduce((s, pid) => s + (vmap[pid] || 0), 0) || 0;
                     let healthScore = 0;
                     let tierColor = 'var(--silver)';
                     const assessment = r ? assessMap[r.roster_id] : null;
@@ -2422,9 +2430,10 @@
                             {getPlayerName(playerId)} <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.65 }}>{team}</span>
                         </span>
                     </a>
-                    {/* DHQ dynasty value */}
+                    {/* Format-aware value (ROS in redraft, DHQ dynasty value elsewhere) */}
                     {(() => {
-                      const dhq = window.App?.LI?.playerScores?.[playerId] || 0;
+                      const pv = window.App?.PlayerValue;
+                      const dhq = (pv?.isRedraftActive?.() ? pv.getValue(playerId) : window.App?.LI?.playerScores?.[playerId]) || 0;
                       if (!dhq) return <span style={{ ...statColStyle, color: 'var(--silver)', opacity: 0.6, fontSize: 'var(--text-body, 1rem)' }}>—</span>;
                       const col = dhq >= 7000 ? 'var(--k-2ecc71, #2ecc71)' : dhq >= 4000 ? 'var(--k-d4af37, #d4af37)' : dhq >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.4))';
                       return <span style={{ ...statColStyle, color: col, fontWeight: '700', fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)', minWidth: '42px' }}>{dhq.toLocaleString()}</span>;

@@ -383,6 +383,23 @@
     // Returns short text annotations for roster, matchup, and analytics views.
     function getPlayerAnnotation(pid) {
         const LI = window.App?.LI || {};
+        const PV = window.App?.PlayerValue;
+        // Redraft: age-curve advice ('Sell high — past value window') is
+        // dynasty vocabulary. Annotate from the ROS ladder instead — where the
+        // player sits against the league's own replacement line this season.
+        if (PV?.isRedraftActive?.()) {
+            const ros = PV.rosState();
+            const pts = ros?.points?.[pid] || 0;
+            if (!pts || !ros.remainingWeeks) return null;
+            const pos = (window.App?.normPos?.(window.S?.players?.[pid]?.position)) || '';
+            const perWk = pts / ros.remainingWeeks;
+            const repl = (ros.replacementPerWk || {})[pos] || 0;
+            if (!repl) return null;
+            if (perWk >= repl * 1.35) return { text: 'Every-week starter — well above the waiver line', color: 'var(--k-2ecc71, #2ecc71)', rec: 'START' };
+            if (perWk >= repl) return { text: 'Startable — above replacement at ' + pos, color: 'var(--gold)', rec: 'START' };
+            if (perWk >= repl * 0.75) return { text: 'Depth — below the startable line', color: 'var(--silver)', rec: 'BENCH' };
+            return { text: 'Replaceable off waivers', color: 'var(--k-f0a500, #f0a500)', rec: 'BENCH' };
+        }
         const meta = LI.playerMeta?.[pid];
         const dhq = LI.playerScores?.[pid] || 0;
         if (!meta || !dhq) return null;
