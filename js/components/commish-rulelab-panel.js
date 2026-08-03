@@ -32,13 +32,26 @@
 // NO data fetching here. The methodology caption is doctrine and always
 // visible — this panel argues from the replay, never re-crowns a champion.
 // ══════════════════════════════════════════════════════════════════
-function WrCommishRuleLabPanel({ status, seasonUsed, proposal, onProposalChange, results, presets, baselineScoring }) {
-    const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #9aa0a6)', TEXT = 'var(--text, #e8e8ea)';
-    const GREEN = 'var(--k-2ecc71, #2ecc71)', RED = 'var(--k-e74c3c, #e74c3c)';
-    const AMBER = 'var(--warn, #F0A500)';
-    const PANEL = 'var(--panel, #15151b)', LINE = 'var(--ov-4, rgba(255,255,255,0.08))';
+function WrCommishRuleLabPanel({
+    status, seasonUsed, seasons, onSeason,
+    proposal, onProposalChange, rosterProposal, onRosterProposalChange,
+    results, presets, baselineScoring, currentSlotsByLeague,
+    sweepResult, onSweep, sweepBusy,
+    saved, onSaveProposal, onLoadProposal, onDeleteProposal, onRatify,
+    onCopyBallot, onExportBallot,
+}) {
+    // CO_* token ladder from the office shell — NOT the app-level --panel /
+    // --text / --k-* names, which are undefined and fall back to the exact
+    // figure/ground failure the office redesign fixed. Muted is a literal:
+    // --text-muted resolves identical to --silver in this app.
+    const GOLD = 'var(--gold, #D4AF37)', SILVER = 'var(--silver, #BDB8AD)', TEXT = 'var(--white, #F5F2EA)';
+    const GREEN = 'var(--good, #2ECC71)', RED = 'var(--bad, #E74C3C)';
+    const AMBER = 'var(--warn, #F0A500)', ACCENT = 'var(--co-accent, #5DADE2)';
+    const PANEL = 'var(--co-surface, #121217)', LINE = 'var(--co-line, #27262E)';
+    const SURF2 = 'var(--co-surface-2, #1B1B22)', WELL = 'var(--co-well, #0F0F14)';
+    const ACC_FILL = 'var(--co-accent-fill, #12212B)', ACC_LINE = 'var(--co-accent-line, #2B4B63)';
     const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
-    const MUTED = 'var(--text-muted, #8D887E)';
+    const MUTED = '#8D887E';
     const mono = { fontFamily: MONO, fontVariantNumeric: 'tabular-nums' };
     const microHdr = { font: '600 var(--text-micro, 0.6875rem) ' + MONO, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' };
 
@@ -79,6 +92,69 @@ function WrCommishRuleLabPanel({ status, seasonUsed, proposal, onProposalChange,
     });
 
     const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(Number(v) || 0).toFixed(1);
+
+    // ── Full scoring editor state ────────────────────────────────────
+    const [editorOpen, setEditorOpen] = React.useState(false);
+    const [saveName, setSaveName] = React.useState('');
+    // Human labels for the common Sleeper scoring keys; anything unknown
+    // renders its raw key — honest, and every league has oddballs.
+    const KEY_LABELS = {
+        pass_yd: 'Passing yards (per yd)', pass_td: 'Passing TD', pass_int: 'Interception thrown', pass_2pt: 'Passing 2-pt',
+        rush_yd: 'Rushing yards (per yd)', rush_td: 'Rushing TD', rush_2pt: 'Rushing 2-pt',
+        rec: 'Reception (PPR)', rec_yd: 'Receiving yards (per yd)', rec_td: 'Receiving TD', rec_2pt: 'Receiving 2-pt',
+        bonus_rec_te: 'TE reception premium', bonus_rush_yd_100: '100-yd rushing bonus', bonus_rec_yd_100: '100-yd receiving bonus', bonus_pass_yd_300: '300-yd passing bonus',
+        fum_lost: 'Fumble lost', fum: 'Fumble', fum_rec_td: 'Fumble recovery TD',
+        st_td: 'Special teams TD', st_fum_rec: 'ST fumble recovery',
+        fgm: 'FG made', fgm_0_19: 'FG 0–19', fgm_20_29: 'FG 20–29', fgm_30_39: 'FG 30–39', fgm_40_49: 'FG 40–49', fgm_50p: 'FG 50+', fgmiss: 'FG missed', xpm: 'XP made', xpmiss: 'XP missed',
+        def_td: 'Defensive TD', pts_allow_0: 'Shutout', sack: 'Sack', int: 'Interception (DEF)', ff: 'Forced fumble', fum_rec: 'Fumble recovery', safe: 'Safety', blk_kick: 'Blocked kick',
+        idp_tkl: 'IDP tackle', idp_sack: 'IDP sack', idp_int: 'IDP interception',
+    };
+    const KEY_GROUPS = [
+        ['Passing', k => k.startsWith('pass')],
+        ['Rushing', k => k.startsWith('rush') || k === 'bonus_rush_yd_100'],
+        ['Receiving', k => k.startsWith('rec') || k === 'bonus_rec_te' || k === 'bonus_rec_yd_100'],
+        ['Turnovers & misc', k => k.startsWith('fum') || k.startsWith('st_') || k.startsWith('bonus_pass')],
+        ['Kicking', k => k.startsWith('fg') || k.startsWith('xp')],
+        ['Defense & IDP', () => true],   // catch-all last
+    ];
+    const groupKeys = (keys) => {
+        const used = new Set();
+        return KEY_GROUPS.map(([name, match]) => {
+            const ks = keys.filter(k => !used.has(k) && match(k));
+            ks.forEach(k => used.add(k));
+            return { name, keys: ks };
+        }).filter(g => g.keys.length);
+    };
+    const editorKeys = Object.keys(baselineScoring || {}).sort();
+    // bonus_rec_te is addable even when the league has never scored it — it's
+    // the single most-proposed rule in dynasty.
+    if (baselineScoring && baselineScoring.bonus_rec_te == null && !editorKeys.includes('bonus_rec_te')) editorKeys.push('bonus_rec_te');
+    const setKey = (k, raw) => {
+        if (typeof onProposalChange !== 'function') return;
+        const next = Object.assign({}, prop);
+        const baseVal = baselineScoring && baselineScoring[k] != null ? Number(baselineScoring[k]) : 0;
+        const v = raw === '' || raw == null ? NaN : Number(raw);
+        if (Number.isNaN(v) || v === baseVal) delete next[k]; else next[k] = v;
+        onProposalChange(next);
+    };
+
+    // ── Roster structure proposal ────────────────────────────────────
+    const SLOT_UNIVERSE = ['QB', 'RB', 'WR', 'TE', 'FLEX', 'SUPER_FLEX', 'REC_FLEX', 'K', 'DEF'];
+    const rp = (rosterProposal && Array.isArray(rosterProposal.rosterPositions)) ? rosterProposal.rosterPositions : null;
+    const setSlots = (slots) => {
+        if (typeof onRosterProposalChange !== 'function') return;
+        onRosterProposalChange(slots && slots.length ? { rosterPositions: slots } : null);
+    };
+    // The structures each league runs today, deduped into display strings so
+    // "what am I changing FROM" is always on screen.
+    const currentStructures = (() => {
+        const seen = {};
+        Object.keys(currentSlotsByLeague || {}).forEach(name => {
+            const key = (currentSlotsByLeague[name] || []).join('·');
+            (seen[key] = seen[key] || []).push(name);
+        });
+        return Object.keys(seen).map(k => ({ slots: k.split('·').filter(Boolean), leagues: seen[k] }));
+    })();
 
     // ── Shells (same idiom as season-odds-panel) ─────────────────────
     const Section = ({ title, meta, children }) => (
@@ -136,8 +212,10 @@ function WrCommishRuleLabPanel({ status, seasonUsed, proposal, onProposalChange,
         );
 
         return (
+            <div id={'wr-rulelab-ballot-' + String(leagueName || 'league').replace(/\W+/g, '-').toLowerCase()}>
             <Section title={leagueName || 'League'}
-                meta={(result.seasonUsed ? result.seasonUsed + ' season · ' : '') + result.weeksCounted + ' week' + (result.weeksCounted === 1 ? '' : 's') + ' replayed'}>
+                meta={(result.seasonUsed ? result.seasonUsed + ' season · ' : '') + result.weeksCounted + ' week' + (result.weeksCounted === 1 ? '' : 's') + ' replayed'
+                    + (result.methodology === 'best_lineup' ? ' · BEST-LINEUP REPLAY' : ' · as-played')}>
 
                 {/* Verdict card: the seed + the field, before any table */}
                 <div style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderLeft: `3px solid ${seed ? GOLD : LINE}`, borderRadius: '0 6px 6px 0', padding: '10px 12px', marginBottom: '12px' }}>
@@ -235,15 +313,62 @@ function WrCommishRuleLabPanel({ status, seasonUsed, proposal, onProposalChange,
                     <div style={{ color: SILVER, fontSize: '0.76rem', marginBottom: '10px' }}>No individual player moves under this proposal.</div>
                 )}
 
+                {/* Position relevance — the league's shape before and after */}
+                {(result.positionShare || []).filter(p => Math.abs(p.deltaPct) >= 0.3).length ? (
+                    <React.Fragment>
+                        <div style={{ ...microHdr, marginBottom: '6px' }}>Position relevance · share of all started points</div>
+                        <div style={{ marginBottom: '10px' }}>
+                            {(result.positionShare || []).filter(p => Math.abs(p.deltaPct) >= 0.3).slice(0, 5).map(p => (
+                                <div key={p.pos} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 130px', gap: '10px', alignItems: 'center', padding: '4px 0' }}>
+                                    <span style={{ ...microHdr }}>{p.pos}</span>
+                                    <div style={{ position: 'relative', height: '6px', background: SURF2, borderRadius: '3px', overflow: 'hidden' }}>
+                                        <span style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: Math.min(100, p.basePct * 2.5) + '%', background: LINE }} />
+                                        <span style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: Math.min(100, p.propPct * 2.5) + '%', background: p.deltaPct >= 0 ? ACCENT : RED, opacity: 1, height: '2px', marginTop: '2px' }} />
+                                    </div>
+                                    <span style={{ ...mono, fontSize: '0.72rem', textAlign: 'right', color: TEXT }}>
+                                        {p.basePct}% → <span style={{ fontWeight: 700, color: p.deltaPct >= 0 ? GREEN : RED }}>{p.propPct}%</span>
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </React.Fragment>
+                ) : null}
+
+                {/* League shape: volatility + how much the standings reshuffle */}
+                {result.balance ? (
+                    <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginBottom: '10px', lineHeight: 1.6 }}>
+                        Weekly volatility {result.balance.volatilityDeltaPct > 0 ? '+' : ''}{result.balance.volatilityDeltaPct}%
+                        {' · '}top-to-bottom spread {result.balance.baseline.spread} → {result.balance.proposed.spread}
+                        {' · '}standings correlation {result.balance.spearman} <span title="1.00 = the proposal reshuffles nothing">ⓘ</span>
+                    </div>
+                ) : null}
+
                 {/* Proposer disclosure — the conflict-of-interest line */}
                 {note && note.line ? (
-                    <div style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderLeft: `3px solid ${AMBER}`, borderRadius: '0 6px 6px 0', padding: '10px 12px' }}>
+                    <div style={{ background: WELL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${AMBER}`, borderRadius: '0 6px 6px 0', padding: '10px 12px', marginBottom: '10px' }}>
                         <div style={{ ...microHdr, color: AMBER, marginBottom: '4px' }}>Disclosure</div>
                         <div style={{ fontSize: '0.78rem', color: TEXT, lineHeight: 1.5 }}>{note.line}</div>
                         <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '4px' }}>Attach this to the ballot when you put it to a vote.</div>
                     </div>
                 ) : null}
+
+                {/* The ballot: this league's impact statement, ready to circulate */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {typeof onCopyBallot === 'function' ? (
+                        <button onClick={() => onCopyBallot(leagueName, result)}
+                            style={{ padding: '7px 12px', cursor: 'pointer', background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: '6px', color: ACCENT, font: '700 0.625rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                            Copy ballot text
+                        </button>
+                    ) : null}
+                    {typeof onExportBallot === 'function' ? (
+                        <button onClick={() => onExportBallot(leagueName, result)}
+                            style={{ padding: '7px 12px', cursor: 'pointer', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: SILVER, font: '700 0.625rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                            Export PNG
+                        </button>
+                    ) : null}
+                </div>
             </Section>
+            </div>
         );
     };
 
@@ -289,8 +414,31 @@ function WrCommishRuleLabPanel({ status, seasonUsed, proposal, onProposalChange,
         );
     }
 
+    const chipBtn = (on, extra) => ({
+        padding: '6px 11px', cursor: 'pointer', borderRadius: '5px',
+        font: '600 0.7rem ' + MONO, letterSpacing: '0.03em',
+        background: on ? ACC_FILL : 'transparent',
+        color: on ? ACCENT : SILVER,
+        border: '1px solid ' + (on ? ACC_LINE : LINE),
+        ...(extra || {}),
+    });
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Season picker — replay any season the league's history chain reaches */}
+            {(seasons || []).length > 1 ? (
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ ...microHdr }}>Replay season</span>
+                    {(seasons || []).map(s => (
+                        <button key={s.season} onClick={() => onSeason && onSeason(s.season)} disabled={!s.available}
+                            title={s.available ? undefined : 'No prior league found for this season'}
+                            style={chipBtn(Number(seasonUsed) === Number(s.season), s.available ? null : { opacity: 0.45, cursor: 'default' })}>
+                            {s.season}
+                        </button>
+                    ))}
+                </div>
+            ) : null}
+
             <Section title="Proposal Bench" meta="chips compose — stack a PPR change with a TE premium">
                 {!presetList.length ? (
                     <div style={{ color: SILVER, fontSize: '0.78rem' }}>No proposal presets available — the Rule Lab engine has not loaded.</div>
@@ -325,13 +473,166 @@ function WrCommishRuleLabPanel({ status, seasonUsed, proposal, onProposalChange,
                             Clear
                         </button>
                     ) : null}
+                    <button onClick={() => setEditorOpen(o => !o)}
+                        style={{ marginLeft: 'auto', padding: '4px 10px', background: editorOpen ? ACC_FILL : 'transparent', color: editorOpen ? ACCENT : SILVER, border: '1px solid ' + (editorOpen ? ACC_LINE : LINE), borderRadius: '5px', font: '700 0.62rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                        {editorOpen ? 'Close editor ▴' : 'Full editor ▾'}
+                    </button>
                 </div>
+
+                {/* The FULL scoring editor — every key this league scores,
+                    grouped, with the current value as the placeholder. Typing a
+                    value stages an override; clearing it (or retyping the
+                    current value) un-stages it. */}
+                {editorOpen ? (
+                    <div style={{ marginTop: '12px', borderTop: `1px solid ${LINE}`, paddingTop: '12px' }}>
+                        {groupKeys(editorKeys).map(g => (
+                            <div key={g.name} style={{ marginBottom: '12px' }}>
+                                <div style={{ ...microHdr, marginBottom: '6px' }}>{g.name}</div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '8px 16px' }}>
+                                    {g.keys.map(k => {
+                                        const cur = baselineScoring && baselineScoring[k] != null ? Number(baselineScoring[k]) : 0;
+                                        const overridden = Object.prototype.hasOwnProperty.call(prop, k);
+                                        return (
+                                            <label key={k} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 74px', gap: '8px', alignItems: 'center' }}>
+                                                <span title={k} style={{ fontSize: '0.72rem', color: overridden ? TEXT : SILVER, fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {KEY_LABELS[k] || k}
+                                                </span>
+                                                <input type="number" step="0.05" inputMode="decimal"
+                                                    value={overridden ? prop[k] : ''}
+                                                    placeholder={fmtNum(cur)}
+                                                    onChange={e => setKey(k, e.target.value)}
+                                                    style={{ width: '100%', background: overridden ? ACC_FILL : 'var(--co-page, #08080B)', border: '1px solid ' + (overridden ? ACC_LINE : LINE), borderRadius: '5px', color: overridden ? TEXT : SILVER, padding: '5px 8px', fontSize: '16px', ...mono, textAlign: 'right' }} />
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                        <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, lineHeight: 1.5 }}>
+                            Placeholders show the current rule. A staged override applies to every replayed league; blank it to revert.
+                        </div>
+                    </div>
+                ) : null}
+            </Section>
+
+            {/* ── Roster Bench: structure proposals ─────────────────────── */}
+            <Section title="Roster Bench" meta="starting-slot changes — superflex, extra flex, the works">
+                {currentStructures.length ? (
+                    <div style={{ marginBottom: '10px' }}>
+                        {currentStructures.map((cs, i) => (
+                            <div key={i} style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginBottom: '2px' }}>
+                                <span style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>{cs.leagues.join(', ')}</span>
+                                {' today: '}<span style={{ ...mono, color: SILVER }}>{cs.slots.join(' · ')}</span>
+                            </div>
+                        ))}
+                    </div>
+                ) : null}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: rp ? '10px' : 0 }}>
+                    <span style={{ ...microHdr }}>Proposed structure</span>
+                    {!rp ? (
+                        <React.Fragment>
+                            <span style={{ fontSize: '0.75rem', color: MUTED, fontFamily: 'var(--font-body)' }}>none — click a slot to start from the first league's current structure</span>
+                            {SLOT_UNIVERSE.slice(0, 6).map(s => (
+                                <button key={s} onClick={() => {
+                                    const base = currentStructures[0] ? currentStructures[0].slots.slice() : [];
+                                    setSlots(base.concat([s]));
+                                }} style={chipBtn(false)}>+ {s.replace('_', ' ')}</button>
+                            ))}
+                        </React.Fragment>
+                    ) : (
+                        <React.Fragment>
+                            {rp.map((s, i) => (
+                                <button key={s + i} title="Remove slot" onClick={() => setSlots(rp.filter((_, j) => j !== i))}
+                                    style={chipBtn(true)}>{s.replace('_', ' ')} ✕</button>
+                            ))}
+                            <span style={{ width: '1px', height: '14px', background: LINE }} />
+                            {SLOT_UNIVERSE.map(s => (
+                                <button key={'add' + s} onClick={() => setSlots(rp.concat([s]))} style={chipBtn(false)}>+ {s.replace('_', ' ')}</button>
+                            ))}
+                            <button onClick={() => setSlots(null)}
+                                style={{ padding: '4px 10px', background: 'transparent', color: SILVER, border: `1px solid ${LINE}`, borderRadius: '5px', font: '700 0.62rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>Clear</button>
+                        </React.Fragment>
+                    )}
+                </div>
+                {rp ? (
+                    <div style={{ background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: '6px', padding: '9px 12px', fontSize: '0.76rem', color: TEXT, lineHeight: 1.55, fontFamily: 'var(--font-body)' }}>
+                        Structure change staged → the replay switches to <b>best-lineup mode</b>: both runs refield every roster's optimal lineup from the players they actually had, because as-played starters can't sit in slots that didn't exist. The diff still isolates the rule change.
+                    </div>
+                ) : null}
+            </Section>
+
+            {/* ── The Wind Tunnel: threshold sweep ──────────────────────── */}
+            <Section title="Wind Tunnel" meta="sweep one knob — find the exact value where the league flips">
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {[['rec', 'PPR 0 → 1.5', [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5]],
+                      ['bonus_rec_te', 'TE premium 0 → 1.5', [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5]],
+                      ['pass_td', 'Pass TD 4 → 6', [4, 5, 6]]].map(([key, label, values]) => (
+                        <button key={key} disabled={!!sweepBusy} onClick={() => onSweep && onSweep(key, values)}
+                            style={chipBtn(sweepResult && sweepResult.key === key, sweepBusy ? { opacity: 0.5 } : null)}>
+                            {sweepBusy === key ? 'Sweeping…' : label}
+                        </button>
+                    ))}
+                </div>
+                {sweepResult && sweepResult.perLeague && sweepResult.perLeague.length ? (
+                    <div style={{ marginTop: '12px' }}>
+                        {sweepResult.perLeague.map(pl => (
+                            <div key={pl.leagueName} style={{ marginBottom: '10px' }}>
+                                <div style={{ ...microHdr, marginBottom: '4px' }}>{pl.leagueName}</div>
+                                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                    {pl.steps.filter(s => !s.empty).map(s => (
+                                        <div key={s.value} title={s.seedFlips ? '#1 seed flips to ' + s.seedTo : (s.ranksMoved + ' ranks move · ' + s.fieldMoves + ' field changes')}
+                                            style={{ minWidth: '58px', textAlign: 'center', padding: '6px 4px', borderRadius: '5px', border: '1px solid ' + (s.isCurrent ? ACC_LINE : LINE), background: s.seedFlips ? 'var(--co-fill-bad, #2A1512)' : s.fieldMoves > 0 ? 'var(--co-fill-warn, #2A2010)' : s.ranksMoved > 0 ? SURF2 : 'transparent' }}>
+                                            <div style={{ ...mono, fontSize: '0.78rem', fontWeight: 700, color: s.seedFlips ? RED : s.fieldMoves > 0 ? AMBER : s.ranksMoved > 0 ? TEXT : MUTED }}>{s.value}</div>
+                                            <div style={{ ...microHdr, fontSize: '0.575rem' }}>{s.isCurrent ? 'NOW' : s.seedFlips ? 'SEED' : s.fieldMoves > 0 ? 'FIELD' : s.ranksMoved > 0 ? s.ranksMoved + ' MV' : 'HOLD'}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                                {pl.firstFlipAt != null ? (
+                                    <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '4px' }}>
+                                        First movement at <span style={{ ...mono, color: TEXT, fontWeight: 700 }}>{pl.firstFlipAt}</span> — below that, this rule change is cosmetic here.
+                                    </div>
+                                ) : <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '4px' }}>No value in this range moves this league at all.</div>}
+                            </div>
+                        ))}
+                    </div>
+                ) : null}
+            </Section>
+
+            {/* ── Saved proposals ───────────────────────────────────────── */}
+            <Section title="Saved Proposals" meta="name it, bring it back, ratify it into the amendment ledger">
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: (saved || []).length ? '10px' : 0 }}>
+                    <input value={saveName} onChange={e => setSaveName(e.target.value)} placeholder="Name this proposal — 'TE premium 2027'"
+                        style={{ flex: 1, minWidth: '200px', background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: '5px', color: TEXT, padding: '7px 10px', fontSize: '16px', fontFamily: 'var(--font-body)' }} />
+                    <button disabled={!saveName.trim() || (!propKeys.length && !rp)}
+                        onClick={() => { if (onSaveProposal) onSaveProposal(saveName.trim()); setSaveName(''); }}
+                        style={chipBtn(true, (!saveName.trim() || (!propKeys.length && !rp)) ? { opacity: 0.45, cursor: 'default' } : null)}>
+                        Save
+                    </button>
+                </div>
+                {(saved || []).map(sp => (
+                    <div key={sp.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 0', borderBottom: `1px solid var(--co-line-soft, #201F27)`, flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.8rem', color: sp.status === 'ratified' ? MUTED : TEXT }}>{sp.name}</span>
+                        <span style={{ ...microHdr }}>{Object.keys(sp.overrides || {}).length} rule{Object.keys(sp.overrides || {}).length === 1 ? '' : 's'}{sp.rosterProposal ? ' + structure' : ''}</span>
+                        {sp.status === 'ratified' ? <span style={{ ...microHdr, color: GREEN }}>RATIFIED</span> : null}
+                        <span style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
+                            <button onClick={() => onLoadProposal && onLoadProposal(sp.id)} style={chipBtn(false)}>Load</button>
+                            {sp.status !== 'ratified' && onRatify ? (
+                                <button title="Records every override into each league's amendment ledger — the constitution history the Bylaws desk shows."
+                                    onClick={() => onRatify(sp.id)} style={chipBtn(false, { color: GREEN, borderColor: 'rgba(46,204,113,0.4)' })}>Ratify</button>
+                            ) : null}
+                            <button onClick={() => onDeleteProposal && onDeleteProposal(sp.id)} style={chipBtn(false, { color: MUTED })}>✕</button>
+                        </span>
+                    </div>
+                ))}
             </Section>
 
             {body}
 
             <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, lineHeight: 1.5, padding: '0 2px' }}>
-                Both runs use identical as-played lineups rescored from raw stat lines — the diff is the rule change and nothing else. Playoffs were real games: we re-cut the field and seeds, we never re-crown a champion.
+                {rp
+                    ? 'Structure mode: both runs refield each roster’s optimal lineup from identical player pools — the diff isolates the rule change without crediting anyone with lineup skill. '
+                    : 'Both runs use identical as-played lineups rescored from raw stat lines — the diff is the rule change and nothing else. '}
+                Playoffs were real games: we re-cut the field and seeds, we never re-crown a champion.
             </div>
         </div>
     );

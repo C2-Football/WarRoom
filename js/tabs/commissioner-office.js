@@ -164,41 +164,60 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     }, [state.status, runKey]);
 
     // ── Rule Lab dataset (lazy, first open of the tab) ────────────────
-    // Season choice: replay THIS season once it has ≥4 counted weeks; else
-    // last season — whose lineups live on previous_league_id (Sleeper renews
-    // league ids yearly) with last season's users/rosters for naming, scored
-    // under THIS season's rules as the baseline being amended.
+    // Any season the history chain reaches is replayable: Sleeper renews
+    // league ids yearly, so season N-k lives k hops down previous_league_id.
+    // The chain is resolved once per league (cached in a ref) and each
+    // requested season loads that hop's lineups with that year's users and
+    // rosters for naming — scored under THIS year's rules as the baseline
+    // being amended.
+    const [rlSeason, setRlSeason] = React.useState(null);   // null = auto-pick
+    const rlChains = React.useRef(null);                    // { [lid]: { [season]: leagueIdForThatSeason } }
+    const RL_CHAIN_HOPS = 3;
     const rlRun = React.useRef({ key: null });
     React.useEffect(() => {
         if (tab !== 'rulelab' || ruleLab.status !== 'idle' || state.status !== 'ready') return;
-        if (rlRun.current.key === runKey) return;
         const RL = C && C.RuleLab;
         if (!RL) { setRuleLab({ status: 'error' }); return; }
-        rlRun.current.key = runKey;
-        const live = () => rlRun.current.key === runKey;
+        const nfl = (window.S && window.S.nflState) || {};
+        const curSeason = Number(nfl.season || state.mine[0]?.season || 0);
+        const anyCounted = Object.values(state.ledgers || {}).some(ld => (ld.weeks || []).length >= 4);
+        const wantSeason = rlSeason != null ? rlSeason : (anyCounted ? curSeason : curSeason - 1);
+        const wantKey = runKey + '|' + wantSeason;
+        if (rlRun.current.key === wantKey) return;
+        rlRun.current.key = wantKey;
+        const live = () => rlRun.current.key === wantKey;
         setRuleLab({ status: 'loading' });
         (async () => {
             try {
-                const nfl = (window.S && window.S.nflState) || {};
-                const curSeason = Number(nfl.season || state.mine[0]?.season || 0);
-                const anyCounted = Object.values(state.ledgers || {}).some(ld => (ld.weeks || []).length >= 4);
-                const season = anyCounted ? curSeason : curSeason - 1;
-                const seasonStats = await RL.loadSeasonStats(season);
+                // Resolve each league's previous_league_id chain once.
+                if (!rlChains.current) {
+                    const chains = {};
+                    await Promise.all(state.mine.map(async l => {
+                        const lid = String(l.league_id || l.id);
+                        chains[lid] = { [curSeason]: lid };
+                        let walkId = lid;
+                        for (let hop = 1; hop <= RL_CHAIN_HOPS; hop++) {
+                            let prevId = hop === 1 ? l.previous_league_id : null;
+                            if (!prevId && typeof window.fetchLeagueInfo === 'function') {
+                                try { prevId = (await window.fetchLeagueInfo(walkId))?.previous_league_id; } catch (e) { break; }
+                            }
+                            if (!prevId) break;
+                            chains[lid][curSeason - hop] = String(prevId);
+                            walkId = String(prevId);
+                        }
+                    }));
+                    if (!live()) return;
+                    rlChains.current = chains;
+                }
+                const chains = rlChains.current;
+                const seasonStats = await RL.loadSeasonStats(wantSeason);
                 const perLeague = {};
                 await Promise.all(state.mine.map(async l => {
                     const lid = String(l.league_id || l.id);
-                    let lineupLid = lid, nameLeague = l;
-                    if (!anyCounted) {
-                        // Hub league objects usually lack previous_league_id (the
-                        // hydrator only fetches league info when settings are
-                        // missing) — resolve it explicitly before declaring a
-                        // league first-season.
-                        let prevId = l.previous_league_id;
-                        if (!prevId && typeof window.fetchLeagueInfo === 'function') {
-                            try { prevId = (await window.fetchLeagueInfo(lid))?.previous_league_id; } catch (e) { /* stays null */ }
-                        }
-                        if (!prevId) { perLeague[lid] = null; return; }   // genuinely first-year — nothing to replay
-                        lineupLid = String(prevId);
+                    const lineupLid = chains[lid] && chains[lid][wantSeason];
+                    if (!lineupLid) { perLeague[lid] = null; return; }   // chain doesn't reach that year
+                    let nameLeague = l;
+                    if (lineupLid !== lid) {
                         try {
                             const [users, rosters] = await Promise.all([window.fetchLeagueUsers(lineupLid), window.fetchRosters(lineupLid)]);
                             nameLeague = { ...l, users: users || l.users, rosters: rosters || l.rosters };
@@ -208,33 +227,138 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                     const lineups = await RL.loadSeasonLineups(lineupLid, weeks);
                     perLeague[lid] = { lineups, nameLeague };
                 }));
-                if (live()) setRuleLab({ status: 'ready', season, seasonStats, perLeague });
+                if (live()) {
+                    const reachable = {};
+                    Object.values(chains).forEach(ch => Object.keys(ch).forEach(s => { reachable[s] = true; }));
+                    const seasons = [];
+                    for (let s = curSeason; s >= curSeason - RL_CHAIN_HOPS; s--) {
+                        // The current season is only offered once it has real weeks.
+                        if (s === curSeason && !anyCounted) continue;
+                        seasons.push({ season: s, available: !!reachable[s] });
+                    }
+                    setRuleLab({ status: 'ready', season: wantSeason, seasonStats, perLeague, seasons });
+                }
             } catch (e) { window.wrLog?.('commish.rulelab', e); if (live()) setRuleLab({ status: 'error' }); }
         })();
-    }, [tab, ruleLab.status, state.status]);
+    }, [tab, ruleLab.status, state.status, rlSeason]);
+    const onRlSeason = (s) => { setRlSeason(s); setRuleLab({ status: 'idle' }); };
 
     // Proposal recompute is pure and fast (as-played sums over ~18 weeks);
     // every knob change re-runs the whole omnibus synchronously.
+    const [rosterProposal, setRosterProposal] = React.useState(null);
+    const rlLeagueArgs = React.useCallback((l) => {
+        const lid = String(l.league_id || l.id);
+        const pack = ruleLab.perLeague && ruleLab.perLeague[lid];
+        if (!pack) return null;
+        const mine = (pack.nameLeague.rosters || []).find(r => String(r.owner_id) === String(myUserId));
+        return {
+            league: { ...pack.nameLeague, scoring_settings: l.scoring_settings, settings: l.settings, roster_positions: l.roster_positions },
+            seasonStats: ruleLab.seasonStats, lineups: pack.lineups,
+            playersData: state.playersData, myRosterId: mine ? mine.roster_id : null,
+            season: ruleLab.season, startSit: window.App && window.App.StartSit,
+        };
+    }, [ruleLab.perLeague, ruleLab.seasonStats, ruleLab.season, state.playersData, myUserId]);
+
     const ruleLabResults = React.useMemo(() => {
         if (ruleLab.status !== 'ready' || state.status !== 'ready' || !C?.RuleLab?.runProposal) return null;
         return state.mine.map(l => {
-            const lid = String(l.league_id || l.id);
-            const pack = ruleLab.perLeague[lid];
-            if (!pack) return { leagueName: l.name, result: { empty: true, reason: 'first_season' } };
-            const mine = (pack.nameLeague.rosters || []).find(r => String(r.owner_id) === String(myUserId));
+            const args = rlLeagueArgs(l);
+            if (!args) return { leagueName: l.name, result: { empty: true, reason: "This league's history chain doesn't reach the selected season." } };
             try {
-                return {
-                    leagueName: l.name,
-                    result: C.RuleLab.runProposal({
-                        league: { ...pack.nameLeague, scoring_settings: l.scoring_settings, settings: l.settings },
-                        seasonStats: ruleLab.seasonStats, lineups: pack.lineups, proposal,
-                        playersData: state.playersData, myRosterId: mine ? mine.roster_id : null,
-                        season: ruleLab.season,
-                    }),
-                };
+                return { leagueName: l.name, result: C.RuleLab.runProposal({ ...args, proposal, rosterProposal }) };
             } catch (e) { window.wrLog?.('commish.rulelab.run', e); return { leagueName: l.name, result: { empty: true, reason: 'error' } }; }
         });
-    }, [ruleLab.status, state.status, proposal]);
+    }, [ruleLab.status, state.status, proposal, rosterProposal, rlLeagueArgs]);
+
+    // ── Wind Tunnel: sweep one knob across all leagues ───────────────
+    const [sweepState, setSweepState] = React.useState(null);   // { key, perLeague } | null
+    const [sweepBusy, setSweepBusy] = React.useState(null);
+    const onSweep = (key, values) => {
+        if (ruleLab.status !== 'ready' || !C?.RuleLab?.sweep) return;
+        setSweepBusy(key);
+        // Rescoring is fast but 7 steps × N leagues deserves a yield so the
+        // button repaints before the crunch.
+        setTimeout(() => {
+            try {
+                const perLeague = state.mine.map(l => {
+                    const args = rlLeagueArgs(l);
+                    if (!args) return { leagueName: l.name, steps: [], firstFlipAt: null };
+                    const s = C.RuleLab.sweep({ ...args, baseProposal: proposal, key, values });
+                    return { leagueName: l.name, steps: s.steps, firstFlipAt: s.firstFlipAt };
+                });
+                setSweepState({ key, perLeague });
+            } catch (e) { window.wrLog?.('commish.rulelab.sweep', e); setSweepState(null); }
+            setSweepBusy(null);
+        }, 30);
+    };
+
+    // ── Saved proposals + ratification ───────────────────────────────
+    const PROPOSALS_KEY = 'commish_rulelab_proposals';
+    const [savedTick, setSavedTick] = React.useState(0);
+    const savedProposals = React.useMemo(() => {
+        try { return (window.App?.DhqStorage?.get?.(PROPOSALS_KEY, []) || []); } catch (e) { return []; }
+    }, [savedTick]);
+    const writeProposals = (list) => {
+        try { window.App?.DhqStorage?.set?.(PROPOSALS_KEY, list); } catch (e) { /* best effort */ }
+        setSavedTick(t => t + 1);
+    };
+    const onSaveProposal = (name) => {
+        const list = savedProposals.slice();
+        list.unshift({ id: 'p' + Date.now(), name, overrides: { ...proposal }, rosterProposal, status: 'draft', ts: Date.now() });
+        writeProposals(list.slice(0, 20));
+    };
+    const onLoadProposal = (id) => {
+        const sp = savedProposals.find(p => p.id === id);
+        if (!sp) return;
+        setProposal({ ...(sp.overrides || {}) });
+        setRosterProposal(sp.rosterProposal || null);
+    };
+    const onDeleteProposal = (id) => writeProposals(savedProposals.filter(p => p.id !== id));
+    // Ratify: the Rule Lab → Bylaws bridge. Every override lands in each
+    // league's amendment ledger, so when the commissioner applies the change
+    // on Sleeper, Drift recognizes it as already-ratified history.
+    const onRatifyProposal = (id) => {
+        const sp = savedProposals.find(p => p.id === id);
+        if (!sp || !C?.Bylaws?.recordAmendment) return;
+        state.mine.forEach(l => {
+            const lid = String(l.league_id || l.id);
+            Object.keys(sp.overrides || {}).forEach(k => {
+                try {
+                    C.Bylaws.recordAmendment(lid, {
+                        path: 'scoring.' + k,
+                        from: (l.scoring_settings || {})[k] != null ? (l.scoring_settings || {})[k] : null,
+                        to: sp.overrides[k],
+                        note: 'Rule Lab ratification: ' + sp.name,
+                        source: 'manual', nowMs: Date.now(),
+                    });
+                } catch (e) { /* ledger only */ }
+            });
+        });
+        writeProposals(savedProposals.map(p => p.id === id ? { ...p, status: 'ratified', ratifiedTs: Date.now() } : p));
+        setAckTick(t => t + 1);   // governance wall re-reads amendments
+    };
+
+    // ── Ballot handlers ──────────────────────────────────────────────
+    const proposalSummaryText = () => {
+        const bits = Object.keys(proposal).map(k => k + ' → ' + proposal[k]);
+        if (rosterProposal) bits.push('slots: ' + rosterProposal.rosterPositions.join('/'));
+        return bits.join(', ') || 'current rules';
+    };
+    const onCopyBallot = (leagueName, result) => {
+        try { onCopy(C.RuleLab.ballotText(leagueName, result, proposalSummaryText())); } catch (e) { /* clipboard */ }
+    };
+    const onExportBallot = (leagueName) => {
+        const el = document.getElementById('wr-rulelab-ballot-' + String(leagueName || 'league').replace(/\W+/g, '-').toLowerCase());
+        if (el && window.wrExport) window.wrExport.capture(el, 'impact-statement-' + String(leagueName).replace(/\W+/g, '-').toLowerCase());
+    };
+    const rlCurrentSlots = React.useMemo(() => {
+        const out = {};
+        if (state.status !== 'ready') return out;
+        state.mine.forEach(l => {
+            out[l.name] = (l.roster_positions || []).filter(s => s && !/^(BN|BE|BENCH|IR|TAXI|RES)$/i.test(String(s)));
+        });
+        return out;
+    }, [state.status]);
 
     // Season Genesis readiness — recomputes on drift acknowledgment and
     // manual checklist toggles.
@@ -686,10 +810,26 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                     <window.WrCommishRuleLabPanel
                         status={ruleLab.status === 'ready' ? 'ready' : ruleLab.status}
                         seasonUsed={ruleLab.season}
+                        seasons={ruleLab.seasons || []}
+                        onSeason={onRlSeason}
                         proposal={proposal}
                         onProposalChange={setProposal}
+                        rosterProposal={rosterProposal}
+                        onRosterProposalChange={setRosterProposal}
                         results={ruleLabResults}
                         presets={(C?.RuleLab && C.RuleLab.PRESETS) || []}
+                        baselineScoring={(state.mine[0] && state.mine[0].scoring_settings) || {}}
+                        currentSlotsByLeague={rlCurrentSlots}
+                        sweepResult={sweepState}
+                        onSweep={onSweep}
+                        sweepBusy={sweepBusy}
+                        saved={savedProposals}
+                        onSaveProposal={onSaveProposal}
+                        onLoadProposal={onLoadProposal}
+                        onDeleteProposal={onDeleteProposal}
+                        onRatify={onRatifyProposal}
+                        onCopyBallot={onCopyBallot}
+                        onExportBallot={onExportBallot}
                     />
                 ) : missing('Rule Lab')) : null}
                 {tab === 'genesis' ? (window.WrCommishGenesisPanel ? (

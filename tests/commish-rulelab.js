@@ -272,7 +272,7 @@ test('runOmnibus: each league is diffed against its OWN current scoring', () => 
     };
     const out = await RuleLab.loadSeasonLineups('L1', [1, 2, 3]);
     assert.deepStrictEqual(Object.keys(out), ['1'], 'only the played week survives');
-    assert.deepStrictEqual(out[1][0], { rosterId: 1, matchupId: 7, points: 101.2, starters: ['101', '0'] });
+    assert.deepStrictEqual(out[1][0], { rosterId: 1, matchupId: 7, points: 101.2, starters: ['101', '0'], players: [] });
     delete globalThis.fetchMatchups;
     const none = await RuleLab.loadSeasonLineups('L1', [1]);
     assert.deepStrictEqual(none, {}, 'no fetcher → honest empty');
@@ -284,3 +284,131 @@ test('runOmnibus: each league is diffed against its OWN current scoring', () => 
     process.exit(1);
   }
 })();
+
+// ═══ v2: optimal mode, roster proposals, sweep, balance, ballot ═══
+// The real start/sit solver, not a stub — optimal mode must be tested
+// against the implementation the browser actually runs.
+const StartSit = require('../js/shared/startsit-engine.js');
+
+test('v2 optimal mode: refields the best lineup from the full roster', () => {
+  // One roster, one week. Starters as played: qb1 + rb1. Bench holds rb2 who
+  // outscores rb1 under this scoring. As-played must NOT see rb2; optimal must.
+  const lineups = { 1: [
+    { rosterId: 1, matchupId: 'a', starters: ['qb1', 'rb1'], players: ['qb1', 'rb1', 'rb2'] },
+    { rosterId: 2, matchupId: 'a', starters: ['qb2', 'rb3'], players: ['qb2', 'rb3'] },
+  ] };
+  const seasonStats = { 1: { qb1: { pass_yd: 300 }, qb2: { pass_yd: 200 }, rb1: { rush_yd: 50 }, rb2: { rush_yd: 120 }, rb3: { rush_yd: 60 } } };
+  const playersData = { qb1: { position: 'QB' }, qb2: { position: 'QB' }, rb1: { position: 'RB' }, rb2: { position: 'RB' }, rb3: { position: 'RB' } };
+  const scoring = { pass_yd: 0.04, rush_yd: 0.1 };
+  const asPlayed = RuleLab.rescoreSeason({ seasonStats, lineups, scoring, playersData, calcFn: calc });
+  const optimal = RuleLab.rescoreSeason({ seasonStats, lineups, scoring, playersData, calcFn: calc, mode: 'optimal', rosterPositions: ['QB', 'RB'], startSit: StartSit });
+  assert.strictEqual(asPlayed.weeklyScores[1][0].points, 17, 'as-played: 12 + 5');
+  assert.strictEqual(optimal.weeklyScores[1][0].points, 24, 'optimal: 12 + rb2’s 12');
+  assert.ok(optimal.playerTotals.rb2 === 12 && !optimal.playerTotals.rb1, 'optimal credits the counterfactual starter');
+});
+
+test('v2 roster proposal: superflex flips both runs to best-lineup and labels it', () => {
+  const league = {
+    league_id: 'L', name: 'L', scoring_settings: { pass_yd: 0.04, rush_yd: 0.1 },
+    roster_positions: ['QB', 'RB', 'BN'], settings: { playoff_teams: 2 },
+    rosters: [1, 2].map(id => ({ roster_id: id, owner_id: 'u' + id })),
+    users: [1, 2].map(id => ({ user_id: 'u' + id, display_name: 'T' + id })),
+  };
+  const lineups = { 1: [
+    { rosterId: 1, matchupId: 'a', starters: ['qb1', 'rb1'], players: ['qb1', 'qb1b', 'rb1'] },  // second QB on the bench
+    { rosterId: 2, matchupId: 'a', starters: ['qb2', 'rb3'], players: ['qb2', 'rb3'] },
+  ] };
+  const seasonStats = { 1: { qb1: { pass_yd: 300 }, qb1b: { pass_yd: 250 }, qb2: { pass_yd: 200 }, rb1: { rush_yd: 50 }, rb3: { rush_yd: 60 } } };
+  const playersData = { qb1: { position: 'QB' }, qb1b: { position: 'QB' }, qb2: { position: 'QB' }, rb1: { position: 'RB' }, rb3: { position: 'RB' } };
+  const r = RuleLab.runProposal({
+    league, seasonStats, lineups, proposal: {}, playersData, calcFn: calc,
+    rosterProposal: { rosterPositions: ['QB', 'RB', 'SUPER_FLEX'] }, startSit: StartSit,
+  });
+  assert.strictEqual(r.methodology, 'best_lineup', 'structure change → best-lineup replay, said out loud');
+  // Team 1's benched QB (10 pts) now starts in the superflex; team 2 has no
+  // extra body, so the proposal widens the gap by exactly qb1b's line.
+  const t1 = r.teamDeltas.find(t => String(t.rosterId) === '1');
+  assert.strictEqual(t1.delta, 10, 'superflex pays the team with the spare QB');
+});
+
+test('v2 scoring-only proposals still run as-played', () => {
+  const league = {
+    league_id: 'L', name: 'L', scoring_settings: { rec: 0 }, roster_positions: ['WR'],
+    settings: { playoff_teams: 2 },
+    rosters: [1, 2].map(id => ({ roster_id: id, owner_id: 'u' + id })),
+    users: [1, 2].map(id => ({ user_id: 'u' + id, display_name: 'T' + id })),
+  };
+  const lineups = { 1: [
+    { rosterId: 1, matchupId: 'a', starters: ['wr1'], players: ['wr1', 'wr2'] },
+    { rosterId: 2, matchupId: 'a', starters: ['wr3'], players: ['wr3'] },
+  ] };
+  const seasonStats = { 1: { wr1: { rec: 5, rec_yd: 50 }, wr2: { rec: 9, rec_yd: 20 }, wr3: { rec: 4, rec_yd: 60 } } };
+  const playersData = { wr1: { position: 'WR' }, wr2: { position: 'WR' }, wr3: { position: 'WR' } };
+  const r = RuleLab.runProposal({ league, seasonStats, lineups, proposal: { rec: 1 }, playersData, calcFn: calc });
+  assert.strictEqual(r.methodology, 'as_played', 'no structure change → honest as-played');
+});
+
+test('v2 position share: TE premium moves TE relevance and says by how much', () => {
+  const base = { te1: 100, wr1: 300 };
+  const prop = { te1: 150, wr1: 300 };
+  const playersData = { te1: { position: 'TE' }, wr1: { position: 'WR' } };
+  const rows = RuleLab.positionShare(base, prop, playersData);
+  const te = rows.find(r => r.pos === 'TE');
+  assert.strictEqual(te.basePct, 25, 'TE owns 100/400');
+  assert.ok(Math.abs(te.propPct - 33.3) < 0.15, 'TE owns 150/450 after');
+  assert.ok(te.deltaPct > 8, 'delta carries the story');
+});
+
+test('v2 spearman: identity is 1, full reversal is -1', () => {
+  assert.strictEqual(RuleLab.spearman({ a: 1, b: 2, c: 3 }, { a: 1, b: 2, c: 3 }), 1);
+  assert.strictEqual(RuleLab.spearman({ a: 1, b: 2, c: 3 }, { a: 3, b: 2, c: 1 }), -1);
+});
+
+test('v2 sweep: finds the exact threshold where the league flips', () => {
+  // Two teams; team 2 wins as fielded, but team 1's WR is a reception monster:
+  // enough PPR flips the total-points leader while H2H record stays 1-0 —
+  // sweep must report ranksMoved via the PF tiebreak... so build TWO weeks
+  // with a split so the flip shows in the standings.
+  const league = {
+    league_id: 'L', name: 'L', scoring_settings: { rec: 0, rec_yd: 0.1 }, roster_positions: ['WR'],
+    settings: { playoff_teams: 1 },
+    rosters: [1, 2].map(id => ({ roster_id: id, owner_id: 'u' + id })),
+    users: [1, 2].map(id => ({ user_id: 'u' + id, display_name: 'T' + id })),
+  };
+  const wk = (w, aRec, aYd, bRec, bYd) => [
+    { rosterId: 1, matchupId: 'm', starters: ['wrA'], players: ['wrA'] },
+    { rosterId: 2, matchupId: 'm', starters: ['wrB'], players: ['wrB'] },
+  ] && { [w]: [
+    { rosterId: 1, matchupId: 'm', starters: ['wrA'], players: ['wrA'] },
+    { rosterId: 2, matchupId: 'm', starters: ['wrB'], players: ['wrB'] },
+  ] };
+  const lineups = Object.assign({}, wk(1), wk(2));
+  const seasonStats = {
+    1: { wrA: { rec: 12, rec_yd: 40 }, wrB: { rec: 2, rec_yd: 60 } },   // 0 PPR: A 4 < B 6 ; 1 PPR: A 16 > B 8
+    2: { wrA: { rec: 12, rec_yd: 40 }, wrB: { rec: 2, rec_yd: 55 } },
+  };
+  const playersData = { wrA: { position: 'WR' }, wrB: { position: 'WR' } };
+  const s = RuleLab.sweep({ league, seasonStats, lineups, playersData, calcFn: calc, key: 'rec', values: [0, 0.25, 0.5, 1] });
+  assert.strictEqual(s.steps.length, 4);
+  assert.ok(s.firstFlipAt != null && s.firstFlipAt <= 0.5, 'the flip threshold is found, at ' + s.firstFlipAt);
+  const at0 = s.steps.find(x => x.value === 0);
+  assert.ok(at0.isCurrent && !at0.seedFlips, 'the current value is marked and never counts as a flip');
+});
+
+test('v2 ballot: states methodology, the flip, and the proposer disclosure', () => {
+  const fake = {
+    empty: false, seasonUsed: 2025, weeksCounted: 14, methodology: 'as_played',
+    seedOneChanged: { from: 'Alpha', to: 'Bravo' },
+    playoffField: { size: 6, in: ['Bravo'], out: ['Echo'], unchanged: false },
+    standingsShift: [{ name: 'Bravo', baselineRank: 2, proposedRank: 1, delta: 1 }, { name: 'Alpha', baselineRank: 1, proposedRank: 2, delta: -1 }],
+    positionShare: [{ pos: 'TE', basePct: 8.1, propPct: 11.4, deltaPct: 3.3 }],
+    balance: { volatilityDeltaPct: 4.2 },
+    playerDeltas: [{ name: 'T. McBride', pos: 'TE', delta: 126 }],
+    proposerNote: { myRank: 1, line: 'Full disclosure: your own roster is the #1 gainer of 12 under this proposal.' },
+  };
+  const t = RuleLab.ballotText('The Iron League', fake, 'TE premium +1.0');
+  assert.ok(t.includes('#1 SEED FLIPS: Alpha → Bravo'));
+  assert.ok(t.includes('TE 8.1%→11.4%'));
+  assert.ok(t.includes('Full disclosure'));
+  assert.ok(t.includes('never re-crowns a champion'));
+});

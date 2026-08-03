@@ -28,6 +28,10 @@ const React = {
     if (typeof type === 'function') return type({ ...props, children: children.length === 1 ? children[0] : children });
     return { type, props, children };
   },
+  // Render-only useState: initial value, setter is a no-op recorded for
+  // assertions. Enough for a single synchronous render pass — these tests
+  // never re-render.
+  useState(init) { return [typeof init === 'function' ? init() : init, () => {}]; },
 };
 function render(Comp, props) { return Comp(props); }
 
@@ -223,8 +227,8 @@ test('verdict: #1 seed flip line in gold', () => {
   assert.ok(line.length >= 1);
 });
 test('verdict: playoff field IN green / OUT red', () => {
-  const ins = findAll(readyTree, n => n.props && n.props.style && String(n.props.style.color || '').includes('2ecc71') && textOf(n) === 'IN');
-  const outs = findAll(readyTree, n => n.props && n.props.style && String(n.props.style.color || '').includes('e74c3c') && textOf(n) === 'OUT');
+  const ins = findAll(readyTree, n => n.props && n.props.style && String(n.props.style.color || '').toLowerCase().includes('2ecc71') && textOf(n) === 'IN');
+  const outs = findAll(readyTree, n => n.props && n.props.style && String(n.props.style.color || '').toLowerCase().includes('e74c3c') && textOf(n) === 'OUT');
   assert.ok(ins.length >= 1 && outs.length >= 1);
   assert.ok(readyText.includes('Team G'));
   assert.ok(readyText.includes('Team E'));

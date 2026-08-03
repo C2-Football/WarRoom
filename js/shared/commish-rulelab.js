@@ -125,6 +125,12 @@
                     matchupId: r.matchup_id != null ? r.matchup_id : null,
                     points: Number(r.points) || 0,
                     starters: Array.isArray(r.starters) ? r.starters.slice() : [],
+                    // Full roster kept for best-lineup replay: structure
+                    // proposals (superflex, extra FLEX) can only be answered by
+                    // refielding each roster's OPTIMAL lineup from everyone
+                    // they had that week — as-played starters can't sit in
+                    // slots that didn't exist yet.
+                    players: Array.isArray(r.players) ? r.players.slice() : [],
                 }));
                 if (mapped.filter(x => x.points > 0).length >= 2) out[w] = mapped;
             } catch (e) { /* skip week */ }
@@ -158,17 +164,33 @@
     }
 
     // ── Pure: rescore a season under one scoring object ──────────────
-    // As-played: each roster-week total is the sum of scorePlayerWeek over
-    // the starters that roster actually fielded. Empty slots ('0'/falsy)
-    // are skipped; a started player with no stat line that week scores 0
-    // but still registers in playerTotals (he was started — that's the
-    // record). Both rulesets flow through THIS one function; see header.
+    // Two modes, one function, so both rulesets always flow the same path:
+    //
+    //  as_played (default) — each roster-week total is the sum of
+    //  scorePlayerWeek over the starters that roster actually fielded. Empty
+    //  slots ('0'/falsy) skipped; a started player with no stat line that
+    //  week scores 0 but still registers in playerTotals (he was started —
+    //  that's the record).
+    //
+    //  optimal — each roster-week refields the OPTIMAL lineup from the full
+    //  roster (row.players) for the given slot structure, via the start/sit
+    //  solver. This is the ONLY honest way to evaluate structure proposals:
+    //  as-played starters cannot occupy a SUPER_FLEX that didn't exist. The
+    //  caller must run BOTH baseline and proposal in optimal mode when
+    //  comparing structures — mixing modes would credit the proposal with
+    //  lineup-optimization skill nobody exercised.
     function rescoreSeason(opts) {
         const seasonStats = (opts && opts.seasonStats) || {};
         const lineups = (opts && opts.lineups) || {};
         const scoring = (opts && opts.scoring) || {};
         const playersData = (opts && opts.playersData) || {};
         const calcFn = opts && opts.calcFn;
+        const mode = (opts && opts.mode) === 'optimal' ? 'optimal' : 'as_played';
+        const rosterPositions = (opts && opts.rosterPositions) || [];
+        const startSit = (opts && opts.startSit) || (App.StartSit || null);
+        if (mode === 'optimal' && (!startSit || typeof startSit.optimalLineupWeekly !== 'function')) {
+            throw new Error('rulelab: optimal mode needs App.StartSit.optimalLineupWeekly — load startsit-engine.js (or pass startSit)');
+        }
 
         const weeks = Object.keys(lineups).map(Number).filter(w => w > 0).sort((a, b) => a - b);
         const weeklyScores = {};
@@ -180,12 +202,35 @@
             const scored = [];
             for (const r of rows) {
                 let total = 0;
-                for (const rawPid of (r.starters || [])) {
-                    if (!rawPid || rawPid === '0' || rawPid === 0) continue; // empty slot
-                    const pid = String(rawPid);
-                    const pts = scorePlayerWeek(stats[pid], scoring, playerPos(playersData[pid]), calcFn);
-                    total += pts;
-                    playerTotals[pid] = (playerTotals[pid] || 0) + pts;
+                if (mode === 'optimal') {
+                    // Candidates: the whole roster that week (fall back to the
+                    // starters when the players array wasn't captured).
+                    const pool = (r.players && r.players.length ? r.players : (r.starters || []))
+                        .filter(pid => pid && pid !== '0' && pid !== 0)
+                        .map(rawPid => {
+                            const pid = String(rawPid);
+                            return {
+                                pid,
+                                pos: String(playerPos(playersData[pid]) || '').toUpperCase(),
+                                available: true,
+                                pts: scorePlayerWeek(stats[pid], scoring, playerPos(playersData[pid]), calcFn),
+                            };
+                        });
+                    const opt = startSit.optimalLineupWeekly(pool, rosterPositions);
+                    total = opt.total;
+                    // Credit the counterfactual starters — under these rules,
+                    // these are the players who matter.
+                    for (const s of opt.starters) {
+                        playerTotals[String(s.pid)] = (playerTotals[String(s.pid)] || 0) + s.pts;
+                    }
+                } else {
+                    for (const rawPid of (r.starters || [])) {
+                        if (!rawPid || rawPid === '0' || rawPid === 0) continue; // empty slot
+                        const pid = String(rawPid);
+                        const pts = scorePlayerWeek(stats[pid], scoring, playerPos(playersData[pid]), calcFn);
+                        total += pts;
+                        playerTotals[pid] = (playerTotals[pid] || 0) + pts;
+                    }
                 }
                 scored.push({
                     rosterId: r.rosterId,
@@ -199,6 +244,61 @@
             playerTotals[pid] = Math.round(playerTotals[pid] * 100) / 100;
         }
         return { weeklyScores, playerTotals };
+    }
+
+    // ── Pure: league-shape analytics over a pair of rescored runs ─────
+    // Position share: what fraction of all started points each position owns.
+    // The TE-premium question in one row: "TEs go from 8.1% to 11.4%".
+    function positionShare(basePlayerTotals, propPlayerTotals, playersData) {
+        const share = (totals) => {
+            const byPos = {};
+            let sum = 0;
+            for (const pid of Object.keys(totals)) {
+                const pts = Math.max(0, totals[pid]);   // negative-point weeks don't subtract relevance
+                const pos = String(playerPos(playersData[pid]) || '?').toUpperCase() || '?';
+                byPos[pos] = (byPos[pos] || 0) + pts;
+                sum += pts;
+            }
+            const out = {};
+            for (const pos of Object.keys(byPos)) out[pos] = sum > 0 ? byPos[pos] / sum : 0;
+            return out;
+        };
+        const b = share(basePlayerTotals), p = share(propPlayerTotals);
+        const all = new Set(Object.keys(b).concat(Object.keys(p)));
+        return Array.from(all)
+            .map(pos => ({
+                pos,
+                basePct: Math.round(b[pos] * 1000) / 10,
+                propPct: Math.round((p[pos] || 0) * 1000) / 10,
+                deltaPct: Math.round(((p[pos] || 0) - (b[pos] || 0)) * 1000) / 10,
+            }))
+            .filter(r => r.basePct >= 0.5 || r.propPct >= 0.5)
+            .sort((a, b2) => Math.abs(b2.deltaPct) - Math.abs(a.deltaPct) || b2.propPct - a.propPct);
+    }
+
+    // Competitive-balance read for one rescored run: how spread out the league
+    // is (top pf − bottom pf) and how volatile a week is (stdev of all
+    // team-week scores). Plus Spearman rank correlation between the two
+    // standings — 1.0 means the proposal reshuffled nothing.
+    function balanceStats(order, weeklyScores) {
+        const pfs = order.map(r => r.pf);
+        const spread = pfs.length ? Math.round((pfs[0] - pfs[pfs.length - 1]) * 10) / 10 : 0;
+        const scores = [];
+        for (const w of Object.keys(weeklyScores)) (weeklyScores[w] || []).forEach(r => scores.push(r.points));
+        let volatility = 0;
+        if (scores.length > 1) {
+            const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+            volatility = Math.round(Math.sqrt(scores.reduce((a, b) => a + (b - mean) * (b - mean), 0) / (scores.length - 1)) * 10) / 10;
+        }
+        return { spread, volatility };
+    }
+    function spearman(baseRank, propRank) {
+        const ids = Object.keys(baseRank);
+        const n = ids.length;
+        if (n < 2) return 1;
+        let d2 = 0;
+        ids.forEach(id => { const d = baseRank[id] - (propRank[id] || 0); d2 += d * d; });
+        return Math.round((1 - (6 * d2) / (n * (n * n - 1))) * 1000) / 1000;
     }
 
     // ── Seeded copy ──────────────────────────────────────────────────
@@ -255,8 +355,17 @@
 
         const current = league.scoring_settings || {};
         const proposedScoring = Object.assign({}, current, proposal);
-        const baseline = rescoreSeason({ league, seasonStats, lineups: counted, scoring: current, playersData, calcFn });
-        const proposed = rescoreSeason({ league, seasonStats, lineups: counted, scoring: proposedScoring, playersData, calcFn });
+        // Structure proposal → both runs switch to best-lineup replay: the
+        // baseline uses the league's real slots, the proposal its new ones,
+        // and BOTH refield optimal lineups so the diff isolates the structure
+        // change rather than crediting it with lineup-setting skill.
+        const rosterProposal = (opts && opts.rosterProposal && Array.isArray(opts.rosterProposal.rosterPositions) && opts.rosterProposal.rosterPositions.length)
+            ? opts.rosterProposal.rosterPositions : null;
+        const startSit = opts && opts.startSit;
+        const mode = rosterProposal ? 'optimal' : 'as_played';
+        const currentSlots = (league.roster_positions || []).filter(s => s && !/^(BN|BE|BENCH|IR|TAXI|RES)$/i.test(String(s)));
+        const baseline = rescoreSeason({ league, seasonStats, lineups: counted, scoring: current, playersData, calcFn, mode, rosterPositions: currentSlots, startSit });
+        const proposed = rescoreSeason({ league, seasonStats, lineups: counted, scoring: proposedScoring, playersData, calcFn, mode, rosterPositions: rosterProposal || currentSlots, startSit });
 
         const baseOrder = standingsSort(Luck.buildLedger({ league, weeklyScores: baseline.weeklyScores }).rows);
         const propOrder = standingsSort(Luck.buildLedger({ league, weeklyScores: proposed.weeklyScores }).rows);
@@ -348,13 +457,85 @@
             empty: false,
             seasonUsed,
             weeksCounted: weeks.length,
+            methodology: mode === 'optimal' ? 'best_lineup' : 'as_played',
             standingsShift,
             playoffField,
             seedOneChanged,
             teamDeltas,
             playerDeltas,
             proposerNote,
+            positionShare: positionShare(baseline.playerTotals, proposed.playerTotals, playersData),
+            balance: (() => {
+                const b = balanceStats(baseOrder, baseline.weeklyScores);
+                const p = balanceStats(propOrder, proposed.weeklyScores);
+                return {
+                    baseline: b, proposed: p,
+                    volatilityDeltaPct: b.volatility ? Math.round(((p.volatility - b.volatility) / b.volatility) * 1000) / 10 : 0,
+                    spearman: spearman(baseRank, propRank),
+                };
+            })(),
         };
+    }
+
+    // ── Pure: threshold sweep ────────────────────────────────────────
+    // Run one scoring knob through a range and report where the league
+    // actually flips — the wind-tunnel question: "at WHAT TE premium does
+    // the #1 seed change hands?" Each step is a full honest runProposal;
+    // rescoring is milliseconds, so seven steps cost nothing.
+    function sweep(opts) {
+        const key = opts && opts.key;
+        const values = (opts && opts.values) || [];
+        if (!key || !values.length) return { key, steps: [], firstFlipAt: null };
+        const currentVal = Number(((opts.league || {}).scoring_settings || {})[key]) || 0;
+        const steps = values.map(v => {
+            const r = runProposal(Object.assign({}, opts, { proposal: Object.assign({}, opts.baseProposal || {}, { [key]: v }) }));
+            if (r.empty) return { value: v, empty: true };
+            return {
+                value: v,
+                isCurrent: v === currentVal,
+                seedFlips: !!r.seedOneChanged,
+                seedTo: r.seedOneChanged ? r.seedOneChanged.to : null,
+                fieldMoves: r.playoffField.in.length,
+                ranksMoved: r.standingsShift.filter(s => s.delta !== 0).length,
+            };
+        });
+        const firstFlip = steps.find(s => !s.empty && !s.isCurrent && (s.seedFlips || s.fieldMoves > 0 || s.ranksMoved > 0));
+        return { key, currentValue: currentVal, steps, firstFlipAt: firstFlip ? firstFlip.value : null };
+    }
+
+    // ── Pure: the ballot memo ────────────────────────────────────────
+    // Plain text the commissioner pastes next to the vote. States the
+    // methodology and the proposer's own position — a ballot that hides
+    // either is campaigning, not governing.
+    function ballotText(leagueName, result, proposalSummary) {
+        if (!result || result.empty) return '';
+        const L = [];
+        L.push('RULE CHANGE IMPACT STATEMENT — ' + leagueName);
+        L.push('Proposal: ' + (proposalSummary || 'scoring change'));
+        L.push('Replayed: the ' + result.seasonUsed + ' season, ' + result.weeksCounted + ' weeks, '
+            + (result.methodology === 'best_lineup' ? 'best-lineup replay (structure change — both runs field optimal lineups)' : 'as-played lineups rescored'));
+        L.push('');
+        L.push(result.seedOneChanged
+            ? '#1 SEED FLIPS: ' + result.seedOneChanged.from + ' → ' + result.seedOneChanged.to
+            : '#1 seed holds.');
+        L.push(result.playoffField.unchanged
+            ? 'Playoff field unchanged (' + result.playoffField.size + '-team cut).'
+            : 'PLAYOFF FIELD: IN — ' + (result.playoffField.in.join(', ') || 'none') + ' · OUT — ' + (result.playoffField.out.join(', ') || 'none'));
+        const moved = result.standingsShift.filter(s => s.delta !== 0);
+        L.push(moved.length
+            ? 'Standings: ' + moved.length + ' teams change rank (' + moved.slice(0, 4).map(m => m.name + ' ' + m.baselineRank + '→' + m.proposedRank).join(', ') + (moved.length > 4 ? ', …' : '') + ')'
+            : 'Standings hold — no team changes rank.');
+        const ps = (result.positionShare || []).filter(p => Math.abs(p.deltaPct) >= 0.5).slice(0, 3);
+        if (ps.length) L.push('Position relevance: ' + ps.map(p => p.pos + ' ' + p.basePct + '%→' + p.propPct + '%').join(' · '));
+        if (result.balance && result.balance.volatilityDeltaPct) {
+            L.push('Weekly volatility ' + (result.balance.volatilityDeltaPct > 0 ? '+' : '') + result.balance.volatilityDeltaPct + '%.');
+        }
+        const g = (result.playerDeltas || []).filter(p => p.delta > 0).slice(0, 3);
+        if (g.length) L.push('Biggest winners: ' + g.map(p => p.name + ' +' + p.delta).join(', '));
+        if (result.proposerNote) L.push(result.proposerNote.line);
+        L.push('');
+        L.push('Method: both runs rescore identical lineups from raw stat lines — the diff is the rule change and nothing else. Playoffs were real games; this re-cuts the field and seeds, it never re-crowns a champion.');
+        return L.join('\n');
     }
 
     // ── Omnibus: one proposal across every commissioned league ───────
@@ -375,6 +556,8 @@
                     seasonStats: opts && opts.seasonStats,
                     lineups: lineupsByLeague[lid] || {},
                     proposal: opts && opts.proposal,
+                    rosterProposal: opts && opts.rosterProposal,
+                    startSit: opts && opts.startSit,
                     playersData: opts && opts.playersData,
                     calcFn: opts && opts.calcFn,
                     myRosterId: myByLeague[lid],
@@ -391,6 +574,11 @@
         rescoreSeason,
         runProposal,
         runOmnibus,
+        sweep,
+        ballotText,
+        positionShare,
+        balanceStats,
+        spearman,
     };
     App.Commish.RuleLab = api;
     /* global module */
