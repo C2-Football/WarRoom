@@ -29,7 +29,7 @@
 // its own label (two size steps and 100 weight apart, minimum). That rule is
 // the whole reason the office reads as an instrument instead of a table dump.
 // ══════════════════════════════════════════════════════════════════
-function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, filter, phone }) {
+function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, filter, phone, onSelectItem }) {
     // ── The ladder ───────────────────────────────────────────────────
     const PAGE = 'var(--co-page, #08080B)';
     const SURF = 'var(--co-surface, #121217)';
@@ -282,7 +282,13 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
             outline: hov ? '1px solid ' + ACCENT : 'none', outlineOffset: '-1px',
             borderBottom: last ? 'none' : '1px solid ' + LINE_SOFT,
         };
-        const onRow = () => openHub(it.hub, (it.leagueIds || [])[0]);
+        // The row opens the action drawer — that is where mark-done / skip /
+        // hide live, and the drawer still offers the deep-link as its primary
+        // button. The verb button beside it keeps navigating directly.
+        const onRow = () => {
+            if (typeof onSelectItem === 'function') { onSelectItem(it); return; }
+            openHub(it.hub, (it.leagueIds || [])[0]);
+        };
         const hoverProps = { onMouseEnter: () => setHovRow(it.id), onMouseLeave: () => setHovRow(null), onClick: onRow };
 
         if (phone) {

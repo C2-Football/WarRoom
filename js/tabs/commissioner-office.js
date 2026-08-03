@@ -50,6 +50,11 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     }, []);
     const [ackTick, setAckTick] = React.useState(0);
     const [genTick, setGenTick] = React.useState(0);
+    // Preferences (managed leagues / alert types / per-item state) live in
+    // storage; prefTick is the single re-read signal after any mutation.
+    const [prefTick, setPrefTick] = React.useState(0);
+    const [actionItem, setActionItem] = React.useState(null); // the open action drawer
+    const [navOpen, setNavOpen] = React.useState(false);      // phone sidebar
     // Rule Lab data loads lazily on first open — 18 weeks of league-independent
     // stat lines plus per-league as-played lineups is too heavy for office boot.
     const [ruleLab, setRuleLab] = React.useState({ status: 'idle' });
@@ -269,8 +274,56 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         { key: 'bylaws', label: 'Bylaws + Dues', hub: 'governance' },
     ];
     const tagFor = (name) => String(name || '').replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean).slice(0, 3).map(w => w[0]).join('').toUpperCase().slice(0, 3) || '???';
+    // Settings copy: what each alert category actually covers, in the
+    // commissioner's terms rather than the engine's domain keys.
+    const DOMAIN_ALERT_LABELS = [
+        { key: 'genesis', label: 'Season setup', sub: 'Unscheduled drafts, unfinished opening-day checklists.' },
+        { key: 'operations', label: 'Settings & calendar', sub: 'Unratified settings changes, draft collisions, deadline stacks.' },
+        { key: 'people', label: 'People going quiet', sub: 'Owners drifting dark, open seats, renewal risk.' },
+        { key: 'bylaws', label: 'Bylaws & dues', sub: 'Missing constitutions, uncollected dues.' },
+        { key: 'programmes', label: 'Weekly broadcast', sub: 'Recaps composed but not sent. Quiet until Week 1.' },
+        { key: 'coefficient', label: 'Cross-league ratings', sub: 'The human leaderboard. Quiet until Week 1.' },
+        { key: 'rulelab', label: 'Rule Lab', sub: 'A tool rather than an obligation — never queues work.' },
+    ];
 
-    const queue = React.useMemo(() => {
+    // Preferences read fresh on every prefTick so a toggle is reflected
+    // everywhere at once — queue, grid, badges and settings can't disagree.
+    const P = C && C.Prefs;
+    const prefs = React.useMemo(() => {
+        if (!P) return { alerts: { domains: {}, floor: 'BACKLOG' }, states: {}, managedIds: null };
+        return { alerts: P.getAlerts(), states: P.allItemStates(), managedIds: null };
+    }, [prefTick]);
+    const managedLeagues = React.useMemo(() => {
+        if (state.status !== 'ready') return [];
+        if (!P) return state.mine;
+        return state.mine.filter(l => P.isManaged(l.league_id || l.id));
+    }, [state.status, prefTick]);
+    const managedIdSet = React.useMemo(
+        () => new Set(managedLeagues.map(l => String(l.league_id || l.id))),
+        [managedLeagues]
+    );
+
+    // Declared above rawQueue, which consumes treasuries: these are real
+    // const bindings, so a forward reference is a hard TDZ error, not the
+    // silent undefined the hoisted-var cases produce.
+    const [treasuryTick, setTreasuryTick] = React.useState(0);
+    const treasuries = React.useMemo(() => {
+        if (state.status !== 'ready' || !C?.Treasury?.buildTreasury) return {};
+        const out = {};
+        for (const l of state.mine) {
+            const lid = String(l.league_id || l.id);
+            try { out[lid] = C.Treasury.buildTreasury({ graph: state.graph, leagueId: lid, ledger: C.Treasury.getLedger(lid) }); } catch (e) { out[lid] = null; }
+        }
+        return out;
+    }, [state.status, treasuryTick]);
+    const bylawAmendments = React.useMemo(() => {
+        if (state.status !== 'ready' || !C?.Bylaws?.amendments) return {};
+        const out = {};
+        for (const l of state.mine) { const lid = String(l.league_id || l.id); try { out[lid] = C.Bylaws.amendments(lid); } catch (e) { out[lid] = []; } }
+        return out;
+    }, [state.status, ackTick]);
+
+    const rawQueue = React.useMemo(() => {
         if (state.status !== 'ready' || !C?.Triage?.buildQueue) return null;
         try {
             return C.Triage.buildQueue({
@@ -282,13 +335,45 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         } catch (e) { window.wrLog?.('commish.triage', e); return null; }
     }, [state.status, genesis, treasuries, ackTick, genTick, treasuryTick]);
 
+    // The queue the office actually renders: raw findings minus unmanaged
+    // leagues, silenced categories, items below the severity floor, and
+    // anything the commissioner marked done / skipped / hidden. Counts are
+    // recomputed over the survivors so the pills can never disagree with the
+    // rows underneath them. `suppressed` is kept so Settings can restore.
+    const queue = React.useMemo(() => {
+        if (!rawQueue) return null;
+        if (!P) return rawQueue;
+        const split = P.applyStates(rawQueue.items, {
+            states: prefs.states, alerts: prefs.alerts,
+            managedIds: managedIdSet, nowMs: Date.now(),
+        });
+        const visibleIds = new Set(split.visible.map(i => i.id));
+        const byCell = {};
+        Object.keys(rawQueue.byCell || {}).forEach(k => { byCell[k] = 0; });
+        split.visible.forEach(it => {
+            (it.leagueIds || []).forEach(lid => {
+                const k = lid + ':' + it.domain;
+                byCell[k] = (byCell[k] || 0) + 1;
+            });
+        });
+        return {
+            ...rawQueue,
+            items: split.visible,
+            counts: P.countTiers(split.visible),
+            byCell,
+            suppressed: split.suppressed,
+            hiddenByMe: split.suppressed.filter(s => s.state),
+            visibleIds,
+        };
+    }, [rawQueue, prefs, managedIdSet]);
+
     const commandKpis = React.useMemo(() => {
         if (state.status !== 'ready') return null;
         const readiness = (genesis || []).map(g => ({ leagueId: g.leagueId, tag: tagFor(g.leagueName), pct: g.pct }));
         const avg = readiness.length ? Math.round(readiness.reduce((s, r) => s + r.pct, 0) / readiness.length) : 0;
         const dated = (state.calendar.events || []).filter(e => e.ts && e.ts >= Date.now()).sort((a, b) => a.ts - b.ts)[0];
         return {
-            leagues: state.mine.length,
+            leagues: managedLeagues.length,
             humans: Object.keys(state.graph.people || {}).length,
             crossover: (state.graph.overlap || []).length,
             needsYou: (queue && queue.counts) || { now: 0, soon: 0, backlog: 0 },
@@ -314,7 +399,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
             });
         });
         return {
-            leagues: state.mine.map(l => {
+            leagues: managedLeagues.map(l => {
                 const lid = String(l.league_id || l.id);
                 return { leagueId: lid, tag: tagFor(l.name), name: l.name, pct: (genesis || []).find(g => g.leagueId === lid)?.pct ?? null };
             }),
@@ -339,14 +424,14 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         const lowest = [...(genesis || [])].sort((a, b) => a.pct - b.pct)[0];
         const driftN = state.drift.reduce((s, d) => s + ((d.result && d.result.changes) || []).length, 0);
         const duesTotals = Object.values(treasuries || {}).filter(Boolean).reduce((a, t) => ({ paid: a.paid + t.summary.paid, total: a.total + t.summary.total }), { paid: 0, total: 0 });
-        const noCon = state.mine.filter(l => !(state.constitutions || {})[String(l.league_id || l.id)]).length;
+        const noCon = managedLeagues.filter(l => !(state.constitutions || {})[String(l.league_id || l.id)]).length;
         const avg = (genesis || []).length ? Math.round(genesis.reduce((s, g) => s + g.pct, 0) / genesis.length) : 0;
         return [
             { group: 'OPEN THE SEASON', hub: 'genesis', name: 'Genesis', badge: badge('genesis'), stat: avg + '%', unit: 'AVG READINESS', status: lowest ? ('Lowest: ' + lowest.leagueName + ' ' + lowest.pct + '% — ' + (lowest.blockers?.[0] || 'blockers open') + '.') : 'Readiness pending.', dormant: false },
             { group: 'OPEN THE SEASON', hub: 'ops', name: 'Operations', badge: badge('ops'), stat: String(driftN), unit: 'UNRATIFIED EDITS', status: (state.conflicts.length ? state.conflicts.length + ' calendar conflict' + (state.conflicts.length === 1 ? '' : 's') : 'No collisions') + ' · ' + driftN + ' settings change' + (driftN === 1 ? '' : 's'), dormant: false },
             { group: 'OPEN THE SEASON', hub: 'rulelab', name: 'Rule Lab', badge: null, stat: ruleLab.season ? String(ruleLab.season) : '—', unit: 'REPLAY SEASON', status: 'Test a scoring change against a finished season.', dormant: false },
             { group: 'HOLD THE ROOM', hub: 'people', name: 'People', badge: badge('people'), stat: String(darkCount), unit: 'FLAGGED DARK', status: ((state.renewal?.summary?.atRisk ?? 0) + ' renewals at risk · ' + state.seats.length + ' seat' + (state.seats.length === 1 ? '' : 's') + ' open'), dormant: false },
-            { group: 'HOLD THE ROOM', hub: 'governance', name: 'Bylaws & Dues', badge: badge('governance'), stat: duesTotals.total ? (duesTotals.paid + '/' + duesTotals.total) : '—', unit: 'DUES MARKED', status: noCon ? ('No constitution on file in ' + noCon + ' of ' + state.mine.length + ' leagues.') : 'Constitutions on file.', dormant: false },
+            { group: 'HOLD THE ROOM', hub: 'governance', name: 'Bylaws & Dues', badge: badge('governance'), stat: duesTotals.total ? (duesTotals.paid + '/' + duesTotals.total) : '—', unit: 'DUES MARKED', status: noCon ? ('No constitution on file in ' + noCon + ' of ' + managedLeagues.length + ' leagues.') : 'Constitutions on file.', dormant: false },
             { group: 'THE BROADCAST', hub: 'network', name: 'The Coefficient', badge: scored ? badge('network') : null, stat: scored ? String((state.coefficient?.rows || []).length) : '—', unit: scored ? 'HUMANS RATED' : 'NO SCORED WEEKS', status: 'Rates every human across your leagues on one all-play scale. Starts Week 1 — ' + Object.keys(state.graph.people || {}).length + ' humans staged.', dormant: !scored },
             { group: 'THE BROADCAST', hub: 'programmes', name: 'Programmes', badge: scored ? badge('programmes') : null, stat: '—', unit: 'WEEKS PUBLISHED', status: 'One shareable recap per league per week. The first one prints after Week 1.', dormant: !scored },
         ];
@@ -358,22 +443,6 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     };
 
     // Governance state: treasuries re-read on any bookkeeping change.
-    const [treasuryTick, setTreasuryTick] = React.useState(0);
-    const treasuries = React.useMemo(() => {
-        if (state.status !== 'ready' || !C?.Treasury?.buildTreasury) return {};
-        const out = {};
-        for (const l of state.mine) {
-            const lid = String(l.league_id || l.id);
-            try { out[lid] = C.Treasury.buildTreasury({ graph: state.graph, leagueId: lid, ledger: C.Treasury.getLedger(lid) }); } catch (e) { out[lid] = null; }
-        }
-        return out;
-    }, [state.status, treasuryTick]);
-    const bylawAmendments = React.useMemo(() => {
-        if (state.status !== 'ready' || !C?.Bylaws?.amendments) return {};
-        const out = {};
-        for (const l of state.mine) { const lid = String(l.league_id || l.id); try { out[lid] = C.Bylaws.amendments(lid); } catch (e) { out[lid] = []; } }
-        return out;
-    }, [state.status, ackTick]);
     const onMarkPaid = (lid, uid, paid) => { try { C?.Treasury?.markPaid?.(lid, uid, { paid }); } catch (e) { /* unchanged */ } setTreasuryTick(t => t + 1); };
     const onSetLeagueSafe = (lid, url) => { const ok = !!C?.Treasury?.setLeagueSafeUrl?.(lid, url); setTreasuryTick(t => t + 1); return ok; };
     const onSetSheet = (lid, url) => { const ok = !!C?.Treasury?.setSheetUrl?.(lid, url); setTreasuryTick(t => t + 1); return ok; };
@@ -432,6 +501,22 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         setAckTick(t => t + 1);
     };
     const onCopy = (text) => { try { navigator.clipboard?.writeText?.(text); } catch (e) { /* clipboard unavailable */ } };
+
+    // ── Preference + action mutations ────────────────────────────────
+    // Every one of these writes to storage then bumps prefTick; the queue,
+    // grid, badges and settings all re-derive from that single signal.
+    const bumpPrefs = () => setPrefTick(t => t + 1);
+    const onToggleLeague = (lid, on) => { try { P?.setManaged(lid, on); } catch (e) { /* unchanged */ } bumpPrefs(); };
+    const onToggleDomain = (domain, on) => { try { P?.setDomainAlert(domain, on); } catch (e) { /* unchanged */ } bumpPrefs(); };
+    const onSetFloor = (tier) => { try { P?.setFloor(tier); } catch (e) { /* unchanged */ } bumpPrefs(); };
+    const onItemDone = (item) => { try { P?.markDone(item, { nowMs: Date.now() }); } catch (e) { /* unchanged */ } setActionItem(null); bumpPrefs(); };
+    const onItemSkip = (item) => { try { P?.skip(item, { nowMs: Date.now() }); } catch (e) { /* unchanged */ } setActionItem(null); bumpPrefs(); };
+    const onItemHide = (item) => { try { P?.hide(item, { nowMs: Date.now() }); } catch (e) { /* unchanged */ } setActionItem(null); bumpPrefs(); };
+    const onItemRestore = (id) => { try { P?.restore(id); } catch (e) { /* unchanged */ } setActionItem(null); bumpPrefs(); };
+    // A queue row opens the drawer rather than navigating: the drawer is where
+    // done/skip/hide live, and it still offers the deep-link as its primary.
+    const onQueueItem = (item) => setActionItem(item);
+    const onActionOpen = (item) => { setActionItem(null); openHub(item.hub, { leagueId: (item.leagueIds || [])[0] || null }); };
     const onExportAll = () => {
         if (!window.wrExport || state.status !== 'ready') return;
         (state.programmes || []).forEach(p => {
@@ -442,52 +527,33 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         });
     };
 
-    // ── Hub rail ─────────────────────────────────────────────────────
-    // Seven desks in three named groups, in the same order everywhere they
-    // appear. '‹ COMMAND' is always first and never moves — it is the only way
-    // back, so it must be muscle memory. Badge counts get their own span:
-    // string-concatenating them into the label (the old strip's bug) is why a
-    // 58 and a 2 were invisible.
+    // ── Navigation ───────────────────────────────────────────────────
+    // Seven desks in three named groups. The horizontal rail is gone: seven
+    // items scrolled out of view in a strip, and a commissioner moving between
+    // desks wants the whole map visible. The sidebar carries the same group
+    // vocabulary as the Command view's desk cards, so the two teach each other.
     const HUB_GROUPS = [
         { name: 'OPEN THE SEASON', hubs: [['genesis', 'Genesis'], ['ops', 'Operations'], ['rulelab', 'Rule Lab']] },
         { name: 'HOLD THE ROOM', hubs: [['people', 'People'], ['governance', 'Bylaws & Dues']] },
         { name: 'THE BROADCAST', hubs: [['network', 'The Coefficient'], ['programmes', 'Programmes']] },
     ];
-    const hubBadge = (hub) => {
-        if (state.status !== 'ready') return 0;
-        const q = queue;
-        if (!q) return 0;
-        return q.items.filter(it => it.hub === hub && it.tier !== 'BACKLOG').length;
-    };
-    const railTab = (k, label) => {
-        const active = tab === k;
-        const n = hubBadge(k);
-        return (
-            <button key={k} onClick={() => openHub(k)} role="tab" aria-selected={active}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '10px 14px 9px', marginBottom: '-1px', cursor: 'pointer', border: 'none', borderBottom: '2px solid ' + (active ? ACCENT : 'transparent'), background: active ? 'var(--co-accent-fill)' : 'transparent', color: active ? TEXT : MUTED, fontSize: '0.75rem', fontWeight: active ? 700 : 600, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: MONO, whiteSpace: 'nowrap' }}>
-                {label}
-                {n ? <span style={{ fontFamily: MONO, fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.08em', padding: '1px 6px', borderRadius: '999px', fontVariantNumeric: 'tabular-nums', background: active ? 'var(--bad, #E74C3C)' : 'var(--co-fill-bad)', color: active ? '#121217' : 'var(--bad, #E74C3C)' }}>{n}</span> : null}
-            </button>
-        );
-    };
-    const hubRail = (
-        <div role="tablist" style={{ position: 'sticky', top: 0, zIndex: 5, background: 'var(--co-page)', paddingTop: '8px', marginBottom: '16px', borderBottom: `1px solid ${LINE}`, display: 'flex', alignItems: 'center', gap: '2px', overflowX: 'auto', scrollbarWidth: 'none' }}>
-            <button onClick={() => { setScopeLeagueId(null); setTab('command'); }}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '8px 12px', marginRight: '6px', cursor: 'pointer', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: ACCENT, fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>‹ COMMAND</button>
-            {HUB_GROUPS.map((g, gi) => (
-                <React.Fragment key={g.name}>
-                    {gi ? <span aria-hidden="true" style={{ width: '1px', height: '14px', background: LINE, margin: '0 6px', flex: 'none' }} /> : null}
-                    {g.hubs.map(([k, label]) => railTab(k, label))}
-                </React.Fragment>
-            ))}
-            {scopeLeagueId ? (
-                <button onClick={() => setScopeLeagueId(null)}
-                    style={{ marginLeft: 'auto', flex: 'none', padding: '5px 10px', cursor: 'pointer', background: 'var(--co-accent-fill)', border: `1px solid var(--co-accent-line)`, borderRadius: '6px', color: ACCENT, fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>
-                    {(state.mine || []).find(l => String(l.league_id || l.id) === scopeLeagueId)?.name || 'SCOPED'} ✕
-                </button>
-            ) : null}
-        </div>
-    );
+    // Sidebar shape: the same three groups, with dormancy carried through so a
+    // desk that can't have data yet says so instead of reading as broken.
+    const scoredYet = state.status === 'ready' && (state.week || 0) > 0
+        && Object.values(state.ledgers || {}).some(l => (l.weeks || []).length);
+    const sidebarGroups = HUB_GROUPS.map(g => ({
+        name: g.name,
+        dormant: g.name === 'THE BROADCAST' && !scoredYet,
+        hubs: g.hubs.map(([hub, name]) => ({ hub, name, dormant: g.name === 'THE BROADCAST' && !scoredYet })),
+    }));
+    const hubCounts = React.useMemo(() => {
+        const out = {};
+        ((queue && queue.items) || []).forEach(it => {
+            if (it.tier === 'BACKLOG') return;
+            out[it.hub] = (out[it.hub] || 0) + 1;
+        });
+        return out;
+    }, [queue]);
 
     // The app paints a fixed 0.05-opacity logo watermark on body::before at
     // z-index 0 (index.html:479). Any surface that doesn't paint its own
@@ -500,6 +566,26 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     // ancestor blend mode can reach in.
     const shell = (children) => (
         <div style={{ ...CO_TOKENS, position: 'relative', zIndex: 1, background: 'var(--co-page)', isolation: 'isolate', minHeight: '100vh' }}>
+        {isPhone && navOpen && window.WrCommishSidebar ? (
+            <window.WrCommishSidebar
+                groups={sidebarGroups} active={tab} counts={hubCounts}
+                onSelect={openHub} onOpenSettings={() => openHub('settings')}
+                managedCount={managedLeagues.length} leagueCount={(state.mine || []).length}
+                phone open onClose={() => setNavOpen(false)}
+            />
+        ) : null}
+        {actionItem && window.WrCommishActionPanel ? (
+            <window.WrCommishActionPanel
+                item={actionItem} state={P ? P.stateOf(actionItem.id) : null}
+                skipDays={(P && P.SKIP_DAYS) || 7}
+                onOpen={() => onActionOpen(actionItem)}
+                onDone={() => onItemDone(actionItem)}
+                onSkip={() => onItemSkip(actionItem)}
+                onHide={() => onItemHide(actionItem)}
+                onRestore={() => onItemRestore(actionItem.id)}
+                onClose={() => setActionItem(null)}
+            />
+        ) : null}
         <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '20px 16px 60px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
                 <button onClick={onBack} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: SILVER, cursor: 'pointer', padding: '6px 12px', fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em' }}>‹ HUB</button>
@@ -514,8 +600,35 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                     </span>
                 ) : null}
             </div>
-            {state.status === 'ready' && tab !== 'command' ? hubRail : null}
-            {children}
+            {state.status === 'ready' ? (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
+                    {!isPhone && window.WrCommishSidebar ? (
+                        <div style={{ position: 'sticky', top: '16px', flex: 'none' }}>
+                            <window.WrCommishSidebar
+                                groups={sidebarGroups} active={tab} counts={hubCounts}
+                                onSelect={openHub} onOpenSettings={() => openHub('settings')}
+                                managedCount={managedLeagues.length} leagueCount={state.mine.length}
+                                phone={false}
+                            />
+                        </div>
+                    ) : null}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        {isPhone ? (
+                            <button onClick={() => setNavOpen(true)}
+                                style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', minHeight: '44px', padding: '10px 14px', cursor: 'pointer', background: 'var(--co-surface-2)', border: `1px solid ${LINE}`, borderRadius: '6px', color: TEXT, fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                                ☰ Desks
+                            </button>
+                        ) : null}
+                        {scopeLeagueId ? (
+                            <button onClick={() => setScopeLeagueId(null)}
+                                style={{ marginBottom: '12px', padding: '6px 11px', cursor: 'pointer', background: 'var(--co-accent-fill)', border: `1px solid var(--co-accent-line)`, borderRadius: '6px', color: ACCENT, fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
+                                {(state.mine || []).find(l => String(l.league_id || l.id) === scopeLeagueId)?.name || 'SCOPED'} ✕
+                            </button>
+                        ) : null}
+                        {children}
+                    </div>
+                </div>
+            ) : children}
             {/* The command panel prints its own provenance footer; only add one
                 here for the hub views, so the two never stack. */}
             {tab !== 'command' ? (
@@ -548,8 +661,22 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                     <window.WrCommishCommandPanel
                         queue={queue} kpis={commandKpis} grid={commandGrid} desks={commandDesks}
                         onOpenHub={openHub} onFilter={setQueueFilter} filter={queueFilter} phone={isPhone}
+                        onSelectItem={onQueueItem}
                     />
                 ) : missing('Command')) : null}
+                {tab === 'settings' ? (window.WrCommishSettingsPanel ? (
+                    <window.WrCommishSettingsPanel
+                        leagues={state.mine}
+                        isManaged={(lid) => (P ? P.isManaged(lid) : true)}
+                        onToggleLeague={onToggleLeague}
+                        alerts={prefs.alerts}
+                        onToggleDomain={onToggleDomain}
+                        onSetFloor={onSetFloor}
+                        domainLabels={DOMAIN_ALERT_LABELS}
+                        suppressed={(queue && queue.hiddenByMe) || []}
+                        onRestore={onItemRestore}
+                    />
+                ) : missing('Settings')) : null}
                 {tab === 'network' ? (Net ? <Net coefficient={state.coefficient} graph={state.graph} /> : missing('Coefficient')) : null}
                 {tab === 'people' ? (People ? <People radar={state.radar} seats={state.seats} benches={state.benches} prospectuses={state.prospectuses} folders={state.folders} onCopy={onCopy} /> : missing('People desk')) : null}
                 {tab === 'people' && state.renewal && window.WrCommishRenewalPanel ? <window.WrCommishRenewalPanel forecast={state.renewal} /> : null}
