@@ -412,3 +412,53 @@ test('v2 ballot: states methodology, the flip, and the proposer disclosure', () 
   assert.ok(t.includes('Full disclosure'));
   assert.ok(t.includes('never re-crowns a champion'));
 });
+
+test('v2 sweepValuesFor: brackets reality for fractional, integer, and unscored keys', () => {
+  // Live half-PPR: proportional ladder 0 → 1.0, current value present.
+  const rec = RuleLab.sweepValuesFor('rec', 0.5);
+  assert.ok(rec.includes(0) && rec.includes(0.5) && rec.includes(1), 'half-PPR sweeps 0→2c: ' + rec.join(','));
+  assert.ok(rec.every((v, i) => i === 0 || v > rec[i - 1]), 'sorted ascending');
+  // TD-like integer: whole points around the current rule, not 0.5-steps.
+  const td = RuleLab.sweepValuesFor('pass_td', 4);
+  assert.deepStrictEqual(td, [0, 2, 3, 4, 5, 6], 'pass_td 4 sweeps the arguable neighborhood');
+  // Unscored key: canonical fantasy increments.
+  const te = RuleLab.sweepValuesFor('bonus_rec_te', 0);
+  assert.deepStrictEqual(te, [0, 0.25, 0.5, 0.75, 1, 1.5, 2]);
+  // Negative rules keep sign (turnovers).
+  const int = RuleLab.sweepValuesFor('pass_int', -2);
+  assert.ok(int.includes(-2) && int.every(v => v <= 0), 'negative rule stays negative: ' + int.join(','));
+});
+
+test('v2 mergeSweeps: consensus is the value every season agrees on', () => {
+  const step = (v, o) => Object.assign({ value: v, isCurrent: v === 0, seedFlips: false, fieldMoves: 0, ranksMoved: 0 }, o);
+  const merged = RuleLab.mergeSweeps([
+    { season: 2024, perLeague: [{ leagueName: 'CSL', firstFlipAt: 1, steps: [step(0), step(0.5), step(1, { ranksMoved: 2 })] }] },
+    { season: 2025, perLeague: [{ leagueName: 'CSL', firstFlipAt: 0.5, steps: [step(0), step(0.5, { seedFlips: true }), step(1, { seedFlips: true })] }] },
+  ]);
+  const csl = merged.find(m => m.leagueName === 'CSL');
+  assert.strictEqual(csl.minFlip, 0.5, 'earliest movement anywhere');
+  assert.strictEqual(csl.consensus, 1, 'consensus = max of per-season firstFlips (every season moves from here)');
+  assert.strictEqual(csl.heldIn, 2); assert.strictEqual(csl.of, 2);
+  const row1 = csl.rows.find(r => r.value === 1);
+  assert.strictEqual(row1.bySeason[2024], '2 MV');
+  assert.strictEqual(row1.bySeason[2025], 'SEED');
+  assert.strictEqual(csl.rows.find(r => r.value === 0.5).bySeason[2024], 'HOLD');
+});
+
+test('v2 mergeSweeps: a never-moving season vetoes consensus; a no-data season does not', () => {
+  const step = (v, o) => Object.assign({ value: v, isCurrent: false, seedFlips: false, fieldMoves: 0, ranksMoved: 0 }, o);
+  const merged = RuleLab.mergeSweeps([
+    { season: 2023, perLeague: [{ leagueName: 'A', firstFlipAt: null, steps: [{ value: 0, empty: true }] },      // no data: excluded
+                               { leagueName: 'B', firstFlipAt: null, steps: [step(0), step(1)] }] },            // real data, never moves: veto
+    { season: 2025, perLeague: [{ leagueName: 'A', firstFlipAt: 1, steps: [step(0), step(1, { fieldMoves: 2 })] },
+                               { leagueName: 'B', firstFlipAt: 1, steps: [step(0), step(1, { fieldMoves: 2 })] }] },
+  ]);
+  const a = merged.find(m => m.leagueName === 'A');
+  assert.strictEqual(a.of, 1, '2023 had zero counted weeks — not in the denominator');
+  assert.deepStrictEqual(a.noData, [2023]);
+  assert.strictEqual(a.consensus, 1, 'the single replayed season carries it');
+  const b = merged.find(m => m.leagueName === 'B');
+  assert.strictEqual(b.of, 2);
+  assert.strictEqual(b.consensus, null, 'a replayed season with no movement anywhere vetoes consensus');
+  assert.strictEqual(b.heldIn, 1);
+});

@@ -503,6 +503,81 @@
         return { key, currentValue: currentVal, steps, firstFlipAt: firstFlip ? firstFlip.value : null };
     }
 
+    // ── Pure: a sensible sweep range for ANY scoring key ─────────────
+    // Anchored on the current value so the ladder brackets reality: for a
+    // live value c, sweep 0 → 2c in proportional steps; for c = 0 (a rule the
+    // league doesn't score yet) use the canonical fantasy increments. Integer
+    // rules (TDs, turnovers) sweep whole points; fractional rules keep
+    // quarter-point granularity. Always includes 0 and the current value.
+    function sweepValuesFor(key, currentValue) {
+        const c = Number(currentValue) || 0;
+        let values;
+        if (c === 0) {
+            values = [0, 0.25, 0.5, 0.75, 1, 1.5, 2];
+        } else if (Number.isInteger(c) && Math.abs(c) >= 2) {
+            // TD-like: 4 → sweep the arguable neighborhood, not 0.5-steps.
+            const lo = Math.max(0, Math.abs(c) - 2), hi = Math.abs(c) + 2;
+            values = [];
+            for (let v = lo; v <= hi; v++) values.push(c < 0 ? -v : v);
+            if (!values.includes(0)) values.unshift(0);
+        } else {
+            const mag = Math.abs(c);
+            values = [0, 0.5, 0.75, 1, 1.25, 1.5, 2].map(m => Math.round(m * mag * 100) / 100);
+            if (c < 0) values = values.map(v => -v);
+        }
+        if (!values.some(v => v === c)) values.push(c);
+        return Array.from(new Set(values)).sort((a, b) => a - b);
+    }
+
+    // ── Pure: merge one sweep run per season into the verdict ────────
+    // Input: [{ season, perLeague: [{ leagueName, steps, firstFlipAt }] }].
+    // Output per league: the value×season movement grid plus two honest
+    // numbers — the earliest movement anywhere, and the CONSENSUS threshold:
+    // the smallest value at which EVERY replayed season moves. "The #1 seed
+    // flips at ≥1.0 in 2 of 2 seasons" is close to unarguable; one season's
+    // flip alone is weather.
+    function mergeSweeps(seasonSweeps) {
+        const runs = (seasonSweeps || []).filter(s => s && Array.isArray(s.perLeague));
+        if (!runs.length) return [];
+        const leagues = {};
+        runs.forEach(run => {
+            run.perLeague.forEach(pl => {
+                const L = leagues[pl.leagueName] = leagues[pl.leagueName] || { leagueName: pl.leagueName, seasons: [], byValue: {} };
+                // A season where every step came back empty is NO DATA for
+                // this league (chain didn't reach it, or zero counted weeks)
+                // — it must not count in the consensus denominator.
+                const hasData = (pl.steps || []).some(s => !s.empty);
+                L.seasons.push({ season: run.season, firstFlipAt: pl.firstFlipAt, hasData });
+                (pl.steps || []).forEach(s => {
+                    if (s.empty) return;
+                    const cell = s.seedFlips ? 'SEED' : s.fieldMoves > 0 ? 'FIELD' : s.ranksMoved > 0 ? s.ranksMoved + ' MV' : 'HOLD';
+                    (L.byValue[s.value] = L.byValue[s.value] || { value: s.value, isCurrent: !!s.isCurrent, bySeason: {} }).bySeason[run.season] = cell;
+                    if (s.isCurrent) L.byValue[s.value].isCurrent = true;
+                });
+            });
+        });
+        return Object.values(leagues).map(L => {
+            const rows = Object.values(L.byValue).sort((a, b) => a.value - b.value);
+            const replayed = L.seasons.filter(s => s.hasData);
+            const flips = replayed.map(s => s.firstFlipAt).filter(v => v != null);
+            const minFlip = flips.length ? Math.min.apply(null, flips) : null;
+            // Consensus needs movement in EVERY replayed season — one season
+            // that never moves anywhere in range vetoes it.
+            const consensus = (flips.length === replayed.length && replayed.length > 0)
+                ? Math.max.apply(null, flips) : null;
+            return {
+                leagueName: L.leagueName,
+                seasons: replayed.map(s => s.season),
+                noData: L.seasons.filter(s => !s.hasData).map(s => s.season),
+                rows,
+                minFlip,
+                consensus,
+                heldIn: flips.length,
+                of: replayed.length,
+            };
+        });
+    }
+
     // ── Pure: the ballot memo ────────────────────────────────────────
     // Plain text the commissioner pastes next to the vote. States the
     // methodology and the proposer's own position — a ballot that hides
@@ -575,6 +650,8 @@
         runProposal,
         runOmnibus,
         sweep,
+        sweepValuesFor,
+        mergeSweeps,
         ballotText,
         positionShare,
         balanceStats,

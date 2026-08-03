@@ -271,25 +271,109 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     }, [ruleLab.status, state.status, proposal, rosterProposal, rlLeagueArgs]);
 
     // ── Wind Tunnel: sweep one knob across all leagues ───────────────
-    const [sweepState, setSweepState] = React.useState(null);   // { key, perLeague } | null
+    const [sweepState, setSweepState] = React.useState(null);   // { key, perLeague, multi? } | null
     const [sweepBusy, setSweepBusy] = React.useState(null);
-    const onSweep = (key, values) => {
+    // Other seasons' data, loaded lazily on the first every-season sweep and
+    // kept for the session — {[season]: {seasonStats, perLeague}}. The
+    // engine's own loaders are module-cached too; this ref just skips
+    // re-fanning the per-league name/roster fetches.
+    const rlSeasonData = React.useRef({});
+    const loadSeasonPack = async (season) => {
+        if (rlSeasonData.current[season]) return rlSeasonData.current[season];
+        const RL = C.RuleLab;
+        const chains = rlChains.current || {};
+        const seasonStats = await RL.loadSeasonStats(season);
+        const perLeague = {};
+        await Promise.all(state.mine.map(async l => {
+            const lid = String(l.league_id || l.id);
+            const lineupLid = chains[lid] && chains[lid][season];
+            if (!lineupLid) { perLeague[lid] = null; return; }
+            let nameLeague = l;
+            if (lineupLid !== lid) {
+                try {
+                    const [users, rosters] = await Promise.all([window.fetchLeagueUsers(lineupLid), window.fetchRosters(lineupLid)]);
+                    nameLeague = { ...l, users: users || l.users, rosters: rosters || l.rosters };
+                } catch (e) { /* fall back to current names */ }
+            }
+            const weeks = []; for (let w = 1; w <= 18; w++) weeks.push(w);
+            const lineups = await RL.loadSeasonLineups(lineupLid, weeks);
+            perLeague[lid] = { lineups, nameLeague };
+        }));
+        rlSeasonData.current[season] = { seasonStats, perLeague };
+        return rlSeasonData.current[season];
+    };
+    // rlLeagueArgs pinned to the SELECTED season; this variant takes any
+    // season's pack. Same baseline law: that year's lineups, scored under
+    // THIS year's rules.
+    const rlArgsFor = (l, pack, seasonStats, season) => {
+        if (!pack) return null;
+        const mine = (pack.nameLeague.rosters || []).find(r => String(r.owner_id) === String(myUserId));
+        return {
+            league: { ...pack.nameLeague, scoring_settings: l.scoring_settings, settings: l.settings, roster_positions: l.roster_positions },
+            seasonStats, lineups: pack.lineups,
+            playersData: state.playersData, myRosterId: mine ? mine.roster_id : null,
+            season, startSit: window.App && window.App.StartSit,
+        };
+    };
+    // Ladder for an arbitrary key: anchor on the largest live value across
+    // managed leagues, then union in every league's own current value so each
+    // one's NOW marker lands on a real step.
+    const buildLadder = (key) => {
+        let anchor = 0;
+        state.mine.forEach(l => { const v = Number((l.scoring_settings || {})[key]) || 0; if (Math.abs(v) > Math.abs(anchor)) anchor = v; });
+        const vals = C.RuleLab.sweepValuesFor(key, anchor);
+        state.mine.forEach(l => { const v = Number((l.scoring_settings || {})[key]) || 0; if (!vals.includes(v)) vals.push(v); });
+        return vals.sort((a, b) => a - b);
+    };
+    const onSweep = (key, values, opts) => {
         if (ruleLab.status !== 'ready' || !C?.RuleLab?.sweep) return;
+        const RL = C.RuleLab;
+        const vals = (values && values.length) ? values : buildLadder(key);
+        const seasonsToRun = (ruleLab.seasons || []).filter(s => s.available).map(s => s.season);
+        const multi = !!(opts && opts.allSeasons) && seasonsToRun.length > 1;
         setSweepBusy(key);
-        // Rescoring is fast but 7 steps × N leagues deserves a yield so the
-        // button repaints before the crunch.
-        setTimeout(() => {
+        if (!multi) {
+            // Rescoring is fast but 7 steps × N leagues deserves a yield so
+            // the button repaints before the crunch.
+            setTimeout(() => {
+                try {
+                    const perLeague = state.mine.map(l => {
+                        const args = rlLeagueArgs(l);
+                        if (!args) return { leagueName: l.name, steps: [], firstFlipAt: null };
+                        const s = RL.sweep({ ...args, baseProposal: proposal, key, values: vals });
+                        return { leagueName: l.name, steps: s.steps, firstFlipAt: s.firstFlipAt };
+                    });
+                    setSweepState({ key, perLeague });
+                } catch (e) { window.wrLog?.('commish.rulelab.sweep', e); setSweepState(null); }
+                setSweepBusy(null);
+            }, 30);
+            return;
+        }
+        // Every-season: one sweep per reachable year, merged into the
+        // consensus grid. Off-season data loads lazily (network) — hence
+        // async rather than the repaint-yield timeout.
+        (async () => {
             try {
-                const perLeague = state.mine.map(l => {
-                    const args = rlLeagueArgs(l);
-                    if (!args) return { leagueName: l.name, steps: [], firstFlipAt: null };
-                    const s = C.RuleLab.sweep({ ...args, baseProposal: proposal, key, values });
-                    return { leagueName: l.name, steps: s.steps, firstFlipAt: s.firstFlipAt };
-                });
-                setSweepState({ key, perLeague });
+                const seasonSweeps = [];
+                for (const season of seasonsToRun) {
+                    const packData = season === ruleLab.season
+                        ? { seasonStats: ruleLab.seasonStats, perLeague: ruleLab.perLeague }
+                        : await loadSeasonPack(season);
+                    const perLeague = state.mine.map(l => {
+                        const lid = String(l.league_id || l.id);
+                        const args = rlArgsFor(l, packData.perLeague[lid], packData.seasonStats, season);
+                        // Unreachable year for this league → an all-empty run,
+                        // which mergeSweeps books as "no data", not a veto.
+                        if (!args) return { leagueName: l.name, steps: [{ value: vals[0], empty: true }], firstFlipAt: null };
+                        const s = RL.sweep({ ...args, baseProposal: proposal, key, values: vals });
+                        return { leagueName: l.name, steps: s.steps, firstFlipAt: s.firstFlipAt };
+                    });
+                    seasonSweeps.push({ season, perLeague });
+                }
+                setSweepState({ key, multi: true, perLeague: RL.mergeSweeps(seasonSweeps) });
             } catch (e) { window.wrLog?.('commish.rulelab.sweep', e); setSweepState(null); }
             setSweepBusy(null);
-        }, 30);
+        })();
     };
 
     // ── Saved proposals + ratification ───────────────────────────────

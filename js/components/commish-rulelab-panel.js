@@ -129,6 +129,14 @@ function WrCommishRuleLabPanel({
     // bonus_rec_te is addable even when the league has never scored it — it's
     // the single most-proposed rule in dynasty.
     if (baselineScoring && baselineScoring.bonus_rec_te == null && !editorKeys.includes('bonus_rec_te')) editorKeys.push('bonus_rec_te');
+
+    // ── Wind Tunnel picker state ─────────────────────────────────────
+    // Any editor key is sweepable; values: null tells the container to build
+    // the ladder itself (engine sweepValuesFor, anchored on live baselines).
+    const [swKey, setSwKey] = React.useState('rec');
+    const [swAll, setSwAll] = React.useState(false);
+    const keyLabel = k => KEY_LABELS[k] || k;
+    const multiSeasonOk = (seasons || []).filter(s => s.available).length > 1;
     const setKey = (k, raw) => {
         if (typeof onProposalChange !== 'function') return;
         const next = Object.assign({}, prop);
@@ -562,18 +570,86 @@ function WrCommishRuleLabPanel({
             </Section>
 
             {/* ── The Wind Tunnel: threshold sweep ──────────────────────── */}
-            <Section title="Wind Tunnel" meta="sweep one knob — find the exact value where the league flips">
+            <Section title="Wind Tunnel" meta="sweep any knob — find the exact value where the league flips">
+                {/* Any-key picker: every rule the editor knows is sweepable. */}
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <select value={swKey} onChange={e => setSwKey(e.target.value)} disabled={!!sweepBusy}
+                        style={{ background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: '5px', color: TEXT, padding: '7px 8px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', maxWidth: '240px' }}>
+                        {groupKeys(editorKeys).map(g => (
+                            <optgroup key={g.name} label={g.name}>
+                                {g.keys.map(k => <option key={k} value={k}>{KEY_LABELS[k] || k}</option>)}
+                            </optgroup>
+                        ))}
+                    </select>
+                    <button disabled={!!sweepBusy} onClick={() => onSweep && onSweep(swKey, null, { allSeasons: swAll })} style={chipBtn(true, sweepBusy ? { opacity: 0.5 } : null)}>
+                        {sweepBusy ? 'Sweeping…' : 'Sweep it'}
+                    </button>
+                    {multiSeasonOk ? (
+                        <button onClick={() => setSwAll(!swAll)} disabled={!!sweepBusy}
+                            title="Replay the sweep through every season the chain reaches — a threshold that holds across seasons is close to unarguable."
+                            style={chipBtn(swAll, sweepBusy ? { opacity: 0.5 } : null)}>
+                            {swAll ? '✓ ' : ''}Every season
+                        </button>
+                    ) : null}
+                </div>
+                {/* The three classic arguments stay one click away. */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginTop: '8px' }}>
+                    <span style={{ ...microHdr }}>Quick:</span>
                     {[['rec', 'PPR 0 → 1.5', [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5]],
                       ['bonus_rec_te', 'TE premium 0 → 1.5', [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5]],
                       ['pass_td', 'Pass TD 4 → 6', [4, 5, 6]]].map(([key, label, values]) => (
-                        <button key={key} disabled={!!sweepBusy} onClick={() => onSweep && onSweep(key, values)}
+                        <button key={key} disabled={!!sweepBusy} onClick={() => onSweep && onSweep(key, values, { allSeasons: swAll })}
                             style={chipBtn(sweepResult && sweepResult.key === key, sweepBusy ? { opacity: 0.5 } : null)}>
                             {sweepBusy === key ? 'Sweeping…' : label}
                         </button>
                     ))}
                 </div>
-                {sweepResult && sweepResult.perLeague && sweepResult.perLeague.length ? (
+                {sweepResult && sweepResult.multi && sweepResult.perLeague && sweepResult.perLeague.length ? (
+                    /* Multi-season grid: rows = seasons, cols = values. The verdict
+                       is the consensus threshold — movement in EVERY replayed year. */
+                    <div style={{ marginTop: '12px' }}>
+                        {sweepResult.perLeague.map(pl => (
+                            <div key={pl.leagueName} style={{ marginBottom: '14px' }}>
+                                <div style={{ ...microHdr, marginBottom: '4px' }}>{pl.leagueName}{keyLabel(sweepResult.key) ? ' · ' + keyLabel(sweepResult.key) : ''}</div>
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ borderCollapse: 'collapse' }}>
+                                        <thead><tr>
+                                            <th style={{ ...microHdr, textAlign: 'left', padding: '3px 10px 3px 0' }}>Season</th>
+                                            {pl.rows.map(r => (
+                                                <th key={r.value} style={{ ...mono, fontSize: '0.72rem', fontWeight: 700, color: r.isCurrent ? ACCENT : SILVER, padding: '3px 7px', textAlign: 'center', borderBottom: `1px solid ${LINE}` }}>
+                                                    {r.value}{r.isCurrent ? '•' : ''}
+                                                </th>
+                                            ))}
+                                        </tr></thead>
+                                        <tbody>
+                                            {pl.seasons.map(season => (
+                                                <tr key={season}>
+                                                    <td style={{ ...mono, fontSize: '0.72rem', color: SILVER, padding: '4px 10px 4px 0' }}>{season}</td>
+                                                    {pl.rows.map(r => {
+                                                        const cell = r.bySeason[season];
+                                                        const bg = cell === 'SEED' ? 'var(--co-fill-bad, #2A1512)' : cell === 'FIELD' ? 'var(--co-fill-warn, #2A2010)' : cell && cell !== 'HOLD' ? SURF2 : 'transparent';
+                                                        const fg = cell === 'SEED' ? RED : cell === 'FIELD' ? AMBER : cell && cell !== 'HOLD' ? TEXT : MUTED;
+                                                        return <td key={r.value} style={{ ...microHdr, fontSize: '0.575rem', color: fg, background: bg, padding: '5px 7px', textAlign: 'center', border: `1px solid var(--co-line-soft, #201F27)` }}>{cell || '—'}</td>;
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '5px' }}>
+                                    {pl.consensus != null ? (
+                                        <span>Moves <b style={{ color: TEXT }}>every replayed season</b> from <span style={{ ...mono, color: ACCENT, fontWeight: 700 }}>{pl.consensus}</span> — held in {pl.heldIn} of {pl.of} season{pl.of === 1 ? '' : 's'}. Close to unarguable.</span>
+                                    ) : pl.heldIn > 0 ? (
+                                        <span>Movement in {pl.heldIn} of {pl.of} seasons (earliest at <span style={{ ...mono, color: TEXT, fontWeight: 700 }}>{pl.minFlip}</span>) — no value in range moves them all, so the case rests on one year.</span>
+                                    ) : (
+                                        <span>No value in this range moves this league in any replayed season.</span>
+                                    )}
+                                    {pl.noData && pl.noData.length ? <span style={{ color: MUTED }}> · no data: {pl.noData.join(', ')}</span> : null}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : sweepResult && sweepResult.perLeague && sweepResult.perLeague.length ? (
                     <div style={{ marginTop: '12px' }}>
                         {sweepResult.perLeague.map(pl => (
                             <div key={pl.leagueName} style={{ marginBottom: '10px' }}>

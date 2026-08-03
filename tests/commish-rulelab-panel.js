@@ -285,6 +285,72 @@ test('tables sit inside overflowX wrappers', () => {
   assert.ok(wraps.length >= 2, 'standings + swing tables each wrapped');
 });
 
+// ── Wind Tunnel v2: any-key picker + every-season grid ──────────────
+test('wind tunnel: key picker select renders grouped options from the baseline keys', () => {
+  const tree = render(Panel, {
+    status: 'ready', proposal: {}, presets: PRESETS, results: [],
+    baselineScoring: { rec: 0.5, pass_td: 4, fgm_50p: 5 },
+  });
+  const selects = findAll(tree, n => n.type === 'select');
+  assert.strictEqual(selects.length, 1, 'exactly one key picker');
+  const opts = findAll(tree, n => n.type === 'option');
+  const values = opts.map(o => o.props.value);
+  assert.ok(values.includes('rec') && values.includes('pass_td') && values.includes('fgm_50p'), 'every baseline key is sweepable: ' + values.join(','));
+  assert.ok(values.includes('bonus_rec_te'), 'bonus_rec_te addable even when unscored');
+  const groups = findAll(tree, n => n.type === 'optgroup').map(g => g.props.label);
+  assert.ok(groups.includes('Receiving') && groups.includes('Kicking'), 'grouped: ' + groups.join(','));
+});
+
+test('wind tunnel: Sweep it passes the selected key with null values and the allSeasons flag', () => {
+  let got = null;
+  const tree = render(Panel, {
+    status: 'ready', proposal: {}, presets: PRESETS, results: [],
+    baselineScoring: { rec: 0.5 }, onSweep: (k, v, o) => { got = { k, v, o }; },
+  });
+  const btn = findAll(tree, n => n.type === 'button').find(b => textOf(b).includes('Sweep it'));
+  assert.ok(btn, 'Sweep it button present');
+  btn.props.onClick();
+  assert.strictEqual(got.k, 'rec', 'default key is rec');
+  assert.strictEqual(got.v, null, 'null values → container builds the ladder');
+  assert.strictEqual(got.o.allSeasons, false, 'toggle defaults off');
+});
+
+test('wind tunnel: Every season toggle only appears with 2+ available seasons', () => {
+  const one = render(Panel, { status: 'ready', proposal: {}, presets: PRESETS, results: [],
+    baselineScoring: { rec: 0.5 }, seasons: [{ season: 2025, available: true }, { season: 2024, available: false }] });
+  assert.ok(!textOf(one).includes('Every season'), 'hidden when only one season is reachable');
+  const two = render(Panel, { status: 'ready', proposal: {}, presets: PRESETS, results: [],
+    baselineScoring: { rec: 0.5 }, seasons: [{ season: 2025, available: true }, { season: 2024, available: true }] });
+  assert.ok(textOf(two).includes('Every season'), 'shown when the chain reaches 2+ seasons');
+});
+
+test('wind tunnel: multi-season result renders the season×value grid and the consensus verdict', () => {
+  const tree = render(Panel, {
+    status: 'ready', proposal: {}, presets: PRESETS, results: [], baselineScoring: { rec: 0.5 },
+    seasons: [{ season: 2025, available: true }, { season: 2024, available: true }],
+    sweepResult: { key: 'bonus_rec_te', multi: true, perLeague: [
+      { leagueName: 'CSL', seasons: [2024, 2025], noData: [2023],
+        rows: [
+          { value: 0, isCurrent: true, bySeason: { 2024: 'HOLD', 2025: 'HOLD' } },
+          { value: 1, isCurrent: false, bySeason: { 2024: 'SEED', 2025: '2 MV' } },
+        ],
+        minFlip: 1, consensus: 1, heldIn: 2, of: 2 },
+      { leagueName: 'Test', seasons: [2025], noData: [],
+        rows: [{ value: 0, isCurrent: true, bySeason: { 2025: 'HOLD' } }],
+        minFlip: null, consensus: null, heldIn: 0, of: 1 },
+    ] },
+  });
+  const t = textOf(tree);
+  assert.ok(t.includes('CSL') && t.includes('TE reception premium'), 'league + human key label');
+  assert.ok(t.includes('2024') && t.includes('2025'), 'season rows');
+  assert.ok(t.includes('SEED') && t.includes('2 MV'), 'per-season cells');
+  assert.ok(t.includes('every replayed season') && t.includes('held in 2 of 2'), 'consensus verdict');
+  assert.ok(t.includes('no data: 2023'), 'no-data years disclosed');
+  assert.ok(t.includes('No value in this range moves this league in any replayed season'), 'honest null league');
+  const tables = findAll(tree, n => n.type === 'table');
+  assert.ok(tables.length >= 2, 'one grid table per league');
+});
+
 // ── Summary ─────────────────────────────────────────────────────────
 console.log('');
 if (failed) {
