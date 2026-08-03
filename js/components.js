@@ -74,7 +74,11 @@
         if (!p) return null;
         const pos = p.position || '?';
         const name = p.full_name || ((p.first_name||'') + ' ' + (p.last_name||'')).trim();
-        const dhq = window.App?.LI?.playerScores?.[pid] || 0;
+        // Format-aware value: in a redraft league with the ROS map built this
+        // is the ROS value (matching the 'ROS' label the skin vocabulary
+        // renders) — never the raw dynasty number under a redraft label.
+        const isRedraftCard = !!window.App?.PlayerValue?.isRedraftActive?.();
+        const dhq = (isRedraftCard ? window.App.PlayerValue.getValue(pid) : window.App?.LI?.playerScores?.[pid]) || 0;
         const meta = window.App?.LI?.playerMeta?.[pid] || {};
         const leagueSkin = window.App?.LeagueSkin?.getCurrent?.() || null;
         const valueShortLabel = leagueSkin?.vocabulary?.valueShortLabel || 'DHQ';
@@ -103,7 +107,9 @@
         const recCol = rec.includes('SELL') ? 'var(--k-e74c3c, #e74c3c)' : rec.includes('BUY') ? 'var(--k-2ecc71, #2ecc71)' : 'var(--k-d4af37, #d4af37)';
         // Verdict chip is Pro at this render seam; getPlayerAction itself stays
         // callable for engine logic. Fail-open when pro-gate.js isn't loaded.
-        const inlinePro = typeof window.wrIsPro !== 'function' || window.wrIsPro();
+        // Redraft: the age-curve Sell/Hold verdict is dynasty vocabulary — a
+        // 30-year-old WR1 is not a 'SELL' in a one-season league. Hide the cell.
+        const inlinePro = (typeof window.wrIsPro !== 'function' || window.wrIsPro()) && !isRedraftCard;
         const initials = ((p.first_name||'?')[0] + (p.last_name||'?')[0]).toUpperCase();
 
         // Smart positioning: ensure card is fully visible

@@ -450,18 +450,28 @@
             const isSF = rosterPositions.some(slot => ['SUPER_FLEX', 'QB_FLEX', 'OP'].includes(String(slot).toUpperCase()));
             const pprVal = scoring.rec != null && scoring.rec >= 0.9 ? 1 : scoring.rec != null && scoring.rec >= 0.4 ? 0.5 : 0;
             const totalTeams = currentLeague?.rosters?.length || window.S?.rosters?.length || 12;
-            const url = `https://api.fantasycalc.com/values/current?isDynasty=true&numQbs=${isSF ? 2 : 1}&numTeams=${totalTeams}&ppr=${pprVal}`;
+            // Market mode follows the LEAGUE: redraft leagues price against the
+            // REDRAFT market (rookies included — no years_exp exclusion, since
+            // FC redraft prices them directly); dynasty keeps the dynasty
+            // market + rookie-ladder behavior unchanged.
+            const isRedraftLg = (window.App?.LeagueSkin?.getCurrent?.()?.type) === 'redraft';
+            const url = `https://api.fantasycalc.com/values/current?isDynasty=${isRedraftLg ? 'false' : 'true'}&numQbs=${isSF ? 2 : 1}&numTeams=${totalTeams}&ppr=${pprVal}`;
             fetch(url)
                 .then(r => r.ok ? r.json() : [])
                 .then(data => {
                     if (cancelled || !Array.isArray(data) || !data.length) return;
-                    const scores = window.App?.LI?.playerScores || {};
+                    const PV = window.App?.PlayerValue;
+                    const rosLive = isRedraftLg && PV?.isRedraftActive?.();
+                    const localValue = sid => rosLive ? Number(PV.getValue(sid) || 0) : Number(window.App?.LI?.playerScores?.[sid] || 0);
                     const matched = data
                         .filter(d => {
                             const sid = d.player?.sleeperId;
-                            return sid && d.player?.position !== 'PICK' && d.value > 0 && scores[sid] > 0 && playersData?.[sid]?.years_exp !== 0;
+                            if (!sid || d.player?.position === 'PICK' || !(d.value > 0) || !(localValue(sid) > 0)) return false;
+                            // Dynasty only: exclude rookies from the scale fit
+                            // (their DHQ comes from the rookie ladder, not market).
+                            return isRedraftLg || playersData?.[sid]?.years_exp !== 0;
                         })
-                        .map(d => ({ sid: d.player.sleeperId, fcVal: d.value, dhqVal: scores[d.player.sleeperId] }))
+                        .map(d => ({ sid: d.player.sleeperId, fcVal: d.value, dhqVal: localValue(d.player.sleeperId) }))
                         .sort((a, b) => b.fcVal - a.fcVal);
                     let scaleFactor = 1;
                     if (matched.length >= 10) {
@@ -480,12 +490,14 @@
                         };
                     });
                     const meta = window.App?.LI?.playerMeta || {};
+                    const scores = window.App?.LI?.playerScores || {};
                     const ladders = {};
                     ['QB', 'RB', 'WR', 'TE'].forEach(pos => {
-                        ladders[pos] = Object.entries(scores)
-                            .filter(([sid, score]) => {
-                                if (!score || score <= 0) return false;
-                                if (playersData?.[sid]?.years_exp === 0) return false;
+                        const pool = rosLive
+                            ? Object.entries(PV.rosState()?.values || {}).filter(([, v]) => v > 0)
+                            : Object.entries(scores).filter(([sid, score]) => score > 0 && playersData?.[sid]?.years_exp !== 0);
+                        ladders[pos] = pool
+                            .filter(([sid]) => {
                                 const playerPos = normPos(meta[sid]?.pos || playersData?.[sid]?.position || '');
                                 return playerPos === pos;
                             })

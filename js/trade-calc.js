@@ -680,11 +680,19 @@
         }
 
         function getPlayerValue(pid) {
-            if (window.App?.PlayerValue?.getValue) {
-                const v = window.App.PlayerValue.getValue(pid, { skin: resolvedLeagueSkin });
+            const PV = window.App?.PlayerValue;
+            if (PV?.getValue) {
+                const v = PV.getValue(pid, { skin: resolvedLeagueSkin });
                 if (v > 0) {
-                    const isRos = resolvedLeagueSkin?.type === 'redraft' && window.App.PlayerValue.rosState && window.App.PlayerValue.rosState();
+                    const isRos = resolvedLeagueSkin?.type === 'redraft' && PV.rosState && PV.rosState();
                     return { value: v, source: isRos ? 'ros' : 'dhq' };
+                }
+                // Redraft with the ROS map built: 0 MEANS 0 (no projected
+                // role). Falling through to dynasty DHQ here is exactly the
+                // leak the zero-pin exists to prevent — a rookie stash must
+                // not price at dynasty value in a redraft trade.
+                if (resolvedLeagueSkin?.type === 'redraft' && PV.isRedraftActive?.()) {
+                    return { value: 0, source: 'ros' };
                 }
             }
             const dhqScore = window.App?.LI?.playerScores?.[pid];

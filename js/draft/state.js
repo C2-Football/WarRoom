@@ -502,6 +502,15 @@
     function resolvePlayerDhq(input) {
         const player = input?.player || input || {};
         const pid = input?.pid || input?.player_id || input?.playerId || player.pid || player.player_id || player.playerId || player.sleeperId;
+        // Redraft league with the ROS map built → the board prices on ROS
+        // values ONLY. No dynasty engine, no rookie dynasty ladder, no
+        // attached dynasty numbers — a 0 here means "no projected role this
+        // season" and the position-baseline fallback fills the deep pool.
+        const PV = window.App?.PlayerValue;
+        if (pid != null && PV?.isRedraftActive?.()) {
+            const ros = Number(PV.getValue(pid) || 0);
+            return ros > 0 ? { value: Math.round(ros), source: 'PlayerValue.ros' } : { value: 0, source: 'ros-zero' };
+        }
         if (pid != null) {
             const engine = Number(window.App?.LI?.playerScores?.[pid] || 0);
             if (engine > 0) return { value: Math.round(engine), source: 'App.LI.playerScores' };
@@ -751,8 +760,14 @@
 
         // Startup/redraft variants — pull from Sleeper DHQ scores, with
         // rookie-data fallback for first-year players not yet scored by LI.
+        // In a REDRAFT league the ROS value map is the only board currency:
+        // build it from the hydrate bridge if no tab has yet, and let
+        // resolvePlayerDhq route every lookup through it (window.dynastyValue
+        // is exactly the dynasty bypass this board must not use).
+        try { window.App?.PlayerValue?.ensureRosFromState?.(); } catch (e) { /* dynasty league or data not hydrated */ }
+        const redraftBoard = !!window.App?.PlayerValue?.isRedraftActive?.();
         const getDHQ = (pid, player, name) => {
-            if (typeof window.dynastyValue === 'function') {
+            if (!redraftBoard && typeof window.dynastyValue === 'function') {
                 const v = window.dynastyValue(pid);
                 if (v > 0) return { value: Math.round(v), source: 'window.dynastyValue' };
             }

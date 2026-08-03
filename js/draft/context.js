@@ -44,7 +44,10 @@
             id: 'redraft',
             label: 'Redraft',
             valueHorizon: 'current_season',
-            projectionYears: 1,
+            // 0 = no age-curve projection: the board value IS this season's
+            // value (projectedValue returns it untouched). Redraft doctrine —
+            // age influences nothing here.
+            projectionYears: 0,
             needBias: 1.18,
             youthPremium: 1,
             positionMultipliers: { RB: 1.04, WR: 1.02, TE: 1.01, QB: 0.99 },

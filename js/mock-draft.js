@@ -59,7 +59,12 @@ const MDS_POOL = [
 /* ── Pool builder ──────────────────────────────────────────── */
 function mdsBuildPool(playersData) {
     const normPos = window.App?.normPos || (p => p);
+    // Redraft league → mock drafts price on ROS values (same currency as the
+    // real board); dynasty keeps window.dynastyValue → playerScores.
+    try { window.App?.PlayerValue?.ensureRosFromState?.(); } catch (e) { /* not hydrated */ }
+    const mdsRedraft = !!window.App?.PlayerValue?.isRedraftActive?.();
     const getDHQ = pid => {
+        if (mdsRedraft) return Number(window.App.PlayerValue.getValue(pid) || 0);
         if (typeof window.dynastyValue === 'function') {
             const v = window.dynastyValue(pid);
             if (v > 0) return v;

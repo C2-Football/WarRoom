@@ -2630,7 +2630,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 
 <!-- War Room modules — loaded in dependency order by Babel standalone -->
 <!-- 1. Core: tier system, React hooks, fetch helpers (everything depends on this) -->
-<script type="text/babel" src="js/core.js?v=20260701gdc1"></script>
+<script type="text/babel" src="js/core.js?v=20260802rv1"></script>
 <!-- 1a. Central data-sync manager — window.WR.Sync — stale-while-revalidate on tab return + in-season interval (plain JS) -->
 <script src="js/shared/sync-manager.js?v=20260706sync1"></script>
 <!-- 1a2. Shared viewport seam — WR.useViewport() hook + WR.viewport() snapshot (plain JS; must precede components.js and all tab files) -->
@@ -2638,7 +2638,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- 1b. Format/phase skin contract for league-type-aware modules -->
 <script src="js/league-skin.js?v=20260702bye1"></script>
 <!-- 2. Shared components: UpgradeGate, GMMessage, PlayerInlineCard -->
-<script type="text/babel" src="js/components.js?v=20260707desk1"></script>
+<script type="text/babel" src="js/components.js?v=20260802rv1"></script>
 <!-- 2b. Unified Player Card (SI-2) — window.WR.openPlayerCard — replaces CDN modal -->
 <!-- Shared visual primitives (WR.Card / Badge / Chip / ConfChip / DeltaLine / Kpi / InsightCard) -->
 <script type="text/babel" src="js/components/wr-primitives.js?v=20260427font1"></script>
@@ -2650,7 +2650,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- 2d. GM Mode helper (Phase 1) — window.WR.GmMode — canonical mode/preset source of truth -->
 <script type="text/babel" src="js/shared/gm-mode.js?v=20260613gm3"></script>
 <script src="js/shared/startsit-engine.js?v=20260701gdc4"></script>
-<script src="js/shared/weekly-proj.js?v=20260729rd1"></script>
+<script src="js/shared/weekly-proj.js?v=20260802rv1"></script>
 <script src="js/shared/nfl-context.js?v=20260729rd1"></script>
 <script src="js/shared/matchup.js?v=20260701gdc1"></script>
 <script src="js/utils/schedule-engine.js?v=20260702bye1"></script>
@@ -2700,7 +2700,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script src="js/shared/txn-store.js?v=20260729rd1"></script>
 <!-- 3. Shared utilities: player valuation constants + projection engine -->
 <script type="text/babel" src="js/utils/sos-engine.js?v=20260702scout1"></script>
-<script type="text/babel" src="js/utils/player-value.js?v=20260517valuefix"></script>
+<script type="text/babel" src="js/utils/player-value.js?v=20260802rv1"></script>
 <!-- 4. Feature modules (no internal dependencies between these) -->
 <!-- data-wr-defer scripts are DEFERRED: emitted INERT (type="text/wr-deferred" by
      every build/serve pipeline) so the browser does NOT parse/execute them at app
@@ -2708,7 +2708,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
      group, when the owning surface first calls wrLoadModuleGroup('<group>'). -->
 <script src="js/module-loader.js?v=20260612modlazy1"></script>
 <script type="text/babel" src="js/settings.js?v=20260613strip1"></script>
-<script type="text/babel" data-wr-defer="trade" src="js/trade-calc.js?v=20260707desk1"></script>
+<script type="text/babel" data-wr-defer="trade" src="js/trade-calc.js?v=20260802rv1"></script>
 <script type="text/babel" src="js/post-draft.js?v=20260609postdraft1"></script>
 <script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260730rd7"></script>
 <!-- Season Odds panel loads with Game Day (owner ruling 2026-07-30) — must
@@ -2720,10 +2720,10 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/styles.js?v=20260427font1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/scouting.js?v=20260517baileymerge"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/trade-helpers.js?v=20260415cd8"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/context.js?v=20260517aiguard"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/context.js?v=20260802rv1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/persona.js?v=20260415cd8"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/cpu-engine.js?v=20260415cd8"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/state.js?v=20260613gm1"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/state.js?v=20260802rv1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/big-board.js?v=20260601layout"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/draft-grid.js?v=20260418a"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/opponent-intel.js?v=20260601layout"></script>
@@ -2733,7 +2733,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/ask-window.js?v=20260601alexpresence"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-analytics.js?v=20260601draftux"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/exports.js?v=20260415cd8"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/trade-simulator.js?v=20260601draftux"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/trade-simulator.js?v=20260802rv1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/trade-modal.js?v=20260601draftux"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/trade-proposer.js?v=20260601draftux"></script>
 <!-- Phase 5 modules -->
@@ -2744,7 +2744,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-decision-engine.js?v=20260601draftux"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/analyst-mock.js?v=20260531voice1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260613strip2"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260613strip2"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260802rv1"></script>
 <!-- 5. League detail tab components (extracted from league-detail.js) -->
 <!-- v2 widget modules (load before dashboard.js which consumes them) -->
 <script type="text/babel" src="js/widgets/roster-pulse.js?v=20260613gm1"></script>
@@ -2796,7 +2796,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
      "alex" lazy group — inert at boot, loaded on first GM's Office / Strategy open. -->
 <script type="text/babel" data-wr-defer="alex" src="js/tabs/strategy-editor.js?v=20260613rec1"></script>
 <!-- 7. League detail: coordinator shell, depends on all above -->
-    <script type="text/babel" src="js/league-detail.js?v=20260707desk1"></script>
+    <script type="text/babel" src="js/league-detail.js?v=20260802rv1"></script>
 <!-- 8. App: OwnerDashboard + ReactDOM.render (loads last) -->
 <script type="text/babel" src="js/app.js?v=20260706hub1"></script>
 

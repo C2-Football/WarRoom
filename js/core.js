@@ -596,7 +596,9 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
     // Sums DHQ per position for every team, ranks, and assigns A-F.
     // Returns [{ pos, rank, totalTeams, mySum, grade, col, pct }]
     window.App.calcPosGrades = window.App.calcPosGrades || function calcPosGrades(myRosterId, rosters, playersData) {
-        const scores = window.App?.LI?.playerScores || {};
+        // Format-aware: valueMap proxies to ROS values in redraft leagues and
+        // to the same dynasty playerScores everywhere else.
+        const scores = (window.App?.PlayerValue?.valueMap ? window.App.PlayerValue.valueMap() : null) || window.App?.LI?.playerScores || {};
         const normPos = window.App.normPos || (p => p);
         const posOrder = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
         const totalTeams = (rosters || []).length || 1;

@@ -1524,7 +1524,13 @@
         useEffect(() => {
           const h = () => setTimeRecomputeTs(Date.now());
           window.addEventListener('wr:projections-loaded', h);
-          return () => window.removeEventListener('wr:projections-loaded', h);
+          // FantasyCalc REDRAFT calibration landed → ROS cache was invalidated;
+          // same recompute tick rebuilds every value surface calibrated.
+          window.addEventListener('wr:ros-market-loaded', h);
+          return () => {
+            window.removeEventListener('wr:projections-loaded', h);
+            window.removeEventListener('wr:ros-market-loaded', h);
+          };
         }, []);
 
 
@@ -1851,6 +1857,13 @@
                 const weekRolled = background && window.S.currentWeek != null && currentWeek !== window.S.currentWeek;
                 window.S.players = players;
                 window.S.playerStats = {};
+                // Hydrated stat/projection maps for surfaces that can't thread
+                // props (draft stack, Trade Center early mount): PlayerValue.
+                // ensureRos falls back to these so a redraft board never
+                // silently reverts to dynasty pricing for want of priorData.
+                window.S.statsData = stats;
+                window.S.priorData = prevStats;
+                window.S.projectionsData = projections;
                 window.S.rosters = rosters;
                 window.S.leagueUsers = leagueUsers;
                 window.S.leagues = [{ league_id: currentLeague.id, name: currentLeague.name, scoring_settings: currentLeague.scoring_settings, roster_positions: currentLeague.roster_positions, settings: currentLeague.settings }];

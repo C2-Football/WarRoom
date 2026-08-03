@@ -195,7 +195,7 @@ test('format adapters tune bestball and redraft draft contexts', () => {
 
   const redraft = ctx.DraftCC.context.getDraftFormatAdapter({ draftType: 'redraft', leagueFormat: bestballFormat });
   eq(redraft.id, 'redraft', 'redraft adapter');
-  eq(redraft.projectionYears, 1, 'redraft projection horizon');
+  eq(redraft.projectionYears, 0, 'redraft projection horizon — 0 by doctrine: no age-curve projection on a one-season board');
 
   const board = ctx.DraftCC.context.buildBoardContext({
     leagueId: 'L6',
