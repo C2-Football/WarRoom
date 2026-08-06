@@ -1196,9 +1196,9 @@ function AnalyticsPanel({
             const leagueId = currentLeague?.id || currentLeague?.league_id || '';
             const movedPickCount = tradedPicks.filter(p => !sameId(p.owner_id, p.roster_id)).length;
             // Draft-only fallback when no per-pick outcome rows exist (no championship/history filler).
+            // 'Owned Picks' + 'Early Capital' proof cards removed (owner ask) \u2014 the raw pick-capital
+            // count duplicated the Winner's Perch / Ideal Draft Strategy panels below with less signal.
             const historicalProofItems = [
-                { label: 'Owned Picks', value: currentPicks.length || '\u2014', detail: currentPickValue.toLocaleString() + ' DHQ across visible years.', tone: 'good', color: goodColor },
-                { label: 'Early Capital', value: earlyPicks, detail: 'Picks in R1-R2 to anchor a build.', tone: earlyPicks >= 3 ? 'good' : 'warn', color: earlyPicks >= 3 ? goodColor : warnColor },
                 { label: 'Draft Outcomes', value: 'Pending', detail: 'No per-pick outcome rows yet; reads use slot value only.', tone: 'warn', color: warnColor },
             ];
             const draftProofItems = hasDraftOutcomeHistory ? [
@@ -1260,9 +1260,28 @@ function AnalyticsPanel({
             ];
             // Draft research-question header is bare (no stat boxes) \u2014 see AnalyticsCommandPanel call below.
 
-            // Free floor: raw pick capital only. The champion-benchmark
-            // hit-rate reads (row 9 "draft hit-rate reads") are Pro.
-            const freeDraftProofItems = hasDraftOutcomeHistory ? historicalProofItems.slice(0, 2) : historicalProofItems;
+            // Free floor: once outcome history exists, the Ideal Draft Strategy panel
+            // below (free, league-wide) carries the free-tier draft read on its own —
+            // no proof cards needed here. Without outcome history, fall back to the
+            // 'Draft Outcomes: Pending' notice for both tiers.
+            const freeDraftProofItems = hasDraftOutcomeHistory ? [] : historicalProofItems;
+
+            // ── Ideal Draft Strategy (hit rate by round × position) ──
+            // League-wide (every pick, not just winners) starter/elite rate broken
+            // down by round AND position — answers "what actually pays off in this
+            // round" rather than "who won more" (that framing is Winner Formula,
+            // below, which is winner-vs-field and Pro-gated). Sourced from
+            // window.App.LI.hitRateByRound (dhq-engine.js): bestPos only names a
+            // position once 2+ same-round picks exist, so a one-pick fluke can't
+            // crown a round.
+            const hitRateByRound = window.App?.LI?.hitRateByRound || {};
+            const strategyRounds = Object.keys(hitRateByRound).map(Number).sort((a, b) => a - b)
+                .map(rd => ({ rd, ...hitRateByRound[rd] }))
+                .filter(r => r.total > 0);
+            const strategyHeadline = strategyRounds
+                .filter(r => (r.bestPos || []).length)
+                .map(r => 'R' + r.rd + ' ' + posLabel(r.bestPos[0].pos))
+                .join(' → ');
 
             // ── The Winner's Perch (redraft only) ──
             // Redraft leagues re-draft the whole roster every season, so draft
@@ -1278,7 +1297,7 @@ function AnalyticsPanel({
 
             return (
             <React.Fragment>
-                {!isPro && <ProLock label="Draft Intelligence Reads" sub="The draft research thesis and champion-benchmark conversion reads are Pro. Your raw pick capital stays below." />}
+                {!isPro && <ProLock label="Draft Intelligence Reads" sub="The draft research thesis and champion-benchmark conversion reads are Pro. The Ideal Draft Strategy read below stays free." />}
                 {isPro && <AnalyticsCommandPanel
                     title="What does this league actually reward in the draft?"
                     thesis="Anyone can count who picked what. Did your slots pay off, what did your champions spend early picks on, and how much value are you letting age out in future rounds?"
@@ -1302,6 +1321,51 @@ function AnalyticsPanel({
                                         <b style={{ color: row.top3 ? (isBest ? 'var(--good)' : 'var(--gold)') : 'var(--silver)' }}>
                                             {row.top3 ? row.top3 + (row.titles ? ' (' + row.titles + ')' : '') : '—'}
                                         </b>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {strategyRounds.length > 0 && (
+                    <div className="analytics-panel" style={{ marginBottom: 'var(--card-gap, 14px)' }}>
+                        <div className="analytics-panel-head">
+                            <span>Ideal Draft Strategy</span>
+                            <em>League-wide hit rate by round &amp; position</em>
+                        </div>
+                        <p style={{ color: 'var(--silver)', opacity: 0.78, fontSize: '0.78rem', lineHeight: 1.45, margin: '0 0 10px' }}>
+                            Starter-rate by position, round by round, across every pick this league has made — not just winners. A position needs 2+ same-round picks to rank; thin rounds show no leader yet.
+                        </p>
+                        {strategyHeadline && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '6px 10px', background: 'rgba(212,175,55,0.06)', borderLeft: '3px solid var(--gold)', borderRadius: 'var(--card-radius-sm)', padding: '10px 12px', marginBottom: '12px', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--white)', lineHeight: 1.6 }}>
+                                <strong style={{ color: 'var(--gold)' }}>Best-odds path:</strong> <span>{strategyHeadline}</span>
+                            </div>
+                        )}
+                        <div style={{ display: 'grid', gap: '8px' }}>
+                            {strategyRounds.map(r => {
+                                const top = (r.bestPos || []).slice(0, 4);
+                                return (
+                                    <div key={r.rd} style={{ background: 'var(--black, #121217)', border: '1px solid var(--ov-4,rgba(255,255,255,0.06))', borderRadius: '8px', padding: '9px 11px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                                            <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', color: 'var(--gold)' }}>Round {r.rd}</span>
+                                            <span style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>n={r.total} · {r.rate}% starter / {r.eliteRate}% elite (all positions)</span>
+                                        </div>
+                                        {top.length ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                {top.map((p, i) => (
+                                                    <div key={p.pos} style={{ display: 'grid', gridTemplateColumns: '54px minmax(0,1fr) 90px', alignItems: 'center', gap: '8px' }}>
+                                                        <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: i === 0 ? 700 : 500, color: i === 0 ? 'var(--gold)' : 'var(--silver)' }}>{posLabel(p.pos)}</span>
+                                                        <div style={{ position: 'relative', height: '8px', borderRadius: '99px', background: 'rgba(255,255,255,0.06)' }}>
+                                                            <i style={{ position: 'absolute', left: 0, top: 0, height: '8px', width: p.rate + '%', borderRadius: '99px', background: POS_COLOR[p.pos] || POS_COLOR.UNK }} />
+                                                        </div>
+                                                        <span style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>{p.rate}% (n={p.total})</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.6 }}>Not enough same-position picks this round to rank yet.</div>
+                                        )}
                                     </div>
                                 );
                             })}
