@@ -200,6 +200,83 @@ test('fitDists weights recent weeks heavier and never returns a metronome', () =
   assert.ok(steady['2'].sd >= 8, 'sd floored so a "consistent" team still has variance');
 });
 
+// ── Horizon cache + sync consumers ──────────────────────────────────
+test('simulate caches per league so sync consumers can read the horizon', () => {
+  const sim = ChopOdds.simulate({ ...FULL, myRosterId: 1, sims: 800 });
+  const hit = ChopOdds.cached('CHOP');
+  assert.ok(hit, 'cached under the league id');
+  assert.strictEqual(hit.me.rosterId, 1, 'caches the run that knows whose team is whose');
+  assert.strictEqual(ChopOdds.horizonFor('CHOP', 99), sim.me.expWeeksLeft);
+});
+test('horizonFor falls back cleanly for an unknown league', () => {
+  assert.strictEqual(ChopOdds.horizonFor('never-simulated', 13), 13);
+  assert.strictEqual(ChopOdds.horizonFor('never-simulated', null), null, 'null lets callers keep their own default');
+});
+test('a run without myRosterId does not poison the cache', () => {
+  ChopOdds.simulate({ ...FULL, myRosterId: 2, sims: 400 });
+  const before = ChopOdds.cached('CHOP').me.rosterId;
+  ChopOdds.simulate({ ...FULL, sims: 400 });          // no myRosterId
+  assert.strictEqual(ChopOdds.cached('CHOP').me.rosterId, before, 'cache untouched');
+});
+
+// ── FAAB pacing against the survival horizon ────────────────────────
+const Faab = require('../js/shared/faab-engine.js');
+const faabLeague = (used) => ({
+  league_id: 'CHOP', settings: { type: 3, last_chopped_leg: 17, waiver_budget: 10000 },
+  roster_positions: ['QB', 'RB', 'WR', 'FLEX'],
+  users: [],
+  rosters: [
+    { roster_id: 1, owner_id: 'a', players: ['p1'], settings: { waiver_budget_used: used } },
+    { roster_id: 2, owner_id: 'b', players: ['p2'], settings: { waiver_budget_used: 4000 } },
+  ],
+});
+const faabTxns = () => {
+  const out = [];
+  for (let w = 1; w <= 8; w++) {
+    out.push({ type: 'waiver', status: 'complete', leg: w, roster_ids: [2], adds: { x: 2 }, settings: { waiver_bid: 500 } });
+    out.push({ type: 'waiver', status: 'complete', leg: w, roster_ids: [1], adds: { y: 1 }, settings: { waiver_bid: 200 } });
+  }
+  return out;
+};
+
+test('pacing: a short horizon lifts the spend cap — unspent budget is wasted', () => {
+  const args = { league: faabLeague(2000), myRosterId: 1, playersData: { p1: { position: 'RB' } }, txns: faabTxns(), targetPos: 'RB', targetStrength: 0.5 };
+  const long = Faab.analyze({ ...args, horizonWeeks: 12 });
+  const short = Faab.analyze({ ...args, horizonWeeks: 1.2 });
+  assert.strictEqual(long.pacing.cap, 0.65, 'a long horizon keeps the normal cap');
+  assert.strictEqual(short.pacing.cap, 1, 'one week left → hold nothing back');
+  assert.ok(short.rec.bid >= long.rec.bid, 'the short-horizon recommendation is never smaller');
+});
+test('pacing: flags hoarding when the burn rate leaves budget on the table', () => {
+  // $8,000 left, ~$200/wk pace, 6 weeks expected → ~$6,800 unspent at death.
+  const out = Faab.analyze({
+    league: faabLeague(2000), myRosterId: 1, playersData: {}, txns: faabTxns(),
+    targetPos: 'RB', targetStrength: 0.5, horizonWeeks: 6,
+  });
+  assert.ok(out.pacing, 'pacing reported');
+  assert.strictEqual(out.pacing.horizonWeeks, 6);
+  assert.ok(out.pacing.affordPerWeek > out.pacing.myPacePerWeek, 'affording far more than spending');
+  assert.ok(out.pacing.projectedUnspent > 5000, 'projects a large unspent pile: ' + out.pacing.projectedUnspent);
+  assert.strictEqual(out.pacing.verdict, 'hoarding');
+});
+test('pacing: a team spending to its horizon reads on-pace', () => {
+  const txns = [];
+  for (let w = 1; w <= 8; w++) txns.push({ type: 'waiver', status: 'complete', leg: w, roster_ids: [1], adds: { y: 1 }, settings: { waiver_bid: 1000 } });
+  const out = Faab.analyze({
+    league: faabLeague(8000), myRosterId: 1, playersData: {}, txns,
+    targetPos: 'RB', targetStrength: 0.5, horizonWeeks: 3,
+  });
+  assert.strictEqual(out.pacing.verdict, 'on-pace', 'spending $1000/wk with $2000 left and 3 weeks to go');
+  assert.strictEqual(out.pacing.projectedUnspent, 0);
+});
+test('pacing: absent horizon leaves the engine byte-identical to before', () => {
+  const args = { league: faabLeague(2000), myRosterId: 1, playersData: {}, txns: faabTxns(), targetPos: 'RB', targetStrength: 0.5 };
+  const out = Faab.analyze(args);
+  assert.strictEqual(out.pacing, null, 'no horizon → no pacing block');
+  const withLong = Faab.analyze({ ...args, horizonWeeks: 12 });
+  assert.strictEqual(withLong.rec.bid, out.rec.bid, 'and a long horizon changes no recommendation');
+});
+
 // ── Summary ─────────────────────────────────────────────────────────
 console.log('');
 if (failed) {

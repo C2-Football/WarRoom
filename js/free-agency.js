@@ -661,6 +661,9 @@
                         targetPid: target.pid, targetPos: target.pos,
                         // Strength: DHQ vs an elite-FA benchmark (6000 ≈ a league-winning add).
                         targetStrength: Math.max(0.15, Math.min(1, (Number(target.dhq) || 0) / 6000)),
+                        // CHOPPED: bid against how long you expect to be ALIVE,
+                        // not the calendar. Unspent budget is wasted budget.
+                        horizonWeeks: window.App?.ChopOdds?.horizonFor?.(lid, null) || null,
                     });
                     if (alive) setPlan(a ? { a } : null);
                 } catch (e) { if (alive) setPlan({ err: true }); }
@@ -702,6 +705,19 @@
                             : 'uncontested — no rival needs him'}
                     </span>
                 </div>
+                {/* CHOPPED pacing: budget you never spend is budget you lose.
+                    In a real 18-team chopped league the three teams that spent
+                    nothing went out weeks 1-3, while the champion finished with
+                    $565 left. */}
+                {a.pacing ? (
+                    <div style={{ ...micro, textTransform: 'none', letterSpacing: 0, lineHeight: 1.55, marginBottom: '8px', color: a.pacing.verdict === 'hoarding' ? 'var(--warn)' : 'var(--silver)' }}>
+                        {a.pacing.verdict === 'hoarding'
+                            ? <span><b style={{ color: 'var(--warn)' }}>You are hoarding.</b> ~{a.pacing.horizonWeeks} weeks left at your survival odds, and at your current ${a.pacing.myPacePerWeek}/wk pace you would be chopped holding <b>${a.pacing.projectedUnspent.toLocaleString()}</b>. You can afford ${a.pacing.affordPerWeek}/wk.</span>
+                            : a.pacing.verdict === 'slightly-under'
+                            ? <span>~{a.pacing.horizonWeeks} weeks left · spending ${a.pacing.myPacePerWeek}/wk of the ${a.pacing.affordPerWeek}/wk you can afford — about ${a.pacing.projectedUnspent.toLocaleString()} would go unspent.</span>
+                            : <span>~{a.pacing.horizonWeeks} weeks left · on pace at ${a.pacing.myPacePerWeek}/wk against ${a.pacing.affordPerWeek}/wk affordable.</span>}
+                    </div>
+                ) : null}
                 {/* With nobody contesting him, every rung prices at the same
                     capped 97% and the ladder reads as broken. Say the true
                     thing instead: the minimum bid is enough. */}

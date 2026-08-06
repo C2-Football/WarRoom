@@ -193,8 +193,24 @@
         }
         ladder.sort((a, b) => a.bid - b.bid);
 
+        // ── Horizon-aware spend cap ──────────────────────────────────
+        // Holding budget back only makes sense if you will be alive to spend
+        // it. In a CHOPPED league the survival horizon is short and shrinking,
+        // and unspent FAAB is simply wasted: in a real 18-team league the
+        // three teams that spent nothing went out in weeks 1, 2 and 3, and the
+        // champion finished with $565 left while a team eliminated in week 15
+        // still held $4,213. So the cap relaxes toward "spend it" as the
+        // expected weeks remaining fall. No horizon supplied → unchanged.
+        const horizonWeeks = Number(opts && opts.horizonWeeks) || null;
+        const horizonCap = (() => {
+            if (!(horizonWeeks > 0)) return SPEND_CAP;
+            if (horizonWeeks <= 1.5) return 1;              // last stand — hold nothing back
+            if (horizonWeeks <= 3) return 0.9;
+            if (horizonWeeks <= 5) return 0.8;
+            return SPEND_CAP;
+        })();
         // Recommendation: smallest whole bid clearing WIN_TARGET, spend-capped.
-        const cap = strength >= CAP_LIFT ? myLeft : Math.max(minBid, Math.round(myLeft * SPEND_CAP));
+        const cap = strength >= CAP_LIFT ? myLeft : Math.max(minBid, Math.round(myLeft * horizonCap));
         let rec = null;
         for (let B = minBid; B <= cap; B++) {
             if (winPct(B) >= WIN_TARGET) { rec = { bid: B, winPct: winPct(B), capped: false }; break; }
@@ -209,9 +225,33 @@
         const leagueSpent = liveRosters.length
             ? Math.round(liveRosters.reduce((s, r) => s + spentPct(r), 0) / liveRosters.length) : 0;
 
+        // Burn rate vs the horizon: what you can afford to spend per week, and
+        // what you are on track to LEAVE ON THE TABLE if you keep pacing at
+        // the league's average weekly outlay.
+        const pacing = (horizonWeeks > 0) ? (() => {
+            const perWeek = Math.round(myLeft / horizonWeeks);
+            // League's average weekly spend so far, as a pace comparison.
+            const weeksPlayed = Math.max(1, Math.max(...bids.map(b => b.week || 0), 0));
+            const myBids = bids.filter(b => String(b.rosterId) === myId && b.won);
+            const mySpend = myBids.reduce((s, b) => s + b.bid, 0);
+            const myPace = Math.round(mySpend / weeksPlayed);
+            const projectedUnspent = Math.max(0, Math.round(myLeft - myPace * horizonWeeks));
+            return {
+                horizonWeeks: Math.round(horizonWeeks * 10) / 10,
+                affordPerWeek: perWeek,
+                myPacePerWeek: myPace,
+                projectedUnspent,
+                cap: horizonCap,
+                // Hoarding is the failure mode this format punishes.
+                verdict: projectedUnspent > budget * 0.25 ? 'hoarding'
+                    : projectedUnspent > budget * 0.1 ? 'slightly-under'
+                    : 'on-pace',
+            };
+        })() : null;
+
         return {
             coldStart, sampleSize: bids.length,
-            budget, minBid, myLeft,
+            budget, minBid, myLeft, pacing,
             mySpentPct: mine ? spentPct(mine) : 0,
             leagueSpentPct: leagueSpent,
             marketBid, medianBid: Math.max(1, Math.round((leagueMed / 100) * budget)),

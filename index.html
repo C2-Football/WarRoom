@@ -2658,7 +2658,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
      model. Plain-JS engines (no JSX), eager like the rest of this block —
      consumed by Analytics (Season Odds), Free Agency, and Game Day. -->
 <script src="js/shared/chopped.js?v=20260805ch1"></script>
-<script src="js/shared/chop-odds.js?v=20260805ch2"></script>
+<script src="js/shared/chop-odds.js?v=20260805ch3"></script>
 <script src="js/shared/luck-engine.js?v=20260729rd1"></script>
 <!-- Commissioner's Office foundation — eager: the hub needs discoverCommissioned
      (is_owner) at boot to decide whether the office card exists at all. The six
@@ -2679,7 +2679,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script src="js/shared/commish-triage.js?v=20260801ui2"></script>
 <script src="js/shared/commish-prefs.js?v=20260801ux1"></script>
 <script src="js/shared/playoff-odds.js?v=20260805ch1"></script>
-<script src="js/shared/faab-engine.js?v=20260805ch1"></script>
+<script src="js/shared/faab-engine.js?v=20260805ch3"></script>
 <script src="js/utils/gamelog-engine.js?v=20260702scout1"></script>
 <script src="js/shared/draft-gameplan.js?v=20260616ros1"></script>
 <!-- 2e. Alex behavioral-insight settings — window.WR.AlexSettings — shared tuning for every Alex surface -->
@@ -2702,7 +2702,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script src="js/shared/txn-store.js?v=20260729rd1"></script>
 <!-- 3. Shared utilities: player valuation constants + projection engine -->
 <script type="text/babel" src="js/utils/sos-engine.js?v=20260702scout1"></script>
-<script type="text/babel" src="js/utils/player-value.js?v=20260805ch1"></script>
+<script type="text/babel" src="js/utils/player-value.js?v=20260805ch3"></script>
 <!-- 4. Feature modules (no internal dependencies between these) -->
 <!-- data-wr-defer scripts are DEFERRED: emitted INERT (type="text/wr-deferred" by
      every build/serve pipeline) so the browser does NOT parse/execute them at app
@@ -2712,7 +2712,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" src="js/settings.js?v=20260613strip1"></script>
 <script type="text/babel" data-wr-defer="trade" src="js/trade-calc.js?v=20260802rv1"></script>
 <script type="text/babel" src="js/post-draft.js?v=20260609postdraft1"></script>
-<script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260730rd7"></script>
+<script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260805ch3"></script>
 <!-- Season Odds panel loads with Game Day (owner ruling 2026-07-30) — must
      precede lineup.js in the group so window.WrSeasonOdds exists on first render. -->
 <script type="text/babel" data-wr-defer="lineup" src="js/components/season-odds-panel.js?v=20260805ch1"></script>

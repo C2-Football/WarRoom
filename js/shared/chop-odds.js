@@ -215,7 +215,7 @@
         });
 
         const myId = opts.myRosterId != null ? String(opts.myRosterId) : null;
-        return {
+        const result = {
             rows: out,
             me: myId ? out.find(r => String(r.rosterId) === myId) || null : null,
             aliveCount: n,
@@ -225,6 +225,11 @@
             // 'played' once anybody has real scores; 'projected' preseason.
             basis: rows.some(r => (r.weekly || []).length) ? 'played' : 'projected',
         };
+        // Cache per league so the value model and the FAAB engine can read the
+        // horizon synchronously (they can't await a simulation mid-render).
+        // Only cache a run that knows whose team is whose.
+        if (myId) cacheSim(league.league_id || league.id, result);
+        return result;
     }
 
     // The honest ROS horizon in this format: how many more weeks you can
@@ -234,7 +239,22 @@
         return Number(fallbackWeeks) || 0;
     }
 
-    const api = { simulate, fitDists, survivalHorizon, DEFAULT_SIMS, DEFAULT_SD };
+    // Last simulation per league, so synchronous consumers (the value model,
+    // the FAAB engine) can read the horizon without re-simulating or being
+    // made async. Written by simulate(); nothing else mutates it.
+    const _last = {};
+    function cached(leagueId) { return _last[String(leagueId || '')] || null; }
+    function cacheSim(leagueId, sim) { if (leagueId) _last[String(leagueId)] = sim; }
+    // Horizon for a league straight from the cache — the one call a sync
+    // consumer needs. Returns null when nothing has been simulated yet, so
+    // callers can keep their calendar default rather than guessing.
+    function horizonFor(leagueId, fallbackWeeks) {
+        const sim = cached(leagueId);
+        if (!sim) return (fallbackWeeks == null ? null : Number(fallbackWeeks));
+        return survivalHorizon(sim, fallbackWeeks);
+    }
+
+    const api = { simulate, fitDists, survivalHorizon, cached, horizonFor, DEFAULT_SIMS, DEFAULT_SD };
     App.ChopOdds = api;
     /* global module */
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
