@@ -85,6 +85,11 @@
     // (last 4) weigh 1.5×. Early-season guards: blend toward the league mean
     // until ~4 games exist, floor the sd — 2 quiet weeks must not read as a
     // 3-point-sd metronome.
+    // NOTE (chopped leagues): a team with zero weekly rows falls back to
+    // {mean: leagueMean} below, i.e. an eliminated team keeps "competing" as a
+    // league-average club. Chopped leagues suppress playoff odds entirely
+    // (features.showPlayoffOdds === false), so this path is unreachable there;
+    // survival odds get their own simulator rather than bending this one.
     function fitDists(ledgerRows) {
         const all = [];
         ledgerRows.forEach(t => t.weekly.forEach(g => all.push(g.pts)));

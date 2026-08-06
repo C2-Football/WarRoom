@@ -2630,13 +2630,13 @@ WRShared.preloadMany(WR_SHARED_FILES);
 
 <!-- War Room modules — loaded in dependency order by Babel standalone -->
 <!-- 1. Core: tier system, React hooks, fetch helpers (everything depends on this) -->
-<script type="text/babel" src="js/core.js?v=20260802rv1"></script>
+<script type="text/babel" src="js/core.js?v=20260805ch1"></script>
 <!-- 1a. Central data-sync manager — window.WR.Sync — stale-while-revalidate on tab return + in-season interval (plain JS) -->
 <script src="js/shared/sync-manager.js?v=20260706sync1"></script>
 <!-- 1a2. Shared viewport seam — WR.useViewport() hook + WR.viewport() snapshot (plain JS; must precede components.js and all tab files) -->
 <script src="js/shared/viewport.js?v=20260707vp1"></script>
 <!-- 1b. Format/phase skin contract for league-type-aware modules -->
-<script src="js/league-skin.js?v=20260702bye1"></script>
+<script src="js/league-skin.js?v=20260805ch1"></script>
 <!-- 2. Shared components: UpgradeGate, GMMessage, PlayerInlineCard -->
 <script type="text/babel" src="js/components.js?v=20260803rv2"></script>
 <!-- 2b. Unified Player Card (SI-2) — window.WR.openPlayerCard — replaces CDN modal -->
@@ -2657,6 +2657,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- Redraft add-ons (2026-07-29): luck ledger, playoff Monte Carlo, FAAB bid
      model. Plain-JS engines (no JSX), eager like the rest of this block —
      consumed by Analytics (Season Odds), Free Agency, and Game Day. -->
+<script src="js/shared/chopped.js?v=20260805ch1"></script>
 <script src="js/shared/luck-engine.js?v=20260729rd1"></script>
 <!-- Commissioner's Office foundation — eager: the hub needs discoverCommissioned
      (is_owner) at boot to decide whether the office card exists at all. The six
@@ -2676,8 +2677,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script src="js/shared/commish-treasury.js?v=20260801gv1"></script>
 <script src="js/shared/commish-triage.js?v=20260801ui2"></script>
 <script src="js/shared/commish-prefs.js?v=20260801ux1"></script>
-<script src="js/shared/playoff-odds.js?v=20260729rd1"></script>
-<script src="js/shared/faab-engine.js?v=20260729rd1"></script>
+<script src="js/shared/playoff-odds.js?v=20260805ch1"></script>
+<script src="js/shared/faab-engine.js?v=20260805ch1"></script>
 <script src="js/utils/gamelog-engine.js?v=20260702scout1"></script>
 <script src="js/shared/draft-gameplan.js?v=20260616ros1"></script>
 <!-- 2e. Alex behavioral-insight settings — window.WR.AlexSettings — shared tuning for every Alex surface -->
@@ -2700,7 +2701,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script src="js/shared/txn-store.js?v=20260729rd1"></script>
 <!-- 3. Shared utilities: player valuation constants + projection engine -->
 <script type="text/babel" src="js/utils/sos-engine.js?v=20260702scout1"></script>
-<script type="text/babel" src="js/utils/player-value.js?v=20260802rv1"></script>
+<script type="text/babel" src="js/utils/player-value.js?v=20260805ch1"></script>
 <!-- 4. Feature modules (no internal dependencies between these) -->
 <!-- data-wr-defer scripts are DEFERRED: emitted INERT (type="text/wr-deferred" by
      every build/serve pipeline) so the browser does NOT parse/execute them at app
@@ -2713,7 +2714,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260730rd7"></script>
 <!-- Season Odds panel loads with Game Day (owner ruling 2026-07-30) — must
      precede lineup.js in the group so window.WrSeasonOdds exists on first render. -->
-<script type="text/babel" data-wr-defer="lineup" src="js/components/season-odds-panel.js?v=20260730so1"></script>
+<script type="text/babel" data-wr-defer="lineup" src="js/components/season-odds-panel.js?v=20260805ch1"></script>
 <script type="text/babel" data-wr-defer="lineup" src="js/tabs/lineup.js?v=20260730so1"></script>
 <!-- 4b. Draft Command Center modules — group "draft" (~28 scripts, ~1.26MB),
      loaded on first Draft-tab open. -->
@@ -2796,7 +2797,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
      "alex" lazy group — inert at boot, loaded on first GM's Office / Strategy open. -->
 <script type="text/babel" data-wr-defer="alex" src="js/tabs/strategy-editor.js?v=20260613rec1"></script>
 <!-- 7. League detail: coordinator shell, depends on all above -->
-    <script type="text/babel" src="js/league-detail.js?v=20260803rv2"></script>
+    <script type="text/babel" src="js/league-detail.js?v=20260805ch1"></script>
 <!-- 8. App: OwnerDashboard + ReactDOM.render (loads last) -->
 <script type="text/babel" src="js/app.js?v=20260706hub1"></script>
 

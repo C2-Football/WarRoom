@@ -62,6 +62,11 @@
             || ('Team ' + roster.roster_id);
     }
 
+    // Elimination awareness for CHOPPED leagues. Read lazily: chopped.js loads
+    // before this file in the browser and Node tests require it first, but a
+    // missing module must degrade to "nobody is eliminated" rather than throw.
+    const choppedOf = () => (App && App.Chopped) || null;
+
     // Positional need from live rosters: healthy bodies at the position vs the
     // dedicated starting slots for it. HIGH = can't fill the slots without this
     // add (or exactly fills them — one injury from a hole), MED = one deep.
@@ -146,8 +151,15 @@
             return Math.max(0.5, Math.min(2, (quantile(own, 0.5) || leagueMed) / leagueMed));
         };
 
+        // A CHOPPED team is not a rival. Its roster is empty (so needAt saw
+        // zero bodies and returned HIGH at every position) and its budget is
+        // frozen rather than zeroed (so faabLeft stayed large) — which made
+        // every eliminated team read as a fully-funded, high-need bidder and
+        // inflated the recommendation with each week of the season. In an
+        // 18-team chopped league that is 17 ghosts by the end.
         const rivals = rosters
             .filter(r => String(r.roster_id) !== myId)
+            .filter(r => { const Ch = choppedOf(); return !(Ch && Ch.isEliminated(r)); })
             .map(r => {
                 const need = pos ? needAt(r, pos, league, playersData) : 'MED';
                 const faabLeft = leftOf(r);
@@ -190,8 +202,12 @@
         if (!rec) rec = { bid: Math.min(cap, myLeft), winPct: winPct(Math.min(cap, myLeft)), capped: true };
 
         const spentPct = r => budget ? Math.round(((budget - leftOf(r)) / budget) * 100) : 0;
-        const leagueSpent = rosters.length
-            ? Math.round(rosters.reduce((s, r) => s + spentPct(r), 0) / rosters.length) : 0;
+        // Average over LIVE teams only — a chopped team's spend is frozen, so
+        // counting corpses drags league spend down every week and makes the
+        // market read cheaper than it is.
+        const liveRosters = rosters.filter(r => { const Ch = choppedOf(); return !(Ch && Ch.isEliminated(r)); });
+        const leagueSpent = liveRosters.length
+            ? Math.round(liveRosters.reduce((s, r) => s + spentPct(r), 0) / liveRosters.length) : 0;
 
         return {
             coldStart, sampleSize: bids.length,
