@@ -65,6 +65,9 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     // Preferences (managed leagues / alert types / per-item state) live in
     // storage; prefTick is the single re-read signal after any mutation.
     const [prefTick, setPrefTick] = React.useState(0);
+    // Commissioner's manual board (tasks/milestones/events) — same re-read
+    // signal shape as every other storage-backed piece of the office.
+    const [tasksTick, setTasksTick] = React.useState(0);
     const [actionItem, setActionItem] = React.useState(null); // the open action drawer
     const [navOpen, setNavOpen] = React.useState(false);      // phone sidebar
     // Rule Lab data loads lazily on first open — 18 weeks of league-independent
@@ -576,6 +579,28 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         return out;
     }, [state.status, ackTick]);
 
+    // ── Manual board: tasks/milestones/events the commissioner adds by hand
+    // ── (js/shared/commish-tasks.js). Merged into the Master Calendar's
+    // event feed for display only — Genesis/Triage keep reading the
+    // auto-derived state.calendar.events untouched, so a hand-added "collect
+    // dues" note never masquerades as a Sleeper-sourced readiness signal.
+    const taskItems = React.useMemo(() => {
+        try { return C?.Tasks?.list ? C.Tasks.list() : []; } catch (e) { return []; }
+    }, [tasksTick]);
+    const opsCalendar = React.useMemo(() => {
+        const auto = (state.status === 'ready' && state.calendar && state.calendar.events) || [];
+        if (!C?.Tasks) return { events: auto };
+        const leagueNameOf = (lid) => {
+            const l = (state.mine || []).find(l => String(l.league_id || l.id) === String(lid));
+            return l ? l.name : null;
+        };
+        const manual = C.Tasks.asEvents(taskItems, { leagueNameOf, nowMs: Date.now() });
+        return { events: C.Tasks.mergeSorted(auto, manual) };
+    }, [state.status, state.calendar, taskItems]);
+    const onAddTask = (input) => { try { C?.Tasks?.add?.(input, { nowMs: Date.now() }); } catch (e) { /* board is best-effort */ } setTasksTick(t => t + 1); };
+    const onToggleTask = (id) => { try { C?.Tasks?.toggleDone?.(id, { nowMs: Date.now() }); } catch (e) { /* unchanged */ } setTasksTick(t => t + 1); };
+    const onRemoveTask = (id) => { try { C?.Tasks?.remove?.(id); } catch (e) { /* unchanged */ } setTasksTick(t => t + 1); };
+
     const rawQueue = React.useMemo(() => {
         if (state.status !== 'ready' || !C?.Triage?.buildQueue) return null;
         try {
@@ -933,7 +958,10 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                 {tab === 'network' ? (Net ? <Net coefficient={state.coefficient} graph={state.graph} /> : missing('Coefficient')) : null}
                 {tab === 'people' ? (People ? <People radar={state.radar} seats={state.seats} benches={state.benches} prospectuses={state.prospectuses} folders={state.folders} onCopy={onCopy} /> : missing('People desk')) : null}
                 {tab === 'people' && state.renewal && window.WrCommishRenewalPanel ? <window.WrCommishRenewalPanel forecast={state.renewal} /> : null}
-                {tab === 'ops' ? (Ops ? <Ops drift={state.drift} calendar={state.calendar} conflicts={state.conflicts} onAcknowledge={onAcknowledge} ackTick={ackTick} /> : missing('Ops desk')) : null}
+                {tab === 'ops' ? (Ops ? <Ops drift={state.drift} calendar={opsCalendar} conflicts={state.conflicts}
+                    leagues={(state.mine || []).map(l => ({ id: String(l.league_id || l.id), name: l.name }))}
+                    onAcknowledge={onAcknowledge} onAddTask={onAddTask} onToggleTask={onToggleTask} onRemoveTask={onRemoveTask}
+                    ackTick={ackTick} /> : missing('Ops desk')) : null}
                 {tab === 'programmes' ? (Prog ? <Prog programmes={state.programmes} onExportAll={onExportAll} /> : missing('Programme rack')) : null}
                 {tab === 'rulelab' ? (window.WrCommishRuleLabPanel ? (
                     <window.WrCommishRuleLabPanel
