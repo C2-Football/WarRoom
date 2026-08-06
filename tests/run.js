@@ -137,6 +137,10 @@ process.stdout.write('  Loading player-value.js … ');
 loadScript(ctx, 'js/utils/player-value.js');
 process.stdout.write('OK\n');
 
+process.stdout.write('  Loading chopped.js … ');
+loadScript(ctx, 'js/shared/chopped.js');
+process.stdout.write('OK\n');
+
 // trade-calc.js uses JSX throughout; extract only the pure function
 process.stdout.write('  Extracting computeWeightedDNA … ');
 const tradeCalcSrc = fs.readFileSync(path.join(ROOT, 'js/trade-calc.js'), 'utf8');
@@ -802,6 +806,102 @@ test('marks DHQ as degraded when LI loaded but owned assets are unvalued',
     ok(dhq, 'expected DHQ quality item');
     eq(dhq.status, 'degraded');
     eq(m.totals.useValueShare, false);
+  });
+
+// ── CHOPPED-league awareness: a third province, format type 3. Its
+// roster carries DELIBERATELY NONZERO wins/losses (impossible on real
+// Sleeper data) specifically so the aggregate-exclusion assertions below
+// are falsifiable — if totalRecord ever stopped filtering chopped
+// provinces, these numbers would leak in and the test would catch it.
+function empireFixtureWithChopped(rosterOverrides) {
+  const base = empireFixture();
+  base.allLeagues = base.allLeagues.concat([{
+    id: 'l3',
+    name: 'Gamma Chopped',
+    season: '2026',
+    settings: { type: 3, last_chopped_leg: 17 },
+    rosters: [
+      Object.assign({
+        roster_id: 5, owner_id: 'u1', players: ['p1'],
+        settings: { wins: 99, losses: 99 },   // impossible on Sleeper; proves the filter is real
+      }, rosterOverrides || {}),
+      { roster_id: 6, owner_id: 'u4', players: [], settings: { eliminated: 2, locked: 1 } },
+    ],
+    tradedPicks: [],
+  }]);
+  // Preserve the base fixture's per-roster assessTeam (roster 1 → 82,
+  // everything else → 34) for rosters 1-4 so l1/l2 stay directly comparable
+  // to the no-chopped baseline; roster 5 gets its OWN real health score (55)
+  // — the point of the next test is proving the ENGINE nulls it once
+  // eliminated, not that the assessment pipeline already knows to skip it.
+  const baseAssessTeam = base.assessTeam;
+  base.assessTeam = rid => (rid === 5 ? { healthScore: 55, tier: 'CONTENDER', needs: [], strengths: [] } : baseAssessTeam(rid));
+  return base;
+}
+
+test('chopped province: tagged isChopped, alive roster gets an "N of M alive" record label',
+  () => {
+    const m = buildEmpirePortfolioModel(empireFixtureWithChopped());
+    const gamma = m.provinces.find(p => p.id === 'l3');
+    ok(gamma, 'expected the chopped province');
+    eq(gamma.isChopped, true);
+    eq(gamma.isEliminated, false);
+    eq(gamma.recordLabel, '1 of 2 alive');
+  });
+
+test('chopped province: an eliminated roster is labelled by its elimination week, not 0-0',
+  () => {
+    const m = buildEmpirePortfolioModel(empireFixtureWithChopped({ settings: { eliminated: 4, locked: 1 } }));
+    const gamma = m.provinces.find(p => p.id === 'l3');
+    eq(gamma.isEliminated, true);
+    eq(gamma.eliminatedWeek, 4);
+    eq(gamma.recordLabel, 'Chopped wk 4');
+  });
+
+test('chopped province: an eliminated roster\'s health score is nulled at the source',
+  () => {
+    const m = buildEmpirePortfolioModel(empireFixtureWithChopped({ settings: { eliminated: 4, locked: 1 } }));
+    const gamma = m.provinces.find(p => p.id === 'l3');
+    eq(gamma.healthScore, null, 'an empty, waivers-released roster has no health signal');
+  });
+
+test('chopped province: totalRecord EXCLUDES it from the aggregate regardless of alive/eliminated',
+  () => {
+    const withChopped = buildEmpirePortfolioModel(empireFixtureWithChopped());
+    const withoutChopped = buildEmpirePortfolioModel(empireFixture());
+    // The chopped roster's wins:99/losses:99 would blow these numbers up if
+    // the aggregate ever stopped filtering it out. Record is excluded for a
+    // chopped province EVEN WHILE ALIVE — chopped leagues never have a real
+    // W-L, alive or not.
+    eq(withChopped.totals.totalRecord.wins, withoutChopped.totals.totalRecord.wins,
+      'a chopped province never contributes to the record aggregate');
+    eq(withChopped.totals.totalRecord.losses, withoutChopped.totals.totalRecord.losses);
+  });
+
+test('chopped province: avgHealth excludes it ONLY once eliminated (alive roster health still counts)',
+  () => {
+    const withoutChopped = buildEmpirePortfolioModel(empireFixture());
+    const aliveChopped = buildEmpirePortfolioModel(empireFixtureWithChopped());
+    const eliminatedChopped = buildEmpirePortfolioModel(empireFixtureWithChopped({ settings: { eliminated: 4, locked: 1 } }));
+    // Alive: roster 5's health score (55) is real signal and SHOULD count —
+    // being in a chopped league does not itself invalidate a live roster's
+    // health read, only an eliminated (empty, released) one does.
+    ok(aliveChopped.totals.avgHealth !== withoutChopped.totals.avgHealth,
+      'an alive chopped roster\'s health score is real and moves the average');
+    // Eliminated: nulled at the source, so the average reverts to exactly
+    // what it would be without the chopped league at all.
+    eq(eliminatedChopped.totals.avgHealth, withoutChopped.totals.avgHealth,
+      'once eliminated, the empty roster contributes nothing to avgHealth');
+  });
+
+test('non-chopped provinces are completely unaffected by chopped-awareness',
+  () => {
+    const m = buildEmpirePortfolioModel(empireFixtureWithChopped());
+    const alpha = m.provinces.find(p => p.id === 'l1');
+    eq(alpha.isChopped, false);
+    eq(alpha.isEliminated, false);
+    eq(alpha.recordLabel, '8-3', 'ordinary leagues still get a plain W-L label');
+    eq(alpha.healthScore, 82, 'ordinary leagues keep their real health score, untouched by chopped-awareness');
   });
 
 // ══════════════════════════════════════════════════════════════════

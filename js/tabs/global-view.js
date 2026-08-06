@@ -110,6 +110,19 @@ function buildEmpirePortfolioModel(input) {
         strategyTotals[status] = (strategyTotals[status] || 0) + 1;
         const wins = myRoster.settings?.wins || league?.wins || 0;
         const losses = myRoster.settings?.losses || league?.losses || 0;
+        // CHOPPED leagues never accrue a W-L record (no matchups) and an
+        // eliminated roster's health score comes from an empty, waivers-
+        // released roster — neither means what it means in every other
+        // format. Read it once here so every downstream aggregate/display
+        // can treat this province honestly instead of quietly averaging in
+        // a permanent 0-0 or a garbage health number.
+        const Chopped = window.App?.Chopped;
+        const isChopped = !!(Chopped && Chopped.isChopped(league));
+        const isEliminated = isChopped && Chopped.isEliminated(myRoster);
+        const chopState = isChopped ? Chopped.state({ league, rosters }) : null;
+        const recordLabel = !isChopped ? (wins + '-' + losses)
+            : isEliminated ? ('Chopped wk ' + Chopped.eliminatedWeek(myRoster))
+            : ((chopState?.aliveCount || 0) + ' of ' + (chopState?.teams || rosters.length) + ' alive');
         const totalDHQ = rosterPlayers.reduce((sum, pid) => sum + (scores[pid] || 0), 0);
         const ranked = rosters.slice().sort((a, b) => {
             const av = (a.players || []).reduce((sum, pid) => sum + (scores[pid] || 0), 0);
@@ -126,9 +139,19 @@ function buildEmpirePortfolioModel(input) {
             teams: rosters.length || league?.total_rosters || 0,
             wins,
             losses,
+            isChopped,
+            isEliminated,
+            eliminatedWeek: isEliminated ? Chopped.eliminatedWeek(myRoster) : null,
+            aliveCount: chopState?.aliveCount ?? null,
+            recordLabel,
             totalDHQ,
             avgDHQ: rosterPlayers.length ? Math.round(totalDHQ / rosterPlayers.length) : 0,
-            healthScore,
+            // An eliminated roster's health score is computed off an empty,
+            // waivers-released roster — not signal, not even a low signal.
+            // Nulling it here (rather than at each of the ~6 display sites)
+            // makes every existing `healthScore ?? 'No read'` fallback do
+            // the right thing automatically, and keeps it out of avgHealth.
+            healthScore: isEliminated ? null : healthScore,
             tier,
             tierColor: tierColor(tier),
             status,
@@ -275,7 +298,11 @@ function buildEmpirePortfolioModel(input) {
     const positionAllocation = finalizeTotals(positionTotals);
     const ageAllocation = finalizeTotals(ageTotals);
     const tierAllocation = finalizeTotals(tierTotals);
-    const totalRecord = provinces.reduce((sum, p) => ({ wins: sum.wins + p.wins, losses: sum.losses + p.losses }), { wins: 0, losses: 0 });
+    // CHOPPED provinces never accrue a W-L record — their wins/losses are
+    // permanently 0-0 by format, not "hasn't played yet". Summing them in
+    // would silently drag the aggregate win% toward 0 as the season goes on
+    // in every OTHER league while this one sits at a structural 0-0.
+    const totalRecord = provinces.filter(p => !p.isChopped).reduce((sum, p) => ({ wins: sum.wins + p.wins, losses: sum.losses + p.losses }), { wins: 0, losses: 0 });
     const assessedHealth = provinces.map(p => p.healthScore).filter(v => v != null);
     const avgHealth = assessedHealth.length ? Math.round(assessedHealth.reduce((sum, v) => sum + v, 0) / assessedHealth.length) : null;
     const pickYears = {};
@@ -1518,6 +1545,10 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const [filters, setFilters] = useState(emptyFilters);
     const [sort, setSort] = useState('dhq');
     const [detail, setDetail] = useState(null);
+    // Arbitrage board default: owned rows only. The board is sorted
+    // mine-first regardless, but a portfolio with a deep player pool can
+    // bury your own leverage under market-only rows without this.
+    const [arbMineOnly, setArbMineOnly] = useState(true);
     const normPos = window.App?.normPos || (p => p);
     // KNOWN APPROXIMATION (H5): playerScores come from the one LeagueIntel currently loaded,
     // so all leagues' Empire DHQ (Empire Value, asset values, move math) are scored in that
@@ -1569,9 +1600,10 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                 priorData: markData.prior,
                 projectionsData: markData.proj,
                 playerScores: window.App?.LI?.playerScores || null,
+                myUserId: sleeperUserId,
             }) || null;
         } catch (e) { window.wrLog?.('empire.marks', e); return null; }
-    }, [allLeagues, playersData, markData, window.App?.LI_LOADED]);
+    }, [allLeagues, playersData, markData, sleeperUserId, window.App?.LI_LOADED]);
     // Does this empire contain any long-horizon league? Dynasty vocabulary
     // (contend/rebuild postures, age lenses) only means something if so.
     const hasLongTerm = useMemo(() => (allLeagues || []).some(l => {
@@ -1651,7 +1683,11 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         };
         assets.sort(sorters[sort] || sorters.dhq);
         const totalDHQ = assets.reduce((sum, a) => sum + a.dhq, 0);
-        const totalRecord = provinces.reduce((sum, p) => ({ wins: sum.wins + p.wins, losses: sum.losses + p.losses }), { wins: 0, losses: 0 });
+        // CHOPPED provinces never accrue a W-L record — their wins/losses are
+        // permanently 0-0 by format, not "hasn't played yet". Summing them in
+        // would silently drag the aggregate win% toward 0 as the season goes
+        // on in every OTHER league while this one sits at a structural 0-0.
+        const totalRecord = provinces.filter(p => !p.isChopped).reduce((sum, p) => ({ wins: sum.wins + p.wins, losses: sum.losses + p.losses }), { wins: 0, losses: 0 });
         const healths = provinces.map(p => p.healthScore).filter(v => v != null);
         const avgHealth = healths.length ? Math.round(healths.reduce((sum, v) => sum + v, 0) / healths.length) : null;
         return { provinces, assets, picks, totalDHQ, totalRecord, avgHealth };
@@ -1811,7 +1847,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                                     <button key={asset.leagueId} className="empire-league-card" style={{ '--tone': province?.tierColor || 'var(--k-d4af37, #d4af37)' }} type="button" onClick={() => setDetail({ type: 'league', leagueId: asset.leagueId })}>
                                         <div>
                                             <strong>{asset.leagueName}</strong>
-                                            <span>{province?.tier || 'UNKNOWN'} - {province?.wins || 0}-{province?.losses || 0} - HP {province?.healthScore ?? 'No read'}</span>
+                                            <span>{province?.tier || 'UNKNOWN'} - {province?.recordLabel || ((province?.wins || 0) + '-' + (province?.losses || 0))} - HP {province?.healthScore ?? 'No read'}</span>
                                             <em>{province?.needs?.length ? 'Needs: ' + province.needs.join(', ') : 'No critical need flagged'}</em>
                                         </div>
                                         <b>{asset.dhq > 0 ? empireCompact(asset.dhq) : 'No DHQ'}</b>
@@ -1844,7 +1880,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                     <section className="empire-detail-hero">
                         <div>
                             <h1>{province.name}</h1>
-                            <p>{province.tier} - {province.wins}-{province.losses} - rank {province.powerRank || '-'} of {province.teams || '-'}</p>
+                            <p>{province.tier} - {province.recordLabel} - rank {province.powerRank || '-'} of {province.teams || '-'}</p>
                         </div>
                     </section>
                     <div className="empire-detail-metrics">
@@ -2500,34 +2536,50 @@ const renderScoutDetail = () => {
                             Every league marked to its own book, so the same
                             player carries a different price in each — and the
                             spread is a trade only a portfolio can see. */}
-                        {marks && marks.arbitrage.length ? (
+                        {marks && marks.arbitrage.length ? (() => {
+                            const mineTotal = marks.arbitrage.reduce((n, a) => n + (a.spreadMine ? 1 : 0), 0);
+                            const rows = (arbMineOnly ? marks.arbitrage.filter(a => a.spreadMine) : marks.arbitrage).slice(0, 6);
+                            return (
                             <section className="empire-bridge" data-testid="empire-arbitrage">
                                 <div className="empire-panel" style={{ gridColumn: '1 / -1' }}>
                                     <div className="empire-panel-head">
                                         <strong>Arbitrage — same player, different books</strong>
-                                        <em>{marks.arbitrage.length} spreads · {Object.keys(marks.byLeague).length} leagues marked</em>
+                                        <em>{marks.arbitrage.length} spreads · {mineTotal} touch your roster · {Object.keys(marks.byLeague).length} leagues marked</em>
                                     </div>
+                                    {mineTotal > 0 ? (
+                                        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                                            <button type="button" onClick={() => setArbMineOnly(true)}
+                                                className={'empire-filter' + (arbMineOnly ? ' is-active' : '')}>Mine ({mineTotal})</button>
+                                            <button type="button" onClick={() => setArbMineOnly(false)}
+                                                className={'empire-filter' + (!arbMineOnly ? ' is-active' : '')}>All ({marks.arbitrage.length})</button>
+                                        </div>
+                                    ) : null}
                                     <div className="empire-stack">
-                                        {marks.arbitrage.slice(0, 6).map(a => (
+                                        {rows.length ? rows.map(a => (
                                             <button key={a.pid} type="button" className="empire-signal" style={{ '--tone': 'var(--purple)' }}
                                                 onClick={() => setDetail && setDetail({ type: 'player', pid: a.pid })}>
                                                 <div className="empire-signal-top">
                                                     <strong>{a.name}{a.pos ? ' · ' + a.pos : ''}</strong>
+                                                    {a.spreadMine ? <b style={{ color: 'var(--gold)' }}>YOURS</b> : null}
                                                     <b>+{a.spreadPct}%</b>
                                                 </div>
                                                 <span>
                                                     Worth <b>{a.high.value.toLocaleString()}</b> in {a.high.name} vs <b>{a.low.value.toLocaleString()}</b> in {a.low.name} — {a.gap.toLocaleString()} of value between your own books.
                                                 </span>
-                                                <em>Sell where he is dear, buy where he is cheap</em>
+                                                {/* Ownership FACTS, not a buy-here-sell-there instruction — these
+                                                    are independent player pools and nobody can move him between
+                                                    them. Leverage where you hold him, intel where you don't. */}
+                                                <em>{a.note}</em>
                                             </button>
-                                        ))}
+                                        )) : <div className="empire-empty"><strong>No owned spreads right now</strong>Nothing you roster carries a big enough gap between leagues. Switch to "All" for market intel.</div>}
                                     </div>
                                     <div className="empire-brief-meta" style={{ marginTop: 10, textTransform: 'none', letterSpacing: 0, fontWeight: 500, color: 'var(--ov-7, rgba(255,255,255,0.5))' }}>
-                                        League-scored seasonal prices — each league priced on its own scoring, roster slots and team count. Not a dynasty valuation.
+                                        League-scored seasonal prices — each league priced on its own scoring, roster slots and team count. Not a dynasty valuation. Leagues are independent player pools: a spread is a trade-leverage read on your OWN rostered asset, never an instruction to move him between leagues.
                                     </div>
                                 </div>
                             </section>
-                        ) : null}
+                            );
+                        })() : null}
                         <section className="empire-bridge" data-testid="empire-bridge">
                             <div className="empire-panel">
                                 <div className="empire-panel-head"><strong>Alex — Empire Brief</strong><em>{userName}</em></div>
@@ -2606,7 +2658,7 @@ const renderScoutDetail = () => {
                                             <button key={province.id} className="empire-league-card" style={{ '--tone': province.tierColor }} type="button" onClick={() => setDetail({ type: 'league', leagueId: province.id })}>
                                                 <div>
                                                     <strong>{province.name}</strong>
-                                                    <span>{province.tier} - {province.wins}-{province.losses} - HP {province.healthScore ?? 'No read'}</span>
+                                                    <span>{province.tier} - {province.recordLabel} - HP {province.healthScore ?? 'No read'}</span>
                                                     <em>{province.pickCount} picks - {province.premiumPickCount} premium - #{province.powerRank || '-'}/{province.teams || '-'}</em>
                                                 </div>
                                                 <b>{province.totalDHQ > 0 ? empireCompact(province.totalDHQ) : 'No DHQ'}</b>
@@ -2722,6 +2774,13 @@ function buildCommandBridge(input) {
     const games = (rec.wins || 0) + (rec.losses || 0);
     const winPctStr = games ? ('.' + String(Math.round((rec.wins / games) * 1000)).padStart(3, '0')).replace('.1000', '1.000') : '—';
     const playoffSpots = provinces.filter(inPlayoffSpot).length;
+    // Chopped leagues never accrue a W-L record (totalRecord already excludes
+    // them above) — surface that on the tile itself rather than let the KPI
+    // silently look like a 3-league record when it is really across 4.
+    const choppedProvinces = provinces.filter(p => p.isChopped);
+    const choppedNote = choppedProvinces.length
+        ? choppedProvinces.length + ' on survival rules (' + choppedProvinces.map(p => p.isEliminated ? 'chopped wk ' + p.eliminatedWeek : (p.aliveCount || '?') + ' of ' + p.teams + ' alive').join(', ') + ')'
+        : null;
 
     const dhqDelta = delta ? delta.totalDHQDelta : null;
     // prevDHQ must come from the delta's own universe (leagues that have a prior snapshot),
@@ -2736,7 +2795,7 @@ function buildCommandBridge(input) {
           sub: 'DHQ across ' + (totals.leagues || 0) + ' leagues',
           delta: dhqDelta != null ? { dir: dir(dhqDelta), pct: dhqPct } : null },
         { key: 'record', label: 'Record', value: (rec.wins || 0) + '–' + (rec.losses || 0),
-          sub: winPctStr + (games ? ' · ' + playoffSpots + ' in playoff spots' : '') },
+          sub: winPctStr + (games ? ' · ' + playoffSpots + ' in playoff spots' : '') + (choppedNote ? ' · ' + choppedNote : '') },
         { key: 'health', label: 'Avg Health', value: totals.avgHealth != null ? String(totals.avgHealth) : '—',
           tone: healthTone(totals.avgHealth),
           sub: healthDelta == null ? 'no prior week yet'
