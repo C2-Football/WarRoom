@@ -248,7 +248,6 @@
         const spent = myRoster?.settings?.waiver_budget_used || 0;
         const remaining = Math.max(0, budget - spent);
         const hasFAAB = budget > 0;
-        const faabMinBid = currentLeague?.settings?.waiver_budget_min ?? 0;
         const teamTier = assess?.tier || '';
         const teamWindow = assess?.window || '';
         // GM Strategy outranks the roster grade for FA posture: a committed plan
@@ -256,6 +255,9 @@
         // strategy-less users. The rebuild age gate follows the GM timeline
         // (shorter window = looser youth filter); 25 is the legacy default.
         const gmEff = window.WR?.GmMode?.effects?.(currentLeague?.id || currentLeague?.league_id) || {};
+        // GM Strategy's minimum-bid override wins over the imported platform
+        // setting (some leagues/platforms don't expose it reliably).
+        const faabMinBid = gmEff.faabMinBid || (currentLeague?.settings?.waiver_budget_min ?? 0);
         const isRebuilding = gmEff.hasStrategy ? gmEff.mode === 'rebuild' : (teamTier === 'REBUILDING' || teamWindow === 'REBUILDING');
         const isContending = gmEff.hasStrategy ? gmEff.mode === 'win_now' : (teamTier === 'ELITE' || teamTier === 'CONTENDER' || teamWindow === 'CONTENDING');
         const faAgeGate = gmEff.hasStrategy ? ({ '1_year': 29, '2_3_years': 27, 'dynasty_long': 25 }[gmEff.timeline] || 25) : 25;
@@ -654,10 +656,15 @@
                 try {
                     const txns = await window.WrTxns.fetchLeagueTxns(lid);
                     const failed = window.WrTxns.getFailedWaivers(lid);
+                    // GM Strategy's minimum-bid override wins over the imported
+                    // platform setting (some leagues/platforms don't expose it
+                    // reliably) — same precedence as the recommendation panels.
+                    const gmEff = window.WR?.GmMode?.effects?.(lid) || {};
                     const a = window.App.Faab.analyze({
                         league, myRosterId: myRoster?.roster_id,
                         txns: (txns || []).concat(failed || []),
                         playersData,
+                        minBidOverride: gmEff.faabMinBid || undefined,
                         targetPid: target.pid, targetPos: target.pos,
                         // Strength: DHQ vs an elite-FA benchmark (6000 ≈ a league-winning add).
                         targetStrength: Math.max(0.15, Math.min(1, (Number(target.dhq) || 0) / 6000)),
@@ -1170,7 +1177,9 @@
         const spent = myRoster?.settings?.waiver_budget_used || 0;
         const remaining = Math.max(0, budget - spent);
         const hasFAAB = budget > 0;
-        const faabMinBid = currentLeague?.settings?.waiver_budget_min ?? 0;
+        // GM Strategy's minimum-bid override wins over the imported platform
+        // setting (some leagues/platforms don't expose it reliably).
+        const faabMinBid = gmEff.faabMinBid || (currentLeague?.settings?.waiver_budget_min ?? 0);
 
         // ── League format detection (for scarcity multipliers) ──
         const rosterPositions = currentLeague?.roster_positions || [];

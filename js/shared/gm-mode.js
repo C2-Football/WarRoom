@@ -297,6 +297,9 @@
             untouchable: toSet(strategy.untouchable || strategy.untouchables),
             sellRules: strategy.sellRules || [],
             faFilters: strategy.faFilters || null,
+            // User-set league FAAB minimum-bid override (0 = unset — callers
+            // fall back to league.settings.waiver_budget_min).
+            faabMinBid: Math.max(0, Number(strategy.faabMinBid) || 0),
             marketPosture,
             timeline,
             // Legacy tolerance (2026-07-08 single-voice ruling): alexPersonality

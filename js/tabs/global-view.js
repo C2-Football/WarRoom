@@ -1513,7 +1513,7 @@ function EmpireStyles() {
 }
 
 function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague, onBack }) {
-    const { useState, useMemo, useCallback } = React;
+    const { useState, useMemo, useCallback, useEffect } = React;
     const emptyFilters = { league: '', status: '', position: '', agePhase: '', tier: '', exposure: '', assetType: '' };
     const [filters, setFilters] = useState(emptyFilters);
     const [sort, setSort] = useState('dhq');
@@ -1526,6 +1526,58 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     // A league-neutral DHQ-scale score is a deferred engine refinement (fcValue is FC-scale +
     // sparse, so it can't simply be swapped in without breaking the DHQ scale).
     const scores = window.App?.LI?.playerScores || {};
+    // ── MARK TO LEAGUE ───────────────────────────────────────────────
+    // H5 above is why this exists: `scores` is one league's book applied to
+    // all of them. EmpireValues re-prices every league on its OWN scoring,
+    // roster slots and team count, which is the only thing the value doctrine
+    // allows to move a price — and the spread between those books IS the
+    // arbitrage. Purely additive: `scores` still drives the existing model,
+    // so nothing below changes shape if this returns null.
+    // Empire runs at the HUB, above any single league, so the per-league
+    // hydrate bridge (window.S.priorData / projectionsData) is empty here.
+    // The inputs it needs are league-INDEPENDENT — one season of prior stats
+    // and one projection set serve every league — so fetch them once.
+    const [markData, setMarkData] = useState(null);
+    useEffect(() => {
+        let alive = true;
+        (async () => {
+            const bridge = window.S || {};
+            if (Object.keys(bridge.projectionsData || {}).length) {
+                setMarkData({ prior: bridge.priorData || {}, proj: bridge.projectionsData || {}, stats: bridge.statsData || {} });
+                return;
+            }
+            try {
+                const season = String(bridge.nflState?.season || new Date().getFullYear());
+                const prevSeason = String(Number(season) - 1);
+                const [proj, prior] = await Promise.all([
+                    window.fetchSeasonProjections ? window.fetchSeasonProjections(season).catch(() => ({})) : Promise.resolve({}),
+                    window.fetchSeasonStats ? window.fetchSeasonStats(prevSeason).catch(() => ({})) : Promise.resolve({}),
+                ]);
+                if (alive) setMarkData({ prior: prior || {}, proj: proj || {}, stats: {} });
+            } catch (e) { if (alive) setMarkData({ prior: {}, proj: {}, stats: {} }); }
+        })();
+        return () => { alive = false; };
+    }, []);
+
+    const marks = useMemo(() => {
+        if (!markData) return null;
+        try {
+            return window.App?.EmpireValues?.build?.({
+                leagues: allLeagues,
+                playersData,
+                statsData: markData.stats,
+                priorData: markData.prior,
+                projectionsData: markData.proj,
+                playerScores: window.App?.LI?.playerScores || null,
+            }) || null;
+        } catch (e) { window.wrLog?.('empire.marks', e); return null; }
+    }, [allLeagues, playersData, markData, window.App?.LI_LOADED]);
+    // Does this empire contain any long-horizon league? Dynasty vocabulary
+    // (contend/rebuild postures, age lenses) only means something if so.
+    const hasLongTerm = useMemo(() => (allLeagues || []).some(l => {
+        const ty = Number(l?.settings?.type);
+        return ty === 1 || ty === 2;
+    }), [allLeagues]);
     const posColors = window.App?.POS_COLORS || {};
     const scoreKey = Object.keys(scores).length + ':' + (window.App?.LI_LOADED ? 'ready' : 'loading');
     const userName = window.S?.user?.display_name || window.S?.user?.username || 'Commander';
@@ -2420,8 +2472,10 @@ const renderScoutDetail = () => {
                     {lensButton('Post-window', { agePhase: 'post' }, 'var(--bad)')}
                     {lensButton('Peak Assets', { agePhase: 'peak' }, 'var(--good)')}
                     {lensButton('Picks', { assetType: 'picks' }, 'var(--purple)')}
-                    {lensButton('Contenders', { status: 'contender' }, 'var(--good)')}
-                    {lensButton('Rebuilds', { status: 'rebuild' }, 'var(--bad)')}
+                    {/* Contender/Rebuild is dynasty vocabulary — a chopped or
+                        redraft-only empire has no such postures. */}
+                    {hasLongTerm ? lensButton('Contenders', { status: 'contender' }, 'var(--good)') : null}
+                    {hasLongTerm ? lensButton('Rebuilds', { status: 'rebuild' }, 'var(--bad)') : null}
                     <span className="empire-filter-label">Pos</span>
                     {['QB','RB','WR','TE','K','DEF','DL','LB','DB'].map(pos => filterButton('position', pos, window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos), posColors[pos]))}
                     <span className="empire-filter-label">Age</span>
@@ -2442,6 +2496,38 @@ const renderScoutDetail = () => {
                     </div>
                 ) : (
                     <>
+                        {/* ── THE ARBITRAGE BOARD ─────────────────────────
+                            Every league marked to its own book, so the same
+                            player carries a different price in each — and the
+                            spread is a trade only a portfolio can see. */}
+                        {marks && marks.arbitrage.length ? (
+                            <section className="empire-bridge" data-testid="empire-arbitrage">
+                                <div className="empire-panel" style={{ gridColumn: '1 / -1' }}>
+                                    <div className="empire-panel-head">
+                                        <strong>Arbitrage — same player, different books</strong>
+                                        <em>{marks.arbitrage.length} spreads · {Object.keys(marks.byLeague).length} leagues marked</em>
+                                    </div>
+                                    <div className="empire-stack">
+                                        {marks.arbitrage.slice(0, 6).map(a => (
+                                            <button key={a.pid} type="button" className="empire-signal" style={{ '--tone': 'var(--purple)' }}
+                                                onClick={() => setDetail && setDetail({ type: 'player', pid: a.pid })}>
+                                                <div className="empire-signal-top">
+                                                    <strong>{a.name}{a.pos ? ' · ' + a.pos : ''}</strong>
+                                                    <b>+{a.spreadPct}%</b>
+                                                </div>
+                                                <span>
+                                                    Worth <b>{a.high.value.toLocaleString()}</b> in {a.high.name} vs <b>{a.low.value.toLocaleString()}</b> in {a.low.name} — {a.gap.toLocaleString()} of value between your own books.
+                                                </span>
+                                                <em>Sell where he is dear, buy where he is cheap</em>
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="empire-brief-meta" style={{ marginTop: 10, textTransform: 'none', letterSpacing: 0, fontWeight: 500, color: 'var(--ov-7, rgba(255,255,255,0.5))' }}>
+                                        League-scored seasonal prices — each league priced on its own scoring, roster slots and team count. Not a dynasty valuation.
+                                    </div>
+                                </div>
+                            </section>
+                        ) : null}
                         <section className="empire-bridge" data-testid="empire-bridge">
                             <div className="empire-panel">
                                 <div className="empire-panel-head"><strong>Alex — Empire Brief</strong><em>{userName}</em></div>

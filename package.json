@@ -4,7 +4,7 @@
   "description": "Fantasy football owner dashboard — draft war room, earnings tracking, free agent targets",
   "main": "index.html",
   "scripts": {
-    "test": "node tests/run.js && npm run test:landing-content && npm run test:regression && npm run test:click-paths && npm run test:intelligence-surfaces && npm run test:draft-context && npm run test:draft-analyst-mock && npm run test:draft-trade-simulator && npm run test:draft-live-sync && npm run test:draft-live-decision && npm run test:draft-recap && npm run test:post-draft-craze && npm run test:draft-strategy-studio && npm run test:ai && npm run test:ai-scale && npm run test:billing && npm run test:security && npm run test:bug-capture && npm run test:analytics && npm run test:tutorial && npm run test:rookies && npm run test:rookie-capital && npm run test:rookie-fields && npm run test:redraft && npm run test:chopped && npm run test:commish",
+    "test": "node tests/run.js && npm run test:landing-content && npm run test:regression && npm run test:click-paths && npm run test:intelligence-surfaces && npm run test:draft-context && npm run test:draft-analyst-mock && npm run test:draft-trade-simulator && npm run test:draft-live-sync && npm run test:draft-live-decision && npm run test:draft-recap && npm run test:post-draft-craze && npm run test:draft-strategy-studio && npm run test:ai && npm run test:ai-scale && npm run test:billing && npm run test:security && npm run test:bug-capture && npm run test:analytics && npm run test:tutorial && npm run test:rookies && npm run test:rookie-capital && npm run test:rookie-fields && npm run test:redraft && npm run test:chopped && npm run test:empire && npm run test:commish",
     "test:core": "node tests/run.js",
     "test:landing-content": "node tests/landing-content-contract.js",
     "test:regression": "npm run build:preview && node tests/regression.js",
@@ -30,6 +30,7 @@
     "test:rookie-fields": "node tests/rookie-fields.js",
     "test:redraft": "node tests/redraft-engines.js && node tests/redraft-values.js",
     "test:chopped": "node tests/chopped.js && node tests/chop-odds.js",
+    "test:empire": "node tests/empire-values.js",
     "test:commish": "node tests/commish-foundation.js && node tests/commish-coefficient.js && node tests/commish-radar.js && node tests/commish-bench.js && node tests/commish-drift.js && node tests/commish-calendar.js && node tests/commish-programme.js && node tests/commish-network-panel.js && node tests/commish-people-panel.js && node tests/commish-rulelab.js && node tests/commish-renewal.js && node tests/commish-genesis.js && node tests/commish-rulelab-panel.js && node tests/commish-bylaws.js && node tests/commish-treasury.js && node tests/commish-triage.js && node tests/commish-prefs.js",
     "test:browser": "npm run build:preview && node tests/browser-qa.js && node tests/launch-browser-qa.js && node tests/live-click-paths.js && node tests/draft-browser-qa.js && node tests/league-skin-browser-qa.js",
     "test:draft-browser": "npm run build:preview && node tests/draft-browser-qa.js",

@@ -119,7 +119,11 @@
         const st = league.settings || {};
         const budget = Number(st.waiver_budget) || 0;
         if (!(budget > 0)) return null;                       // not a FAAB league
-        const minBid = Math.max(1, Number(st.waiver_budget_min) || 1);
+        // GM Strategy's user-set minimum-bid override takes precedence over the
+        // imported platform value — some leagues/platforms don't expose the
+        // real waiver_budget_min reliably.
+        const override = Number(opts && opts.minBidOverride);
+        const minBid = override > 0 ? Math.max(1, Math.round(override)) : Math.max(1, Number(st.waiver_budget_min) || 1);
 
         const rosters = league.rosters || [];
         const mine = rosters.find(r => String(r.roster_id) === myId);

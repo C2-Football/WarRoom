@@ -1971,7 +1971,11 @@
                     const isFAAB = (league?.settings?.waiver_type === 2) || (league?.settings?.waiver_budget > 0);
                     const budget = isFAAB ? (league?.settings?.waiver_budget || 0) : 0;
                     const spent = my?.settings?.waiver_budget_used || 0;
-                    const minBid = isFAAB ? (league?.settings?.waiver_budget_min ?? 0) : 0;
+                    // GM Strategy's minimum-bid override wins over the imported
+                    // platform setting (some leagues/platforms don't expose it
+                    // reliably) — this is what Alex/AI FAAB advice reads.
+                    const gmFaabEff = window.WR?.GmMode?.effects?.(league?.league_id || league?.id) || {};
+                    const minBid = isFAAB ? (gmFaabEff.faabMinBid || (league?.settings?.waiver_budget_min ?? 0)) : 0;
                     return { budget, spent, remaining: Math.max(0, budget - spent), isFAAB, minBid };
                 };
                 window.loadMentality = () => {

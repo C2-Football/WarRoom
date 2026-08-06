@@ -78,6 +78,9 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
             sellRules: saved.sellRules || [],
             untouchable: saved.untouchable || saved.untouchables || [],
             faFilters: normalizeFaFilters(saved.faFilters),
+            // League FAAB minimum bid override. 0/unset = fall back to the
+            // imported platform value everywhere this reads.
+            faabMinBid: Math.max(0, Number(saved.faabMinBid) || 0),
         };
     };
 
@@ -445,6 +448,27 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                     fullWidth
                 />
             </div>}
+
+            {/* ── FAAB / Waivers ── */}
+            <div style={styles.card}>
+                <SectionHeader title="FAAB / Waivers" sub="Your league's minimum waiver bid. Set this when your platform doesn't report it (or reports it wrong) — FAAB Command and Alex's 'offer the minimum' calls pull this number instead." />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ color: 'var(--gold)', fontFamily: 'var(--font-mono, monospace)', fontSize: '1.1rem', fontWeight: 700 }}>$</span>
+                    <input
+                        type="number" min="0" step="1"
+                        value={draft.faabMinBid || ''}
+                        onChange={e => set('faabMinBid', Math.max(0, Math.round(Number(e.target.value) || 0)))}
+                        placeholder={String(currentLeague?.settings?.waiver_budget_min ?? 0)}
+                        aria-label="Minimum FAAB bid"
+                        style={{ ...inputStyle, maxWidth: 120 }}
+                    />
+                    <span style={{ fontSize: 'var(--text-label)', color: 'var(--ov-8, rgba(255,255,255,0.45))', fontFamily: 'var(--font-body)' }}>
+                        {draft.faabMinBid > 0
+                            ? 'Overriding the imported league setting.'
+                            : `Unset — using the imported league setting${currentLeague?.settings?.waiver_budget_min ? ` ($${currentLeague.settings.waiver_budget_min})` : ' (currently $0 — likely not reported by your platform)'}.`}
+                    </span>
+                </div>
+            </div>
 
             {/* ── Free Agency Filters ── */}
             <div style={styles.card}>
