@@ -351,6 +351,82 @@ test('wind tunnel: multi-season result renders the season×value grid and the co
   assert.ok(tables.length >= 2, 'one grid table per league');
 });
 
+
+// ── League scope: one constitution at a time ────────────────────────
+const SCOPE_LEAGUES = [{ id: 'L1', name: 'CTB The One' }, { id: 'L2', name: 'Psycho League' }];
+
+test('scope: a chip per league plus an All-leagues omnibus, active one lit', () => {
+  const tree = render(Panel, {
+    status: 'ready', proposal: {}, presets: PRESETS, results: [],
+    baselineScoring: { rec: 0.5 }, leagues: SCOPE_LEAGUES, selectedLeagueId: 'L1',
+  });
+  const t = textOf(tree);
+  assert.ok(t.includes('Amending'), 'scope row labelled');
+  assert.ok(t.includes('CTB The One') && t.includes('Psycho League'));
+  assert.ok(t.includes('All 2 leagues'), 'omnibus escape hatch offered');
+  const btns = findAll(tree, n => n.type === 'button');
+  const lit = btns.filter(b => b.props.style && String(b.props.style.color || '').includes('co-accent'));
+  assert.ok(lit.some(b => textOf(b).includes('CTB The One')), 'selected league is the lit chip');
+  assert.ok(!lit.some(b => textOf(b).includes('All 2 leagues')), 'omnibus not lit while scoped');
+});
+
+test('scope: a single league hides the picker (nothing to choose)', () => {
+  const t = textOf(render(Panel, {
+    status: 'ready', proposal: {}, presets: PRESETS, results: [],
+    baselineScoring: { rec: 0.5 }, leagues: [{ id: 'L1', name: 'Only League' }], selectedLeagueId: 'L1',
+  }));
+  assert.ok(!t.includes('Amending'), 'no scope row for a one-league commissioner');
+});
+
+test('scope: selecting a league reports its id', () => {
+  let got = null;
+  const tree = render(Panel, {
+    status: 'ready', proposal: {}, presets: PRESETS, results: [],
+    baselineScoring: { rec: 0.5 }, leagues: SCOPE_LEAGUES, selectedLeagueId: 'L1',
+    onSelectLeague: id => { got = id; },
+  });
+  const btns = findAll(tree, n => n.type === 'button');
+  btns.find(b => textOf(b) === 'Psycho League').props.onClick();
+  assert.strictEqual(got, 'L2');
+  btns.find(b => textOf(b).includes('All 2 leagues')).props.onClick();
+  assert.strictEqual(got, '__all', 'omnibus reports the sentinel');
+});
+
+test('editorKeys prop drives the editor, not just the baseline keys', () => {
+  const tree = render(Panel, {
+    status: 'ready', proposal: {}, presets: PRESETS, results: [],
+    baselineScoring: { rec: 0.5 }, editorKeys: ['rec', 'idp_sack', 'fgm_50p'],
+    leagues: SCOPE_LEAGUES, selectedLeagueId: 'L1',
+  });
+  const opts = findAll(tree, n => n.type === 'option').map(o => o.props.value);
+  assert.ok(opts.includes('idp_sack'), "a scoped league's IDP key is sweepable even though the baseline lacks it");
+  assert.ok(opts.includes('fgm_50p') && opts.includes('rec'));
+  assert.ok(opts.includes('bonus_rec_te'), 'TE premium always addable');
+});
+
+test('omnibus: warns that there is no single baseline to edit against', () => {
+  const t = textOf(render(Panel, {
+    status: 'ready', proposal: {}, presets: PRESETS, results: [],
+    baselineScoring: null, editorKeys: ['rec', 'pass_td'],
+    leagues: SCOPE_LEAGUES, selectedLeagueId: '__all',
+  }));
+  assert.ok(t.includes('every league at once'), 'omnibus banner present');
+  assert.ok(t.includes('nothing resets to baseline'), 'states the editor consequence honestly');
+});
+
+test('summary line never invents a "from" value it does not know', () => {
+  const scoped = textOf(render(Panel, {
+    status: 'ready', proposal: { rec: 1 }, presets: PRESETS, results: [],
+    baselineScoring: { rec: 0.5 }, leagues: SCOPE_LEAGUES, selectedLeagueId: 'L1',
+  }));
+  assert.ok(scoped.includes('rec 0.5 \u2192 1.0'), 'scoped shows the real from-value: ' + scoped.slice(0, 0));
+  const omni = textOf(render(Panel, {
+    status: 'ready', proposal: { rec: 1 }, presets: PRESETS, results: [],
+    baselineScoring: null, leagues: SCOPE_LEAGUES, selectedLeagueId: '__all',
+  }));
+  assert.ok(omni.includes('rec \u2192 1.0') && !omni.includes('rec 0.5'), 'omnibus omits the from-value');
+});
+
 // ── Summary ─────────────────────────────────────────────────────────
 console.log('');
 if (failed) {

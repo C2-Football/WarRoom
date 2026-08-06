@@ -261,7 +261,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
         const hov = hovAct === it.id;
         return (
             <button type="button"
-                onClick={(e) => { e.stopPropagation(); openHub(it.hub, (it.leagueIds || [])[0], { action: it.action.kind || null }); }}
+                onClick={(e) => { e.stopPropagation(); openHub(it.hub, { leagueId: (it.leagueIds || [])[0] || null, action: it.action.kind || null }); }}
                 onMouseEnter={() => setHovAct(it.id)} onMouseLeave={() => setHovAct(null)}
                 style={{
                     ...bare, background: hov ? ACCENT_FILL : 'transparent', border: '1px solid ' + ACCENT_LINE, borderRadius: '6px',
@@ -287,7 +287,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
         // button. The verb button beside it keeps navigating directly.
         const onRow = () => {
             if (typeof onSelectItem === 'function') { onSelectItem(it); return; }
-            openHub(it.hub, (it.leagueIds || [])[0]);
+            openHub(it.hub, { leagueId: (it.leagueIds || [])[0] || null });
         };
         const hoverProps = { onMouseEnter: () => setHovRow(it.id), onMouseLeave: () => setHovRow(null), onClick: onRow };
 

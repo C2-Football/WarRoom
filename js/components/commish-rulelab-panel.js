@@ -18,6 +18,14 @@
 //             output (or its { empty:true, reason } form, handled per league).
 //   presets   App.Commish.RuleLab.PRESETS ([{ key, label, overrides }]);
 //             falls back to the engine global when the prop is absent.
+//   leagues / selectedLeagueId / onSelectLeague  the league SCOPE. You amend
+//             one constitution at a time, so the container scopes to a single
+//             league by default; selectedLeagueId === '__all' is the omnibus.
+//             Scope is what makes the editor truthful — only a single league
+//             has a real "from" value and a real key set.
+//   editorKeys  OPTIONAL explicit key list for the full editor (the scoped
+//             league's own keys, or the union across leagues in omnibus).
+//             Falls back to Object.keys(baselineScoring).
 //   baselineScoring  OPTIONAL single-league current scoring_settings — lets
 //             the summary line read "rec 0.5 → 1.0". In an omnibus the
 //             baseline differs per league, so omit it and the line reads
@@ -34,8 +42,9 @@
 // ══════════════════════════════════════════════════════════════════
 function WrCommishRuleLabPanel({
     status, seasonUsed, seasons, onSeason,
+    leagues, selectedLeagueId, onSelectLeague,
     proposal, onProposalChange, rosterProposal, onRosterProposalChange,
-    results, presets, baselineScoring, currentSlotsByLeague,
+    results, presets, baselineScoring, editorKeys: editorKeysProp, currentSlotsByLeague,
     sweepResult, onSweep, sweepBusy,
     saved, onSaveProposal, onLoadProposal, onDeleteProposal, onRatify,
     onCopyBallot, onExportBallot,
@@ -125,10 +134,15 @@ function WrCommishRuleLabPanel({
             return { name, keys: ks };
         }).filter(g => g.keys.length);
     };
-    const editorKeys = Object.keys(baselineScoring || {}).sort();
+    // Key set comes from the container (the scoped league's own keys, or the
+    // union across leagues in omnibus) so a league's oddball rules are never
+    // invisible just because some other league doesn't score them.
+    const editorKeys = (Array.isArray(editorKeysProp) && editorKeysProp.length)
+        ? editorKeysProp.slice()
+        : Object.keys(baselineScoring || {}).sort();
     // bonus_rec_te is addable even when the league has never scored it — it's
     // the single most-proposed rule in dynasty.
-    if (baselineScoring && baselineScoring.bonus_rec_te == null && !editorKeys.includes('bonus_rec_te')) editorKeys.push('bonus_rec_te');
+    if (!editorKeys.includes('bonus_rec_te')) editorKeys.push('bonus_rec_te');
 
     // ── Wind Tunnel picker state ─────────────────────────────────────
     // Any editor key is sweepable; values: null tells the container to build
@@ -140,9 +154,15 @@ function WrCommishRuleLabPanel({
     const setKey = (k, raw) => {
         if (typeof onProposalChange !== 'function') return;
         const next = Object.assign({}, prop);
-        const baseVal = baselineScoring && baselineScoring[k] != null ? Number(baselineScoring[k]) : 0;
         const v = raw === '' || raw == null ? NaN : Number(raw);
-        if (Number.isNaN(v) || v === baseVal) delete next[k]; else next[k] = v;
+        // Typing the league's own current value clears the override ("back to
+        // baseline") — but ONLY when we actually know this league's baseline.
+        // In omnibus there is no single "from", and an equality test there
+        // would silently drop a real override that happens to equal some
+        // OTHER league's value. That was live: the editor was fed league #1's
+        // scoring for every league.
+        const baseVal = baselineScoring && baselineScoring[k] != null ? Number(baselineScoring[k]) : null;
+        if (Number.isNaN(v) || (baseVal != null && v === baseVal)) delete next[k]; else next[k] = v;
         onProposalChange(next);
     };
 
@@ -433,6 +453,34 @@ function WrCommishRuleLabPanel({
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* League scope — you amend ONE constitution at a time. Scoping is
+                also what makes the full editor truthful: only a single league
+                has a real "from" value and a real key set. */}
+            {(leagues || []).length > 1 ? (
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ ...microHdr }}>Amending</span>
+                    {(leagues || []).map(l => (
+                        <button key={l.id} onClick={() => onSelectLeague && onSelectLeague(l.id)}
+                            style={chipBtn(String(selectedLeagueId) === String(l.id))}>
+                            {l.name}
+                        </button>
+                    ))}
+                    <button onClick={() => onSelectLeague && onSelectLeague('__all')}
+                        title="Run the proposal against every league at once — the cross-league question, with no single baseline to edit against."
+                        style={chipBtn(selectedLeagueId === '__all', { marginLeft: '4px' })}>
+                        All {(leagues || []).length} leagues
+                    </button>
+                </div>
+            ) : null}
+
+            {/* Stated at SELECTION time, not buried in the editor — the cost of
+                the omnibus is exactly what you lose by not scoping. */}
+            {!baselineScoring && (leagues || []).length > 1 ? (
+                <div style={{ background: 'var(--co-fill-warn, #2A2010)', border: `1px solid ${LINE}`, borderRadius: '6px', padding: '8px 11px', fontSize: '0.74rem', color: TEXT, lineHeight: 1.5, fontFamily: 'var(--font-body)' }}>
+                    Running across <b>every league at once</b>. Each keeps its own scoring, so proposals show no current value and nothing resets to baseline. Pick a single league to edit against real numbers.
+                </div>
+            ) : null}
+
             {/* Season picker — replay any season the league's history chain reaches */}
             {(seasons || []).length > 1 ? (
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -498,7 +546,9 @@ function WrCommishRuleLabPanel({
                                 <div style={{ ...microHdr, marginBottom: '6px' }}>{g.name}</div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '8px 16px' }}>
                                     {g.keys.map(k => {
-                                        const cur = baselineScoring && baselineScoring[k] != null ? Number(baselineScoring[k]) : 0;
+                                        // No baseline (omnibus) → no placeholder. Showing "0.0"
+                                        // there would assert the league scores this rule at zero.
+                                        const cur = baselineScoring && baselineScoring[k] != null ? Number(baselineScoring[k]) : null;
                                         const overridden = Object.prototype.hasOwnProperty.call(prop, k);
                                         return (
                                             <label key={k} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 74px', gap: '8px', alignItems: 'center' }}>
@@ -507,7 +557,7 @@ function WrCommishRuleLabPanel({
                                                 </span>
                                                 <input type="number" step="0.05" inputMode="decimal"
                                                     value={overridden ? prop[k] : ''}
-                                                    placeholder={fmtNum(cur)}
+                                                    placeholder={cur == null ? '—' : fmtNum(cur)}
                                                     onChange={e => setKey(k, e.target.value)}
                                                     style={{ width: '100%', background: overridden ? ACC_FILL : 'var(--co-page, #08080B)', border: '1px solid ' + (overridden ? ACC_LINE : LINE), borderRadius: '5px', color: overridden ? TEXT : SILVER, padding: '5px 8px', fontSize: '16px', ...mono, textAlign: 'right' }} />
                                             </label>
@@ -517,7 +567,9 @@ function WrCommishRuleLabPanel({
                             </div>
                         ))}
                         <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, lineHeight: 1.5 }}>
-                            Placeholders show the current rule. A staged override applies to every replayed league; blank it to revert.
+                            {baselineScoring
+                                ? 'Placeholders show this league\u2019s current rule. Blank a field \u2014 or retype the current value \u2014 to drop the override.'
+                                : 'No single current rule across leagues, so fields show \u201C\u2014\u201D. Blank a field to drop the override.'}
                         </div>
                     </div>
                 ) : null}

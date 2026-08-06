@@ -42,9 +42,21 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     // always have one fixed way back.
     const [tab, setTab] = React.useState('command'); // command | network | people | ops | programmes | rulelab | genesis | governance
     const [scopeLeagueId, setScopeLeagueId] = React.useState(null);
+    // Rule Lab league scope: a league id, or '__all' for the omnibus. null =
+    // "not chosen yet" and resolves to the first league — the owner amends ONE
+    // constitution at a time, so single-league is the default posture.
+    const [rlLeagueId, setRlLeagueId] = React.useState(null);
     const [queueFilter, setQueueFilter] = React.useState({ tier: null, leagueId: null, domain: null });
     const openHub = React.useCallback((hub, opts) => {
-        setScopeLeagueId((opts && opts.leagueId) || null);
+        // Accept BOTH shapes: openHub(hub, {leagueId}) and the older
+        // openHub(hub, leagueId) the command panel emits. Before this, a bare
+        // string made opts.leagueId undefined and scoping silently no-opped.
+        const lid = !opts ? null
+            : (typeof opts === 'string' || typeof opts === 'number') ? String(opts)
+            : (opts.leagueId != null ? String(opts.leagueId) : null);
+        setScopeLeagueId(lid);
+        // Arriving from a league-specific row selects that league in the Lab.
+        if (lid) setRlLeagueId(lid);
         setTab(hub);
         try { window.scrollTo(0, 0); } catch (e) { /* headless */ }
     }, []);
@@ -259,16 +271,49 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         };
     }, [ruleLab.perLeague, ruleLab.seasonStats, ruleLab.season, state.playersData, myUserId]);
 
+    // ── Rule Lab scope ───────────────────────────────────────────────
+    // Every league keeps its OWN scoring, so an omnibus can't honestly show a
+    // "from" value or offer a per-league key set. Scoping to one league is
+    // what makes the full editor truthful; '__all' restores the omnibus for
+    // the cross-league question ("does this rule move anybody?").
+    const RL_ALL = '__all';
+    const rlActiveId = React.useMemo(() => {
+        const list = state.mine || [];
+        if (rlLeagueId === RL_ALL) return RL_ALL;
+        const ids = new Set(list.map(l => String(l.league_id || l.id)));
+        if (rlLeagueId && ids.has(String(rlLeagueId))) return String(rlLeagueId);
+        const first = list[0];
+        return first ? String(first.league_id || first.id) : RL_ALL;
+    }, [rlLeagueId, state.mine]);
+    const rlScoped = React.useMemo(() => {
+        const list = state.mine || [];
+        return rlActiveId === RL_ALL ? list : list.filter(l => String(l.league_id || l.id) === rlActiveId);
+    }, [rlActiveId, state.mine]);
+    // The editor's from-values: a real league's scoring when scoped, null in
+    // omnibus (the panel then refuses to claim a "from" it doesn't know).
+    const rlBaselineScoring = React.useMemo(() => (
+        rlActiveId === RL_ALL ? null : ((rlScoped[0] && rlScoped[0].scoring_settings) || {})
+    ), [rlActiveId, rlScoped]);
+    // Editable key set: the scoped league's own keys, or the union across
+    // leagues in omnibus — so a league's oddball keys (IDP, bonuses) are
+    // never invisible just because league #1 doesn't score them.
+    const rlEditorKeys = React.useMemo(() => {
+        const set = new Set();
+        rlScoped.forEach(l => Object.keys(l.scoring_settings || {}).forEach(k => set.add(k)));
+        return Array.from(set).sort();
+    }, [rlScoped]);
+
     const ruleLabResults = React.useMemo(() => {
         if (ruleLab.status !== 'ready' || state.status !== 'ready' || !C?.RuleLab?.runProposal) return null;
-        return state.mine.map(l => {
+        return rlScoped.map(l => {
+            const lid = String(l.league_id || l.id);
             const args = rlLeagueArgs(l);
-            if (!args) return { leagueName: l.name, result: { empty: true, reason: "This league's history chain doesn't reach the selected season." } };
+            if (!args) return { leagueId: lid, leagueName: l.name, result: { empty: true, reason: "This league's history chain doesn't reach the selected season." } };
             try {
-                return { leagueName: l.name, result: C.RuleLab.runProposal({ ...args, proposal, rosterProposal }) };
-            } catch (e) { window.wrLog?.('commish.rulelab.run', e); return { leagueName: l.name, result: { empty: true, reason: 'error' } }; }
+                return { leagueId: lid, leagueName: l.name, result: C.RuleLab.runProposal({ ...args, proposal, rosterProposal }) };
+            } catch (e) { window.wrLog?.('commish.rulelab.run', e); return { leagueId: lid, leagueName: l.name, result: { empty: true, reason: 'error' } }; }
         });
-    }, [ruleLab.status, state.status, proposal, rosterProposal, rlLeagueArgs]);
+    }, [ruleLab.status, state.status, proposal, rosterProposal, rlLeagueArgs, rlScoped]);
 
     // ── Wind Tunnel: sweep one knob across all leagues ───────────────
     const [sweepState, setSweepState] = React.useState(null);   // { key, perLeague, multi? } | null
@@ -320,9 +365,9 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     // one's NOW marker lands on a real step.
     const buildLadder = (key) => {
         let anchor = 0;
-        state.mine.forEach(l => { const v = Number((l.scoring_settings || {})[key]) || 0; if (Math.abs(v) > Math.abs(anchor)) anchor = v; });
+        rlScoped.forEach(l => { const v = Number((l.scoring_settings || {})[key]) || 0; if (Math.abs(v) > Math.abs(anchor)) anchor = v; });
         const vals = C.RuleLab.sweepValuesFor(key, anchor);
-        state.mine.forEach(l => { const v = Number((l.scoring_settings || {})[key]) || 0; if (!vals.includes(v)) vals.push(v); });
+        rlScoped.forEach(l => { const v = Number((l.scoring_settings || {})[key]) || 0; if (!vals.includes(v)) vals.push(v); });
         return vals.sort((a, b) => a - b);
     };
     const onSweep = (key, values, opts) => {
@@ -337,7 +382,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
             // the button repaints before the crunch.
             setTimeout(() => {
                 try {
-                    const perLeague = state.mine.map(l => {
+                    const perLeague = rlScoped.map(l => {
                         const args = rlLeagueArgs(l);
                         if (!args) return { leagueName: l.name, steps: [], firstFlipAt: null };
                         const s = RL.sweep({ ...args, baseProposal: proposal, key, values: vals });
@@ -359,7 +404,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                     const packData = season === ruleLab.season
                         ? { seasonStats: ruleLab.seasonStats, perLeague: ruleLab.perLeague }
                         : await loadSeasonPack(season);
-                    const perLeague = state.mine.map(l => {
+                    const perLeague = rlScoped.map(l => {
                         const lid = String(l.league_id || l.id);
                         const args = rlArgsFor(l, packData.perLeague[lid], packData.seasonStats, season);
                         // Unreachable year for this league → an all-empty run,
@@ -404,7 +449,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     const onRatifyProposal = (id) => {
         const sp = savedProposals.find(p => p.id === id);
         if (!sp || !C?.Bylaws?.recordAmendment) return;
-        state.mine.forEach(l => {
+        rlScoped.forEach(l => {
             const lid = String(l.league_id || l.id);
             Object.keys(sp.overrides || {}).forEach(k => {
                 try {
@@ -438,11 +483,11 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     const rlCurrentSlots = React.useMemo(() => {
         const out = {};
         if (state.status !== 'ready') return out;
-        state.mine.forEach(l => {
+        rlScoped.forEach(l => {
             out[l.name] = (l.roster_positions || []).filter(s => s && !/^(BN|BE|BENCH|IR|TAXI|RES)$/i.test(String(s)));
         });
         return out;
-    }, [state.status]);
+    }, [state.status, rlScoped]);
 
     // Season Genesis readiness — recomputes on drift acknowledgment and
     // manual checklist toggles.
@@ -902,7 +947,11 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                         onRosterProposalChange={setRosterProposal}
                         results={ruleLabResults}
                         presets={(C?.RuleLab && C.RuleLab.PRESETS) || []}
-                        baselineScoring={(state.mine[0] && state.mine[0].scoring_settings) || {}}
+                        baselineScoring={rlBaselineScoring}
+                        editorKeys={rlEditorKeys}
+                        leagues={(state.mine || []).map(l => ({ id: String(l.league_id || l.id), name: l.name }))}
+                        selectedLeagueId={rlActiveId}
+                        onSelectLeague={(id) => { setRlLeagueId(id); setSweepState(null); }}
                         currentSlotsByLeague={rlCurrentSlots}
                         sweepResult={sweepState}
                         onSweep={onSweep}
