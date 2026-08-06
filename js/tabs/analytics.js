@@ -1266,21 +1266,23 @@ function AnalyticsPanel({
             // 'Draft Outcomes: Pending' notice for both tiers.
             const freeDraftProofItems = hasDraftOutcomeHistory ? [] : historicalProofItems;
 
-            // ── Ideal Draft Strategy (hit rate by round × position) ──
-            // League-wide (every pick, not just winners) starter/elite rate broken
-            // down by round AND position — answers "what actually pays off in this
-            // round" rather than "who won more" (that framing is Winner Formula,
-            // below, which is winner-vs-field and Pro-gated). Sourced from
-            // window.App.LI.hitRateByRound (dhq-engine.js): bestPos only names a
-            // position once 2+ same-round picks exist, so a one-pick fluke can't
-            // crown a round.
-            const hitRateByRound = window.App?.LI?.hitRateByRound || {};
-            const strategyRounds = Object.keys(hitRateByRound).map(Number).sort((a, b) => a - b)
-                .map(rd => ({ rd, ...hitRateByRound[rd] }))
-                .filter(r => r.total > 0);
+            // ── Ideal Draft Strategy (hit rate by round × position, winners only) ──
+            // Winner-scoped, same population as Round Conversion / Winner Formula
+            // below (dr.winnerHitRate / dr.winnerDraftProfile) — "ideal" means what
+            // title teams actually did, not what any team in the league happened to
+            // hit on. Sourced from dr.winnerPosHitRate (analytics-engine.js
+            // analyzeDraftPatterns): ranks positions within a round only once 2+
+            // winner picks share that position; a round where no position clears
+            // that bar falls back to the league-wide ranking instead of going empty
+            // (source: 'league'), which the UI discloses per-round rather than
+            // passing a league number off as a champion one.
+            const winnerPosHitRate = dr.winnerPosHitRate || {};
+            const strategyRounds = Object.keys(winnerPosHitRate).map(Number).sort((a, b) => a - b)
+                .map(rd => ({ rd, ...winnerPosHitRate[rd] }))
+                .filter(r => r.total > 0 || (r.ranked || []).length);
             const strategyHeadline = strategyRounds
-                .filter(r => (r.bestPos || []).length)
-                .map(r => 'R' + r.rd + ' ' + posLabel(r.bestPos[0].pos))
+                .filter(r => (r.ranked || []).length)
+                .map(r => 'R' + r.rd + ' ' + posLabel(r.ranked[0].pos))
                 .join(' → ');
 
             // ── The Winner's Perch (redraft only) ──
@@ -1332,10 +1334,10 @@ function AnalyticsPanel({
                     <div className="analytics-panel" style={{ marginBottom: 'var(--card-gap, 14px)' }}>
                         <div className="analytics-panel-head">
                             <span>Ideal Draft Strategy</span>
-                            <em>League-wide hit rate by round &amp; position</em>
+                            <em>Champion hit rate by round &amp; position</em>
                         </div>
                         <p style={{ color: 'var(--silver)', opacity: 0.78, fontSize: '0.78rem', lineHeight: 1.45, margin: '0 0 10px' }}>
-                            Starter-rate by position, round by round, across every pick this league has made — not just winners. A position needs 2+ same-round picks to rank; thin rounds show no leader yet.
+                            Starter-rate by position, round by round, for teams that actually won this league — the same champion population as Round Conversion and Winner Formula below. A position needs 2+ champion picks to rank; rounds too thin to rank fall back to a league-wide read instead of going empty (flagged below).
                         </p>
                         {strategyHeadline && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '6px 10px', background: 'rgba(212,175,55,0.06)', borderLeft: '3px solid var(--gold)', borderRadius: 'var(--card-radius-sm)', padding: '10px 12px', marginBottom: '12px', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--white)', lineHeight: 1.6 }}>
@@ -1344,13 +1346,16 @@ function AnalyticsPanel({
                         )}
                         <div style={{ display: 'grid', gap: '8px' }}>
                             {strategyRounds.map(r => {
-                                const top = (r.bestPos || []).slice(0, 4);
+                                const top = (r.ranked || []).slice(0, 4);
                                 return (
                                     <div key={r.rd} style={{ background: 'var(--black, #121217)', border: '1px solid var(--ov-4,rgba(255,255,255,0.06))', borderRadius: '8px', padding: '9px 11px' }}>
                                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
                                             <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', color: 'var(--gold)' }}>Round {r.rd}</span>
-                                            <span style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>n={r.total} · {r.rate}% starter / {r.eliteRate}% elite (all positions)</span>
+                                            <span style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>champ n={r.total} · {r.rate}% starter / {r.eliteRate}% elite (all positions)</span>
                                         </div>
+                                        {top.length && r.source === 'league' && (
+                                            <div style={{ fontSize: 'var(--text-micro)', color: 'var(--warn)', opacity: 0.85, marginBottom: '4px' }}>Too few champion picks per position this round — ranking below is league-wide.</div>
+                                        )}
                                         {top.length ? (
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                                 {top.map((p, i) => (
