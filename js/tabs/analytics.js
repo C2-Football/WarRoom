@@ -1264,6 +1264,18 @@ function AnalyticsPanel({
             // hit-rate reads (row 9 "draft hit-rate reads") are Pro.
             const freeDraftProofItems = hasDraftOutcomeHistory ? historicalProofItems.slice(0, 2) : historicalProofItems;
 
+            // ── The Winner's Perch (redraft only) ──
+            // Redraft leagues re-draft the whole roster every season, so draft
+            // slot is a real recurring input, not a one-time rookie-draft echo.
+            // For each slot 1..N: how many times has the team drafting there
+            // finished top 3, and how many of those were the title (parens).
+            // Multi-season, sourced from WrHistory (walks previous_league_id) —
+            // free read, same tier as Trophy Room's raw standings history.
+            const isRedraftLeague = resolvedLeagueSkin?.type === 'redraft';
+            const winnersPerch = isRedraftLeague ? (window.WrHistory?.getDraftSlotPerch?.(leagueId) || []) : [];
+            const perchSeasons = winnersPerch.length ? (window.WrHistory?.getCached?.(leagueId)?.seasonsLoaded || 0) : 0;
+            const perchMaxTop3 = winnersPerch.reduce((m, r) => Math.max(m, r.top3), 0);
+
             return (
             <React.Fragment>
                 {!isPro && <ProLock label="Draft Intelligence Reads" sub="The draft research thesis and champion-benchmark conversion reads are Pro. Your raw pick capital stays below." />}
@@ -1271,6 +1283,31 @@ function AnalyticsPanel({
                     title="What does this league actually reward in the draft?"
                     thesis="Anyone can count who picked what. Did your slots pay off, what did your champions spend early picks on, and how much value are you letting age out in future rounds?"
                 />}
+
+                {winnersPerch.length > 0 && (
+                    <div className="analytics-panel" style={{ marginBottom: 'var(--card-gap, 14px)' }}>
+                        <div className="analytics-panel-head">
+                            <span>The Winner's Perch</span>
+                            <em>{perchSeasons} season{perchSeasons === 1 ? '' : 's'} of draft history</em>
+                        </div>
+                        <p style={{ color: 'var(--silver)', opacity: 0.78, fontSize: '0.78rem', lineHeight: 1.45, margin: '0 0 10px' }}>
+                            Draft position &rarr; times that slot finished top 3. Titles won in parentheses.
+                        </p>
+                        <div style={{ display: 'grid', gap: '4px' }}>
+                            {winnersPerch.map(row => {
+                                const isBest = row.top3 > 0 && row.top3 === perchMaxTop3;
+                                return (
+                                    <div key={row.slot} className="analytics-data-row is-compact" style={isBest ? { borderColor: 'rgba(46,204,113,0.4)', background: 'rgba(46,204,113,0.08)' } : undefined}>
+                                        <strong>Slot {row.slot}</strong>
+                                        <b style={{ color: row.top3 ? (isBest ? 'var(--good)' : 'var(--gold)') : 'var(--silver)' }}>
+                                            {row.top3 ? row.top3 + (row.titles ? ' (' + row.titles + ')' : '') : '—'}
+                                        </b>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
 
                 <AnalyticsProofGrid items={isPro ? draftProofItems : freeDraftProofItems} />
 
