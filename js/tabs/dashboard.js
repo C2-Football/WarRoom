@@ -1715,6 +1715,14 @@ function DashboardPanel({
         catch (e) { if (window.wrLog) window.wrLog('dashboard.phoneHero', e); return null; }
     }, [_phone, wrPro, myRoster, currentLeague, playersData, statsData, prevStatsData]);
 
+    // CHOPPED leagues: survival is the headline number, so it leads BOTH
+    // layouts. Defined above the phone/desktop split because the phone branch
+    // early-returns at the line below — and Game Day (the other natural home)
+    // is hidden pre-draft, exactly when the block is most interesting.
+    const chopBlockEl = (resolvedLeagueSkin?.features?.showElimination && window.WrChopBlock)
+        ? <div style={{ padding: '14px 16px 0' }}><window.WrChopBlock active currentLeague={currentLeague} myRoster={myRoster} /></div>
+        : null;
+
     if (_phone) {
         // ── Hero: latest pinned insight only. The old rung-1 "lineup alert"
         // hero moved INTO the Intel Brief (owner ask 2026-07-12,
@@ -1827,6 +1835,7 @@ function DashboardPanel({
 
         return (
             <React.Fragment>
+                {chopBlockEl}
                 {/* Phone "Yours to customize" hint banner removed (owner ask
                     2026-07-12) — the ⋯ / Reorder / + Add Widget affordances are
                     self-evident. Desktop banner (showHint, further down) is
@@ -1937,6 +1946,7 @@ function DashboardPanel({
     // ══════════════════════════════════════════════════════════════
     return (
         <React.Fragment>
+            {chopBlockEl}
             {/* First-visit hint */}
             {showHint && (
                 <div style={{

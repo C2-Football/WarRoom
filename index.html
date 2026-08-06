@@ -2658,6 +2658,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
      model. Plain-JS engines (no JSX), eager like the rest of this block —
      consumed by Analytics (Season Odds), Free Agency, and Game Day. -->
 <script src="js/shared/chopped.js?v=20260805ch1"></script>
+<script src="js/shared/chop-odds.js?v=20260805ch2"></script>
 <script src="js/shared/luck-engine.js?v=20260729rd1"></script>
 <!-- Commissioner's Office foundation — eager: the hub needs discoverCommissioned
      (is_owner) at boot to decide whether the office card exists at all. The six
@@ -2715,7 +2716,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- Season Odds panel loads with Game Day (owner ruling 2026-07-30) — must
      precede lineup.js in the group so window.WrSeasonOdds exists on first render. -->
 <script type="text/babel" data-wr-defer="lineup" src="js/components/season-odds-panel.js?v=20260805ch1"></script>
-<script type="text/babel" data-wr-defer="lineup" src="js/tabs/lineup.js?v=20260730so1"></script>
+<script type="text/babel" src="js/components/chop-block-panel.js?v=20260805ch2"></script>
+<script type="text/babel" data-wr-defer="lineup" src="js/tabs/lineup.js?v=20260805ch2"></script>
 <!-- 4b. Draft Command Center modules — group "draft" (~28 scripts, ~1.26MB),
      loaded on first Draft-tab open. -->
 <script type="text/babel" data-wr-defer="draft" src="js/draft/styles.js?v=20260427font1"></script>
@@ -2764,7 +2766,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" src="js/widgets/my-trophies.js?v=20260611kpifix1"></script>
 <!-- League Calendar widget — depends on window.WrCalendar (js/tabs/calendar.js) -->
 <script type="text/babel" src="js/widgets/league-calendar.js?v=20260619cal1"></script>
-<script type="text/babel" src="js/tabs/dashboard.js?v=20260619cal1"></script>
+<script type="text/babel" src="js/tabs/dashboard.js?v=20260805ch2"></script>
 <script type="text/babel" src="js/tabs/flash-brief.js?v=20260613gm1"></script>
 <!-- Group "analysis": analytics.js embeds LeagueMapTab, so both defer together
      (league-map.js first — DOM order is execution order within a group). -->
