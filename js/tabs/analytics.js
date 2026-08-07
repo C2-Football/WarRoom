@@ -1027,18 +1027,15 @@ function AnalyticsPanel({
                 myDraftProfile[rd] = {};
                 Object.entries(posCounts).forEach(([pos, cnt]) => { myDraftProfile[rd][pos] = +(cnt / myPicks.length).toFixed(2); });
             });
-            let totalHitDiff = 0;
             let hitRounds = 0;
             let winnerHitAvg = 0, leagueHitAvg = 0;
             rounds.forEach(rd => {
                 const hr = dr.winnerHitRate[rd];
                 if (!hr) return;
-                totalHitDiff += (hr.winners - hr.league);
                 winnerHitAvg += hr.winners;
                 leagueHitAvg += hr.league;
                 hitRounds++;
             });
-            const avgHitAdv = hitRounds > 0 ? totalHitDiff / hitRounds : 0;
             winnerHitAvg = hitRounds > 0 ? winnerHitAvg / hitRounds : 0;
             leagueHitAvg = hitRounds > 0 ? leagueHitAvg / hitRounds : 0;
             // (Removed Draft Grade computation — it was the league-wide winner-vs-field spread,
@@ -1094,14 +1091,8 @@ function AnalyticsPanel({
                 const hits = myPicks.filter(dp => dp.isHit || dp.isStarter).length;
                 myHitRates[rd] = hits / myPicks.length;
             });
-            const myR1Hit = myHitRates[1] || 0;
-            const winnerR1Hit = (dr.winnerHitRate[1] || {}).winners || 0;
             const topDraftPos = topDraftTarget ? topDraftTarget[0] : null; // null-honest; no 'RB/WR' mask
-            // Personal R1 + R1-R2 anchor conversion, with explicit denominators (suppressed when thin).
-            const myR1Picks = draftOutcomes.filter(dp => dp.round === 1 && dp.roster_id === myRid);
-            const myR1Count = myR1Picks.length;
-            const myR1Hits = myR1Picks.filter(dp => dp.isHit || dp.isStarter).length;
-            const winnerR1Count = draftOutcomes.filter(dp => dp.round === 1 && winnerIds.has(dp.roster_id)).length;
+            // Personal R1-R2 anchor conversion, with explicit denominators (suppressed when thin).
             const myAnchorPicks = draftOutcomes.filter(dp => dp.roster_id === myRid && dp.round <= 2);
             const myAnchorN = myAnchorPicks.length;
             const myAnchorHits = myAnchorPicks.filter(dp => dp.isHit || dp.isStarter).length;
@@ -1201,14 +1192,6 @@ function AnalyticsPanel({
             const historicalProofItems = [
                 { label: 'Draft Outcomes', value: 'Pending', detail: 'No per-pick outcome rows yet; reads use slot value only.', tone: 'warn', color: warnColor },
             ];
-            const draftProofItems = hasDraftOutcomeHistory ? [
-                { label: 'League Skill Spread', value: signedNum(Math.round(avgHitAdv * 100), ' pts'), detail: 'Elite-vs-field hit-rate gap across ' + hitRounds + ' rounds (league-wide, not your team).', tone: toneFromDelta(avgHitAdv), color: avgHitAdv >= 0 ? goodColor : badColor },
-                { label: 'Elite R1 Benchmark', value: pctFmt(winnerR1Hit), detail: 'Title-tier R1 hit rate (n=' + winnerR1Count + ' winner R1 picks).', tone: winnerR1Count >= 3 ? 'good' : 'warn', color: winnerR1Count >= 3 ? goodColor : warnColor },
-                { label: 'Your R1 Conversion', value: myR1Count < 2 ? 'n=' + myR1Count : pctFmt(myR1Hit), detail: myR1Count < 2 ? 'Need 2+ recorded R1 picks; only ' + myR1Count + ' loaded.' : myR1Hits + '/' + myR1Count + ' R1 picks hit (elite ' + pctFmt(winnerR1Hit) + ').', tone: myR1Count < 2 ? 'warn' : (myR1Hit >= winnerR1Hit ? 'good' : 'warn'), color: myR1Count < 2 ? warnColor : (myR1Hit >= winnerR1Hit ? goodColor : warnColor) },
-                { label: 'R1-R2 Anchor Conversion', value: myAnchorN < 2 ? 'n=' + myAnchorN : pctFmt(myAnchorRate), detail: myAnchorN < 2 ? 'Need 2+ premium picks; only ' + myAnchorN + ' loaded.' : myAnchorHits + '/' + myAnchorN + ' premium picks hit (elite ' + pctFmt(winnerAnchorRate) + ', n=' + winnerAnchorN + ').', tone: myAnchorN < 2 ? 'warn' : (myAnchorRate >= winnerAnchorRate ? 'good' : 'warn'), color: myAnchorN < 2 ? warnColor : (myAnchorRate >= winnerAnchorRate ? goodColor : warnColor) },
-                // 'Value vs Slot' + 'Benchmark Confidence' proof cards removed (owner ask).
-                { label: 'Current Capital', value: currentPickValue.toLocaleString(), detail: currentPicks.length + ' current picks, ' + earlyPicks + ' in R1-R2.', tone: earlyPicks >= 3 ? 'good' : 'warn', color: earlyPicks >= 3 ? goodColor : warnColor },
-            ] : historicalProofItems;
             // \u2500\u2500 Draft intel: Round-Conversion tape + Winner-Formula DNA (full-width) \u2500\u2500
             // Fixed position palette: same position = same color across every round (the scannable
             // primitive). Teal is reserved for YOU, so champions use a gold-anchored multi-hue set.
@@ -1260,11 +1243,12 @@ function AnalyticsPanel({
             ];
             // Draft research-question header is bare (no stat boxes) \u2014 see AnalyticsCommandPanel call below.
 
-            // Free floor: once outcome history exists, the Ideal Draft Strategy panel
-            // below (free, league-wide) carries the free-tier draft read on its own —
-            // no proof cards needed here. Without outcome history, fall back to the
-            // 'Draft Outcomes: Pending' notice for both tiers.
-            const freeDraftProofItems = hasDraftOutcomeHistory ? [] : historicalProofItems;
+            // Proof grid: once outcome history exists, the Ideal Draft Strategy panel
+            // below (round×position heatmap) and Round Conversion / Winner Formula
+            // already carry the full read — no separate stat cards here (owner ask,
+            // they duplicated those panels with less signal). Without outcome
+            // history, fall back to the 'Draft Outcomes: Pending' notice.
+            const draftProofItems = hasDraftOutcomeHistory ? [] : historicalProofItems;
 
             // ── Ideal Draft Strategy (hit rate by round × position, winners only) ──
             // Winner-scoped, same population as Round Conversion / Winner Formula
@@ -1296,6 +1280,56 @@ function AnalyticsPanel({
             const winnersPerch = isRedraftLeague ? (window.WrHistory?.getDraftSlotPerch?.(leagueId) || []) : [];
             const perchSeasons = winnersPerch.length ? (window.WrHistory?.getCached?.(leagueId)?.seasonsLoaded || 0) : 0;
             const perchMaxTop3 = winnersPerch.reduce((m, r) => Math.max(m, r.top3), 0);
+
+            // ── Ideal Draft Strategy enhancements: phase KPIs + a pos×round heatmap ──
+            // Round Conversion and Winner Formula below stay untouched — this only
+            // reshapes the free Ideal Draft Strategy panel above the proof grid.
+            // Phase groupings extend the existing Anchor (R1-R2) concept past R2.
+            // Anchor reuses anchorPct/anchorEdge/etc. computed above, so this strip and
+            // the R1-R2 Anchor Conversion proof-grid card can never disagree; Midgame/
+            // Endgame apply the identical "your picks vs champion picks in this round
+            // range" math to the rest of the draft.
+            const phaseStats = (fromRd, toRd) => {
+                const mine = draftOutcomes.filter(dp => dp.roster_id === myRid && dp.round >= fromRd && dp.round <= toRd);
+                const champ = draftOutcomes.filter(dp => winnerIds.has(dp.roster_id) && dp.round >= fromRd && dp.round <= toRd);
+                const myHits = mine.filter(dp => dp.isHit || dp.isStarter).length;
+                const champHits = champ.filter(dp => dp.isHit || dp.isStarter).length;
+                const youRate = mine.length ? Math.round((myHits / mine.length) * 100) : null;
+                const champRate = champ.length ? Math.round((champHits / champ.length) * 100) : 0;
+                return { youN: mine.length, youHits: myHits, youRate, champRate, champN: champ.length, edge: youRate == null ? null : youRate - champRate };
+            };
+            const maxRd = rounds.length ? Math.max(...rounds) : 0;
+            const phases = [
+                { key: 'anchor', label: 'EARLY ROUNDS (R1-R2)', from: 1, to: 2 },
+                { key: 'midgame', label: 'MIDDLE ROUNDS (R3-R5)', from: 3, to: 5 },
+                { key: 'endgame', label: 'LATE ROUNDS (R6+)', from: 6, to: maxRd },
+            ]
+                .map(p => ({ ...p, to: Math.min(p.to, maxRd) }))
+                .filter(p => p.from <= p.to)
+                .map(p => p.key === 'anchor'
+                    ? { ...p, youN: myAnchorN, youHits: myAnchorHits, youRate: anchorGradable ? anchorPct : null, champRate: eliteAnchorPct, champN: winnerAnchorN, edge: anchorGradable ? anchorEdge : null }
+                    : { ...p, ...phaseStats(p.from, p.to) });
+
+            // Blueprint heatmap: pos × round pivot of winnerPosHitRate's per-round
+            // ranked lists — the same numbers the round-list below reads, transposed
+            // into a grid that's scannable in one glance instead of a scroll.
+            const POS_ORDER = ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB', 'K'];
+            const blueprintPositions = Array.from(new Set(strategyRounds.flatMap(r => (r.ranked || []).map(p => p.pos))));
+            const blueprintRows = POS_ORDER.filter(p => blueprintPositions.includes(p))
+                .concat(blueprintPositions.filter(p => !POS_ORDER.includes(p)));
+            const cellFor = (pos, rd) => ((winnerPosHitRate[rd] || {}).ranked || []).find(p => p.pos === pos) || null;
+
+            // Recommended-path confidence: only rounds where the leader is winner-
+            // sourced (not the league-wide fallback) AND has 3+ champion samples read
+            // as High; any fallback or thin round pulls it down rather than overstating it.
+            const pathRounds = strategyRounds.filter(r => (r.ranked || []).length);
+            const pathWinnerSourced = pathRounds.filter(r => r.source === 'winners' && (r.ranked[0].total || 0) >= 3).length;
+            const pathConfidence = !pathRounds.length ? null
+                : pathWinnerSourced === pathRounds.length ? 'High'
+                : pathWinnerSourced >= Math.ceil(pathRounds.length / 2) ? 'Medium' : 'Low';
+
+            const bpThStyle = { padding: '5px 7px', textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-micro)', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid var(--ov-4,rgba(255,255,255,0.08))', whiteSpace: 'nowrap' };
+            const bpTdStyle = { padding: '5px 7px', textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.7rem', borderBottom: '1px solid var(--ov-3,rgba(255,255,255,0.04))', fontVariantNumeric: 'tabular-nums' };
 
             return (
             <React.Fragment>
@@ -1336,49 +1370,76 @@ function AnalyticsPanel({
                             <span>Ideal Draft Strategy</span>
                             <em>Champion hit rate by round &amp; position</em>
                         </div>
-                        <p style={{ color: 'var(--silver)', opacity: 0.78, fontSize: '0.78rem', lineHeight: 1.45, margin: '0 0 10px' }}>
-                            Starter-rate by position, round by round, for teams that actually won this league — the same champion population as Round Conversion and Winner Formula below. A position needs 2+ champion picks to rank; rounds too thin to rank fall back to a league-wide read instead of going empty (flagged below).
+                        <p style={{ color: 'var(--silver)', opacity: 0.78, fontSize: '0.78rem', lineHeight: 1.45, margin: '0 0 12px' }}>
+                            Starter-rate by position, round by round, for teams that actually won this league — the same champion population as Round Conversion and Winner Formula below. A position needs 2+ champion picks to rank; rounds too thin fall back to a league-wide read (marked *).
                         </p>
+
+                        {/* Phase strip: same early/middle/late-round framing as Round Conversion's KPI row, extended past R2. Real min-width (not 0) so a cell wraps to its own row on a narrow screen instead of crushing its text. */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px 24px', borderTop: '1px solid var(--ov-4,rgba(255,255,255,0.06))', borderBottom: '1px solid var(--ov-4,rgba(255,255,255,0.06))', padding: '14px 0', marginBottom: '14px' }}>
+                            {phases.map(p => (
+                                <div key={p.key} style={{ flex: '1 1 190px', minWidth: '190px' }}>
+                                    <div style={{ fontSize: 'var(--text-micro)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, whiteSpace: 'nowrap' }}>{p.label}</div>
+                                    <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.85rem', lineHeight: 1.15, color: p.edge == null ? 'var(--silver)' : p.edge >= 0 ? 'var(--good)' : 'var(--warn)' }}>{p.edge == null ? '—' : signedNum(p.edge, ' pts')}</div>
+                                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', lineHeight: 1.5 }} title={p.champN ? p.champN + ' champion picks in this range' : undefined}>You {p.youN ? p.youHits + '/' + p.youN : '—'} &middot; Champs {p.champRate}%</div>
+                                </div>
+                            ))}
+                        </div>
+
                         {strategyHeadline && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '6px 10px', background: 'rgba(212,175,55,0.06)', borderLeft: '3px solid var(--gold)', borderRadius: 'var(--card-radius-sm)', padding: '10px 12px', marginBottom: '12px', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--white)', lineHeight: 1.6 }}>
-                                <strong style={{ color: 'var(--gold)' }}>Best-odds path:</strong> <span>{strategyHeadline}</span>
+                            <div style={{ marginBottom: '14px' }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '6px 10px', marginBottom: '6px' }}>
+                                    <span style={{ fontSize: 'var(--text-micro)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Recommended path</span>
+                                    {pathConfidence && <span style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>confidence: {pathConfidence}</span>}
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                    {strategyRounds.filter(r => (r.ranked || []).length).map(r => (
+                                        <span key={r.rd} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', border: '1px solid ' + (POS_COLOR[r.ranked[0].pos] || POS_COLOR.UNK), borderRadius: '999px', padding: '3px 10px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'JetBrains Mono, monospace' }}>
+                                            <b style={{ color: 'var(--silver)' }}>R{r.rd}</b>
+                                            <b style={{ color: POS_COLOR[r.ranked[0].pos] || POS_COLOR.UNK }}>{posLabel(r.ranked[0].pos)}</b>
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
                         )}
-                        <div style={{ display: 'grid', gap: '8px' }}>
-                            {strategyRounds.map(r => {
-                                const top = (r.ranked || []).slice(0, 4);
-                                return (
-                                    <div key={r.rd} style={{ background: 'var(--black, #121217)', border: '1px solid var(--ov-4,rgba(255,255,255,0.06))', borderRadius: '8px', padding: '9px 11px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
-                                            <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', color: 'var(--gold)' }}>Round {r.rd}</span>
-                                            <span style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>champ n={r.total} · {r.rate}% starter / {r.eliteRate}% elite (all positions)</span>
-                                        </div>
-                                        {top.length && r.source === 'league' && (
-                                            <div style={{ fontSize: 'var(--text-micro)', color: 'var(--warn)', opacity: 0.85, marginBottom: '4px' }}>Too few champion picks per position this round — ranking below is league-wide.</div>
-                                        )}
-                                        {top.length ? (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                {top.map((p, i) => (
-                                                    <div key={p.pos} style={{ display: 'grid', gridTemplateColumns: '54px minmax(0,1fr) 90px', alignItems: 'center', gap: '8px' }}>
-                                                        <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: i === 0 ? 700 : 500, color: i === 0 ? 'var(--gold)' : 'var(--silver)' }}>{posLabel(p.pos)}</span>
-                                                        <div style={{ position: 'relative', height: '8px', borderRadius: '99px', background: 'rgba(255,255,255,0.06)' }}>
-                                                            <i style={{ position: 'absolute', left: 0, top: 0, height: '8px', width: p.rate + '%', borderRadius: '99px', background: POS_COLOR[p.pos] || POS_COLOR.UNK }} />
-                                                        </div>
-                                                        <span style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>{p.rate}% (n={p.total})</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.6 }}>Not enough same-position picks this round to rank yet.</div>
-                                        )}
-                                    </div>
-                                );
-                            })}
+
+                        {/* Blueprint heatmap: same numbers as the phase strip / recommended path, laid out for a one-glance scan instead of a per-round scroll. */}
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ borderCollapse: 'collapse', minWidth: '100%' }}>
+                                <thead>
+                                    <tr>
+                                        <th style={{ ...bpThStyle, textAlign: 'left' }}>Pos</th>
+                                        {strategyRounds.map(r => (
+                                            <th key={r.rd} style={bpThStyle} title={'champ n=' + r.total + ' · ' + r.rate + '% starter / ' + r.eliteRate + '% elite (all positions)' + (r.source === 'league' ? ' — league-wide fallback' : '')}>
+                                                R{r.rd}{r.source === 'league' ? '*' : ''}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {blueprintRows.map(pos => (
+                                        <tr key={pos}>
+                                            <td style={{ ...bpTdStyle, textAlign: 'left', color: POS_COLOR[pos] || POS_COLOR.UNK, fontWeight: 700 }}>{posLabel(pos)}</td>
+                                            {strategyRounds.map(r => {
+                                                const cell = cellFor(pos, r.rd);
+                                                return (
+                                                    <td key={r.rd} style={{ ...bpTdStyle, background: cell ? 'rgba(46,204,113,' + Math.min(0.5, cell.rate / 100 * 0.45 + 0.05).toFixed(2) + ')' : 'transparent', color: cell ? (cell.rate >= 50 ? 'var(--white)' : 'var(--silver)') : 'rgba(189,184,173,0.3)' }}
+                                                        title={cell ? posLabel(pos) + ' R' + r.rd + ': ' + cell.rate + '% (n=' + cell.total + ')' : undefined}>
+                                                        {cell ? cell.rate + '%' : '—'}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.7, marginTop: '8px' }}>
+                            Darker green = higher champion starter-rate. Dash = fewer than 2 champion picks at that position/round.{strategyRounds.some(r => r.source === 'league') ? ' * = round too thin on champions alone; ranking is league-wide.' : ''}
                         </div>
                     </div>
                 )}
 
-                <AnalyticsProofGrid items={isPro ? draftProofItems : freeDraftProofItems} />
+                <AnalyticsProofGrid items={draftProofItems} />
 
                 {hasDraftOutcomeHistory && !isPro ? (
                     <ProLock label="Round Conversion + Winner Formula" sub="Hit-rate vs the champion standard and what title teams draft round-by-round are Pro reads." />
