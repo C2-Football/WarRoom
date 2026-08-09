@@ -1446,7 +1446,7 @@
                     badge: fit.short,
                 })
                 : null;
-            return { ...x, pos, ppg, faab, fit, fitScore: fit.score, peakYrs: win.peakYrs, valueYrs: win.valueYrs, windowLabel: win.label, windowShort: win.short, windowColor: win.color, formatReasons, playerContext, intelligence, why };
+            return { ...x, name: playerName(x.p, x.pid), pos, ppg, faab, fit, fitScore: fit.score, peakYrs: win.peakYrs, valueYrs: win.valueYrs, windowLabel: win.label, windowShort: win.short, windowColor: win.color, formatReasons, playerContext, intelligence, why };
         }
 
         const faabMarketRows = (currentLeague.rosters || []).map(r => {
@@ -1792,7 +1792,7 @@
                                         return (
                                             <tr key={row.pos}>
                                                 <td style={{ color: posColors[row.pos] || row.color }}>{window.App?.posLabel?.(row.pos) || (row.pos === 'DEF' ? 'D/ST' : row.pos)}</td>
-                                                <td className="mono">{row.data.nflStarters || Math.min(row.data.actual || 0, row.data.minQuality || row.data.startingReq || 0)}/{row.data.minQuality || row.data.startingReq || 0}</td>
+                                                <td className="mono">{row.data.nflStarters != null ? row.data.nflStarters : Math.min(row.data.actual || 0, row.data.minQuality || row.data.startingReq || 0)}/{row.data.minQuality || row.data.startingReq || 0}</td>
                                                 <td><span className="fa-hq-gap-badge" style={{ color: row.color, borderColor: row.color }} title={row.label}>{row.grade}</span></td>
                                                 <td style={{ color: gap.color, fontWeight: 700 }}>{gap.label}</td>
                                                 <td className={row.bestWire ? '' : 'mu'}>{row.bestWire ? playerName(row.bestWire.p) : '—'}</td>
