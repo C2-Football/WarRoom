@@ -312,6 +312,20 @@
         const [gameLog, setGameLog] = useState(null);           // null = loading, [] = none
         const [scoutNews, setScoutNews] = useState(null);       // { status, text }
         const [scoutTick, setScoutTick] = useState(0);          // bumps when SOS / weather finish loading
+
+        // ── Value History tab data — loaded lazily, only when that tab is open ──
+        const [valueHistory, setValueHistory] = useState(null); // null = loading, [] = none
+        useEffect(() => {
+            if (tab !== 'value-history' || !pid) return;
+            let alive = true;
+            const S = window.S || {};
+            const leagueId = S.currentLeagueId;
+            if (!leagueId || typeof window.OD?.loadValueSnapshots !== 'function') { setValueHistory([]); return; }
+            window.OD.loadValueSnapshots({ leagueId, playerId: pid })
+                .then(rows => { if (alive) setValueHistory(rows || []); })
+                .catch(() => { if (alive) setValueHistory([]); });
+            return () => { alive = false; };
+        }, [tab, pid]);
         useEffect(() => {
             if (tab !== 'scouting' || !pid) return;
             let alive = true;
@@ -772,6 +786,77 @@
             );
         }
 
+        // ── Value History tab ────────────────────────────────────────────
+        // Point-in-time DHQ value snapshots (draft pick / trade / periodic
+        // capture) — see dhq-shared/supabase-client.js recordValueSnapshot
+        // and supabase/migrations/20260809000000_player_value_snapshots.sql.
+        // History only accumulates from when a snapshot was first written;
+        // there is no way to reconstruct what a player was worth before
+        // this shipped, so an early-looking series is expected, not a bug.
+        function ValueHistoryTab() {
+            const sectionStyle = { padding: '14px 20px' };
+            const hdrStyle = { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: '8px' };
+            const SOURCE_COLOR = { draft: 'var(--gold)', trade: 'var(--k-5dade2, #5dade2)', periodic: 'var(--silver)' };
+            const SOURCE_LABEL = { draft: 'Draft', trade: 'Trade', periodic: 'Snapshot' };
+
+            if (valueHistory == null) {
+                return React.createElement('div', { style: sectionStyle },
+                    React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6 } }, 'Loading value history…')
+                );
+            }
+            if (!valueHistory.length) {
+                return React.createElement('div', { style: sectionStyle },
+                    React.createElement('div', { style: hdrStyle }, 'Value History'),
+                    React.createElement('div', { style: { fontSize: 'var(--text-body, 0.92rem)', color: 'var(--silver)', opacity: 0.7, lineHeight: 1.5 } },
+                        'No snapshots recorded yet. Values freeze at draft picks, trades, and periodic captures going forward — this can\'t reconstruct value from before this started.')
+                );
+            }
+
+            const pts = valueHistory.map((r, i) => ({ x: i, y: Number(r.value) || 0, r }));
+            const width = 560, height = 140;
+            const maxY = Math.max(...pts.map(p => p.y), 1);
+            const minY = Math.min(...pts.map(p => p.y), 0);
+            const yRange = Math.max(maxY - minY, 1);
+            const maxX = Math.max(pts.length - 1, 1);
+            const xScale = x => 10 + (x / maxX) * (width - 20);
+            const yScale = y => 10 + ((maxY - y) / yRange) * (height - 24);
+            const linePath = pts.map((p, i) => (i === 0 ? 'M' : 'L') + xScale(p.x) + ',' + yScale(p.y)).join(' ');
+            const first = pts[0].y, last = pts[pts.length - 1].y;
+            const delta = last - first;
+
+            return React.createElement('div', { style: sectionStyle },
+                React.createElement('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '8px' } },
+                    React.createElement('div', { style: hdrStyle }, 'Value History'),
+                    pts.length > 1 ? React.createElement('span', {
+                        style: { fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-label, 0.8rem)', fontWeight: 700, color: delta > 0 ? 'var(--k-2ecc71, #2ecc71)' : delta < 0 ? 'var(--k-e74c3c, #e74c3c)' : 'var(--silver)' }
+                    }, (delta > 0 ? '▲ +' : delta < 0 ? '▼ ' : '— ') + Math.abs(delta).toLocaleString()) : null
+                ),
+                React.createElement('svg', { width: '100%', height, viewBox: `0 0 ${width} ${height}`, preserveAspectRatio: 'none' },
+                    React.createElement('path', { d: linePath, fill: 'none', stroke: 'var(--ov-7, rgba(255,255,255,0.3))', strokeWidth: 1.5 }),
+                    pts.map((p, i) => React.createElement('circle', {
+                        key: i, cx: xScale(p.x), cy: yScale(p.y), r: 3.5,
+                        fill: SOURCE_COLOR[p.r.source] || 'var(--silver)', stroke: '#000', strokeWidth: 0.5,
+                    },
+                        React.createElement('title', null, `${SOURCE_LABEL[p.r.source] || p.r.source} · S${p.r.season} W${p.r.week} · ${p.y.toLocaleString()}`)
+                    ))
+                ),
+                React.createElement('div', { style: { display: 'flex', gap: '12px', marginTop: '4px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.7 } },
+                    Object.keys(SOURCE_LABEL).map(k => React.createElement('span', { key: k },
+                        React.createElement('span', { style: { color: SOURCE_COLOR[k] } }, '● '), SOURCE_LABEL[k]
+                    ))
+                ),
+                React.createElement('div', { style: { display: 'flex', flexDirection: 'column', marginTop: '14px' } },
+                    valueHistory.slice().reverse().slice(0, 12).map((r, i) => React.createElement('div', {
+                        key: i, style: { display: 'grid', gridTemplateColumns: '90px 70px 1fr', gap: '8px', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid var(--ov-2, rgba(255,255,255,0.03))' }
+                    },
+                        React.createElement('span', { style: { fontSize: 'var(--text-label, 0.72rem)', color: 'var(--text-muted)' } }, `S${r.season} · W${r.week}`),
+                        React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-label, 0.82rem)', fontWeight: 700, color: 'var(--text-primary)' } }, Number(r.value).toLocaleString()),
+                        React.createElement('span', { style: { fontSize: 'var(--text-label, 0.72rem)', color: SOURCE_COLOR[r.source] || 'var(--text-muted)' } }, SOURCE_LABEL[r.source] || r.source)
+                    ))
+                )
+            );
+        }
+
         // ── Render ────────────────────────────────────────────────
         const backdrop = {
             position: 'fixed', inset: 0, background: 'var(--surf-solid, rgba(5,6,9,0.72))',
@@ -885,19 +970,19 @@
                 // needed. Desktop keeps the underline tab strip untouched.
                 isPhone
                     ? React.createElement('div', { className: 'wr-seg', style: { margin: '12px 20px 0' } },
-                        ['overview', 'stats', 'scouting'].map(t =>
+                        ['overview', 'stats', 'scouting', 'value-history'].map(t =>
                             React.createElement('button', {
                                 key: t,
                                 className: tab === t ? 'is-on' : undefined,
                                 onClick: () => setTab(t),
                                 style: { minHeight: '44px' }
-                            }, t === 'overview' ? 'Overview' : t === 'stats' ? 'Career Stats' : 'Scouting')
+                            }, t === 'overview' ? 'Overview' : t === 'stats' ? 'Career Stats' : t === 'scouting' ? 'Scouting' : 'Value')
                         )
                     )
                     : React.createElement('div', {
                         style: { display: 'flex', gap: '2px', padding: '0 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }
                     },
-                        ['overview', 'stats', 'scouting'].map(t =>
+                        ['overview', 'stats', 'scouting', 'value-history'].map(t =>
                             React.createElement('button', {
                                 key: t,
                                 onClick: () => setTab(t),
@@ -907,11 +992,11 @@
                                     color: tab === t ? 'var(--gold)' : 'var(--silver)',
                                     fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: 'pointer'
                                 }
-                            }, t === 'overview' ? 'Overview' : t === 'stats' ? 'Career Stats' : 'Scouting')
+                            }, t === 'overview' ? 'Overview' : t === 'stats' ? 'Career Stats' : t === 'scouting' ? 'Scouting' : 'Value')
                         )
                     ),
                 // Tab body
-                tab === 'overview' ? OverviewTab() : tab === 'stats' ? StatsTab() : ScoutingTab(),
+                tab === 'overview' ? OverviewTab() : tab === 'stats' ? StatsTab() : tab === 'scouting' ? ScoutingTab() : ValueHistoryTab(),
                 // Actions — Compare, Trade Finder, Tag As (no News button).
                 // Phone (D4 polish): the 4 buttons ride a 2-up grid of 44px
                 // targets (never a sideways pan); desktop keeps the flex row.

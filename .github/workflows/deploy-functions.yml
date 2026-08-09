@@ -60,6 +60,7 @@ jobs:
               '20260610010000': 'supabase/migrations/20260610010000_ai_feedback.sql',
               '20260615000000': 'supabase/migrations/20260615000000_mfl_connection.sql',
               '20260729100000': 'supabase/migrations/20260729100000_nfl_week_context.sql',
+              '20260809000000': 'supabase/migrations/20260809000000_player_value_snapshots.sql',
           }
 
           def run_query(query):
@@ -127,6 +128,7 @@ jobs:
               '20260610010000': 'supabase/migrations/20260610010000_ai_feedback.sql',
               '20260615000000': 'supabase/migrations/20260615000000_mfl_connection.sql',
               '20260729100000': 'supabase/migrations/20260729100000_nfl_week_context.sql',
+              '20260809000000': 'supabase/migrations/20260809000000_player_value_snapshots.sql',
           }
 
           for path in expected.values():

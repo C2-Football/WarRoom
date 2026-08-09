@@ -772,6 +772,7 @@
         // After each completed pick, roll for a trade offer. Cooldown prevents spam.
         const lastOfferIdxRef = React.useRef(-Infinity);
         const lastPickCountRef = React.useRef(0);
+        const snapshottedPickIdsRef = React.useRef(new Set());
         React.useEffect(() => {
             // CPU trade offers are persona-simulated negotiations (likelihood,
             // psych taxes) → Pro. Free mocks stay pure BPA pick-making.
@@ -805,6 +806,36 @@
 
             return () => clearTimeout(t);
         }, [state.currentIdx, state.phase, state.mode, state.activeOffer, state.proposerDrawer]);
+
+        // ── Value-history snapshot ───────────────────────────────────
+        // Freeze each REAL pick's DHQ value the moment it lands, so a trade
+        // or a rank rebuild months later can't silently re-price draft day.
+        // live-sync only: mock/CPU practice runs share this league's real
+        // league_id, and must never write here — a practice draft would
+        // collide with (and permanently block, via the one-row-per-week
+        // upsert) the real draft's snapshot for that player/week. pick.dhq
+        // is already resolved via resolvePlayerDhq at pick time (state.js
+        // MAKE_PICK / the live-sync mapper below) — reuse it as-is so the
+        // snapshot matches exactly what the grid showed at pick time,
+        // rather than recomputing against whatever the engine says now.
+        React.useEffect(() => {
+            if (state.mode !== 'live-sync') return;
+            if (typeof window.OD?.recordValueSnapshot !== 'function') return;
+            const isRedraft = !!window.App?.PlayerValue?.isRedraftActive?.();
+            const curWeek = Number(window.S?.nflState?.display_week || window.S?.nflState?.week || 0);
+            (state.picks || []).forEach(pick => {
+                if (!pick?.id || !pick?.pid || snapshottedPickIdsRef.current.has(pick.id)) return;
+                snapshottedPickIdsRef.current.add(pick.id);
+                if (pick.dhq == null || pick.dhq <= 0) return;
+                window.OD.recordValueSnapshot({
+                    leagueId: state.leagueId, playerId: pick.pid,
+                    season: Number(state.season) || new Date().getFullYear(), week: curWeek,
+                    ts: pick.ts ? new Date(pick.ts).toISOString() : undefined,
+                    value: pick.dhq, valueType: isRedraft ? 'redraft' : 'dynasty', source: 'draft',
+                    context: { pickSlot: `${pick.round}.${String(pick.slot).padStart(2, '0')}`, overall: pick.overall },
+                });
+            });
+        }, [state.picks, state.mode, state.leagueId]);
 
         // ── Phase 5: Live Sync polling loop ─────────────────────────
         // When mode==='live-sync' and phase==='drafting', start polling the
