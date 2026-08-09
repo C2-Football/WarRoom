@@ -2902,7 +2902,15 @@
             localStorage.setItem(draftLearningKey(recap.leagueId), JSON.stringify(next));
             archiveDraftRecap(recap);
             if (window.App?.LI) {
-                window.App.LI.draftOutcomes = next;
+                // NOTE: this used to also set window.App.LI.draftOutcomes = next, but
+                // `next` is an array of whole recap objects while every reader of
+                // draftOutcomes (analytics.js, trophy-room.js, league-detail.js,
+                // alex-insights.js, trade-calc.js) expects a flat array of per-pick
+                // outcome records (round/roster_id/pos/isHit/pick_no/normValue).
+                // Nothing in the codebase currently produces that shape, so writing
+                // the wrong one here just silently broke every reader's .filter()
+                // after a draft was saved. Leave draftOutcomes alone until a real
+                // per-pick outcome pipeline exists.
                 const existingProfiles = window.App.LI.ownerBehaviorProfiles || {};
                 const nextProfiles = { ...existingProfiles };
                 Object.entries(recap.ownerLearning || {}).forEach(([rid, learning]) => {

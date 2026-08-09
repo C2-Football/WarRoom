@@ -1186,11 +1186,27 @@ function AnalyticsPanel({
             const topCurrentPicks = [...currentPicks].sort((a, b) => b.value - a.value || a.year - b.year || a.round - b.round).slice(0, 5);
             const leagueId = currentLeague?.id || currentLeague?.league_id || '';
             const movedPickCount = tradedPicks.filter(p => !sameId(p.owner_id, p.roster_id)).length;
-            // Draft-only fallback when no per-pick outcome rows exist (no championship/history filler).
             // 'Owned Picks' + 'Early Capital' proof cards removed (owner ask) \u2014 the raw pick-capital
             // count duplicated the Winner's Perch / Ideal Draft Strategy panels below with less signal.
-            const historicalProofItems = [
-                { label: 'Draft Outcomes', value: 'Pending', detail: 'No per-pick outcome rows yet; reads use slot value only.', tone: 'warn', color: warnColor },
+            // Surface the league's own most recent completed draft (grade/DHQ) here instead of a
+            // hardcoded 'Pending' \u2014 this tab used to show that placeholder even right after you
+            // drafted, because nothing linked the saved recap in. The round-conversion/winner-DNA
+            // panels further down are a separate, still-unbuilt feature (they need actual per-pick
+            // hit-rate history across seasons, which nothing in the app computes yet) \u2014 that's
+            // still correctly gated behind hasDraftOutcomeHistory below.
+            const latestRecap = (window.App?.PostDraft?.getRecapArchive && leagueId)
+                ? (window.App.PostDraft.getRecapArchive(leagueId)[0] || null)
+                : null;
+            const historicalProofItems = latestRecap ? [
+                {
+                    label: 'Latest Draft',
+                    value: (latestRecap.grade?.letter || '\u2014') + ' \u00b7 ' + Number(latestRecap.totalDHQ || latestRecap.grade?.totalDHQ || 0).toLocaleString() + ' DHQ',
+                    detail: (latestRecap.rank ? 'Finished #' + latestRecap.rank + (latestRecap.percentile != null ? ' (' + latestRecap.percentile + 'th percentile)' : '') + '. ' : '')
+                        + 'Round-by-round hit-rate needs a season of results, so that read stays slot-value-only until games are played.',
+                    tone: 'good', color: goodColor,
+                },
+            ] : [
+                { label: 'Draft Outcomes', value: 'Pending', detail: 'No draft recap on record for this league yet; reads use slot value only.', tone: 'warn', color: warnColor },
             ];
             // \u2500\u2500 Draft intel: Round-Conversion tape + Winner-Formula DNA (full-width) \u2500\u2500
             // Fixed position palette: same position = same color across every round (the scannable
