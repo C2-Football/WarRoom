@@ -1033,7 +1033,7 @@ ${importText.substring(0, 8000)}`;
                             key: slot, onClick: () => { if (typeof window.openPlayerModal === 'function') window.openPlayerModal(p.pid); },
                             style: { padding: '8px 10px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid ' + wrAlpha(posCol, '44'), borderRadius: '6px', cursor: 'pointer' },
                         },
-                            React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: posCol, textTransform: 'uppercase', letterSpacing: '0.08em' } }, slot),
+                            React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: posCol, textTransform: 'uppercase', letterSpacing: '0.08em' } }, _posLabelOf(slot)),
                             React.createElement('div', { style: { fontSize: '0.85rem', fontWeight: 700, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '3px' } }, p.name),
                             React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.75, marginTop: '1px' } }, p.season + ' · ' + (p.ownerName || '').slice(0, 14)),
                             React.createElement('div', { style: { fontSize: '0.92rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'JetBrains Mono, monospace', marginTop: '4px' } }, p.points.toFixed(1) + ' pts'),

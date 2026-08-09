@@ -592,6 +592,18 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         return pos;
     };
 
+    // posLabel — display formatter for position/slot codes. Referenced across the
+    // app (`window.App?.posLabel?.(pos) || ...` in ~30 files) but was never actually
+    // defined, so every call silently fell through to its per-site fallback — which
+    // only special-cases DEF, so underscored slot codes (SUPER_FLEX, IDP_FLEX,
+    // REC_FLEX, QB_FLEX...) rendered raw in the UI instead of a clean label.
+    window.App.posLabel = window.App.posLabel || function posLabel(pos) {
+        if (!pos) return pos;
+        const p = String(pos).toUpperCase();
+        if (p === 'DEF') return 'D/ST';
+        return p.replace(/_/g, ' ');
+    };
+
     // calcPosGrades — league-relative position group grades
     // Sums DHQ per position for every team, ranks, and assigns A-F.
     // Returns [{ pos, rank, totalTeams, mySum, grade, col, pct }]
