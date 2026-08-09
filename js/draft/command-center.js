@@ -4578,7 +4578,12 @@
         const stateHelpers = window.DraftCC?.state || {};
         const grade = gradeProp || recap?.grade || { letter: '', totalDHQ: Number(recap?.totalDHQ) || 0 };
         const myPicks = myPicksProp || recap?.picks || [];
-        const PAD = inline ? '16px 14px' : '22px 32px';
+        // Phone always gets the tight, single-column layout regardless of `inline`
+        // (the fullscreen post-draft modal renders this with inline=false even on
+        // phone — it used the roomy desktop padding/row layout and wasted most of
+        // a phone screen's width before this).
+        const compact = inline || bpBucket() === 'mobile';
+        const PAD = compact ? '16px 14px' : '22px 32px';
                     // Build per-position summary from myPicks
                     const posSummary = {};
                     (myPicks || []).forEach(pk => {
@@ -4685,16 +4690,15 @@
                                 borderRadius: '16px',
                             }}>
                                 {/* Hero */}
-                                <div style={{ padding: inline ? '20px 14px' : '28px 32px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', background: 'linear-gradient(135deg, ' + gradeColor + '15, transparent 70%)' }}>
+                                <div style={{ padding: compact ? '14px 14px' : '28px 32px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', background: 'linear-gradient(135deg, ' + gradeColor + '15, transparent 70%)' }}>
                                     <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '6px' }}>Draft Complete — Recap</div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                                        <div style={{ textAlign: 'center', flexShrink: 0 }}>
-                                            <div style={{ fontFamily: FONT_DISPL, fontSize: '5.5rem', fontWeight: 700, color: gradeColor, lineHeight: 1 }}>{recapPro ? (grade.letter || '—') : '🔒'}</div>
-                                            <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '2px' }}>{recapPro ? 'Overall Grade' : 'Grade — Scout Pro'}</div>
+                                    <div style={{ display: 'flex', flexDirection: compact ? 'column' : 'row', alignItems: compact ? 'stretch' : 'center', gap: compact ? '10px' : '24px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: compact ? '14px' : '0', textAlign: compact ? 'left' : 'center', flexShrink: 0 }}>
+                                            <div style={{ fontFamily: FONT_DISPL, fontSize: compact ? '3.4rem' : '5.5rem', fontWeight: 700, color: gradeColor, lineHeight: 1 }}>{recapPro ? (grade.letter || '—') : '🔒'}</div>
+                                            <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: compact ? 0 : '2px' }}>{recapPro ? 'Overall Grade' : 'Grade — Scout Pro'}</div>
                                         </div>
                                         <div style={{ flex: 1 }}>
-                                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.7, lineHeight: 1.45 }}>Grade weighs board value, roster fit, and value vs your expected slots.</div>
-                                            <div style={{ fontSize: '0.96rem', color: 'var(--white)', marginTop: '8px', lineHeight: 1.5 }}>
+                                            <div style={{ fontSize: '0.96rem', color: 'var(--white)', lineHeight: 1.5 }}>
                                                 Total DHQ: <strong style={{ color: gradeColor }}>{grade.totalDHQ.toLocaleString()}</strong> across {myPicks.length} pick{myPicks.length === 1 ? '' : 's'}
                                             </div>
                                             {totals.length >= 3 && (
@@ -4704,10 +4708,12 @@
                                             )}
                                         </div>
                                         {recapPro && effPct != null && (
-                                            <div style={{ textAlign: 'center', flexShrink: 0, padding: '12px 18px', borderRadius: '12px', background: wrAlpha(effColor, '12'), border: '1px solid ' + wrAlpha(effColor, '40'), minWidth: '128px' }}>
-                                                <div style={{ fontFamily: FONT_DISPL, fontSize: '2.6rem', fontWeight: 700, color: effColor, lineHeight: 1 }}>{effPct}%</div>
-                                                <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '4px' }}>{gradeBasis === 'vs $ spent' ? <>of expected value<br/>for your spend</> : <>of expected DHQ<br/>for your slots</>}</div>
-                                                <div style={{ fontSize: '0.6rem', color: effColor, opacity: 0.9, marginTop: '4px', fontWeight: 700 }}>{effPct >= 100 ? 'NAILED YOUR SLOTS' : effPct >= 85 ? 'SOLID FOR YOUR SLOTS' : 'LEFT VALUE ON BOARD'}</div>
+                                            <div style={{ textAlign: 'center', flexShrink: 0, padding: compact ? '10px 14px' : '12px 18px', borderRadius: '12px', background: wrAlpha(effColor, '12'), border: '1px solid ' + wrAlpha(effColor, '40'), minWidth: compact ? 0 : '128px', display: compact ? 'flex' : 'block', alignItems: compact ? 'center' : undefined, gap: compact ? '12px' : 0, justifyContent: compact ? 'flex-start' : undefined }}>
+                                                <div style={{ fontFamily: FONT_DISPL, fontSize: compact ? '1.9rem' : '2.6rem', fontWeight: 700, color: effColor, lineHeight: 1 }}>{effPct}%</div>
+                                                <div style={{ textAlign: compact ? 'left' : 'center' }}>
+                                                    <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: compact ? 0 : '4px' }}>{gradeBasis === 'vs $ spent' ? <>of expected value{compact ? ' ' : <br/>}for your spend</> : <>of expected DHQ{compact ? ' ' : <br/>}for your slots</>}</div>
+                                                    <div style={{ fontSize: '0.6rem', color: effColor, opacity: 0.9, marginTop: '4px', fontWeight: 700 }}>{effPct >= 100 ? 'NAILED YOUR SLOTS' : effPct >= 85 ? 'SOLID FOR YOUR SLOTS' : 'LEFT VALUE ON BOARD'}</div>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
@@ -4875,6 +4881,53 @@
                                                 const isUser = String(team.rosterId) === String(userRosterId);
                                                 const topPlayer = team.topPick || team.picks?.[0];
                                                 const gradeCol = team.grade?.startsWith('A') ? 'var(--k-2ecc71, #2ecc71)' : team.grade?.startsWith('B') ? 'var(--gold)' : team.grade?.startsWith('C') ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
+                                                const tierBadge = recapPro && teamPower[String(team.rosterId)]?.tier
+                                                    ? <span style={{ marginLeft: '6px', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: teamPower[String(team.rosterId)].tierColor || 'var(--silver)' }}>{teamPower[String(team.rosterId)].tier}</span>
+                                                    : null;
+                                                const rowBorder = '1px solid ' + (isUser ? 'var(--acc-line2, rgba(212,175,55,0.28))' : 'var(--ov-4, rgba(255,255,255,0.06))');
+                                                const rowBg = isUser ? 'var(--acc-fill1, rgba(212,175,55,0.07))' : 'var(--ov-1, rgba(255,255,255,0.022))';
+                                                // Compact/phone: the desktop 6-col single-line grid (rank / team
+                                                // name / grade / DHQ / top player / steals-reaches) left almost no
+                                                // room for either name column on a narrow sheet — both team and
+                                                // player names ellipsized down to a few characters. Reflow to two
+                                                // lines instead: team facts on line 1, top-pick facts on line 2,
+                                                // each with the full row width to itself.
+                                                if (compact) {
+                                                    return (
+                                                        <div key={team.rosterId || team.teamName} style={{ padding: '8px 10px', borderRadius: '7px', border: rowBorder, background: rowBg }}>
+                                                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                                                                <span style={{ color: isUser ? 'var(--gold)' : 'var(--silver)', fontFamily: FONT_MONO, fontSize: '0.72rem', fontWeight: 800, flexShrink: 0 }}>#{team.rank}</span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => { if (onPinTeam) onPinTeam(team.rosterId); }}
+                                                                    style={{ flex: 1, minWidth: 0, padding: 0, border: 'none', background: 'transparent', color: 'var(--white)', textAlign: 'left', cursor: onPinTeam ? 'pointer' : 'default', fontFamily: FONT_UI }}
+                                                                    title={onPinTeam ? 'Pin this team in opponent intel' : undefined}
+                                                                >
+                                                                    <div style={{ fontWeight: 800, fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                        {team.teamName}
+                                                                        {tierBadge}
+                                                                    </div>
+                                                                </button>
+                                                                <span style={{ color: recapPro ? gradeCol : 'var(--silver)', fontFamily: FONT_DISPL, fontSize: '0.9rem', fontWeight: 900, flexShrink: 0 }}>{recapPro ? team.grade : '🔒'}</span>
+                                                                <span style={{ color: 'var(--silver)', fontSize: '0.66rem', fontFamily: FONT_MONO, flexShrink: 0 }}>{fmtDhq(team.totalDHQ)}</span>
+                                                            </div>
+                                                            <div style={{ marginTop: '3px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                                                <span style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', flexShrink: 0, whiteSpace: 'nowrap' }}>{team.buildLabel}</span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => topPlayer?.pid && openRecapPlayer(topPlayer.pid)}
+                                                                    disabled={!topPlayer?.pid}
+                                                                    style={{ flex: '1 1 auto', minWidth: '80px', padding: 0, border: 'none', background: 'transparent', color: topPlayer?.pid ? 'var(--gold)' : 'var(--silver)', textAlign: 'left', cursor: topPlayer?.pid ? 'pointer' : 'default', fontFamily: FONT_UI, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                                                                >
+                                                                    {topPlayer ? topPlayer.name : 'No top pick'}
+                                                                </button>
+                                                                <span style={{ color: 'var(--silver)', opacity: 0.72, fontSize: 'var(--text-micro, 0.6875rem)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                                                                    {team.steals?.length || 0} steal{team.steals?.length === 1 ? '' : 's'} · {team.reaches?.length || 0} reach{team.reaches?.length === 1 ? '' : 'es'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
                                                 return (
                                                     <div key={team.rosterId || team.teamName} style={{
                                                         display: 'grid',
@@ -4883,8 +4936,8 @@
                                                         alignItems: 'center',
                                                         padding: '8px 10px',
                                                         borderRadius: '7px',
-                                                        border: '1px solid ' + (isUser ? 'var(--acc-line2, rgba(212,175,55,0.28))' : 'var(--ov-4, rgba(255,255,255,0.06))'),
-                                                        background: isUser ? 'var(--acc-fill1, rgba(212,175,55,0.07))' : 'var(--ov-1, rgba(255,255,255,0.022))',
+                                                        border: rowBorder,
+                                                        background: rowBg,
                                                     }}>
                                                         <div style={{ color: isUser ? 'var(--gold)' : 'var(--silver)', fontFamily: FONT_MONO, fontSize: '0.72rem', fontWeight: 800 }}>#{team.rank}</div>
                                                         <button
@@ -4895,8 +4948,7 @@
                                                         >
                                                             <div style={{ fontWeight: 800, fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                 {team.teamName}
-                                                                {/* competitive-tier badge is an assessment read → Pro (Open Q7 ruling) */}
-                                                                {recapPro && teamPower[String(team.rosterId)]?.tier && <span style={{ marginLeft: '6px', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: teamPower[String(team.rosterId)].tierColor || 'var(--silver)' }}>{teamPower[String(team.rosterId)].tier}</span>}
+                                                                {tierBadge}
                                                             </div>
                                                             <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{team.buildLabel}</div>
                                                         </button>
@@ -4920,9 +4972,10 @@
                                     ) : <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6 }}>No league picks available for recap.</div>}
                                 </div>
 
-                                {/* Actions */}
-                                <div style={{ padding: inline ? '14px 14px 18px' : '18px 32px 24px', display: 'flex', gap: '10px', justifyContent: 'flex-end', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    {onSaveRecap && <button onClick={onSaveRecap} style={{ padding: '10px 22px', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>SAVE RECAP</button>}
+                                {/* Actions — wraps (rather than overflowing off-screen) and
+                                    stacks full-width on phone so every button stays reachable. */}
+                                <div style={{ padding: compact ? '14px 14px 18px' : '18px 32px 24px', display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: compact ? 'stretch' : 'flex-end', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
+                                    {onSaveRecap && <button onClick={onSaveRecap} style={{ flex: compact ? '1 1 auto' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>SAVE RECAP</button>}
                                     {/* share/export text embeds the A–F grade + value calls → Pro
                                         (clean absence; save-to-archive above stays free) */}
                                     {recapPro && <button onClick={() => {
@@ -4933,7 +4986,7 @@
                                             if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(() => alert('Share report copied.')).catch(e => alert('Copy failed: ' + e.message));
                                             else alert('Clipboard unavailable in this browser.');
                                         } catch (e) { alert('Copy failed: ' + e.message); }
-                                    }} style={{ padding: '10px 22px', background: 'var(--ov-3, rgba(255,255,255,0.035))', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.14))', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>COPY REPORT</button>}
+                                    }} style={{ flex: compact ? '1 1 auto' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'var(--ov-3, rgba(255,255,255,0.035))', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.14))', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>COPY REPORT</button>}
                                     {recapPro && <button onClick={() => {
                                         try {
                                             const text = stateHelpers.formatDraftShareReport
@@ -4944,8 +4997,8 @@
                                             const blob = new Blob([text], { type: 'text/markdown' });
                                             const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'draft-recap-' + Date.now() + '.md'; a.click(); URL.revokeObjectURL(url);
                                         } catch (e) { alert('Export failed: ' + e.message); }
-                                    }} style={{ padding: '10px 22px', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.15))', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>EXPORT REPORT</button>}
-                                    {onPrimary && <button onClick={onPrimary} style={{ padding: '10px 22px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>{primaryLabel || 'DONE'}</button>}
+                                    }} style={{ flex: compact ? '1 1 auto' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.15))', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>EXPORT REPORT</button>}
+                                    {onPrimary && <button onClick={onPrimary} style={{ flex: compact ? '1 1 100%' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>{primaryLabel || 'DONE'}</button>}
                                 </div>
                             </div>
         );
@@ -5754,41 +5807,50 @@
                     <LeagueGradesPanel state={state} onClose={() => setShowLeagueGrades(false)} />
                 )}
 
-                {/* Phase 7: Post-draft recap — full-screen modal with grade + per-position + roster + export */}
+                {/* Phase 7: Post-draft recap — full-screen modal with grade + per-position + roster + export.
+                    Phone gets the shared WR.Sheet (close ✕ + swipe-to-dismiss + safe-area handling) —
+                    this used to always render the roomy desktop-centered dialog, which on a phone
+                    screen wasted most of the width and left the action row unreachable off-edge. */}
                 {state.phase === 'complete' && !recapDismissed && (() => {
                     const stateHelpers = window.DraftCC?.state || {};
                     const recap = stateHelpers.buildDraftRecap
                         ? stateHelpers.buildDraftRecap(state, { grade })
                         : null;
-                    // Overlay shell only — the report card itself is the shared
-                    // DraftRecapReport (also rendered inline on the Draft War Room
-                    // post-draft from the archived recap).
-                    return (
+                    const onSaveRecapNow = () => {
+                        try {
+                            const key = 'wr_draft_recap_' + Date.now();
+                            const payload = stateHelpers.saveDraftRecap
+                                ? stateHelpers.saveDraftRecap(state, { grade, key })
+                                : recap;
+                            if (!payload) localStorage.setItem(key, JSON.stringify(recap || {}));
+                            alert('Draft recap saved to archive (' + key + ')');
+                        } catch (e) { alert('Save failed: ' + e.message); }
+                    };
+                    const recapProps = {
+                        recap,
+                        grade,
+                        myPicks,
+                        userRosterId: state.userRosterId,
+                        onPinTeam: rid => dispatch({ type: 'PIN_TEAM', rosterId: rid }),
+                        onSaveRecap: onSaveRecapNow,
+                        primaryLabel: forcedMode === 'live-sync' ? 'VIEW DRAFT BOARD →' : 'DRAFT AGAIN',
+                        onPrimary: onExit,
+                    };
+                    const Sheet = window.WR && window.WR.Sheet;
+                    const desktopModal = (
                         <div style={{
                             position: 'fixed', inset: 0, background: 'var(--surf-solid, rgba(5,6,9,0.82))',
                             zIndex: 900, display: 'flex', alignItems: 'center', justifyContent: 'center',
                             padding: 'var(--space-xl)', animation: 'wrFadeIn 0.2s ease'
                         }} onClick={e => { if (e.target === e.currentTarget) onExit && onExit(); }}>
-                            <DraftRecapReport
-                                recap={recap}
-                                grade={grade}
-                                myPicks={myPicks}
-                                userRosterId={state.userRosterId}
-                                onPinTeam={rid => dispatch({ type: 'PIN_TEAM', rosterId: rid })}
-                                onSaveRecap={() => {
-                                    try {
-                                        const key = 'wr_draft_recap_' + Date.now();
-                                        const payload = stateHelpers.saveDraftRecap
-                                            ? stateHelpers.saveDraftRecap(state, { grade, key })
-                                            : recap;
-                                        if (!payload) localStorage.setItem(key, JSON.stringify(recap || {}));
-                                        alert('Draft recap saved to archive (' + key + ')');
-                                    } catch (e) { alert('Save failed: ' + e.message); }
-                                }}
-                                primaryLabel={forcedMode === 'live-sync' ? 'VIEW DRAFT BOARD →' : 'DRAFT AGAIN'}
-                                onPrimary={onExit}
-                            />
+                            <DraftRecapReport {...recapProps} />
                         </div>
+                    );
+                    if (!Sheet) return desktopModal;
+                    return (
+                        <Sheet open={true} onClose={onExit} title="Draft Recap" height="100dvh" desktop={desktopModal}>
+                            <DraftRecapReport {...recapProps} inline />
+                        </Sheet>
                     );
                 })()}
 
