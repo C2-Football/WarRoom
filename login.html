@@ -106,6 +106,7 @@
       filter: drop-shadow(0 0 16px rgba(212,175,55,.25));
     }
 
+    .login-title-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
     .login-title {
       margin: 0;
       color: var(--gold);
@@ -113,6 +114,16 @@
       letter-spacing: .14em;
       text-align: center;
       text-transform: uppercase;
+    }
+    .beta-tag {
+      padding: 3px 8px;
+      font: 700 10px/1.4 'JetBrains Mono', monospace;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--gold-bright);
+      background: rgba(212, 175, 55, .12);
+      border: 1px solid rgba(212, 175, 55, .4);
+      border-radius: 999px;
     }
     .login-subtitle { margin: 8px 0 24px; color: var(--silver); font-size: 14px; text-align: center; }
 
@@ -253,7 +264,10 @@
     <a class="back-link" href="landing.html">← Back to Dynasty HQ</a>
     <section class="login-container" aria-labelledby="loginTitle">
       <div class="logo-section"><img src="icon-192.png" alt="Dynasty HQ"></div>
-      <h1 class="login-title" id="loginTitle">Dynasty HQ</h1>
+      <div class="login-title-row">
+        <h1 class="login-title" id="loginTitle">Dynasty HQ</h1>
+        <span class="beta-tag">Beta</span>
+      </div>
       <p class="login-subtitle">Sign in to your fantasy front office</p>
 
       <div id="message" class="message" role="status" aria-live="polite"></div>
