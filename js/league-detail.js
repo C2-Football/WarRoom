@@ -3057,21 +3057,26 @@
                             if (leagueSkin?.type === 'redraft') return null;
                             const gm = window.WR?.GmMode?.describe?.(gmStrategy?.mode || 'compete');
                             if (!gm) return null;
+                            // Calm treatment (owner ask 2026-08-09 — header read as a "confetti
+                            // of badges", each status pill carrying its own saturated bg+border).
+                            // Status indicators now read as dot + plain text, like the phone
+                            // sheet's rows already do — color lives in the dot, not a fill/border,
+                            // so gold (SWITCH, Draft Clock CTA) stays the one loud accent in the row.
                             return React.createElement('button', {
                                 key: 'gm-badge-' + gm.id,
                                 onClick: () => setActiveTab && setActiveTab('strategy'),
                                 title: 'GM Mode — edit in GM\'s Office',
                                 className: 'wr-gm-mode-badge',
                                 style: {
-                                    padding: '4px 10px 4px 8px', display: 'inline-flex', alignItems: 'center', gap: '6px',
-                                    fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', fontWeight: 700,
-                                    textTransform: 'uppercase', letterSpacing: '0.06em',
-                                    background: wrAlpha(gm.badgeColor, '22'), color: gm.badgeColor,
-                                    border: '1px solid ' + wrAlpha(gm.badgeColor, '66'),
+                                    padding: '4px 6px', display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                    fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', fontWeight: 600,
+                                    letterSpacing: '0.02em',
+                                    background: 'transparent', color: 'var(--silver)',
+                                    border: '1px solid transparent',
                                     borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
                                 }
                             },
-                                React.createElement('span', { style: { width: 6, height: 6, borderRadius: '50%', background: gm.badgeColor } }),
+                                React.createElement('span', { style: { width: 6, height: 6, borderRadius: '50%', background: gm.badgeColor, flexShrink: 0 } }),
                                 'GM · ' + gm.label
                             );
                         })()}
@@ -3082,14 +3087,10 @@
                             style: {
                                 display: 'inline-flex', alignItems: 'center', gap: '5px',
                                 flex: '0 0 auto', minWidth: 'max-content',
-                                padding: '4px 8px',
-                                borderRadius: '6px',
-                                border: '1px solid ' + wrAlpha(headerLeagueType.color, '66'),
-                                background: wrAlpha(headerLeagueType.color, '18'),
-                                color: headerLeagueType.color,
+                                padding: '4px 6px',
+                                color: 'var(--silver)',
                                 fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)',
-                                fontWeight: 800, textTransform: 'uppercase',
-                                letterSpacing: '0.06em', whiteSpace: 'nowrap',
+                                fontWeight: 600, letterSpacing: '0.02em', whiteSpace: 'nowrap',
                                 cursor: 'help'
                             }
                         },
@@ -3103,17 +3104,14 @@
                             style: {
                                 display: 'inline-flex', alignItems: 'center', gap: '5px',
                                 flex: '0 0 auto', minWidth: 'max-content',
-                                padding: '4px 8px',
-                                borderRadius: '6px',
-                                border: '1px solid ' + wrAlpha(leagueSkin.phaseMeta.color, '55'),
-                                background: wrAlpha(leagueSkin.phaseMeta.color, '14'),
-                                color: leagueSkin.phaseMeta.color,
+                                padding: '4px 6px',
+                                color: 'var(--silver)',
                                 fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)',
-                                fontWeight: 800, textTransform: 'uppercase',
-                                letterSpacing: '0.06em', whiteSpace: 'nowrap',
+                                fontWeight: 600, letterSpacing: '0.02em', whiteSpace: 'nowrap',
                                 cursor: 'help'
                             }
                         },
+                            React.createElement('span', { style: { width: 6, height: 6, borderRadius: '50%', background: leagueSkin.phaseMeta.color, flexShrink: 0, display: 'inline-block' } }),
                             leagueSkin.phaseMeta.label
                         )}
                         {headerDraftClock && React.createElement('div', {
@@ -3209,10 +3207,13 @@
                                         const prev = currentAndFuture[i - 1];
                                         const prevKind = prev == null ? null : (prev > currentSeason ? 'future' : 'current');
                                         const selected = timeYear === yr;
+                                        // Calm treatment (owner ask 2026-08-09): only the SELECTED year
+                                        // gets a filled pill — every other year sat in its own colored
+                                        // bordered pill even at rest, which is most of this row.
                                         let bg, color, border, weight = selected ? 700 : 400, opacity = 1;
                                         if (selected) { bg = 'var(--gold)'; color = 'var(--black)'; border = '1px solid var(--gold)'; }
-                                        else if (kind === 'future') { bg = 'rgba(69,183,209,0.06)'; color = 'var(--k-45b7d1, #45b7d1)'; border = '1px solid rgba(69,183,209,0.25)'; }
-                                        else { bg = 'var(--acc-fill2, rgba(212,175,55,0.12))'; color = 'var(--gold)'; border = '1px solid var(--acc-line2, rgba(212,175,55,0.4))'; weight = 700; }
+                                        else if (kind === 'future') { bg = 'transparent'; color = 'var(--k-45b7d1, #45b7d1)'; border = '1px solid transparent'; }
+                                        else { bg = 'transparent'; color = 'var(--silver)'; border = '1px solid transparent'; }
                                         return (
                                             <React.Fragment key={yr}>
                                                 {prevKind && prevKind !== kind && (
@@ -3250,8 +3251,15 @@
                     </select>
                     {/* League name/team-count moved to the main header to avoid duplication. */}
                     <div className="wr-time-spacer" style={{ marginLeft: 'auto' }}></div>
-                    {/* Time mode badge */}
-                    <span className="wr-time-mode" style={{
+                    {/* Time mode badge — plain text on the (usual) current-season path;
+                        the wr-time-banner below already carries the loud version of this
+                        signal when viewing a historical/future season, so this pill was
+                        just restating "current season" in a colored chip most of the time. */}
+                    <span className="wr-time-mode" style={isCurrentYear ? {
+                        fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, color: 'var(--silver)',
+                        padding: '2px 4px',
+                        fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.04em'
+                    } : {
                         fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: timeModeColor,
                         background: wrAlpha(timeModeColor, '15'), border: '1px solid ' + wrAlpha(timeModeColor, '30'),
                         padding: '2px 10px', borderRadius: '12px',
