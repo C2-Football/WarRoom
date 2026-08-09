@@ -260,7 +260,7 @@
 
       <button type="button" id="btnGoogle" class="oauth-btn oauth-google"><span class="oauth-mark" aria-hidden="true">G</span>Continue with Google</button>
       <button type="button" id="btnApple" class="oauth-btn oauth-apple"><span class="oauth-mark" aria-hidden="true">●</span>Continue with Apple</button>
-      <div class="auth-or">or use email</div>
+      <div class="auth-or">or use your account</div>
 
       <div class="auth-tabs" role="tablist" aria-label="Account access">
         <button type="button" class="auth-tab active" id="tabSignin" role="tab" aria-selected="true" aria-controls="panelSignin">Sign in</button>
@@ -269,8 +269,8 @@
 
       <form id="panelSignin" class="auth-panel" role="tabpanel" aria-labelledby="tabSignin">
         <div class="form-group">
-          <label class="form-label" for="email">Email</label>
-          <input type="email" id="email" class="form-input" placeholder="you@example.com" autocomplete="email" required>
+          <label class="form-label" for="identifier">Email or Sleeper username</label>
+          <input type="text" id="identifier" class="form-input" placeholder="you@example.com or username" autocomplete="username" autocapitalize="none" spellcheck="false" required>
         </div>
         <div class="form-group">
           <label class="form-label" for="password">Password</label>
@@ -307,6 +307,8 @@
     const FW_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4c2hpcXl4aGhpZnZ0ZnFhd2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MTExMzAsImV4cCI6MjA4ODI4NzEzMH0.zJi9W986ZLaANiZN6pt6ReFwaQU6yPeidsERIWo2ibI';
     const SUPABASE_URL = 'https://sxshiqyxhhifvtfqawbq.supabase.co';
     const SESSION_KEY = 'fw_session_v1';
+    const LEGACY_SESSION_KEY = 'od_session_v1';
+    const LEGACY_AUTH_KEY = 'od_auth_v1';
     const WARROOM_URL = 'index.html';
     const messageEl = document.getElementById('message');
     const signinForm = document.getElementById('panelSignin');
@@ -341,7 +343,7 @@
       document.getElementById('tabSignin').setAttribute('aria-selected', String(signin));
       document.getElementById('tabSignup').setAttribute('aria-selected', String(!signin));
       messageEl.classList.remove('show', 'success');
-      (signin ? document.getElementById('email') : document.getElementById('signupEmail')).focus();
+      (signin ? document.getElementById('identifier') : document.getElementById('signupEmail')).focus();
     }
 
     async function authenticate(endpoint, body, button, workingLabel) {
@@ -368,11 +370,22 @@
 
     signinForm.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const email = document.getElementById('email').value.trim();
+      const identifier = document.getElementById('identifier').value.trim();
       const password = document.getElementById('password').value;
-      if (!email || !password) { showMessage('Email and password are required.'); return; }
-      const data = await authenticate('fw-signin', { email, password }, document.getElementById('btnSignin'), 'Signing in…');
+      if (!identifier || !password) { showMessage('Email or username and password are required.'); return; }
+
+      const isEmail = identifier.includes('@');
+      const endpoint = isEmail ? 'fw-signin' : 'get-session-token';
+      const body = isEmail ? { email: identifier, password } : { username: identifier, password };
+      const data = await authenticate(endpoint, body, document.getElementById('btnSignin'), 'Signing in…');
       if (!data) return;
+
+      if (!isEmail) {
+        localStorage.removeItem(SESSION_KEY);
+        localStorage.setItem(LEGACY_SESSION_KEY, JSON.stringify(data));
+        localStorage.setItem(LEGACY_AUTH_KEY, JSON.stringify({ username: identifier }));
+        localStorage.setItem('od_locked_username_v2', identifier);
+      }
       showMessage('Welcome back. Opening Dynasty HQ…', 'success');
       setTimeout(() => { window.location.href = WARROOM_URL; }, 500);
     });
@@ -403,8 +416,9 @@
     document.getElementById('tabSignin').addEventListener('click', () => switchMode('signin'));
     document.getElementById('tabSignup').addEventListener('click', () => switchMode('signup'));
     document.getElementById('btnReset').addEventListener('click', async (event) => {
-      const email = document.getElementById('email').value.trim();
+      const email = document.getElementById('identifier').value.trim();
       if (!email) { showMessage('Enter your email first, then request a reset link.'); return; }
+      if (!email.includes('@')) { showMessage('Password reset links are available for email accounts.'); return; }
       const button = event.currentTarget;
       button.disabled = true;
       button.textContent = 'Sending reset link…';
@@ -435,7 +449,13 @@
           }
         }
         const session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
-        if (session?.token && session?.user) window.location.href = destination();
+        if (session?.token && session?.user) {
+          window.location.href = destination();
+          return;
+        }
+        const legacySession = JSON.parse(localStorage.getItem(LEGACY_SESSION_KEY) || 'null');
+        const legacyAuth = JSON.parse(localStorage.getItem(LEGACY_AUTH_KEY) || 'null');
+        if (legacySession?.token && legacyAuth?.username) window.location.href = WARROOM_URL;
       } catch {}
     })();
   </script>
