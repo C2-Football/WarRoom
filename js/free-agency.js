@@ -636,6 +636,41 @@
         }
     }
 
+    // Shared player headshot — sleepercdn photo with an initials fallback,
+    // sized per call site. Same URL pattern as the market table's row photo
+    // (fa-mkt-row, further down) so a broken image reads identically.
+    function PlayerAvatar({ pid, p, size }) {
+        const s = size || 30;
+        const initials = ((p?.first_name || '?')[0] + (p?.last_name || '?')[0]).toUpperCase();
+        return (
+            <span className="fa-hq-avatar" style={{ width: s, height: s }}>
+                <img src={'https://sleepercdn.com/content/nfl/players/' + pid + '.jpg'} alt=""
+                    onError={e => { e.target.style.display = 'none'; if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'; }} />
+                <em>{initials}</em>
+            </span>
+        );
+    }
+
+    // Mini trend sparkline for a waiver-board row — real recent weekly points
+    // (window.S.weeklyPlayerPoints), not a decorative shape. Renders nothing
+    // without at least 2 logged games, so it never implies data that isn't there.
+    function FaTrendSpark({ pid, color }) {
+        const wpp = window.S?.weeklyPlayerPoints || {};
+        const weeks = Object.keys(wpp).map(Number).sort((a, b) => a - b);
+        const series = [];
+        for (const w of weeks) { const v = wpp[w]?.[pid]; if (v != null) series.push(v); }
+        const pts = series.slice(-4);
+        if (pts.length < 2) return null;
+        const min = Math.min(...pts), max = Math.max(...pts), range = (max - min) || 1;
+        const w = 38, h = 16, step = w / (pts.length - 1);
+        const path = pts.map((v, i) => (i * step) + ',' + (h - ((v - min) / range) * h)).join(' ');
+        return (
+            <svg width={w} height={h} viewBox={'0 0 ' + w + ' ' + h} className="fa-hq-spark" aria-hidden="true">
+                <polyline points={path} fill="none" stroke={color || 'var(--silver)'} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+        );
+    }
+
     // ── FAAB Command (redraft add-ons batch) ─────────────────────────
     // League-aware bid plan for a waiver target: what THIS league pays, who
     // else needs the player, and the smallest bid that clears them. All
@@ -683,30 +718,25 @@
         }
         const a = plan && plan.a;
         if (!a) return null;    // pre-effect, non-FAAB league, or engine absent
-        const mono = { fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' };
-        const micro = { fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-mono)', letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted, #8D887E)' };
         const needColor = n => n === 'HIGH' ? 'var(--warn)' : n === 'MED' ? 'var(--silver)' : 'var(--text-muted)';
         const engaged = a.rivals.filter(r => r.engaged);
         return (
-            <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '8px', padding: '12px 14px', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                    <span style={{ ...micro, color: 'var(--gold)', fontWeight: 700 }}>FAAB Command</span>
-                    <span style={{ ...micro }}>${a.myLeft} of ${a.budget} left</span>
-                    {a.coldStart ? <span title="Fewer than 15 logged bids this season — showing league-size defaults, not per-rival reads" style={{ ...micro, color: 'var(--warn)' }}>league-median mode · {a.sampleSize} bids logged</span> : <span style={{ ...micro }}>{a.sampleSize} bids of evidence</span>}
+            <div className="fa-hq-command">
+                <div className="fa-hq-command-head">
+                    <b>FAAB Command</b>
+                    <span>${a.myLeft} of ${a.budget} left</span>
+                    {a.coldStart ? <span title="Fewer than 15 logged bids this season — showing league-size defaults, not per-rival reads" className="is-warn">league-median mode · {a.sampleSize} bids logged</span> : <span>{a.sampleSize} bids of evidence</span>}
                 </div>
                 {targets.length > 1 ? (
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                    <div className="fa-hq-command-picks">
                         {targets.map((t, i) => (
-                            <button key={t.pid} onClick={() => setPick(i)}
-                                style={{ padding: '3px 8px', borderRadius: '5px', cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, fontFamily: 'var(--font-mono)', background: i === pick ? 'rgba(212,175,55,0.14)' : 'transparent', border: '1px solid ' + (i === pick ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.1))'), color: i === pick ? 'var(--gold)' : 'var(--silver)' }}>
-                                {t.name}
-                            </button>
+                            <button key={t.pid} className={i === pick ? 'is-active' : ''} onClick={() => setPick(i)}>{t.name}</button>
                         ))}
                     </div>
                 ) : null}
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '8px' }}>
-                    <span style={{ ...mono, fontSize: '1.5rem', fontWeight: 700, color: 'var(--gold)' }}>${a.rec.bid}</span>
-                    <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>
+                <div className="fa-hq-command-hero">
+                    <strong>${a.rec.bid}</strong>
+                    <span>
                         {engaged.length
                             ? Math.round(a.rec.winPct * 100) + '% to win' + (a.rec.capped ? ' — capped by your remaining budget' : '') + ' · ' + engaged.length + ' rival' + (engaged.length === 1 ? '' : 's') + ' in the market'
                             : 'uncontested — no rival needs him'}
@@ -717,7 +747,7 @@
                     nothing went out weeks 1-3, while the champion finished with
                     $565 left. */}
                 {a.pacing ? (
-                    <div style={{ ...micro, textTransform: 'none', letterSpacing: 0, lineHeight: 1.55, marginBottom: '8px', color: a.pacing.verdict === 'hoarding' ? 'var(--warn)' : 'var(--silver)' }}>
+                    <div className={'fa-hq-command-pace' + (a.pacing.verdict === 'hoarding' ? ' is-warn' : '')}>
                         {a.pacing.verdict === 'hoarding'
                             ? <span><b style={{ color: 'var(--warn)' }}>You are hoarding.</b> ~{a.pacing.horizonWeeks} weeks left at your survival odds, and at your current ${a.pacing.myPacePerWeek}/wk pace you would be chopped holding <b>${a.pacing.projectedUnspent.toLocaleString()}</b>. You can afford ${a.pacing.affordPerWeek}/wk.</span>
                             : a.pacing.verdict === 'slightly-under'
@@ -729,32 +759,30 @@
                     capped 97% and the ladder reads as broken. Say the true
                     thing instead: the minimum bid is enough. */}
                 {!engaged.length ? (
-                    <div style={{ ...micro, textTransform: 'none', letterSpacing: 0, lineHeight: 1.5 }}>
+                    <div className="fa-hq-command-note">
                         No rival has both a need at {target.pos || 'this position'} and the budget to chase him — the league minimum (${a.minBid}) should land him. Spend the difference on someone contested.
                     </div>
                 ) : a.ladder.map(l => (
-                    <div key={l.bid} style={{ display: 'grid', gridTemplateColumns: '44px 1fr 40px', gap: '10px', alignItems: 'center', padding: '3px 0' }}>
-                        <span style={{ ...mono, fontSize: 'var(--text-label, 0.75rem)', fontWeight: l.bid === a.rec.bid ? 700 : 500, color: l.bid === a.rec.bid ? 'var(--gold)' : 'var(--white)' }}>${l.bid}</span>
-                        <div style={{ height: '6px', background: '#0C0E13', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
-                            <i style={{ display: 'block', height: '100%', width: Math.round(l.winPct * 100) + '%', background: l.bid === a.rec.bid ? 'var(--gold)' : 'var(--info)' }} />
-                        </div>
-                        <span style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', textAlign: 'right', color: 'var(--silver)' }}>{Math.round(l.winPct * 100)}%</span>
+                    <div key={l.bid} className={'fa-hq-ladder-row' + (l.bid === a.rec.bid ? ' is-rec' : '')}>
+                        <b>${l.bid}</b>
+                        <div className="fa-hq-ladder-track"><i className="fa-hq-ladder-fill" style={{ width: Math.round(l.winPct * 100) + '%' }} /></div>
+                        <span className="fa-hq-ladder-pct">{Math.round(l.winPct * 100)}%</span>
                     </div>
                 ))}
                 {!a.coldStart && engaged.length ? (
-                    <div style={{ marginTop: '10px' }}>
-                        <div style={{ ...micro, marginBottom: '4px' }}>Who else wants him</div>
+                    <div>
+                        <div className="fa-hq-rivals-label">Who else wants him</div>
                         {engaged.slice(0, 4).map(r => (
-                            <div key={r.rosterId} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.4fr) 52px 46px 56px', gap: '8px', padding: '3px 0', fontSize: 'var(--text-label, 0.75rem)', ...mono }}>
-                                <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, color: 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
-                                <span style={{ textAlign: 'right', color: 'var(--silver)' }}>${r.faabLeft}</span>
-                                <span style={{ textAlign: 'right', color: needColor(r.need), fontWeight: 700, fontSize: 'var(--text-micro, 0.6875rem)' }}>{r.need}</span>
-                                <span style={{ textAlign: 'right', color: 'var(--silver)' }}>est ${r.estBid}</span>
+                            <div key={r.rosterId} className="fa-hq-rival-row">
+                                <span>{r.name}</span>
+                                <span>${r.faabLeft}</span>
+                                <span style={{ color: needColor(r.need), fontWeight: 700 }}>{r.need}</span>
+                                <span>est ${r.estBid}</span>
                             </div>
                         ))}
                     </div>
                 ) : null}
-                <div style={{ ...micro, marginTop: '8px', textTransform: 'none', letterSpacing: 0 }}>
+                <div className="fa-hq-command-foot">
                     {a.coldStart
                         ? 'Rival bid reads unlock as this league logs claims — recommendations use league-size medians until then.'
                         : 'League median comparable: $' + a.medianBid + ' · you’ve spent ' + a.mySpentPct + '% vs a ' + a.leagueSpentPct + '% league average.'}
@@ -1516,13 +1544,6 @@
             }
             return out.sort((a, b) => b.dhq - a.dhq).slice(0, 4);
         })();
-        const positionThreats = Array.from(new Set([...(assess?.needs || []).map(n => n.pos), ...actionBoardPlayers.slice(0, 6).map(x => x.pos)]))
-            .slice(0, 6)
-            .map(pos => {
-                const top = faabMarketRows.find(r => !r.isMe && rosterNeedsPosition(r.roster, pos));
-                return { pos, top };
-            })
-            .filter(x => x.top);
 
         const doGenerateWaiverTake = async () => {
             if (!isPro) {
@@ -1557,14 +1578,21 @@
             return (
                 <button key={x.pid} className={'fa-hq-candidate' + (isPrimary ? ' is-primary' : '')} title="Open player card" onClick={() => openFaPlayer(x.pid)}>
                     <span className="fa-hq-rank">{i + 1}</span>
+                    <PlayerAvatar pid={x.pid} p={x.p} size={30} />
                     <span className="fa-hq-player-main">
-                        <strong>{playerName(x.p)}</strong>
-                        <em>{x.p.team || 'FA'} · {x.pos} · {x.windowLabel}</em>
+                        <strong>{playerName(x.p)} <em className="fa-hq-cand-pos" style={{ color: posColors[x.pos] || 'var(--silver)' }}>{x.pos}</em></strong>
+                        <span className="fa-hq-cand-badge" style={{ color: x.fit.color, borderColor: x.fit.color }}>{x.fit.label}</span>
                     </span>
-                    <span className="fa-hq-player-fit" style={{ color: x.fit.color }}>{x.fit.short}</span>
+                    <span className="fa-hq-cand-window">
+                        <FaTrendSpark pid={x.pid} color={x.windowColor} />
+                        <i>{x.p.team || 'FA'} · {x.windowLabel}</i>
+                    </span>
                     <span className="fa-hq-player-value">
                         <strong style={{ color: dhqCol }}>{x.dhq ? x.dhq.toLocaleString() : '—'}</strong>
-                        <em>{x.faab ? '$' + x.faab.lo + '-' + x.faab.hi : 'No bid'}</em>
+                    </span>
+                    <span className="fa-hq-cand-bid">
+                        <b>{x.faab ? '$' + x.faab.lo + '-' + x.faab.hi : 'No bid'}</b>
+                        <em style={{ color: x.fit.color }}>{x.fit.short}</em>
                     </span>
                 </button>
             );
@@ -1576,6 +1604,13 @@
             const swapRows = upgradePairs.slice(0, compact ? 3 : 4);
             const freshRows = recentDrops.slice(0, compact ? 2 : 3);
             const faabColor = remaining > budget * 0.5 ? 'var(--k-2ecc71, #2ecc71)' : remaining > budget * 0.25 ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
+            // In-reach count: of the top 20 ranked, roster-relevant targets (dhq
+            // >= 500, the same relevance floor faabSuggest() uses), how many have
+            // a suggested bid your remaining FAAB can actually cover. Scoped to
+            // the ranked board, not the whole ~300-player wire, so the number
+            // means "targets", not "every rostered-or-not name available".
+            const rankedTargets = actionBoardPlayers.filter(x => x.dhq >= 500).slice(0, 20);
+            const inRangeCount = rankedTargets.filter(x => !x.faab || x.faab.hi <= remaining).length;
             return (
                 <section className={'fa-hq-shell' + (compact ? ' is-compact' : '')}>
                     <div className="fa-hq-grid">
@@ -1651,8 +1686,12 @@
                             <div className="fa-hq-stack">
                                 {topAdds.length ? topAdds.map((x, i) => (
                                     <button key={x.pid} className="fa-hq-mini-card" title="Open player card" onClick={() => openFaPlayer(x.pid)}>
-                                        <strong>{playerName(x.p)} <span style={{ color: posColors[x.pos] || 'var(--silver)' }}>{x.pos}</span></strong>
-                                        <em>{x.fit.label} · {x.dhq.toLocaleString()} {valueShortLabel}{x.faab ? ' · $' + x.faab.lo + '-' + x.faab.hi : ''}</em>
+                                        <PlayerAvatar pid={x.pid} p={x.p} size={28} />
+                                        <span className="fa-hq-mini-body">
+                                            <strong>{playerName(x.p)} <span style={{ color: posColors[x.pos] || 'var(--silver)' }}>{x.pos}</span></strong>
+                                            <em>{x.fit.label} · {x.dhq.toLocaleString()} {valueShortLabel}{x.faab ? ' · $' + x.faab.lo + '-' + x.faab.hi : ''}</em>
+                                        </span>
+                                        <span className="fa-hq-mini-plus" aria-hidden="true">+</span>
                                     </button>
                                 )) : <div className="fa-hq-empty">No priority adds match your current roster needs.</div>}
                             </div>
@@ -1675,8 +1714,8 @@
                             <div className="fa-hq-stack">
                                 {swapRows.length ? swapRows.map(pair => (
                                     <button key={pair.drop.pid + '-' + pair.add.pid} className="fa-hq-swap" title="Open player card" onClick={() => openFaPlayer(pair.add.pid)}>
-                                        <span><b>Drop</b>{pair.drop.name}<em>{pair.drop.dhq.toLocaleString()}</em></span>
-                                        <span><b>Add</b>{playerName(pair.add.p)}<em>+{pair.gain.toLocaleString()}</em></span>
+                                        <span className="fa-hq-swap-side is-drop"><b>Drop</b>{pair.drop.name}<em>{pair.drop.dhq.toLocaleString()}</em></span>
+                                        <span className="fa-hq-swap-side is-add"><b>Add</b>{playerName(pair.add.p)}<em>+{pair.gain.toLocaleString()}</em></span>
                                     </button>
                                 )) : <div className="fa-hq-empty">No obvious add/drop upgrade found from the current wire.</div>}
                             </div>
@@ -1687,8 +1726,11 @@
                             <div className="fa-hq-stack">
                                 {freshRows.length ? freshRows.map(d => (
                                     <button key={d.pid} className="fa-hq-mini-card is-alert" title="Open player card" onClick={() => openFaPlayer(d.pid)}>
-                                        <strong>{d.name} <span>{d.pos}</span></strong>
-                                        <em>Dropped W{d.week} · {d.dhq.toLocaleString()} {valueShortLabel}</em>
+                                        <PlayerAvatar pid={d.pid} p={playersData[d.pid]} size={28} />
+                                        <span className="fa-hq-mini-body">
+                                            <strong>{d.name} <span style={{ color: posColors[d.pos] || 'var(--silver)' }}>{d.pos}</span></strong>
+                                            <em>Dropped W{d.week} · {d.dhq.toLocaleString()} {valueShortLabel}</em>
+                                        </span>
                                     </button>
                                 )) : <div className="fa-hq-empty">No startable recent drops are sitting on the wire.</div>}
                             </div>
@@ -1699,8 +1741,15 @@
                                 <span>Ranked Waiver Board</span>
                                 <em>bid range, fit, window, and reason</em>
                             </div>
+                            <div className="fa-hq-board-head">
+                                <span>Rank</span><span /><span>Player</span><span>Window</span><span>Score</span><span>Bid Range</span>
+                            </div>
                             <div className="fa-hq-board-list">
                                 {boardRows.map((x, i) => renderCandidateRow(x, i, i === 0))}
+                            </div>
+                            <div className="fa-hq-board-foot">
+                                <span>Rankings run off your league's own scoring and roster settings.</span>
+                                <button type="button" onClick={() => { try { document.querySelector('.fa-market-shell')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {} }}>View Full Board →</button>
                             </div>
                         </main>
 
@@ -1717,6 +1766,13 @@
                                 <span> of ${budget} · #{myFaabRank || '—'} FAAB</span>
                                 <i style={{ width: budget > 0 ? Math.max(3, Math.round((remaining / budget) * 100)) + '%' : '0%', background: faabColor }} />
                             </div>}
+                            {hasFAAB && (
+                                <div className="fa-hq-leverage-caption">
+                                    {inRangeCount > 0
+                                        ? "You're in range to compete for " + inRangeCount + ' of your top ' + rankedTargets.length + ' targets.'
+                                        : 'FAAB is tight right now — check the ladder above before you bid.'}
+                                </div>
+                            )}
                             <div className="fa-hq-chipline">
                                 {(canOutbidRows.length ? canOutbidRows : faabMarketRows.filter(r => !r.isMe).slice(0, 4)).map(r => (
                                     <span key={r.rosterId}>{r.name} ${r.remaining}</span>
@@ -1724,19 +1780,33 @@
                             </div>
 
                             <div className="fa-hq-subhead">Roster Gap Matrix</div>
-                            <div className="fa-hq-gap-matrix">
-                                {rosterGapRows.map(row => {
-                                    const threat = positionThreats.find(t => t.pos === row.pos)?.top || null;
-                                    return (
-                                        <div key={row.pos} style={{ background: row.bg }}>
-                                            <span style={{ color: posColors[row.pos] || row.color }}>{window.App?.posLabel?.(row.pos) || (row.pos === 'DEF' ? 'D/ST' : row.pos)}</span>
-                                            <strong className="fa-gap-badge" style={{ color: row.color, borderColor: row.color }} title={row.label}>{row.grade}</strong>
-                                            <em>{row.data.nflStarters || Math.min(row.data.actual || 0, row.data.minQuality || row.data.startingReq || 0)}/{row.data.minQuality || row.data.startingReq || 0}</em>
-                                            <i>{row.bestWire ? playerName(row.bestWire.p) : '—'}</i>
-                                            {threat ? <b title={threat.name + ' also needs ' + row.pos + ' — $' + threat.remaining + ' FAAB left'}>${threat.remaining}</b> : null}
-                                        </div>
-                                    );
-                                })}
+                            {rosterGapRows.length ? <table className="fa-hq-gap-table">
+                                <thead>
+                                    <tr><th>Pos</th><th>Starter</th><th>Depth</th><th>Gap</th><th>Top Upgrade</th><th>Score</th></tr>
+                                </thead>
+                                <tbody>
+                                    {rosterGapRows.map(row => {
+                                        const gap = row.data.status === 'deficit' ? { label: 'High', color: 'var(--bad)' }
+                                            : row.data.status === 'thin' ? { label: 'Medium', color: 'var(--warn)' }
+                                            : { label: 'Low', color: 'var(--good)' };
+                                        return (
+                                            <tr key={row.pos}>
+                                                <td style={{ color: posColors[row.pos] || row.color }}>{window.App?.posLabel?.(row.pos) || (row.pos === 'DEF' ? 'D/ST' : row.pos)}</td>
+                                                <td className="mono">{row.data.nflStarters || Math.min(row.data.actual || 0, row.data.minQuality || row.data.startingReq || 0)}/{row.data.minQuality || row.data.startingReq || 0}</td>
+                                                <td><span className="fa-hq-gap-badge" style={{ color: row.color, borderColor: row.color }} title={row.label}>{row.grade}</span></td>
+                                                <td style={{ color: gap.color, fontWeight: 700 }}>{gap.label}</td>
+                                                <td className={row.bestWire ? '' : 'mu'}>{row.bestWire ? playerName(row.bestWire.p) : '—'}</td>
+                                                <td className={row.bestWire ? '' : 'mu'} style={row.bestWire ? { color: 'var(--good)', fontWeight: 700 } : null}>{row.bestWire ? '+' + row.bestWire.dhq.toLocaleString() : '—'}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table> : <div className="fa-hq-empty">Roster assessment isn't available for this team yet.</div>}
+                            <div className="fa-hq-gap-key">
+                                <span>Gap Key</span>
+                                <span><i style={{ background: 'var(--bad)' }} />High Need</span>
+                                <span><i style={{ background: 'var(--warn)' }} />Medium Need</span>
+                                <span><i style={{ background: 'var(--good)' }} />Low Need</span>
                             </div>
                         </aside>
                     </div>
