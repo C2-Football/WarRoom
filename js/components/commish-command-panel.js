@@ -153,7 +153,10 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                 {unit ? <span style={{ font: '600 0.9rem/1 ' + MONO, color: MUTED, marginLeft: '3px', flex: '0 0 auto' }}>{unit}</span> : null}
             </div>
             {extra ? <div style={{ marginTop: '8px' }}>{extra}</div> : null}
-            {sub ? <div style={{ ...T.body, fontSize: '0.75rem', color: MUTED, maxWidth: 'none', marginTop: '8px', ...ell }}>{sub}</div> : null}
+            {sub ? <div style={{
+                ...T.body, fontSize: '0.75rem', color: MUTED, maxWidth: 'none', marginTop: '8px',
+                ...(phone ? { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden' } : ell),
+            }}>{sub}</div> : null}
         </button>
     );
 
@@ -163,7 +166,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
     // one step rather than ellipsing a date into nonsense.
     const ndLong = nd && String(nd.label || '').length > 9;
     // Zero open items printed in red is a lie — an empty desk is a good day.
-    const needsColor = needsTotal > 0 ? BAD : GOOD;
+    const needsColor = (needs.now || 0) > 0 ? BAD : GOOD;
 
     const band1 = (
         <div style={{ background: SURF, border: '1px solid ' + LINE, borderRadius: '10px', overflow: 'hidden' }}>
@@ -178,10 +181,10 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                     onClick: () => gridRef.current && gridRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' }),
                 })}
                 {renderTile({
-                    id: 't2', label: 'Needs you', accent: needsColor,
-                    value: needsTotal, valueColor: needsColor,
-                    sub: (needs.now || 0) + ' now · ' + (needs.soon || 0) + ' this week · ' + (needs.backlog || 0) + ' backlog',
-                    onClick: clearFilter,
+                    id: 't2', label: 'Needs you now', accent: needsColor,
+                    value: needs.now || 0, valueColor: needsColor,
+                    sub: (needs.soon || 0) + ' this week · ' + (needs.backlog || 0) + ' backlog · ' + needsTotal + ' total',
+                    onClick: () => emit({ tier: 'NOW' }),
                 })}
                 {renderTile({
                     id: 't3', label: 'Opening day', accent: WARN,
@@ -216,6 +219,19 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
     // ══ BAND 2 — NEEDS YOU ════════════════════════════════════════════
     const TIERS = ['NOW', 'SOON', 'BACKLOG'];
     const tierCount = (t) => t === 'NOW' ? (counts.now || 0) : t === 'SOON' ? (counts.soon || 0) : (counts.backlog || 0);
+
+    const renderAllPriorities = () => (
+        <button type="button" onClick={() => emit({ tier: null })}
+            style={{
+                ...bare, display: 'flex', alignItems: 'center', gap: '8px',
+                background: !f.tier ? ACCENT_FILL : SURF2,
+                border: '1px solid ' + (!f.tier ? ACCENT : LINE), borderRadius: '4px',
+                padding: '0 8px', height: phone ? '44px' : '28px',
+            }}>
+            <span style={{ ...T.metricSm, color: !f.tier ? ACCENT : SILVER }}>{items.length}</span>
+            <span style={{ ...T.chip, color: MUTED }}>ALL</span>
+        </button>
+    );
 
     const renderPill = (t) => {
         const on = f.tier === t;
@@ -347,12 +363,15 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
         <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={T.title}>Needs you</span>
+                    <span style={T.title}>{f.tier === 'NOW' ? 'Needs you now' : f.tier === 'SOON' ? 'Coming this week' : f.tier === 'BACKLOG' ? 'Backlog' : 'All open work'}</span>
                     <span style={T.label}>· {visible.length} item{visible.length === 1 ? '' : 's'} · ranked by severity</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={T.label}>Priority</span>
                     {TIERS.map(t => renderPill(t))}
+                    {renderAllPriorities()}
                     <span style={{ width: '1px', height: '20px', background: LINE }} />
+                    <span style={T.label}>League</span>
                     {renderLeagueChip({ id: '__all', tag: 'All', active: !f.leagueId, onClick: () => emit({ leagueId: null }) })}
                     {gLeagues.map(l => renderLeagueChip({
                         id: l.leagueId, tag: l.tag,
@@ -361,7 +380,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                     }))}
                 </div>
             </div>
-            <div style={{ background: SURF, border: '1px solid ' + LINE, borderRadius: '10px', overflow: 'hidden', minHeight: '420px' }}>
+            <div style={{ background: SURF, border: '1px solid ' + LINE, borderRadius: '10px', overflow: 'hidden', minHeight: f.tier ? undefined : '420px' }}>
                 {groups.length ? groups.map(g => (
                     <React.Fragment key={g.tier}>
                         <div style={{ height: '28px', display: 'flex', alignItems: 'center', padding: '0 14px', background: WELL, borderBottom: '1px solid ' + LINE, ...T.label }}>

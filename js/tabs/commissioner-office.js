@@ -46,7 +46,10 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     // "not chosen yet" and resolves to the first league — the owner amends ONE
     // constitution at a time, so single-league is the default posture.
     const [rlLeagueId, setRlLeagueId] = React.useState(null);
-    const [queueFilter, setQueueFilter] = React.useState({ tier: null, leagueId: null, domain: null });
+    // Command opens on the work that needs intervention now. Soon/backlog
+    // remain one tap away, but they no longer turn the front door into a
+    // multi-thousand-pixel audit log before the commissioner has acted today.
+    const [queueFilter, setQueueFilter] = React.useState({ tier: 'NOW', leagueId: null, domain: null });
     const openHub = React.useCallback((hub, opts) => {
         // Accept BOTH shapes: openHub(hub, {leagueId}) and the older
         // openHub(hub, leagueId) the command panel emits. Before this, a bare
@@ -843,7 +846,12 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     // ladder here so every descendant resolves real colors, and isolate so no
     // ancestor blend mode can reach in.
     const shell = (children) => (
-        <div style={{ ...CO_TOKENS, position: 'relative', zIndex: 1, background: 'var(--co-page)', isolation: 'isolate', minHeight: '100vh' }}>
+        // The office mounts as a standalone full-page surface (app.js commishMode
+        // branch returns it in place of the normal <header className="header">
+        // shell that every other view gets for free), so it has to carve out its
+        // own safe-area-inset-top — without it, the header row sits under the iOS
+        // status bar/notch on phone and its buttons become untappable.
+        <div style={{ ...CO_TOKENS, position: 'relative', zIndex: 1, background: 'var(--co-page)', isolation: 'isolate', minHeight: '100vh', paddingTop: 'var(--sat, env(safe-area-inset-top, 0px))' }}>
         {isPhone && navOpen && window.WrCommishSidebar ? (
             <window.WrCommishSidebar
                 groups={sidebarGroups} active={tab} counts={hubCounts}
@@ -870,10 +878,10 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                 {/* Blue wordmark, not gold: the cheapest signal that the Office
                     is a different room from Empire. Gold survives in exactly two
                     places office-wide — the LABS chip and the "this is you" row. */}
-                <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.5rem', letterSpacing: '.06em', textTransform: 'uppercase', color: TEXT, display: 'inline-block', borderBottom: `3px solid ${ACCENT}`, paddingBottom: '3px' }}>Commissioner's Office</span>
+                <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: isPhone ? '1.15rem' : '1.5rem', letterSpacing: '.06em', textTransform: 'uppercase', color: TEXT, display: 'inline-block', borderBottom: `3px solid ${ACCENT}`, paddingBottom: '3px' }}>Commissioner's Office</span>
                 <span style={{ fontFamily: MONO, fontSize: '0.625rem', fontWeight: 700, letterSpacing: '.08em', color: '#121217', background: GOLD, borderRadius: '4px', padding: '2px 6px' }}>LABS</span>
                 {state.status === 'ready' ? (
-                    <span style={{ marginLeft: 'auto', fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
+                    <span style={{ marginLeft: isPhone ? 0 : 'auto', flexBasis: isPhone ? '100%' : 'auto', fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
                         {state.mine.length} LEAGUES · {Object.keys(state.graph?.people || {}).length} HUMANS · {(state.graph?.overlap || []).length} CROSSOVER
                     </span>
                 ) : null}
