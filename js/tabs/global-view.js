@@ -1340,7 +1340,7 @@ function buildEmpireBrief(model, userName) {
     if (!model || !model.totals) return '';
     const topSignal = (model.signals || []).find(s => s.type !== 'data' && s.type !== 'balance');
     return topSignal
-        ? 'Top of my list: ' + topSignal.title.toLowerCase() + (topSignal.metric ? ' (' + topSignal.metric + ')' : '') + '.'
+        ? 'Top of my list: ' + topSignal.title + (topSignal.metric ? ' (' + topSignal.metric + ')' : '') + '.'
         : 'No single risk is dominating the portfolio right now.';
 }
 
@@ -1374,27 +1374,51 @@ function EmpireStyles() {
             .empire-kpi strong { display: block; font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace; color: var(--white, var(--k-ffffff, #ffffff)); font-size: 1.05rem; line-height: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .empire-kpi span { display: block; margin-top: 5px; color: var(--gold); font-size: var(--text-micro); font-weight: 800; letter-spacing: 0.11em; text-transform: uppercase; }
             .empire-kpi em { display: block; margin-top: 2px; color: var(--ov-8, rgba(255,255,255,0.42)); font-style: normal; font-size: var(--text-micro); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .empire-filters { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; padding: 9px 24px 10px; background: rgba(0,0,0,0.32); }
+            .empire-filters { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
             .empire-filter-label { color: var(--gold); font-size: var(--text-micro); font-weight: 900; letter-spacing: 0.13em; text-transform: uppercase; margin-right: 2px; }
             .empire-filter { min-height: 28px; padding: 5px 10px; font-size: var(--text-label, 0.75rem); font-weight: 800; color: var(--ov-9, rgba(255,255,255,0.52)); }
             .empire-filter.is-active { border-color: var(--tone, var(--k-d4af37, #d4af37)); background: color-mix(in srgb, var(--tone, var(--k-d4af37, #d4af37)) 16%, transparent); color: var(--tone, var(--k-d4af37, #d4af37)); }
             .empire-clear { margin-left: auto; border-color: rgba(231,76,60,0.38); color: var(--k-e74c3c, #e74c3c); }
             .empire-shell { max-width: 1760px; margin: 0 auto; padding: 18px 24px 40px; }
+            .empire-viewbar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; min-height: 44px; margin-bottom: 12px; padding: 8px 10px; border: 1px solid var(--ov-4, rgba(255,255,255,0.065)); border-radius: var(--card-radius); background: rgba(0,0,0,0.3); }
+            .empire-viewbar-spacer { flex: 1 1 auto; }
+            .empire-filter-toggle { display: inline-flex; align-items: center; gap: 7px; }
+            .empire-filter-toggle b { display: inline-grid; min-width: 18px; height: 18px; place-items: center; padding: 0 4px; border-radius: 99px; background: var(--gold); color: var(--black); font: 900 var(--text-micro) / 18px var(--font-mono); }
+            .empire-advanced-filters { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin: -4px 0 12px; padding: 12px; border: 1px solid var(--acc-fill2, rgba(212,175,55,0.12)); border-radius: var(--card-radius); background: linear-gradient(180deg, rgba(212,175,55,0.035), rgba(255,255,255,0.015)); }
+            .empire-filter-group { min-width: 0; }
+            .empire-filter-group .empire-filter-label { display: block; margin: 0 0 8px; }
+            .empire-filter-group .empire-filters { align-items: stretch; }
+            .empire-command-deck { display: grid; grid-template-columns: minmax(300px,0.78fr) minmax(460px,1.22fr); gap: 12px; margin-bottom: 12px; align-items: stretch; }
+            .empire-command-deck .empire-panel { padding: 16px; }
+            .empire-command-primary { position: relative; overflow: hidden; background: radial-gradient(circle at 92% 5%, rgba(124,107,248,0.15), transparent 42%), linear-gradient(135deg, rgba(212,175,55,0.08), rgba(255,255,255,0.018)); }
+            .empire-command-primary::after { content: ''; position: absolute; right: -34px; bottom: -58px; width: 180px; height: 180px; border: 1px solid rgba(212,175,55,0.09); border-radius: 50%; pointer-events: none; }
+            .empire-command-kicker { color: var(--gold); font-size: var(--text-micro); font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; }
+            .empire-command-focus { position: relative; z-index: 1; margin: 9px 0 14px; color: var(--white, #fff); font-family: var(--font-title); font-size: clamp(1.15rem, 1.8vw, 1.55rem); line-height: 1.26; }
+            .empire-command-meta { position: relative; z-index: 1; color: var(--ov-9, rgba(255,255,255,0.58)); font-size: var(--text-label, 0.75rem); line-height: 1.45; }
+            .empire-priority-list { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+            .empire-priority-list .empire-signal { min-height: 112px; display: flex; flex-direction: column; }
+            .empire-priority-list .empire-signal-top { align-items: flex-start; }
+            .empire-priority-list .empire-signal-top strong { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+            .empire-priority-list .empire-signal span { flex: 1; }
+            .empire-section-footer { display: flex; justify-content: flex-end; margin-top: 9px; }
             /* ── Terminal chrome: left rail + Empire Wire ticker + LIVE ── */
             .empire-root.is-terminal { padding-left: 52px; box-sizing: border-box; }
             .empire-rail { position: fixed; left: 0; top: 0; bottom: 0; width: 52px; z-index: 80;
                 background: linear-gradient(180deg, var(--off-black, #070707), rgba(7,7,7,0.96));
                 border-right: 1px solid var(--acc-line1, rgba(212,175,55,0.22));
                 display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 0; }
-            .empire-rail-btn { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+            .empire-rail-btn { position: relative; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
                 border: 1px solid transparent; border-radius: var(--card-radius-sm, 6px); background: transparent;
                 color: var(--ov-9, rgba(255,255,255,0.55)); font-size: 1.15rem; cursor: pointer; transition: all 0.15s; }
             .empire-rail-btn:hover { color: var(--gold); border-color: var(--acc-line2, rgba(212,175,55,0.3)); background: var(--acc-fill1, rgba(212,175,55,0.06)); }
+            .empire-rail-btn:first-child { color: var(--gold); border-color: var(--acc-line1, rgba(212,175,55,0.22)); background: var(--acc-fill1, rgba(212,175,55,0.05)); }
+            .empire-rail-btn::after { content: attr(aria-label); position: absolute; left: 45px; top: 50%; z-index: 100; transform: translate(6px,-50%); width: max-content; max-width: 190px; padding: 6px 9px; border: 1px solid var(--acc-line2, rgba(212,175,55,0.3)); border-radius: var(--card-radius-sm); background: rgba(7,7,7,0.97); box-shadow: 0 8px 22px rgba(0,0,0,0.45); color: var(--k-f7e9b0, #f7e9b0); font-size: var(--text-label, 0.75rem); font-weight: 800; pointer-events: none; opacity: 0; transition: opacity 120ms, transform 120ms; }
+            .empire-rail-btn:hover::after, .empire-rail-btn:focus-visible::after { opacity: 1; transform: translate(0,-50%); }
             .empire-rail-spacer { flex: 1; }
             .empire-live { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-micro); font-weight: 800; letter-spacing: 0.12em; color: var(--good); text-transform: uppercase; }
             .empire-live::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--good); animation: empire-pulse 1.8s infinite; }
             @keyframes empire-pulse { 0% { box-shadow: 0 0 0 0 rgba(46,204,113,0.5); } 70% { box-shadow: 0 0 0 6px rgba(46,204,113,0); } 100% { box-shadow: 0 0 0 0 rgba(46,204,113,0); } }
-            .empire-wire { overflow: hidden; white-space: nowrap; background: rgba(0,0,0,0.34); border-bottom: 1px solid var(--ov-4, rgba(255,255,255,0.055)); padding: 5px 0; display: flex; align-items: center; }
+            .empire-wire { overflow: hidden; white-space: nowrap; min-height: 28px; margin-bottom: 12px; background: rgba(0,0,0,0.28); border: 1px solid var(--ov-4, rgba(255,255,255,0.055)); border-radius: var(--card-radius-sm); padding: 5px 0; display: flex; align-items: center; }
             .empire-wire-tag { flex-shrink: 0; padding: 0 14px; font-size: var(--text-micro); font-weight: 900; letter-spacing: 0.14em; color: var(--gold); text-transform: uppercase; border-right: 1px solid var(--ov-4, rgba(255,255,255,0.08)); }
             .empire-wire-track { display: inline-block; white-space: nowrap; animation: empire-wire-scroll 48s linear infinite; }
             .empire-wire:hover .empire-wire-track { animation-play-state: paused; }
@@ -1513,10 +1537,14 @@ function EmpireStyles() {
             @media(max-width:1439px) {
                 .empire-main-grid { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
                 .empire-center { grid-column: 1 / -1; grid-row: 1; }
+                .empire-command-deck { grid-template-columns: minmax(280px,0.7fr) minmax(0,1.3fr); }
                 .empire-workspace-head, .empire-table-head, .empire-asset-row { grid-template-columns: minmax(150px,1fr) 42px 46px 66px 66px 56px minmax(110px,0.8fr); }
             }
             @media(max-width:1023px) {
-                .empire-main-grid, .empire-slice-grid, .empire-bridge { grid-template-columns: 1fr; }
+                .empire-main-grid, .empire-slice-grid, .empire-bridge, .empire-command-deck { grid-template-columns: 1fr; }
+                .empire-advanced-filters { grid-template-columns: 1fr; }
+                .empire-priority-list { grid-template-columns: 1fr; }
+                .empire-priority-list .empire-signal { min-height: 0; }
                 .empire-workspace-head { align-items: flex-start; flex-direction: column; }
                 .empire-table-head, .empire-asset-row { grid-template-columns: minmax(140px,1fr) 40px 46px 58px 58px; }
                 .empire-table-head div:nth-child(n+6), .empire-asset-row div:nth-child(n+6) { display: none; }
@@ -1524,9 +1552,15 @@ function EmpireStyles() {
             }
             @media(max-width:767px) {
                 .empire-topbar { padding: 9px 14px; }
-                .empire-kpis, .empire-filters { padding-left: 14px; padding-right: 14px; }
+                .empire-kpis { display: flex; overflow-x: auto; padding-left: 14px; padding-right: 14px; scroll-snap-type: x proximity; }
+                .empire-kpi { flex: 0 0 138px; scroll-snap-align: start; }
                 .empire-shell, .empire-detail { padding-left: 14px; padding-right: 14px; }
                 .empire-user { display: none; }
+                .empire-live { display: none; }
+                .empire-title span { display: none; }
+                .empire-viewbar { flex-wrap: nowrap; overflow-x: auto; }
+                .empire-viewbar-spacer { display: none; }
+                .empire-wire { display: none; }
             }
             @media(pointer: coarse) {
                 .empire-back { width: 44px; min-height: 44px; }
@@ -1545,10 +1579,12 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const [filters, setFilters] = useState(emptyFilters);
     const [sort, setSort] = useState('dhq');
     const [detail, setDetail] = useState(null);
+    const [filtersOpen, setFiltersOpen] = useState(false);
     // Arbitrage board default: owned rows only. The board is sorted
     // mine-first regardless, but a portfolio with a deep player pool can
     // bury your own leverage under market-only rows without this.
     const [arbMineOnly, setArbMineOnly] = useState(true);
+    const [arbExpanded, setArbExpanded] = useState(false);
     const normPos = window.App?.normPos || (p => p);
     // KNOWN APPROXIMATION (H5): playerScores come from the one LeagueIntel currently loaded,
     // so all leagues' Empire DHQ (Empire Value, asset values, move math) are scored in that
@@ -2486,44 +2522,54 @@ const renderScoutDetail = () => {
                     <button className="empire-action" type="button" style={{ marginLeft: 'auto', borderColor: 'rgba(155,138,251,0.4)', color: 'var(--purple)', background: 'rgba(155,138,251,0.08)' }} onClick={() => setDetail({ type: 'moves' })}>⚡ Empire Moves{moves.length ? ' · ' + moves.length : ''}</button>
                     <div className="empire-user">{userName}</div>
                 </div>
-                {wireItems.length ? (
-                    <div className="empire-wire">
-                        <span className="empire-wire-tag">Empire Wire</span>
-                        <div className="empire-wire-track">
-                            {wireItems.map((w, i) => <span key={'a' + i} className="empire-wire-item">{w}</span>)}
-                            {wireItems.map((w, i) => <span key={'b' + i} className="empire-wire-item">{w}</span>)}
-                        </div>
-                    </div>
-                ) : null}
                 <div className="empire-kpis" data-testid="empire-command-strip">
                     {/* Command Bridge KPI strip — empire-wide overview (mockup contract), with
                         week-over-week deltas from the snapshot store. Lens filters drive the asset
                         table below, not these portfolio-level KPIs. */}
                     {bridge.kpis.map(kpiTile)}
                 </div>
-                <div className="empire-filters">
-                    <span className="empire-filter-label">Lenses</span>
-                    {lensButton('All', {}, 'var(--gold)')}
-                    {lensButton('High Exposure', { exposure: 'multi', assetType: 'players' }, 'var(--purple)')}
-                    {lensButton('Post-window', { agePhase: 'post' }, 'var(--bad)')}
-                    {lensButton('Peak Assets', { agePhase: 'peak' }, 'var(--good)')}
-                    {lensButton('Picks', { assetType: 'picks' }, 'var(--purple)')}
-                    {/* Contender/Rebuild is dynasty vocabulary — a chopped or
-                        redraft-only empire has no such postures. */}
-                    {hasLongTerm ? lensButton('Contenders', { status: 'contender' }, 'var(--good)') : null}
-                    {hasLongTerm ? lensButton('Rebuilds', { status: 'rebuild' }, 'var(--bad)') : null}
-                    <span className="empire-filter-label">Pos</span>
-                    {['QB','RB','WR','TE','K','DEF','DL','LB','DB'].map(pos => filterButton('position', pos, window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos), posColors[pos]))}
-                    <span className="empire-filter-label">Age</span>
-                    {filterButton('agePhase', 'build', 'Build', 'var(--k-4ecdc4, #4ecdc4)')}
-                    {filterButton('agePhase', 'peak', 'Peak', 'var(--k-2ecc71, #2ecc71)')}
-                    {filterButton('agePhase', 'value', 'Value', 'var(--k-f0a500, #f0a500)')}
-                    {filterButton('agePhase', 'post', 'Post-window', 'var(--k-e74c3c, #e74c3c)')}
-                    {activeFilters > 0 && <button className="empire-filter empire-clear" type="button" onClick={clearFilters}>Clear {activeFilters}</button>}
-                </div>
             </header>
 
             <main className="empire-shell">
+                <div className="empire-viewbar" aria-label="Empire portfolio views">
+                    <span className="empire-filter-label">View</span>
+                    {lensButton('All', {}, 'var(--gold)')}
+                    {lensButton('High Exposure', { exposure: 'multi', assetType: 'players' }, 'var(--purple)')}
+                    {lensButton('Post-window', { agePhase: 'post' }, 'var(--bad)')}
+                    {lensButton('Picks', { assetType: 'picks' }, 'var(--purple)')}
+                    <span className="empire-viewbar-spacer" />
+                    {activeFilters > 0 && <button className="empire-filter empire-clear" type="button" onClick={clearFilters}>Clear {activeFilters}</button>}
+                    <button className={'empire-filter empire-filter-toggle' + (filtersOpen ? ' is-active' : '')} type="button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(v => !v)}>
+                        Filters {activeFilters > 0 ? <b>{activeFilters}</b> : null} <span aria-hidden="true">{filtersOpen ? '−' : '+'}</span>
+                    </button>
+                </div>
+                {filtersOpen ? (
+                    <div className="empire-advanced-filters" data-testid="empire-advanced-filters">
+                        <div className="empire-filter-group">
+                            <span className="empire-filter-label">Strategy</span>
+                            <div className="empire-filters">
+                                {lensButton('Peak Assets', { agePhase: 'peak' }, 'var(--good)')}
+                                {hasLongTerm ? lensButton('Contenders', { status: 'contender' }, 'var(--good)') : null}
+                                {hasLongTerm ? lensButton('Rebuilds', { status: 'rebuild' }, 'var(--bad)') : null}
+                            </div>
+                        </div>
+                        <div className="empire-filter-group">
+                            <span className="empire-filter-label">Position</span>
+                            <div className="empire-filters">
+                                {['QB','RB','WR','TE','K','DEF','DL','LB','DB'].map(pos => filterButton('position', pos, window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos), posColors[pos]))}
+                            </div>
+                        </div>
+                        <div className="empire-filter-group">
+                            <span className="empire-filter-label">Age Window</span>
+                            <div className="empire-filters">
+                                {filterButton('agePhase', 'build', 'Build', 'var(--k-4ecdc4, #4ecdc4)')}
+                                {filterButton('agePhase', 'peak', 'Peak', 'var(--k-2ecc71, #2ecc71)')}
+                                {filterButton('agePhase', 'value', 'Value', 'var(--k-f0a500, #f0a500)')}
+                                {filterButton('agePhase', 'post', 'Post-window', 'var(--k-e74c3c, #e74c3c)')}
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
                 {hasNoResults ? (
                     <div className="empire-empty" data-testid="empire-empty-state">
                         <strong>No portfolio results match this view</strong>
@@ -2532,13 +2578,44 @@ const renderScoutDetail = () => {
                     </div>
                 ) : (
                     <>
+                        <section className="empire-command-deck" data-testid="empire-bridge">
+                            <div className="empire-panel empire-command-primary">
+                                <div className="empire-panel-head"><strong>Empire Brief</strong><em>Alex · {userName}</em></div>
+                                <div className="empire-command-kicker">Today's command read</div>
+                                <div className="empire-command-focus">{briefText}</div>
+                                <div className="empire-command-meta">Across {model.totals.leagues} leagues · {actionQueue.length} ranked moves · {model.totals.pickCount} picks under management</div>
+                            </div>
+                            <div className="empire-panel">
+                                <div className="empire-panel-head"><strong>Priority Queue</strong><em>the next {Math.min(3, actionQueue.length)} moves</em></div>
+                                <div className="empire-priority-list">
+                                    {actionQueue.length ? actionQueue.slice(0, 3).map((action, i) => (
+                                        <button key={i} type="button" className="empire-signal" style={{ '--tone': signalTone(action.severity) }} onClick={() => actionForQueue(action)}>
+                                            <div className="empire-signal-top"><strong>{action.title}</strong>{action.metric ? <b>{action.metric}</b> : null}</div>
+                                            <span>{action.detail}</span>
+                                            <em>{action.cta}</em>
+                                        </button>
+                                    )) : <div className="empire-empty"><strong>Portfolio is clean</strong>No high-leverage moves flagged right now.</div>}
+                                </div>
+                                {actionQueue.length > 3 ? <div className="empire-section-footer"><button className="empire-action" type="button" onClick={() => setDetail({ type: 'moves' })}>View all {actionQueue.length} moves →</button></div> : null}
+                            </div>
+                        </section>
+                        {wireItems.length ? (
+                            <div className="empire-wire" aria-label="Empire Wire">
+                                <span className="empire-wire-tag">Empire Wire</span>
+                                <div className="empire-wire-track">
+                                    {wireItems.map((w, i) => <span key={'a' + i} className="empire-wire-item">{w}</span>)}
+                                    {wireItems.map((w, i) => <span key={'b' + i} className="empire-wire-item">{w}</span>)}
+                                </div>
+                            </div>
+                        ) : null}
                         {/* ── THE ARBITRAGE BOARD ─────────────────────────
                             Every league marked to its own book, so the same
                             player carries a different price in each — and the
                             spread is a trade only a portfolio can see. */}
                         {marks && marks.arbitrage.length ? (() => {
                             const mineTotal = marks.arbitrage.reduce((n, a) => n + (a.spreadMine ? 1 : 0), 0);
-                            const rows = (arbMineOnly ? marks.arbitrage.filter(a => a.spreadMine) : marks.arbitrage).slice(0, 6);
+                            const availableRows = arbMineOnly ? marks.arbitrage.filter(a => a.spreadMine) : marks.arbitrage;
+                            const rows = availableRows.slice(0, arbExpanded ? 12 : 3);
                             return (
                             <section className="empire-bridge" data-testid="empire-arbitrage">
                                 <div className="empire-panel" style={{ gridColumn: '1 / -1' }}>
@@ -2576,34 +2653,15 @@ const renderScoutDetail = () => {
                                     <div className="empire-brief-meta" style={{ marginTop: 10, textTransform: 'none', letterSpacing: 0, fontWeight: 500, color: 'var(--ov-7, rgba(255,255,255,0.5))' }}>
                                         League-scored seasonal prices — each league priced on its own scoring, roster slots and team count. Not a dynasty valuation. Leagues are independent player pools: a spread is a trade-leverage read on your OWN rostered asset, never an instruction to move him between leagues.
                                     </div>
+                                    {availableRows.length > 3 ? (
+                                        <div className="empire-section-footer">
+                                            <button className="empire-action" type="button" onClick={() => setArbExpanded(v => !v)}>{arbExpanded ? 'Show less' : 'Show ' + Math.min(12, availableRows.length) + ' opportunities'} {arbExpanded ? '↑' : '↓'}</button>
+                                        </div>
+                                    ) : null}
                                 </div>
                             </section>
                             );
                         })() : null}
-                        <section className="empire-bridge" data-testid="empire-bridge">
-                            <div className="empire-panel">
-                                <div className="empire-panel-head"><strong>Alex — Empire Brief</strong><em>{userName}</em></div>
-                                <div className="empire-brief">
-                                    <div className="empire-brief-av">A</div>
-                                    <div>
-                                        <div className="empire-brief-meta">Command read · all leagues</div>
-                                        <div className="empire-brief-body">{briefText}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="empire-panel">
-                                <div className="empire-panel-head"><strong>Priority Queue</strong><em>{actionQueue.length} ranked moves</em></div>
-                                <div className="empire-stack">
-                                    {actionQueue.length ? actionQueue.map((action, i) => (
-                                        <button key={i} type="button" className="empire-signal" style={{ '--tone': signalTone(action.severity) }} onClick={() => actionForQueue(action)}>
-                                            <div className="empire-signal-top"><strong>{action.title}</strong>{action.metric ? <b>{action.metric}</b> : null}</div>
-                                            <span>{action.detail}</span>
-                                            <em>{action.cta}</em>
-                                        </button>
-                                    )) : <div className="empire-empty"><strong>Portfolio is clean</strong>No high-leverage moves flagged right now.</div>}
-                                </div>
-                            </div>
-                        </section>
                         {rolodex.length ? (
                             <section className="empire-panel empire-rolodex" data-testid="empire-rolodex">
                                 <div className="empire-panel-head"><strong>Owner Rolodex</strong><em>{rolodex.length} owners across {model.totals.leagues} leagues · ranked by edge</em></div>
