@@ -521,64 +521,36 @@
       <h1 class="step-heading">Choose Your<br><span style="color:var(--gold)">Arsenal</span></h1>
       <p class="step-sub">Pick the plan that fits how you play. Upgrade anytime from settings. No contract required.</p>
 
-      <div class="plan-grid">
+      <div class="plan-grid" style="grid-template-columns:repeat(2,1fr)">
 
-        <!-- Scout (Free) -->
-        <div class="plan-card" id="plan-scout" onclick="selectPlan('scout')" style="border-color:rgba(255,255,255,0.12)">
+        <!-- Free -->
+        <div class="plan-card" id="plan-free" onclick="selectPlan('free')" style="border-color:rgba(255,255,255,0.12)">
           <div class="plan-icon">&#128269;</div>
-          <div class="plan-name">Scout</div>
-          <div class="plan-price">Free</div>
+          <div class="plan-name">Free</div>
+          <div class="plan-price">$0</div>
+          <p style="font-size:0.74rem;color:var(--muted);margin:-0.6rem 0 0.85rem;">One Sleeper league, forever</p>
           <ul class="plan-features">
-            <li><span class="pf-check">&#10003;</span> Your roster with DHQ dynasty values</li>
-            <li><span class="pf-check">&#10003;</span> Basic player cards and age curves</li>
-            <li><span class="pf-check">&#10003;</span> Draft rankings (read-only)</li>
+            <li><span class="pf-check">&#10003;</span> One Sleeper league</li>
+            <li><span class="pf-check">&#10003;</span> League-specific DHQ values</li>
+            <li><span class="pf-check">&#10003;</span> Player cards with age curves</li>
           </ul>
         </div>
 
-        <!-- Standard -->
+        <!-- Dynasty HQ -->
         <div class="plan-card" id="plan-standard" onclick="selectPlan('standard')">
+          <span class="plan-badge">Full engine</span>
           <div class="plan-icon">⚔️</div>
-          <div class="plan-name">Standard</div>
+          <div class="plan-name">Dynasty HQ</div>
           <div class="plan-price">$9.99 <span>/ month</span></div>
+          <p style="font-size:0.74rem;color:var(--muted);margin:-0.6rem 0 0.85rem;">Unlimited Sleeper leagues · 30-day free trial</p>
           <ul class="plan-features">
-            <li><span class="pf-check">✦</span> Dynasty HQ</li>
-            <li><span class="pf-check">✦</span> Full Dynasty HQ desktop suite</li>
-            <li><span class="pf-check">✦</span> AI — 20 queries / month included</li>
-            <li><span class="pf-check">✦</span> BYO AI key (Claude, Genesis, ChatGPT, Grok)</li>
-            <li><span class="pf-check">✦</span> No contract · cancel anytime</li>
-          </ul>
-
-          <!-- Legacy product sub-selector, kept hidden while Dynasty HQ War Room is the live paid product. -->
-          <div id="standardProductPicker" style="display:none; margin-top:0.75rem; border-top:1px solid rgba(255,255,255,0.08); padding-top:0.75rem;">
-            <p style="font-size:0.68rem;color:var(--gold);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.5rem;">Choose Your Product</p>
-            <div style="display:flex;gap:0.5rem;">
-              <label id="spWarRoom" onclick="selectStandardProduct('war_room')" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0.25rem;padding:0.5rem 0.4rem;border:2px solid rgba(212,175,55,0.35);border-radius:8px;cursor:pointer;transition:all 0.2s;background:rgba(212,175,55,0.08);">
-                <span style="font-size:1.1rem;">⚔️</span>
-                <span style="font-size:0.68rem;font-weight:600;color:var(--white);">War Room</span>
-                <span style="font-size:0.58rem;color:var(--gold);">Live Now</span>
-              </label>
-              <label id="spDynastyHQ" onclick="selectStandardProduct('dynast_hq')" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0.25rem;padding:0.5rem 0.4rem;border:2px solid rgba(192,192,192,0.15);border-radius:8px;cursor:not-allowed;opacity:0.45;">
-                <span style="font-size:1.1rem;">🏛️</span>
-                <span style="font-size:0.68rem;font-weight:600;color:var(--white);">Dynasty HQ</span>
-                <span style="font-size:0.58rem;color:var(--muted);">Coming Soon</span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <!-- Pro -->
-        <div class="plan-card" id="plan-pro" onclick="selectPlan('pro')">
-          <span class="plan-badge">Best Value</span>
-          <div class="plan-icon">🏆</div>
-          <div class="plan-name">Pro</div>
-          <div class="plan-price">$14.95 <span>/ month</span></div>
-          <ul class="plan-features">
-            <li><span class="pf-check">✦</span> Everything in Dynasty HQ</li>
-            <li><span class="pf-check">✦</span> Global dashboard — all leagues at once</li>
-            <li><span class="pf-check">✦</span> Cross-league AI recommendations</li>
-            <li><span class="pf-check">✦</span> Player exposure tracking</li>
-            <li><span class="pf-check">✦</span> Unified Trophy Room + Season Recaps</li>
-            <li><span class="pf-check">✦</span> No contract · cancel anytime</li>
+            <li><span class="pf-check">✦</span> Everything in Free</li>
+            <li><span class="pf-check">✦</span> Unlimited Sleeper leagues</li>
+            <li><span class="pf-check">✦</span> Owner DNA profiles + acceptance reads</li>
+            <li><span class="pf-check">✦</span> Trade finder + trade memory</li>
+            <li><span class="pf-check">✦</span> Draft command + league pick values</li>
+            <li><span class="pf-check">✦</span> Unlimited Alex, your AI GM</li>
+            <li><span class="pf-check">✦</span> Trophy Room + league history</li>
           </ul>
         </div>
 
@@ -598,9 +570,9 @@
 
       <div class="payment-box">
         <div class="payment-icon" id="payIcon">⚔️</div>
-        <div class="payment-title" id="payTitle">Dynasty HQ — Standard</div>
+        <div class="payment-title" id="payTitle">Dynasty HQ</div>
         <div class="payment-sub" id="paySub">
-          Full access to all Dynasty HQ tools — Team Comparison, Behavioral Trade Calculator, Draft War Room, Free Agency Tracker, Calendar, Trophy Case, and Direct Messaging. AI included (20 queries/mo).
+          All Dynasty HQ tools unlocked. Unlimited leagues. BYO AI key supported. No contract.
         </div>
         <div class="payment-price" id="payPrice">$9.99 <span>/ month</span></div>
         <button class="cta-btn" id="stripeBtn" onclick="goToStripe()">Proceed to Secure Checkout →</button>
@@ -840,6 +812,40 @@
     </div>
 
 
+    <!-- ═══════════════════════════════════════════════════════
+         MANAGE BILLING — reached via ?manage=true once onboarding is
+         complete (the header's BILLING button, or Settings' "Manage Plan").
+         Not a numbered step: the progress header is hidden for this view.
+    ═══════════════════════════════════════════════════════ -->
+    <div class="step-panel" id="stepManage">
+      <p class="step-eyebrow">Account</p>
+      <h1 class="step-heading">Manage Your<br><span style="color:var(--gold)">Billing</span></h1>
+      <p class="step-sub">Your current plan, and how to change it.</p>
+
+      <div class="payment-box" style="text-align:left">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:1.25rem;">
+          <div>
+            <div class="summary-label" style="margin-bottom:0.4rem;">Current plan</div>
+            <div id="managePlanName" style="font-family:'Rajdhani',sans-serif;font-size:1.7rem;letter-spacing:0.06em;color:var(--white);">Dynasty HQ</div>
+            <div id="managePlanPrice" style="color:var(--gold);font-size:0.92rem;margin-top:0.15rem;">$9.99 / month</div>
+          </div>
+          <span id="manageStatusBadge" style="flex-shrink:0;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:0.3rem 0.65rem;border-radius:20px;background:rgba(46,204,113,0.12);border:1px solid rgba(46,204,113,0.35);color:var(--green);">Active</span>
+        </div>
+
+        <div id="manageUpgradeBox" style="display:none;">
+          <button class="cta-btn" onclick="goToStripe()">Upgrade to Dynasty HQ — $9.99/mo →</button>
+        </div>
+
+        <div id="manageCancelBox" style="display:none;">
+          <p class="stripe-note" style="text-align:left; margin-top:0;">
+            Self-serve cancellation and payment updates are on the way. For now, need to change your payment method or cancel? Use the feedback button in Dynasty HQ and we'll take care of it right away.
+          </p>
+        </div>
+      </div>
+
+      <div id="alertManage" class="alert"></div>
+      <button class="cta-btn" style="background:transparent; border:2px solid rgba(212,175,55,0.3); color:var(--white); box-shadow:none;" onclick="window.location.href='index.html'">← Back to Dynasty HQ</button>
+    </div>
 
   </main>
 
@@ -857,7 +863,10 @@
     // ═══════════════════════════════════════════════════════
 
     // ── State ──────────────────────────────────────────────
-    const SUPABASE_URL = 'https://sxshiqyxhhifvtfqawbq.supabase.co';
+    // SUPABASE_URL is NOT redeclared here — reconai-shared/supabase-client.js
+    // (loaded just above) already declares it as a top-level const, and two
+    // `const` declarations of the same name across sibling <script> tags in
+    // one document throw a page-killing SyntaxError, not a harmless shadow.
     let selectedPlan = null;
     let selectedStandardProduct = 'war_room'; // default for Standard tier
     const selectedPlatforms = new Set(['sleeper']);
@@ -879,10 +888,18 @@
       const params = new URLSearchParams(window.location.search);
       const isManaging = params.get('manage') === 'true';
 
-      // If onboarding already complete, skip to the app (unless user came from settings to manage plan)
+      // If onboarding already complete: a commander who finished setup and came
+      // back via ?manage=true (the header's BILLING button, or Settings' "Manage
+      // Plan") gets the Manage Billing view, not the fresh-signup wizard — that
+      // was the bug (an existing subscriber landing on "Choose Your Arsenal"
+      // again). Anyone else who's done just goes straight into the app.
       try {
         const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null');
-        if (!isManaging && p && p.onboardingComplete) { window.location.href = 'index.html'; return; }
+        if (p && p.onboardingComplete) {
+          if (isManaging) { showManageBilling(); return; }
+          window.location.href = 'index.html';
+          return;
+        }
       } catch {}
       if (params.get('payment') === 'success') {
         const savedPlan = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null')?.tier || 'standard';
@@ -892,8 +909,8 @@
         return;
       }
       if (params.get('payment') === 'cancel') {
-        selectedPlan = 'pro';
-        patchProfile({ tier: 'pro' });
+        selectedPlan = 'standard';
+        patchProfile({ tier: 'standard' });
         showStep(2);
         return;
       }
@@ -905,7 +922,6 @@
           selectedPlan = saved.tier;
           const card = document.getElementById('plan-' + saved.tier);
           if (card) card.classList.add('selected');
-          if (saved.tier === 'standard') document.getElementById('standardProductPicker').style.display = 'none';
           document.getElementById('step1Btn').disabled = false;
         }
         if (saved && saved.platforms) {
@@ -945,17 +961,60 @@
     }
 
     function updatePaymentUI() {
-      const isPro = selectedPlan === 'pro';
-      document.getElementById('payIcon').textContent   = isPro ? '🏆' : '⚔️';
-      document.getElementById('payTitle').textContent  = isPro
-        ? 'Dynasty HQ Pro'
-        : 'Dynasty HQ — Standard';
-      document.getElementById('paySub').textContent    = isPro
-        ? 'Scout and Dynasty HQ unlocked. All tools. 200 AI queries/mo. BYO AI key supported. No contract.'
-        : 'All Dynasty HQ tools unlocked. 20 AI queries/mo. BYO AI key supported. No contract.';
-      document.getElementById('payPrice').innerHTML    = isPro
-        ? '$14.95 <span>/ month</span>'
-        : '$9.99 <span>/ month</span>';
+      // One paid plan now — Dynasty HQ, $9.99/mo — so this just resets the
+      // payment box to its static defaults (kept as a function since showStep
+      // still calls it; a future second paid tier would branch here again).
+      document.getElementById('payIcon').textContent   = '⚔️';
+      document.getElementById('payTitle').textContent  = 'Dynasty HQ';
+      document.getElementById('paySub').textContent    = 'All Dynasty HQ tools unlocked. Unlimited leagues. BYO AI key supported. No contract.';
+      document.getElementById('payPrice').innerHTML    = '$9.99 <span>/ month</span>';
+    }
+
+    // ── Manage Billing (existing subscribers, via ?manage=true) ────
+    // Deliberately not a numbered step: hides the progress header (step dots
+    // + "Step X of 4") since this isn't part of the onboarding sequence, and
+    // shows the commander's actual current plan instead of re-running the
+    // fresh-signup wizard — that mismatch was the reported bug.
+    function showManageBilling() {
+      const profile = getProfile();
+      const isPaid = profile.tier === 'standard';
+
+      // Free/trial users don't get the plain manage-plan box — they get the
+      // upgrade.html pitch page instead. Its CTAs link back here with
+      // &upgrade=1, which skips straight to Stripe Checkout (goToStripe()
+      // reads its target elements by id, which exist in the DOM regardless
+      // of which step-panel is active, so this is safe to call from here).
+      if (!isPaid) {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('upgrade') === '1') {
+          selectedPlan = 'standard';
+          goToStripe();
+          return;
+        }
+        window.location.href = 'upgrade.html';
+        return;
+      }
+
+      document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+      const header = document.querySelector('.progress-header');
+      if (header) header.style.display = 'none';
+
+      document.getElementById('managePlanName').textContent = 'Dynasty HQ';
+      document.getElementById('managePlanPrice').textContent = '$9.99 / month';
+      const badge = document.getElementById('manageStatusBadge');
+      badge.textContent = 'Active';
+      badge.style.background = 'rgba(46,204,113,0.12)';
+      badge.style.borderColor = 'rgba(46,204,113,0.35)';
+      badge.style.color = 'var(--green)';
+
+      document.getElementById('manageUpgradeBox').style.display = 'none';
+      document.getElementById('manageCancelBox').style.display  = 'block';
+
+      // goToStripe() reads selectedPlan/selectedStandardProduct directly —
+      // set them so the upgrade button checks out into the right product.
+      selectedPlan = 'standard';
+
+      document.getElementById('stepManage').classList.add('active');
     }
 
     function updateProgress(n) {
@@ -976,26 +1035,15 @@
       document.getElementById('plan-' + plan).classList.add('selected');
       const btn = document.getElementById('step1Btn');
       btn.disabled = false;
-      btn.textContent = plan === 'scout' ? 'Start Free →' : 'Continue →';
-
-      // Standard now maps directly to Dynasty HQ War Room.
-      const picker = document.getElementById('standardProductPicker');
-      picker.style.display = 'none';
-    }
-
-    function selectStandardProduct(product) {
-      if (product === 'dynast_hq') return; // Coming Soon — not selectable
-      selectedStandardProduct = product;
-      document.getElementById('spWarRoom').style.borderColor = product === 'war_room' ? 'var(--gold)' : 'rgba(212,175,55,0.35)';
-      document.getElementById('spWarRoom').style.background  = product === 'war_room' ? 'rgba(212,175,55,0.12)' : 'rgba(212,175,55,0.06)';
+      btn.textContent = plan === 'free' ? 'Start Free →' : 'Continue →';
     }
 
     function goStep2() {
       if (!selectedPlan) return;
-      const profileData = { tier: selectedPlan === 'scout' ? 'free' : selectedPlan };
+      const profileData = { tier: selectedPlan };
       if (selectedPlan === 'standard') profileData.product = selectedStandardProduct;
       patchProfile(profileData);
-      if (selectedPlan === 'scout') {
+      if (selectedPlan === 'free') {
         // Free tier — skip payment, go to account setup (step 3)
         showStep(3);
         return;
@@ -1033,7 +1081,7 @@
             'Content-Type':  'application/json',
           },
           body: JSON.stringify({
-            productSlug: selectedPlan === 'pro' ? 'bundle' : selectedStandardProduct,
+            productSlug: selectedStandardProduct,
             successUrl:  window.location.origin + window.location.pathname + '?payment=success',
             cancelUrl:   window.location.origin + window.location.pathname + '?payment=cancel',
           }),
@@ -1230,10 +1278,10 @@
       const username = getUsername();
 
       const tierLabels = {
-        standard: 'Standard — $9.99/mo',
-        pro:      'Dynasty HQ Pro — $14.95/mo',
+        free:     'Free',
+        standard: 'Dynasty HQ — $9.99/mo',
       };
-      const tierLabel = tierLabels[profile.tier] || profile.tier || 'Standard';
+      const tierLabel = tierLabels[profile.tier] || profile.tier || 'Free';
 
       const platformList = (profile.platforms || ['sleeper'])
         .filter(platformAccessAllowed)

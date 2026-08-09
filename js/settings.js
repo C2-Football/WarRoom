@@ -167,7 +167,7 @@
         const tierBg    = { free: 'rgba(192,192,192,0.12)', trial: 'rgba(192,192,192,0.12)', scout: 'rgba(192,192,192,0.12)', warroom: 'var(--acc-fill2, rgba(212,175,55,0.12))', pro: 'var(--acc-fill2, rgba(212,175,55,0.12))', power: 'rgba(168,85,247,0.12)', paid: 'var(--acc-fill2, rgba(212,175,55,0.12))' };
 
         function goToManagePlan() {
-            window.location.href = 'onboarding.html?manage=true';
+            window.location.href = (typeof window.wrIsPro === 'function' && !window.wrIsPro()) ? 'upgrade.html' : 'onboarding.html?manage=true';
         }
         // No Stripe customer portal exists yet — onboarding.html?manage=true is the
         // plan wizard, so nothing here may claim to be a cancellation ('Cancel'

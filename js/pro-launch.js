@@ -1,6 +1,11 @@
 // ══════════════════════════════════════════════════════════════════
-// js/pro-launch.js — War Room upgrade page
-// Full-screen premium launch experience. Tiers: Free → War Room → War Room Pro → Commissioner
+// js/pro-launch.js — Dynasty HQ upgrade page
+// Full-screen premium launch experience. Tiers: Free → Dynasty HQ ($9.99/mo) —
+// matches landing.html#pricing and onboarding.html's "Choose Your Arsenal",
+// the two other places these tiers are named. This file used to carry its
+// own "War Room" tier + a "Pro"/"Annual" tier that existed nowhere else in
+// the app (vendored from the sibling Fantasy Wars/War Room codebase and
+// never reconciled) — reconciled here so all three agree.
 // ══════════════════════════════════════════════════════════════════
 
 (function () {
@@ -33,15 +38,13 @@
       icon: '📊',
       title: 'Dashboard + Draft Command',
       desc: 'Customizable KPI dashboard, mock draft simulator, prospect scouting with The Beast data, and full draft boards.',
-      badge: 'War Room',
+      badge: 'Dynasty HQ',
     },
   ];
 
   const TIERS = [
-    { name: 'Free', price: '$0', period: '', features: ['1 league', 'DHQ dynasty values', 'Player cards + age curves'], accent: 'rgba(255,255,255,0.3)' },
-    { name: 'War Room', price: '$9.99', period: '/mo', features: ['Everything in Free', 'Unlimited AI reads', 'Team diagnosis, waiver takes, trade ideas', 'Owner DNA profiles', 'Behavioral trade model', 'Draft command center', 'Scout + War Room access'], accent: '#D4AF37', recommended: true },
-    { name: 'Pro', price: '$12.99', period: '/mo', features: ['Everything in War Room', 'Global dashboard (all leagues)', 'Cross-league AI advice', 'Player exposure tracking', 'Unified Trophy Room', 'Season recap generator'], accent: '#60A5FA' },
-    { name: 'Annual', price: '$79.99', period: '/yr', features: ['Everything in War Room', 'Locked-in annual rate', 'Save 33% — $6.67/mo', 'Priority feature access'], accent: '#2ECC71' },
+    { name: 'Free', price: '$0', period: '', features: ['One Sleeper league', 'League-specific DHQ values', 'Player cards with age curves'], accent: 'rgba(255,255,255,0.3)' },
+    { name: 'Dynasty HQ', price: '$9.99', period: '/mo', features: ['Everything in Free', 'Unlimited Sleeper leagues', 'Owner DNA profiles + acceptance reads', 'Trade finder + trade memory', 'Draft command + league pick values', 'Unlimited Alex, your AI GM', 'Trophy Room + league history'], accent: '#D4AF37', recommended: true },
   ];
 
   const FAQ_ITEMS = [
@@ -54,12 +57,8 @@
       a: 'Your data stays — Field Log notes, Owner DNA profiles, and league history are retained. You just lose access to premium features until you resubscribe.',
     },
     {
-      q: 'Does Scout come with War Room?',
-      a: 'Yes. Scout is the free tier. When you upgrade to War Room, you get everything in Scout plus the full desktop command center, AI analysis, and Owner DNA.',
-    },
-    {
-      q: 'What\'s the difference between War Room and War Room Pro?',
-      a: 'War Room gives you the core dynasty toolkit. Pro adds advanced analytics, full league mapping, trophy room, and deeper draft boards.',
+      q: 'What do I get with the free plan?',
+      a: 'One Sleeper league, league-specific DHQ values, and player cards with age curves. Upgrade to Dynasty HQ for unlimited leagues, Owner DNA, trade finder, draft command, and unlimited Alex.',
     },
   ];
 
@@ -137,10 +136,10 @@
         <div style="text-align:center;padding:12px 0 32px">
           <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(212,175,55,.1);border:1px solid rgba(212,175,55,.28);border-radius:24px;padding:5px 14px;margin-bottom:24px">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M12 2L3 7v6c0 5.25 3.83 10.18 9 11.38C17.17 23.18 21 18.25 21 13V7L12 2z" fill="url(#proHG)" stroke="#D4AF37" stroke-width="1"/><path d="M12 7l1.545 3.13 3.455.503-2.5 2.437.59 3.43L12 14.885 8.91 16.5l.59-3.43-2.5-2.437 3.455-.503L12 7z" fill="#0A0A0A" stroke="#B8941E" stroke-width="0.5"/><defs><linearGradient id="proHG" x1="3" y1="2" x2="21" y2="24"><stop offset="0%" stop-color="#D4AF37"/><stop offset="100%" stop-color="#8B6914"/></linearGradient></defs></svg>
-            <span style="font-size:11px;font-weight:700;letter-spacing:0;text-transform:uppercase;background:linear-gradient(90deg,#d4af37,#f0d060);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">War Room</span>
+            <span style="font-size:11px;font-weight:700;letter-spacing:0;text-transform:uppercase;background:linear-gradient(90deg,#d4af37,#f0d060);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Dynasty HQ</span>
           </div>
           <h1 id="pro-launch-hero-heading" style="font-size:42px;font-weight:800;letter-spacing:0;line-height:1.06;margin:0 0 20px;background:linear-gradient(160deg,#ffffff 30%,#d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Every roster.<br>Every move.<br>One room.</h1>
-          <div style="font-size:15px;color:rgba(255,255,255,.4);margin-bottom:28px;line-height:1.65;max-width:360px;margin-left:auto;margin-right:auto">Sleeper-first dynasty intelligence powered by AI. Scout comes free — upgrade to unlock the full command center.</div>
+          <div style="font-size:15px;color:rgba(255,255,255,.4);margin-bottom:28px;line-height:1.65;max-width:360px;margin-left:auto;margin-right:auto">Sleeper-first dynasty intelligence powered by AI. The free tier comes free — upgrade to unlock the full command center.</div>
         </div>
 
         <!-- Tier comparison cards -->
@@ -154,7 +153,7 @@
 
         <!-- Feature cards -->
         <div style="margin-bottom:36px">
-          <div style="font-size:11px;font-weight:700;letter-spacing:0;text-transform:uppercase;color:rgba(255,255,255,.22);margin-bottom:14px">What War Room unlocks</div>
+          <div style="font-size:11px;font-weight:700;letter-spacing:0;text-transform:uppercase;color:rgba(255,255,255,.22);margin-bottom:14px">What Dynasty HQ unlocks</div>
           <div id="pro-launch-features" style="display:flex;flex-direction:column;gap:10px"></div>
         </div>
 
@@ -163,7 +162,7 @@
           style="width:100%;padding:18px;background:linear-gradient(135deg,#d4af37,#b8941f);color:#1a1000;border:none;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:0;box-shadow:0 8px 32px rgba(212,175,55,.32);margin-bottom:12px;font-family:inherit;transition:transform .15s,box-shadow .15s"
           onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 14px 48px rgba(212,175,55,.45)'"
           onmouseout="this.style.transform='';this.style.boxShadow='0 8px 32px rgba(212,175,55,.32)'">
-          Upgrade to War Room &mdash; $9.99/month
+          Upgrade to Dynasty HQ &mdash; $9.99/month
         </button>
 
         <!-- Secondary: continue with free -->
@@ -234,7 +233,7 @@
     if (!container) return;
     const currentTier = typeof getTier === 'function' ? getTier() : 'free';
     container.innerHTML = TIERS.map(t => {
-      const isCurrent = (currentTier === 'paid' && t.name === 'War Room') || (currentTier === 'free' && t.name === 'Free');
+      const isCurrent = (currentTier === 'paid' && t.name === 'Dynasty HQ') || (currentTier === 'free' && t.name === 'Free');
       return `
       <div style="background:${t.recommended ? 'rgba(212,175,55,.06)' : 'rgba(255,255,255,.03)'};border:${t.recommended ? '2px solid rgba(212,175,55,.35)' : '1px solid rgba(255,255,255,.08)'};border-radius:12px;padding:14px;position:relative;${isCurrent ? 'outline:2px solid rgba(46,204,113,.4);outline-offset:2px' : ''}">
         ${t.recommended ? '<div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;letter-spacing:0;text-transform:uppercase;color:#d4af37;background:#090909;padding:0 8px;white-space:nowrap">MOST POPULAR</div>' : ''}

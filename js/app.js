@@ -1325,7 +1325,7 @@
                     </div>
                     {/* Calm control row — sits left of the absolutely-positioned gear (44px + gutter) */}
                     <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '52px' }}>
-                        <button onClick={() => { window.location.href = 'onboarding.html?manage=true'; }} style={hubCtrlStyle}>BILLING</button>
+                        <button onClick={() => { window.location.href = (typeof window.wrIsPro === 'function' && !window.wrIsPro()) ? 'upgrade.html' : 'onboarding.html?manage=true'; }} style={hubCtrlStyle}>BILLING</button>
                         {WR_DISCORD_URL && (
                             <a href={WR_DISCORD_URL} target="_blank" rel="noopener" style={hubCtrlStyle}>DISCORD</a>
                         )}
