@@ -198,10 +198,17 @@ const AI_TIER_MODELS: Record<AIWorkloadTier, Partial<Record<AIProvider, string>>
         openai: AI_MODELS.OPENAI_STANDARD,
     },
     premium: {
+        // Gemini has no verified-pricing model stronger than GEMINI_BALANCED
+        // in MODEL_COSTS below, so premium/deep share it — an honest
+        // simplification, not a distinct "premium" SKU. See route.tier
+        // (not the model string) for entitlement gating — downgradeRouteForEntitlement
+        // relies on that, not on this model being unique per tier.
+        gemini: AI_MODELS.GEMINI_BALANCED,
         anthropic: AI_MODELS.CLAUDE_REASONING,
         openai: AI_MODELS.OPENAI_PREMIUM,
     },
     deep: {
+        gemini: AI_MODELS.GEMINI_BALANCED,
         anthropic: AI_MODELS.CLAUDE_DEEP,
     },
 };
@@ -209,8 +216,8 @@ const AI_TIER_MODELS: Record<AIWorkloadTier, Partial<Record<AIProvider, string>>
 const DEFAULT_PROVIDER_BY_TIER: Record<AIWorkloadTier, AIProvider> = {
     fast: 'gemini',
     standard: 'gemini',
-    premium: 'anthropic',
-    deep: 'anthropic',
+    premium: 'gemini',
+    deep: 'gemini',
 };
 
 const PROVIDER_OVERRIDE_ENV: Record<AIWorkloadTier, string> = {
@@ -233,16 +240,6 @@ interface AIPlanLimits {
     maxModelTier: AIModelTier;
     allowWebSearch: boolean;
 }
-
-const MODEL_TIERS: Record<string, AIModelTier> = {
-    'gemini-2.5-flash-lite': 'fast',
-    'gemini-2.5-flash': 'standard',
-    'gpt-5.4-nano': 'fast',
-    'gpt-5.4-mini': 'standard',
-    'gpt-5.5': 'premium',
-    'claude-sonnet-4-6': 'premium',
-    'claude-opus-4-7': 'deep',
-};
 
 const MODEL_TIER_RANK: Record<AIModelTier, number> = { fast: 1, standard: 2, premium: 3, deep: 4 };
 
@@ -455,16 +452,18 @@ function routeForType(type: string): AIRoute {
     return routeForTier(AI_ROUTES[type] || 'standard');
 }
 
-function modelTier(model: string): AIModelTier {
-    return MODEL_TIERS[model] || 'standard';
-}
-
 function allowsModelTier(limit: AIPlanLimits, tier: AIModelTier): boolean {
     return MODEL_TIER_RANK[tier] <= MODEL_TIER_RANK[limit.maxModelTier];
 }
 
 function downgradeRouteForEntitlement(route: AIRoute, limits: AIPlanLimits): { route: AIRoute; downgraded: boolean } {
-    if (allowsModelTier(limits, modelTier(route.model))) {
+    // Gate on the route's own semantic tier, not a model-string lookup — once
+    // two tiers can share the same underlying model (e.g. premium and deep
+    // both resolving to gemini-2.5-flash when Gemini is the default for both),
+    // a model->tier table would misclassify a premium/deep route as whatever
+    // tier that model string happens to also be used for elsewhere, silently
+    // granting free/scout plans access to gated routes.
+    if (allowsModelTier(limits, route.tier)) {
         return { route, downgraded: false };
     }
     if (allowsModelTier(limits, 'premium')) return { route: routeForTier('premium'), downgraded: true };
@@ -2459,6 +2458,16 @@ Deno.serve(async (req) => {
         // and the master AI kill switch / AI_ENABLED above still govern it.
         const webSearchFlagOn = envFlag('AI_ALLOW_WEB_SEARCH', false) || type === 'dynasty_read';
         if (useWebSearch && (!planAllowsWebSearch(aiSession.plan, type) || !webSearchFlagOn)) {
+            useWebSearch = false;
+            webSearchDisabled = true;
+        }
+        // Web search only exists on the Anthropic adapter — callAIProvider has
+        // no search tool wired up for Gemini/OpenAI. Once Anthropic isn't the
+        // configured premium provider, there's no provider left that can honor
+        // a search request; degrade gracefully here (dynasty_read's own
+        // short-circuit below turns this into an intentional empty skip)
+        // rather than letting resolveConfiguredRoute fail the whole request.
+        if (useWebSearch && preferredProviderForTier('premium') !== 'anthropic') {
             useWebSearch = false;
             webSearchDisabled = true;
         }

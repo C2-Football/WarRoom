@@ -613,11 +613,9 @@
           <div>
             <label class="form-label" style="margin-bottom:0.4rem;">Provider</label>
             <select id="ai-provider-sel" class="form-input" style="padding:0.6rem 0.75rem;font-size:0.85rem;" onchange="updateProviderHint()">
-              <option value="anthropic">Claude (Anthropic)</option>
-              <option value="groq">Groq — Free (Llama 3.3)</option>
               <option value="gemini">Gemini Flash — Free (Google)</option>
               <option value="openai">OpenAI — GPT-5.4 Mini</option>
-              <option value="grok">Grok (xAI)</option>
+              <option value="anthropic">Claude (Anthropic)</option>
             </select>
           </div>
           <div>
@@ -1124,11 +1122,9 @@
     function updateProviderHint() {
       const provider = document.getElementById('ai-provider-sel').value;
       const hints = {
-        anthropic: 'Get your free API key at console.anthropic.com. Claude 3.5 Sonnet is recommended.',
-        groq:      'Free Llama 3.3 inference. Get your key at console.groq.com (no credit card needed).',
-        gemini:    'Free Google Gemini Flash. Get your key at ai.google.dev (includes generous free tier).',
+        gemini:    'Free Google Gemini Flash — the default for Alex. Get your key at ai.google.dev (includes a generous free tier).',
         openai:    'Paid OpenAI access. GPT-5.4 Mini is the default BYO model; GPT-5.5 can be entered manually for premium analysis.',
-        grok:      'Get your key at x.ai. Includes real-time X/Twitter data for news.',
+        anthropic: 'Paid Claude access. Get your key at console.anthropic.com.',
       };
       document.getElementById('provider-hint').textContent = hints[provider] || '';
     }
