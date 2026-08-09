@@ -1482,6 +1482,19 @@ WRShared.preloadMany(WR_SHARED_FILES);
 	    .fa-market-toolbar { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; align-items: center; }
 	    .fa-market-toolbar > span { color: var(--silver); opacity: 0.65; font-size: 0.7rem; font-family: var(--font-body); }
 	    @media(max-width:1280px){ .fa-hq-hero { grid-template-columns: 1fr; } .fa-hq-hero-kpis { min-width: 0; } .fa-hq-grid { grid-template-columns: 1fr 1fr; } .fa-hq-grid > aside:last-child { grid-column: 1 / -1; } }
+	    /* The 1101-1280px band puts Ranked Waiver Board in a ~half-width column
+	       (the 2-col .fa-hq-grid above) — too narrow for its 6-col row (rank/
+	       avatar/player/window/score/bid). Below 1100 the grid goes full single
+	       column with plenty of room, so the 6-col row stays as-is there; this
+	       is scoped to ONLY the squeezed 2-col band. Same collapse as ≤640px. */
+	    @media(min-width:1101px) and (max-width:1280px){
+	        .fa-hq-candidate, .fa-hq-board-head { grid-template-columns: 22px 26px minmax(0, 1fr) auto; }
+	        .fa-hq-board-head span:nth-child(4), .fa-hq-board-head span:nth-child(5) { display: none; }
+	        .fa-hq-cand-window { display: none; }
+	        .fa-hq-player-value { grid-column: 3 / -1; text-align: left; }
+	        .fa-hq-cand-bid { grid-column: 3 / -1; text-align: left; }
+	        .fa-hq-why { grid-column: 3 / -1; }
+	    }
 	    @media(max-width:1100px){ .fa-page { padding: 14px; } .fa-hq-grid { grid-template-columns: 1fr; } .fa-market-head { flex-direction: column; align-items: stretch; } .fa-market-search { min-width: 0; max-width: none; } }
 	    @media(max-width:700px){ .fa-hq-hero-kpis { grid-template-columns: 1fr; } }
 	    @media(max-width:640px){
