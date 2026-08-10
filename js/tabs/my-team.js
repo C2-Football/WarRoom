@@ -932,9 +932,9 @@ function MyTeamTab({
         const acq = getAcquisitionInfo(r.pid, myRoster?.roster_id);
         const col = 'var(--silver)';
         const methods = ['Drafted', 'Traded', 'Waiver', 'FA', 'Original'];
-        return <div key={colKey} style={{...base}}><span
-          style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, color: col, padding: '1px 5px', borderRadius: '3px', border: `1px solid ${col}40`, background: `${col}10`, cursor: 'pointer' }}
-          title="Click to change acquisition method"
+        return <div key={colKey} style={{...base, minWidth: 0, overflow: 'hidden'}}><span
+          style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, color: col, padding: '1px 5px', borderRadius: '3px', border: `1px solid ${col}40`, background: `${col}10`, cursor: 'pointer', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}
+          title={acq.method + (acq.cost ? ' · ' + acq.cost : '') + ' — click to change acquisition method'}
           onClick={e => {
             e.stopPropagation();
             const curIdx = methods.indexOf(acq.method);
@@ -951,7 +951,7 @@ function MyTeamTab({
       case 'acquiredDate': {
         const acq = getAcquisitionInfo(r.pid, myRoster?.roster_id);
         const show = acq.date && acq.date !== '\u2014' ? acq.date : '';
-        return <div key={colKey} style={{...base}}><span style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.8 }}>{show || '\u2014'}</span></div>;
+        return <div key={colKey} style={{...base, minWidth: 0, overflow: 'hidden'}} title={show || undefined}><span style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.8, display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{show || '\u2014'}</span></div>;
       }
       case 'sos': {
         const sosMod = window.App?.SOS;
@@ -962,7 +962,7 @@ function MyTeamTab({
         if (!sos) return <div key={colKey} style={{...base}}><span style={{ color: 'var(--ov-7, rgba(255,255,255,0.2))' }}>{'\u2014'}</span></div>;
         // Color already carries the tier (Easy/Favorable/Neutral/Tough/Hard);
         // the label was redundant text on every row \u2014 full context stays in the title.
-        return <div key={colKey} style={{...base}} title={sos.label + ' schedule (' + sos.avgRank + '/32)'}>
+        return <div key={colKey} style={{...base, minWidth: 0, overflow: 'hidden'}} title={sos.label + ' schedule (' + sos.avgRank + '/32)'}>
           <span style={{ color: sos.color || 'var(--silver)', fontWeight: 600, fontSize: '0.8rem', fontFamily: 'var(--font-body)' }}>{sos.avgRank}</span>
         </div>;
       }

@@ -2573,8 +2573,8 @@ function LeagueMapTab({
                 <span style={{ color: 'var(--silver)' }}>{r.p.age || '\u2014'}</span>
                 <span style={{ fontWeight: 700, fontFamily: 'var(--font-body)', color: r.dhq >= 7000 ? 'var(--good)' : r.dhq >= 4000 ? 'var(--k-3498db, #3498db)' : r.dhq >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span>
                 <span style={{ color: 'var(--silver)' }}>{r.ppg || '\u2014'}</span>
-                <span style={{ fontSize: '0.7rem', fontWeight: 600, color: r.acq.method === 'Drafted' ? 'var(--gold)' : r.acq.method === 'Traded' ? 'var(--warn)' : r.acq.method === 'Waiver' ? 'var(--good)' : r.acq.method === 'FA' ? 'var(--k-1abc9c, #1abc9c)' : 'var(--silver)' }}>{r.acq.method}{r.acq.cost ? ' · ' + r.acq.cost : ''}</span>
-                <span style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.65 }}>{r.acq.date}</span>
+                <span title={r.acq.method + (r.acq.cost ? ' · ' + r.acq.cost : '')} style={{ fontSize: '0.7rem', fontWeight: 600, color: r.acq.method === 'Drafted' ? 'var(--gold)' : r.acq.method === 'Traded' ? 'var(--warn)' : r.acq.method === 'Waiver' ? 'var(--good)' : r.acq.method === 'FA' ? 'var(--k-1abc9c, #1abc9c)' : 'var(--silver)', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.acq.method}{r.acq.cost ? ' · ' + r.acq.cost : ''}</span>
+                <span style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)', opacity: 0.65, display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.acq.date}</span>
               </div>
             ))}
           </div>
