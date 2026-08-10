@@ -4876,7 +4876,10 @@
                                     : <div className="tc-dhq-empty">No {assetBrowserPos === 'ALL' ? '' : assetBrowserPos + ' '}assets to browse.</div>}
                             </React.Fragment>
                         )}
-                        {dnaMiniEl}
+                        {/* Owner DNA mini-card intentionally omitted here (owner ask
+                            2026-08-08/09): mobile Desk tab should not surface it.
+                            It still renders under the Log tab below and in full on
+                            the dedicated Owner DNA sub-tab / on desktop-tablet. */}
                     </React.Fragment>
                 );
             }
