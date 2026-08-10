@@ -698,8 +698,8 @@ const ALL_PLAYERS_DEFAULT_VISIBLE = ['name', 'pos', 'nflTeam', 'age', 'dhq', 'pp
 // cards in analytics with the ones from my roster"): clicking an All Players
 // row now expands THIS dossier inline (matching the My Roster experience)
 // instead of opening the generic modal. Self-contained: it computes its own
-// dynasty read / peak / rank from globals so it works for any player —
-// rostered by anyone or in the draft pool — not just your own roster.
+// band / peak / rank from globals so it works for any player — rostered by
+// anyone or in the draft pool — not just your own roster.
 // ══════════════════════════════════════════════════════════════════
 function RosterPlayerDossier({ x, playersData, statsData, currentLeague, normPos, onCollapse }) {
     const App = window.App || {};
@@ -708,10 +708,6 @@ function RosterPlayerDossier({ x, playersData, statsData, currentLeague, normPos
     const pid = x.pid;
     const dhq = x.dhq || 0;
     const age = x.age || p.age || null;
-    // Scout-free vs Pro: identity/value/age-curve raw data stays free; the
-    // Dynasty Read layer (AI fetch + framed template tail) is Pro (gate-map
-    // row 2 parity). wrIsPro only — never canAccess/getTier.
-    const isPro = typeof window.wrIsPro === 'function' ? window.wrIsPro() : true;
     const posColors = App.POS_COLORS || {};
     const posLabel = (pp) => App.posLabel?.(pp) || (pp === 'DEF' ? 'D/ST' : pp);
     const isElite = typeof App.isElitePlayer === 'function' ? App.isElitePlayer(pid) : dhq >= 7000;
@@ -755,52 +751,6 @@ function RosterPlayerDossier({ x, playersData, statsData, currentLeague, normPos
         } catch { return null; }
     })();
 
-    // Dynasty read — plain-language summary from band + peak phase.
-    // Free keeps the raw restatement (value band, age window); the framed
-    // take ("weigh present value over a long-term hold") is Pro. No
-    // ownership sentence — the Decision Stack Owner cell beside it already
-    // says it (never narrate adjacent numbers).
-    const dynastyRead = (() => {
-        const lead = band + ' ' + posLabel(pos) + (age ? ', age ' + age : '') + '.';
-        const vetYrs = valueYrsLeft > 0 ? '~' + valueYrsLeft + ' value yr' + (valueYrsLeft > 1 ? 's' : '') + ' left' : 'final value year';
-        const tail = isPro
-            ? (peakPhase === 'PRE' ? ' Ascending — value should climb as the role solidifies.'
-                : peakPhase === 'PEAK' ? ' In his prime window — production and value are at their height.'
-                : peakPhase === 'VET' ? ' In the veteran value band — ' + vetYrs + '; lean on present production.'
-                : peakPhase === 'POST' ? ' Past peak — weigh present value over a long-term hold.'
-                : ' Limited age data — judge on role and production.')
-            : (peakPhase === 'PRE' ? ' Before the prime window.'
-                : peakPhase === 'PEAK' ? ' Inside the prime window.'
-                : peakPhase === 'VET' ? ' In the veteran value band — ' + vetYrs + '.'
-                : peakPhase === 'POST' ? ' Past the normal value window.'
-                : ' Limited age data.');
-        return lead + tail;
-    })();
-
-    // Dynasty Read — paid-tier web-search news synthesis (template-first; the
-    // shared weekly cache makes most opens an instant cache hit). Swaps in over
-    // the template only once it resolves; failures/empty keep the template.
-    const [aiRead, setAiRead] = React.useState(null);
-    React.useEffect(() => {
-        // Free: never auto-fire dynasty_read on dossier expand — BYOK users
-        // (S.apiKey → dhqAI) bypass the OD.callAI tripwire, so the trigger
-        // itself must gate (D9). Mirrors the My Roster dossier gate.
-        if (!isPro) return;
-        if (!pid || typeof window.fetchDynastyRead !== 'function') return;
-        let alive = true;
-        const nfl = window.S?.nflState || {};
-        const ctx = {
-            pid,
-            name: p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim(),
-            team: p.team || '', pos, age,
-            season: nfl.season || '', week: nfl.display_week || nfl.week || 0,
-        };
-        window.fetchDynastyRead(ctx, { fallback: '' }).then((txt) => {
-            if (alive && txt && txt !== dynastyRead) setAiRead(txt);
-        });
-        return () => { alive = false; };
-    }, [pid]);
-
     // Player tags — shared global store, same as My Roster.
     const [, setTagTick] = React.useState(0); // bump to re-render after a tag toggle
     const leagueId = currentLeague?.id || currentLeague?.league_id || '';
@@ -826,7 +776,7 @@ function RosterPlayerDossier({ x, playersData, statsData, currentLeague, normPos
 
     return (
         <div style={{ borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', background: 'linear-gradient(180deg, var(--surf-solid, rgba(18,18,24,0.99)), var(--surf-solid, rgba(6,6,10,0.99)))', padding: '12px 14px', animation: 'wrFadeIn 0.2s ease' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 0.95fr) minmax(0, 1.4fr) minmax(0, 0.8fr)', gap: '10px', marginBottom: '10px', alignItems: 'stretch' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: '10px', marginBottom: '10px', alignItems: 'stretch' }}>
                 {/* Header: photo + bio */}
                 <div style={{ display: 'grid', gridTemplateColumns: '76px minmax(0, 1fr)', gap: '10px', alignItems: 'center', background: 'var(--ov-1, rgba(255,255,255,0.022))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: '8px', padding: '9px' }}>
                     <div style={{ flexShrink: 0, position: 'relative' }}>
@@ -846,13 +796,6 @@ function RosterPlayerDossier({ x, playersData, statsData, currentLeague, normPos
                         </div>
                         {p.injury_status && <div style={{ fontSize: '0.72rem', color: 'var(--bad)', fontWeight: 700, marginTop: '5px' }}>{p.injury_status}</div>}
                     </div>
-                </div>
-                {/* Dynasty Read — AI swap clamped to the box, "Full read" expand */}
-                <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: '8px', padding: '9px 11px', minWidth: 0 }}>
-                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '5px' }}>Dynasty Read</div>
-                    {window.WR?.ClampedRead
-                        ? React.createElement(window.WR.ClampedRead, { text: aiRead || dynastyRead, maxHeight: 104, style: { fontSize: '0.8rem', color: 'var(--k-d8d8de, #d8d8de)', lineHeight: 1.42 } })
-                        : <div style={{ fontSize: '0.8rem', color: 'var(--k-d8d8de, #d8d8de)', lineHeight: 1.42 }}>{aiRead || dynastyRead}</div>}
                 </div>
                 {/* Decision Stack */}
                 <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: '8px', padding: '9px 11px', minWidth: 0 }}>

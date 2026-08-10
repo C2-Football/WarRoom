@@ -106,7 +106,6 @@ const surfaces = [
       ['onClick={() => setExpandedPid(prev => prev === r.pid ? null : r.pid)}', 'roster rows open player context'],
       ["onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedPid(prev => prev === r.pid ? null : r.pid); } }}", 'roster rows support keyboard activation'],
       ['<InlineCareerStats pid={r.pid}', 'expanded context includes player career stats'],
-      ['ASK ALEX', 'expanded context routes into Alex for that player'],
     ],
   },
   {

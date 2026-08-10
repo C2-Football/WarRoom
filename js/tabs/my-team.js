@@ -553,10 +553,6 @@ function MyTeamTab({
     return () => window.removeEventListener('wr:weekly-points-loaded', h);
   }, []);
 
-  // Dynasty Read AI — paid-tier web-search news synthesis, fired only for the
-  // currently expanded row (one open at a time), template-first. Result is keyed
-  // by pid; the shared weekly cache means repeat opens are an instant hit.
-  const [aiReads, setAiReads] = React.useState({});
   // The clamp+fade+"Full read" disclosure that used to live here was extracted
   // to the shared WR.ClampedRead (js/components/wr-primitives.js); it measures
   // its own overflow and remounts (collapsed) per expanded row.
@@ -574,31 +570,6 @@ function MyTeamTab({
     window.addEventListener('resize', measure);
     return () => { if (ro) ro.disconnect(); window.removeEventListener('resize', measure); };
   }, []);
-  React.useEffect(() => {
-    const pid = expandedPid;
-    // Free: never auto-fire dynasty_read on row expand — BYOK routes (S.apiKey
-    // → callClaude) bypass the OD.callAI tripwire, so the trigger itself must
-    // gate. The seeded buildDynastyRead template below still renders.
-    if (!isPro) return;
-    if (!pid || aiReads[pid] || typeof window.fetchDynastyRead !== 'function') return;
-    const p = playersData?.[pid];
-    if (!p) return;
-    let alive = true;
-    const nfl = window.S?.nflState || {};
-    const ctx = {
-      pid,
-      name: p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim(),
-      team: p.team || '',
-      pos: (window.App?.normPos ? window.App.normPos(p.position) : p.position) || '',
-      age: p.age || null,
-      season: nfl.season || '',
-      week: nfl.display_week || nfl.week || 0,
-    };
-    window.fetchDynastyRead(ctx, { fallback: '' }).then((txt) => {
-      if (alive && txt) setAiReads(prev => (prev[pid] ? prev : { ...prev, [pid]: txt }));
-    });
-    return () => { alive = false; };
-  }, [expandedPid]);
   const dismissDrop = React.useCallback((pid) => {
     const playerName = window.App?.playersData?.[pid]?.full_name || pid;
     setDismissedDrops(prev => {
@@ -747,7 +718,7 @@ function MyTeamTab({
   // shared window._playerTags store so existing consumers (untouchable
   // protection, trade finder, the desktop row tag badge) keep working; the
   // verdict-values live in verdictOverrides. Per-league localStorage.
-  const VERDICT_OPTIONS = ['Untouchable', 'Hold', 'Watch', 'Stash', 'Trade Block', 'Sell', 'Cut', 'Drop'];
+  const VERDICT_OPTIONS = ['Untouchable', 'Hold', 'Watch', 'Stash', 'Trade Block', 'Sell', 'Drop'];
   const _LABEL_TO_TAG = { 'Trade Block': 'trade', 'Cut': 'cut', 'Untouchable': 'untouchable', 'Watch': 'watch' };
   const _TAG_TO_LABEL = { trade: 'Trade Block', cut: 'Cut', untouchable: 'Untouchable', watch: 'Watch' };
   const [verdictOverrides, setVerdictOverrides] = React.useState(() => {
@@ -850,26 +821,6 @@ function MyTeamTab({
     })).map(pid => ({ pid, dhq: window.App?.LI?.playerScores?.[pid] || 0 })).sort((a, b) => b.dhq - a.dhq);
     const rank = allAtPos.findIndex(x => x.pid === r.pid) + 1;
     return rank > 0 ? rank : null;
-  };
-  const dynastyTierLabel = r => (typeof window.App?.isElitePlayer === 'function' ? window.App.isElitePlayer(r.pid) : r.dhq >= 7000) ? 'elite asset'
-    : r.dhq >= 4000 ? 'starter-grade asset'
-    : r.dhq >= 2000 ? 'depth asset'
-    : 'stash-level asset';
-  const buildDynastyRead = r => {
-    const rank = getLeaguePositionRank(r);
-    // Unscored players get a neutral opener — no tier verdict fabricated from a missing score.
-    const valueLine = r.dhq > 0
-      ? r.dhq.toLocaleString() + ' ' + valueShortLabel + (rank ? ' and ' + r.pos + rank + ' in this league' : '') + ' makes him a ' + dynastyTierLabel(r) + '.'
-      : 'No ' + valueShortLabel + ' score yet — judge on role and production.';
-    const productionLine = r.effectivePPG ? r.effectivePPG + ' PPG across ' + (r.effectiveGP || 0) + ((r.effectiveGP || 0) === 1 ? ' game' : ' games') : 'No stable recent production sample';
-    const ageLine = r.age ? 'Age ' + r.age + ' is ' + (r.peakPhase === 'PRE' ? 'before the prime window' : r.peakPhase === 'PRIME' ? 'inside the prime window' : r.peakPhase === 'VET' ? 'in the veteran value band' : 'past the normal value window') : 'Age window unknown';
-    const trendLine = r.trend >= 15 ? 'production is rising' : r.trend <= -15 ? 'production is sliding' : 'production is steady';
-    // Free: the "roster call is X" clause is a verdict — the raw restatement
-    // (value, tier-from-value, production, age window, trend) stays.
-    const recClause = isPro
-      ? ', so the current roster call is ' + String(r.rec || 'Hold').toLowerCase() + ' while ' + trendLine
-      : ', and ' + trendLine;
-    return valueLine + ' ' + productionLine + '; ' + ageLine + recClause + '.';
   };
 
   // renderCell — renders each data cell with FM-style coloring
@@ -1059,7 +1010,6 @@ function MyTeamTab({
                     const tier =(typeof window.App?.isElitePlayer === 'function' ? window.App.isElitePlayer(r.pid) : r.dhq >= 7000) ? 'Elite' : r.dhq >= 4000 ? 'Starter' : r.dhq >= 2000 ? 'Depth' : 'Stash';
                     const field = (currentLeague.rosters || []).flatMap(ros => (ros.players || []).filter(pid2 => normPos(playersData[pid2]?.position) === r.pos)).map(pid2 => ({ pid: pid2, dhq: window.App?.LI?.playerScores?.[pid2] || 0 })).filter(x => x.dhq > 0).sort((a, b) => b.dhq - a.dhq);
                     const rank = field.findIndex(x => x.pid === r.pid) + 1;
-                    const narrow = rosterViewportWidth <= 834;
                     const posLbl = window.App?.posLabel?.(r.pos) || (r.pos === 'DEF' ? 'D/ST' : r.pos);
                     const chip = (bg, col) => ({ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: '999px', background: bg, color: col, whiteSpace: 'nowrap' });
                     const primeEnd = r.peakYrsLeft > 0 && r.age ? r.age + r.peakYrsLeft : null;
@@ -1067,7 +1017,7 @@ function MyTeamTab({
                     const sigRisk = r.injury ? r.injury : (r.durabilityGP && r.durabilityGP < 13 ? '~' + r.durabilityGP + ' GP/yr' : 'no current flags');
                     const sigFloor = r.isStarter ? 'weekly starter' : (r.p.depth_chart_order != null && r.p.depth_chart_order <= 1 ? 'rotation role' : 'bench / depth');
                     const sigCeiling = r.trend >= 10 ? 'trending up' : (tier === 'Elite' || tier === 'Starter') ? 'proven ' + tier.toLowerCase() : r.peakPhase === 'PRE' ? 'developing' : 'limited upside';
-                    const sigRow = (label, val, last) =>(<div style={{ display: 'flex', gap: '9px', alignItems: 'baseline', padding: '6px 0', borderBottom: last ? 'none' : '1px solid rgba(255,255,255,0.05)', fontSize: '0.74rem' }}><span style={{ minWidth: '52px', color: 'var(--silver)', opacity: 0.65 }}>{label}</span><span style={{ color: 'var(--white)', fontWeight: 600 }}>{val}</span></div>);
+                    const sigCell = (label, val) =>(<div style={{ fontSize: '0.74rem' }}><span style={{ color: 'var(--silver)', opacity: 0.65 }}>{label}{' '}</span><span style={{ color: 'var(--white)', fontWeight: 600 }}>{val}</span></div>);
                     return (<React.Fragment>
                       {/* Identity + roster call */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px', flexWrap: 'wrap' }}>
@@ -1132,20 +1082,14 @@ function MyTeamTab({
                         {r.injury ? <span style={chip('rgba(231,76,60,0.13)', 'var(--bad)')}>{r.injury}</span> : null}
                       </div>
 
-                      {/* Dynasty read | signals */}
-                      <div style={{ display: 'grid', gridTemplateColumns: narrow ? '1fr' : 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: '10px', marginBottom: '10px', alignItems: 'start' }}>
-                        <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: '8px', padding: '9px 11px', minWidth: 0 }}>
-                          <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '5px' }}>Dynasty Read</div>
-                          {window.WR?.ClampedRead
-                            ? React.createElement(window.WR.ClampedRead, { text: aiReads[r.pid] || buildDynastyRead(r), maxHeight: 104, style: { fontSize: '0.8rem', color: 'var(--k-d8d8de, #d8d8de)', lineHeight: 1.45 } })
-                            : <div style={{ fontSize: '0.8rem', color: 'var(--k-d8d8de, #d8d8de)', lineHeight: 1.45 }}>{aiReads[r.pid] || buildDynastyRead(r)}</div>}
-                        </div>
-                        <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: '8px', padding: '9px 11px', minWidth: 0 }}>
-                          <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.58, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '4px' }}>Signals</div>
-                          {sigRow('Ceiling', sigCeiling)}
-                          {sigRow('Floor', sigFloor)}
-                          {sigRow('Risk', sigRisk)}
-                          {sigRow('Window', sigWindow, true)}
+                      {/* Signals — 2x2 grid, compact now that this box runs full width */}
+                      <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: '8px', padding: '9px 11px', marginBottom: '10px' }}>
+                        <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.58, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '6px' }}>Signals</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '6px 16px' }}>
+                          {sigCell('Ceiling', sigCeiling)}
+                          {sigCell('Floor', sigFloor)}
+                          {sigCell('Risk', sigRisk)}
+                          {sigCell('Window', sigWindow)}
                         </div>
                       </div>
                     </React.Fragment>);
@@ -1183,12 +1127,20 @@ function MyTeamTab({
 
                   {/* Action buttons */}
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {/* Opens the player card, which has its own one-shot "Ask Alex"
-                        trade-idea button (chat handoff retired). */}
-                    <button onClick={e => { e.stopPropagation(); window.WR?.openPlayerCard?.(r.pid, { context: 'my-team-ask-alex' }); }} style={{ padding: '7px 16px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'rgba(124,107,248,0.15)', color: 'var(--purple)', border: '1px solid rgba(124,107,248,0.3)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>ASK ALEX</button>
                     {/* Phase 2: News button removed per user feedback (2026-04-18) */}
                     {/* TRADE BLOCK/CUT/UNTOUCHABLE/WATCH buttons removed 2026-07-09 \u2014
                         rolled into the verdict picker (tap the call badge above). */}
+                    <button onClick={e => {
+                      e.stopPropagation();
+                      try {
+                        // Trade Center listens on window._wrTradeFinderTarget \u2014 same
+                        // deep-link contract as the player-card modal's Trade Finder.
+                        window._wrTradeFinderTarget = { pid: r.pid, mode: 'my', ts: Date.now() };
+                        if (typeof window.wrNavigateTab === 'function') window.wrNavigateTab('trades');
+                        else if (typeof setActiveTab === 'function') setActiveTab('trades');
+                        window.dispatchEvent(new CustomEvent('wr:open-trade-finder', { detail: { pid: r.pid } }));
+                      } catch (err) { console.warn('[MyTeam] Trade Finder deep-link unavailable', err); }
+                    }} style={{ padding: '7px 16px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Trade Finder</button>
                     <button onClick={e => { e.stopPropagation(); setExpandedPid(null); }} style={{ padding: '7px 16px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: '6px', cursor: 'pointer' }}>COLLAPSE</button>
                   </div>
   </React.Fragment>);

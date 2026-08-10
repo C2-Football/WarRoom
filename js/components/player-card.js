@@ -330,7 +330,6 @@
             const scoring = scoringSettings
                 || ((S.leagues && S.leagues.find(l => l.league_id === S.currentLeagueId)) || {}).scoring_settings
                 || ((S.leagues && S.leagues[0]) || {}).scoring_settings || {};
-            const player = (playersData && playersData[pid]) || {};
             // Warm the matchup engines so opponent + weather fill in when ready.
             if (A.SOS && A.SOS.initialize && !A.SOS.ready) A.SOS.initialize(season, playersData, () => { if (alive) setScoutTick(t => t + 1); });
             if (A.NflContext && A.NflContext.loadCurrent) A.NflContext.loadCurrent(season).then(() => { if (alive) setScoutTick(t => t + 1); }).catch(() => {});
