@@ -1604,8 +1604,6 @@ function AnalyticsPanel({
             const faabRemaining = waiverBudget > 0 ? Math.max(0, waiverBudget - waiverUsed) : null;
             const faabEfficiency = wa.faabEfficiency || {};
             const hasFaabEfficiency = Number.isFinite(Number(faabEfficiency.winners)) || Number.isFinite(Number(faabEfficiency.league));
-            const topEffPos = Object.entries(wa.faabEffByPos || {})
-                .sort((a, b) => (b[1].dhqPerDollar || 0) - (a[1].dhqPerDollar || 0))[0];
             const topPosBought = (prof) => {
                 const entries = Object.entries(prof.positionsBought || {}).sort((a, b) => b[1] - a[1]);
                 return entries.slice(0, 3).map(([p]) => p).join(', ') || '\u2014';
@@ -1621,12 +1619,6 @@ function AnalyticsPanel({
             const myWinRate = myGraded > 0 ? Math.round((mp.tradesWon || 0) / myGraded * 100) : null;
             const wGraded = (wp.tradesWon || 0) + (wp.tradesLost || 0) + (wp.tradesFair || 0);
             const wWinRate = wGraded > 0 ? Math.round((wp.tradesWon || 0) / wGraded * 100) : null;
-            const bargainPos = Object.entries(wa.faabEffByPos || {}).map(([pos, e]) => {
-                const med = (wa.leagueFaabProfile?.[pos]?.median) || 0;
-                const avgBid = e.avgBid || 0;
-                return { pos, med, avgBid, dhqPerDollar: e.dhqPerDollar || 0, underMedian: med > 0 && avgBid < med };
-            }).filter(x => x.underMedian).sort((a, b) => b.dhqPerDollar - a.dhqPerDollar);
-            const topBargain = bargainPos[0];
             const weeksElapsed = Number(currentLeague?.settings?.leg || currentLeague?.settings?.last_scored_leg || 0);
             const faabPct = (waiverBudget > 0 && faabRemaining != null) ? Math.round(faabRemaining / waiverBudget * 100) : null;
             // Weekly burn is only meaningful after a few scoring weeks. Dividing a full offseason /
@@ -1661,8 +1653,6 @@ function AnalyticsPanel({
                 { label: 'Trade Frequency Edge', value: signedNum(Number((mp.avgTradesPerSeason - wp.avgTradesPerSeason).toFixed(1))), detail: 'Your trades/season vs elite-tier behavior' + ((window.App?.LI?.leagueYears || []).length ? '.' : ' (season count assumed; league history thin).'), tone: toneFromDelta(mp.avgTradesPerSeason - wp.avgTradesPerSeason), color: mp.avgTradesPerSeason >= wp.avgTradesPerSeason ? goodColor : warnColor },
                 { label: 'Value Per Deal', value: signedNum(mp.avgValueGained, ' DHQ'), detail: 'Average DHQ gained/lost in completed trades.', tone: toneFromDelta(mp.avgValueGained), color: valueDeltaColor },
                 { label: 'Trade Win Rate', value: myWinRate == null ? '\u2014' : myWinRate + '%', detail: myWinRate == null ? 'No graded trades yet.' : (mp.tradesWon || 0) + 'W / ' + (mp.tradesFair || 0) + 'F / ' + (mp.tradesLost || 0) + 'L vs elite ' + (wWinRate == null ? 'n/a' : wWinRate + '%') + '.', tone: myWinRate == null ? 'warn' : ((wWinRate != null && myWinRate >= wWinRate) || myWinRate >= 50) ? 'good' : 'warn', color: myWinRate == null ? 'var(--silver)' : (myWinRate >= (wWinRate || 50)) ? goodColor : warnColor },
-                { label: 'FAAB Bargain Spot', value: topBargain ? posLabel(topBargain.pos) : '\u2014', detail: topBargain ? 'Avg bid $' + Math.round(topBargain.avgBid) + ' below $' + Math.round(topBargain.med) + ' median, ' + topBargain.dhqPerDollar + ' DHQ/$.' : 'No position is priced below its median yet.', tone: topBargain ? 'good' : 'warn', color: topBargain ? goodColor : warnColor },
-                { label: 'Best Waiver Yield', value: (topEffPos && (topEffPos[1].count || 0) >= 2) ? posLabel(topEffPos[0]) : '\u2014', detail: topEffPos ? (topEffPos[1].dhqPerDollar || 0) + ' DHQ/FAAB-$ (hindsight, ' + (topEffPos[1].count || 0) + ' claims).' : 'Bid outcome sample is still thin.', tone: (topEffPos && (topEffPos[1].count || 0) >= 2) ? 'good' : 'warn', color: (topEffPos && (topEffPos[1].count || 0) >= 2) ? goodColor : warnColor },
             ];
             // Net Buy/Sell Posture: positionsSold is already returned by the engine but was unused here.
             const allFlowPos = [...new Set([...Object.keys(wp.positionsBought||{}), ...Object.keys(mp.positionsBought||{}), ...Object.keys(wp.positionsSold||{}), ...Object.keys(mp.positionsSold||{})])].filter(p => p !== 'UNK').sort();
@@ -1708,25 +1698,23 @@ function AnalyticsPanel({
             const myTradeWindow = !(tr.myLast5 || []).length ? null : myEarlyTrades >= Math.ceil((tr.myLast5 || []).length / 2) ? 'early' : 'mid/late';
 
             // Free floor: raw trade/waiver numbers. The market reads (thesis,
-            // trade-pattern read, FAAB bargain call, clock verdict, alert
-            // cards) are Pro (row 9 "trades market reads").
-            const shownMarketProofItems = isPro ? marketProofItems : marketProofItems.filter(i => i.label !== 'FAAB Bargain Spot');
-
+            // trade-pattern read, clock verdict, alert cards) are Pro (row 9
+            // "trades market reads").
             return (
             <React.Fragment>
-                {!isPro && <ProLock label="Market Reads" sub="The market-mispricing thesis, trade-pattern read, and FAAB bargain calls are Pro. Raw trade and waiver numbers stay below." />}
+                {!isPro && <ProLock label="Market Reads" sub="The market-mispricing thesis and trade-pattern read are Pro. Raw trade and waiver numbers stay below." />}
                 {isPro && <AnalyticsCommandPanel
                     title="Where is the league market mispricing value?"
                 />}
 
-                <AnalyticsProofGrid items={shownMarketProofItems} />
+                <AnalyticsProofGrid items={marketProofItems} />
 
                 <div className="analytics-lab-grid">
                     <div className="analytics-lab-card">
                         <span>Waiver Economy</span>
                         <strong>Position Price Map</strong>
                         <div className="analytics-mini-table">
-                            {Object.entries(wa.leagueFaabProfile || {}).sort((a, b) => (b[1].avg || 0) - (a[1].avg || 0)).slice(0, 6).map(([pos, info]) => (
+                            {Object.entries(wa.leagueFaabProfile || {}).sort((a, b) => (b[1].avg || 0) - (a[1].avg || 0)).map(([pos, info]) => (
                                 <div key={pos}><strong>{posLabel(pos)}</strong><span>${Math.round(info.avg || 0)} avg</span><em>{info.count || 0} bids</em></div>
                             ))}
                             {!Object.keys(wa.leagueFaabProfile || {}).length && <div><strong>No FAAB history</strong><span>Use Free Agency recommendations until transactions load.</span></div>}

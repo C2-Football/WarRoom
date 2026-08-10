@@ -445,7 +445,9 @@ function MyTeamTab({
 
   // Cell background helpers (FM-style colored cells)
   const dhqBg = () => 'transparent';
-  const dhqCol = v => v > 0 ? 'var(--white)' : 'var(--ov-7, rgba(255,255,255,0.25))';
+  // Same tier palette as the Analytics All Players table (league-map.js) —
+  // Elite/Starter/Depth/Stash read the same color everywhere in the app.
+  const dhqCol = v => v >= 7000 ? 'var(--good)' : v >= 4000 ? 'var(--k-3498db, #3498db)' : v >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))';
   const ageBg = () => 'transparent';
   const ageCol = () => 'var(--silver)';
   const ppgBg = () => 'transparent';
