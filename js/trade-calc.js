@@ -1080,6 +1080,12 @@
             setTcTab(initialSubTab);
             if (onSubTabConsumed) onSubTabConsumed();
         }, [initialSubTab]);
+        // Deep-link opens (Trade Finder button on a player card/dossier) should
+        // land with the league-wide scan already running — the on-demand "tap
+        // Scan for moves" gate below exists to stop scans firing unprompted for
+        // organic finder use, but a deep link IS the prompt. Armed once finderLoopKey
+        // comes up for this open; see the scanForKey effect further down.
+        const autoScanRequestedRef = useRef(false);
         useEffect(() => {
             const openFinder = (target) => {
                 const next = target?.detail || target || window._wrTradeFinderTarget;
@@ -1089,6 +1095,7 @@
                 // handler stays closure-safe with [] deps (setters only).
                 setFinderQuery(qr => ({ ...qr, intent: 'shop', focus: { kind: 'player', id: next.pid }, partnerFilter: null }));
                 setTcTab('desk');
+                autoScanRequestedRef.current = true;
                 window._wrTradeFinderTarget = null;
             };
             window.addEventListener('wr:open-trade-finder', openFinder);
@@ -2945,6 +2952,15 @@
         // disarms it and re-shows the button so nothing scans unprompted.
         const [scanForKey, setScanForKey] = useState(null);
         const scanArmed = finderLoopKey != null && scanForKey === finderLoopKey;
+        // Fires the scan for a Trade Finder deep link — the flag is set once,
+        // the moment finderLoopKey resolves for the deep-linked focus we arm it
+        // and clear the flag so later organic finder edits fall back to on-demand.
+        useEffect(() => {
+            if (autoScanRequestedRef.current && finderLoopKey != null) {
+                autoScanRequestedRef.current = false;
+                setScanForKey(finderLoopKey);
+            }
+        }, [finderLoopKey]);
         const finderActionFloor = dealActionableAcceptanceFloor(finderTuning);
         const [finderPool, setFinderPool] = useState({ key: null, deals: [], scanned: 0, total: 0, done: false });
         useEffect(() => {
