@@ -641,17 +641,6 @@ function CompareTab({
         minHeight: '44px',
     });
 
-    const renderLanding = () => (
-        <div style={{ ...panelStyle, padding: '28px', color: 'var(--silver)' }}>
-            <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-title)', color: 'var(--white)', fontWeight: 700, marginBottom: '6px' }}>
-                Choose a matchup lens
-            </div>
-            <div style={{ fontSize: '0.86rem', lineHeight: 1.5, maxWidth: '620px' }}>
-                Compare is strongest when it answers a specific question: who can beat you now, who is closest long term, and where the roster edge actually lives.
-            </div>
-        </div>
-    );
-
     const scopeButtonStyle = (active) => ({
         padding: '8px 12px',
         borderRadius: '6px',
@@ -1849,11 +1838,9 @@ function CompareTab({
 
         {compareScope === 'players' ? renderPlayerCompare() : compareScope === 'duel' ? (
         <React.Fragment>
-        {!compareTeamId && renderLanding()}
-
         {compareTeamId && (() => {
             const theirRoster = (currentLeague.rosters || []).find(r => sameId(r.roster_id, compareTeamId));
-            if (!theirRoster) return renderLanding();
+            if (!theirRoster) return null;
 
             const theirName = getOwnerName(theirRoster, 'Opponent');
             const myPlayers = myRoster.players || [];
