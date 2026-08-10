@@ -235,9 +235,9 @@ function AnalyticsPanel({
                         // paragraph ate most of a screen before any data).
                         facts: null,
                     }, <React.Fragment>
-                        {window.WR.ClampedRead
+                        {thesis && (window.WR.ClampedRead
                             ? React.createElement(window.WR.ClampedRead, { text: thesis, maxHeight: 44, fadeColor: 'var(--black, #121217)', style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 500, color: 'var(--silver)', lineHeight: 1.5, marginTop: '2px' } })
-                            : <div style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 500, color: 'var(--silver)', lineHeight: 1.5 }}>{thesis}</div>}
+                            : <div style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 500, color: 'var(--silver)', lineHeight: 1.5 }}>{thesis}</div>)}
                         {/* "Suggested Mode" callout removed from the phone analytics
                             hero (owner ask 2026-07-12) — your operating posture already
                             lives in the persistent GM Mode badge + GM's Office. Desktop
@@ -253,7 +253,7 @@ function AnalyticsPanel({
             <div>
                 <span>Research Question</span>
                 <h2>{title}</h2>
-                <p>{thesis}</p>
+                {thesis && <p>{thesis}</p>}
                 {mode && (
                     <div className="analytics-mode-callout" style={{ borderLeftColor: mode.color }}>
                         <span>Suggested Mode</span>
@@ -377,7 +377,7 @@ function AnalyticsPanel({
             <div className="wr-seg" style={{ marginBottom: '10px' }}>
                 {subTabs.map(t => (
                     <button key={t.key} className={analyticsViewTab === t.key ? 'is-on' : ''} onClick={() => setAnalyticsTab(t.key)}>
-                        {{ trades: 'Market', assets: 'Players', reports: 'Reports' }[t.key] || t.label}
+                        {{ trades: 'Market', assets: 'Players' }[t.key] || t.label}
                     </button>
                 ))}
             </div>
@@ -849,7 +849,6 @@ function AnalyticsPanel({
                 {!isPro && <ProLock label="Analytics Command" sub="The research thesis, suggested mode directive, and tier / win-now pressure reads for this roster are Pro." />}
                 {isPro && <AnalyticsCommandPanel
                     title="What exactly separates this roster from the league's winning build?"
-                    thesis={'Analytics is reading your roster as evidence: winner-template gaps, room-level coverage, age-window risk, and the positions where a move actually changes your title path.'}
                     mode={{ label: modeLabel, directive: modeDirective + ' (' + modeSource + ')', color: modeColor }}
                 />}
 
@@ -859,14 +858,12 @@ function AnalyticsPanel({
                     <div className="analytics-lab-card">
                         <span>Champion Blueprint</span>
                         <strong>Position Investment Delta</strong>
-                        <p>Bars show your DHQ share by room vs the champion-template share. Shares are zero-sum — being light in one room often just means you are (correctly) heavy in another (e.g. QB in superflex), so read the Gap against your format, not in isolation.</p>
                         <AnalyticsDeltaRows rows={investmentRows} benchmarkLabel="Elite" />
                     </div>
                     <div className="analytics-lab-card">
                         <span>Priority Evidence</span>
                         <strong>Rooms To Fix First</strong>
                         {isPro ? <React.Fragment>
-                            <p>Roster-construction gaps ranked by urgency — what should drive your Trade Center and Free Agency moves. Hover a row for the underlying detail.</p>
                             <AnalyticsDataStack rows={gapRows} compact />
                         </React.Fragment> : <ProLock label="Priority Evidence" sub="Roster gaps ranked by urgency — the fix-first queue is a Pro read." />}
                     </div>
@@ -877,7 +874,6 @@ function AnalyticsPanel({
                         <span>Coverage Matrix</span>
                         <strong>Starter Quality By Room</strong>
                         {isPro ? <React.Fragment>
-                        <p>Each room is graded on how many of your players rank inside the startable tier — the top (starting slots × {numTeams} teams) at the position by DHQ value. A = clear surplus, B = covered, C/D = startable but thin, F = no startable-tier body.</p>
                         <div className="analytics-chip-grid">
                             {coveragePosList.map(pos => {
                                 const c = coverageByPos[pos];
@@ -1352,7 +1348,6 @@ function AnalyticsPanel({
                 {!isPro && <ProLock label="Draft Intelligence Reads" sub="The draft research thesis and champion-benchmark conversion reads are Pro. The Ideal Draft Strategy read below stays free." />}
                 {isPro && <AnalyticsCommandPanel
                     title="What does this league actually reward in the draft?"
-                    thesis="Anyone can count who picked what. Did your slots pay off, what did your champions spend early picks on, and how much value are you letting age out in future rounds?"
                 />}
 
                 {winnersPerch.length > 0 && (
@@ -1361,9 +1356,6 @@ function AnalyticsPanel({
                             <span>The Winner's Perch</span>
                             <em>{perchSeasons} season{perchSeasons === 1 ? '' : 's'} of draft history</em>
                         </div>
-                        <p style={{ color: 'var(--silver)', opacity: 0.78, fontSize: '0.78rem', lineHeight: 1.45, margin: '0 0 10px' }}>
-                            Draft position &rarr; times that slot finished top 3. Titles won in parentheses.
-                        </p>
                         <div style={{ display: 'grid', gap: '4px' }}>
                             {winnersPerch.map(row => {
                                 const isBest = row.top3 > 0 && row.top3 === perchMaxTop3;
@@ -1386,10 +1378,6 @@ function AnalyticsPanel({
                             <span>Ideal Draft Strategy</span>
                             <em>Champion hit rate by round &amp; position</em>
                         </div>
-                        <p style={{ color: 'var(--silver)', opacity: 0.78, fontSize: '0.78rem', lineHeight: 1.45, margin: '0 0 12px' }}>
-                            Starter-rate by position, round by round, for teams that actually won this league — the same champion population as Round Conversion and Winner Formula below. A position needs 2+ champion picks to rank; rounds too thin fall back to a league-wide read (marked *).
-                        </p>
-
                         {/* Phase strip: same early/middle/late-round framing as Round Conversion's KPI row, extended past R2. Real min-width (not 0) so a cell wraps to its own row on a narrow screen instead of crushing its text. */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px 24px', borderTop: '1px solid var(--ov-4,rgba(255,255,255,0.06))', borderBottom: '1px solid var(--ov-4,rgba(255,255,255,0.06))', padding: '14px 0', marginBottom: '14px' }}>
                             {phases.map(p => (
@@ -1466,7 +1454,6 @@ function AnalyticsPanel({
                         <div className="analytics-lab-card">
                             <span>Round Conversion</span>
                             <strong>Hit Rate vs the Champion Standard</strong>
-                            <p>Each round is one lane on a fixed 0-100% scale. The gold rail is the title-tier (champion) hit rate; the faint silver tick is the league field. Your bar grows toward the rail &mdash; past it, you beat the standard. Rounds with fewer than 2 picks draw as a hollow ghost: direction, not a verdict.</p>
                             <div style={{ display: 'flex', gap: '18px', borderTop: '1px solid var(--ov-4,rgba(255,255,255,0.06))', borderBottom: '1px solid var(--ov-4,rgba(255,255,255,0.06))', padding: '12px 0', margin: '4px 0 14px' }}>
                                 {[
                                     { k: 'Anchor (R1-R2)', v: anchorGradable ? anchorPct + '%' : '\u2014', c: anchorGradable ? 'var(--good)' : 'var(--silver)', s: 'you \u00B7 ' + myAnchorHits + '/' + myAnchorN },
@@ -1529,7 +1516,6 @@ function AnalyticsPanel({
                         <div className="analytics-lab-card">
                             <span>Winner Formula</span>
                             <strong>What Champions Draft, Round by Round</strong>
-                            <p>Each bar is the full pick budget of title teams that round, split by position &mdash; the winning recipe. Your actual picks pin on as teal markers: on the recipe when you matched the champion lean, off-script when you zigged to a band they barely touch. One pick is one mark (&times;1), never a trend.</p>
                             {/* Template Lean callout removed (owner ask) — the per-round
                                 bars below already carry the champion recipe. */}
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 12px', marginBottom: '14px', fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>
@@ -1596,7 +1582,6 @@ function AnalyticsPanel({
                         <div className="analytics-lab-card">
                             <span>Build Map</span>
                             <strong>How To Use The Current Draft Board</strong>
-                            <p>Capital is the currency here: anchor your early picks, and use the round shape to plan trade-ups and consolidations.</p>
                             <AnalyticsDataStack rows={buildRows} />
                         </div>
                     </div>
@@ -1732,7 +1717,6 @@ function AnalyticsPanel({
                 {!isPro && <ProLock label="Market Reads" sub="The market-mispricing thesis, trade-pattern read, and FAAB bargain calls are Pro. Raw trade and waiver numbers stay below." />}
                 {isPro && <AnalyticsCommandPanel
                     title="Where is the league market mispricing value?"
-                    thesis="Market analytics should explain owner behavior and price movement. This view separates trade liquidity, deal quality, waiver pricing, FAAB leverage, and position flow before sending you to Trade Center or Free Agency."
                 />}
 
                 <AnalyticsProofGrid items={shownMarketProofItems} />
@@ -1741,7 +1725,6 @@ function AnalyticsPanel({
                     <div className="analytics-lab-card">
                         <span>Waiver Economy</span>
                         <strong>Position Price Map</strong>
-                        <p>Average FAAB paid by room. Use this to decide whether a free-agent target is cheap relative to the league's actual market.</p>
                         <div className="analytics-mini-table">
                             {Object.entries(wa.leagueFaabProfile || {}).sort((a, b) => (b[1].avg || 0) - (a[1].avg || 0)).slice(0, 6).map(([pos, info]) => (
                                 <div key={pos}><strong>{posLabel(pos)}</strong><span>${Math.round(info.avg || 0)} avg</span><em>{info.count || 0} bids</em></div>
@@ -1752,7 +1735,6 @@ function AnalyticsPanel({
                     <div className="analytics-lab-card">
                         <span>Market Clock</span>
                         <strong>When Winners Trade</strong>
-                        <p>Share of value-creating TRADES by season window (trade timing, not waiver claims) — title teams vs the league field.</p>
                         {[
                             { label: 'Champions', t: wTiming, gold: true },
                             { label: 'League field', t: lTiming, gold: false },
@@ -1784,7 +1766,6 @@ function AnalyticsPanel({
                     <div className="analytics-lab-card">
                         <span>Trade Flow</span>
                         <strong>Net Buy/Sell Posture by Position</strong>
-                        <p>Positive = net buyer, negative = net seller (acquired minus sold). Gold marker = elite-tier posture.</p>
                         {tradeFlowRows.length ? <AnalyticsDeltaRows rows={tradeFlowRows} benchmarkLabel="Elite" /> : <div className="analytics-proof-card"><strong>No position trade flow yet</strong><em>Completed trade data has not yielded position movement.</em></div>}
                     </div>
                 </div>
