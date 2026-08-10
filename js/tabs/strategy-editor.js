@@ -314,8 +314,9 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
     const currentAggression = AGGRESSION.find(a => a.value === draft.aggression);
 
     // ── Recommended mode — derived from the user's own team assessment ─────────
-    // Maps the roster's competitive tier (health-score based) to a franchise mode
-    // so the picker can flag the on-paper-right call. Advisory only — never auto-applies.
+    // window.WR.GmMode.recommendMode is the single implementation (also used by
+    // Analytics' "Suggested Mode" fallback) so the two surfaces never disagree.
+    // Advisory only — never auto-applies.
     // Pro-only (gate-map row 17): the "★ Recommended for your roster" hint is a
     // derived recommendation (tier read); the rest of the editor is build/set
     // and stays free. Clean absence for free — teamRec null hides chip + line.
@@ -325,13 +326,8 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
             const rid = myRoster?.roster_id;
             const a = (rid != null && window.assessTeamFromGlobal) ? window.assessTeamFromGlobal(rid) : null;
             if (!a) return null;
-            const tier = String(a.tier || '').toLowerCase();
-            const health = Number(a.healthScore) || 0;
-            let mode;
-            if (tier.includes('rebuild') || (health && health < 70)) mode = 'rebuild';
-            else if (tier.includes('elite') || tier.includes('contend') || health >= 82) mode = 'win_now';
-            else mode = 'compete';
-            return { mode, tierLabel: a.tier ? String(a.tier) : null, health };
+            const mode = window.WR?.GmMode?.recommendMode ? window.WR.GmMode.recommendMode(a) : 'compete';
+            return { mode, tierLabel: a.tier ? String(a.tier) : null, health: Number(a.healthScore) || 0 };
         } catch (_) { return null; }
     }, [myRoster, playersData]);
     const recommendedMode = teamRec?.mode || null;

@@ -770,12 +770,19 @@ function AnalyticsPanel({
                 win_now:  { label: 'WIN-NOW',     color: gm.badgeColor || badColor,  directive: 'Spend future picks and young depth on proven starters — the window is open now.' },
                 custom:   { label: gm.modeLabel || 'CUSTOM', color: gm.badgeColor || warnColor, directive: tierModeDirective },
             };
-            // GM Strategy is primary; tier inference is the fallback when no strategy is set.
-            const gmFrame = gm.hasStrategy ? (GM_MODE_FRAME[gm.mode] || GM_MODE_FRAME.custom) : null;
+            // GM Strategy is primary. When no strategy is set, defer to the SAME
+            // recommendation GM's Office computes (window.WR.GmMode.recommendMode,
+            // off this roster's tier + health score) rather than the tier/champion-
+            // benchmark inference below — the two surfaces used to run independent
+            // logic and could suggest different modes for the same roster.
+            const recommendedMode = window.WR?.GmMode?.recommendMode ? window.WR.GmMode.recommendMode(assessment) : null;
+            const gmFrame = gm.hasStrategy
+                ? (GM_MODE_FRAME[gm.mode] || GM_MODE_FRAME.custom)
+                : (recommendedMode ? GM_MODE_FRAME[recommendedMode] : null);
             const modeLabel = gmFrame ? gmFrame.label : tierModeLabel;
             const modeColor = gmFrame ? gmFrame.color : tierModeColor;
             const modeDirective = gmFrame ? gmFrame.directive : tierModeDirective;
-            const modeSource = gmFrame ? 'GM Strategy' : 'inferred from tier';
+            const modeSource = gm.hasStrategy ? 'GM Strategy' : (recommendedMode ? 'recommended, matches GM’s Office' : 'inferred from tier');
             // Analysis window label — driven by GM Strategy timeline when set, else the model's
             // estimated compete window. horizonYears: 1 | 2.5 | 7.
             const _windowYears = gm.hasStrategy ? gm.horizonYears : compYears;
