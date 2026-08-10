@@ -2515,11 +2515,6 @@
             const fmtDate = (d) => d && !Number.isNaN(d.getTime())
                 ? d.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year: '2-digit'})
                 : '\u2014';
-            // Check manual override first
-            try {
-                const overrides = JSON.parse(localStorage.getItem('wr_acquired_overrides') || '{}');
-                if (overrides[pid]) return overrides[pid];
-            } catch {}
 
             // Collect ALL transactions from window.S.transactions (all weeks) + recent list
             const allTxns = [];
@@ -2565,11 +2560,7 @@
                     const rosters = window.S?.rosters || [];
                     const partnerRoster = rosters.find(r => String(r.roster_id) === String(partnerRid));
                     const partnerUser = users.find(u => u.user_id === partnerRoster?.owner_id);
-                    const partnerNameFull = partnerUser?.display_name || partnerUser?.metadata?.team_name || (partnerRid != null ? 'T' + partnerRid : '');
-                    // Roster Board's Added column is a fixed 74px — long team/owner
-                    // names overflow it, so clip at the source rather than relying
-                    // on CSS alone.
-                    const partnerName = partnerNameFull.length > 10 ? partnerNameFull.slice(0, 9) + '…' : partnerNameFull;
+                    const partnerName = partnerUser?.display_name || partnerUser?.metadata?.team_name || (partnerRid != null ? 'T' + partnerRid : '');
                     const date = season + (week ? ' W' + week : '');
                     return { method: 'Traded', date, cost: partnerName || '', season, week };
                 }

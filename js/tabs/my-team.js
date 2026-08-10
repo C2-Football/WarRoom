@@ -544,7 +544,6 @@ function MyTeamTab({
   React.useEffect(() => {
     if (!isPro && rosterGroupMode === 'action') setRosterGroupMode('position');
   }, [isPro, rosterGroupMode]);
-  const [, forceAcquisitionRerender] = React.useState(0);
   // Force a re-render when weekly points become available so rolling-PPG cells update.
   const [, forcePpgRerender] = React.useState(0);
   React.useEffect(() => {
@@ -931,21 +930,9 @@ function MyTeamTab({
       case 'acquired': {
         const acq = getAcquisitionInfo(r.pid, myRoster?.roster_id);
         const col = 'var(--silver)';
-        const methods = ['Drafted', 'Traded', 'Waiver', 'FA', 'Original'];
         return <div key={colKey} style={{...base, minWidth: 0, overflow: 'hidden'}}><span
-          style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, color: col, padding: '1px 5px', borderRadius: '3px', border: `1px solid ${col}40`, background: `${col}10`, cursor: 'pointer', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}
-          title={acq.method + (acq.cost ? ' · ' + acq.cost : '') + ' — click to change acquisition method'}
-          onClick={e => {
-            e.stopPropagation();
-            const curIdx = methods.indexOf(acq.method);
-            const next = methods[(curIdx + 1) % methods.length];
-            try {
-              const overrides = JSON.parse(localStorage.getItem('wr_acquired_overrides') || '{}');
-              overrides[r.pid] = { method: next, date: acq.date || '\u2014', cost: '' };
-              localStorage.setItem('wr_acquired_overrides', JSON.stringify(overrides));
-              forceAcquisitionRerender(n => n + 1);
-            } catch {}
-          }}
+          style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, color: col, padding: '1px 5px', borderRadius: '3px', border: `1px solid ${col}40`, background: `${col}10`, display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}
+          title={acq.method + (acq.cost ? ' · ' + acq.cost : '')}
         >{acq.method}{acq.cost ? ' · ' + acq.cost : ''}</span></div>;
       }
       case 'acquiredDate': {
