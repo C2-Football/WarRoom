@@ -238,10 +238,6 @@
     function PlayerCard({ pid, playersData, statsData, scoringSettings, onClose, initialTab }) {
         const [tab, setTab] = useState(initialTab || 'overview');
         const [tagMenu, setTagMenu] = useState(false);
-        // Trade idea — one-shot card, ask once. Replaced the old "💬 Ask
-        // Alex" chat handoff (chat is retired); reuses the 'trade-chat'
-        // DHQ_PROMPTS type single-shot for its TRADE_CARD-generating prompt.
-        const [tradeIdea, setTradeIdea] = useState(null); // null | {loading} | {error} | {text, card}
         const closeRef = useRef(null);
         // Phone tier (<768): the card renders as a WR.Sheet bottom sheet
         // instead of the centered 640px modal (plan D4). Hook comes from
@@ -310,7 +306,6 @@
 
         // ── Scouting tab data — loaded lazily, only when that tab is open ──
         const [gameLog, setGameLog] = useState(null);           // null = loading, [] = none
-        const [scoutNews, setScoutNews] = useState(null);       // { status, text }
         const [scoutTick, setScoutTick] = useState(0);          // bumps when SOS / weather finish loading
 
         // ── Value History tab data — loaded lazily, only when that tab is open ──
@@ -343,36 +338,6 @@
             if (A.GameLog && A.GameLog.buildPlayerLog) {
                 A.GameLog.buildPlayerLog(pid, season, { playersData, scoring }).then(r => { if (alive) setGameLog(r || []); }).catch(() => { if (alive) setGameLog([]); });
             } else if (alive) setGameLog([]);
-            // Matchup-aware news (graceful — CTA if AI unavailable). Loads once per open.
-            if (scoutNews == null) {
-                // Trigger gate is the guarantee: a free BYOK user (S.apiKey set)
-                // routes dhqAI→provider and never touches the OD.callAI tripwire,
-                // so the auto-fire itself must be Pro-gated here.
-                if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) {
-                    setScoutNews({ status: 'locked' });
-                } else {
-                    const AV = window.AlexVoice;
-                    const hasAI = (AV && AV.hasAI && AV.hasAI()) || (window.OD && typeof window.OD.callAI === 'function');
-                    if (!hasAI) setScoutNews({ status: 'off' });
-                    else {
-                        setScoutNews({ status: 'loading' });
-                        const week = (A.WeeklyProj && A.WeeklyProj.currentWeek && A.WeeklyProj.currentWeek()) || 1;
-                        const ctx = { pid, name: player.full_name || pid, team: player.team, pos: (A.normPos && A.normPos(player.position)) || player.position, age: player.age, season, week };
-                        // Prefer shared fetchDynastyRead: routes through OD.callAI
-                        // (shared weekly Supabase cache) with BYOK fallback +
-                        // format-aware client cache (dhq-shared/dhq-ai.js).
-                        const run = (typeof window.fetchDynastyRead === 'function')
-                            ? window.fetchDynastyRead(ctx, { fallback: '' })
-                            : (window.OD && typeof window.OD.callAI === 'function')
-                                ? window.OD.callAI({ type: 'dynasty_read', context: JSON.stringify(ctx) }).then(res => (res && (res.text || res.analysis || res.response)) || (typeof res === 'string' ? res : ''))
-                                : window.dhqAI('dynasty_read', '', JSON.stringify(ctx));
-                        Promise.resolve(run).then(txt => {
-                            const clean = window.AlexVoice ? window.AlexVoice.sanitize(String(txt || '')) : String(txt || '').trim();
-                            if (alive) setScoutNews(clean ? { status: 'done', text: clean } : { status: 'error' });
-                        }).catch(() => { if (alive) setScoutNews({ status: 'error' }); });
-                    }
-                }
-            }
             return () => { alive = false; };
         }, [tab, pid, scoutTick]);
 
@@ -759,29 +724,6 @@
                                 })
                             )
                         )
-                ),
-                React.createElement('div', { style: { padding: '14px 20px' } },
-                    React.createElement('div', { style: hdrStyle }, 'Matchup News'),
-                    (!scoutNews || scoutNews.status === 'loading')
-                        ? React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6 } }, 'Reading the latest…')
-                        : scoutNews.status === 'done'
-                            // Clamp the AI read to ~4 lines with a "Full read" expand
-                            // (de-busying rule: long-form stays behind a disclosure).
-                            ? (window.WR && window.WR.ClampedRead
-                                ? React.createElement(window.WR.ClampedRead, { text: scoutNews.text, maxHeight: 104, style: { fontSize: 'var(--text-body, 0.95rem)', color: 'var(--k-d0d0d0, #d0d0d0)', lineHeight: 1.5 }, fadeColor: 'var(--k-0a0b0d, #0a0b0d)' })
-                                : React.createElement('div', { style: { fontSize: 'var(--text-body, 0.95rem)', color: 'var(--k-d0d0d0, #d0d0d0)', lineHeight: 1.5 } }, scoutNews.text))
-                            : scoutNews.status === 'locked'
-                                ? React.createElement('button', {
-                                    onClick: () => { if (window.showProLaunchPage) window.showProLaunchPage(); else if (window.showUpgradePrompt) window.showUpgradePrompt('dynasty_read_ai'); },
-                                    style: { display: 'flex', alignItems: 'center', gap: '8px', width: '100%', textAlign: 'left', padding: '9px 11px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '7px', cursor: 'pointer' }
-                                },
-                                    React.createElement('span', { 'aria-hidden': true, style: { fontSize: '0.9rem' } }, '🔒'),
-                                    React.createElement('span', { style: { flex: 1, fontSize: 'var(--text-label, 0.82rem)', color: 'var(--silver)' } }, 'Live matchup news is a Pro read.'),
-                                    React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-label, 0.72rem)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)', border: '1px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius: '2px', padding: '2px 6px' } }, 'Pro')
-                                )
-                                : scoutNews.status === 'off'
-                                    ? React.createElement('div', { style: { fontSize: 'var(--text-label, 0.82rem)', color: 'var(--text-muted)' } }, 'Sign in (or add an AI key) to pull live matchup news.')
-                                    : React.createElement('div', { style: { fontSize: 'var(--text-label, 0.82rem)', color: 'var(--text-muted)' } }, 'No fresh news found.')
                 )
             );
         }
@@ -870,70 +812,6 @@
             animation: 'wrFadeIn 0.2s ease'
         };
 
-        // Markdown-lite → HTML, same idiom as trade-calc.js's renderAlexVerdict
-        // and alex-insights.js's teamDiagnosisHtml — escape first (order matters:
-        // escaping after inserting tags would re-escape them), then bold/bullets/
-        // newlines only ever introduce known-safe static markup.
-        function tradeIdeaTextHtml(text) {
-            if (!text) return '';
-            return text
-                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                .replace(/\*\*([^*\n]+)\*\*/g, '<strong style="color:var(--gold);font-weight:700">$1</strong>')
-                .replace(/^- (.+)$/gm, '<div style="padding-left:0.8rem;margin:0.12rem 0">• $1</div>')
-                .replace(/\n\n/g, '<div style="margin:0.45rem 0"></div>')
-                .replace(/\n/g, '<br>');
-        }
-        async function doAskAlexTradeIdea() {
-            setTradeIdea({ loading: true });
-            try {
-                const nm = p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || 'this player';
-                const myRosterId = window.S?.myRosterId;
-                const myRoster = (currentLeague?.rosters || []).find(r => String(r.roster_id) === String(myRosterId)) || null;
-                const assessTeam = window.assessTeamFromGlobal;
-                const assessment = typeof assessTeam === 'function' ? assessTeam(myRosterId) : null;
-                const base = window.WR?.AIContext?.buildStructuredBase?.(currentLeague, assessment, myRoster) || {};
-                const leagueUsers = currentLeague?.users || [];
-                const ownerName = (rid) => {
-                    const r = (currentLeague?.rosters || []).find(x => String(x.roster_id) === String(rid));
-                    const u = r ? leagueUsers.find(x => x.user_id === r.owner_id) : null;
-                    return u?.display_name || null;
-                };
-                // Other teams' needs/strengths — lets the model name a real,
-                // plausible trade partner instead of inventing one.
-                const otherTeams = (currentLeague?.rosters || [])
-                    .filter(r => String(r.roster_id) !== String(myRosterId))
-                    .map(r => {
-                        const a = typeof assessTeam === 'function' ? assessTeam(r.roster_id) : null;
-                        return { owner: ownerName(r.roster_id) || ('Team ' + r.roster_id), needs: (a?.needs || []).map(n => n.pos), strengths: a?.strengths || [] };
-                    })
-                    .filter(t => t.needs.length || t.strengths.length)
-                    .slice(0, 12);
-                const context = JSON.stringify({
-                    ...base,
-                    targetPlayer: { name: nm, pos: pos || p.position, team: p.team || null, dhq: window.App?.LI?.playerScores?.[pid] || 0 },
-                    otherTeams,
-                });
-                if (typeof window.dhqAI !== 'function') { setTradeIdea({ error: 'AI not loaded' }); return; }
-                const reply = await window.dhqAI('trade-chat', 'What can I get for ' + nm + '? Propose one specific, realistic trade with a named league owner.', context);
-                const tradeMatch = typeof reply === 'string' ? reply.match(/<!--\s*TRADE_CARD:([\s\S]*?)-->/) : null;
-                const text = typeof reply === 'string' ? reply.replace(/<!--\s*TRADE_CARD:[\s\S]*?-->/, '').trim() : '';
-                let card = null;
-                if (tradeMatch) { try { card = JSON.parse(tradeMatch[1].trim()); } catch (_) {} }
-                setTradeIdea({ text, card });
-            } catch (e) {
-                setTradeIdea({ error: e?.message || 'AI call failed' });
-            }
-        }
-        function sendTradeIdeaFeedback(action) {
-            setTradeIdea(prev => prev ? { ...prev, feedback: action } : prev);
-            window.WR?.AIFeedback?.send?.({
-                leagueId: currentLeague?.league_id || currentLeague?.id,
-                surface: 'trade_verdict', // closest pre-allowlisted surface — same "Alex's take on a trade" shape
-                recId: 'trade-idea:' + pid,
-                action,
-            });
-        }
-
         // Card content is tier-agnostic; only the shell differs (sheet vs modal).
         const cardBody = React.createElement(React.Fragment, null,
                 // Hero
@@ -1003,13 +881,6 @@
                 React.createElement('div', { style: { padding: '14px 20px', display: 'flex', gap: '8px', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))', position: 'relative', ...(isPhone ? { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' } : null) } },
                     React.createElement('button', { onClick: goCompare, style: btnStyle() }, 'Compare'),
                     React.createElement('button', { onClick: goTradeFinder, style: btnStyle('primary') }, isOnMyTeam ? 'Trade Finder' : 'Find Trade'),
-                    // Ask Alex — one-shot trade idea card (ask once, no chat).
-                    // Stays open so the result renders inline below the actions.
-                    React.createElement('button', {
-                        onClick: doAskAlexTradeIdea,
-                        disabled: tradeIdea?.loading,
-                        style: btnStyle(),
-                    }, tradeIdea?.loading ? '✨ Thinking…' : '✨ Ask Alex'),
                     React.createElement('button', { onClick: () => setTagMenu(!tagMenu), style: btnStyle() }, 'Tag As ▾'),
                     tagMenu ? React.createElement('div', {
                         // Phone: full-width above the grid so the 4 tag rows are
@@ -1024,25 +895,6 @@
                         )
                     ) : null,
                     React.createElement('button', { onClick: onClose, style: btnStyle('ghost', isPhone ? null : { marginLeft: 'auto' }) }, 'Close')
-                ),
-                // Trade idea result — one-shot, ask once, no back-and-forth.
-                tradeIdea && !tradeIdea.loading && React.createElement('div', { style: { padding: '0 20px 16px' } },
-                    tradeIdea.error
-                        ? React.createElement('div', { style: { fontSize: '0.78rem', color: 'var(--k-e74c3c, #e74c3c)', padding: '6px 2px' } },
-                            'Alex couldn’t generate a trade idea: ' + tradeIdea.error)
-                        : React.createElement(React.Fragment, null,
-                            tradeIdea.text && React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', lineHeight: 1.4, color: 'var(--text-primary)' }, dangerouslySetInnerHTML: { __html: tradeIdeaTextHtml(tradeIdea.text) } }),
-                            tradeIdea.card && window.WR?.TradeIdeaCard && React.createElement(window.WR.TradeIdeaCard, { tradeCard: tradeIdea.card, leagueId: currentLeague?.league_id || currentLeague?.id }),
-                            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' } },
-                                tradeIdea.feedback
-                                    ? React.createElement('span', { style: { fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6 } }, tradeIdea.feedback === 'up' ? 'Glad it helped.' : 'Noted — Alex learns from this.')
-                                    : React.createElement(React.Fragment, null,
-                                        React.createElement('span', { style: { fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6 } }, 'Useful?'),
-                                        React.createElement('button', { onClick: () => sendTradeIdeaFeedback('up'), style: { background: 'none', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px' } }, 'Agree'),
-                                        React.createElement('button', { onClick: () => sendTradeIdeaFeedback('down'), style: { background: 'none', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px' } }, 'Disagree')
-                                    )
-                            )
-                        )
                 )
         );
 
