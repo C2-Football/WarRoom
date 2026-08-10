@@ -162,6 +162,21 @@ const WrCalendar = (function () {
             });
         }
 
+        // Roster Cutdown Day — set from GM's Office (window.App.RosterCutdown),
+        // e.g. an NFL-style cutdown to a smaller active roster + taxi squad.
+        const cutdownLeagueId = currentLeague?.id || currentLeague?.league_id || '';
+        const cutdownRule = cutdownLeagueId ? window.App?.RosterCutdown?.getRule?.(cutdownLeagueId) : null;
+        if (cutdownRule) {
+            items.push({
+                id: 'cutdown-day',
+                title: 'Roster Cutdown Day',
+                date: new Date(cutdownRule.effectiveDate + 'T00:00:00'),
+                icon: '✂️',
+                type: 'roster',
+                detail: cutdownRule.activeSlots + ' active / ' + cutdownRule.taxiSlots + ' taxi (' + (cutdownRule.activeSlots + cutdownRule.taxiSlots) + ' total) — cut down to fit',
+            });
+        }
+
         // Custom events
         (customEvents || []).forEach(e => {
             items.push({

@@ -341,6 +341,39 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
     const dropdownItemStyle = _phone ? { ...styles.dropdownItem, minHeight: 44 } : styles.dropdownItem;
     const _dirty = _phone ? JSON.stringify(draft) !== savedSnap : false;
 
+    // ── Roster Cutdown Day — independent of the GM Strategy blob above: it's
+    // a league fact, not a preference, so it saves immediately
+    // (window.App.RosterCutdown) rather than riding the Save Strategy
+    // button/dirty flag. The "league's rule" checkbox just tags who set it
+    // (setBy 'commissioner' vs 'owner') for display — there's no cross-owner
+    // sync in this app (see js/shared/roster-cutdown.js), so either framing
+    // is recorded on this device only.
+    const [cutdownRule, setCutdownRuleState] = React.useState(() => window.App?.RosterCutdown?.getRule?.(leagueId) || null);
+    const [cutdownDraft, setCutdownDraft] = React.useState(() => {
+        const r = window.App?.RosterCutdown?.getRule?.(leagueId);
+        return { activeSlots: r?.activeSlots || '', taxiSlots: r?.taxiSlots || '', effectiveDate: r?.effectiveDate || '' };
+    });
+    const [cutdownIsRule, setCutdownIsRule] = React.useState(() => window.App?.RosterCutdown?.getRule?.(leagueId)?.setBy === 'commissioner');
+    const [cutdownSaved, setCutdownSaved] = React.useState(false);
+    React.useEffect(() => {
+        const r = window.App?.RosterCutdown?.getRule?.(leagueId) || null;
+        setCutdownRuleState(r);
+        setCutdownDraft({ activeSlots: r?.activeSlots || '', taxiSlots: r?.taxiSlots || '', effectiveDate: r?.effectiveDate || '' });
+        setCutdownIsRule(r?.setBy === 'commissioner');
+    }, [leagueId]);
+    const cutdownStatus = window.App?.RosterCutdown?.status?.(cutdownRule, Date.now()) || null;
+    function saveCutdownRule() {
+        if (typeof window.App?.RosterCutdown?.setRule !== 'function') return;
+        const rec = window.App.RosterCutdown.setRule(leagueId, cutdownDraft, cutdownIsRule ? 'commissioner' : 'owner');
+        if (rec) { setCutdownRuleState(rec); setCutdownSaved(true); setTimeout(() => setCutdownSaved(false), 2000); }
+    }
+    function clearCutdownRule() {
+        if (typeof window.App?.RosterCutdown?.clearRule !== 'function') return;
+        window.App.RosterCutdown.clearRule(leagueId);
+        setCutdownRuleState(null);
+        setCutdownDraft({ activeSlots: '', taxiSlots: '', effectiveDate: '' });
+    }
+
     return (
         <div style={{ padding: _phone ? '20px 0 150px' : '20px 0 60px', width: '100%', maxWidth: 'none', margin: 0 }}>
 
@@ -464,6 +497,59 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                             : `Unset — using the imported league setting${currentLeague?.settings?.waiver_budget_min ? ` ($${currentLeague.settings.waiver_budget_min})` : ' (currently $0 — likely not reported by your platform)'}.`}
                     </span>
                 </div>
+            </div>
+
+            {/* ── Roster Cutdown Day ── */}
+            <div style={styles.card}>
+                <SectionHeader title="Roster Cutdown Day" sub="If your league shrinks its roster limits on a set date — an NFL-style cutdown to a smaller active roster + taxi squad — record it here so the Calendar counts it down and My Roster warns you once you're over the new limit." />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, cursor: 'pointer', fontSize: 'var(--text-label)', color: 'var(--ov-9, rgba(255,255,255,0.75))', fontFamily: 'var(--font-body)' }}>
+                    <input type="checkbox" checked={cutdownIsRule} onChange={e => setCutdownIsRule(e.target.checked)}
+                        style={_phone ? { width: 20, height: 20 } : undefined} />
+                    This is the league's rule, not just my own note (shows as set by the commissioner if anyone else on this device checks it)
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
+                    <div>
+                        <div style={styles.subLabel}>Active Roster Size</div>
+                        <input
+                            type="number" min="1" step="1"
+                            value={cutdownDraft.activeSlots}
+                            onChange={e => setCutdownDraft(d => ({ ...d, activeSlots: e.target.value }))}
+                            placeholder="42" aria-label="Active roster size after cutdown"
+                            style={{ ...inputStyle, maxWidth: 100 }}
+                        />
+                    </div>
+                    <div>
+                        <div style={styles.subLabel}>Taxi Squad Size</div>
+                        <input
+                            type="number" min="0" step="1"
+                            value={cutdownDraft.taxiSlots}
+                            onChange={e => setCutdownDraft(d => ({ ...d, taxiSlots: e.target.value }))}
+                            placeholder="10" aria-label="Taxi squad size after cutdown"
+                            style={{ ...inputStyle, maxWidth: 100 }}
+                        />
+                    </div>
+                    <div>
+                        <div style={styles.subLabel}>Effective Date</div>
+                        <input
+                            type="date"
+                            value={cutdownDraft.effectiveDate}
+                            onChange={e => setCutdownDraft(d => ({ ...d, effectiveDate: e.target.value }))}
+                            aria-label="Cutdown effective date"
+                            style={{ ...inputStyle, maxWidth: 170 }}
+                        />
+                    </div>
+                    <button onClick={saveCutdownRule} style={{ ...styles.saveBtn(false), ...(_phone ? { minHeight: 44 } : null) }}>{cutdownSaved ? 'Saved ✓' : 'Save'}</button>
+                    {cutdownRule && <button onClick={clearCutdownRule} style={{ ...addBtnStyle, background: 'transparent', color: 'var(--ov-8, rgba(255,255,255,0.5))', borderColor: 'var(--ov-6, rgba(255,255,255,0.12))' }}>Clear</button>}
+                </div>
+                {cutdownRule && cutdownStatus && (
+                    <div style={{ marginTop: 12, fontSize: 'var(--text-label)', color: 'var(--ov-9, rgba(255,255,255,0.7))', fontFamily: 'var(--font-body)', lineHeight: 1.5 }}>
+                        <span style={{ color: cutdownStatus.isPast ? 'var(--bad)' : cutdownStatus.isNear ? 'var(--warn)' : 'var(--gold)', fontWeight: 700 }}>
+                            {cutdownStatus.isPast ? 'Cutdown day has passed' : `${cutdownStatus.daysUntil} day${cutdownStatus.daysUntil === 1 ? '' : 's'} until cutdown`}
+                        </span>
+                        {' — ' + cutdownRule.activeSlots + ' active / ' + cutdownRule.taxiSlots + ' taxi (' + (cutdownRule.activeSlots + cutdownRule.taxiSlots) + ' total)'}
+                        {cutdownRule.setBy === 'commissioner' ? ' · marked as the league rule.' : ' · personal note.'}
+                    </div>
+                )}
             </div>
 
             {/* ── Free Agency Filters ── */}

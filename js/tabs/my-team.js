@@ -445,21 +445,81 @@ function MyTeamTab({
 
   // Cell background helpers (FM-style colored cells)
   const dhqBg = () => 'transparent';
-  // Same tier palette as the Analytics All Players table (league-map.js) —
-  // Elite/Starter/Depth/Stash read the same color everywhere in the app.
-  const dhqCol = v => v >= 7000 ? 'var(--good)' : v >= 4000 ? 'var(--k-3498db, #3498db)' : v >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))';
+  // Position-relative DHQ tiers — same rule as the Analytics All Players
+  // table (league-map.js): top 5% of the LEAGUE-WIDE pool at that position
+  // green, next tier (top 20%) blue, top 50% silver, rest faded. The flat
+  // 7000/4000/2000 cutoffs (kept below as a fallback when the league-wide
+  // pool isn't built yet) are tuned to offense's absolute ceiling and
+  // structurally never light up green/blue for lower-ceiling positions like
+  // IDP or K — a position's own best players never got colored no matter
+  // how dominant they are at that position.
+  const posDhqRank = React.useMemo(() => {
+    const scores = window.App?.LI?.playerScores || {};
+    const meta = window.App?.LI?.playerMeta || {};
+    const byPos = {};
+    Object.keys(scores).forEach(pid => {
+      const v = scores[pid];
+      if (!(v > 0)) return;
+      const pos = meta[pid]?.pos;
+      if (!pos) return;
+      (byPos[pos] = byPos[pos] || []).push([pid, v]);
+    });
+    const rank = {};
+    Object.entries(byPos).forEach(([pos, arr]) => {
+      arr.sort((a, b) => b[1] - a[1]);
+      const map = new Map();
+      arr.forEach(([pid], i) => map.set(String(pid), (i + 1) / arr.length));
+      rank[pos] = map;
+    });
+    return rank;
+  }, [timeRecomputeTs]);
+  const dhqCol = (v, pid, pos) => {
+    const pct = pid != null && pos ? posDhqRank[pos]?.get(String(pid)) : null;
+    if (pct != null) {
+      if (pct <= 0.05) return 'var(--good)';
+      if (pct <= 0.20) return 'var(--k-3498db, #3498db)';
+      if (pct <= 0.50) return 'var(--silver)';
+      return 'var(--ov-8, rgba(255,255,255,0.3))';
+    }
+    return v >= 7000 ? 'var(--good)' : v >= 4000 ? 'var(--k-3498db, #3498db)' : v >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))';
+  };
   const ageBg = () => 'transparent';
   const ageCol = () => 'var(--silver)';
   const ppgBg = () => 'transparent';
   const trendBg = () => 'transparent';
   const posColors = window.App.POS_COLORS;
 
-  // Drop candidate PIDs: non-starters with lowest DHQ (bottom 3 bench players)
+  // Roster Cutdown Day (window.App.RosterCutdown) — a league rule set from
+  // GM's Office: on a given date the active+taxi roster shrinks to a smaller
+  // cap. Only surfaced once the date is near (isNear: within NEAR_DAYS or
+  // past) so it doesn't nag all season for a rule that isn't imminent yet.
+  const cutdownLeagueId = currentLeague?.league_id || currentLeague?.id || '';
+  const [cutdownTick, setCutdownTick] = React.useState(0);
+  React.useEffect(() => {
+    const h = () => setCutdownTick(t => t + 1);
+    window.addEventListener('wr:cutdown-rule-changed', h);
+    return () => window.removeEventListener('wr:cutdown-rule-changed', h);
+  }, []);
+  const cutdownInfo = React.useMemo(() => {
+    const rule = cutdownLeagueId ? window.App?.RosterCutdown?.getRule?.(cutdownLeagueId) : null;
+    const RC = window.App?.RosterCutdown;
+    if (!rule || !RC) return null;
+    const rosterStatus = RC.status(rule, Date.now());
+    if (!rosterStatus || !rosterStatus.isNear) return null;
+    const rosterCount = rows.filter(r => !r.isIR).length;
+    const over = RC.overage(rule, rosterCount);
+    return { rule, status: rosterStatus, rosterCount, over };
+  }, [cutdownLeagueId, rows, cutdownTick]);
+
+  // Drop candidate PIDs: non-starters with lowest DHQ — normally the bottom 3
+  // bench players; once Cutdown Day is near and you're over the pending
+  // limit, expands to exactly how many you need to trim to fit it.
   const dropCandidatePids = React.useMemo(() => {
+    const need = Math.max(3, cutdownInfo?.over || 0);
     const benchPlayers = rows.filter(r => !r.isStarter && !r.isIR && !r.isTaxi)
-      .sort((a, b) => a.dhq - b.dhq).slice(0, 3);
+      .sort((a, b) => a.dhq - b.dhq).slice(0, need);
     return new Set(benchPlayers.map(r => r.pid));
-  }, [rows]);
+  }, [rows, cutdownInfo]);
 
   // Keeper recommendations — rows.dhq is already the keeper-blended value for
   // keeper leagues (see the dhq computation above), so ranking by it here
@@ -860,7 +920,7 @@ function MyTeamTab({
         const showRos = rosPts != null;
         const disp = showRos ? (rosPts > 0 ? Math.round(rosPts).toLocaleString() : '\u2014') : (r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014');
         const title = showRos ? ('\u2248 ' + Math.round(rosPts) + ' projected pts rest-of-season') : '';
-        return <div key={colKey} style={{...base, background: dhqBg(r.dhq)}} title={title}><span style={{ color: dhqCol(r.dhq), fontWeight: 600, fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>{disp}</span></div>;
+        return <div key={colKey} style={{...base, background: dhqBg(r.dhq)}} title={title}><span style={{ color: dhqCol(r.dhq, r.pid, r.pos), fontWeight: 600, fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>{disp}</span></div>;
       }
       case 'ppg': {
         // Rolling PPG override — swap in last-N-games PPG when user toggled the window.
@@ -1075,7 +1135,7 @@ function MyTeamTab({
 
                       {/* Signals chip strip */}
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
-                        <span style={chip(dhqBg(r.dhq), dhqCol(r.dhq))}>{tier} {'·'} {r.dhq.toLocaleString()} DHQ</span>
+                        <span style={chip(dhqBg(r.dhq), dhqCol(r.dhq, r.pid, r.pos))}>{tier} {'·'} {r.dhq.toLocaleString()} DHQ</span>
                         {rank > 0 ? <span style={chip('var(--ov-3, rgba(255,255,255,0.05))', 'var(--gold)')}>{r.pos}{rank}</span> : null}
                         <span style={chip(r.peakPhase === 'PRE' ? 'rgba(46,204,113,0.1)' : r.peakPhase === 'POST' ? 'rgba(231,76,60,0.1)' : 'var(--acc-fill2, rgba(212,175,55,0.08))', r.peakPhase === 'PRE' ? 'var(--good)' : r.peakPhase === 'POST' ? 'var(--bad)' : 'var(--gold)')}>{r.peakPhase}{r.peakYrsLeft > 0 ? ' · ~' + r.peakYrsLeft + 'yr' : ''}</span>
                         {r.effectivePPG ? <span style={chip('var(--ov-3, rgba(255,255,255,0.05))', 'var(--white)')}>{r.effectivePPG} PPG</span> : null}
@@ -1873,6 +1933,14 @@ function MyTeamTab({
           <div style={{ marginBottom: '10px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '8px', background: 'var(--ov-1, rgba(255,255,255,0.015))', overflow: 'hidden' }}>
             <button type="button" onClick={() => setReviewStripOpen(v => !v)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Review Roster</span>
+              {cutdownInfo && (
+                <span style={{ fontSize: '0.76rem', fontWeight: 700, color: cutdownInfo.over > 0 ? 'var(--bad)' : 'var(--warn)' }}>
+                  {cutdownInfo.status.isPast
+                    ? (cutdownInfo.over > 0 ? 'Cutdown day passed — ' + cutdownInfo.over + ' over the ' + (cutdownInfo.rule.activeSlots + cutdownInfo.rule.taxiSlots) + '-man limit' : 'Cutdown day passed')
+                    : 'Cutdown in ' + cutdownInfo.status.daysUntil + ' day' + (cutdownInfo.status.daysUntil === 1 ? '' : 's') + (cutdownInfo.over > 0 ? ' — ' + cutdownInfo.over + ' over the ' + (cutdownInfo.rule.activeSlots + cutdownInfo.rule.taxiSlots) + '-man limit' : '')}
+                  {' ·'}
+                </span>
+              )}
               <span style={{ fontSize: '0.76rem', color: 'var(--silver)' }}>{dropAlerts.length} drop alert{dropAlerts.length === 1 ? '' : 's'} · {sellCalls.length} sell call{sellCalls.length === 1 ? '' : 's'}</span>
               <span style={{ marginLeft: 'auto', fontSize: '0.74rem', color: 'var(--gold)', fontWeight: 700 }}>{reviewStripOpen ? 'Hide ▴' : 'Review ▾'}</span>
             </button>
