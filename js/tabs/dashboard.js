@@ -139,6 +139,16 @@ const WIDGET_MODULES = {
         clickTarget: { sm: 'trades', md: 'trades' },
         pro: true, proFeature: 'faab_intelligence', formatFlag: null,
     },
+    'faab-command': {
+        label: 'FAAB Command',
+        icon: '💰',
+        description: 'League-aware bid plan for the top add on the wire',
+        accent: () => T().color?.('accent') || 'var(--k-d4af37, #d4af37)',
+        metrics: [],
+        sizes: ['sm', 'md', 'lg'],
+        clickTarget: { sm: 'fa', md: 'fa', lg: 'fa' },
+        pro: true, proFeature: 'faab_intelligence', formatFlag: null,
+    },
     'draft-capital': {
         label: 'Draft Capital',
         icon: '🎯',
@@ -704,6 +714,11 @@ function DashboardPanel({
 }) {
     const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
     const valueShortLabel = resolvedLeagueSkin?.vocabulary?.valueShortLabel || 'DHQ';
+    // Redraft Home is fixed (owner ask) — league-detail.js force-resets
+    // selectedWidgets to REDRAFT_FIXED_WIDGETS whenever this is true; every
+    // customize affordance below (drag, gear, remove, ▲▼, Add Widget) is
+    // gated off it so the layout can't drift back open.
+    const isFixedRedraft = resolvedLeagueSkin?.type === 'redraft';
     const [pickerOpen, setPickerOpen] = React.useState(false);
     const [reorderOpen, setReorderOpen] = React.useState(false); // phone widget-reorder sheet
     const [editingWidget, setEditingWidget] = React.useState(null); // { widgetId, widget }
@@ -1317,10 +1332,10 @@ function DashboardPanel({
                 data-widget-id={widget.id || ''}
                 data-widget-key={widget.key || ''}
                 data-widget-size={widget.size || ''}
-                draggable
-                onDragStart={e => { setDragIdx(idx); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)); }}
-                onDragOver={e => e.preventDefault()}
-                onDrop={e => {
+                draggable={!isFixedRedraft}
+                onDragStart={isFixedRedraft ? undefined : e => { setDragIdx(idx); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)); }}
+                onDragOver={isFixedRedraft ? undefined : e => e.preventDefault()}
+                onDrop={isFixedRedraft ? undefined : e => {
                     e.preventDefault();
                     if (dragIdx === null || dragIdx === idx) return;
                     const updated = [...selectedWidgets];
@@ -1343,7 +1358,7 @@ function DashboardPanel({
                 {children}
 
                 {/* Gear button */}
-                {!shellPhone && showGear && (
+                {!isFixedRedraft && !shellPhone && showGear && (
                     <button
                         onClick={e => { e.stopPropagation(); setEditingWidget({ widget, idx }); setPickerOpen(true); }}
                         title="Widget settings"
@@ -1365,7 +1380,7 @@ function DashboardPanel({
                 )}
 
                 {/* Remove button */}
-                {!shellPhone && showGear && (
+                {!isFixedRedraft && !shellPhone && showGear && (
                     <button
                         onClick={e => { e.stopPropagation(); setSelectedWidgets(selectedWidgets.filter((_, i) => i !== idx)); }}
                         title="Remove widget"
@@ -1392,7 +1407,7 @@ function DashboardPanel({
                     these per-card arrows are the fallback for coarse-pointer
                     TABLETS only (isCoarse && !isPhone). Fine-pointer desktop
                     never renders them (touchReorder false). */}
-                {showGear && touchReorder && !shellPhone && [
+                {!isFixedRedraft && showGear && touchReorder && !shellPhone && [
                     { glyph: '▼', delta: 1, ok: canMoveDown, right: '77px', label: 'Move widget down' },
                     { glyph: '▲', delta: -1, ok: canMoveUp, right: '121px', label: 'Move widget up' },
                 ].map(b => (
@@ -1423,7 +1438,7 @@ function DashboardPanel({
                     inline action row (⚙ Edit / ✕ Remove) wired to the same
                     setters the desktop gear/remove buttons use. ▲/▼ above
                     stay as shipped. */}
-                {shellPhone && (
+                {!isFixedRedraft && shellPhone && (
                     <button
                         onClick={e => { e.stopPropagation(); setPhoneMenu(v => !v); }}
                         aria-label="Widget actions"
@@ -1445,7 +1460,7 @@ function DashboardPanel({
                             transition: 'all 0.12s', pointerEvents: 'none', fontWeight: 700, letterSpacing: '1px',
                         }}>⋯</span></button>
                 )}
-                {shellPhone && phoneMenu && (
+                {!isFixedRedraft && shellPhone && phoneMenu && (
                     <div style={{
                         position: 'absolute', top: '26px', right: '2px', zIndex: 7,
                         display: 'flex', gap: '4px', padding: '3px 4px',
@@ -1610,6 +1625,12 @@ function DashboardPanel({
             return React.createElement(MRW, {
                 size, myRoster, rankedTeams, sleeperUserId, currentLeague,
                 playersData, setActiveTab, navigateWidget,
+            });
+        }
+        // FAAB Command → FaabCommandWidget (js/widgets/faab-command.js)
+        if (moduleKey === 'faab-command' && typeof window.FaabCommandWidget === 'function') {
+            return React.createElement(window.FaabCommandWidget, {
+                size, myRoster, currentLeague, playersData, setActiveTab, navigateWidget,
             });
         }
         // Draft Capital → DraftCapitalWidget (js/widgets/draft-capital.js)
@@ -1862,8 +1883,8 @@ function DashboardPanel({
                     ⇅ Reorder button opens the drag-to-rearrange sheet (replaces
                     the per-card ▲▼ arrows on phone, owner ask). */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '16px var(--space-md) 2px', background: BK }}>
-                    <div role="heading" aria-level={2} style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '1.05rem', fontWeight: 700, letterSpacing: '0.03em', color: W, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Customizable Widgets</div>
-                    {widgets.length >= 2 && (
+                    <div role="heading" aria-level={2} style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '1.05rem', fontWeight: 700, letterSpacing: '0.03em', color: W, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{isFixedRedraft ? 'Home' : 'Customizable Widgets'}</div>
+                    {!isFixedRedraft && widgets.length >= 2 && (
                         <button type="button" onClick={() => setReorderOpen(true)} style={{
                             flex: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '40px', padding: '0 14px',
                             background: 'var(--acc-fill2, rgba(212,175,55,0.10))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
@@ -1890,6 +1911,7 @@ function DashboardPanel({
                 </div>
 
                 {/* Add widget — bottom of the phone stack */}
+                {!isFixedRedraft && (
                 <div style={{ padding: 'var(--space-md)', background: BK, borderBottom: '1px solid ' + (theme.colors?.border || 'var(--acc-fill2, rgba(212,175,55,0.12))') }}>
                     <button
                         type="button"
@@ -1907,6 +1929,7 @@ function DashboardPanel({
                         <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontFamily: dmFont, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Add Widget</span>
                     </button>
                 </div>
+                )}
 
                 {/* Pinned / starred section */}
                 <PinnedSection />
@@ -1948,7 +1971,7 @@ function DashboardPanel({
         <React.Fragment>
             {chopBlockEl}
             {/* First-visit hint */}
-            {showHint && (
+            {!isFixedRedraft && showHint && (
                 <div style={{
                     display: 'flex', alignItems: 'center', gap: '12px',
                     padding: '12px 20px',
@@ -2057,6 +2080,7 @@ function DashboardPanel({
                 {widgets.map((widget, idx) => renderWidget(widget, idx))}
 
                 {/* Add widget button */}
+                {!isFixedRedraft && (
                 <button
                     type="button"
                     className="wr-add-widget"
@@ -2076,6 +2100,7 @@ function DashboardPanel({
                     <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>+</span>
                     <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontFamily: dmFont, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Add Widget</span>
                 </button>
+                )}
             </div>
 
             {/* Pinned / starred section */}

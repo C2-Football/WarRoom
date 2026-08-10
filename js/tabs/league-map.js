@@ -1777,7 +1777,7 @@ function LeagueMapTab({
             });
         }
         if (lpFilter === '__ROOKIE__') filtered = filtered.filter(x => x.p.years_exp === 0);
-        else if (lpFilter) filtered = filtered.filter(x => x.pos === lpFilter);
+        else if (lpFilter) filtered = filtered.filter(x => window.App?.posMatchesFilter ? window.App.posMatchesFilter(x.pos, lpFilter) : x.pos === lpFilter);
         filtered.sort((a, b) => {
             const { key, dir } = lpSort;
             if (key === 'dhq') return (a.dhq - b.dhq) * dir;
@@ -1888,8 +1888,18 @@ function LeagueMapTab({
                         placeholder="Search by player name or owner…"
                         style={{ flex: '0 1 260px', padding: '5px 10px', fontSize: '0.76rem', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: '4px', color: 'var(--white)', fontFamily: 'var(--font-body)', outline: 'none', minHeight: '44px' }}
                     />
-                    {['','QB','RB','WR','TE','K','DEF','DL','LB','DB'].map(pos => (
-                        <button key={pos} onClick={() => setLpFilter(pos)} style={{
+                    {/* League-specific position chips (only positions this league actually
+                        rosters — hardcoded QB/RB/WR/TE/K/DEF/DL/LB/DB used to show unconditionally,
+                        so e.g. an offense-only league still showed dead DL/LB/DB buttons and an
+                        IDP league had no chip that matched its own IDP_FLEX-only setup) plus
+                        league-derived flex groups (FLEX / SFLEX / IDP FLEX…, only when the
+                        league actually rosters that slot). posMatchesFilter (wired into the
+                        filter above) expands a flex-group click into its member positions. */}
+                    {['', ...(typeof window.getLeaguePositions === 'function'
+                            ? window.getLeaguePositions({ league: currentLeague })
+                            : ['QB','RB','WR','TE','K','DEF','DL','LB','DB']),
+                        ...(window.App?.getLeagueFlexGroups?.({ league: currentLeague }) || [])].map(pos => (
+                        <button key={pos || 'all'} onClick={() => setLpFilter(pos)} style={{
                             padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', textTransform: 'uppercase',
                             background: lpFilter === pos ? 'var(--gold)' : 'var(--ov-3, rgba(255,255,255,0.04))',
                             color: lpFilter === pos ? 'var(--black)' : 'var(--silver)',
@@ -2025,6 +2035,41 @@ function LeagueMapTab({
                         if (!pw || !x.age) return null;
                         return Math.max(0, pw[1] - x.age);
                     };
+                    // Position-relative DHQ color (owner ask): the flat 7000/4000/2000
+                    // cutoffs are tuned for offense's absolute ceiling and structurally
+                    // never light up for lower-ceiling positions (IDP, K) — a position's
+                    // OWN best players never got green/blue no matter how dominant they
+                    // are at that position. When filtered to one concrete position, color
+                    // by rank WITHIN that position's pool instead: top 5% green, next
+                    // tier (top 20%) blue, top 50% silver, rest faded — same 4-tier shape
+                    // as the flat scheme, just position-relative. Percentiles are computed
+                    // off the full unfiltered allPlayers pool so the search box narrowing
+                    // `filtered` can't skew them.
+                    const CONCRETE_POSITIONS = new Set(['QB','RB','WR','TE','K','DEF','DL','LB','DB']);
+                    const isSinglePosFilter = CONCRETE_POSITIONS.has(lpFilter);
+                    const posDhqRank = {};
+                    if (isSinglePosFilter) {
+                        const byPos = {};
+                        allPlayers.forEach(x => { if (x.pos === lpFilter) (byPos[x.pos] = byPos[x.pos] || []).push(x); });
+                        Object.entries(byPos).forEach(([pos, arr]) => {
+                            const sorted = arr.filter(x => x.dhq > 0).sort((a, b) => b.dhq - a.dhq);
+                            const map = new Map();
+                            sorted.forEach((x, i) => map.set(String(x.pid), (i + 1) / sorted.length));
+                            posDhqRank[pos] = map;
+                        });
+                    }
+                    const dhqColorFor = (x) => {
+                        if (isSinglePosFilter) {
+                            const pct = posDhqRank[x.pos]?.get(String(x.pid));
+                            if (pct != null) {
+                                if (pct <= 0.05) return 'var(--good)';
+                                if (pct <= 0.20) return 'var(--k-3498db, #3498db)';
+                                if (pct <= 0.50) return 'var(--silver)';
+                                return 'var(--ov-8, rgba(255,255,255,0.3))';
+                            }
+                        }
+                        return x.dhq >= 7000 ? 'var(--good)' : x.dhq >= 4000 ? 'var(--k-3498db, #3498db)' : x.dhq >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))';
+                    };
                     return (
                 <div style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                     <div className="lm-ap-head" style={{ display: 'grid', gridTemplateColumns: gridTpl, gap: '4px', padding: '6px 10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', minWidth: gridMinWidth }}>
@@ -2102,7 +2147,7 @@ function LeagueMapTab({
                                     case 'peakYrs':
                                         return <span key={c.key} style={{ color: 'var(--silver)' }}>{yrs == null ? '\u2014' : yrs}</span>;
                                     case 'dhq':
-                                        return <span key={c.key} style={{ fontWeight: 700, fontFamily: 'var(--font-body)', color: x.dhq >= 7000 ? 'var(--good)' : x.dhq >= 4000 ? 'var(--k-3498db, #3498db)' : x.dhq >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{x.dhq > 0 ? x.dhq.toLocaleString() : '\u2014'}</span>;
+                                        return <span key={c.key} style={{ fontWeight: 700, fontFamily: 'var(--font-body)', color: dhqColorFor(x) }}>{x.dhq > 0 ? x.dhq.toLocaleString() : '\u2014'}</span>;
                                     case 'ppg': {
                                         let shown = x.ppg;
                                         let marker = '';

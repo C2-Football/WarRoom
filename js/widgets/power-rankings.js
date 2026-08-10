@@ -59,7 +59,14 @@
     }
 
     function PowerRankingsWidget({ size, sleeperUserId, currentLeague, playersData, setActiveTab, navigateWidget }) {
-        const [view, setView] = React.useState(() => window._wrPrView || 'blended');
+        // Default view is format-aware (owner ask): Blended (health score) reads
+        // as a dynasty-flavored composite that doesn't map cleanly onto a
+        // single-season league — Contender (this-season optimal-lineup PPG) is
+        // the honest redraft default. Respects an in-session manual toggle
+        // (window._wrPrView) once the user has actually picked a view.
+        const [view, setView] = React.useState(() =>
+            window._wrPrView || (window.App?.LeagueSkin?.getCurrent?.()?.type === 'redraft' ? 'contender' : 'blended')
+        );
         React.useEffect(() => { window._wrPrView = view; }, [view]);
 
         // Free/Pro (fail-open): ranks + gap math stay free (owner Q7); the

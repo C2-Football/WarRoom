@@ -999,6 +999,22 @@
             { id: 'dw3', key: 'roster-pulse',   size: 'md', primaryMetric: 'elite-count' },
             { id: 'dw4', key: 'market-radar',   size: 'md' },
         ];
+        // Redraft Home (owner ask): a fixed, curated layout — no drag/resize/
+        // remove/Add Widget (dashboard.js gates all of that on league type).
+        // Same 5 as DEFAULT_WIDGETS plus Lineup Check ("points left on your
+        // bench") and FAAB Command (league-aware bid plan for the top add on
+        // the wire) — both existed already but weren't defaulted anywhere.
+        // Power Rankings opens to the Contender view for redraft via
+        // power-rankings.js's own format check.
+        const REDRAFT_FIXED_WIDGETS = [
+            { id: 'rfw0', key: 'intel-brief',    size: 'tall' },
+            { id: 'rfw1', key: 'roster-pulse',   size: 'sm', primaryMetric: 'health-score' },
+            { id: 'rfw2', key: 'power-rankings', size: 'sm' },
+            { id: 'rfw3', key: 'roster-pulse',   size: 'md', primaryMetric: 'elite-count' },
+            { id: 'rfw4', key: 'market-radar',   size: 'md' },
+            { id: 'rfw5', key: 'lineup-check',   size: 'md' },
+            { id: 'rfw6', key: 'faab-command',   size: 'md' },
+        ];
         // Migrate legacy formats to current widget object format
         function migrateKpisToWidgets(stored) {
             if (!stored || !Array.isArray(stored)) return DEFAULT_WIDGETS;
@@ -1060,6 +1076,21 @@
         useEffect(() => {
             LeagueStorage.set(LEAGUE_WR_KEYS.KPI_SELECTION(currentLeague?.id || ''), selectedWidgets);
         }, [selectedWidgets]);
+        // Redraft Home is fixed (owner ask) — force the curated layout the
+        // moment the league's format resolves to redraft, overwriting any
+        // saved custom layout (every affected user resets to the same fixed
+        // set; dashboard.js hides the customize UI so it can't drift again).
+        // leagueSkin isn't synchronously known on first mount, so this can't
+        // live in the useState initializer above — it corrects itself once
+        // leagueSkin.type resolves.
+        useEffect(() => {
+            if (leagueSkin?.type !== 'redraft') return;
+            setSelectedWidgets(prev =>
+                (prev.length === REDRAFT_FIXED_WIDGETS.length && prev.every((w, i) => w.key === REDRAFT_FIXED_WIDGETS[i].key))
+                    ? prev
+                    : REDRAFT_FIXED_WIDGETS
+            );
+        }, [leagueSkin?.type]);
 
         useEffect(() => {
             LeagueStorage.set(LEAGUE_WR_KEYS.ROSTER_COLS, visibleCols);
