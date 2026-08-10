@@ -967,12 +967,24 @@ function LineupTab({
                                 kpiTile('Them', matchup.oppCurTotal > 0 ? matchup.oppCurTotal.toFixed(1) : '—', 'current lineup'),
                             ]}
                         </div>
-                        {!pro && GatedRow ? <GatedRow title="Win probability" sub="Projected margin and your win odds this week" feature={STARTSIT_FEAT} /> : null}
-                        {/* Matchup breakdown (toggle + position-strength / slot-by-slot
-                            panel) removed on phone (owner ask 2026-07-12) — the Win% ·
-                            You · Them · Their-ideal KPI row above carries the matchup
-                            read; the verbose breakdown was noise on a small screen.
-                            Desktop Game Day is a separate render and is untouched. */}
+                        {!pro && GatedRow ? <GatedRow title="Win probability + matchup breakdown" sub="Projected margin, slot-by-slot edges and position-strength bars" feature={STARTSIT_FEAT} /> : null}
+                        {/* Matchup breakdown (position-strength + slot-by-slot) was
+                            dropped from phone entirely on 2026-07-12 as "noise on a
+                            small screen" — re-added 2026-08-09 (owner feedback: no way
+                            to view the opponent's lineup on mobile, and this read is
+                            one of the strongest parts of the tab). It lives in a Sheet
+                            instead of inline (matches the P3/P6 pattern used elsewhere
+                            on this phone branch) and the slot-by-slot rows are stacked
+                            2-line cards, not the desktop 4-column grid — that grid's
+                            name columns collapse to ~106px at 390px width, which
+                            truncates the points value along with the name. */}
+                        {pro && matchup ? (
+                            <div role="button" tabIndex={0} onClick={() => setShowOpp(true)}
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '44px', padding: '0 2px', cursor: 'pointer' }}>
+                                <span style={{ fontFamily: MONO, fontSize: '0.76rem', fontWeight: 600, color: GOLD }}>View their lineup · slot-by-slot</span>
+                                <span aria-hidden="true" style={{ color: SILVER, fontSize: '0.9rem' }}>›</span>
+                            </div>
+                        ) : null}
                     </React.Fragment>
                 ) : null}
 
@@ -1028,6 +1040,62 @@ function LineupTab({
                                 <div onClick={() => { setWorkingAssign(w => { const n = { ...w }; delete n[openSl.idx]; return n; }); setOpenSlot(null); }}
                                     style={{ padding: '13px 0', cursor: 'pointer', color: RED, fontSize: '0.74rem', fontWeight: 600 }}>✕ Empty this slot</div>
                             ) : null}
+                        </div>
+                    ) : null}
+                </Sheet>
+
+                {/* Opponent-lineup breakdown sheet (re-added 2026-08-09 — see
+                    comment above the trigger). Position strength reuses the
+                    desktop grid as-is (it fits 390px cleanly: fixed columns
+                    total ~162px + gaps, leaving a real bar). Slot-by-slot is
+                    reflowed into stacked 2-line cards (you on top, them below)
+                    instead of the desktop 4-column grid, whose name columns
+                    would collapse to ~106px and cut off the points value. */}
+                <Sheet open={showOpp && pro} onClose={() => setShowOpp(false)} title={matchup ? 'vs ' + matchup.oppName : 'Opponent lineup'} desktop={null}>
+                    {matchup ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '4px 14px 10px' }}>
+                            <div style={{ fontSize: '0.74rem', color: SILVER, lineHeight: 1.5, marginBottom: '4px' }}>
+                                {/* MFL never exposes platform starters — 0 means "unknown". */}
+                                Their lineup: current {matchup.oppCurTotal > 0 ? matchup.oppCurTotal.toFixed(1) : '—'} · ideal {matchup.oppIdealTotal.toFixed(1)}
+                                {matchup.oppCurTotal > 0 && matchup.oppIdealTotal - matchup.oppCurTotal > 0.5 ? <span style={{ color: AMBER }}> · {(matchup.oppIdealTotal - matchup.oppCurTotal).toFixed(1)} on their bench</span> : null}
+                            </div>
+                            <div style={{ fontFamily: MONO, fontSize: MICRO, letterSpacing: '0.06em', color: SILVER, marginBottom: '4px' }}>POSITION STRENGTH · your projected pts vs theirs</div>
+                            {matchup.posStrength.map(ps => {
+                                const tot = (ps.mine + ps.theirs) || 1, myShare = ps.mine / tot * 100, meLead = ps.mine >= ps.theirs;
+                                return <div key={ps.pos} style={{ display: 'grid', gridTemplateColumns: '34px 52px 1fr 52px', gap: '8px', alignItems: 'center', padding: '4px 0' }}>
+                                    <span style={{ fontSize: '0.66rem', fontWeight: 700, color: GOLD }}>{ps.pos}</span>
+                                    <span style={{ textAlign: 'right', fontSize: '0.78rem', fontWeight: meLead ? 700 : 400, color: meLead ? GREEN : SILVER, fontVariantNumeric: 'tabular-nums' }}>{ps.mine.toFixed(1)}</span>
+                                    <span style={{ position: 'relative', height: '6px', background: 'var(--ov-3, rgba(255,255,255,0.05))', borderRadius: '3px' }}>
+                                        <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: myShare + '%', background: meLead ? 'rgba(46,204,113,0.5)' : 'rgba(212,175,55,0.32)', borderRadius: '3px' }} />
+                                        <span style={{ position: 'absolute', left: '50%', top: '-2px', bottom: '-2px', width: '1px', background: 'var(--ov-6, rgba(255,255,255,0.18))' }} />
+                                    </span>
+                                    <span style={{ textAlign: 'left', fontSize: '0.78rem', fontWeight: !meLead ? 700 : 400, color: !meLead ? RED : SILVER, fontVariantNumeric: 'tabular-nums' }}>{ps.theirs.toFixed(1)}</span>
+                                </div>;
+                            })}
+                            <div style={{ fontFamily: MONO, fontSize: MICRO, letterSpacing: '0.06em', color: SILVER, margin: '14px 0 6px' }}>SLOT-BY-SLOT · you lead {matchup.myEdges} of {matchup.slotCount}</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                {matchup.h2h.map((r, i) => {
+                                    const me = pmeta(r.myPid), them = pmeta(r.theirPid);
+                                    const meWin = r.myMed > r.theirMed, theyWin = r.theirMed > r.myMed;
+                                    const edgeLabel = meWin ? '+' + (r.myMed - r.theirMed).toFixed(1) + ' you' : theyWin ? '+' + (r.theirMed - r.myMed).toFixed(1) + ' them' : 'even';
+                                    return (
+                                        <div key={i} style={{ background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '9px', padding: '8px 11px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                                                <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, color: GOLD, letterSpacing: '0.04em' }}>{r.slot.replace('_', ' ')}</span>
+                                                <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, color: meWin ? GREEN : theyWin ? RED : SILVER }}>{edgeLabel}</span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', padding: '1px 0' }}>
+                                                <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.82rem', color: meWin ? TEXT : SILVER, fontWeight: meWin ? 600 : 400 }}>{r.myPid ? me.name : '— empty'}</span>
+                                                <span style={{ flexShrink: 0, fontFamily: MONO, fontSize: '0.78rem', fontWeight: 700, color: meWin ? GREEN : SILVER, fontVariantNumeric: 'tabular-nums' }}>{r.myMed.toFixed(1)}</span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', padding: '1px 0' }}>
+                                                <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.82rem', color: theyWin ? TEXT : SILVER, fontWeight: theyWin ? 600 : 400 }}>{r.theirPid ? them.name : '— empty'}</span>
+                                                <span style={{ flexShrink: 0, fontFamily: MONO, fontSize: '0.78rem', fontWeight: 700, color: theyWin ? RED : SILVER, fontVariantNumeric: 'tabular-nums' }}>{r.theirMed.toFixed(1)}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     ) : null}
                 </Sheet>
