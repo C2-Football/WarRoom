@@ -612,14 +612,21 @@
     }
 
     // ── AssetRow (P1 stat-card row) ───────────────────────────────
-    // 56–64px two-line row: pos badge · name+tag · up to 3 mono stat
-    // slots [{label, value, tone}] · `verdict` node · chevron.
+    // 56–64px two-line row: pos badge (or player photo, see `pid`) · name+tag
+    // · up to 3 mono stat slots [{label, value, tone}] · `verdict` node · chevron.
     //   accent   — 'gold' | 'risk' border tint.
+    //   pid      — optional Sleeper player id. When present the leading
+    //              30×30 badge shows the real sleepercdn headshot (falling
+    //              back to the same pos-tinted initials square on image
+    //              error/missing photo) instead of the plain position
+    //              letters. Same pattern as free-agency.js's PlayerAvatar —
+    //              omit `pid` for non-player rows and the letter square is
+    //              unchanged.
     //   expanded — renders `children` full-width below the row inside
     //              the same card (row tap is the only toggle; children
     //              clicks don't re-toggle).
     //   ...rest  — forwarded to the card root (data-* hooks etc.).
-    function AssetRow({ pos, name, tag, slots, verdict, onClick, expanded, children, accent, ...rest }) {
+    function AssetRow({ pos, pid, name, tag, slots, verdict, onClick, expanded, children, accent, ...rest }) {
         const tint = POS_TINTS[String(pos || '').toUpperCase()] || { bg: 'var(--ov-4, rgba(255,255,255,0.06))', fg: 'var(--silver, #BDB8AD)' };
         const borderColor = accent === 'gold' ? 'rgba(212,175,55,0.4)'
             : accent === 'risk' ? 'rgba(240,165,0,0.4)'
@@ -645,7 +652,30 @@
                     cursor: onClick ? 'pointer' : 'default',
                 },
             },
-                h('span', {
+                pid ? h('span', {
+                    style: {
+                        width: '30px', height: '30px', borderRadius: '7px', flexShrink: 0,
+                        position: 'relative', display: 'inline-flex', overflow: 'hidden',
+                        background: tint.bg, border: '1px solid rgba(255,255,255,0.14)',
+                    }
+                },
+                    h('img', {
+                        src: 'https://sleepercdn.com/content/nfl/players/' + pid + '.jpg',
+                        alt: '',
+                        onError: (e) => { e.target.style.display = 'none'; if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'; },
+                        style: { width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' },
+                    }),
+                    // Initials fallback — same pos-tinted look as the plain
+                    // letter badge below, shown only if the photo 404s.
+                    h('span', {
+                        style: {
+                            display: 'none', position: 'absolute', inset: 0,
+                            alignItems: 'center', justifyContent: 'center',
+                            color: tint.fg, fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+                            fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700,
+                        }
+                    }, String(name || pos || '?').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase())
+                ) : h('span', {
                     style: {
                         width: '30px', height: '30px', borderRadius: '7px', flexShrink: 0,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',

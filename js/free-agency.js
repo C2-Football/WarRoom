@@ -2248,6 +2248,7 @@
                 return React.createElement(window.WR.AssetRow, {
                     key: x.pid,
                     pos: x.pos,
+                    pid: x.pid,
                     name: playerName(x.p, x.pid),
                     tag: bits.join(' · '),
                     slots: _faSlotKeys.map(k => _faSlotFor(k, x)),
@@ -2267,6 +2268,7 @@
             const _faStreamRows = streaming.slice(0, 5).map(o => React.createElement(window.WR.AssetRow, {
                 key: 'stream-' + o.fa.pid,
                 pos: o.pos,
+                pid: o.fa.pid,
                 name: (playersData[o.fa.pid] || {}).full_name || o.fa.pid,
                 tag: 'over ' + o.worstName + ' (' + o.worstProj.toFixed(1) + ')',
                 slots: [{ label: 'WK', value: o.fa.proj.toFixed(1) }, { label: 'EDGE', value: '+' + o.delta.toFixed(1), tone: 'good' }],
@@ -2276,6 +2278,7 @@
             const _faDropRows = isPro ? recentDrops.map(d => React.createElement(window.WR.AssetRow, {
                 key: 'drop-' + d.pid,
                 pos: d.pos,
+                pid: d.pid,
                 name: d.name,
                 tag: 'Dropped W' + d.week + ' · back on the wire',
                 slots: [{ label: 'VAL', value: d.dhq.toLocaleString() }],

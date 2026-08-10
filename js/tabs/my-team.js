@@ -1419,6 +1419,7 @@ function MyTeamTab({
     const _reviewRow = (r) => React.createElement(window.WR.AssetRow, {
       key: 'rv-' + r.pid,
       pos: r.pos,
+      pid: r.pid,
       name: getPlayerName(r.pid),
       tag: _phoneTagFor(r),
       slots: [{ label: 'DHQ', value: r.dhq > 0 ? r.dhq.toLocaleString() : '—', strong: true }],
@@ -1464,6 +1465,7 @@ function MyTeamTab({
       g.rows.push(React.createElement(window.WR.AssetRow, {
         key: r.pid,
         pos: r.pos,
+        pid: r.pid,
         name: getPlayerName(r.pid),
         tag: _phoneTagFor(r),
         slots: _phoneSlotKeys.map(k => _phoneSlotFor(k, r)),
