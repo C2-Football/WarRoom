@@ -946,7 +946,7 @@ function MyTeamTab({
               forceAcquisitionRerender(n => n + 1);
             } catch {}
           }}
-        >{acq.method}{acq.cost ? ' ' + acq.cost : ''}</span></div>;
+        >{acq.method}{acq.cost ? ' · ' + acq.cost : ''}</span></div>;
       }
       case 'acquiredDate': {
         const acq = getAcquisitionInfo(r.pid, myRoster?.roster_id);
@@ -960,9 +960,10 @@ function MyTeamTab({
         if (!team || team === 'FA') return <div key={colKey} style={{...base}}><span style={{ color: 'var(--ov-7, rgba(255,255,255,0.2))' }}>{'\u2014'}</span></div>;
         const sos = sosMod.getPlayerSOS(r.pid, r.pos, team);
         if (!sos) return <div key={colKey} style={{...base}}><span style={{ color: 'var(--ov-7, rgba(255,255,255,0.2))' }}>{'\u2014'}</span></div>;
-        return <div key={colKey} style={{...base, flexDirection: 'column', gap: '1px'}} title={sos.label + ' schedule (' + sos.avgRank + '/32)'}>
-          <span style={{ color: 'var(--silver)', fontWeight: 600, fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}>{sos.avgRank}</span>
-          <span style={{ color: 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', opacity: 0.7 }}>{sos.label.toUpperCase()}</span>
+        // Color already carries the tier (Easy/Favorable/Neutral/Tough/Hard);
+        // the label was redundant text on every row \u2014 full context stays in the title.
+        return <div key={colKey} style={{...base}} title={sos.label + ' schedule (' + sos.avgRank + '/32)'}>
+          <span style={{ color: sos.color || 'var(--silver)', fontWeight: 600, fontSize: '0.8rem', fontFamily: 'var(--font-body)' }}>{sos.avgRank}</span>
         </div>;
       }
       case 'rkSlot': case 'rkTeam': case 'rkRank': case 'rkTier': case 'rkProfile': {
@@ -1032,7 +1033,17 @@ function MyTeamTab({
                             {posLbl} {'·'} {r.p.team || 'FA'} {'·'} Age {r.age || '?'} {'·'} {r.p.years_exp || 0}yr exp
                             {formatHeight(r.p.height) ? ' · ' + formatHeight(r.p.height) : ''}
                             {r.p.college ? ' · ' + r.p.college : ''}
-                            {(() => { const d = draftCapFor(r.pid); if (!d) return ''; return ' · ' + (d.round > 0 ? 'R' + d.round + ' #' + d.overall + (d.year ? ' ’' + String(d.year).slice(2) : '') + (d.team ? ' ' + d.team : '') : 'UDFA' + (d.year ? ' ’' + String(d.year).slice(2) : '')); })()}
+                            {(() => {
+                                // Prefer the rookie prospect record (RookieFields/CSV) over the
+                                // static vendored WR_DRAFT_PROFILE dataset — same precedence the
+                                // rkSlot column already uses. WR_DRAFT_PROFILE is a third-party
+                                // snapshot that can lag a real pick (was showing round-2 rookies
+                                // as "UDFA" here while the prospect CSV had the correct capital).
+                                const rf = window.App?.RookieFields?.fields?.(prospectForRow(r)) || null;
+                                const d = draftCapFor(r.pid);
+                                const slot = rf?.draftSlot || (d ? (d.round > 0 ? 'R' + d.round + ' #' + d.overall + (d.year ? ' ’' + String(d.year).slice(2) : '') + (d.team ? ' ' + d.team : '') : 'UDFA' + (d.year ? ' ’' + String(d.year).slice(2) : '')) : null);
+                                return slot ? ' · ' + slot : '';
+                            })()}
                             {r.injury ? <span style={{ color: 'var(--bad)', fontWeight: 700 }}> {'·'} {r.injury}</span> : null}
                           </div>
                         </div>

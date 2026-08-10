@@ -2513,7 +2513,7 @@
                 return new Date(raw > 1000000000000 ? raw : raw * 1000);
             };
             const fmtDate = (d) => d && !Number.isNaN(d.getTime())
-                ? d.toLocaleDateString('en-US', {month:'short', day:'numeric', year: '2-digit'})
+                ? d.toLocaleDateString('en-US', {month:'numeric', day:'numeric', year: '2-digit'})
                 : '\u2014';
             // Check manual override first
             try {
@@ -2567,7 +2567,7 @@
                     const partnerUser = users.find(u => u.user_id === partnerRoster?.owner_id);
                     const partnerName = partnerUser?.display_name || partnerUser?.metadata?.team_name || (partnerRid != null ? 'T' + partnerRid : '');
                     const date = season + (week ? ' W' + week : '');
-                    return { method: 'Traded', date, cost: partnerName ? 'from ' + partnerName : '', season, week };
+                    return { method: 'Traded', date, cost: partnerName || '', season, week };
                 }
             }
             // Fallback: check raw transaction data for trades
