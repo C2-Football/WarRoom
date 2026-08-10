@@ -111,9 +111,19 @@
     // ── Action panel ─────────────────────────────────────────────────
     // Opens on any queue row. Shows the full item (rows truncate) plus the
     // arithmetic behind its rank, then the four things you can do with it.
-    function WrCommishActionPanel({ item, state, onOpen, onDone, onSkip, onHide, onRestore, onClose, skipDays }) {
+    function WrCommishActionPanel({ item, state, followup, onOpen, onDone, onSkip, onHide, onRestore, onClose, onSaveFollowup, onCopyMessage, skipDays }) {
+        const [message, setMessage] = React.useState('');
+        const [note, setNote] = React.useState('');
+        const [dueAt, setDueAt] = React.useState('');
+        React.useEffect(() => {
+            setMessage(followup?.message || '');
+            setNote(followup?.note || '');
+            setDueAt(followup?.dueAt || '');
+        }, [item?.id, followup?.updatedAt]);
         if (!item) return null;
         const sevColor = item.tier === 'NOW' ? BAD : item.tier === 'SOON' ? WARN : SILVER;
+        const commit = () => onSaveFollowup?.({ message, note, dueAt });
+        const finish = (handler) => { commit(); handler?.(); };
         const act = (text, handler, opts) => (
             <button onClick={handler}
                 style={{
@@ -180,15 +190,46 @@
                                 </div>
                             </div>
                         ) : null}
+
+                        <div style={{ background: SURF2, border: `1px solid ${LINE}`, borderRadius: '8px', padding: '12px 14px' }} data-testid="commish-followup-editor">
+                            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', marginBottom: '9px' }}>
+                                <div style={{ ...label, color: ACCENT }}>Follow-up</div>
+                                <div style={{ ...label, textTransform: 'none', letterSpacing: 0 }}>{followup?.status || 'OPEN'}</div>
+                            </div>
+                            <label style={{ ...label, display: 'block', marginBottom: '5px' }}>Message draft</label>
+                            <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Draft a commissioner message"
+                                style={{ width: '100%', minHeight: '92px', resize: 'vertical', boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '9px 10px', color: TEXT, font: '400 0.8125rem/1.5 var(--font-body)' }} />
+                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 132px', gap: '8px', marginTop: '8px' }}>
+                                <input value={note} onChange={e => setNote(e.target.value)} placeholder="Private note"
+                                    style={{ minWidth: 0, boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '8px 9px', color: TEXT, font: '400 0.75rem var(--font-body)' }} />
+                                <input type="date" value={dueAt} onChange={e => setDueAt(e.target.value)} aria-label="Follow-up date"
+                                    style={{ minWidth: 0, boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '8px 9px', color: TEXT, font: '600 0.75rem var(--font-mono)' }} />
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                                {act('Save follow-up', commit)}
+                                {act('Copy message', () => { commit(); onCopyMessage?.(message); }, { primary: true })}
+                            </div>
+                            {followup?.history?.length ? (
+                                <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${LINE}` }}>
+                                    <div style={{ ...label, marginBottom: '7px' }}>Activity</div>
+                                    {followup.history.slice(-4).reverse().map((event, i) => (
+                                        <div key={event.ts + ':' + i} style={{ display: 'flex', gap: '8px', padding: '4px 0', font: '400 0.72rem var(--font-body)', color: SILVER }}>
+                                            <span style={{ ...chip, color: ACCENT, minWidth: '62px' }}>{event.type}</span>
+                                            <span style={{ flex: 1 }}>{event.detail || new Date(event.ts).toLocaleString()}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </div>
                     </div>
 
                     <div style={{ borderTop: `1px solid ${LINE}`, background: WELL, padding: '12px 16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        {item.action && item.action.label ? act('▸ ' + item.action.label, onOpen, { primary: true, wide: true }) : null}
-                        {state ? act('Restore', onRestore, { wide: true })
+                        {item.action && item.action.label ? act('▸ ' + item.action.label, () => finish(onOpen), { primary: true, wide: true }) : null}
+                        {state ? act('Restore', () => finish(onRestore), { wide: true })
                             : (<React.Fragment>
-                                {act('✓ Mark done', onDone)}
-                                {act('Skip ' + (skipDays || 7) + 'd', onSkip)}
-                                {act('Hide', onHide)}
+                                {act('✓ Mark done', () => finish(onDone))}
+                                {act('Skip ' + (skipDays || 7) + 'd', () => finish(onSkip))}
+                                {act('Hide', () => finish(onHide))}
                             </React.Fragment>)}
                     </div>
                 </div>
@@ -197,7 +238,7 @@
     }
 
     // ── Settings ─────────────────────────────────────────────────────
-    function WrCommishSettingsPanel({ leagues, isManaged, onToggleLeague, alerts, onToggleDomain, onSetFloor, domainLabels, suppressed, onRestore }) {
+    function WrCommishSettingsPanel({ leagues, isManaged, onToggleLeague, alerts, onToggleDomain, onSetFloor, domainLabels, suppressed, onRestore, followups, onRemoveFollowup }) {
         const Section = ({ title, meta, children }) => (
             <div style={{ background: SURF, border: `1px solid ${LINE}`, borderRadius: '10px', overflow: 'hidden' }}>
                 <div style={{ background: SURF2, borderBottom: `1px solid ${LINE}`, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -271,6 +312,26 @@
                                 <button onClick={() => onRestore(s.item.id)} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: ACCENT, cursor: 'pointer', padding: '5px 10px', minHeight: '32px', ...chip }}>Restore</button>
                             </div>
                         ))
+                    )}
+                </Section>
+
+                <Section title="Follow-up history" meta={(followups || []).length + ' tracked'}>
+                    {!(followups || []).length ? (
+                        <div style={{ font: '400 0.8125rem var(--font-body)', color: SILVER, lineHeight: 1.55 }}>No follow-ups yet. Open any Command item to draft outreach, leave a private note or set a review date.</div>
+                    ) : (
+                        (followups || []).slice(0, 50).map(f => {
+                            const last = (f.history || [])[f.history.length - 1];
+                            return (
+                                <div key={f.itemId} style={{ display: 'grid', gridTemplateColumns: '70px minmax(0,1fr) auto', gap: '10px', alignItems: 'start', padding: '10px 0', borderBottom: `1px solid var(--co-line-soft, #201F27)` }}>
+                                    <span style={{ ...chip, color: f.status === 'DONE' ? GOOD : ACCENT }}>{f.status}</span>
+                                    <span style={{ minWidth: 0 }}>
+                                        <span style={{ display: 'block', font: '600 0.8125rem/1.35 var(--font-body)', color: TEXT }}>{f.headline}</span>
+                                        <span style={{ display: 'block', marginTop: '3px', font: '400 0.72rem/1.4 var(--font-body)', color: MUTED }}>{f.note || f.message}{f.dueAt ? ' · due ' + f.dueAt : ''}{last ? ' · last ' + last.type.toLowerCase() : ''}</span>
+                                    </span>
+                                    <button onClick={() => onRemoveFollowup?.(f.itemId)} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: MUTED, cursor: 'pointer', padding: '5px 9px', ...chip }}>Remove</button>
+                                </div>
+                            );
+                        })
                     )}
                 </Section>
             </div>

@@ -109,12 +109,14 @@
     }
 
     function leagueTypeHeaderMeta(profile) {
-        const type = String(profile?.type || 'unknown').toLowerCase();
+        const type = window.App?.LeagueSkin?.normalizeType?.(profile?.type)
+            || String(profile?.type || 'unknown').toLowerCase();
         const defs = {
             redraft: { label: 'Redraft', short: 'RD', color: 'var(--k-2ecc71, #2ecc71)', icon: 'reset' },
             keeper: { label: 'Keeper', short: 'KP', color: 'var(--k-7c6bf8, #7c6bf8)', icon: 'bookmark' },
             dynasty: { label: 'Dynasty', short: 'DY', color: 'var(--k-d4af37, #d4af37)', icon: 'crown' },
             best_ball: { label: 'Best Ball', short: 'BB', color: 'var(--k-3498db, #3498db)', icon: 'spark' },
+            chopped: { label: 'Chopped', short: 'CHOP', color: 'var(--k-e74c3c, #e74c3c)', icon: 'scissors' },
             dfs: { label: 'DFS', short: 'DFS', color: 'var(--k-3498db, #3498db)', icon: 'spark' },
         };
         return defs[type] || { label: type && type !== 'unknown' ? type.replace(/_/g, ' ') : 'League Type Unknown', short: '?', color: 'var(--k-c7cdd7, #c7cdd7)', icon: 'circle' };
@@ -155,6 +157,15 @@
         if (icon === 'spark') {
             return React.createElement('svg', common,
                 React.createElement('path', { d: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z' })
+            );
+        }
+        if (icon === 'scissors') {
+            return React.createElement('svg', common,
+                React.createElement('circle', { cx: 6, cy: 7, r: 3 }),
+                React.createElement('circle', { cx: 6, cy: 17, r: 3 }),
+                React.createElement('path', { d: 'm8.7 8.3 10.8 7.2' }),
+                React.createElement('path', { d: 'm8.7 15.7 3.3-2.2' }),
+                React.createElement('path', { d: 'm14.5 10.5 5-3.3' })
             );
         }
         return React.createElement('svg', common,
@@ -211,7 +222,7 @@
     };
     // showGameDay = the FINAL leagueSkin.features.showGameDay flag
     // (callers apply the same `?? phase === 'in_season'` fallback in one place).
-    function buildLeagueNavItems(showGameDay, showTrades) {
+    function buildLeagueNavItems(showGameDay, showTrades, showGmOffice) {
         return [
             { section: 'FRONT OFFICE' },
             { label: 'Home', tab: 'dashboard', iconKey: 'home' },
@@ -227,7 +238,7 @@
             { label: 'Draft', tab: 'draft', iconKey: 'draft' },
             { label: 'Analytics', tab: 'analytics', iconKey: 'analytics' },
             { section: 'DOSSIER' },
-            { label: 'GM\'s Office', tab: 'alex', iconKey: 'office' },
+            ...(showGmOffice === false ? [] : [{ label: 'GM\'s Office', tab: 'alex', iconKey: 'office' }]),
             { label: 'Trophy Room', tab: 'trophies', iconKey: 'trophy' },
             { section: 'SETTINGS' },
             { label: 'Settings', tab: 'settings', iconKey: 'settings' },
@@ -2603,7 +2614,8 @@
         // this render, so the two surfaces can never drift.
         const navItems = buildLeagueNavItems(
             leagueSkin?.features?.showGameDay ?? (leagueSkin?.phase === 'in_season'),
-            leagueSkin?.features?.showTrades
+            leagueSkin?.features?.showTrades,
+            leagueSkin?.type !== 'chopped'
         );
 
         const _seasonCtxValue = { ...seasonCtxData, leagueSkin, selectPlayer };
@@ -2997,7 +3009,7 @@
                                 </div>
                                 {phHdrSheetOpen && <window.WR.Sheet open={true} onClose={() => setPhHdrSheetOpen(false)} title={currentLeague.name}>
                                     <div style={{ padding: '2px 16px 8px' }}>
-                                        {gm && <button style={rowSt} onClick={() => { setPhHdrSheetOpen(false); if (setActiveTab) setActiveTab('strategy'); }}>
+                                        {gm && leagueSkin?.type !== 'chopped' && <button style={rowSt} onClick={() => { setPhHdrSheetOpen(false); if (setActiveTab) setActiveTab('strategy'); }}>
                                             <span style={rowLbl}>GM mode</span>
                                             <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: gm.badgeColor, flex: 'none' }} />
                                             <span style={{ ...rowVal, color: gm.badgeColor }}>{gm.label}</span>
@@ -3053,8 +3065,9 @@
                             below the title/SWITCH row. Inert (display:none) on desktop. */}
                         <div className="wr-hdr-break" aria-hidden="true" style={{ display: 'none' }} />
                         {(() => {
-                            // Redraft leagues don't surface the GM Mode badge (it's dynasty-flavored).
-                            if (leagueSkin?.type === 'redraft') return null;
+                            // Seasonal survival formats do not surface the dynasty-flavored
+                            // GM badge; Chopped has its own Survival Plan in the briefing.
+                            if (leagueSkin?.type === 'redraft' || leagueSkin?.type === 'chopped') return null;
                             const gm = window.WR?.GmMode?.describe?.(gmStrategy?.mode || 'compete');
                             if (!gm) return null;
                             // Calm treatment (owner ask 2026-08-09 — header read as a "confetti

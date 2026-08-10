@@ -118,6 +118,7 @@ function buildEmpirePortfolioModel(input) {
         // a permanent 0-0 or a garbage health number.
         const Chopped = window.App?.Chopped;
         const isChopped = !!(Chopped && Chopped.isChopped(league));
+        const canTrade = !isChopped && Number(league?.settings?.disable_trades || 0) !== 1;
         const isEliminated = isChopped && Chopped.isEliminated(myRoster);
         const chopState = isChopped ? Chopped.state({ league, rosters }) : null;
         const recordLabel = !isChopped ? (wins + '-' + losses)
@@ -140,6 +141,7 @@ function buildEmpirePortfolioModel(input) {
             wins,
             losses,
             isChopped,
+            canTrade,
             isEliminated,
             eliminatedWeek: isEliminated ? Chopped.eliminatedWeek(myRoster) : null,
             aliveCount: chopState?.aliveCount ?? null,
@@ -1051,6 +1053,10 @@ function buildEmpireRolodex(leagues, myUserId, calcPosture) {
         const dnaMap = league.empireDna || {};
         const leagueName = league.name || 'League';
         const leagueId = league.id || league.league_id || '';
+        const rawType = league.type ?? league.league_type ?? league.settings?.type;
+        const normalizedType = (typeof window !== 'undefined' && window.App?.LeagueSkin?.normalizeType?.(rawType))
+            || ({ 0: 'redraft', 1: 'keeper', 2: 'dynasty', 3: 'chopped' }[String(rawType)] || String(rawType || '').toLowerCase());
+        const canTrade = normalizedType !== 'chopped' && Number(league?.settings?.disable_trades || 0) !== 1;
         assessments.forEach(a => {
             if (sameId(a.ownerId, myUserId)) return;
             const dnaKey = dnaMap[a.ownerId] || null;
@@ -1060,6 +1066,7 @@ function buildEmpireRolodex(leagues, myUserId, calcPosture) {
                 ownerId: a.ownerId,
                 ownerName: a.ownerName || a.teamName || 'Owner',
                 leagueId, leagueName,
+                canTrade,
                 tier: a.tier || 'UNKNOWN',
                 posture: posture.label || posture.key,
                 postureKey: posture.key,
@@ -1101,6 +1108,10 @@ function buildEmpireMoves(input) {
     const exposureCut = Math.max(2, Math.ceil(totalLeagues * 0.6));
 
     leagues.forEach(league => {
+        const rawType = league.type ?? league.league_type ?? league.settings?.type;
+        const normalizedType = (typeof window !== 'undefined' && window.App?.LeagueSkin?.normalizeType?.(rawType))
+            || ({ 0: 'redraft', 1: 'keeper', 2: 'dynasty', 3: 'chopped' }[String(rawType)] || String(rawType || '').toLowerCase());
+        if (normalizedType === 'chopped' || Number(league?.settings?.disable_trades || 0) === 1) return;
         const assessments = league.empireAssessments || [];
         if (!assessments.length) return;
         const leagueId = league.id || league.league_id || '';
@@ -1290,7 +1301,7 @@ function buildEmpireActionQueue(model, rolodex) {
     });
 
     // 3. Post-window vets sitting on rebuild rosters → sell before value bleeds.
-    provinces.filter(p => p.status === 'rebuild').forEach(p => {
+    provinces.filter(p => p.status === 'rebuild' && p.canTrade !== false).forEach(p => {
         const vet = assets
             .filter(a => a.leagueId === p.id && a.agePhase === 'post' && a.dhq > 0)
             .sort((a, b) => b.dhq - a.dhq)[0];
@@ -1312,7 +1323,7 @@ function buildEmpireActionQueue(model, rolodex) {
     // 4. Cross-league owner edges — the moat. Surface the most exploitable
     // buyers/sellers across every league as concrete buy/sell-window moves.
     (rolodex || [])
-        .filter(o => o.postureKey === 'SELLER' || o.postureKey === 'DESPERATE')
+        .filter(o => o.canTrade !== false && (o.postureKey === 'SELLER' || o.postureKey === 'DESPERATE'))
         .slice(0, 2)
         .forEach(o => {
             const desperate = o.postureKey === 'DESPERATE';
@@ -1497,6 +1508,18 @@ function EmpireStyles() {
             .empire-signal b { color: var(--tone, var(--k-d4af37, #d4af37)); font-family: var(--font-mono); font-size: var(--text-body, 1rem); white-space: nowrap; }
             .empire-signal span { display: block; color: var(--ov-9, rgba(255,255,255,0.58)); font-size: var(--text-label, 0.75rem); line-height: 1.35; margin-top: 4px; }
             .empire-signal em { display: block; color: var(--tone, var(--k-d4af37, #d4af37)); font-style: normal; font-size: var(--text-micro); margin-top: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+            .empire-move-card { border: 1px solid var(--ov-4, rgba(255,255,255,0.07)); border-left: 3px solid var(--tone, var(--gold)); background: var(--ov-2, rgba(255,255,255,0.026)); border-radius: var(--card-radius-sm); padding: 11px; }
+            .empire-move-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+            .empire-move-head strong { color: var(--white); font-size: var(--text-body, 1rem); line-height: 1.35; }
+            .empire-move-head b { flex: none; color: var(--tone, var(--gold)); font-family: var(--font-mono); font-size: var(--text-label, 0.75rem); }
+            .empire-move-card > p { margin: 5px 0 0; color: var(--ov-9, rgba(255,255,255,0.58)); font-size: var(--text-label, 0.75rem); line-height: 1.45; }
+            .empire-move-meta { margin-top: 7px; color: var(--tone, var(--gold)); font-size: var(--text-micro); font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
+            .empire-decision-controls { display: grid; grid-template-columns: minmax(120px,0.8fr) minmax(130px,0.8fr) minmax(110px,0.65fr) auto; gap: 7px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--ov-4, rgba(255,255,255,0.065)); }
+            .empire-decision-controls select, .empire-decision-controls input, .empire-decision-note { min-width: 0; box-sizing: border-box; border: 1px solid var(--ov-6, rgba(255,255,255,0.1)); border-radius: var(--card-radius-sm); background: rgba(0,0,0,0.35); color: var(--white); font: 700 var(--text-label, 0.75rem) var(--font-body); padding: 7px 9px; }
+            .empire-decision-note { width: 100%; min-height: 58px; margin-top: 7px; resize: vertical; font-weight: 500; line-height: 1.4; }
+            .empire-decision-row { border-left: 3px solid var(--tone, var(--gold)); padding: 8px 10px; background: var(--ov-1, rgba(255,255,255,0.024)); border-radius: var(--card-radius-sm); }
+            .empire-decision-row strong { display: block; color: var(--white); font-size: var(--text-label, 0.75rem); line-height: 1.35; }
+            .empire-decision-row span { display: block; margin-top: 4px; color: var(--ov-9, rgba(255,255,255,0.52)); font-size: var(--text-micro); }
             .empire-league-card { width: 100%; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; text-align: left; border: 1px solid var(--ov-4, rgba(255,255,255,0.07)); border-left: 3px solid var(--tone, var(--k-d4af37, #d4af37)); background: var(--ov-1, rgba(255,255,255,0.024)); border-radius: var(--card-radius-sm); padding: 9px; color: inherit; cursor: pointer; font-family: inherit; }
             .empire-league-card:hover { border-color: var(--acc-line3, rgba(212,175,55,0.48)); background: var(--acc-fill1, rgba(212,175,55,0.045)); }
             .empire-league-card strong { display: block; color: var(--white, var(--k-ffffff, #ffffff)); font-size: var(--text-body, 1rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1545,6 +1568,7 @@ function EmpireStyles() {
                 .empire-advanced-filters { grid-template-columns: 1fr; }
                 .empire-priority-list { grid-template-columns: 1fr; }
                 .empire-priority-list .empire-signal { min-height: 0; }
+                .empire-decision-controls { grid-template-columns: 1fr 1fr; }
                 .empire-workspace-head { align-items: flex-start; flex-direction: column; }
                 .empire-table-head, .empire-asset-row { grid-template-columns: minmax(140px,1fr) 40px 46px 58px 58px; }
                 .empire-table-head div:nth-child(n+6), .empire-asset-row div:nth-child(n+6) { display: none; }
@@ -1561,6 +1585,7 @@ function EmpireStyles() {
                 .empire-viewbar { flex-wrap: nowrap; overflow-x: auto; }
                 .empire-viewbar-spacer { display: none; }
                 .empire-wire { display: none; }
+                .empire-decision-controls { grid-template-columns: 1fr; }
             }
             @media(pointer: coarse) {
                 .empire-back { width: 44px; min-height: 44px; }
@@ -1580,6 +1605,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const [sort, setSort] = useState('dhq');
     const [detail, setDetail] = useState(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const [decisionTick, setDecisionTick] = useState(0);
     // Arbitrage board default: owned rows only. The board is sorted
     // mine-first regardless, but a portfolio with a deep player pool can
     // bury your own leverage under market-only rows without this.
@@ -1672,6 +1698,13 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const empireGrudges = useMemo(() => buildEmpireGrudges(allLeagues), [allLeagues]);
     const moves = useMemo(() => buildEmpireMoves({ leagues: allLeagues, model, scores, playersData, myUserId: sleeperUserId, normPos, tradeEngine: window.App?.TradeEngine, grudges: empireGrudges }), [allLeagues, model, scoreKey, empireGrudges]);
     const consolidation = useMemo(() => buildEmpireConsolidation(moves, model), [moves, model]);
+    const decisionApi = window.App?.EmpireDecisions || null;
+    const decisions = useMemo(() => decisionApi?.list?.() || [], [decisionTick]);
+    const decisionSummary = useMemo(() => decisionApi?.summary?.(decisions) || { total: 0, active: 0, closed: 0, won: 0, lost: 0, realizedDelta: 0 }, [decisions]);
+    const decisionForMove = useCallback((move) => decisionApi?.byMove?.(move) || null, [decisionTick]);
+    const trackDecision = useCallback((move) => { decisionApi?.track?.(move, { nowMs: Date.now() }); setDecisionTick(t => t + 1); }, []);
+    const updateDecision = useCallback((id, patch) => { decisionApi?.update?.(id, patch, { nowMs: Date.now() }); setDecisionTick(t => t + 1); }, []);
+    const removeDecision = useCallback((id) => { decisionApi?.remove?.(id); setDecisionTick(t => t + 1); }, []);
     const empireLeagueIds = useMemo(() => (allLeagues || []).map(l => l.id || l.league_id).filter(Boolean), [allLeagues]);
     const empireDelta = useMemo(() => (window.WrSnapshots && typeof window.WrSnapshots.empireDelta === 'function') ? window.WrSnapshots.empireDelta(empireLeagueIds) : null, [empireLeagueIds, scoreKey]);
     const bridge = useMemo(() => buildCommandBridge({ model, actionQueue, brief: briefText, empireDelta }), [model, actionQueue, briefText, empireDelta]);
@@ -2005,6 +2038,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const renderMovesDetail = () => {
         const sells = moves.filter(m => m.type === 'sell');
         const buys = moves.filter(m => m.type === 'buy');
+        const decisionTone = status => status === 'WON' ? 'var(--good)' : status === 'LOST' ? 'var(--bad)' : status === 'PROPOSED' ? 'var(--purple)' : status === 'PASSED' ? 'var(--silver)' : 'var(--gold)';
         return (
             <div className={rootClassName} data-testid="empire-root">
                 <EmpireStyles />
@@ -2021,6 +2055,12 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                             <p>{moves.length} portfolio-optimal {moves.length === 1 ? 'move' : 'moves'} · ranked by value × acceptance</p>
                         </div>
                     </section>
+                    <div className="empire-detail-metrics" data-testid="empire-decision-summary">
+                        <div className="empire-metric"><span>Tracked</span><strong>{decisionSummary.total}</strong></div>
+                        <div className="empire-metric"><span>Active</span><strong style={{ color: decisionSummary.active ? 'var(--gold)' : 'var(--good)' }}>{decisionSummary.active}</strong></div>
+                        <div className="empire-metric"><span>Closed Record</span><strong>{decisionSummary.won}-{decisionSummary.lost}</strong></div>
+                        <div className="empire-metric"><span>Realized Δ</span><strong style={{ color: decisionSummary.realizedDelta >= 0 ? 'var(--good)' : 'var(--bad)' }}>{decisionSummary.realizedDelta > 0 ? '+' : ''}{empireCompact(decisionSummary.realizedDelta)} DHQ</strong></div>
+                    </div>
                     {consolidation ? (
                         <section className="empire-panel" style={{ marginBottom: 12 }}>
                             <div className="empire-panel-head"><strong>Consolidation Plan</strong><em>{consolidation.sells} sell → {consolidation.buys} buy · one campaign</em></div>
@@ -2041,32 +2081,69 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                         <section className="empire-workspace" style={{ marginTop: 0 }}>
                             <div className="empire-workspace-head"><strong>Ranked Moves</strong><span>{sells.length} sell · {buys.length} buy</span></div>
                             <div className="empire-stack" style={{ padding: 12 }}>
-                                {moves.length ? moves.map((m, i) => (
-                                    <button key={i} type="button" className="empire-signal" style={{ '--tone': m.type === 'sell' ? 'var(--k-5dade2, #5dade2)' : 'var(--k-2ecc71, #2ecc71)' }} onClick={() => m.pid && setDetail({ type: 'player', pid: m.pid })}>
-                                        <div className="empire-signal-top"><strong>{m.title}</strong><b>{m.accept}% accept</b></div>
-                                        <span>{m.why}</span>
-                                        <em>{m.leagueName} · {m.posture} · {empireCompact(m.value)} DHQ</em>
-                                    </button>
-                                )) : (
+                                {moves.length ? moves.map((m, i) => {
+                                    const d = decisionForMove(m);
+                                    const tone = m.type === 'sell' ? 'var(--k-5dade2, #5dade2)' : 'var(--k-2ecc71, #2ecc71)';
+                                    return (
+                                        <div key={i} className="empire-move-card" data-testid="empire-move-card" style={{ '--tone': tone }}>
+                                            <div className="empire-move-head"><strong>{m.title}</strong><b>{m.accept}% accept</b></div>
+                                            <p>{m.why}</p>
+                                            <div className="empire-move-meta">{m.leagueName} · {m.posture} · +{empireCompact(m.value)} estimated DHQ</div>
+                                            {d ? (
+                                                <React.Fragment>
+                                                    <div className="empire-decision-controls">
+                                                        <select aria-label={'Status for ' + m.title} value={d.status} onChange={e => updateDecision(d.id, { status: e.target.value })}>
+                                                            {(decisionApi?.STATUSES || []).map(s => <option key={s} value={s}>{s}</option>)}
+                                                        </select>
+                                                        <input aria-label={'Review date for ' + m.title} type="date" value={d.reviewAt || ''} onChange={e => updateDecision(d.id, { reviewAt: e.target.value })} />
+                                                        <input aria-label={'Realized DHQ for ' + m.title} type="number" value={d.actualDelta == null ? '' : d.actualDelta} placeholder="Realized Δ" onChange={e => updateDecision(d.id, { actualDelta: e.target.value === '' ? null : e.target.value })} />
+                                                        <button className="empire-action" type="button" onClick={() => m.pid && setDetail({ type: 'player', pid: m.pid })}>Player</button>
+                                                    </div>
+                                                    <textarea key={d.id + ':' + d.updatedAt} className="empire-decision-note" aria-label={'Decision note for ' + m.title} defaultValue={d.note || ''} placeholder="What are you waiting for? What happened?" onBlur={e => updateDecision(d.id, { note: e.target.value })} />
+                                                    <div className="empire-section-footer"><button className="empire-ghost" type="button" onClick={() => removeDecision(d.id)}>Remove from journal</button></div>
+                                                </React.Fragment>
+                                            ) : (
+                                                <div className="empire-section-footer">
+                                                    <button className="empire-ghost" type="button" onClick={() => m.pid && setDetail({ type: 'player', pid: m.pid })}>View player</button>
+                                                    <button className="empire-action" type="button" onClick={() => trackDecision(m)}>Track decision</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                }) : (
                                     <div className="empire-empty"><strong>No clear moves yet</strong>Cross-league moves appear once opponent assessments finish loading. Open the dashboard for a moment, then return.</div>
                                 )}
                             </div>
                         </section>
-                        <section className="empire-panel">
-                            <div className="empire-panel-head"><strong>Owner Rolodex</strong><em>by edge</em></div>
-                            <div className="empire-stack">
-                                {rolodex.filter(o => o.exploit >= 6).slice(0, 8).map((o, i) => (
-                                    <button key={o.leagueId + ':' + o.ownerId + ':' + i} className="empire-league-card" style={{ '--tone': o.postureColor }} type="button" onClick={() => setDetail({ type: 'owner', ownerId: o.ownerId, leagueId: o.leagueId })}>
-                                        <div>
-                                            <strong>{o.ownerName}</strong>
-                                            <span>{o.leagueName} · {o.posture}</span>
-                                            <em>{o.edge}</em>
+                        <div className="empire-stack">
+                            <section className="empire-panel" data-testid="empire-decision-journal">
+                                <div className="empire-panel-head"><strong>Decision Journal</strong><em>{decisionSummary.active} active · {decisionSummary.closed} closed</em></div>
+                                <div className="empire-stack">
+                                    {decisions.length ? decisions.slice(0, 8).map(d => (
+                                        <div key={d.id} className="empire-decision-row" style={{ '--tone': decisionTone(d.status) }}>
+                                            <strong>{d.title}</strong>
+                                            <span style={{ color: decisionTone(d.status), fontWeight: 800 }}>{d.status}{d.actualDelta != null ? ' · ' + (d.actualDelta > 0 ? '+' : '') + empireCompact(d.actualDelta) + ' DHQ' : ''}</span>
+                                            <span>{d.leagueName}{d.reviewAt ? ' · review ' + d.reviewAt : ''}</span>
                                         </div>
-                                        <b>{o.exploit}</b>
-                                    </button>
-                                ))}
-                            </div>
-                        </section>
+                                    )) : <div className="empire-empty"><strong>No tracked decisions</strong>Track a ranked move to preserve the recommendation, set a review date and record the outcome.</div>}
+                                </div>
+                            </section>
+                            <section className="empire-panel">
+                                <div className="empire-panel-head"><strong>Owner Rolodex</strong><em>by edge</em></div>
+                                <div className="empire-stack">
+                                    {rolodex.filter(o => o.exploit >= 6).slice(0, 8).map((o, i) => (
+                                        <button key={o.leagueId + ':' + o.ownerId + ':' + i} className="empire-league-card" style={{ '--tone': o.postureColor }} type="button" onClick={() => setDetail({ type: 'owner', ownerId: o.ownerId, leagueId: o.leagueId })}>
+                                            <div>
+                                                <strong>{o.ownerName}</strong>
+                                                <span>{o.leagueName} · {o.posture}</span>
+                                                <em>{o.edge}</em>
+                                            </div>
+                                            <b>{o.exploit}</b>
+                                        </button>
+                                    ))}
+                                </div>
+                            </section>
+                        </div>
                     </div>
                 </main>
             </div>

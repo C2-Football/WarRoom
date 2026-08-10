@@ -68,6 +68,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     // Preferences (managed leagues / alert types / per-item state) live in
     // storage; prefTick is the single re-read signal after any mutation.
     const [prefTick, setPrefTick] = React.useState(0);
+    const [followTick, setFollowTick] = React.useState(0);
     // Commissioner's manual board (tasks/milestones/events) — same re-read
     // signal shape as every other storage-backed piece of the office.
     const [tasksTick, setTasksTick] = React.useState(0);
@@ -548,10 +549,13 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     // Preferences read fresh on every prefTick so a toggle is reflected
     // everywhere at once — queue, grid, badges and settings can't disagree.
     const P = C && C.Prefs;
+    const F = C && C.Followups;
     const prefs = React.useMemo(() => {
         if (!P) return { alerts: { domains: {}, floor: 'BACKLOG' }, states: {}, managedIds: null };
         return { alerts: P.getAlerts(), states: P.allItemStates(), managedIds: null };
     }, [prefTick]);
+    const followups = React.useMemo(() => F?.list?.() || [], [followTick]);
+    const actionFollowup = React.useMemo(() => actionItem && F?.get?.(actionItem.id) || null, [actionItem, followTick]);
     const managedLeagues = React.useMemo(() => {
         if (state.status !== 'ready') return [];
         if (!P) return state.mine;
@@ -790,14 +794,20 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     const onToggleLeague = (lid, on) => { try { P?.setManaged(lid, on); } catch (e) { /* unchanged */ } bumpPrefs(); };
     const onToggleDomain = (domain, on) => { try { P?.setDomainAlert(domain, on); } catch (e) { /* unchanged */ } bumpPrefs(); };
     const onSetFloor = (tier) => { try { P?.setFloor(tier); } catch (e) { /* unchanged */ } bumpPrefs(); };
-    const onItemDone = (item) => { try { P?.markDone(item, { nowMs: Date.now() }); } catch (e) { /* unchanged */ } setActionItem(null); bumpPrefs(); };
-    const onItemSkip = (item) => { try { P?.skip(item, { nowMs: Date.now() }); } catch (e) { /* unchanged */ } setActionItem(null); bumpPrefs(); };
-    const onItemHide = (item) => { try { P?.hide(item, { nowMs: Date.now() }); } catch (e) { /* unchanged */ } setActionItem(null); bumpPrefs(); };
-    const onItemRestore = (id) => { try { P?.restore(id); } catch (e) { /* unchanged */ } setActionItem(null); bumpPrefs(); };
+    const bumpFollowups = () => setFollowTick(t => t + 1);
+    const recordFollowup = (item, type, detail) => { try { F?.record?.(item, type, detail, { nowMs: Date.now() }); } catch (e) { /* unchanged */ } bumpFollowups(); };
+    const itemForFollowup = (id) => ((rawQueue && rawQueue.items) || []).find(it => String(it.id) === String(id)) || actionItem || { id, headline: F?.get?.(id)?.headline || 'Commissioner follow-up' };
+    const onSaveFollowup = (item, patch) => { try { F?.save?.(item, patch, { nowMs: Date.now() }); F?.record?.(item, 'SAVED', '', { nowMs: Date.now() }); } catch (e) { /* unchanged */ } bumpFollowups(); };
+    const onCopyFollowup = (item, text) => { onCopy(text); recordFollowup(item, 'COPIED', 'Message copied for review'); };
+    const onRemoveFollowup = (id) => { try { F?.remove?.(id); } catch (e) { /* unchanged */ } bumpFollowups(); };
+    const onItemDone = (item) => { try { P?.markDone(item, { nowMs: Date.now() }); } catch (e) { /* unchanged */ } recordFollowup(item, 'DONE', 'Marked done'); setActionItem(null); bumpPrefs(); };
+    const onItemSkip = (item) => { try { P?.skip(item, { nowMs: Date.now() }); } catch (e) { /* unchanged */ } recordFollowup(item, 'SKIPPED', 'Snoozed for ' + ((P && P.SKIP_DAYS) || 7) + ' days'); setActionItem(null); bumpPrefs(); };
+    const onItemHide = (item) => { try { P?.hide(item, { nowMs: Date.now() }); } catch (e) { /* unchanged */ } recordFollowup(item, 'HIDDEN', 'Hidden from Command'); setActionItem(null); bumpPrefs(); };
+    const onItemRestore = (id) => { const item = itemForFollowup(id); try { P?.restore(id); } catch (e) { /* unchanged */ } recordFollowup(item, 'RESTORED', 'Restored to Command'); setActionItem(null); bumpPrefs(); };
     // A queue row opens the drawer rather than navigating: the drawer is where
     // done/skip/hide live, and it still offers the deep-link as its primary.
-    const onQueueItem = (item) => setActionItem(item);
-    const onActionOpen = (item) => { setActionItem(null); openHub(item.hub, { leagueId: (item.leagueIds || [])[0] || null }); };
+    const onQueueItem = (item) => { recordFollowup(item, 'OPENED', 'Action drawer opened'); setActionItem(item); };
+    const onActionOpen = (item) => { recordFollowup(item, 'NAVIGATED', item.action?.label || 'Opened desk'); setActionItem(null); openHub(item.hub, { leagueId: (item.leagueIds || [])[0] || null }); };
     const onExportAll = () => {
         if (!window.wrExport || state.status !== 'ready') return;
         (state.programmes || []).forEach(p => {
@@ -862,13 +872,15 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         ) : null}
         {actionItem && window.WrCommishActionPanel ? (
             <window.WrCommishActionPanel
-                item={actionItem} state={P ? P.stateOf(actionItem.id) : null}
+                item={actionItem} state={P ? P.stateOf(actionItem.id) : null} followup={actionFollowup}
                 skipDays={(P && P.SKIP_DAYS) || 7}
                 onOpen={() => onActionOpen(actionItem)}
                 onDone={() => onItemDone(actionItem)}
                 onSkip={() => onItemSkip(actionItem)}
                 onHide={() => onItemHide(actionItem)}
                 onRestore={() => onItemRestore(actionItem.id)}
+                onSaveFollowup={(patch) => onSaveFollowup(actionItem, patch)}
+                onCopyMessage={(text) => onCopyFollowup(actionItem, text)}
                 onClose={() => setActionItem(null)}
             />
         ) : null}
@@ -961,6 +973,8 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                         domainLabels={DOMAIN_ALERT_LABELS}
                         suppressed={(queue && queue.hiddenByMe) || []}
                         onRestore={onItemRestore}
+                        followups={followups}
+                        onRemoveFollowup={onRemoveFollowup}
                     />
                 ) : missing('Settings')) : null}
                 {tab === 'network' ? (Net ? <Net coefficient={state.coefficient} graph={state.graph} /> : missing('Coefficient')) : null}

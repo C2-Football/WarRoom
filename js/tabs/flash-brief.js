@@ -88,6 +88,8 @@ function IntelligenceBriefWidget({
     // Its legacy alexPersonality field no longer selects a voice — one
     // canonical Alex (owner ruling 2026-07-08).
     const gm = window.WR.GmMode.useGmEffects(currentLeague);
+    const leagueSkin = window.App?.LeagueSkin?.build?.({ league: currentLeague, rosters: currentLeague?.rosters || [] });
+    const isChopped = window.App?.Chopped?.isChopped?.(currentLeague) || leagueSkin?.type === 'chopped';
 
     const rosterState = window.App?.getRosterDataState?.({ roster: myRoster, currentLeague, rosters: currentLeague?.rosters }) || { isUsable: true };
     const myAssess = typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(myRoster?.roster_id) : null;
@@ -378,7 +380,10 @@ function IntelligenceBriefWidget({
     // UNKNOWN tier = assessment hasn't loaded — never let it fall through to
     // the rebuilding copy ('ranked 0th, health score 0' as fact). Same for a
     // known tier with no rank yet: don't interpolate ordinal(0).
-    const tierMsg = !rosterState.isUsable ? (rosterState.brief || 'Roster sync incomplete. I paused roster, trade, waiver, and league-rank recommendations until player IDs finish loading.')
+    const tierMsg = !rosterState.isUsable ? (rosterState.brief || (isChopped
+        ? 'Roster sync incomplete. I paused survival and waiver recommendations until player IDs finish loading.'
+        : 'Roster sync incomplete. I paused roster, trade, waiver, and league-rank recommendations until player IDs finish loading.'))
+        : isChopped ? 'Survival mode is active. Protect your weekly scoring floor, then keep enough FAAB ready for the next chopped roster.'
         : (!myAssess || tier === 'UNKNOWN') ? 'Still syncing your league read — I’ll have your tier, rank, and health score once the data lands.'
         : tier === 'ELITE' ? pickTier(p.elite)
         : myRank <= 0 ? ('Your roster reads ' + tier + ' with a health score of ' + hs + ' — league rank is still syncing.')
@@ -394,7 +399,9 @@ function IntelligenceBriefWidget({
     // ONE strategy-frame lead sentence (owner rule: frame only — never restate
     // adjacent KPIs). Built from the committed GM plan, not the roster grade.
     const TIMELINE_FRAME = { '1_year': 'all-in on this season', '2_3_years': 'building for a 2-3 year window', 'dynasty_long': 'playing the long game' };
-    const strategyFrame = gm.hasStrategy
+    const strategyFrame = isChopped
+        ? 'Your survival plan: protect the weekly floor, preserve FAAB flexibility, and attack the player pool after every chop.'
+        : gm.hasStrategy
         ? 'Your plan: ' + (gm.modeLabel || gm.mode) + ', ' + (TIMELINE_FRAME[gm.timeline] || 'on your timeline') + ' — everything below is read against that.'
         : '';
 
@@ -570,7 +577,12 @@ function IntelligenceBriefWidget({
     const TIMELINE_CHIP = { '1_year': 'This year', '2_3_years': '2-3 yr window', 'dynasty_long': 'Long game' };
     function planChips(opts = {}) {
         const deep = !!opts.deep;
-        const chips = gm.hasStrategy ? [
+        const chips = isChopped ? [
+            'Survive',
+            'Weekly floor',
+            'FAAB discipline',
+            'Waiver-first',
+        ] : gm.hasStrategy ? [
             gm.modeLabel || gm.mode,
             TIMELINE_CHIP[gm.timeline],
             POSTURE_CHIP[gm.marketPosture],
@@ -583,11 +595,11 @@ function IntelligenceBriefWidget({
         ].filter(Boolean) : null;
         const chipStyle = { fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: "'JetBrains Mono', monospace", color: 'var(--silver)', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'var(--ov-1, rgba(255,255,255,0.02))', borderRadius: '4px', padding: '2px 7px', whiteSpace: 'nowrap' };
         return React.createElement('div', {
-            onClick: (e) => { e.stopPropagation(); goTo('strategy'); },
-            title: gm.hasStrategy ? 'Your GM plan — tap to adjust' : 'No GM plan set — tap to set one',
+            onClick: (e) => { e.stopPropagation(); goTo(isChopped ? 'fa' : 'strategy'); },
+            title: isChopped ? 'Your survival plan — open Free Agency' : (gm.hasStrategy ? 'Your GM plan — tap to adjust' : 'No GM plan set — tap to set one'),
             style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '5px', cursor: 'pointer', flexShrink: 0 },
         },
-            React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'JetBrains Mono', monospace" } }, 'GM PLAN'),
+            React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'JetBrains Mono', monospace" } }, isChopped ? 'SURVIVAL PLAN' : 'GM PLAN'),
             ...(chips
                 ? chips.map((c, i) => React.createElement('span', { key: i, style: chipStyle }, c))
                 : [React.createElement('span', { key: 'none', style: { ...chipStyle, color: 'var(--gold)', border: '1px dashed var(--acc-line2, rgba(212,175,55,0.35))' } }, 'Set your strategy →')]),

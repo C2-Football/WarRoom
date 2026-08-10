@@ -1004,8 +1004,12 @@
                 if (Number(league.scoring_settings?.bonus_rec_te ?? 0) > 0) bits.push('TE-Prem');
                 const teams = league.rosters?.length || league.settings?.num_teams || league.total_rosters || 0;
                 if (teams) bits.push(teams + '-team');
-                const type = Number(league.settings?.type ?? -1);
-                bits.push(type === 0 ? 'Redraft' : type === 1 ? 'Keeper' : 'Dynasty');
+                const rawType = league.type ?? league.league_type ?? league.settings?.type ?? league.metadata?.type;
+                const type = window.App?.LeagueSkin?.normalizeType?.(rawType)
+                    || ({ 0: 'redraft', 1: 'keeper', 2: 'dynasty', 3: 'chopped' }[String(rawType)] || 'unknown');
+                const formatLabel = window.App?.LeagueSkin?.TYPE_META?.[type]?.label
+                    || ({ redraft: 'Redraft', keeper: 'Keeper', dynasty: 'Dynasty', chopped: 'Chopped', best_ball: 'Best Ball' }[type]);
+                if (formatLabel) bits.push(formatLabel);
             } catch (e) {}
             return bits.join(' · ');
         }

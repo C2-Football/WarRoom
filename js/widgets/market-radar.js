@@ -20,11 +20,13 @@
         const cardStyle = window.WrTheme?.cardStyle?.() || {};
         const fs = (rem) => window.WrTheme?.fontSize?.(rem) || (rem + 'rem');
         const rosterState = window.App?.getRosterDataState?.({ roster: myRoster, currentLeague, rosters: currentLeague?.rosters }) || { isUsable: true };
+        const leagueSkin = window.App?.LeagueSkin?.build?.({ league: currentLeague, rosters: currentLeague?.rosters || [] });
+        const isChopped = window.App?.Chopped?.isChopped?.(currentLeague) || leagueSkin?.type === 'chopped';
 
         // ── GM Strategy (single source of truth) ──
         const gm = window.WR.GmMode.useGmEffects(currentLeague);
-        const gmTargets = gm.targetPositions || new Set();        // positions to pursue
-        const gmFa = gm.faFilters || null;                        // FA-tab waiver filters
+        const gmTargets = isChopped ? new Set() : (gm.targetPositions || new Set()); // positions to pursue
+        const gmFa = isChopped ? null : (gm.faFilters || null);   // FA-tab waiver filters
         const posture = gm.marketPosture || 'hold';               // buy_low|sell_high|hold|exploit
         // Mirrors free-agency.js gmFaPeakYears: peak years remaining for a pos/age.
         const gmFaPeakYears = (pos, age) => {
@@ -205,7 +207,7 @@
         };
         const openTrades = (e) => goTo('trades', e);
         const openFreeAgency = (e) => goTo('fa', e);
-        const onClick = () => { if (isClickable) openTrades(); };
+        const onClick = () => { if (isClickable) (isChopped ? openFreeAgency() : openTrades()); };
         const openCard = (pid) => {
             if (window.WR && typeof window.WR.openPlayerCard === 'function') window.WR.openPlayerCard(pid);
             else if (typeof window.openPlayerModal === 'function') window.openPlayerModal(pid);
@@ -214,18 +216,60 @@
         // ── Avatar URL helper ──
         const avatarUrl = (id) => id ? 'https://sleepercdn.com/avatars/thumbs/' + id : null;
 
+        function renderChoppedRadar() {
+            const compact = size === 'sm' || size === 'md';
+            const shown = waiverTargets.slice(0, size === 'xxl' ? 10 : size === 'xl' ? 8 : size === 'lg' ? 6 : 3);
+            const accent = colors.negative || 'var(--k-e74c3c, #e74c3c)';
+            if (size === 'sm') {
+                return (
+                    <div onClick={openFreeAgency} style={{ ...cardStyle, padding: 'var(--card-pad, 14px 16px)', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', gap: '4px' }}>
+                        <div className="wr-data-value" style={{ fontFamily: fonts.mono, fontSize: fs(2), fontWeight: 700, color: accent, lineHeight: 1 }}>{waiverTargets.length}</div>
+                        <div style={{ fontSize: fs(0.7), color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: fonts.ui }}>WAIVER TARGETS</div>
+                        <div style={{ marginTop: '4px', fontSize: fs(0.58), color: colors.textFaint }}>{shown[0] ? 'Top: ' + shown[0].name : 'Pool is quiet'}</div>
+                    </div>
+                );
+            }
+            return (
+                <div onClick={compact ? openFreeAgency : undefined} style={{ ...cardStyle, padding: 'var(--card-pad, 12px 14px)', cursor: compact ? 'pointer' : 'default', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexShrink: 0 }}>
+                        <span aria-hidden="true" style={{ fontSize: '1rem' }}>🪓</span>
+                        <span style={{ fontFamily: fonts.display, fontSize: fs(size === 'xxl' ? 1.05 : 0.9), fontWeight: 700, color: accent, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Waiver Pool Radar</span>
+                        <span style={{ flex: 1 }} />
+                        <span style={{ fontSize: fs(0.62), color: colors.textMuted, fontFamily: fonts.ui }}>${faab.remaining} FAAB</span>
+                        {!compact && <button onClick={openFreeAgency} style={{ padding: '3px 8px', background: wrAlpha(accent, '1A'), color: accent, border: '1px solid ' + wrAlpha(accent, '47'), borderRadius: '5px', cursor: 'pointer', fontSize: fs(0.56), fontFamily: fonts.ui, fontWeight: 700 }}>Open FA</button>}
+                    </div>
+                    {!compact && <div style={{ fontSize: fs(0.62), color: colors.textMuted, marginBottom: '8px', lineHeight: 1.4 }}>Chopped rosters refill the pool. Favor weekly scoring floor, then spend before your survival runway closes.</div>}
+                    <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'grid', gridTemplateColumns: compact ? '1fr' : (size === 'xxl' ? 'repeat(2, minmax(0, 1fr))' : '1fr'), gap: compact ? '3px' : '4px 12px' }}>
+                        {shown.length ? shown.map((p, i) => (
+                            <div key={p.pid || i} role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); openCard(p.pid); }} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCard(p.pid); } }} style={{ display: 'flex', alignItems: 'center', gap: '6px', minHeight: '30px', padding: '3px 5px', borderBottom: '1px solid var(--ov-2, rgba(255,255,255,0.03))', cursor: 'pointer' }}>
+                                <span style={{ flex: 1, minWidth: 0, fontSize: fs(0.66), fontWeight: 700, color: colors.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
+                                <span style={{ fontSize: fs(0.5), fontWeight: 700, color: window.App?.POS_COLORS?.[p.pos] || colors.accent }}>{p.pos}</span>
+                                <span style={{ minWidth: 34, textAlign: 'right', fontFamily: fonts.mono, fontSize: fs(0.56), color: colors.textMuted }}>{p.dhq >= 1000 ? (p.dhq / 1000).toFixed(1) + 'k' : p.dhq}</span>
+                            </div>
+                        )) : <div style={{ fontSize: fs(0.66), color: colors.textFaint, fontStyle: 'italic' }}>No unrostered targets have cleared the current value threshold.</div>}
+                    </div>
+                    <div style={{ marginTop: '8px', flexShrink: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: fs(0.58), color: colors.textMuted, marginBottom: '2px' }}><span>FAAB runway</span><span>${faab.remaining} / ${faab.budget}</span></div>
+                        <div style={{ height: 6, background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: 3, overflow: 'hidden' }}><div style={{ width: faab.pct + '%', height: '100%', background: faab.pct > 50 ? colors.positive : faab.pct > 25 ? colors.warn : accent }} /></div>
+                    </div>
+                </div>
+            );
+        }
+
         if (!rosterState.isUsable) {
             return window.App?.renderRosterDataBlocker?.(rosterState, {
-                title: size === 'sm' ? 'Market paused' : 'Market Radar paused',
-                message: 'Trade and waiver signals need complete roster IDs.',
+                title: isChopped ? (size === 'sm' ? 'Waivers paused' : 'Waiver Pool paused') : (size === 'sm' ? 'Market paused' : 'Market Radar paused'),
+                message: isChopped ? 'Waiver and FAAB signals need complete roster IDs.' : 'Trade and waiver signals need complete roster IDs.',
                 detail: rosterState.detail,
                 compact: size === 'sm' || size === 'md',
                 fill: true,
-                actionLabel: size === 'sm' ? null : 'Open Trades',
-                onAction: openTrades,
+                actionLabel: size === 'sm' ? null : (isChopped ? 'Open Free Agency' : 'Open Trades'),
+                onAction: isChopped ? openFreeAgency : openTrades,
                 style: { cursor: isClickable ? 'pointer' : 'default' },
             });
         }
+
+        if (isChopped) return renderChoppedRadar();
 
         // ── SM: deal count + top partner name ──
         if (size === 'sm') {

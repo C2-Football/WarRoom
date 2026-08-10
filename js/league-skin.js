@@ -42,6 +42,28 @@
         dfs: { label: 'DFS', short: 'DFS', color: 'var(--k-3498db, #3498db)', family: 'daily' },
         unknown: { label: 'League Type Unknown', short: '?', color: 'var(--k-c7cdd7, #c7cdd7)', family: 'unknown' },
     };
+    // Product support is a deliberate contract, separate from format detection.
+    // It prevents a technically recognized format from being presented as a
+    // finished experience before its navigation, language and strategy tools
+    // have cleared the same acceptance bar.
+    const PRODUCT_SUPPORT = Object.freeze({
+        leagueTypes: Object.freeze({
+            dynasty: 'first_class',
+            chopped: 'first_class',
+            redraft: 'next',
+            keeper: 'next',
+            best_ball: 'beta',
+            dfs: 'unsupported',
+            unknown: 'unsupported',
+        }),
+        modes: Object.freeze({
+            empire: 'first_class',
+            commissioner: 'first_class',
+        }),
+        draftModes: Object.freeze({
+            auction: 'beta',
+        }),
+    });
     const TYPE_THEMES = {
         redraft: {
             id: 'war-room-default',
@@ -99,6 +121,11 @@
         if (value == null || value === '') return '';
         const raw = lower(value);
         return TYPE_ALIASES[raw] || raw;
+    }
+
+    function supportLevel(value) {
+        const type = normalizeType(value) || 'unknown';
+        return PRODUCT_SUPPORT.leagueTypes[type] || 'unsupported';
     }
 
     function firstNonEmpty(values) {
@@ -412,6 +439,7 @@
             family: typeMeta.family,
             phase,
             typeMeta,
+            supportLevel: supportLevel(type),
             phaseMeta,
             profile,
             features,
@@ -469,6 +497,7 @@
     const api = {
         VERSION,
         TYPE_META,
+        PRODUCT_SUPPORT,
         PHASE_LABELS,
         STRATEGY_MODES,
         TYPE_THEMES,
@@ -477,6 +506,7 @@
         detectPhase,
         resolveDraftRounds,
         normalizeType,
+        supportLevel,
         setCurrent,
         getCurrent,
         resolve,
