@@ -14,8 +14,27 @@
         // stored on wr_alex_avatar normalize to 'badge' (no broken images).
         // Alex is always the "AI" badge now (photos retired) — the user picks its
         // COLOR (owner ask). Stored via components.js window.setAlexBadgeColor.
-        const badgeColors = window.ALEX_BADGE_COLORS || [{ id: 'gold', label: 'Gold', from: '#d4af37', to: '#b8941e', text: '#0a0a0a' }];
+        // 'Custom' (owner ask 2026-08-09) is a synthetic entry appended to the
+        // preset list — picking it reveals two <input type="color"> pickers
+        // (text + background) whose values persist via components.js
+        // window.setAlexBadgeCustomColors, read back by window.getAlexBadgeColor
+        // whenever the stored badge id is 'custom'.
+        const presetColors = window.ALEX_BADGE_COLORS || [{ id: 'gold', label: 'Gold', from: '#d4af37', to: '#b8941e', text: '#0a0a0a' }];
         const [currentBadge, setCurrentBadge] = React.useState(() => (window.getAlexBadgeColor && window.getAlexBadgeColor().id) || 'gold');
+        const [customColors, setCustomColors] = React.useState(() => (window.getAlexBadgeCustomColors && window.getAlexBadgeCustomColors()) || { text: '#0a0a0a', bg: '#d4af37' });
+        const badgeColors = [...presetColors, { id: 'custom', label: 'Custom', from: customColors.bg, to: customColors.bg, text: customColors.text }];
+        function selectBadge(id) {
+            if (window.setAlexBadgeColor) window.setAlexBadgeColor(id);
+            setCurrentBadge(id);
+            window.dispatchEvent(new CustomEvent('wr:alex-badge-changed'));
+        }
+        function updateCustomColor(field, value) {
+            const next = { ...customColors, [field]: value };
+            setCustomColors(next);
+            if (window.setAlexBadgeCustomColors) window.setAlexBadgeCustomColors(next);
+            if (currentBadge !== 'custom') selectBadge('custom');
+            else window.dispatchEvent(new CustomEvent('wr:alex-badge-changed'));
+        }
         return (<>
         <div style={sectionStyle}>
             <div style={sectionTitle}>ALEX BADGE</div>
@@ -23,7 +42,7 @@
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: '8px' }}>
                 {badgeColors.map(bc => {
                     const isActive = currentBadge === bc.id;
-                    return <button key={bc.id} onClick={() => { if (window.setAlexBadgeColor) window.setAlexBadgeColor(bc.id); setCurrentBadge(bc.id); window.dispatchEvent(new CustomEvent('wr:alex-badge-changed')); }}
+                    return <button key={bc.id} onClick={() => selectBadge(bc.id)}
                         style={{
                             padding: '12px 8px', textAlign: 'center',
                             background: isActive ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'var(--ov-1, rgba(255,255,255,0.02))',
@@ -37,6 +56,18 @@
                     </button>;
                 })}
             </div>
+            {currentBadge === 'custom' && (
+                <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.85rem', flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>
+                        Text color
+                        <input type="color" value={customColors.text} onChange={e => updateCustomColor('text', e.target.value)} style={{ width: '36px', height: '36px', padding: 0, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: '6px', background: 'none', cursor: 'pointer' }} />
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>
+                        Background color
+                        <input type="color" value={customColors.bg} onChange={e => updateCustomColor('bg', e.target.value)} style={{ width: '36px', height: '36px', padding: 0, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: '6px', background: 'none', cursor: 'pointer' }} />
+                    </label>
+                </div>
+            )}
         </div>
         <div style={sectionStyle}>
             <div style={sectionTitle}>GM BRIEFING</div>
@@ -46,85 +77,11 @@
         </>);
     }
 
-    function CommissionerTab({ sectionStyle, sectionTitle }) {
-        const leagueId = (window.S || {}).currentLeagueId || '';
-        const [docs, setDocs] = React.useState([]);
-        const [uploading, setUploading] = React.useState(false);
-        const [uploadMsg, setUploadMsg] = React.useState('');
-
-        React.useEffect(() => {
-            if (window.OD?.listLeagueDocs && leagueId) {
-                window.OD.listLeagueDocs(leagueId).then(d => setDocs(d || []));
-            }
-        }, [leagueId]);
-
-        const handleFileUpload = async (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            setUploading(true); setUploadMsg('');
-            try {
-                const text = await file.text();
-                if (!text.trim()) { setUploadMsg('File is empty.'); setUploading(false); return; }
-                const name = file.name.toLowerCase();
-                const category = name.includes('bylaw') ? 'bylaws' : name.includes('award') ? 'awards' : name.includes('calendar') || name.includes('schedule') ? 'calendar' : name.includes('scor') ? 'scoring' : 'general';
-                const ok = await window.OD.uploadLeagueDoc(leagueId, file.name, text, category);
-                if (ok) {
-                    setUploadMsg('Uploaded! Alex will now reference this document.');
-                    const updated = await window.OD.listLeagueDocs(leagueId);
-                    setDocs(updated || []);
-                    const ctx = await window.OD.getLeagueDocsContext(leagueId);
-                    if (ctx) window._leagueDocsContext = ctx;
-                } else { setUploadMsg('Upload failed. Check your connection.'); }
-            } catch (err) { setUploadMsg('Error: ' + (err.message || 'Unknown')); }
-            setUploading(false);
-        };
-
-        const handleDelete = async (docName) => {
-            if (!confirm('Delete "' + docName + '"? Alex will no longer reference it.')) return;
-            await window.OD?.deleteLeagueDoc(leagueId, docName);
-            const updated = await window.OD?.listLeagueDocs(leagueId);
-            setDocs(updated || []);
-            const ctx = await window.OD?.getLeagueDocsContext(leagueId);
-            window._leagueDocsContext = ctx || '';
-        };
-
-        return (<>
-        <div style={sectionStyle}>
-            <div style={sectionTitle}>LEAGUE DOCUMENTS</div>
-            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
-                Upload your league bylaws, awards history, custom rules, or any league-specific documents. Alex will use these to answer league questions and reference your league's customs.
-            </div>
-            {!leagueId ? (
-                <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.5 }}>Connect a league first to upload documents.</div>
-            ) : (<>
-                <div style={{ marginBottom: '12px' }}>
-                    <label style={{
-                        display: 'block', padding: '14px', textAlign: 'center',
-                        background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '2px dashed var(--acc-line1, rgba(212,175,55,0.25))',
-                        borderRadius: '10px', cursor: 'pointer', fontSize: 'var(--text-body, 1rem)', color: 'var(--gold)', fontWeight: 600,
-                    }}>
-                        {uploading ? 'Uploading...' : '+ Upload Document (.txt, .md, .csv)'}
-                        <input type="file" accept=".txt,.md,.csv,.text" onChange={handleFileUpload} style={{ display: 'none' }} />
-                    </label>
-                    {uploadMsg && <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: uploadMsg.includes('fail') || uploadMsg.includes('Error') ? 'var(--k-f87171, #f87171)' : 'var(--k-34d399, #34d399)', marginTop: '6px' }}>{uploadMsg}</div>}
-                </div>
-                {docs.length > 0 && (
-                    <div>
-                        <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>UPLOADED ({docs.length})</div>
-                        {docs.map((d, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))' }}>
-                                <span style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--white)', flex: 1 }}>{d.name}</span>
-                                <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', padding: '1px 6px', borderRadius: '6px', background: 'var(--acc-fill2, rgba(212,175,55,0.1))' }}>{d.category}</span>
-                                <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>{new Date(d.uploadedAt).toLocaleDateString()}</span>
-                                <button onClick={() => handleDelete(d.name)} style={{ background: 'none', border: 'none', color: 'var(--k-f87171, #f87171)', cursor: 'pointer', fontSize: 'var(--text-label, 0.75rem)', padding: '2px 6px', minHeight: '44px', minWidth: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>Delete</button>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </>)}
-        </div>
-        </>);
-    }
+    // LEAGUE DOCUMENTS section removed (owner ask 2026-08-09) — it was this
+    // tab's sole content (docs state, handleFileUpload, handleDelete all
+    // lived only here and were removed with it), so the "Commish" tab entry
+    // and its dedicated single-tab render below are removed too rather than
+    // leaving a nav item that opens to a blank screen.
 
     function SettingsContent({ onClose, initDisplayName, onDisplayNameSave, leagueMates, mode = 'modal', accountOnly = false, phoneSheet = false }) {
         const [settingsTab, setSettingsTab] = React.useState('account');
@@ -351,7 +308,6 @@
                                     })}
                                 </div>
                             </div>
-                            <CommissionerTab sectionStyle={moduleSectionStyle} sectionTitle={sectionTitle} />
                         </div>
 
                         <div style={moduleColumnStyle}>
@@ -366,7 +322,6 @@
                                 <div style={_phone ? { display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem' } : { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                                     <button onClick={goToManagePlan} style={{ ...btnPrimary, fontSize: 'var(--text-label, 0.75rem)' }}>Upgrade</button>
                                     <button onClick={goToManagePlan} style={{ ...btnOutline, fontSize: 'var(--text-label, 0.75rem)' }}>Change Plan</button>
-                                    <button onClick={goToManagePlan} style={{ ...btnOutline, fontSize: 'var(--text-label, 0.75rem)' }}>Gift Sub</button>
                                 </div>
                             </div>
                             {/* AI KEY section removed (owner ask). */}
@@ -472,7 +427,6 @@
                                 { id: 'account', label: 'Account' },
                                 { id: 'alex', label: 'Alex' },
                                 { id: 'display', label: 'Display' },
-                                { id: 'commissioner', label: 'Commish' },
                                 { id: 'subscription', label: 'Plan' },
                                 { id: 'data', label: 'Data' },
                             ].map(tab => (
@@ -485,7 +439,6 @@
                             { id: 'account', label: 'Account' },
                             { id: 'alex', label: 'Alex' },
                             { id: 'display', label: 'Display' },
-                            { id: 'commissioner', label: 'Commish' },
                             { id: 'subscription', label: 'Plan' },
                             { id: 'data', label: 'Data' },
                         ].map(tab => (
@@ -580,9 +533,6 @@
                         </div>
                     </>)}
 
-                    {/* ══ COMMISSIONER TAB — League Docs ══ */}
-                    {settingsTab === 'commissioner' && <CommissionerTab sectionStyle={sectionStyle} sectionTitle={sectionTitle} />}
-
                     {/* ══ SUBSCRIPTION TAB ══ */}
                     {settingsTab === 'subscription' && (<>
                     <div style={sectionStyle}>
@@ -596,7 +546,6 @@
                         <div style={_phone ? { display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem' } : { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                             <button onClick={goToManagePlan} style={{ ...btnPrimary, fontSize: 'var(--text-label, 0.75rem)' }}>Upgrade</button>
                             <button onClick={goToManagePlan} style={{ ...btnOutline, fontSize: 'var(--text-label, 0.75rem)' }}>Change Plan</button>
-                            <button onClick={goToManagePlan} style={{ ...btnOutline, fontSize: 'var(--text-label, 0.75rem)' }}>Gift Sub</button>
                         </div>
                         <div style={{ marginTop: '0.6rem', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--ov-8, rgba(255,255,255,0.3))', textAlign: 'center' }}>Manage your Dynasty HQ subscription</div>
                     </div>

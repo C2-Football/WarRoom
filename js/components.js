@@ -221,11 +221,35 @@
         { id: 'violet', label: 'Violet', from: '#9b8afb', to: '#7c6bf8', text: '#ffffff' },
         { id: 'green',  label: 'Green',  from: '#2ecc71', to: '#239b56', text: '#07100b' },
         { id: 'red',    label: 'Red',    from: '#e5534b', to: '#c0392b', text: '#ffffff' },
-        { id: 'teal',   label: 'Teal',   from: '#4ecdc4', to: '#2c9c94', text: '#07100b' },
     ];
+    // Custom option (owner ask 2026-08-09): user picks two flat colors —
+    // text + background — instead of a preset gradient. Stored separately
+    // from the preset id so a custom pick round-trips independent of which
+    // preset was last active. Persisted alongside the existing
+    // wr_alex_badge_color id/localStorage mechanism (id === 'custom' is the
+    // switch that tells getAlexBadgeColor to read these two instead of
+    // looking up a preset).
+    const ALEX_BADGE_CUSTOM_DEFAULT = { text: '#0a0a0a', bg: '#d4af37' };
+    function getAlexBadgeCustomColors() {
+        try {
+            const text = localStorage.getItem('wr_alex_badge_custom_text') || ALEX_BADGE_CUSTOM_DEFAULT.text;
+            const bg = localStorage.getItem('wr_alex_badge_custom_bg') || ALEX_BADGE_CUSTOM_DEFAULT.bg;
+            return { text, bg };
+        } catch (e) { return { ...ALEX_BADGE_CUSTOM_DEFAULT }; }
+    }
+    function setAlexBadgeCustomColors({ text, bg }) {
+        try {
+            if (text) localStorage.setItem('wr_alex_badge_custom_text', text);
+            if (bg) localStorage.setItem('wr_alex_badge_custom_bg', bg);
+        } catch (e) { /* no-op */ }
+    }
     function getAlexBadgeColor() {
         let id;
         try { id = localStorage.getItem('wr_alex_badge_color') || 'gold'; } catch (e) { id = 'gold'; }
+        if (id === 'custom') {
+            const cc = getAlexBadgeCustomColors();
+            return { id: 'custom', label: 'Custom', from: cc.bg, to: cc.bg, text: cc.text };
+        }
         return ALEX_BADGE_COLORS.find(c => c.id === id) || ALEX_BADGE_COLORS[0];
     }
     function setAlexBadgeColor(id) {
@@ -241,6 +265,8 @@
     window.ALEX_BADGE_COLORS = ALEX_BADGE_COLORS;
     window.getAlexBadgeColor = getAlexBadgeColor;
     window.setAlexBadgeColor = setAlexBadgeColor;
+    window.getAlexBadgeCustomColors = getAlexBadgeCustomColors;
+    window.setAlexBadgeCustomColors = setAlexBadgeCustomColors;
 
     // ===== ALEX INGRAM — AI GM MESSAGE COMPONENT (Slack-style) =====
     function GMMessage({ children, timestamp, compact, title }) {
