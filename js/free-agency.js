@@ -2027,7 +2027,6 @@
                 _faHeroEl = React.createElement(window.WR.HeroCard, {
                     kicker: 'Top add',
                     headline: playerName(_heroPro.p, _heroPro.pid).toUpperCase() + (heroFaab ? ' — BID $' + heroFaab.lo + '–' + heroFaab.hi : ''),
-                    facts: _heroPro.why + faabBits,
                     cta: heroFaab ? 'SET BID' : 'OPEN PLAYER CARD',
                     onCta: () => openFaPlayer(_heroPro.pid),
                 });
@@ -2035,7 +2034,6 @@
                 _faHeroEl = React.createElement(window.WR.HeroCard, {
                     kicker: 'Top add',
                     headline: playerName(_heroFree.p, _heroFree.pid).toUpperCase(),
-                    facts: (_heroFree.p.team || 'FA') + ' · ' + _heroFree.pos + ' · ' + (_heroFree.dhq > 0 ? _heroFree.dhq.toLocaleString() + ' ' + valueShortLabel : '—') + ' · ' + availablePlayers.length + ' on the wire',
                     ctaGhost: 'Open player card',
                     onCtaGhost: () => openFaPlayer(_heroFree.pid),
                 });
