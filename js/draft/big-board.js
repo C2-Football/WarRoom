@@ -108,6 +108,35 @@
         // board framed as an AI recommendation.
         const pro = typeof window.wrIsPro !== 'function' || window.wrIsPro();
 
+        // Real market ADP (MFL public export, joined via FantasyCalc's id bridge —
+        // js/shared/adp-market.js) is a "market says / DHQ says" companion column,
+        // display-only. Scoped to redraft + chopped ONLY — MFL has no real keeper/
+        // dynasty ADP data today. state.variant/draftContext never carry a distinct
+        // 'chopped' draft type (detectDraftVariant has no chopped branch, it falls
+        // through to the startup/rookie fallback), so chopped is detected the same
+        // way draft-room.js's redraft market-mode check does: off the live League
+        // Skin singleton, not off the draft state.
+        const adpSkinType = window.App?.LeagueSkin?.getCurrent?.()?.type;
+        const adpEligible = state.variant === 'redraft'
+            || state.draftContext?.draftType === 'redraft'
+            || state.draftContext?.leagueFormat?.draftType === 'redraft'
+            || adpSkinType === 'redraft'
+            || adpSkinType === 'chopped';
+        const adpFor = React.useCallback(p => (
+            adpEligible && typeof window.App?.getRedraftAdp === 'function'
+                ? window.App.getRedraftAdp(idOf(p))
+                : null
+        ), [adpEligible]);
+        // adp-market.js fetches once and caches — force a re-render when it lands
+        // after this panel's first paint (mirrors wr:ros-market-loaded consumers).
+        const [, bumpAdpTick] = React.useState(0);
+        React.useEffect(() => {
+            if (!adpEligible) return undefined;
+            const onAdpLoaded = () => bumpAdpTick(t => t + 1);
+            window.addEventListener('wr:adp-loaded', onAdpLoaded);
+            return () => window.removeEventListener('wr:adp-loaded', onAdpLoaded);
+        }, [adpEligible]);
+
         // Phone/touch tier (mobile plan Phase 2 item 13): HTML5 drag is inert on
         // iOS/touch, and this exact panel is what MobileFeed mounts on phones —
         // the ▲/▼ move buttons rendered under my-lane rows are the only way to
@@ -267,10 +296,13 @@
                 if (sortKey === 'age') return dir * ((ageOf(a) || 99) - (ageOf(b) || 99));
                 if (sortKey === 'team') { const x = nflTeamOf(a) || '', y = nflTeamOf(b) || ''; if (!x !== !y) return x ? -1 : 1; return dir * x.localeCompare(y); }
                 if (sortKey === 'college') { const x = collegeOf(a) || '', y = collegeOf(b) || ''; if (!x !== !y) return x ? -1 : 1; return dir * x.localeCompare(y); }
+                // Lower ADP = earlier/more-valued pick — players with no market entry
+                // sort last regardless of direction, same as an empty-string tiebreak.
+                if (sortKey === 'adp') { const x = adpFor(a)?.adp ?? Infinity, y = adpFor(b)?.adp ?? Infinity; return dir * (x - y); }
                 return dir * ((b.dhq || 0) - (a.dhq || 0));
             });
             return sorted.slice(0, 100);
-        }, [decoratedPool, posFilter, search, sortKey, sortDir, hideDrafted]);
+        }, [decoratedPool, posFilter, search, sortKey, sortDir, hideDrafted, adpFor]);
 
         // Pick advisory — deterministic (zero AI cost), same Recommended/Safe/
         // Upside selection MockDecisionDeck already uses for the sim board
@@ -524,6 +556,14 @@
         const rowHeight = activeLane === 'my' ? (touchReorder ? 104 : 84) : 46;
         const scrollMaxHeight = bucket === 'desktop' ? undefined : (ROWS_VISIBLE * rowHeight) + 'px';
 
+        // Desktop table grid — shared between the header row and every player
+        // row so the columns always line up. One extra 44px track for ADP,
+        // inserted right after DHQ, only when this board is redraft/chopped.
+        const boardGridTemplate = (activeLane === 'my' ? '38px' : '22px')
+            + ' minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 48px'
+            + (adpEligible ? ' 44px' : '')
+            + ' 44px';
+
         const laneOptions = pro ? ['dhq', 'ai', 'my'] : ['dhq', 'my'];
 
         const laneSource = activeLaneData.source || '';
@@ -609,7 +649,9 @@
                                         pos: normEdPos(p.pos),
                                         name: p.name,
                                         tag: ['#' + rowRank, nflTeam || college || null, b.tier ? 'T' + b.tier : null, p._copies > 1 && p._copiesTaken > 0 ? p._copiesTaken + '/' + p._copies + ' taken' : null].filter(Boolean).join(' · '),
-                                        slots: [{ label: 'DHQ', value: fmt(p.dhq) }],
+                                        slots: adpEligible && adpFor(p)
+                                            ? [{ label: 'DHQ', value: fmt(p.dhq) }, { label: 'ADP', value: adpFor(p).adp.toFixed(1) }]
+                                            : [{ label: 'DHQ', value: fmt(p.dhq) }],
                                         verdict: (
                                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                                 {tag && <span style={{ color: tag.color, fontSize: MICRO, fontWeight: 800, fontFamily: FONT_UI, border: '1px solid ' + wrAlpha(tag.color, '55'), background: wrAlpha(tag.color, '18'), borderRadius: '3px', padding: '2px 5px', whiteSpace: 'nowrap' }}>{tag.label}</span>}
@@ -817,7 +859,7 @@
 
                 <div style={{
                     display: 'grid',
-                    gridTemplateColumns: (activeLane === 'my' ? '38px' : '22px') + ' minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 48px 44px',
+                    gridTemplateColumns: boardGridTemplate,
                     gap: '5px',
                     alignItems: 'center',
                     padding: '0 3px 4px 5px',
@@ -830,6 +872,7 @@
                     {colHeader('college', 'College', 'left')}
                     {colHeader('pos', 'Pos', 'center')}
                     {colHeader('dhq', 'DHQ', 'right')}
+                    {adpEligible && colHeader('adp', 'ADP', 'right')}
                     {(isUserTurn || state.overrideMode || state.mode === 'manual') && <span />}
                 </div>
 
@@ -875,7 +918,7 @@
                                 }}
                                 style={{
                                     display: 'grid',
-                                    gridTemplateColumns: (activeLane === 'my' ? '38px' : '22px') + ' minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 48px 44px',
+                                    gridTemplateColumns: boardGridTemplate,
                                     gap: '5px',
                                     alignItems: 'center',
                                     padding: '3px 3px 3px 0',
@@ -929,6 +972,11 @@
                                 <span title={college} style={{ color: 'var(--silver)', opacity: 0.7, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{college || '—'}</span>
                                 <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, padding: '1px 5px', borderRadius: '3px', background: wrAlpha(posColor, '22'), color: posColor, textAlign: 'center', fontFamily: FONT_UI }}>{normEdPos(p.pos)}</span>
                                 <span style={{ color: col, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, fontFamily: FONT_MONO, textAlign: 'right' }}>{fmt(p.dhq)}</span>
+                                {adpEligible && (
+                                    <span style={{ color: 'var(--k-3498db, #3498db)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, fontFamily: FONT_MONO, textAlign: 'right' }}>
+                                        {adpFor(p) ? adpFor(p).adp.toFixed(1) : ''}
+                                    </span>
+                                )}
                                 {(isUserTurn || state.overrideMode || state.mode === 'manual') && (
                                     <button
                                         onClick={e => { e.stopPropagation(); onDraft(p); }}

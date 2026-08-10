@@ -4056,6 +4056,29 @@
         const [sortDir, setSortDir] = React.useState(-1);
         const boardContext = state.draftContext?.boardContext || {};
         const isRedraftBoard = state.variant === 'redraft' || state.draftContext?.draftType === 'redraft' || state.draftContext?.leagueFormat?.draftType === 'redraft';
+        // Real market ADP (js/shared/adp-market.js) is a "market says / DHQ says"
+        // companion column, display-only, scoped to redraft + chopped ONLY (MFL
+        // has no real keeper/dynasty ADP data today). state.variant/draftContext
+        // never surface a distinct 'chopped' draft type — detectDraftVariant has
+        // no chopped branch and falls through to the startup/rookie fallback —
+        // so chopped is picked up off the live League Skin singleton instead,
+        // same as draft-room.js's own redraft market-mode check.
+        const ccAdpSkinType = window.App?.LeagueSkin?.getCurrent?.()?.type;
+        const isSeasonalBoard = isRedraftBoard || ccAdpSkinType === 'redraft' || ccAdpSkinType === 'chopped';
+        const ccAdpFor = React.useCallback(player => (
+            isSeasonalBoard && typeof window.App?.getRedraftAdp === 'function' && player?.pid != null
+                ? window.App.getRedraftAdp(String(player.pid))
+                : null
+        ), [isSeasonalBoard]);
+        // adp-market.js fetches + caches once — force a re-render if it lands
+        // after this table's first paint.
+        const [, ccBumpAdpTick] = React.useState(0);
+        React.useEffect(() => {
+            if (!isSeasonalBoard) return undefined;
+            const onAdpLoaded = () => ccBumpAdpTick(t => t + 1);
+            window.addEventListener('wr:adp-loaded', onAdpLoaded);
+            return () => window.removeEventListener('wr:adp-loaded', onAdpLoaded);
+        }, [isSeasonalBoard]);
         // Free tier: the AI Recommended lane is a strategy-optimizer ranked board →
         // Pro (mirror draft-room.js). Clamp any persisted 'ai' lane back to raw DHQ.
         const boardIsPro = ccIsPro();
@@ -4129,16 +4152,19 @@
                 if (sortKey === 'pos') return sortDir * String(a.pos || '').localeCompare(String(b.pos || ''));
                 if (sortKey === 'team') return sortDir * String(mockPlayerTeam(a)).localeCompare(String(mockPlayerTeam(b)));
                 if (sortKey === 'school') return sortDir * String(mockPlayerSchool(a)).localeCompare(String(mockPlayerSchool(b)));
+                // Lower ADP = earlier/more-valued market pick; players with no
+                // market entry sort last regardless of direction.
+                if (sortKey === 'adp') return sortDir * ((ccAdpFor(a)?.adp ?? Infinity) - (ccAdpFor(b)?.adp ?? Infinity));
                 return a.boardRank - b.boardRank;
             }).slice(0, 72);
-        }, [lanePool, search, posFilter, sortKey, sortDir]);
+        }, [lanePool, search, posFilter, sortKey, sortDir, ccAdpFor]);
         const setHeaderSort = key => {
             setSortKey(prev => {
                 if (prev === key) {
                     setSortDir(dir => dir * -1);
                     return prev;
                 }
-                setSortDir(['rank', 'name', 'pos', 'team', 'school', 'tier'].includes(key) ? 1 : -1);
+                setSortDir(['rank', 'name', 'pos', 'team', 'school', 'tier', 'adp'].includes(key) ? 1 : -1);
                 return key;
             });
         };
@@ -4150,8 +4176,15 @@
         );
         const boardGridStyle = {
             gridTemplateColumns: isRedraftBoard
-                ? '28px minmax(0,1.52fr) 28px 36px 42px 30px 30px 40px'
-                : undefined,
+                // isRedraftBoard always implies isSeasonalBoard, so the ADP
+                // track (42px, same width as DHQ) is always appended here.
+                ? '28px minmax(0,1.52fr) 28px 36px 42px 42px 30px 30px 40px'
+                : isSeasonalBoard
+                    // Chopped: same base layout as the default (non-redraft)
+                    // CSS grid — Rank/Player/Pos/NFL/School/DHQ/Fit/Tier/Action
+                    // — with the same extra ADP track inserted after DHQ.
+                    ? '28px minmax(0,1.35fr) 30px 36px minmax(46px,0.7fr) 42px 42px 30px 30px 42px'
+                    : undefined,
         };
         return (
             <section className="mock-panel mock-big-board">
@@ -4185,6 +4218,7 @@
                         <option value="rank">Rank</option>
                         <option value="name">Player</option>
                         <option value="dhq">DHQ</option>
+                        {isSeasonalBoard && <option value="adp">ADP</option>}
                         <option value="fit">Fit</option>
                         <option value="tier">Tier</option>
                     </select>
@@ -4196,7 +4230,7 @@
                     ))}
                 </div>
                 <div className="mock-board-head" style={boardGridStyle}>
-                    {headerCell('Rank', 'rank')}{headerCell('Player', 'name')}{headerCell('Pos', 'pos')}{headerCell('NFL', 'team')}{!isRedraftBoard && headerCell('School', 'school')}{headerCell('DHQ', 'dhq')}{headerCell('Fit', 'fit')}{headerCell('Tier', 'tier')}<span>Action</span>
+                    {headerCell('Rank', 'rank')}{headerCell('Player', 'name')}{headerCell('Pos', 'pos')}{headerCell('NFL', 'team')}{!isRedraftBoard && headerCell('School', 'school')}{headerCell('DHQ', 'dhq')}{isSeasonalBoard && headerCell('ADP', 'adp')}{headerCell('Fit', 'fit')}{headerCell('Tier', 'tier')}<span>Action</span>
                 </div>
                 <div className="mock-board-scroll">
                     {rows.map(player => {
@@ -4212,6 +4246,11 @@
                                 <span>{mockPlayerTeam(player)}</span>
                                 {!isRedraftBoard && <span>{mockPlayerSchool(player)}</span>}
                                 <span className="mock-dhq">{mockFmt(player.dhq)}</span>
+                                {isSeasonalBoard && (
+                                    <span style={{ color: 'var(--k-3498db, #3498db)', fontFamily: 'JetBrains Mono, monospace', fontWeight: 900 }}>
+                                        {ccAdpFor(player) ? ccAdpFor(player).adp.toFixed(1) : ''}
+                                    </span>
+                                )}
                                 <span className={fitScore >= 70 ? 'is-good' : fitScore >= 45 ? 'is-ok' : ''}>{fitScore ? fitScore : '—'}</span>
                                 <span>{tier}</span>
                                 <button type="button" onClick={e => { e.stopPropagation(); mockMakePick(dispatch, state, isUserTurn, player); }}>{canPick ? 'Draft' : 'Open'}</button>
