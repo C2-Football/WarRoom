@@ -24,6 +24,20 @@
     const nowIso = () => new Date().toISOString();
     const cardSeasonPoints = (cards, entry) => cards.get(entry.identity)?.seasons.find((s) => s.season === entry.drawnSeason)?.points ?? 0;
 
+    /** Mirrors War Room's real trade-engine.js fairnessGrade thresholds (reconai-shared/trade-engine.js:171-181). */
+    function fairnessGrade(giveValue, receiveValue) {
+        if (giveValue <= 0 && receiveValue <= 0) return { grade: '—', label: 'Build an offer', tone: '' };
+        if (giveValue <= 0) return { grade: 'A+', label: 'Steal', tone: 'good' };
+        const ratio = receiveValue / giveValue;
+        if (ratio >= 1.30) return { grade: 'A+', label: 'Steal', tone: 'good' };
+        if (ratio >= 1.15) return { grade: 'A', label: 'Clear Win', tone: 'good' };
+        if (ratio >= 1.05) return { grade: 'B+', label: 'Slight Win', tone: 'gold' };
+        if (ratio >= 0.95) return { grade: 'B', label: 'Fair', tone: 'gold' };
+        if (ratio >= 0.85) return { grade: 'C', label: 'Slight Loss', tone: 'warn' };
+        if (ratio >= 0.75) return { grade: 'D', label: 'Overpay', tone: 'warn' };
+        return { grade: 'F', label: 'Bad Trade', tone: 'bad' };
+    }
+
     function GmProfile({ team, title }) {
         const persona = team.aiPersona ? AI.AI_PERSONAS[team.aiPersona] : undefined;
         if (!persona) return null;
@@ -234,15 +248,19 @@
         const receive = counterparty ? receiveIds.filter((id) => counterparty.roster.some((e) => e.entryId === id)) : [];
         const giveValue = give.reduce((sum, id) => sum + (entryById.has(id) ? valueOf(entryById.get(id)) : 0), 0);
         const receiveValue = receive.reduce((sum, id) => sum + (entryById.has(id) ? valueOf(entryById.get(id)) : 0), 0);
-        const delta = receiveValue - giveValue;
         const balanced = give.length > 0 && give.length === receive.length;
+        const grade = fairnessGrade(giveValue, receiveValue);
         const toggle = (ids, id) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
         const sortByValue = (roster) => [...roster].sort((l, r) => valueOf(r) - valueOf(l) || l.entryId.localeCompare(r.entryId));
-        const pickRow = (entry, checked, onToggle) => h('label', { key: entry.entryId, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 4px', borderRadius: 6, background: checked ? 'rgba(212,175,55,0.08)' : 'transparent', cursor: deskOpen ? 'pointer' : 'default' } },
+        const maxValue = Math.max(1, ...team.roster.map(valueOf), ...(counterparty ? counterparty.roster.map(valueOf) : []));
+        const pickRow = (entry, checked, onToggle, barColor) => h('label', { key: entry.entryId, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 4px', borderRadius: 6, background: checked ? 'rgba(212,175,55,0.08)' : 'transparent', cursor: deskOpen ? 'pointer' : 'default' } },
             h('input', { type: 'checkbox', checked, onChange: onToggle, disabled: !deskOpen }),
             h('span', { className: 'tl-pill', style: { flex: 'none', minWidth: 38, textAlign: 'center' } }, entry.slot),
-            h('span', { style: { flex: 1, minWidth: 0 } }, h('strong', { style: { display: 'block', fontSize: 12 } }, entry.name), h('small', { style: { color: 'var(--text-muted)', fontSize: 10 } }, `${entry.position} · ${revealed ? `${entry.drawnSeason} SZN` : 'SEALED'}`)),
-            h('span', { className: 'tabular', style: { fontSize: 11.5, color: 'var(--gold)' } }, fmt1(valueOf(entry))));
+            h('span', { style: { flex: 1, minWidth: 0 } },
+                h('strong', { style: { display: 'block', fontSize: 12 } }, entry.name),
+                h('small', { style: { color: 'var(--text-muted)', fontSize: 10 } }, `${entry.position} · ${revealed ? `${entry.drawnSeason} SZN` : 'SEALED'}`),
+                h('div', { className: 'tl-val-bar' }, h('div', { className: 'tl-val-bar-fill', style: { width: `${(valueOf(entry) / maxValue) * 100}%`, background: barColor } }))),
+            h('span', { className: 'tabular', style: { fontSize: 11.5, color: 'var(--gold)', flex: 'none' } }, fmt1(valueOf(entry))));
         const teamById = (id) => league.teams.find((t) => t.teamId === id);
         const names = (ids) => ids.map((id) => entryById.get(id)?.name ?? id).join(', ') || '—';
         const pending = league.trades.filter((t) => t.status === 'pending' && (t.fromTeamId === team.teamId || t.toTeamId === team.teamId));
@@ -264,19 +282,16 @@
                             others.map((item) => h('option', { key: item.teamId, value: item.teamId }, `${item.name} — ${item.manager === 'human' ? 'HUMAN' : (item.aiPersona ? AI.AI_PERSONAS[item.aiPersona].label : 'AI').toUpperCase()}`)))),
                     h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 } },
                         h('div', null, h('span', { className: 'tl-label', style: { display: 'block', marginBottom: 6 } }, `You send — ${team.name}`),
-                            sortByValue(team.roster).map((entry) => pickRow(entry, give.includes(entry.entryId), () => setGiveIds(toggle(giveIds, entry.entryId)))),
+                            sortByValue(team.roster).map((entry) => pickRow(entry, give.includes(entry.entryId), () => setGiveIds(toggle(giveIds, entry.entryId)), 'var(--info)')),
                             !team.roster.length && h('p', { className: 'tl-empty' }, 'No entries to offer.')),
                         h('div', null, h('span', { className: 'tl-label', style: { display: 'block', marginBottom: 6 } }, `You receive — ${counterparty?.name ?? '—'}`),
-                            counterparty && sortByValue(counterparty.roster).map((entry) => pickRow(entry, receive.includes(entry.entryId), () => setReceiveIds(toggle(receiveIds, entry.entryId)))),
+                            counterparty && sortByValue(counterparty.roster).map((entry) => pickRow(entry, receive.includes(entry.entryId), () => setReceiveIds(toggle(receiveIds, entry.entryId)), 'var(--gold)')),
                             counterparty && !counterparty.roster.length && h('p', { className: 'tl-empty' }, 'Their roster is empty.'))),
-                    h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' } },
-                        h('span', { className: `tl-pill ${balanced ? 'good' : 'warn'}` }, `${give.length} FOR ${receive.length}`),
-                        h('span', { style: { fontSize: 11.5, color: 'var(--text-secondary)' } }, 'YOU SEND ', h('b', { className: 'tabular', style: { color: 'var(--white)' } }, fmt1(giveValue))),
-                        h('span', { style: { fontSize: 11.5, color: 'var(--text-secondary)' } }, 'YOU GET ', h('b', { className: 'tabular', style: { color: 'var(--white)' } }, fmt1(receiveValue)))),
-                    (give.length > 0 || receive.length > 0) && h('div', { className: 'tl-fairness' },
-                        h('div', { className: 'tl-fairness-track' },
-                            h('div', { className: 'tl-fairness-marker', style: { left: `${Math.max(4, Math.min(96, 50 + (giveValue + receiveValue > 0 ? (delta / (giveValue + receiveValue)) * 100 : 0)))}%` } })),
-                        h('span', { className: `tl-pill ${delta >= 0 ? 'good' : 'bad'}`, style: { flex: 'none' } }, `${delta >= 0 ? '+' : ''}${fmt1(delta)}`)),
+                    (give.length > 0 || receive.length > 0) && h('div', { className: 'tl-fairness-grade' },
+                        h('div', { className: `fg-letter ${grade.tone}` }, grade.grade),
+                        h('div', null,
+                            h('div', { className: 'fg-label' }, grade.label),
+                            h('div', { className: 'fg-sub' }, `${give.length} FOR ${receive.length} · YOU SEND `, h('b', { className: 'tabular' }, fmt1(giveValue)), ' · YOU GET ', h('b', { className: 'tabular' }, fmt1(receiveValue))))),
                     !balanced && (give.length > 0 || receive.length > 0) && h('p', { className: 'tl-hint', style: { marginBottom: 10 } }, 'Equal-count swaps only — roster sizes are fixed.'),
                     h('div', { style: { display: 'flex', gap: 8 } },
                         h('input', { className: 'tl-input', placeholder: 'Attach a note — sell the deal', value: note, onChange: (e) => setNote(e.target.value) }),

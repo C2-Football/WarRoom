@@ -285,9 +285,20 @@
             .tl-queue-chip .tl-qnum { width: 16px; height: 16px; border-radius: 50%; background: var(--gold); color: var(--page-bg, #08080B); font-family: var(--font-mono); font-size: 9px; font-weight: 700; display: grid; place-items: center; flex: none; }
 
             /* ── Trades: fairness scale ── */
-            .tl-fairness { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; }
-            .tl-fairness-track { flex: 1; height: 8px; border-radius: 100px; background: linear-gradient(90deg, var(--bad), var(--charcoal) 48%, var(--charcoal) 52%, var(--good)); position: relative; }
-            .tl-fairness-marker { position: absolute; top: -4px; width: 16px; height: 16px; border-radius: 50%; background: var(--white); border: 2px solid var(--page-bg, #08080B); transform: translateX(-50%); transition: left .15s; }
+            /* ── Trade fairness — mirrors War Room's real trade-engine.js
+               fairnessGrade tile (A+ Steal .. F Bad Trade) plus the per-player
+               value bar from trade-calculator.html's ta-val-bar-fill, instead
+               of the plain +/- swing number this used to show. ── */
+            .tl-fairness-grade { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: var(--card-radius, 10px); border: 1px solid rgba(212,175,55,0.25); background: rgba(255,255,255,0.02); margin: 10px 0; }
+            .tl-fairness-grade .fg-letter { font-family: var(--font-title); font-weight: 700; font-size: 34px; line-height: 1; flex: none; width: 60px; text-align: center; }
+            .tl-fairness-grade .fg-letter.good { color: var(--good); }
+            .tl-fairness-grade .fg-letter.gold { color: var(--gold); }
+            .tl-fairness-grade .fg-letter.warn { color: var(--warn); }
+            .tl-fairness-grade .fg-letter.bad { color: var(--bad); }
+            .tl-fairness-grade .fg-label { font-family: var(--font-title); font-weight: 700; font-size: 14px; }
+            .tl-fairness-grade .fg-sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); margin-top: 2px; }
+            .tl-val-bar { height: 4px; border-radius: 100px; background: rgba(255,255,255,0.08); overflow: hidden; margin-top: 5px; }
+            .tl-val-bar-fill { height: 100%; border-radius: 100px; }
 
             /* ── Standings streaks ── */
             .tl-streak { font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
