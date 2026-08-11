@@ -128,8 +128,28 @@
 
     function TimeLeagueStyles() {
         return h('style', null, `
-            .tl-root { max-width: 1180px; margin: 0 auto; }
             .tl-root .tabular { font-variant-numeric: tabular-nums; }
+            .tl-lobby-wrap { max-width: 1180px; margin: 0 auto; }
+            .tl-main-inner { max-width: 1180px; margin: 0 auto; }
+
+            /* ── Left sidenav — mirrors js/league-detail.js's wr-sidebar: fixed
+               column, gold left-border active state, collapses to a horizontal
+               bar below the same 1023px breakpoint that file uses. ── */
+            .tl-sidenav { position: fixed; left: 0; top: 0; bottom: 0; width: 176px; background: var(--black); border-right: 1px solid rgba(212,175,55,0.2); display: flex; flex-direction: column; padding: 16px 0; z-index: 100; overflow-y: auto; }
+            .tl-sidenav-brand { padding: 0 20px 14px; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+            .tl-sidenav-brand strong { font-family: var(--font-title); font-weight: 700; font-size: 15px; letter-spacing: .04em; color: var(--gold); }
+            .tl-sidenav .tl-tabbtn { width: 100%; min-height: 40px; padding: 9px 16px 9px 20px; border: none; border-left: 3px solid transparent; border-bottom: none; background: transparent; display: flex; align-items: center; justify-content: flex-start; text-align: left; color: var(--text-secondary); font-weight: 400; }
+            .tl-sidenav .tl-tabbtn:hover { color: var(--white); background: rgba(255,255,255,0.03); }
+            .tl-sidenav .tl-tabbtn.active { background: rgba(212,175,55,0.12); border-left-color: var(--gold); color: var(--gold); font-weight: 700; }
+            .tl-main { padding: 28px 20px 80px; }
+            @media (min-width: 1024px) { .tl-main { margin-left: 176px; } }
+            @media (max-width: 1023px) {
+                .tl-sidenav { position: static; width: 100%; height: auto; flex-direction: row; overflow-x: auto; overflow-y: visible; border-right: none; border-bottom: 1px solid rgba(212,175,55,0.2); padding: 0; margin-bottom: 18px; }
+                .tl-sidenav-brand { display: none; }
+                .tl-sidenav .tl-tabbtn { width: auto; min-height: auto; white-space: nowrap; border-left: none; border-bottom: 2px solid transparent; padding: 12px 16px; }
+                .tl-sidenav .tl-tabbtn.active { border-left-color: transparent; border-bottom-color: var(--gold); }
+                .tl-main { margin-left: 0; padding-top: 0; }
+            }
             .tl-card { background: var(--black); border: 1px solid rgba(212,175,55,0.18); border-radius: var(--card-radius, 10px); padding: 14px 16px; }
             .tl-card + .tl-card { margin-top: 14px; }
             .tl-card-title { font-family: var(--font-title); font-weight: 600; font-size: 13.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -411,10 +431,11 @@
         if (!league) {
             return h('div', { className: 'tl-root' },
                 h(TimeLeagueStyles, null),
-                h('div', { className: 'tl-header' },
-                    h('div', { className: 'tl-header-title' }, h('strong', null, 'The Vault')),
-                    h('button', { type: 'button', className: 'tl-btn', onClick: onClose }, '← BACK')),
-                SetupPanel ? h(SetupPanel, { index, onOpen: openLeague, onDelete: deleteLeague, onCreate: createLeague }) : null);
+                h('div', { className: 'tl-lobby-wrap' },
+                    h('div', { className: 'tl-header' },
+                        h('div', { className: 'tl-header-title' }, h('strong', null, 'The Vault')),
+                        h('button', { type: 'button', className: 'tl-btn', onClick: onClose }, '← BACK')),
+                    SetupPanel ? h(SetupPanel, { index, onOpen: openLeague, onDelete: deleteLeague, onCreate: createLeague }) : null));
         }
 
         const tabs = league.phase === 'draft'
@@ -432,33 +453,35 @@
 
         return h('div', { className: 'tl-root' },
             h(TimeLeagueStyles, null),
-            h('div', { className: 'tl-card tl-header' },
-                h('div', null,
-                    h('div', { className: 'tl-header-title' },
-                        h('strong', null, league.name),
-                        h('span', { className: `tl-pill ${phaseTone}` }, league.phase.toUpperCase())),
-                    h(EraChipRail, { label: 'Era of Play', chips: EraRules.eraRuleChips(league.settings.eraRules) })),
-                h('div', { className: 'tl-header-tools' },
-                    league.phase !== 'draft' ? h('span', { className: 'tl-pill' }, `WK ${Math.min(league.currentWeek, league.settings.regularSeasonWeeks)}/${league.settings.regularSeasonWeeks}`) : null,
-                    h('span', { className: 'tl-pill' }, `${league.teams.length} MGRS`),
-                    h('button', { type: 'button', className: 'tl-btn', onClick: () => setLeague(null) }, 'SWITCH LEAGUE'),
-                    h('button', { type: 'button', className: 'tl-btn', onClick: onClose }, '← DASHBOARD'))),
-            h('nav', { className: 'tl-tabbar' },
+            h('nav', { className: 'tl-sidenav' },
+                h('div', { className: 'tl-sidenav-brand' }, h('strong', null, 'THE VAULT')),
                 tabs.map((item) => h('button', {
                     key: item, type: 'button', className: `tl-tabbtn${item === activeTab ? ' active' : ''}`, onClick: () => setTab(item),
                 }, item === 'draft' && league.phase !== 'draft' ? 'DRAFT RECAP' : TAB_LABELS[item]))),
-            activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: setTab }) : null,
-            activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, { league, cards, onUpdate: handleUpdate }) : loadingNotice) : null,
-            activeTab === 'gameday' && GamecastPanel ? h(GamecastPanel, {
-                league, cards, logIndex, logsMissing, eraFactors, onUpdate: handleUpdate, onGoRoster: () => setTab('roster'),
-            }) : null,
-            (activeTab === 'roster' || activeTab === 'waivers' || activeTab === 'trades')
-                ? (cardsReady && TeamPanel
-                    ? h(TeamPanel, { league, cards, section: activeTab, activeTeamId: activeTeam, onSelectTeam: setActiveTeamId, onUpdate: handleUpdate })
-                    : loadingNotice)
-                : null,
-            activeTab === 'standings' && StandingsPanel ? h(StandingsPanel, { league }) : null,
-            activeTab === 'activity' && ActivityPanel ? h(ActivityPanel, { league }) : null);
+            h('div', { className: 'tl-main' }, h('div', { className: 'tl-main-inner' },
+                h('div', { className: 'tl-card tl-header' },
+                    h('div', null,
+                        h('div', { className: 'tl-header-title' },
+                            h('strong', null, league.name),
+                            h('span', { className: `tl-pill ${phaseTone}` }, league.phase.toUpperCase())),
+                        h(EraChipRail, { label: 'Era of Play', chips: EraRules.eraRuleChips(league.settings.eraRules) })),
+                    h('div', { className: 'tl-header-tools' },
+                        league.phase !== 'draft' ? h('span', { className: 'tl-pill' }, `WK ${Math.min(league.currentWeek, league.settings.regularSeasonWeeks)}/${league.settings.regularSeasonWeeks}`) : null,
+                        h('span', { className: 'tl-pill' }, `${league.teams.length} MGRS`),
+                        h('button', { type: 'button', className: 'tl-btn', onClick: () => setLeague(null) }, 'SWITCH LEAGUE'),
+                        h('button', { type: 'button', className: 'tl-btn', onClick: onClose }, '← DASHBOARD'))),
+                activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: setTab }) : null,
+                activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, { league, cards, onUpdate: handleUpdate }) : loadingNotice) : null,
+                activeTab === 'gameday' && GamecastPanel ? h(GamecastPanel, {
+                    league, cards, logIndex, logsMissing, eraFactors, onUpdate: handleUpdate, onGoRoster: () => setTab('roster'),
+                }) : null,
+                (activeTab === 'roster' || activeTab === 'waivers' || activeTab === 'trades')
+                    ? (cardsReady && TeamPanel
+                        ? h(TeamPanel, { league, cards, section: activeTab, activeTeamId: activeTeam, onSelectTeam: setActiveTeamId, onUpdate: handleUpdate })
+                        : loadingNotice)
+                    : null,
+                activeTab === 'standings' && StandingsPanel ? h(StandingsPanel, { league }) : null,
+                activeTab === 'activity' && ActivityPanel ? h(ActivityPanel, { league }) : null)));
     }
 
     window.TimeLeague = TimeLeagueMode;
