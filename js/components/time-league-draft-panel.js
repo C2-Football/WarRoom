@@ -12,6 +12,7 @@
     const EraRules = window.App.TimeLeagueEraRules;
     const AI = window.App.TimeLeagueAI;
     const Engine = window.App.TimeLeagueEngine;
+    const Roster = window.App.TimeLeagueRoster;
 
     const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
     const BOARD_ROW_LIMIT = 150;
@@ -41,6 +42,51 @@
         return ratio >= 1.15 ? 'A' : ratio >= 1.05 ? 'B' : ratio >= 0.95 ? 'C' : ratio >= 0.85 ? 'D' : 'F';
     };
     const GRADE_PILL = { A: 'good', B: 'good', C: 'info', D: 'warn', F: 'bad' };
+
+    /** Mirrors War Room's real opponent-intel needs analysis (js/draft/opponent-intel.js,
+     * via assessTeamLocal in js/trade-calc.js) — roster composition vs. starter-slot demand,
+     * except grounded in this league's own settings rather than a hardcoded external ideal
+     * roster shape, since Time League roster configs vary league to league. */
+    function positionDemand(settings, position) {
+        return Roster.ROSTER_SLOT_IDS.reduce((demand, slot) => {
+            if (slot === 'BN' || slot === 'IR' || slot === 'TAXI') return demand;
+            const count = settings.rosterSlots[slot] ?? 0;
+            return demand + (count > 0 && Roster.SLOT_ELIGIBILITY[slot].includes(position) ? count : 0);
+        }, 0);
+    }
+    function teamNeeds(team, settings) {
+        const needs = [];
+        for (const position of POSITION_ORDER) {
+            const demand = positionDemand(settings, position);
+            if (demand <= 0) continue;
+            const owned = team.roster.filter((e) => e.position === position).length;
+            if (owned >= demand) continue;
+            needs.push({ position, status: owned === 0 ? 'deficit' : 'thin', gap: demand - owned });
+        }
+        return needs.sort((a, b) => (a.status !== b.status ? (a.status === 'deficit' ? -1 : 1) : b.gap - a.gap));
+    }
+
+    function OpponentIntel({ league, humanTeam, onClockTeamId }) {
+        const others = league.teams.filter((t) => t.teamId !== humanTeam?.teamId);
+        if (!others.length) return null;
+        return h('div', { className: 'tl-card' },
+            h('div', { className: 'tl-card-title' }, h('span', null, 'Opponent intel'), h('small', null, `${others.length} desks`)),
+            others.map((team) => {
+                const persona = team.aiPersona ? AI.AI_PERSONAS[team.aiPersona] : null;
+                const needs = teamNeeds(team, league.settings).slice(0, 3);
+                const onClock = team.teamId === onClockTeamId;
+                return h('div', { key: team.teamId, style: { padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' } },
+                    h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 5 } },
+                        h('strong', { style: { fontSize: 12.5 } }, team.name),
+                        persona && h('span', { className: 'tl-pill info' }, persona.label.toUpperCase()),
+                        onClock && h('span', { className: 'tl-pill gold' }, 'ON THE CLOCK')),
+                    h('div', { style: { display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: persona ? 4 : 0 } },
+                        needs.length
+                            ? needs.map((n) => h('span', { key: n.position, className: `tl-pill ${n.status === 'deficit' ? 'bad' : 'warn'}` }, `${n.position}${n.status === 'deficit' ? '!' : ''}`))
+                            : h('span', { className: 'tl-pill good' }, 'ROSTER SET')),
+                    persona && h('p', { style: { fontSize: 11, fontStyle: 'italic', color: 'var(--text-faint, rgba(189,184,173,0.6))', margin: 0 } }, `"${persona.tell}"`));
+            }));
+    }
 
     function WrTimeLeagueDraftPanel({ league, cards, onUpdate }) {
         const [query, setQuery] = useState('');
@@ -290,6 +336,7 @@
                                 }))))),
                     draftLog),
                 h('div', null,
+                    h(OpponentIntel, { league, humanTeam, onClockTeamId: seat?.teamId }),
                     h('div', { className: 'tl-card' },
                         h('div', { className: 'tl-card-title' }, h('span', null, 'Scout file'), h('small', null, selectedCard ? (scoutHidden > 0 ? `${scoutSeasons.length} of ${selectedCard.seasons.length} seasons draftable` : `${scoutSeasons.length} seasons on record`) : 'no selection')),
                         selectedCard ? h(React.Fragment, null,
