@@ -274,6 +274,50 @@
             .tl-streak.W { background: rgba(46,204,113,0.14); color: var(--good); }
             .tl-streak.L { background: rgba(231,76,60,0.14); color: var(--bad); }
             .tl-streak.T { background: rgba(255,255,255,0.08); color: var(--text-secondary); }
+
+            /* ── Gazette (Home tab newspaper front page) — dark "midnight edition":
+               the rest of the mode stays dark, so this is a front page printed on
+               dark stock rather than a light page dropped into a dark app. Serif is
+               Georgia/Times — no new font dependency to load. */
+            .tl-gazette { --tl-paper: #EDE6D3; }
+            .tl-masthead { text-align: center; padding: 4px 0 12px; }
+            .tl-masthead .tl-kicker { font-family: var(--font-mono); font-size: 10px; letter-spacing: .25em; color: var(--gold); text-transform: uppercase; }
+            .tl-masthead .tl-name { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-size: 38px; letter-spacing: .01em; margin: 4px 0 2px; color: var(--tl-paper); }
+            .tl-masthead .tl-name em { font-style: italic; color: var(--gold); }
+            .tl-masthead .tl-dateline { display: flex; align-items: center; justify-content: center; gap: 10px; font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; flex-wrap: wrap; }
+            .tl-gazette-rule { height: 3px; background: var(--gold); margin: 8px 0 3px; }
+            .tl-gazette-rule.thin { height: 1px; background: rgba(212,175,55,0.35); margin: 3px 0 18px; }
+            .tl-gazette-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px; }
+            @media (max-width: 860px) { .tl-gazette-grid { grid-template-columns: 1fr; } }
+            .tl-col-rule { border-right: 1px solid rgba(212,175,55,0.2); padding-right: 24px; }
+            @media (max-width: 860px) { .tl-col-rule { border-right: none; padding-right: 0; } }
+            .tl-section-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); border-bottom: 1px solid rgba(212,175,55,0.3); padding-bottom: 4px; margin-bottom: 10px; }
+            .tl-gaz-headline { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-size: 24px; line-height: 1.15; color: var(--tl-paper); margin-bottom: 8px; }
+            .tl-gaz-byline { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px; }
+            .tl-gaz-lede { font-family: Georgia, 'Times New Roman', serif; font-size: 14.5px; line-height: 1.55; color: var(--text-secondary); margin-bottom: 6px; }
+            .tl-gaz-lede.drop::first-letter { font-size: 38px; font-weight: 700; float: left; line-height: .82; padding: 2px 5px 0 0; color: var(--gold); }
+            .tl-boxscore { border: 1px solid rgba(212,175,55,0.3); margin-top: 14px; }
+            .tl-boxscore-head { background: rgba(212,175,55,0.1); padding: 7px 12px; font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-size: 12.5px; color: var(--tl-paper); border-bottom: 1px solid rgba(212,175,55,0.3); }
+            .tl-boxscore-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); font-family: var(--font-mono); font-size: 12px; }
+            .tl-boxscore-row:last-child { border-bottom: none; }
+            .tl-boxscore-row.winner { color: var(--gold); font-weight: 700; }
+            .tl-wire-item { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+            .tl-wire-item:last-child { border-bottom: none; }
+            .tl-wire-item b { color: var(--tl-paper); }
+            .tl-kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px; }
+            .tl-gazette-kpi { border: 1px solid rgba(212,175,55,0.18); border-radius: 4px; padding: 9px 11px; }
+            .tl-gazette-kpi .k-label { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+            .tl-gazette-kpi .k-value { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-size: 21px; color: var(--gold); line-height: 1; }
+            .tl-gazette-kpi .k-sub { font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary); margin-top: 3px; }
+            .tl-brief { padding: 7px 0; border-bottom: 1px dotted rgba(255,255,255,0.1); font-size: 12px; color: var(--text-secondary); }
+            .tl-brief:last-child { border-bottom: none; }
+            .tl-brief b { font-family: Georgia, 'Times New Roman', serif; color: var(--tl-paper); }
+            .tl-issue-bar { display: flex; align-items: center; gap: 0; margin-top: 24px; padding-top: 12px; border-top: 3px double rgba(212,175,55,0.4); flex-wrap: wrap; }
+            .tl-issue-bar button { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--tl-paper); background: none; border: none; border-right: 1px solid rgba(212,175,55,0.25); padding: 6px 14px; cursor: pointer; }
+            .tl-issue-bar button:first-child { padding-left: 0; }
+            .tl-issue-bar button:last-child { border-right: none; }
+            .tl-issue-bar button:hover { color: var(--gold); }
+            .tl-issue-bar button.primary { color: var(--gold); font-weight: 700; }
         `);
     }
 

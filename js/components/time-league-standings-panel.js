@@ -10,20 +10,6 @@
     const Engine = window.App.TimeLeagueEngine;
     const UI = window.App.TimeLeagueUI;
 
-    /** Walks finalized weeks in chronological order; resets when the result type changes. */
-    function streakFor(league, teamId) {
-        let kind = null;
-        let count = 0;
-        for (const week of league.finalizedWeeks) {
-            const matchup = week.matchups.find((m) => m.home === teamId || m.away === teamId);
-            if (!matchup) continue;
-            const result = matchup.winner === null ? 'T' : matchup.winner === teamId ? 'W' : 'L';
-            if (result === kind) count += 1;
-            else { kind = result; count = 1; }
-        }
-        return kind ? { kind, count } : null;
-    }
-
     function WrTimeLeagueStandingsPanel({ league }) {
         const standings = useMemo(() => Engine.computeStandings(league), [league]);
         const teamOf = (teamId) => league.teams.find((t) => t.teamId === teamId);
@@ -40,7 +26,7 @@
                 h('tbody', null, standings.map((row, position) => {
                     const team = teamOf(row.teamId);
                     const avatar = UI.avatarFor(team, league.teams);
-                    const streak = streakFor(league, row.teamId);
+                    const streak = UI.streakFor(league, row.teamId);
                     return h('tr', { key: row.teamId, className: league.championTeamId === row.teamId ? 'selected' : undefined },
                         h('td', { className: 'num tabular' }, position + 1),
                         h('td', { style: { display: 'flex', alignItems: 'center', gap: 8 } },

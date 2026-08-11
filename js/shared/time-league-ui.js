@@ -45,7 +45,21 @@
         return (decade && DECADE_LABEL[decade]) || '';
     }
 
-    const api = { avatarFor, initialsOf, eraColorOf, decadeLabelOf };
+    /** Walks finalized weeks in chronological order; resets when the result type changes. */
+    function streakFor(league, teamId) {
+        let kind = null;
+        let count = 0;
+        for (const week of league.finalizedWeeks) {
+            const matchup = week.matchups.find((m) => m.home === teamId || m.away === teamId);
+            if (!matchup) continue;
+            const result = matchup.winner === null ? 'T' : matchup.winner === teamId ? 'W' : 'L';
+            if (result === kind) count += 1;
+            else { kind = result; count = 1; }
+        }
+        return kind ? { kind, count } : null;
+    }
+
+    const api = { avatarFor, initialsOf, eraColorOf, decadeLabelOf, streakFor };
     App.TimeLeagueUI = api;
     /* global module */
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
