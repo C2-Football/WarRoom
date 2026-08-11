@@ -45,7 +45,7 @@
         return h('div', { className: 'tl-card' },
             h('div', { className: 'tl-card-title' }, h('span', null, 'League Ledger'), h('small', null, 'this device only · nothing syncs')),
             index.length === 0
-                ? h('p', { className: 'tl-empty' }, 'No Time Leagues on this device yet. Found one on the right.')
+                ? h('p', { className: 'tl-empty' }, 'No leagues in the vault yet. Found one on the right.')
                 : h('table', { className: 'tl-tbl' },
                     h('thead', null, h('tr', null, h('th', null, 'League'), h('th', null, 'Phase'), h('th', { className: 'num' }, 'WK'), h('th', { className: 'num' }, 'Seats'), h('th', null, 'Command'))),
                     h('tbody', null, index.map((entry) => h('tr', { key: entry.leagueId },
@@ -99,7 +99,7 @@
             const built = seats.map((seat, i) => (seat.manager === 'ai'
                 ? { name: seat.name.trim() || `Seat ${i + 1}`, manager: 'ai', aiPersona: seat.aiPersona }
                 : { name: seat.name.trim() || `Seat ${i + 1}`, manager: 'human' }));
-            onCreate({ name: name.trim() || 'Time League', seats: built, settings });
+            onCreate({ name: name.trim() || 'The Vault', seats: built, settings });
         };
 
         return h('div', { className: 'tl-card' },

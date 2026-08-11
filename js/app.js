@@ -945,7 +945,7 @@
             if (!_TimeLeague) {
                 return (
                     <div style={{ padding: '96px 24px', textAlign: 'center', color: 'var(--silver)', fontSize: 'var(--text-body, 1rem)' }}>
-                        {timeLeagueModuleState === 'error' ? 'Time League failed to load.' : 'Opening Time League…'}
+                        {timeLeagueModuleState === 'error' ? 'The Vault failed to load.' : 'Opening The Vault…'}
                         <div>
                             <button
                                 onClick={() => { if (timeLeagueModuleState === 'error') { window.location.reload(); return; } setTimeLeagueMode(false); }}
@@ -1190,10 +1190,10 @@
                             style={{ cursor: 'pointer', marginBottom: '14px', borderRadius: '14px', padding: '14px 16px', background: 'linear-gradient(135deg, rgba(212,175,55,0.10), rgba(212,175,55,0.02))', border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', gap: '14px', transition: 'all .16s' }}
                             onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 22px rgba(212,175,55,0.18)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
                             onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}>
-                            <div style={{ width: '44px', height: '44px', flexShrink: 0, borderRadius: '50%', border: '1.5px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>⏳</div>
+                            <div style={{ width: '44px', height: '44px', flexShrink: 0, borderRadius: '50%', border: '1.5px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>🔐</div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-                                    <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.15rem', letterSpacing: '.08em', color: 'var(--gold)' }}>TIME LEAGUE</span>
+                                    <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.15rem', letterSpacing: '.08em', color: 'var(--gold)' }}>THE VAULT</span>
                                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '.06em', color: 'var(--black)', background: 'var(--gold)', borderRadius: '5px', padding: '1px 6px' }}>SANDBOX</span>
                                 </div>
                                 <div style={{ fontSize: 'var(--text-label, 0.8rem)', color: 'var(--silver)', marginTop: '4px' }}>Draft any season since '70, play it out for real — AI-GM opponents, mystery seasons, live gamecast.</div>

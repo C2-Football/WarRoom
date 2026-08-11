@@ -250,9 +250,11 @@
         return h('div', null,
             eraBanner,
             h('div', { className: 'tl-card' },
-                h('div', { className: 'tl-card-title' },
-                    h('span', null, seat && onClockTeam ? `On the clock — ${onClockTeam.name}` : 'Draft complete'),
-                    h('small', null, seat ? `Pick ${seat.overall}/${league.draftOrder.length} · ${pickLabel(league.draftOrder, seat.overall, seat.round)}` : `${league.draftPicks.length} picks recorded`)),
+                h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 } },
+                    seat ? h('div', { className: 'tl-clock-ring' }) : null,
+                    h('div', { style: { flex: 1 } },
+                        h('div', { style: { fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: 15 } }, seat && onClockTeam ? `On the clock — ${onClockTeam.name}` : 'Draft complete'),
+                        h('small', { style: { color: 'var(--text-muted)' } }, seat ? `Pick ${seat.overall}/${league.draftOrder.length} · ${pickLabel(league.draftOrder, seat.overall, seat.round)}` : `${league.draftPicks.length} picks recorded`))),
                 h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' } },
                     onClockTeam && (humanOnClock ? h('span', { className: 'tl-pill gold' }, 'Human') : h('span', { className: 'tl-pill info' }, `AI · ${persona ? persona.label : 'GM'}`)),
                     !humanOnClock && persona && h('p', { style: { fontStyle: 'italic', fontSize: 12, color: 'var(--text-faint, rgba(189,184,173,0.6))', margin: 0 } }, `"${persona.tell}"`),
@@ -319,12 +321,11 @@
                     h('div', { className: 'tl-card' },
                         h('div', { className: 'tl-card-title' }, h('span', null, 'My queue'), h('small', null, humanTeam ? `${humanTeam.name} · ${queueCards.length} queued` : 'no human seat')),
                         queueCards.length === 0 ? h('p', { className: 'tl-empty' }, 'Queue empty — star players on the big board.')
-                            : queueCards.map((card, i) => h('div', { key: card.identity, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' } },
-                                h('span', { className: 'tl-label', style: { width: 16 } }, i + 1),
-                                h('button', { onClick: () => setSelectedIdentity(card.identity), style: { flex: 1, textAlign: 'left', background: 'none', border: 'none', color: 'var(--white)', cursor: 'pointer', fontSize: 12.5 } }, card.name),
-                                h('span', { className: 'tl-pos-badge tl-pos-' + card.position }, card.position),
-                                h('span', { className: 'tabular', style: { fontSize: 11, color: 'var(--gold)' } }, card.peak.toFixed(1)),
-                                h('button', { className: 'tl-btn icon', 'aria-label': `Remove ${card.name} from queue`, onClick: () => toggleQueueFor(card.identity) }, '✕'))),
+                            : h('div', { className: 'tl-queue-strip' }, queueCards.map((card, i) => h('div', { key: card.identity, className: 'tl-queue-chip', onClick: () => setSelectedIdentity(card.identity) },
+                                h('span', { className: 'tl-qnum' }, i + 1),
+                                h('span', null, card.name),
+                                h('span', { className: `tl-pos-badge tl-pos-${card.position}` }, card.position),
+                                h('button', { className: 'tl-btn icon', style: { padding: '2px 5px' }, 'aria-label': `Remove ${card.name} from queue`, onClick: (e) => { e.stopPropagation(); toggleQueueFor(card.identity); } }, '✕')))),
                         h('button', { className: 'tl-btn', disabled: !humanOnClock || queueCards.length === 0, onClick: autoFromQueue, style: { marginTop: 8 } }, 'Auto from queue')))));
     }
 

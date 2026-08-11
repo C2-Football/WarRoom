@@ -1,8 +1,11 @@
 // ══════════════════════════════════════════════════════════════════
 // js/components/time-league-gamecast-panel.js — window.WrTimeLeagueGamecastPanel
-// The Gameday tab: pre-run week command, the live/replay gamecast player
-// (owns the autoplay timer), box scores, and the week archive. Ported from
-// the GamedayPanel/BoxScores portion of The Duat's app/TimeLeagueView.tsx.
+// The Gameday tab: a scoreboard strip (every matchup, ESPN-style) and a
+// hero matchup card for the human team (Sleeper-style live score bar +
+// win probability), then the pre-run week command panel or the live/replay
+// gamecast player (owns the autoplay timer), box scores, and the week
+// archive. Ported from the GamedayPanel/BoxScores portion of The Duat's
+// app/TimeLeagueView.tsx, with the scoreboard strip/hero card added.
 // ══════════════════════════════════════════════════════════════════
 (function () {
     'use strict';
@@ -12,6 +15,7 @@
     const Engine = window.App.TimeLeagueEngine;
     const AI = window.App.TimeLeagueAI;
     const Gamecast = window.App.TimeLeagueGamecast;
+    const UI = window.App.TimeLeagueUI;
 
     const GAMECAST_END = 200;
     /** 1x plays the 200 simulated minutes in ~8 real seconds. */
@@ -31,6 +35,54 @@
                 }))));
     }
 
+    function ScoreboardStrip({ rows, teams, myTeamId, statusLabel, live }) {
+        if (!rows.length) return null;
+        return h('div', { className: 'tl-scoreboard-strip' }, rows.map((row) => {
+            const homeTeam = teams.find((t) => t.teamId === row.home);
+            const awayTeam = teams.find((t) => t.teamId === row.away);
+            const homeAvatar = UI.avatarFor(homeTeam, teams);
+            const awayAvatar = UI.avatarFor(awayTeam, teams);
+            const mine = row.home === myTeamId || row.away === myTeamId;
+            const homeLeading = row.homePoints > row.awayPoints;
+            const awayLeading = row.awayPoints > row.homePoints;
+            return h('div', { key: `${row.home}:${row.away}`, className: `tl-score-chip${mine ? ' mine' : ''}${live ? ' live' : ''}` },
+                h('div', { className: 'tl-sc-tag' }, live ? h('span', { className: 'tl-sc-dot' }) : null, mine ? `${statusLabel} · YOUR MATCHUP` : statusLabel),
+                h('div', { className: `tl-sc-row${homeLeading ? ' winning' : ''}` },
+                    h('span', { className: 'tl-sc-team' }, h('span', { className: 'tl-avatar sm', style: { background: homeAvatar.color } }, homeAvatar.initials), h('span', null, homeTeam?.name ?? row.home)),
+                    h('span', { className: 'tl-sc-pts tabular' }, row.homePoints.toFixed(1))),
+                h('div', { className: `tl-sc-row${awayLeading ? ' winning' : ''}` },
+                    h('span', { className: 'tl-sc-team' }, h('span', { className: 'tl-avatar sm', style: { background: awayAvatar.color } }, awayAvatar.initials), h('span', null, awayTeam?.name ?? row.away)),
+                    h('span', { className: 'tl-sc-pts tabular' }, row.awayPoints.toFixed(1))));
+        }));
+    }
+
+    function HeroMatchup({ row, teams, week, statusLabel, clockLabel }) {
+        if (!row) return null;
+        const homeTeam = teams.find((t) => t.teamId === row.home);
+        const awayTeam = teams.find((t) => t.teamId === row.away);
+        const mine = row.mineIsHome ? homeTeam : awayTeam;
+        const opp = row.mineIsHome ? awayTeam : homeTeam;
+        const minePts = row.mineIsHome ? row.homePoints : row.awayPoints;
+        const oppPts = row.mineIsHome ? row.awayPoints : row.homePoints;
+        const mineAvatar = UI.avatarFor(mine, teams);
+        const oppAvatar = UI.avatarFor(opp, teams);
+        const total = minePts + oppPts;
+        const minePct = total > 0 ? (minePts / total) * 100 : 50;
+        return h('div', { className: 'tl-hero-matchup' },
+            h('div', { className: 'tl-hero-top' },
+                h('div', { className: 'tl-hero-side' },
+                    h('span', { className: 'tl-avatar lg', style: { background: mineAvatar.color } }, mineAvatar.initials),
+                    h('div', { className: `tl-h-name${minePts >= oppPts ? ' leading' : ''}` }, mine.name),
+                    h('div', { className: `tl-h-pts tabular${minePts >= oppPts ? ' leading' : ''}` }, minePts.toFixed(1))),
+                h('div', { className: 'tl-hero-mid' }, h('div', { className: 'tl-h-vs' }, `WEEK ${week}`), h('div', { className: 'tl-h-clock' }, clockLabel)),
+                h('div', { className: 'tl-hero-side' },
+                    h('span', { className: 'tl-avatar lg', style: { background: oppAvatar.color } }, oppAvatar.initials),
+                    h('div', { className: `tl-h-name${oppPts > minePts ? ' leading' : ''}` }, opp.name),
+                    h('div', { className: `tl-h-pts tabular${oppPts > minePts ? ' leading' : ''}` }, oppPts.toFixed(1)))),
+            total > 0 ? h('div', { className: 'tl-win-prob' }, h('span', null, statusLabel), h('span', null, `${minePct.toFixed(0)}% — ${(100 - minePct).toFixed(0)}%`)) : h('div', { className: 'tl-win-prob' }, h('span', null, statusLabel), h('span', null, '—')),
+            h('div', { className: 'tl-score-bar' }, h('div', { className: 'tl-fill', style: { width: `${minePct}%` } }), h('div', { className: 'tl-fill against', style: { width: `${100 - minePct}%` } })));
+    }
+
     function WrTimeLeagueGamecastPanel({ league, cards, logIndex, logsMissing, eraFactors, onUpdate, onGoRoster }) {
         const [playback, setPlayback] = useState(null);
         const [clock, setClock] = useState(0);
@@ -40,14 +92,12 @@
         const [boxWeek, setBoxWeek] = useState(null);
         const clockRef = useRef(0);
 
+        const myTeamId = (league.teams.find((t) => t.manager === 'human') ?? league.teams[0])?.teamId;
+
         const teamName = useMemo(() => {
             const names = new Map(league.teams.map((t) => [t.teamId, t.name]));
             return (teamId) => names.get(teamId) ?? teamId;
         }, [league.teams]);
-        const record = useMemo(() => {
-            const map = new Map(Engine.computeStandings(league).map((row) => [row.teamId, `${row.wins}-${row.losses}${row.ties ? `-${row.ties}` : ''}`]));
-            return (teamId) => map.get(teamId) ?? '0-0';
-        }, [league]);
 
         const finishPlayback = useCallback(() => { setPlaying(false); }, []);
 
@@ -113,41 +163,56 @@
         const boxWeekData = boxWeek === null ? null : league.finalizedWeeks.find((item) => item.week === boxWeek) ?? null;
         const champion = league.championTeamId ? teamName(league.championTeamId) : null;
 
+        // Normalize this week's matchups into one shape whether we're pre-run
+        // (0-0, from the schedule) or mid/post-gamecast (from the playback timeline),
+        // so the scoreboard strip and hero card render identically either way.
+        const matchupRows = playback
+            ? playback.weekData.matchups.map((m) => ({ home: m.home, away: m.away, homePoints: liveTotals.get(m.home) ?? 0, awayPoints: liveTotals.get(m.away) ?? 0 }))
+            : pairs.map(([home, away]) => ({ home, away, homePoints: 0, awayPoints: 0 }));
+        const myRow = (() => {
+            const row = matchupRows.find((m) => m.home === myTeamId || m.away === myTeamId);
+            return row ? { ...row, mineIsHome: row.home === myTeamId } : null;
+        })();
+        const weekLabel = playback ? playback.weekData.week : league.currentWeek;
+        const strip = league.phase !== 'draft' && matchupRows.length
+            ? h(ScoreboardStrip, { rows: matchupRows, teams: league.teams, myTeamId, live: Boolean(playback) && !done, statusLabel: playback ? (done ? 'FINAL' : 'LIVE') : 'UPCOMING' })
+            : null;
+        const hero = myRow
+            ? h(HeroMatchup, {
+                row: myRow, teams: league.teams, week: weekLabel,
+                statusLabel: playback ? (done ? 'FINAL' : 'WIN PROB') : 'UPCOMING',
+                clockLabel: playback ? `T+${String(Math.floor(clock)).padStart(3, '0')}′` : `WK ${weekLabel}`,
+            })
+            : null;
+
         if (playback) {
-            return h('div', { className: 'tl-card' },
-                h('div', { className: 'tl-card-title' }, h('span', null, `Week ${playback.weekData.week} — ${playback.live ? 'Live' : 'Replay'}`), h('small', null, `${landed.length}/${playback.timeline.events.length} plays landed`)),
-                h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 } },
-                    h('span', { style: { color: playing ? 'var(--gold)' : 'var(--text-muted)' } }, '📡'),
-                    h('span', { className: 'tabular', style: { fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--gold)' } }, `T+${String(Math.floor(clock)).padStart(3, '0')}′`),
-                    h('span', { style: { flex: 1, height: 5, background: 'rgba(255,255,255,0.08)', borderRadius: 100, overflow: 'hidden' } },
-                        h('span', { style: { display: 'block', height: '100%', width: `${(clock / GAMECAST_END) * 100}%`, background: 'var(--gold)' } })),
-                    h('button', { className: `tl-btn icon${speed === 1 ? ' primary' : ''}`, onClick: () => setSpeed(1) }, '1X'),
-                    h('button', { className: `tl-btn icon${speed === 4 ? ' primary' : ''}`, onClick: () => setSpeed(4) }, '4X'),
-                    h('button', { className: 'tl-btn icon', disabled: done, onClick: skipToEnd }, 'INSTANT')),
-                done && headlines.length > 0 && h('div', { style: { marginBottom: 14 } },
-                    h('span', { className: 'tl-label' }, `Week ${playback.weekData.week} Wire`),
-                    headlines.map((headline, i) => h('p', { key: i, style: { fontSize: 12.5, color: 'var(--text-secondary)', margin: '4px 0' } }, headline))),
-                h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginBottom: 14 } },
-                    playback.weekData.matchups.map((matchup) => {
-                        const homePoints = liveTotals.get(matchup.home) ?? 0;
-                        const awayPoints = liveTotals.get(matchup.away) ?? 0;
-                        return h('div', { key: `${matchup.home}:${matchup.away}`, className: 'tl-card', style: { padding: '10px 12px' } },
-                            [{ teamId: matchup.home, points: homePoints }, { teamId: matchup.away, points: awayPoints }].map((side) => h('div', {
-                                key: side.teamId, style: { display: 'flex', justifyContent: 'space-between', padding: '3px 0', color: done && matchup.winner === side.teamId ? 'var(--gold)' : 'var(--white)' },
-                            }, h('span', { style: { fontSize: 12.5 } }, teamName(side.teamId)), h('strong', { className: 'tabular' }, side.points.toFixed(2)))),
-                            done && h('span', { className: `tl-pill ${matchup.winner ? 'good' : 'warn'}`, style: { marginTop: 6, display: 'inline-block' } }, matchup.winner ? `FINAL — ${teamName(matchup.winner)}` : 'FINAL — TIE'));
-                    })),
-                h('div', { style: { maxHeight: 320, overflowY: 'auto' } },
-                    landed.length === 0
-                        ? h('div', { className: 'tl-feedrow' }, h('time', null, 'T+000′'), h('p', null, 'Crews are in the booth — kickoff momentarily.'))
-                        : landed.slice().reverse().map((event, i) => h('div', { key: i, className: `tl-feedrow${event.isTouchdown ? ' urgent' : ''}` },
-                            h('time', null, `T+${String(Math.round(event.t)).padStart(3, '0')}′ · +${event.points.toFixed(2)}`),
-                            h('p', null, `${event.description} — ${teamName(event.teamId)}`)))),
-                done && h('div', { style: { marginTop: 14, textAlign: 'center' } },
-                    h('button', { className: 'tl-btn', onClick: () => { setPlayback(null); clockRef.current = 0; setClock(0); } }, 'CLOSE GAMECAST')));
+            return h('div', null,
+                strip, hero,
+                h('div', { className: 'tl-card' },
+                    h('div', { className: 'tl-card-title' }, h('span', null, `Week ${playback.weekData.week} — ${playback.live ? 'Live' : 'Replay'}`), h('small', null, `${landed.length}/${playback.timeline.events.length} plays landed`)),
+                    h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 } },
+                        h('span', { style: { color: playing ? 'var(--gold)' : 'var(--text-muted)' } }, '📡'),
+                        h('span', { className: 'tabular', style: { fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--gold)' } }, `T+${String(Math.floor(clock)).padStart(3, '0')}′`),
+                        h('span', { style: { flex: 1, height: 5, background: 'rgba(255,255,255,0.08)', borderRadius: 100, overflow: 'hidden' } },
+                            h('span', { style: { display: 'block', height: '100%', width: `${(clock / GAMECAST_END) * 100}%`, background: 'var(--gold)' } })),
+                        h('button', { className: `tl-btn icon${speed === 1 ? ' primary' : ''}`, onClick: () => setSpeed(1) }, '1X'),
+                        h('button', { className: `tl-btn icon${speed === 4 ? ' primary' : ''}`, onClick: () => setSpeed(4) }, '4X'),
+                        h('button', { className: 'tl-btn icon', disabled: done, onClick: skipToEnd }, 'INSTANT')),
+                    done && headlines.length > 0 && h('div', { style: { marginBottom: 14 } },
+                        h('span', { className: 'tl-label' }, `Week ${playback.weekData.week} Wire`),
+                        headlines.map((headline, i) => h('p', { key: i, style: { fontSize: 12.5, color: 'var(--text-secondary)', margin: '4px 0' } }, headline))),
+                    h('div', { style: { maxHeight: 320, overflowY: 'auto' } },
+                        landed.length === 0
+                            ? h('div', { className: 'tl-feedrow' }, h('time', null, 'T+000′'), h('p', null, 'Crews are in the booth — kickoff momentarily.'))
+                            : landed.slice().reverse().map((event, i) => h('div', { key: i, className: `tl-feedrow${event.isTouchdown ? ' urgent' : ''}` },
+                                h('time', null, `T+${String(Math.round(event.t)).padStart(3, '0')}′ · +${event.points.toFixed(2)}`),
+                                h('p', null, `${event.description} — ${teamName(event.teamId)}`)))),
+                    done && h('div', { style: { marginTop: 14, textAlign: 'center' } },
+                        h('button', { className: 'tl-btn', onClick: () => { setPlayback(null); clockRef.current = 0; setClock(0); } }, 'CLOSE GAMECAST'))));
         }
 
         return h('div', null,
+            strip, hero,
             league.phase === 'season' && h('div', { className: 'tl-card' },
                 h('div', { className: 'tl-card-title' }, h('span', null, `Week ${league.currentWeek} Command`), h('small', null, `${pairs.length} matchups · ${league.settings.eraAdjusted ? 'era-adjusted' : 'raw scoring'}`)),
                 logsMissing && h('div', { className: 'tl-feedrow urgent' }, h('time', null, 'DATA'), h('p', null, 'Bundled game logs missing — check data/time-league/.')),
@@ -159,11 +224,7 @@
                     h('div', { style: { display: 'flex', gap: 8, marginTop: 8 } },
                         h('button', { className: 'tl-btn', onClick: onGoRoster }, 'FIX LINEUPS'),
                         h('button', { className: 'tl-btn', onClick: () => runGameDay(true) }, 'RUN ANYWAY'))),
-                h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginBottom: 14 } },
-                    pairs.map(([home, away]) => h('div', { key: `${home}:${away}`, className: 'tl-card', style: { padding: '10px 12px' } },
-                        [home, away].map((teamId) => h('div', { key: teamId, style: { display: 'flex', justifyContent: 'space-between', padding: '3px 0' } },
-                            h('span', { style: { fontSize: 12.5 } }, teamName(teamId)), h('span', { className: 'tl-pill' }, record(teamId))))))),
-                h('button', { className: 'tl-btn primary', disabled: !canRun, onClick: () => runGameDay(false), style: { width: '100%', justifyContent: 'center', padding: '10px' } }, '▶ RUN GAME DAY')),
+                h('button', { className: 'tl-btn primary', disabled: !canRun, onClick: () => runGameDay(false), style: { width: '100%', justifyContent: 'center', padding: '10px', marginTop: 4 } }, '▶ RUN GAME DAY')),
             league.phase === 'complete' && h('div', { className: 'tl-card', style: { display: 'flex', alignItems: 'center', gap: 12 } },
                 h('span', { style: { fontSize: 24 } }, '🏆'),
                 h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Season Complete — Champion'), h('strong', { style: { fontFamily: 'var(--font-title)', fontSize: 18 } }, champion ?? 'Unknown'))),

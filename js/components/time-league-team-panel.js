@@ -12,6 +12,7 @@
     const AI = window.App.TimeLeagueAI;
     const Engine = window.App.TimeLeagueEngine;
     const Season = window.App.TimeLeagueSeason;
+    const UI = window.App.TimeLeagueUI;
 
     const STARTER_SLOTS = Roster.ROSTER_SLOT_IDS.filter((slot) => Season.isStarterSlot(slot));
     const RESERVE_SLOTS = ['IR', 'TAXI'];
@@ -42,28 +43,33 @@
         const capacity = Engine.rosterCapacity(league.settings);
         const problems = Engine.lineupProblems(league, team.teamId);
         const moveTargets = (entry) => Roster.ROSTER_SLOT_IDS.filter((slot) => slot !== entry.slot && (league.settings.rosterSlots[slot] ?? 0) > 0 && Roster.SLOT_ELIGIBILITY[slot].includes(entry.position));
-        const entryRow = (entry) => h('div', { key: entry.entryId, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' } },
-            h('span', { className: 'tl-pill', style: { flex: 'none', minWidth: 44, textAlign: 'center' } }, entry.slot),
-            h('span', { style: { flex: 1, minWidth: 0 } },
-                h('strong', { style: { display: 'block', fontSize: 12.5 } }, entry.name),
-                h('small', { style: { color: 'var(--text-muted)', fontSize: 10.5 } }, `${entry.position} · via ${entry.acquiredVia} W${entry.acquiredWeek}`)),
-            revealed
-                ? h('span', { className: 'tabular', style: { fontSize: 12.5, color: 'var(--gold)', flex: 'none', textAlign: 'right' } }, fmt1(cardSeasonPoints(cards, entry)), h('small', { style: { display: 'block', color: 'var(--text-muted)', fontSize: 9.5 } }, `${entry.drawnSeason} SZN`))
-                : h('span', { className: 'tl-pill warn', style: { flex: 'none' } }, 'SEALED'),
-            h('select', {
-                className: 'tl-select', style: { width: 90, flex: 'none' }, 'aria-label': `Move ${entry.name}`, value: '',
-                onChange: (e) => { const slot = e.target.value; if (slot) apply(Engine.setEntrySlot(league, team.teamId, entry.entryId, slot)); },
-            }, h('option', { value: '' }, 'MOVE'), moveTargets(entry).map((slot) => h('option', { key: slot, value: slot }, slot))));
+        const entryTile = (entry) => {
+            const eraColor = revealed ? UI.eraColorOf(entry.drawnSeason) : null;
+            return h('div', { key: entry.entryId, className: 'tl-player-tile', style: eraColor ? { '--era-color': eraColor } : undefined },
+                h('div', { className: 'tl-era-badge' }, '🏈'),
+                h('div', { className: 'tl-p-body' },
+                    h('div', { className: 'tl-p-name' }, entry.name),
+                    h('div', { className: 'tl-p-meta' },
+                        h('span', { className: `tl-pos-badge tl-pos-${entry.position}` }, entry.position),
+                        revealed
+                            ? h('span', { className: 'tl-p-era' }, `${entry.drawnSeason} · ${UI.decadeLabelOf(entry.drawnSeason)}`)
+                            : h('span', { className: 'tl-pill warn' }, 'SEALED'))),
+                h('div', { className: 'tl-p-pts tabular' }, revealed ? fmt1(cardSeasonPoints(cards, entry)) : '—', h('small', null, entry.slot)),
+                h('select', {
+                    className: 'tl-select', style: { width: 74, flex: 'none', fontSize: 10.5, padding: '5px 4px' }, 'aria-label': `Move ${entry.name}`, value: '',
+                    onChange: (e) => { const slot = e.target.value; if (slot) apply(Engine.setEntrySlot(league, team.teamId, entry.entryId, slot)); },
+                }, h('option', { value: '' }, 'MOVE'), moveTargets(entry).map((slot) => h('option', { key: slot, value: slot }, slot))));
+        };
 
-        const starterRows = [];
+        const starterTiles = [];
         for (const slot of STARTER_SLOTS) {
             const count = league.settings.rosterSlots[slot] ?? 0;
             if (count <= 0) continue;
             const occupants = team.roster.filter((e) => e.slot === slot);
-            occupants.forEach((entry) => starterRows.push(entryRow(entry)));
+            occupants.forEach((entry) => starterTiles.push(entryTile(entry)));
             for (let i = occupants.length; i < count; i += 1) {
-                starterRows.push(h('div', { key: `${slot}-open-${i}`, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px dashed rgba(255,255,255,0.06)', color: 'var(--text-muted)', fontSize: 12 } },
-                    h('span', { className: 'tl-pill', style: { minWidth: 44, textAlign: 'center' } }, slot), h('span', null, 'Open slot — start someone')));
+                starterTiles.push(h('div', { key: `${slot}-open-${i}`, className: 'tl-player-tile', style: { justifyContent: 'center', color: 'var(--text-muted)', fontSize: 12, border: '1px dashed rgba(255,255,255,0.1)', background: 'transparent' } },
+                    h('span', { className: 'tl-pill' }, slot), h('span', null, 'Open slot — start someone')));
             }
         }
         const bench = team.roster.filter((e) => e.slot === 'BN').sort((l, r) => (revealed ? cardSeasonPoints(cards, r) - cardSeasonPoints(cards, l) || l.entryId.localeCompare(r.entryId) : l.entryId.localeCompare(r.entryId)));
@@ -73,14 +79,19 @@
             h('div', { className: 'tl-card' },
                 h('div', { className: 'tl-card-title' }, h('span', null, 'Roster & lineup'), h('small', null, `${team.name} · ${team.roster.length}/${capacity} rostered`)),
                 h('button', { className: 'tl-btn primary', onClick: () => apply(Engine.autoFillLineup(league, team.teamId, cards)), style: { marginBottom: 12 } }, '⚡ AUTO-SET LINEUP'),
-                h('span', { className: 'tl-label' }, 'Starters'), starterRows,
-                h('span', { className: 'tl-label', style: { display: 'block', marginTop: 10 } }, 'Bench'),
-                bench.length ? bench.map(entryRow) : h('p', { className: 'tl-empty' }, 'Bench is empty.'),
+                h('span', { className: 'tl-label' }, 'Starters'),
+                h('div', { className: 'tl-tile-grid', style: { marginTop: 8, marginBottom: 14 } }, starterTiles),
+                h('span', { className: 'tl-label' }, 'Bench'),
+                bench.length
+                    ? h('div', { className: 'tl-tile-grid', style: { marginTop: 8, marginBottom: reserves.length ? 14 : 0 } }, bench.map(entryTile))
+                    : h('p', { className: 'tl-empty' }, 'Bench is empty.'),
                 reserves.map((slot) => {
                     const occupants = team.roster.filter((e) => e.slot === slot);
                     return h('div', { key: slot, style: { marginTop: 10 } },
                         h('span', { className: 'tl-label' }, slot === 'IR' ? 'Injured reserve' : 'Taxi squad'),
-                        occupants.length ? occupants.map(entryRow) : h('p', { className: 'tl-empty' }, `No entries stashed at ${slot}.`));
+                        occupants.length
+                            ? h('div', { className: 'tl-tile-grid', style: { marginTop: 8 } }, occupants.map(entryTile))
+                            : h('p', { className: 'tl-empty' }, `No entries stashed at ${slot}.`));
                 })),
             h('div', null,
                 h('div', { className: 'tl-card' },
@@ -136,18 +147,21 @@
                     h('input', { className: 'tl-input', placeholder: 'Search the pool', value: query, onChange: (e) => setQuery(e.target.value) }),
                     h('select', { className: 'tl-select', style: { width: 130 }, 'aria-label': 'Filter position', value: pos, onChange: (e) => setPos(e.target.value) },
                         h('option', { value: 'ALL' }, 'ALL POS'), positions.map((p) => h('option', { key: p, value: p }, p)))),
-                h('div', { style: { maxHeight: 360, overflowY: 'auto' } }, h('table', { className: 'tl-tbl' },
-                    h('thead', null, h('tr', null, h('th', null, 'Player'), h('th', null, 'Pos'), h('th', { className: 'num' }, 'Span'), h('th', { className: 'num' }, 'Peak'), h('th', { className: 'num' }, 'Best szn'), h('th', null))),
-                    h('tbody', null, shown.map((card) => {
+                shown.length === 0
+                    ? h('p', { className: 'tl-empty' }, 'Nothing on the wire matches that filter.')
+                    : h('div', { className: 'tl-tile-grid', style: { maxHeight: 420, overflowY: 'auto', paddingRight: 2 } }, shown.map((card, index) => {
                         const best = card.seasons.find((s) => s.points === card.peak);
                         const selected = card.identity === targetIdentity;
-                        return h('tr', { key: card.identity, className: selected ? 'selected' : undefined },
-                            h('td', null, card.name), h('td', null, h('span', { className: `tl-pos-badge tl-pos-${card.position}` }, card.position)),
-                            h('td', { className: 'num' }, card.seasons.length ? `${card.seasons[0].season}–${card.seasons[card.seasons.length - 1].season}` : '—'),
-                            h('td', { className: 'num tabular' }, fmt1(card.peak)), h('td', { className: 'num' }, best ? best.season : '—'),
-                            h('td', { className: 'num' }, h('button', { className: 'tl-btn icon', disabled: !wireOpen, onClick: () => setTargetIdentity(selected ? '' : card.identity) }, selected ? 'PICKED' : 'CLAIM')));
+                        return h('div', { key: card.identity, className: 'tl-player-tile', style: { '--era-color': UI.eraColorOf(best?.season), border: selected ? '1px solid var(--gold)' : undefined } },
+                            h('div', { className: 'tl-era-badge' }, '🏈'),
+                            h('div', { className: 'tl-p-body' },
+                                h('div', { className: 'tl-p-name' }, card.name, index < 3 ? h('span', { className: 'tl-top-pick-badge' }, '★ TOP PICK') : null),
+                                h('div', { className: 'tl-p-meta' },
+                                    h('span', { className: `tl-pos-badge tl-pos-${card.position}` }, card.position),
+                                    h('span', { className: 'tl-p-era' }, card.seasons.length ? `${card.seasons[0].season}–${card.seasons[card.seasons.length - 1].season}` : '—'))),
+                            h('div', { className: 'tl-p-pts tabular' }, fmt1(card.peak), h('small', null, `PEAK · ${best ? best.season : '—'}`)),
+                            h('button', { className: 'tl-btn icon', disabled: !wireOpen, onClick: () => setTargetIdentity(selected ? '' : card.identity) }, selected ? 'PICKED' : 'CLAIM'));
                     })),
-                    !shown.length && h('tr', null, h('td', { colSpan: 6, className: 'tl-empty' }, 'Nothing on the wire matches that filter.')))),
                 filtered.length > shown.length && h('p', { className: 'tl-hint', style: { marginTop: 8 } }, `Showing ${WIRE_ROW_CAP} of ${filtered.length} — refine the search`)),
             h('div', null,
                 h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 } },
@@ -248,11 +262,14 @@
                         h('div', null, h('span', { className: 'tl-label', style: { display: 'block', marginBottom: 6 } }, `You receive — ${counterparty?.name ?? '—'}`),
                             counterparty && sortByValue(counterparty.roster).map((entry) => pickRow(entry, receive.includes(entry.entryId), () => setReceiveIds(toggle(receiveIds, entry.entryId)))),
                             counterparty && !counterparty.roster.length && h('p', { className: 'tl-empty' }, 'Their roster is empty.'))),
-                    h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 } },
+                    h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' } },
                         h('span', { className: `tl-pill ${balanced ? 'good' : 'warn'}` }, `${give.length} FOR ${receive.length}`),
                         h('span', { style: { fontSize: 11.5, color: 'var(--text-secondary)' } }, 'YOU SEND ', h('b', { className: 'tabular', style: { color: 'var(--white)' } }, fmt1(giveValue))),
-                        h('span', { style: { fontSize: 11.5, color: 'var(--text-secondary)' } }, 'YOU GET ', h('b', { className: 'tabular', style: { color: 'var(--white)' } }, fmt1(receiveValue))),
-                        h('span', { className: `tl-pill ${delta >= 0 ? 'good' : 'bad'}` }, `${delta >= 0 ? '+' : ''}${fmt1(delta)} SWING`)),
+                        h('span', { style: { fontSize: 11.5, color: 'var(--text-secondary)' } }, 'YOU GET ', h('b', { className: 'tabular', style: { color: 'var(--white)' } }, fmt1(receiveValue)))),
+                    (give.length > 0 || receive.length > 0) && h('div', { className: 'tl-fairness' },
+                        h('div', { className: 'tl-fairness-track' },
+                            h('div', { className: 'tl-fairness-marker', style: { left: `${Math.max(4, Math.min(96, 50 + (giveValue + receiveValue > 0 ? (delta / (giveValue + receiveValue)) * 100 : 0)))}%` } })),
+                        h('span', { className: `tl-pill ${delta >= 0 ? 'good' : 'bad'}`, style: { flex: 'none' } }, `${delta >= 0 ? '+' : ''}${fmt1(delta)}`)),
                     !balanced && (give.length > 0 || receive.length > 0) && h('p', { className: 'tl-hint', style: { marginBottom: 10 } }, 'Equal-count swaps only — roster sizes are fixed.'),
                     h('div', { style: { display: 'flex', gap: 8 } },
                         h('input', { className: 'tl-input', placeholder: 'Attach a note — sell the deal', value: note, onChange: (e) => setNote(e.target.value) }),
@@ -311,16 +328,18 @@
                 league.teams.map((item) => {
                     const record = recordByTeam.get(item.teamId);
                     const persona = item.aiPersona ? AI.AI_PERSONAS[item.aiPersona] : undefined;
+                    const avatar = UI.avatarFor(item, league.teams);
                     return h('button', {
                         key: item.teamId, onClick: () => onSelectTeam(item.teamId),
                         className: 'tl-card', style: {
-                            flex: 'none', textAlign: 'left', cursor: 'pointer', padding: '8px 12px',
+                            flex: 'none', textAlign: 'left', cursor: 'pointer', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8,
                             borderColor: item.teamId === activeTeamId ? 'var(--gold)' : undefined,
                         },
-                    }, h('strong', { style: { display: 'block', fontSize: 12.5 } }, item.name),
-                        h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 } },
-                            item.manager === 'human' ? h('span', { className: 'tl-pill' }, 'HUMAN') : h('span', { className: `tl-pill ${PERSONA_PILL[item.aiPersona ?? 'steward']}` }, (persona?.label ?? 'AI').toUpperCase()),
-                            record && h('small', { className: 'tabular', style: { color: 'var(--text-muted)' } }, `${record.wins}-${record.losses}${record.ties ? `-${record.ties}` : ''}`)));
+                    }, h('span', { className: 'tl-avatar sm', style: { background: avatar.color } }, avatar.initials),
+                        h('div', null, h('strong', { style: { display: 'block', fontSize: 12.5 } }, item.name),
+                            h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 } },
+                                item.manager === 'human' ? h('span', { className: 'tl-pill' }, 'HUMAN') : h('span', { className: `tl-pill ${PERSONA_PILL[item.aiPersona ?? 'steward']}` }, (persona?.label ?? 'AI').toUpperCase()),
+                                record && h('small', { className: 'tabular', style: { color: 'var(--text-muted)' } }, `${record.wins}-${record.losses}${record.ties ? `-${record.ties}` : ''}`))));
                 })),
             !team
                 ? h('div', { className: 'tl-card' }, h('p', { className: 'tl-empty' }, 'Unknown team — pick a desk above.'))

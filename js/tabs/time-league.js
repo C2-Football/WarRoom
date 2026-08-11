@@ -25,9 +25,9 @@
     const REGULAR_SEASON_WEEKS = 14;
     const MAX_QUARTERBACKS = 2;
 
-    const TAB_IDS = ['draft', 'gameday', 'roster', 'waivers', 'trades', 'standings', 'activity'];
+    const TAB_IDS = ['home', 'draft', 'gameday', 'roster', 'waivers', 'trades', 'standings', 'activity'];
     const TAB_LABELS = {
-        draft: 'DRAFT', gameday: 'GAMEDAY', roster: 'ROSTER', waivers: 'WAIVERS',
+        home: 'HOME', draft: 'DRAFT', gameday: 'GAMEDAY', roster: 'ROSTER', waivers: 'WAIVERS',
         trades: 'TRADES', standings: 'STANDINGS', activity: 'ACTIVITY',
     };
 
@@ -78,9 +78,9 @@
     function readUiPrefs() {
         try {
             const raw = JSON.parse(window.localStorage.getItem(UI_PREFS_KEY) ?? 'null');
-            const tab = TAB_IDS.includes(String(raw?.tab)) ? raw.tab : 'gameday';
+            const tab = TAB_IDS.includes(String(raw?.tab)) ? raw.tab : 'home';
             return { leagueId: typeof raw?.leagueId === 'string' ? raw.leagueId : null, tab, teamId: typeof raw?.teamId === 'string' ? raw.teamId : '' };
-        } catch { return { leagueId: null, tab: 'gameday', teamId: '' }; }
+        } catch { return { leagueId: null, tab: 'home', teamId: '' }; }
     }
     function writeUiPrefs(prefs) {
         try { window.localStorage.setItem(UI_PREFS_KEY, JSON.stringify(prefs)); } catch { /* convenience only */ }
@@ -195,6 +195,85 @@
             .tl-pos-TE { background: rgba(251,191,36,0.16); color: #fbbf24; }
             .tl-pos-K  { background: rgba(168,172,184,0.16); color: #a8acb8; }
             .tl-pos-DEF, .tl-pos-DL, .tl-pos-LB, .tl-pos-DB { background: rgba(248,113,113,0.16); color: #f87171; }
+
+            /* ── Avatars ── */
+            .tl-avatar { width: 32px; height: 32px; border-radius: 50%; display: inline-grid; place-items: center; flex: none; font-family: var(--font-title); font-weight: 700; font-size: 12px; color: var(--page-bg, #08080B); }
+            .tl-avatar.sm { width: 22px; height: 22px; font-size: 9.5px; }
+            .tl-avatar.lg { width: 56px; height: 56px; font-size: 20px; border: 2px solid rgba(255,255,255,0.15); }
+
+            /* ── Player tile — era-coded, replaces table rows in Roster/Waivers ── */
+            .tl-tile-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            @media (max-width: 700px) { .tl-tile-grid { grid-template-columns: 1fr; } }
+            .tl-player-tile { display: flex; align-items: center; gap: 12px; background: var(--off-black); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--card-radius, 10px); padding: 10px 12px; position: relative; overflow: hidden; }
+            .tl-player-tile::before { content: ''; position: absolute; inset: 0; opacity: .10; background: radial-gradient(circle at 100% 0%, var(--era-color, var(--gold)), transparent 65%); pointer-events: none; }
+            .tl-era-badge { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; flex: none; font-size: 17px; border: 2px solid var(--era-color, var(--gold)); background: color-mix(in srgb, var(--era-color, var(--gold)) 16%, var(--black)); box-shadow: 0 0 12px -2px var(--era-color, var(--gold)); }
+            .tl-player-tile .tl-p-body { flex: 1; min-width: 0; }
+            .tl-player-tile .tl-p-name { font-weight: 700; font-size: 13px; }
+            .tl-player-tile .tl-p-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+            .tl-player-tile .tl-p-era { font-family: var(--font-mono); font-size: 10px; color: var(--era-color, var(--text-muted)); font-weight: 700; }
+            .tl-player-tile .tl-p-pts { font-family: var(--font-title); font-weight: 700; font-size: 19px; color: var(--gold); flex: none; text-align: right; }
+            .tl-player-tile .tl-p-pts small { display: block; font-family: var(--font-mono); font-weight: 400; font-size: 9.5px; color: var(--text-muted); }
+            .tl-top-pick-badge { font-family: var(--font-mono); font-size: 9px; font-weight: 700; color: var(--gold); background: rgba(212,175,55,0.14); border-radius: 4px; padding: 1px 5px; margin-left: 6px; }
+
+            /* ── League Home ── */
+            .tl-home-hero { background: linear-gradient(135deg, rgba(212,175,55,0.10), transparent 55%), var(--black); border: 1px solid rgba(212,175,55,0.18); border-radius: 14px; padding: 20px 22px; margin-bottom: 16px; }
+            .tl-home-hero-top { display: flex; align-items: center; gap: 16px; }
+            .tl-home-hero-top .tl-h-info { flex: 1; }
+            .tl-home-hero-top .tl-h-league { font-family: var(--font-title); font-weight: 700; font-size: 20px; }
+            .tl-home-hero-top .tl-h-sub { font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; }
+            .tl-mini-matchup { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--charcoal); }
+            .tl-mini-matchup .tl-mm-side { display: flex; align-items: center; gap: 10px; }
+            .tl-mini-matchup .tl-mm-pts { font-family: var(--font-title); font-weight: 700; font-size: 24px; }
+            .tl-mini-matchup .tl-mm-vs { font-family: var(--font-mono); font-size: 10px; color: var(--text-faint, rgba(189,184,173,0.5)); text-align: center; }
+            .tl-quick-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+            .tl-home-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12.5px; }
+            .tl-home-row:last-child { border-bottom: none; }
+
+            /* ── Scoreboard strip + hero matchup (Gameday) ── */
+            .tl-scoreboard-strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 16px; }
+            .tl-score-chip { flex: none; min-width: 180px; background: var(--black); border: 1px solid rgba(212,175,55,0.18); border-radius: var(--card-radius, 10px); padding: 10px 12px; }
+            .tl-score-chip.mine { border-color: var(--gold); background: linear-gradient(135deg, rgba(212,175,55,0.08), transparent); }
+            .tl-score-chip .tl-sc-tag { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .08em; color: var(--text-muted); display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+            .tl-sc-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--bad); animation: tlPulse 1.4s infinite; }
+            .tl-sc-row { display: flex; align-items: center; justify-content: space-between; padding: 2px 0; gap: 8px; }
+            .tl-sc-row .tl-sc-team { display: flex; align-items: center; gap: 6px; font-size: 12px; min-width: 0; }
+            .tl-sc-row .tl-sc-team span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .tl-sc-row.winning .tl-sc-team { color: var(--white); font-weight: 700; }
+            .tl-sc-row:not(.winning) .tl-sc-team { color: var(--text-muted); }
+            .tl-sc-row .tl-sc-pts { font-family: var(--font-mono); font-size: 13px; flex: none; }
+            @keyframes tlPulse { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+            .tl-hero-matchup { background: var(--black); border: 1px solid rgba(212,175,55,0.18); border-radius: 14px; padding: 20px 24px; margin-bottom: 16px; }
+            .tl-hero-top { display: flex; align-items: center; justify-content: center; gap: 24px; }
+            .tl-hero-side { text-align: center; flex: 1; min-width: 0; }
+            .tl-hero-side .tl-h-name { font-size: 13px; color: var(--text-secondary); margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .tl-hero-side .tl-h-name.leading { color: var(--white); font-weight: 700; }
+            .tl-hero-side .tl-h-pts { font-family: var(--font-title); font-weight: 700; font-size: 38px; line-height: 1; margin-top: 4px; }
+            .tl-hero-side .tl-h-pts.leading { color: var(--gold); }
+            .tl-hero-mid { text-align: center; flex: none; width: 80px; }
+            .tl-hero-mid .tl-h-vs { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-faint, rgba(189,184,173,0.5)); letter-spacing: .1em; }
+            .tl-hero-mid .tl-h-clock { font-family: var(--font-mono); font-size: 11.5px; color: var(--gold); margin-top: 6px; }
+            .tl-score-bar { height: 6px; border-radius: 100px; background: rgba(255,255,255,0.08); overflow: hidden; margin: 18px 0 4px; display: flex; }
+            .tl-score-bar .tl-fill { background: var(--gold); }
+            .tl-score-bar .tl-fill.against { background: var(--charcoal); }
+            .tl-win-prob { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); margin-bottom: 4px; }
+
+            /* ── Draft: pick clock + queue strip ── */
+            .tl-clock-ring { width: 30px; height: 30px; border-radius: 50%; border: 3px solid rgba(212,175,55,0.25); border-top-color: var(--gold); flex: none; animation: tlSpin 3s linear infinite; }
+            @keyframes tlSpin { to { transform: rotate(360deg); } }
+            .tl-queue-strip { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 4px; }
+            .tl-queue-chip { flex: none; display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 100px; padding: 5px 10px 5px 5px; font-size: 11.5px; cursor: pointer; }
+            .tl-queue-chip .tl-qnum { width: 16px; height: 16px; border-radius: 50%; background: var(--gold); color: var(--page-bg, #08080B); font-family: var(--font-mono); font-size: 9px; font-weight: 700; display: grid; place-items: center; flex: none; }
+
+            /* ── Trades: fairness scale ── */
+            .tl-fairness { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; }
+            .tl-fairness-track { flex: 1; height: 8px; border-radius: 100px; background: linear-gradient(90deg, var(--bad), var(--charcoal) 48%, var(--charcoal) 52%, var(--good)); position: relative; }
+            .tl-fairness-marker { position: absolute; top: -4px; width: 16px; height: 16px; border-radius: 50%; background: var(--white); border: 2px solid var(--page-bg, #08080B); transform: translateX(-50%); transition: left .15s; }
+
+            /* ── Standings streaks ── */
+            .tl-streak { font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+            .tl-streak.W { background: rgba(46,204,113,0.14); color: var(--good); }
+            .tl-streak.L { background: rgba(231,76,60,0.14); color: var(--bad); }
+            .tl-streak.T { background: rgba(255,255,255,0.08); color: var(--text-secondary); }
         `);
     }
 
@@ -202,7 +281,7 @@
     function TimeLeagueMode({ onClose }) {
         const [index, setIndex] = useState([]);
         const [league, setLeague] = useState(null);
-        const [tab, setTab] = useState('gameday');
+        const [tab, setTab] = useState('home');
         const [activeTeamId, setActiveTeamId] = useState('');
         const [cards, setCards] = useState(null);
         const [logIndex, setLogIndex] = useState(null);
@@ -268,7 +347,7 @@
             const stored = readLeague(leagueId);
             if (!stored) return;
             setLeague(stored);
-            setTab(stored.phase === 'draft' ? 'draft' : 'gameday');
+            setTab(stored.phase === 'draft' ? 'draft' : 'home');
         }, []);
 
         const deleteLeague = useCallback((leagueId) => {
@@ -283,19 +362,20 @@
         const StandingsPanel = window.WrTimeLeagueStandingsPanel;
         const ActivityPanel = window.WrTimeLeagueActivityPanel;
         const GamecastPanel = window.WrTimeLeagueGamecastPanel;
+        const HomePanel = window.WrTimeLeagueHomePanel;
 
         if (!league) {
             return h('div', { className: 'tl-root' },
                 h(TimeLeagueStyles, null),
                 h('div', { className: 'tl-header' },
-                    h('div', { className: 'tl-header-title' }, h('strong', null, 'Time League')),
+                    h('div', { className: 'tl-header-title' }, h('strong', null, 'The Vault')),
                     h('button', { type: 'button', className: 'tl-btn', onClick: onClose }, '← BACK')),
                 SetupPanel ? h(SetupPanel, { index, onOpen: openLeague, onDelete: deleteLeague, onCreate: createLeague }) : null);
         }
 
         const tabs = league.phase === 'draft'
             ? ['draft', 'activity']
-            : ['gameday', 'roster', 'waivers', 'trades', 'standings', 'draft', 'activity'];
+            : ['home', 'gameday', 'roster', 'waivers', 'trades', 'standings', 'draft', 'activity'];
         const activeTab = tabs.includes(tab) ? tab : tabs[0];
         const activeTeam = league.teams.some((team) => team.teamId === activeTeamId)
             ? activeTeamId
@@ -323,6 +403,7 @@
                 tabs.map((item) => h('button', {
                     key: item, type: 'button', className: `tl-tabbtn${item === activeTab ? ' active' : ''}`, onClick: () => setTab(item),
                 }, item === 'draft' && league.phase !== 'draft' ? 'DRAFT RECAP' : TAB_LABELS[item]))),
+            activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: setTab }) : null,
             activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, { league, cards, onUpdate: handleUpdate }) : loadingNotice) : null,
             activeTab === 'gameday' && GamecastPanel ? h(GamecastPanel, {
                 league, cards, logIndex, logsMissing, eraFactors, onUpdate: handleUpdate, onGoRoster: () => setTab('roster'),
