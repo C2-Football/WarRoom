@@ -38,70 +38,77 @@
             h('p', { className: 'tl-hint' }, persona.tell));
     }
 
+    /** Slot | Player | Pts | Move — mirrors the column rhythm of War Room's real
+     * Game Day Central lineup table (js/tabs/lineup.js), minus the projection/
+     * matchup/form columns that don't apply to fixed historical stat lines. */
+    const LINEUP_GRID = '56px minmax(0,1fr) 78px 92px';
+
     function RosterSection({ league, cards, team, apply }) {
         const revealed = league.seasonsRevealed;
         const capacity = Engine.rosterCapacity(league.settings);
         const problems = Engine.lineupProblems(league, team.teamId);
         const moveTargets = (entry) => Roster.ROSTER_SLOT_IDS.filter((slot) => slot !== entry.slot && (league.settings.rosterSlots[slot] ?? 0) > 0 && Roster.SLOT_ELIGIBILITY[slot].includes(entry.position));
-        const entryTile = (entry) => {
+        const entryRow = (entry, slotLabel) => {
             const eraColor = revealed ? UI.eraColorOf(entry.drawnSeason) : null;
-            return h('div', { key: entry.entryId, className: 'tl-player-tile', style: eraColor ? { '--era-color': eraColor } : undefined },
-                h('div', { className: 'tl-era-badge' }, '🏈'),
-                h('div', { className: 'tl-p-body' },
-                    h('div', { className: 'tl-p-name' }, entry.name),
-                    h('div', { className: 'tl-p-meta' },
-                        h('span', { className: `tl-pos-badge tl-pos-${entry.position}` }, entry.position),
-                        revealed
-                            ? h('span', { className: 'tl-p-era' }, `${entry.drawnSeason} · ${UI.decadeLabelOf(entry.drawnSeason)}`)
-                            : h('span', { className: 'tl-pill warn' }, 'SEALED'))),
-                h('div', { className: 'tl-p-pts tabular' }, revealed ? fmt1(cardSeasonPoints(cards, entry)) : '—', h('small', null, entry.slot)),
+            return h('div', { key: entry.entryId, className: 'tl-lineup-row', style: { gridTemplateColumns: LINEUP_GRID } },
+                h('span', { className: 'tl-lineup-slot' }, slotLabel),
+                h('span', { className: 'tl-lineup-player' },
+                    h('span', { className: 'name' }, entry.name),
+                    h('span', { className: `tl-pos-badge tl-pos-${entry.position}`, style: { marginLeft: 6 } }, entry.position),
+                    revealed
+                        ? h('span', { className: 'meta' }, `${entry.drawnSeason} · ${UI.decadeLabelOf(entry.drawnSeason)}`)
+                        : h('span', { className: 'tl-pill warn', style: { marginLeft: 6 } }, 'SEALED')),
+                h('span', { className: 'tl-lineup-pts tabular', style: eraColor ? { color: eraColor } : undefined },
+                    revealed ? fmt1(cardSeasonPoints(cards, entry)) : '—', h('small', null, 'SZN PTS')),
                 h('select', {
-                    className: 'tl-select', style: { width: 74, flex: 'none', fontSize: 10.5, padding: '5px 4px' }, 'aria-label': `Move ${entry.name}`, value: '',
+                    className: 'tl-select', style: { fontSize: 10.5, padding: '5px 4px' }, 'aria-label': `Move ${entry.name}`, value: '',
                     onChange: (e) => { const slot = e.target.value; if (slot) apply(Engine.setEntrySlot(league, team.teamId, entry.entryId, slot)); },
                 }, h('option', { value: '' }, 'MOVE'), moveTargets(entry).map((slot) => h('option', { key: slot, value: slot }, slot))));
         };
+        const openRow = (slotLabel, key) => h('div', { key, className: 'tl-lineup-row open-slot', style: { gridTemplateColumns: LINEUP_GRID } },
+            h('span', { className: 'tl-lineup-slot' }, slotLabel), h('span', null, 'Open slot — start someone'), h('span', null), h('span', null));
 
-        const starterTiles = [];
+        const starterRows = [];
         for (const slot of STARTER_SLOTS) {
             const count = league.settings.rosterSlots[slot] ?? 0;
             if (count <= 0) continue;
             const occupants = team.roster.filter((e) => e.slot === slot);
-            occupants.forEach((entry) => starterTiles.push(entryTile(entry)));
-            for (let i = occupants.length; i < count; i += 1) {
-                starterTiles.push(h('div', { key: `${slot}-open-${i}`, className: 'tl-player-tile', style: { justifyContent: 'center', color: 'var(--text-muted)', fontSize: 12, border: '1px dashed rgba(255,255,255,0.1)', background: 'transparent' } },
-                    h('span', { className: 'tl-pill' }, slot), h('span', null, 'Open slot — start someone')));
-            }
+            occupants.forEach((entry) => starterRows.push(entryRow(entry, slot)));
+            for (let i = occupants.length; i < count; i += 1) starterRows.push(openRow(slot, `${slot}-open-${i}`));
         }
         const bench = team.roster.filter((e) => e.slot === 'BN').sort((l, r) => (revealed ? cardSeasonPoints(cards, r) - cardSeasonPoints(cards, l) || l.entryId.localeCompare(r.entryId) : l.entryId.localeCompare(r.entryId)));
         const reserves = RESERVE_SLOTS.filter((slot) => (league.settings.rosterSlots[slot] ?? 0) > 0);
 
+        const optimal = league.phase !== 'draft' && problems.length === 0;
+        const headline = league.phase === 'draft' ? 'DRAFT IN PROGRESS' : optimal ? 'LINEUP IS OPTIMAL' : `${problems.length} ISSUE${problems.length === 1 ? '' : 'S'} TO FIX`;
+
         return h('div', { className: 'tl-grid-2' },
-            h('div', { className: 'tl-card' },
-                h('div', { className: 'tl-card-title' }, h('span', null, 'Roster & lineup'), h('small', null, `${team.name} · ${team.roster.length}/${capacity} rostered`)),
-                h('button', { className: 'tl-btn primary', onClick: () => apply(Engine.autoFillLineup(league, team.teamId, cards)), style: { marginBottom: 12 } }, '⚡ AUTO-SET LINEUP'),
-                h('span', { className: 'tl-label' }, 'Starters'),
-                h('div', { className: 'tl-tile-grid', style: { marginTop: 8, marginBottom: 14 } }, starterTiles),
-                h('span', { className: 'tl-label' }, 'Bench'),
-                bench.length
-                    ? h('div', { className: 'tl-tile-grid', style: { marginTop: 8, marginBottom: reserves.length ? 14 : 0 } }, bench.map(entryTile))
-                    : h('p', { className: 'tl-empty' }, 'Bench is empty.'),
+            h('div', null,
+                h('div', { className: 'tl-lineup-hero' },
+                    h('div', { className: 'lh-kicker' }, `WK ${Math.min(league.currentWeek, league.settings.regularSeasonWeeks)} · ROSTER CENTRAL`),
+                    h('div', { className: `lh-headline ${league.phase === 'draft' ? '' : optimal ? 'good' : 'warn'}` }, headline),
+                    h('div', { className: 'lh-sub' }, `${team.name} · ${team.roster.length}/${capacity} rostered${league.settings.eraAdjusted ? ' · era-adjusted scoring' : ''}`),
+                    !optimal && problems.length > 0 && h('div', { style: { marginBottom: 12 } },
+                        problems.map((p, i) => h('div', { key: i, className: 'tl-feedrow caution' }, h('time', null, 'FIX'), h('p', null, p)))),
+                    h('div', { className: 'lh-actions' }, h('button', { className: 'tl-btn primary', onClick: () => apply(Engine.autoFillLineup(league, team.teamId, cards)) }, '⚡ AUTO-SET LINEUP'))),
+
+                h('div', { className: 'tl-lineup-table' },
+                    h('div', { className: 'tl-lineup-table-title' }, 'Starting Lineup'),
+                    h('div', { className: 'tl-lineup-head', style: { gridTemplateColumns: LINEUP_GRID } },
+                        h('span', null, 'Slot'), h('span', null, 'Player'), h('span', { style: { textAlign: 'right' } }, 'Pts'), h('span', null)),
+                    starterRows),
+                h('div', { className: 'tl-lineup-table' },
+                    h('div', { className: 'tl-lineup-table-title' }, 'Bench'),
+                    bench.length
+                        ? bench.map((entry) => entryRow(entry, 'BN'))
+                        : h('p', { className: 'tl-empty', style: { padding: '10px 14px' } }, 'Bench is empty.')),
                 reserves.map((slot) => {
                     const occupants = team.roster.filter((e) => e.slot === slot);
-                    return h('div', { key: slot, style: { marginTop: 10 } },
-                        h('span', { className: 'tl-label' }, slot === 'IR' ? 'Injured reserve' : 'Taxi squad'),
-                        occupants.length
-                            ? h('div', { className: 'tl-tile-grid', style: { marginTop: 8 } }, occupants.map(entryTile))
-                            : h('p', { className: 'tl-empty' }, `No entries stashed at ${slot}.`));
+                    return h('div', { key: slot, className: 'tl-lineup-table' },
+                        h('div', { className: 'tl-lineup-table-title' }, slot === 'IR' ? 'Injured Reserve' : 'Taxi Squad'),
+                        occupants.length ? occupants.map((entry) => entryRow(entry, slot)) : h('p', { className: 'tl-empty', style: { padding: '10px 14px' } }, `No entries stashed at ${slot}.`));
                 })),
-            h('div', null,
-                h('div', { className: 'tl-card' },
-                    h('div', { className: 'tl-card-title' }, h('span', null, 'Lineup check'), h('small', null, league.phase === 'season' ? `SCORING W${league.currentWeek}` : league.phase.toUpperCase())),
-                    league.phase === 'draft' && h('div', { className: 'tl-feedrow' }, h('time', null, 'DRAFT'), h('p', null, 'Draft in progress — the roster fills as picks land.')),
-                    problems.length
-                        ? problems.map((p, i) => h('div', { key: i, className: 'tl-feedrow caution' }, h('time', null, 'FIX'), h('p', null, p)))
-                        : h('div', { className: 'tl-feedrow' }, h('time', null, 'OK'), h('p', null, 'Every starter slot is filled and legal.')),
-                    league.settings.eraAdjusted && h('div', { className: 'tl-feedrow' }, h('time', null, 'ERA'), h('p', null, 'Era-adjusted scoring is on — weekly points are normalized across seasons by position-era factors.'))),
-                team.manager === 'ai' && h(GmProfile, { team, title: 'GM profile' })));
+            h('div', null, team.manager === 'ai' && h(GmProfile, { team, title: 'GM profile' })));
     }
 
     function WaiversSection({ league, cards, team, standings, apply }) {

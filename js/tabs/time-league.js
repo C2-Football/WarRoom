@@ -295,6 +295,30 @@
             .tl-streak.L { background: rgba(231,76,60,0.14); color: var(--bad); }
             .tl-streak.T { background: rgba(255,255,255,0.08); color: var(--text-secondary); }
 
+            /* ── Roster Central — mirrors War Room's real Game Day Central
+               (js/tabs/lineup.js): a gold-bordered status hero above a unified
+               CSS-grid lineup table, in place of Game Day's Slot/Player/Proj/
+               Mtch/Form/Hi/Lo columns (which don't apply to fixed historical
+               stat lines — no weekly projection uncertainty to show). ── */
+            .tl-lineup-hero { background: var(--black); border: 1px solid rgba(212,175,55,0.35); border-radius: var(--card-radius, 10px); padding: 16px 18px; margin-bottom: 14px; }
+            .tl-lineup-hero .lh-kicker { font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
+            .tl-lineup-hero .lh-headline { font-family: var(--font-title); font-weight: 700; font-size: 19px; margin-bottom: 4px; color: var(--white); }
+            .tl-lineup-hero .lh-headline.good { color: var(--good); }
+            .tl-lineup-hero .lh-headline.warn { color: var(--warn); }
+            .tl-lineup-hero .lh-sub { font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; }
+            .tl-lineup-table { border: 1px solid rgba(255,255,255,0.08); border-radius: var(--card-radius, 10px); overflow: hidden; margin-bottom: 14px; }
+            .tl-lineup-table-title { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); padding: 10px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); }
+            .tl-lineup-head { display: grid; padding: 6px 14px; font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid rgba(255,255,255,0.06); }
+            .tl-lineup-row { display: grid; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+            .tl-lineup-row:last-child { border-bottom: none; }
+            .tl-lineup-row.open-slot { color: var(--text-faint, rgba(189,184,173,0.5)); font-size: 12px; font-style: italic; }
+            .tl-lineup-slot { font-family: var(--font-mono); font-weight: 700; font-size: 11px; color: var(--gold); }
+            .tl-lineup-player { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .tl-lineup-player .name { font-weight: 600; font-size: 12.5px; }
+            .tl-lineup-player .meta { color: var(--text-muted); font-size: 10.5px; margin-left: 6px; font-family: var(--font-mono); }
+            .tl-lineup-pts { text-align: right; font-family: var(--font-title); font-weight: 700; font-size: 16px; color: var(--gold); }
+            .tl-lineup-pts small { display: block; font-family: var(--font-mono); font-weight: 400; font-size: 8.5px; color: var(--text-muted); letter-spacing: .04em; }
+
             /* ── Gazette (Home tab newspaper front page) — dark "midnight edition":
                the rest of the mode stays dark, so this is a front page printed on
                dark stock rather than a light page dropped into a dark app. Serif is
