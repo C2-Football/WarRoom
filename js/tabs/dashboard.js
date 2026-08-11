@@ -714,11 +714,14 @@ function DashboardPanel({
 }) {
     const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
     const valueShortLabel = resolvedLeagueSkin?.vocabulary?.valueShortLabel || 'DHQ';
-    // Redraft Home is fixed (owner ask) — league-detail.js force-resets
-    // selectedWidgets to REDRAFT_FIXED_WIDGETS whenever this is true; every
+    // Redraft + Chopped Home is fixed (owner ask) — league-detail.js force-
+    // resets selectedWidgets to REDRAFT_FIXED_WIDGETS (same list for both
+    // formats — no chopped-specific widget) whenever this is true; every
     // customize affordance below (drag, gear, remove, ▲▼, Add Widget) is
-    // gated off it so the layout can't drift back open.
-    const isFixedRedraft = resolvedLeagueSkin?.type === 'redraft';
+    // gated off it so the layout can't drift back open. Chopped's survival
+    // read (chopBlockEl / WrChopBlock, below) renders separately above the
+    // grid regardless of this flag — it isn't a selectedWidgets entry.
+    const isFixedHome = resolvedLeagueSkin?.type === 'redraft' || resolvedLeagueSkin?.type === 'chopped';
     const [pickerOpen, setPickerOpen] = React.useState(false);
     const [reorderOpen, setReorderOpen] = React.useState(false); // phone widget-reorder sheet
     const [editingWidget, setEditingWidget] = React.useState(null); // { widgetId, widget }
@@ -1332,10 +1335,10 @@ function DashboardPanel({
                 data-widget-id={widget.id || ''}
                 data-widget-key={widget.key || ''}
                 data-widget-size={widget.size || ''}
-                draggable={!isFixedRedraft}
-                onDragStart={isFixedRedraft ? undefined : e => { setDragIdx(idx); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)); }}
-                onDragOver={isFixedRedraft ? undefined : e => e.preventDefault()}
-                onDrop={isFixedRedraft ? undefined : e => {
+                draggable={!isFixedHome}
+                onDragStart={isFixedHome ? undefined : e => { setDragIdx(idx); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(idx)); }}
+                onDragOver={isFixedHome ? undefined : e => e.preventDefault()}
+                onDrop={isFixedHome ? undefined : e => {
                     e.preventDefault();
                     if (dragIdx === null || dragIdx === idx) return;
                     const updated = [...selectedWidgets];
@@ -1358,7 +1361,7 @@ function DashboardPanel({
                 {children}
 
                 {/* Gear button */}
-                {!isFixedRedraft && !shellPhone && showGear && (
+                {!isFixedHome && !shellPhone && showGear && (
                     <button
                         onClick={e => { e.stopPropagation(); setEditingWidget({ widget, idx }); setPickerOpen(true); }}
                         title="Widget settings"
@@ -1380,7 +1383,7 @@ function DashboardPanel({
                 )}
 
                 {/* Remove button */}
-                {!isFixedRedraft && !shellPhone && showGear && (
+                {!isFixedHome && !shellPhone && showGear && (
                     <button
                         onClick={e => { e.stopPropagation(); setSelectedWidgets(selectedWidgets.filter((_, i) => i !== idx)); }}
                         title="Remove widget"
@@ -1407,7 +1410,7 @@ function DashboardPanel({
                     these per-card arrows are the fallback for coarse-pointer
                     TABLETS only (isCoarse && !isPhone). Fine-pointer desktop
                     never renders them (touchReorder false). */}
-                {!isFixedRedraft && showGear && touchReorder && !shellPhone && [
+                {!isFixedHome && showGear && touchReorder && !shellPhone && [
                     { glyph: '▼', delta: 1, ok: canMoveDown, right: '77px', label: 'Move widget down' },
                     { glyph: '▲', delta: -1, ok: canMoveUp, right: '121px', label: 'Move widget up' },
                 ].map(b => (
@@ -1438,7 +1441,7 @@ function DashboardPanel({
                     inline action row (⚙ Edit / ✕ Remove) wired to the same
                     setters the desktop gear/remove buttons use. ▲/▼ above
                     stay as shipped. */}
-                {!isFixedRedraft && shellPhone && (
+                {!isFixedHome && shellPhone && (
                     <button
                         onClick={e => { e.stopPropagation(); setPhoneMenu(v => !v); }}
                         aria-label="Widget actions"
@@ -1460,7 +1463,7 @@ function DashboardPanel({
                             transition: 'all 0.12s', pointerEvents: 'none', fontWeight: 700, letterSpacing: '1px',
                         }}>⋯</span></button>
                 )}
-                {!isFixedRedraft && shellPhone && phoneMenu && (
+                {!isFixedHome && shellPhone && phoneMenu && (
                     <div style={{
                         position: 'absolute', top: '26px', right: '2px', zIndex: 7,
                         display: 'flex', gap: '4px', padding: '3px 4px',
@@ -1883,8 +1886,8 @@ function DashboardPanel({
                     ⇅ Reorder button opens the drag-to-rearrange sheet (replaces
                     the per-card ▲▼ arrows on phone, owner ask). */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '16px var(--space-md) 2px', background: BK }}>
-                    <div role="heading" aria-level={2} style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '1.05rem', fontWeight: 700, letterSpacing: '0.03em', color: W, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{isFixedRedraft ? 'Home' : 'Customizable Widgets'}</div>
-                    {!isFixedRedraft && widgets.length >= 2 && (
+                    <div role="heading" aria-level={2} style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '1.05rem', fontWeight: 700, letterSpacing: '0.03em', color: W, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{isFixedHome ? 'Home' : 'Customizable Widgets'}</div>
+                    {!isFixedHome && widgets.length >= 2 && (
                         <button type="button" onClick={() => setReorderOpen(true)} style={{
                             flex: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '40px', padding: '0 14px',
                             background: 'var(--acc-fill2, rgba(212,175,55,0.10))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
@@ -1911,7 +1914,7 @@ function DashboardPanel({
                 </div>
 
                 {/* Add widget — bottom of the phone stack */}
-                {!isFixedRedraft && (
+                {!isFixedHome && (
                 <div style={{ padding: 'var(--space-md)', background: BK, borderBottom: '1px solid ' + (theme.colors?.border || 'var(--acc-fill2, rgba(212,175,55,0.12))') }}>
                     <button
                         type="button"
@@ -1971,7 +1974,7 @@ function DashboardPanel({
         <React.Fragment>
             {chopBlockEl}
             {/* First-visit hint */}
-            {!isFixedRedraft && showHint && (
+            {!isFixedHome && showHint && (
                 <div style={{
                     display: 'flex', alignItems: 'center', gap: '12px',
                     padding: '12px 20px',
@@ -2080,7 +2083,7 @@ function DashboardPanel({
                 {widgets.map((widget, idx) => renderWidget(widget, idx))}
 
                 {/* Add widget button */}
-                {!isFixedRedraft && (
+                {!isFixedHome && (
                 <button
                     type="button"
                     className="wr-add-widget"
