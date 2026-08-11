@@ -49,6 +49,13 @@
     const COMMISH_ENABLED = EMPIRE_ENABLED;
     window.App.COMMISH_ENABLED = COMMISH_ENABLED;
 
+    // ── Time League is sandbox-only: it bundles a dataset (data/time-league/)
+    // that must not ship on origin. Rides its own lever rather than
+    // EMPIRE_ENABLED's, since it has nothing to do with that feature baking. ──
+    const TIME_LEAGUE_SANDBOX_ONLY = true;
+    const TIME_LEAGUE_ENABLED = PLATFORM_SANDBOX_ACCESS || !TIME_LEAGUE_SANDBOX_ONLY;
+    window.App.TIME_LEAGUE_ENABLED = TIME_LEAGUE_ENABLED;
+
     const WR_DISCORD_URL = ''; // owner: paste the Discord invite URL here — hub button + settings row stay hidden until set
     window.App.WR_DISCORD_URL = WR_DISCORD_URL;
     window.WR_DISCORD_URL = WR_DISCORD_URL;
@@ -720,6 +727,24 @@
                 .then(() => setCommishModuleState(typeof window.CommissionerOffice === 'function' ? 'ready' : 'error'))
                 .catch(() => setCommishModuleState('error'));
         };
+
+        // ── Time League ─────────────────────────────────────────────
+        // Not tied to a real Sleeper/ESPN/MFL league, so unlike Commish there's
+        // no per-user discovery step — the hub card just shows whenever the
+        // sandbox lever is on.
+        const [timeLeagueMode, setTimeLeagueMode] = useState(false);
+        const [timeLeagueModuleState, setTimeLeagueModuleState] = useState(
+            typeof window.TimeLeague === 'function' ? 'ready' : 'idle'
+        );
+        const openTimeLeague = () => {
+            setTimeLeagueMode(true);
+            if (typeof window.TimeLeague === 'function') { setTimeLeagueModuleState('ready'); return; }
+            if (!window.wrLoadModuleGroup) { setTimeLeagueModuleState('error'); return; }
+            setTimeLeagueModuleState('loading');
+            window.wrLoadModuleGroup('timeleague')
+                .then(() => setTimeLeagueModuleState(typeof window.TimeLeague === 'function' ? 'ready' : 'error'))
+                .catch(() => setTimeLeagueModuleState('error'));
+        };
         // Bumped after background roster assessment so the Rolodex re-renders.
         const [, setEmpireAssessReady] = useState(0);
 
@@ -906,6 +931,33 @@
                         onBack={() => setCommishMode(false)}
                         onEnterLeague={(league) => handleSelectLeague(league)}
                     />
+                </ErrorBoundary>
+            );
+        }
+
+        // ── Time League surface ───────────────────────────────────────
+        if (timeLeagueMode && !TIME_LEAGUE_ENABLED) {
+            setTimeLeagueMode(false);
+            return null;
+        }
+        if (timeLeagueMode && !selectedLeague) {
+            const _TimeLeague = typeof window.TimeLeague === 'function' ? window.TimeLeague : null;
+            if (!_TimeLeague) {
+                return (
+                    <div style={{ padding: '96px 24px', textAlign: 'center', color: 'var(--silver)', fontSize: 'var(--text-body, 1rem)' }}>
+                        {timeLeagueModuleState === 'error' ? 'Time League failed to load.' : 'Opening Time League…'}
+                        <div>
+                            <button
+                                onClick={() => { if (timeLeagueModuleState === 'error') { window.location.reload(); return; } setTimeLeagueMode(false); }}
+                                style={{ marginTop: '16px', padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                            >{timeLeagueModuleState === 'error' ? 'Reload' : 'Back to Hub'}</button>
+                        </div>
+                    </div>
+                );
+            }
+            return (
+                <ErrorBoundary>
+                    <_TimeLeague onClose={() => setTimeLeagueMode(false)} />
                 </ErrorBoundary>
             );
         }
@@ -1130,6 +1182,23 @@
                                 <div style={{ fontSize: 'var(--text-label, 0.8rem)', color: 'var(--silver)', marginTop: '4px' }}>{commishCount} league{commishCount !== 1 ? 's' : ''} under your gavel · integrity, people, ops and programmes on one desk</div>
                             </div>
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--info, #5DADE2)" strokeWidth="2" style={{ flexShrink: 0, opacity: 0.7 }}><polyline points="9 18 15 12 9 6"/></svg>
+                        </div>
+                    )}
+
+                    {TIME_LEAGUE_ENABLED && (
+                        <div className="time-league-hero" onClick={openTimeLeague}
+                            style={{ cursor: 'pointer', marginBottom: '14px', borderRadius: '14px', padding: '14px 16px', background: 'linear-gradient(135deg, rgba(212,175,55,0.10), rgba(212,175,55,0.02))', border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', gap: '14px', transition: 'all .16s' }}
+                            onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 22px rgba(212,175,55,0.18)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}>
+                            <div style={{ width: '44px', height: '44px', flexShrink: 0, borderRadius: '50%', border: '1.5px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>⏳</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                                    <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.15rem', letterSpacing: '.08em', color: 'var(--gold)' }}>TIME LEAGUE</span>
+                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '.06em', color: 'var(--black)', background: 'var(--gold)', borderRadius: '5px', padding: '1px 6px' }}>SANDBOX</span>
+                                </div>
+                                <div style={{ fontSize: 'var(--text-label, 0.8rem)', color: 'var(--silver)', marginTop: '4px' }}>Draft any season since '70, play it out for real — AI-GM opponents, mystery seasons, live gamecast.</div>
+                            </div>
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--gold)" strokeWidth="2" style={{ flexShrink: 0, opacity: 0.7 }}><polyline points="9 18 15 12 9 6"/></svg>
                         </div>
                     )}
 
