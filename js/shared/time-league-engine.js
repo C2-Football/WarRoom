@@ -630,6 +630,7 @@
     const SCORING_KEYS = ["passTd", "reception", "rushRecYd", "passingYd", "turnover"];
     const STAT_KEYS = ["passYd", "passTd", "passInt", "rushYd", "rushTd", "rec", "recYd", "recTd", "fumblesLost", "twoPointConversions"];
     const AI_PERSONAS = ["warlord", "archivist", "gambler", "steward"];
+    const AI_DIFFICULTIES = ["rookie", "veteran", "allpro"];
 
     const clampInt = (value, min, max) => Math.min(max, Math.max(min, Math.floor(value)));
 
@@ -666,6 +667,9 @@
             // load as priority waivers rather than silently granting a budget.
             waiverMode: value.waiverMode === "faab" ? "faab" : "priority",
             faabBudget: clampInt(readNumber(value.faabBudget) ?? 100, 0, 1000),
+            // "veteran" is today's only behavior, so saves written before difficulty
+            // existed load unchanged rather than silently getting harder or easier.
+            aiDifficulty: AI_DIFFICULTIES.includes(value.aiDifficulty) ? value.aiDifficulty : "veteran",
         };
     };
 

@@ -151,6 +151,67 @@ test('aiSubmitWaiverClaims bids within budget and is deterministic under FAAB', 
     }
 });
 
+test('FAAB bids scale up with AI difficulty for the same persona', () => {
+    const cards = samplePool();
+    const settings = baseSettings({ waiverMode: 'faab', faabBudget: 60 });
+    let state = Engine.createTimeLeague({ name: 'Difficulty FAAB', seed: 'diff-faab-seed', createdAt: '2026-01-01T00:00:00Z', settings, seats: seats() });
+    state = draftFullRoster(state, cards);
+    const augmented = new Map(cards);
+    augmented.set('player:RB:bounty', card('player:RB:bounty', 'Bounty Back', 'RB', [{ season: 2015, points: 999 }]));
+    const bidsAt = (difficulty) => {
+        const s = { ...state, settings: { ...state.settings, aiDifficulty: difficulty } };
+        const next = AI.aiSubmitWaiverClaims(s, augmented, '2026-01-01T00:00:00Z');
+        return next.pendingClaims.map((c) => c.bidAmount);
+    };
+    const rookieBids = bidsAt('rookie');
+    const allproBids = bidsAt('allpro');
+    assert.strictEqual(rookieBids.length, allproBids.length, 'same teams should chase the bounty at both difficulties');
+    for (let i = 0; i < rookieBids.length; i += 1) {
+        assert.ok(allproBids[i] >= rookieBids[i], `all-pro bid ${allproBids[i]} should be at least as aggressive as rookie's ${rookieBids[i]}`);
+    }
+    assert.ok(allproBids.some((bid, i) => bid > rookieBids[i]), 'at least one team should bid strictly more at all-pro than rookie');
+});
+
+test('trade acceptance gets pickier as AI difficulty rises', () => {
+    const cards = samplePool();
+    let state = Engine.createTimeLeague({ name: 'Difficulty Trade', seed: 'diff-trade-seed', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings(), seats: seats() });
+    state = draftFullRoster(state, cards);
+    const [teamA, teamB] = state.teams;
+    // Avoid QB entries — swapping one across teams could trip either side's
+    // 1-QB cap and void the trade regardless of value, which isn't what this
+    // test is checking.
+    const giveEntry = teamA.roster.find((e) => e.position !== 'QB');
+    const receiveEntry = teamB.roster.find((e) => e.position !== 'QB');
+    assert.ok(giveEntry && receiveEntry, 'a full draft should leave each team with a non-QB entry');
+    // Relabel both entries onto synthetic cards with exact, known values so the
+    // accept/reject line can be placed precisely between the veteran and
+    // all-pro thresholds — the tiny sample pool rarely produces a naturally
+    // occurring ratio that lands there.
+    const persona = AI.AI_PERSONAS[teamB.aiPersona];
+    const base = 1.08 - 0.16 * ((persona.aggression + persona.riskTolerance) / 200);
+    const outgoingValue = 100;
+    const incomingValue = Math.round(outgoingValue * (base + 0.03)); // between veteran (base) and all-pro (base + 0.07)
+    const augmented = new Map(cards);
+    augmented.set('synthetic:give', card('synthetic:give', 'Synthetic Give', giveEntry.position, [{ season: giveEntry.drawnSeason, points: incomingValue }]));
+    augmented.set('synthetic:receive', card('synthetic:receive', 'Synthetic Receive', receiveEntry.position, [{ season: receiveEntry.drawnSeason, points: outgoingValue }]));
+    const relabel = (s, entryId, identity, name) => ({
+        ...s,
+        teams: s.teams.map((t) => ({ ...t, roster: t.roster.map((e) => (e.entryId === entryId ? { ...e, identity, name } : e)) })),
+    });
+    state = relabel(state, giveEntry.entryId, 'synthetic:give', 'Synthetic Give');
+    state = relabel(state, receiveEntry.entryId, 'synthetic:receive', 'Synthetic Receive');
+
+    const statusAt = (difficulty) => {
+        let s = { ...state, settings: { ...state.settings, aiDifficulty: difficulty } };
+        s = Engine.proposeTrade(s, { fromTeamId: teamA.teamId, toTeamId: teamB.teamId, giveEntryIds: [giveEntry.entryId], receiveEntryIds: [receiveEntry.entryId], note: '' }, '2026-01-01T00:00:00Z');
+        const tradeId = s.trades[0].tradeId;
+        s = AI.aiRespondToTrades(s, augmented, '2026-01-01T00:00:00Z');
+        return s.trades.find((t) => t.tradeId === tradeId).status;
+    };
+    assert.strictEqual(statusAt('veteran'), 'accepted', 'veteran should take a deal right at its own threshold');
+    assert.strictEqual(statusAt('allpro'), 'rejected', 'all-pro should demand more value than the same deal offers');
+});
+
 test('aiGenerateTrades is deterministic for the same seed and week', () => {
     const cards = samplePool();
     let state = Engine.createTimeLeague({ name: 'Trade AI', seed: 'trade-ai-seed', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings(), seats: seats() });

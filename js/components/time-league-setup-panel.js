@@ -74,6 +74,7 @@
         const [waiverMode, setWaiverMode] = useState('priority');
         const [faabBudget, setFaabBudget] = useState(100);
         const [tradesEnabled, setTradesEnabled] = useState(true);
+        const [aiDifficulty, setAiDifficulty] = useState('veteran');
 
         const rosterOption = ROSTER_PRESET_OPTIONS.find((o) => o.id === rosterPreset) ?? ROSTER_PRESET_OPTIONS[1];
         const scoringOption = SCORING_PRESET_OPTIONS.find((o) => o.id === scoringPreset) ?? SCORING_PRESET_OPTIONS[0];
@@ -84,8 +85,8 @@
         const settings = useMemo(() => ({
             rosterSlots: rosterOption.slots, scoring: scoringOption.scoring,
             regularSeasonWeeks: window.TimeLeagueUtils.REGULAR_SEASON_WEEKS, maxQuarterbacks: window.TimeLeagueUtils.MAX_QUARTERBACKS,
-            eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled,
-        }), [rosterOption, scoringOption, eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled]);
+            eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty,
+        }), [rosterOption, scoringOption, eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty]);
         const capacity = Engine.rosterCapacity(settings);
         const humanSeats = seats.filter((s) => s.manager === 'human').length;
         const toggleDecade = (id) => setEraDecades((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -154,6 +155,17 @@
                             h(PersonaMeterRow, { label: 'RISK', value: persona.riskTolerance }),
                             h('p', { className: 'tl-hint', style: { marginTop: 6 } }, persona.tell));
                     }))),
+
+            h('div', { className: 'tl-field' },
+                h('span', { className: 'tl-label' }, 'AI Difficulty'),
+                h('div', { className: 'tl-chip-row' }, Object.keys(AI.AI_DIFFICULTY_LABELS).map((id) => {
+                    const tier = AI.AI_DIFFICULTY_LABELS[id];
+                    return h('button', {
+                        key: id, type: 'button', className: `tl-opt-chip${aiDifficulty === id ? ' selected' : ''}`, style: { flex: '1 1 200px' },
+                        onClick: () => setAiDifficulty(id),
+                    }, h('strong', { style: { display: 'block' } }, tier.label), h('span', { className: 'tl-opt-detail' }, tier.blurb));
+                })),
+                h('p', { className: 'tl-hint', style: { marginTop: 6 } }, 'Tunes how sharp every AI GM plays — draft boards, trade math, waiver bids. Persona flavor stays the same at every difficulty.')),
 
             h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 } },
                 h('div', { className: 'tl-field', style: { marginBottom: 0 } },

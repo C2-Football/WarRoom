@@ -35,6 +35,7 @@ function baseSettings(overrides = {}) {
         waiverMode: 'priority',
         faabBudget: 100,
         tradesEnabled: true,
+        aiDifficulty: 'veteran',
         ...overrides,
     };
 }

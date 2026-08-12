@@ -28,11 +28,36 @@
 
     const personaFor = (team) => AI_PERSONAS[team?.aiPersona ?? "steward"];
 
+    /**
+     * Difficulty tunes HOW SHARP the AI's decisions are, not its rosters or
+     * scoring — persona flavor (aggression/patience/risk) stays the same at
+     * every difficulty. "veteran" reproduces today's untuned behavior exactly,
+     * so old saves and every persona-level test keep working unchanged.
+     */
+    const DIFFICULTY_TUNING = {
+        rookie: { noiseMult: 1.8, marginBonus: 0.12, thresholdDelta: -0.06, bidMult: 0.7 },
+        veteran: { noiseMult: 1, marginBonus: 0, thresholdDelta: 0, bidMult: 1 },
+        allpro: { noiseMult: 0.35, marginBonus: -0.1, thresholdDelta: 0.07, bidMult: 1.25 },
+    };
+    const difficultyFor = (state) => DIFFICULTY_TUNING[state.settings.aiDifficulty] ?? DIFFICULTY_TUNING.veteran;
+
+    const AI_DIFFICULTY_LABELS = {
+        rookie: { label: 'Rookie', blurb: 'Sloppier picks, easier to fleece in a trade, slower off the wire.' },
+        veteran: { label: 'Veteran', blurb: "Today's baseline GM — solid value reads, fair trades, competitive claims." },
+        allpro: { label: 'All-Pro', blurb: 'Sharp draft boards, demands real value in trades, wins contested waivers.' },
+    };
+
     /** Accept when incoming covers outgoing x threshold: bold personas take thin wins (~0.95), careful ones demand a premium (~1.04). */
-    const acceptThreshold = (persona) => 1.08 - 0.16 * ((persona.aggression + persona.riskTolerance) / 200);
+    const acceptThreshold = (persona, difficulty) => {
+        const base = 1.08 - 0.16 * ((persona.aggression + persona.riskTolerance) / 200);
+        return Math.max(0.75, Math.min(1.35, base + (difficulty ? difficulty.thresholdDelta : 0)));
+    };
 
     /** Patient personas demand a bigger upgrade before spending a waiver claim. */
-    const waiverMargin = (persona) => 1.05 + (persona.patience / 100) * 0.35;
+    const waiverMargin = (persona, difficulty) => {
+        const base = 1.05 + (persona.patience / 100) * 0.35;
+        return Math.max(1.0, base + (difficulty ? difficulty.marginBonus : 0));
+    };
 
     const pickPhrase = (seedKey, pool) => pool[Math.floor(createSeededRandom(seedKey)() * pool.length)];
 
@@ -73,7 +98,7 @@
             if (room > 0) openBySlot.set(slot, room);
         }
         const noise = createSeededRandom(`${state.seed}:aidraft:${seat.overall}`);
-        const amp = 0.2 + (personaFor(team).riskTolerance / 100) * 0.3;
+        const amp = (0.2 + (personaFor(team).riskTolerance / 100) * 0.3) * difficultyFor(state).noiseMult;
         let best = null;
         // The era-eligible board is the whole world for an AI GM: undrafted cards
         // that the league's decades can actually field.
@@ -97,6 +122,7 @@
         if (state.phase !== "season" || !state.settings.waiversEnabled) return state;
         const capacity = rosterCapacity(state.settings);
         const faab = state.settings.waiverMode === "faab";
+        const difficulty = difficultyFor(state);
         // freeAgents already drops era-ineligible cards, so the wire an AI reads
         // is exactly the wire a human sees.
         const pool = freeAgents(state, cards);
@@ -109,7 +135,7 @@
                 const value = entryValue(cards, entry);
                 return value < low ? value : low;
             }, Number.POSITIVE_INFINITY);
-            const bar = (Number.isFinite(weakest) ? weakest : 0) * waiverMargin(personaFor(team));
+            const bar = (Number.isFinite(weakest) ? weakest : 0) * waiverMargin(personaFor(team), difficulty);
             // Adds always land on the bench, so a full BENCH needs a drop even when
             // the roster itself is under capacity — otherwise the claim is doomed.
             const benchFull = team.roster.filter((entry) => entry.slot === "BN").length >= (next.settings.rosterSlots.BN ?? 0);
@@ -135,7 +161,7 @@
                 const noise = createSeededRandom(`${state.seed}:aibid:${state.currentWeek}:${team.teamId}`)();
                 // Aggressive personas spend a bigger slice of what's left; a touch
                 // of noise keeps two same-persona teams from bidding identically.
-                const aggressionFactor = 0.08 + (persona.aggression / 100) * 0.25 + noise * 0.05;
+                const aggressionFactor = (0.08 + (persona.aggression / 100) * 0.25 + noise * 0.05) * difficulty.bidMult;
                 bidAmount = Math.max(1, Math.min(remaining, Math.round(remaining * aggressionFactor)));
             }
             return submitWaiverClaim(next, {
@@ -157,7 +183,7 @@
         const incoming = trade.giveEntryIds.flatMap((id) => from.roster.find((entry) => entry.entryId === id) ?? []);
         const outgoing = trade.receiveEntryIds.flatMap((id) => to.roster.find((entry) => entry.entryId === id) ?? []);
         const complete = incoming.length === trade.giveEntryIds.length && outgoing.length === trade.receiveEntryIds.length;
-        const accept = complete && sumValue(cards, incoming) >= sumValue(cards, outgoing) * acceptThreshold(persona);
+        const accept = complete && sumValue(cards, incoming) >= sumValue(cards, outgoing) * acceptThreshold(persona, difficultyFor(state));
         const inName = bestName(cards, incoming, "That package");
         const outName = bestName(cards, outgoing, "my starter");
         const note = accept
@@ -231,6 +257,7 @@
     function aiGenerateTrades(state, cards, createdAt) {
         if (state.phase !== "season" || !state.settings.tradesEnabled) return state;
         const random = createSeededRandom(`${state.seed}:aitrade:${state.currentWeek}`);
+        const difficulty = difficultyFor(state);
         const quota = random() < 0.6 ? 1 : 2;
         let next = state;
         let made = 0;
@@ -254,7 +281,7 @@
                 const two = givePool.length > 1 && receivePool.length > 1 && random() < 0.35;
                 const give = givePool.slice(0, two ? 2 : 1);
                 const receive = receivePool.slice(0, two ? 2 : 1);
-                if (sumValue(cards, receive) < sumValue(cards, give) * acceptThreshold(persona)) continue;
+                if (sumValue(cards, receive) < sumValue(cards, give) * acceptThreshold(persona, difficulty)) continue;
                 const giveIds = give.map((entry) => entry.entryId);
                 const receiveIds = receive.map((entry) => entry.entryId);
                 if (isDuplicatePending(next.trades, proposer.teamId, partner.teamId, giveIds, receiveIds)) continue;
@@ -279,7 +306,7 @@
     }
 
     const api = {
-        AI_PERSONAS, entryValueFromCard, aiDraftChoice, aiPrepareWeek, aiSubmitWaiverClaims,
+        AI_PERSONAS, AI_DIFFICULTY_LABELS, entryValueFromCard, aiDraftChoice, aiPrepareWeek, aiSubmitWaiverClaims,
         aiRespondToTrades, aiGenerateTrades,
     };
     App.TimeLeagueAI = api;
