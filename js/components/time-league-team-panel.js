@@ -130,7 +130,10 @@
         const [pos, setPos] = useState('ALL');
         const [targetIdentity, setTargetIdentity] = useState('');
         const [dropEntryId, setDropEntryId] = useState('');
+        const [bidAmount, setBidAmount] = useState(0);
         const pool = useMemo(() => Engine.freeAgents(league, cards), [league, cards]);
+        const faab = league.settings.waiverMode === 'faab';
+        const clearTarget = (identity) => { setTargetIdentity(identity); setBidAmount(0); };
 
         if (!league.settings.waiversEnabled) {
             return h('div', { className: 'tl-card' },
@@ -149,16 +152,23 @@
         const mustDrop = benchCount >= benchCap;
         const dropEntry = team.roster.find((e) => e.entryId === dropEntryId);
         const dropBlocks = mustDrop && (!dropEntry || dropEntry.slot !== 'BN');
-        const canFile = wireOpen && Boolean(target) && !alreadyClaimed && !dropBlocks;
         const dropOptions = [...team.roster].sort((l, r) => (l.slot === 'BN' ? 0 : 1) - (r.slot === 'BN' ? 0 : 1) || l.name.localeCompare(r.name));
         const mine = league.pendingClaims.filter((c) => c.teamId === team.teamId);
         const others = league.pendingClaims.length - mine.length;
         const priority = standings.map((s) => s.teamId).reverse();
         const myPriority = priority.indexOf(team.teamId) + 1;
+        const budgetRemaining = team.faabRemaining ?? 0;
+        const budgetReserved = mine.reduce((sum, c) => sum + (c.bidAmount ?? 0), 0);
+        const budgetAvailable = Math.max(0, budgetRemaining - budgetReserved);
+        const bidInvalid = faab && (!Number.isFinite(bidAmount) || bidAmount < 0 || bidAmount > budgetAvailable);
+        const canFile = wireOpen && Boolean(target) && !alreadyClaimed && !dropBlocks && !bidInvalid;
         const fileClaim = () => {
             if (!target) return;
-            apply(Engine.submitWaiverClaim(league, { teamId: team.teamId, addIdentity: target.identity, addName: target.name, addPosition: target.position, dropEntryId: dropEntry ? dropEntry.entryId : '' }, nowIso()));
-            setTargetIdentity(''); setDropEntryId('');
+            apply(Engine.submitWaiverClaim(league, {
+                teamId: team.teamId, addIdentity: target.identity, addName: target.name, addPosition: target.position,
+                dropEntryId: dropEntry ? dropEntry.entryId : '', ...(faab ? { bidAmount } : {}),
+            }, nowIso()));
+            setTargetIdentity(''); setDropEntryId(''); setBidAmount(0);
         };
 
         return h('div', { className: 'tl-grid-2' },
@@ -181,14 +191,15 @@
                                     h('span', { className: `tl-pos-badge tl-pos-${card.position}` }, card.position),
                                     h('span', { className: 'tl-p-era' }, card.seasons.length ? `${card.seasons[0].season}–${card.seasons[card.seasons.length - 1].season}` : '—'))),
                             h('div', { className: 'tl-p-pts tabular' }, fmt1(card.peak), h('small', null, `PEAK · ${best ? best.season : '—'}`)),
-                            h('button', { className: 'tl-btn icon', disabled: !wireOpen, onClick: () => setTargetIdentity(selected ? '' : card.identity) }, selected ? 'PICKED' : 'CLAIM'));
+                            h('button', { className: 'tl-btn icon', disabled: !wireOpen, onClick: () => clearTarget(selected ? '' : card.identity) }, selected ? 'PICKED' : 'CLAIM'));
                     })),
                 filtered.length > shown.length && h('p', { className: 'tl-hint', style: { marginTop: 8 } }, `Showing ${WIRE_ROW_CAP} of ${filtered.length} — refine the search`)),
             h('div', null,
-                h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 } },
+                h('div', { style: { display: 'grid', gridTemplateColumns: faab ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: 10, marginBottom: 14 } },
                     h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Priority'), h('strong', { style: { fontSize: 18, fontFamily: 'var(--font-title)' } }, myPriority ? `#${myPriority}` : '—')),
                     h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Pool'), h('strong', { style: { fontSize: 18, fontFamily: 'var(--font-title)' } }, filtered.length)),
-                    h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Claims'), h('strong', { style: { fontSize: 18, fontFamily: 'var(--font-title)' } }, mine.length))),
+                    h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Claims'), h('strong', { style: { fontSize: 18, fontFamily: 'var(--font-title)' } }, mine.length)),
+                    faab && h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Budget'), h('strong', { className: 'tabular', style: { fontSize: 18, fontFamily: 'var(--font-title)' } }, `$${budgetAvailable}`))),
                 h('div', { className: 'tl-card' },
                     h('div', { className: 'tl-card-title' }, h('span', null, 'File a claim'), h('small', null, 'processes at the next game day')),
                     !wireOpen && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'HOLD'), h('p', null, league.phase === 'draft' ? 'The wire opens when the draft completes.' : 'Season complete — no more claims.')),
@@ -198,23 +209,33 @@
                             h('span', { className: `tl-pos-badge tl-pos-${target.position}` }, target.position),
                             h('span', { style: { flex: 1 } }, h('strong', { style: { display: 'block', fontSize: 12.5 } }, target.name), h('small', { style: { color: 'var(--text-muted)' } }, 'ADD TARGET')),
                             h('span', { className: 'tabular', style: { color: 'var(--gold)' } }, fmt1(target.peak)),
-                            h('button', { className: 'tl-btn icon', 'aria-label': 'Clear claim target', onClick: () => setTargetIdentity('') }, '✕')),
+                            h('button', { className: 'tl-btn icon', 'aria-label': 'Clear claim target', onClick: () => clearTarget('') }, '✕')),
                         h('select', { className: 'tl-select', 'aria-label': 'Drop entry', value: dropEntryId, onChange: (e) => setDropEntryId(e.target.value) },
                             h('option', { value: '' }, mustDrop ? 'SELECT A DROP — BENCH IS FULL' : 'NO DROP (BENCH HAS ROOM)'),
                             dropOptions.map((entry) => h('option', { key: entry.entryId, value: entry.entryId }, `DROP ${entry.name} (${entry.slot})`))),
+                        faab && h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 } },
+                            h('span', { className: 'tl-label' }, 'Bid'),
+                            h('span', { style: { color: 'var(--text-muted)' } }, '$'),
+                            h('input', {
+                                className: 'tl-input', type: 'number', min: 0, max: budgetAvailable, style: { width: 90 }, value: bidAmount,
+                                onChange: (e) => setBidAmount(Math.max(0, Math.round(Number(e.target.value)) || 0)),
+                            }),
+                            h('span', { className: 'tabular', style: { color: 'var(--text-muted)', fontSize: 11 } }, `of $${budgetAvailable} available`)),
                         alreadyClaimed && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'DUPE'), h('p', null, 'You already have a live claim on this player.')),
                         mustDrop && dropEntry && dropEntry.slot !== 'BN' && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'WARN'), h('p', null, 'Dropping a starter leaves the bench full — the claim will void. Pick a bench drop.')),
+                        faab && bidAmount > budgetAvailable && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'WARN'), h('p', null, 'Bid exceeds your remaining FAAB budget.')),
                         h('button', { className: 'tl-btn primary', disabled: !canFile, onClick: fileClaim, style: { marginTop: 8 } }, '⚖ FILE CLAIM'))
                         : h('p', { className: 'tl-empty' }, 'Pick a target from the wire to build a claim.'),
-                    h('p', { className: 'tl-hint', style: { marginTop: 8 } }, 'Processing order: reverse standings — worst record first.')),
+                    h('p', { className: 'tl-hint', style: { marginTop: 8 } }, faab ? 'Blind bid — highest offer wins; ties break by worst record.' : 'Processing order: reverse standings — worst record first.')),
                 h('div', { className: 'tl-card' },
                     h('div', { className: 'tl-card-title' }, h('span', null, 'Pending claims'), h('small', null, others > 0 ? `+${others} filed by rival desks` : 'league quiet')),
                     mine.length ? h('table', { className: 'tl-tbl' },
-                        h('thead', null, h('tr', null, h('th', null, 'Add'), h('th', null, 'Drop'), h('th', { className: 'num' }, 'Wk'), h('th', null))),
+                        h('thead', null, h('tr', null, h('th', null, 'Add'), h('th', null, 'Drop'), faab && h('th', { className: 'num' }, 'Bid'), h('th', { className: 'num' }, 'Wk'), h('th', null))),
                         h('tbody', null, mine.map((claim) => {
                             const drop = team.roster.find((e) => e.entryId === claim.dropEntryId);
                             return h('tr', { key: claim.claimId },
                                 h('td', null, `${claim.addName} (${claim.addPosition})`), h('td', null, claim.dropEntryId ? drop?.name ?? claim.dropEntryId : '—'),
+                                faab && h('td', { className: 'num tabular' }, `$${claim.bidAmount ?? 0}`),
                                 h('td', { className: 'num' }, claim.week),
                                 h('td', { className: 'num' }, h('button', { className: 'tl-btn icon', onClick: () => apply(Engine.cancelWaiverClaim(league, claim.claimId)) }, '✕ CANCEL')));
                         })))
@@ -340,6 +361,38 @@
                     !settled.length && h('div', { className: 'tl-feedrow' }, h('time', null, 'NONE'), h('p', null, 'No trades settled yet this season.')))));
     }
 
+    const BADGE_TIERS = ['season', 'performance', 'roster', 'desk'];
+
+    /** Mirrors War Room's real achievements.js chip grid (js/tabs/trophy-room.js
+     * renderAchievementsCard) — tier-tinted, earned/unearned styling handled by
+     * .tl-badge-chip.earned in CSS, grouped by tier with a progress bar for what's
+     * still open. See js/shared/time-league-achievements.js for the catalog. */
+    function AchievementsSection({ league, team }) {
+        const Achievements = window.App.TimeLeagueAchievements;
+        const stats = useMemo(() => Achievements.computeStats(league, team.teamId), [league, team.teamId]);
+        const { earned, unearned } = useMemo(() => Achievements.evaluate(stats), [stats]);
+        const all = [...earned, ...unearned];
+        const badgeChip = (badge) => {
+            const isEarned = badge.progress >= 1;
+            return h('div', { key: badge.id, className: `tl-badge-chip${isEarned ? ' earned' : ''}`, style: { '--tier-color': Achievements.tierColor(badge.tier) } },
+                h('span', { className: 'tl-badge-icon' }, badge.icon),
+                h('div', { className: 'tl-badge-body' },
+                    h('div', { className: 'tl-badge-label' }, badge.label, isEarned && h('span', { className: 'tl-pill gold' }, 'EARNED')),
+                    h('div', { className: 'tl-badge-desc' }, badge.description),
+                    !isEarned && h('div', { className: 'tl-badge-progress' }, h('div', { className: 'tl-badge-progress-fill', style: { width: `${Math.round(badge.progress * 100)}%` } })),
+                    !isEarned && h('div', { className: 'tl-badge-desc' }, `${Math.round(badge.value * 10) / 10} / ${badge.target}`)));
+        };
+        return h('div', { className: 'tl-card' },
+            h('div', { className: 'tl-card-title' }, h('span', null, 'Trophy Case'), h('small', null, `${earned.length}/${all.length} earned — ${team.name}`)),
+            BADGE_TIERS.map((tierId) => {
+                const tierBadges = all.filter((b) => b.tier === tierId).sort((a, b) => b.progress - a.progress);
+                if (!tierBadges.length) return null;
+                return h(React.Fragment, { key: tierId },
+                    h('div', { className: 'tl-badge-tier-label' }, Achievements.tierLabel(tierId)),
+                    h('div', { className: 'tl-badge-grid' }, tierBadges.map(badgeChip)));
+            }));
+    }
+
     function WrTimeLeagueTeamPanel({ league, cards, section, activeTeamId, onSelectTeam, onUpdate }) {
         const standings = useMemo(() => Engine.computeStandings(league), [league]);
         const recordByTeam = useMemo(() => new Map(standings.map((s) => [s.teamId, s])), [standings]);
@@ -367,7 +420,8 @@
                 ? h('div', { className: 'tl-card' }, h('p', { className: 'tl-empty' }, 'Unknown team — pick a desk above.'))
                 : section === 'roster' ? h(RosterSection, { key: activeTeamId, league, cards, team, apply })
                     : section === 'waivers' ? h(WaiversSection, { key: activeTeamId, league, cards, team, standings, apply })
-                        : h(TradesSection, { key: activeTeamId, league, cards, team, apply }));
+                        : section === 'trades' ? h(TradesSection, { key: activeTeamId, league, cards, team, apply })
+                            : h(AchievementsSection, { key: activeTeamId, league, team }));
     }
 
     window.WrTimeLeagueTeamPanel = WrTimeLeagueTeamPanel;

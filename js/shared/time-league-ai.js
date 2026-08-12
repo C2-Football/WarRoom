@@ -96,12 +96,14 @@
     function aiSubmitWaiverClaims(state, cards, createdAt) {
         if (state.phase !== "season" || !state.settings.waiversEnabled) return state;
         const capacity = rosterCapacity(state.settings);
+        const faab = state.settings.waiverMode === "faab";
         // freeAgents already drops era-ineligible cards, so the wire an AI reads
         // is exactly the wire a human sees.
         const pool = freeAgents(state, cards);
         return state.teams.reduce((next, team) => {
             if (team.manager !== "ai") return next;
             if (next.pendingClaims.some((claim) => claim.teamId === team.teamId && claim.week === next.currentWeek)) return next;
+            if (faab && (team.faabRemaining ?? 0) <= 0) return next;
             const weakest = team.roster.reduce((low, entry) => {
                 if (!starterEligible(next.settings, entry.position)) return low;
                 const value = entryValue(cards, entry);
@@ -126,12 +128,23 @@
                 && card.peak >= bar
             ));
             if (!target) return next;
+            let bidAmount;
+            if (faab) {
+                const persona = personaFor(team);
+                const remaining = team.faabRemaining ?? 0;
+                const noise = createSeededRandom(`${state.seed}:aibid:${state.currentWeek}:${team.teamId}`)();
+                // Aggressive personas spend a bigger slice of what's left; a touch
+                // of noise keeps two same-persona teams from bidding identically.
+                const aggressionFactor = 0.08 + (persona.aggression / 100) * 0.25 + noise * 0.05;
+                bidAmount = Math.max(1, Math.min(remaining, Math.round(remaining * aggressionFactor)));
+            }
             return submitWaiverClaim(next, {
                 teamId: team.teamId,
                 addIdentity: target.identity,
                 addName: target.name,
                 addPosition: target.position,
                 dropEntryId: drop?.entryId ?? "",
+                ...(faab ? { bidAmount } : {}),
             }, createdAt);
         }, state);
     }

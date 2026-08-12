@@ -71,6 +71,8 @@
         const [eraMode, setEraMode] = useState('any-era');
         const [eraDecades, setEraDecades] = useState([]);
         const [waiversEnabled, setWaiversEnabled] = useState(true);
+        const [waiverMode, setWaiverMode] = useState('priority');
+        const [faabBudget, setFaabBudget] = useState(100);
         const [tradesEnabled, setTradesEnabled] = useState(true);
 
         const rosterOption = ROSTER_PRESET_OPTIONS.find((o) => o.id === rosterPreset) ?? ROSTER_PRESET_OPTIONS[1];
@@ -82,8 +84,8 @@
         const settings = useMemo(() => ({
             rosterSlots: rosterOption.slots, scoring: scoringOption.scoring,
             regularSeasonWeeks: window.TimeLeagueUtils.REGULAR_SEASON_WEEKS, maxQuarterbacks: window.TimeLeagueUtils.MAX_QUARTERBACKS,
-            eraAdjusted, eraRules, waiversEnabled, tradesEnabled,
-        }), [rosterOption, scoringOption, eraAdjusted, eraRules, waiversEnabled, tradesEnabled]);
+            eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled,
+        }), [rosterOption, scoringOption, eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled]);
         const capacity = Engine.rosterCapacity(settings);
         const humanSeats = seats.filter((s) => s.manager === 'human').length;
         const toggleDecade = (id) => setEraDecades((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -166,7 +168,20 @@
             h('label', { className: 'tl-toggle' }, h('input', { type: 'checkbox', checked: eraAdjusted, onChange: (e) => setEraAdjusted(e.target.checked) }),
                 h('span', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Era-Adjusted Scoring'), h('span', { className: 'tl-hint' }, 'Default OFF — raw stat lines are the league decision. Opt in to normalize 1970 numbers against modern inflation.'))),
             h('label', { className: 'tl-toggle' }, h('input', { type: 'checkbox', checked: waiversEnabled, onChange: (e) => setWaiversEnabled(e.target.checked) }),
-                h('span', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Waivers'), h('span', { className: 'tl-hint' }, 'Claims process worst-record-first after every game day.'))),
+                h('span', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Waivers'),
+                    h('span', { className: 'tl-hint' }, waiverMode === 'faab' ? `Blind-bid FAAB — $${faabBudget} per team, highest bid wins.` : 'Claims process worst-record-first after every game day.'))),
+            waiversEnabled && h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', margin: '-6px 0 12px 28px' } },
+                h('button', { type: 'button', className: `tl-opt-chip${waiverMode === 'priority' ? ' selected' : ''}`, onClick: () => setWaiverMode('priority') },
+                    h('strong', null, 'Priority'), ' ', h('span', { className: 'tl-opt-detail', style: { display: 'inline' } }, 'worst record first')),
+                h('button', { type: 'button', className: `tl-opt-chip${waiverMode === 'faab' ? ' selected' : ''}`, onClick: () => setWaiverMode('faab') },
+                    h('strong', null, 'FAAB'), ' ', h('span', { className: 'tl-opt-detail', style: { display: 'inline' } }, 'blind budget bidding')),
+                waiverMode === 'faab' && h('div', { style: { display: 'flex', alignItems: 'center', gap: 6 } },
+                    h('span', { className: 'tl-label' }, 'Budget'),
+                    h('span', { style: { color: 'var(--text-muted)' } }, '$'),
+                    h('input', {
+                        className: 'tl-input', type: 'number', min: 0, max: 1000, style: { width: 80 }, value: faabBudget,
+                        onChange: (e) => setFaabBudget(Math.max(0, Math.min(1000, Math.round(Number(e.target.value)) || 0))),
+                    }))),
             h('label', { className: 'tl-toggle' }, h('input', { type: 'checkbox', checked: tradesEnabled, onChange: (e) => setTradesEnabled(e.target.checked) }),
                 h('span', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Trades'), h('span', { className: 'tl-hint' }, 'Equal-count swaps; AI GMs propose and answer in character.'))),
 

@@ -92,6 +92,7 @@
             ...(seat.aiPersona ? { aiPersona: seat.aiPersona } : {}),
             roster: [],
             queue: [],
+            ...(input.settings.waiverMode === "faab" ? { faabRemaining: input.settings.faabBudget } : {}),
         }));
         const teamIds = teams.map((team) => team.teamId);
         const draftOrder = createDraftOrder(teamIds, rosterCapacity(input.settings), "snake")
@@ -423,6 +424,16 @@
             const quarterbacks = team.roster.filter((entry) => entry.position === "QB" && entry.entryId !== claim.dropEntryId).length;
             if (quarterbacks >= state.settings.maxQuarterbacks) return state;
         }
+        const faab = state.settings.waiverMode === "faab";
+        let bidAmount = 0;
+        if (faab) {
+            bidAmount = Math.floor(claim.bidAmount ?? 0);
+            if (!Number.isFinite(bidAmount) || bidAmount < 0) return state;
+            // Every live claim from this desk reserves its bid against the same
+            // budget, so a second claim can't spend money the first already holds.
+            const reserved = state.pendingClaims.filter((item) => item.teamId === claim.teamId).reduce((sum, item) => sum + (item.bidAmount ?? 0), 0);
+            if (bidAmount + reserved > (team.faabRemaining ?? 0)) return state;
+        }
         const record = {
             claimId: nextId("w", state.pendingClaims.map((item) => item.claimId)),
             teamId: claim.teamId,
@@ -431,9 +442,12 @@
             addPosition: claim.addPosition,
             dropEntryId: claim.dropEntryId,
             week: state.currentWeek,
+            ...(faab ? { bidAmount } : {}),
         };
         const events = appendEvents(state.activity);
-        events.push(state.currentWeek, "waiver", `Waivers — ${team.name} files a claim for ${claim.addName}`, createdAt);
+        events.push(state.currentWeek, "waiver", faab
+            ? `Waivers — ${team.name} bids $${bidAmount} for ${claim.addName}`
+            : `Waivers — ${team.name} files a claim for ${claim.addName}`, createdAt);
         return { ...state, pendingClaims: [...state.pendingClaims, record], activity: events.list() };
     }
 
@@ -444,10 +458,15 @@
 
     function processWaivers(state, cards, createdAt) {
         if (!state.pendingClaims.length) return state;
+        const faab = state.settings.waiverMode === "faab";
         const priority = computeStandings(state).map((standing) => standing.teamId).reverse();
         const rank = new Map(priority.map((teamId, index) => [teamId, index]));
+        // FAAB sorts by bid first — highest offer wins a contested player — then
+        // falls back to the same worst-record priority as a tiebreak; priority
+        // mode ignores bid entirely, exactly as it always has.
         const ordered = [...state.pendingClaims].sort((left, right) => (
-            (rank.get(left.teamId) ?? priority.length) - (rank.get(right.teamId) ?? priority.length)
+            (faab ? (right.bidAmount ?? 0) - (left.bidAmount ?? 0) : 0)
+            || (rank.get(left.teamId) ?? priority.length) - (rank.get(right.teamId) ?? priority.length)
             || idNumber(left.claimId, "w") - idNumber(right.claimId, "w")
         ));
         const taken = new Set(state.teams.flatMap((team) => team.roster.map((entry) => entry.identity)));
@@ -467,7 +486,7 @@
                 continue;
             }
             if (taken.has(claim.addIdentity)) {
-                events.push(week, "waiver", `Waivers W${week} — ${team.name} misses ${card.name}`, createdAt);
+                events.push(week, "waiver", `Waivers W${week} — ${team.name} misses ${card.name}${faab ? " (outbid)" : ""}`, createdAt);
                 continue;
             }
             const dropEntry = claim.dropEntryId ? team.roster.find((entry) => entry.entryId === claim.dropEntryId) ?? null : null;
@@ -484,6 +503,11 @@
                 events.push(week, "waiver", `Waivers W${week} — ${team.name} claim on ${card.name} voided (quarterback limit)`, createdAt);
                 continue;
             }
+            const bidAmount = faab ? (claim.bidAmount ?? 0) : null;
+            if (faab && bidAmount > (team.faabRemaining ?? 0)) {
+                events.push(week, "waiver", `Waivers W${week} — ${team.name} claim on ${card.name} voided (insufficient budget)`, createdAt);
+                continue;
+            }
             const entry = {
                 entryId: `e${entryNumber}`,
                 identity: card.identity,
@@ -495,10 +519,14 @@
                 acquiredWeek: week,
             };
             entryNumber += 1;
-            teams = teams.map((item) => (item.teamId === team.teamId ? { ...item, roster: [...afterDrop, entry] } : item));
+            teams = teams.map((item) => (item.teamId === team.teamId ? {
+                ...item,
+                roster: [...afterDrop, entry],
+                ...(faab ? { faabRemaining: (item.faabRemaining ?? 0) - bidAmount } : {}),
+            } : item));
             taken.add(card.identity);
             if (dropEntry) taken.delete(dropEntry.identity);
-            events.push(week, "waiver", `Waivers W${week} — ${team.name} lands ${card.name}${dropEntry ? `, drops ${dropEntry.name}` : ""}`, createdAt);
+            events.push(week, "waiver", `Waivers W${week} — ${team.name} lands ${card.name}${faab ? ` ($${bidAmount})` : ""}${dropEntry ? `, drops ${dropEntry.name}` : ""}`, createdAt);
         }
         return { ...state, teams, pendingClaims: [], activity: events.list() };
     }
@@ -634,6 +662,10 @@
             eraAdjusted: value.eraAdjusted === true,
             waiversEnabled: value.waiversEnabled === true,
             tradesEnabled: value.tradesEnabled === true,
+            // Saves written before FAAB existed carry no waiverMode at all; they
+            // load as priority waivers rather than silently granting a budget.
+            waiverMode: value.waiverMode === "faab" ? "faab" : "priority",
+            faabBudget: clampInt(readNumber(value.faabBudget) ?? 100, 0, 1000),
         };
     };
 
@@ -659,7 +691,10 @@
         const queue = readArray(value.queue, readString);
         if (!teamId || !name || !manager || !roster || !queue) return null;
         const aiPersona = AI_PERSONAS.includes(value.aiPersona) ? value.aiPersona : null;
-        return { teamId, name, manager, ...(aiPersona ? { aiPersona } : {}), roster, queue };
+        const hasFaab = "faabRemaining" in value;
+        const faabRemaining = hasFaab ? readNumber(value.faabRemaining) : undefined;
+        if (hasFaab && faabRemaining === null) return null;
+        return { teamId, name, manager, ...(aiPersona ? { aiPersona } : {}), roster, queue, ...(faabRemaining !== undefined ? { faabRemaining } : {}) };
     };
 
     const readSeat = (value) => {
@@ -783,7 +818,10 @@
         const addPosition = normalizePlayerPosition(value.addPosition);
         const week = readNumber(value.week);
         if (!claimId || !teamId || !addIdentity || !addName || !addPosition || week === null) return null;
-        return { claimId, teamId, addIdentity, addName, addPosition, dropEntryId: readString(value.dropEntryId) ?? "", week };
+        const hasBid = "bidAmount" in value;
+        const bidAmount = hasBid ? readNumber(value.bidAmount) : undefined;
+        if (hasBid && bidAmount === null) return null;
+        return { claimId, teamId, addIdentity, addName, addPosition, dropEntryId: readString(value.dropEntryId) ?? "", week, ...(bidAmount !== undefined ? { bidAmount } : {}) };
     };
 
     const readTrade = (value) => {

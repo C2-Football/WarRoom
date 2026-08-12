@@ -25,10 +25,10 @@
     const REGULAR_SEASON_WEEKS = 14;
     const MAX_QUARTERBACKS = 2;
 
-    const TAB_IDS = ['home', 'draft', 'gameday', 'roster', 'waivers', 'trades', 'standings', 'activity'];
+    const TAB_IDS = ['home', 'draft', 'gameday', 'roster', 'waivers', 'trades', 'achievements', 'standings', 'activity'];
     const TAB_LABELS = {
         home: 'HOME', draft: 'DRAFT', gameday: 'GAMEDAY', roster: 'ROSTER', waivers: 'WAIVERS',
-        trades: 'TRADES', standings: 'STANDINGS', activity: 'ACTIVITY',
+        trades: 'TRADES', achievements: 'ACHIEVEMENTS', standings: 'STANDINGS', activity: 'ACTIVITY',
     };
 
     const PERSONA_IDS = ['warlord', 'archivist', 'gambler', 'steward'];
@@ -300,6 +300,23 @@
             .tl-val-bar { height: 4px; border-radius: 100px; background: rgba(255,255,255,0.08); overflow: hidden; margin-top: 5px; }
             .tl-val-bar-fill { height: 100%; border-radius: 100px; }
 
+            /* ── Achievements — mirrors War Room's real achievements.js chip-grid
+               pattern (js/tabs/trophy-room.js renderAchievementsCard): tier-tinted
+               border + full-opacity icon when earned, greyscale + dim + a thin
+               progress bar when not, grouped under a tier label. ── */
+            .tl-badge-tier-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); margin: 18px 0 8px; }
+            .tl-badge-tier-label:first-child { margin-top: 0; }
+            .tl-badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+            .tl-badge-chip { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--card-radius, 10px); border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); }
+            .tl-badge-chip.earned { border-color: var(--tier-color, var(--gold)); background: color-mix(in srgb, var(--tier-color, var(--gold)) 10%, transparent); }
+            .tl-badge-chip .tl-badge-icon { font-size: 21px; flex: none; width: 32px; text-align: center; filter: grayscale(1); opacity: .5; }
+            .tl-badge-chip.earned .tl-badge-icon { filter: none; opacity: 1; }
+            .tl-badge-chip .tl-badge-body { flex: 1; min-width: 0; }
+            .tl-badge-chip .tl-badge-label { font-weight: 700; font-size: 12.5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+            .tl-badge-chip .tl-badge-desc { font-size: 10.5px; color: var(--text-muted); margin-top: 2px; }
+            .tl-badge-chip .tl-badge-progress { height: 3px; border-radius: 100px; background: rgba(255,255,255,0.08); overflow: hidden; margin-top: 6px; }
+            .tl-badge-chip .tl-badge-progress-fill { height: 100%; background: var(--tier-color, var(--gold)); }
+
             /* ── Standings streaks ── */
             .tl-streak { font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
             .tl-streak.W { background: rgba(46,204,113,0.14); color: var(--good); }
@@ -475,7 +492,7 @@
 
         const tabs = league.phase === 'draft'
             ? ['draft', 'activity']
-            : ['home', 'gameday', 'roster', 'waivers', 'trades', 'standings', 'draft', 'activity'];
+            : ['home', 'gameday', 'roster', 'waivers', 'trades', 'achievements', 'standings', 'draft', 'activity'];
         const activeTab = tabs.includes(tab) ? tab : tabs[0];
         const activeTeam = league.teams.some((team) => team.teamId === activeTeamId)
             ? activeTeamId
@@ -510,7 +527,7 @@
                 activeTab === 'gameday' && GamecastPanel ? h(GamecastPanel, {
                     league, cards, logIndex, logsMissing, eraFactors, onUpdate: handleUpdate, onGoRoster: () => setTab('roster'),
                 }) : null,
-                (activeTab === 'roster' || activeTab === 'waivers' || activeTab === 'trades')
+                (activeTab === 'roster' || activeTab === 'waivers' || activeTab === 'trades' || activeTab === 'achievements')
                     ? (cardsReady && TeamPanel
                         ? h(TeamPanel, { league, cards, section: activeTab, activeTeamId: activeTeam, onSelectTeam: setActiveTeamId, onUpdate: handleUpdate })
                         : loadingNotice)

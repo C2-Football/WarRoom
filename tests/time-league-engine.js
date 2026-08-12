@@ -32,6 +32,8 @@ function baseSettings(overrides = {}) {
         eraRules: { mode: 'any-era', decades: [] },
         eraAdjusted: false,
         waiversEnabled: true,
+        waiverMode: 'priority',
+        faabBudget: 100,
         tradesEnabled: true,
         ...overrides,
     };
@@ -230,6 +232,59 @@ test('submitWaiverClaim then processWaivers lands the claim and clears the queue
     const updatedTeam = state.teams.find((t) => t.teamId === team.teamId);
     assert.ok(updatedTeam.roster.some((e) => e.identity === fa.identity));
     assert.ok(!updatedTeam.roster.some((e) => e.entryId === dropEntry.entryId));
+});
+
+test('FAAB: highest bid wins a contested free agent and pays its own bid', () => {
+    const cards = samplePool();
+    const settings = baseSettings({ waiverMode: 'faab', faabBudget: 100 });
+    let state = Engine.createTimeLeague({ name: 'Faab Test', seed: 'faab-seed', createdAt: '2026-01-01T00:00:00Z', settings, seats: seats() });
+    assert.ok(state.teams.every((t) => t.faabRemaining === 100));
+    state = draftFullRoster(state, cards);
+    const [teamA, teamB] = state.teams;
+    const fa = Engine.freeAgents(state, cards).find((c) => c.position !== 'QB');
+    const dropA = teamA.roster.find((e) => e.slot === 'BN');
+    const dropB = teamB.roster.find((e) => e.slot === 'BN');
+    state = Engine.submitWaiverClaim(state, { teamId: teamA.teamId, addIdentity: fa.identity, addName: fa.name, addPosition: fa.position, dropEntryId: dropA.entryId, bidAmount: 20 }, '2026-01-01T00:00:00Z');
+    state = Engine.submitWaiverClaim(state, { teamId: teamB.teamId, addIdentity: fa.identity, addName: fa.name, addPosition: fa.position, dropEntryId: dropB.entryId, bidAmount: 45 }, '2026-01-01T00:00:00Z');
+    state = Engine.processWaivers(state, cards, '2026-01-01T00:00:00Z');
+    const winner = state.teams.find((t) => t.teamId === teamB.teamId);
+    const loser = state.teams.find((t) => t.teamId === teamA.teamId);
+    assert.ok(winner.roster.some((e) => e.identity === fa.identity), 'the $45 bid should win the player');
+    assert.ok(!loser.roster.some((e) => e.identity === fa.identity), 'the $20 bid should lose the player');
+    assert.strictEqual(winner.faabRemaining, 55, 'the winner pays its own bid, not the runner-up amount');
+    assert.strictEqual(loser.faabRemaining, 100, 'a losing bid is never charged');
+});
+
+test('FAAB: submitWaiverClaim rejects a bid over the team\'s remaining budget', () => {
+    const cards = samplePool();
+    const settings = baseSettings({ waiverMode: 'faab', faabBudget: 30 });
+    let state = Engine.createTimeLeague({ name: 'Faab Cap', seed: 'faab-cap', createdAt: '2026-01-01T00:00:00Z', settings, seats: seats() });
+    state = draftFullRoster(state, cards);
+    const team = state.teams[0];
+    const fa = Engine.freeAgents(state, cards).find((c) => c.position !== 'QB');
+    const drop = team.roster.find((e) => e.slot === 'BN');
+    const before = state;
+    state = Engine.submitWaiverClaim(state, { teamId: team.teamId, addIdentity: fa.identity, addName: fa.name, addPosition: fa.position, dropEntryId: drop.entryId, bidAmount: 31 }, '2026-01-01T00:00:00Z');
+    assert.strictEqual(state, before, 'a bid over the remaining budget must be refused');
+});
+
+test('FAAB: ties break by worst-record priority, same as priority mode', () => {
+    const cards = samplePool();
+    const settings = baseSettings({ waiverMode: 'faab', faabBudget: 100 });
+    let state = Engine.createTimeLeague({ name: 'Faab Tie', seed: 'faab-tie', createdAt: '2026-01-01T00:00:00Z', settings, seats: seats() });
+    state = draftFullRoster(state, cards);
+    // Finalize a week so standings (and thus waiver priority) aren't all tied at 0-0.
+    state = Engine.finalizeCurrentWeek(state, new Map(), null, '2026-01-01T00:00:00Z');
+    const priority = Engine.computeStandings(state).map((s) => s.teamId).reverse();
+    const [worst, , , best] = [...state.teams].sort((a, b) => priority.indexOf(a.teamId) - priority.indexOf(b.teamId));
+    const fa = Engine.freeAgents(state, cards).find((c) => c.position !== 'QB');
+    const dropWorst = worst.roster.find((e) => e.slot === 'BN');
+    const dropBest = best.roster.find((e) => e.slot === 'BN');
+    state = Engine.submitWaiverClaim(state, { teamId: best.teamId, addIdentity: fa.identity, addName: fa.name, addPosition: fa.position, dropEntryId: dropBest.entryId, bidAmount: 10 }, '2026-01-01T00:00:00Z');
+    state = Engine.submitWaiverClaim(state, { teamId: worst.teamId, addIdentity: fa.identity, addName: fa.name, addPosition: fa.position, dropEntryId: dropWorst.entryId, bidAmount: 10 }, '2026-01-01T00:00:00Z');
+    state = Engine.processWaivers(state, cards, '2026-01-01T00:00:00Z');
+    const worstAfter = state.teams.find((t) => t.teamId === worst.teamId);
+    assert.ok(worstAfter.roster.some((e) => e.identity === fa.identity), 'equal bids should favor the worse record');
 });
 
 test('proposeTrade then respondToTrade(accept) swaps entries between rosters', () => {

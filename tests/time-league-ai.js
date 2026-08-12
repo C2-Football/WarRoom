@@ -131,6 +131,26 @@ test('aiSubmitWaiverClaims never proposes a QB when the team is already at cap',
     }
 });
 
+test('aiSubmitWaiverClaims bids within budget and is deterministic under FAAB', () => {
+    const cards = samplePool();
+    const settings = baseSettings({ waiverMode: 'faab', faabBudget: 60 });
+    let state = Engine.createTimeLeague({ name: 'Waiver AI FAAB', seed: 'waiver-ai-faab-seed', createdAt: '2026-01-01T00:00:00Z', settings, seats: seats() });
+    state = draftFullRoster(state, cards);
+    // The draft always takes the best-peak card first, so every undrafted card
+    // in the sample pool is already worse than every roster — no AI would ever
+    // clear its bid bar. Add one free agent nobody could have drafted so this
+    // test actually exercises the bid path rather than asserting on an empty list.
+    const augmented = new Map(cards);
+    augmented.set('player:RB:bounty', card('player:RB:bounty', 'Bounty Back', 'RB', [{ season: 2015, points: 999 }]));
+    const a = AI.aiSubmitWaiverClaims(state, augmented, '2026-01-01T00:00:00Z');
+    const b = AI.aiSubmitWaiverClaims(state, augmented, '2026-01-01T00:00:00Z');
+    assert.ok(a.pendingClaims.length > 0, 'every AI team should chase a free agent this much better than its roster');
+    assert.deepStrictEqual(a.pendingClaims.map((c) => c.bidAmount), b.pendingClaims.map((c) => c.bidAmount));
+    for (const claim of a.pendingClaims) {
+        assert.ok(claim.bidAmount >= 1 && claim.bidAmount <= 60, `bid ${claim.bidAmount} must sit inside the $60 budget`);
+    }
+});
+
 test('aiGenerateTrades is deterministic for the same seed and week', () => {
     const cards = samplePool();
     let state = Engine.createTimeLeague({ name: 'Trade AI', seed: 'trade-ai-seed', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings(), seats: seats() });
