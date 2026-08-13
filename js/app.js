@@ -745,6 +745,39 @@
                 .then(() => setTimeLeagueModuleState(typeof window.TimeLeague === 'function' ? 'ready' : 'error'))
                 .catch(() => setTimeLeagueModuleState('error'));
         };
+
+        // ── Time League invite links ────────────────────────────────
+        // The Vault has no URL router of its own (opened via the hub button
+        // above, not a route), so a ?tl_invite=<code> link is caught here once
+        // and stashed in sessionStorage rather than a login.html return_to param
+        // — OAuth's redirect drops query strings, which would silently lose the
+        // invite for anyone who signs in via Google/Apple instead of email/password.
+        const PENDING_INVITE_KEY = 'tl-pending-invite-v1';
+        const [pendingInvite, setPendingInvite] = useState(null);
+        useEffect(() => {
+            const code = new URLSearchParams(window.location.search).get('tl_invite');
+            if (code) {
+                try { sessionStorage.setItem(PENDING_INVITE_KEY, code); } catch { /* best effort */ }
+                const url = new URL(window.location.href);
+                url.searchParams.delete('tl_invite');
+                window.history.replaceState(window.history.state, '', url);
+            }
+            let stored = null;
+            try { stored = sessionStorage.getItem(PENDING_INVITE_KEY); } catch { /* best effort */ }
+            if (stored) setPendingInvite(stored);
+        }, []);
+        const clearPendingInvite = () => {
+            try { sessionStorage.removeItem(PENDING_INVITE_KEY); } catch { /* best effort */ }
+            setPendingInvite(null);
+        };
+        // Already signed in when the link lands (or came back from login.html
+        // already carrying a session) — jump straight into the claim flow rather
+        // than making them find the hub card themselves.
+        useEffect(() => {
+            if (!pendingInvite || timeLeagueMode) return;
+            if (window.App.OD?.getCurrentUserId && window.App.OD.getCurrentUserId()) openTimeLeague();
+        }, [pendingInvite, timeLeagueMode]);
+
         // Bumped after background roster assessment so the Rolodex re-renders.
         const [, setEmpireAssessReady] = useState(0);
 
@@ -957,7 +990,7 @@
             }
             return (
                 <ErrorBoundary>
-                    <_TimeLeague onClose={() => setTimeLeagueMode(false)} />
+                    <_TimeLeague onClose={() => setTimeLeagueMode(false)} pendingInvite={pendingInvite} onInviteConsumed={clearPendingInvite} />
                 </ErrorBoundary>
             );
         }
@@ -1199,6 +1232,17 @@
                                 <div style={{ fontSize: 'var(--text-label, 0.8rem)', color: 'var(--silver)', marginTop: '4px' }}>Draft any season since '70, play it out for real — AI-GM opponents, mystery seasons, live gamecast.</div>
                             </div>
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--gold)" strokeWidth="2" style={{ flexShrink: 0, opacity: 0.7 }}><polyline points="9 18 15 12 9 6"/></svg>
+                        </div>
+                    )}
+
+                    {pendingInvite && !(window.App.OD?.getCurrentUserId && window.App.OD.getCurrentUserId()) && (
+                        <div style={{ marginBottom: '14px', borderRadius: '14px', padding: '14px 16px', background: 'rgba(212,175,55,0.06)', border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '18px' }}>🔐</span>
+                            <div style={{ flex: 1, minWidth: '200px' }}>
+                                <div style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '0.95rem', color: 'var(--gold)' }}>You have a pending Vault invite</div>
+                                <div style={{ fontSize: 'var(--text-label, 0.8rem)', color: 'var(--silver)', marginTop: '2px' }}>Sign in with the account you want to play from, then come back to claim your seat.</div>
+                            </div>
+                            <a href="login.html" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--black)', background: 'var(--gold)', borderRadius: '7px', padding: '7px 14px', textDecoration: 'none' }}>Sign In</a>
                         </div>
                     )}
 

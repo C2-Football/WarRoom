@@ -62,7 +62,30 @@
                                 h('button', { type: 'button', className: 'tl-btn icon', 'aria-label': `Delete ${entry.name}`, onClick: () => setPendingDelete(entry.leagueId) }, '✕'))))))));
     }
 
-    function FoundLeague({ onCreate }) {
+    /** Mirrors LeagueLedger's shape for online (Supabase-backed) leagues fetched from the
+     * signed-in user's own time_league_members rows — see reconai-shared/time-league-remote-client.js. */
+    function OnlineLeagueLedger({ onlineIndex, onlineIndexState, onOpenOnline }) {
+        return h('div', { className: 'tl-card' },
+            h('div', { className: 'tl-card-title' }, h('span', null, 'Online Leagues'), h('small', null, 'synced across devices')),
+            onlineIndexState === 'signed-out'
+                ? h('p', { className: 'tl-empty' }, h('a', { href: 'login.html', style: { color: 'var(--gold)' } }, 'Sign in'), ' to see leagues you\'re playing with friends.')
+                : onlineIndex.length === 0
+                    ? h('p', { className: 'tl-empty' }, 'No online leagues yet. Found one on the right and invite some friends.')
+                    : h('table', { className: 'tl-tbl' },
+                        h('thead', null, h('tr', null, h('th', null, 'League'), h('th', null, 'Phase'), h('th', { className: 'num' }, 'WK'), h('th', { className: 'num' }, 'Seats'), h('th', null))),
+                        h('tbody', null, onlineIndex.map((entry) => h('tr', { key: entry.rowId },
+                            h('td', null, entry.name, ' ', h('span', { className: 'tl-pill info' }, entry.role === 'commissioner' ? 'COMMISH' : 'MEMBER')),
+                            h('td', null, h('span', { className: `tl-pill ${entry.phase === 'draft' ? 'warn' : entry.phase === 'season' ? 'info' : 'gold'}` }, (entry.phase || 'draft').toUpperCase())),
+                            h('td', { className: 'num tabular' }, entry.currentWeek ?? 1),
+                            h('td', { className: 'num tabular' }, entry.teamCount ?? '—'),
+                            h('td', null, h('button', { type: 'button', className: 'tl-btn', onClick: () => onOpenOnline(entry.rowId) }, 'OPEN')))))));
+    }
+
+    function FoundLeague({ onCreate, onCreateOnline, onOpenOnline }) {
+        const [origin, setOrigin] = useState('local');
+        const [founded, setFounded] = useState(null); // { rowId, members } — set after a successful online creation
+        const [creating, setCreating] = useState(false);
+        const [createError, setCreateError] = useState(null);
         const [name, setName] = useState('');
         const [seats, setSeats] = useState(window.TimeLeagueUtils.defaultSeats);
         const [rosterPreset, setRosterPreset] = useState('standard');
@@ -98,17 +121,53 @@
         const addSeat = () => setSeats((prev) => (prev.length >= 12 ? prev : [...prev, { name: `Seat ${prev.length + 1}`, manager: 'ai', aiPersona: window.TimeLeagueUtils.PERSONA_IDS[prev.length % 4] }]));
         const removeSeat = (target) => setSeats((prev) => (prev.length <= 2 ? prev : prev.filter((_, i) => i !== target)));
 
-        const found = () => {
+        const signedIn = Boolean(window.App.OD && window.App.OD.getCurrentUserId && window.App.OD.getCurrentUserId());
+
+        const found = async () => {
             const built = seats.map((seat, i) => (seat.manager === 'ai'
                 ? { name: seat.name.trim() || `Seat ${i + 1}`, manager: 'ai', aiPersona: seat.aiPersona }
                 : { name: seat.name.trim() || `Seat ${i + 1}`, manager: 'human' }));
-            onCreate({ name: name.trim() || 'The Vault', seats: built, settings });
+            if (origin === 'local') {
+                onCreate({ name: name.trim() || 'The Vault', seats: built, settings });
+                return;
+            }
+            setCreating(true); setCreateError(null);
+            const result = await onCreateOnline({ name: name.trim() || 'The Vault', seats: built, settings });
+            setCreating(false);
+            if (!result.ok) { setCreateError(result.error || 'Could not create the league.'); return; }
+            setFounded({ rowId: result.rowId, members: result.members });
         };
+
+        if (founded) {
+            const linkFor = (code) => `${window.location.origin}${window.location.pathname}?tl_invite=${code}`;
+            return h('div', { className: 'tl-card' },
+                h('div', { className: 'tl-card-title' }, h('span', null, 'Invite Your League'), h('small', null, 'each link opens straight to that seat')),
+                h('p', { className: 'tl-hint' }, "Your league is live. Send each friend their own link below — opening it while signed in claims that seat."),
+                founded.members.length === 0
+                    ? h('p', { className: 'tl-empty' }, "No other human seats to invite — it's just you and your AI opponents, synced across your own devices.")
+                    : founded.members.map((member) => h('div', { key: member.id, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' } },
+                        h('span', { className: 'tl-pill gold', style: { flex: 'none' } }, member.seat_team_id.toUpperCase()),
+                        h('input', { className: 'tl-input', readOnly: true, value: linkFor(member.invite_code), onFocus: (e) => e.target.select() }),
+                        h('button', { type: 'button', className: 'tl-btn', onClick: () => { navigator.clipboard && navigator.clipboard.writeText(linkFor(member.invite_code)); } }, 'COPY'))),
+                h('button', { type: 'button', className: 'tl-btn primary', style: { marginTop: 14, padding: '10px 18px' }, onClick: () => onOpenOnline(founded.rowId) }, '▶ ENTER THE VAULT'));
+        }
 
         return h('div', { className: 'tl-card' },
             h('div', { className: 'tl-card-title' },
                 h('span', null, 'Found a League'),
                 h('small', null, `${seats.length} seats · ${capacity} roster spots · ${seats.length * capacity} picks · ${window.TimeLeagueUtils.REGULAR_SEASON_WEEKS} weeks`)),
+
+            h('div', { className: 'tl-field' },
+                h('span', { className: 'tl-label' }, 'Where'),
+                h('div', { className: 'tl-chip-row' },
+                    h('button', { type: 'button', className: `tl-opt-chip${origin === 'local' ? ' selected' : ''}`, style: { flex: '1 1 200px' }, onClick: () => setOrigin('local') },
+                        h('strong', { style: { display: 'block' } }, 'Local'), h('span', { className: 'tl-opt-detail' }, 'This device only — nothing syncs.')),
+                    h('button', { type: 'button', className: `tl-opt-chip${origin === 'online' ? ' selected' : ''}`, style: { flex: '1 1 200px' }, onClick: () => setOrigin('online') },
+                        h('strong', { style: { display: 'block' } }, 'Online'), h('span', { className: 'tl-opt-detail' }, 'Invite friends — synced live across devices.'))),
+                origin === 'online' && !signedIn && h('div', { className: 'tl-feedrow caution', style: { marginTop: 8 } },
+                    h('time', null, 'SIGN IN'),
+                    h('p', null, 'Online leagues need a real account. ', h('a', { href: 'login.html', style: { color: 'var(--gold)' } }, 'Sign in or create one'), ' with email + password, then come back.')),
+                createError && h('div', { className: 'tl-feedrow caution', style: { marginTop: 8 } }, h('time', null, 'ERROR'), h('p', null, createError))),
 
             h('div', { className: 'tl-field' },
                 h('span', { className: 'tl-label' }, 'League Name'),
@@ -197,13 +256,18 @@
             h('label', { className: 'tl-toggle' }, h('input', { type: 'checkbox', checked: tradesEnabled, onChange: (e) => setTradesEnabled(e.target.checked) }),
                 h('span', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Trades'), h('span', { className: 'tl-hint' }, 'Equal-count swaps; AI GMs propose and answer in character.'))),
 
-            h('button', { type: 'button', className: 'tl-btn primary', onClick: found, style: { marginTop: 4, padding: '10px 18px' } }, 'FOUND LEAGUE'));
+            h('button', {
+                type: 'button', className: 'tl-btn primary', onClick: found, disabled: creating || (origin === 'online' && !signedIn),
+                style: { marginTop: 4, padding: '10px 18px' },
+            }, creating ? 'FOUNDING…' : 'FOUND LEAGUE'));
     }
 
-    function WrTimeLeagueSetupPanel({ index, onOpen, onDelete, onCreate }) {
+    function WrTimeLeagueSetupPanel({ index, onOpen, onDelete, onCreate, onlineIndex, onlineIndexState, onOpenOnline, onCreateOnline }) {
         return h('div', { className: 'tl-grid-2' },
-            h(LeagueLedger, { index, onOpen, onDelete }),
-            h(FoundLeague, { onCreate }));
+            h('div', null,
+                h(LeagueLedger, { index, onOpen, onDelete }),
+                h(OnlineLeagueLedger, { onlineIndex, onlineIndexState, onOpenOnline })),
+            h(FoundLeague, { onCreate, onCreateOnline, onOpenOnline }));
     }
 
     window.WrTimeLeagueSetupPanel = WrTimeLeagueSetupPanel;

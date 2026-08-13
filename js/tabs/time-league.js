@@ -20,6 +20,7 @@
     const PlayerCards = window.App.TimeLeaguePlayerCards;
     const Engine = window.App.TimeLeagueEngine;
     const EraRules = window.App.TimeLeagueEraRules;
+    const Remote = window.App.TimeLeagueRemote;
 
     const UI_PREFS_KEY = 'wr-time-league-ui-v1';
     const REGULAR_SEASON_WEEKS = 14;
@@ -79,8 +80,12 @@
         try {
             const raw = JSON.parse(window.localStorage.getItem(UI_PREFS_KEY) ?? 'null');
             const tab = TAB_IDS.includes(String(raw?.tab)) ? raw.tab : 'home';
-            return { leagueId: typeof raw?.leagueId === 'string' ? raw.leagueId : null, tab, teamId: typeof raw?.teamId === 'string' ? raw.teamId : '' };
-        } catch { return { leagueId: null, tab: 'home', teamId: '' }; }
+            return {
+                leagueId: typeof raw?.leagueId === 'string' ? raw.leagueId : null, tab,
+                teamId: typeof raw?.teamId === 'string' ? raw.teamId : '',
+                onlineRowId: typeof raw?.onlineRowId === 'string' ? raw.onlineRowId : null,
+            };
+        } catch { return { leagueId: null, tab: 'home', teamId: '', onlineRowId: null }; }
     }
     function writeUiPrefs(prefs) {
         try { window.localStorage.setItem(UI_PREFS_KEY, JSON.stringify(prefs)); } catch { /* convenience only */ }
@@ -394,7 +399,7 @@
     }
 
     // ── shell ──
-    function TimeLeagueMode({ onClose }) {
+    function TimeLeagueMode({ onClose, pendingInvite, onInviteConsumed }) {
         const [index, setIndex] = useState([]);
         const [league, setLeague] = useState(null);
         const [tab, setTab] = useState('home');
@@ -404,10 +409,40 @@
         const [logsMissing, setLogsMissing] = useState(false);
         const [eraFactors, setEraFactors] = useState(null);
         const [booted, setBooted] = useState(false);
+        // Online bookkeeping deliberately lives OUTSIDE `league` — Engine.normalizeTimeLeague()
+        // rebuilds `league` from an explicit key allowlist on every handleUpdate, so anything
+        // attached to the league object itself would be silently stripped on the very next update.
+        const [onlineMeta, setOnlineMeta] = useState(null); // null = local league, else {rowId, version, role}
+        const [onlineIndex, setOnlineIndex] = useState([]);
+        const [onlineIndexState, setOnlineIndexState] = useState('idle'); // idle | signed-out | ready
+        const [conflictNotice, setConflictNotice] = useState(null);
+        const [claimingInvite, setClaimingInvite] = useState(false);
+        const [inviteError, setInviteError] = useState(null);
+
+        const refreshOnlineIndex = useCallback(() => {
+            if (!Remote) return;
+            if (!(window.App.OD && window.App.OD.getCurrentUserId && window.App.OD.getCurrentUserId())) {
+                setOnlineIndex([]); setOnlineIndexState('signed-out'); return;
+            }
+            Remote.listMyOnlineLeagues().then((rows) => { setOnlineIndex(rows); setOnlineIndexState('ready'); });
+        }, []);
 
         useEffect(() => {
             const prefs = readUiPrefs();
             setIndex(readIndexEntries());
+            refreshOnlineIndex();
+            if (prefs.onlineRowId && Remote) {
+                Remote.loadOnlineLeague(prefs.onlineRowId).then((row) => {
+                    const safe = row && Engine.normalizeTimeLeague(row.state);
+                    if (!safe) { setBooted(true); return; }
+                    setLeague(safe);
+                    setOnlineMeta({ rowId: row.id, version: row.version });
+                    setTab(prefs.tab);
+                    if (prefs.teamId) setActiveTeamId(prefs.teamId);
+                    setBooted(true);
+                });
+                return;
+            }
             if (prefs.leagueId) {
                 const stored = readLeague(prefs.leagueId);
                 if (stored) {
@@ -417,7 +452,29 @@
                 }
             }
             setBooted(true);
-        }, []);
+        }, [refreshOnlineIndex]);
+
+        // Consumes a ?tl_invite link once — app.js only opens the Vault this way once a
+        // real account session already exists, but this checks again in case someone
+        // mounts this component directly with a code and no session (defensive, not load-bearing).
+        useEffect(() => {
+            if (!pendingInvite || !Remote) return;
+            if (!(window.App.OD && window.App.OD.getCurrentUserId && window.App.OD.getCurrentUserId())) return;
+            setClaimingInvite(true);
+            Remote.claimInvite(pendingInvite).then((result) => {
+                setClaimingInvite(false);
+                if (onInviteConsumed) onInviteConsumed();
+                if (!result.ok) { setInviteError(result.error || 'That invite link no longer works — ask your commissioner for a fresh one.'); return; }
+                Remote.loadOnlineLeague(result.rowId).then((row) => {
+                    const safe = row && Engine.normalizeTimeLeague(row.state);
+                    if (!safe) return;
+                    setLeague(safe);
+                    setOnlineMeta({ rowId: row.id, version: row.version });
+                    setTab(safe.phase === 'draft' ? 'draft' : 'home');
+                    refreshOnlineIndex();
+                });
+            });
+        }, [pendingInvite]);
 
         useEffect(() => {
             let cancelled = false;
@@ -429,8 +486,22 @@
 
         useEffect(() => {
             if (!booted) return;
-            writeUiPrefs({ leagueId: league?.leagueId ?? null, tab, teamId: activeTeamId });
-        }, [booted, league, tab, activeTeamId]);
+            writeUiPrefs({ leagueId: league?.leagueId ?? null, tab, teamId: activeTeamId, onlineRowId: onlineMeta?.rowId ?? null });
+        }, [booted, league, tab, activeTeamId, onlineMeta]);
+
+        // Live sync: another member's write lands here without a refresh. Keyed on the row id
+        // (not the whole onlineMeta object, which changes identity on every version bump) so a
+        // write from THIS tab doesn't tear down and resubscribe the channel every time.
+        useEffect(() => {
+            if (!onlineMeta?.rowId || !Remote) return undefined;
+            const unsubscribe = Remote.subscribeToLeague(onlineMeta.rowId, (row) => {
+                const safe = Engine.normalizeTimeLeague(row.state);
+                if (!safe) return;
+                setLeague(safe);
+                setOnlineMeta((prev) => (prev?.rowId === row.id ? { ...prev, version: row.version } : prev));
+            });
+            return unsubscribe;
+        }, [onlineMeta?.rowId]);
 
         const persistLeague = useCallback((state) => {
             writeLeague(state);
@@ -446,9 +517,30 @@
 
         const handleUpdate = useCallback((next) => {
             const safe = Engine.normalizeTimeLeague(next) ?? next;
+            if (onlineMeta) {
+                setLeague(safe); // optimistic — instant feedback while the write is in flight
+                Remote.writeOnlineLeague(onlineMeta.rowId, safe, onlineMeta.version).then((result) => {
+                    if (result.ok) {
+                        setOnlineMeta((prev) => (prev?.rowId === onlineMeta.rowId ? { ...prev, version: result.version } : prev));
+                        return;
+                    }
+                    if (result.conflict) {
+                        setConflictNotice('Someone else acted first — reloading the latest state.');
+                        Remote.loadOnlineLeague(onlineMeta.rowId).then((row) => {
+                            const latest = row && Engine.normalizeTimeLeague(row.state);
+                            if (!latest) return;
+                            setLeague(latest);
+                            setOnlineMeta((prev) => (prev?.rowId === onlineMeta.rowId ? { ...prev, version: row.version } : prev));
+                        });
+                    } else {
+                        setConflictNotice('Could not save — check your connection and try again.');
+                    }
+                });
+                return;
+            }
             persistLeague(safe);
             setLeague(safe);
-        }, [persistLeague]);
+        }, [persistLeague, onlineMeta]);
 
         const createLeague = useCallback((input) => {
             const createdAt = new Date().toISOString();
@@ -456,15 +548,49 @@
             const state = Engine.createTimeLeague({ name: input.name, seed: `${slug}:${createdAt}`, createdAt, settings: input.settings, seats: input.seats });
             persistLeague(state);
             setLeague(state);
+            setOnlineMeta(null);
             setTab('draft');
         }, [persistLeague]);
+
+        const createOnlineLeague = useCallback(async (input) => {
+            if (!Remote) return { ok: false, error: 'not_configured' };
+            const createdAt = new Date().toISOString();
+            const slug = input.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'time-league';
+            const state = Engine.createTimeLeague({ name: input.name, seed: `${slug}:${createdAt}`, createdAt, settings: input.settings, seats: input.seats });
+            const result = await Remote.createOnlineLeague({ state, seats: input.seats });
+            if (!result.ok) return result;
+            // Deliberately does NOT set `league`/`tab` here — the caller (Found a League)
+            // shows an invite-links screen first and enters the league via onOpenOnline once
+            // the founder is done sharing invites, rather than yanking them straight to the draft.
+            refreshOnlineIndex();
+            return result;
+        }, [refreshOnlineIndex]);
 
         const openLeague = useCallback((leagueId) => {
             const stored = readLeague(leagueId);
             if (!stored) return;
+            setOnlineMeta(null);
             setLeague(stored);
             setTab(stored.phase === 'draft' ? 'draft' : 'home');
         }, []);
+
+        const openOnlineLeague = useCallback((rowId) => {
+            if (!Remote) return;
+            Remote.loadOnlineLeague(rowId).then((row) => {
+                const safe = row && Engine.normalizeTimeLeague(row.state);
+                if (!safe) return;
+                setLeague(safe);
+                setOnlineMeta({ rowId: row.id, version: row.version });
+                setTab(safe.phase === 'draft' ? 'draft' : 'home');
+            });
+        }, []);
+
+        const switchLeague = useCallback(() => {
+            setLeague(null);
+            setOnlineMeta(null);
+            setConflictNotice(null);
+            refreshOnlineIndex();
+        }, [refreshOnlineIndex]);
 
         const deleteLeague = useCallback((leagueId) => {
             removeLeagueRecord(leagueId);
@@ -487,7 +613,15 @@
                     h('div', { className: 'tl-header' },
                         h('div', { className: 'tl-header-title' }, h('strong', null, 'The Vault')),
                         h('button', { type: 'button', className: 'tl-btn', onClick: onClose }, '← BACK')),
-                    SetupPanel ? h(SetupPanel, { index, onOpen: openLeague, onDelete: deleteLeague, onCreate: createLeague }) : null));
+                    claimingInvite && h('div', { className: 'tl-card', style: { marginBottom: 14 } }, h('p', { className: 'tl-empty' }, 'Claiming your invite…')),
+                    inviteError && h('div', { className: 'tl-card', style: { borderColor: 'rgba(240,165,0,0.4)', marginBottom: 14 } },
+                        h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 } },
+                            h('span', { style: { fontSize: 12.5, color: 'var(--warn)' } }, `⚠ ${inviteError}`),
+                            h('button', { type: 'button', className: 'tl-btn icon', onClick: () => setInviteError(null) }, '✕'))),
+                    SetupPanel ? h(SetupPanel, {
+                        index, onOpen: openLeague, onDelete: deleteLeague, onCreate: createLeague,
+                        onlineIndex, onlineIndexState, onOpenOnline: openOnlineLeague, onCreateOnline: createOnlineLeague,
+                    }) : null));
         }
 
         const tabs = league.phase === 'draft'
@@ -515,13 +649,18 @@
                     h('div', null,
                         h('div', { className: 'tl-header-title' },
                             h('strong', null, league.name),
-                            h('span', { className: `tl-pill ${phaseTone}` }, league.phase.toUpperCase())),
+                            h('span', { className: `tl-pill ${phaseTone}` }, league.phase.toUpperCase()),
+                            onlineMeta ? h('span', { className: 'tl-pill info' }, '🌐 ONLINE') : null),
                         h(EraChipRail, { label: 'Era of Play', chips: EraRules.eraRuleChips(league.settings.eraRules) })),
                     h('div', { className: 'tl-header-tools' },
                         league.phase !== 'draft' ? h('span', { className: 'tl-pill' }, `WK ${Math.min(league.currentWeek, league.settings.regularSeasonWeeks)}/${league.settings.regularSeasonWeeks}`) : null,
                         h('span', { className: 'tl-pill' }, `${league.teams.length} MGRS`),
-                        h('button', { type: 'button', className: 'tl-btn', onClick: () => setLeague(null) }, 'SWITCH LEAGUE'),
+                        h('button', { type: 'button', className: 'tl-btn', onClick: switchLeague }, 'SWITCH LEAGUE'),
                         h('button', { type: 'button', className: 'tl-btn', onClick: onClose }, '← DASHBOARD'))),
+                conflictNotice && h('div', { className: 'tl-card', style: { borderColor: 'rgba(240,165,0,0.4)', marginBottom: 14 } },
+                    h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 } },
+                        h('span', { style: { fontSize: 12.5, color: 'var(--warn)' } }, `⚠ ${conflictNotice}`),
+                        h('button', { type: 'button', className: 'tl-btn icon', onClick: () => setConflictNotice(null) }, '✕'))),
                 activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: setTab }) : null,
                 activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, { league, cards, onUpdate: handleUpdate }) : loadingNotice) : null,
                 activeTab === 'gameday' && GamecastPanel ? h(GamecastPanel, {
