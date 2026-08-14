@@ -246,6 +246,16 @@
         return { weeklyScores, playerTotals };
     }
 
+    // IDP roster splits (DE/DT, CB/S) are a real depth-chart distinction but
+    // not a "position" a commissioner reasons about at the share-of-points
+    // level the same way QB/RB/WR/TE/K are — rolled up to the group they
+    // actually play as on a fantasy defense.
+    const POS_GROUP = { DE: 'DL', DT: 'DL', CB: 'DB' };
+    function groupPos(pos) {
+        const p = String(pos || '').toUpperCase();
+        return POS_GROUP[p] || p || '?';
+    }
+
     // ── Pure: league-shape analytics over a pair of rescored runs ─────
     // Position share: what fraction of all started points each position owns.
     // The TE-premium question in one row: "TEs go from 8.1% to 11.4%".
@@ -255,7 +265,7 @@
             let sum = 0;
             for (const pid of Object.keys(totals)) {
                 const pts = Math.max(0, totals[pid]);   // negative-point weeks don't subtract relevance
-                const pos = String(playerPos(playersData[pid]) || '?').toUpperCase() || '?';
+                const pos = groupPos(playerPos(playersData[pid]));
                 byPos[pos] = (byPos[pos] || 0) + pts;
                 sum += pts;
             }

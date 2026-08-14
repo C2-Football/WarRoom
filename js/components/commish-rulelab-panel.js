@@ -40,6 +40,245 @@
 // NO data fetching here. The methodology caption is doctrine and always
 // visible — this panel argues from the replay, never re-crowns a champion.
 // ══════════════════════════════════════════════════════════════════
+// ── Shared styling tokens + presentational shells (module scope — not
+// recreated per render, so React can diff/reuse Section's and
+// LeagueResult's DOM across a keystroke instead of remounting it; a
+// component defined inside another component's render body gets a new
+// identity every render, which is what was unmounting every input on
+// every value change (native focus loss, cursor reset, scroll jump). ─
+const GOLD = 'var(--gold, #D4AF37)', SILVER = 'var(--silver, #BDB8AD)', TEXT = 'var(--white, #F5F2EA)';
+const GREEN = 'var(--good, #2ECC71)', RED = 'var(--bad, #E74C3C)';
+const AMBER = 'var(--warn, #F0A500)', ACCENT = 'var(--co-accent, #5DADE2)';
+const PANEL = 'var(--co-surface, #121217)', LINE = 'var(--co-line, #27262E)';
+const SURF2 = 'var(--co-surface-2, #1B1B22)', WELL = 'var(--co-well, #0F0F14)';
+const ACC_FILL = 'var(--co-accent-fill, #12212B)', ACC_LINE = 'var(--co-accent-line, #2B4B63)';
+const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
+const MUTED = '#8D887E';
+const mono = { fontFamily: MONO, fontVariantNumeric: 'tabular-nums' };
+const microHdr = { font: '600 var(--text-micro, 0.6875rem) ' + MONO, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' };
+
+const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(Number(v) || 0).toFixed(1);
+
+const Section = ({ title, meta, children }) => (
+    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+            <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
+            {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
+        </div>
+        {children}
+    </div>
+);
+const rowLine = { borderBottom: `1px solid ${LINE}`, color: SILVER, fontSize: '0.75rem', ...mono };
+const shiftGrid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.7fr) 0.55fr 0.55fr 0.7fr', gap: '8px', alignItems: 'center', padding: '5px 10px', minWidth: 0 };
+const swingGrid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.6fr) 0.9fr 0.9fr 0.7fr', gap: '8px', alignItems: 'center', padding: '5px 10px', minWidth: 0 };
+const nameCell = { fontFamily: 'var(--font-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+
+// ── Per-league result block ──────────────────────────────────────
+const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
+    if (!result || result.empty) {
+        return (
+            <Section title={leagueName || 'League'} meta={result && result.seasonUsed ? String(result.seasonUsed) : null}>
+                <div style={{ color: SILVER, fontSize: '0.78rem', lineHeight: 1.5 }}>
+                    {(result && result.reason) || 'No completed weeks to replay in this league.'}
+                </div>
+            </Section>
+        );
+    }
+    const shift = (result.standingsShift || []).filter(r => r.delta !== 0);
+    const shiftShown = shift.slice(0, 8);
+    const shiftHidden = shift.length - shiftShown.length;
+    const unchangedCount = (result.standingsShift || []).length - shift.length;
+    const field = result.playoffField || { in: [], out: [], unchanged: true };
+    const seed = result.seedOneChanged;
+    const tds = result.teamDeltas || [];
+    const topTeams = tds.slice(0, Math.min(3, tds.length));
+    const botTeams = tds.length > 3 ? tds.slice(Math.max(3, tds.length - 3)) : [];
+    const pds = result.playerDeltas || [];
+    const gainers = pds.filter(d => d.delta > 0).slice(0, 8);
+    const losers = pds.filter(d => d.delta < 0).slice(0, 8);
+    const note = result.proposerNote;
+
+    const PlayerCol = ({ label, rows, color }) => (
+        <div style={{ minWidth: 0 }}>
+            <div style={{ ...microHdr, marginBottom: '4px' }}>{label}</div>
+            {!rows.length ? (
+                <div style={{ color: MUTED, fontSize: '0.74rem' }}>none — no player moves this way</div>
+            ) : rows.map(d => (
+                <div key={d.pid} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 34px 62px', gap: '8px', alignItems: 'baseline', padding: '3px 0', borderBottom: `1px solid ${LINE}` }}>
+                    <span style={{ ...nameCell, fontSize: '0.75rem', color: TEXT }}>{d.name}</span>
+                    <span style={{ ...microHdr, textAlign: 'left' }}>{d.pos}</span>
+                    <span style={{ ...mono, fontSize: '0.74rem', fontWeight: 700, textAlign: 'right', color }}>{signed(d.delta)}</span>
+                </div>
+            ))}
+        </div>
+    );
+
+    return (
+        <div id={'wr-rulelab-ballot-' + String(leagueName || 'league').replace(/\W+/g, '-').toLowerCase()}>
+        <Section title={leagueName || 'League'}
+            meta={(result.seasonUsed ? result.seasonUsed + ' season · ' : '') + result.weeksCounted + ' week' + (result.weeksCounted === 1 ? '' : 's') + ' replayed'
+                + (result.methodology === 'best_lineup' ? ' · BEST-LINEUP REPLAY' : ' · as-played')}>
+
+            {/* Verdict card: the seed + the field, before any table */}
+            <div style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderLeft: `3px solid ${seed ? GOLD : LINE}`, borderRadius: '0 6px 6px 0', padding: '10px 12px', marginBottom: '12px' }}>
+                {seed ? (
+                    <div style={{ ...mono, fontSize: '0.82rem', fontWeight: 700, color: GOLD }}>
+                        #1 seed flips: {seed.from} → {seed.to}
+                    </div>
+                ) : (
+                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: TEXT }}>No change at the top — the #1 seed holds.</div>
+                )}
+                <div style={{ marginTop: '6px', fontSize: '0.76rem', lineHeight: 1.6 }}>
+                    {field.unchanged ? (
+                        <span style={{ color: SILVER }}>Playoff field unchanged ({field.size}-team cut).</span>
+                    ) : (
+                        <React.Fragment>
+                            <div>
+                                <span style={{ ...mono, fontSize: '0.68rem', fontWeight: 700, color: GREEN, marginRight: '8px' }}>IN</span>
+                                <span style={{ color: TEXT, ...mono }}>{(field.in || []).join(', ') || '—'}</span>
+                            </div>
+                            <div>
+                                <span style={{ ...mono, fontSize: '0.68rem', fontWeight: 700, color: RED, marginRight: '8px' }}>OUT</span>
+                                <span style={{ color: TEXT, ...mono }}>{(field.out || []).join(', ') || '—'}</span>
+                            </div>
+                        </React.Fragment>
+                    )}
+                </div>
+            </div>
+
+            {/* Standings shift — moved rows only */}
+            <div style={{ ...microHdr, marginBottom: '6px' }}>Standings shift</div>
+            {!shift.length ? (
+                <div style={{ color: SILVER, fontSize: '0.76rem', marginBottom: '10px' }}>Standings hold — no team changes rank under this proposal.</div>
+            ) : (
+                <div style={{ overflowX: 'auto', marginBottom: '10px' }}>
+                    <div style={{ minWidth: '380px' }}>
+                        <div style={{ ...shiftGrid, ...microHdr, borderBottom: `1px solid ${LINE}` }}>
+                            <span>Team</span><span style={{ textAlign: 'right' }}>Was</span><span style={{ textAlign: 'right' }}>Now</span><span style={{ textAlign: 'right' }}>Δ</span>
+                        </div>
+                        {shiftShown.map(r => (
+                            <div key={r.rosterId} style={{ ...shiftGrid, ...rowLine }}>
+                                <span style={nameCell}>{r.name}</span>
+                                <span style={{ textAlign: 'right' }}>{r.baselineRank}</span>
+                                <span style={{ textAlign: 'right', color: TEXT }}>{r.proposedRank}</span>
+                                <span style={{ textAlign: 'right', fontWeight: 700, color: r.delta > 0 ? GREEN : RED }}>
+                                    {r.delta > 0 ? '▲' : '▼'}{Math.abs(r.delta)}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+            {(shiftHidden > 0 || unchangedCount > 0) ? (
+                <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '-4px', marginBottom: '10px' }}>
+                    {[shiftHidden > 0 ? '+' + shiftHidden + ' more moved' : null, unchangedCount > 0 ? '+' + unchangedCount + ' unchanged' : null].filter(Boolean).join(' · ')}
+                </div>
+            ) : null}
+
+            {/* Season points swing — biggest winners and losers by total */}
+            {(topTeams.length || botTeams.length) ? (
+                <React.Fragment>
+                    <div style={{ ...microHdr, marginBottom: '6px' }}>Season points swing</div>
+                    <div style={{ overflowX: 'auto', marginBottom: '10px' }}>
+                        <div style={{ minWidth: '400px' }}>
+                            <div style={{ ...swingGrid, ...microHdr, borderBottom: `1px solid ${LINE}` }}>
+                                <span>Team</span><span style={{ textAlign: 'right' }}>Current</span><span style={{ textAlign: 'right' }}>Proposed</span><span style={{ textAlign: 'right' }}>Δ pts</span>
+                            </div>
+                            {topTeams.concat(botTeams).map(t => (
+                                <div key={t.rosterId} style={{ ...swingGrid, ...rowLine }}>
+                                    <span style={nameCell}>{t.name}</span>
+                                    <span style={{ textAlign: 'right', opacity: 0.8 }}>{Number(t.baselinePts).toFixed(1)}</span>
+                                    <span style={{ textAlign: 'right', color: TEXT }}>{Number(t.proposedPts).toFixed(1)}</span>
+                                    <span style={{ textAlign: 'right', fontWeight: 700, color: TEXT }}>{signed(t.delta)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    {tds.length > topTeams.length + botTeams.length ? (
+                        <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '-4px', marginBottom: '10px' }}>
+                            top 3 and bottom 3 of {tds.length} teams shown
+                        </div>
+                    ) : null}
+                </React.Fragment>
+            ) : null}
+
+            {/* Player movers — who the rule actually pays */}
+            {(gainers.length || losers.length) ? (
+                <React.Fragment>
+                    <div style={{ ...microHdr, marginBottom: '6px' }}>Player movers · season total</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '14px', marginBottom: '10px' }}>
+                        <PlayerCol label="Gainers" rows={gainers} color={GREEN} />
+                        <PlayerCol label="Losers" rows={losers} color={RED} />
+                    </div>
+                </React.Fragment>
+            ) : (
+                <div style={{ color: SILVER, fontSize: '0.76rem', marginBottom: '10px' }}>No individual player moves under this proposal.</div>
+            )}
+
+            {/* Position relevance — the league's shape before and after.
+                Always the full set the engine returns (already filtered
+                to positions that actually carry share, sorted biggest
+                mover first) — never trimmed to "significant" movers
+                only, so a position holding steady is still on screen
+                for comparison, not just the ones that shifted. */}
+            {(result.positionShare || []).length ? (
+                <React.Fragment>
+                    <div style={{ ...microHdr, marginBottom: '6px' }}>Position relevance · share of all started points</div>
+                    <div style={{ marginBottom: '10px' }}>
+                        {(result.positionShare || []).map(p => (
+                            <div key={p.pos} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 130px', gap: '10px', alignItems: 'center', padding: '4px 0' }}>
+                                <span style={{ ...microHdr }}>{p.pos}</span>
+                                <div style={{ position: 'relative', height: '6px', background: SURF2, borderRadius: '3px', overflow: 'hidden' }}>
+                                    <span style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: Math.min(100, p.basePct * 2.5) + '%', background: LINE }} />
+                                    <span style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: Math.min(100, p.propPct * 2.5) + '%', background: p.deltaPct >= 0 ? ACCENT : RED, opacity: 1, height: '2px', marginTop: '2px' }} />
+                                </div>
+                                <span style={{ ...mono, fontSize: '0.72rem', textAlign: 'right', color: TEXT }}>
+                                    {p.basePct}% → <span style={{ fontWeight: 700, color: p.deltaPct >= 0 ? GREEN : RED }}>{p.propPct}%</span>
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </React.Fragment>
+            ) : null}
+
+            {/* League shape: volatility + how much the standings reshuffle */}
+            {result.balance ? (
+                <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginBottom: '10px', lineHeight: 1.6 }}>
+                    Weekly volatility {result.balance.volatilityDeltaPct > 0 ? '+' : ''}{result.balance.volatilityDeltaPct}%
+                    {' · '}top-to-bottom spread {result.balance.baseline.spread} → {result.balance.proposed.spread}
+                    {' · '}standings correlation {result.balance.spearman} <span title="1.00 = the proposal reshuffles nothing">ⓘ</span>
+                </div>
+            ) : null}
+
+            {/* Proposer disclosure — the conflict-of-interest line */}
+            {note && note.line ? (
+                <div style={{ background: WELL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${AMBER}`, borderRadius: '0 6px 6px 0', padding: '10px 12px', marginBottom: '10px' }}>
+                    <div style={{ ...microHdr, color: AMBER, marginBottom: '4px' }}>Disclosure</div>
+                    <div style={{ fontSize: '0.78rem', color: TEXT, lineHeight: 1.5 }}>{note.line}</div>
+                    <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '4px' }}>Attach this to the ballot when you put it to a vote.</div>
+                </div>
+            ) : null}
+
+            {/* The ballot: this league's impact statement, ready to circulate */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {typeof onCopyBallot === 'function' ? (
+                    <button onClick={() => onCopyBallot(leagueName, result)}
+                        style={{ padding: '7px 12px', cursor: 'pointer', background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: '6px', color: ACCENT, font: '700 0.625rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                        Copy ballot text
+                    </button>
+                ) : null}
+                {typeof onExportBallot === 'function' ? (
+                    <button onClick={() => onExportBallot(leagueName, result)}
+                        style={{ padding: '7px 12px', cursor: 'pointer', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: SILVER, font: '700 0.625rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                        Export PNG
+                    </button>
+                ) : null}
+            </div>
+        </Section>
+        </div>
+    );
+};
+
 function WrCommishRuleLabPanel({
     status, seasonUsed, seasons, onSeason,
     leagues, selectedLeagueId, onSelectLeague,
@@ -49,21 +288,6 @@ function WrCommishRuleLabPanel({
     saved, onSaveProposal, onLoadProposal, onDeleteProposal, onRatify,
     onCopyBallot, onExportBallot,
 }) {
-    // CO_* token ladder from the office shell — NOT the app-level --panel /
-    // --text / --k-* names, which are undefined and fall back to the exact
-    // figure/ground failure the office redesign fixed. Muted is a literal:
-    // --text-muted resolves identical to --silver in this app.
-    const GOLD = 'var(--gold, #D4AF37)', SILVER = 'var(--silver, #BDB8AD)', TEXT = 'var(--white, #F5F2EA)';
-    const GREEN = 'var(--good, #2ECC71)', RED = 'var(--bad, #E74C3C)';
-    const AMBER = 'var(--warn, #F0A500)', ACCENT = 'var(--co-accent, #5DADE2)';
-    const PANEL = 'var(--co-surface, #121217)', LINE = 'var(--co-line, #27262E)';
-    const SURF2 = 'var(--co-surface-2, #1B1B22)', WELL = 'var(--co-well, #0F0F14)';
-    const ACC_FILL = 'var(--co-accent-fill, #12212B)', ACC_LINE = 'var(--co-accent-line, #2B4B63)';
-    const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
-    const MUTED = '#8D887E';
-    const mono = { fontFamily: MONO, fontVariantNumeric: 'tabular-nums' };
-    const microHdr = { font: '600 var(--text-micro, 0.6875rem) ' + MONO, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' };
-
     // ── Derived: proposal + presets ──────────────────────────────────
     const prop = (proposal && typeof proposal === 'object') ? proposal : {};
     const presetList = (Array.isArray(presets) && presets.length) ? presets
@@ -100,7 +324,6 @@ function WrCommishRuleLabPanel({
         return k + ' → ' + fmtNum(v);
     });
 
-    const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(Number(v) || 0).toFixed(1);
 
     // ── Full scoring editor state ────────────────────────────────────
     const [saveName, setSaveName] = React.useState('');
@@ -210,225 +433,7 @@ function WrCommishRuleLabPanel({
     })();
 
     // ── Shells (same idiom as season-odds-panel) ─────────────────────
-    const Section = ({ title, meta, children }) => (
-        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
-                {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
-            </div>
-            {children}
-        </div>
-    );
-    const rowLine = { borderBottom: `1px solid ${LINE}`, color: SILVER, fontSize: '0.75rem', ...mono };
-    const shiftGrid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.7fr) 0.55fr 0.55fr 0.7fr', gap: '8px', alignItems: 'center', padding: '5px 10px', minWidth: 0 };
-    const swingGrid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.6fr) 0.9fr 0.9fr 0.7fr', gap: '8px', alignItems: 'center', padding: '5px 10px', minWidth: 0 };
-    const nameCell = { fontFamily: 'var(--font-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
 
-    // ── Per-league result block ──────────────────────────────────────
-    const LeagueResult = ({ leagueName, result }) => {
-        if (!result || result.empty) {
-            return (
-                <Section title={leagueName || 'League'} meta={result && result.seasonUsed ? String(result.seasonUsed) : null}>
-                    <div style={{ color: SILVER, fontSize: '0.78rem', lineHeight: 1.5 }}>
-                        {(result && result.reason) || 'No completed weeks to replay in this league.'}
-                    </div>
-                </Section>
-            );
-        }
-        const shift = (result.standingsShift || []).filter(r => r.delta !== 0);
-        const shiftShown = shift.slice(0, 8);
-        const shiftHidden = shift.length - shiftShown.length;
-        const unchangedCount = (result.standingsShift || []).length - shift.length;
-        const field = result.playoffField || { in: [], out: [], unchanged: true };
-        const seed = result.seedOneChanged;
-        const tds = result.teamDeltas || [];
-        const topTeams = tds.slice(0, Math.min(3, tds.length));
-        const botTeams = tds.length > 3 ? tds.slice(Math.max(3, tds.length - 3)) : [];
-        const pds = result.playerDeltas || [];
-        const gainers = pds.filter(d => d.delta > 0).slice(0, 8);
-        const losers = pds.filter(d => d.delta < 0).slice(0, 8);
-        const note = result.proposerNote;
-
-        const PlayerCol = ({ label, rows, color }) => (
-            <div style={{ minWidth: 0 }}>
-                <div style={{ ...microHdr, marginBottom: '4px' }}>{label}</div>
-                {!rows.length ? (
-                    <div style={{ color: MUTED, fontSize: '0.74rem' }}>none — no player moves this way</div>
-                ) : rows.map(d => (
-                    <div key={d.pid} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 34px 62px', gap: '8px', alignItems: 'baseline', padding: '3px 0', borderBottom: `1px solid ${LINE}` }}>
-                        <span style={{ ...nameCell, fontSize: '0.75rem', color: TEXT }}>{d.name}</span>
-                        <span style={{ ...microHdr, textAlign: 'left' }}>{d.pos}</span>
-                        <span style={{ ...mono, fontSize: '0.74rem', fontWeight: 700, textAlign: 'right', color }}>{signed(d.delta)}</span>
-                    </div>
-                ))}
-            </div>
-        );
-
-        return (
-            <div id={'wr-rulelab-ballot-' + String(leagueName || 'league').replace(/\W+/g, '-').toLowerCase()}>
-            <Section title={leagueName || 'League'}
-                meta={(result.seasonUsed ? result.seasonUsed + ' season · ' : '') + result.weeksCounted + ' week' + (result.weeksCounted === 1 ? '' : 's') + ' replayed'
-                    + (result.methodology === 'best_lineup' ? ' · BEST-LINEUP REPLAY' : ' · as-played')}>
-
-                {/* Verdict card: the seed + the field, before any table */}
-                <div style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderLeft: `3px solid ${seed ? GOLD : LINE}`, borderRadius: '0 6px 6px 0', padding: '10px 12px', marginBottom: '12px' }}>
-                    {seed ? (
-                        <div style={{ ...mono, fontSize: '0.82rem', fontWeight: 700, color: GOLD }}>
-                            #1 seed flips: {seed.from} → {seed.to}
-                        </div>
-                    ) : (
-                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: TEXT }}>No change at the top — the #1 seed holds.</div>
-                    )}
-                    <div style={{ marginTop: '6px', fontSize: '0.76rem', lineHeight: 1.6 }}>
-                        {field.unchanged ? (
-                            <span style={{ color: SILVER }}>Playoff field unchanged ({field.size}-team cut).</span>
-                        ) : (
-                            <React.Fragment>
-                                <div>
-                                    <span style={{ ...mono, fontSize: '0.68rem', fontWeight: 700, color: GREEN, marginRight: '8px' }}>IN</span>
-                                    <span style={{ color: TEXT, ...mono }}>{(field.in || []).join(', ') || '—'}</span>
-                                </div>
-                                <div>
-                                    <span style={{ ...mono, fontSize: '0.68rem', fontWeight: 700, color: RED, marginRight: '8px' }}>OUT</span>
-                                    <span style={{ color: TEXT, ...mono }}>{(field.out || []).join(', ') || '—'}</span>
-                                </div>
-                            </React.Fragment>
-                        )}
-                    </div>
-                </div>
-
-                {/* Standings shift — moved rows only */}
-                <div style={{ ...microHdr, marginBottom: '6px' }}>Standings shift</div>
-                {!shift.length ? (
-                    <div style={{ color: SILVER, fontSize: '0.76rem', marginBottom: '10px' }}>Standings hold — no team changes rank under this proposal.</div>
-                ) : (
-                    <div style={{ overflowX: 'auto', marginBottom: '10px' }}>
-                        <div style={{ minWidth: '380px' }}>
-                            <div style={{ ...shiftGrid, ...microHdr, borderBottom: `1px solid ${LINE}` }}>
-                                <span>Team</span><span style={{ textAlign: 'right' }}>Was</span><span style={{ textAlign: 'right' }}>Now</span><span style={{ textAlign: 'right' }}>Δ</span>
-                            </div>
-                            {shiftShown.map(r => (
-                                <div key={r.rosterId} style={{ ...shiftGrid, ...rowLine }}>
-                                    <span style={nameCell}>{r.name}</span>
-                                    <span style={{ textAlign: 'right' }}>{r.baselineRank}</span>
-                                    <span style={{ textAlign: 'right', color: TEXT }}>{r.proposedRank}</span>
-                                    <span style={{ textAlign: 'right', fontWeight: 700, color: r.delta > 0 ? GREEN : RED }}>
-                                        {r.delta > 0 ? '▲' : '▼'}{Math.abs(r.delta)}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-                {(shiftHidden > 0 || unchangedCount > 0) ? (
-                    <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '-4px', marginBottom: '10px' }}>
-                        {[shiftHidden > 0 ? '+' + shiftHidden + ' more moved' : null, unchangedCount > 0 ? '+' + unchangedCount + ' unchanged' : null].filter(Boolean).join(' · ')}
-                    </div>
-                ) : null}
-
-                {/* Season points swing — biggest winners and losers by total */}
-                {(topTeams.length || botTeams.length) ? (
-                    <React.Fragment>
-                        <div style={{ ...microHdr, marginBottom: '6px' }}>Season points swing</div>
-                        <div style={{ overflowX: 'auto', marginBottom: '10px' }}>
-                            <div style={{ minWidth: '400px' }}>
-                                <div style={{ ...swingGrid, ...microHdr, borderBottom: `1px solid ${LINE}` }}>
-                                    <span>Team</span><span style={{ textAlign: 'right' }}>Current</span><span style={{ textAlign: 'right' }}>Proposed</span><span style={{ textAlign: 'right' }}>Δ pts</span>
-                                </div>
-                                {topTeams.concat(botTeams).map(t => (
-                                    <div key={t.rosterId} style={{ ...swingGrid, ...rowLine }}>
-                                        <span style={nameCell}>{t.name}</span>
-                                        <span style={{ textAlign: 'right', opacity: 0.8 }}>{Number(t.baselinePts).toFixed(1)}</span>
-                                        <span style={{ textAlign: 'right', color: TEXT }}>{Number(t.proposedPts).toFixed(1)}</span>
-                                        <span style={{ textAlign: 'right', fontWeight: 700, color: TEXT }}>{signed(t.delta)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        {tds.length > topTeams.length + botTeams.length ? (
-                            <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '-4px', marginBottom: '10px' }}>
-                                top 3 and bottom 3 of {tds.length} teams shown
-                            </div>
-                        ) : null}
-                    </React.Fragment>
-                ) : null}
-
-                {/* Player movers — who the rule actually pays */}
-                {(gainers.length || losers.length) ? (
-                    <React.Fragment>
-                        <div style={{ ...microHdr, marginBottom: '6px' }}>Player movers · season total</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '14px', marginBottom: '10px' }}>
-                            <PlayerCol label="Gainers" rows={gainers} color={GREEN} />
-                            <PlayerCol label="Losers" rows={losers} color={RED} />
-                        </div>
-                    </React.Fragment>
-                ) : (
-                    <div style={{ color: SILVER, fontSize: '0.76rem', marginBottom: '10px' }}>No individual player moves under this proposal.</div>
-                )}
-
-                {/* Position relevance — the league's shape before and after.
-                    Always the full set the engine returns (already filtered
-                    to positions that actually carry share, sorted biggest
-                    mover first) — never trimmed to "significant" movers
-                    only, so a position holding steady is still on screen
-                    for comparison, not just the ones that shifted. */}
-                {(result.positionShare || []).length ? (
-                    <React.Fragment>
-                        <div style={{ ...microHdr, marginBottom: '6px' }}>Position relevance · share of all started points</div>
-                        <div style={{ marginBottom: '10px' }}>
-                            {(result.positionShare || []).map(p => (
-                                <div key={p.pos} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 130px', gap: '10px', alignItems: 'center', padding: '4px 0' }}>
-                                    <span style={{ ...microHdr }}>{p.pos}</span>
-                                    <div style={{ position: 'relative', height: '6px', background: SURF2, borderRadius: '3px', overflow: 'hidden' }}>
-                                        <span style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: Math.min(100, p.basePct * 2.5) + '%', background: LINE }} />
-                                        <span style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: Math.min(100, p.propPct * 2.5) + '%', background: p.deltaPct >= 0 ? ACCENT : RED, opacity: 1, height: '2px', marginTop: '2px' }} />
-                                    </div>
-                                    <span style={{ ...mono, fontSize: '0.72rem', textAlign: 'right', color: TEXT }}>
-                                        {p.basePct}% → <span style={{ fontWeight: 700, color: p.deltaPct >= 0 ? GREEN : RED }}>{p.propPct}%</span>
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </React.Fragment>
-                ) : null}
-
-                {/* League shape: volatility + how much the standings reshuffle */}
-                {result.balance ? (
-                    <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginBottom: '10px', lineHeight: 1.6 }}>
-                        Weekly volatility {result.balance.volatilityDeltaPct > 0 ? '+' : ''}{result.balance.volatilityDeltaPct}%
-                        {' · '}top-to-bottom spread {result.balance.baseline.spread} → {result.balance.proposed.spread}
-                        {' · '}standings correlation {result.balance.spearman} <span title="1.00 = the proposal reshuffles nothing">ⓘ</span>
-                    </div>
-                ) : null}
-
-                {/* Proposer disclosure — the conflict-of-interest line */}
-                {note && note.line ? (
-                    <div style={{ background: WELL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${AMBER}`, borderRadius: '0 6px 6px 0', padding: '10px 12px', marginBottom: '10px' }}>
-                        <div style={{ ...microHdr, color: AMBER, marginBottom: '4px' }}>Disclosure</div>
-                        <div style={{ fontSize: '0.78rem', color: TEXT, lineHeight: 1.5 }}>{note.line}</div>
-                        <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '4px' }}>Attach this to the ballot when you put it to a vote.</div>
-                    </div>
-                ) : null}
-
-                {/* The ballot: this league's impact statement, ready to circulate */}
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {typeof onCopyBallot === 'function' ? (
-                        <button onClick={() => onCopyBallot(leagueName, result)}
-                            style={{ padding: '7px 12px', cursor: 'pointer', background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: '6px', color: ACCENT, font: '700 0.625rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                            Copy ballot text
-                        </button>
-                    ) : null}
-                    {typeof onExportBallot === 'function' ? (
-                        <button onClick={() => onExportBallot(leagueName, result)}
-                            style={{ padding: '7px 12px', cursor: 'pointer', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: SILVER, font: '700 0.625rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                            Export PNG
-                        </button>
-                    ) : null}
-                </div>
-            </Section>
-            </div>
-        );
-    };
 
     // ── Body by status ───────────────────────────────────────────────
     const resultRows = Array.isArray(results) ? results : [];
@@ -459,7 +464,7 @@ function WrCommishRuleLabPanel({
         ) : (
             <React.Fragment>
                 {resultRows.map((row, i) => (
-                    <LeagueResult key={row.leagueId || row.leagueName || i} leagueName={row.leagueName} result={row.result} />
+                    <LeagueResult key={row.leagueId || row.leagueName || i} leagueName={row.leagueName} result={row.result} onCopyBallot={onCopyBallot} onExportBallot={onExportBallot} />
                 ))}
             </React.Fragment>
         );
