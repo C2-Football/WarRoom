@@ -106,11 +106,47 @@
         return bridge;
     }
 
+    // MFL blocks cross-origin browser requests outright (no CORS headers —
+    // confirmed live: 'Access-Control-Allow-Origin' pinned to MFL's own
+    // www*.myfantasyleague.com host). Route through the same Supabase Edge
+    // Function relay the rest of the app's MFL support already uses
+    // (dhq-shared/mfl-api.js's _mflGet/_getProxyUrl) rather than a direct
+    // fetch — mirrored here instead of imported so this module stays
+    // self-contained (it doesn't otherwise depend on mfl-api.js).
+    function _mflProxyUrl() {
+        const config = root.App?.CONFIG || root.OD?.CONFIG || {};
+        if (config.endpoints?.mflProxy) return config.endpoints.mflProxy;
+        if (config.functionsBase) return config.functionsBase + '/mfl-proxy';
+        const base = root.OD?.SUPABASE_URL || root.App?.SUPABASE_URL;
+        return base ? base + '/functions/v1/mfl-proxy' : null;
+    }
+
     async function _fetchMflAdp(year) {
         const url = 'https://api.myfantasyleague.com/' + year + '/export?TYPE=adp&JSON=1';
-        const r = await fetch(url);
-        if (!r || !r.ok) return [];
-        const data = await r.json();
+        const proxyUrl = _mflProxyUrl();
+        const anonKey = root.App?.CONFIG?.supabaseAnon || root.OD?.CONFIG?.supabaseAnon || root.OD?.SUPABASE_ANON || root.App?.SUPABASE_ANON;
+        const token = root.OD?.getSessionToken?.() || null;
+        let data;
+        if (proxyUrl && anonKey) {
+            const r = await fetch(proxyUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + (token || anonKey),
+                    'apikey': anonKey,
+                },
+                body: JSON.stringify({ url }),
+            });
+            if (!r.ok) return [];
+            data = await r.json();
+        } else {
+            // Fallback for contexts with no Supabase config (e.g. same-origin
+            // test harnesses) — a real browser hitting MFL directly still
+            // fails on CORS, same as before this fix, just without a proxy.
+            const r = await fetch(url);
+            if (!r || !r.ok) return [];
+            data = await r.json();
+        }
         const rows = data && data.adp && data.adp.player;
         if (Array.isArray(rows)) return rows;
         return rows ? [rows] : [];
