@@ -546,7 +546,7 @@
                     let draftDnaMap = {};
                     try {
                         if (window.DraftHistory?.loadDraftDNA) {
-                            draftDnaMap = window.DraftHistory.loadDraftDNA(leagueId) || {};
+                            draftDnaMap = window.DraftCC.persona.remapDraftDnaByRosterId(window.DraftHistory.loadDraftDNA(leagueId) || {});
                         }
                     } catch (e) {}
                     saved.personas = window.DraftCC.persona.composeAllPersonas(leagueId, draftDnaMap);
@@ -1512,7 +1512,7 @@
             let draftDnaMap = {};
             try {
                 if (window.DraftHistory?.loadDraftDNA) {
-                    draftDnaMap = window.DraftHistory.loadDraftDNA(leagueId) || {};
+                    draftDnaMap = window.DraftCC.persona.remapDraftDnaByRosterId(window.DraftHistory.loadDraftDNA(leagueId) || {});
                 }
             } catch (e) {}
             const personas = window.DraftCC.persona.composeAllPersonas(leagueId, draftDnaMap);
@@ -1658,8 +1658,9 @@
                 window.DraftHistory.syncDraftDNA(leagueId).then(map => {
                     if (!map) return;
                     const normalize = window.DraftCC.persona.normalizeDraftDna;
+                    const byRosterId = window.DraftCC.persona.remapDraftDnaByRosterId(map);
                     const payload = {};
-                    Object.entries(map).forEach(([rid, raw]) => {
+                    Object.entries(byRosterId).forEach(([rid, raw]) => {
                         payload[rid] = normalize(raw);
                     });
                     dispatch({ type: 'MERGE_DRAFT_DNA', payload });
@@ -1765,7 +1766,7 @@
             let draftDnaMap = {};
             try {
                 if (window.DraftHistory?.loadDraftDNA) {
-                    draftDnaMap = window.DraftHistory.loadDraftDNA(leagueId) || {};
+                    draftDnaMap = window.DraftCC.persona.remapDraftDnaByRosterId(window.DraftHistory.loadDraftDNA(leagueId) || {});
                 }
             } catch (e) {}
             const personas = window.DraftCC.persona.composeAllPersonas(leagueId, draftDnaMap);
@@ -1897,7 +1898,7 @@
             let draftDnaMap = {};
             try {
                 if (window.DraftHistory?.loadDraftDNA) {
-                    draftDnaMap = window.DraftHistory.loadDraftDNA(leagueId) || {};
+                    draftDnaMap = window.DraftCC.persona.remapDraftDnaByRosterId(window.DraftHistory.loadDraftDNA(leagueId) || {});
                 }
             } catch (e) {}
             const personas = window.DraftCC.persona.composeAllPersonas(leagueId, draftDnaMap);
@@ -2317,6 +2318,17 @@
                             of teams" concept either way, only the label changes. */}
                         {(() => {
                             const slotOrder = Array.from({ length: state.leagueSize || 0 }, (_, i) => draftMeta.slotToRoster?.[i + 1]?.rosterId ?? null);
+                            // Quiet hint that real draft learning is active for this
+                            // league — reads straight from the cached sync (no need
+                            // to wait for personas, which don't compose until the
+                            // draft actually starts). Blank when there's genuinely
+                            // nothing real to infer from yet (e.g. a startup league).
+                            let dnaByRosterId = {};
+                            try {
+                                const leagueIdForDna = currentLeague?.league_id || currentLeague?.id || '';
+                                const raw = window.DraftHistory?.loadDraftDNA ? window.DraftHistory.loadDraftDNA(leagueIdForDna) : null;
+                                if (raw) dnaByRosterId = window.DraftCC.persona.remapDraftDnaByRosterId(raw);
+                            } catch (e) {}
                             const moveSlot = (i, dir) => {
                                 const j = i + dir;
                                 if (j < 0 || j >= slotOrder.length) return;
@@ -2351,7 +2363,12 @@
                                             return (
                                                 <div key={rosterId ?? ('empty-' + slot)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', borderRadius: 4, background: isMine ? 'rgba(212,175,55,0.08)' : 'transparent' }}>
                                                     <span style={{ width: 22, flex: 'none', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.7 }}>{slot}</span>
-                                                    <span style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.78rem', color: isMine ? 'var(--gold)' : 'var(--white)', fontWeight: isMine ? 700 : 400 }}>{info.ownerName || 'Team ' + slot}{isMine ? ' (YOU)' : ''}</span>
+                                                    <span style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.78rem', color: isMine ? 'var(--gold)' : 'var(--white)', fontWeight: isMine ? 700 : 400 }}>
+                                                        {info.ownerName || 'Team ' + slot}{isMine ? ' (YOU)' : ''}
+                                                        {!isMine && dnaByRosterId[rosterId]?.label && (
+                                                            <em style={{ marginLeft: 6, fontStyle: 'normal', fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.6 }}>· {dnaByRosterId[rosterId].label}</em>
+                                                        )}
+                                                    </span>
                                                     <button type="button" aria-label={'Move ' + (info.ownerName || 'team ' + slot) + ' up'} disabled={i === 0} onClick={() => moveSlot(i, -1)} style={{ width: 26, height: 26, flex: 'none', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 4, background: 'transparent', color: i === 0 ? 'var(--text-disabled, #444)' : 'var(--silver)', cursor: i === 0 ? 'default' : 'pointer', fontSize: '0.7rem', lineHeight: 1 }}>▲</button>
                                                     <button type="button" aria-label={'Move ' + (info.ownerName || 'team ' + slot) + ' down'} disabled={i === slotOrder.length - 1} onClick={() => moveSlot(i, 1)} style={{ width: 26, height: 26, flex: 'none', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 4, background: 'transparent', color: i === slotOrder.length - 1 ? 'var(--text-disabled, #444)' : 'var(--silver)', cursor: i === slotOrder.length - 1 ? 'default' : 'pointer', fontSize: '0.7rem', lineHeight: 1 }}>▼</button>
                                                 </div>

@@ -303,6 +303,11 @@
         // 2026-07-05, fail-open: keeper/unknown keep everything). Game Day
         // Central + lineup-check + bye planner are exempt per ruling E1.
         const allowRedraft = type !== 'dynasty';
+        // A startup draft (any league type, empty rosters, about to draft) gets
+        // the full-team-from-scratch gameplan same as redraft — only an
+        // ESTABLISHED dynasty doing a small rookie-only draft (rosters already
+        // populated) stays excluded, matching showDraftGameplan's own intent below.
+        const isStartupDraft = preDraft && rosterPlayerCount(rosters) === 0;
         return {
             showTaxi: hasTaxi,
             showIDP: hasIDP,
@@ -329,7 +334,7 @@
             // My Roster Wk START/SIT badge + redraft preset (E2).
             showWeeklyVerdict: allowRedraft,
             // Draft Gameplan blueprint (E5) — dynasty startups included.
-            showDraftGameplan: allowRedraft,
+            showDraftGameplan: allowRedraft || isStartupDraft,
             // Draft Capital + Roster Targeting and Alex's Recommended Draft
             // (War Room tab) are multi-year rookie-capital planning tools —
             // future pick rows, need-ranked targets against an existing
