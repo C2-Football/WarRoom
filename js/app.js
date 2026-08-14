@@ -514,6 +514,7 @@
                             byId.set(league.league_id, {
                                 id: league.league_id,
                                 name: league.name,
+                                status: league.status || '',
                                 wins: myRoster?.settings?.wins || 0,
                                 losses: myRoster?.settings?.losses || 0,
                                 ties: myRoster?.settings?.ties || 0,
@@ -570,6 +571,7 @@
                             byId.set(league.league_id, {
                                 id: league.league_id,
                                 name: league.name,
+                                status: league.status || '',
                                 wins: myRoster?.settings?.wins || 0,
                                 losses: myRoster?.settings?.losses || 0,
                                 ties: myRoster?.settings?.ties || 0,

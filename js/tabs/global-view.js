@@ -1,6 +1,56 @@
 // js/tabs/global-view.js - Empire portfolio command center
 // Cross-league asset allocation, exposure, age-window, pick capital, and drilldown workspaces.
 
+// Empire rail nav icons — same hand-flattened Lucide-path convention as
+// league-detail.js's NAV_ICON_PATHS (no icon library is installed in this
+// app; this is the established dependency-free pattern). Four of these reuse
+// the exact paths already proven there (home/zap/briefcase/target) rather
+// than re-deriving new ones for concepts that already have a tested icon.
+const EMPIRE_ICON_PATHS = {
+    // house — league-detail.js NAV_ICON_PATHS.home
+    home: ['m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', 'M9 22V12h6v10'],
+    // zap — league-detail.js NAV_ICON_PATHS.gameday
+    zap: ['M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z'],
+    // briefcase — league-detail.js NAV_ICON_PATHS.office
+    briefcase: ['M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16', 'M4 6h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z'],
+    // target — league-detail.js NAV_ICON_PATHS.strategy
+    target: ['M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z', 'M18 12a6 6 0 1 1-12 0 6 6 0 0 1 12 0Z', 'M14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z'],
+    // layers — stacked leagues
+    layers: ['m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z', 'm22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65', 'm22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65'],
+    // trending-up — the asset floor/market
+    trendingUp: ['M22 7 13.5 15.5 8.5 10.5 2 17', 'M16 7h6v6'],
+    // bar-chart-2 — a computed index/score
+    barChart: ['M18 20V10', 'M12 20V4', 'M6 20v-6'],
+    // alert-triangle — risk/warning
+    alertTriangle: ['m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z', 'M12 9v4', 'M12 17h.01'],
+    // map (folded map)
+    map: ['M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4Z', 'M8 2v16', 'M16 6v16'],
+    // search — scouting
+    search: ['M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z', 'm21 21-4.3-4.3'],
+};
+
+// Empire-scoped "which leagues count toward my totals" toggle — same
+// opt-out-map pattern + never-return-empty safety rule as Commissioner
+// Office's commish-prefs.js (isManaged/setManaged), but that module is
+// hardcoded to its own commish_prefs_v1 key/namespace and bundled with
+// commish-only fields (domainsOff, items, etc.) — not reusable as-is, so
+// this is a small independent equivalent scoped to Empire's own key.
+const EMPIRE_PREFS_KEY = 'dhq_empire_league_prefs_v1';
+function readEmpirePrefs() {
+    try { return JSON.parse(localStorage.getItem(EMPIRE_PREFS_KEY) || '{}') || {}; } catch (e) { return {}; }
+}
+function isEmpireLeagueOn(leagueId, prefs) {
+    return !((prefs && prefs.off) || {})[String(leagueId)];
+}
+function setEmpireLeagueOn(leagueId, on) {
+    const p = readEmpirePrefs();
+    p.off = p.off || {};
+    const k = String(leagueId);
+    if (on) delete p.off[k]; else p.off[k] = 1;
+    localStorage.setItem(EMPIRE_PREFS_KEY, JSON.stringify(p));
+    return p;
+}
+
 function buildEmpirePortfolioModel(input) {
     input = input || {};
     const allLeagues = input.allLeagues || [];
@@ -92,6 +142,17 @@ function buildEmpirePortfolioModel(input) {
         if (!myRoster) return;
 
         const rosterPlayers = myRoster.players || [];
+        // A pre-draft league with an empty roster (a genuine startup, or an
+        // existing league between seasons before its next draft) previously
+        // fell straight through to status:'unknown'/totalDHQ:0 — visually and
+        // programmatically identical to a real data-quality problem (broken
+        // sync, failed assessment). Gate on BOTH the league's real Sleeper
+        // phase and an empty roster (not roster-emptiness alone), so a
+        // genuinely broken/unsynced roster in an active league doesn't get
+        // mislabeled as "just pre-draft." Same phase definition league-skin.js
+        // already uses elsewhere in this app (phase === 'pre_draft'/'drafting').
+        const leaguePhase = league?.status || league?.metadata?.status || '';
+        const preDraftEmpty = (leaguePhase === 'pre_draft' || leaguePhase === 'drafting') && rosterPlayers.length === 0;
         // Health/tier must come from the per-league assessment. app.js runs
         // assessAllTeams(league.rosters, …, league, …) with the explicit league object and
         // stashes the result on league.empireAssessments. Prefer that over the single-league
@@ -104,9 +165,12 @@ function buildEmpirePortfolioModel(input) {
         let assessment = leagueAssessments.find(a => sameId(a.rosterId, myRoster.roster_id) || sameId(a.ownerId, myRoster.owner_id)) || null;
         if (!assessment && typeof assessTeam === 'function') assessment = assessTeam(myRoster.roster_id, league);
         if (assessment) assessedLeagueCount++;
-        const healthScore = assessment?.healthScore ?? null;
-        const tier = assessment?.tier || 'UNKNOWN';
-        const status = statusFromTier(tier);
+        // Nulled for a pre-draft empty roster same as the eliminated-roster
+        // case below — there's genuinely nothing to assess yet, not a broken
+        // read, and this keeps it out of avgHealth via the same mechanism.
+        const healthScore = preDraftEmpty ? null : (assessment?.healthScore ?? null);
+        const tier = preDraftEmpty ? 'PRE_DRAFT' : (assessment?.tier || 'UNKNOWN');
+        const status = preDraftEmpty ? 'pre_draft' : statusFromTier(tier);
         strategyTotals[status] = (strategyTotals[status] || 0) + 1;
         const wins = myRoster.settings?.wins || league?.wins || 0;
         const losses = myRoster.settings?.losses || league?.losses || 0;
@@ -140,6 +204,7 @@ function buildEmpirePortfolioModel(input) {
             teams: rosters.length || league?.total_rosters || 0,
             wins,
             losses,
+            preDraftEmpty,
             isChopped,
             canTrade,
             isEliminated,
@@ -878,6 +943,10 @@ function buildProvincesMap(input) {
     fringe: { label: 'Crossroads', color: 'var(--warn)' },
     rebuild: { label: 'Rebuild', color: 'var(--bad)' },
     unknown: { label: 'Unread', color: 'var(--silver)' },
+    // Distinct from 'unknown' — nothing's broken here, there's just nothing
+    // to assess yet. Neutral tone, not the "something needs your attention"
+    // silver 'Unread' reads as.
+    pre_draft: { label: 'Pre-Draft', color: 'var(--silver)' },
   };
 
   const maxDHQ = provinces.reduce((m, p) => Math.max(m, p.totalDHQ || 0), 0) || 1;
@@ -920,6 +989,7 @@ function buildProvincesMap(input) {
     crossroads: provinces.filter(p => p.status === 'fringe').length,
     rebuilds: provinces.filter(p => p.status === 'rebuild').length,
     unread: provinces.filter(p => !statusMeta[p.status] || p.status === 'unknown').length,
+    preDraft: provinces.filter(p => p.status === 'pre_draft').length,
     totalDHQ: provinces.reduce((s, p) => s + (p.totalDHQ || 0), 0),
     totalRecord: provinces.reduce((s, p) => ({ wins: s.wins + (p.wins || 0), losses: s.losses + (p.losses || 0) }), { wins: 0, losses: 0 }),
   };
@@ -1611,6 +1681,17 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     // bury your own leverage under market-only rows without this.
     const [arbMineOnly, setArbMineOnly] = useState(true);
     const [arbExpanded, setArbExpanded] = useState(false);
+    // Which leagues count toward Empire's totals — a persisted opt-out
+    // (setEmpireLeagueOn), distinct from filters.league below (a single-
+    // league "show only this one" drill-down lens, not a standing exclude).
+    // Never silently collapses to zero leagues, same safety rule Commissioner
+    // Office's managedFilter already established for its own toggle.
+    const [prefsTick, setPrefsTick] = useState(0);
+    const enabledLeagues = useMemo(() => {
+        const prefs = readEmpirePrefs();
+        const on = (allLeagues || []).filter(l => isEmpireLeagueOn(l.league_id || l.id, prefs));
+        return on.length ? on : (allLeagues || []);
+    }, [allLeagues, prefsTick]);
     const normPos = window.App?.normPos || (p => p);
     // KNOWN APPROXIMATION (H5): playerScores come from the one LeagueIntel currently loaded,
     // so all leagues' Empire DHQ (Empire Value, asset values, move math) are scored in that
@@ -1656,7 +1737,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         if (!markData) return null;
         try {
             return window.App?.EmpireValues?.build?.({
-                leagues: allLeagues,
+                leagues: enabledLeagues,
                 playersData,
                 statsData: markData.stats,
                 priorData: markData.prior,
@@ -1665,19 +1746,19 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                 myUserId: sleeperUserId,
             }) || null;
         } catch (e) { window.wrLog?.('empire.marks', e); return null; }
-    }, [allLeagues, playersData, markData, sleeperUserId, window.App?.LI_LOADED]);
+    }, [enabledLeagues, playersData, markData, sleeperUserId, window.App?.LI_LOADED]);
     // Does this empire contain any long-horizon league? Dynasty vocabulary
     // (contend/rebuild postures, age lenses) only means something if so.
-    const hasLongTerm = useMemo(() => (allLeagues || []).some(l => {
+    const hasLongTerm = useMemo(() => (enabledLeagues || []).some(l => {
         const ty = Number(l?.settings?.type);
         return ty === 1 || ty === 2;
-    }), [allLeagues]);
+    }), [enabledLeagues]);
     const posColors = window.App?.POS_COLORS || {};
     const scoreKey = Object.keys(scores).length + ':' + (window.App?.LI_LOADED ? 'ready' : 'loading');
     const userName = window.S?.user?.display_name || window.S?.user?.username || 'Commander';
 
     const model = useMemo(() => buildEmpirePortfolioModel({
-        allLeagues,
+        allLeagues: enabledLeagues,
         playersData,
         sleeperUserId,
         scores,
@@ -1690,13 +1771,13 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         assessTeam: typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal : null,
         nowYear: new Date().getFullYear(),
         liLoaded: !!window.App?.LI_LOADED,
-    }), [allLeagues, playersData, sleeperUserId, scoreKey]);
+    }), [enabledLeagues, playersData, sleeperUserId, scoreKey]);
 
-    const rolodex = useMemo(() => buildEmpireRolodex(allLeagues, sleeperUserId), [allLeagues, scoreKey]);
+    const rolodex = useMemo(() => buildEmpireRolodex(enabledLeagues, sleeperUserId), [enabledLeagues, scoreKey]);
     const actionQueue = useMemo(() => buildEmpireActionQueue(model, rolodex), [model, rolodex]);
     const briefText = useMemo(() => buildEmpireBrief(model, userName), [model, userName]);
-    const empireGrudges = useMemo(() => buildEmpireGrudges(allLeagues), [allLeagues]);
-    const moves = useMemo(() => buildEmpireMoves({ leagues: allLeagues, model, scores, playersData, myUserId: sleeperUserId, normPos, tradeEngine: window.App?.TradeEngine, grudges: empireGrudges }), [allLeagues, model, scoreKey, empireGrudges]);
+    const empireGrudges = useMemo(() => buildEmpireGrudges(enabledLeagues), [enabledLeagues]);
+    const moves = useMemo(() => buildEmpireMoves({ leagues: enabledLeagues, model, scores, playersData, myUserId: sleeperUserId, normPos, tradeEngine: window.App?.TradeEngine, grudges: empireGrudges }), [enabledLeagues, model, scoreKey, empireGrudges]);
     const consolidation = useMemo(() => buildEmpireConsolidation(moves, model), [moves, model]);
     const decisionApi = window.App?.EmpireDecisions || null;
     const decisions = useMemo(() => decisionApi?.list?.() || [], [decisionTick]);
@@ -1705,7 +1786,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const trackDecision = useCallback((move) => { decisionApi?.track?.(move, { nowMs: Date.now() }); setDecisionTick(t => t + 1); }, []);
     const updateDecision = useCallback((id, patch) => { decisionApi?.update?.(id, patch, { nowMs: Date.now() }); setDecisionTick(t => t + 1); }, []);
     const removeDecision = useCallback((id) => { decisionApi?.remove?.(id); setDecisionTick(t => t + 1); }, []);
-    const empireLeagueIds = useMemo(() => (allLeagues || []).map(l => l.id || l.league_id).filter(Boolean), [allLeagues]);
+    const empireLeagueIds = useMemo(() => (enabledLeagues || []).map(l => l.id || l.league_id).filter(Boolean), [enabledLeagues]);
     const empireDelta = useMemo(() => (window.WrSnapshots && typeof window.WrSnapshots.empireDelta === 'function') ? window.WrSnapshots.empireDelta(empireLeagueIds) : null, [empireLeagueIds, scoreKey]);
     const bridge = useMemo(() => buildCommandBridge({ model, actionQueue, brief: briefText, empireDelta }), [model, actionQueue, briefText, empireDelta]);
 
@@ -1949,11 +2030,11 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                     <section className="empire-detail-hero">
                         <div>
                             <h1>{province.name}</h1>
-                            <p>{province.tier} - {province.recordLabel} - rank {province.powerRank || '-'} of {province.teams || '-'}</p>
+                            <p>{province.preDraftEmpty ? 'Pre-Draft' : province.tier} - {province.recordLabel} - rank {province.powerRank || '-'} of {province.teams || '-'}</p>
                         </div>
                     </section>
                     <div className="empire-detail-metrics">
-                        <div className="empire-metric"><span>Total DHQ</span><strong>{province.totalDHQ > 0 ? empireCompact(province.totalDHQ) : 'No DHQ'}</strong></div>
+                        <div className="empire-metric"><span>Total DHQ</span><strong>{province.totalDHQ > 0 ? empireCompact(province.totalDHQ) : (province.preDraftEmpty ? 'Pre-Draft' : 'No DHQ')}</strong></div>
                         <div className="empire-metric"><span>Health</span><strong>{province.healthScore ?? 'No read'}</strong></div>
                         <div className="empire-metric"><span>Pick Capital</span><strong>{province.pickCount} picks</strong></div>
                         <div className="empire-metric"><span>Premium Picks</span><strong>{province.premiumPickCount}</strong></div>
@@ -2266,7 +2347,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
 
 const renderThreatDetail = () => {
   const board = buildThreatBoard({
-    leagues: allLeagues,
+    leagues: enabledLeagues,
     myUserId: sleeperUserId,
     tradeEngine: (window.App && window.App.TradeEngine) || {},
     dnaMeta: EMPIRE_DNA_META,
@@ -2572,18 +2653,22 @@ const renderScoutDetail = () => {
             <EmpireStyles />
             <nav className="empire-rail" aria-label="Empire sections">
                 {[
-                    { g: '▦', t: 'Command Bridge', go: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
-                    { g: '⚡', t: 'Empire Moves', go: () => setDetail({ type: 'moves' }) },
-                    { g: '◧', t: 'Allocation & Leagues', go: () => document.querySelector('.empire-main-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
-                    { g: '◰', t: 'Asset Floor', go: () => document.querySelector('.empire-floor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
-                    { g: 'β', t: 'Empire Index', go: () => setDetail({ type: 'index' }) },
-                    { g: '⊿', t: 'Threat Board', go: () => setDetail({ type: 'threat' }) },
-                    { g: '⌖', t: 'War Table', go: () => setDetail({ type: 'war' }) },
-                    { g: '◳', t: 'Provinces Map', go: () => setDetail({ type: 'provinces' }) },
-                    { g: '◎', t: 'Scout Board', go: () => setDetail({ type: 'scout', groupBy: 'none', sortBy: 'dhq' }) },
-                    { g: '≣', t: 'Asset Workspace', go: () => document.querySelector('.empire-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+                    { icon: 'home', t: 'Command Bridge', go: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
+                    { icon: 'zap', t: 'Empire Moves', go: () => setDetail({ type: 'moves' }) },
+                    { icon: 'layers', t: 'Allocation & Leagues', go: () => document.querySelector('.empire-main-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+                    { icon: 'trendingUp', t: 'Asset Floor', go: () => document.querySelector('.empire-floor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+                    { icon: 'barChart', t: 'Empire Index', go: () => setDetail({ type: 'index' }) },
+                    { icon: 'alertTriangle', t: 'Threat Board', go: () => setDetail({ type: 'threat' }) },
+                    { icon: 'target', t: 'War Table', go: () => setDetail({ type: 'war' }) },
+                    { icon: 'map', t: 'Provinces Map', go: () => setDetail({ type: 'provinces' }) },
+                    { icon: 'search', t: 'Scout Board', go: () => setDetail({ type: 'scout', groupBy: 'none', sortBy: 'dhq' }) },
+                    { icon: 'briefcase', t: 'Asset Workspace', go: () => document.querySelector('.empire-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
                 ].map(it => (
-                    <button key={it.t} className="empire-rail-btn" type="button" title={it.t} aria-label={it.t} onClick={it.go}>{it.g}</button>
+                    <button key={it.t} className="empire-rail-btn" type="button" title={it.t} aria-label={it.t} onClick={it.go}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 18, height: 18 }}>
+                            {(EMPIRE_ICON_PATHS[it.icon] || EMPIRE_ICON_PATHS.home).map((d, i) => <path key={i} d={d} />)}
+                        </svg>
+                    </button>
                 ))}
                 <div className="empire-rail-spacer" />
                 {typeof window.ProTierIcon === 'function' ? <div style={{ width: 24, height: 24, opacity: 0.7 }}>{React.createElement(window.ProTierIcon, { size: 24 })}</div> : null}
@@ -2608,6 +2693,15 @@ const renderScoutDetail = () => {
             </header>
 
             <main className="empire-shell">
+                {wireItems.length ? (
+                    <div className="empire-wire" aria-label="Empire Wire">
+                        <span className="empire-wire-tag">Empire Wire</span>
+                        <div className="empire-wire-track">
+                            {wireItems.map((w, i) => <span key={'a' + i} className="empire-wire-item">{w}</span>)}
+                            {wireItems.map((w, i) => <span key={'b' + i} className="empire-wire-item">{w}</span>)}
+                        </div>
+                    </div>
+                ) : null}
                 <div className="empire-viewbar" aria-label="Empire portfolio views">
                     <span className="empire-filter-label">View</span>
                     {lensButton('All', {}, 'var(--gold)')}
@@ -2645,6 +2739,31 @@ const renderScoutDetail = () => {
                                 {filterButton('agePhase', 'post', 'Post-window', 'var(--k-e74c3c, #e74c3c)')}
                             </div>
                         </div>
+                        {/* Which leagues count toward Empire's totals at all — a
+                            persisted on/off per league, separate from the lenses
+                            above (those re-slice the SAME data, this decides what
+                            data is in the pool to begin with). */}
+                        <div className="empire-filter-group">
+                            <span className="empire-filter-label">Leagues</span>
+                            <div className="empire-filters">
+                                {(() => {
+                                    const empirePrefs = readEmpirePrefs();
+                                    return (allLeagues || []).map(l => {
+                                        const lid = l.league_id || l.id;
+                                        const on = isEmpireLeagueOn(lid, empirePrefs);
+                                        return (
+                                            <button key={lid} type="button"
+                                                className={'empire-filter' + (on ? ' is-active' : '')}
+                                                style={{ '--tone': 'var(--gold)', opacity: on ? 1 : 0.55 }}
+                                                title={on ? 'Included in Empire totals — click to exclude' : 'Excluded from Empire totals — click to include'}
+                                                onClick={() => { setEmpireLeagueOn(lid, !on); setPrefsTick(t => t + 1); }}>
+                                                {l.name}
+                                            </button>
+                                        );
+                                    });
+                                })()}
+                            </div>
+                        </div>
                     </div>
                 ) : null}
                 {hasNoResults ? (
@@ -2676,15 +2795,6 @@ const renderScoutDetail = () => {
                                 {actionQueue.length > 3 ? <div className="empire-section-footer"><button className="empire-action" type="button" onClick={() => setDetail({ type: 'moves' })}>View all {actionQueue.length} moves →</button></div> : null}
                             </div>
                         </section>
-                        {wireItems.length ? (
-                            <div className="empire-wire" aria-label="Empire Wire">
-                                <span className="empire-wire-tag">Empire Wire</span>
-                                <div className="empire-wire-track">
-                                    {wireItems.map((w, i) => <span key={'a' + i} className="empire-wire-item">{w}</span>)}
-                                    {wireItems.map((w, i) => <span key={'b' + i} className="empire-wire-item">{w}</span>)}
-                                </div>
-                            </div>
-                        ) : null}
                         {/* ── THE ARBITRAGE BOARD ─────────────────────────
                             Every league marked to its own book, so the same
                             player carries a different price in each — and the
@@ -2793,10 +2903,10 @@ const renderScoutDetail = () => {
                                             <button key={province.id} className="empire-league-card" style={{ '--tone': province.tierColor }} type="button" onClick={() => setDetail({ type: 'league', leagueId: province.id })}>
                                                 <div>
                                                     <strong>{province.name}</strong>
-                                                    <span>{province.tier} - {province.recordLabel} - HP {province.healthScore ?? 'No read'}</span>
+                                                    <span>{province.preDraftEmpty ? 'Pre-Draft' : province.tier} - {province.recordLabel} - HP {province.healthScore ?? 'No read'}</span>
                                                     <em>{province.pickCount} picks - {province.premiumPickCount} premium - #{province.powerRank || '-'}/{province.teams || '-'}</em>
                                                 </div>
-                                                <b>{province.totalDHQ > 0 ? empireCompact(province.totalDHQ) : 'No DHQ'}</b>
+                                                <b>{province.totalDHQ > 0 ? empireCompact(province.totalDHQ) : (province.preDraftEmpty ? 'Pre-Draft' : 'No DHQ')}</b>
                                             </button>
                                         )) : <div className="empire-empty"><strong>No leagues</strong>Reset filters or check roster sync.</div>}
                                 </div>
