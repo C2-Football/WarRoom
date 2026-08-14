@@ -1645,6 +1645,8 @@
             state.draftTuning,
             state.strategyProfile,
             state.analystScenario,
+            state.draftMechanic,
+            state.auctionBudget,
             draftMeta,
             playersData,
             currentLeague,
