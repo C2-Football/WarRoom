@@ -330,6 +330,14 @@
             showWeeklyVerdict: allowRedraft,
             // Draft Gameplan blueprint (E5) — dynasty startups included.
             showDraftGameplan: allowRedraft,
+            // Draft Capital + Roster Targeting and Alex's Recommended Draft
+            // (War Room tab) are multi-year rookie-capital planning tools —
+            // future pick rows, need-ranked targets against an existing
+            // roster, a slot-by-slot AI pick plan. None of that maps onto a
+            // seasonal draft where the whole roster is built fresh each
+            // cycle. Dynasty/keeper/unknown keep it (fail-open); redraft,
+            // chopped, best_ball, dfs don't.
+            showDraftCapitalPlanning: !seasonal,
             showWaiverPlanner: seasonal || type === 'keeper',
             showRestOfSeasonValue: seasonal || type === 'keeper',
             hasRosteredPlayers: rosterPlayerCount(rosters) > 0,

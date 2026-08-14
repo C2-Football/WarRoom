@@ -2778,6 +2778,64 @@
                                 </div>
                             );
                         })()}
+                        {(() => {
+                        // Draft Capital + Roster Targeting is a multi-year rookie-capital
+                        // planning card (future pick rows, need-ranked targets) — doesn't
+                        // map onto redraft/chopped, where the roster is built fresh each
+                        // cycle. Hidden clean (not just its content), not just gated: the
+                        // hero grid's 2nd column (Draft Plan / Draft Gameplan) still needs
+                        // somewhere to render, so it drops out of the grid entirely rather
+                        // than leaving an empty first column beside it.
+                        const showCapitalPlanning = skinFeatures.showDraftCapitalPlanning !== false;
+                        const draftHqActionsEl = (
+                            <aside className="draft-hq-actions">
+                                <div className="draft-hq-action-card">
+                                    <strong>Draft Plan</strong>
+                                    {/* AI draft plan / class read + AI-order board apply → Pro */}
+                                    {!isPro ? (
+                                        window.WrGatedMoreRow
+                                            ? React.createElement(window.WrGatedMoreRow, { title: 'Alex draft plan + class read', sub: 'AI scouting reports and the strategy-fit board order are Scout Pro.', feature: 'draft_ai_reports' })
+                                            : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Draft Plan', 'draft_ai_reports', 'AI draft plans and class reads are Scout Pro.') : '' }} />
+                                    ) : (
+                                    <div className="draft-card-actions draft-card-actions-grouped">
+                                        <div className="draft-card-actions-row">
+                                            <button type="button" disabled={!rosterState.isUsable} title={!rosterState.isUsable ? rosterState.message : 'Generate draft scouting report'} onClick={requestFullDraftReport}>{rosterState.isUsable ? 'Generate Report' : 'Sync Required'}</button>
+                                            <button type="button" onClick={requestClassOverview}>Class Read</button>
+                                        </div>
+                                        <div className="draft-card-actions-row">
+                                            <button type="button" disabled={!aiRecommendedOrder.length} onClick={() => applyAiOrderToUserBoard('master')}>Apply to Board</button>
+                                            <button type="button" disabled={!aiRecommendedOrder.length || !boardPosFilter} onClick={() => applyAiOrderToUserBoard('position')}>Apply Position</button>
+                                        </div>
+                                    </div>
+                                    )}
+                                    {savedReports.length > 0 && (
+                                        <div style={{ marginTop: 10, borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))', paddingTop: 8 }}>
+                                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--silver)', opacity: 0.6, marginBottom: 6 }}>Saved Reports</div>
+                                            {/* Saved reports are stored AI reads — reopening one (wr:ask-show) is Pro,
+                                                even for a lapsed trial that generated them while paid. */}
+                                            {!isPro ? (
+                                                window.WrGatedMoreRow
+                                                    ? React.createElement(window.WrGatedMoreRow, { title: savedReports.length + ' saved report' + (savedReports.length === 1 ? '' : 's'), sub: 'Reopen your AI scouting reports with Scout Pro.', feature: 'draft_ai_reports' })
+                                                    : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Saved Reports', 'draft_ai_reports', 'Reopen your AI scouting reports with Scout Pro.') : '' }} />
+                                            ) : savedReports.slice(0, 6).map(r => (
+                                                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
+                                                    <button type="button" title="Reopen report" onClick={() => window.dispatchEvent(new CustomEvent('wr:ask-show', { detail: { title: r.title, prompt: r.prompt, answer: r.content, kind: r.kind } }))} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'transparent', border: 0, color: 'var(--silver)', cursor: 'pointer', font: 'inherit', fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: 0 }}>
+                                                        <span style={{ color: 'var(--gold)' }}>{'★'}</span> {r.title} <span style={{ opacity: 0.45 }}>{new Date(r.createdAt).toLocaleDateString()}</span>
+                                                    </button>
+                                                    <button type="button" title="Remove from list" onClick={() => { const lid = window.S?.currentLeagueId || null; window.WR?.SavedReports?.remove?.(lid, r.id); setSavedReports(prev => prev.filter(x => x.id !== r.id)); }} style={{ flexShrink: 0, background: 'transparent', border: 0, color: 'var(--silver)', opacity: 0.5, cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', padding: '0 2px' }}>{'✕'}</button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                {renderAnalystFlash()}
+                                {/* E5: dynasty leagues have no gameplan at all (format,
+                                    not tier) — clean absence, not a lock card. */}
+                                {skinFeatures.showDraftGameplan !== false && renderDraftGameplan()}
+                            </aside>
+                        );
+                        if (!showCapitalPlanning) return draftHqActionsEl;
+                        return (
                         <div className="draft-hq-hero">
                             <section className="draft-hq-panel draft-hq-capital-targeting">
                                 <div className="draft-hq-panel-head">
@@ -2878,54 +2936,12 @@
                                 </>); })()}
                             </section>
 
-                            <aside className="draft-hq-actions">
-                                <div className="draft-hq-action-card">
-                                    <strong>Draft Plan</strong>
-                                    {/* AI draft plan / class read + AI-order board apply → Pro */}
-                                    {!isPro ? (
-                                        window.WrGatedMoreRow
-                                            ? React.createElement(window.WrGatedMoreRow, { title: 'Alex draft plan + class read', sub: 'AI scouting reports and the strategy-fit board order are Scout Pro.', feature: 'draft_ai_reports' })
-                                            : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Draft Plan', 'draft_ai_reports', 'AI draft plans and class reads are Scout Pro.') : '' }} />
-                                    ) : (
-                                    <div className="draft-card-actions draft-card-actions-grouped">
-                                        <div className="draft-card-actions-row">
-                                            <button type="button" disabled={!rosterState.isUsable} title={!rosterState.isUsable ? rosterState.message : 'Generate draft scouting report'} onClick={requestFullDraftReport}>{rosterState.isUsable ? 'Generate Report' : 'Sync Required'}</button>
-                                            <button type="button" onClick={requestClassOverview}>Class Read</button>
-                                        </div>
-                                        <div className="draft-card-actions-row">
-                                            <button type="button" disabled={!aiRecommendedOrder.length} onClick={() => applyAiOrderToUserBoard('master')}>Apply to Board</button>
-                                            <button type="button" disabled={!aiRecommendedOrder.length || !boardPosFilter} onClick={() => applyAiOrderToUserBoard('position')}>Apply Position</button>
-                                        </div>
-                                    </div>
-                                    )}
-                                    {savedReports.length > 0 && (
-                                        <div style={{ marginTop: 10, borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))', paddingTop: 8 }}>
-                                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--silver)', opacity: 0.6, marginBottom: 6 }}>Saved Reports</div>
-                                            {/* Saved reports are stored AI reads — reopening one (wr:ask-show) is Pro,
-                                                even for a lapsed trial that generated them while paid. */}
-                                            {!isPro ? (
-                                                window.WrGatedMoreRow
-                                                    ? React.createElement(window.WrGatedMoreRow, { title: savedReports.length + ' saved report' + (savedReports.length === 1 ? '' : 's'), sub: 'Reopen your AI scouting reports with Scout Pro.', feature: 'draft_ai_reports' })
-                                                    : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Saved Reports', 'draft_ai_reports', 'Reopen your AI scouting reports with Scout Pro.') : '' }} />
-                                            ) : savedReports.slice(0, 6).map(r => (
-                                                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
-                                                    <button type="button" title="Reopen report" onClick={() => window.dispatchEvent(new CustomEvent('wr:ask-show', { detail: { title: r.title, prompt: r.prompt, answer: r.content, kind: r.kind } }))} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'transparent', border: 0, color: 'var(--silver)', cursor: 'pointer', font: 'inherit', fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: 0 }}>
-                                                        <span style={{ color: 'var(--gold)' }}>{'★'}</span> {r.title} <span style={{ opacity: 0.45 }}>{new Date(r.createdAt).toLocaleDateString()}</span>
-                                                    </button>
-                                                    <button type="button" title="Remove from list" onClick={() => { const lid = window.S?.currentLeagueId || null; window.WR?.SavedReports?.remove?.(lid, r.id); setSavedReports(prev => prev.filter(x => x.id !== r.id)); }} style={{ flexShrink: 0, background: 'transparent', border: 0, color: 'var(--silver)', opacity: 0.5, cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', padding: '0 2px' }}>{'✕'}</button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                                {renderAnalystFlash()}
-                                {/* E5: dynasty leagues have no gameplan at all (format,
-                                    not tier) — clean absence, not a lock card. */}
-                                {skinFeatures.showDraftGameplan !== false && renderDraftGameplan()}
-                            </aside>
+                            {draftHqActionsEl}
                         </div>
+                        );
+                        })()}
 
-                        {!rosterState.isUsable && window.App?.renderRosterDataBlocker?.(rosterState, {
+                        {skinFeatures.showDraftCapitalPlanning !== false && !rosterState.isUsable && window.App?.renderRosterDataBlocker?.(rosterState, {
                             title: 'Draft roster targeting paused',
                             message: 'Pick inventory is still visible, but need-based targeting is hidden until roster IDs finish loading.',
                             detail: rosterState.detail,
@@ -2934,6 +2950,7 @@
                         })}
 
                         <div className="draft-hq-grid">
+                            {skinFeatures.showDraftCapitalPlanning !== false && (
                             <section className="draft-hq-panel">
                                 <div className="draft-hq-panel-head">
                                     <span>Alex's Recommended Draft</span>
@@ -2990,6 +3007,7 @@
                                 </div>
                                 )}
                             </section>
+                            )}
 
                             <section className="draft-hq-panel">
                                 <div className="draft-hq-panel-head">
