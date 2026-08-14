@@ -747,10 +747,15 @@
             return rosterHits >= userHits ? 'roster' : 'user';
         }
 
-        function buildPicksByOwner(rosters, tradedPicks, leagueSeason, draftRounds) {
+        function buildPicksByOwner(rosters, tradedPicks, leagueSeason, draftRounds, pickHorizon) {
             // League-specific round count (falls back to the constant only if unknown).
             const rounds = Math.max(1, Number(draftRounds) || DRAFT_ROUNDS);
-            const PICK_YEARS_INT = Array.from({ length: PICK_HORIZON }, (_, i) => leagueSeason + i);
+            // Redraft/chopped rebuild the whole roster every cycle — there is no
+            // multi-year future-pick asset to trade, only this year's board. Callers
+            // pass 1 for those formats (showFuturePicks === false); everyone else
+            // keeps the full PICK_HORIZON.
+            const horizon = Math.max(1, Number(pickHorizon) || PICK_HORIZON);
+            const PICK_YEARS_INT = Array.from({ length: horizon }, (_, i) => leagueSeason + i);
             const mode = detectPickIdMode(rosters, tradedPicks);
             const rosterById = {};
             for (const r of rosters) rosterById[String(r.roster_id)] = r;
@@ -1369,6 +1374,10 @@
 
         const tradedPicks = useMemo(() => window.S?.tradedPicks || [], [currentLeague]);
 
+        // Redraft/chopped rebuild the whole roster every cycle — no multi-year
+        // future-pick asset exists to trade, only this year's board (same rule
+        // draft-room.js's showFuturePicks already applies elsewhere).
+        const tcShowFuturePicks = resolvedLeagueSkin?.features?.showFuturePicks !== false;
         const picksByOwner = useMemo(() => {
             if (!allRosters.length) return {};
             const leagueSeason = parseInt(currentLeague.season || new Date().getFullYear());
@@ -1399,7 +1408,7 @@
                     });
                 }
                 // Future years from the authoritative future-pick ownership.
-                const future = window.S?._mflFuturePicks || null;
+                const future = tcShowFuturePicks ? window.S?._mflFuturePicks || null : null;
                 if (future) {
                     Object.entries(future).forEach(([owner, picks]) => {
                         (picks || []).forEach(p => {
@@ -1414,8 +1423,8 @@
                 }
                 return out;
             }
-            return buildPicksByOwner(allRosters, tradedPicks, leagueSeason, tcDraftRounds);
-        }, [allRosters, tradedPicks, tcDraftRounds]);
+            return buildPicksByOwner(allRosters, tradedPicks, leagueSeason, tcDraftRounds, tcShowFuturePicks ? PICK_HORIZON : 1);
+        }, [allRosters, tradedPicks, tcDraftRounds, tcShowFuturePicks]);
 
         const assessments = useMemo(() => {
             if (!allRosters.length || !Object.keys(playersData).length) return [];
@@ -3360,14 +3369,20 @@
                         <span>Trade Finder</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                             <em>{intentLabel} · {finderScopeLabel}</em>
+                            {/* Scan moved up from the foot of the panel (owner ask) — it's
+                                the primary action for this card and belongs where it's seen
+                                without scrolling past the whole control stack + board. */}
+                            {finderPoolOn && !scanArmed && (
+                                <button type="button" onClick={() => setScanForKey(finderLoopKey)} style={{ padding: '5px 12px', border: '1px solid var(--gold)', borderRadius: '5px', background: 'var(--gold)', color: 'var(--page-bg, #0A0A0F)', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap' }}>Scan the league for moves</button>
+                            )}
                             {renderTcTabNav()}
                         </div>
                     </div>
-                    <div className="tc-dhq-panel-body" style={{ overflow: 'visible', paddingRight: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div className="tc-dhq-panel-body" style={{ overflow: 'visible', paddingRight: 0, display: 'flex', flexDirection: 'column', gap: '7px' }}>
                         {/* Organized control rows (owner ask 2026-07-12): INTENT seg +
                             focus search share one line; PARTNER is a labeled row below;
                             the GM-lens read rides as a caption just above the board. */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.65, flex: 'none' }}>Intent</span>
                         <div className="tc-dhq-modebar" role="group" aria-label="Finder intent" style={{ flex: 'none' }}>
                             {finderIntents.map(i => <button key={i.key} type="button" className={finderQuery.intent === i.key ? 'is-active' : ''} onClick={() => { setFinderQuery(qr => ({ ...qr, intent: i.key })); setAssetBrowserPos('ALL'); setShowAllDeals(false); }}>{i.label}</button>)}
@@ -3391,7 +3406,7 @@
                                 role="combobox"
                                 aria-expanded={typeaheadFlat.length > 0}
                                 aria-autocomplete="list"
-                                style={{ width: '100%', minHeight: _vp.isPhone ? '44px' : '38px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: '5px', background: 'rgba(255,255,255,0.045)', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '0.8rem', padding: '8px 10px' }}
+                                style={{ width: '100%', minHeight: _vp.isPhone ? '44px' : '32px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: '5px', background: 'rgba(255,255,255,0.045)', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '0.76rem', padding: '6px 10px' }}
                             />
                             {typeaheadFlat.length > 0 && (
                                 <div role="listbox" aria-label="Focus matches" ref={node => {
@@ -3447,7 +3462,7 @@
                             </div>
                         )}
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.65, flex: 'none' }}>Partner</span>
                         <div className="tc-dhq-modebar" role="group" aria-label="Partner filter" style={{ flex: '1 1 auto', minWidth: 0 }}>
                             <button type="button" className={effPartnerId == null ? 'is-active' : ''} onClick={() => setPartnerFacet(null)}>Auto</button>
@@ -3489,6 +3504,10 @@
                             index.html base grid (7-col template) — scoped inline since
                             this port touches only trade-calc.js. */}
                         <style>{`
+                            /* Condensed Intent/Partner control rows (owner ask) — tighter
+                               than the shared .tc-dhq-modebar default so this settings
+                               stack reads as a compact instrument strip, not stacked cards. */
+                            .tc-dhq-modebar button { padding: 4px 9px; font-size: 0.68rem; }
                             .tc-dhq-asset-table.has-add .tc-dhq-asset-row { grid-template-columns: minmax(150px,1.5fr) 46px 72px 48px minmax(118px,1fr) 68px 58px 36px; min-width: 764px; }
                             .tc-dhq-asset-table.is-picks .tc-dhq-asset-row { grid-template-columns: minmax(170px,1.6fr) 56px minmax(130px,1fr) 80px 36px; min-width: 520px; }
                             div.tc-dhq-asset-row[tabindex] { cursor: pointer; }
@@ -3496,8 +3515,10 @@
                             .tc-dhq-add-btn { width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; justify-self: end; border-radius: 6px; border: 1px solid var(--acc-line2, rgba(212,175,55,0.4)); background: rgba(212,175,55,0.10); color: var(--gold); font-family: var(--font-mono, monospace); font-size: 0.95rem; font-weight: 700; line-height: 1; padding: 0; cursor: pointer; }
                             .tc-dhq-add-btn:hover { background: rgba(212,175,55,0.22); border-color: var(--gold); }
                         `}</style>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.75 }}>
-                            GM lens: <strong style={{ color: 'var(--gold)', fontWeight: 700 }}>{focusTuning.modeLabel}</strong> · acceptance bar {actionFloor}% · {focusTuning.untouchable.size} untouchable{focusTuning.untouchable.size === 1 ? '' : 's'} · {modeDescriptor}
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap', fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.8, lineHeight: 1.3 }}>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.65 }}>GM lens</span>
+                            <strong style={{ color: 'var(--gold)', fontWeight: 700 }}>{focusTuning.modeLabel}</strong>
+                            <span>· bar {actionFloor}% · {focusTuning.untouchable.size} untouchable{focusTuning.untouchable.size === 1 ? '' : 's'} · {modeDescriptor}</span>
                         </div>
                         {finderPicksMode ? (
                             /* Intent=Picks → a draft-pick board with an Owned/League scope
@@ -3605,10 +3626,7 @@
                         ) : <div className="tc-dhq-empty">No tradeable assets to browse for this scope.</div>}
 
                         {finderPoolOn && !scanArmed
-                            ? <div className="tc-dhq-empty" style={{ textAlign: 'center', padding: '18px 14px' }}>
-                                <button type="button" onClick={() => setScanForKey(finderLoopKey)} style={{ padding: '11px 20px', borderRadius: '6px', border: '1px solid var(--gold)', background: 'var(--gold)', color: 'var(--page-bg, #0A0A0F)', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.82rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>Scan the league for moves</button>
-                                <div style={{ marginTop: '9px', fontSize: '0.8rem', opacity: 0.72 }}>Runs a league-wide {intentLabel.toLowerCase()} scan across {partnerBoard.length} partners.</div>
-                              </div>
+                            ? <div className="tc-dhq-empty" style={{ textAlign: 'center', padding: '14px' }}>Runs a league-wide {intentLabel.toLowerCase()} scan across {partnerBoard.length} partners — hit <strong style={{ color: 'var(--gold)' }}>Scan the league for moves</strong> above.</div>
                             : deals.length
                                 ? <div className="tc-dhq-package-note"><b>{actionableDeals.length ? 'Ready' : 'Moonshots only'}</b> {actionableDeals.length || 0} actionable package{actionableDeals.length === 1 ? '' : 's'}{moonshotCount ? ` · ${moonshotCount} moonshot${moonshotCount === 1 ? '' : 's'} hidden` : ''}{scanArmed && !finderPool.done ? ` · scanning ${finderPool.scanned}/${finderPool.total}` : ''}</div>
                                 : scanArmed && !finderPool.done
