@@ -103,7 +103,6 @@ function WrCommishRuleLabPanel({
     const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(Number(v) || 0).toFixed(1);
 
     // ── Full scoring editor state ────────────────────────────────────
-    const [editorOpen, setEditorOpen] = React.useState(false);
     const [saveName, setSaveName] = React.useState('');
     // Human labels for the common Sleeper scoring keys; anything unknown
     // renders its raw key — honest, and every league has oddballs.
@@ -115,9 +114,16 @@ function WrCommishRuleLabPanel({
         fum_lost: 'Fumble lost', fum: 'Fumble', fum_rec_td: 'Fumble recovery TD',
         st_td: 'Special teams TD', st_fum_rec: 'ST fumble recovery',
         fgm: 'FG made', fgm_0_19: 'FG 0–19', fgm_20_29: 'FG 20–29', fgm_30_39: 'FG 30–39', fgm_40_49: 'FG 40–49', fgm_50p: 'FG 50+', fgmiss: 'FG missed', xpm: 'XP made', xpmiss: 'XP missed',
-        def_td: 'Defensive TD', pts_allow_0: 'Shutout', sack: 'Sack', int: 'Interception (DEF)', ff: 'Forced fumble', fum_rec: 'Fumble recovery', safe: 'Safety', blk_kick: 'Blocked kick',
+        def_td: 'Defensive TD', pts_allow_0: 'Shutout', pts_allow_1_6: 'Pts allowed 1–6', pts_allow_7_13: 'Pts allowed 7–13', pts_allow_14_20: 'Pts allowed 14–20', pts_allow_21_27: 'Pts allowed 21–27', pts_allow_28_34: 'Pts allowed 28–34', pts_allow_35p: 'Pts allowed 35+',
+        sack: 'Sack', int: 'Interception (DEF)', ff: 'Forced fumble', fum_rec: 'Fumble recovery', safe: 'Safety', blk_kick: 'Blocked kick',
         idp_tkl: 'IDP tackle', idp_sack: 'IDP sack', idp_int: 'IDP interception',
     };
+    // The full known stat catalog across every tracked position (QB/RB/WR/TE,
+    // K, DEF, IDP) — every key KEY_LABELS knows how to name. Editable stats
+    // are the UNION of this catalog with whatever the league(s) actually
+    // score, so a commissioner can stage a stat the league has never scored
+    // (e.g. turning on IDP tackles) and not just retune an existing one.
+    const FULL_STAT_CATALOG = Object.keys(KEY_LABELS);
     const KEY_GROUPS = [
         ['Passing', k => k.startsWith('pass')],
         ['Rushing', k => k.startsWith('rush') || k === 'bonus_rush_yd_100'],
@@ -137,12 +143,12 @@ function WrCommishRuleLabPanel({
     // Key set comes from the container (the scoped league's own keys, or the
     // union across leagues in omnibus) so a league's oddball rules are never
     // invisible just because some other league doesn't score them.
-    const editorKeys = (Array.isArray(editorKeysProp) && editorKeysProp.length)
-        ? editorKeysProp.slice()
-        : Object.keys(baselineScoring || {}).sort();
-    // bonus_rec_te is addable even when the league has never scored it — it's
-    // the single most-proposed rule in dynasty.
-    if (!editorKeys.includes('bonus_rec_te')) editorKeys.push('bonus_rec_te');
+    const editorKeys = (() => {
+        const known = (Array.isArray(editorKeysProp) && editorKeysProp.length)
+            ? editorKeysProp
+            : Object.keys(baselineScoring || {});
+        return Array.from(new Set(known.concat(FULL_STAT_CATALOG))).sort();
+    })();
 
     // ── Wind Tunnel picker state ─────────────────────────────────────
     // Any editor key is sweepable; values: null tells the container to build
@@ -529,50 +535,7 @@ function WrCommishRuleLabPanel({
                             Clear
                         </button>
                     ) : null}
-                    <button onClick={() => setEditorOpen(o => !o)}
-                        style={{ marginLeft: 'auto', padding: '4px 10px', background: editorOpen ? ACC_FILL : 'transparent', color: editorOpen ? ACCENT : SILVER, border: '1px solid ' + (editorOpen ? ACC_LINE : LINE), borderRadius: '5px', font: '700 0.62rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                        {editorOpen ? 'Close editor ▴' : 'Full editor ▾'}
-                    </button>
                 </div>
-
-                {/* The FULL scoring editor — every key this league scores,
-                    grouped, with the current value as the placeholder. Typing a
-                    value stages an override; clearing it (or retyping the
-                    current value) un-stages it. */}
-                {editorOpen ? (
-                    <div style={{ marginTop: '12px', borderTop: `1px solid ${LINE}`, paddingTop: '12px' }}>
-                        {groupKeys(editorKeys).map(g => (
-                            <div key={g.name} style={{ marginBottom: '12px' }}>
-                                <div style={{ ...microHdr, marginBottom: '6px' }}>{g.name}</div>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '8px 16px' }}>
-                                    {g.keys.map(k => {
-                                        // No baseline (omnibus) → no placeholder. Showing "0.0"
-                                        // there would assert the league scores this rule at zero.
-                                        const cur = baselineScoring && baselineScoring[k] != null ? Number(baselineScoring[k]) : null;
-                                        const overridden = Object.prototype.hasOwnProperty.call(prop, k);
-                                        return (
-                                            <label key={k} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 74px', gap: '8px', alignItems: 'center' }}>
-                                                <span title={k} style={{ fontSize: '0.72rem', color: overridden ? TEXT : SILVER, fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                    {KEY_LABELS[k] || k}
-                                                </span>
-                                                <input type="number" step="0.05" inputMode="decimal"
-                                                    value={overridden ? prop[k] : ''}
-                                                    placeholder={cur == null ? '—' : fmtNum(cur)}
-                                                    onChange={e => setKey(k, e.target.value)}
-                                                    style={{ width: '100%', background: overridden ? ACC_FILL : 'var(--co-page, #08080B)', border: '1px solid ' + (overridden ? ACC_LINE : LINE), borderRadius: '5px', color: overridden ? TEXT : SILVER, padding: '5px 8px', fontSize: '16px', ...mono, textAlign: 'right' }} />
-                                            </label>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        ))}
-                        <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, lineHeight: 1.5 }}>
-                            {baselineScoring
-                                ? 'Placeholders show this league\u2019s current rule. Blank a field \u2014 or retype the current value \u2014 to drop the override.'
-                                : 'No single current rule across leagues, so fields show \u201C\u2014\u201D. Blank a field to drop the override.'}
-                        </div>
-                    </div>
-                ) : null}
             </Section>
 
             {/* ── Roster Bench: structure proposals ─────────────────────── */}
@@ -622,7 +585,48 @@ function WrCommishRuleLabPanel({
             </Section>
 
             {/* ── The Wind Tunnel: threshold sweep ──────────────────────── */}
-            <Section title="Wind Tunnel" meta="sweep any knob — find the exact value where the league flips">
+            <Section title="Wind Tunnel" meta="set any number of stats at once, or sweep one to find where the league flips">
+                {/* Dial in exact numbers — every stat this league tracks,
+                    plus the full catalog for every position this app knows
+                    how to score (so a rule the league has never turned on
+                    is still stageable), grouped by category with the
+                    current value as the placeholder. Set as many at once as
+                    you want — each one stages straight into the proposal,
+                    and the replay below updates immediately. */}
+                <div style={{ marginBottom: '14px' }}>
+                    {groupKeys(editorKeys).map(g => (
+                        <div key={g.name} style={{ marginBottom: '12px' }}>
+                            <div style={{ ...microHdr, marginBottom: '6px' }}>{g.name}</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '8px 16px' }}>
+                                {g.keys.map(k => {
+                                    // No baseline (omnibus) → no placeholder. Showing "0.0"
+                                    // there would assert the league scores this rule at zero.
+                                    const cur = baselineScoring && baselineScoring[k] != null ? Number(baselineScoring[k]) : null;
+                                    const overridden = Object.prototype.hasOwnProperty.call(prop, k);
+                                    return (
+                                        <label key={k} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 74px', gap: '8px', alignItems: 'center' }}>
+                                            <span title={k} style={{ fontSize: '0.72rem', color: overridden ? TEXT : SILVER, fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {KEY_LABELS[k] || k}
+                                            </span>
+                                            <input type="number" step="0.05" inputMode="decimal"
+                                                value={overridden ? prop[k] : ''}
+                                                placeholder={cur == null ? '—' : fmtNum(cur)}
+                                                onChange={e => setKey(k, e.target.value)}
+                                                style={{ width: '100%', background: overridden ? ACC_FILL : 'var(--co-page, #08080B)', border: '1px solid ' + (overridden ? ACC_LINE : LINE), borderRadius: '5px', color: overridden ? TEXT : SILVER, padding: '5px 8px', fontSize: '16px', ...mono, textAlign: 'right' }} />
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))}
+                    <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, lineHeight: 1.5 }}>
+                        {baselineScoring
+                            ? 'Placeholders show this league\u2019s current rule \u2014 every position\u2019s full stat catalog is listed, not just what\u2019s already turned on. Type a number to stage it; blank the field \u2014 or retype the current value \u2014 to drop the override.'
+                            : 'No single current rule across leagues, so fields show \u201C\u2014\u201D. Blank a field to drop the override.'}
+                    </div>
+                </div>
+
+                <div style={{ ...microHdr, marginBottom: '8px', paddingTop: '12px', borderTop: `1px solid ${LINE}` }}>Or find the exact threshold for one stat</div>
                 {/* Any-key picker: every rule the editor knows is sweepable. */}
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <select value={swKey} onChange={e => setSwKey(e.target.value)} disabled={!!sweepBusy}
