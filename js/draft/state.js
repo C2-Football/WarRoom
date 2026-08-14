@@ -2809,8 +2809,23 @@
             case 'HYDRATE':
                 return { ...state, ...action.state };
 
-            case 'SET_SPEED':
-                return { ...state, speed: action.speed };
+            case 'SET_SPEED': {
+                const nextSpeed = action.speed;
+                // Auction's countdown is wall-clock (nomination.deadline), unlike
+                // snake mode's relative CPU-pick delay — pausing must freeze the
+                // remaining time and resuming must restore it, or the deadline
+                // would already be in the past the instant you un-pause.
+                if (!state.nomination) return { ...state, speed: nextSpeed };
+                if (nextSpeed === 'paused' && state.speed !== 'paused') {
+                    const remainingMs = Math.max(0, state.nomination.deadline - Date.now());
+                    return { ...state, speed: nextSpeed, nomination: { ...state.nomination, pausedRemainingMs: remainingMs } };
+                }
+                if (nextSpeed !== 'paused' && state.speed === 'paused' && state.nomination.pausedRemainingMs != null) {
+                    const { pausedRemainingMs, ...restNom } = state.nomination;
+                    return { ...state, speed: nextSpeed, nomination: { ...restNom, deadline: Date.now() + pausedRemainingMs } };
+                }
+                return { ...state, speed: nextSpeed };
+            }
 
             case 'SET_MODE':
                 return { ...state, mode: action.mode };

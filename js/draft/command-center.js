@@ -4789,7 +4789,7 @@
 
         return (
             <section className="mock-panel">
-                <div className="mock-panel-head"><span>On the Block</span><em>{secLeft}s</em></div>
+                <div className="mock-panel-head"><span>On the Block</span><em>{state.speed === 'paused' ? '⏸ Paused' : secLeft + 's'}</em></div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                     <span style={{ fontSize: '0.6rem', fontWeight: 900, color: posColors[nom.pos] || 'var(--gold)', border: '1px solid currentColor', borderRadius: 4, padding: '2px 6px' }}>{nom.pos}</span>
                     <strong style={{ color: 'var(--white)', fontSize: '0.94rem', flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nom.name}</strong>
@@ -4890,6 +4890,7 @@
             const t = setInterval(() => {
                 const s = stateRef.current;
                 if (!s.nomination || s.phase === 'complete') return;
+                if (s.speed === 'paused') return; // deadline is frozen (SET_SPEED) — don't force-settle while paused
                 const now = Date.now();
                 setNowTick(now);
                 if (now >= s.nomination.deadline) dispatch({ type: 'SETTLE_NOMINATION' });
@@ -4900,6 +4901,7 @@
         // CPU nomination — when idle and it's a CPU team's turn.
         React.useEffect(() => {
             if (state.nomination || isDone) return undefined;
+            if (state.speed === 'paused') return undefined;
             const order = auctionOrder(state);
             const nominatorRosterId = order[state.nominatorIdx % Math.max(1, order.length)];
             if (String(nominatorRosterId) === String(state.userRosterId)) return undefined;
@@ -4913,7 +4915,7 @@
                 if (player) dispatch({ type: 'NOMINATE_PLAYER', pid: player.pid, player, nominatorRosterId });
             }, delay);
             return () => clearTimeout(t);
-        }, [state.nominatorIdx, !!state.nomination, isDone]);
+        }, [state.nominatorIdx, !!state.nomination, isDone, state.speed]);
 
         // CPU bidding — re-evaluates every time the high bid changes; each
         // eligible CPU bot gets its own staggered timeout so bids land at
@@ -4921,6 +4923,7 @@
         React.useEffect(() => {
             const nom = state.nomination;
             if (!nom || isDone) return undefined;
+            if (state.speed === 'paused') return undefined;
             const order = auctionOrder(state);
             const timers = order
                 .filter(rid => String(rid) !== String(state.userRosterId))
@@ -4951,7 +4954,7 @@
                 })
                 .filter(Boolean);
             return () => timers.forEach(clearTimeout);
-        }, [state.nomination?.highBid, state.nomination?.highBidderRosterId, isDone]);
+        }, [state.nomination?.highBid, state.nomination?.highBidderRosterId, isDone, state.speed]);
 
         if (isDone) {
             return (
@@ -4965,13 +4968,44 @@
             );
         }
 
+        const isPaused = state.speed === 'paused';
+        const auctionBtnStyle = {
+            padding: '5px 12px',
+            background: 'transparent',
+            border: '1px solid var(--ov-6, rgba(255,255,255,0.1))',
+            borderRadius: '4px',
+            color: 'var(--silver)',
+            cursor: 'pointer',
+            fontSize: 'var(--text-micro, 0.6875rem)',
+            fontFamily: FONT_UI,
+        };
         return (
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(360px,1fr) minmax(300px,0.62fr)', gap: 12, alignItems: 'start', padding: '4px 2px' }}>
-                <AuctionBoardTable state={state} dispatch={dispatch} />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <AuctionNominationPanel state={state} dispatch={dispatch} nowTick={nowTick} />
-                    <AuctionBudgetPanel state={state} />
-                    <MockPickLog state={state} currentSlot={null} />
+            <div className="draft-cc-scope" style={{ padding: '4px 2px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: isPaused ? 'var(--gold)' : 'var(--silver)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                        {isPaused ? '⏸ Auction Paused' : 'Live Auction'} · {state.picks.length} / {state.pickOrder?.length || 0} sold
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <button type="button" onClick={() => dispatch({ type: 'SET_SPEED', speed: isPaused ? 'medium' : 'paused' })} style={auctionBtnStyle}>{isPaused ? 'Resume' : 'Pause'}</button>
+                        <select
+                            value={isPaused ? 'medium' : state.speed}
+                            onChange={e => dispatch({ type: 'SET_SPEED', speed: e.target.value })}
+                            style={{ ...auctionBtnStyle, cursor: 'pointer' }}
+                        >
+                            <option value="slow">Slow</option>
+                            <option value="medium">Medium</option>
+                            <option value="fast">Fast</option>
+                        </select>
+                        <button type="button" onClick={onExit} style={auctionBtnStyle}>Cancel &amp; Start Over</button>
+                    </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(360px,1fr) minmax(300px,0.62fr)', gap: 12, alignItems: 'start' }}>
+                    <AuctionBoardTable state={state} dispatch={dispatch} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <AuctionNominationPanel state={state} dispatch={dispatch} nowTick={nowTick} />
+                        <AuctionBudgetPanel state={state} />
+                        <MockPickLog state={state} currentSlot={null} />
+                    </div>
                 </div>
             </div>
         );
