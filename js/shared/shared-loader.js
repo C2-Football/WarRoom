@@ -11,7 +11,7 @@
         } catch (e) {}
         return 'https://c2-football.github.io/ReconAI/shared/';
     })();
-    const DEFAULT_VERSION = '20260803rv2'; // bumped: redraft-doctrine pass — team-assess redraft verdicts + utils isElitePlayer valueMap
+    const DEFAULT_VERSION = '20260814auc1'; // bumped: auction mock draft — mock-engine.js personaBid/nominateChoice
     const config = {
         localBase: null,
         remoteBase: REMOTE_BASE,

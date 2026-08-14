@@ -281,7 +281,7 @@
         }, [leagueIdForFetch]);
 
         // Default setup from real Sleeper draft data
-        const draftMeta = React.useMemo(() => {
+        const rawDraftMeta = React.useMemo(() => {
             const rosters = window.S?.rosters || currentLeague?.rosters || [];
             const users = window.S?.leagueUsers || currentLeague?.users || [];
             const myUid = window.S?.user?.user_id || '';
@@ -550,18 +550,20 @@
                 }
                 // Phase 5+: prefer the league's scheduled upcoming draft settings
                 // so Solo defaults match whatever's actually scheduled in Sleeper.
-                const upcoming = draftMeta.upcomingSettings;
+                // Uses rawDraftMeta (not the override-merged draftMeta below) —
+                // there's no user-customized slot order yet on first mount.
+                const upcoming = rawDraftMeta.upcomingSettings;
                 const initial = stateFns.initialDraftState({
                     leagueId: currentLeague?.league_id || currentLeague?.id || '',
                     season: currentLeague?.season,
                     rounds: upcoming?.rounds || propRounds || 5,
-                    leagueSize: upcoming?.teams || draftMeta.numTeams,
+                    leagueSize: upcoming?.teams || rawDraftMeta.numTeams,
                     // Multi-copy leagues (MFL rostersPerPlayer) — 1 elsewhere.
                     playerCopies: currentLeague?.settings?.player_copies || 1,
-                    draftType: upcoming?.type || draftMeta.draftType || 'snake',
-                    variant: upcoming?.variant || draftMeta.draftVariant || 'startup',
+                    draftType: upcoming?.type || rawDraftMeta.draftType || 'snake',
+                    variant: upcoming?.variant || rawDraftMeta.draftVariant || 'startup',
                     userRosterId: myRoster?.roster_id,
-                    userSlot: draftMeta.mySlot,
+                    userSlot: rawDraftMeta.mySlot,
                     // Honor forced mode (e.g., live-sync from the Follow Live Draft tab)
                     mode: forcedMode || 'solo',
                 });
@@ -591,6 +593,16 @@
                     strategyProfile,
                 };
             }
+        );
+
+        // Mock-only slot order override (Setup screen's reorder list) layered on
+        // top of the real computed draftMeta. Every other reference in this file
+        // reads `draftMeta` (not `rawDraftMeta`) so the override reaches both the
+        // Setup preview AND the actual pick order onStartDraft builds — same
+        // source, no separate propagation path to keep in sync.
+        const draftMeta = React.useMemo(
+            () => stateFns.applyCustomSlotOrder(rawDraftMeta, state.customSlotOrder),
+            [rawDraftMeta, state.customSlotOrder]
         );
 
         // Resume banner is only shown when we're still in setup phase but have a saved draft
@@ -1567,6 +1579,30 @@
                 })
                 : null;
 
+            // Auction seeding — applied via setupPatch (shallow-merged by the
+            // START_DRAFT reducer) rather than earlier in activeState, so pool
+            // building and draftContext/format-adapter resolution above still
+            // see the REAL pool source (redraft/startup/rookie). Only after the
+            // draft is actually starting does state.variant flip to 'auction'
+            // (grading reads it; context.js's format-adapter lookup never does,
+            // since it already ran against the real variant above).
+            let auctionPatch = null;
+            if (activeState.draftMechanic === 'auction') {
+                const budget = Math.max(1, Number(activeState.auctionBudget) || 200);
+                const teamBudgets = {};
+                Object.values(draftMeta.slotToRoster || {}).forEach(info => {
+                    if (info.rosterId != null) teamBudgets[info.rosterId] = { total: budget, spent: 0, remaining: budget };
+                });
+                auctionPatch = {
+                    variant: 'auction',
+                    auctionPoolSource: activeState.variant,
+                    auctionBudget: budget,
+                    teamBudgets,
+                    nominatorIdx: 0,
+                    nomination: null,
+                };
+            }
+
             dispatch({
                 type: 'START_DRAFT',
                 pool,
@@ -1581,7 +1617,7 @@
                 narrative,
                 replay,
                 liveDraftStatus,
-                setupPatch: overridePatch || null,
+                setupPatch: (overridePatch || auctionPatch) ? { ...(overridePatch || {}), ...(auctionPatch || {}) } : null,
             });
 
             // Phase 2: async DraftHistory sync (mirrors Scout draft-ui.js:1977)
@@ -2212,13 +2248,84 @@
                                 </select>
                             </div>
                             <div>
+                                <div className="draft-setup-label">Draft Mechanic</div>
+                                <div className="draft-setup-choice" style={{ minHeight: '44px' }}>
+                                    <button type="button" className={state.draftMechanic !== 'auction' ? 'is-active' : ''} onClick={() => update({ draftMechanic: 'turns' })}>Turns</button>
+                                    <button type="button" className={state.draftMechanic === 'auction' ? 'is-active' : ''} onClick={() => update({ draftMechanic: 'auction' })}>Auction</button>
+                                </div>
+                            </div>
+                            {state.draftMechanic !== 'auction' ? (
+                            <div>
                                 <div className="draft-setup-label">Draft Order</div>
                                 <select value={state.draftType} onChange={e => update({ draftType: e.target.value })} style={selStyle}>
                                     <option value="snake" style={{ background: 'var(--k-111111, #111111)' }}>Snake</option>
                                     <option value="linear" style={{ background: 'var(--k-111111, #111111)' }}>Linear</option>
                                 </select>
                             </div>
+                            ) : (
+                            <div>
+                                <div className="draft-setup-label">Starting Budget</div>
+                                <input type="number" min="1" max="9999" value={state.auctionBudget} onChange={e => update({ auctionBudget: Math.max(1, Number(e.target.value) || 200) })} style={selStyle} />
+                            </div>
+                            )}
                         </div>
+
+                        {/* Team Order (owner ask) — who sits in which slot, mock-only.
+                            Distinct from "Draft Order" above (that's snake vs linear —
+                            the turn PATTERN; this is WHICH team picks from which slot).
+                            Defaults to the league's real draft_order / win-sort/MFL
+                            result (draftMeta.slotToRoster) until the user reorders,
+                            at which point state.customSlotOrder overrides it end to
+                            end — same draftMeta the preview below AND onStartDraft
+                            both read, so there's nothing else to keep in sync.
+                            Doubles as auction Nomination Order — same "ordered list
+                            of teams" concept either way, only the label changes. */}
+                        {(() => {
+                            const slotOrder = Array.from({ length: state.leagueSize || 0 }, (_, i) => draftMeta.slotToRoster?.[i + 1]?.rosterId ?? null);
+                            const moveSlot = (i, dir) => {
+                                const j = i + dir;
+                                if (j < 0 || j >= slotOrder.length) return;
+                                const next = slotOrder.slice();
+                                [next[i], next[j]] = [next[j], next[i]];
+                                update({ customSlotOrder: next });
+                            };
+                            const shuffleOrder = () => {
+                                const next = slotOrder.slice();
+                                for (let i = next.length - 1; i > 0; i--) {
+                                    const j = Math.floor(Math.random() * (i + 1));
+                                    [next[i], next[j]] = [next[j], next[i]];
+                                }
+                                update({ customSlotOrder: next });
+                            };
+                            return (
+                                <div style={{ marginTop: 12 }}>
+                                    <div className="draft-setup-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <span>{state.draftMechanic === 'auction' ? 'Nomination Order' : 'Team Order'}{state.customSlotOrder ? ' (custom)' : ''}</span>
+                                        <span style={{ display: 'flex', gap: 6 }}>
+                                            <button type="button" onClick={shuffleOrder} style={{ padding: '3px 9px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', borderRadius: 5, background: 'transparent', color: 'var(--gold)', fontFamily: FONT_UI, fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer' }}>Shuffle</button>
+                                            {state.customSlotOrder && (
+                                                <button type="button" onClick={() => update({ customSlotOrder: null })} style={{ padding: '3px 9px', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 5, background: 'transparent', color: 'var(--silver)', fontFamily: FONT_UI, fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer' }}>Reset</button>
+                                            )}
+                                        </span>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 220, overflowY: 'auto', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 6, padding: 4 }}>
+                                        {slotOrder.map((rosterId, i) => {
+                                            const slot = i + 1;
+                                            const info = draftMeta.slotToRoster?.[slot] || {};
+                                            const isMine = slot === draftMeta.mySlot;
+                                            return (
+                                                <div key={rosterId ?? ('empty-' + slot)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', borderRadius: 4, background: isMine ? 'rgba(212,175,55,0.08)' : 'transparent' }}>
+                                                    <span style={{ width: 22, flex: 'none', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.7 }}>{slot}</span>
+                                                    <span style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.78rem', color: isMine ? 'var(--gold)' : 'var(--white)', fontWeight: isMine ? 700 : 400 }}>{info.ownerName || 'Team ' + slot}{isMine ? ' (YOU)' : ''}</span>
+                                                    <button type="button" aria-label={'Move ' + (info.ownerName || 'team ' + slot) + ' up'} disabled={i === 0} onClick={() => moveSlot(i, -1)} style={{ width: 26, height: 26, flex: 'none', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 4, background: 'transparent', color: i === 0 ? 'var(--text-disabled, #444)' : 'var(--silver)', cursor: i === 0 ? 'default' : 'pointer', fontSize: '0.7rem', lineHeight: 1 }}>▲</button>
+                                                    <button type="button" aria-label={'Move ' + (info.ownerName || 'team ' + slot) + ' down'} disabled={i === slotOrder.length - 1} onClick={() => moveSlot(i, 1)} style={{ width: 26, height: 26, flex: 'none', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 4, background: 'transparent', color: i === slotOrder.length - 1 ? 'var(--text-disabled, #444)' : 'var(--silver)', cursor: i === slotOrder.length - 1 ? 'default' : 'pointer', fontSize: '0.7rem', lineHeight: 1 }}>▼</button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })()}
 
                         {state.mode !== 'manual' ? (
                             <>
@@ -4055,7 +4162,7 @@
         const [sortKey, setSortKey] = React.useState('board');
         const [sortDir, setSortDir] = React.useState(-1);
         const boardContext = state.draftContext?.boardContext || {};
-        const isRedraftBoard = state.variant === 'redraft' || state.draftContext?.draftType === 'redraft' || state.draftContext?.leagueFormat?.draftType === 'redraft';
+        const isRedraftBoard = state.variant === 'redraft' || state.draftContext?.draftType === 'redraft' || state.draftContext?.leagueFormat?.draftType === 'redraft' || state.auctionPoolSource === 'redraft';
         // Real market ADP (js/shared/adp-market.js) is a "market says / DHQ says"
         // companion column, display-only, scoped to redraft + chopped ONLY (MFL
         // has no real keeper/dynasty ADP data today). state.variant/draftContext
@@ -4265,7 +4372,7 @@
 
     function MockDecisionDeck({ state, dispatch, isUserTurn, currentSlot, onOpenTradeDesk }) {
         const pool = state.pool || [];
-        const isRedraftBoard = state.variant === 'redraft' || state.draftContext?.draftType === 'redraft' || state.draftContext?.leagueFormat?.draftType === 'redraft';
+        const isRedraftBoard = state.variant === 'redraft' || state.draftContext?.draftType === 'redraft' || state.draftContext?.leagueFormat?.draftType === 'redraft' || state.auctionPoolSource === 'redraft';
         const best = pool[0] || null;
         const safe = pool.find(p => Number(p.tier || p.csv?.tier || 99) <= 2 && p !== best) || pool[1] || best;
         const upside = pool.find(p => (p.fit?.score || 0) >= 55 && p !== best && p !== safe) || pool[2] || best;
@@ -4507,6 +4614,280 @@
                     ))}
                 </div>
             </section>
+        );
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // AuctionCockpit — the auction-mechanic counterpart to MockDraftCockpit.
+    // No turn order / currentIdx here: a rotation (customSlotOrder, falling
+    // back to every persona'd rosterId) decides who nominates next, then
+    // ANY team (including CPU) can bid until a real wall-clock countdown
+    // expires and SETTLE_NOMINATION resolves the sale. See the auction plan
+    // (Aug 2026) for the full design — this mirrors MockDraftCockpit's
+    // panel-shell/styling conventions (.mock-panel etc.) but every piece of
+    // *behavior* here is net-new.
+    // ══════════════════════════════════════════════════════════════════
+    function auctionOrder(state) {
+        return (state.customSlotOrder && state.customSlotOrder.length) ? state.customSlotOrder : Object.keys(state.personas || {});
+    }
+    function auctionOpenSlots(state, rosterId) {
+        const filled = (state.teamRosters?.[rosterId] || []).length;
+        return Math.max(0, Number(state.rounds || 0) - filled);
+    }
+    function auctionMaxSafeBid(state, rosterId) {
+        const remaining = Number(state.teamBudgets?.[rosterId]?.remaining ?? 0);
+        const openSlots = auctionOpenSlots(state, rosterId);
+        if (openSlots <= 0) return 0;
+        return Math.max(0, remaining - (openSlots - 1));
+    }
+
+    function AuctionBudgetPanel({ state }) {
+        const order = auctionOrder(state);
+        return (
+            <section className="mock-panel">
+                <div className="mock-panel-head"><span>Budgets</span><em>${state.auctionBudget} each</em></div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, overflowY: 'auto' }}>
+                    {order.map(rosterId => {
+                        const b = state.teamBudgets?.[rosterId] || { total: state.auctionBudget, spent: 0, remaining: state.auctionBudget };
+                        const pct = b.total > 0 ? Math.max(0, Math.min(100, (b.remaining / b.total) * 100)) : 0;
+                        const color = pct > 50 ? 'var(--good, #3fb950)' : pct > 25 ? 'var(--warn, #f0a500)' : 'var(--bad, #e5534b)';
+                        const isMe = String(rosterId) === String(state.userRosterId);
+                        const filled = (state.teamRosters?.[rosterId] || []).length;
+                        return (
+                            <div key={rosterId} style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, padding: '6px 9px', background: isMe ? 'rgba(212,175,55,0.06)' : 'transparent' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6 }}>
+                                    <strong style={{ color: isMe ? 'var(--gold)' : 'var(--white)', fontSize: '0.72rem', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mockTeamName(state, rosterId)}{isMe ? ' (YOU)' : ''}</strong>
+                                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.68rem', color, flex: 'none' }}>${b.remaining}<span style={{ color: 'var(--silver)', opacity: 0.6 }}> / ${b.total}</span></span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                                    <div style={{ flex: '1 1 auto', height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                                        <div style={{ width: pct + '%', height: '100%', background: color }} />
+                                    </div>
+                                    <span style={{ flex: 'none', fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.6 }}>{filled}/{state.rounds}</span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </section>
+        );
+    }
+
+    function AuctionNominationPanel({ state, dispatch, nowTick }) {
+        const nom = state.nomination;
+        const order = auctionOrder(state);
+        const nominatorRosterId = order[state.nominatorIdx % Math.max(1, order.length)];
+        const isUserNominator = String(nominatorRosterId) === String(state.userRosterId);
+
+        if (!nom) {
+            return (
+                <section className="mock-panel">
+                    <div className="mock-panel-head"><span>Nomination</span><em>{state.picks.length} / {(state.rounds || 0) * (state.leagueSize || 0)}</em></div>
+                    <div className="mock-empty">
+                        {isUserNominator
+                            ? 'Your turn to nominate — pick a player from the board below.'
+                            : mockTeamName(state, nominatorRosterId) + ' is choosing who to nominate…'}
+                    </div>
+                </section>
+            );
+        }
+
+        const posColors = window.App?.POS_COLORS || {};
+        const msLeft = Math.max(0, nom.deadline - nowTick);
+        const secLeft = Math.ceil(msLeft / 1000);
+        const userCeiling = auctionMaxSafeBid(state, state.userRosterId);
+        const userIsHigh = String(nom.highBidderRosterId) === String(state.userRosterId);
+        const openSlots = auctionOpenSlots(state, state.userRosterId);
+        const canUserBid = !userIsHigh && openSlots > 0 && userCeiling > nom.highBid;
+        const bid = amount => {
+            const clamped = Math.max(nom.highBid + 1, Math.min(userCeiling, amount));
+            if (clamped > nom.highBid) dispatch({ type: 'PLACE_BID', rosterId: state.userRosterId, amount: clamped });
+        };
+        const recent = nom.bids.slice(-5).reverse();
+
+        return (
+            <section className="mock-panel">
+                <div className="mock-panel-head"><span>On the Block</span><em>{secLeft}s</em></div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.6rem', fontWeight: 900, color: posColors[nom.pos] || 'var(--gold)', border: '1px solid currentColor', borderRadius: 4, padding: '2px 6px' }}>{nom.pos}</span>
+                    <strong style={{ color: 'var(--white)', fontSize: '0.94rem', flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nom.name}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 8 }}>
+                    <span style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.7 }}>High bid — {mockTeamName(state, nom.highBidderRosterId)}{userIsHigh ? ' (YOU)' : ''}</span>
+                    <strong style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1.3rem', color: 'var(--gold)' }}>${nom.highBid}</strong>
+                </div>
+                <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', marginTop: 6 }}>
+                    <div style={{ width: (Math.max(0, Math.min(1, msLeft / (state.speed === 'slow' ? 20000 : state.speed === 'fast' ? 6000 : 12000))) * 100) + '%', height: '100%', background: secLeft <= 3 ? 'var(--bad, #e5534b)' : 'var(--gold)', transition: 'width 200ms linear' }} />
+                </div>
+                {canUserBid ? (
+                    <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+                        {[1, 5, 10].map(inc => (
+                            <button key={inc} type="button" onClick={() => bid(nom.highBid + inc)} disabled={nom.highBid + inc > userCeiling} style={{ padding: '6px 10px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', borderRadius: 5, background: 'transparent', color: 'var(--gold)', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.7rem', fontWeight: 700, cursor: nom.highBid + inc > userCeiling ? 'default' : 'pointer', opacity: nom.highBid + inc > userCeiling ? 0.4 : 1 }}>+${inc}</button>
+                        ))}
+                        <button type="button" onClick={() => bid(userCeiling)} style={{ padding: '6px 10px', border: '1px solid var(--gold)', borderRadius: 5, background: 'var(--gold)', color: 'var(--page-bg, #0A0A0F)', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer' }}>Max (${userCeiling})</button>
+                    </div>
+                ) : (
+                    <div style={{ marginTop: 10, fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.6 }}>
+                        {userIsHigh ? "You're the high bidder." : openSlots <= 0 ? 'Your roster is full.' : 'Budget-safe max reached — can\'t outbid.'}
+                    </div>
+                )}
+                {recent.length > 0 && (
+                    <div style={{ marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {recent.map((b, i) => (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.75 }}>
+                                <span>{mockTeamName(state, b.rosterId)}</span>
+                                <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>${b.amount}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
+        );
+    }
+
+    function AuctionBoardTable({ state, dispatch }) {
+        const [search, setSearch] = React.useState('');
+        const [pos, setPos] = React.useState('ALL');
+        const posColors = window.App?.POS_COLORS || {};
+        const order = auctionOrder(state);
+        const nominatorRosterId = order[state.nominatorIdx % Math.max(1, order.length)];
+        const isUserNominator = !state.nomination && String(nominatorRosterId) === String(state.userRosterId);
+        const rows = (state.pool || [])
+            .filter(p => pos === 'ALL' || p.pos === pos)
+            .filter(p => !search || (p.name || '').toLowerCase().includes(search.toLowerCase()))
+            .sort((a, b) => (b.dhq || b.val || 0) - (a.dhq || a.val || 0))
+            .slice(0, 100);
+        const positions = ['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DL', 'LB', 'DB'];
+        return (
+            <section className="mock-panel" style={{ minHeight: 0 }}>
+                <div className="mock-panel-head"><span>Player Pool</span><em>{state.pool.length} available</em></div>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search players…" style={{ flex: '1 1 160px', minHeight: 32, border: '1px solid rgba(212,175,55,0.22)', borderRadius: 5, background: 'rgba(255,255,255,0.045)', color: 'var(--white)', fontSize: '0.74rem', padding: '4px 8px' }} />
+                    {positions.map(p => (
+                        <button key={p} type="button" className={pos === p ? 'is-active' : ''} onClick={() => setPos(p)} style={{ padding: '4px 8px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: 5, background: pos === p ? 'var(--gold)' : 'transparent', color: pos === p ? 'var(--black)' : 'var(--silver)', fontSize: '0.66rem', fontWeight: 700, cursor: 'pointer' }}>{p}</button>
+                    ))}
+                </div>
+                <div className="mock-board-scroll" style={{ overflowY: 'auto', flex: '1 1 auto' }}>
+                    {rows.map(p => {
+                        const openSlots = auctionOpenSlots(state, state.userRosterId);
+                        const canNominate = isUserNominator && openSlots > 0 && auctionMaxSafeBid(state, state.userRosterId) >= 1;
+                        return (
+                            <div key={p.pid} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 34px 56px 70px', gap: 8, alignItems: 'center', padding: '6px 4px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                <span style={{ color: 'var(--white)', fontSize: '0.76rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                                <span style={{ color: posColors[p.pos] || 'var(--gold)', fontSize: '0.68rem', fontWeight: 700 }}>{p.pos}</span>
+                                <span style={{ fontFamily: 'JetBrains Mono, monospace', color: 'var(--gold)', fontSize: '0.72rem', textAlign: 'right' }}>{mockFmt(p.dhq || p.val)}</span>
+                                <button type="button" disabled={!canNominate} onClick={() => dispatch({ type: 'NOMINATE_PLAYER', pid: p.pid, player: p, nominatorRosterId: state.userRosterId })} style={{ padding: '4px 8px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', borderRadius: 5, background: canNominate ? 'rgba(212,175,55,0.10)' : 'transparent', color: canNominate ? 'var(--gold)' : 'var(--text-disabled, #444)', fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', cursor: canNominate ? 'pointer' : 'default' }}>Nominate</button>
+                            </div>
+                        );
+                    })}
+                    {!rows.length && <div className="mock-empty">No players match this filter.</div>}
+                </div>
+            </section>
+        );
+    }
+
+    function AuctionCockpit({ state, dispatch, onExit }) {
+        const [nowTick, setNowTick] = React.useState(Date.now());
+        const isDone = state.phase === 'complete';
+
+        // Countdown display + expiry check. A single interval, mounted ONCE
+        // for the component's whole lifetime (deps: []) rather than re-armed
+        // per bid off state.nomination.deadline — that reschedule-per-bid
+        // version proved genuinely racy live (confirmed repeatedly: several
+        // CPU bids landing within the same second, each resetting the
+        // deadline via PLACE_BID, could leave a stale nomination sitting
+        // well past its expired deadline with nothing left to force a
+        // re-render and re-arm the timer). A stateRef sidesteps the whole
+        // class of stale-closure/effect-teardown races: the interval always
+        // reads the LATEST state on every 200ms tick, however state got
+        // there, and never needs to be torn down and recreated to "see" a
+        // new deadline.
+        const stateRef = React.useRef(state);
+        stateRef.current = state;
+        React.useEffect(() => {
+            const t = setInterval(() => {
+                const s = stateRef.current;
+                if (!s.nomination || s.phase === 'complete') return;
+                const now = Date.now();
+                setNowTick(now);
+                if (now >= s.nomination.deadline) dispatch({ type: 'SETTLE_NOMINATION' });
+            }, 200);
+            return () => clearInterval(t);
+        }, []);
+
+        // CPU nomination — when idle and it's a CPU team's turn.
+        React.useEffect(() => {
+            if (state.nomination || isDone) return undefined;
+            const order = auctionOrder(state);
+            const nominatorRosterId = order[state.nominatorIdx % Math.max(1, order.length)];
+            if (String(nominatorRosterId) === String(state.userRosterId)) return undefined;
+            const persona = state.personas?.[nominatorRosterId];
+            if (!persona || !window.DraftCC.cpuEngine) return undefined;
+            const delay = state.speed === 'fast' ? 400 : state.speed === 'slow' ? 1600 : 800;
+            const t = setTimeout(() => {
+                const teamRoster = state.teamRosters?.[nominatorRosterId] || [];
+                const player = window.DraftCC.cpuEngine.nominateChoice(persona, state.pool, 1, state.picks.length + 1, { teamRoster, draftTuning: state.draftTuning, rosterId: nominatorRosterId });
+                if (player) dispatch({ type: 'NOMINATE_PLAYER', pid: player.pid, player, nominatorRosterId });
+            }, delay);
+            return () => clearTimeout(t);
+        }, [state.nominatorIdx, !!state.nomination, isDone]);
+
+        // CPU bidding — re-evaluates every time the high bid changes; each
+        // eligible CPU bot gets its own staggered timeout so bids land at
+        // slightly different moments instead of a simultaneous wall.
+        React.useEffect(() => {
+            const nom = state.nomination;
+            if (!nom || isDone) return undefined;
+            const order = auctionOrder(state);
+            const timers = order
+                .filter(rid => String(rid) !== String(state.userRosterId))
+                .filter(rid => String(rid) !== String(nom.highBidderRosterId))
+                .filter(rid => !nom.passedRosterIds.includes(rid))
+                .map(rid => {
+                    const persona = state.personas?.[rid];
+                    if (!persona || !window.DraftCC.cpuEngine) return null;
+                    const delay = 400 + Math.random() * 800;
+                    return setTimeout(() => {
+                        const teamRoster = state.teamRosters?.[rid] || [];
+                        const budgetCeiling = auctionMaxSafeBid(state, rid);
+                        const result = window.DraftCC.cpuEngine.personaBid(persona, nom, {
+                            teamRoster, draftTuning: state.draftTuning, rosterId: rid,
+                            round: 1, pickNumber: nom.overall,
+                            auctionBudget: state.teamBudgets?.[rid]?.total ?? state.auctionBudget,
+                            budgetCeiling, currentHighBid: nom.highBid,
+                        });
+                        if (result?.willingToBid && result.amount > nom.highBid) {
+                            dispatch({ type: 'PLACE_BID', rosterId: rid, amount: result.amount });
+                        } else {
+                            dispatch({ type: 'PASS_NOMINATION', rosterId: rid });
+                        }
+                    }, delay);
+                })
+                .filter(Boolean);
+            return () => timers.forEach(clearTimeout);
+        }, [state.nomination?.highBid, state.nomination?.highBidderRosterId, isDone]);
+
+        if (isDone) {
+            return (
+                <div className="mock-empty" style={{ margin: 20, padding: 24, textAlign: 'center' }}>
+                    <strong style={{ display: 'block', color: 'var(--gold)', fontSize: '1rem', marginBottom: 8 }}>Auction complete</strong>
+                    Every roster is full — {state.picks.length} players sold.
+                    <div style={{ marginTop: 14 }}>
+                        <button type="button" onClick={onExit} style={{ padding: '8px 18px', border: '1px solid var(--gold)', borderRadius: 6, background: 'var(--gold)', color: 'var(--black)', fontWeight: 800, cursor: 'pointer' }}>View Results</button>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(360px,1fr) minmax(300px,0.62fr)', gap: 12, alignItems: 'start', padding: '4px 2px' }}>
+                <AuctionBoardTable state={state} dispatch={dispatch} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <AuctionNominationPanel state={state} dispatch={dispatch} nowTick={nowTick} />
+                    <AuctionBudgetPanel state={state} />
+                    <MockPickLog state={state} currentSlot={null} />
+                </div>
+            </div>
         );
     }
 
@@ -5309,6 +5690,9 @@
         if (state.mode !== 'live-sync' && state.phase === 'drafting') {
             return (
                 <>
+                    {state.draftMechanic === 'auction'
+                        ? <AuctionCockpit state={state} dispatch={dispatch} onExit={onExit} />
+                        : (
                     <MockDraftCockpit
                         state={state}
                         dispatch={dispatch}
@@ -5321,6 +5705,7 @@
                         grade={grade}
                         canUndoManualPick={canUndoManualPick}
                     />
+                        )}
                     {tradeIsPro && state.activeOffer && TradeModal && <TradeModal state={state} dispatch={dispatch} />}
                     {state.proposerDrawer && TradeProposer && <TradeProposer state={state} dispatch={dispatch} />}
                 </>

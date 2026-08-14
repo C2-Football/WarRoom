@@ -347,8 +347,25 @@
             draftType: opts.draftType || 'snake',
             userRosterId: opts.userRosterId || null,
             userSlot: opts.userSlot || 1,      // 1-indexed
+            // Mock-only slot order override — ordered array of rosterIds (slot 1..N),
+            // set by the Setup screen's draft-order reorder list. null/[] = use the
+            // league's real draft_order (or the win-sorted fallback) untouched.
+            // Doubles as auction nomination order when draftMechanic === 'auction' —
+            // same "ordered array of rosterIds" shape, no separate field needed.
+            customSlotOrder: opts.customSlotOrder || null,
             sleeperDraftId: opts.sleeperDraftId || null,
             liveDraftMeta: opts.liveDraftMeta || null,
+
+            // ── Auction mechanic (separate axis from draftType, which stays
+            // snake/linear and is ignored in auction mode; also separate from
+            // variant, which auction temporarily overrides to 'auction' for
+            // grading purposes — see auctionPoolSource for the real pool source). ──
+            draftMechanic: opts.draftMechanic || 'turns', // 'turns' | 'auction'
+            auctionBudget: Math.max(1, Number(opts.auctionBudget) || 200), // per-team starting $
+            auctionPoolSource: opts.auctionPoolSource || null, // 'startup'|'redraft'|'rookie' — real pool source while variant reads 'auction'
+            teamBudgets: opts.teamBudgets || {},   // { [rosterId]: {total, spent, remaining} }
+            nominatorIdx: opts.nominatorIdx || 0,  // rotation cursor into customSlotOrder
+            nomination: opts.nomination || null,   // live bid state; null when idle — see NOMINATE_PLAYER
 
             // Pool + order
             pool: [],
@@ -856,6 +873,54 @@
         }
         return order;
     }
+
+    // Applies a mock-only "who sits where" override on top of a computed
+    // draftMeta (the real league draft_order / win-sort / MFL slot result).
+    // customSlotOrder is an ordered array of rosterIds — customSlotOrder[0] is
+    // whoever should hold slot 1, etc. Rebuilds slotToRoster + mySlot from it;
+    // drops the round-by-round traded-pick ownership (pickOwnership: {}) since
+    // a user manually reordering slots for a hypothetical mock has already
+    // stepped outside "what the real league's trade history says" — buildPickOrder
+    // falls back to slotToRoster for every round when pickOwnership is empty,
+    // so every round simply follows the custom order, which is the expected
+    // behavior for a mock. Returns draftMeta unchanged if no override is set.
+    function applyCustomSlotOrder(draftMeta, customSlotOrder) {
+        if (!draftMeta || !Array.isArray(customSlotOrder) || !customSlotOrder.length) return draftMeta;
+        const myRosterId = draftMeta.slotToRoster?.[draftMeta.mySlot]?.rosterId;
+        const slotToRoster = {};
+        customSlotOrder.forEach((rosterId, i) => {
+            const slot = i + 1;
+            const original = Object.values(draftMeta.slotToRoster || {}).find(info => String(info.rosterId) === String(rosterId));
+            slotToRoster[slot] = original ? { ...original } : { rosterId, ownerName: 'Team ' + slot, userId: null };
+        });
+        let mySlot = draftMeta.mySlot;
+        for (const [slot, info] of Object.entries(slotToRoster)) {
+            if (myRosterId != null && String(info.rosterId) === String(myRosterId)) { mySlot = Number(slot); break; }
+        }
+        return { ...draftMeta, slotToRoster, pickOwnership: {}, mySlot };
+    }
+
+    // ── Auction helpers ──────────────────────────────────────────────
+    // Total roster spots a team is buying toward = state.rounds (the Setup
+    // screen's "rounds" field means "roster size" in auction, same as it
+    // means "how many picks you make" in snake — one field, same meaning).
+    // No position-specific slot enforcement (mirrors snake: personaPick only
+    // soft-nudges away from saturated positions via its need penalty, it
+    // never hard-blocks drafting a 4th RB) — just a total-count cap.
+    function openRosterSlotsRemaining(state, rosterId) {
+        const filled = (state.teamRosters?.[rosterId] || []).length;
+        return Math.max(0, Number(state.rounds || 0) - filled);
+    }
+    // Auction bid ceiling a team can safely offer right now: its remaining
+    // budget minus $1 reserved for every OTHER slot it still has to fill
+    // (so it can never legally bid itself unable to complete its roster).
+    function maxSafeBid(state, rosterId) {
+        const remaining = Number(state.teamBudgets?.[rosterId]?.remaining ?? 0);
+        const openSlots = openRosterSlotsRemaining(state, rosterId);
+        if (openSlots <= 0) return 0;
+        return Math.max(0, remaining - (openSlots - 1));
+    }
+    const AUCTION_WINDOW_MS = { slow: 20000, medium: 12000, fast: 6000, paused: 20000 };
 
     function pickName(pick) {
         const player = pick?.player || {};
@@ -1787,6 +1852,139 @@
                     phase: newCurrent >= state.pickOrder.length ? 'complete' : 'drafting',
                     // Auto-clear override mode after any pick is made
                     overrideMode: false,
+                };
+                const nextContext = window.DraftCC?.context?.applyPickToContext
+                    ? window.DraftCC.context.applyPickToContext(state.draftContext, newPick, nextState)
+                    : state.draftContext;
+                return { ...nextState, draftContext: nextContext };
+            }
+
+            // ── Auction mechanic ────────────────────────────────────────
+            case 'NOMINATE_PLAYER': {
+                if (state.nomination) return state; // one live nomination at a time
+                const { pid, player, nominatorRosterId } = action;
+                if (!player || nominatorRosterId == null) return state;
+                // Fallback is Object.keys(state.personas) — NOT slotToRoster,
+                // which only exists on the Setup screen's component-level
+                // draftMeta, never on reducer state. personas is keyed by
+                // rosterId and guaranteed populated for every team at
+                // START_DRAFT (composeAllPersonas), so it's always available
+                // here even when the user never touched Nomination Order.
+                const order = state.customSlotOrder && state.customSlotOrder.length ? state.customSlotOrder : Object.keys(state.personas || {});
+                const currentNominator = order[state.nominatorIdx % Math.max(1, order.length)];
+                if (String(currentNominator) !== String(nominatorRosterId)) return state; // not this team's nomination turn
+                if (!state.pool.some(p => p.pid === pid)) return state;
+                if (openRosterSlotsRemaining(state, nominatorRosterId) <= 0) return state;
+                const openingBid = Math.max(1, Number(action.openingBid) || 1);
+                if (maxSafeBid(state, nominatorRosterId) < openingBid) return state;
+                const windowMs = AUCTION_WINDOW_MS[state.speed] || AUCTION_WINDOW_MS.medium;
+                return {
+                    ...state,
+                    nomination: {
+                        pid, player, name: player.name || player.full_name, pos: player.pos,
+                        nominatorRosterId, seq: (state.picks?.length || 0) + 1, overall: (state.picks?.length || 0) + 1,
+                        highBid: openingBid, highBidderRosterId: nominatorRosterId,
+                        bids: [{ rosterId: nominatorRosterId, amount: openingBid, ts: Date.now() }],
+                        passedRosterIds: [], deadline: Date.now() + windowMs,
+                    },
+                };
+            }
+
+            case 'PLACE_BID': {
+                const nom = state.nomination;
+                if (!nom) return state;
+                const { rosterId, amount } = action;
+                const bid = Number(amount);
+                if (!Number.isFinite(bid) || bid <= nom.highBid) return state;
+                if (String(rosterId) === String(nom.highBidderRosterId)) return state;
+                if (openRosterSlotsRemaining(state, rosterId) <= 0) return state;
+                if (bid > maxSafeBid(state, rosterId)) return state;
+                const windowMs = AUCTION_WINDOW_MS[state.speed] || AUCTION_WINDOW_MS.medium;
+                return {
+                    ...state,
+                    nomination: {
+                        ...nom,
+                        highBid: bid,
+                        highBidderRosterId: rosterId,
+                        bids: [...nom.bids, { rosterId, amount: bid, ts: Date.now() }],
+                        passedRosterIds: nom.passedRosterIds.filter(id => String(id) !== String(rosterId)),
+                        deadline: Date.now() + windowMs, // reset the clock on every new bid
+                    },
+                };
+            }
+
+            case 'PASS_NOMINATION': {
+                const nom = state.nomination;
+                if (!nom) return state;
+                if (nom.passedRosterIds.includes(action.rosterId)) return state;
+                return { ...state, nomination: { ...nom, passedRosterIds: [...nom.passedRosterIds, action.rosterId] } };
+            }
+
+            case 'SETTLE_NOMINATION': {
+                const nom = state.nomination;
+                if (!nom) return state;
+                const winnerRosterId = nom.highBidderRosterId;
+                const amount = nom.highBid;
+                const player = nom.player;
+                const acCopies = Math.max(1, Number(state.playerCopies) || 1);
+                const acNewCount = (state.draftedPids[player.pid] || 0) + 1;
+                const newDrafted = { ...state.draftedPids, [player.pid]: acNewCount };
+                const newPool = acNewCount >= acCopies ? state.pool.filter(p => p.pid !== player.pid) : state.pool;
+                const resolvedDhq = resolvePlayerDhq(player).value;
+                const newPick = {
+                    id: 'auc_' + nom.seq + '_' + Date.now(),
+                    round: null, slot: null, pickInRound: null, teamIdx: null,
+                    overall: nom.overall,
+                    rosterId: winnerRosterId,
+                    isUser: String(winnerRosterId) === String(state.userRosterId),
+                    pid: player.pid, name: player.name || player.full_name, pos: player.pos,
+                    dhq: resolvedDhq,
+                    consensusRank: player.consensusRank || null,
+                    photoUrl: player.photoUrl || '',
+                    college: player.college || '',
+                    tier: player.tier || null,
+                    csv: player.csv || null,
+                    amount, nominatorRosterId: nom.nominatorRosterId, bids: nom.bids,
+                    reasoning: null, confidence: null, alexReaction: null,
+                    source: null, ts: Date.now(),
+                };
+                const teamPositions = state.teamRosters[winnerRosterId] || [];
+                const nextTeamBudgets = {
+                    ...state.teamBudgets,
+                    [winnerRosterId]: {
+                        total: state.teamBudgets[winnerRosterId]?.total ?? state.auctionBudget,
+                        spent: (state.teamBudgets[winnerRosterId]?.spent || 0) + amount,
+                        remaining: (state.teamBudgets[winnerRosterId]?.remaining ?? state.auctionBudget) - amount,
+                    },
+                };
+                // Fallback is Object.keys(state.personas) — NOT slotToRoster,
+                // which only exists on the Setup screen's component-level
+                // draftMeta, never on reducer state. personas is keyed by
+                // rosterId and guaranteed populated for every team at
+                // START_DRAFT (composeAllPersonas), so it's always available
+                // here even when the user never touched Nomination Order.
+                const order = state.customSlotOrder && state.customSlotOrder.length ? state.customSlotOrder : Object.keys(state.personas || {});
+                let nextNominatorIdx = state.nominatorIdx;
+                const nextTeamRosters = { ...state.teamRosters, [winnerRosterId]: [...teamPositions, player.pos] };
+                const allFull = order.length > 0 && order.every(rid => Math.max(0, Number(state.rounds || 0) - (nextTeamRosters[rid] || []).length) <= 0);
+                if (order.length) {
+                    for (let step = 1; step <= order.length; step++) {
+                        const idx = (state.nominatorIdx + step) % order.length;
+                        const rid = order[idx];
+                        if (Math.max(0, Number(state.rounds || 0) - (nextTeamRosters[rid] || []).length) > 0) { nextNominatorIdx = idx; break; }
+                    }
+                }
+                const nextState = {
+                    ...state,
+                    pool: newPool,
+                    picks: [...state.picks, newPick],
+                    pickedByIdx: { ...(state.pickedByIdx || {}), [newPick.overall]: newPick },
+                    draftedPids: newDrafted,
+                    teamRosters: nextTeamRosters,
+                    teamBudgets: nextTeamBudgets,
+                    nominatorIdx: nextNominatorIdx,
+                    nomination: null,
+                    phase: allFull ? 'complete' : 'drafting',
                 };
                 const nextContext = window.DraftCC?.context?.applyPickToContext
                     ? window.DraftCC.context.applyPickToContext(state.draftContext, newPick, nextState)
@@ -3075,6 +3273,10 @@
         selectCurrentDraft,
         buildPool,
         buildPickOrder,
+        applyCustomSlotOrder,
+        openRosterSlotsRemaining,
+        maxSafeBid,
+        AUCTION_WINDOW_MS,
         resolvePlayerDhq,
         resolveDraftPickValue,
         buildFuturePickPool,
