@@ -292,6 +292,10 @@
             tradeWeights: desc.tradeWeights,
             draftWeights: desc.draftWeights,
             draftStyle: strategy.draftStyle || cfg.draftStyle || 'bpa',
+            // Which positions to lean toward when ordering a board — distinct
+            // from draftStyle (pick-capital philosophy). Keys match
+            // draft-gameplan.js's archetype list.
+            draftArchetype: strategy.draftArchetype || 'balanced',
             targetPositions: toSet(strategy.targetPositions),
             sellPositions: toSet(strategy.sellPositions),
             untouchable: toSet(strategy.untouchable || strategy.untouchables),

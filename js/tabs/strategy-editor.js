@@ -125,6 +125,17 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
     // ── Helpers ───────────────────────────────────────────────────────────────
     const set = (key, val) => setDraft(d => ({ ...d, [key]: val }));
 
+    // Draft Archetype options — sourced from draft-gameplan.js (single source
+    // of truth for the 8 keys/labels/blurbs; also shown on the War Room's
+    // Draft Gameplan card), not a hardcoded duplicate list here.
+    const archetypeOptions = React.useMemo(() => {
+        if (!window.App?.DraftGameplan?.archetypes) return [];
+        const rp = currentLeague?.roster_positions || [];
+        const slots = window.App.DraftGameplan.parseSlots ? window.App.DraftGameplan.parseSlots(rp) : {};
+        const superflex = (slots.sf > 0 || slots.qb >= 2);
+        return window.App.DraftGameplan.archetypes({ superflex });
+    }, [currentLeague]);
+
     const toggleArr = (key, val) => setDraft(d => {
         const arr = d[key] || [];
         return { ...d, [key]: arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val] };
@@ -699,6 +710,33 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                             }}>
                                 <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-body)', fontWeight: 700, color: active ? 'var(--gold)' : 'var(--ov-9, rgba(255,255,255,0.8))' }}>{ds.label}</div>
                                 <div style={{ fontSize: 'var(--text-micro)', color: 'var(--ov-8, rgba(255,255,255,0.4))', marginTop: 2, fontFamily: 'var(--font-body)', lineHeight: 1.3 }}>{ds.desc}</div>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>}
+
+            {/* ── Draft Archetype (Custom only) — which POSITIONS to lean
+                 toward (RB Heavy/Zero-RB/etc.), distinct from Draft Style
+                 above (pick-CAPITAL philosophy). Feeds the Big Board's AI
+                 lane + Mock/Live Draft recommendation scoring. ── */}
+            {isCustom && archetypeOptions.length > 0 && <div style={styles.card}>
+                <SectionHeader title="Draft Archetype" />
+                <div style={{ display: 'grid', gridTemplateColumns: _phone ? '1fr' : 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
+                    {archetypeOptions.map(arch => {
+                        const active = (draft.draftArchetype || 'balanced') === arch.key;
+                        return (
+                            <button key={arch.key} onClick={() => set('draftArchetype', arch.key)} style={{
+                                padding: '11px 13px',
+                                border: active ? '1px solid var(--gold)' : '1px solid var(--ov-6, rgba(255,255,255,0.1))',
+                                borderRadius: 8,
+                                background: active ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'var(--ov-2, rgba(255,255,255,0.03))',
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                transition: 'all 0.15s',
+                            }}>
+                                <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-body)', fontWeight: 700, color: active ? 'var(--gold)' : 'var(--ov-9, rgba(255,255,255,0.8))' }}>{arch.label}</div>
+                                <div style={{ fontSize: 'var(--text-micro)', color: 'var(--ov-8, rgba(255,255,255,0.4))', marginTop: 2, fontFamily: 'var(--font-body)', lineHeight: 1.3 }}>{arch.blurb}</div>
                             </button>
                         );
                     })}

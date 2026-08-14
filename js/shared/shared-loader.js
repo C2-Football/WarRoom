@@ -11,7 +11,7 @@
         } catch (e) {}
         return 'https://c2-football.github.io/ReconAI/shared/';
     })();
-    const DEFAULT_VERSION = '20260814auc3'; // bumped: tightened personaBid excitement clamp (0.7-1.4, was 0.55-1.75 — early RBs were clustering at the old ceiling)
+    const DEFAULT_VERSION = '20260814arch1'; // bumped: strategy.js gained draftArchetype field
     const config = {
         localBase: null,
         remoteBase: REMOTE_BASE,

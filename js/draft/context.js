@@ -383,6 +383,12 @@
         const targetPositions = new Set(asArray(strategy.targetPositions || strategy.targets || []));
         const fadePositions = new Set(asArray(strategy.sellPositions || strategy.blockPositions || []));
         const adapter = data.formatAdapter || getDraftFormatAdapter(data);
+        // Which positions to lean toward (RB-Heavy/Hero-RB/Zero-RB/etc.) —
+        // distinct from draftStyle's need/BPA bias above. Falls back cleanly
+        // to 'balanced' (a no-op 1.0 multiplier) for strategies saved before
+        // this field existed.
+        const archKey = strategy.draftArchetype || 'balanced';
+        const archMultFn = window.App?.DraftGameplan?.archetypeMultiplier;
 
         return asArray(pool).slice().sort((a, b) => {
             const score = p => {
@@ -390,6 +396,7 @@
                 const baseValue = projectedValue(p, adapter.projectionYears);
                 let value = baseValue;
                 value *= Number(adapter.positionMultipliers?.[pos] || 1);
+                if (archMultFn) value *= archMultFn(archKey, pos);
                 if (adapter.id === 'best_ball' && p?.tier && Number(p.tier) <= 2) value *= 1.035;
                 if (needs.has(pos)) value *= (1 + 0.12 * needBias * Number(adapter.needBias || 1));
                 if (targetPositions.has(p?.pos)) value *= 1.05;
