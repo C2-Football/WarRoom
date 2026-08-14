@@ -197,6 +197,28 @@
         if (rounds) patch.rounds = rounds;
         if (draft.settings?.teams) patch.leagueSize = draft.settings.teams;
         if (draft.type) patch.draftType = draft.type;
+
+        // Real Sleeper auction draft — mirror the mock-auction's proven
+        // variant/auctionPoolSource split (grading needs state.variant ===
+        // 'auction' to read pick.amount; the real pool-format is preserved
+        // separately since nothing else here depends on state.variant for
+        // pool building the way the local mock does).
+        if (draft.type === 'auction') {
+            patch.draftMechanic = 'auction';
+            patch.auctionPoolSource = variant;
+            patch.variant = 'auction';
+            // Sleeper's real starting-budget field for auction drafts — public
+            // API convention is settings.budget; fall back to the existing
+            // $200 default if it's absent or the live key differs.
+            const budget = Number(draft.settings?.budget) > 0 ? Number(draft.settings.budget) : 200;
+            patch.auctionBudget = budget;
+            const rosters = window.S?.rosters || currentLeague?.rosters || [];
+            const teamBudgets = {};
+            rosters.forEach(r => {
+                if (r?.roster_id != null) teamBudgets[r.roster_id] = { total: budget, spent: 0, remaining: budget };
+            });
+            patch.teamBudgets = teamBudgets;
+        }
         return patch;
     }
 
@@ -3503,7 +3525,7 @@
                                     )}
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {d.season} · {d.type || 'snake'} · {d.settings?.rounds || '?'}R × {d.settings?.teams || '?'}T
+                                            {d.season} · {d.type === 'auction' ? <b style={{ color: 'var(--gold)' }}>AUCTION</b> : (d.type || 'snake')} · {d.settings?.rounds || '?'}R × {d.settings?.teams || '?'}T
                                         </div>
                                         <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, marginTop: '2px' }}>
                                             {d.leagueName} · {startStr}
@@ -4512,6 +4534,35 @@
                         );
                     })}
                     {!visible.length && !currentSlot && <div className="mock-empty">Start the draft to see picks as a running list.</div>}
+                </div>
+            </section>
+        );
+    }
+
+    // Read-only "just sold" feed for Follow Live Draft against a real Sleeper
+    // auction. Sleeper's public API only exposes COMPLETED picks (no live
+    // in-progress bid state), so this surfaces each sale the moment the ~5s
+    // poll picks it up — never a live bid war, which the API can't provide.
+    // Purely presentational (no dispatches), same pattern as MockPickLog.
+    function LiveAuctionSalesTicker({ state }) {
+        const posColors = window.App?.POS_COLORS || {};
+        const sold = (state.picks || []).filter(p => p.amount != null).slice(-12).reverse();
+        return (
+            <section className="mock-panel mock-pick-log">
+                <div className="mock-panel-head">
+                    <span>Recent Sales</span>
+                    <em>{(state.picks || []).length} sold</em>
+                </div>
+                <div className="mock-log-scroll">
+                    {sold.map(pick => (
+                        <div key={pick.id || pick.overall + '-' + pick.pid} className="mock-log-row" onClick={() => mockOpenPlayer(pick)}>
+                            <span>${pick.amount}</span>
+                            <strong>{mockTeamName(state, pick.rosterId)}</strong>
+                            <em><i style={{ color: posColors[pick.pos] || 'var(--gold)' }}>{pick.pos || '--'}</i> {pick.name}</em>
+                            <b>{mockFmt(pick.dhq)}</b>
+                        </div>
+                    ))}
+                    {!sold.length && <div className="mock-empty">Sales will appear here as they land.</div>}
                 </div>
             </section>
         );
@@ -6109,6 +6160,12 @@
                             leagueSize={state.leagueSize}
                             inline
                         />
+                        {state.draftMechanic === 'auction' && (
+                            <>
+                                <AuctionBudgetPanel state={state} />
+                                <LiveAuctionSalesTicker state={state} />
+                            </>
+                        )}
                     </div>
                 ) : (
                     <LiveTradeWindowBanner

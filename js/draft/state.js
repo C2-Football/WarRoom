@@ -1739,21 +1739,34 @@
         return (pool || []).slice(0, maxSize || 600).map(slimPlayer).filter(Boolean);
     }
 
-    function rebuildDraftDerived(picks) {
+    function rebuildDraftDerived(picks, opts = {}) {
         // draftedPids maps pid → COUNT of times drafted (≥1). For single-copy
         // leagues every count is 1, so truthiness checks still read as "drafted".
         // Multi-copy leagues compare the count against state.playerCopies.
         const draftedPids = {};
         const teamRosters = {};
+        // Live-sync auction picks have no meaningful teamIdx (no turn order) —
+        // callers reconciling an auction session pass keyByRosterId so
+        // teamRosters (and, alongside it, a fully re-derived teamBudgets) key
+        // by the real rosterId instead, matching SETTLE_NOMINATION's convention.
+        // Every other caller is unaffected (opts omitted ⇒ identical to before).
+        const teamBudgets = opts.keyByRosterId ? {} : undefined;
         (picks || []).forEach(p => {
             if (p?.pid) draftedPids[p.pid] = (draftedPids[p.pid] || 0) + 1;
-            const idx = p?.teamIdx;
-            if (idx != null) teamRosters[idx] = [...(teamRosters[idx] || []), p.pos];
+            const key = opts.keyByRosterId ? p?.rosterId : p?.teamIdx;
+            if (key != null) teamRosters[key] = [...(teamRosters[key] || []), p.pos];
+            if (opts.keyByRosterId && p?.rosterId != null && p?.amount != null) {
+                const budget = Number(opts.auctionBudget) > 0 ? Number(opts.auctionBudget) : 200;
+                const entry = teamBudgets[p.rosterId] || { total: budget, spent: 0, remaining: budget };
+                const spent = entry.spent + Number(p.amount);
+                teamBudgets[p.rosterId] = { total: entry.total, spent, remaining: entry.total - spent };
+            }
         });
         return {
             draftedPids,
             teamRosters,
             pickedByIdx: buildPickedByIdx(picks),
+            teamBudgets,
         };
     }
 
@@ -2347,6 +2360,12 @@
                 let draftedPids = { ...state.draftedPids };
                 const lsCopies = Math.max(1, Number(state.playerCopies) || 1);
                 let teamRosters = { ...state.teamRosters };
+                let teamBudgets = { ...state.teamBudgets };
+                // Real Sleeper auction draft: no turn order exists to derive
+                // round/slot/teamIdx from, and picks carry a real $ amount —
+                // both branches below key off this instead of the fabricated
+                // linear/snake pickOrder. Non-auction live-sync is untouched.
+                const isAuctionSync = state.draftMechanic === 'auction';
                 let pickOrder = state.pickOrder.slice();
                 let pickedByIdx = { ...(state.pickedByIdx || {}) };
                 let currentIdx = state.currentIdx;
@@ -2429,13 +2448,15 @@
                             sleeperPickedBy: sleeperPick?.picked_by || null,
                             source: 'live-sync',
                             ts: Date.now(),
+                            amount: isAuctionSync ? (Number(sleeperPick?.metadata?.amount) || null) : (occupant.amount ?? null),
                         };
                         const beforePicks = picks;
                         picks = picks.map((p, i) => i === occupantIdx ? liveReplacement : p);
-                        const derived = rebuildDraftDerived(picks);
+                        const derived = rebuildDraftDerived(picks, { keyByRosterId: isAuctionSync, auctionBudget: state.auctionBudget });
                         draftedPids = derived.draftedPids;
                         teamRosters = derived.teamRosters;
                         pickedByIdx = derived.pickedByIdx;
+                        if (isAuctionSync) teamBudgets = derived.teamBudgets;
                         pool = rebuildPoolFromDrafted(state, draftedPids);
                         existingPickNos.add(pickNo);
                         overwriteCount += 1;
@@ -2465,52 +2486,88 @@
                     const slot = pickOrder[currentIdx];
                     if (!slot) return;
                     const rosterId = sleeperPick?.roster_id || slot.rosterId;
-                    const adjustedSlot = {
-                        ...slot,
-                        rosterId,
-                        traded: slot.originalRosterId != null && String(rosterId) !== String(slot.originalRosterId),
-                    };
+
+                    // Auction has no turn order — round/slot/teamIdx come straight
+                    // off Sleeper's own pick bookkeeping (still real, just not
+                    // draft-order-meaningful) instead of the fabricated linear
+                    // rotation, and teamRosters/teamBudgets key by the real
+                    // rosterId below rather than a fabricated teamIdx.
+                    let adjustedSlot, pickRound, pickSlotNum, pickInRound, pickOverall, pickTeamIdx;
+                    if (isAuctionSync) {
+                        pickRound = Number(sleeperPick?.round) || Math.floor(currentIdx / Math.max(1, state.leagueSize)) + 1;
+                        pickSlotNum = Number(sleeperPick?.draft_slot) || null;
+                        pickInRound = pickSlotNum;
+                        pickOverall = pickNo;
+                        pickTeamIdx = null;
+                        adjustedSlot = { ...slot, rosterId, overall: pickOverall, traded: false };
+                    } else {
+                        adjustedSlot = {
+                            ...slot,
+                            rosterId,
+                            traded: slot.originalRosterId != null && String(rosterId) !== String(slot.originalRosterId),
+                        };
+                        pickRound = adjustedSlot.round;
+                        pickSlotNum = adjustedSlot.slot;
+                        pickInRound = adjustedSlot.pickInRound || adjustedSlot.slot;
+                        pickOverall = adjustedSlot.overall;
+                        pickTeamIdx = adjustedSlot.teamIdx;
+                    }
                     pickOrder[currentIdx] = adjustedSlot;
 
                     const lsNewCount = (draftedPids[player.pid] || 0) + 1;
                     draftedPids = { ...draftedPids, [player.pid]: lsNewCount };
                     // Keep the player available until his last copy is taken.
                     if (lsNewCount >= lsCopies) pool = pool.filter(p => String(p.pid) !== String(player.pid));
-	                    const resolvedDhq = resolvePlayerDhq(player).value;
-	                    const newPick = {
-                        id: 'pick_' + adjustedSlot.overall + '_' + Date.now(),
-                        round: adjustedSlot.round,
-                        slot: adjustedSlot.slot,
-                        pickInRound: adjustedSlot.pickInRound || adjustedSlot.slot,
-                        overall: adjustedSlot.overall,
-                        teamIdx: adjustedSlot.teamIdx,
+                    const resolvedDhq = resolvePlayerDhq(player).value;
+                    const pickAmount = isAuctionSync ? (Number(sleeperPick?.metadata?.amount) || null) : null;
+                    const newPick = {
+                        id: 'pick_' + pickOverall + '_' + Date.now(),
+                        round: pickRound,
+                        slot: pickSlotNum,
+                        pickInRound,
+                        overall: pickOverall,
+                        teamIdx: pickTeamIdx,
                         rosterId,
                         isUser: String(rosterId) === String(state.userRosterId),
-	                        pid: player.pid,
-	                        name: player.name,
-	                        pos: player.pos,
-	                        dhq: resolvedDhq,
+                        pid: player.pid,
+                        name: player.name,
+                        pos: player.pos,
+                        dhq: resolvedDhq,
                         consensusRank: player.consensusRank || null,
                         photoUrl: player.photoUrl || '',
                         college: player.college || '',
                         tier: player.tier || null,
                         csv: player.csv || null,
-	                        reasoning: item.reasoning || { primary: 'Live Sleeper pick', baseVal: resolvedDhq, nudges: [] },
+                        reasoning: item.reasoning || { primary: 'Live Sleeper pick', baseVal: resolvedDhq, nudges: [] },
                         confidence: item.confidence || 1.0,
                         alexReaction: null,
                         sleeperPickNo: pickNo,
                         sleeperPickedBy: sleeperPick?.picked_by || null,
                         source: 'live-sync',
                         ts: Date.now(),
+                        amount: pickAmount,
                     };
                     picks = [...picks, newPick];
                     pickedByIdx = { ...pickedByIdx, [newPick.overall]: newPick };
                     existingPickNos.add(pickNo);
-                    const teamPositions = teamRosters[adjustedSlot.teamIdx] || [];
-                    teamRosters = {
-                        ...teamRosters,
-                        [adjustedSlot.teamIdx]: [...teamPositions, player.pos],
-                    };
+                    if (isAuctionSync) {
+                        const teamPositions = teamRosters[rosterId] || [];
+                        teamRosters = { ...teamRosters, [rosterId]: [...teamPositions, player.pos] };
+                        if (pickAmount != null) {
+                            const budgetEntry = teamBudgets[rosterId] || { total: state.auctionBudget, spent: 0, remaining: state.auctionBudget };
+                            const nextSpent = (budgetEntry.spent || 0) + pickAmount;
+                            teamBudgets = {
+                                ...teamBudgets,
+                                [rosterId]: { total: budgetEntry.total, spent: nextSpent, remaining: budgetEntry.total - nextSpent },
+                            };
+                        }
+                    } else {
+                        const teamPositions = teamRosters[adjustedSlot.teamIdx] || [];
+                        teamRosters = {
+                            ...teamRosters,
+                            [adjustedSlot.teamIdx]: [...teamPositions, player.pos],
+                        };
+                    }
                     currentIdx += 1;
                     const nextStateForContext = {
                         ...state,
@@ -2566,6 +2623,7 @@
                     currentIdx,
                     pickOrder,
                     teamRosters,
+                    teamBudgets,
                     draftContext,
                     phase: currentIdx >= pickOrder.length ? 'complete' : state.phase,
                     liveSync: mergeLiveSync(state.liveSync, statusPatch),
