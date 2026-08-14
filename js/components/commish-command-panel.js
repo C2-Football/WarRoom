@@ -29,7 +29,7 @@
 // its own label (two size steps and 100 weight apart, minimum). That rule is
 // the whole reason the office reads as an instrument instead of a table dump.
 // ══════════════════════════════════════════════════════════════════
-function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, filter, phone, onSelectItem }) {
+function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, filter, phone, onSelectItem, onEnterLeague }) {
     // ── The ladder ───────────────────────────────────────────────────
     const PAGE = 'var(--co-page, #08080B)';
     const SURF = 'var(--co-surface, #121217)';
@@ -211,6 +211,13 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                     valueColor: nd ? WHITE : WARN,
                     sub: nd ? nd.sub : 'No draft, no deadline, nothing on the board.',
                     onClick: () => openHub('ops', null),
+                })}
+                {renderTile({
+                    id: 't5', label: 'Open seats', accent: (K.openSeats || 0) > 0 ? BAD : GOOD,
+                    value: K.openSeats != null ? K.openSeats : '—',
+                    valueColor: (K.openSeats || 0) > 0 ? BAD : GOOD,
+                    sub: (K.openSeats || 0) > 0 ? 'Vacant roster' + (K.openSeats === 1 ? '' : 's') + ' across your leagues.' : 'Every roster has an owner.',
+                    onClick: () => openHub('people', null),
                 })}
             </div>
         </div>
@@ -448,6 +455,17 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                                     <span style={{ ...T.chip, color: MUTED, flex: '0 0 auto' }}>{l.tag}</span>
                                     <span style={{ ...T.subject, ...ell }} title={l.name || ''}>{l.name}</span>
+                                    {l.openSeats > 0 ? (
+                                        <span title={l.openSeats + ' open seat' + (l.openSeats === 1 ? '' : 's')}
+                                            style={{ ...T.chip, color: BAD, background: FILL_BAD, borderRadius: '4px', padding: '1px 5px', flex: '0 0 auto' }}>
+                                            {l.openSeats} open
+                                        </span>
+                                    ) : null}
+                                    {typeof onEnterLeague === 'function' ? (
+                                        <button type="button" title={'Open ' + (l.name || 'league')}
+                                            onClick={(e) => { e.stopPropagation(); onEnterLeague(l.leagueId); }}
+                                            style={{ ...bare, flex: '0 0 auto', marginLeft: 'auto', color: MUTED, cursor: 'pointer', padding: '2px 4px' }}>↗</button>
+                                    ) : null}
                                 </div>
                                 <div style={T.label}>{l.pct != null ? l.pct + '% ready' : 'readiness —'}</div>
                             </div>

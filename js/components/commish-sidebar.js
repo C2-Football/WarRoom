@@ -136,7 +136,7 @@
         );
         return (
             <div role="dialog" aria-label="Action" onClick={onClose}
-                style={{ position: 'fixed', inset: 0, zIndex: 70, background: '#08080B', display: 'flex', justifyContent: 'flex-end' }}>
+                style={{ position: 'fixed', inset: 0, zIndex: 70, background: 'rgba(3, 4, 7, 0.6)', display: 'flex', justifyContent: 'flex-end' }}>
                 <div onClick={e => e.stopPropagation()}
                     style={{ width: 'min(420px, 100%)', height: '100%', background: SURF, borderLeft: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column' }}>
                     <div style={{ background: SURF2, borderBottom: `1px solid ${LINE}`, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>

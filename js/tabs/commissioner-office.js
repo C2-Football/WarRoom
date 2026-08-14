@@ -566,6 +566,23 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         [managedLeagues]
     );
 
+    // "Open this league" — onEnterLeague is wired all the way from app.js to
+    // handleSelectLeague (the same navigation a normal league-picker click
+    // uses) but nothing inside the office ever called it: clicking a queue
+    // item only opened its alert drawer, and the drawer's own action button
+    // only jumps between commissioner desks, never out to a real league
+    // dashboard. The Grid's per-league "Open" button (commish-command-panel.js)
+    // is the one place a row unambiguously means exactly one league.
+    const leagueById = React.useMemo(() => {
+        const m = new Map();
+        managedLeagues.forEach(l => m.set(String(l.league_id || l.id), l));
+        return m;
+    }, [managedLeagues]);
+    const handleEnterLeague = (leagueId) => {
+        const full = leagueById.get(String(leagueId));
+        if (full && onEnterLeague) onEnterLeague(full);
+    };
+
     // Declared above rawQueue, which consumes treasuries: these are real
     // const bindings, so a forward reference is a hard TDZ error, not the
     // silent undefined the hoisted-var cases produce.
@@ -662,6 +679,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
             humans: Object.keys(state.graph.people || {}).length,
             crossover: (state.graph.overlap || []).length,
             needsYou: (queue && queue.counts) || { now: 0, soon: 0, backlog: 0 },
+            openSeats: (state.seats || []).length,
             readiness, readinessAvg: avg,
             nextDate: dated ? {
                 label: new Date(dated.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase(),
@@ -686,7 +704,8 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         return {
             leagues: managedLeagues.map(l => {
                 const lid = String(l.league_id || l.id);
-                return { leagueId: lid, tag: tagFor(l.name), name: l.name, pct: (genesis || []).find(g => g.leagueId === lid)?.pct ?? null };
+                const openSeats = (state.seats || []).filter(s => String(s.leagueId) === lid).length;
+                return { leagueId: lid, tag: tagFor(l.name), name: l.name, pct: (genesis || []).find(g => g.leagueId === lid)?.pct ?? null, openSeats };
             }),
             domains: DOMAINS,
             cell: (leagueId, domainKey) => {
@@ -959,7 +978,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                     <window.WrCommishCommandPanel
                         queue={queue} kpis={commandKpis} grid={commandGrid} desks={commandDesks}
                         onOpenHub={openHub} onFilter={setQueueFilter} filter={queueFilter} phone={isPhone}
-                        onSelectItem={onQueueItem}
+                        onSelectItem={onQueueItem} onEnterLeague={handleEnterLeague}
                     />
                 ) : missing('Command')) : null}
                 {tab === 'settings' ? (window.WrCommishSettingsPanel ? (
