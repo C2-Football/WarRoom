@@ -131,7 +131,16 @@
         const [flashAnalystReports, setFlashAnalystReports] = useState([]);
         const [flashAnalystStatus, setFlashAnalystStatus] = useState('idle');
         const [flashAnalystError, setFlashAnalystError] = useState('');
-        const [gameplanArch, setGameplanArch] = useState('balanced'); // redraft draft-gameplan archetype
+        // Draft Gameplan's active archetype now reads/writes GM Strategy's
+        // draftArchetype field directly (window.WR.GmMode.useGmEffects already
+        // live-updates on save via the wr:gm-mode-changed event) — this card
+        // and the GM Strategy editor's "Draft Archetype" section are two views
+        // onto the same persisted value, not independent local state, so a
+        // change on either surface shows up on both and actually reaches the
+        // Big Board / Mock Draft scoring this card used to have no effect on.
+        const gmArchFx = window.WR?.GmMode?.useGmEffects ? window.WR.GmMode.useGmEffects(currentLeague) : null;
+        const gameplanArch = gmArchFx?.draftArchetype || 'balanced';
+        const setGameplanArch = (key) => { if (window.GMStrategy?.saveStrategy) window.GMStrategy.saveStrategy({ draftArchetype: key }); };
         const [showFuturePickCapital, setShowFuturePickCapital] = useState(false);
         const [liveAutoStartToken, setLiveAutoStartToken] = useState(0);
         // Draft History — archived recaps of finished drafts (local + Supabase-synced)
