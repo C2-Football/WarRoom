@@ -366,6 +366,7 @@
             teamBudgets: opts.teamBudgets || {},   // { [rosterId]: {total, spent, remaining} }
             nominatorIdx: opts.nominatorIdx || 0,  // rotation cursor into customSlotOrder
             nomination: opts.nomination || null,   // live bid state; null when idle — see NOMINATE_PLAYER
+            marketValues: opts.marketValues || {}, // { [pid]: targetPrice } — VBD-based auction dollar values, see buildAuctionMarketValues
 
             // Pool + order
             pool: [],
@@ -921,6 +922,65 @@
         return Math.max(0, remaining - (openSlots - 1));
     }
     const AUCTION_WINDOW_MS = { slow: 20000, medium: 12000, fast: 6000, paused: 20000 };
+
+    // Real auction dollar values (Value-Based Drafting), computed once at
+    // auction start from the actual pool + the league's real roster/scoring
+    // shape — the "cheat sheet" a live bid ceiling is anchored to, instead of
+    // each bid being computed independently against a team's full remaining
+    // budget with no awareness of the rest of the draft (the bug that let a
+    // single early nomination eat almost an entire $200 budget).
+    //
+    // Per-position replacement level uses window.App.buildMinStarterQuality
+    // (dhq-shared/team-assess.js) — the same flex/superflex/IDP-aware starter
+    // count already used for team-need assessment elsewhere in the app, so
+    // "replacement level" here means the same thing it means everywhere else
+    // this app talks about roster needs.
+    function buildAuctionMarketValues(pool, opts = {}) {
+        const leagueSize = Math.max(1, Number(opts.leagueSize) || 12);
+        const rounds = Math.max(1, Number(opts.rounds) || 15);
+        const budget = Math.max(1, Number(opts.auctionBudget) || 200);
+        const rosterPositions = Array.isArray(opts.rosterPositions) ? opts.rosterPositions : [];
+        const players = Array.isArray(pool) ? pool.filter(p => p && p.pid != null) : [];
+        const marketValues = {};
+        if (!players.length) return marketValues;
+
+        const minStarterQuality = (typeof window !== 'undefined' && window.App?.buildMinStarterQuality)
+            ? window.App.buildMinStarterQuality(rosterPositions)
+            : {};
+
+        // Replacement DHQ per position: the DHQ of the last "starter-quality"
+        // player at that position, league-wide.
+        const byPos = {};
+        players.forEach(p => {
+            const pos = p.pos || 'FLEX';
+            (byPos[pos] || (byPos[pos] = [])).push(p);
+        });
+        const replacementDhq = {};
+        Object.entries(byPos).forEach(([pos, list]) => {
+            const sorted = [...list].sort((a, b) => (b.dhq || b.val || 0) - (a.dhq || a.val || 0));
+            const starterCount = minStarterQuality[pos] || 1;
+            const rank = Math.max(0, Math.min(sorted.length - 1, Math.round(starterCount * leagueSize) - 1));
+            replacementDhq[pos] = sorted[rank] ? (sorted[rank].dhq || sorted[rank].val || 0) : (sorted[sorted.length - 1]?.dhq || 0);
+        });
+
+        const vbdOf = p => Math.max(0, (p.dhq || p.val || 0) - (replacementDhq[p.pos || 'FLEX'] || 0));
+
+        const totalRosterSlots = leagueSize * rounds;
+        const totalEconomyDollars = leagueSize * budget;
+        const reserveDollars = totalRosterSlots * 1;
+        const discretionaryDollars = Math.max(0, totalEconomyDollars - reserveDollars);
+
+        const draftablePool = [...players].sort((a, b) => vbdOf(b) - vbdOf(a)).slice(0, totalRosterSlots);
+        const totalVbd = draftablePool.reduce((sum, p) => sum + vbdOf(p), 0);
+
+        players.forEach(p => { marketValues[p.pid] = 1; });
+        if (totalVbd > 0) {
+            draftablePool.forEach(p => {
+                marketValues[p.pid] = Math.max(1, Math.round(1 + (vbdOf(p) / totalVbd) * discretionaryDollars));
+            });
+        }
+        return marketValues;
+    }
 
     function pickName(pick) {
         const player = pick?.player || {};
@@ -3276,6 +3336,7 @@
         applyCustomSlotOrder,
         openRosterSlotsRemaining,
         maxSafeBid,
+        buildAuctionMarketValues,
         AUCTION_WINDOW_MS,
         resolvePlayerDhq,
         resolveDraftPickValue,

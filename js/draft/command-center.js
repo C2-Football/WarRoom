@@ -1593,11 +1593,22 @@
                 Object.values(draftMeta.slotToRoster || {}).forEach(info => {
                     if (info.rosterId != null) teamBudgets[info.rosterId] = { total: budget, spent: 0, remaining: budget };
                 });
+                const rosterPositions = draftContext?.leagueFormat?.rosterSlots
+                    || currentLeague?.roster_positions
+                    || currentLeague?.rosterPositions
+                    || [];
+                const marketValues = stateFns.buildAuctionMarketValues(pool, {
+                    leagueSize: activeState.leagueSize,
+                    rounds: activeState.rounds,
+                    auctionBudget: budget,
+                    rosterPositions,
+                });
                 auctionPatch = {
                     variant: 'auction',
                     auctionPoolSource: activeState.variant,
                     auctionBudget: budget,
                     teamBudgets,
+                    marketValues,
                     nominatorIdx: 0,
                     nomination: null,
                 };
@@ -4642,6 +4653,24 @@
         if (openSlots <= 0) return 0;
         return Math.max(0, remaining - (openSlots - 1));
     }
+    // League-wide spend-vs-value multiplier — classic auction "inflation"
+    // tracking. If the room has spent less than the still-undrafted players
+    // are worth on the pre-computed market-value sheet, prices trend up from
+    // here on; if it's spent more, they trend down. Keeps the back half of
+    // the draft self-correcting instead of the market-value table being a
+    // static number that drifts out of sync with reality as money moves.
+    function auctionInflation(state) {
+        const totalRosterSlots = Number(state.leagueSize || 0) * Number(state.rounds || 0);
+        const remainingSlots = Math.max(0, totalRosterSlots - state.picks.length);
+        if (remainingSlots <= 0) return 1;
+        const remainingBudget = Object.values(state.teamBudgets || {}).reduce((s, b) => s + Math.max(0, b.remaining || 0), 0);
+        const stillDraftable = [...(state.pool || [])]
+            .sort((a, b) => (state.marketValues?.[b.pid] || 0) - (state.marketValues?.[a.pid] || 0))
+            .slice(0, remainingSlots);
+        const remainingBaseline = stillDraftable.reduce((s, p) => s + (state.marketValues?.[p.pid] || 1), 0);
+        if (remainingBaseline <= 0) return 1;
+        return Math.max(0.6, Math.min(1.8, remainingBudget / remainingBaseline));
+    }
 
     function AuctionBudgetPanel({ state }) {
         const order = auctionOrder(state);
@@ -4828,7 +4857,8 @@
             const delay = state.speed === 'fast' ? 400 : state.speed === 'slow' ? 1600 : 800;
             const t = setTimeout(() => {
                 const teamRoster = state.teamRosters?.[nominatorRosterId] || [];
-                const player = window.DraftCC.cpuEngine.nominateChoice(persona, state.pool, 1, state.picks.length + 1, { teamRoster, draftTuning: state.draftTuning, rosterId: nominatorRosterId });
+                const pseudoRound = Math.floor(state.picks.length / Math.max(1, state.leagueSize)) + 1;
+                const player = window.DraftCC.cpuEngine.nominateChoice(persona, state.pool, pseudoRound, state.picks.length + 1, { teamRoster, draftTuning: state.draftTuning, rosterId: nominatorRosterId });
                 if (player) dispatch({ type: 'NOMINATE_PLAYER', pid: player.pid, player, nominatorRosterId });
             }, delay);
             return () => clearTimeout(t);
@@ -4852,10 +4882,13 @@
                     return setTimeout(() => {
                         const teamRoster = state.teamRosters?.[rid] || [];
                         const budgetCeiling = auctionMaxSafeBid(state, rid);
+                        const pseudoRound = Math.floor(state.picks.length / Math.max(1, state.leagueSize)) + 1;
                         const result = window.DraftCC.cpuEngine.personaBid(persona, nom, {
                             teamRoster, draftTuning: state.draftTuning, rosterId: rid,
-                            round: 1, pickNumber: nom.overall,
+                            round: pseudoRound, pickNumber: nom.overall,
                             auctionBudget: state.teamBudgets?.[rid]?.total ?? state.auctionBudget,
+                            marketValue: state.marketValues?.[nom.pid],
+                            inflation: auctionInflation(state),
                             budgetCeiling, currentHighBid: nom.highBid,
                         });
                         if (result?.willingToBid && result.amount > nom.highBid) {
