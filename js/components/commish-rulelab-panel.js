@@ -124,6 +124,25 @@ function WrCommishRuleLabPanel({
     // score, so a commissioner can stage a stat the league has never scored
     // (e.g. turning on IDP tackles) and not just retune an existing one.
     const FULL_STAT_CATALOG = Object.keys(KEY_LABELS);
+    // Fallback for any Sleeper key a league scores that KEY_LABELS doesn't
+    // know by name (custom/rare IDP splits, etc.) — split on underscore,
+    // expand the common abbreviations this app already uses, title-case the
+    // rest. Never show a raw snake_case key on screen.
+    const KEY_WORD = {
+        idp: 'IDP', td: 'TD', yd: 'Yards', yds: 'Yards', ff: 'Forced Fumble', fum: 'Fumble',
+        rec: 'Reception', pts: 'Points', def: 'Defense', st: 'Special Teams', fg: 'FG',
+        xp: 'XP', int: 'INT', qb: 'QB', pct: '%', allow: 'Allowed', tkl: 'Tackle',
+    };
+    const humanizeKey = k => {
+        if (KEY_LABELS[k]) return KEY_LABELS[k];
+        const segs = String(k).split('_');
+        return segs.map((seg, i) => {
+            // "rec" reads as Reception almost everywhere, but right after
+            // "fum" it means Recovery — the one word that needs context.
+            if (seg === 'rec' && segs[i - 1] === 'fum') return 'Recovery';
+            return KEY_WORD[seg] || (seg.charAt(0).toUpperCase() + seg.slice(1));
+        }).join(' ');
+    };
     const KEY_GROUPS = [
         ['Passing', k => k.startsWith('pass')],
         ['Rushing', k => k.startsWith('rush') || k === 'bonus_rush_yd_100'],
@@ -155,7 +174,7 @@ function WrCommishRuleLabPanel({
     // the ladder itself (engine sweepValuesFor, anchored on live baselines).
     const [swKey, setSwKey] = React.useState('rec');
     const [swAll, setSwAll] = React.useState(false);
-    const keyLabel = k => KEY_LABELS[k] || k;
+    const keyLabel = humanizeKey;
     const multiSeasonOk = (seasons || []).filter(s => s.available).length > 1;
     const setKey = (k, raw) => {
         if (typeof onProposalChange !== 'function') return;
@@ -347,12 +366,17 @@ function WrCommishRuleLabPanel({
                     <div style={{ color: SILVER, fontSize: '0.76rem', marginBottom: '10px' }}>No individual player moves under this proposal.</div>
                 )}
 
-                {/* Position relevance — the league's shape before and after */}
-                {(result.positionShare || []).filter(p => Math.abs(p.deltaPct) >= 0.3).length ? (
+                {/* Position relevance — the league's shape before and after.
+                    Always the full set the engine returns (already filtered
+                    to positions that actually carry share, sorted biggest
+                    mover first) — never trimmed to "significant" movers
+                    only, so a position holding steady is still on screen
+                    for comparison, not just the ones that shifted. */}
+                {(result.positionShare || []).length ? (
                     <React.Fragment>
                         <div style={{ ...microHdr, marginBottom: '6px' }}>Position relevance · share of all started points</div>
                         <div style={{ marginBottom: '10px' }}>
-                            {(result.positionShare || []).filter(p => Math.abs(p.deltaPct) >= 0.3).slice(0, 5).map(p => (
+                            {(result.positionShare || []).map(p => (
                                 <div key={p.pos} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 130px', gap: '10px', alignItems: 'center', padding: '4px 0' }}>
                                     <span style={{ ...microHdr }}>{p.pos}</span>
                                     <div style={{ position: 'relative', height: '6px', background: SURF2, borderRadius: '3px', overflow: 'hidden' }}>
@@ -603,14 +627,24 @@ function WrCommishRuleLabPanel({
                                     // there would assert the league scores this rule at zero.
                                     const cur = baselineScoring && baselineScoring[k] != null ? Number(baselineScoring[k]) : null;
                                     const overridden = Object.prototype.hasOwnProperty.call(prop, k);
+                                    // Ticking (spinner arrows / arrow keys) should move relative
+                                    // to the league's real current number — a browser steps an
+                                    // EMPTY field from 0, not from its placeholder text, which is
+                                    // what made every tick reset back to zero. So the known
+                                    // baseline is the starting VALUE here, not just a placeholder;
+                                    // only a genuinely unknown stat (omnibus, never scored) still
+                                    // shows blank + "—". No min/max on the field either — a
+                                    // proposal can go as high or as negative as you type or tick.
+                                    const step = (cur != null && Number.isInteger(cur)) ? 1 : 0.05;
+                                    const shownValue = overridden ? prop[k] : (cur != null ? cur : '');
                                     return (
                                         <label key={k} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 74px', gap: '8px', alignItems: 'center' }}>
                                             <span title={k} style={{ fontSize: '0.72rem', color: overridden ? TEXT : SILVER, fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                {KEY_LABELS[k] || k}
+                                                {humanizeKey(k)}
                                             </span>
-                                            <input type="number" step="0.05" inputMode="decimal"
-                                                value={overridden ? prop[k] : ''}
-                                                placeholder={cur == null ? '—' : fmtNum(cur)}
+                                            <input type="number" step={step} inputMode="decimal"
+                                                value={shownValue}
+                                                placeholder={cur == null ? '—' : undefined}
                                                 onChange={e => setKey(k, e.target.value)}
                                                 style={{ width: '100%', background: overridden ? ACC_FILL : 'var(--co-page, #08080B)', border: '1px solid ' + (overridden ? ACC_LINE : LINE), borderRadius: '5px', color: overridden ? TEXT : SILVER, padding: '5px 8px', fontSize: '16px', ...mono, textAlign: 'right' }} />
                                         </label>
@@ -633,7 +667,7 @@ function WrCommishRuleLabPanel({
                         style={{ background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: '5px', color: TEXT, padding: '7px 8px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', maxWidth: '240px' }}>
                         {groupKeys(editorKeys).map(g => (
                             <optgroup key={g.name} label={g.name}>
-                                {g.keys.map(k => <option key={k} value={k}>{KEY_LABELS[k] || k}</option>)}
+                                {g.keys.map(k => <option key={k} value={k}>{humanizeKey(k)}</option>)}
                             </optgroup>
                         ))}
                     </select>
