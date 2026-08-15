@@ -1499,7 +1499,7 @@ function EmpireStyles() {
             .empire-live { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-micro); font-weight: 800; letter-spacing: 0.12em; color: var(--good); text-transform: uppercase; }
             .empire-live::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--good); animation: empire-pulse 1.8s infinite; }
             @keyframes empire-pulse { 0% { box-shadow: 0 0 0 0 rgba(46,204,113,0.5); } 70% { box-shadow: 0 0 0 6px rgba(46,204,113,0); } 100% { box-shadow: 0 0 0 0 rgba(46,204,113,0); } }
-            .empire-wire { overflow: hidden; white-space: nowrap; min-height: 28px; margin-bottom: 12px; background: rgba(0,0,0,0.28); border: 1px solid var(--ov-4, rgba(255,255,255,0.055)); border-radius: var(--card-radius-sm); padding: 5px 0; display: flex; align-items: center; }
+            .empire-wire { overflow: hidden; white-space: nowrap; min-height: 28px; margin-bottom: 12px; background: rgba(8,8,12,0.94); border: 1px solid var(--ov-5, rgba(255,255,255,0.09)); border-radius: var(--card-radius-sm); padding: 5px 0; display: flex; align-items: center; position: relative; z-index: 1; }
             .empire-wire-tag { flex-shrink: 0; padding: 0 14px; font-size: var(--text-micro); font-weight: 900; letter-spacing: 0.14em; color: var(--gold); text-transform: uppercase; border-right: 1px solid var(--ov-4, rgba(255,255,255,0.08)); }
             .empire-wire-track { display: inline-block; white-space: nowrap; animation: empire-wire-scroll 48s linear infinite; }
             .empire-wire:hover .empire-wire-track { animation-play-state: paused; }
@@ -1733,6 +1733,29 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         return () => { alive = false; };
     }, []);
 
+    // Live NFL scores for the wire ticker — the same ESPN scoreboard proxy
+    // NflContext already uses for matchup context, just read for score/state
+    // instead of odds/weather. Refetches every 60s so the "LIVE" badge next
+    // to the wire is honest on a Sunday; harmless/no-op the rest of the week
+    // since ESPN just keeps returning the same completed/scheduled games.
+    const [nflScores, setNflScores] = useState([]);
+    useEffect(() => {
+        let alive = true;
+        const NC = window.App?.NflContext;
+        if (!NC?.loadScores) return undefined;
+        const tick = async () => {
+            const week = window.App?.WeeklyProj?.currentWeek?.() || 1;
+            const season = window.S?.nflState?.season;
+            try {
+                const games = await NC.loadScores(week, season);
+                if (alive) setNflScores(games);
+            } catch (e) { /* ticker just skips scores this cycle */ }
+        };
+        tick();
+        const id = setInterval(tick, 60000);
+        return () => { alive = false; clearInterval(id); };
+    }, []);
+
     const marks = useMemo(() => {
         if (!markData) return null;
         try {
@@ -1845,8 +1868,18 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
 
     const activeFilters = Object.values(filters).filter(Boolean).length;
     const hasNoResults = !filtered.provinces.length && !filtered.assets.length && !filtered.picks.length;
-    // Empire Wire ticker — scrolling headline feed from the live signals / priority queue / moves.
+    // Empire Wire ticker — scrolling headline feed from live NFL scores /
+    // the portfolio signals / priority queue / moves, in that order (scores
+    // lead the same way a real sports ticker does). A live/final game shows
+    // its score; a game that hasn't kicked yet shows the kickoff time
+    // instead, same as ESPN's own ticker — never a fabricated "0-0".
+    const scoreItems = (nflScores || []).slice(0, 8).map(g => {
+        if (g.state === 'in') return g.away + ' ' + g.awayScore + ' - ' + g.home + ' ' + g.homeScore + ' · ' + (g.shortDetail || 'Live');
+        if (g.state === 'post') return g.away + ' ' + g.awayScore + ', ' + g.home + ' ' + g.homeScore + ' (Final)';
+        return g.away + ' @ ' + g.home + ' · ' + (g.shortDetail || 'Scheduled');
+    });
     const wireItems = [
+        ...scoreItems,
         ...(model.signals || []).filter(s => s.type !== 'data' && s.type !== 'balance').slice(0, 5).map(s => s.title + (s.metric ? ' · ' + s.metric : '')),
         ...(actionQueue || []).slice(0, 3).map(a => a.title),
         ...(moves || []).slice(0, 2).map(m => m.title),

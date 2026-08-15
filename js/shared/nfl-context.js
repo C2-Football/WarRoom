@@ -88,6 +88,34 @@
         return fetch(u).then(r => { if (!r.ok) throw new Error('scoreboard ' + r.status); return r.json(); });
     }
 
+    // ESPN scoreboard → live/final/scheduled game scores, for anything that
+    // just wants "what's the score" (e.g. Empire's ticker) rather than the
+    // matchup-context shape `parse()` builds for projections.
+    function parseScores(espn) {
+        const events = (espn && espn.events) || [];
+        return events.map(ev => {
+            const comp = ev.competitions && ev.competitions[0];
+            const cs = (comp && comp.competitors) || [];
+            const home = cs.find(c => c.homeAway === 'home');
+            const away = cs.find(c => c.homeAway === 'away');
+            const status = (comp && comp.status) || ev.status || {};
+            const type = status.type || {};
+            return {
+                home: normTeam(home && home.team && home.team.abbreviation),
+                away: normTeam(away && away.team && away.team.abbreviation),
+                homeScore: home && home.score != null ? Number(home.score) : null,
+                awayScore: away && away.score != null ? Number(away.score) : null,
+                state: type.state || 'pre',            // 'pre' | 'in' | 'post'
+                shortDetail: type.shortDetail || '',    // "Q3 4:12", "Final", "1:00 PM"
+                completed: !!type.completed,
+            };
+        }).filter(g => g.home && g.away);
+    }
+
+    function loadScores(week, season) {
+        return fetchWeek(week, season).then(parseScores).catch(e => { if (root.wrLog) root.wrLog('nflContext.loadScores', e); return []; });
+    }
+
     // Load one or more weeks and feed App.WeeklyProj.setContext. Caches per
     // (season, week). Returns the merged byTeamWeek map (or {} on failure).
     async function load(weeks, season) {
@@ -115,5 +143,5 @@
         return load([wk], season);
     }
 
-    App.NflContext = App.NflContext || { load, loadCurrent, parse, endpoint, _done };
+    App.NflContext = App.NflContext || { load, loadCurrent, parse, parseScores, loadScores, endpoint, _done };
 })(typeof window !== 'undefined' ? window : globalThis);
