@@ -43,7 +43,7 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
     const Section = ({ title, meta, children }) => (
         <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
+                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
             </div>
             {children}
@@ -74,7 +74,7 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
             const dark = (p.teams || []).find(t => t.status === 'DARK');
             return { label: 'DARK — ' + (dark ? dark.leagueName : 'ONE LEAGUE'), color: AMBER, border: 'rgba(240,165,0,0.45)' };
         }
-        if (p.status === 'FADING') return { label: 'FADING', color: SILVER, border: LINE };
+        if (p.status === 'FADING') return { label: 'FADING', color: TEXT, border: LINE };
         return { label: p.status || 'ACTIVE', color: MUTED, border: LINE };
     };
     const dotColor = s => s === 'DARK' ? RED : s === 'WATCH' ? AMBER : MUTED;
@@ -94,11 +94,11 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <Section title="The Dave Alarm" meta={people ? people.length + ' member' + (people.length === 1 ? '' : 's') + ' · ' + darkCount + ' dark' : null}>
-                <div style={{ color: SILVER, fontSize: '0.76rem', fontStyle: 'italic', lineHeight: 1.5, marginBottom: '10px' }}>
+                <div style={{ color: TEXT, fontSize: '0.76rem', fontStyle: 'italic', lineHeight: 1.5, marginBottom: '10px' }}>
                     Dark in one league means bored. Dark in all of them means life happened. Different conversations.
                 </div>
                 {!people || !people.length ? (
-                    <div style={{ color: SILVER, fontSize: '0.78rem' }}>The radar hasn't swept yet — it lights up once your commissioned leagues sync.</div>
+                    <div style={{ color: TEXT, fontSize: '0.78rem' }}>The radar hasn't swept yet — it lights up once your commissioned leagues sync.</div>
                 ) : people.map((p, i) => {
                     const chip = chipFor(p);
                     const isDark = p.status === 'DARK_ALL' || p.status === 'DARK_ONE';
@@ -110,7 +110,7 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
                             </div>
                             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '5px' }}>
                                 {(p.teams || []).map(t => (
-                                    <span key={t.leagueId + ':' + t.rosterId} title={sigTitle(t)} style={{ ...mono, display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.7rem', color: SILVER, cursor: 'default' }}>
+                                    <span key={t.leagueId + ':' + t.rosterId} title={sigTitle(t)} style={{ ...mono, display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.7rem', color: TEXT, cursor: 'default' }}>
                                         <i style={{ width: '7px', height: '7px', borderRadius: '50%', background: dotColor(t.status), display: 'inline-block', flexShrink: 0 }} />
                                         {t.leagueName}
                                     </span>
@@ -130,7 +130,7 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
             <Section title="Open Seats + The Bench" meta={seatList.length ? seatList.length + ' open seat' + (seatList.length === 1 ? '' : 's') : null}>
                 {seats == null ? (
                     // No graph yet ≠ no vacancies — the green all-clear would be a lie here.
-                    <div style={{ color: SILVER, fontSize: '0.78rem' }}>The seat scan hasn't run yet — it fills in with the member graph.</div>
+                    <div style={{ color: TEXT, fontSize: '0.78rem' }}>The seat scan hasn't run yet — it fills in with the member graph.</div>
                 ) : seatList.length === 0 ? (
                     <div style={{ background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: '6px', padding: '9px 12px', color: GREEN, fontSize: '0.78rem' }}>
                         Every seat is filled.
@@ -144,12 +144,12 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
                         <div key={seat.leagueId + ':' + seat.rosterId} style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: '6px', padding: '10px 12px', marginBottom: i === seatList.length - 1 ? 0 : '10px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '7px' }}>
                                 <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.82rem', color: TEXT }}>{seat.leagueName}</span>
-                                <span style={{ ...mono, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: SILVER, border: `1px solid ${LINE}`, borderRadius: '4px', padding: '2px 7px' }}>
+                                <span style={{ ...mono, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: TEXT, border: `1px solid ${LINE}`, borderRadius: '4px', padding: '2px 7px' }}>
                                     {seat.reason === 'owner_left' ? 'Owner left' : 'Unowned'}
                                 </span>
                             </div>
                             {bench.length === 0 ? (
-                                <div style={{ color: SILVER, fontSize: '0.76rem' }}>No recruits scored for this seat yet.</div>
+                                <div style={{ color: TEXT, fontSize: '0.76rem' }}>No recruits scored for this seat yet.</div>
                             ) : bench.map((c, ci) => (
                                 <div key={c.userId} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', padding: '5px 0', borderBottom: ci === bench.length - 1 ? 'none' : `1px solid ${LINE}` }}>
                                     <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.78rem', color: TEXT }}>{c.name}</span>
@@ -172,7 +172,7 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
 
             <Section title="Day One Folder" meta={folderList.length ? folderList.length + ' ready' : null}>
                 {folderList.length === 0 ? (
-                    <div style={{ color: SILVER, fontSize: '0.78rem' }}>Generates when a recruit accepts a seat.</div>
+                    <div style={{ color: TEXT, fontSize: '0.78rem' }}>Generates when a recruit accepts a seat.</div>
                 ) : folderList.map((f, fi) => {
                     const sections = Array.isArray(f?.sections) ? f.sections : [];
                     const copyAll = sections.map(s => (s.title || '').toUpperCase() + '\n' + (s.body || '')).join('\n\n');
@@ -183,7 +183,7 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
                                 <CopyBtn k={'folder:' + fi} text={copyAll} label="Copy all" />
                             </div>
                             {sections.length === 0 ? (
-                                <div style={{ color: SILVER, fontSize: '0.76rem' }}>This folder came back empty — regenerate it from the seat.</div>
+                                <div style={{ color: TEXT, fontSize: '0.76rem' }}>This folder came back empty — regenerate it from the seat.</div>
                             ) : sections.map((s, si) => (
                                 <div key={si} style={{ marginBottom: si === sections.length - 1 ? 0 : '10px' }}>
                                     <div style={{ ...microHdr, marginBottom: '3px' }}>{s.title}</div>

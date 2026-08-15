@@ -65,7 +65,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
         metricSm: { font: '600 0.875rem/1 ' + MONO, fontVariantNumeric: 'tabular-nums', color: WHITE },
         title: { font: '700 0.9375rem/1 ' + HEAD, letterSpacing: '0.06em', textTransform: 'uppercase', color: WHITE },
         subject: { font: '600 0.875rem/1.3 ' + BODY, color: WHITE },
-        body: { font: '400 0.8125rem/1.55 ' + BODY, maxWidth: '68ch', color: SILVER },
+        body: { font: '400 0.8125rem/1.55 ' + BODY, maxWidth: '68ch', color: WHITE },
         label: { font: '700 0.6875rem/1 ' + MONO, letterSpacing: '0.1em', textTransform: 'uppercase', color: MUTED },
         chip: { font: '700 0.625rem/1 ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' },
         lede: { font: '400 0.9375rem/1.5 ' + BODY, color: WHITE },
@@ -272,7 +272,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
         return (
             <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'nowrap', overflow: 'hidden' }}>
                 {shown.map((t, i) => (
-                    <span key={i} style={{ ...T.chip, color: SILVER, background: SURF2, border: '1px solid ' + LINE, borderRadius: '4px', padding: '4px 4px' }}>{t}</span>
+                    <span key={i} style={{ ...T.chip, color: WHITE, background: SURF2, border: '1px solid ' + LINE, borderRadius: '4px', padding: '4px 4px' }}>{t}</span>
                 ))}
                 {rest > 0 ? <span style={{ ...T.chip, color: MUTED }}>+{rest}</span> : null}
             </div>
@@ -399,7 +399,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                     <div style={{ height: '120px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', textAlign: 'center' }}>
                         {filtered && items.length ? (
                             <React.Fragment>
-                                <div style={{ ...T.metric, color: SILVER }}>NO MATCH</div>
+                                <div style={{ ...T.metric, color: WHITE }}>NO MATCH</div>
                                 <div style={{ ...T.body, textAlign: 'center' }}>Nothing in this slice. Clear the filter to see all {items.length} open item{items.length === 1 ? '' : 's'}.</div>
                             </React.Fragment>
                         ) : (

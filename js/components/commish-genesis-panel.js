@@ -44,7 +44,7 @@ function WrCommishGenesisPanel({ readiness, onToggle }) {
     const Section = ({ title, meta, children }) => (
         <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
+                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
             </div>
             {children}
@@ -83,13 +83,13 @@ function WrCommishGenesisPanel({ readiness, onToggle }) {
 
     return (
         <Section title="Season Setup" meta={meta}>
-            <div style={{ color: SILVER, fontSize: '0.76rem', fontStyle: 'italic', lineHeight: 1.5, marginBottom: '10px' }}>
+            <div style={{ color: TEXT, fontSize: '0.76rem', fontStyle: 'italic', lineHeight: 1.5, marginBottom: '10px' }}>
                 Opening-Day readiness — the six weeks before the draft, on one wall.
             </div>
             {!list ? (
-                <div style={{ color: SILVER, fontSize: '0.78rem' }}>The readiness scan hasn't run yet — it fills in once your commissioned leagues sync.</div>
+                <div style={{ color: TEXT, fontSize: '0.78rem' }}>The readiness scan hasn't run yet — it fills in once your commissioned leagues sync.</div>
             ) : !list.length ? (
-                <div style={{ color: SILVER, fontSize: '0.78rem' }}>No commissioned leagues to score — connect a league you run and the wall lights up.</div>
+                <div style={{ color: TEXT, fontSize: '0.78rem' }}>No commissioned leagues to score — connect a league you run and the wall lights up.</div>
             ) : allReady ? (
                 <div style={{ background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: '6px', padding: '9px 12px', color: GREEN, fontSize: '0.78rem' }}>
                     Every league is opening-day ready.
@@ -168,7 +168,7 @@ function WrCommishRenewalPanel({ forecast }) {
     const Section = ({ title, meta, children }) => (
         <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
+                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
             </div>
             {children}
@@ -198,13 +198,13 @@ function WrCommishRenewalPanel({ forecast }) {
     return (
         <Section title="Renewal Forecast" meta={forecast ? (offseason ? 'behavior signals' : 'behavior + season arc') : null}>
             {!forecast || !people ? (
-                <div style={{ color: SILVER, fontSize: '0.78rem' }}>The forecast hasn't run yet — it builds from the member graph and the radar sweep.</div>
+                <div style={{ color: TEXT, fontSize: '0.78rem' }}>The forecast hasn't run yet — it builds from the member graph and the radar sweep.</div>
             ) : !people.length ? (
-                <div style={{ color: SILVER, fontSize: '0.78rem' }}>Nobody to forecast — the member graph only has you in it so far.</div>
+                <div style={{ color: TEXT, fontSize: '0.78rem' }}>Nobody to forecast — the member graph only has you in it so far.</div>
             ) : (
                 <React.Fragment>
                     {offseason ? (
-                        <div style={{ color: SILVER, fontSize: '0.76rem', fontStyle: 'italic', lineHeight: 1.5, marginBottom: '10px' }}>
+                        <div style={{ color: TEXT, fontSize: '0.76rem', fontStyle: 'italic', lineHeight: 1.5, marginBottom: '10px' }}>
                             Offseason read — behavior signals only. Season-arc factors arrive with Week 1.
                         </div>
                     ) : null}

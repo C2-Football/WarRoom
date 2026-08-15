@@ -42,7 +42,7 @@ function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, t
     const Section = ({ title, meta, children }) => (
         <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
+                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
             </div>
             {children}
@@ -82,7 +82,7 @@ function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, t
                                         {con && con.clauses.length ? con.clauses.length + ' clauses on file' : 'no constitution on file'}
                                     </span>
                                     {tre ? <span style={{ ...microHdr }}>dues {tre.summary.paid}/{tre.summary.total}</span> : null}
-                                    <span style={{ marginLeft: 'auto', color: SILVER }}>{open ? '▾' : '▸'}</span>
+                                    <span style={{ marginLeft: 'auto', color: TEXT }}>{open ? '▾' : '▸'}</span>
                                 </div>
                                 {open ? (
                                     <div style={{ borderTop: `1px solid ${LINE}`, padding: '12px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -91,7 +91,7 @@ function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, t
                                         <div>
                                             <div style={{ ...microHdr, marginBottom: '6px' }}>Bylaws desk</div>
                                             {!con || !con.clauses.length ? (
-                                                <div style={{ color: SILVER, fontSize: '0.78rem', lineHeight: 1.5 }}>
+                                                <div style={{ color: TEXT, fontSize: '0.78rem', lineHeight: 1.5 }}>
                                                     Upload this league's constitution under Settings → League documents and the desk lights up: clause search, grounded rulings, amendment history.
                                                 </div>
                                             ) : (
@@ -108,12 +108,12 @@ function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, t
                                                             <div style={{ fontSize: '0.8rem', color: '#C9C9D2', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{rul.text}</div>
                                                             <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '6px' }}>Answers only from quoted clauses — when the constitution is silent, the ruling says so.</div>
                                                         </div>
-                                                    ) : rul && rul.err ? <div style={{ marginTop: '8px', color: SILVER, fontSize: '0.76rem' }}>No ruling available — AI is Pro-gated or the call failed.</div> : null}
+                                                    ) : rul && rul.err ? <div style={{ marginTop: '8px', color: TEXT, fontSize: '0.76rem' }}>No ruling available — AI is Pro-gated or the call failed.</div> : null}
                                                     {amd.length ? (
                                                         <div style={{ marginTop: '10px' }}>
                                                             <div style={{ ...microHdr, marginBottom: '4px' }}>Amendment ledger</div>
                                                             {amd.slice(0, 5).map((a, i) => (
-                                                                <div key={i} style={{ ...mono, fontSize: '0.72rem', color: SILVER, padding: '2px 0' }}>
+                                                                <div key={i} style={{ ...mono, fontSize: '0.72rem', color: TEXT, padding: '2px 0' }}>
                                                                     {new Date(a.ts).toLocaleDateString()} · <span style={{ color: TEXT }}>{a.path}</span> <span style={{ textDecoration: 'line-through', opacity: 0.6 }}>{String(a.from)}</span> → <span style={{ color: GOLD }}>{String(a.to)}</span> <span style={{ opacity: 0.6 }}>({a.source})</span>
                                                                 </div>
                                                             ))}
@@ -174,7 +174,7 @@ function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, t
                                                         {csvNote[lid] ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{csvNote[lid]}</span> : null}
                                                     </div>
                                                 </React.Fragment>
-                                            ) : <div style={{ color: SILVER, fontSize: '0.78rem' }}>Treasury unavailable for this league.</div>}
+                                            ) : <div style={{ color: TEXT, fontSize: '0.78rem' }}>Treasury unavailable for this league.</div>}
                                         </div>
                                     </div>
                                 ) : null}

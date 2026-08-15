@@ -46,7 +46,7 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
     const Section = ({ title, meta, children }) => (
         <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
+                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
             </div>
             {children}
@@ -56,7 +56,7 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
     // Name | Rating | Δ | All-Play | Lgs — Δ is the single semantic-color
     // column; everything else stays monochrome so movement is what pops.
     const coefGrid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.8fr) 0.8fr 0.6fr 0.9fr 0.5fr', gap: '8px', alignItems: 'center', padding: '6px 10px', minWidth: 0 };
-    const rowLine = { borderBottom: `1px solid ${LINE}`, color: SILVER, fontSize: '0.75rem', ...mono };
+    const rowLine = { borderBottom: `1px solid ${LINE}`, color: TEXT, fontSize: '0.75rem', ...mono };
     const myRowStyle = { background: 'rgba(212,175,55,0.07)', boxShadow: `inset 3px 0 0 ${GOLD}`, color: TEXT };
 
     const meta = rows.length
@@ -69,13 +69,13 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
         if (r.delta == null) return <span style={{ color: MUTED }}>—</span>;
         if (r.delta > 0) return <span style={{ color: GREEN, fontWeight: 700 }}>▲{r.delta}</span>;
         if (r.delta < 0) return <span style={{ color: RED, fontWeight: 700 }}>▼{Math.abs(r.delta)}</span>;
-        return <span style={{ color: SILVER }}>—</span>;
+        return <span style={{ color: TEXT }}>—</span>;
     };
 
     if (!rows.length) {
         return (
             <Section title="The Coefficient">
-                <div style={{ color: SILVER, fontSize: '0.78rem', lineHeight: 1.5 }}>
+                <div style={{ color: TEXT, fontSize: '0.78rem', lineHeight: 1.5 }}>
                     No members on the graph yet — The Coefficient builds itself from the leagues you commission once their rosters and scores load.
                 </div>
             </Section>
@@ -138,7 +138,7 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
                                 </div>
                                 {open[r.userId] ? (r.perLeague || []).map(pl => (
                                     <div key={pl.leagueId} style={{ padding: '4px 10px 4px 26px', borderBottom: `1px solid ${LINE}`, fontSize: '0.7rem', color: MUTED, ...mono, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                        ↳ <span style={{ color: SILVER }}>{pl.leagueName}</span>
+                                        ↳ <span style={{ color: TEXT }}>{pl.leagueName}</span>
                                         {pl.rating != null
                                             ? <span> — rating {pl.rating} · all-play {pl.apRecord} · h2h {h2h(pl.record)}</span>
                                             : <span> — no scored weeks yet · h2h {h2h(pl.record)}</span>}
@@ -151,7 +151,7 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
             ) : (
                 // Offseason honesty: the network above is real, the table isn't
                 // until games count — never print a column of dashes as data.
-                <div style={{ color: SILVER, fontSize: '0.78rem', lineHeight: 1.5, padding: '10px 0' }}>
+                <div style={{ color: TEXT, fontSize: '0.78rem', lineHeight: 1.5, padding: '10px 0' }}>
                     No all-play games counted yet — The Coefficient starts rating humans from the first scored week of the season.
                 </div>
             )}
@@ -197,7 +197,7 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
                 </div>
 
                 {p.empty ? (
-                    <div style={{ color: SILVER, fontSize: '0.76rem', lineHeight: 1.5 }}>
+                    <div style={{ color: TEXT, fontSize: '0.76rem', lineHeight: 1.5 }}>
                         {EMPTY_REASON[p.reason] || 'Nothing to print for this league yet.'}
                     </div>
                 ) : (
@@ -208,7 +208,7 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
                             <div>
                                 <div style={{ ...microHdr, marginBottom: '4px' }}>Results</div>
                                 {p.results.slice(0, 3).map((r, i) => (
-                                    <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: '10px', alignItems: 'baseline', padding: '2px 0', fontSize: '0.73rem', color: SILVER, ...mono }}>
+                                    <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: '10px', alignItems: 'baseline', padding: '2px 0', fontSize: '0.73rem', color: TEXT, ...mono }}>
                                         {/* margin 0 keeps the first row in the winner slot — check tie before crowning */}
                                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                             {r.tie ? r.winnerName + ' ties ' + r.loserName : r.winnerName + ' def. ' + r.loserName}
@@ -221,7 +221,7 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
                         ) : null}
 
                         {p.topScore ? (
-                            <div style={{ fontSize: '0.73rem', color: SILVER, ...mono }}>
+                            <div style={{ fontSize: '0.73rem', color: TEXT, ...mono }}>
                                 <span style={{ ...microHdr }}>Top score</span>{' '}
                                 <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, color: TEXT }}>{p.topScore.name}</span>{' '}
                                 <span style={{ color: GOLD, fontWeight: 700 }}>{num(p.topScore.pts)}</span>
@@ -229,7 +229,7 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
                         ) : null}
 
                         {p.luckNote ? (
-                            <div style={{ fontSize: '0.72rem', color: SILVER, lineHeight: 1.5, borderLeft: `2px solid ${LINE}`, paddingLeft: '8px' }}>
+                            <div style={{ fontSize: '0.72rem', color: TEXT, lineHeight: 1.5, borderLeft: `2px solid ${LINE}`, paddingLeft: '8px' }}>
                                 <span style={{ ...microHdr }}>Luck</span> {p.luckNote.text}
                             </div>
                         ) : null}
@@ -238,7 +238,7 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
                             <div>
                                 <div style={{ ...microHdr, marginBottom: '4px' }}>Standings</div>
                                 {p.standingsTop3.map((s, i) => (
-                                    <div key={s.rosterId} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0,1fr) auto', gap: '8px', alignItems: 'baseline', padding: '2px 0', fontSize: '0.73rem', color: SILVER, ...mono }}>
+                                    <div key={s.rosterId} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0,1fr) auto', gap: '8px', alignItems: 'baseline', padding: '2px 0', fontSize: '0.73rem', color: TEXT, ...mono }}>
                                         <span style={{ color: MUTED }}>{i + 1}.</span>
                                         <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
                                         <span>{fmtRec(s.wins, s.losses, s.ties)} · {num(s.pf)}</span>
@@ -266,7 +266,7 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                 <div>
-                    <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600, textTransform: 'uppercase' }}>Matchday Programme</div>
+                    <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>Matchday Programme</div>
                     <div style={{ color: TEXT, fontSize: '0.9rem', fontWeight: 600, marginTop: '2px' }}>One button. Every group chat.</div>
                 </div>
                 {typeof onExportAll === 'function' && list.some(p => !p.empty) ? (
@@ -279,7 +279,7 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
                     {list.map((p, i) => <Card key={p.leagueId || i} p={p} />)}
                 </div>
             ) : (
-                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px', color: SILVER, fontSize: '0.78rem', lineHeight: 1.5 }}>
+                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px', color: TEXT, fontSize: '0.78rem', lineHeight: 1.5 }}>
                     No commissioned leagues to print — the programme composes one page per league you run, from its latest scored week.
                 </div>
             )}

@@ -143,18 +143,18 @@
                         <span style={{ width: '3px', height: '16px', background: sevColor, borderRadius: '2px', flex: 'none' }} />
                         <span style={{ ...label, color: sevColor }}>{item.tier}</span>
                         <span style={{ ...label }}>{item.kicker}</span>
-                        <button onClick={onClose} aria-label="Close" style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: SILVER, cursor: 'pointer', padding: '4px 10px', ...chip }}>✕</button>
+                        <button onClick={onClose} aria-label="Close" style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: TEXT, cursor: 'pointer', padding: '4px 10px', ...chip }}>✕</button>
                     </div>
 
                     <div style={{ padding: '16px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <div>
                             <div style={{ font: '600 0.9375rem var(--font-body)', color: TEXT, lineHeight: 1.4 }}>{item.headline}</div>
-                            {item.detail ? <div style={{ font: '400 0.8125rem var(--font-body)', color: SILVER, lineHeight: 1.55, marginTop: '6px' }}>{item.detail}</div> : null}
+                            {item.detail ? <div style={{ font: '400 0.8125rem var(--font-body)', color: TEXT, lineHeight: 1.55, marginTop: '6px' }}>{item.detail}</div> : null}
                         </div>
 
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             {(item.leagueNames || []).map((n, i) => (
-                                <span key={i} style={{ ...chip, color: SILVER, background: SURF2, border: `1px solid ${LINE}`, borderRadius: '4px', padding: '3px 7px' }}>{n}</span>
+                                <span key={i} style={{ ...chip, color: TEXT, background: SURF2, border: `1px solid ${LINE}`, borderRadius: '4px', padding: '3px 7px' }}>{n}</span>
                             ))}
                         </div>
 
@@ -175,7 +175,7 @@
                                 <span style={{ ...label, textTransform: 'none', letterSpacing: 0 }}>of 100 · {item.tier} threshold {item.tier === 'NOW' ? '70' : item.tier === 'SOON' ? '40' : '0'}</span>
                             </div>
                             <div style={{ font: '400 0.75rem var(--font-body)', color: MUTED, marginTop: '6px', lineHeight: 1.5 }}>
-                                Signal: <span style={{ fontFamily: MONO, color: SILVER }}>{item.kind}</span>
+                                Signal: <span style={{ fontFamily: MONO, color: TEXT }}>{item.kind}</span>
                                 {(item.leagueIds || []).length > 1 ? ' · weighted up for spanning ' + item.leagueIds.length + ' leagues' : ''}
                             </div>
                         </div>
@@ -183,7 +183,7 @@
                         {state ? (
                             <div style={{ background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: '8px', padding: '10px 12px' }}>
                                 <div style={{ ...label, color: ACCENT }}>Currently {state.state}</div>
-                                <div style={{ font: '400 0.75rem var(--font-body)', color: SILVER, marginTop: '4px', lineHeight: 1.5 }}>
+                                <div style={{ font: '400 0.75rem var(--font-body)', color: TEXT, marginTop: '4px', lineHeight: 1.5 }}>
                                     {state.state === 'done' ? 'Hidden until the underlying number changes — if it gets worse, this comes back on its own.'
                                         : state.state === 'skipped' ? 'Snoozed. Returns automatically when the timer runs out.'
                                             : 'Hidden indefinitely. Only Settings brings it back.'}
@@ -213,7 +213,7 @@
                                 <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${LINE}` }}>
                                     <div style={{ ...label, marginBottom: '7px' }}>Activity</div>
                                     {followup.history.slice(-4).reverse().map((event, i) => (
-                                        <div key={event.ts + ':' + i} style={{ display: 'flex', gap: '8px', padding: '4px 0', font: '400 0.72rem var(--font-body)', color: SILVER }}>
+                                        <div key={event.ts + ':' + i} style={{ display: 'flex', gap: '8px', padding: '4px 0', font: '400 0.72rem var(--font-body)', color: TEXT }}>
                                             <span style={{ ...chip, color: ACCENT, minWidth: '62px' }}>{event.type}</span>
                                             <span style={{ flex: 1 }}>{event.detail || new Date(event.ts).toLocaleString()}</span>
                                         </div>
@@ -269,7 +269,7 @@
         return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <Section title="Leagues you manage here" meta={managedN + ' of ' + (leagues || []).length + ' on'}>
-                    <div style={{ font: '400 0.8125rem var(--font-body)', color: SILVER, lineHeight: 1.55, marginBottom: '8px', maxWidth: '68ch' }}>
+                    <div style={{ font: '400 0.8125rem var(--font-body)', color: TEXT, lineHeight: 1.55, marginBottom: '8px', maxWidth: '68ch' }}>
                         Every league you commission is on by default. Switching one off removes it from the queue, the grid and every desk count — it does not leave the league or change anything on Sleeper.
                     </div>
                     {(leagues || []).map(l => {
@@ -284,7 +284,7 @@
                 </Section>
 
                 <Section title="What you want to be told about">
-                    <div style={{ font: '400 0.8125rem var(--font-body)', color: SILVER, lineHeight: 1.55, marginBottom: '8px', maxWidth: '68ch' }}>
+                    <div style={{ font: '400 0.8125rem var(--font-body)', color: TEXT, lineHeight: 1.55, marginBottom: '8px', maxWidth: '68ch' }}>
                         These control the Command queue and the desk badges. Switching a category off never hides data from its own desk — the desk is the place built to show it.
                     </div>
                     {(domainLabels || []).map(d => (
@@ -303,12 +303,12 @@
 
                 <Section title="Dismissed items" meta={(suppressed || []).length + ' hidden by you'}>
                     {!(suppressed || []).length ? (
-                        <div style={{ font: '400 0.8125rem var(--font-body)', color: SILVER, lineHeight: 1.55 }}>Nothing dismissed. Items you mark done, skip or hide land here so you can always get them back.</div>
+                        <div style={{ font: '400 0.8125rem var(--font-body)', color: TEXT, lineHeight: 1.55 }}>Nothing dismissed. Items you mark done, skip or hide land here so you can always get them back.</div>
                     ) : (
                         (suppressed || []).map(s => (
                             <div key={s.item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 0', borderBottom: `1px solid var(--co-line-soft, #201F27)` }}>
                                 <span style={{ ...chip, color: s.state === 'done' ? GOOD : s.state === 'skipped' ? WARN : MUTED, minWidth: '54px' }}>{s.state}</span>
-                                <span style={{ flex: 1, minWidth: 0, font: '400 0.8125rem var(--font-body)', color: SILVER, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.item.headline}</span>
+                                <span style={{ flex: 1, minWidth: 0, font: '400 0.8125rem var(--font-body)', color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.item.headline}</span>
                                 <button onClick={() => onRestore(s.item.id)} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: ACCENT, cursor: 'pointer', padding: '5px 10px', minHeight: '32px', ...chip }}>Restore</button>
                             </div>
                         ))
@@ -317,7 +317,7 @@
 
                 <Section title="Follow-up history" meta={(followups || []).length + ' tracked'}>
                     {!(followups || []).length ? (
-                        <div style={{ font: '400 0.8125rem var(--font-body)', color: SILVER, lineHeight: 1.55 }}>No follow-ups yet. Open any Command item to draft outreach, leave a private note or set a review date.</div>
+                        <div style={{ font: '400 0.8125rem var(--font-body)', color: TEXT, lineHeight: 1.55 }}>No follow-ups yet. Open any Command item to draft outreach, leave a private note or set a review date.</div>
                     ) : (
                         (followups || []).slice(0, 50).map(f => {
                             const last = (f.history || [])[f.history.length - 1];

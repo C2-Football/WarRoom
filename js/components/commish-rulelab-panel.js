@@ -62,13 +62,13 @@ const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(Number(v) || 0
 const Section = ({ title, meta, children }) => (
     <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-            <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
+            <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
             {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
         </div>
         {children}
     </div>
 );
-const rowLine = { borderBottom: `1px solid ${LINE}`, color: SILVER, fontSize: '0.75rem', ...mono };
+const rowLine = { borderBottom: `1px solid ${LINE}`, color: TEXT, fontSize: '0.75rem', ...mono };
 const shiftGrid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.7fr) 0.55fr 0.55fr 0.7fr', gap: '8px', alignItems: 'center', padding: '5px 10px', minWidth: 0 };
 const swingGrid = { display: 'grid', gridTemplateColumns: 'minmax(0,1.6fr) 0.9fr 0.9fr 0.7fr', gap: '8px', alignItems: 'center', padding: '5px 10px', minWidth: 0 };
 const nameCell = { fontFamily: 'var(--font-body)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
@@ -78,7 +78,7 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
     if (!result || result.empty) {
         return (
             <Section title={leagueName || 'League'} meta={result && result.seasonUsed ? String(result.seasonUsed) : null}>
-                <div style={{ color: SILVER, fontSize: '0.78rem', lineHeight: 1.5 }}>
+                <div style={{ color: TEXT, fontSize: '0.78rem', lineHeight: 1.5 }}>
                     {(result && result.reason) || 'No completed weeks to replay in this league.'}
                 </div>
             </Section>
@@ -130,7 +130,7 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
                 )}
                 <div style={{ marginTop: '6px', fontSize: '0.76rem', lineHeight: 1.6 }}>
                     {field.unchanged ? (
-                        <span style={{ color: SILVER }}>Playoff field unchanged ({field.size}-team cut).</span>
+                        <span style={{ color: TEXT }}>Playoff field unchanged ({field.size}-team cut).</span>
                     ) : (
                         <React.Fragment>
                             <div>
@@ -149,7 +149,7 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
             {/* Standings shift — moved rows only */}
             <div style={{ ...microHdr, marginBottom: '6px' }}>Standings shift</div>
             {!shift.length ? (
-                <div style={{ color: SILVER, fontSize: '0.76rem', marginBottom: '10px' }}>Standings hold — no team changes rank under this proposal.</div>
+                <div style={{ color: TEXT, fontSize: '0.76rem', marginBottom: '10px' }}>Standings hold — no team changes rank under this proposal.</div>
             ) : (
                 <div style={{ overflowX: 'auto', marginBottom: '10px' }}>
                     <div style={{ minWidth: '380px' }}>
@@ -212,7 +212,7 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
                     </div>
                 </React.Fragment>
             ) : (
-                <div style={{ color: SILVER, fontSize: '0.76rem', marginBottom: '10px' }}>No individual player moves under this proposal.</div>
+                <div style={{ color: TEXT, fontSize: '0.76rem', marginBottom: '10px' }}>No individual player moves under this proposal.</div>
             )}
 
             {/* Position relevance — the league's shape before and after.
@@ -272,7 +272,7 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
                 ) : null}
                 {typeof onExportBallot === 'function' ? (
                     <button onClick={() => onExportBallot(leagueName, result)}
-                        style={{ padding: '7px 12px', cursor: 'pointer', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: SILVER, font: '700 0.625rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                        style={{ padding: '7px 12px', cursor: 'pointer', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: TEXT, font: '700 0.625rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                         Export PNG
                     </button>
                 ) : null}
@@ -444,25 +444,25 @@ function WrCommishRuleLabPanel({
     if (status === 'loading') {
         body = (
             <Section title="Replay">
-                <div style={{ color: SILVER, fontSize: '0.78rem', ...mono }}>Replaying the {seasonUsed || 'last'} season…</div>
+                <div style={{ color: TEXT, fontSize: '0.78rem', ...mono }}>Replaying the {seasonUsed || 'last'} season…</div>
             </Section>
         );
     } else if (status === 'empty') {
         body = (
             <Section title="Replay">
-                <div style={{ color: SILVER, fontSize: '0.78rem', lineHeight: 1.5 }}>No completed weeks to replay — the lab needs at least one finished week of box scores.</div>
+                <div style={{ color: TEXT, fontSize: '0.78rem', lineHeight: 1.5 }}>No completed weeks to replay — the lab needs at least one finished week of box scores.</div>
             </Section>
         );
     } else if (status === 'error') {
         body = (
             <Section title="Replay">
-                <div style={{ color: SILVER, fontSize: '0.78rem' }}>The replay could not be run — season stats or lineups failed to load.</div>
+                <div style={{ color: TEXT, fontSize: '0.78rem' }}>The replay could not be run — season stats or lineups failed to load.</div>
             </Section>
         );
     } else if (status === 'ready') {
         body = !resultRows.length ? (
             <Section title="Replay">
-                <div style={{ color: SILVER, fontSize: '0.78rem' }}>No leagues to replay yet.</div>
+                <div style={{ color: TEXT, fontSize: '0.78rem' }}>No leagues to replay yet.</div>
             </Section>
         ) : (
             <React.Fragment>
@@ -475,7 +475,7 @@ function WrCommishRuleLabPanel({
         // idle — the bench is live, the replay hasn't been asked for yet
         body = (
             <Section title="Replay">
-                <div style={{ color: SILVER, fontSize: '0.78rem', lineHeight: 1.5 }}>Stage a proposal above and the lab replays the season under it — current rules vs proposed, same lineups, same stat lines.</div>
+                <div style={{ color: TEXT, fontSize: '0.78rem', lineHeight: 1.5 }}>Stage a proposal above and the lab replays the season under it — current rules vs proposed, same lineups, same stat lines.</div>
             </Section>
         );
     }
@@ -501,7 +501,7 @@ function WrCommishRuleLabPanel({
                     <button onClick={() => {
                         if (typeof onProposalChange === 'function') onProposalChange({});
                         if (typeof onRosterProposalChange === 'function') onRosterProposalChange(null);
-                    }} style={chipBtn(false, { color: SILVER })}>
+                    }} style={chipBtn(false, { color: TEXT })}>
                         ↺ Reset to current settings
                     </button>
                 </div>
@@ -551,7 +551,7 @@ function WrCommishRuleLabPanel({
 
             <Section title="Proposal Bench" meta="chips compose — stack a PPR change with a TE premium">
                 {!presetList.length ? (
-                    <div style={{ color: SILVER, fontSize: '0.78rem' }}>No proposal presets available — the Rule Lab engine has not loaded.</div>
+                    <div style={{ color: TEXT, fontSize: '0.78rem' }}>No proposal presets available — the Rule Lab engine has not loaded.</div>
                 ) : (
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
                         {presetList.map(p => {
@@ -579,7 +579,7 @@ function WrCommishRuleLabPanel({
                     )}
                     {propKeys.length ? (
                         <button onClick={() => { if (typeof onProposalChange === 'function') onProposalChange({}); }}
-                            style={{ padding: '4px 10px', background: 'transparent', color: SILVER, border: `1px solid ${LINE}`, borderRadius: '5px', font: '700 0.62rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                            style={{ padding: '4px 10px', background: 'transparent', color: TEXT, border: `1px solid ${LINE}`, borderRadius: '5px', font: '700 0.62rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>
                             Clear
                         </button>
                     ) : null}
@@ -593,7 +593,7 @@ function WrCommishRuleLabPanel({
                         {currentStructures.map((cs, i) => (
                             <div key={i} style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginBottom: '2px' }}>
                                 <span style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>{cs.leagues.join(', ')}</span>
-                                {' today: '}<span style={{ ...mono, color: SILVER }}>{cs.slots.join(' · ')}</span>
+                                {' today: '}<span style={{ ...mono, color: TEXT }}>{cs.slots.join(' · ')}</span>
                             </div>
                         ))}
                     </div>
@@ -621,7 +621,7 @@ function WrCommishRuleLabPanel({
                                 <button key={'add' + s} onClick={() => setSlots(rp.concat([s]))} style={chipBtn(false)}>+ {s.replace('_', ' ')}</button>
                             ))}
                             <button onClick={() => setSlots(null)}
-                                style={{ padding: '4px 10px', background: 'transparent', color: SILVER, border: `1px solid ${LINE}`, borderRadius: '5px', font: '700 0.62rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>Clear</button>
+                                style={{ padding: '4px 10px', background: 'transparent', color: TEXT, border: `1px solid ${LINE}`, borderRadius: '5px', font: '700 0.62rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>Clear</button>
                         </React.Fragment>
                     )}
                 </div>
@@ -738,7 +738,7 @@ function WrCommishRuleLabPanel({
                                         <tbody>
                                             {pl.seasons.map(season => (
                                                 <tr key={season}>
-                                                    <td style={{ ...mono, fontSize: '0.72rem', color: SILVER, padding: '4px 10px 4px 0' }}>{season}</td>
+                                                    <td style={{ ...mono, fontSize: '0.72rem', color: TEXT, padding: '4px 10px 4px 0' }}>{season}</td>
                                                     {pl.rows.map(r => {
                                                         const cell = r.bySeason[season];
                                                         const bg = cell === 'SEED' ? 'var(--co-fill-bad, #2A1512)' : cell === 'FIELD' ? 'var(--co-fill-warn, #2A2010)' : cell && cell !== 'HOLD' ? SURF2 : 'transparent';

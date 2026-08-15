@@ -100,8 +100,8 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
     const CHIP = {
         draft:     { text: 'DRAFT',     color: GOLD,   border: 'rgba(212,175,55,0.45)', bg: 'rgba(212,175,55,0.08)' },
         deadline:  { text: 'DEADLINE',  color: AMBER,  border: 'rgba(240,165,0,0.4)',   bg: 'rgba(240,165,0,0.08)' },
-        playoffs:  { text: 'PLAYOFFS',  color: SILVER, border: 'rgba(255,255,255,0.14)', bg: 'rgba(255,255,255,0.04)' },
-        task:      { text: 'TASK',      color: SILVER, border: 'rgba(255,255,255,0.18)', bg: 'rgba(255,255,255,0.03)' },
+        playoffs:  { text: 'PLAYOFFS',  color: TEXT, border: 'rgba(255,255,255,0.14)', bg: 'rgba(255,255,255,0.04)' },
+        task:      { text: 'TASK',      color: TEXT, border: 'rgba(255,255,255,0.18)', bg: 'rgba(255,255,255,0.03)' },
         milestone: { text: 'MILESTONE', color: BLUE,   border: 'rgba(93,173,226,0.4)',  bg: 'rgba(93,173,226,0.08)' },
         event:     { text: 'EVENT',     color: GREEN,  border: 'rgba(46,204,113,0.35)', bg: 'rgba(46,204,113,0.08)' },
     };
@@ -110,7 +110,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
     const Section = ({ title, meta, action, children }) => (
         <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
+                <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
                 {action ? <span style={{ marginLeft: 'auto' }}>{action}</span> : null}
             </div>
@@ -139,7 +139,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
                             {ev.done ? '✓' : '○'}
                         </button>
                         <button title="Remove" onClick={() => { if (typeof onRemoveTask === 'function') onRemoveTask(ev.id); }}
-                            style={{ background: 'none', border: 'none', color: SILVER, cursor: 'pointer', fontSize: '0.72rem', padding: '2px 4px', lineHeight: 1 }}>
+                            style={{ background: 'none', border: 'none', color: TEXT, cursor: 'pointer', fontSize: '0.72rem', padding: '2px 4px', lineHeight: 1 }}>
                             ✕
                         </button>
                     </span>
@@ -147,7 +147,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
             </span>
         </div>
     );
-    const rowLine = { borderBottom: `1px solid ${LINE}`, color: SILVER, fontSize: '0.75rem', ...mono };
+    const rowLine = { borderBottom: `1px solid ${LINE}`, color: TEXT, fontSize: '0.75rem', ...mono };
     const quietLine = (text, color, bg) => (
         <div style={{ background: bg, borderLeft: `3px solid ${color}`, borderRadius: '0 5px 5px 0', padding: '9px 12px', fontSize: '0.78rem', color: TEXT, lineHeight: 1.5 }}>{text}</div>
     );
@@ -159,7 +159,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
                     Nightly diff of live settings against the last state you ratified. The silent co-commish edit, caught.
                 </div>
                 {!driftRows.length ? (
-                    <div style={{ color: SILVER, fontSize: '0.78rem' }}>No commissioned leagues on the watch yet — the sentinel arms once a league is hydrated.</div>
+                    <div style={{ color: TEXT, fontSize: '0.78rem' }}>No commissioned leagues on the watch yet — the sentinel arms once a league is hydrated.</div>
                 ) : allQuiet ? (
                     quietLine('Settings match the last state you signed off on — all ' + driftRows.length + ' league' + (driftRows.length === 1 ? '' : 's') + '.', GREEN, 'rgba(46,204,113,0.07)')
                 ) : (
@@ -178,8 +178,8 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
                                             <div key={ch.path} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,1.5fr) 88px', gap: '10px', alignItems: 'baseline', padding: '4px 0', borderBottom: `1px solid ${LINE}`, fontSize: '0.74rem', ...mono }}>
                                                 <span style={{ color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.path}</span>
                                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                    <span style={{ color: SILVER, textDecoration: 'line-through' }}>{fmtVal(ch.from)}</span>
-                                                    <span style={{ color: SILVER, margin: '0 6px' }}>→</span>
+                                                    <span style={{ color: TEXT, textDecoration: 'line-through' }}>{fmtVal(ch.from)}</span>
+                                                    <span style={{ color: TEXT, margin: '0 6px' }}>→</span>
                                                     <span style={{ color: GOLD, fontWeight: 700 }}>{fmtVal(ch.to)}</span>
                                                 </span>
                                                 <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, textAlign: 'right' }}>{fmtDate(ch.detectedAt)}</span>
@@ -194,7 +194,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
                             </div>
                         ))}
                         {firstRuns.map(lg => (
-                            <div key={lg.leagueId} style={{ color: SILVER, fontSize: '0.76rem', padding: '2px 0' }}>
+                            <div key={lg.leagueId} style={{ color: TEXT, fontSize: '0.76rem', padding: '2px 0' }}>
                                 Baseline recorded — <span style={{ color: TEXT }}>{lg.leagueName}</span>. Drift tracking starts from here.
                             </div>
                         ))}
@@ -243,7 +243,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
                     </div>
                 ) : null}
                 {!events.length ? (
-                    <div style={{ color: SILVER, fontSize: '0.78rem', lineHeight: 1.5 }}>Nothing on the board yet — drafts, trade deadlines and playoff starts land here as leagues schedule them, and anything you add above.</div>
+                    <div style={{ color: TEXT, fontSize: '0.78rem', lineHeight: 1.5 }}>Nothing on the board yet — drafts, trade deadlines and playoff starts land here as leagues schedule them, and anything you add above.</div>
                 ) : (
                     <div style={{ overflowX: 'auto' }}>
                         <div style={{ minWidth: '520px' }}>
@@ -271,7 +271,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
 
             <Section title="Conflicts" meta={conflictRows.length ? conflictRows.length + ' flagged' : null}>
                 {!conflictRows.length ? (
-                    <div style={{ color: SILVER, fontSize: '0.78rem' }}>No collisions on the board.</div>
+                    <div style={{ color: TEXT, fontSize: '0.78rem' }}>No collisions on the board.</div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         {conflictRows.map((c, i) => (
@@ -282,13 +282,13 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
                                             {c.a.leagueName} and {c.b.leagueName} draft within 3 hours
                                         </div>
                                         {(c.sharedHumans || []).length ? (
-                                            <div style={{ color: SILVER, fontSize: '0.75rem', marginBottom: '4px', lineHeight: 1.5 }}>
+                                            <div style={{ color: TEXT, fontSize: '0.75rem', marginBottom: '4px', lineHeight: 1.5 }}>
                                                 {c.sharedHumans.length} of your people {c.sharedHumans.length === 1 ? 'is' : 'are'} in both — <span style={{ ...mono, color: TEXT }}>{c.sharedHumans.join(', ')}</span>
                                             </div>
                                         ) : (
                                             <div style={{ color: 'var(--text-muted, #8D887E)', fontSize: '0.75rem', marginBottom: '4px' }}>No shared members beyond you — still one commissioner, two clocks.</div>
                                         )}
-                                        {c.suggestion ? <div style={{ color: SILVER, fontSize: '0.76rem', lineHeight: 1.5 }}>{c.suggestion}</div> : null}
+                                        {c.suggestion ? <div style={{ color: TEXT, fontSize: '0.76rem', lineHeight: 1.5 }}>{c.suggestion}</div> : null}
                                     </React.Fragment>
                                 ) : (
                                     <React.Fragment>
@@ -296,7 +296,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
                                             <span style={{ fontWeight: 600, fontSize: '0.8rem', color: TEXT }}>Deadline cluster</span>
                                             {c.week != null ? <span style={{ ...microHdr }}>WK {c.week}</span> : null}
                                         </div>
-                                        {c.note ? <div style={{ color: SILVER, fontSize: '0.76rem', lineHeight: 1.5 }}>{c.note}</div> : null}
+                                        {c.note ? <div style={{ color: TEXT, fontSize: '0.76rem', lineHeight: 1.5 }}>{c.note}</div> : null}
                                         {(c.leagues || []).length ? <div style={{ ...mono, color: 'var(--text-muted, #8D887E)', fontSize: '0.72rem', marginTop: '4px' }}>{c.leagues.join(' · ')}</div> : null}
                                     </React.Fragment>
                                 )}

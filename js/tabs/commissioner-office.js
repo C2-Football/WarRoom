@@ -905,7 +905,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         ) : null}
         <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '20px 16px 60px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                <button onClick={onBack} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: SILVER, cursor: 'pointer', padding: '6px 12px', fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em' }}>‹ HUB</button>
+                <button onClick={onBack} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: TEXT, cursor: 'pointer', padding: '6px 12px', fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em' }}>‹ HUB</button>
                 {/* Blue wordmark, not gold: the cheapest signal that the Office
                     is a different room from Empire. Gold survives in exactly two
                     places office-wide — the LABS chip and the "this is you" row. */}
@@ -958,18 +958,18 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     );
 
     if (state.status === 'idle' || state.status === 'loading') {
-        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '18px', color: SILVER, fontFamily: MONO, fontSize: '0.78rem' }}>{state.step || 'Opening the office…'}</div>);
+        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '18px', color: TEXT, fontFamily: MONO, fontSize: '0.78rem' }}>{state.step || 'Opening the office…'}</div>);
     }
     if (state.status === 'none') {
-        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '18px', color: SILVER, fontSize: '0.82rem', lineHeight: 1.6 }}>No commissioned leagues found on this account. Sleeper marks commissioners on each league — when one of your leagues carries your gavel, the office opens by itself.</div>);
+        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '18px', color: TEXT, fontSize: '0.82rem', lineHeight: 1.6 }}>No commissioned leagues found on this account. Sleeper marks commissioners on each league — when one of your leagues carries your gavel, the office opens by itself.</div>);
     }
     if (state.status === 'error' || state.status === 'unavailable') {
-        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '18px', color: SILVER, fontSize: '0.82rem' }}>The office couldn't load — league data was unavailable. Try again from the hub.</div>);
+        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '18px', color: TEXT, fontSize: '0.82rem' }}>The office couldn't load — league data was unavailable. Try again from the hub.</div>);
     }
 
     const Net = window.WrCommishCoefficientPanel, Prog = window.WrCommishProgrammePanel;
     const People = window.WrCommishPeoplePanel, Ops = window.WrCommishOpsPanel;
-    const missing = (name) => <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '16px', color: SILVER, fontSize: '0.78rem', fontFamily: MONO }}>{name} module not loaded.</div>;
+    const missing = (name) => <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '16px', color: TEXT, fontSize: '0.78rem', fontFamily: MONO }}>{name} module not loaded.</div>;
 
     return shell(
         <React.Fragment>
