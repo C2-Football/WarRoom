@@ -82,7 +82,7 @@ function WrCommishGenesisPanel({ readiness, onToggle }) {
         : null;
 
     return (
-        <Section title="Season Genesis" meta={meta}>
+        <Section title="Season Setup" meta={meta}>
             <div style={{ color: SILVER, fontSize: '0.76rem', fontStyle: 'italic', lineHeight: 1.5, marginBottom: '10px' }}>
                 Opening-Day readiness — the six weeks before the draft, on one wall.
             </div>

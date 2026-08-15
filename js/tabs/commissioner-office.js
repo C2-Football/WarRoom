@@ -530,7 +530,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         { key: 'operations', label: 'Operations', hub: 'ops' },
         { key: 'programmes', label: 'Programmes', hub: 'programmes' },
         { key: 'rulelab', label: 'Rule Lab', hub: 'rulelab' },
-        { key: 'genesis', label: 'Genesis', hub: 'genesis' },
+        { key: 'genesis', label: 'Season Setup', hub: 'genesis' },
         { key: 'bylaws', label: 'Bylaws + Dues', hub: 'governance' },
     ];
     const tagFor = (name) => String(name || '').replace(/[^A-Za-z0-9 ]/g, '').split(/\s+/).filter(Boolean).slice(0, 3).map(w => w[0]).join('').toUpperCase().slice(0, 3) || '???';
@@ -731,7 +731,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         const noCon = managedLeagues.filter(l => !(state.constitutions || {})[String(l.league_id || l.id)]).length;
         const avg = (genesis || []).length ? Math.round(genesis.reduce((s, g) => s + g.pct, 0) / genesis.length) : 0;
         return [
-            { group: 'OPEN THE SEASON', hub: 'genesis', name: 'Genesis', badge: badge('genesis'), stat: avg + '%', unit: 'AVG READINESS', status: lowest ? ('Lowest: ' + lowest.leagueName + ' ' + lowest.pct + '% — ' + (lowest.blockers?.[0] || 'blockers open') + '.') : 'Readiness pending.', dormant: false },
+            { group: 'OPEN THE SEASON', hub: 'genesis', name: 'Season Setup', badge: badge('genesis'), stat: avg + '%', unit: 'AVG READINESS', status: lowest ? ('Lowest: ' + lowest.leagueName + ' ' + lowest.pct + '% — ' + (lowest.blockers?.[0] || 'blockers open') + '.') : 'Readiness pending.', dormant: false },
             { group: 'OPEN THE SEASON', hub: 'ops', name: 'Operations', badge: badge('ops'), stat: String(driftN), unit: 'UNRATIFIED EDITS', status: (state.conflicts.length ? state.conflicts.length + ' calendar conflict' + (state.conflicts.length === 1 ? '' : 's') : 'No collisions') + ' · ' + driftN + ' settings change' + (driftN === 1 ? '' : 's'), dormant: false },
             { group: 'OPEN THE SEASON', hub: 'rulelab', name: 'Rule Lab', badge: null, stat: ruleLab.season ? String(ruleLab.season) : '—', unit: 'REPLAY SEASON', status: 'Test a scoring change against a finished season.', dormant: false },
             { group: 'HOLD THE ROOM', hub: 'people', name: 'People', badge: badge('people'), stat: String(darkCount), unit: 'FLAGGED DARK', status: ((state.renewal?.summary?.atRisk ?? 0) + ' renewals at risk · ' + state.seats.length + ' seat' + (state.seats.length === 1 ? '' : 's') + ' open'), dormant: false },
@@ -843,7 +843,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     // desks wants the whole map visible. The sidebar carries the same group
     // vocabulary as the Command view's desk cards, so the two teach each other.
     const HUB_GROUPS = [
-        { name: 'OPEN THE SEASON', hubs: [['genesis', 'Genesis'], ['ops', 'Operations'], ['rulelab', 'Rule Lab']] },
+        { name: 'OPEN THE SEASON', hubs: [['genesis', 'Season Setup'], ['ops', 'Operations'], ['rulelab', 'Rule Lab']] },
         { name: 'HOLD THE ROOM', hubs: [['people', 'People'], ['governance', 'Bylaws & Dues']] },
         { name: 'THE BROADCAST', hubs: [['network', 'The Coefficient'], ['programmes', 'Programmes']] },
     ];
@@ -1035,8 +1035,8 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                     />
                 ) : missing('Rule Lab')) : null}
                 {tab === 'genesis' ? (window.WrCommishGenesisPanel ? (
-                    genesis ? <window.WrCommishGenesisPanel readiness={genesis} onToggle={onGenesisToggle} /> : missing('Season Genesis')
-                ) : missing('Season Genesis')) : null}
+                    genesis ? <window.WrCommishGenesisPanel readiness={genesis} onToggle={onGenesisToggle} /> : missing('Season Setup')
+                ) : missing('Season Setup')) : null}
                 {tab === 'governance' ? (window.WrCommishGovernancePanel ? (
                     <window.WrCommishGovernancePanel
                         leagues={state.mine} graph={state.graph}
