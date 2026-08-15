@@ -216,16 +216,19 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
             )}
 
             {/* Position relevance — the league's shape before and after.
-                Always the full set the engine returns (already filtered
-                to positions that actually carry share, sorted biggest
-                mover first) — never trimmed to "significant" movers
-                only, so a position holding steady is still on screen
-                for comparison, not just the ones that shifted. */}
+                Always the full set the engine returns (already filtered to
+                positions that actually carry share) — never trimmed to
+                "significant" movers only, so a position holding steady is
+                still on screen for comparison, not just the ones that
+                shifted. Ordered by overall share (today's real basePct, not
+                the delta) so the row order is stable and reads top-to-bottom
+                by importance — it doesn't reshuffle every time you tweak a
+                different stat's proposed value. */}
             {(result.positionShare || []).length ? (
                 <React.Fragment>
                     <div style={{ ...microHdr, marginBottom: '6px' }}>Position relevance · share of all started points</div>
                     <div style={{ marginBottom: '10px' }}>
-                        {(result.positionShare || []).map(p => (
+                        {(result.positionShare || []).slice().sort((a, b) => b.basePct - a.basePct || b.propPct - a.propPct).map(p => (
                             <div key={p.pos} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 130px', gap: '10px', alignItems: 'center', padding: '4px 0' }}>
                                 <span style={{ ...microHdr }}>{p.pos}</span>
                                 <div style={{ position: 'relative', height: '6px', background: SURF2, borderRadius: '3px', overflow: 'hidden' }}>
@@ -488,6 +491,22 @@ function WrCommishRuleLabPanel({
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Master reset — one click back to current settings, scoring AND
+                roster structure both. The per-section "Clear" buttons below
+                stay (they're the scoped, in-context undo for the section
+                you're looking at); this is the "start over entirely" escape
+                hatch, visible only when there's actually something staged. */}
+            {(propKeys.length > 0 || rp) ? (
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button onClick={() => {
+                        if (typeof onProposalChange === 'function') onProposalChange({});
+                        if (typeof onRosterProposalChange === 'function') onRosterProposalChange(null);
+                    }} style={chipBtn(false, { color: SILVER })}>
+                        ↺ Reset to current settings
+                    </button>
+                </div>
+            ) : null}
+
             {/* League scope — you amend ONE constitution at a time. Scoping is
                 also what makes the full editor truthful: only a single league
                 has a real "from" value and a real key set. */}
