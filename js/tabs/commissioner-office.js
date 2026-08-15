@@ -673,7 +673,8 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         if (state.status !== 'ready') return null;
         const readiness = (genesis || []).map(g => ({ leagueId: g.leagueId, tag: tagFor(g.leagueName), pct: g.pct }));
         const avg = readiness.length ? Math.round(readiness.reduce((s, r) => s + r.pct, 0) / readiness.length) : 0;
-        const dated = (state.calendar.events || []).filter(e => e.ts && e.ts >= Date.now()).sort((a, b) => a.ts - b.ts)[0];
+        const upcoming = (state.calendar.events || []).filter(e => e.ts && e.ts >= Date.now()).sort((a, b) => a.ts - b.ts).slice(0, 4);
+        const dated = upcoming[0];
         return {
             leagues: managedLeagues.length,
             humans: Object.keys(state.graph.people || {}).length,
@@ -686,6 +687,13 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                 sub: dated.leagueName + ' ' + dated.type + ' · in ' + Math.max(0, Math.round((dated.ts - Date.now()) / 86400000)) + 'd',
                 ts: dated.ts,
             } : null,
+            // The next few dated events after the very next one — a short
+            // lookahead strip so "Next date" reads as a runway, not just a
+            // single point. Same upcoming/sorted list, just not re-fetched.
+            upcoming: upcoming.slice(1).map(e => ({
+                label: new Date(e.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase(),
+                leagueName: e.leagueName, type: e.type,
+            })),
         };
     }, [state.status, queue, genesis]);
 

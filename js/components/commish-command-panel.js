@@ -167,6 +167,14 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
     const ndLong = nd && String(nd.label || '').length > 9;
     // Zero open items printed in red is a lie — an empty desk is a good day.
     const needsColor = (needs.now || 0) > 0 ? BAD : GOOD;
+    // Every Band-1 tile now carries a small visual under its number, same
+    // idiom as the readiness bars below (a thin fill bar / per-league strip)
+    // — never a fabricated trend, always a proportion of a real total the
+    // KPI already computed one line up.
+    const crossoverPct = K.humans ? Math.round((100 * (K.crossover || 0)) / K.humans) : 0;
+    const upcoming = Array.isArray(K.upcoming) ? K.upcoming.slice(0, 3) : [];
+    const seatLeagues = gLeagues.filter(l => l.openSeats != null);
+    const maxSeats = Math.max(1, ...seatLeagues.map(l => l.openSeats || 0));
 
     const band1 = (
         <div style={{ background: SURF, border: '1px solid ' + LINE, borderRadius: '10px', overflow: 'hidden' }}>
@@ -179,12 +187,27 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                     value: K.leagues != null ? K.leagues : '—',
                     sub: (K.humans != null ? K.humans : '—') + ' humans · ' + (K.crossover != null ? K.crossover : 0) + ' in two of yours',
                     onClick: () => gridRef.current && gridRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+                    extra: K.humans ? (
+                        <div>
+                            <div style={{ height: '6px', background: SURF, borderRadius: '4px', overflow: 'hidden' }}>
+                                <i style={{ display: 'block', height: '100%', width: crossoverPct + '%', background: ACCENT }} />
+                            </div>
+                            <div style={{ ...T.chip, color: MUTED, marginTop: '4px' }}>{crossoverPct}% OVERLAP ACROSS LEAGUES</div>
+                        </div>
+                    ) : null,
                 })}
                 {renderTile({
                     id: 't2', label: 'Needs you now', accent: needsColor,
                     value: needs.now || 0, valueColor: needsColor,
                     sub: (needs.soon || 0) + ' this week · ' + (needs.backlog || 0) + ' backlog · ' + needsTotal + ' total',
                     onClick: () => emit({ tier: 'NOW' }),
+                    extra: needsTotal ? (
+                        <div style={{ height: '6px', background: SURF, borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
+                            {needs.now ? <i style={{ display: 'block', height: '100%', width: Math.round((100 * needs.now) / needsTotal) + '%', background: BAD }} /> : null}
+                            {needs.soon ? <i style={{ display: 'block', height: '100%', width: Math.round((100 * needs.soon) / needsTotal) + '%', background: WARN }} /> : null}
+                            {needs.backlog ? <i style={{ display: 'block', height: '100%', width: Math.round((100 * needs.backlog) / needsTotal) + '%', background: MUTED }} /> : null}
+                        </div>
+                    ) : null,
                 })}
                 {renderTile({
                     id: 't3', label: 'Opening day', accent: WARN,
@@ -211,6 +234,13 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                     valueColor: nd ? WHITE : WARN,
                     sub: nd ? nd.sub : 'No draft, no deadline, nothing on the board.',
                     onClick: () => openHub('ops', null),
+                    extra: upcoming.length ? (
+                        <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                            {upcoming.map((u, i) => (
+                                <span key={i} title={u.leagueName + ' ' + u.type} style={{ ...T.chip, color: MUTED, border: '1px solid ' + LINE, borderRadius: '4px', padding: '2px 6px' }}>{u.label}</span>
+                            ))}
+                        </div>
+                    ) : null,
                 })}
                 {renderTile({
                     id: 't5', label: 'Open seats', accent: (K.openSeats || 0) > 0 ? BAD : GOOD,
@@ -218,6 +248,18 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                     valueColor: (K.openSeats || 0) > 0 ? BAD : GOOD,
                     sub: (K.openSeats || 0) > 0 ? 'Vacant roster' + (K.openSeats === 1 ? '' : 's') + ' across your leagues.' : 'Every roster has an owner.',
                     onClick: () => openHub('people', null),
+                    extra: seatLeagues.length ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(' + seatLeagues.length + ', 1fr)', gap: '2px' }}>
+                            {seatLeagues.map((l, i) => (
+                                <div key={l.leagueId || i}>
+                                    <div style={{ height: '6px', background: SURF, borderRadius: '4px', overflow: 'hidden' }}>
+                                        <i style={{ display: 'block', height: '100%', width: Math.round((100 * (l.openSeats || 0)) / maxSeats) + '%', background: (l.openSeats || 0) > 0 ? BAD : GOOD }} />
+                                    </div>
+                                    <div style={{ ...T.chip, color: MUTED, marginTop: '4px' }}>{l.tag}</div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : null,
                 })}
             </div>
         </div>
