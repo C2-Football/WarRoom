@@ -41,6 +41,76 @@ window.AnalyticsLeagueEmbed = function AnalyticsLeagueEmbed(props) {
     });
 };
 
+// ── Round-by-round draft position mix (multi-season) ────────────────────────
+// Walks the league's Sleeper previous_league_id chain — the same convention
+// js/shared/league-history.js (window.WrHistory) and commissioner-office.js's
+// rlChains already use to reach a league's prior seasons — and pulls real
+// per-pick round+position data straight from Sleeper's draft-picks endpoint.
+// pick.metadata.position already carries the drafted player's position, so
+// no playersData cross-reference is needed. Cached in localStorage (6h TTL,
+// mirrors WrHistory's cache) since a full walk is a handful of network calls.
+const DRAFT_POSMIX_CACHE_TTL = 6 * 60 * 60 * 1000;
+const DRAFT_POSMIX_CHAIN_MAX = 15;
+function draftPosMixCacheKey(leagueId) { return 'wr_draft_posmix_' + (leagueId || 'default'); }
+async function draftPosMixFetchJson(url) {
+    try { const r = await fetch(url); return r.ok ? r.json() : null; } catch (e) { return null; }
+}
+async function draftPosMixWalkChain(startId) {
+    const out = [];
+    let lid = startId;
+    const seen = new Set();
+    while (lid && lid !== '0' && out.length < DRAFT_POSMIX_CHAIN_MAX && !seen.has(lid)) {
+        seen.add(lid);
+        const info = (typeof window.fetchLeagueInfo === 'function')
+            ? await window.fetchLeagueInfo(lid).catch(() => null)
+            : await draftPosMixFetchJson('https://api.sleeper.app/v1/league/' + lid);
+        if (!info) break;
+        out.push({ leagueId: lid, season: parseInt(info.season) || null });
+        lid = info.previous_league_id;
+    }
+    return out;
+}
+// Aggregates every COMPLETED draft's picks, round by round, position by
+// position, across the whole reachable chain. A season with no completed
+// draft (mid pre-draft, or a chain hop that 404s) is simply skipped — the
+// season count reported back is only seasons that actually contributed picks,
+// so the UI never silently overstates its own coverage.
+async function buildDraftPosMix(startLeagueId) {
+    if (!startLeagueId) return null;
+    const chain = await draftPosMixWalkChain(startLeagueId);
+    if (!chain.length) return null;
+    const roundCounts = {};   // { round: { POS: count } }
+    const roundTotals = {};   // { round: totalPicksThatRound }
+    const seasonsCounted = [];
+    await Promise.all(chain.map(async ({ leagueId, season }) => {
+        const drafts = await draftPosMixFetchJson('https://api.sleeper.app/v1/league/' + leagueId + '/drafts');
+        const completed = (Array.isArray(drafts) ? drafts : []).filter(d => d && d.status === 'complete' && d.draft_id);
+        if (!completed.length) return;
+        let sawPick = false;
+        await Promise.all(completed.map(async draft => {
+            const picks = await draftPosMixFetchJson('https://api.sleeper.app/v1/draft/' + draft.draft_id + '/picks');
+            (Array.isArray(picks) ? picks : []).forEach(p => {
+                const rd = Number(p && p.round);
+                if (!rd || rd < 1) return;
+                const pos = (p.metadata && p.metadata.position) ? String(p.metadata.position).toUpperCase() : 'UNK';
+                sawPick = true;
+                if (!roundCounts[rd]) roundCounts[rd] = {};
+                roundCounts[rd][pos] = (roundCounts[rd][pos] || 0) + 1;
+                roundTotals[rd] = (roundTotals[rd] || 0) + 1;
+            });
+        }));
+        if (sawPick && season) seasonsCounted.push(season);
+    }));
+    if (!seasonsCounted.length) return null;
+    return {
+        fetchedAt: Date.now(),
+        leagueId: startLeagueId,
+        roundCounts,
+        roundTotals,
+        seasons: seasonsCounted.sort((a, b) => b - a),
+    };
+}
+
 function AnalyticsPanel({
   analyticsData,
   analyticsTab,
@@ -126,6 +196,11 @@ function AnalyticsPanel({
     const pctFmt = (v) => Math.round((v || 0) * 100) + '%';
     const numFmt = (v) => v != null ? (typeof v === 'number' ? v.toLocaleString() : v) : '\u2014';
     const posLabel = pos => window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos);
+    // Fixed position palette shared by every draft-round visual on this tab (Round
+    // Conversion tape, Winner Formula bars, Round-by-Round Position Mix below):
+    // same position = same color everywhere, so the eye doesn't have to re-learn
+    // the key per panel. Teal is reserved for YOU elsewhere on this tab.
+    const POS_COLOR = { RB: 'var(--gold)', WR: '#4e8ecd', QB: 'var(--k-9b8afb,#9b8afb)', TE: 'var(--good)', DL: '#e07a5f', LB: '#c77dff', DB: '#5fb0c4', K: 'rgba(189,184,173,0.45)', DEF: 'rgba(189,184,173,0.45)', UNK: 'rgba(189,184,173,0.3)' };
     // showAlerts block removed — alerts now on Brief tab
 
     // ── ANALYST VIEW: full analytics terminal ──
@@ -168,6 +243,39 @@ function AnalyticsPanel({
             }).catch(() => {});
         }
         return () => window.removeEventListener('wr_history_loaded', onLoaded);
+    }, [historyLeagueId]);
+    // Round-by-Round Position Mix (Draft sub-tab) — same previous_league_id chain
+    // walk as WrHistory above, but pulling real per-pick round+position data
+    // instead of season records. Cached separately (wr_draft_posmix_<id>) since
+    // it's a different shape; see buildDraftPosMix at module scope for the walk.
+    const [draftPosMix, setDraftPosMix] = React.useState({ status: 'loading', leagueId: null });
+    React.useEffect(() => {
+        if (!historyLeagueId) return;
+        let alive = true;
+        setDraftPosMix(prev => (prev.leagueId === historyLeagueId ? prev : { status: 'loading', leagueId: historyLeagueId }));
+        (async () => {
+            try {
+                const cacheKey = draftPosMixCacheKey(historyLeagueId);
+                let cached = null;
+                try { const raw = localStorage.getItem(cacheKey); cached = raw ? JSON.parse(raw) : null; } catch (e) { /* corrupt cache — refetch */ }
+                if (cached && Date.now() - cached.fetchedAt < DRAFT_POSMIX_CACHE_TTL) {
+                    if (alive) setDraftPosMix({ status: 'ready', leagueId: historyLeagueId, data: cached });
+                    return;
+                }
+                const result = await buildDraftPosMix(historyLeagueId);
+                if (!alive) return;
+                if (result) {
+                    try { localStorage.setItem(cacheKey, JSON.stringify(result)); } catch (e) { /* quota — in-memory only this session */ }
+                    setDraftPosMix({ status: 'ready', leagueId: historyLeagueId, data: result });
+                } else {
+                    setDraftPosMix({ status: 'empty', leagueId: historyLeagueId });
+                }
+            } catch (e) {
+                if (window.wrLog) window.wrLog('analytics.draftPosMix', e);
+                if (alive) setDraftPosMix({ status: 'empty', leagueId: historyLeagueId });
+            }
+        })();
+        return () => { alive = false; };
     }, [historyLeagueId]);
     const leagueRosters = currentLeague?.rosters || _SS.rosters || [];
     const leagueUsers = currentLeague?.users || window.S?.leagueUsers || [];
@@ -1197,8 +1305,20 @@ function AnalyticsPanel({
             // panels further down are a separate, still-unbuilt feature (they need actual per-pick
             // hit-rate history across seasons, which nothing in the app computes yet) \u2014 that's
             // still correctly gated behind hasDraftOutcomeHistory below.
+            // The same archive (js/draft/state.js buildDraftRecap, wr_draft_recap_archive_<id>)
+            // also holds MOCK draft recaps \u2014 a user can run a Mock Draft Center session
+            // (js/draft/command-center.js ModeSelector: solo/manual/scenario/ghost) and hit Save,
+            // and nothing used to stop that mock grade from being read here as if it were the
+            // league's real outcome. Real drafts (Follow Live Draft, Sleeper- or MFL-synced) are
+            // the ONLY path that ever sets mode:'live-sync' (command-center.js forcedMode); every
+            // Mock Draft Center run uses one of MOCK_DRAFT_MODES instead. Filter those out here
+            // rather than tag a new field at save time \u2014 mode already carries this signal.
+            // Recaps saved before this field existed have no mode at all; treat missing/unknown
+            // as trusted-real (mock is the newer, rarer path) so old history isn't hidden.
+            const MOCK_DRAFT_MODES = new Set(['solo', 'manual', 'ghost', 'scenario']);
+            const isRealDraftRecap = r => !!r && !MOCK_DRAFT_MODES.has(r.mode);
             const latestRecap = (window.App?.PostDraft?.getRecapArchive && leagueId)
-                ? (window.App.PostDraft.getRecapArchive(leagueId)[0] || null)
+                ? (window.App.PostDraft.getRecapArchive(leagueId).find(isRealDraftRecap) || null)
                 : null;
             const historicalProofItems = latestRecap ? [
                 {
@@ -1212,9 +1332,8 @@ function AnalyticsPanel({
                 { label: 'Draft Outcomes', value: 'Pending', detail: 'No draft recap on record for this league yet; reads use slot value only.', tone: 'warn', color: warnColor },
             ];
             // \u2500\u2500 Draft intel: Round-Conversion tape + Winner-Formula DNA (full-width) \u2500\u2500
-            // Fixed position palette: same position = same color across every round (the scannable
-            // primitive). Teal is reserved for YOU, so champions use a gold-anchored multi-hue set.
-            const POS_COLOR = { RB: 'var(--gold)', WR: '#4e8ecd', QB: 'var(--k-9b8afb,#9b8afb)', TE: 'var(--good)', DL: '#e07a5f', LB: '#c77dff', DB: '#5fb0c4', K: 'rgba(189,184,173,0.45)', DEF: 'rgba(189,184,173,0.45)', UNK: 'rgba(189,184,173,0.3)' };
+            // POS_COLOR now lives at component scope (shared with the Round-by-Round
+            // Position Mix panel below) \u2014 same position, same color, everywhere on this tab.
             // One lane per round on a fixed 0-100% axis. Never filtered: zero-pick rounds still render.
             const roundTape = rounds.map(rd => {
                 const youPct = Math.round((myHitRates[rd] || 0) * 100);
@@ -1594,6 +1713,73 @@ function AnalyticsPanel({
                     </div>
                 )}
             </React.Fragment>
+            );
+        })()}
+
+        {/* ═══ ROUND-BY-ROUND POSITION MIX (multi-season Sleeper history) ═══
+            Independent of the d.draft-backed panels above (own fetch, own cache —
+            see buildDraftPosMix at module scope), so it renders whenever the
+            league's Sleeper history reaches at least one completed draft, even
+            if the local per-user hit-rate math above has nothing to show yet. */}
+        {analyticsViewTab === 'draft' && (() => {
+            if (draftPosMix.status === 'empty') return null;
+            if (draftPosMix.status === 'loading') {
+                return (
+                    <div className="analytics-lab-grid" style={{ gridTemplateColumns: '1fr' }}>
+                        <div className="analytics-lab-card">
+                            <span>Draft DNA</span>
+                            <strong>Round-by-Round Position Mix</strong>
+                            <p style={{ color: 'var(--silver)', opacity: 0.6 }}>Loading this league's Sleeper draft history…</p>
+                        </div>
+                    </div>
+                );
+            }
+            const mix = draftPosMix.data;
+            const roundNums = Object.keys(mix?.roundTotals || {}).map(Number).sort((a, b) => a - b);
+            if (!mix || !roundNums.length) return null;
+            const seasonCount = mix.seasons.length;
+            const seasonSpan = seasonCount > 1 ? (mix.seasons[seasonCount - 1] + '–' + mix.seasons[0]) : String(mix.seasons[0]);
+            return (
+                <div className="analytics-lab-grid" style={{ gridTemplateColumns: '1fr' }}>
+                    <div className="analytics-lab-card">
+                        <span>Draft DNA</span>
+                        <strong>Round-by-Round Position Mix</strong>
+                        <p style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.75, marginTop: '-4px', marginBottom: '12px', lineHeight: 1.5 }}>
+                            What every team drafted at each position, round by round, pooled across every season this league's Sleeper history reaches — <b style={{ color: 'var(--gold)' }}>{seasonCount} season{seasonCount === 1 ? '' : 's'}</b> ({seasonSpan}).
+                        </p>
+                        {roundNums.map(rd => {
+                            const total = mix.roundTotals[rd] || 0;
+                            const entries = Object.entries(mix.roundCounts[rd] || {}).sort((a, b) => b[1] - a[1]);
+                            return (
+                                <div key={rd} style={{ display: 'grid', gridTemplateColumns: _phone ? '54px minmax(0,1fr)' : '74px minmax(0,1fr)', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
+                                    <div>
+                                        <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.95rem', color: 'var(--gold)' }}>R{rd}</div>
+                                        <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>n={total}</div>
+                                    </div>
+                                    <div style={{ display: 'flex', height: '24px', borderRadius: '6px', overflow: 'hidden' }}>
+                                        {entries.map(([pos, cnt]) => {
+                                            const pct = total ? cnt / total : 0;
+                                            return (
+                                                <span
+                                                    key={pos}
+                                                    title={posLabel(pos) + ' ' + pctFmt(pct) + ' (' + cnt + ' picks)'}
+                                                    style={{ width: (pct * 100) + '%', background: POS_COLOR[pos] || POS_COLOR.UNK, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-micro)', color: '#0c0c0f', overflow: 'hidden', whiteSpace: 'nowrap' }}
+                                                >
+                                                    {pct >= 0.1 ? posLabel(pos) + ' ' + pctFmt(pct) : ''}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 14px', marginTop: '10px', fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>
+                            {Object.keys(POS_COLOR).filter(p => p !== 'UNK').map(p => (
+                                <span key={p}><i style={{ display: 'inline-block', width: '10px', height: '10px', background: POS_COLOR[p], borderRadius: '2px', marginRight: '4px', verticalAlign: 'middle' }} />{posLabel(p)}</span>
+                            ))}
+                        </div>
+                    </div>
+                </div>
             );
         })()}
 
