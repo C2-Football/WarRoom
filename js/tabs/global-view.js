@@ -1438,6 +1438,13 @@ function empirePercent(part, total) {
     return total > 0 ? Math.round((part / total) * 100) : 0;
 }
 
+// Same 0-100 healthScore band League Map's cellColor() already uses — kept
+// identical so a team doesn't read "healthy" in one surface and "shaky" in another.
+function empireHealthColor(hp) {
+    if (hp == null) return 'var(--silver)';
+    return hp >= 90 ? 'var(--gold)' : hp >= 80 ? 'var(--good)' : hp >= 70 ? 'var(--warn)' : 'var(--bad)';
+}
+
 function EmpireStyles() {
     return (
         <style>{`
@@ -1597,6 +1604,10 @@ function EmpireStyles() {
             .empire-league-card strong { display: block; color: var(--white, var(--k-ffffff, #ffffff)); font-size: var(--text-body, 1rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .empire-league-card span, .empire-league-card em { display: block; color: var(--ov-9, rgba(255,255,255,0.52)); font-size: var(--text-label, 0.75rem); font-style: normal; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .empire-league-card b { color: var(--tone, var(--k-d4af37, #d4af37)); font-family: var(--font-mono); font-size: var(--text-label, 0.75rem); white-space: nowrap; }
+            .empire-health-mini { display: flex; align-items: center; justify-content: flex-end; gap: 5px; margin-top: 5px; }
+            .empire-health-track { width: 42px; height: 4px; border-radius: 2px; background: var(--ov-4, rgba(255,255,255,0.1)); overflow: hidden; flex: none; }
+            .empire-health-fill { height: 100%; border-radius: 2px; }
+            .empire-health-num { font-family: var(--font-mono); font-size: var(--text-micro); white-space: nowrap; }
             .empire-quality-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-top: 12px; }
             .empire-quality { border: 1px solid var(--ov-4, rgba(255,255,255,0.065)); background: rgba(0,0,0,0.18); border-radius: var(--card-radius-sm); padding: 9px; border-left: 3px solid var(--tone, var(--k-d4af37, #d4af37)); min-width: 0; }
             .empire-quality span { display: block; color: var(--ov-9, rgba(255,255,255,0.5)); font-size: var(--text-micro); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
@@ -3072,10 +3083,21 @@ const renderScoutDetail = () => {
                                             <button key={province.id} className="empire-league-card" style={{ '--tone': province.tierColor }} type="button" onClick={() => setDetail({ type: 'league', leagueId: province.id })}>
                                                 <div>
                                                     <strong>{province.name}</strong>
-                                                    <span>{province.preDraftEmpty ? 'Pre-Draft' : province.tier} - {province.recordLabel} - HP {province.healthScore ?? 'No read'}</span>
+                                                    <span>
+                                                        {province.preDraftEmpty ? 'Pre-Draft' : province.tier} - {province.recordLabel} - HP{' '}
+                                                        <b style={{ color: empireHealthColor(province.healthScore) }}>{province.healthScore ?? 'No read'}</b>
+                                                    </span>
                                                     <em>{province.pickCount} picks - {province.premiumPickCount} premium - #{province.powerRank || '-'}/{province.teams || '-'}</em>
                                                 </div>
-                                                <b>{province.totalDHQ > 0 ? empireCompact(province.totalDHQ) : (province.preDraftEmpty ? 'Pre-Draft' : 'No DHQ')}</b>
+                                                <div style={{ textAlign: 'right' }}>
+                                                    <b>{province.totalDHQ > 0 ? empireCompact(province.totalDHQ) : (province.preDraftEmpty ? 'Pre-Draft' : 'No DHQ')}</b>
+                                                    {!province.preDraftEmpty && province.healthScore != null ? (
+                                                        <div className="empire-health-mini">
+                                                            <div className="empire-health-track"><div className="empire-health-fill" style={{ width: province.healthScore + '%', background: empireHealthColor(province.healthScore) }} /></div>
+                                                            <span className="empire-health-num" style={{ color: empireHealthColor(province.healthScore) }}>{province.healthScore}</span>
+                                                        </div>
+                                                    ) : null}
+                                                </div>
                                             </button>
                                         )) : <div className="empire-empty"><strong>No leagues</strong>Reset filters or check roster sync.</div>}
                                 </div>
