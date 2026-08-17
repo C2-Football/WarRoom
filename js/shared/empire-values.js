@@ -135,6 +135,13 @@
             meta.push({ id: lid, name: l.name || 'League', format: fmt, teams, priced: !!board });
             if (!board) { unpriced.push(lid); return; }
             const own = ownershipIn(l, opts.myUserId);
+            // Pre-draft (or a league between seasons with rosters wiped) has
+            // nobody rostered at all — every player would trivially read as
+            // "still a free agent" against it, which is a fact of the league
+            // not having drafted yet, not a real cross-league arbitrage read.
+            // Skip marking it rather than manufacture a spread against an
+            // empty book.
+            if (!own.rostered.size) { unpriced.push(lid); return; }
 
             // Re-anchor onto the common scale using the top-N skill mean.
             const skillVals = [];

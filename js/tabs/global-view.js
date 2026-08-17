@@ -1501,9 +1501,9 @@ function EmpireStyles() {
             .empire-live { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-micro); font-weight: 800; letter-spacing: 0.12em; color: var(--good); text-transform: uppercase; }
             .empire-live::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--good); animation: empire-pulse 1.8s infinite; }
             @keyframes empire-pulse { 0% { box-shadow: 0 0 0 0 rgba(46,204,113,0.5); } 70% { box-shadow: 0 0 0 6px rgba(46,204,113,0); } 100% { box-shadow: 0 0 0 0 rgba(46,204,113,0); } }
-            .empire-wire { overflow: hidden; white-space: nowrap; min-height: 28px; margin-bottom: 12px; background: rgba(8,8,12,0.94); border: 1px solid var(--ov-5, rgba(255,255,255,0.09)); border-radius: var(--card-radius-sm); padding: 5px 0; display: flex; align-items: center; position: relative; z-index: 1; }
-            .empire-wire-tag { flex-shrink: 0; padding: 0 14px; font-size: var(--text-micro); font-weight: 900; letter-spacing: 0.14em; color: var(--gold); text-transform: uppercase; border-right: 1px solid var(--ov-4, rgba(255,255,255,0.08)); }
-            .empire-wire-track { display: inline-block; white-space: nowrap; animation: empire-wire-scroll 48s linear infinite; }
+            .empire-wire { overflow: hidden; white-space: nowrap; min-height: 28px; margin-top: 18px; background: rgba(8,8,12,0.94); border: 1px solid var(--ov-5, rgba(255,255,255,0.09)); border-radius: var(--card-radius-sm); padding: 5px 0; display: flex; align-items: center; position: relative; z-index: 1; }
+            .empire-wire-tag { position: relative; z-index: 2; flex-shrink: 0; padding: 0 14px; font-size: var(--text-micro); font-weight: 900; letter-spacing: 0.14em; color: var(--gold); text-transform: uppercase; background: rgba(8,8,12,0.98); border-right: 1px solid var(--ov-4, rgba(255,255,255,0.08)); }
+            .empire-wire-track { position: relative; z-index: 1; display: inline-block; white-space: nowrap; animation: empire-wire-scroll 48s linear infinite; }
             .empire-wire:hover .empire-wire-track { animation-play-state: paused; }
             .empire-wire-item { display: inline-block; padding: 0 22px; font-size: var(--text-label, 0.75rem); color: var(--ov-9, rgba(255,255,255,0.62)); }
             .empire-wire-item::before { content: '\\25C6'; color: var(--acc-line3, rgba(212,175,55,0.5)); margin-right: 22px; font-size: 0.6rem; vertical-align: middle; }
@@ -2860,8 +2860,7 @@ const renderScoutDetail = () => {
                         <span>{model.totals.leagues} leagues · asset allocation · exposure · pick capital</span>
                     </div>
                     <span className="empire-live" style={{ marginLeft: 12 }}>Live</span>
-                    <button className="empire-action" type="button" style={{ marginLeft: 'auto', borderColor: 'rgba(155,138,251,0.4)', color: 'var(--purple)', background: 'rgba(155,138,251,0.08)' }} onClick={() => setDetail({ type: 'moves' })}>⚡ Empire Moves{moves.length ? ' · ' + moves.length : ''}</button>
-                    <div className="empire-user">{userName}</div>
+                    <div className="empire-user" style={{ marginLeft: 'auto' }}>{userName}</div>
                 </div>
                 <div className="empire-kpis" data-testid="empire-command-strip">
                     {/* Command Bridge KPI strip — empire-wide overview (mockup contract), with
@@ -2872,15 +2871,6 @@ const renderScoutDetail = () => {
             </header>
 
             <main className="empire-shell">
-                {wireItems.length ? (
-                    <div className="empire-wire" aria-label="Empire Wire">
-                        <span className="empire-wire-tag">Empire Wire</span>
-                        <div className="empire-wire-track">
-                            {wireItems.map((w, i) => <span key={'a' + i} className="empire-wire-item">{w}</span>)}
-                            {wireItems.map((w, i) => <span key={'b' + i} className="empire-wire-item">{w}</span>)}
-                        </div>
-                    </div>
-                ) : null}
                 <div className="empire-viewbar" aria-label="Empire portfolio views">
                     <span className="empire-filter-label">View</span>
                     {lensButton('All', {}, 'var(--gold)')}
@@ -3149,6 +3139,15 @@ const renderScoutDetail = () => {
                         </section>
                     </>
                 )}
+                {wireItems.length ? (
+                    <div className="empire-wire" aria-label="Empire Wire">
+                        <span className="empire-wire-tag">Empire Wire</span>
+                        <div className="empire-wire-track">
+                            {wireItems.map((w, i) => <span key={'a' + i} className="empire-wire-item">{w}</span>)}
+                            {wireItems.map((w, i) => <span key={'b' + i} className="empire-wire-item">{w}</span>)}
+                        </div>
+                    </div>
+                ) : null}
             </main>
         </div>
     );
