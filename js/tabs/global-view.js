@@ -1449,6 +1449,13 @@ function EmpireStyles() {
     return (
         <style>{`
             .empire-root { min-height: 100vh; background: var(--page-bg); color: var(--text-primary, var(--k-f4f1e8, #f4f1e8)); font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+            /* The app-wide "subdued logo" watermark (index.html body::before) is
+               position:fixed with an explicit z-index, which stacks it ABOVE
+               plain in-flow content like these panels — so even fully opaque
+               panel backgrounds couldn't block it; it was painting over them,
+               not showing through a gap. Suppress it here instead of touching
+               the global rule other tabs still use it on. */
+            body:has(.empire-root)::before { opacity: 0; }
             .empire-root.is-local-preview .empire-topbar { padding-top: 28px; min-height: 72px; }
             .empire-header { position: sticky; top: 0; z-index: 60; background: var(--surf-solid, rgb(7,7,7)); border-bottom: 1px solid var(--acc-line1, rgb(53,45,21)); box-shadow: 0 12px 32px rgb(5,5,7); }
             .empire-topbar { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 24px; border-bottom: 1px solid var(--ov-4, rgb(22,22,24)); box-sizing: border-box; }
