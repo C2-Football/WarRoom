@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 (function () {
     'use strict';
-    const { useMemo, useState } = React;
+    const { useMemo, useState, useEffect, useRef } = React;
     const h = React.createElement;
 
     const DraftRoom = window.App.TimeLeagueDraftRoom;
@@ -42,6 +42,43 @@
         return ratio >= 1.15 ? 'A' : ratio >= 1.05 ? 'B' : ratio >= 0.95 ? 'C' : ratio >= 0.85 ? 'D' : 'F';
     };
     const GRADE_PILL = { A: 'good', B: 'good', C: 'info', D: 'warn', F: 'bad' };
+
+    // ── Position Roulette reveal ceremony ────────────────────────────────
+    // The decades are actually rolled once, at league founding, by
+    // createTimeLeague -> openDraftEra (time-league-engine.js / time-league-era-rules.js);
+    // by the time this panel first mounts, league.settings.eraRules.positionDecades
+    // already holds the frozen result. This section only decides how that
+    // already-computed result gets *revealed* to the human the first time they
+    // see it — a short dealing/flip animation instead of a flat table — and
+    // remembers, per league, that the reveal already played.
+    //
+    // That "already played" flag lives in localStorage rather than on the
+    // league object itself: normalizeTimeLeague (time-league-engine.js) is a
+    // strict field whitelist run on every load-from-storage, so an extra field
+    // bolted onto the league via onUpdate would be silently dropped on the next
+    // reload and the ceremony would replay anyway. localStorage sidesteps that
+    // without touching the league schema.
+    const ERA_REVEAL_STORAGE_PREFIX = 'wr-tl-era-reveal:';
+    const ERA_REVEAL_STAGGER_MS = 180; // delay between each position's deal
+    const ERA_REVEAL_SETTLE_MS = 550; // pause after the last card lands before the "rolling" chrome clears
+    function hasPlayedEraReveal(leagueId) {
+        try { return window.localStorage.getItem(ERA_REVEAL_STORAGE_PREFIX + leagueId) === '1'; } catch (err) { return true; }
+    }
+    function markEraRevealPlayed(leagueId) {
+        try { window.localStorage.setItem(ERA_REVEAL_STORAGE_PREFIX + leagueId, '1'); } catch (err) { /* private mode / quota — worst case the ceremony replays once more */ }
+    }
+    // Scoped to the ceremony only — the flat grid shown on every later visit
+    // renders none of these classes, so it is untouched by this stylesheet.
+    const ERA_CEREMONY_CSS = `
+        .tl-era-card.pending { border-color: rgba(212,175,55,0.10); background: rgba(255,255,255,0.015); }
+        .tl-era-die { display: block; margin-top: 8px; font-size: 19px; line-height: 1; animation: tlEraDieSpin 0.9s linear infinite; }
+        .tl-era-rolling-label { display: block; margin-top: 4px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); animation: tlEraRollPulse 1.1s ease-in-out infinite; }
+        .tl-era-card.landed { animation: tlEraLand .48s cubic-bezier(.22,.8,.22,1) both; }
+        .tl-era-rolling-tag { color: var(--gold); animation: tlEraRollPulse 1.1s ease-in-out infinite; }
+        @keyframes tlEraDieSpin { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(190deg) scale(1.1); } 100% { transform: rotate(360deg) scale(1); } }
+        @keyframes tlEraRollPulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+        @keyframes tlEraLand { 0% { opacity: 0; transform: scale(.82) translateY(6px) rotateX(-16deg); box-shadow: 0 0 0 rgba(212,175,55,0); } 55% { opacity: 1; transform: scale(1.05) translateY(-2px) rotateX(0deg); box-shadow: 0 0 16px rgba(212,175,55,.32); } 100% { opacity: 1; transform: scale(1) translateY(0) rotateX(0deg); box-shadow: 0 0 0 rgba(212,175,55,0); } }
+    `;
 
     /** Mirrors War Room's real opponent-intel needs analysis (js/draft/opponent-intel.js,
      * via assessTeamLocal in js/trade-calc.js) — roster composition vs. starter-slot demand,
@@ -121,6 +158,49 @@
                 .sort((l, r) => positionRank(l.position) - positionRank(r.position) || l.position.localeCompare(r.position))
                 .map((row) => ({ ...row, detail: DECADE_BY_ID.get(row.decade) ?? null, pool: poolSize.get(row.position) ?? 0 }));
         }, [available, cardPositions, eraRules]);
+
+        // Whether this league's Position Roulette reveal is a candidate for the
+        // ceremony at all (right mode, and a roll to actually show). The two
+        // lazy initializers below snapshot the localStorage check exactly once,
+        // on this component's first render, so the very first paint already
+        // shows the correct branch — no flash of a flat grid that then gets
+        // replaced by "pending" cards a tick later.
+        const eraRevealApplicable = eraRules.mode === 'position-roulette' && eraAssignments.length > 0;
+        const [ceremonyActive, setCeremonyActive] = useState(() => eraRevealApplicable && !hasPlayedEraReveal(league.leagueId));
+        // Infinity == "not running the ceremony this mount" (either not applicable,
+        // or already played before) -> the render below falls through to the
+        // original, untouched flat-grid markup. Any finite value means this mount
+        // is (or was) the one-time reveal, landing cards[0..revealIndex) so far.
+        const [revealIndex, setRevealIndex] = useState(() => (eraRevealApplicable && !hasPlayedEraReveal(league.leagueId) ? 0 : Infinity));
+        const ceremonyStartedRef = useRef(false);
+        const ceremonyTimersRef = useRef([]);
+
+        useEffect(() => {
+            if (!ceremonyActive || ceremonyStartedRef.current) return undefined;
+            ceremonyStartedRef.current = true;
+            markEraRevealPlayed(league.leagueId);
+            const count = eraAssignments.length;
+            const timers = eraAssignments.map((_, i) => setTimeout(() => {
+                setRevealIndex((n) => (Number.isFinite(n) ? Math.max(n, i + 1) : n));
+            }, ERA_REVEAL_STAGGER_MS * (i + 1)));
+            const closeTimer = setTimeout(() => setCeremonyActive(false), ERA_REVEAL_STAGGER_MS * count + ERA_REVEAL_SETTLE_MS);
+            ceremonyTimersRef.current = [...timers, closeTimer];
+            return () => { ceremonyTimersRef.current.forEach(clearTimeout); ceremonyTimersRef.current = []; };
+            // Deliberately NOT depending on eraAssignments itself: it's a fresh
+            // array every render (pool counts shift with every pick), and keying
+            // this effect on it would tear the in-flight reveal timers down and
+            // never reschedule them (ceremonyStartedRef would just no-op the
+            // restart) the moment the user did anything else, like typing in the
+            // board search, mid-ceremony.
+        }, [ceremonyActive, league.leagueId]);
+
+        function skipEraCeremony() {
+            ceremonyTimersRef.current.forEach(clearTimeout);
+            ceremonyTimersRef.current = [];
+            setRevealIndex(eraAssignments.length);
+            setCeremonyActive(false);
+        }
+
         const filtered = useMemo(() => {
             const term = query.trim().toLowerCase();
             return available.filter(({ card }) => (positionFilter === 'ALL' || card.position === positionFilter) && (!term || card.name.toLowerCase().includes(term)));
@@ -227,18 +307,41 @@
         const scoutSeasons = selectedCard ? EraRules.filterSeasonsForEra(selectedCard.seasons, eraRules, selectedCard.position) : [];
         const scoutHidden = selectedCard ? selectedCard.seasons.length - scoutSeasons.length : 0;
 
+        const eraCeremonyEngaged = Number.isFinite(revealIndex);
         const eraBanner = eraRules.mode === 'position-roulette' ? h('div', { className: 'tl-card' },
-            h('div', { className: 'tl-card-title' }, h('span', null, '🎲 Era assignment'), h('small', null, 'dealt at founding · frozen for the life of the league')),
+            h('div', { className: 'tl-card-title' },
+                h('span', null, '🎲 Era assignment'),
+                eraCeremonyEngaged && ceremonyActive
+                    ? h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+                        h('small', { className: 'tl-era-rolling-tag' }, 'dealing the eras…'),
+                        h('button', { className: 'tl-btn icon', onClick: skipEraCeremony }, 'Skip ⏭'))
+                    : h('small', null, 'dealt at founding · frozen for the life of the league')),
             eraAssignments.length === 0
                 ? h('p', { className: 'tl-empty' }, 'The wheel has not been spun — decades are dealt the moment the league is founded.')
                 : h(React.Fragment, null,
+                    eraCeremonyEngaged && h('style', null, ERA_CEREMONY_CSS),
                     h('p', { className: 'tl-hint', style: { marginBottom: 10 } }, 'Every position group draws from one decade, and one decade only. This is the hand the league was dealt — there is no re-roll.'),
-                    h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 } },
-                        eraAssignments.map((row) => h('div', { key: row.position, className: 'tl-card', style: { padding: '10px 12px' } },
-                            h('span', { className: 'tl-pill gold' }, row.position),
-                            h('strong', { style: { display: 'block', marginTop: 6, fontFamily: 'var(--font-title)', fontSize: 15 } }, row.detail?.label ?? row.decade),
-                            h('span', { className: 'tl-label' }, row.detail ? `${row.detail.from}–${row.detail.to}` : '—'),
-                            h('span', { className: `tl-pill ${row.pool === 0 ? 'bad' : 'good'}`, style: { display: 'inline-block', marginTop: 6 } }, row.pool === 0 ? 'None left' : `${row.pool} draftable`))))))
+                    h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, ...(eraCeremonyEngaged ? { perspective: '700px' } : {}) } },
+                        eraAssignments.map((row, index) => {
+                            if (!eraCeremonyEngaged) {
+                                return h('div', { key: row.position, className: 'tl-card', style: { padding: '10px 12px' } },
+                                    h('span', { className: 'tl-pill gold' }, row.position),
+                                    h('strong', { style: { display: 'block', marginTop: 6, fontFamily: 'var(--font-title)', fontSize: 15 } }, row.detail?.label ?? row.decade),
+                                    h('span', { className: 'tl-label' }, row.detail ? `${row.detail.from}–${row.detail.to}` : '—'),
+                                    h('span', { className: `tl-pill ${row.pool === 0 ? 'bad' : 'good'}`, style: { display: 'inline-block', marginTop: 6 } }, row.pool === 0 ? 'None left' : `${row.pool} draftable`));
+                            }
+                            const landed = index < revealIndex;
+                            return h('div', { key: row.position, className: `tl-card tl-era-card ${landed ? 'landed' : 'pending'}`, style: { padding: '10px 12px' } },
+                                h('span', { className: 'tl-pill gold' }, row.position),
+                                landed
+                                    ? h(React.Fragment, null,
+                                        h('strong', { style: { display: 'block', marginTop: 6, fontFamily: 'var(--font-title)', fontSize: 15 } }, row.detail?.label ?? row.decade),
+                                        h('span', { className: 'tl-label' }, row.detail ? `${row.detail.from}–${row.detail.to}` : '—'),
+                                        h('span', { className: `tl-pill ${row.pool === 0 ? 'bad' : 'good'}`, style: { display: 'inline-block', marginTop: 6 } }, row.pool === 0 ? 'None left' : `${row.pool} draftable`))
+                                    : h(React.Fragment, null,
+                                        h('span', { className: 'tl-era-die', 'aria-hidden': 'true' }, '🎲'),
+                                        h('span', { className: 'tl-era-rolling-label' }, 'rolling…')));
+                        }))))
             : eraRestricted ? h('div', { className: 'tl-card' },
                 h('div', { className: 'tl-card-title' }, h('span', null, 'Era of play'), h('small', null, `${eraRules.decades.length} decade${eraRules.decades.length === 1 ? '' : 's'} in play · ${available.length} draftable`)),
                 h('div', { className: 'tl-chip-row' }, eraRules.decades.map((id) => h('span', { key: id, className: 'tl-pill info' }, DECADE_BY_ID.get(id)?.label ?? id))))
