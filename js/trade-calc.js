@@ -550,7 +550,7 @@
                 );
     }
 
-    function TradeCalcTab({ playersData, statsData, myRoster, standings, currentLeague, leagueSkin, sleeperUserId, timeRecomputeTs, viewMode, initialSubTab, onSubTabConsumed }) {
+    function TradeCalcTab({ playersData, statsData, myRoster, standings, currentLeague, leagueSkin, sleeperUserId, timeRecomputeTs, viewMode, initialSubTab, onSubTabConsumed, seedOwnerId, seedPid }) {
         // ── Constants ──
         const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
         // Redraft → build rest-of-season values so deal pricing uses ROS instead
@@ -3101,6 +3101,34 @@
             setDealHqNotice(mine ? 'Added to YOU SEND' : 'Added to YOU GET');
             return true;
         }
+        // Cross-league entry points (Empire's Trade Desk league picker, and
+        // "Propose Trade" from an Owner Rolodex card or an Arbitrage row)
+        // land here pre-armed instead of empty — seedOwnerId locks the
+        // opposing side, seedPid drops that player straight into the builder
+        // on whichever side actually rosters him in THIS league. Guarded to
+        // fire once per mount so re-renders don't re-add the same player.
+        const seededOnceRef = useRef(false);
+        useEffect(() => {
+            if (seededOnceRef.current) return;
+            if (!seedOwnerId && !seedPid) return;
+            seededOnceRef.current = true;
+            // The caller's ownerId (from Empire's cached cross-league assessments)
+            // can drift from this league's live roster.owner_id — an owner who
+            // left, or an assessment cache that predates a roster reassignment.
+            // Confirm it still resolves to a real roster here before locking it
+            // in, so a stale id doesn't silently strand the picker on "-- None --"
+            // with no explanation.
+            if (seedOwnerId) {
+                const ownerHasRoster = (currentLeague?.rosters || []).some(r => String(r.owner_id) === String(seedOwnerId));
+                if (ownerHasRoster) setTradeOwner(prev => ({ ...prev, B: seedOwnerId }));
+                else setDealHqNotice('Could not auto-select that owner — pick them from the list below.');
+            }
+            if (seedPid) {
+                const roster = (currentLeague?.rosters || []).find(r => (r.players || []).includes(seedPid));
+                if (roster) addAssetToBuilder({ rosterId: roster.roster_id, pid: seedPid, ownerId: roster.owner_id });
+            }
+            setTcTab('desk');
+        }, [seedOwnerId, seedPid, currentLeague]);
 
         function renderDealHQ() {
             if (!rosterState.isUsable) {

@@ -29,6 +29,8 @@ const EMPIRE_ICON_PATHS = {
     search: ['M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z', 'm21 21-4.3-4.3'],
     // trophy — season outlook (playoff/title odds)
     trophy: ['M6 9H4.5a2.5 2.5 0 0 1 0-5H6', 'M18 9h1.5a2.5 2.5 0 0 0 0-5H18', 'M4 22h16', 'M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22', 'M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22', 'M18 2H6v7a6 6 0 0 0 12 0z'],
+    // repeat — league-detail.js NAV_ICON_PATHS.trade, reused for the same concept
+    trade: ['m16 3 4 4-4 4', 'M20 7H4', 'm8 21-4-4 4-4', 'M4 17h16'],
 };
 
 // Empire-scoped "which leagues count toward my totals" toggle — same
@@ -1445,6 +1447,33 @@ function empireHealthColor(hp) {
     return hp >= 90 ? 'var(--gold)' : hp >= 80 ? 'var(--good)' : hp >= 70 ? 'var(--warn)' : 'var(--bad)';
 }
 
+// Same shape/sort League Detail computes for its `standings` prop (wins,
+// then fewest losses, then points-for) — Trade Desk needs it to price
+// contend/rebuild posture the same way it does from inside a single league.
+// Empire already has the full league object per province, so this is a
+// plain re-derivation, not a fetch.
+function empireStandingsFor(league) {
+    return ((league && league.rosters) || []).map(roster => {
+        const user = (league.users || []).find(u => u.user_id === roster.owner_id);
+        return {
+            rosterId: roster.roster_id,
+            userId: roster.owner_id,
+            displayName: user?.display_name || user?.username || 'Unknown',
+            avatar: user?.avatar,
+            teamName: roster.metadata?.team_name || user?.metadata?.team_name || '',
+            wins: roster.settings?.wins || 0,
+            losses: roster.settings?.losses || 0,
+            ties: roster.settings?.ties || 0,
+            pointsFor: roster.settings?.fpts || 0,
+            division: roster.settings?.division || 0,
+        };
+    }).sort((a, b) => {
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        if (a.losses !== b.losses) return a.losses - b.losses;
+        return b.pointsFor - a.pointsFor;
+    });
+}
+
 function EmpireStyles() {
     return (
         <style>{`
@@ -1882,6 +1911,20 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
             })();
         });
     }, [model]);
+
+    // ── Trade Desk: reuses the exact single-league TradeCalcTab component
+    // (js/trade-calc.js), not a second trade builder — that module is
+    // deferred behind the 'trade' module-loader group the same way League
+    // Detail's own Trade Center loads it. Kick the load the moment Trade
+    // Desk opens (before a league is even picked) so it's usually already
+    // warm by the time one is chosen.
+    const [tradeModuleReady, setTradeModuleReady] = useState(!!window.wrModuleGroupLoaded?.('trade'));
+    useEffect(() => {
+        if (detail?.type !== 'tradeDesk' || tradeModuleReady) return;
+        window.wrLoadModuleGroup?.('trade')
+            .then(() => setTradeModuleReady(true))
+            .catch(e => window.wrLog?.('empire.tradeDesk.load', e));
+    }, [detail?.type, tradeModuleReady]);
 
     const setFilter = useCallback((key, value) => {
         setFilters(prev => ({ ...prev, [key]: prev[key] === value ? '' : value }));
@@ -2365,6 +2408,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                     <div className="empire-topbar">
                         <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
                         <div className="empire-title"><strong>Negotiation HUD</strong><span>{theirA?.ownerName || theirA?.teamName || 'Owner'} · {league?.name || 'League'}</span></div>
+                        <button className="empire-action" type="button" style={{ marginLeft: 'auto', borderColor: 'rgba(155,138,251,0.4)', color: 'var(--purple)', background: 'rgb(15,13,20)' }} onClick={() => setDetail({ type: 'tradeDesk', leagueId, seedOwnerId: ownerId })}>Propose Trade</button>
                         {league?.league ? <button className="empire-action" type="button" onClick={() => onEnterLeague(league.league || league)}>Open League</button> : null}
                     </div>
                 </div>
@@ -2679,6 +2723,89 @@ const renderOutlookDetail = () => {
     );
 };
 
+// renderTradeDeskDetail — the whole Trade Center module (js/trade-calc.js),
+// mounted from Empire instead of a second trade builder. Trades are
+// inherently single-league (rosters are disjoint across leagues), so this
+// is a two-step view: pick a league, then the real TradeCalcTab renders
+// with that league's data — same component, same props League Detail
+// already feeds it, just resolved from Empire's already-loaded provinces
+// instead of a page navigation. seedOwnerId/seedPid (from an Owner Rolodex
+// "Propose Trade" or an Arbitrage row's "Trade Desk" button) land the
+// builder pre-armed instead of empty.
+const renderTradeDeskDetail = (d) => {
+    const leagueId = d?.leagueId;
+    const provinces = model?.provinces || [];
+
+    if (!leagueId) {
+        const tradeable = provinces.filter(p => !p.preDraftEmpty && Number(p.league?.settings?.disable_trades || 0) !== 1);
+        return (
+            <div className={rootClassName} data-testid="empire-root">
+                <EmpireStyles />
+                <div className="empire-header">
+                    <div className="empire-topbar">
+                        <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+                        <div className="empire-title"><strong>Trade Desk</strong><span>Pick a league to build a proposal in</span></div>
+                        <div className="empire-user">{userName}</div>
+                    </div>
+                </div>
+                <main className="empire-detail">
+                    <section className="empire-panel">
+                        <div className="empire-panel-head"><strong>Your Leagues</strong><em>{tradeable.length} tradeable</em></div>
+                        <div className="empire-stack">
+                            {tradeable.length ? tradeable.map(p => (
+                                <button key={p.id} className="empire-league-card" style={{ '--tone': p.tierColor }} type="button" onClick={() => setDetail({ type: 'tradeDesk', leagueId: p.id })}>
+                                    <div><strong>{p.name}</strong><span>{p.tier} - {p.recordLabel}</span></div>
+                                </button>
+                            )) : <div className="empire-empty"><strong>No tradeable leagues</strong>Every league is either pre-draft or has trades disabled.</div>}
+                        </div>
+                    </section>
+                </main>
+            </div>
+        );
+    }
+
+    const province = provinces.find(p => String(p.id) === String(leagueId));
+    const currentLeague = province?.league;
+    const myRoster = province?.roster;
+    const standings = currentLeague ? empireStandingsFor(currentLeague) : [];
+    const leagueSkin = currentLeague ? (window.App?.LeagueSkin?.build?.({
+        league: currentLeague, profile: null, rosters: currentLeague.rosters || [], myRoster, draft: null, nflState: window.S?.nflState,
+    }) || null) : null;
+
+    return (
+        <div className={rootClassName} data-testid="empire-root">
+            <EmpireStyles />
+            <div className="empire-header">
+                <div className="empire-topbar">
+                    <button className="empire-back" type="button" onClick={() => setDetail({ type: 'tradeDesk' })}>{"<"}</button>
+                    <div className="empire-title"><strong>Trade Desk</strong><span>{province?.name || 'League'}</span></div>
+                    <div className="empire-user">{userName}</div>
+                </div>
+            </div>
+            <main className="empire-detail">
+                {!currentLeague ? (
+                    <div className="empire-empty"><strong>League not found</strong>Pick a different league.</div>
+                ) : !tradeModuleReady ? (
+                    <div className="empire-empty"><strong>Loading Trade Desk…</strong></div>
+                ) : (
+                    <TradeCalcTab
+                        playersData={playersData}
+                        statsData={markData?.stats || {}}
+                        myRoster={myRoster}
+                        standings={standings}
+                        currentLeague={currentLeague}
+                        leagueSkin={leagueSkin}
+                        sleeperUserId={sleeperUserId}
+                        viewMode="analyst"
+                        seedOwnerId={d.seedOwnerId}
+                        seedPid={d.seedPid}
+                    />
+                )}
+            </main>
+        </div>
+    );
+};
+
 const renderProvincesDetail = () => {
   const map = buildProvincesMap({ provinces: model.provinces, empireCompact });
   const s = map.summary;
@@ -2835,6 +2962,7 @@ const renderScoutDetail = () => {
     if (detail?.type === 'threat') return renderThreatDetail();
     if (detail?.type === 'war') return renderWarDetail();
     if (detail?.type === 'outlook') return renderOutlookDetail();
+    if (detail?.type === 'tradeDesk') return renderTradeDeskDetail(detail);
     if (detail?.type === 'provinces') return renderProvincesDetail();
     if (detail?.type === 'scout') return renderScoutDetail();
     if (detail?.type === 'index') return renderIndexDetail();
@@ -2857,6 +2985,7 @@ const renderScoutDetail = () => {
                     { icon: 'alertTriangle', t: 'Threat Board', go: () => setDetail({ type: 'threat' }) },
                     { icon: 'target', t: 'War Table', go: () => setDetail({ type: 'war' }) },
                     { icon: 'trophy', t: 'Season Outlook', go: () => setDetail({ type: 'outlook' }) },
+                    { icon: 'trade', t: 'Trade Desk', go: () => setDetail({ type: 'tradeDesk' }) },
                     { icon: 'map', t: 'Provinces Map', go: () => setDetail({ type: 'provinces' }) },
                     { icon: 'search', t: 'Scout Board', go: () => setDetail({ type: 'scout', groupBy: 'none', sortBy: 'dhq' }) },
                     { icon: 'briefcase', t: 'Asset Workspace', go: () => document.querySelector('.empire-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
@@ -3006,9 +3135,12 @@ const renderScoutDetail = () => {
                                         </div>
                                     ) : null}
                                     <div className="empire-stack">
-                                        {rows.length ? rows.map(a => (
-                                            <button key={a.pid} type="button" className="empire-signal" style={{ '--tone': 'var(--purple)' }}
-                                                onClick={() => setDetail && setDetail({ type: 'player', pid: a.pid })}>
+                                        {rows.length ? rows.map(a => {
+                                            const ownedLegs = (a.legs || []).filter(leg => leg.mine);
+                                            return (
+                                            <div key={a.pid} role="button" tabIndex={0} className="empire-signal" style={{ '--tone': 'var(--purple)', cursor: 'pointer' }}
+                                                onClick={() => setDetail && setDetail({ type: 'player', pid: a.pid })}
+                                                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetail && setDetail({ type: 'player', pid: a.pid }); } }}>
                                                 <div className="empire-signal-top">
                                                     <strong>{a.name}{a.pos ? ' · ' + a.pos : ''}</strong>
                                                     {a.spreadMine ? <b style={{ color: 'var(--gold)' }}>YOURS</b> : null}
@@ -3021,8 +3153,19 @@ const renderScoutDetail = () => {
                                                     are independent player pools and nobody can move him between
                                                     them. Leverage where you hold him, intel where you don't. */}
                                                 <em>{a.note}</em>
-                                            </button>
-                                        )) : <div className="empire-empty"><strong>No owned spreads right now</strong>Nothing you roster carries a big enough gap between leagues. Switch to "All" for market intel.</div>}
+                                                {ownedLegs.length ? (
+                                                    <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                                                        {ownedLegs.map(leg => (
+                                                            <button key={leg.leagueId} type="button" className="empire-ghost" style={{ fontSize: 'var(--text-micro)', padding: '3px 8px' }}
+                                                                onClick={e => { e.stopPropagation(); setDetail({ type: 'tradeDesk', leagueId: leg.leagueId, seedPid: a.pid }); }}>
+                                                                Trade Desk · {leg.name}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                            );
+                                        }) : <div className="empire-empty"><strong>No owned spreads right now</strong>Nothing you roster carries a big enough gap between leagues. Switch to "All" for market intel.</div>}
                                     </div>
                                     <div className="empire-brief-meta" style={{ marginTop: 10, textTransform: 'none', letterSpacing: 0, fontWeight: 500, color: 'var(--ov-7, rgb(132,132,133))' }}>
                                         League-scored seasonal prices — each league priced on its own scoring, roster slots and team count. Not a dynasty valuation. Leagues are independent player pools: a spread is a trade-leverage read on your OWN rostered asset, never an instruction to move him between leagues.
