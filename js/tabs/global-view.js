@@ -27,6 +27,8 @@ const EMPIRE_ICON_PATHS = {
     map: ['M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4Z', 'M8 2v16', 'M16 6v16'],
     // search — scouting
     search: ['M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z', 'm21 21-4.3-4.3'],
+    // trophy — season outlook (playoff/title odds)
+    trophy: ['M6 9H4.5a2.5 2.5 0 0 1 0-5H6', 'M18 9h1.5a2.5 2.5 0 0 0 0-5H18', 'M4 22h16', 'M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22', 'M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22', 'M18 2H6v7a6 6 0 0 0 12 0z'],
 };
 
 // Empire-scoped "which leagues count toward my totals" toggle — same
@@ -1669,7 +1671,7 @@ function EmpireStyles() {
 }
 
 function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague, onBack }) {
-    const { useState, useMemo, useCallback, useEffect } = React;
+    const { useState, useMemo, useCallback, useEffect, useRef } = React;
     const emptyFilters = { league: '', status: '', position: '', agePhase: '', tier: '', exposure: '', assetType: '' };
     const [filters, setFilters] = useState(emptyFilters);
     const [sort, setSort] = useState('dhq');
@@ -1812,6 +1814,56 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const empireLeagueIds = useMemo(() => (enabledLeagues || []).map(l => l.id || l.league_id).filter(Boolean), [enabledLeagues]);
     const empireDelta = useMemo(() => (window.WrSnapshots && typeof window.WrSnapshots.empireDelta === 'function') ? window.WrSnapshots.empireDelta(empireLeagueIds) : null, [empireLeagueIds, scoreKey]);
     const bridge = useMemo(() => buildCommandBridge({ model, actionQueue, brief: briefText, empireDelta }), [model, actionQueue, briefText, empireDelta]);
+
+    // ── Season Outlook: playoff/title odds per league ───────────────────
+    // Reuses the exact engine + gating Game Day's single-league panel
+    // (season-odds-panel.js) already established — App.Luck.build for the
+    // weekly-score ledger, App.PlayoffOdds.fetchFuturePairs + .simulate for
+    // the Monte Carlo itself — rather than a second implementation. A
+    // league only gets real odds once it has at least 2 played weeks (a
+    // 0-1-game fitted score distribution is meaningless, same guard the
+    // single-league panel uses); CHOPPED leagues (no bracket) and leagues
+    // with no playoff bracket configured are skipped entirely rather than
+    // shown a fabricated field. Runs once per league id, not on every
+    // model recompute.
+    const outlookRunRef = useRef({});
+    const [seasonOutlook, setSeasonOutlook] = useState({});
+    useEffect(() => {
+        const Luck = window.App?.Luck, PO = window.App?.PlayoffOdds, WP = window.App?.WeeklyProj;
+        if (!Luck || !PO || !WP) return;
+        (model?.provinces || []).forEach(p => {
+            const lid = p.id;
+            if (!lid || outlookRunRef.current[lid]) return;
+            if (p.preDraftEmpty || p.isChopped) return;
+            const league = p.league;
+            const playoffTeams = Number(league?.settings?.playoff_teams) || 0;
+            if (playoffTeams <= 0) return;
+            outlookRunRef.current[lid] = true;
+            setSeasonOutlook(prev => ({ ...prev, [lid]: { status: 'loading' } }));
+            (async () => {
+                try {
+                    const ledger = await Luck.build({ league });
+                    const playedWeeks = ledger.weeks.length;
+                    const curWk = WP.currentWeek();
+                    const pws = Number(league.settings?.playoff_week_start) || 15;
+                    const lastReg = Math.max(1, Math.min(18, pws - 1));
+                    // Same load-bearing guard as the single-league panel: fewer
+                    // than 2 games fitted, or the regular season already over
+                    // (curWk past lastReg) — no honest sim to run either way.
+                    if (playedWeeks < 2 || curWk > lastReg) {
+                        setSeasonOutlook(prev => ({ ...prev, [lid]: { status: 'unavailable', playedWeeks } }));
+                        return;
+                    }
+                    const futurePairs = await PO.fetchFuturePairs({ league, fromWeek: curWk, toWeek: lastReg });
+                    const sim = PO.simulate({ league, ledger, futurePairs, myRosterId: p.roster?.roster_id, sims: 10000 });
+                    setSeasonOutlook(prev => ({ ...prev, [lid]: { status: sim ? 'ready' : 'unavailable', sim, playedWeeks } }));
+                } catch (e) {
+                    window.wrLog?.('empire.seasonOutlook', e);
+                    setSeasonOutlook(prev => ({ ...prev, [lid]: { status: 'error' } }));
+                }
+            })();
+        });
+    }, [model]);
 
     const setFilter = useCallback((key, value) => {
         setFilters(prev => ({ ...prev, [key]: prev[key] === value ? '' : value }));
@@ -2517,6 +2569,98 @@ const renderWarDetail = () => {
     );
 };
 
+// ── Season Outlook — Monte Carlo playoff/title odds, per league ────────
+// Reads the seasonOutlook state the useEffect above fills in (one sim per
+// eligible league, run once). Unlike every other Empire detail view this
+// isn't a synchronous pure builder off model.provinces alone — the sim
+// itself is async — so this stays a closure over component state rather
+// than a module-scope build* function like buildWarTable/buildProvincesMap.
+const renderOutlookDetail = () => {
+    const provinces = model?.provinces || [];
+    const rows = provinces.map(p => {
+        if (p.preDraftEmpty) return { id: p.id, name: p.name, skip: 'Pre-draft — no season to project yet.' };
+        if (p.isChopped) return { id: p.id, name: p.name, skip: 'Chopped format runs a survival model, not a playoff bracket.' };
+        const playoffTeams = Number(p.league?.settings?.playoff_teams) || 0;
+        if (playoffTeams <= 0) return { id: p.id, name: p.name, skip: 'No playoff bracket configured for this league.' };
+        const o = seasonOutlook[p.id];
+        if (!o || o.status === 'loading') return { id: p.id, name: p.name, record: p.recordLabel, loading: true };
+        if (o.status === 'error') return { id: p.id, name: p.name, record: p.recordLabel, skip: 'Simulation failed to load — try refreshing.' };
+        if (o.status === 'unavailable') {
+            const pw = o.playedWeeks || 0;
+            return { id: p.id, name: p.name, record: p.recordLabel, skip: pw < 2 ? 'Opens once 2 weeks are played (' + pw + ' so far).' : 'Regular season is over.' };
+        }
+        const sim = o.sim;
+        const mine = sim && sim.rows.find(r => String(r.rosterId) === String(p.roster?.roster_id));
+        if (!mine) return { id: p.id, name: p.name, record: p.recordLabel, skip: 'Could not place your roster in the sim.' };
+        return {
+            id: p.id, name: p.name, record: p.recordLabel,
+            projRecord: mine.projWins + '-' + mine.projLosses,
+            playoffPct: mine.playoffPct, titlePct: mine.titlePct, byePct: mine.byePct, avgSeed: mine.avgSeed,
+            fieldSize: sim.playoffTeams,
+        };
+    });
+    const ready = rows.filter(r => r.playoffPct != null);
+    const bestOdds = ready.length ? ready.reduce((a, b) => (b.playoffPct > a.playoffPct ? b : a)) : null;
+    const bestTitle = ready.length ? ready.reduce((a, b) => (b.titlePct > a.titlePct ? b : a)) : null;
+    const pctColor = pct => pct >= 50 ? 'var(--good)' : pct >= 25 ? 'var(--warn)' : 'var(--bad)';
+    return (
+        <div className={rootClassName} data-testid="empire-root">
+            <EmpireStyles />
+            <div className="empire-header">
+                <div className="empire-topbar">
+                    <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
+                    <div className="empire-title"><strong>Season Outlook</strong><span>Monte Carlo playoff &amp; title odds · once a league has games on the board</span></div>
+                    <div className="empire-user">{userName}</div>
+                </div>
+            </div>
+            <main className="empire-detail">
+                <section className="empire-detail-hero">
+                    <div>
+                        <h1>{ready.length} of {rows.length} <span style={{ fontSize: '1rem', color: 'var(--silver)' }}>leagues simulated</span></h1>
+                        <p>
+                            {bestOdds ? bestOdds.name + ' leads the empire at ' + bestOdds.playoffPct + '% playoff odds' : 'No leagues have enough games played yet.'}
+                            {bestTitle && bestTitle.titlePct > 0 ? ' · best title shot: ' + bestTitle.name + ' (' + bestTitle.titlePct + '%)' : ''}
+                        </p>
+                    </div>
+                </section>
+
+                <section className="empire-panel">
+                    <div className="empire-panel-head"><strong>Every League</strong><em>{ready.length} live · {rows.length - ready.length} not yet</em></div>
+                    {rows.length ? (
+                        <div className="empire-stack">
+                            {rows.map(row => (
+                                <button key={row.id} className="empire-league-card" type="button" onClick={() => setDetail({ type: 'league', leagueId: row.id })}>
+                                    <div>
+                                        <strong>{row.name}</strong>
+                                        {row.record ? (
+                                            <span>{row.record}{row.projRecord ? ' → proj ' + row.projRecord : ''}{row.fieldSize ? ' · ' + row.fieldSize + '-team field' : ''}</span>
+                                        ) : null}
+                                        {row.skip ? <em>{row.skip}</em> : row.loading ? <em>Simulating 10,000 seasons…</em> : null}
+                                    </div>
+                                    {row.playoffPct != null ? (
+                                        <div style={{ textAlign: 'right' }}>
+                                            <b style={{ color: pctColor(row.playoffPct) }}>{row.playoffPct}% playoffs</b>
+                                            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>
+                                                {row.titlePct}% title{row.byePct != null ? ' · ' + row.byePct + '% bye' : ''}{row.avgSeed != null ? ' · avg seed ' + row.avgSeed : ''}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="empire-empty"><strong>No leagues to read</strong>Sync rosters or check league connections, then the outlook fills in.</div>
+                    )}
+                </section>
+
+                <p style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginTop: 4, lineHeight: 1.5 }}>
+                    Monte Carlo simulation (10,000 seasons per league) using each roster's actual weekly scoring this season, plus Sleeper's already-posted future matchups — the same engine and methodology as the single-league Season Odds panel in Game Day. Needs at least 2 played weeks before a league shows odds; Chopped leagues run a survival model instead and aren't included here.
+                </p>
+            </main>
+        </div>
+    );
+};
+
 const renderProvincesDetail = () => {
   const map = buildProvincesMap({ provinces: model.provinces, empireCompact });
   const s = map.summary;
@@ -2672,6 +2816,7 @@ const renderScoutDetail = () => {
 
     if (detail?.type === 'threat') return renderThreatDetail();
     if (detail?.type === 'war') return renderWarDetail();
+    if (detail?.type === 'outlook') return renderOutlookDetail();
     if (detail?.type === 'provinces') return renderProvincesDetail();
     if (detail?.type === 'scout') return renderScoutDetail();
     if (detail?.type === 'index') return renderIndexDetail();
@@ -2693,6 +2838,7 @@ const renderScoutDetail = () => {
                     { icon: 'barChart', t: 'Empire Index', go: () => setDetail({ type: 'index' }) },
                     { icon: 'alertTriangle', t: 'Threat Board', go: () => setDetail({ type: 'threat' }) },
                     { icon: 'target', t: 'War Table', go: () => setDetail({ type: 'war' }) },
+                    { icon: 'trophy', t: 'Season Outlook', go: () => setDetail({ type: 'outlook' }) },
                     { icon: 'map', t: 'Provinces Map', go: () => setDetail({ type: 'provinces' }) },
                     { icon: 'search', t: 'Scout Board', go: () => setDetail({ type: 'scout', groupBy: 'none', sortBy: 'dhq' }) },
                     { icon: 'briefcase', t: 'Asset Workspace', go: () => document.querySelector('.empire-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
