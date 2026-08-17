@@ -198,6 +198,27 @@
             K: 'var(--k-bb8fce, #bb8fce)', DEF: 'var(--k-85929e, #85929e)', DL: 'var(--k-e67e22, #e67e22)', LB: 'var(--k-f0a500, #f0a500)', DB: 'var(--k-5dade2, #5dade2)',
         };
         const posLabel = window.App?.posLabel || (pos => pos === 'DEF' ? 'D/ST' : pos);
+        // Compact filter-chip style for the desktop position row — sized to
+        // match this app's other dense instrument-panel filter rows (e.g. the
+        // .wr-module-nav toolbar in index.html: small mono/uppercase label,
+        // tight padding, 1px border) rather than a full 44px touch target,
+        // since this row lives in the desktop command-center rail, not a
+        // phone sheet (that uses its own phChipBtn, sized for touch).
+        const posChipBtn = (active, accent) => ({
+            padding: '4px 9px',
+            lineHeight: 1.3,
+            fontSize: 'var(--text-micro, 0.6875rem)',
+            fontWeight: 700,
+            letterSpacing: '0.03em',
+            textTransform: 'uppercase',
+            fontFamily: FONT_UI,
+            borderRadius: '4px',
+            border: '1px solid ' + (active ? (accent ? accent + '66' : 'var(--acc-line3, rgba(212,175,55,0.4))') : 'var(--ov-5, rgba(255,255,255,0.08))'),
+            background: active ? (accent ? accent + '22' : 'var(--acc-fill3, rgba(212,175,55,0.15))') : 'transparent',
+            color: active ? (accent || 'var(--gold)') : 'var(--silver)',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+        });
 
         const entryFor = React.useCallback((player) => {
             const pid = idOf(player);
@@ -353,14 +374,40 @@
         const availablePositions = React.useMemo(() => {
             const set = new Set();
             (state.pool || []).slice(0, 120).forEach(p => { if (p.pos) set.add(normEdPos(p.pos)); });
+            // League-derived positions are unioned in so a chip can't silently
+            // vanish just because the loaded pool SAMPLE (first 120 rows)
+            // doesn't happen to contain that position — e.g. a SUPER_FLEX/IDP
+            // league whose active pool is a rookie-only mock draft with zero
+            // IDP prospects in the first 120 rows still needs DL/LB/DB chips
+            // (owner bug report 2026-08-16). Reads the league's real roster
+            // slots directly (state.draftContext.leagueFormat.rosterSlots, the
+            // same field js/draft/context.js's buildLeagueFormat populates from
+            // roster_positions) rather than `window.App.getLeaguePositions` —
+            // that function is referenced defensively all over this codebase
+            // (mock-draft.js, free-agency.js, league-map.js, draft/state.js,
+            // draft/live-analytics.js, draft-room.js) but is never actually
+            // DEFINED anywhere; every one of those call sites has silently been
+            // falling through to its local fallback list this whole time. Not
+            // fixing that app-wide gap here — out of scope for this bug — just
+            // not adding an 8th no-op call to it.
+            const FLEX_SLOT_TOKENS = new Set(['FLEX', 'SUPER_FLEX', 'REC_FLEX', 'WRRB_FLEX', 'WR_RB_FLEX', 'IDP_FLEX', 'BN', 'BENCH', 'IR', 'TAXI']);
+            (state.draftContext?.leagueFormat?.rosterSlots || []).forEach(slot => {
+                const token = String(slot || '').toUpperCase();
+                if (!token || FLEX_SLOT_TOKENS.has(token)) return;
+                set.add(normEdPos(token));
+            });
             const priority = { QB: 1, RB: 2, WR: 3, TE: 4, DL: 5, LB: 6, DB: 7, K: 8 };
             const base = Array.from(set).sort((a, b) => (priority[a] || 99) - (priority[b] || 99));
             // League-derived flex groups (FLEX/SFLEX/IDP FLEX…) join the chip
-            // row when their positions exist in this pool (owner ask 2026-07-12).
+            // row whenever the league actually rosters that slot type — checked
+            // against the pool+league UNION set above (not the pool sample
+            // alone), so SUPER_FLEX/IDP FLEX can't disappear just because no
+            // IDP/SF-eligible player happened to land in the pool sample (owner
+            // ask 2026-07-12; union fix 2026-08-16).
             const groups = (window.App?.getLeagueFlexGroups?.() || [])
                 .filter(g => (window.App?.FLEX_GROUP_POSITIONS?.[g] || []).some(pos => set.has(pos)));
             return [...base, ...groups];
-        }, [state.pool]);
+        }, [state.pool, state.draftContext]);
 
         const persistBoardPatch = React.useCallback((patch) => {
             // Key the board by the league draft VARIANT, never the live-sync MODE, so
@@ -801,54 +848,12 @@
                     }}
                 />
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginBottom: '8px' }}>
-                    <button onClick={() => setPosFilter('')} style={{
-                        padding: '2px 10px',
-                        minHeight: '40px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 'var(--text-micro, 0.6875rem)',
-                        borderRadius: '10px',
-                        border: '1px solid ' + (posFilter === '' ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                        background: posFilter === '' ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
-                        color: posFilter === '' ? 'var(--gold)' : 'var(--silver)',
-                        cursor: 'pointer',
-                        fontFamily: FONT_UI,
-                    }}>ALL</button>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>
+                    <button onClick={() => setPosFilter('')} style={posChipBtn(posFilter === '')}>ALL</button>
                     {availablePositions.map(pos => (
-                        <button key={pos} onClick={() => setPosFilter(posFilter === pos ? '' : pos)} style={{
-                            padding: '2px 10px',
-                            minHeight: '40px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 'var(--text-micro, 0.6875rem)',
-                            borderRadius: '10px',
-                            border: '1px solid ' + (posFilter === pos ? (posColors[pos] || 'var(--k-666666, #666666)') + '66' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                            background: posFilter === pos ? (posColors[pos] || 'var(--k-666666, #666666)') + '22' : 'transparent',
-                            color: posFilter === pos ? (posColors[pos] || 'var(--silver)') : 'var(--silver)',
-                            cursor: 'pointer',
-                            fontFamily: FONT_UI,
-                            fontWeight: 600,
-                        }}>{posLabel(pos)}</button>
+                        <button key={pos} onClick={() => setPosFilter(posFilter === pos ? '' : pos)} style={posChipBtn(posFilter === pos, posColors[pos])}>{posLabel(pos)}</button>
                     ))}
-                    <button onClick={toggleHideDrafted} title="Hide players who have already been drafted" style={{
-                        padding: '2px 10px',
-                        minHeight: '40px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 'var(--text-micro, 0.6875rem)',
-                        borderRadius: '10px',
-                        border: '1px solid ' + (hideDrafted ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                        background: hideDrafted ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
-                        color: hideDrafted ? 'var(--gold)' : 'var(--silver)',
-                        cursor: 'pointer',
-                        fontFamily: FONT_UI,
-                        fontWeight: 600,
-                        marginLeft: 'auto',
-                    }}>{hideDrafted ? '✓ Hide drafted' : 'Hide drafted'}</button>
+                    <button onClick={toggleHideDrafted} title="Hide players who have already been drafted" style={{ ...posChipBtn(hideDrafted), marginLeft: 'auto' }}>{hideDrafted ? '✓ Hide drafted' : 'Hide drafted'}</button>
                 </div>
 
                 {activeLane === 'my' && (
