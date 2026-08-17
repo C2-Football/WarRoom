@@ -343,6 +343,14 @@
             // cycle. Dynasty/keeper/unknown keep it (fail-open); redraft,
             // chopped, best_ball, dfs don't.
             showDraftCapitalPlanning: !seasonal,
+            // Draft Plan card (AI scouting report + class read + apply-to-
+            // board) and the Class Depth read further down the pool panel —
+            // owner call: valuable for weighing a rookie class against a
+            // long-term dynasty roster, not for a redraft/keeper/best_ball
+            // draft where the whole roster is filled fresh every cycle.
+            // Strictly dynasty-only (no fail-open to keeper/unknown, unlike
+            // the flags above) — narrower on purpose.
+            showDraftClassTools: type === 'dynasty',
             showWaiverPlanner: seasonal || type === 'keeper',
             showRestOfSeasonValue: seasonal || type === 'keeper',
             hasRosteredPlayers: rosterPlayerCount(rosters) > 0,

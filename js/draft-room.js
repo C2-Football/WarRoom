@@ -2720,6 +2720,7 @@
                                 inline: true,
                                 primaryLabel: 'VIEW FULL BOARD →',
                                 onPrimary: launchLiveDraft,
+                                isDynasty: skinFeatures.showDraftClassTools,
                             })
                         ) : (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderRadius: 8, border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', flexWrap: 'wrap' }}>
@@ -2798,6 +2799,7 @@
                         const showCapitalPlanning = skinFeatures.showDraftCapitalPlanning !== false;
                         const draftHqActionsEl = (
                             <aside className="draft-hq-actions">
+                                {skinFeatures.showDraftClassTools && (
                                 <div className="draft-hq-action-card">
                                     <strong>Draft Plan</strong>
                                     {/* AI draft plan / class read + AI-order board apply → Pro */}
@@ -2837,6 +2839,7 @@
                                         </div>
                                     )}
                                 </div>
+                                )}
                                 {renderAnalystFlash()}
                                 {/* E5: dynasty leagues have no gameplan at all (format,
                                     not tier) — clean absence, not a lock card. */}
@@ -3035,6 +3038,8 @@
                                     )) : <div className="draft-empty">No pick-pressure read yet.</div>}
                                 </div>
 
+                                {skinFeatures.showDraftClassTools && (
+                                <React.Fragment>
                                 <div className="draft-hq-subhead">Class Depth</div>
                                 <div className="draft-run-list">
                                     {classDepthRows.map(row => (
@@ -3062,6 +3067,8 @@
                                         </div>
                                     ))}
                                 </div>
+                                </React.Fragment>
+                                )}
                             </section>
                         </div>
                         {scoutDrawerPid && (() => {

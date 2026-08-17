@@ -4059,12 +4059,15 @@
             player,
             isUser: isUserTurn,
             reasoning: state.overrideMode
-                ? { primary: 'User override', baseVal: player.dhq, nudges: [] }
+                ? { primary: state.mode === 'live-sync' ? 'Manual live correction' : 'User override', baseVal: player.dhq, nudges: [] }
                 : state.mode === 'manual'
                     ? { primary: 'Manual room entry', baseVal: player.dhq, nudges: [] }
                     : { primary: 'User selection', baseVal: player.dhq, nudges: [] },
             confidence: 1.0,
-            source: state.mode === 'manual' ? 'manual-draft' : null,
+            // Reducer also derives 'manual-live' from state.mode when this is null,
+            // but set it explicitly here to match BigBoardPanel.onDraft's contract
+            // (js/draft/big-board.js) now that this fires from live-sync too.
+            source: state.mode === 'live-sync' && state.overrideMode ? 'manual-live' : state.mode === 'manual' ? 'manual-draft' : null,
         });
     }
 
@@ -5028,15 +5031,28 @@
         );
     }
 
-    function MockDraftCockpit({ state, dispatch, isUserTurn, currentSlot, onExit, onPropose, tradeDeskTarget, openTradeDesk, grade, canUndoManualPick }) {
+    // MockDraftCockpit doubles as the LIVE-SYNC drafting cockpit (isLive=true) —
+    // same rail + decision-deck + big-board/right-stack grid, fed real-Sleeper
+    // data instead of CPU-sim data on the live side. The only genuinely
+    // mock-only assumption here is the CPU pace/timer controls (Speed, Pause,
+    // "Pick Timer") — a real Sleeper draft has no client-side pace to set, so
+    // those swap for a Manual Pick toggle + sync status when isLive. Everything
+    // else (status tiles, MockBigBoardTable/MockPickLog/MockRosterBuildCard/
+    // MockTradeOfferPanel, OpponentIntelPanel) already reads generically off
+    // `state` and already supports live-sync's manual-override pick flow (see
+    // mockMakePick / state.js MAKE_PICK's manual-live source derivation).
+    function MockDraftCockpit({ state, dispatch, isUserTurn, currentSlot, onExit, onPropose, tradeDeskTarget, openTradeDesk, grade, canUndoManualPick, isLive, liveConfidenceCard, liveDecisionDeck, liveTradeWindow, stagedLiveOffers }) {
         const OpponentIntelPanel = window.DraftCC.OpponentIntelPanel;
         const totalPicks = state.pickOrder?.length || 0;
         const progress = totalPicks ? Math.round(((state.currentIdx || 0) / totalPicks) * 100) : 0;
         const lastPick = state.picks?.[state.picks.length - 1] || null;
         const runReport = mockRunReport(state);
+        // Live-sync has no meaningful userSlot fallback (it's roster-based, not
+        // seat-based) — mirrors the same guard CommandCenterGrid used to apply
+        // in the old fallback layout's own nextUserSlot computation.
         const nextUserSlot = (state.pickOrder || []).slice(state.currentIdx || 0).find(slot =>
             String(slot?.rosterId || '') === String(state.userRosterId || '')
-            || Number(slot?.slot) === Number(state.userSlot)
+            || (!isLive && Number(slot?.slot) === Number(state.userSlot))
         );
         const currentName = currentSlot ? mockTeamName(state, currentSlot.rosterId, currentSlot) : 'Draft Room';
         const currentDisplayName = currentName.length > 36 ? currentName.slice(0, 35) + '...' : currentName;
@@ -5045,33 +5061,65 @@
             { label: 'On Clock', value: currentName, detail: currentSlot ? '#' + (currentSlot.overall || '--') + ' · ' + mockPickLabel(currentSlot, state.leagueSize) : 'No active pick' },
             { label: 'Our Next Pick', value: nextUserSlot ? mockPickLabel(nextUserSlot, state.leagueSize) : 'No pick left', detail: userPicksAwayDetail(nextUserSlot, state.currentIdx) },
             { label: 'Last Pick', value: lastPick ? lastPick.name : 'No picks yet', detail: lastPick ? (lastPick.pos || '--') + ' · DHQ ' + mockFmt(lastPick.dhq) : 'Start the draft' },
-            { label: 'League Evolution', value: runReport.value, detail: state.activeOffer ? 'Draft paused for negotiation' : runReport.detail, extra: runReport.bullets },
+            isLive
+                ? { label: liveConfidenceCard?.label || 'Sync confidence', value: liveConfidenceCard?.value || 'Connecting', detail: liveConfidenceCard?.detail || 'Preparing live mirror' }
+                : { label: 'League Evolution', value: runReport.value, detail: state.activeOffer ? 'Draft paused for negotiation' : runReport.detail, extra: runReport.bullets },
         ];
+        const ownerTell = isLive ? ((liveDecisionDeck?.alerts || []).find(a => a.type === 'owner_tendency') || null) : null;
         return (
             <div className="mock-draft-cockpit draft-cc-scope">
                 <section className="mock-draftcast-rail">
                     <div className="mock-cast-brand">
                         <div>DHQ</div>
                         <span>
-                            <strong>DRAFTCAST MOCK</strong>
-                            <em>{state.variant === 'startup' ? 'Dynasty Start Up' : state.variant} · {state.draftType} · {state.rounds} rounds · {state.leagueSize} teams</em>
-                            <button type="button" onClick={onExit}>Mock Upcoming Draft</button>
+                            <strong>{isLive ? 'DRAFTCAST LIVE' : 'DRAFTCAST MOCK'}</strong>
+                            <em>{isLive ? 'Sleeper mirror' : (state.variant === 'startup' ? 'Dynasty Start Up' : state.variant)} · {state.draftType} · {state.rounds} rounds · {state.leagueSize} teams</em>
+                            <button type="button" onClick={onExit}>{isLive ? 'Exit Live Draft' : 'Mock Upcoming Draft'}</button>
                         </span>
                     </div>
                     <div className="mock-cast-clock">
-                        <span>{state.activeOffer ? 'TRADE OFFER PAUSED' : 'ON THE CLOCK'}</span>
+                        <span>
+                            {state.activeOffer ? 'TRADE OFFER PAUSED' : 'ON THE CLOCK'}
+                            {isLive && liveConfidenceCard && (
+                                <em title={liveConfidenceCard.detail} style={{ marginLeft: 10, fontStyle: 'normal', fontWeight: 800, color: liveConfidenceCard.tone, letterSpacing: '0.04em' }}>
+                                    {'● '}{liveConfidenceCard.value}
+                                </em>
+                            )}
+                        </span>
                         <strong>{currentDisplayName} - Pick {currentSlot ? mockPickLabel(currentSlot, state.leagueSize).replace('R', '') : '--'}</strong>
                         <div><i style={{ width: progress + '%' }} /></div>
                         <em>{state.currentIdx || 0} / {totalPicks || '--'}</em>
                     </div>
                     <div className="mock-cast-controls">
-                        <div><span>Pick Timer</span><strong>{timerLabel}</strong></div>
-                        <button type="button" onClick={() => dispatch({ type: 'SET_SPEED', speed: state.speed === 'paused' ? 'medium' : 'paused' })}>{state.speed === 'paused' ? 'Resume' : 'Pause'}</button>
-                        <label>Speed <select value={state.speed === 'paused' ? 'medium' : state.speed} onChange={e => dispatch({ type: 'SET_SPEED', speed: e.target.value })}><option value="slow">Slow</option><option value="medium">Medium</option><option value="fast">Fast</option></select></label>
-                        <button type="button" onClick={openTradeDesk} disabled={!tradeDeskTarget}>Trade Desk</button>
-                        {canUndoManualPick && <button type="button" onClick={() => dispatch({ type: 'UNDO_LAST_PICK', manualOnly: true })}>Undo</button>}
-                        <button type="button" onClick={onExit}>Exit</button>
+                        {isLive ? (
+                            <>
+                                <button type="button" onClick={() => dispatch({ type: 'SET_OVERRIDE', enabled: !state.overrideMode })} title={state.overrideMode ? 'Return to read-only Sleeper mirror' : 'Apply the next pick manually from the Big Board'}>
+                                    {state.overrideMode ? 'Manual On' : 'Manual Pick'}
+                                </button>
+                                <button type="button" onClick={openTradeDesk} disabled={!tradeDeskTarget}>Trade Desk</button>
+                                {canUndoManualPick && <button type="button" onClick={() => dispatch({ type: 'UNDO_LAST_PICK', manualOnly: true })}>Undo</button>}
+                                <button type="button" onClick={onExit}>Exit</button>
+                            </>
+                        ) : (
+                            <>
+                                <div><span>Pick Timer</span><strong>{timerLabel}</strong></div>
+                                <button type="button" onClick={() => dispatch({ type: 'SET_SPEED', speed: state.speed === 'paused' ? 'medium' : 'paused' })}>{state.speed === 'paused' ? 'Resume' : 'Pause'}</button>
+                                <label>Speed <select value={state.speed === 'paused' ? 'medium' : state.speed} onChange={e => dispatch({ type: 'SET_SPEED', speed: e.target.value })}><option value="slow">Slow</option><option value="medium">Medium</option><option value="fast">Fast</option></select></label>
+                                <button type="button" onClick={openTradeDesk} disabled={!tradeDeskTarget}>Trade Desk</button>
+                                {canUndoManualPick && <button type="button" onClick={() => dispatch({ type: 'UNDO_LAST_PICK', manualOnly: true })}>Undo</button>}
+                                <button type="button" onClick={onExit}>Exit</button>
+                            </>
+                        )}
                     </div>
+                    {/* Alex's live narration + the Manual Pick toggle's read-only vs
+                        override explanation — folded into the rail (not a separate
+                        top-level card) so the "everything about the situation lives
+                        in one card" rule holds for live-sync too. */}
+                    {isLive && (
+                        <div style={{ gridColumn: '1 / -1', padding: '0 16px 12px' }}>
+                            <LiveSyncCommandReadPanel state={state} liveSync={state.liveSync} currentSlot={currentSlot} nextUserSlot={nextUserSlot} trendText={runReport.value} dispatch={dispatch} />
+                        </div>
+                    )}
                     <div className="mock-status-row">
                         {statusTiles.map(tile => (
                             <div key={tile.label} className={tile.extra ? 'has-extra' : ''}>
@@ -5086,30 +5134,51 @@
                             </div>
                         ))}
                     </div>
+                    {/* Decision Deck lives IN the rail card now, right under the
+                        clock/status read — "here's the situation" and "here's
+                        the pick" are one card, not one panel plus a scroll down
+                        to find another. "Take X" = the app picking for you → Pro
+                        (mirrors reconai _rbHero). Live-sync uses the read-only
+                        LiveDecisionDeckPanel instead of MockDecisionDeck — a real
+                        Sleeper draft can't be auto-picked by clicking a card. */}
+                    {isLive ? (
+                        liveDecisionDeck && (
+                            <div style={{ gridColumn: '1 / -1', margin: '12px 16px 14px' }}>
+                                <LiveDecisionDeckPanel deck={liveDecisionDeck} onTrade={openTradeDesk} layoutGap={0} />
+                            </div>
+                        )
+                    ) : ccIsPro() ? (
+                        <MockDecisionDeck state={state} dispatch={dispatch} isUserTurn={isUserTurn} currentSlot={currentSlot} onOpenTradeDesk={openTradeDesk} />
+                    ) : (
+                        <section className="mock-panel mock-decision-deck">
+                            <div className="mock-panel-head">
+                                <span>Alex Decision Deck</span>
+                                <em>Pro</em>
+                            </div>
+                            {window.WrGatedMoreRow
+                                ? React.createElement(window.WrGatedMoreRow, { title: 'Alex hands you the pick', sub: 'Recommended / safe / upside cards each turn are Scout Pro. Draft from the raw board.', feature: 'draft_decision_deck' })
+                                : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Alex Decision Deck', 'draft_decision_deck', 'Per-turn pick recommendations are Scout Pro.') : '' }} />}
+                        </section>
+                    )}
                 </section>
+                {/* Occasional live-only strips — same conditional-strip precedent as
+                    the scenario-narrative strip below, so they don't add permanent
+                    structural rows most of the time. */}
+                {isLive && liveTradeWindow && (
+                    <div style={{ marginBottom: 12 }}>
+                        <LiveTradeWindowBanner tradeWindow={liveTradeWindow} ownerTell={ownerTell} onOpen={() => liveTradeWindow?.rosterId && onPropose(liveTradeWindow.rosterId)} leagueSize={state.leagueSize} layoutGap={0} />
+                    </div>
+                )}
+                {isLive && (stagedLiveOffers || []).length > 0 && (
+                    <StagedLiveOffersPanel offers={stagedLiveOffers} sleeperDraftId={state.sleeperDraftId} dispatch={dispatch} layoutGap={12} />
+                )}
                 {state.scenarioNarrative && (
                     <div className="mock-scenario-strip">{state.scenarioNarrative}</div>
                 )}
                 <div className="mock-cockpit-grid">
                     <MockBigBoardTable state={state} dispatch={dispatch} isUserTurn={isUserTurn} />
-                    <div className="mock-center-stack">
-                        {/* "Take X" decision deck = the app picking for you → Pro (mirrors reconai _rbHero) */}
-                        {ccIsPro() ? (
-                            <MockDecisionDeck state={state} dispatch={dispatch} isUserTurn={isUserTurn} currentSlot={currentSlot} onOpenTradeDesk={openTradeDesk} />
-                        ) : (
-                            <section className="mock-panel mock-decision-deck">
-                                <div className="mock-panel-head">
-                                    <span>Alex Decision Deck</span>
-                                    <em>Pro</em>
-                                </div>
-                                {window.WrGatedMoreRow
-                                    ? React.createElement(window.WrGatedMoreRow, { title: 'Alex hands you the pick', sub: 'Recommended / safe / upside cards each turn are Scout Pro. Draft from the raw board.', feature: 'draft_decision_deck' })
-                                    : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Alex Decision Deck', 'draft_decision_deck', 'Per-turn pick recommendations are Scout Pro.') : '' }} />}
-                            </section>
-                        )}
-                        <MockPickLog state={state} currentSlot={currentSlot} />
-                    </div>
                     <div className={'mock-right-stack' + (state.activeOffer ? ' has-trade-offer' : '')}>
+                        <MockPickLog state={state} currentSlot={currentSlot} />
                         <MockRosterBuildCard state={state} grade={grade} />
                         <MockTradeOfferPanel state={state} dispatch={dispatch} />
                         {OpponentIntelPanel && (
@@ -5131,7 +5200,7 @@
     // passes the freshly built recap + live handlers) AND inline on the Draft
     // War Room from an archived recap (listDraftRecaps), no live state needed.
     // Exposed as window.DraftCC.DraftRecapReport.
-    function DraftRecapReport({ recap, grade: gradeProp, myPicks: myPicksProp, userRosterId, inline, onPinTeam, onSaveRecap, onPrimary, primaryLabel }) {
+    function DraftRecapReport({ recap, grade: gradeProp, myPicks: myPicksProp, userRosterId, inline, onPinTeam, onSaveRecap, onPrimary, primaryLabel, isDynasty }) {
         const stateHelpers = window.DraftCC?.state || {};
         const grade = gradeProp || recap?.grade || { letter: '', totalDHQ: Number(recap?.totalDHQ) || 0 };
         const myPicks = myPicksProp || recap?.picks || [];
@@ -5438,7 +5507,9 @@
                                                 const isUser = String(team.rosterId) === String(userRosterId);
                                                 const topPlayer = team.topPick || team.picks?.[0];
                                                 const gradeCol = team.grade?.startsWith('A') ? 'var(--k-2ecc71, #2ecc71)' : team.grade?.startsWith('B') ? 'var(--gold)' : team.grade?.startsWith('C') ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
-                                                const tierBadge = recapPro && teamPower[String(team.rosterId)]?.tier
+                                                // Contender/Rebuilding is a multi-year trajectory read — real
+                                                // outside dynasty, where every team's roster resets each season.
+                                                const tierBadge = isDynasty && recapPro && teamPower[String(team.rosterId)]?.tier
                                                     ? <span style={{ marginLeft: '6px', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: teamPower[String(team.rosterId)].tierColor || 'var(--silver)' }}>{teamPower[String(team.rosterId)].tier}</span>
                                                     : null;
                                                 const rowBorder = '1px solid ' + (isUser ? 'var(--acc-line2, rgba(212,175,55,0.28))' : 'var(--ov-4, rgba(255,255,255,0.06))');
@@ -5824,7 +5895,16 @@
         // window banner during a live draft only; other phases keep the full header.
         const isLiveDraftHud = state.mode === 'live-sync' && state.phase === 'drafting';
 
-        if (state.mode !== 'live-sync' && state.phase === 'drafting') {
+        // Live-sync gets the SAME cockpit as mock/solo/manual/ghost drafting now
+        // (MockDraftCockpit's isLive branch) — except auction, which stays on the
+        // old fallback layout below: AuctionCockpit's nomination/bidding/wall-clock
+        // model is a CPU-simulated mechanic that doesn't (yet) mirror a real
+        // Sleeper auction, so a live auction keeps the AuctionBudgetPanel/
+        // LiveAuctionSalesTicker treatment it already had rather than being routed
+        // into a cockpit that assumes it owns the nomination clock.
+        const isLiveAuctionDrafting = state.mode === 'live-sync' && state.draftMechanic === 'auction';
+        if (state.phase === 'drafting' && !isLiveAuctionDrafting) {
+            const isLive = state.mode === 'live-sync';
             return (
                 <>
                     {state.draftMechanic === 'auction'
@@ -5841,6 +5921,11 @@
                         openTradeDesk={openTradeDesk}
                         grade={grade}
                         canUndoManualPick={canUndoManualPick}
+                        isLive={isLive}
+                        liveConfidenceCard={isLive ? liveConfidenceCard : null}
+                        liveDecisionDeck={isLive ? liveDecisionDeck : null}
+                        liveTradeWindow={isLive ? liveTradeWindow : null}
+                        stagedLiveOffers={isLive ? (state.stagedLiveOffers || []) : []}
                     />
                         )}
                     {tradeIsPro && state.activeOffer && TradeModal && <TradeModal state={state} dispatch={dispatch} />}
@@ -6398,6 +6483,9 @@
                         grade,
                         myPicks,
                         userRosterId: state.userRosterId,
+                        // Contender/Rebuilding tags are dynasty-only — a mock's
+                        // "startup"/"rookie" pool is dynasty, "redraft" isn't.
+                        isDynasty: state.variant === 'startup' || state.variant === 'rookie',
                         onPinTeam: rid => dispatch({ type: 'PIN_TEAM', rosterId: rid }),
                         onSaveRecap: onSaveRecapNow,
                         primaryLabel: forcedMode === 'live-sync' ? 'VIEW DRAFT BOARD →' : 'DRAFT AGAIN',
