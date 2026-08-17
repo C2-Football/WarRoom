@@ -1717,7 +1717,7 @@ function EmpireStyles() {
     );
 }
 
-function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague, onBack }) {
+function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague, onBack, onRefresh, refreshing, hasNonSleeperLeagues }) {
     const { useState, useMemo, useCallback, useEffect, useRef } = React;
     const emptyFilters = { league: '', status: '', position: '', agePhase: '', tier: '', exposure: '', assetType: '' };
     const [filters, setFilters] = useState(emptyFilters);
@@ -1925,6 +1925,21 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
             .then(() => setTradeModuleReady(true))
             .catch(e => window.wrLog?.('empire.tradeDesk.load', e));
     }, [detail?.type, tradeModuleReady]);
+
+    // Brief "Synced" confirmation on the Refresh button once a refresh
+    // (parent-owned: refreshEmpirePortfolio in app.js) completes, so the
+    // action has visible closure beyond the button label flipping back.
+    const [justSynced, setJustSynced] = useState(false);
+    const wasRefreshingRef = useRef(false);
+    useEffect(() => {
+        if (wasRefreshingRef.current && !refreshing) {
+            setJustSynced(true);
+            const t = setTimeout(() => setJustSynced(false), 2500);
+            wasRefreshingRef.current = false;
+            return () => clearTimeout(t);
+        }
+        wasRefreshingRef.current = !!refreshing;
+    }, [refreshing]);
 
     const setFilter = useCallback((key, value) => {
         setFilters(prev => ({ ...prev, [key]: prev[key] === value ? '' : value }));
@@ -3007,7 +3022,11 @@ const renderScoutDetail = () => {
                         <span>{model.totals.leagues} leagues · asset allocation · exposure · pick capital</span>
                     </div>
                     <span className="empire-live" style={{ marginLeft: 12 }}>Live</span>
-                    <div className="empire-user" style={{ marginLeft: 'auto' }}>{userName}</div>
+                    <button className="empire-action" type="button" style={{ marginLeft: 'auto' }} disabled={!!refreshing} onClick={onRefresh}
+                        title={hasNonSleeperLeagues ? "Re-syncs Sleeper leagues' rosters, standings and scoring — ESPN/MFL leagues update on their own connection cycle" : "Re-sync every league's rosters, standings and scoring"}>
+                        {refreshing ? 'Refreshing…' : justSynced ? 'Synced ✓' : 'Refresh Leagues'}
+                    </button>
+                    <div className="empire-user">{userName}</div>
                 </div>
                 <div className="empire-kpis" data-testid="empire-command-strip">
                     {/* Command Bridge KPI strip — empire-wide overview (mockup contract), with
