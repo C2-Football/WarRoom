@@ -11,8 +11,16 @@
 //   seasonUsed  the season being replayed (for the loading line / metas).
 //   proposal  the staged override object ({ rec: 1, bonus_rec_te: 0.5 … });
 //             CONTROLLED — this panel never keeps its own copy. Chip taps
-//             call onProposalChange(nextProposalObject) and the container
-//             re-renders with the new prop (and re-runs the lab when ready).
+//             call onProposalChange(nextProposalObject), which the container
+//             both stages AND commits immediately (a chip tap is a single
+//             deliberate action). The Wind Tunnel's free-typing number grid
+//             calls onProposalStage instead — it only stages; the replay
+//             below does NOT re-run until onAnalyze() fires (the Analyze
+//             button), because re-running the whole season on every
+//             keystroke while typing several stats was the bug this split
+//             fixes. onReset() clears staged AND committed/analyzed state
+//             together. hasUnanalyzedChanges tells the panel whether
+//             anything is staged that Analyze hasn't run yet.
 //   results   App.Commish.RuleLab.runOmnibus output:
 //             [{ leagueId, leagueName, result }] where result is runProposal
 //             output (or its { empty:true, reason } form, handled per league).
@@ -285,7 +293,8 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
 function WrCommishRuleLabPanel({
     status, seasonUsed, seasons, onSeason,
     leagues, selectedLeagueId, onSelectLeague,
-    proposal, onProposalChange, rosterProposal, onRosterProposalChange,
+    proposal, onProposalChange, onProposalStage, rosterProposal, onRosterProposalChange,
+    onReset, onAnalyze, hasUnanalyzedChanges,
     results, presets, baselineScoring, editorKeys: editorKeysProp, currentSlotsByLeague,
     sweepResult, onSweep, sweepBusy,
     saved, onSaveProposal, onLoadProposal, onDeleteProposal, onRatify,
@@ -402,8 +411,12 @@ function WrCommishRuleLabPanel({
     const [swAll, setSwAll] = React.useState(false);
     const keyLabel = humanizeKey;
     const multiSeasonOk = (seasons || []).filter(s => s.available).length > 1;
+    // Free-typing: stage only (no auto-analyze). Falls back to
+    // onProposalChange if the container hasn't wired the split, so a field
+    // never goes dead — it would just re-analyze on every keystroke again.
+    const stageProposal = typeof onProposalStage === 'function' ? onProposalStage : onProposalChange;
     const setKey = (k, raw) => {
-        if (typeof onProposalChange !== 'function') return;
+        if (typeof stageProposal !== 'function') return;
         const next = Object.assign({}, prop);
         const v = raw === '' || raw == null ? NaN : Number(raw);
         // Typing the league's own current value clears the override ("back to
@@ -414,7 +427,7 @@ function WrCommishRuleLabPanel({
         // scoring for every league.
         const baseVal = baselineScoring && baselineScoring[k] != null ? Number(baselineScoring[k]) : null;
         if (Number.isNaN(v) || (baseVal != null && v === baseVal)) delete next[k]; else next[k] = v;
-        onProposalChange(next);
+        stageProposal(next);
     };
 
     // ── Roster structure proposal ────────────────────────────────────
@@ -499,6 +512,10 @@ function WrCommishRuleLabPanel({
             {(propKeys.length > 0 || rp) ? (
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <button onClick={() => {
+                        if (typeof onReset === 'function') { onReset(); return; }
+                        // Fallback for a container that hasn't wired onReset —
+                        // clears the live proposal (keeping the committed
+                        // snapshot in sync becomes that container's problem).
                         if (typeof onProposalChange === 'function') onProposalChange({});
                         if (typeof onRosterProposalChange === 'function') onRosterProposalChange(null);
                     }} style={chipBtn(false, { color: TEXT })}>
@@ -642,9 +659,9 @@ function WrCommishRuleLabPanel({
                     you want — each one stages straight into the proposal,
                     and the replay below updates immediately. */}
                 <div style={{ marginBottom: '14px' }}>
-                    {groupKeys(editorKeys).map(g => (
-                        <div key={g.name} style={{ marginBottom: '12px' }}>
-                            <div style={{ ...microHdr, marginBottom: '6px' }}>{g.name}</div>
+                    {groupKeys(editorKeys).map((g, gi) => (
+                        <div key={g.name} style={{ marginBottom: '16px', paddingTop: gi ? '14px' : 0, borderTop: gi ? `1px solid ${LINE}` : 'none' }}>
+                            <div style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: ACCENT, marginBottom: '8px' }}>{g.name}</div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '8px 16px' }}>
                                 {g.keys.map(k => {
                                     // No baseline (omnibus) → no placeholder. Showing "0.0"
@@ -682,6 +699,32 @@ function WrCommishRuleLabPanel({
                             ? 'Placeholders show this league\u2019s current rule \u2014 every position\u2019s full stat catalog is listed, not just what\u2019s already turned on. Type a number to stage it; blank the field \u2014 or retype the current value \u2014 to drop the override.'
                             : 'No single current rule across leagues, so fields show \u201C\u2014\u201D. Blank a field to drop the override.'}
                     </div>
+                </div>
+
+                {/* Analyze: the multi-stat grid above only STAGES \u2014 typing
+                    doesn't touch the replay below until this fires. Every
+                    other control in this panel (chips, roster-slot buttons,
+                    Reset, Load) is a single click and commits on its own;
+                    this is the one deliberate trigger for free-typed
+                    numbers, so several stats can be staged before the
+                    season replay re-runs even once. */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                    <button
+                        onClick={() => { if (hasUnanalyzedChanges && typeof onAnalyze === 'function') onAnalyze(); }}
+                        disabled={!hasUnanalyzedChanges}
+                        title={hasUnanalyzedChanges ? 'Run the replay against everything staged above' : 'Nothing staged \u2014 type a value above to stage a change'}
+                        style={chipBtn(hasUnanalyzedChanges, {
+                            color: hasUnanalyzedChanges ? ACCENT : MUTED,
+                            cursor: hasUnanalyzedChanges ? 'pointer' : 'default',
+                            opacity: hasUnanalyzedChanges ? 1 : 0.55,
+                        })}>
+                        {hasUnanalyzedChanges ? '\u25B8 Analyze staged changes' : 'Nothing to analyze yet'}
+                    </button>
+                    {hasUnanalyzedChanges ? (
+                        <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, color: AMBER }}>
+                            Staged, not yet analyzed \u2014 the replay below still reflects the last analysis.
+                        </span>
+                    ) : null}
                 </div>
 
                 <div style={{ ...microHdr, marginBottom: '8px', paddingTop: '12px', borderTop: `1px solid ${LINE}` }}>Or find the exact threshold for one stat</div>

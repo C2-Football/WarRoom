@@ -78,6 +78,13 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     // stat lines plus per-league as-played lineups is too heavy for office boot.
     const [ruleLab, setRuleLab] = React.useState({ status: 'idle' });
     const [proposal, setProposal] = React.useState({});
+    // Wind Tunnel free-typing stages into `proposal` on every keystroke, but
+    // the replay only ever runs off this COMMITTED snapshot — updated when
+    // the commissioner clicks Analyze (or by any single deliberate action:
+    // a preset chip, a roster-slot button, Reset, Load). See the Analyze
+    // wiring below `ruleLabResults`.
+    const [committedProposal, setCommittedProposal] = React.useState({});
+    const [committedRosterProposal, setCommittedRosterProposal] = React.useState(null);
     // Run-identity ref, not a cleanup kill switch (see season-odds-panel.js —
     // a status-dependent effect's own setState would orphan the run).
     const runRef = React.useRef({ key: null });
@@ -262,9 +269,44 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     }, [tab, ruleLab.status, state.status, rlSeason]);
     const onRlSeason = (s) => { setRlSeason(s); setRuleLab({ status: 'idle' }); };
 
-    // Proposal recompute is pure and fast (as-played sums over ~18 weeks);
-    // every knob change re-runs the whole omnibus synchronously.
+    // Proposal recompute is pure and fast (as-played sums over ~18 weeks) —
+    // but the Wind Tunnel's multi-stat grid free-types, so re-running the
+    // whole omnibus on every keystroke thrashed the replay mid-type. Only
+    // the COMMITTED proposal (declared above, near `proposal`) drives
+    // ruleLabResults now; every deliberate single-click action (preset
+    // chips, roster-slot buttons, Reset, Load) commits immediately, and
+    // free-typed number fields commit only when Analyze is clicked.
     const [rosterProposal, setRosterProposal] = React.useState(null);
+    // Deliberate-action setters: stage AND commit in the same tick — these
+    // back every control except the Wind Tunnel's number inputs.
+    const onProposalChange = (next) => { setProposal(next); setCommittedProposal(next); };
+    const onRosterProposalChange = (next) => { setRosterProposal(next); setCommittedRosterProposal(next); };
+    // Wind Tunnel free-typing: stage only. `committedProposal` is untouched
+    // until the commissioner clicks Analyze.
+    const onProposalStage = (next) => { setProposal(next); };
+    const onAnalyzeProposal = () => { setCommittedProposal(proposal); setCommittedRosterProposal(rosterProposal); };
+    const onResetProposal = () => {
+        setProposal({}); setRosterProposal(null);
+        setCommittedProposal({}); setCommittedRosterProposal(null);
+    };
+    const proposalsEqual = (a, b) => {
+        const ao = a || {}, bo = b || {};
+        const ak = Object.keys(ao), bk = Object.keys(bo);
+        return ak.length === bk.length && ak.every(k => Object.prototype.hasOwnProperty.call(bo, k) && Number(ao[k]) === Number(bo[k]));
+    };
+    const rosterProposalsEqual = (a, b) => {
+        const as = (a && Array.isArray(a.rosterPositions)) ? a.rosterPositions : null;
+        const bs = (b && Array.isArray(b.rosterPositions)) ? b.rosterPositions : null;
+        if (!as && !bs) return true;
+        if (!as || !bs) return false;
+        return as.length === bs.length && as.every((s, i) => s === bs[i]);
+    };
+    // Drives the Analyze button's enabled state and "staged, not yet
+    // analyzed" messaging in the panel.
+    const hasUnanalyzedChanges = React.useMemo(
+        () => !proposalsEqual(proposal, committedProposal) || !rosterProposalsEqual(rosterProposal, committedRosterProposal),
+        [proposal, committedProposal, rosterProposal, committedRosterProposal]
+    );
     const rlLeagueArgs = React.useCallback((l) => {
         const lid = String(l.league_id || l.id);
         const pack = ruleLab.perLeague && ruleLab.perLeague[lid];
@@ -317,10 +359,10 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
             const args = rlLeagueArgs(l);
             if (!args) return { leagueId: lid, leagueName: l.name, result: { empty: true, reason: "This league's history chain doesn't reach the selected season." } };
             try {
-                return { leagueId: lid, leagueName: l.name, result: C.RuleLab.runProposal({ ...args, proposal, rosterProposal }) };
+                return { leagueId: lid, leagueName: l.name, result: C.RuleLab.runProposal({ ...args, proposal: committedProposal, rosterProposal: committedRosterProposal }) };
             } catch (e) { window.wrLog?.('commish.rulelab.run', e); return { leagueId: lid, leagueName: l.name, result: { empty: true, reason: 'error' } }; }
         });
-    }, [ruleLab.status, state.status, proposal, rosterProposal, rlLeagueArgs, rlScoped]);
+    }, [ruleLab.status, state.status, committedProposal, committedRosterProposal, rlLeagueArgs, rlScoped]);
 
     // ── Wind Tunnel: sweep one knob across all leagues ───────────────
     const [sweepState, setSweepState] = React.useState(null);   // { key, perLeague, multi? } | null
@@ -446,8 +488,14 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     const onLoadProposal = (id) => {
         const sp = savedProposals.find(p => p.id === id);
         if (!sp) return;
-        setProposal({ ...(sp.overrides || {}) });
-        setRosterProposal(sp.rosterProposal || null);
+        // Loading a saved proposal is a deliberate action, not free typing —
+        // commit it immediately, same as a preset chip.
+        const nextProposal = { ...(sp.overrides || {}) };
+        const nextRoster = sp.rosterProposal || null;
+        setProposal(nextProposal);
+        setRosterProposal(nextRoster);
+        setCommittedProposal(nextProposal);
+        setCommittedRosterProposal(nextRoster);
     };
     const onDeleteProposal = (id) => writeProposals(savedProposals.filter(p => p.id !== id));
     // Ratify: the Rule Lab → Bylaws bridge. Every override lands in each
@@ -1019,9 +1067,13 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                         seasons={ruleLab.seasons || []}
                         onSeason={onRlSeason}
                         proposal={proposal}
-                        onProposalChange={setProposal}
+                        onProposalChange={onProposalChange}
+                        onProposalStage={onProposalStage}
                         rosterProposal={rosterProposal}
-                        onRosterProposalChange={setRosterProposal}
+                        onRosterProposalChange={onRosterProposalChange}
+                        onReset={onResetProposal}
+                        onAnalyze={onAnalyzeProposal}
+                        hasUnanalyzedChanges={hasUnanalyzedChanges}
                         results={ruleLabResults}
                         presets={(C?.RuleLab && C.RuleLab.PRESETS) || []}
                         baselineScoring={rlBaselineScoring}

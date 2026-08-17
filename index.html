@@ -1693,12 +1693,21 @@ WRShared.preloadMany(WR_SHARED_FILES);
 	    .mock-status-row div.has-extra strong, .mock-status-row div.has-extra em { white-space: normal; }
 	    .mock-status-list { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 2px; }
 	    .mock-status-list li { color: var(--silver); opacity: 0.7; font-size: 0.56rem; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	    /* Decision Deck now mounts INSIDE the rail card, as its own full-width
+	       row under the status tiles — same idea as .mock-status-row spanning
+	       the rail's 3-column grid, but styled as a nested sub-panel (its own
+	       .mock-panel border/gradient) rather than blended flush into the
+	       rail, so "here's the pick" still reads as a distinct decision. */
+	    .mock-draftcast-rail > .mock-decision-deck { grid-column: 1 / -1; margin: 12px 16px 14px; border-top: 1px solid rgba(255,255,255,0.06); border-radius: 9px; }
 	    .mock-scenario-strip { margin-bottom: 10px; padding: 8px 12px; border: 1px solid rgba(212,175,55,0.24); background: rgba(212,175,55,0.07); border-radius: 7px; color: var(--gold); font-size: 0.68rem; font-weight: 800; }
-	    .mock-cockpit-grid { display: grid; grid-template-columns: minmax(430px, 0.92fr) minmax(470px, 1.06fr) minmax(380px, 0.86fr); gap: 12px; height: clamp(780px, calc(100vh - 220px), 1000px); min-height: 760px; }
-	    .mock-center-stack, .mock-right-stack { display: grid; gap: 10px; min-height: 0; }
-	    .mock-center-stack { grid-template-rows: minmax(330px,1.08fr) minmax(305px,0.92fr); }
-	    .mock-right-stack { grid-template-rows: minmax(520px,1.16fr) minmax(250px,0.62fr); grid-auto-rows: minmax(220px, auto); }
-	    .mock-right-stack.has-trade-offer { grid-template-rows: minmax(430px,1fr) auto minmax(220px,0.62fr); }
+	    /* Two columns, not three — the Decision Deck used to be the center
+	       column's whole reason to exist; with it living in the draftcast
+	       rail card instead, Big Board and everything else (pick log, roster,
+	       trade, opponent intel) split the width between them, which also
+	       means the 1-column collapse below needs a lot less room to avoid. */
+	    .mock-cockpit-grid { display: grid; grid-template-columns: minmax(480px, 1.15fr) minmax(420px, 0.85fr); gap: 12px; height: clamp(780px, calc(100vh - 220px), 1000px); min-height: 760px; }
+	    .mock-right-stack { display: grid; gap: 10px; min-height: 0; grid-template-rows: minmax(220px,0.45fr) minmax(420px,1fr) minmax(230px,0.5fr); grid-auto-rows: minmax(200px, auto); }
+	    .mock-right-stack.has-trade-offer { grid-template-rows: minmax(220px,0.45fr) minmax(370px,0.9fr) auto minmax(210px,0.45fr); }
 	    .mock-panel, .mock-opponent-shell, .mock-trade-card { border: 1px solid rgba(212,175,55,0.19); background: linear-gradient(160deg, rgba(35,36,42,0.96), rgba(18,20,25,0.98) 52%, rgba(11,13,17,0.98)); border-radius: 9px; min-width: 0; overflow: hidden; box-shadow: 0 14px 28px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.04); }
 	    .mock-panel { padding: 12px 13px; display: flex; flex-direction: column; min-height: 0; }
 	    .mock-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-bottom: 9px; border-bottom: 1px solid rgba(212,175,55,0.12); margin-bottom: 10px; }
@@ -1803,7 +1812,15 @@ WRShared.preloadMany(WR_SHARED_FILES);
 	    .mock-trade-actions .is-counter { background: rgba(212,175,55,0.72); color: var(--black); }
 	    .mock-trade-actions .is-decline { background: rgba(231,76,60,0.72); }
 	    .mock-empty { color: var(--silver); opacity: 0.58; border: 1px dashed rgba(212,175,55,0.18); border-radius: 7px; padding: 14px; text-align: center; font-size: 0.7rem; }
-	    @media(max-width:1320px){ .mock-draftcast-rail, .mock-cockpit-grid { grid-template-columns: 1fr; height: auto; } .mock-center-stack, .mock-right-stack { grid-template-rows: auto; } .mock-status-row { grid-template-columns: repeat(2, minmax(0,1fr)); } .mock-cast-controls { justify-content: start; grid-template-columns: repeat(auto-fit, minmax(90px, auto)); } .mock-board-scroll, .mock-log-scroll { max-height: 420px; } }
+	    /* Rail's 3-column brand/clock/controls row needs real width (min-widths
+	       alone sum to ~1265px) — this breakpoint is genuinely load-bearing.
+	       The cockpit grid below has its own, much lower one now that it's
+	       two columns instead of three. */
+	    @media(max-width:1320px){ .mock-draftcast-rail { grid-template-columns: 1fr; height: auto; } .mock-status-row { grid-template-columns: repeat(2, minmax(0,1fr)); } .mock-cast-controls { justify-content: start; grid-template-columns: repeat(auto-fit, minmax(90px, auto)); } }
+	    /* Two columns only need ~950px, not the ~1320px three columns did —
+	       raising the floor here is most of "better use of space": the grid
+	       used to give up on side-by-side far earlier than it needed to. */
+	    @media(max-width:1000px){ .mock-cockpit-grid { grid-template-columns: 1fr; height: auto; } .mock-right-stack { grid-template-rows: auto; } .mock-board-scroll, .mock-log-scroll { max-height: 420px; } }
 	    @media(max-width:760px){ .mock-status-row, .mock-decision-grid, .mock-roster-kpis { grid-template-columns: 1fr; } .mock-board-head { display: none; } .mock-board-row { grid-template-columns: 34px minmax(0,1fr) 42px 54px; } .mock-board-row span:nth-child(4), .mock-board-row span:nth-child(5), .mock-board-row span:nth-child(7), .mock-board-row span:nth-child(8) { display: none; } .mock-log-row { grid-template-columns: 46px minmax(0,1fr); } .mock-log-row em, .mock-log-row b { grid-column: 2; text-align: left; } }
 
 	    .draft-setup-shell { max-width: 1760px; font-family: var(--font-body); }
@@ -2746,7 +2763,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- 1a2. Shared viewport seam — WR.useViewport() hook + WR.viewport() snapshot (plain JS; must precede components.js and all tab files) -->
 <script src="js/shared/viewport.js?v=20260707vp1"></script>
 <!-- 1b. Format/phase skin contract for league-type-aware modules -->
-<script src="js/league-skin.js?v=20260814dna1"></script>
+<script src="js/league-skin.js?v=20260814dyn1"></script>
 <!-- 2. Shared components: UpgradeGate, GMMessage, PlayerInlineCard -->
 <script type="text/babel" src="js/components.js?v=20260803rv2"></script>
 <!-- 2b. Unified Player Card (SI-2) — window.WR.openPlayerCard — replaces CDN modal -->
@@ -2867,7 +2884,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/persona.js?v=20260814dna1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/cpu-engine.js?v=20260814auc1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/state.js?v=20260814auc8"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/big-board.js?v=20260601layout"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/big-board.js?v=20260816chipfix2"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/draft-grid.js?v=20260418a"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/opponent-intel.js?v=20260601layout"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/alex-stream.js?v=20260601layout"></script>
@@ -2886,8 +2903,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-sync.js?v=20260516p6redo"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-decision-engine.js?v=20260814arch1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/analyst-mock.js?v=20260531voice1"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260814dna1"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260814arch2"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260816live1"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260814dyn1"></script>
 <!-- 5. League detail tab components (extracted from league-detail.js) -->
 <!-- v2 widget modules (load before dashboard.js which consumes them) -->
 <script type="text/babel" src="js/widgets/roster-pulse.js?v=20260613gm1"></script>
@@ -2915,7 +2932,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="myteam" src="js/tabs/my-team.js?v=20260614card4"></script>
 <!-- Compare: extracted from My Roster's former sub-view, now a top-level ROSTER-group tab. -->
 <script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20260616compare5"></script>
-<script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260730rd7"></script>
+<script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260816rd1"></script>
 <script type="text/babel" data-wr-defer="trophies" src="js/tabs/trophy-room.js?v=20260619cal1"></script>
 <script type="text/babel" src="js/tabs/calendar.js?v=20260619cal1"></script>
 <!-- Alex Insights (Option A): top-level tab for behavioral analysis + AI settings -->
@@ -2928,17 +2945,17 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="commish" src="js/components/commish-network-panel.js?v=20260814white1"></script>
 <script type="text/babel" data-wr-defer="commish" src="js/components/commish-people-panel.js?v=20260814white1"></script>
 <script type="text/babel" data-wr-defer="commish" src="js/components/commish-ops-panel.js?v=20260814white1"></script>
-<script type="text/babel" data-wr-defer="commish" src="js/components/commish-rulelab-panel.js?v=20260814white1"></script>
+<script type="text/babel" data-wr-defer="commish" src="js/components/commish-rulelab-panel.js?v=20260816analyze1"></script>
 <script type="text/babel" data-wr-defer="commish" src="js/components/commish-genesis-panel.js?v=20260814white1"></script>
 <script type="text/babel" data-wr-defer="commish" src="js/components/commish-governance-panel.js?v=20260814white1"></script>
 <script type="text/babel" data-wr-defer="commish" src="js/components/commish-command-panel.js?v=20260814kpi1"></script>
 <script type="text/babel" data-wr-defer="commish" src="js/components/commish-sidebar.js?v=20260814white1"></script>
-<script type="text/babel" data-wr-defer="commish" src="js/tabs/commissioner-office.js?v=20260814kpi1"></script>
+<script type="text/babel" data-wr-defer="commish" src="js/tabs/commissioner-office.js?v=20260816analyze1"></script>
 <!-- Time League UI — deferred: panels load first, orchestrator last (it
      reads window.WrTimeLeague*Panel off each). -->
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-home-panel.js?v=20260811tl2"></script>
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-setup-panel.js?v=20260811tl1"></script>
-<script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-draft-panel.js?v=20260811tl1"></script>
+<script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-draft-panel.js?v=20260816tl2"></script>
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-team-panel.js?v=20260811tl1"></script>
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-standings-panel.js?v=20260811tl1"></script>
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-activity-panel.js?v=20260811tl1"></script>
