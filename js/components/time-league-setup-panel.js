@@ -18,7 +18,6 @@
         { id: 'standard', label: 'Standard', detail: 'QB1 · RB2 · WR2 · TE1 · FLEX1 · BN3', slots: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, BN: 3 } },
         { id: 'deep', label: 'Deep', detail: 'QB1 · RB2 · WR3 · TE1 · FLEX2 · BN5', slots: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 2, BN: 5 } },
         { id: 'full', label: 'Full squad', detail: 'QB1 · RB2 · WR2 · TE1 · FLEX1 · K1 · DEF1 · BN3', slots: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, K: 1, DEF: 1, BN: 3 } },
-        { id: 'idp', label: 'IDP', detail: 'QB1 · RB2 · WR2 · TE1 · FLEX1 · K1 · DEF1 · DL1 · LB1 · DB1 · BN4', slots: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, K: 1, DEF: 1, DL: 1, LB: 1, DB: 1, BN: 4 } },
     ];
     const SCORING_PRESET_OPTIONS = [
         { id: 'half', label: 'Half-PPR', detail: '4 pass TD · 0.5/rec · 0.1/rush-rec yd · 0.04/pass yd · -2 TO', scoring: { passTd: 4, reception: 0.5, rushRecYd: 0.1, passingYd: 0.04, turnover: -2 } },

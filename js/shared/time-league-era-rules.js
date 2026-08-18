@@ -228,13 +228,23 @@
         return "Any era — every season since the 1970 merger";
     }
 
-    /** Short pills for the rules rail; always at least one. */
+    /**
+     * Short pills for the rules rail; always at least one. Position roulette
+     * deliberately never lists the per-position decades here — this chip
+     * rail renders on every screen of the league (nav header, dashboard),
+     * not just the draft room, so spelling out "RB 2020s" here would leak
+     * the whole roulette before the commissioner ever gets to turn a
+     * position card over. The one place assignments are shown is the draft
+     * room's Era Assignment reveal (time-league-draft-panel.js), one
+     * position at a time, on demand.
+     */
     function eraRuleChips(rules) {
         const normalized = normalizeEraDraftRules(rules);
         if (normalized.mode === "position-roulette") {
             const assignments = rolledAssignments(normalized);
-            if (!assignments.length) return ["Position roulette", "Rolls at draft open"];
-            return ["Position roulette", ...assignments.map(([position, decade]) => `${position} ${decade}`)];
+            return assignments.length
+                ? ["Position roulette", "Dealt at founding — reveal in the draft room"]
+                : ["Position roulette", "Rolls at draft open"];
         }
         if (normalized.mode === "selected-decades" && normalized.decades.length) {
             return ["Selected decades", ...normalized.decades];
