@@ -7,18 +7,17 @@
     'use strict';
     const { useMemo } = React;
     const h = React.createElement;
-    const UI = window.App.TimeLeagueUI;
 
     function WrTimeLeagueActivityPanel({ league }) {
         const events = useMemo(() => [...league.activity].reverse().slice(0, 250), [league.activity]);
         const rowTone = (kind) => (kind === 'trade' ? ' caution' : kind === 'league' ? ' urgent' : '');
         // Team names show up mid-message ("Waivers — X files a claim…"), not at the
         // start, so find whichever team is mentioned earliest rather than a prefix match.
-        const avatarFor = (message) => {
+        const teamFor = (message) => {
             let best = null; let bestIndex = Infinity;
             for (const team of league.teams) {
                 const index = message.indexOf(team.name);
-                if (index !== -1 && index < bestIndex) { best = UI.avatarFor(team, league.teams); bestIndex = index; }
+                if (index !== -1 && index < bestIndex) { best = team; bestIndex = index; }
             }
             return best;
         };
@@ -27,10 +26,10 @@
             events.length === 0
                 ? h('p', { className: 'tl-empty' }, 'Nothing on the wire yet.')
                 : events.map((event) => {
-                    const avatar = avatarFor(event.message);
+                    const team = teamFor(event.message);
                     return h('div', { key: event.id, className: `tl-feedrow${rowTone(event.kind)}`, style: { alignItems: 'center' } },
-                        avatar
-                            ? h('span', { className: 'tl-avatar sm', style: { background: avatar.color, flex: 'none' } }, avatar.initials)
+                        team
+                            ? h(window.TimeLeagueHelmetIcon, { helmet: team.helmet, letter: window.App.TimeLeagueHelmet.letterFor(team.name), size: 22 })
                             : h('time', null, `W${String(event.week).padStart(2, '0')}`),
                         h('p', { style: { flex: 1 } }, event.message),
                         h('time', { style: { fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' } }, event.kind.toUpperCase()));

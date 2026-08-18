@@ -117,7 +117,11 @@
             : (eraRules.decades.length ? 'Only seasons inside these decades can be drawn at the draft.' : 'Nothing picked yet — the league would draft from every era.');
 
         const updateSeat = (target, patch) => setSeats((prev) => prev.map((s, i) => (i === target ? { ...s, ...patch } : s)));
-        const addSeat = () => setSeats((prev) => (prev.length >= 12 ? prev : [...prev, { name: `Seat ${prev.length + 1}`, manager: 'ai', aiPersona: window.TimeLeagueUtils.PERSONA_IDS[prev.length % 4] }]));
+        const addSeat = () => setSeats((prev) => {
+            if (prev.length >= 12) return prev;
+            const name = `Seat ${prev.length + 1}`;
+            return [...prev, { name, manager: 'ai', aiPersona: window.TimeLeagueUtils.PERSONA_IDS[prev.length % 4], helmet: window.App.TimeLeagueHelmet.defaultHelmet(name) }];
+        });
         const removeSeat = (target) => setSeats((prev) => (prev.length <= 2 ? prev : prev.filter((_, i) => i !== target)));
 
         const signedIn = Boolean(window.App.OD && window.App.OD.getCurrentUserId && window.App.OD.getCurrentUserId());
@@ -191,6 +195,10 @@
                 h('span', { className: 'tl-label' }, `Seats (${seats.length}/12) · ${humanSeats} hotseat human${humanSeats === 1 ? '' : 's'}`),
                 seats.map((seat, i) => h('div', { key: i, className: 'tl-seat-row' },
                     h('span', { className: 'tl-label' }, `S${i + 1}`),
+                    h(window.TimeLeagueHelmetPicker, {
+                        helmet: seat.helmet, letter: window.App.TimeLeagueHelmet.letterFor(seat.name),
+                        onChange: (helmet) => updateSeat(i, { helmet }),
+                    }),
                     h('input', { className: 'tl-input', value: seat.name, placeholder: `Seat ${i + 1}`, onChange: (e) => updateSeat(i, { name: e.target.value }) }),
                     h('select', { className: 'tl-select', value: seat.manager, onChange: (e) => updateSeat(i, { manager: e.target.value === 'ai' ? 'ai' : 'human' }) },
                         h('option', { value: 'human' }, 'HUMAN'), h('option', { value: 'ai' }, 'AI')),

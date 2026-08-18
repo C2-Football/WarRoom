@@ -403,14 +403,13 @@
                 league.teams.map((item) => {
                     const record = recordByTeam.get(item.teamId);
                     const persona = item.aiPersona ? AI.AI_PERSONAS[item.aiPersona] : undefined;
-                    const avatar = UI.avatarFor(item, league.teams);
                     return h('button', {
                         key: item.teamId, onClick: () => onSelectTeam(item.teamId),
                         className: 'tl-card', style: {
                             flex: 'none', textAlign: 'left', cursor: 'pointer', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8,
                             borderColor: item.teamId === activeTeamId ? 'var(--gold)' : undefined,
                         },
-                    }, h('span', { className: 'tl-avatar sm', style: { background: avatar.color } }, avatar.initials),
+                    }, h(window.TimeLeagueHelmetIcon, { helmet: item.helmet, letter: window.App.TimeLeagueHelmet.letterFor(item.name), size: 24 }),
                         h('div', null, h('strong', { style: { display: 'block', fontSize: 12.5 } }, item.name),
                             h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 } },
                                 item.manager === 'human' ? h('span', { className: 'tl-pill' }, 'HUMAN') : h('span', { className: `tl-pill ${PERSONA_PILL[item.aiPersona ?? 'steward']}` }, (persona?.label ?? 'AI').toUpperCase()),

@@ -85,15 +85,22 @@
     }
 
     function createTimeLeague(input) {
-        const teams = input.seats.map((seat, index) => ({
-            teamId: `t${index + 1}`,
-            name: seat.name,
-            manager: seat.manager,
-            ...(seat.aiPersona ? { aiPersona: seat.aiPersona } : {}),
-            roster: [],
-            queue: [],
-            ...(input.settings.waiverMode === "faab" ? { faabRemaining: input.settings.faabBudget } : {}),
-        }));
+        const teams = input.seats.map((seat, index) => {
+            const teamId = `t${index + 1}`;
+            return {
+                teamId,
+                name: seat.name,
+                manager: seat.manager,
+                ...(seat.aiPersona ? { aiPersona: seat.aiPersona } : {}),
+                // Setup always hands one over (defaultSeats / addSeat both stamp
+                // one in), but a manually-built seats array (tests, deep links)
+                // still lands on a real, deterministic helmet instead of none.
+                helmet: seat.helmet || App.TimeLeagueHelmet.defaultHelmet(teamId),
+                roster: [],
+                queue: [],
+                ...(input.settings.waiverMode === "faab" ? { faabRemaining: input.settings.faabBudget } : {}),
+            };
+        });
         const teamIds = teams.map((team) => team.teamId);
         const draftOrder = createDraftOrder(teamIds, rosterCapacity(input.settings), "snake")
             .map(({ overall, round, teamId }) => ({ overall, round, teamId }));
@@ -686,6 +693,25 @@
         return { entryId, identity, name, position, drawnSeason, slot: readSlot(value.slot), acquiredVia, acquiredWeek };
     };
 
+    // Helmet is deliberately NOT a hard requirement here (unlike roster/queue
+    // above) — a league founded before this feature existed has no helmet on
+    // disk at all, and rejecting the whole team over a missing cosmetic field
+    // would corrupt real league data over a helmet. Falls back to the same
+    // deterministic default createTimeLeague uses, keyed on teamId so it's
+    // stable across reloads rather than reshuffling every load.
+    const readHelmet = (value, teamId) => {
+        const Helmet = App.TimeLeagueHelmet;
+        if (isRecord(value)) {
+            return {
+                color: Helmet.colorById(readString(value.color) || "").id,
+                facemask: Helmet.facemaskById(readString(value.facemask) || "").id,
+                stripe: value.stripe !== false,
+                stripeColor: readString(value.stripeColor) || Helmet.STRIPE_COLORS[0],
+            };
+        }
+        return Helmet.defaultHelmet(teamId);
+    };
+
     const readTeam = (value) => {
         if (!isRecord(value)) return null;
         const teamId = readString(value.teamId);
@@ -695,10 +721,11 @@
         const queue = readArray(value.queue, readString);
         if (!teamId || !name || !manager || !roster || !queue) return null;
         const aiPersona = AI_PERSONAS.includes(value.aiPersona) ? value.aiPersona : null;
+        const helmet = readHelmet(value.helmet, teamId);
         const hasFaab = "faabRemaining" in value;
         const faabRemaining = hasFaab ? readNumber(value.faabRemaining) : undefined;
         if (hasFaab && faabRemaining === null) return null;
-        return { teamId, name, manager, ...(aiPersona ? { aiPersona } : {}), roster, queue, ...(faabRemaining !== undefined ? { faabRemaining } : {}) };
+        return { teamId, name, manager, ...(aiPersona ? { aiPersona } : {}), helmet, roster, queue, ...(faabRemaining !== undefined ? { faabRemaining } : {}) };
     };
 
     const readSeat = (value) => {

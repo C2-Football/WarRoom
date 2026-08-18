@@ -33,13 +33,17 @@
     };
 
     const PERSONA_IDS = ['warlord', 'archivist', 'gambler', 'steward'];
+    // Helmet defaults are deterministic per name (see time-league-helmet.js) so
+    // the same roster of default seats always looks the same, not reshuffled
+    // on every "Found a League" mount.
+    const seatWithHelmet = (seat) => ({ ...seat, helmet: window.App.TimeLeagueHelmet.defaultHelmet(seat.name) });
     const defaultSeats = () => [
-        { name: 'Commander', manager: 'human', aiPersona: 'warlord' },
-        { name: 'Warlord Kade', manager: 'ai', aiPersona: 'warlord' },
-        { name: 'The Archivist', manager: 'ai', aiPersona: 'archivist' },
-        { name: 'Riverboat Sol', manager: 'ai', aiPersona: 'gambler' },
-        { name: 'Steward Vance', manager: 'ai', aiPersona: 'steward' },
-        { name: 'Iron Ledger', manager: 'ai', aiPersona: 'archivist' },
+        seatWithHelmet({ name: 'Commander', manager: 'human', aiPersona: 'warlord' }),
+        seatWithHelmet({ name: 'Warlord Kade', manager: 'ai', aiPersona: 'warlord' }),
+        seatWithHelmet({ name: 'The Archivist', manager: 'ai', aiPersona: 'archivist' }),
+        seatWithHelmet({ name: 'Riverboat Sol', manager: 'ai', aiPersona: 'gambler' }),
+        seatWithHelmet({ name: 'Steward Vance', manager: 'ai', aiPersona: 'steward' }),
+        seatWithHelmet({ name: 'Iron Ledger', manager: 'ai', aiPersona: 'archivist' }),
     ];
 
     // ── storage (all reads guarded; wall-clock timestamps live only in this UI layer) ──
@@ -185,8 +189,16 @@
             .tl-opt-chip { font-size: 12px; padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.02); color: var(--text-secondary); cursor: pointer; text-align: left; }
             .tl-opt-chip.selected { border-color: var(--gold); background: rgba(212,175,55,0.1); color: var(--gold); font-weight: 600; }
             .tl-opt-detail { display: block; font-family: var(--font-mono); font-size: 10.5px; color: var(--text-faint, rgba(189,184,173,0.5)); margin-top: 2px; }
-            .tl-seat-row { display: grid; grid-template-columns: 28px 1fr 90px 130px 28px; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+            .tl-seat-row { display: grid; grid-template-columns: 28px 36px 1fr 90px 130px 28px; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
             .tl-seat-row:last-child { border-bottom: none; }
+            .tl-helmet-picker { position: relative; display: inline-flex; }
+            .tl-helmet-editor { position: absolute; top: 100%; left: 0; z-index: 20; margin-top: 4px; padding: 9px; background: var(--co-page, #0c0c10); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; box-shadow: 0 10px 28px rgba(0,0,0,0.55); display: flex; flex-direction: column; gap: 8px; width: 190px; }
+            .tl-helmet-swatches { display: flex; flex-wrap: wrap; gap: 4px; }
+            .tl-helmet-swatch { width: 18px; height: 18px; border-radius: 4px; border: 2px solid transparent; cursor: pointer; padding: 0; }
+            .tl-helmet-swatch.selected { border-color: var(--gold); }
+            .tl-helmet-swatch.small { width: 14px; height: 14px; border-radius: 50%; }
+            .tl-helmet-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+            .tl-helmet-stripe-toggle { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
             .tl-toggle { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; cursor: pointer; }
             .tl-tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
             .tl-tbl th { text-align: left; font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); padding: 6px 8px; border-bottom: 1px solid var(--charcoal); font-weight: 500; }

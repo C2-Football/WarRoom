@@ -129,9 +129,9 @@
                     story.boxscore ? h('div', { className: 'tl-boxscore' },
                         h('div', { className: 'tl-boxscore-head' }, `Week ${story.boxscore.week} — Final`),
                         [{ id: story.boxscore.home, pts: story.boxscore.homePoints }, { id: story.boxscore.away, pts: story.boxscore.awayPoints }].map((side) => {
-                            const avatar = UI.avatarFor(teamOf(side.id), league.teams);
+                            const team = teamOf(side.id);
                             return h('div', { key: side.id, className: `tl-boxscore-row${story.boxscore.winner === side.id ? ' winner' : ''}` },
-                                h('span', null, h('span', { className: 'tl-avatar sm', style: { background: avatar.color, marginRight: 8 } }, avatar.initials), teamName(side.id)),
+                                h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 8 } }, h(window.TimeLeagueHelmetIcon, { helmet: team?.helmet, letter: window.App.TimeLeagueHelmet.letterFor(team?.name || side.id), size: 20 }), teamName(side.id)),
                                 h('span', { className: 'tabular' }, side.pts.toFixed(1)));
                         }))
                         : null,

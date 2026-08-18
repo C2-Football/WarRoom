@@ -15,7 +15,6 @@
     const Engine = window.App.TimeLeagueEngine;
     const AI = window.App.TimeLeagueAI;
     const Gamecast = window.App.TimeLeagueGamecast;
-    const UI = window.App.TimeLeagueUI;
 
     const GAMECAST_END = 200;
     /** 1x plays the 200 simulated minutes in ~8 real seconds. */
@@ -40,18 +39,16 @@
         return h('div', { className: 'tl-scoreboard-strip' }, rows.map((row) => {
             const homeTeam = teams.find((t) => t.teamId === row.home);
             const awayTeam = teams.find((t) => t.teamId === row.away);
-            const homeAvatar = UI.avatarFor(homeTeam, teams);
-            const awayAvatar = UI.avatarFor(awayTeam, teams);
             const mine = row.home === myTeamId || row.away === myTeamId;
             const homeLeading = row.homePoints > row.awayPoints;
             const awayLeading = row.awayPoints > row.homePoints;
             return h('div', { key: `${row.home}:${row.away}`, className: `tl-score-chip${mine ? ' mine' : ''}${live ? ' live' : ''}` },
                 h('div', { className: 'tl-sc-tag' }, live ? h('span', { className: 'tl-sc-dot' }) : null, mine ? `${statusLabel} · YOUR MATCHUP` : statusLabel),
                 h('div', { className: `tl-sc-row${homeLeading ? ' winning' : ''}` },
-                    h('span', { className: 'tl-sc-team' }, h('span', { className: 'tl-avatar sm', style: { background: homeAvatar.color } }, homeAvatar.initials), h('span', null, homeTeam?.name ?? row.home)),
+                    h('span', { className: 'tl-sc-team' }, h(window.TimeLeagueHelmetIcon, { helmet: homeTeam?.helmet, letter: window.App.TimeLeagueHelmet.letterFor(homeTeam?.name || row.home), size: 20 }), h('span', null, homeTeam?.name ?? row.home)),
                     h('span', { className: 'tl-sc-pts tabular' }, row.homePoints.toFixed(1))),
                 h('div', { className: `tl-sc-row${awayLeading ? ' winning' : ''}` },
-                    h('span', { className: 'tl-sc-team' }, h('span', { className: 'tl-avatar sm', style: { background: awayAvatar.color } }, awayAvatar.initials), h('span', null, awayTeam?.name ?? row.away)),
+                    h('span', { className: 'tl-sc-team' }, h(window.TimeLeagueHelmetIcon, { helmet: awayTeam?.helmet, letter: window.App.TimeLeagueHelmet.letterFor(awayTeam?.name || row.away), size: 20 }), h('span', null, awayTeam?.name ?? row.away)),
                     h('span', { className: 'tl-sc-pts tabular' }, row.awayPoints.toFixed(1))));
         }));
     }
@@ -64,19 +61,17 @@
         const opp = row.mineIsHome ? awayTeam : homeTeam;
         const minePts = row.mineIsHome ? row.homePoints : row.awayPoints;
         const oppPts = row.mineIsHome ? row.awayPoints : row.homePoints;
-        const mineAvatar = UI.avatarFor(mine, teams);
-        const oppAvatar = UI.avatarFor(opp, teams);
         const total = minePts + oppPts;
         const minePct = total > 0 ? (minePts / total) * 100 : 50;
         return h('div', { className: 'tl-hero-matchup' },
             h('div', { className: 'tl-hero-top' },
                 h('div', { className: 'tl-hero-side' },
-                    h('span', { className: 'tl-avatar lg', style: { background: mineAvatar.color } }, mineAvatar.initials),
+                    h(window.TimeLeagueHelmetIcon, { helmet: mine.helmet, letter: window.App.TimeLeagueHelmet.letterFor(mine.name), size: 52 }),
                     h('div', { className: `tl-h-name${minePts >= oppPts ? ' leading' : ''}` }, mine.name),
                     h('div', { className: `tl-h-pts tabular${minePts >= oppPts ? ' leading' : ''}` }, minePts.toFixed(1))),
                 h('div', { className: 'tl-hero-mid' }, h('div', { className: 'tl-h-vs' }, `WEEK ${week}`), h('div', { className: 'tl-h-clock' }, clockLabel)),
                 h('div', { className: 'tl-hero-side' },
-                    h('span', { className: 'tl-avatar lg', style: { background: oppAvatar.color } }, oppAvatar.initials),
+                    h(window.TimeLeagueHelmetIcon, { helmet: opp.helmet, letter: window.App.TimeLeagueHelmet.letterFor(opp.name), size: 52 }),
                     h('div', { className: `tl-h-name${oppPts > minePts ? ' leading' : ''}` }, opp.name),
                     h('div', { className: `tl-h-pts tabular${oppPts > minePts ? ' leading' : ''}` }, oppPts.toFixed(1)))),
             total > 0 ? h('div', { className: 'tl-win-prob' }, h('span', null, statusLabel), h('span', null, `${minePct.toFixed(0)}% — ${(100 - minePct).toFixed(0)}%`)) : h('div', { className: 'tl-win-prob' }, h('span', null, statusLabel), h('span', null, '—')),
