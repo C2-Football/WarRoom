@@ -40,7 +40,15 @@
         const _phoneKitReady = !!(window.WR && window.WR.HeroCard && window.WR.AssetRow && window.WR.CardList && window.WR.FilterPill && window.WR.FilterSheet);
         const _phone = !!_vp.isPhone && _phoneKitReady;
         const [draftSort, setDraftSort] = useState({ key: 'dhq', dir: -1 });
-        const [draftView, setDraftView] = useState('command'); // 'command' | 'board' | 'mock' | 'live'
+        // War Room ('command') = Draft Capital + Roster Targeting / Alex's
+        // Recommended Draft / Board Pressure — all three already gated off for
+        // redraft/chopped/best-ball/DFS (showDraftCapitalPlanning: !seasonal,
+        // js/league-skin.js), since a full re-draft every season has no
+        // "future capital" to plan around. commandTabAllowed mirrors that same
+        // flag so the TAB doesn't exist for those formats either, instead of
+        // just rendering empty.
+        const commandTabAllowed = skinFeatures.showDraftCapitalPlanning !== false;
+        const [draftView, setDraftView] = useState(() => (commandTabAllowed ? 'command' : 'board')); // 'command' | 'board' | 'mock' | 'live'
         const [draftInfo, setDraftInfo] = useState(null);
         const draftVariant = useMemo(() => {
             try {
@@ -103,6 +111,12 @@
         const [boardTeamFilter, setBoardTeamFilter] = useState(''); // '' | NFL team abbr
         const [boardRoundFilter, setBoardRoundFilter] = useState(''); // '' | '1'..'7' | 'UDFA'
         const [boardSort, setBoardSort] = useState({ key: 'dhq', dir: -1 }); // sortable columns
+        // Big Board render cap — 300 rows rendered at once made the whole page
+        // scroll; default to 50 with a contained scroll box + "Show more" instead
+        // (renderCompactBoard's outer div gets a fixed max-height/overflowY below).
+        const BOARD_PAGE_SIZE = 50;
+        const [boardVisibleCount, setBoardVisibleCount] = useState(BOARD_PAGE_SIZE);
+        useEffect(() => { setBoardVisibleCount(BOARD_PAGE_SIZE); }, [boardMode, boardSearch, boardPosFilter, boardTeamFilter, boardRoundFilter, hideDrafted]);
         // Hide-drafted toggle for the standalone Big Board. Shares the SAME WrStorage key as
         // the Command Center BigBoardPanel (js/draft/big-board.js) so the two boards stay in
         // sync. Default OFF (preserves the always-show + dim/strike behavior).
@@ -163,8 +177,16 @@
                             rounds: Number(d?.settings?.rounds) || null, playerType: Number(d?.settings?.player_type),
                         }));
                     } else {
-                        let lid = currentLeague?.league_id;
-                        for (let hop = 0; lid && hop < 8 && !cancelled; hop++) {
+                        // league_id isn't guaranteed present on currentLeague depending on
+                        // how it was loaded — .id is the field the rest of the app treats
+                        // as canonical (see window.S.currentLeagueId in league-detail.js).
+                        // Missing this fallback silently zeroed the whole chain walk (lid
+                        // undefined → loop body never runs → "no drafts found" even for a
+                        // league with years of real Sleeper drafts).
+                        let lid = currentLeague?.league_id || currentLeague?.id;
+                        const seen = new Set();
+                        for (let hop = 0; lid && !seen.has(lid) && hop < 8 && !cancelled; hop++) {
+                            seen.add(lid);
                             const [info, drafts] = await Promise.all([
                                 fetch('https://api.sleeper.app/v1/league/' + lid).then(r => r.ok ? r.json() : null).catch(() => null),
                                 fetch('https://api.sleeper.app/v1/league/' + lid + '/drafts').then(r => r.ok ? r.json() : []).catch(() => []),
@@ -173,7 +195,10 @@
                                 season: Number(d.season) || null, draftId: String(d.draft_id || ''), status: String(d.status || ''),
                                 rounds: Number(d?.settings?.rounds) || null, playerType: Number(d?.settings?.player_type),
                             }));
-                            lid = info?.previous_league_id || null;
+                            // Sleeper marks "no earlier season" with the literal string '0',
+                            // not an absent field — treating it as falsy stops the walk here.
+                            const prev = info?.previous_league_id;
+                            lid = (prev && prev !== '0') ? prev : null;
                         }
                     }
                     if (!cancelled) setHistDrafts(out.sort((a, b) => (b.season || 0) - (a.season || 0)));
@@ -183,7 +208,7 @@
                 }
             })();
             return () => { cancelled = true; };
-        }, [showDraftHistory, histDrafts, currentLeague?.league_id]);
+        }, [showDraftHistory, histDrafts, currentLeague?.league_id, currentLeague?.id]);
         const [recapPullTick, setRecapPullTick] = useState(0);
 
         // ── Live-draft bridge (shared by the Analyst Mock lock + Recommended Draft lock) ──
@@ -785,8 +810,14 @@
         // Team assessment for roster needs (drives needBonus in scoring)
         const assess = useMemo(() => typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(myRoster?.roster_id) : null, [myRoster, timeRecomputeTs]);
 
-        // Determine active view: global viewMode overrides to 'command' when set
-        const activeView = viewMode === 'command' ? 'command' : draftView;
+        // Determine active view: global viewMode overrides to 'command' when set.
+        // Single choke point for the commandTabAllowed guard — whichever
+        // mechanism asked for 'command' (this override, draftView state, or any
+        // of the pick-focus/live-draft effects below that call
+        // setDraftView('command')), a league whose format doesn't get the War
+        // Room tab never actually lands on it; it clamps to Big Board instead.
+        const rawActiveView = viewMode === 'command' ? 'command' : draftView;
+        const activeView = (!commandTabAllowed && rawActiveView === 'command') ? 'board' : rawActiveView;
         // Draft is over → lock the War Room sub-tab to a results-only view (owner
         // ask): hide every pre-draft planning surface (pick capital, draft plan,
         // analyst mock, recommended draft, board pressure + class depth) and keep
@@ -2673,7 +2704,7 @@
                     all preserved; the strip itself never mounts on phone. */}
                 {_phone && (
                     <div className="wr-seg" style={{ marginBottom: '10px' }}>
-                        <button type="button" className={activeView === 'command' ? 'is-on' : ''} onClick={() => navDraftView('command')}>War Room</button>
+                        {commandTabAllowed && <button type="button" className={activeView === 'command' ? 'is-on' : ''} onClick={() => navDraftView('command')}>War Room</button>}
                         <button type="button" className={activeView === 'board' ? 'is-on' : ''} onClick={() => navDraftView('board')}>Big Board</button>
                         <button type="button" className={activeView === 'mock' ? 'is-on' : ''} onClick={() => navDraftView('mock')}>Mock</button>
                         <button type="button" className={activeView === 'live' ? 'is-on' : ''} onClick={launchLiveDraft}>Live</button>
@@ -2684,7 +2715,7 @@
                 <div className={'wr-module-strip' + (activeView === 'live' || activeView === 'mock' ? ' is-compact' : '')}>
                     <div className="wr-module-actions">
                     <div className="wr-module-nav">
-                    <button type="button" className={activeView === 'command' ? 'is-active' : ''} onClick={() => navDraftView('command')}>War Room</button>
+                    {commandTabAllowed && <button type="button" className={activeView === 'command' ? 'is-active' : ''} onClick={() => navDraftView('command')}>War Room</button>}
                     <button type="button" className={activeView === 'board' ? 'is-active' : ''} onClick={() => navDraftView('board')}>Big Board</button>
                     <button type="button" className={activeView === 'mock' ? 'is-active' : ''} onClick={() => navDraftView('mock')}>Mock Draft Center</button>
                     <button type="button" onClick={() => setShowDraftHistory(true)} title="Archived drafts — grades, picks, and recaps">Draft History</button>
@@ -2841,9 +2872,9 @@
                                 </div>
                                 )}
                                 {renderAnalystFlash()}
-                                {/* E5: dynasty leagues have no gameplan at all (format,
-                                    not tier) — clean absence, not a lock card. */}
-                                {skinFeatures.showDraftGameplan !== false && renderDraftGameplan()}
+                                {/* Draft Gameplan now lives on Big Board (single source of
+                                    truth reachable from every draft flow) — see the board
+                                    view below, not duplicated here. */}
                             </aside>
                         );
                         if (!showCapitalPlanning) return draftHqActionsEl;
@@ -3021,6 +3052,7 @@
                             </section>
                             )}
 
+                            {skinFeatures.showDraftCapitalPlanning !== false && (
                             <section className="draft-hq-panel">
                                 <div className="draft-hq-panel-head">
                                     <span>Board Pressure</span>
@@ -3070,6 +3102,7 @@
                                 </React.Fragment>
                                 )}
                             </section>
+                            )}
                         </div>
                         {scoutDrawerPid && (() => {
                             const r = draftPoolRows.find(row => String(row.pid) === String(scoutDrawerPid));
@@ -3383,7 +3416,7 @@
                         const detailBox = { border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', background: 'var(--ov-2, rgba(255,255,255,0.025))', borderRadius: 'var(--card-radius-sm)', padding: '9px 10px', minWidth: 0 };
 
                         return (
-		                        <div style={{ background: 'var(--black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: 'var(--card-radius-sm)', maxHeight: 'none', overflowX: 'auto', WebkitOverflowScrolling: 'touch', overflowY: 'clip' }}>
+		                        <div style={{ background: 'var(--black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: 'var(--card-radius-sm)', maxHeight: 'none', overflowX: 'auto', WebkitOverflowScrolling: 'touch', overflowY: 'visible' }}>
 	                          {/* Phone-tier tap-target bump for the ▲/▼ board-move fallback
 	                              (mobile plan D7/D10): HTML5 drag is inert on iOS, so these
 	                              buttons are the only reorder path — 16×14px is untappable.
@@ -3865,6 +3898,8 @@
                                     <button type="button" style={{ ...phChipBtn(false), marginTop: '2px' }} onClick={() => { setBoardSearch(''); setBoardPosFilter(''); setBoardTeamFilter(''); setBoardRoundFilter(''); }}>Reset</button>
                                 </React.Fragment>
                             );
+                        } else if (phBoardPanel === 'gameplan') {
+                            phBoardPanelEl = phBoardPanelWrap(renderDraftGameplan());
                         }
                         return (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -3876,6 +3911,7 @@
                                     {React.createElement(window.WR.FilterPill, { label: 'Lane', value: activeBoardInfo.label, onClick: () => setPhBoardPanel(p => p === 'lane' ? null : 'lane') })}
                                     {React.createElement(window.WR.FilterPill, { label: 'Pos', value: boardPosFilter || 'ALL', onClick: () => setPhBoardPanel(p => p === 'pos' ? null : 'pos') })}
                                     {React.createElement(window.WR.FilterPill, { label: 'Filters', value: [boardTeamFilter, boardRoundFilter && ('R' + boardRoundFilter).replace('RUDFA', 'UDFA'), boardSearch && '"' + boardSearch + '"'].filter(Boolean).join(' · ') || null, onClick: () => setPhBoardPanel(p => p === 'filters' ? null : 'filters') })}
+                                    {skinFeatures.showDraftGameplan !== false && React.createElement(window.WR.FilterPill, { label: 'Plan', value: gameplanArch !== 'balanced' ? gameplanArch : null, onClick: () => setPhBoardPanel(p => p === 'gameplan' ? null : 'gameplan') })}
                                     {React.createElement(window.WR.FilterPill, { label: 'Hide drafted', value: hideDrafted ? 'ON' : null, onClick: toggleHideDrafted })}
                                 </div>
                                 {phBoardPanelEl}
@@ -3961,6 +3997,16 @@
                             </div>
                         </section>
 
+                        {/* Draft Gameplan — single source of truth for the archetype that
+                            shapes AI Recommended here AND the pick recommendations in Mock
+                            Draft Center / Follow Live Draft (both just read the same
+                            GM Strategy field this card writes). Lives on Big Board — the
+                            page every draft flow actually starts from — not buried inside
+                            a live/mock session or the (now non-dynasty-hidden) War Room. */}
+                        {skinFeatures.showDraftGameplan !== false && (
+                            <div style={{ marginBottom: 12 }}>{renderDraftGameplan()}</div>
+                        )}
+
                         {/* Player search */}
                         <div style={{ position: 'relative', marginBottom: '8px' }}>
                             <input
@@ -4019,10 +4065,22 @@
 
                         <div style={{ marginBottom: '14px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 8, color: 'var(--silver)', opacity: 0.65, fontSize: 'var(--text-micro, 0.6875rem)' }}>
-                                <span>{activeBoardInfo.label} - {visibleBoardPlayers.length} visible players</span>
+                                <span>{activeBoardInfo.label} - {Math.min(boardVisibleCount, visibleBoardPlayers.length)} of {visibleBoardPlayers.length} visible players</span>
                                 <span>{boardMode === 'my' ? 'Hold ≡ (or drag a row) to reorder - click a player for notes' : 'Switch to User Board to edit rank order'}</span>
                             </div>
-                            {renderCompactBoard(visibleBoardPlayers, boardMode !== 'my')}
+                            <div style={{ maxHeight: '640px', overflowY: 'auto', borderRadius: 'var(--card-radius-sm)' }}>
+                                {renderCompactBoard(visibleBoardPlayers.slice(0, boardVisibleCount), boardMode !== 'my')}
+                            </div>
+                            {boardVisibleCount < visibleBoardPlayers.length && (
+                                <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 10 }}>
+                                    <button type="button" onClick={() => setBoardVisibleCount(c => c + BOARD_PAGE_SIZE)} style={{ padding: '8px 16px', minHeight: '40px', fontSize: '0.76rem', fontFamily: 'var(--font-body)', fontWeight: 700, borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--acc-line3, rgba(212,175,55,0.4))', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', color: 'var(--gold)' }}>
+                                        Show {Math.min(BOARD_PAGE_SIZE, visibleBoardPlayers.length - boardVisibleCount)} more
+                                    </button>
+                                    <button type="button" onClick={() => setBoardVisibleCount(visibleBoardPlayers.length)} style={{ padding: '8px 16px', minHeight: '40px', fontSize: '0.76rem', fontFamily: 'var(--font-body)', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', background: 'transparent', color: 'var(--silver)' }}>
+                                        Show all {visibleBoardPlayers.length}
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                     </div>

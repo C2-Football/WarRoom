@@ -46,6 +46,7 @@
     const TrophyRoomTabLazy = wrLazyTab('trophies', 'Trophy Room', () => (typeof TrophyRoomTab === 'function' ? TrophyRoomTab : null));
     const AlexInsightsTabLazy = wrLazyTab('alex', "GM's Office", () => (typeof window.AlexInsightsTab === 'function' ? window.AlexInsightsTab : null));
     const CompareTabLazy = wrLazyTab('compare', 'Compare', () => (typeof window.CompareTab === 'function' ? window.CompareTab : null));
+    const LeagueCentralTabLazy = wrLazyTab('central', 'League Central', () => (typeof window.LeagueCentralTab === 'function' ? window.LeagueCentralTab : null));
     // My Team and Calendar are non-default tabs (the default in-league view is the
     // dashboard), so their modules are deferred too — they no longer load at boot
     // and only fetch on first open, like the tabs above. Removes ~68KB of JSX from
@@ -219,6 +220,8 @@
         legend: ['M12 7v14', 'M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z'],
         // refresh-cw
         refresh: ['M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8', 'M21 3v5h-5', 'M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16', 'M8 16H3v5'],
+        // gauge — the league-wide hub/command view
+        central: ['m12 14 4-4', 'M3.34 19a10 10 0 1 1 17.32 0'],
     };
     // showGameDay = the FINAL leagueSkin.features.showGameDay flag
     // (callers apply the same `?? phase === 'in_season'` fallback in one place).
@@ -231,6 +234,7 @@
             ...(showGameDay ? [{ label: 'Game Day', tab: 'lineup', iconKey: 'gameday' }] : []),
             { label: 'Compare', tab: 'compare', iconKey: 'compare' },
             { section: 'LEAGUE' },
+            { label: 'League Central', tab: 'central', iconKey: 'central' },
             // Hidden where the format forbids trading (chopped, or trades
             // disabled in settings) — an unusable tab is worse than no tab.
             ...(showTrades === false ? [] : [{ label: 'Trade Center', tab: 'trades', iconKey: 'trade' }]),
@@ -1018,6 +1022,10 @@
             { id: 'rfw4', key: 'market-radar',   size: 'md' },
             { id: 'rfw5', key: 'lineup-check',   size: 'md' },
             { id: 'rfw6', key: 'faab-command',   size: 'md' },
+            // Appended, not swapped in — redraft/chopped just lost their in-draft-room
+            // Analyst Mock card (War Room tab is hidden for these formats now), so this
+            // is their only remaining access point to it.
+            { id: 'rfw7', key: 'analyst-mock',   size: 'sm' },
         ];
         // Migrate legacy formats to current widget object format
         function migrateKpisToWidgets(stored) {
@@ -3506,6 +3514,9 @@
                 }) : activeTab === 'compare' ? React.createElement(CompareTabLazy, {
                     currentLeague, leagueSkin, myRoster, playersData, statsData, stats2025Data,
                     standings, sleeperUserId,
+                }) : activeTab === 'central' ? React.createElement(LeagueCentralTabLazy, {
+                    currentLeague, leagueSkin, myRoster, playersData, standings, transactions,
+                    sleeperUserId, getOwnerName, getPlayerName, timeAgo, setActiveTab,
                 }) : (
                 <DashboardPanel
                     selectedWidgets={selectedWidgets}

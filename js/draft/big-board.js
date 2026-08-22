@@ -607,7 +607,7 @@
         // row so the columns always line up. One extra 44px track for ADP,
         // inserted right after DHQ, only when this board is redraft/chopped.
         const boardGridTemplate = (activeLane === 'my' ? '38px' : '22px')
-            + ' minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 48px'
+            + ' minmax(0,1.3fr) 40px minmax(0,0.95fr) 30px 48px 54px'
             + (adpEligible ? ' 44px' : '')
             + ' 44px';
 
@@ -877,6 +877,7 @@
                     {colHeader('college', 'College', 'left')}
                     {colHeader('pos', 'Pos', 'center')}
                     {colHeader('dhq', 'DHQ', 'right')}
+                    <span title="This season's most decision-relevant stat for the player's position — targets/gm, snap%, CMP%, tackles, etc." style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_UI, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--silver)', opacity: 0.62, textAlign: 'right' }}>Usage</span>
                     {adpEligible && colHeader('adp', 'ADP', 'right')}
                     {(isUserTurn || state.overrideMode || state.mode === 'manual') && <span />}
                 </div>
@@ -977,6 +978,21 @@
                                 <span title={college} style={{ color: 'var(--silver)', opacity: 0.7, fontSize: 'var(--text-micro, 0.6875rem)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{college || '—'}</span>
                                 <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, padding: '1px 5px', borderRadius: '3px', background: wrAlpha(posColor, '22'), color: posColor, textAlign: 'center', fontFamily: FONT_UI }}>{normEdPos(p.pos)}</span>
                                 <span style={{ color: col, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, fontFamily: FONT_MONO, textAlign: 'right' }}>{fmt(p.dhq)}</span>
+                                {(() => {
+                                    // Position-specific usage read (no plumbing change — statsData
+                                    // is already global at window.S.statsData once a league loads).
+                                    // Blank for rookies/prospects pre-draft; they have no NFL stat
+                                    // line yet, which is the honest answer, not a bug.
+                                    const SC = window.App?.StatCatalog;
+                                    const stat = SC ? SC.getTopStat(normEdPos(p.pos)) : null;
+                                    const raw = stat && window.S?.statsData?.[p.pid];
+                                    const v = raw ? SC.computeStat(stat.key, raw, { perGame: true }) : null;
+                                    return (
+                                        <span title={stat ? stat.label : undefined} style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: v != null ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.28))', fontFamily: FONT_MONO, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                            {v != null ? <React.Fragment>{SC.formatStat(v, stat.format)} <span style={{ opacity: 0.6, fontSize: '0.6rem' }}>{stat.short}</span></React.Fragment> : '—'}
+                                        </span>
+                                    );
+                                })()}
                                 {adpEligible && (
                                     <span style={{ color: 'var(--k-3498db, #3498db)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, fontFamily: FONT_MONO, textAlign: 'right' }}>
                                         {adpFor(p) ? adpFor(p).adp.toFixed(1) : ''}

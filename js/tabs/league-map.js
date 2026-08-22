@@ -11,6 +11,12 @@ function leagueMapPosLabel(pos) {
   return window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos);
 }
 
+// Historical trend/delta columns (Custom Reports) now read the shared
+// cache/calc helpers in js/shared/stat-catalog.js (App.StatCatalog.
+// ensureHistSeason/historicalSeason/trendCalc) — moved there so League
+// Central's trending panel shares the same fetched season blobs instead of
+// re-downloading them under a second cache.
+
 function ReportSubView({
   runReport, loadSavedReports, saveReportsToStorage, DEFAULT_REPORTS,
   getPlayerColumns, getTeamColumns, getFilterableFields, getFilterOps, getFilterOptionSet, sortBtnStyle,
@@ -25,6 +31,23 @@ function ReportSubView({
   const [editDraft, setEditDraft] = React.useState(null);
   const [viewResult, setViewResult] = React.useState(null);
   const [viewSort, setViewSort] = React.useState(null);
+
+  // A report with historical trend/delta columns runs once off whatever
+  // seasons are already cached (often none yet — see StatCatalog.
+  // ensureHistSeason) and shows '—' for the rest. When those background
+  // fetches land, silently
+  // re-run the report that's currently open so the trend columns fill in
+  // without the user having to know to hit refresh.
+  React.useEffect(() => {
+    const onHistLoaded = () => {
+      setViewResult(prev => {
+        if (!prev || reportView !== 'view') return prev;
+        return { ...prev, ...runReport(prev.report) };
+      });
+    };
+    window.addEventListener('wr:hist-season-loaded', onHistLoaded);
+    return () => window.removeEventListener('wr:hist-season-loaded', onHistLoaded);
+  }, [reportView, runReport]);
 
   // Phone tier (≤767, iPhone program Phase 3): the desktop editor stack
   // becomes a stepper WR.Sheet flow (Name/Source → Fields → Filters/Sort →
@@ -540,6 +563,15 @@ function ReportSubView({
       if (col.key === 'healthScore') return typeof val === 'number' ? val : val;
       if (col.key === 'peakYrs') return val > 0 ? val : (val === 0 ? 'At peak' : 'Past');
       if (col.key === 'pos') return leagueMapPosLabel(val);
+      if (col.key === 'snapPct' || col.key === 'cmpPct') return typeof val === 'number' ? val + '%' : val;
+      if (col.key === 'airYd') return typeof val === 'number' ? val.toLocaleString() : val;
+      if (col.key === 'ppgTrend' || col.key === 'usageTrend') return val || '—';
+      if (col.key === 'ppgDelta') return typeof val === 'number' ? (val > 0 ? '+' : '') + val + '%' : val;
+      // usageDelta's unit depends on whether the underlying stat is already a
+      // percentage (snap%, comp% → points moved) or a count/rate (targets,
+      // sacks → % change) — the row carries which, so the column can't be
+      // mislabeled either way.
+      if (col.key === 'usageDelta') return typeof val === 'number' ? (val > 0 ? '+' : '') + val + (row.usageIsPct ? 'pt' : '%') : val;
       return String(val);
     }
 
@@ -547,6 +579,9 @@ function ReportSubView({
       const val = row[col.key];
       if (col.key === 'dhq' || col.key === 'totalDHQ') {
         if (typeof val === 'number') return val >= 7000 ? 'var(--good)' : val >= 4000 ? 'var(--k-3498db, #3498db)' : val >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.35))';
+      }
+      if (col.key === 'ppgDelta' || col.key === 'usageDelta') {
+        if (typeof val === 'number') return val > 0 ? 'var(--good)' : val < 0 ? 'var(--bad)' : 'var(--silver)';
       }
       if (col.key === 'tier') return tierColors[val] || 'var(--silver)';
       if (col.key === 'healthScore') {
@@ -1031,6 +1066,22 @@ function LeagueMapTab({
       { key: 'tier', label: 'Owner Tier' },
       { key: 'contend', label: 'Playoff Status' },
       { key: 'acquired', label: 'Acquired' },
+      // Usage stats — beyond PPG, from window.App.StatCatalog
+      // (js/shared/stat-catalog.js) off the season-aggregate raw stat line.
+      { key: 'targets', label: 'Targets/Gm' },
+      { key: 'snapPct', label: 'Snap %' },
+      { key: 'rzTouches', label: 'RZ Touches/Gm' },
+      { key: 'ypr', label: 'Yds/Rec' },
+      { key: 'airYd', label: 'Air Yards' },
+      { key: 'cmpPct', label: 'Comp %' },
+      // Deep historical analytics — multi-season trend + delta, off the last
+      // 2 completed seasons plus the current one (whichever are cached; see
+      // StatCatalog.ensureHistSeason). Delta is signed and sortable/filterable, so
+      // "snap% rose > 15pts the last 2 years" is a buildable report.
+      { key: 'ppgTrend', label: 'PPG Trend (3yr)' },
+      { key: 'ppgDelta', label: 'PPG Δ % (3yr)' },
+      { key: 'usageTrend', label: 'Usage Trend (3yr, position stat)' },
+      { key: 'usageDelta', label: 'Usage Δ (3yr, position stat)' },
     ];
   }
 
@@ -1047,7 +1098,7 @@ function LeagueMapTab({
   }
 
   function getFilterableFields(dataSource) {
-    if (dataSource === 'players') return ['pos', 'age', 'dhq', 'ppg', 'projWk', 'rosValue', 'peakYrs', 'team', 'owner', 'tier', 'contend'];
+    if (dataSource === 'players') return ['pos', 'age', 'dhq', 'ppg', 'projWk', 'rosValue', 'peakYrs', 'team', 'owner', 'tier', 'contend', 'targets', 'snapPct', 'rzTouches', 'ypr', 'airYd', 'cmpPct', 'ppgDelta', 'usageDelta'];
     return ['healthScore', 'tier', 'totalDHQ', 'avgAge', 'eliteCount'];
   }
 
@@ -1120,6 +1171,17 @@ function LeagueMapTab({
     rankList.forEach((s, i) => { contendByRoster[s.rid] = (i + 1) <= playoffSlots ? 'In' : (i + 1) <= bubbleEdge ? 'Bubble' : 'Out'; });
 
     if (config.dataSource === 'players') {
+      // Historical trend/delta columns — kick off (or reuse) the last 2
+      // completed seasons' league-wide stat blobs via the shared cache in
+      // js/shared/stat-catalog.js. Missing/loading seasons just mean those
+      // years drop out of the trend for now; re-running the report after
+      // ReportSubView's wr:hist-season-loaded listener fills them in without
+      // a manual reload.
+      const _histSC = window.App?.StatCatalog;
+      const _season = Number(currentLeague?.season) || new Date().getFullYear();
+      const _y1 = _season - 1, _y2 = _season - 2;
+      if (_histSC) { _histSC.ensureHistSeason(_y1); _histSC.ensureHistSeason(_y2); }
+      const _h1 = _histSC ? _histSC.historicalSeason(_y1) : null, _h2 = _histSC ? _histSC.historicalSeason(_y2) : null;
       rosters.forEach(r => {
         const ownerName = ownerNameForRoster(r.roster_id);
         const assess = assessForRoster(r.roster_id);
@@ -1138,12 +1200,43 @@ function LeagueMapTab({
             try { const prj = window.App.WeeklyProj.projectPlayer(pid, { playersData, statsData, priorData: {}, scoring: currentLeague?.scoring_settings || {}, week: window.App.WeeklyProj.currentWeek ? window.App.WeeklyProj.currentWeek() : (window.S?.currentWeek || 1) }); projWk = (prj && prj.points) ? +((prj.points.median) || 0).toFixed(1) : 0; } catch (e) { projWk = 0; }
           }
           const rosValue = (window.App?.PlayerValue?.getValue) ? window.App.PlayerValue.getValue(pid) : dhq;
+          const SC = window.App?.StatCatalog;
+          const rnd1 = v => v == null ? null : +v.toFixed(1);
+          const pct100 = v => v == null ? null : Math.round(v * 100);
+          const targets = SC ? rnd1(SC.computeStat('targets', st, { perGame: true })) : null;
+          const snapPct = SC ? pct100(SC.computeStat(['DL', 'LB', 'DB'].includes(pos) ? 'defSnapPct' : 'snapPct', st)) : null;
+          const rzTouches = SC ? rnd1(SC.computeStat('rzTouches', st, { perGame: true })) : null;
+          const ypr = SC ? rnd1(SC.computeStat('ypr', st)) : null;
+          const airYd = SC ? Math.round(SC.computeStat('airYd', st) || 0) || null : null;
+          const cmpPct = SC ? pct100(SC.computeStat('cmpPct', st)) : null;
+
+          // Historical trend/delta — PPG (universal) + this player's own
+          // position signature stat (targets for a WR, CMP% for a QB, etc.),
+          // across whichever of [y2, y1, current] seasons are actually
+          // cached. Same underlying idea as the player card's trend panel,
+          // just computed for a whole filtered report instead of one player.
+          const rawY2 = _h2 ? _h2[pid] : null, rawY1 = _h1 ? _h1[pid] : null;
+          const ppgOf = raw => { const gp = Number(raw?.gp) || 0; return gp > 0 ? +(calcRawPts(raw) / gp).toFixed(1) : null; };
+          const ppgPts = [[_y2, rawY2], [_y1, rawY1], [_season, st]]
+            .map(([yr, raw]) => ({ yr, v: raw ? ppgOf(raw) : null }))
+            .filter(pt => pt.v != null);
+          const ppgT = _histSC ? _histSC.trendCalc(ppgPts, 'dec1') : { text: null, delta: null };
+          const topStat = SC ? SC.getTopStat(pos) : null;
+          const usagePts = topStat ? [[_y2, rawY2], [_y1, rawY1], [_season, st]]
+            .map(([yr, raw]) => ({ yr, v: raw ? SC.computeStat(topStat.key, raw, { perGame: true }) : null }))
+            .filter(pt => pt.v != null) : [];
+          const usageT = (topStat && _histSC) ? _histSC.trendCalc(usagePts, topStat.format) : { text: null, delta: null };
+
           rows.push({
             name: p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim(),
             pos, age: p.age || null, team: p.team || 'FA', dhq, ppg, projWk, rosValue,
             peakYrs, owner: ownerName, tier: assess?.tier || 'N/A',
             contend: contendByRoster[String(r.roster_id)] || 'N/A',
             acquired: acqLabel, pid, rosterId: r.roster_id,
+            targets, snapPct, rzTouches, ypr, airYd, cmpPct,
+            ppgTrend: ppgT.text, ppgDelta: ppgT.delta,
+            usageTrend: usageT.text, usageDelta: usageT.delta, usageLabel: topStat ? topStat.short : null,
+            usageIsPct: topStat ? topStat.format === 'pct' : false,
           });
         });
       });

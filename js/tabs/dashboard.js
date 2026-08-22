@@ -161,6 +161,16 @@ const WIDGET_MODULES = {
         // draft-capital.js
         pro: false, formatFlag: null,
     },
+    'analyst-mock': {
+        label: 'Analyst Mock',
+        icon: '🧭',
+        description: "Alex's projected Round 1 mock — your pick, this league's history",
+        accent: () => T().color?.('accent') || 'var(--k-d4af37, #d4af37)',
+        metrics: [],
+        sizes: ['sm', 'md', 'lg'],
+        clickTarget: { sm: 'draft', md: 'draft' },
+        pro: true, proFeature: 'draft_analyst_mock', formatFlag: null,
+    },
     'field-notes': {
         label: 'Field Notes',
         icon: '📋',
@@ -1642,6 +1652,12 @@ function DashboardPanel({
             return React.createElement(DCW, {
                 size, myRoster, currentLeague, playersData, briefDraftInfo,
                 setActiveTab, navigateWidget,
+            });
+        }
+        // Analyst Mock → AnalystMockWidget (js/widgets/analyst-mock.js)
+        if (moduleKey === 'analyst-mock' && typeof window.AnalystMockWidget === 'function') {
+            return React.createElement(window.AnalystMockWidget, {
+                size, myRoster, currentLeague, setActiveTab, navigateWidget,
             });
         }
         // Phase 3: Competitive Tiers widget (js/widgets/competitive-tiers.js)

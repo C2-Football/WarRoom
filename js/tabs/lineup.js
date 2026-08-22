@@ -572,6 +572,34 @@ function LineupTab({
                                 Anchored to the published analyst line, which already prices the matchup — DvP is not double-counted.
                             </div>
                         ) : null}
+                        {/* Usage context — not part of the point ledger above, just the
+                            opportunity signal (targets, red zone looks, snap share) behind
+                            it, from window.App.StatCatalog off this season's raw stat line. */}
+                        {(() => {
+                            const SC = window.App?.StatCatalog;
+                            const st = statsData[explainPid] || {};
+                            if (!SC || !(st.gp > 0)) return null;
+                            const pos = meta.pos;
+                            const items = [];
+                            const push = (key, opts) => { const v = SC.computeStat(key, st, opts); if (v != null) items.push({ stat: SC.statByKey(key), v }); };
+                            if (['RB', 'WR', 'TE'].includes(pos)) { push('targets', { perGame: true }); push('rzTouches', { perGame: true }); push('snapPct'); }
+                            else if (pos === 'QB') { push('rushAtt', { perGame: true }); push('cmpPct'); push('rzPassAtt', { perGame: true }); }
+                            else if (['DL', 'LB', 'DB'].includes(pos)) { push('tackles', { perGame: true }); push('defSnapPct'); }
+                            if (!items.length) return null;
+                            return (
+                                <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${LINE}` }}>
+                                    <div style={{ fontFamily: MONO, fontSize: fz('0.62rem'), letterSpacing: '0.06em', textTransform: 'uppercase', color: SILVER, marginBottom: '6px' }}>Usage this season</div>
+                                    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                                        {items.map(({ stat, v }) => (
+                                            <div key={stat.key} style={{ display: 'flex', flexDirection: 'column' }}>
+                                                <span style={{ fontFamily: MONO, fontSize: fz('0.9rem'), fontWeight: 700, color: GOLD }}>{SC.formatStat(v, stat.format)}</span>
+                                                <span style={{ fontSize: fz('0.6rem'), color: SILVER, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{stat.short}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </React.Fragment>
                 )}
             </div>

@@ -25,6 +25,15 @@
         depthChart: { label: 'NFL Depth Chart Position',shortLabel: 'Depth',  width: '50px', group: 'scout'   },
         injury:     { label: 'Injury Status',           shortLabel: 'Inj',    width: '46px', sortKey: 'injury',  group: 'stats' },
         faab:       { label: 'Suggested FAAB Bid',      shortLabel: 'FAAB',   width: '60px', group: 'stats'   },
+        // Usage stats — beyond PPG, and POSITION-SPECIFIC: each row pulls its
+        // own position's top 2 signature stats (window.App.StatCatalog.
+        // getSignatureStats — targets/snap%/RZ for a WR, CMP%/YPA for a QB,
+        // tackles/sacks for IDP, etc.) rather than one fixed column that reads
+        // '—' for every position it doesn't apply to. Label is generic here
+        // since it varies per row; the cell itself carries the stat's short
+        // label inline (e.g. "62% SNP") so it reads correctly on a mixed list.
+        sig1:       { label: 'Position Stat 1 (varies by position — see cell)', shortLabel: 'Usage 1', width: '58px', sortKey: 'sig1', group: 'stats' },
+        sig2:       { label: 'Position Stat 2 (varies by position — see cell)', shortLabel: 'Usage 2', width: '58px', sortKey: 'sig2', group: 'stats' },
         // Draft-capital + profile columns. Rookies use the rookie-data prospect
         // record (window.App.RookieFields); vets fall back to the static NFL
         // draft dataset (faDraftCap below). Consensus rank/tier stay rookie-only.
@@ -51,6 +60,7 @@
         scout:   ['pos','age','college','height','weight','depthChart'],
         bidding: ['pos','team','dhq','ppg','faab','injury'],
         rookie:  ['pos','college','rkSlot','rkTeam','rkRank','rkTier','rkProfile','dhq'],
+        usage:   ['pos','team','age','sig1','sig2','ppg'],
         full:    Object.keys(FA_COLUMNS),
     };
     const ROOKIE_DRAFT_LOCK_STATUSES = new Set(['pre_draft', 'drafting']);
@@ -875,6 +885,12 @@
             window.addEventListener('wr:weekly-points-loaded', h);
             return () => window.removeEventListener('wr:weekly-points-loaded', h);
         }, []);
+        // sig1/sig2 headers: when the position filter is a single concrete
+        // position, name the columns after that position's actual signature
+        // stats (e.g. "TGT/G" / "SNP%" for WR) instead of the generic
+        // placeholder — mixed/flex views keep the generic label since no
+        // single stat pair applies to every row shown.
+        const faSigStats = window.App?.StatCatalog?.getSignatureStats?.(faFilter) || [];
         const faColumns = useMemo(() => ({
             ...FA_COLUMNS,
             dhq: {
@@ -887,7 +903,9 @@
                 label: skinFeatures.showAgeCurve === false ? 'Value Window' : FA_COLUMNS.peakYr.label,
                 shortLabel: skinFeatures.showAgeCurve === false ? 'Window' : FA_COLUMNS.peakYr.shortLabel,
             },
-        }), [valueLabel, valueShortLabel, skinFeatures.showAgeCurve]);
+            sig1: faSigStats[0] ? { ...FA_COLUMNS.sig1, label: faSigStats[0].label, shortLabel: faSigStats[0].short } : FA_COLUMNS.sig1,
+            sig2: faSigStats[1] ? { ...FA_COLUMNS.sig2, label: faSigStats[1].label, shortLabel: faSigStats[1].short } : FA_COLUMNS.sig2,
+        }), [valueLabel, valueShortLabel, skinFeatures.showAgeCurve, faSigStats]);
 
         useEffect(() => { try { window.App?.WrStorage?.set?.('wr_fa_cols', visibleFaCols); } catch {} }, [visibleFaCols]);
         // Resurrect-proofing: saved views / older persisted prefs can still
@@ -1163,6 +1181,15 @@
                 }
                 if (k === 'exp') return dir * ((a.p.years_exp || 0) - (b.p.years_exp || 0));
                 if (k === 'injury') return dir * ((a.p.injury_status || '').localeCompare(b.p.injury_status || ''));
+                if (k === 'sig1' || k === 'sig2') {
+                    const idx = k === 'sig1' ? 0 : 1;
+                    const SC = window.App?.StatCatalog;
+                    const va = SC ? SC.getSignatureStats(normPos(a.p.position))[idx] : null;
+                    const vb = SC ? SC.getSignatureStats(normPos(b.p.position))[idx] : null;
+                    const na = va ? (SC.computeStat(va.key, statsData[a.pid] || {}, { perGame: true }) || 0) : 0;
+                    const nb = vb ? (SC.computeStat(vb.key, statsData[b.pid] || {}, { perGame: true }) || 0) : 0;
+                    return dir * (na - nb);
+                }
                 if (k === 'rkSlot' || k === 'rkRank' || k === 'rkTier' || k === 'rkTeam') {
                     const ra = prospectFor(a.p); const rb = prospectFor(b.p);
                     if (k === 'rkTeam') return dir * ((ra?.nflTeam || faDraftCap(a.pid)?.team || '').localeCompare(rb?.nflTeam || faDraftCap(b.pid)?.team || ''));
@@ -2556,6 +2583,17 @@
                                         case 'depthChart': return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: p.depth_chart_order != null ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{p.depth_chart_order != null ? pos + (p.depth_chart_order + 1) : '\u2014'}</span>;
                                         case 'injury':     return <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, color: p.injury_status ? 'var(--bad)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{p.injury_status || '—'}</span>;
                                         case 'faab':       return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', fontWeight: 700 }}>{faab ? '$' + faab.lo + '-' + faab.hi : '\u2014'}</span>;
+                                        case 'sig1':
+                                        case 'sig2': {
+                                            const SC = window.App?.StatCatalog;
+                                            if (!SC) return rkDash;
+                                            const idx = k === 'sig1' ? 0 : 1;
+                                            const stat = SC.getSignatureStats(pos)[idx];
+                                            if (!stat) return rkDash;
+                                            const v = SC.computeStat(stat.key, statsData[pid] || {}, { perGame: true });
+                                            if (v == null) return rkDash;
+                                            return <span title={stat.label} style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>{SC.formatStat(v, stat.format)} <span style={{ opacity: 0.55, fontSize: '0.62rem' }}>{stat.short}</span></span>;
+                                        }
                                         case 'rkSlot': {
                                             // Prospect slot wins; vets show R<rd> #<overall> / UDFA from the static dataset.
                                             const dp = faDraftCap(pid);
@@ -2666,6 +2704,28 @@
                             </div>)}
                         </div>
                     </div>}
+
+                    {/* Usage — beyond fantasy points. Position-scoped rows from
+                        window.App.StatCatalog, shown per-game where a per-game
+                        read (targets, RZ touches) is more comparable than a
+                        season total. */}
+                    {selStats.gp > 0 && window.App?.StatCatalog && (() => {
+                        const SC = window.App.StatCatalog;
+                        const rows = SC.getStatsForPosition(selPos)
+                            .filter(s => ['volume', 'efficiency', 'redzone', 'snaps'].includes(s.group) && !['passAtt','passCmp','rushAtt','targets','recYd','passYd','rushYd','recTd','passTd','rushTd','ints','fumLost'].includes(s.key))
+                            .map(s => ({ s, v: SC.computeStat(s.key, selStats) }))
+                            .filter(r => r.v != null);
+                        if (!rows.length) return null;
+                        return <div style={{ marginBottom: '16px' }}>
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>USAGE</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                                {rows.map(({ s, v }) => <div key={s.key} title={s.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', background: 'var(--ov-1, rgba(255,255,255,0.02))', borderRadius: '4px' }}>
+                                    <span style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6 }}>{s.short}</span>
+                                    <span style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--white)', fontWeight: 600 }}>{SC.formatStat(v, s.format)}</span>
+                                </div>)}
+                            </div>
+                        </div>;
+                    })()}
 
                     {/* Physical */}
                     {(selPlayer.height || selPlayer.weight) && <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6, marginBottom: '16px' }}>

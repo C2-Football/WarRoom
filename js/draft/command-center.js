@@ -4336,16 +4336,21 @@
                 {label}{sortArrow(key)}
             </button>
         );
+        // Usage: a position-specific stat beyond DHQ (targets/gm, CMP%, tackles,
+        // etc. — window.App.StatCatalog.getTopStat) for VETERAN players in a
+        // redraft/chopped mock (isSeasonalBoard) — always '—' on a rookie-only
+        // board since prospects have no NFL stat line yet, which is the honest
+        // answer there, so it's only wired into the two seasonal grid layouts.
         const boardGridStyle = {
             gridTemplateColumns: isRedraftBoard
                 // isRedraftBoard always implies isSeasonalBoard, so the ADP
                 // track (42px, same width as DHQ) is always appended here.
-                ? '28px minmax(0,1.52fr) 28px 36px 42px 42px 30px 30px 40px'
+                ? '28px minmax(0,1.52fr) 28px 36px 42px 42px 48px 30px 30px 40px'
                 : isSeasonalBoard
                     // Chopped: same base layout as the default (non-redraft)
                     // CSS grid — Rank/Player/Pos/NFL/School/DHQ/Fit/Tier/Action
                     // — with the same extra ADP track inserted after DHQ.
-                    ? '28px minmax(0,1.35fr) 30px 36px minmax(46px,0.7fr) 42px 42px 30px 30px 42px'
+                    ? '28px minmax(0,1.35fr) 30px 36px minmax(46px,0.7fr) 42px 42px 48px 30px 30px 42px'
                     : undefined,
         };
         return (
@@ -4392,7 +4397,7 @@
                     ))}
                 </div>
                 <div className="mock-board-head" style={boardGridStyle}>
-                    {headerCell('Rank', 'rank')}{headerCell('Player', 'name')}{headerCell('Pos', 'pos')}{headerCell('NFL', 'team')}{!isRedraftBoard && headerCell('School', 'school')}{headerCell('DHQ', 'dhq')}{isSeasonalBoard && headerCell('ADP', 'adp')}{headerCell('Fit', 'fit')}{headerCell('Tier', 'tier')}<span>Action</span>
+                    {headerCell('Rank', 'rank')}{headerCell('Player', 'name')}{headerCell('Pos', 'pos')}{headerCell('NFL', 'team')}{!isRedraftBoard && headerCell('School', 'school')}{headerCell('DHQ', 'dhq')}{isSeasonalBoard && headerCell('ADP', 'adp')}{isSeasonalBoard && <span title="This season's most decision-relevant stat for the player's position">Usage</span>}{headerCell('Fit', 'fit')}{headerCell('Tier', 'tier')}<span>Action</span>
                 </div>
                 <div className="mock-board-scroll">
                     {rows.map(player => {
@@ -4413,6 +4418,17 @@
                                         {ccAdpFor(player) ? ccAdpFor(player).adp.toFixed(1) : ''}
                                     </span>
                                 )}
+                                {isSeasonalBoard && (() => {
+                                    const SC = window.App?.StatCatalog;
+                                    const stat = SC ? SC.getTopStat(displayPos) : null;
+                                    const raw = stat && window.S?.statsData?.[player.pid];
+                                    const v = raw ? SC.computeStat(stat.key, raw, { perGame: true }) : null;
+                                    return (
+                                        <span title={stat ? stat.label : undefined} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.7rem', color: v != null ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.28))' }}>
+                                            {v != null ? SC.formatStat(v, stat.format) + ' ' + stat.short : '—'}
+                                        </span>
+                                    );
+                                })()}
                                 <span className={fitScore >= 70 ? 'is-good' : fitScore >= 45 ? 'is-ok' : ''}>{fitScore ? fitScore : '—'}</span>
                                 <span>{tier}</span>
                                 <button type="button" onClick={e => { e.stopPropagation(); mockMakePick(dispatch, state, isUserTurn, player); }}>{canPick ? 'Draft' : 'Open'}</button>

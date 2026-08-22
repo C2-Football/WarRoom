@@ -494,7 +494,7 @@
                                                         <div key={r.id} className={`tc-ta-roster-item${added?' tc-added':''}`} onClick={() => !added && addPlayer(side, r.id)}>
                                                             <span className="tc-ta-pos-dot" style={{ background: posColor(r.pos) }} />
                                                             <span style={{ flex:1, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.name}</span>
-                                                            <span className="tc-ta-player-meta">{r.team}</span>
+                                                            <span className="tc-ta-player-meta">{r.team}{r.usage ? ' · ' + r.usage : ''}</span>
                                                             <span className="tc-ta-player-val">{r.value > 0 ? r.value.toLocaleString() : '--'}</span>
                                                         </div>
                                                     );
@@ -4136,7 +4136,19 @@
                     const p = playersData[id]; if (!p || !normPos(p.position)) return false;
                     if (q.length >= 1) return `${p.first_name||''} ${p.last_name||''}`.toLowerCase().includes(q);
                     return true;
-                }).map(id => { const p = playersData[id]; const v = getPlayerValue(id); return { id, name:`${p.first_name||''} ${p.last_name||''}`.trim(), pos:normPos(p.position), team:p.team||'FA', value:v.value, source:v.source }; })
+                }).map(id => {
+                    const p = playersData[id]; const v = getPlayerValue(id);
+                    const pos = normPos(p.position);
+                    // Position-specific usage read, beyond the DHQ value —
+                    // window.App.StatCatalog's single highest-leverage stat for
+                    // this position (targets/gm for a WR, CMP% for a QB, tackles
+                    // for IDP, etc.), off the season-aggregate statsData[id] line.
+                    const SC = window.App?.StatCatalog;
+                    const stat = SC ? SC.getTopStat(pos) : null;
+                    const usageVal = stat ? SC.computeStat(stat.key, statsData[id] || {}, { perGame: true }) : null;
+                    const usage = usageVal != null ? SC.formatStat(usageVal, stat.format) + ' ' + stat.short : null;
+                    return { id, name:`${p.first_name||''} ${p.last_name||''}`.trim(), pos, team:p.team||'FA', value:v.value, source:v.source, usage };
+                })
                 .sort((a,b) => { const pd = (TC_POS_ORDER[a.pos]??9) - (TC_POS_ORDER[b.pos]??9); return pd !== 0 ? pd : b.value - a.value; });
             }
 
