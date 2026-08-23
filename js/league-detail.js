@@ -3602,6 +3602,22 @@
                 }}
             />}
 
+            {/* League Wire — the always-on ticker, pinned bottom across EVERY
+                league tab (not just Command Center): NFL scores and leaders,
+                this league's scores and records, FAAB, risers/fallers.
+                Desktop + tablet only — it returns null on phones, where the
+                bottom edge belongs to PhoneDock below. */}
+            {typeof window.WrLeagueWire === 'function' && (
+                <window.WrLeagueWire
+                    currentLeague={currentLeague}
+                    standings={standings}
+                    transactions={transactions}
+                    playersData={playersData}
+                    getOwnerName={getOwnerName}
+                    getPlayerName={getPlayerName}
+                />
+            )}
+
             {/* Phone bottom dock (≤767 only) — null on tablet/desktop and
                 while the iOS keyboard is open. ONE row: sliding strip of
                 EVERY sidebar nav item (same navItems array — single source

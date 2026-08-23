@@ -158,59 +158,9 @@ function LeagueCentralTab({
         return rows;
     }, [currentLeague, playersData]);
 
-    // NFL-wide statistical leaders — the SAME fetched stat lines, deliberately
-    // NOT filtered to this league's rosters. "Who led the NFL in receiving
-    // yards this week" is league-independent context, which is exactly what a
-    // ticker is for; the roster-scoped leaders already live in the Stats panel.
-    const [nflLeaders, setNflLeaders] = React.useState([]);
-    const buildNflLeaders = React.useCallback((statsByPid, wk, phaseType) => {
-        // The badge carries the week, not just the category. These are often
-        // LAST week's numbers (see nflStatWeek), and a ticker loops — someone
-        // catching it mid-scroll has no other context to tell them which week
-        // they are looking at.
-        // Preseason leaders are tagged PRE for the same reason preseason scores
-        // are: 156 preseason passing yards is not a week-2 performance, and an
-        // unlabelled leaderboard implies it is.
-        const w = wk
-            ? (phaseType === 'pre' ? 'PRE' + wk + ' ' : phaseType === 'post' ? 'POST' + wk + ' ' : 'WK' + wk + ' ')
-            : 'NFL ';
-        const CATS = [
-            { key: 'pass_yd', label: w + 'PASS', unit: 'yds' },
-            { key: 'rush_yd', label: w + 'RUSH', unit: 'yds' },
-            { key: 'rec_yd', label: w + 'REC', unit: 'yds' },
-            { key: 'idp_sack', label: w + 'SACKS', unit: 'sacks', alt: 'sack' },
-        ];
-        return CATS.map(c => {
-            let best = null;
-            for (const pid in statsByPid) {
-                // Sleeper's weekly stat map carries TEAM_* aggregate rows whose
-                // totals are whole-team sums — TEAM_BAL's 238 rushing yards
-                // outranks every individual back in the league. Resolve the
-                // player FIRST so a team row can never win the category and
-                // then get silently dropped by the lookup below, which would
-                // mean these leaders simply never render, with no error.
-                const p = playersData?.[pid];
-                // Team D/ST units are real roster players in fantasy but they
-                // are not INDIVIDUAL league leaders — DEN's 6 team sacks would
-                // top every edge rusher. They have no full_name, which is also
-                // why an unguarded version renders "? 6 sacks".
-                if (!p || !p.full_name || p.position === 'DEF') continue;
-                const raw = statsByPid[pid];
-                const v = Number(raw?.[c.key] ?? (c.alt ? raw?.[c.alt] : 0)) || 0;
-                if (v > 0 && (!best || v > best.v)) best = { pid, v, p };
-            }
-            if (!best) return null;
-            const val = c.unit === 'sacks' ? (Math.round(best.v * 10) / 10) : Math.round(best.v);
-            return {
-                kind: 'nflstat', label: c.label,
-                text: (best.p.full_name || 'Player') + ' ' + val + ' ' + c.unit + (best.p.team ? ' · ' + best.p.team : ''),
-            };
-        }).filter(Boolean);
-    }, [playersData]);
-
     React.useEffect(() => {
         const SOS = window.App?.SOS;
-        if (!SOS?.getWeekStats || typeof window.calcFantasyPts !== 'function' || !currentLeague || !statWeek) return;
+        if (!SOS?.getWeekStats || typeof window.calcFantasyPts !== 'function' || !currentLeague || !statWeek) return undefined;
         let alive = true;
         setLeaders(s => ({ ...s, status: 'loading', week: statWeek }));
         Promise.resolve(SOS.getWeekStats(season, statWeek)).then(weekStats => {
@@ -218,78 +168,7 @@ function LeagueCentralTab({
             setLeaders({ status: 'ready', week: statWeek, rows: buildLeaderRows(weekStats || {}) });
         }).catch(e => { window.wrLog?.('leagueCentral.leaders', e); if (alive) setLeaders({ status: 'error', week: statWeek, rows: [] }); });
         return () => { alive = false; };
-    }, [leagueId, statWeek, buildLeaderRows]);
-
-    // ── Live NFL scoreboard for the wire ──
-    // Same App.NflContext.loadScores seam Empire's ticker uses (built for
-    // exactly this), refetched every 60s so a live game's score is honest on a
-    // Sunday. No-op the rest of the week — ESPN just keeps returning the same
-    // completed/scheduled games.
-    const [nflScores, setNflScores] = React.useState([]);
-    React.useEffect(() => {
-        const NC = window.App?.NflContext;
-        if (!NC?.loadScores) return undefined;
-        let alive = true;
-        const tick = async () => {
-            try {
-                // Ask for whatever is actually being played right now. In August
-                // that is preseason — asking for regular-season week 1 returned
-                // a wire full of kickoff times for games two weeks out.
-                const ph = NC.currentPhase ? NC.currentPhase() : { week: window.App?.WeeklyProj?.currentWeek?.() || 1, seasontype: 2 };
-                const games = await NC.loadScores(ph.week, ph.season || window.S?.nflState?.season, ph.seasontype);
-                if (alive) setNflScores((games || []).map(g => ({ ...g, isPre: !!ph.isPre, phaseWeek: ph.week })));
-            } catch (e) { /* the wire just skips NFL scores this cycle */ }
-        };
-        // S.nflState is populated by the league bootstrap, which can land AFTER
-        // this effect mounts. Ticking immediately in that window makes
-        // currentPhase() fall back to regular season, so the whole of August
-        // shows week-1 kickoff times instead of the preseason games actually
-        // being played — and it would not self-correct for a full minute.
-        // Wait (briefly, bounded) for the state, then start the normal cadence.
-        let id = null, warmup = null, tries = 0;
-        const start = () => {
-            if (!window.S?.nflState && ++tries < 15) { warmup = setTimeout(start, 1000); return; }
-            tick();
-            id = setInterval(tick, 60000);
-        };
-        start();
-        return () => {
-            alive = false;
-            if (id) clearInterval(id);
-            if (warmup) clearTimeout(warmup);
-        };
-    }, []);
-
-    // Which NFL week's leaders the wire shows. Until this week's games have
-    // actually kicked off, LAST week's numbers are still the live conversation
-    // — a blank stats block from Tuesday to Sunday is worse than the most
-    // recent real one. The scoreboard's own game states are the authoritative
-    // "has the new week started" signal; fantasy points only appear once
-    // scoring runs, so they lag by a day and would blank the block early.
-    // Carries the PHASE as well as the week: preseason stats live under a
-    // different Sleeper path ('pre'), and preseason week 2 is not regular week
-    // 2 — asking the regular endpoint in August returns an empty object, which
-    // is why the stats block was blank there.
-    const nflStatCtx = React.useMemo(() => {
-        const NC = window.App?.NflContext;
-        const ph = NC?.currentPhase
-            ? NC.currentPhase()
-            : { seasontype: 2, week: Number(window.App?.WeeklyProj?.currentWeek?.()) || Number(board.week) || 1 };
-        const type = ph.seasontype === 1 ? 'pre' : ph.seasontype === 3 ? 'post' : 'regular';
-        const started = (nflScores || []).some(g => g.state === 'in' || g.state === 'post');
-        const week = started ? ph.week : Math.max(1, ph.week - 1);
-        return { week, type, season: ph.season || season };
-    }, [nflScores, board.week, season]);
-
-    React.useEffect(() => {
-        const SOS = window.App?.SOS;
-        if (!SOS?.getWeekStats || !nflStatCtx.week) return undefined;
-        let alive = true;
-        Promise.resolve(SOS.getWeekStats(nflStatCtx.season, nflStatCtx.week, nflStatCtx.type))
-            .then(ws => { if (alive) setNflLeaders(buildNflLeaders(ws || {}, nflStatCtx.week, nflStatCtx.type)); })
-            .catch(e => { window.wrLog?.('leagueCentral.nflLeaders', e); if (alive) setNflLeaders([]); });
-        return () => { alive = false; };
-    }, [nflStatCtx, buildNflLeaders]);
+    }, [leagueId, statWeek, season, buildLeaderRows]);
 
     // Season aggregate — lazy, only once the user actually asks for it.
     React.useEffect(() => {
@@ -368,140 +247,6 @@ function LeagueCentralTab({
             key, name: getDivisionName(key), teams: byKey[key],
         }));
     }, [enrichedStandings, hasDivisions]);
-
-    // ── KPIs ──
-    const cutlineGB = React.useMemo(() => {
-        if (enrichedStandings.length <= playoffTeams) return null;
-        const inTeam = enrichedStandings[playoffTeams - 1];
-        const outTeam = enrichedStandings[playoffTeams];
-        if (!inTeam || !outTeam) return null;
-        const gb = ((inTeam.wins - outTeam.wins) + (outTeam.losses - inTeam.losses)) / 2;
-        return { gb, inTeam, outTeam };
-    }, [enrichedStandings, playoffTeams]);
-
-    const weekHigh = React.useMemo(() => {
-        if (!weekHasScores) return null;
-        let best = null;
-        board.rows.forEach(r => {
-            const pts = Number(r.points) || 0;
-            if (!best || pts > best.pts) best = { pts, rosterId: r.roster_id };
-        });
-        return best;
-    }, [board.rows, weekHasScores]);
-
-    const movesThisWeek = React.useMemo(() => {
-        const cutoff = Date.now() - 7 * 86400000;
-        const recent = (transactions || []).filter(t => (t.created || 0) >= cutoff);
-        const trades = recent.filter(t => t.type === 'trade').length;
-        const waivers = recent.filter(t => t.type !== 'trade').length;
-        return { total: recent.length, trades, waivers };
-    }, [transactions]);
-
-    // ── Trending — Risers & Fallers ──
-    // League-wide, off the shared historical-season cache in
-    // js/shared/stat-catalog.js (App.StatCatalog.ensureHistSeason/
-    // historicalSeason/trendCalc — the same helpers Custom Reports' PPG/
-    // usage trend columns use). Every ROSTERED player's own position
-    // signature stat (targets for a WR, CMP% for a QB, tackles for IDP,
-    // etc.) is compared across the last 2 completed seasons; ranked by
-    // signed delta. Nothing here claims a trend from 1 data point — a
-    // player with only one season on record just doesn't show up.
-    const [trendTick, setTrendTick] = React.useState(0);
-    React.useEffect(() => {
-        const h = () => setTrendTick(t => t + 1);
-        window.addEventListener('wr:hist-season-loaded', h);
-        // The event alone is a race we lose often enough to matter: the
-        // historical fetch is IndexedDB-backed, so on a warm cache it can
-        // resolve and dispatch BEFORE this listener is attached, leaving the
-        // trend panel stuck on "loading" for the life of the page. Poll the
-        // (synchronous) cache as a backstop until both seasons are in, then
-        // stop. Bounded so a league with no history never polls forever.
-        const SC = window.App?.StatCatalog;
-        const seasonNum = Number(season) || new Date().getFullYear();
-        let tries = 0, timer = null;
-        const check = () => {
-            if (!SC) return;
-            if (SC.historicalSeason(seasonNum - 1) || SC.historicalSeason(seasonNum - 2)) {
-                setTrendTick(t => t + 1);
-                return;
-            }
-            if (++tries < 20) timer = setTimeout(check, 500);
-        };
-        timer = setTimeout(check, 300);
-        return () => {
-            window.removeEventListener('wr:hist-season-loaded', h);
-            if (timer) clearTimeout(timer);
-        };
-    }, [season]);
-    const trending = React.useMemo(() => {
-        const SC = window.App?.StatCatalog;
-        const rosters = currentLeague?.rosters || [];
-        if (!SC || !rosters.length) return { status: 'unavailable', risers: [], fallers: [] };
-        const seasonNum = Number(season) || new Date().getFullYear();
-        const y1 = seasonNum - 1, y2 = seasonNum - 2;
-        SC.ensureHistSeason(y1); SC.ensureHistSeason(y2);
-        const h1 = SC.historicalSeason(y1), h2 = SC.historicalSeason(y2);
-        if (!h1 && !h2) return { status: 'loading', risers: [], fallers: [] };
-        const rows = [];
-        const seen = new Set();
-        rosters.forEach(r => {
-            (r.players || []).forEach(pid => {
-                if (seen.has(pid)) return;
-                seen.add(pid);
-                const p = playersData?.[pid]; if (!p) return;
-                const pos = window.App?.normPos?.(p.position) || p.position;
-                const topStat = SC.getTopStat(pos);
-                if (!topStat) return;
-                const rawY2 = h2 ? h2[pid] : null, rawY1 = h1 ? h1[pid] : null;
-                const pts = [[y2, rawY2], [y1, rawY1]]
-                    .map(([yr, raw]) => ({ yr, v: raw ? SC.computeStat(topStat.key, raw, { perGame: true }) : null }))
-                    .filter(pt => pt.v != null);
-                if (pts.length < 2) return;
-                // A count/rate stat's %-change explodes off a near-zero
-                // baseline (0.1 → 1.5 targets/gm reads as "+1025%") — real
-                // math, but noise, not signal. Require the higher of the two
-                // seasons to clear a small floor before it's a "trend."
-                // Percentage-point stats (snap%, comp%) don't have this
-                // problem — their delta is already an absolute point move.
-                if (topStat.format !== 'pct' && Math.max(...pts.map(pt => pt.v)) < 2) return;
-                const t = SC.trendCalc(pts, topStat.format);
-                if (t.delta == null || t.delta === 0) return;
-
-                // Second honesty pass, and the one that matters most now that
-                // these run in an always-visible ticker: the floor above only
-                // checks the HIGHER season, so a player going 0.1 -> 2.2
-                // tackles/gm still clears it and reports "+2100%". That number
-                // is arithmetic, not signal. When the smaller season is under
-                // 1.0/gm there is no usable baseline, so report the ABSOLUTE
-                // per-game move ("+2.1/gm") — which is what actually informs a
-                // decision — instead of an explosive percentage.
-                const first = pts[0].v, last = pts[pts.length - 1].v;
-                const lo = Math.min(first, last);
-                const usablePct = topStat.format === 'pct' || lo >= 1;
-                const delta = usablePct ? t.delta : Math.round((last - first) * 10) / 10;
-                const unit = topStat.format === 'pct' ? 'pt' : (usablePct ? '%' : '/gm');
-                if (!delta) return;
-                // Rank on a clamped relative move so one near-zero baseline
-                // cannot outrank every genuine trend in the league.
-                const rel = first !== 0 ? ((last - first) / Math.abs(first)) * 100 : (last - first) * 100;
-                const score = Math.max(-300, Math.min(300, rel));
-
-                rows.push({
-                    pid, name: _getPlayerName(pid), pos, team: p.team || '',
-                    rosterId: r.roster_id, statLabel: topStat.short, text: t.text,
-                    delta, unit, score,
-                });
-            });
-        });
-        rows.sort((a, b) => b.score - a.score);
-        const positive = rows.filter(r => r.delta > 0);
-        const negative = rows.filter(r => r.delta < 0);
-        return {
-            status: 'ready',
-            risers: positive.slice(0, 5),
-            fallers: negative.slice(-5).reverse(),
-        };
-    }, [currentLeague, playersData, season, trendTick]);
 
     // ── Shells ──
     const Panel = ({ title, meta, right, children }) => (
@@ -625,102 +370,6 @@ function LeagueCentralTab({
     const statCols = (leaderPos !== 'Overall' && SC ? (STAT_COLS[leaderPos] || []) : [])
         .map(k => SC.statByKey ? SC.statByKey(k) : null).filter(Boolean);
 
-    // ── League Wire — one ticker instead of four stacked panels ──
-    // Everything that used to occupy its own vertical slab (scoreboard,
-    // transactions, trending) plus league records that had nowhere to live.
-    // Nothing here is invented: every item is dropped when its source data
-    // is missing rather than rendered as a placeholder.
-    const wireItems = React.useMemo(() => {
-        const out = [];
-        const nameFor = rid => {
-            const t = enrichedStandings.find(x => sameId(x.rosterId, rid));
-            return t ? (t.teamName || t.displayName || _getOwnerName(rid)) : _getOwnerName(rid);
-        };
-        // Real NFL games lead, the way a sports ticker does. A live or final
-        // game shows its score; one that hasn't kicked shows the kickoff time
-        // instead of a fabricated 0-0 (same rule as Empire's ticker).
-        // Preseason games are always tagged PRE. A preseason final is visually
-        // identical to a regular-season one otherwise, and reading a 4th-string
-        // scrimmage as a real result is worse than not showing it at all.
-        (nflScores || []).slice(0, 10).forEach(g => {
-            const pre = g.isPre ? 'PRE ' : '';
-            if (g.state === 'in') {
-                out.push({ kind: 'nfllive', label: pre + (g.shortDetail || 'LIVE'), text: g.away + ' ' + g.awayScore + ' — ' + g.home + ' ' + g.homeScore });
-            } else if (g.state === 'post') {
-                out.push({ kind: 'nfl', label: pre + 'FINAL', text: g.away + ' ' + g.awayScore + ' — ' + g.home + ' ' + g.homeScore });
-            } else {
-                out.push({ kind: 'nfl', label: g.isPre ? 'PRE WK' + (g.phaseWeek || '') : 'NFL', text: g.away + ' @ ' + g.home + ' · ' + (g.shortDetail || 'Scheduled') });
-            }
-        });
-        (nflLeaders || []).forEach(l => out.push(l));
-        // Scores — paired matchups, finals first
-        const pairs = Object.values((board.rows || []).reduce((acc, r) => {
-            if (r.matchup_id == null) return acc;
-            (acc[r.matchup_id] = acc[r.matchup_id] || []).push(r);
-            return acc;
-        }, {})).filter(p => p.length === 2);
-        pairs.forEach(pair => {
-            const [a, b] = [...pair].sort((x, y) => Number(y.points) - Number(x.points));
-            const started = pair.some(p => Number(p.points) > 0);
-            if (!started) return;
-            out.push({ kind: 'score', label: 'WK ' + board.week, text: nameFor(a.roster_id) + ' ' + Number(a.points).toFixed(1) + ' — ' + nameFor(b.roster_id) + ' ' + Number(b.points).toFixed(1) });
-        });
-        // Biggest blowout + closest game
-        const margins = pairs.filter(p => p.some(x => Number(x.points) > 0)).map(pair => {
-            const [a, b] = [...pair].sort((x, y) => Number(y.points) - Number(x.points));
-            return { m: Number(a.points) - Number(b.points), win: a, lose: b };
-        }).sort((x, y) => y.m - x.m);
-        if (margins.length) {
-            const big = margins[0], close = margins[margins.length - 1];
-            out.push({ kind: 'rec', label: 'BIGGEST WIN', text: nameFor(big.win.roster_id) + ' +' + big.m.toFixed(1) + ' over ' + nameFor(big.lose.roster_id) });
-            if (margins.length > 1) out.push({ kind: 'rec', label: 'CLOSEST', text: nameFor(close.win.roster_id) + ' +' + close.m.toFixed(1) + ' over ' + nameFor(close.lose.roster_id) });
-            // "Ugliest win" — lowest score that still won. A real league talking point.
-            const ugly = margins.slice().sort((x, y) => Number(x.win.points) - Number(y.win.points))[0];
-            if (ugly) out.push({ kind: 'rec', label: 'UGLIEST WIN', text: nameFor(ugly.win.roster_id) + ' won on ' + Number(ugly.win.points).toFixed(1) });
-        }
-        // Top scorer at each position this week
-        leaguePositions.forEach(pos => {
-            const top = leaders.rows.find(r => r.pos === pos);
-            if (top) out.push({ kind: 'top', label: 'TOP ' + pos, text: top.name + ' ' + top.pts.toFixed(1) });
-        });
-        // Biggest FAAB claim in the last week
-        const cutoff = Date.now() - 7 * 86400000;
-        const bids = (transactions || [])
-            .filter(t => (t.created || 0) >= cutoff && Number(t.settings?.waiver_bid) > 0)
-            .sort((a, b) => Number(b.settings.waiver_bid) - Number(a.settings.waiver_bid));
-        if (bids.length) {
-            const b = bids[0];
-            const got = Object.keys(b.adds || {})[0];
-            out.push({ kind: 'faab', label: 'TOP FAAB', text: _getOwnerName(b.roster_ids?.[0]) + ' $' + b.settings.waiver_bid + (got ? ' → ' + _getPlayerName(got) : '') });
-        }
-        // Risers / fallers (already computed above, same honesty floor)
-        (trending.risers || []).slice(0, 3).forEach(r => {
-            out.push({ kind: 'trend', label: 'RISER', text: r.name + ' ' + r.statLabel + ' +' + r.delta + r.unit });
-        });
-        (trending.fallers || []).slice(0, 3).forEach(r => {
-            out.push({ kind: 'trend', label: 'FALLER', text: r.name + ' ' + r.statLabel + ' ' + r.delta + r.unit });
-        });
-        // League pulse — the numbers the old KPI strip carried. They read
-        // better as wire items than as a row of tiles competing with the
-        // standings for the top of the page.
-        if (weekHigh) out.push({ kind: 'top', label: 'HIGH SCORE', text: nameFor(weekHigh.rosterId) + ' ' + weekHigh.pts.toFixed(1) });
-        if (cutlineGB) {
-            out.push({
-                kind: 'rec', label: 'CUTLINE',
-                text: cutlineGB.gb === 0
-                    ? (playoffTeams + 'th and ' + (playoffTeams + 1) + 'th seed are tied')
-                    : cutlineGB.gb.toFixed(1) + ' game' + (cutlineGB.gb === 1 ? '' : 's') + ' separate the ' + playoffTeams + 'th and ' + (playoffTeams + 1) + 'th seed',
-            });
-        }
-        if (movesThisWeek.total) {
-            out.push({
-                kind: 'faab', label: 'MOVES', text: movesThisWeek.total + ' this week · ' +
-                    movesThisWeek.trades + ' trade' + (movesThisWeek.trades === 1 ? '' : 's') + ' · ' +
-                    movesThisWeek.waivers + ' waiver claim' + (movesThisWeek.waivers === 1 ? '' : 's'),
-            });
-        }
-        return out;
-    }, [board, leaders.rows, transactions, trending, enrichedStandings, leaguePositions, weekHigh, cutlineGB, movesThisWeek, playoffTeams, nflScores, nflLeaders]);
 
     // Standings row shells — the table view (form guide) and the odds view
     // (playoff picture) are two reads of the same enriched rows, so a team
@@ -835,7 +484,7 @@ function LeagueCentralTab({
     const oddsReady = odds.status === 'ready' && odds.sim;
 
     return (
-        <div style={{ padding: isPhone ? '14px' : '20px 24px', maxWidth: '1500px', margin: '0 auto', paddingBottom: wireItems.length ? '54px' : undefined }}>
+        <div style={{ padding: isPhone ? '14px' : '20px 24px', maxWidth: '1500px', margin: '0 auto', paddingBottom: '54px' }}>
             <div style={{ marginBottom: '14px' }}>
                 <div style={{ fontFamily: RAJ, fontWeight: 700, fontSize: isPhone ? '1.3rem' : '1.6rem', color: WHITE, letterSpacing: '0.02em' }}>
                     {homeMerged ? 'Command Center' : 'League Central'}
@@ -1019,68 +668,6 @@ function LeagueCentralTab({
             </React.Fragment>
             )}
 
-            {/* League Wire — the ticker that replaced the scoreboard,
-                transactions and trending slabs. Fixed to the bottom so it is
-                always in view without costing vertical space. Stays up on the
-                KPIs tab too: it is league-wide context, not League-tab chrome. */}
-            {wireItems.length > 0 && <LeagueWire items={wireItems} />}
-        </div>
-    );
-}
-
-// ── League Wire ─────────────────────────────────────────────────────
-// Marquee of everything that does not deserve its own panel: scores, league
-// records, top scorer per position, the biggest FAAB claim, risers/fallers.
-// Duplicated once so the -50% translate loops seamlessly; pauses on hover and
-// honours prefers-reduced-motion.
-function LeagueWire({ items }) {
-    const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #bdb8ad)';
-    const MUTED = 'var(--text-muted, #8d887e)';
-    const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
-    const TONE = {
-        // Real NFL gets its own visual lane so it never reads as a fantasy
-        // matchup: white for games, green pulse-ish for live, teal for NFL-wide
-        // stat leaders.
-        nfl: { bg: 'rgba(255,255,255,0.09)', fg: 'var(--white, #f5f2ea)' },
-        nfllive: { bg: 'rgba(46,204,113,0.2)', fg: 'var(--good, #2ecc71)' },
-        nflstat: { bg: 'rgba(78,205,196,0.18)', fg: '#4ECDC4' },
-        score: { bg: 'rgba(255,255,255,0.07)', fg: SILVER },
-        rec: { bg: 'rgba(93,173,226,0.18)', fg: 'var(--info, #5dade2)' },
-        top: { bg: 'rgba(212,175,55,0.18)', fg: GOLD },
-        faab: { bg: 'rgba(240,165,0,0.18)', fg: 'var(--warn, #f0a500)' },
-        trend: { bg: 'rgba(155,138,251,0.2)', fg: 'var(--purple, #9b8afb)' },
-    };
-    React.useEffect(() => {
-        if (document.getElementById('wr-league-wire-css')) return;
-        const st = document.createElement('style');
-        st.id = 'wr-league-wire-css';
-        st.textContent =
-            '@keyframes wrWire{from{transform:translateX(0)}to{transform:translateX(-50%)}}' +
-            '.wr-wire-track{animation:wrWire 90s linear infinite;display:flex;width:max-content}' +
-            '.wr-wire-track:hover{animation-play-state:paused}' +
-            '@media(prefers-reduced-motion:reduce){.wr-wire-track{animation:none}}';
-        document.head.appendChild(st);
-    }, []);
-    const row = (it, i) => {
-        const tone = TONE[it.kind] || TONE.score;
-        return (
-            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '0 17px', fontFamily: MONO, fontSize: '0.72rem', color: SILVER, borderRight: '1px solid rgba(255,255,255,0.05)', whiteSpace: 'nowrap' }}>
-                <span style={{ fontSize: '0.55rem', fontWeight: 800, letterSpacing: '0.09em', padding: '2px 6px', borderRadius: 'var(--card-radius-xs, 5px)', textTransform: 'uppercase', background: tone.bg, color: tone.fg }}>{it.label}</span>
-                {it.text}
-            </span>
-        );
-    };
-    return (
-        <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, height: '38px', background: '#0a0a0c', borderTop: '1px solid rgba(212,175,55,0.16)', display: 'flex', alignItems: 'center', zIndex: 80, overflow: 'hidden' }}>
-            <div style={{ flex: '0 0 auto', height: '100%', display: 'flex', alignItems: 'center', gap: '7px', padding: '0 14px', background: '#171206', color: GOLD, fontFamily: MONO, fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.11em', borderRight: '1px solid rgba(212,175,55,0.16)', zIndex: 2 }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--good, #2ecc71)', boxShadow: '0 0 7px var(--good, #2ecc71)' }} />
-                LEAGUE WIRE
-            </div>
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-                <div className="wr-wire-track">
-                    {items.map(row)}{items.map((it, i) => row(it, i + items.length))}
-                </div>
-            </div>
         </div>
     );
 }
