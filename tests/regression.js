@@ -20,9 +20,14 @@ const MAIN_TABS = [
   'analytics',
   'alex',
   'trophies',
-  'calendar',
 ];
-const ROUTED_TABS = [...MAIN_TABS, 'strategy', 'league'];
+// 'calendar' is routed but NOT a sidebar tab: d5daa83 (2026-06-19, "League
+// Calendar dashboard widget + fold Calendar into Trophy Room") removed the
+// Calendar sidebar nav item and re-pointed stale activeTab='calendar' deep
+// links at the Trophy Room's Calendar sub-view. The deep link must keep
+// working — hence it stays in ROUTED_TABS — but there is deliberately no
+// `tab: 'calendar'` nav entry to find any more.
+const ROUTED_TABS = [...MAIN_TABS, 'calendar', 'strategy', 'league'];
 const WIDGET_SIZES = ['sm', 'slim', 'narrow', 'md', 'lg', 'tall', 'xl', 'xxl'];
 
 let passed = 0;
@@ -191,7 +196,19 @@ test('GM strategy saves through the canonical app storage used by the header', (
 });
 
 test('league format skin loads early and is published to every module surface', () => {
-  sourceHas(indexHtml, '<script src="js/league-skin.js?v=20260526redraftqa1"></script>', 'league skin script must load after core and before modules');
+  // This used to pin `<script src="js/league-skin.js?v=20260526redraftqa1">`.
+  // The `?v=` cache-buster is bumped on every edit to the file by house
+  // convention (see CLAUDE.md), so that literal stopped being true at 995be21
+  // (2026-07-05) and pinning it only ever tested when the file was last
+  // touched — never the load order the label claims. Assert the order itself:
+  // league-skin must come after js/core.js (it hangs off window.App) and
+  // before js/components.js, which starts the module chain that consumes it.
+  const coreScriptAt = indexHtml.indexOf('src="js/core.js?v=');
+  const skinScriptAt = indexHtml.indexOf('src="js/league-skin.js?v=');
+  const componentsScriptAt = indexHtml.indexOf('src="js/components.js?v=');
+  ok(skinScriptAt > -1, 'league skin script tag missing from index.html');
+  ok(coreScriptAt > -1 && coreScriptAt < skinScriptAt, 'league skin script must load after js/core.js');
+  ok(componentsScriptAt > -1 && skinScriptAt < componentsScriptAt, 'league skin script must load before js/components.js and the module chain');
   sourceHas(leagueSkinSrc, 'App.LeagueSkin = api;', 'league skin must expose window.App.LeagueSkin');
   sourceHas(leagueSkinSrc, 'WR.LeagueSkin = api;', 'league skin must expose window.WR.LeagueSkin');
   sourceHas(leagueSkinSrc, "appLabel: 'Dynasty HQ'", 'league skin must preserve the Dynasty HQ brand');
@@ -241,7 +258,19 @@ test('existing module components consume the league skin contract for labels and
   sourceHas(compareSrc, 'const valueShortLabel = resolvedLeagueSkin?.vocabulary?.valueShortLabel || \'DHQ\';', 'Compare must use skin value vocabulary');
   sourceHas(compareSrc, 'const valueLabel = resolvedLeagueSkin?.vocabulary?.valueLabel || \'DHQ Value\';', 'Compare must use the full skin value label');
   sourceHas(draftRoomSrc, 'const valueShortLabel = resolvedLeagueSkin?.vocabulary?.valueShortLabel || \'DHQ\';', 'Draft room must use skin value vocabulary');
-  sourceHas(draftRoomSrc, "const draftCapitalLabel = skinFeatures.showFuturePicks === false ? 'draft capital' : 'future capital';", 'Draft room copy must adapt future-pick language');
+  // This used to pin `const draftCapitalLabel = skinFeatures.showFuturePicks
+  // === false ? 'draft capital' : 'future capital';`. That local was declared
+  // in the initial commit and NEVER referenced (`git log -S"draftCapitalLabel"
+  // -- js/draft-room.js` returns only 0501bd3 and eab77d6), so it adapted no
+  // copy at all; eab77d6 (2026-07-06) then renamed it `_draftCapitalLabel`
+  // under "pre-existing unused locals underscore-prefixed to satisfy the lint
+  // gate" and the assertion has been failing ever since. Restoring the old
+  // name would only re-pin dead code. The draft room's real future-pick
+  // adaptation is that the whole Draft Capital + Roster Targeting view is
+  // removed for seasonal formats (showDraftCapitalPlanning: !seasonal in
+  // js/league-skin.js) rather than rendered with softer wording — assert that,
+  // alongside the pick-year and empty-control rules already checked below.
+  sourceHas(draftRoomSrc, 'const commandTabAllowed = skinFeatures.showDraftCapitalPlanning !== false;', 'Draft room must drop the future-capital planning tab for seasonal formats');
   sourceHas(draftRoomSrc, 'skinFeatures.showFuturePicks === false ? [leagueSeason] : [leagueSeason, leagueSeason + 1, leagueSeason + 2]', 'Draft room pick-year model must hide future years in redraft');
   sourceHas(draftRoomSrc, 'futureCapitalRows.length > 0', 'Draft room must hide empty future-pick controls');
 });
@@ -255,7 +284,23 @@ test('draft redraft board surfaces use current-season player context', () => {
   sourceHas(draftCommandCenterSrc, 'const isRedraftBoard = state.variant === \'redraft\'', 'Mock Draft Center must detect redraft board mode');
   sourceHas(draftCommandCenterSrc, "if (isRedraftBoard && !set.has('DEF')) set.add('DEF');", 'Mock Draft Center position filters must include D/ST for redraft leagues');
   sourceHas(draftCommandCenterSrc, 'className="mock-board-sort"', 'Mock Draft Center board headers must be clickable sort controls');
-  sourceHas(draftCommandCenterSrc, "gridTemplateColumns: isRedraftBoard\n                ? '28px minmax(0,1.52fr) 28px 36px 42px 30px 30px 40px'", 'Mock Draft Center redraft board must fit without horizontal scrolling');
+  // This used to pin the literal track list `28px minmax(0,1.52fr) 28px 36px
+  // 42px 30px 30px 40px`. The redraft board has legitimately gained columns
+  // twice since — a864a81 (2026-08-10) inserted the market ADP track and
+  // e43020d (2026-08-22) inserted the Usage track — so the literal has been
+  // wrong since 2026-08-10 while the layout it guards was never broken.
+  // Pinning the exact string tests only that nobody added a column; assert the
+  // property that actually keeps the row inside its container instead — a
+  // single shrinkable minmax(0,…fr) player column with fixed px tracks either
+  // side, which together with the overflow-x:hidden rule asserted below is
+  // what makes the board fit without horizontal scrolling.
+  const redraftGridMatch = draftCommandCenterSrc.match(/gridTemplateColumns: isRedraftBoard[\s\S]{0,400}?\?\s*'([^']+)'/);
+  ok(redraftGridMatch, 'Mock Draft Center must define a redraft-specific board grid');
+  const redraftTracks = redraftGridMatch[1].trim().split(/\s+/);
+  const flexTracks = redraftTracks.filter(t => t.includes('fr'));
+  eq(flexTracks.length, 1, 'redraft board must keep exactly one flexible column');
+  sourceMatches(flexTracks[0], /^minmax\(0,/, 'the flexible redraft column must be minmax(0,…) so it shrinks instead of overflowing');
+  ok(redraftTracks.filter(t => !t.includes('fr')).every(t => /^\d+px$/.test(t)), 'every other redraft board track must be a fixed px width');
   sourceHas(indexHtml, '.mock-board-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;', 'Mock Draft Center table must not expose side-to-side scrolling');
   sourceHas(draftCommandCenterSrc, 'state.proposerDrawer && TradeProposer', 'Mock Draft Center cockpit must render the trade proposer drawer');
   sourceHas(draftCommandCenterSrc, 'mockRunReport(state)', 'Mock Draft Center must render expanded league-evolution run context');
@@ -355,7 +400,11 @@ test('Mock Draft Center keeps decision cards readable and roster grade integrate
   sourceHas(indexHtml, '.mock-decision-card strong { display: block; color: var(--white); font-size: 0.82rem; line-height: 1.14;', 'mock decision player names should be allowed to wrap');
   sourceHas(indexHtml, '.mock-roster-card { min-height: 0; overflow: visible; }', 'mock roster build card should not create an internal scroll');
   sourceHas(draftCommandCenterSrc, 'function MockRosterBuildCard({ state, grade })', 'mock roster build must receive the draft grade');
-  sourceHas(draftCommandCenterSrc, '<div><span>Draft Grade</span><strong>{grade?.letter || \'--\'}</strong>', 'mock roster build must surface the draft grade in-card');
+  // Was `<strong>{grade?.letter || '--'}</strong>` until 90c7bf0 (2026-07-06,
+  // the free/pro gate sweep) wrapped the letter in ccIsPro() and showed free
+  // users a lock + "Scout Pro" instead. The grade is still surfaced in-card,
+  // which is what this assertion is for — only the Pro gate was added.
+  sourceHas(draftCommandCenterSrc, '<div><span>Draft Grade</span><strong>{ccIsPro() ? (grade?.letter || \'--\') : \'🔒\'}</strong>', 'mock roster build must surface the draft grade in-card');
   ok(!draftCommandCenterSrc.includes('className="mock-grade-strip"'), 'mock draft grade should not render as a detached bottom strip');
 });
 
@@ -401,8 +450,26 @@ test('live loader keeps non-Sleeper connector files sandbox-only', () => {
 test('War Room app filters beta-platform leagues out of live route data', () => {
   sourceHas(appSrc, 'const PLATFORM_SANDBOX_ACCESS = WR_HOST.includes(\'sandbox\')', 'app sandbox platform flag missing');
   sourceHas(appSrc, 'const visibleEspnLeagues = PLATFORM_SANDBOX_ACCESS ? espnLeagues : [];', 'ESPN leagues must be hidden on live');
-  sourceHas(appSrc, 'const visibleMflLeagues = PLATFORM_SANDBOX_ACCESS ? mflLeagues : [];', 'MFL leagues must be hidden on live');
-  sourceHas(appSrc, 'const resumeLeague = [...sleeperLeagues, ...visibleEspnLeagues, ...visibleMflLeagues].find(l => l.id === lastLeagueId);', 'resume must use filtered platform leagues');
+  // MFL got its own relaunch lever in d22768b (2026-06-15, "MFL: enable on
+  // production"), so the gate here is MFL_SANDBOX_ACCESS, not the shared
+  // PLATFORM_SANDBOX_ACCESS this assertion used to pin. eab77d6 (2026-07-06)
+  // then re-gated MFL to sandbox-beta-only by setting MFL_ENABLED = false,
+  // which is what actually keeps MFL off live now — so pin the lever too,
+  // exactly as the index.html loader assertion above pins the mfl-api.js
+  // splice. Flipping MFL_ENABLED back on is a deliberate relaunch and should
+  // fail here (and there) until both are updated together.
+  sourceHas(appSrc, 'const MFL_ENABLED = false;', 'MFL must stay sandbox-beta-only until a deliberate relaunch');
+  sourceHas(appSrc, 'const MFL_SANDBOX_ACCESS = MFL_ENABLED || PLATFORM_SANDBOX_ACCESS;', 'MFL visibility must resolve through the MFL relaunch lever');
+  sourceHas(appSrc, 'const visibleMflLeagues = MFL_SANDBOX_ACCESS ? mflLeagues : [];', 'MFL leagues must be hidden on live');
+  // 10c2f65 (2026-06-14, "Redesign signed-up-user login into Dynasty HQ
+  // franchise picker") hoisted the inline spread into a shared `allLeagues`
+  // that also feeds hasLeagues and the FranchisePicker, so resumeLeague now
+  // reads `allLeagues.find(...)`. Pure refactor — the filtered visible*
+  // lists are still the only source — but the assertion kept the pre-hoist
+  // literal. Pin both halves, so the hoisted list cannot be quietly re-pointed
+  // at the raw unfiltered espnLeagues/mflLeagues state.
+  sourceHas(appSrc, 'const allLeagues = [...sleeperLeagues, ...visibleEspnLeagues, ...visibleMflLeagues];', 'hub league list must be built from the filtered platform leagues');
+  sourceHas(appSrc, 'const resumeLeague = allLeagues.find(l => l.id === lastLeagueId);', 'resume must use filtered platform leagues');
 });
 
 test('onboarding only persists allowed platforms for the current environment', () => {
@@ -417,7 +484,11 @@ group('mobile overflow');
 test('league shell clamps horizontal overflow at 390px and 430px', () => {
   sourceMatches(leagueDetailSrc, /@media\(max-width:767px\)/, 'mobile media query missing');
   sourceHas(leagueDetailSrc, 'html,body,#root{max-width:100%;overflow-x:clip;overflow-y:visible}', 'root overflow clamp missing');
-  sourceHas(leagueDetailSrc, '.wr-main-content{margin-left:0 !important;width:100% !important;max-width:100vw;overflow-x:clip;overflow-y:visible;box-sizing:border-box;padding-top:var(--wr-dev-banner-height,0px)}', 'main content mobile clamp missing');
+  // 2b106f7 (2026-07-09, "One-row phone league header") promoted the mobile
+  // max-width clamp to `100vw !important` so the one-row phone header could
+  // not be out-specified. The clamp got stricter, not weaker — the assertion
+  // just kept the pre-!important literal.
+  sourceHas(leagueDetailSrc, '.wr-main-content{margin-left:0 !important;width:100% !important;max-width:100vw !important;overflow-x:clip;overflow-y:visible;box-sizing:border-box;padding-top:var(--wr-dev-banner-height,0px)}', 'main content mobile clamp missing');
   sourceHas(leagueDetailSrc, '.wr-sidebar{left:-220px !important;top:var(--wr-dev-banner-height,0px) !important;transform:none !important}', 'sidebar off-canvas rule missing');
   sourceHas(leagueDetailSrc, '.wr-sidebar.open{left:0 !important}', 'sidebar open rule missing');
   for (const width of MOBILE_WIDTHS) {
@@ -445,9 +516,29 @@ test('page wheel input reaches the shell when horizontal panels are under the cu
 group('my team roster density');
 
 test('expanded roster rows use contextual readout without duplicate profile cards', () => {
-  sourceHas(myTeamSrc, 'const buildDynastyRead = r => {', 'contextual dynasty read helper missing');
-  sourceHas(myTeamSrc, '{buildDynastyRead(r)}', 'expanded card must render contextual dynasty read');
-  sourceHas(myTeamSrc, "{formatHeight(r.p.height) ? ' \\u00B7 ' + formatHeight(r.p.height) : ''}", 'height must live in the player identity card');
+  // The Dynasty Read box is deliberately gone from this dossier. 851d1e4
+  // (2026-08-10, "Remove Dynasty Read from remaining player dossiers; rework
+  // My Roster dossier") deleted buildDynastyRead/dynastyTierLabel, the aiReads
+  // state and the fetchDynastyRead effect from my-team.js — the AI read now
+  // lives only in the canonical player-card modal. That commit updated
+  // tests/click-path-contract.js for the removed ASK ALEX button but missed
+  // the two assertions here, which pinned `const buildDynastyRead = r => {`
+  // and `{buildDynastyRead(r)}`. The same commit replaced the narrow
+  // single-column Signals list with the full-width 2-up grid asserted below,
+  // so the "contextual readout" this test is named for is the Signals grid
+  // now. Do not re-add a Dynasty Read box here on the strength of a test name.
+  sourceHas(myTeamSrc, 'const sigCell = (label, val) =>', 'expanded card must render the contextual signals readout');
+  for (const signal of ['Ceiling', 'Floor', 'Risk', 'Window']) {
+    sourceHas(myTeamSrc, `sigCell('${signal}', sig`, `expanded card signals readout missing ${signal}`);
+  }
+  // 7d1b543 (2026-06-14, "redesign My Roster player expand card") rewrote this
+  // line and, in doing so, wrote the middot separator as a raw UTF-8 character
+  // where it had been a six-character "backslash-u-0-0-B-7" escape. What was
+  // pinned was the source ENCODING of that separator, not the behaviour this
+  // assertion is named for, so a cosmetic rewrite broke it.
+  // Accept either spelling and keep pinning what matters: the identity card
+  // appends the formatted height.
+  sourceMatches(myTeamSrc, /\{formatHeight\(r\.p\.height\) \? ' (?:·|\\u00B7) ' \+ formatHeight\(r\.p\.height\) : ''\}/, 'height must live in the player identity card');
   ok(!myTeamSrc.includes('Moderate dynasty asset. Watch trajectory.'), 'generic dynasty read copy should not return');
   ok(!myTeamSrc.includes("label: 'DEPTH', val"), 'expanded metric cards should not include the duplicate depth card');
   ok(!myTeamSrc.includes('Physical + Draft Profile'), 'duplicate profile card should not return');
@@ -539,9 +630,20 @@ test('draft FantasyCalc value request is allowed by app CSP', () => {
   sourceHas(read('js/draft-room.js'), 'https://api.fantasycalc.com/values/current', 'draft room FantasyCalc fetch missing');
 });
 
-test('first-run tutorial waits for Home instead of interrupting navigated workflows', () => {
-  sourceHas(leagueDetailSrc, "hashTab !== 'dashboard'", 'tutorial must bail if user has left Home');
-  sourceHas(leagueDetailSrc, 'window.shouldShowWRTutorial', 'tutorial should respect shouldShow before start');
+// This test used to assert the cold-load path's tutorial launch bailed when
+// the incoming hash pointed anywhere but Home (`hashTab !== 'dashboard'`) and
+// checked window.shouldShowWRTutorial first. d15b553 (2026-07-12, iPhone
+// program) deleted that whole launch block per an owner ask — "startWRTutorial()
+// is intentionally no longer launched" — replacing the 7-step click-through
+// modal with an Alex chat greeting, which the 2026-07-21 chat-to-cards
+// migration then retired as well. js/tutorial.js still exports the engine and
+// tests/tutorial-contract.js still covers it; league-detail simply never calls
+// it. So the invariant the old name was reaching for — a first-run modal must
+// never fire over a deep-linked tab — is now guaranteed by there being no
+// launch at all, and that is what this asserts.
+test('cold load never launches the click-through tutorial over a deep-linked tab', () => {
+  ok(!leagueDetailSrc.includes('window.startWRTutorial'), 'league shell must not launch the click-through tutorial on cold load');
+  ok(!leagueDetailSrc.includes('shouldShowWRTutorial'), 'league shell must not re-add the tutorial precondition check');
 });
 
 test('Field Notes stays a compact decision-log utility off the default board', () => {

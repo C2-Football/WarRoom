@@ -217,11 +217,20 @@ test('redraft pool includes veterans and rookies from the all-player pool', () =
   eq(pool.find(p => p.pid === 'rook2').isRookie, true, 'rookie flag preserved');
 });
 
-test('mock pick order stores canonical slot pick values', () => {
+test('mock pick order prices picks by pick-within-round, not draft column', () => {
   const order = state.buildPickOrder(2, 4, 'snake');
   eq(order[0].value, 1001, '1.01 value uses exact slot');
   eq(order[3].value, 1004, '1.04 value uses exact slot');
-  eq(order[4].value, 2004, 'snake round two first pick uses exact original slot');
+  // Was `2004` — the team's round-1 draft COLUMN — until eab77d6 (2026-07-06,
+  // "snake-draft pickInRound" in its shared-tree batch) split the two ideas
+  // apart: `slot` stayed the team column (the pickOwnership key) and a new
+  // `pickInRound` became the label/value input, derived from the true overall
+  // so a snake's even rounds can never mirror. The team that picked 4th in
+  // round 1 opens round 2, and the pick it holds is 2.01 — it is labelled,
+  // traded and priced as 2.01, so 2001 is the correct value here. Do not
+  // "restore" 2004 on the strength of the old name; that reintroduces the
+  // mirror bug where every even round was priced backwards.
+  eq(order[4].value, 2001, 'snake round two first pick is priced as 2.01');
 });
 
 console.log('\n');

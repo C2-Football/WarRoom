@@ -56,11 +56,28 @@ const BASE_SCORING = { pass_yd: 0.04, pass_td: 4, pass_int: -1, rush_yd: 0.1, ru
 const oneQbRoster = ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'BN', 'BN'];
 const superflexRoster = ['QB', 'RB', 'RB', 'WR', 'WR', 'TE', 'FLEX', 'SUPER_FLEX', 'BN', 'BN'];
 
+// Every fixture league must read as DRAFTED. The engine deliberately refuses to
+// mark a league with ZERO rostered players — a pre-draft book has nobody on any
+// roster, so every player trivially reads "still a free agent" there and the
+// spread against it is an artifact of the draft not having happened yet, not a
+// real cross-league read. See js/shared/empire-values.js `if (!own.rostered.size)`,
+// added in 333f22e "Empire Command: exclude pre-draft leagues from arbitrage".
+// These two tail players are rostered by a rival in every fixture purely so the
+// book counts as drafted; no assertion below ever names them, and ownership is
+// provably price-neutral (computePrices never reads league.rosters), so this
+// changes which leagues get MARKED and nothing about what they quote.
+const FILLER = ['wr80', 'te30'];
+const draftedRosters = () => ([
+  { roster_id: 1, owner_id: 'me', players: [] },
+  { roster_id: 2, owner_id: 'rival', players: [...FILLER] },
+]);
+
 const league = (id, name, over) => Object.assign({
   league_id: id, name, total_rosters: 12,
   roster_positions: oneQbRoster,
   scoring_settings: { ...BASE_SCORING },
   settings: { type: 0, playoff_week_start: 15 },
+  rosters: draftedRosters(),
 }, over || {});
 
 const runBuild = (leagues) => EV.build({
@@ -189,9 +206,12 @@ test('spread() returns null for a player only one league prices', () => {
 // ── Ownership: leagues are disjoint player pools, so the engine states
 // facts (mine / rostered elsewhere / free agent) rather than issuing a
 // buy-here-sell-there instruction nobody could actually execute. ──────
+// The rival always holds the filler picks too, so a league in which the player
+// under test is owned by NOBODY still reads as drafted (see FILLER above) —
+// otherwise the engine skips the whole book and there is no spread to assert on.
 const rostersOwning = (myPid, otherPid) => [
   { roster_id: 1, owner_id: 'me', players: [myPid].filter(Boolean) },
-  { roster_id: 2, owner_id: 'rival', players: [otherPid].filter(Boolean) },
+  { roster_id: 2, owner_id: 'rival', players: [otherPid, ...FILLER].filter(Boolean) },
 ];
 
 test('ownership: a shared player owned in both books is framed as leverage, not a trade instruction', () => {
@@ -245,7 +265,9 @@ test('ownership: rows touching your roster sort ahead of pure market intel', () 
   const out = EV.build({
     leagues: [
       league('ONE', 'One QB', { rosters: rostersOwning('rb1', null) }),   // you own rb1
-      league('SF', 'Superflex', { roster_positions: superflexRoster, rosters: [] }),
+      // Drafted, but rb1 is nobody's there — a bare `rosters: []` would make
+      // this a pre-draft book the engine declines to mark at all.
+      league('SF', 'Superflex', { roster_positions: superflexRoster, rosters: draftedRosters() }),
     ],
     playersData: PLAYERS, priorData: {}, projectionsData: PROJ, playerScores: SCORES, week: 1,
     myUserId: 'me',
@@ -306,7 +328,10 @@ test('ownership: spreadMine is true exactly when the note describes your roster'
   assert.ok(/[Yy]ours in/.test(s.note));
 });
 
-test('ownership: with no myUserId and no rosters supplied, everyone reads as a free agent and nothing crashes', () => {
+test('ownership: with no myUserId, nobody reads as yours and nothing crashes', () => {
+  // runBuild() threads no myUserId at all, so no roster can resolve to the
+  // caller however the leagues are filled. Nothing may be flagged `mine`, and
+  // an unowned player must read as a plain free agent rather than throwing.
   const out = runBuild([
     league('ONE', 'One QB'),
     league('SF', 'Superflex', { roster_positions: superflexRoster }),
@@ -314,8 +339,33 @@ test('ownership: with no myUserId and no rosters supplied, everyone reads as a f
   const s = out.spread('qb1');
   assert.strictEqual(s.high.mine, false);
   assert.strictEqual(s.mineCount, 0);
-  assert.ok(s.high.freeAgent && s.low.freeAgent, 'no rosters fixture means nobody owns anyone');
+  assert.ok(s.high.freeAgent && s.low.freeAgent, 'nobody rosters qb1 in either fixture book');
   assert.ok(/Free agent in both/.test(s.note));
+});
+
+test('a pre-draft league is not marked at all — an empty book is not a cheap book', () => {
+  // The rule the fixtures above exist to satisfy, asserted head-on. Before
+  // 333f22e a league nobody had drafted was priced from its scoring settings
+  // alone and every player read as "still a free agent" there, manufacturing a
+  // spread against a book with no owners in it. Such a league must now be
+  // reported in `unpriced` and kept out of `byLeague` entirely.
+  const out = EV.build({
+    leagues: [
+      league('DRAFTED', 'Drafted', { rosters: rostersOwning('qb1', null) }),
+      league('PREDRAFT', 'Pre-draft', {
+        roster_positions: superflexRoster,
+        rosters: [{ roster_id: 1, owner_id: 'me', players: [] }, { roster_id: 2, owner_id: 'rival', players: [] }],
+      }),
+    ],
+    playersData: PLAYERS, priorData: {}, projectionsData: PROJ, playerScores: SCORES, week: 1,
+    myUserId: 'me',
+  });
+  assert.ok(out.byLeague.DRAFTED, 'the drafted book is marked');
+  assert.ok(!out.byLeague.PREDRAFT, 'the pre-draft book is not');
+  assert.ok(out.unpriced.includes('PREDRAFT'), 'and it is reported, not silently dropped');
+  assert.strictEqual(out.priceOf('qb1', 'PREDRAFT'), 0, 'nothing is quoted against an undrafted book');
+  assert.strictEqual(out.spread('qb1'), null, 'one remaining book is not a spread');
+  assert.strictEqual(out.arbitrage.length, 0, 'and it cannot arbitrage against one');
 });
 
 test('ownership: rostered by someone (not me) in both books reads as pure intel', () => {
