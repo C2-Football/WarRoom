@@ -163,12 +163,17 @@ function LeagueCentralTab({
     // yards this week" is league-independent context, which is exactly what a
     // ticker is for; the roster-scoped leaders already live in the Stats panel.
     const [nflLeaders, setNflLeaders] = React.useState([]);
-    const buildNflLeaders = React.useCallback((statsByPid) => {
+    const buildNflLeaders = React.useCallback((statsByPid, wk) => {
+        // The badge carries the week, not just the category. These are often
+        // LAST week's numbers (see nflStatWeek), and a ticker loops — someone
+        // catching it mid-scroll has no other context to tell them which week
+        // they are looking at.
+        const w = wk ? 'WK' + wk + ' ' : 'NFL ';
         const CATS = [
-            { key: 'pass_yd', label: 'NFL PASS', unit: 'yds' },
-            { key: 'rush_yd', label: 'NFL RUSH', unit: 'yds' },
-            { key: 'rec_yd', label: 'NFL REC', unit: 'yds' },
-            { key: 'idp_sack', label: 'NFL SACKS', unit: 'sacks', alt: 'sack' },
+            { key: 'pass_yd', label: w + 'PASS', unit: 'yds' },
+            { key: 'rush_yd', label: w + 'RUSH', unit: 'yds' },
+            { key: 'rec_yd', label: w + 'REC', unit: 'yds' },
+            { key: 'idp_sack', label: w + 'SACKS', unit: 'sacks', alt: 'sack' },
         ];
         return CATS.map(c => {
             let best = null;
@@ -206,10 +211,9 @@ function LeagueCentralTab({
         Promise.resolve(SOS.getWeekStats(season, statWeek)).then(weekStats => {
             if (!alive) return;
             setLeaders({ status: 'ready', week: statWeek, rows: buildLeaderRows(weekStats || {}) });
-            setNflLeaders(buildNflLeaders(weekStats || {}));
         }).catch(e => { window.wrLog?.('leagueCentral.leaders', e); if (alive) setLeaders({ status: 'error', week: statWeek, rows: [] }); });
         return () => { alive = false; };
-    }, [leagueId, statWeek, buildLeaderRows, buildNflLeaders]);
+    }, [leagueId, statWeek, buildLeaderRows]);
 
     // ── Live NFL scoreboard for the wire ──
     // Same App.NflContext.loadScores seam Empire's ticker uses (built for
@@ -232,6 +236,28 @@ function LeagueCentralTab({
         const id = setInterval(tick, 60000);
         return () => { alive = false; clearInterval(id); };
     }, []);
+
+    // Which NFL week's leaders the wire shows. Until this week's games have
+    // actually kicked off, LAST week's numbers are still the live conversation
+    // — a blank stats block from Tuesday to Sunday is worse than the most
+    // recent real one. The scoreboard's own game states are the authoritative
+    // "has the new week started" signal; fantasy points only appear once
+    // scoring runs, so they lag by a day and would blank the block early.
+    const nflStatWeek = React.useMemo(() => {
+        const wk = Number(window.App?.WeeklyProj?.currentWeek?.()) || Number(board.week) || 1;
+        const started = (nflScores || []).some(g => g.state === 'in' || g.state === 'post');
+        return started ? wk : Math.max(1, wk - 1);
+    }, [nflScores, board.week]);
+
+    React.useEffect(() => {
+        const SOS = window.App?.SOS;
+        if (!SOS?.getWeekStats || !nflStatWeek) return undefined;
+        let alive = true;
+        Promise.resolve(SOS.getWeekStats(season, nflStatWeek))
+            .then(ws => { if (alive) setNflLeaders(buildNflLeaders(ws || {}, nflStatWeek)); })
+            .catch(e => { window.wrLog?.('leagueCentral.nflLeaders', e); if (alive) setNflLeaders([]); });
+        return () => { alive = false; };
+    }, [season, nflStatWeek, buildNflLeaders]);
 
     // Season aggregate — lazy, only once the user actually asks for it.
     React.useEffect(() => {
