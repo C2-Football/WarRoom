@@ -82,8 +82,14 @@
         return out;
     }
 
-    function fetchWeek(week, season) {
-        let u = endpoint() + '?week=' + week + '&seasontype=2';
+    // seasontype is ESPN's: 1 = preseason, 2 = regular, 3 = postseason. It
+    // defaults to 2 so every existing caller (the projection context path,
+    // Empire's ticker) is byte-identical — only callers that explicitly want
+    // preseason/postseason pass it. Both proxies already accept and forward
+    // the param and validate it 1-4, so nothing server-side needed changing.
+    function fetchWeek(week, season, seasontype) {
+        const st = Number(seasontype) || 2;
+        let u = endpoint() + '?week=' + week + '&seasontype=' + st;
         if (season) u += '&season=' + season;
         return fetch(u).then(r => { if (!r.ok) throw new Error('scoreboard ' + r.status); return r.json(); });
     }
@@ -112,8 +118,23 @@
         }).filter(g => g.home && g.away);
     }
 
-    function loadScores(week, season) {
-        return fetchWeek(week, season).then(parseScores).catch(e => { if (root.wrLog) root.wrLog('nflContext.loadScores', e); return []; });
+    function loadScores(week, season, seasontype) {
+        return fetchWeek(week, season, seasontype).then(parseScores).catch(e => { if (root.wrLog) root.wrLog('nflContext.loadScores', e); return []; });
+    }
+
+    // Sleeper's nflState is the authoritative "where are we in the NFL
+    // calendar" source (season_type: 'pre' | 'regular' | 'post' + its own week
+    // counter, which restarts per phase). Mapped to ESPN's seasontype so the
+    // scoreboard is asked for the games that are actually being played right
+    // now — in August that is preseason, not regular-season week 1.
+    function currentPhase() {
+        const st = (root.S && root.S.nflState) || {};
+        const type = String(st.season_type || 'regular').toLowerCase();
+        const stWeek = Number(st.week) || Number(st.display_week) || 1;
+        if (type === 'pre') return { seasontype: 1, week: stWeek, isPre: true, season: st.season };
+        if (type === 'post') return { seasontype: 3, week: stWeek, isPost: true, season: st.season };
+        const regWeek = Number(App.WeeklyProj && App.WeeklyProj.currentWeek && App.WeeklyProj.currentWeek()) || stWeek;
+        return { seasontype: 2, week: regWeek, season: st.season };
     }
 
     // Load one or more weeks and feed App.WeeklyProj.setContext. Caches per
@@ -143,5 +164,5 @@
         return load([wk], season);
     }
 
-    App.NflContext = App.NflContext || { load, loadCurrent, parse, parseScores, loadScores, endpoint, _done };
+    App.NflContext = App.NflContext || { load, loadCurrent, parse, parseScores, loadScores, currentPhase, endpoint, _done };
 })(typeof window !== 'undefined' ? window : globalThis);

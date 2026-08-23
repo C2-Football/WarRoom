@@ -227,14 +227,32 @@ function LeagueCentralTab({
         let alive = true;
         const tick = async () => {
             try {
-                const wk = window.App?.WeeklyProj?.currentWeek?.() || 1;
-                const games = await NC.loadScores(wk, window.S?.nflState?.season);
-                if (alive) setNflScores(games || []);
+                // Ask for whatever is actually being played right now. In August
+                // that is preseason — asking for regular-season week 1 returned
+                // a wire full of kickoff times for games two weeks out.
+                const ph = NC.currentPhase ? NC.currentPhase() : { week: window.App?.WeeklyProj?.currentWeek?.() || 1, seasontype: 2 };
+                const games = await NC.loadScores(ph.week, ph.season || window.S?.nflState?.season, ph.seasontype);
+                if (alive) setNflScores((games || []).map(g => ({ ...g, isPre: !!ph.isPre, phaseWeek: ph.week })));
             } catch (e) { /* the wire just skips NFL scores this cycle */ }
         };
-        tick();
-        const id = setInterval(tick, 60000);
-        return () => { alive = false; clearInterval(id); };
+        // S.nflState is populated by the league bootstrap, which can land AFTER
+        // this effect mounts. Ticking immediately in that window makes
+        // currentPhase() fall back to regular season, so the whole of August
+        // shows week-1 kickoff times instead of the preseason games actually
+        // being played — and it would not self-correct for a full minute.
+        // Wait (briefly, bounded) for the state, then start the normal cadence.
+        let id = null, warmup = null, tries = 0;
+        const start = () => {
+            if (!window.S?.nflState && ++tries < 15) { warmup = setTimeout(start, 1000); return; }
+            tick();
+            id = setInterval(tick, 60000);
+        };
+        start();
+        return () => {
+            alive = false;
+            if (id) clearInterval(id);
+            if (warmup) clearTimeout(warmup);
+        };
     }, []);
 
     // Which NFL week's leaders the wire shows. Until this week's games have
@@ -607,13 +625,17 @@ function LeagueCentralTab({
         // Real NFL games lead, the way a sports ticker does. A live or final
         // game shows its score; one that hasn't kicked shows the kickoff time
         // instead of a fabricated 0-0 (same rule as Empire's ticker).
+        // Preseason games are always tagged PRE. A preseason final is visually
+        // identical to a regular-season one otherwise, and reading a 4th-string
+        // scrimmage as a real result is worse than not showing it at all.
         (nflScores || []).slice(0, 10).forEach(g => {
+            const pre = g.isPre ? 'PRE ' : '';
             if (g.state === 'in') {
-                out.push({ kind: 'nfllive', label: g.shortDetail || 'LIVE', text: g.away + ' ' + g.awayScore + ' — ' + g.home + ' ' + g.homeScore });
+                out.push({ kind: 'nfllive', label: pre + (g.shortDetail || 'LIVE'), text: g.away + ' ' + g.awayScore + ' — ' + g.home + ' ' + g.homeScore });
             } else if (g.state === 'post') {
-                out.push({ kind: 'nfl', label: 'FINAL', text: g.away + ' ' + g.awayScore + ' — ' + g.home + ' ' + g.homeScore });
+                out.push({ kind: 'nfl', label: pre + 'FINAL', text: g.away + ' ' + g.awayScore + ' — ' + g.home + ' ' + g.homeScore });
             } else {
-                out.push({ kind: 'nfl', label: 'NFL', text: g.away + ' @ ' + g.home + ' · ' + (g.shortDetail || 'Scheduled') });
+                out.push({ kind: 'nfl', label: g.isPre ? 'PRE WK' + (g.phaseWeek || '') : 'NFL', text: g.away + ' @ ' + g.home + ' · ' + (g.shortDetail || 'Scheduled') });
             }
         });
         (nflLeaders || []).forEach(l => out.push(l));
