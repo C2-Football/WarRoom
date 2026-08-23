@@ -116,8 +116,41 @@ function LeagueCentralTab({
     const weekHasScores = board.rows.filter(r => Number(r.points) > 0).length >= 2;
     const statWeek = board.week ? Math.max(1, weekHasScores ? board.week : board.week - 1) : null;
 
-    // ── Stat leaders for the most recently reported week ──
+    // ── Stat leaders — week AND season, keeping the RAW stat line ──
+    // The raw line is what lets the Stats panel render real position columns
+    // (CMP%/YPA for a QB, TGT/REC for a WR, TKL/SACK for IDP) through
+    // App.StatCatalog rather than points-only. Same field vocabulary either
+    // way: SOS.getWeekStats for a week, fetchSeasonStats for the season
+    // aggregate (see js/shared/stat-catalog.js's header note).
+    const [statScope, setStatScope] = React.useState('week'); // 'week' | 'season'
     const [leaders, setLeaders] = React.useState({ status: 'idle', week: null, rows: [] });
+    const [seasonLeaders, setSeasonLeaders] = React.useState({ status: 'idle', rows: [] });
+
+    // Shared: raw {pid: statLine} -> scored, sorted rows for every rostered player.
+    const buildLeaderRows = React.useCallback((statsByPid) => {
+        const scoring = currentLeague?.scoring_settings || {};
+        const seen = new Set();
+        const rows = [];
+        (currentLeague?.rosters || []).forEach(r => {
+            (r.players || []).forEach(pid => {
+                if (seen.has(pid)) return;
+                seen.add(pid);
+                const raw = statsByPid[pid];
+                if (!raw) return;
+                const pts = window.calcFantasyPts(raw, scoring);
+                if (!(pts > 0)) return;
+                const player = playersData?.[pid] || {};
+                rows.push({
+                    pid, raw, pts: Math.round(pts * 10) / 10,
+                    pos: window.App?.normPos?.(player.position) || player.position || '??',
+                    name: _getPlayerName(pid), team: player.team || '', rosterId: r.roster_id,
+                });
+            });
+        });
+        rows.sort((a, b) => b.pts - a.pts);
+        return rows;
+    }, [currentLeague, playersData]);
+
     React.useEffect(() => {
         const SOS = window.App?.SOS;
         if (!SOS?.getWeekStats || typeof window.calcFantasyPts !== 'function' || !currentLeague || !statWeek) return;
@@ -125,30 +158,28 @@ function LeagueCentralTab({
         setLeaders(s => ({ ...s, status: 'loading', week: statWeek }));
         Promise.resolve(SOS.getWeekStats(season, statWeek)).then(weekStats => {
             if (!alive) return;
-            const scoring = currentLeague.scoring_settings || {};
-            const seen = new Set();
-            const rows = [];
-            (currentLeague.rosters || []).forEach(r => {
-                (r.players || []).forEach(pid => {
-                    if (seen.has(pid)) return;
-                    seen.add(pid);
-                    const raw = weekStats[pid];
-                    if (!raw) return;
-                    const pts = window.calcFantasyPts(raw, scoring);
-                    if (!(pts > 0)) return;
-                    const player = playersData?.[pid] || {};
-                    rows.push({
-                        pid, pts: Math.round(pts * 10) / 10,
-                        pos: window.App?.normPos?.(player.position) || player.position || '??',
-                        name: _getPlayerName(pid), team: player.team || '', rosterId: r.roster_id,
-                    });
-                });
-            });
-            rows.sort((a, b) => b.pts - a.pts);
-            if (alive) setLeaders({ status: 'ready', week: statWeek, rows });
+            setLeaders({ status: 'ready', week: statWeek, rows: buildLeaderRows(weekStats || {}) });
         }).catch(e => { window.wrLog?.('leagueCentral.leaders', e); if (alive) setLeaders({ status: 'error', week: statWeek, rows: [] }); });
         return () => { alive = false; };
-    }, [leagueId, statWeek]);
+    }, [leagueId, statWeek, buildLeaderRows]);
+
+    // Season aggregate — lazy, only once the user actually asks for it.
+    React.useEffect(() => {
+        if (statScope !== 'season' || seasonLeaders.status !== 'idle') return;
+        if (typeof window.fetchSeasonStats !== 'function' || typeof window.calcFantasyPts !== 'function' || !currentLeague) {
+            setSeasonLeaders({ status: 'unavailable', rows: [] });
+            return;
+        }
+        let alive = true;
+        setSeasonLeaders({ status: 'loading', rows: [] });
+        Promise.resolve(window.fetchSeasonStats(Number(season) || new Date().getFullYear()))
+            .then(data => { if (alive) setSeasonLeaders({ status: 'ready', rows: buildLeaderRows(data || {}) }); })
+            .catch(e => { window.wrLog?.('leagueCentral.seasonLeaders', e); if (alive) setSeasonLeaders({ status: 'error', rows: [] }); });
+        return () => { alive = false; };
+    }, [statScope, seasonLeaders.status, season, currentLeague, buildLeaderRows]);
+
+    // Reset the season cache when the league changes.
+    React.useEffect(() => { setSeasonLeaders({ status: 'idle', rows: [] }); }, [leagueId]);
 
     // ── Divisions ──
     const metadata = currentLeague?.metadata || {};
@@ -171,6 +202,10 @@ function LeagueCentralTab({
             const simRow = odds.sim?.rows?.find(r => sameId(r.rosterId, team.rosterId));
             const luckRow = odds.ledger?.rows?.find(r => sameId(r.rosterId, team.rosterId));
             let streak = null;
+            // Soccer-style form guide: the last 5 results oldest -> newest.
+            // Same weekly ledger the streak is derived from, so the two can
+            // never disagree.
+            let form = [];
             if (luckRow?.weekly?.length) {
                 const played = [...luckRow.weekly].filter(g => g.result).sort((a, b) => b.week - a.week);
                 if (played.length) {
@@ -178,6 +213,7 @@ function LeagueCentralTab({
                     let n = 0;
                     for (const g of played) { if (g.result === r) n++; else break; }
                     streak = r + n;
+                    form = played.slice(0, 5).reverse().map(g => ({ week: g.week, result: g.result, pts: g.pts }));
                 }
             }
             return {
@@ -186,7 +222,9 @@ function LeagueCentralTab({
                 pointsAgainst: pa,
                 division: getDivisionKey(team.rosterId),
                 streak,
+                form,
                 playoffPct: simRow ? simRow.playoffPct : null,
+                byePct: simRow ? simRow.byePct : null,
                 titlePct: simRow ? simRow.titlePct : null,
                 projWins: simRow ? simRow.projWins : null,
                 projLosses: simRow ? simRow.projLosses : null,
@@ -244,8 +282,29 @@ function LeagueCentralTab({
     React.useEffect(() => {
         const h = () => setTrendTick(t => t + 1);
         window.addEventListener('wr:hist-season-loaded', h);
-        return () => window.removeEventListener('wr:hist-season-loaded', h);
-    }, []);
+        // The event alone is a race we lose often enough to matter: the
+        // historical fetch is IndexedDB-backed, so on a warm cache it can
+        // resolve and dispatch BEFORE this listener is attached, leaving the
+        // trend panel stuck on "loading" for the life of the page. Poll the
+        // (synchronous) cache as a backstop until both seasons are in, then
+        // stop. Bounded so a league with no history never polls forever.
+        const SC = window.App?.StatCatalog;
+        const seasonNum = Number(season) || new Date().getFullYear();
+        let tries = 0, timer = null;
+        const check = () => {
+            if (!SC) return;
+            if (SC.historicalSeason(seasonNum - 1) || SC.historicalSeason(seasonNum - 2)) {
+                setTrendTick(t => t + 1);
+                return;
+            }
+            if (++tries < 20) timer = setTimeout(check, 500);
+        };
+        timer = setTimeout(check, 300);
+        return () => {
+            window.removeEventListener('wr:hist-season-loaded', h);
+            if (timer) clearTimeout(timer);
+        };
+    }, [season]);
     const trending = React.useMemo(() => {
         const SC = window.App?.StatCatalog;
         const rosters = currentLeague?.rosters || [];
@@ -279,14 +338,34 @@ function LeagueCentralTab({
                 if (topStat.format !== 'pct' && Math.max(...pts.map(pt => pt.v)) < 2) return;
                 const t = SC.trendCalc(pts, topStat.format);
                 if (t.delta == null || t.delta === 0) return;
+
+                // Second honesty pass, and the one that matters most now that
+                // these run in an always-visible ticker: the floor above only
+                // checks the HIGHER season, so a player going 0.1 -> 2.2
+                // tackles/gm still clears it and reports "+2100%". That number
+                // is arithmetic, not signal. When the smaller season is under
+                // 1.0/gm there is no usable baseline, so report the ABSOLUTE
+                // per-game move ("+2.1/gm") — which is what actually informs a
+                // decision — instead of an explosive percentage.
+                const first = pts[0].v, last = pts[pts.length - 1].v;
+                const lo = Math.min(first, last);
+                const usablePct = topStat.format === 'pct' || lo >= 1;
+                const delta = usablePct ? t.delta : Math.round((last - first) * 10) / 10;
+                const unit = topStat.format === 'pct' ? 'pt' : (usablePct ? '%' : '/gm');
+                if (!delta) return;
+                // Rank on a clamped relative move so one near-zero baseline
+                // cannot outrank every genuine trend in the league.
+                const rel = first !== 0 ? ((last - first) / Math.abs(first)) * 100 : (last - first) * 100;
+                const score = Math.max(-300, Math.min(300, rel));
+
                 rows.push({
                     pid, name: _getPlayerName(pid), pos, team: p.team || '',
-                    rosterId: r.roster_id, statLabel: topStat.short, text: t.text, delta: t.delta,
-                    isPct: topStat.format === 'pct',
+                    rosterId: r.roster_id, statLabel: topStat.short, text: t.text,
+                    delta, unit, score,
                 });
             });
         });
-        rows.sort((a, b) => b.delta - a.delta);
+        rows.sort((a, b) => b.score - a.score);
         const positive = rows.filter(r => r.delta > 0);
         const negative = rows.filter(r => r.delta < 0);
         return {
@@ -380,11 +459,226 @@ function LeagueCentralTab({
     const teamCount = currentLeague?.rosters?.length || 0;
     const leaguePositions = (window.getLeaguePositions ? window.getLeaguePositions({ league: currentLeague }) : ['QB', 'RB', 'WR', 'TE']) || ['QB', 'RB', 'WR', 'TE'];
     const [leaderPos, setLeaderPos] = React.useState('Overall');
-    const leaderRows = (leaderPos === 'Overall' ? leaders.rows : leaders.rows.filter(r => r.pos === leaderPos)).slice(0, 8);
+    const [stMode, setStMode] = React.useState('table'); // 'table' | 'odds'
+
+    const activeLeaders = statScope === 'season' ? seasonLeaders : leaders;
+    const leaderRows = (leaderPos === 'Overall'
+        ? activeLeaders.rows
+        : activeLeaders.rows.filter(r => r.pos === leaderPos)).slice(0, 10);
+
+    // Per-position stat columns, defined as App.StatCatalog keys so the
+    // catalog stays the single source of truth for how each stat is derived
+    // and formatted (see js/shared/stat-catalog.js). 'Overall' is the
+    // cross-position points board and has no stat columns.
+    const STAT_COLS = {
+        QB: ['cmpPct', 'passYd', 'passTd', 'ints'],
+        RB: ['rushAtt', 'rushYd', 'rushTd', 'receptions'],
+        WR: ['targets', 'receptions', 'recYd', 'recTd'],
+        TE: ['targets', 'receptions', 'recYd', 'recTd'],
+        K: ['fgPct', 'fg50', 'xpm'],
+        DL: ['tackles', 'sacks', 'qbHits'],
+        LB: ['tackles', 'tfl', 'sacks'],
+        DB: ['tackles', 'passDef', 'idpInts'],
+    };
+    const SC = window.App?.StatCatalog;
+    const statCols = (leaderPos !== 'Overall' && SC ? (STAT_COLS[leaderPos] || []) : [])
+        .map(k => SC.statByKey ? SC.statByKey(k) : null).filter(Boolean);
+
+    // ── League Wire — one ticker instead of four stacked panels ──
+    // Everything that used to occupy its own vertical slab (scoreboard,
+    // transactions, trending) plus league records that had nowhere to live.
+    // Nothing here is invented: every item is dropped when its source data
+    // is missing rather than rendered as a placeholder.
+    const wireItems = React.useMemo(() => {
+        const out = [];
+        const nameFor = rid => {
+            const t = enrichedStandings.find(x => sameId(x.rosterId, rid));
+            return t ? (t.teamName || t.displayName || _getOwnerName(rid)) : _getOwnerName(rid);
+        };
+        // Scores — paired matchups, finals first
+        const pairs = Object.values((board.rows || []).reduce((acc, r) => {
+            if (r.matchup_id == null) return acc;
+            (acc[r.matchup_id] = acc[r.matchup_id] || []).push(r);
+            return acc;
+        }, {})).filter(p => p.length === 2);
+        pairs.forEach(pair => {
+            const [a, b] = [...pair].sort((x, y) => Number(y.points) - Number(x.points));
+            const started = pair.some(p => Number(p.points) > 0);
+            if (!started) return;
+            out.push({ kind: 'score', label: 'WK ' + board.week, text: nameFor(a.roster_id) + ' ' + Number(a.points).toFixed(1) + ' — ' + nameFor(b.roster_id) + ' ' + Number(b.points).toFixed(1) });
+        });
+        // Biggest blowout + closest game
+        const margins = pairs.filter(p => p.some(x => Number(x.points) > 0)).map(pair => {
+            const [a, b] = [...pair].sort((x, y) => Number(y.points) - Number(x.points));
+            return { m: Number(a.points) - Number(b.points), win: a, lose: b };
+        }).sort((x, y) => y.m - x.m);
+        if (margins.length) {
+            const big = margins[0], close = margins[margins.length - 1];
+            out.push({ kind: 'rec', label: 'BIGGEST WIN', text: nameFor(big.win.roster_id) + ' +' + big.m.toFixed(1) + ' over ' + nameFor(big.lose.roster_id) });
+            if (margins.length > 1) out.push({ kind: 'rec', label: 'CLOSEST', text: nameFor(close.win.roster_id) + ' +' + close.m.toFixed(1) + ' over ' + nameFor(close.lose.roster_id) });
+            // "Ugliest win" — lowest score that still won. A real league talking point.
+            const ugly = margins.slice().sort((x, y) => Number(x.win.points) - Number(y.win.points))[0];
+            if (ugly) out.push({ kind: 'rec', label: 'UGLIEST WIN', text: nameFor(ugly.win.roster_id) + ' won on ' + Number(ugly.win.points).toFixed(1) });
+        }
+        // Top scorer at each position this week
+        leaguePositions.forEach(pos => {
+            const top = leaders.rows.find(r => r.pos === pos);
+            if (top) out.push({ kind: 'top', label: 'TOP ' + pos, text: top.name + ' ' + top.pts.toFixed(1) });
+        });
+        // Biggest FAAB claim in the last week
+        const cutoff = Date.now() - 7 * 86400000;
+        const bids = (transactions || [])
+            .filter(t => (t.created || 0) >= cutoff && Number(t.settings?.waiver_bid) > 0)
+            .sort((a, b) => Number(b.settings.waiver_bid) - Number(a.settings.waiver_bid));
+        if (bids.length) {
+            const b = bids[0];
+            const got = Object.keys(b.adds || {})[0];
+            out.push({ kind: 'faab', label: 'TOP FAAB', text: _getOwnerName(b.roster_ids?.[0]) + ' $' + b.settings.waiver_bid + (got ? ' → ' + _getPlayerName(got) : '') });
+        }
+        // Risers / fallers (already computed above, same honesty floor)
+        (trending.risers || []).slice(0, 3).forEach(r => {
+            out.push({ kind: 'trend', label: 'RISER', text: r.name + ' ' + r.statLabel + ' +' + r.delta + r.unit });
+        });
+        (trending.fallers || []).slice(0, 3).forEach(r => {
+            out.push({ kind: 'trend', label: 'FALLER', text: r.name + ' ' + r.statLabel + ' ' + r.delta + r.unit });
+        });
+        // League pulse — the numbers the old KPI strip carried. They read
+        // better as wire items than as a row of tiles competing with the
+        // standings for the top of the page.
+        if (weekHigh) out.push({ kind: 'top', label: 'HIGH SCORE', text: nameFor(weekHigh.rosterId) + ' ' + weekHigh.pts.toFixed(1) });
+        if (cutlineGB) {
+            out.push({
+                kind: 'rec', label: 'CUTLINE',
+                text: cutlineGB.gb === 0
+                    ? (playoffTeams + 'th and ' + (playoffTeams + 1) + 'th seed are tied')
+                    : cutlineGB.gb.toFixed(1) + ' game' + (cutlineGB.gb === 1 ? '' : 's') + ' separate the ' + playoffTeams + 'th and ' + (playoffTeams + 1) + 'th seed',
+            });
+        }
+        if (movesThisWeek.total) {
+            out.push({
+                kind: 'faab', label: 'MOVES', text: movesThisWeek.total + ' this week · ' +
+                    movesThisWeek.trades + ' trade' + (movesThisWeek.trades === 1 ? '' : 's') + ' · ' +
+                    movesThisWeek.waivers + ' waiver claim' + (movesThisWeek.waivers === 1 ? '' : 's'),
+            });
+        }
+        return out;
+    }, [board, leaders.rows, transactions, trending, enrichedStandings, leaguePositions, weekHigh, cutlineGB, movesThisWeek, playoffTeams]);
+
+    // Standings row shells — the table view (form guide) and the odds view
+    // (playoff picture) are two reads of the same enriched rows, so a team
+    // can never rank differently between them.
+    const FormGuide = ({ form }) => {
+        if (!form || !form.length) return <span style={{ color: FAINT, fontFamily: MONO, fontSize: '0.65rem' }}>—</span>;
+        return (
+            <span style={{ display: 'inline-flex', gap: '3px' }}>
+                {form.map((g, i) => (
+                    <i key={i} title={'Week ' + g.week + (g.pts != null ? ' · ' + Number(g.pts).toFixed(1) : '')}
+                        style={{
+                            width: '16px', height: '16px', borderRadius: 'var(--card-radius-xs, 5px)',
+                            display: 'grid', placeItems: 'center', fontFamily: MONO, fontSize: '0.5rem',
+                            fontWeight: 800, fontStyle: 'normal',
+                            background: g.result === 'W' ? 'rgba(46,204,113,0.16)' : 'rgba(231,76,60,0.14)',
+                            color: g.result === 'W' ? GOOD : BAD,
+                            border: '1px solid ' + (g.result === 'W' ? 'rgba(46,204,113,0.34)' : 'rgba(231,76,60,0.3)'),
+                        }}>{g.result}</i>
+                ))}
+            </span>
+        );
+    };
+
+    const th = { fontFamily: MONO, fontSize: '0.6rem', color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left', padding: '6px 7px', borderBottom: '1px solid ' + LINE, whiteSpace: 'nowrap' };
+    const thNum = { ...th, textAlign: 'right' };
+    const td = { padding: '7px', borderBottom: '1px solid rgba(255,255,255,0.04)', whiteSpace: 'nowrap', fontFamily: DM, fontSize: '0.78rem' };
+    const tdNum = { ...td, textAlign: 'right', ...mono };
+
+    const teamCell = (team, rank) => {
+        const isMe = sameId(team.rosterId, myRoster?.roster_id);
+        return (
+            <React.Fragment>
+                <td style={{ ...td, ...mono, color: MUTED, width: '22px', boxShadow: isMe ? 'inset 3px 0 0 ' + GOLD : 'none' }}>{rank}</td>
+                <td style={{ ...td, fontWeight: isMe ? 700 : 600, color: isMe ? GOLD : WHITE, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {team.teamName || team.displayName || _getOwnerName(team.rosterId)}
+                </td>
+            </React.Fragment>
+        );
+    };
+
+    const StandingsTable = ({ teams, showCutline }) => (
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+                <tr>
+                    <th style={th}></th><th style={th}>Team</th>
+                    <th style={thNum}>W-L</th>
+                    {!isPhone && <th style={thNum}>PF</th>}
+                    {!isPhone && <th style={thNum}>PA</th>}
+                    <th style={thNum}>Strk</th>
+                    {!isPhone && <th style={th}>Last 5</th>}
+                </tr>
+            </thead>
+            <tbody>
+                {teams.map((team, idx) => (
+                    <tr key={team.rosterId} style={showCutline && idx === playoffTeams - 1 && idx < teams.length - 1
+                        ? { boxShadow: 'inset 0 -1px 0 rgba(212,175,55,0.45)' } : null}>
+                        {teamCell(team, idx + 1)}
+                        <td style={tdNum}>{team.wins}-{team.losses}</td>
+                        {!isPhone && <td style={tdNum}>{(team.pointsFor || 0).toFixed(1)}</td>}
+                        {!isPhone && <td style={{ ...tdNum, color: MUTED }}>{(team.pointsAgainst || 0).toFixed(1)}</td>}
+                        <td style={{ ...tdNum, fontWeight: 700, color: team.streak ? (team.streak[0] === 'W' ? GOOD : BAD) : MUTED }}>{team.streak || '—'}</td>
+                        {!isPhone && <td style={td}><FormGuide form={team.form} /></td>}
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    );
+
+    const OddsTable = ({ teams }) => (
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+                <tr>
+                    <th style={th}></th><th style={th}>Team</th>
+                    <th style={thNum}>W-L</th>
+                    <th style={thNum}>Playoff</th>
+                    {!isPhone && <th style={thNum}>Bye</th>}
+                    <th style={thNum}>Title</th>
+                </tr>
+            </thead>
+            <tbody>
+                {teams.map((team, idx) => (
+                    <tr key={team.rosterId} style={idx === playoffTeams - 1 && idx < teams.length - 1
+                        ? { boxShadow: 'inset 0 -1px 0 rgba(212,175,55,0.45)' } : null}>
+                        {teamCell(team, idx + 1)}
+                        <td style={tdNum}>{team.wins}-{team.losses}</td>
+                        <td style={tdNum}>
+                            {team.playoffPct == null ? <span style={{ color: MUTED }}>—</span> : (
+                                <React.Fragment>
+                                    <span style={{ width: '42px', height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: 'var(--card-radius-xs, 5px)', display: 'inline-block', overflow: 'hidden', verticalAlign: 'middle', marginRight: '7px' }}>
+                                        <i style={{ display: 'block', height: '100%', width: Math.max(0, Math.min(100, team.playoffPct)) + '%', background: GOOD, borderRadius: 'var(--card-radius-xs, 5px)' }} />
+                                    </span>{team.playoffPct}%
+                                </React.Fragment>
+                            )}
+                        </td>
+                        {!isPhone && <td style={{ ...tdNum, color: SILVER }}>{team.byePct == null ? '—' : team.byePct + '%'}</td>}
+                        <td style={{ ...tdNum, color: GOLD }}>{team.titlePct == null ? '—' : team.titlePct + '%'}</td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    );
+
+    const segBtn = (on) => ({
+        fontFamily: MONO, fontSize: '0.6rem', letterSpacing: '0.05em', textTransform: 'uppercase',
+        padding: '5px 9px', borderRadius: 'var(--card-radius-xs, 5px)', border: 'none', cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        background: on ? 'rgba(212,175,55,0.16)' : 'transparent', color: on ? GOLD : MUTED,
+    });
+    const segWrap = { display: 'flex', gap: '2px', background: WELL, borderRadius: 'var(--card-radius-sm, 8px)', padding: '2px', border: '1px solid ' + LINE };
+
+    const me = enrichedStandings.find(t => sameId(t.rosterId, myRoster?.roster_id));
+    const oddsReady = odds.status === 'ready' && odds.sim;
 
     return (
-        <div style={{ padding: isPhone ? '14px' : '20px 24px', maxWidth: '1400px', margin: '0 auto' }}>
-            <div style={{ marginBottom: '16px' }}>
+        <div style={{ padding: isPhone ? '14px' : '20px 24px', maxWidth: '1500px', margin: '0 auto', paddingBottom: wireItems.length ? '54px' : undefined }}>
+            <div style={{ marginBottom: '14px' }}>
                 <div style={{ fontFamily: RAJ, fontWeight: 700, fontSize: isPhone ? '1.3rem' : '1.6rem', color: WHITE, letterSpacing: '0.02em' }}>League Central</div>
                 <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED, marginTop: '2px' }}>
                     {currentLeague?.name || 'League'} · {season} · {teamCount} Teams
@@ -392,201 +686,192 @@ function LeagueCentralTab({
                 </div>
             </div>
 
-            {/* KPI strip */}
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                {!noPlayoffs && (
-                    <Kpi label="Playoff Cutline" value={cutlineGB ? (cutlineGB.gb === 0 ? 'Tied' : cutlineGB.gb.toFixed(1) + ' GB') : '—'}
-                        sub={cutlineGB ? (playoffTeams + 'th vs ' + (playoffTeams + 1) + 'th seed') : (odds.status === 'loading' ? 'Loading…' : 'Not enough games played')} />
-                )}
-                <Kpi label={'Week ' + (board.week || '') + ' High Score'} value={weekHigh ? weekHigh.pts.toFixed(1) : '—'}
-                    sub={weekHigh ? _getOwnerName(weekHigh.rosterId) : (board.status === 'loading' ? 'Loading…' : 'No scores reported yet')} />
-                <Kpi label="Moves This Week" value={movesThisWeek.total}
-                    sub={movesThisWeek.total ? (movesThisWeek.trades + ' trade' + (movesThisWeek.trades !== 1 ? 's' : '') + ' · ' + movesThisWeek.waivers + ' waiver claim' + (movesThisWeek.waivers !== 1 ? 's' : '')) : 'Quiet week so far'} />
-            </div>
+            {/* The two things that matter: Standings | Stats */}
+            <div style={{ display: 'grid', gridTemplateColumns: isPhone ? '1fr' : '1.32fr 1fr', gap: '14px', alignItems: 'start' }}>
 
-            {/* Scoreboard strip */}
-            <Panel title="This Week's Games" meta={board.week ? 'Week ' + board.week : null}>
-                {board.status === 'loading' ? (
-                    <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED }}>Loading matchups…</div>
-                ) : !board.rows.length ? (
-                    <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED }}>No matchups scheduled.</div>
-                ) : (
-                    <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px' }}>
-                        {Object.values(board.rows.reduce((acc, r) => {
-                            if (r.matchup_id == null) return acc;
-                            (acc[r.matchup_id] = acc[r.matchup_id] || []).push(r);
-                            return acc;
-                        }, {})).filter(pair => pair.length === 2).sort((a, b) => {
-                            const mine = p => p.some(x => sameId(x.roster_id, myRoster?.roster_id));
-                            if (mine(a) !== mine(b)) return mine(a) ? -1 : 1;
-                            return (Number(b[0].points) + Number(b[1].points)) - (Number(a[0].points) + Number(a[1].points));
-                        }).map((pair, i) => {
-                            const started = pair.some(p => Number(p.points) > 0);
-                            const [a, b] = [...pair].sort((x, y) => Number(y.points) - Number(x.points));
-                            const nameFor = rid => { const t = enrichedStandings.find(t => sameId(t.rosterId, rid)); return t ? (t.teamName || t.displayName) : _getOwnerName(rid); };
-                            const recFor = rid => { const t = enrichedStandings.find(t => sameId(t.rosterId, rid)); return t ? (t.wins + '-' + t.losses) : ''; };
-                            return (
-                                <div key={i} style={{ background: WELL, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', minWidth: '210px', flexShrink: 0 }}>
-                                    <div style={{ ...microHdr, marginBottom: '6px', color: started ? GOOD : MUTED }}>{started ? 'Reporting' : 'Not started'}</div>
-                                    {[a, b].map((p, j) => (
-                                        <div key={j} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: j === 0 ? '4px' : 0 }}>
-                                            <div style={{ minWidth: 0 }}>
-                                                <div style={{ fontFamily: DM, fontWeight: j === 0 && started ? 700 : 500, fontSize: '0.8rem', color: j === 0 && started ? GOLD : WHITE, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>{nameFor(p.roster_id)}</div>
-                                                <div style={{ fontFamily: MONO, fontSize: '0.65rem', color: MUTED }}>{recFor(p.roster_id)}</div>
-                                            </div>
-                                            <div style={{ ...mono, fontSize: '0.9rem', fontWeight: j === 0 && started ? 700 : 500, color: j === 0 && started ? GOLD : SILVER }}>{started ? Number(p.points).toFixed(1) : '—'}</div>
-                                        </div>
+                <Panel
+                    title="Standings"
+                    meta={stMode === 'odds' ? '10,000-sim monte carlo' : (board.week ? 'through week ' + board.week + ' · last 5 form' : 'last 5 form')}
+                    right={
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                            {hasDivisions && stMode === 'table' && (
+                                <div style={segWrap}>
+                                    {['overall', 'division'].map(v => (
+                                        <button key={v} onClick={() => setStandingsView(v)} style={segBtn(standingsView === v)}>
+                                            {v === 'division' ? 'By Division' : 'Overall'}
+                                        </button>
                                     ))}
                                 </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </Panel>
-
-            <div style={{ display: 'grid', gridTemplateColumns: isPhone ? '1fr' : '1.6fr 1fr', gap: '16px', alignItems: 'start' }}>
-                {/* Standings */}
-                <div>
-                    <Panel title="Standings & Playoff Picture" right={hasDivisions ? (
-                        <div style={{ display: 'flex', gap: '2px', background: WELL, borderRadius: 'var(--card-radius-sm, 8px)', padding: '2px', border: '1px solid ' + LINE }}>
-                            {['division', 'overall'].map(v => (
-                                <button key={v} onClick={() => setStandingsView(v)} style={{
-                                    fontFamily: MONO, fontSize: '0.65rem', letterSpacing: '0.05em', textTransform: 'uppercase',
-                                    padding: '5px 9px', borderRadius: 'var(--card-radius-xs, 5px)', border: 'none', cursor: 'pointer',
-                                    background: standingsView === v ? 'rgba(212,175,55,0.16)' : 'transparent',
-                                    color: standingsView === v ? GOLD : MUTED,
-                                }}>{v === 'division' ? 'By Division' : 'Overall'}</button>
-                            ))}
-                        </div>
-                    ) : null}>
-                        {!enrichedStandings.length ? (
-                            <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED }}>No standings yet.</div>
-                        ) : (hasDivisions && standingsView === 'division') ? (
-                            <div>
-                                {divisionGroups.map(group => (
-                                    <div key={group.key} style={{ marginBottom: '10px' }}>
-                                        <div style={{ ...microHdr, color: GOLD, padding: '6px 6px', background: 'rgba(212,175,55,0.06)', borderRadius: 'var(--card-radius-xs, 5px)', marginBottom: '2px' }}>
-                                            {group.name} <span style={{ color: MUTED, textTransform: 'none', letterSpacing: 0 }}>· {group.teams.length} teams</span>
-                                        </div>
-                                        <StandingsHeader showDiv={false} />
-                                        {group.teams.map((team, idx) => <StandingsRow key={team.rosterId} team={team} rank={idx + 1} showDiv={false} />)}
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div>
-                                <StandingsHeader showDiv={hasDivisions} />
-                                {enrichedStandings.map((team, idx) => (
-                                    <React.Fragment key={team.rosterId}>
-                                        <StandingsRow team={team} rank={idx + 1} showDiv={hasDivisions} />
-                                        {idx === playoffTeams - 1 && idx < enrichedStandings.length - 1 && (
-                                            <div style={{ borderBottom: '1px dashed ' + LINE, margin: '2px 0' }} />
-                                        )}
-                                    </React.Fragment>
-                                ))}
-                            </div>
-                        )}
-                    </Panel>
-                </div>
-
-                {/* Stat leaders + transactions */}
-                <div>
-                    <Panel title="Stat Leaders" meta={leaders.week ? 'Week ' + leaders.week : null}>
-                        <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', marginBottom: '10px', borderBottom: '1px solid ' + LINE, paddingBottom: '8px' }}>
-                            {['Overall', ...leaguePositions].map(p => (
-                                <button key={p} onClick={() => setLeaderPos(p)} style={{
-                                    fontFamily: MONO, fontSize: '0.65rem', letterSpacing: '0.05em', textTransform: 'uppercase',
-                                    padding: '5px 9px', borderRadius: 'var(--card-radius-xs, 5px)', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                                    background: leaderPos === p ? 'rgba(212,175,55,0.16)' : 'transparent',
-                                    color: leaderPos === p ? GOLD : MUTED,
-                                }}>{p}</button>
-                            ))}
-                        </div>
-                        {leaders.status === 'loading' ? (
-                            <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED }}>Loading stat leaders…</div>
-                        ) : !leaderRows.length ? (
-                            <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED }}>No stats reported yet.</div>
-                        ) : leaderRows.map((r, i) => (
-                            <div key={r.pid} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 2px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <span style={{ ...mono, fontSize: '0.72rem', color: MUTED, width: '16px' }}>{i + 1}</span>
-                                <div style={{ minWidth: 0, flex: 1 }}>
-                                    <div style={{ fontFamily: DM, fontWeight: 600, fontSize: '0.8rem', color: WHITE, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
-                                    <div style={{ fontFamily: DM, fontSize: '0.68rem', color: MUTED }}>{r.pos} · {r.team} · {_getOwnerName(r.rosterId)}</div>
+                            )}
+                            {!noPlayoffs && (
+                                <div style={segWrap}>
+                                    <button onClick={() => setStMode('table')} style={segBtn(stMode === 'table')}>Table</button>
+                                    <button onClick={() => setStMode('odds')} style={segBtn(stMode === 'odds')}>Playoff Picture</button>
                                 </div>
-                                <span style={{ ...mono, fontSize: '0.85rem', fontWeight: 700, color: GOLD }}>{r.pts.toFixed(1)}</span>
-                            </div>
+                            )}
+                        </div>
+                    }
+                >
+                    {/* Your own odds lead the playoff view — the season-odds read,
+                        folded into standings instead of a separate slab. */}
+                    {stMode === 'odds' && oddsReady && me && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '9px', marginBottom: '11px' }}>
+                            {[
+                                { lab: 'Make Playoffs', val: me.playoffPct, color: GOOD },
+                                { lab: 'First-Round Bye', val: me.byePct, color: INFO },
+                                { lab: 'Win Title', val: me.titlePct, color: GOLD },
+                            ].map(o => (
+                                <div key={o.lab} style={{ background: WELL, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px' }}>
+                                    <div style={microHdr}>{o.lab}</div>
+                                    <div style={{ ...mono, fontSize: '1.7rem', fontWeight: 700, color: o.color, marginTop: '3px', lineHeight: 1 }}>
+                                        {o.val == null ? '—' : o.val + '%'}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {stMode === 'odds' && !oddsReady && (
+                        <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED, marginBottom: '10px' }}>
+                            {odds.status === 'loading' ? 'Simulating the rest of the season…'
+                                : 'Not enough games played to simulate the playoff picture yet.'}
+                        </div>
+                    )}
+
+                    {!enrichedStandings.length ? (
+                        <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED }}>No standings yet.</div>
+                    ) : stMode === 'odds' ? (
+                        <OddsTable teams={enrichedStandings} />
+                    ) : (hasDivisions && standingsView === 'division') ? (
+                        <div>
+                            {divisionGroups.map(group => (
+                                <div key={group.key} style={{ marginBottom: '12px' }}>
+                                    <div style={{ ...microHdr, color: GOLD, padding: '6px', background: 'rgba(212,175,55,0.06)', borderRadius: 'var(--card-radius-xs, 5px)', marginBottom: '2px' }}>
+                                        {group.name} <span style={{ color: MUTED, textTransform: 'none', letterSpacing: 0 }}>· {group.teams.length} teams</span>
+                                    </div>
+                                    <StandingsTable teams={group.teams} showCutline={false} />
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <StandingsTable teams={enrichedStandings} showCutline={!noPlayoffs} />
+                    )}
+                </Panel>
+
+                <Panel
+                    title="Stats"
+                    right={
+                        <div style={segWrap}>
+                            <button onClick={() => setStatScope('week')} style={segBtn(statScope === 'week')}>
+                                {leaders.week ? 'Week ' + leaders.week : 'Week'}
+                            </button>
+                            <button onClick={() => setStatScope('season')} style={segBtn(statScope === 'season')}>Season</button>
+                        </div>
+                    }
+                >
+                    <div className="wr-hscroll" style={{ display: 'flex', gap: '3px', overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: '8px', marginBottom: '9px' }}>
+                        {['Overall', ...leaguePositions].map(p => (
+                            <button key={p} onClick={() => setLeaderPos(p)} style={{ ...segBtn(leaderPos === p), fontWeight: 700 }}>{p}</button>
                         ))}
-                    </Panel>
-
-                    <Panel title="Recent Transactions" right={
-                        <span onClick={() => setActiveTab && setActiveTab('analytics')} style={{ fontFamily: MONO, fontSize: '0.65rem', color: MUTED, cursor: 'pointer' }}>View all →</span>
-                    }>
-                        {!transactions?.length ? (
-                            <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED }}>No recent activity.</div>
-                        ) : transactions.slice(0, 8).map((txn, i) => {
-                            const addPids = Object.keys(txn.adds || {}).filter(pid => txn.type !== 'trade' || sameId(txn.adds[pid], txn.roster_ids?.[0]));
-                            const dropPids = Object.keys(txn.drops || {}).filter(pid => txn.type !== 'trade' || sameId(txn.drops[pid], txn.roster_ids?.[0]));
-                            const accent = txn.type === 'trade' ? GOLD : txn.type === 'waiver' ? GOOD : BAD;
-                            return (
-                                <div key={i} style={{ borderLeft: '3px solid ' + accent, padding: '6px 0 6px 10px', marginBottom: '6px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                        <span style={{ fontFamily: MONO, fontSize: '0.65rem', fontWeight: 700, color: accent, textTransform: 'uppercase' }}>{txn.type === 'free_agent' ? 'FA' : txn.type}</span>
-                                        <span style={{ fontFamily: DM, fontSize: '0.75rem', color: WHITE }}>{_getOwnerName(txn.roster_ids?.[0])}</span>
-                                        {txn.type === 'trade' && txn.roster_ids?.[1] != null && <span style={{ fontFamily: DM, fontSize: '0.75rem', color: MUTED }}>⇄ {_getOwnerName(txn.roster_ids[1])}</span>}
-                                        <span style={{ fontFamily: MONO, fontSize: '0.65rem', color: FAINT, marginLeft: 'auto' }}>{_timeAgo(txn.created)}</span>
-                                    </div>
-                                    <div style={{ fontFamily: DM, fontSize: '0.72rem', marginTop: '2px' }}>
-                                        {addPids.map(pid => <span key={'a' + pid} style={{ color: GOOD, marginRight: '6px' }}>+{_getPlayerName(pid)}</span>)}
-                                        {dropPids.map(pid => <span key={'d' + pid} style={{ color: BAD, marginRight: '6px' }}>-{_getPlayerName(pid)}</span>)}
-                                        {txn.settings?.waiver_bid > 0 && <span style={{ color: WARN }}>${txn.settings.waiver_bid}</span>}
-                                        {txn.type === 'trade' && txn.draft_picks?.length > 0 && <span style={{ color: GOLD }}> +{txn.draft_picks.length} pick{txn.draft_picks.length !== 1 ? 's' : ''}</span>}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </Panel>
-                </div>
+                    </div>
+                    {activeLeaders.status === 'loading' ? (
+                        <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED }}>Loading {statScope === 'season' ? 'season' : 'week'} stats…</div>
+                    ) : activeLeaders.status === 'unavailable' ? (
+                        <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED }}>Season totals aren't available for this league.</div>
+                    ) : !leaderRows.length ? (
+                        <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED }}>No stats reported yet.</div>
+                    ) : (
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr>
+                                        <th style={th}></th>
+                                        <th style={th}>{leaderPos === 'Overall' ? 'Player' : 'Player'}</th>
+                                        {leaderPos === 'Overall' && !isPhone && <th style={th}>Owner</th>}
+                                        {statCols.map(c => <th key={c.key} style={thNum} title={c.label}>{c.short}</th>)}
+                                        <th style={thNum}>PTS</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {leaderRows.map((r, i) => (
+                                        <tr key={r.pid}>
+                                            <td style={{ ...td, ...mono, color: MUTED, width: '18px' }}>{i + 1}</td>
+                                            <td style={{ ...td, maxWidth: '170px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                <div style={{ fontWeight: 600, color: WHITE }}>{r.name}</div>
+                                                <div style={{ fontFamily: MONO, fontSize: '0.62rem', color: MUTED }}>{r.pos} · {r.team}</div>
+                                            </td>
+                                            {leaderPos === 'Overall' && !isPhone && (
+                                                <td style={{ ...td, color: SILVER, fontSize: '0.72rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{_getOwnerName(r.rosterId)}</td>
+                                            )}
+                                            {statCols.map(c => (
+                                                <td key={c.key} style={{ ...tdNum, color: SILVER }}>
+                                                    {SC.formatStat(SC.computeStat(c.key, r.raw), c.format)}
+                                                </td>
+                                            ))}
+                                            <td style={{ ...tdNum, fontWeight: 700, color: GOLD }}>{r.pts.toFixed(1)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </Panel>
             </div>
 
-            {/* Trending — league-wide risers/fallers by usage delta */}
-            <Panel title="Trending — Risers & Fallers" meta="usage change, last 2 seasons">
-                {trending.status === 'unavailable' ? null : trending.status === 'loading' ? (
-                    <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED }}>Loading historical data…</div>
-                ) : (!trending.risers.length && !trending.fallers.length) ? (
-                    <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED }}>Not enough multi-season data on this roster set yet.</div>
-                ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: isPhone ? '1fr' : '1fr 1fr', gap: '16px' }}>
-                        <div>
-                            <div style={{ ...microHdr, color: GOOD, marginBottom: '8px' }}>▲ Risers</div>
-                            {!trending.risers.length ? (
-                                <div style={{ fontFamily: DM, fontSize: '0.78rem', color: MUTED }}>None this cycle.</div>
-                            ) : trending.risers.map(r => (
-                                <div key={r.pid} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 2px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                    <div style={{ minWidth: 0, flex: 1 }}>
-                                        <div style={{ fontFamily: DM, fontWeight: 600, fontSize: '0.8rem', color: WHITE, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
-                                        <div style={{ fontFamily: DM, fontSize: '0.68rem', color: MUTED }}>{r.pos} · {r.team} · {_getOwnerName(r.rosterId)} · {r.statLabel} {r.text}</div>
-                                    </div>
-                                    <span style={{ ...mono, fontSize: '0.85rem', fontWeight: 700, color: GOOD, flexShrink: 0 }}>+{r.delta}{r.isPct ? 'pt' : '%'}</span>
-                                </div>
-                            ))}
-                        </div>
-                        <div>
-                            <div style={{ ...microHdr, color: BAD, marginBottom: '8px' }}>▼ Fallers</div>
-                            {!trending.fallers.length ? (
-                                <div style={{ fontFamily: DM, fontSize: '0.78rem', color: MUTED }}>None this cycle.</div>
-                            ) : trending.fallers.map(r => (
-                                <div key={r.pid} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 2px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                    <div style={{ minWidth: 0, flex: 1 }}>
-                                        <div style={{ fontFamily: DM, fontWeight: 600, fontSize: '0.8rem', color: WHITE, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</div>
-                                        <div style={{ fontFamily: DM, fontSize: '0.68rem', color: MUTED }}>{r.pos} · {r.team} · {_getOwnerName(r.rosterId)} · {r.statLabel} {r.text}</div>
-                                    </div>
-                                    <span style={{ ...mono, fontSize: '0.85rem', fontWeight: 700, color: BAD, flexShrink: 0 }}>{r.delta}{r.isPct ? 'pt' : '%'}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </Panel>
+            {/* League Wire — the ticker that replaced the scoreboard,
+                transactions and trending slabs. Fixed to the bottom so it is
+                always in view without costing vertical space. */}
+            {wireItems.length > 0 && <LeagueWire items={wireItems} />}
+        </div>
+    );
+}
+
+// ── League Wire ─────────────────────────────────────────────────────
+// Marquee of everything that does not deserve its own panel: scores, league
+// records, top scorer per position, the biggest FAAB claim, risers/fallers.
+// Duplicated once so the -50% translate loops seamlessly; pauses on hover and
+// honours prefers-reduced-motion.
+function LeagueWire({ items }) {
+    const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #bdb8ad)';
+    const MUTED = 'var(--text-muted, #8d887e)';
+    const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
+    const TONE = {
+        score: { bg: 'rgba(255,255,255,0.07)', fg: SILVER },
+        rec: { bg: 'rgba(93,173,226,0.18)', fg: 'var(--info, #5dade2)' },
+        top: { bg: 'rgba(212,175,55,0.18)', fg: GOLD },
+        faab: { bg: 'rgba(240,165,0,0.18)', fg: 'var(--warn, #f0a500)' },
+        trend: { bg: 'rgba(155,138,251,0.2)', fg: 'var(--purple, #9b8afb)' },
+    };
+    React.useEffect(() => {
+        if (document.getElementById('wr-league-wire-css')) return;
+        const st = document.createElement('style');
+        st.id = 'wr-league-wire-css';
+        st.textContent =
+            '@keyframes wrWire{from{transform:translateX(0)}to{transform:translateX(-50%)}}' +
+            '.wr-wire-track{animation:wrWire 90s linear infinite;display:flex;width:max-content}' +
+            '.wr-wire-track:hover{animation-play-state:paused}' +
+            '@media(prefers-reduced-motion:reduce){.wr-wire-track{animation:none}}';
+        document.head.appendChild(st);
+    }, []);
+    const row = (it, i) => {
+        const tone = TONE[it.kind] || TONE.score;
+        return (
+            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '0 17px', fontFamily: MONO, fontSize: '0.72rem', color: SILVER, borderRight: '1px solid rgba(255,255,255,0.05)', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '0.55rem', fontWeight: 800, letterSpacing: '0.09em', padding: '2px 6px', borderRadius: 'var(--card-radius-xs, 5px)', textTransform: 'uppercase', background: tone.bg, color: tone.fg }}>{it.label}</span>
+                {it.text}
+            </span>
+        );
+    };
+    return (
+        <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, height: '38px', background: '#0a0a0c', borderTop: '1px solid rgba(212,175,55,0.16)', display: 'flex', alignItems: 'center', zIndex: 80, overflow: 'hidden' }}>
+            <div style={{ flex: '0 0 auto', height: '100%', display: 'flex', alignItems: 'center', gap: '7px', padding: '0 14px', background: '#171206', color: GOLD, fontFamily: MONO, fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.11em', borderRight: '1px solid rgba(212,175,55,0.16)', zIndex: 2 }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--good, #2ecc71)', boxShadow: '0 0 7px var(--good, #2ecc71)' }} />
+                LEAGUE WIRE
+            </div>
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+                <div className="wr-wire-track">
+                    {items.map(row)}{items.map((it, i) => row(it, i + items.length))}
+                </div>
+            </div>
         </div>
     );
 }
