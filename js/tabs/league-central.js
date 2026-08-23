@@ -158,6 +158,46 @@ function LeagueCentralTab({
         return rows;
     }, [currentLeague, playersData]);
 
+    // NFL-wide statistical leaders — the SAME fetched stat lines, deliberately
+    // NOT filtered to this league's rosters. "Who led the NFL in receiving
+    // yards this week" is league-independent context, which is exactly what a
+    // ticker is for; the roster-scoped leaders already live in the Stats panel.
+    const [nflLeaders, setNflLeaders] = React.useState([]);
+    const buildNflLeaders = React.useCallback((statsByPid) => {
+        const CATS = [
+            { key: 'pass_yd', label: 'NFL PASS', unit: 'yds' },
+            { key: 'rush_yd', label: 'NFL RUSH', unit: 'yds' },
+            { key: 'rec_yd', label: 'NFL REC', unit: 'yds' },
+            { key: 'idp_sack', label: 'NFL SACKS', unit: 'sacks', alt: 'sack' },
+        ];
+        return CATS.map(c => {
+            let best = null;
+            for (const pid in statsByPid) {
+                // Sleeper's weekly stat map carries TEAM_* aggregate rows whose
+                // totals are whole-team sums — TEAM_BAL's 238 rushing yards
+                // outranks every individual back in the league. Resolve the
+                // player FIRST so a team row can never win the category and
+                // then get silently dropped by the lookup below, which would
+                // mean these leaders simply never render, with no error.
+                const p = playersData?.[pid];
+                // Team D/ST units are real roster players in fantasy but they
+                // are not INDIVIDUAL league leaders — DEN's 6 team sacks would
+                // top every edge rusher. They have no full_name, which is also
+                // why an unguarded version renders "? 6 sacks".
+                if (!p || !p.full_name || p.position === 'DEF') continue;
+                const raw = statsByPid[pid];
+                const v = Number(raw?.[c.key] ?? (c.alt ? raw?.[c.alt] : 0)) || 0;
+                if (v > 0 && (!best || v > best.v)) best = { pid, v, p };
+            }
+            if (!best) return null;
+            const val = c.unit === 'sacks' ? (Math.round(best.v * 10) / 10) : Math.round(best.v);
+            return {
+                kind: 'nflstat', label: c.label,
+                text: (best.p.full_name || 'Player') + ' ' + val + ' ' + c.unit + (best.p.team ? ' · ' + best.p.team : ''),
+            };
+        }).filter(Boolean);
+    }, [playersData]);
+
     React.useEffect(() => {
         const SOS = window.App?.SOS;
         if (!SOS?.getWeekStats || typeof window.calcFantasyPts !== 'function' || !currentLeague || !statWeek) return;
@@ -166,9 +206,32 @@ function LeagueCentralTab({
         Promise.resolve(SOS.getWeekStats(season, statWeek)).then(weekStats => {
             if (!alive) return;
             setLeaders({ status: 'ready', week: statWeek, rows: buildLeaderRows(weekStats || {}) });
+            setNflLeaders(buildNflLeaders(weekStats || {}));
         }).catch(e => { window.wrLog?.('leagueCentral.leaders', e); if (alive) setLeaders({ status: 'error', week: statWeek, rows: [] }); });
         return () => { alive = false; };
-    }, [leagueId, statWeek, buildLeaderRows]);
+    }, [leagueId, statWeek, buildLeaderRows, buildNflLeaders]);
+
+    // ── Live NFL scoreboard for the wire ──
+    // Same App.NflContext.loadScores seam Empire's ticker uses (built for
+    // exactly this), refetched every 60s so a live game's score is honest on a
+    // Sunday. No-op the rest of the week — ESPN just keeps returning the same
+    // completed/scheduled games.
+    const [nflScores, setNflScores] = React.useState([]);
+    React.useEffect(() => {
+        const NC = window.App?.NflContext;
+        if (!NC?.loadScores) return undefined;
+        let alive = true;
+        const tick = async () => {
+            try {
+                const wk = window.App?.WeeklyProj?.currentWeek?.() || 1;
+                const games = await NC.loadScores(wk, window.S?.nflState?.season);
+                if (alive) setNflScores(games || []);
+            } catch (e) { /* the wire just skips NFL scores this cycle */ }
+        };
+        tick();
+        const id = setInterval(tick, 60000);
+        return () => { alive = false; clearInterval(id); };
+    }, []);
 
     // Season aggregate — lazy, only once the user actually asks for it.
     React.useEffect(() => {
@@ -515,6 +578,19 @@ function LeagueCentralTab({
             const t = enrichedStandings.find(x => sameId(x.rosterId, rid));
             return t ? (t.teamName || t.displayName || _getOwnerName(rid)) : _getOwnerName(rid);
         };
+        // Real NFL games lead, the way a sports ticker does. A live or final
+        // game shows its score; one that hasn't kicked shows the kickoff time
+        // instead of a fabricated 0-0 (same rule as Empire's ticker).
+        (nflScores || []).slice(0, 10).forEach(g => {
+            if (g.state === 'in') {
+                out.push({ kind: 'nfllive', label: g.shortDetail || 'LIVE', text: g.away + ' ' + g.awayScore + ' — ' + g.home + ' ' + g.homeScore });
+            } else if (g.state === 'post') {
+                out.push({ kind: 'nfl', label: 'FINAL', text: g.away + ' ' + g.awayScore + ' — ' + g.home + ' ' + g.homeScore });
+            } else {
+                out.push({ kind: 'nfl', label: 'NFL', text: g.away + ' @ ' + g.home + ' · ' + (g.shortDetail || 'Scheduled') });
+            }
+        });
+        (nflLeaders || []).forEach(l => out.push(l));
         // Scores — paired matchups, finals first
         const pairs = Object.values((board.rows || []).reduce((acc, r) => {
             if (r.matchup_id == null) return acc;
@@ -582,7 +658,7 @@ function LeagueCentralTab({
             });
         }
         return out;
-    }, [board, leaders.rows, transactions, trending, enrichedStandings, leaguePositions, weekHigh, cutlineGB, movesThisWeek, playoffTeams]);
+    }, [board, leaders.rows, transactions, trending, enrichedStandings, leaguePositions, weekHigh, cutlineGB, movesThisWeek, playoffTeams, nflScores, nflLeaders]);
 
     // Standings row shells — the table view (form guide) and the odds view
     // (playoff picture) are two reads of the same enriched rows, so a team
@@ -900,6 +976,12 @@ function LeagueWire({ items }) {
     const MUTED = 'var(--text-muted, #8d887e)';
     const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
     const TONE = {
+        // Real NFL gets its own visual lane so it never reads as a fantasy
+        // matchup: white for games, green pulse-ish for live, teal for NFL-wide
+        // stat leaders.
+        nfl: { bg: 'rgba(255,255,255,0.09)', fg: 'var(--white, #f5f2ea)' },
+        nfllive: { bg: 'rgba(46,204,113,0.2)', fg: 'var(--good, #2ecc71)' },
+        nflstat: { bg: 'rgba(78,205,196,0.18)', fg: '#4ECDC4' },
         score: { bg: 'rgba(255,255,255,0.07)', fg: SILVER },
         rec: { bg: 'rgba(93,173,226,0.18)', fg: 'var(--info, #5dade2)' },
         top: { bg: 'rgba(212,175,55,0.18)', fg: GOLD },
