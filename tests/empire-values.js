@@ -366,6 +366,26 @@ test('a pre-draft league is not marked at all — an empty book is not a cheap b
   assert.strictEqual(out.priceOf('qb1', 'PREDRAFT'), 0, 'nothing is quoted against an undrafted book');
   assert.strictEqual(out.spread('qb1'), null, 'one remaining book is not a spread');
   assert.strictEqual(out.arbitrage.length, 0, 'and it cannot arbitrage against one');
+
+  // `priced` must agree with `unpriced` — it means "in the marked book", not
+  // "computePrices succeeded". A pre-draft league prices fine and is still
+  // skipped, so the flag has to follow the skip, otherwise
+  // `leagues.filter(l => l.priced)` hands you an id whose byLeague[id] is
+  // undefined. Every league still gets a meta row either way.
+  const metaFor = id => out.leagues.find(l => l.id === id);
+  assert.strictEqual(metaFor('DRAFTED').priced, true, 'the drafted league reports priced');
+  assert.strictEqual(metaFor('PREDRAFT').priced, false, 'the pre-draft league must NOT report priced');
+  assert.strictEqual(out.leagues.length, 2, 'both leagues still get a meta row');
+  out.leagues.forEach(l => {
+    assert.strictEqual(
+      l.priced, !out.unpriced.includes(l.id),
+      `priced must be the inverse of unpriced for ${l.id}`
+    );
+    assert.strictEqual(
+      l.priced, !!out.byLeague[l.id],
+      `priced must guarantee byLeague[${l.id}] exists`
+    );
+  });
 });
 
 test('ownership: rostered by someone (not me) in both books reads as pure intel', () => {

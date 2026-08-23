@@ -132,15 +132,24 @@
                 });
             } catch (e) { board = null; }
             const fmt = formatOf(l);
-            meta.push({ id: lid, name: l.name || 'League', format: fmt, teams, priced: !!board });
-            if (!board) { unpriced.push(lid); return; }
-            const own = ownershipIn(l, opts.myUserId);
             // Pre-draft (or a league between seasons with rosters wiped) has
             // nobody rostered at all — every player would trivially read as
             // "still a free agent" against it, which is a fact of the league
             // not having drafted yet, not a real cross-league arbitrage read.
             // Skip marking it rather than manufacture a spread against an
             // empty book.
+            const own = board ? ownershipIn(l, opts.myUserId) : null;
+            // `priced` means "this league is IN the marked book" — i.e. exactly
+            // the inverse of appearing in `unpriced`, and a guarantee that
+            // byLeague[id] exists. It deliberately does NOT mean "computePrices
+            // succeeded": a pre-draft league prices fine and is still skipped
+            // below, and reporting priced:true for a league absent from
+            // byLeague invites `leagues.filter(l => l.priced)` followed by a
+            // byLeague[id] dereference that is undefined. Every league still
+            // gets a meta row either way.
+            const marked = !!board && !!own && own.rostered.size > 0;
+            meta.push({ id: lid, name: l.name || 'League', format: fmt, teams, priced: marked });
+            if (!board) { unpriced.push(lid); return; }
             if (!own.rostered.size) { unpriced.push(lid); return; }
 
             // Re-anchor onto the common scale using the top-N skill mean.
