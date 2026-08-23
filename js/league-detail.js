@@ -225,16 +225,20 @@
     };
     // showGameDay = the FINAL leagueSkin.features.showGameDay flag
     // (callers apply the same `?? phase === 'in_season'` fallback in one place).
-    function buildLeagueNavItems(showGameDay, showTrades, showGmOffice) {
+    // mergedHome (redraft + chopped): Home and League Central are one surface.
+    // The Home tab disappears entirely and League Central becomes the landing
+    // page, renamed Command Center, carrying the intelligence briefing plus a
+    // League/KPIs tab pair. Dynasty and keeper keep the two separate tabs.
+    function buildLeagueNavItems(showGameDay, showTrades, showGmOffice, mergedHome) {
         return [
             { section: 'FRONT OFFICE' },
-            { label: 'Home', tab: 'dashboard', iconKey: 'home' },
+            ...(mergedHome ? [] : [{ label: 'Home', tab: 'dashboard', iconKey: 'home' }]),
             { label: 'My Roster', tab: 'myteam', iconKey: 'roster' },
             // Game Day Central — only surfaced for in-season leagues.
             ...(showGameDay ? [{ label: 'Game Day', tab: 'lineup', iconKey: 'gameday' }] : []),
             { label: 'Compare', tab: 'compare', iconKey: 'compare' },
             { section: 'LEAGUE' },
-            { label: 'League Central', tab: 'central', iconKey: 'central' },
+            { label: mergedHome ? 'Command Center' : 'League Central', tab: 'central', iconKey: mergedHome ? 'home' : 'central' },
             // Hidden where the format forbids trading (chopped, or trades
             // disabled in settings) — an unusable tab is worse than no tab.
             ...(showTrades === false ? [] : [{ label: 'Trade Center', tab: 'trades', iconKey: 'trade' }]),
@@ -1103,6 +1107,19 @@
                     : REDRAFT_FIXED_WIDGETS
             );
         }, [leagueSkin?.type]);
+
+        // Home + League Central are ONE surface for these formats (owner ruling
+        // 2026-08-23) — same two types that get the fixed Home layout above, so
+        // the two rules can never disagree about which leagues are "seasonal".
+        const mergedHome = leagueSkin?.type === 'redraft' || leagueSkin?.type === 'chopped';
+        // The Home tab no longer exists for them, so anything still pointing at
+        // it (saved tab, deep link, a setActiveTab('dashboard') elsewhere) has
+        // to land on the merged surface instead of rendering a tab with no way
+        // back. Same late-resolve caveat as the fixed-widgets effect: leagueSkin
+        // is not known on first mount, so this corrects itself once it is.
+        useEffect(() => {
+            if (mergedHome && activeTab === 'dashboard') setActiveTab('central');
+        }, [mergedHome, activeTab]);
 
         useEffect(() => {
             LeagueStorage.set(LEAGUE_WR_KEYS.ROSTER_COLS, visibleCols);
@@ -2653,7 +2670,39 @@
         const navItems = buildLeagueNavItems(
             leagueSkin?.features?.showGameDay ?? (leagueSkin?.phase === 'in_season'),
             leagueSkin?.features?.showTrades,
-            leagueSkin?.type !== 'chopped'
+            leagueSkin?.type !== 'chopped',
+            mergedHome
+        );
+
+        // One builder for the widget grid so the standalone Home tab (dynasty /
+        // keeper) and the merged Command Center's KPIs tab (redraft / chopped)
+        // can never drift apart — the only difference is which widget list they
+        // are handed.
+        const dashboardEl = (widgets) => (
+            <DashboardPanel
+                selectedWidgets={widgets}
+                setSelectedWidgets={setSelectedWidgets}
+                editingKpi={editingKpi}
+                setEditingKpi={setEditingKpi}
+                computeKpiValue={computeKpiValue}
+                KPI_OPTIONS={KPI_OPTIONS}
+                rankedTeams={rankedTeams}
+                sleeperUserId={sleeperUserId}
+                setActiveTab={setActiveTab}
+                transactions={transactions}
+                standings={standings}
+                currentLeague={currentLeague}
+                leagueSkin={leagueSkin}
+                playersData={playersData}
+                statsData={statsData}
+                prevStatsData={stats2025Data}
+                myRoster={myRoster}
+                getOwnerName={getOwnerName}
+                getPlayerName={getPlayerName}
+                timeAgo={timeAgo}
+                briefDraftInfo={briefDraftInfo}
+                timeRecomputeTs={timeRecomputeTs}
+            />
         );
 
         const _seasonCtxValue = { ...seasonCtxData, leagueSkin, selectPlayer };
@@ -3517,32 +3566,22 @@
                 }) : activeTab === 'central' ? React.createElement(LeagueCentralTabLazy, {
                     currentLeague, leagueSkin, myRoster, playersData, standings, transactions,
                     sleeperUserId, getOwnerName, getPlayerName, timeAgo, setActiveTab,
-                }) : (
-                <DashboardPanel
-                    selectedWidgets={selectedWidgets}
-                    setSelectedWidgets={setSelectedWidgets}
-                    editingKpi={editingKpi}
-                    setEditingKpi={setEditingKpi}
-                    computeKpiValue={computeKpiValue}
-                    KPI_OPTIONS={KPI_OPTIONS}
-                    rankedTeams={rankedTeams}
-                    sleeperUserId={sleeperUserId}
-                    setActiveTab={setActiveTab}
-                    transactions={transactions}
-                    standings={standings}
-                    currentLeague={currentLeague}
-                    leagueSkin={leagueSkin}
-                    playersData={playersData}
-                    statsData={statsData}
-                    prevStatsData={stats2025Data}
-                    myRoster={myRoster}
-                    getOwnerName={getOwnerName}
-                    getPlayerName={getPlayerName}
-                    timeAgo={timeAgo}
-                    briefDraftInfo={briefDraftInfo}
-                    timeRecomputeTs={timeRecomputeTs}
-                />
-                )}
+                    homeMerged: mergedHome,
+                    // Merged formats hoist the briefing ABOVE the tab strip
+                    // (always visible, collapsible) and drop it from the widget
+                    // grid below, so it renders once, not twice. The grid is
+                    // fixed for these formats — dashboard.js hides the
+                    // customize UI — so filtering here cannot corrupt a saved
+                    // layout.
+                    briefSlot: mergedHome && typeof window.IntelligenceBriefWidget === 'function'
+                        ? React.createElement(window.IntelligenceBriefWidget, {
+                            size: 'xl', myRoster, rankedTeams, sleeperUserId, currentLeague,
+                            briefDraftInfo, playersData, statsData, prevStatsData: stats2025Data,
+                            timeRecomputeTs, setActiveTab,
+                        })
+                        : null,
+                    kpiSlot: mergedHome ? dashboardEl(selectedWidgets.filter(w => w.key !== 'intel-brief')) : null,
+                }) : dashboardEl(selectedWidgets)}
                 </div>
                 </div>{/* end marginLeft wrapper */}
 

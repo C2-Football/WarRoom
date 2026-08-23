@@ -28,6 +28,13 @@ function LeagueCentralTab({
     getPlayerName,
     timeAgo,
     setActiveTab,
+    // Merged-home mode (redraft / chopped): this tab IS the landing page, so
+    // it also carries the intelligence briefing and the Home widget grid.
+    // Both arrive as ready-built elements from league-detail.js rather than as
+    // prop bundles — this component owns the layout, not the wiring.
+    homeMerged,
+    briefSlot,
+    kpiSlot,
 }) {
     const GOLD = 'var(--gold, #d4af37)';
     const SILVER = 'var(--silver, #bdb8ad)';
@@ -460,6 +467,19 @@ function LeagueCentralTab({
     const leaguePositions = (window.getLeaguePositions ? window.getLeaguePositions({ league: currentLeague }) : ['QB', 'RB', 'WR', 'TE']) || ['QB', 'RB', 'WR', 'TE'];
     const [leaderPos, setLeaderPos] = React.useState('Overall');
     const [stMode, setStMode] = React.useState('table'); // 'table' | 'odds'
+    // Merged-home inner tabs + briefing collapse. The collapse sticks, because
+    // the briefing is a once-a-visit read, not something to re-dismiss on every
+    // page load.
+    const [innerTab, setInnerTab] = React.useState('league'); // 'league' | 'kpis'
+    const BRIEF_KEY = 'wr_cc_brief_collapsed';
+    const [briefCollapsed, setBriefCollapsed] = React.useState(
+        () => window.App?.WrStorage?.get?.(BRIEF_KEY, false) === true
+    );
+    const toggleBrief = () => setBriefCollapsed(v => {
+        const next = !v;
+        try { window.App?.WrStorage?.set?.(BRIEF_KEY, next); } catch (e) { /* private mode */ }
+        return next;
+    });
 
     const activeLeaders = statScope === 'season' ? seasonLeaders : leaders;
     const leaderRows = (leaderPos === 'Overall'
@@ -679,13 +699,55 @@ function LeagueCentralTab({
     return (
         <div style={{ padding: isPhone ? '14px' : '20px 24px', maxWidth: '1500px', margin: '0 auto', paddingBottom: wireItems.length ? '54px' : undefined }}>
             <div style={{ marginBottom: '14px' }}>
-                <div style={{ fontFamily: RAJ, fontWeight: 700, fontSize: isPhone ? '1.3rem' : '1.6rem', color: WHITE, letterSpacing: '0.02em' }}>League Central</div>
+                <div style={{ fontFamily: RAJ, fontWeight: 700, fontSize: isPhone ? '1.3rem' : '1.6rem', color: WHITE, letterSpacing: '0.02em' }}>
+                    {homeMerged ? 'Command Center' : 'League Central'}
+                </div>
                 <div style={{ fontFamily: DM, fontSize: '0.8rem', color: MUTED, marginTop: '2px' }}>
                     {currentLeague?.name || 'League'} · {season} · {teamCount} Teams
                     {board.week ? <> · Week {board.week}</> : null}
                 </div>
             </div>
 
+            {/* Briefing — always the first thing you see on entry, collapsible
+                to a one-line bar once you've read it. */}
+            {homeMerged && briefSlot && (
+                <div style={{ border: '1px solid rgba(155,138,251,0.28)', borderRadius: 'var(--card-radius-lg, 14px)', background: 'linear-gradient(135deg, rgba(155,138,251,0.09), rgba(212,175,55,0.03))', marginBottom: '14px', overflow: 'hidden' }}>
+                    <button
+                        type="button"
+                        onClick={toggleBrief}
+                        aria-expanded={!briefCollapsed}
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: briefCollapsed ? '11px 14px' : '11px 14px 4px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', color: 'inherit' }}
+                    >
+                        <span style={{ ...microHdr, color: 'var(--purple, #9b8afb)' }}>Intelligence Briefing</span>
+                        {briefCollapsed && (
+                            <span style={{ fontFamily: DM, fontSize: '0.78rem', color: SILVER, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+                                tap to expand
+                            </span>
+                        )}
+                        <span style={{ marginLeft: 'auto', color: MUTED, fontSize: '0.7rem', transform: briefCollapsed ? 'rotate(-90deg)' : 'none', transition: 'transform 0.15s' }}>▼</span>
+                    </button>
+                    {!briefCollapsed && <div style={{ padding: '0 4px 4px' }}>{briefSlot}</div>}
+                </div>
+            )}
+
+            {/* League / KPIs */}
+            {homeMerged && (
+                <div style={{ display: 'flex', gap: '22px', borderBottom: '1px solid rgba(255,255,255,0.07)', marginBottom: '14px' }}>
+                    {[['league', 'League'], ['kpis', 'KPIs']].map(([k, label]) => (
+                        <button key={k} type="button" onClick={() => setInnerTab(k)} style={{
+                            fontFamily: RAJ, fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.04em',
+                            textTransform: 'uppercase', padding: '10px 2px', background: 'transparent',
+                            border: 'none', borderBottom: '2px solid ' + (innerTab === k ? GOLD : 'transparent'),
+                            color: innerTab === k ? GOLD : MUTED, cursor: 'pointer', position: 'relative', top: '1px',
+                        }}>{label}</button>
+                    ))}
+                </div>
+            )}
+
+            {homeMerged && innerTab === 'kpis' ? (
+                <div style={{ margin: isPhone ? '0 -14px' : '0 -24px' }}>{kpiSlot}</div>
+            ) : (
+            <React.Fragment>
             {/* The two things that matter: Standings | Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: isPhone ? '1fr' : '1.32fr 1fr', gap: '14px', alignItems: 'start' }}>
 
@@ -816,10 +878,13 @@ function LeagueCentralTab({
                     )}
                 </Panel>
             </div>
+            </React.Fragment>
+            )}
 
             {/* League Wire — the ticker that replaced the scoreboard,
                 transactions and trending slabs. Fixed to the bottom so it is
-                always in view without costing vertical space. */}
+                always in view without costing vertical space. Stays up on the
+                KPIs tab too: it is league-wide context, not League-tab chrome. */}
             {wireItems.length > 0 && <LeagueWire items={wireItems} />}
         </div>
     );
