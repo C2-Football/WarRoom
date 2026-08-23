@@ -163,12 +163,17 @@ function LeagueCentralTab({
     // yards this week" is league-independent context, which is exactly what a
     // ticker is for; the roster-scoped leaders already live in the Stats panel.
     const [nflLeaders, setNflLeaders] = React.useState([]);
-    const buildNflLeaders = React.useCallback((statsByPid, wk) => {
+    const buildNflLeaders = React.useCallback((statsByPid, wk, phaseType) => {
         // The badge carries the week, not just the category. These are often
         // LAST week's numbers (see nflStatWeek), and a ticker loops — someone
         // catching it mid-scroll has no other context to tell them which week
         // they are looking at.
-        const w = wk ? 'WK' + wk + ' ' : 'NFL ';
+        // Preseason leaders are tagged PRE for the same reason preseason scores
+        // are: 156 preseason passing yards is not a week-2 performance, and an
+        // unlabelled leaderboard implies it is.
+        const w = wk
+            ? (phaseType === 'pre' ? 'PRE' + wk + ' ' : phaseType === 'post' ? 'POST' + wk + ' ' : 'WK' + wk + ' ')
+            : 'NFL ';
         const CATS = [
             { key: 'pass_yd', label: w + 'PASS', unit: 'yds' },
             { key: 'rush_yd', label: w + 'RUSH', unit: 'yds' },
@@ -261,21 +266,30 @@ function LeagueCentralTab({
     // recent real one. The scoreboard's own game states are the authoritative
     // "has the new week started" signal; fantasy points only appear once
     // scoring runs, so they lag by a day and would blank the block early.
-    const nflStatWeek = React.useMemo(() => {
-        const wk = Number(window.App?.WeeklyProj?.currentWeek?.()) || Number(board.week) || 1;
+    // Carries the PHASE as well as the week: preseason stats live under a
+    // different Sleeper path ('pre'), and preseason week 2 is not regular week
+    // 2 — asking the regular endpoint in August returns an empty object, which
+    // is why the stats block was blank there.
+    const nflStatCtx = React.useMemo(() => {
+        const NC = window.App?.NflContext;
+        const ph = NC?.currentPhase
+            ? NC.currentPhase()
+            : { seasontype: 2, week: Number(window.App?.WeeklyProj?.currentWeek?.()) || Number(board.week) || 1 };
+        const type = ph.seasontype === 1 ? 'pre' : ph.seasontype === 3 ? 'post' : 'regular';
         const started = (nflScores || []).some(g => g.state === 'in' || g.state === 'post');
-        return started ? wk : Math.max(1, wk - 1);
-    }, [nflScores, board.week]);
+        const week = started ? ph.week : Math.max(1, ph.week - 1);
+        return { week, type, season: ph.season || season };
+    }, [nflScores, board.week, season]);
 
     React.useEffect(() => {
         const SOS = window.App?.SOS;
-        if (!SOS?.getWeekStats || !nflStatWeek) return undefined;
+        if (!SOS?.getWeekStats || !nflStatCtx.week) return undefined;
         let alive = true;
-        Promise.resolve(SOS.getWeekStats(season, nflStatWeek))
-            .then(ws => { if (alive) setNflLeaders(buildNflLeaders(ws || {}, nflStatWeek)); })
+        Promise.resolve(SOS.getWeekStats(nflStatCtx.season, nflStatCtx.week, nflStatCtx.type))
+            .then(ws => { if (alive) setNflLeaders(buildNflLeaders(ws || {}, nflStatCtx.week, nflStatCtx.type)); })
             .catch(e => { window.wrLog?.('leagueCentral.nflLeaders', e); if (alive) setNflLeaders([]); });
         return () => { alive = false; };
-    }, [season, nflStatWeek, buildNflLeaders]);
+    }, [nflStatCtx, buildNflLeaders]);
 
     // Season aggregate — lazy, only once the user actually asks for it.
     React.useEffect(() => {
