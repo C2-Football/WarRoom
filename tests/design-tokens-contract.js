@@ -96,6 +96,38 @@ test('index.html defines the four corner-radius tokens', () => {
   });
 });
 
+test('var() fallbacks agree with the token values they shadow', () => {
+  // Found in audit: changing --card-radius-sm 6px -> 8px left six pre-existing
+  // `var(--card-radius-sm, 6px)` call sites behind, so those corners would
+  // render 6px anywhere the custom property fails to resolve (an isolated
+  // component, a test harness, a stripped page) while everything else renders
+  // 8px. A fallback that disagrees with its token is a silent split identity.
+  const index = read('index.html');
+  const declared = {};
+  const declRe = /(--card-radius(?:-[a-z]+)?)\s*:\s*(\d+px)\s*;/g;
+  let d;
+  while ((d = declRe.exec(index))) declared[d[1]] = d[2];
+  ok(Object.keys(declared).length >= 4, 'expected all four radius tokens declared');
+
+  const files = walk(path.join(ROOT, 'js')).filter(f => !SKIP.has(path.basename(f)));
+  files.push(path.join(ROOT, 'index.html'));
+  const bad = [];
+  files.forEach(f => {
+    const src = fs.readFileSync(f, 'utf8');
+    const useRe = /var\((--card-radius(?:-[a-z]+)?),\s*(\d+px)\)/g;
+    let m;
+    while ((m = useRe.exec(src))) {
+      const want = declared[m[1]];
+      if (want && m[2] !== want) {
+        bad.push(`${path.relative(ROOT, f)}: var(${m[1]}, ${m[2]}) but ${m[1]} is ${want}`);
+      }
+    }
+  });
+  ok(bad.length === 0,
+    `${bad.length} var() fallback(s) disagree with their token:\n        ` +
+    bad.slice(0, 10).join('\n        '));
+});
+
 test('rounded identity: no hardcoded 4-14px radius literals in js/ or index.html', () => {
   const files = walk(path.join(ROOT, 'js')).filter(f => !SKIP.has(path.basename(f)));
   files.push(path.join(ROOT, 'index.html'));

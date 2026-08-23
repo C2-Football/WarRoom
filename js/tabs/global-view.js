@@ -1534,7 +1534,7 @@ function EmpireStyles() {
                 border-right: 1px solid var(--acc-line1, rgb(53,45,21));
                 display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 0; }
             .empire-rail-btn { position: relative; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
-                border: 1px solid transparent; border-radius: var(--card-radius-sm, 6px); background: transparent;
+                border: 1px solid transparent; border-radius: var(--card-radius-sm, 8px); background: transparent;
                 color: var(--ov-9, rgb(144,144,145)); font-size: 1.15rem; cursor: pointer; transition: all 0.15s; }
             .empire-rail-btn:hover { color: var(--gold); border-color: var(--acc-line2, rgb(69,58,24)); background: var(--acc-fill1, rgb(20,18,14)); }
             .empire-rail-btn:first-child { color: var(--gold); border-color: var(--acc-line1, rgb(53,45,21)); background: var(--acc-fill1, rgb(18,16,13)); }
@@ -1554,7 +1554,7 @@ function EmpireStyles() {
             @media (max-width: 1023px) { .empire-root.is-terminal { padding-left: 0; } .empire-rail { display: none; } }
             /* ── Asset Floor: exposure matrix + DHQ heat tiles ── */
             .empire-floor-matrix { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px; margin-bottom: 12px; }
-            .empire-expo-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(60px, 1fr) auto; gap: 10px; align-items: center; text-align: left; border: 1px solid var(--ov-4, rgb(25,25,28)); background: var(--ov-1, rgb(14,14,17)); border-radius: var(--card-radius-sm, 6px); padding: 7px 10px; cursor: pointer; color: inherit; font-family: inherit; }
+            .empire-expo-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(60px, 1fr) auto; gap: 10px; align-items: center; text-align: left; border: 1px solid var(--ov-4, rgb(25,25,28)); background: var(--ov-1, rgb(14,14,17)); border-radius: var(--card-radius-sm, 8px); padding: 7px 10px; cursor: pointer; color: inherit; font-family: inherit; }
             .empire-expo-row:hover { border-color: var(--acc-line3, rgb(90,75,29)); }
             .empire-expo-name strong { display: block; color: var(--white, var(--k-ffffff, #fff)); font-size: var(--text-label, 0.75rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .empire-expo-name span { display: block; color: var(--ov-8, rgb(132,132,133)); font-size: var(--text-micro); }
@@ -1562,11 +1562,11 @@ function EmpireStyles() {
             .empire-expo-fill { height: 100%; border-radius: 3px; }
             .empire-expo-row b { font-family: var(--font-mono); font-size: var(--text-label, 0.75rem); white-space: nowrap; }
             .empire-tilegrid { display: flex; flex-wrap: wrap; gap: 4px; }
-            .empire-tile { flex: 1 1 70px; min-width: 64px; max-width: 170px; min-height: 46px; display: flex; flex-direction: column; justify-content: center; border: 1px solid var(--ov-5, rgb(28,28,31)); border-radius: var(--card-radius-sm, 6px); background: var(--ov-1, rgb(14,14,17)); padding: 6px 8px; cursor: pointer; overflow: hidden; }
+            .empire-tile { flex: 1 1 70px; min-width: 64px; max-width: 170px; min-height: 46px; display: flex; flex-direction: column; justify-content: center; border: 1px solid var(--ov-5, rgb(28,28,31)); border-radius: var(--card-radius-sm, 8px); background: var(--ov-1, rgb(14,14,17)); padding: 6px 8px; cursor: pointer; overflow: hidden; }
             .empire-tile:hover { background: var(--ov-2, rgb(18,18,21)); }
             .empire-tile-name { font-size: var(--text-micro); color: var(--white, var(--k-ffffff, #fff)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .empire-tile-dhq { font-size: var(--text-micro); font-family: var(--font-mono); color: var(--ov-9, rgb(161,161,162)); margin-top: 2px; }
-.empire-threat-row { display: grid; grid-template-columns: 28px minmax(120px, 1.2fr) minmax(120px, 1fr) minmax(120px, 0.9fr) minmax(160px, 1.4fr); gap: 12px; align-items: center; text-align: left; border: 1px solid var(--ov-4, rgb(25,25,28)); border-left: 3px solid var(--tone, var(--gold)); background: var(--ov-1, rgb(14,14,17)); border-radius: var(--card-radius-sm, 6px); padding: 9px 12px; cursor: pointer; color: inherit; font-family: inherit; width: 100%; }
+.empire-threat-row { display: grid; grid-template-columns: 28px minmax(120px, 1.2fr) minmax(120px, 1fr) minmax(120px, 0.9fr) minmax(160px, 1.4fr); gap: 12px; align-items: center; text-align: left; border: 1px solid var(--ov-4, rgb(25,25,28)); border-left: 3px solid var(--tone, var(--gold)); background: var(--ov-1, rgb(14,14,17)); border-radius: var(--card-radius-sm, 8px); padding: 9px 12px; cursor: pointer; color: inherit; font-family: inherit; width: 100%; }
             .empire-threat-row:hover { border-color: var(--acc-line3, rgb(90,75,29)); background: var(--ov-2, rgb(19,19,22)); }
             .empire-threat-rank { font-family: var(--font-mono); font-size: 1.05rem; font-weight: 900; color: var(--tone, var(--gold)); text-align: center; }
             .empire-threat-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -1587,7 +1587,7 @@ function EmpireStyles() {
                 .empire-threat-counter { grid-area: counter; }
             }
 .empire-provmap { display: flex; flex-wrap: wrap; gap: 6px; }
-            .empire-prov-tile { flex: 1 1 150px; min-width: 140px; max-width: 320px; min-height: 92px; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; border: 1px solid var(--tone, var(--silver)); border-left-width: 3px; border-radius: var(--card-radius-sm, 6px); background: var(--ov-1, rgb(14,14,17)); padding: 8px 10px; cursor: pointer; overflow: hidden; text-align: left; transition: background 0.12s ease; }
+            .empire-prov-tile { flex: 1 1 150px; min-width: 140px; max-width: 320px; min-height: 92px; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; border: 1px solid var(--tone, var(--silver)); border-left-width: 3px; border-radius: var(--card-radius-sm, 8px); background: var(--ov-1, rgb(14,14,17)); padding: 8px 10px; cursor: pointer; overflow: hidden; text-align: left; transition: background 0.12s ease; }
             .empire-prov-tile:hover { background: var(--ov-2, rgb(18,18,21)); }
             .empire-prov-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
             .empire-prov-name { font-size: var(--text-label, 0.75rem); color: var(--white, #fff); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

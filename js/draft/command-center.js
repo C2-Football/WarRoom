@@ -6053,7 +6053,7 @@
                                     alignItems: 'flex-start',
                                     maxWidth: 540,
                                     padding: '4px 8px 4px 7px',
-                                    borderRadius: 'var(--card-radius-sm, 6px)',
+                                    borderRadius: 'var(--card-radius-sm, 8px)',
                                     borderLeft: '2px solid ' + wrAlpha(accent, isHigh ? 'cc' : '55'),
                                     background: isHigh ? wrAlpha(accent, '14') : wrAlpha(ALEX, '0a'),
                                 }}>

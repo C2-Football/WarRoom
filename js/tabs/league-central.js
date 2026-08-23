@@ -1,13 +1,26 @@
 // ══════════════════════════════════════════════════════════════════
 // js/tabs/league-central.js — LeagueCentralTab
-// Single-page league hub: standings + playoff picture (division or overall),
-// this week's scoreboard, stat leaders, recent transactions.
+// The league's two substantive reads, side by side and nothing else:
+//
+//   Standings — W-L / PF / PA / streak plus a soccer-style last-5 form guide,
+//               with a Table <-> Playoff Picture toggle. The playoff view
+//               carries the Monte Carlo odds that used to be a separate slab.
+//   Stats     — real position columns (CMP%/YDS/TD/INT for a QB, TGT/REC for
+//               a WR, TKL/SACK for IDP) via App.StatCatalog, week or season.
+//
+// The scoreboard, transactions and trending panels that used to stack below
+// these now live in the always-on ticker (js/components/league-wire.js),
+// which league-detail renders across every tab — not here.
+//
+// In merged-home formats (redraft / chopped) this tab is also the landing
+// page: it carries the intelligence briefing and a League/KPIs tab pair,
+// both handed in as ready-built elements. Dynasty/keeper keep a separate
+// Home and get just the League content.
 //
 // Reuses existing engines rather than building new ones:
 //   App.Luck + App.PlayoffOdds   — same wiring recipe as season-odds-panel.js
 //   App.SOS.getWeekStats + calcFantasyPts — same recipe as gamelog-engine.js
 //   window.fetchMatchups         — same grouping recipe as playoff-odds.js
-//   `transactions` prop          — already computed + capped by league-detail.js
 //
 // Deliberately shows playoff odds as a percentage + bar, never a discrete
 // "Clinched"/"Eliminated" tag — the sim is probabilistic, not a math-clinch
@@ -23,10 +36,8 @@ function LeagueCentralTab({
     playersData,
     standings,
     transactions,
-    sleeperUserId,
     getOwnerName,
     getPlayerName,
-    timeAgo,
     setActiveTab,
     // Merged-home mode (redraft / chopped): this tab IS the landing page, so
     // it also carries the intelligence briefing and the Home widget grid.
@@ -43,7 +54,6 @@ function LeagueCentralTab({
     const FAINT = 'var(--text-faint, rgba(189,184,173,0.62))';
     const GOOD = 'var(--good, #2ecc71)';
     const BAD = 'var(--bad, #e74c3c)';
-    const WARN = 'var(--warn, #f0a500)';
     const INFO = 'var(--info, #5dade2)';
     const PANEL = 'var(--off-black, #1b1b22)';
     const WELL = 'var(--black, #121217)';
@@ -70,7 +80,6 @@ function LeagueCentralTab({
         const u = currentLeague?.users?.find(x => x.user_id === r?.owner_id);
         return u?.display_name || u?.username || 'Unknown';
     });
-    const _timeAgo = timeAgo || (() => '');
 
     // ── Playoff odds + weekly-score ledger (season-odds-panel.js's exact recipe) ──
     const [odds, setOdds] = React.useState({ status: 'idle' });
@@ -259,75 +268,6 @@ function LeagueCentralTab({
             {children}
         </div>
     );
-    const Kpi = ({ label, value, sub }) => (
-        <div style={{ background: WELL, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', flex: '1 1 150px', minWidth: '140px' }}>
-            <div style={microHdr}>{label}</div>
-            <div style={{ ...mono, fontSize: '1.4rem', fontWeight: 700, color: WHITE, marginTop: '3px' }}>{value}</div>
-            {sub ? <div style={{ fontFamily: DM, fontSize: '0.75rem', color: MUTED, marginTop: '2px' }}>{sub}</div> : null}
-        </div>
-    );
-    const OddsBar = ({ pct }) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '110px' }}>
-            <div style={{ flex: 1, height: '6px', background: WELL, border: '1px solid ' + LINE, borderRadius: '3px', overflow: 'hidden' }}>
-                <div style={{ width: Math.max(0, Math.min(100, pct)) + '%', height: '100%', background: pct >= 60 ? GOOD : pct >= 25 ? INFO : BAD }} />
-            </div>
-            <span style={{ ...mono, fontSize: '0.75rem', color: WHITE, width: '34px', textAlign: 'right' }}>{Math.round(pct)}%</span>
-        </div>
-    );
-    const Avatar = ({ label }) => (
-        <div style={{ width: '26px', height: '26px', borderRadius: 'var(--card-radius-sm, 8px)', background: 'rgba(212,175,55,0.14)', color: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: RAJ, fontWeight: 700, fontSize: '0.68rem', flexShrink: 0 }}>
-            {label}
-        </div>
-    );
-
-    // ── Standings table (shared between division + overall renders) ──
-    function StandingsRow({ team, rank, showDiv }) {
-        const isMe = sameId(team.userId, sleeperUserId);
-        const initials = (team.teamName || team.displayName || '??').replace(/[^A-Za-z0-9 ]/g, '').split(' ').filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase() || '??';
-        return (
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: isPhone ? '20px 1fr 52px' : (showDiv ? '20px 1fr 44px 52px 62px 62px 52px 110px' : '20px 1fr 52px 62px 62px 52px 110px'),
-                gap: '8px', alignItems: 'center', padding: '7px 6px',
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
-                background: isMe ? 'rgba(212,175,55,0.06)' : 'transparent',
-            }}>
-                <span style={{ ...mono, fontSize: '0.75rem', color: MUTED }}>{rank}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                    <Avatar label={initials} />
-                    <div style={{ minWidth: 0 }}>
-                        <div style={{ fontFamily: DM, fontWeight: 600, fontSize: '0.85rem', color: WHITE, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {team.teamName || team.displayName}{isMe ? ' (You)' : ''}
-                        </div>
-                        <div style={{ fontFamily: DM, fontSize: '0.7rem', color: MUTED, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{team.displayName}</div>
-                    </div>
-                </div>
-                {showDiv && !isPhone && <span style={{ fontFamily: MONO, fontSize: '0.65rem', color: MUTED, border: '1px solid ' + LINE, borderRadius: '3px', padding: '1px 5px', textAlign: 'center' }}>{getDivisionName(team.division).replace(/ ?Division ?/i, '').slice(0, 3).toUpperCase() || team.division}</span>}
-                <span style={{ ...mono, fontSize: '0.8rem', color: WHITE, textAlign: 'right' }}>{team.wins}-{team.losses}{team.ties ? '-' + team.ties : ''}</span>
-                {!isPhone && <span style={{ ...mono, fontSize: '0.8rem', color: SILVER, textAlign: 'right' }}>{team.pointsFor.toFixed(1)}</span>}
-                {!isPhone && <span style={{ fontFamily: MONO, fontSize: '0.72rem', color: team.streak?.[0] === 'W' ? GOOD : team.streak?.[0] === 'L' ? BAD : MUTED, textAlign: 'right' }}>{team.streak || '—'}</span>}
-                {noPlayoffs ? <span /> : (team.playoffPct != null ? <OddsBar pct={team.playoffPct} /> : <span style={{ ...mono, fontSize: '0.72rem', color: FAINT }}>—</span>)}
-            </div>
-        );
-    }
-    function StandingsHeader({ showDiv }) {
-        return (
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: isPhone ? '20px 1fr 52px' : (showDiv ? '20px 1fr 44px 52px 62px 62px 52px 110px' : '20px 1fr 52px 62px 62px 52px 110px'),
-                gap: '8px', padding: '0 6px 6px', borderBottom: '1px solid ' + LINE,
-            }}>
-                <span style={microHdr}>#</span>
-                <span style={microHdr}>Team</span>
-                {showDiv && !isPhone && <span style={microHdr}>Div</span>}
-                <span style={{ ...microHdr, textAlign: 'right' }}>W-L</span>
-                {!isPhone && <span style={{ ...microHdr, textAlign: 'right' }}>PF</span>}
-                {!isPhone && <span style={{ ...microHdr, textAlign: 'right' }}>Strk</span>}
-                {!noPlayoffs && <span style={microHdr}>Playoff %</span>}
-            </div>
-        );
-    }
-
     // ── Render ──
     const teamCount = currentLeague?.rosters?.length || 0;
     const leaguePositions = (window.getLeaguePositions ? window.getLeaguePositions({ league: currentLeague }) : ['QB', 'RB', 'WR', 'TE']) || ['QB', 'RB', 'WR', 'TE'];
