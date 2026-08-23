@@ -11,6 +11,9 @@ require('../js/shared/time-league-rules.js');
 require('../js/shared/time-league-draft-room.js');
 require('../js/shared/time-league-era-rules.js');
 require('../js/shared/time-league-season.js');
+// d352383 (team helmets): the engine seats leagues via
+// App.TimeLeagueHelmet.defaultHelmet(), so this module must load before it.
+require('../js/shared/time-league-helmet.js');
 const Engine = require('../js/shared/time-league-engine.js');
 const AI = require('../js/shared/time-league-ai.js');
 

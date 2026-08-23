@@ -11,6 +11,13 @@ require('../js/shared/time-league-rules.js');
 require('../js/shared/time-league-draft-room.js');
 require('../js/shared/time-league-era-rules.js');
 require('../js/shared/time-league-season.js');
+// d352383 (Tecmo-Bowl team helmets) made the engine call
+// App.TimeLeagueHelmet.defaultHelmet() when seating a league, but this test
+// was never given the module — so App.TimeLeagueHelmet was undefined here and
+// 18 of 19 tests died on "Cannot read properties of undefined". Went unseen
+// because timeleague is the LAST step of a 31-step && chain that had been
+// short-circuiting at step 3.
+require('../js/shared/time-league-helmet.js');
 const Engine = require('../js/shared/time-league-engine.js');
 
 let passed = 0, failed = 0;
