@@ -212,7 +212,7 @@
             letterSpacing: '0.03em',
             textTransform: 'uppercase',
             fontFamily: FONT_UI,
-            borderRadius: '4px',
+            borderRadius: 'var(--card-radius-xs, 5px)',
             border: '1px solid ' + (active ? (accent ? accent + '66' : 'var(--acc-line3, rgba(212,175,55,0.4))') : 'var(--ov-5, rgba(255,255,255,0.08))'),
             background: active ? (accent ? accent + '22' : 'var(--acc-fill3, rgba(212,175,55,0.15))') : 'transparent',
             color: active ? (accent || 'var(--gold)') : 'var(--silver)',
@@ -637,13 +637,13 @@
             const MICRO = 'var(--text-micro, 0.6875rem)';
             const canPick = isUserTurn || state.overrideMode || state.mode === 'manual';
             const draftLabel = state.mode === 'live-sync' && state.overrideMode ? 'APPLY' : state.mode === 'manual' ? 'PICK' : (state.overrideMode ? 'FORCE' : 'DRAFT');
-            const phChipBtn = (on, color) => ({ padding: '9px 12px', minHeight: '44px', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', borderRadius: '5px', fontFamily: FONT_UI, border: '1px solid ' + (on ? (color || 'var(--acc-line2, rgba(212,175,55,0.4))') : 'rgba(255,255,255,0.14)'), background: on ? 'rgba(212,175,55,0.12)' : 'transparent', color: on ? (color || 'var(--gold)') : 'var(--silver)' });
+            const phChipBtn = (on, color) => ({ padding: '9px 12px', minHeight: '44px', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', borderRadius: 'var(--card-radius-xs, 5px)', fontFamily: FONT_UI, border: '1px solid ' + (on ? (color || 'var(--acc-line2, rgba(212,175,55,0.4))') : 'rgba(255,255,255,0.14)'), background: on ? 'rgba(212,175,55,0.12)' : 'transparent', color: on ? (color || 'var(--gold)') : 'var(--silver)' });
             const phDraftBtn = (p) => (
                 <button
                     type="button"
                     onClick={e => { e.stopPropagation(); onDraft(p); }}
                     title={state.overrideMode || state.mode === 'manual' ? 'Record the player for the team on the clock' : 'Make your pick'}
-                    style={{ minHeight: '44px', minWidth: '58px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 10px', fontSize: MICRO, fontFamily: FONT_UI, fontWeight: 800, letterSpacing: '0.05em', background: state.overrideMode ? 'var(--purple)' : 'var(--gold)', color: state.overrideMode ? 'var(--k-ffffff, #ffffff)' : 'var(--black)', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
+                    style={{ minHeight: '44px', minWidth: '58px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 10px', fontSize: MICRO, fontFamily: FONT_UI, fontWeight: 800, letterSpacing: '0.05em', background: state.overrideMode ? 'var(--purple)' : 'var(--gold)', color: state.overrideMode ? 'var(--k-ffffff, #ffffff)' : 'var(--black)', border: 'none', borderRadius: 'var(--card-radius-xs, 5px)', cursor: 'pointer' }}
                 >{draftLabel}</button>
             );
             return (
@@ -660,7 +660,7 @@
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '7px', minHeight: 18 }}>
                         <span style={{ flex: 1, minWidth: 0, color: 'var(--silver)', opacity: 0.62, fontSize: MICRO, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeLane === 'my' ? 'Hold ≡ and drag to reorder — or tap ▲ / ▼' : laneCopy}</span>
                         {pro && activeLane === 'my' && boardContext?.canSeedMyBoardFromAi && (
-                            <button onClick={onSeedMyBoardFromAi} style={{ padding: '6px 10px', minHeight: '36px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', borderRadius: '4px', cursor: 'pointer', fontSize: MICRO, fontFamily: FONT_UI, fontWeight: 700, flexShrink: 0 }}>SEED</button>
+                            <button onClick={onSeedMyBoardFromAi} style={{ padding: '6px 10px', minHeight: '36px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', borderRadius: 'var(--card-radius-xs, 5px)', cursor: 'pointer', fontSize: MICRO, fontFamily: FONT_UI, fontWeight: 700, flexShrink: 0 }}>SEED</button>
                         )}
                     </div>
                     <div className="wr-hscroll" style={{ display: 'flex', gap: '6px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', marginBottom: '8px' }}>
@@ -689,7 +689,7 @@
                                     {phGp && (
                                         <button type="button" className="wr-drag-grip" aria-label={'Drag ' + (p.name || 'player') + ' to reorder'}
                                             {...phGp}
-                                            style={{ ...phGp.style, width: '30px', minHeight: '44px', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '6px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', fontSize: '0.9rem', lineHeight: 1, position: 'relative' }}>≡</button>
+                                            style={{ ...phGp.style, width: '30px', minHeight: '44px', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', fontSize: '0.9rem', lineHeight: 1, position: 'relative' }}>≡</button>
                                     )}
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                     {React.createElement(AssetRowC, {
@@ -727,7 +727,7 @@
                         title: 'Board filters',
                         sections: [
                             { label: 'Search', node: (
-                                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search players, teams, colleges..." style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', minHeight: '44px', background: 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: '6px', color: 'var(--white)', fontSize: '16px', fontFamily: FONT_UI, outline: 'none' }} />
+                                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search players, teams, colleges..." style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', minHeight: '44px', background: 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--white)', fontSize: '16px', fontFamily: FONT_UI, outline: 'none' }} />
                             ) },
                             { label: 'Position', node: (
                                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -774,7 +774,7 @@
                                 { key: 'safe', label: 'Safe', tone: '#3498db', p: pickAdvisory.safe },
                                 { key: 'upside', label: 'Upside', tone: '#9b8afb', p: pickAdvisory.upside },
                             ].map(row => row.p && (
-                                <div key={row.key} style={{ minWidth: 0, padding: '4px 6px', borderRadius: '5px', border: '1px solid ' + row.tone + '4d', background: row.tone + '14' }}>
+                                <div key={row.key} style={{ minWidth: 0, padding: '4px 6px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + row.tone + '4d', background: row.tone + '14' }}>
                                     <div style={{ fontSize: 'var(--text-micro, 0.625rem)', fontWeight: 800, color: row.tone, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{row.label}</div>
                                     <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--text-primary)', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.p.name}</div>
                                     <div style={{ fontSize: 'var(--text-micro, 0.625rem)', color: 'var(--silver)', opacity: 0.7 }}>{row.p.pos || '—'} · DHQ {fmt(row.p.dhq)}</div>
@@ -783,7 +783,7 @@
                         </div>
                         {pro && (alexTake?.text
                             ? <div style={{ marginTop: '5px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.85, lineHeight: 1.4 }}>✦ {alexTake.text}</div>
-                            : <button onClick={getAlexTake} disabled={alexTake?.loading} style={{ marginTop: '5px', padding: '2px 7px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', background: 'transparent', color: 'var(--gold)', borderRadius: '4px', cursor: 'pointer', fontSize: 'var(--text-micro, 0.625rem)', fontFamily: FONT_UI }}>
+                            : <button onClick={getAlexTake} disabled={alexTake?.loading} style={{ marginTop: '5px', padding: '2px 7px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', background: 'transparent', color: 'var(--gold)', borderRadius: 'var(--card-radius-xs, 5px)', cursor: 'pointer', fontSize: 'var(--text-micro, 0.625rem)', fontFamily: FONT_UI }}>
                                 {alexTake?.loading ? 'Thinking…' : '✨ Alex’s take'}
                               </button>)}
                     </div>
@@ -796,7 +796,7 @@
                             <button key={lane} onClick={() => onLaneSelect(lane)} style={{
                                 minWidth: 0,
                                 padding: '5px 4px',
-                                borderRadius: '5px',
+                                borderRadius: 'var(--card-radius-xs, 5px)',
                                 border: '1px solid ' + (active ? 'var(--acc-line4, rgba(212,175,55,0.55))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
                                 background: active ? 'var(--acc-fill3, rgba(212,175,55,0.16))' : 'var(--ov-2, rgba(255,255,255,0.025))',
                                 color: active ? 'var(--gold)' : 'var(--silver)',
@@ -819,7 +819,7 @@
                             border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))',
                             background: 'var(--acc-fill2, rgba(212,175,55,0.08))',
                             color: 'var(--gold)',
-                            borderRadius: '4px',
+                            borderRadius: 'var(--card-radius-xs, 5px)',
                             cursor: 'pointer',
                             fontSize: 'var(--text-micro, 0.6875rem)',
                             fontFamily: FONT_UI,
@@ -839,7 +839,7 @@
                         padding: '6px 8px',
                         background: 'var(--ov-2, rgba(255,255,255,0.03))',
                         border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
-                        borderRadius: '4px',
+                        borderRadius: 'var(--card-radius-xs, 5px)',
                         color: 'var(--white)',
                         fontSize: '0.72rem',
                         fontFamily: FONT_UI,
@@ -948,7 +948,7 @@
                                             {gp && (
                                                 <button type="button" className="wr-drag-grip" title="Hold and drag to reorder" aria-label={'Drag ' + (p.name || 'player') + ' to reorder'}
                                                     {...gp}
-                                                    style={{ ...gp.style, width: '15px', height: '22px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '4px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', fontSize: '0.7rem', lineHeight: 1, flexShrink: 0, position: 'relative' }}>≡</button>
+                                                    style={{ ...gp.style, width: '15px', height: '22px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 'var(--card-radius-xs, 5px)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', fontSize: '0.7rem', lineHeight: 1, flexShrink: 0, position: 'relative' }}>≡</button>
                                             )}
                                             <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: rowRank <= 12 ? 'var(--gold)' : 'var(--ov-8, rgba(255,255,255,0.34))', fontFamily: FONT_MONO }}>{rowRank}</span>
                                         </span>

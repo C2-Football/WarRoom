@@ -449,8 +449,8 @@ function LineupTab({
 
     const formWinLabel = formWindow === 'season' ? 'SZN' : 'L' + formWindow;
     // Phone: hit-padding, not bigger glyphs (plan D7) — action buttons hit 44px.
-    const winBtn = active => ({ padding: isPhone ? '9px 12px' : '3px 8px', fontSize: fz('0.64rem'), fontWeight: 700, letterSpacing: '0.03em', cursor: 'pointer', borderRadius: '4px', border: `1px solid ${active ? GOLD : LINE}`, background: active ? 'rgba(212,175,55,0.14)' : 'transparent', color: active ? GOLD : SILVER });
-    const actBtn = { padding: isPhone ? '11px 16px' : '5px 12px', minHeight: isPhone ? '44px' : undefined, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', borderRadius: '5px', border: `1px solid ${LINE}`, background: 'transparent', color: SILVER };
+    const winBtn = active => ({ padding: isPhone ? '9px 12px' : '3px 8px', fontSize: fz('0.64rem'), fontWeight: 700, letterSpacing: '0.03em', cursor: 'pointer', borderRadius: 'var(--card-radius-xs, 5px)', border: `1px solid ${active ? GOLD : LINE}`, background: active ? 'rgba(212,175,55,0.14)' : 'transparent', color: active ? GOLD : SILVER });
+    const actBtn = { padding: isPhone ? '11px 16px' : '5px 12px', minHeight: isPhone ? '44px' : undefined, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', borderRadius: 'var(--card-radius-xs, 5px)', border: `1px solid ${LINE}`, background: 'transparent', color: SILVER };
 
     function wxTag(weather) {
         if (!weather) return null;
@@ -606,10 +606,10 @@ function LineupTab({
         );
         const overlay = (
             <div onClick={close} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-                <div onClick={e => e.stopPropagation()} style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '8px', padding: '16px 18px', maxWidth: '480px', width: '100%', maxHeight: '80vh', overflowY: 'auto' }}>
+                <div onClick={e => e.stopPropagation()} style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '16px 18px', maxWidth: '480px', width: '100%', maxHeight: '80vh', overflowY: 'auto' }}>
                     <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
                         <span style={{ fontFamily: MONO, fontSize: fz('0.66rem'), fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: GOLD }}>Why this number</span>
-                        <button onClick={close} style={{ marginLeft: 'auto', background: 'none', border: `1px solid ${LINE}`, borderRadius: '5px', color: SILVER, cursor: 'pointer', padding: '3px 9px', fontSize: fz('0.7rem') }}>✕</button>
+                        <button onClick={close} style={{ marginLeft: 'auto', background: 'none', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: SILVER, cursor: 'pointer', padding: '3px 9px', fontSize: fz('0.7rem') }}>✕</button>
                     </div>
                     {content}
                 </div>
@@ -684,9 +684,9 @@ function LineupTab({
         if (!isMfl) return null;
         const s = submit.status;
         // Phone: 16px input font (iOS Safari zooms on focus below 16px) + 44px height.
-        const inputStyle = { flex: '1 1 130px', minWidth: 0, padding: isPhone ? '10px 12px' : '7px 10px', minHeight: isPhone ? '44px' : undefined, background: 'var(--charcoal, #0e0e12)', border: `1px solid ${LINE}`, borderRadius: '5px', color: TEXT, fontSize: isPhone ? '16px' : '0.8rem' };
+        const inputStyle = { flex: '1 1 130px', minWidth: 0, padding: isPhone ? '10px 12px' : '7px 10px', minHeight: isPhone ? '44px' : undefined, background: 'var(--charcoal, #0e0e12)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, fontSize: isPhone ? '16px' : '0.8rem' };
         return (
-            <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '12px 16px', marginBottom: '14px' }}>
+            <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '12px 16px', marginBottom: '14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
                     <div style={{ fontSize: '0.66rem', letterSpacing: '0.07em', color: GOLD, fontWeight: 700 }}>PUSH LINEUP TO MFL</div>
                     {mflCookie ? <span onClick={mflDisconnect} style={{ fontSize: fz('0.62rem'), color: SILVER, cursor: 'pointer', padding: isPhone ? '12px 0 12px 12px' : 0 }}>● connected · disconnect</span> : null}
@@ -741,7 +741,7 @@ function LineupTab({
         return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', position: isNarrow ? 'static' : 'sticky', top: '16px' }}>
                 {/* Season outlook (or a pre-season placeholder when no schedule yet) */}
-                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
+                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
                     <div style={{ fontSize: fz('0.64rem'), letterSpacing: '0.07em', color: SILVER, fontWeight: 600 }}>SEASON OUTLOOK</div>
                     {!pro ? (
                         // Free: raw current record only — proj record / PF / win% are
@@ -780,7 +780,7 @@ function LineupTab({
 
                 {/* Bye watch — the weeks you're thinnest (works with or without a schedule) */}
                 {byeWatch.length ? (
-                    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '12px 16px' }}>
+                    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '12px 16px' }}>
                         <div style={{ fontSize: fz('0.64rem'), letterSpacing: '0.07em', color: SILVER, fontWeight: 600, marginBottom: '6px' }}>BYE WATCH</div>
                         {byeWatch.map(bw => (
                             <div key={bw.week} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px', padding: '3px 0', fontSize: '0.74rem' }}>
@@ -797,7 +797,7 @@ function LineupTab({
                 ) : null}
 
                 {/* Week-by-week schedule */}
-                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', overflow: 'hidden' }}>
+                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', overflow: 'hidden' }}>
                     <div style={{ padding: '9px 14px', borderBottom: `1px solid ${LINE}`, fontSize: fz('0.64rem'), letterSpacing: '0.07em', color: SILVER, fontWeight: 600 }}>SCHEDULE</div>
                     {scheduleUnset ? (
                         <div style={{ padding: '10px 14px', color: SILVER, fontSize: '0.74rem', opacity: 0.8, lineHeight: 1.5 }}>{pro ? 'Opponents + weekly win% appear here once your league posts the schedule.' : 'Opponents appear here once your league posts the schedule.'}</div>
@@ -876,7 +876,7 @@ function LineupTab({
 
         // Matchup-grade verdict chip (Pro interpretation — mirrors the Mtch column gate).
         const gradeChip = (grade) => (
-            <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, padding: '3px 8px', borderRadius: '5px', border: '1px solid ' + gradeColor(grade), color: gradeColor(grade), whiteSpace: 'nowrap' }}>{grade}</span>
+            <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + gradeColor(grade), color: gradeColor(grade), whiteSpace: 'nowrap' }}>{grade}</span>
         );
 
         // P1 slot row — the shipped phone column-set (GRID above: slot /
@@ -943,7 +943,7 @@ function LineupTab({
         );
 
         const kpiTile = (label, value, sub, valColor) => (
-            <div key={label} style={{ background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '9px', padding: '9px 11px' }}>
+            <div key={label} style={{ background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 'var(--card-radius, 10px)', padding: '9px 11px' }}>
                 <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--text-muted, #8B8B96)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
                 <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.3rem', fontWeight: 700, color: valColor || TEXT, lineHeight: 1.15, marginTop: '2px', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
                 {sub ? <div style={{ fontFamily: MONO, fontSize: MICRO, color: SILVER, opacity: 0.65, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '110px' }}>{sub}</div> : null}
@@ -1018,14 +1018,14 @@ function LineupTab({
 
                 {/* Alex game-day note as a card (note state is Pro-gated upstream: free = '') */}
                 {note ? (
-                    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '6px', padding: '12px 14px' }}>
+                    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '12px 14px' }}>
                         <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                             <span style={{ fontSize: fz('0.6rem'), fontWeight: 800, letterSpacing: '0.08em', color: GOLD, marginTop: '3px', whiteSpace: 'nowrap' }}>ALEX ·</span>
                             <span style={{ fontSize: '0.86rem', color: TEXT, lineHeight: 1.5 }}>{note}</span>
                             {/* Game-plan expansion — one-shot, ask once (chat retired). */}
                             {!gameplanTake?.text && (
                                 <button onClick={askGameplanTake} disabled={gameplanTake?.loading}
-                                    style={{ flexShrink: 0, alignSelf: 'flex-start', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: '5px', color: GOLD, fontFamily: MONO, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.05em', padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                    style={{ flexShrink: 0, alignSelf: 'flex-start', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: 'var(--card-radius-xs, 5px)', color: GOLD, fontFamily: MONO, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.05em', padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                                     {gameplanTake?.loading ? '…' : '✨ MORE'}
                                 </button>
                             )}
@@ -1107,7 +1107,7 @@ function LineupTab({
                                     const meWin = r.myMed > r.theirMed, theyWin = r.theirMed > r.myMed;
                                     const edgeLabel = meWin ? '+' + (r.myMed - r.theirMed).toFixed(1) + ' you' : theyWin ? '+' + (r.theirMed - r.myMed).toFixed(1) + ' them' : 'even';
                                     return (
-                                        <div key={i} style={{ background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '9px', padding: '8px 11px' }}>
+                                        <div key={i} style={{ background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 'var(--card-radius, 10px)', padding: '8px 11px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
                                                 <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, color: GOLD, letterSpacing: '0.04em' }}>{r.slot.replace('_', ' ')}</span>
                                                 <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, color: meWin ? GREEN : theyWin ? RED : SILVER }}>{edgeLabel}</span>
@@ -1156,7 +1156,7 @@ function LineupTab({
                                 const outN = m.cur ? pmeta(m.cur).name : 'Empty';
                                 const inN = m.opt ? pmeta(m.opt).name : 'Empty';
                                 return (
-                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', background: PANEL, border: `1px solid ${LINE}`, borderRadius: '8px' }}>
+                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 10px', background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)' }}>
                                         <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, color: GOLD, minWidth: '44px', whiteSpace: 'nowrap' }}>{m.sl.slotName.replace('_', ' ')}</span>
                                         <span style={{ flex: 1, minWidth: 0, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
                                             <span style={{ color: m.cur ? SILVER : 'var(--text-muted, #8B8B96)', textDecoration: m.cur ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{outN}</span>
@@ -1189,7 +1189,7 @@ function LineupTab({
     // beside the lineup, so it needs no separate "Season" view — only a way
     // to reach the odds. Rendered in both desktop branches below.
     const gdSeg = (
-        <div style={{ display: 'inline-flex', border: `1px solid ${LINE}`, borderRadius: '6px', overflow: 'hidden', marginBottom: '14px' }}>
+        <div style={{ display: 'inline-flex', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', overflow: 'hidden', marginBottom: '14px' }}>
             {[['week', 'This Week'], ['odds', 'Season Odds']].map(([k, label]) => (
                 <button key={k} onClick={() => setGdView(k)}
                     style={{ padding: '7px 15px', cursor: 'pointer', border: 'none', background: gdView === k ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'transparent', color: gdView === k ? GOLD : SILVER, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', fontFamily: 'var(--font-mono, monospace)' }}>
@@ -1222,14 +1222,14 @@ function LineupTab({
             {gdSeg}
             {/* Alex's game-day note */}
             {note ? (
-                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: '6px', padding: '12px 16px', marginBottom: '14px' }}>
+                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '12px 16px', marginBottom: '14px' }}>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                         <span style={{ fontSize: fz('0.6rem'), fontWeight: 800, letterSpacing: '0.08em', color: GOLD, marginTop: '3px', whiteSpace: 'nowrap' }}>ALEX ·</span>
                         <span style={{ fontSize: '0.86rem', color: TEXT, lineHeight: 1.5 }}>{note}</span>
                         {/* Game-plan expansion — one-shot, ask once (chat retired). */}
                         {!gameplanTake?.text && (
                             <button onClick={askGameplanTake} disabled={gameplanTake?.loading}
-                                style={{ flexShrink: 0, alignSelf: 'flex-start', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: '5px', color: GOLD, fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.05em', padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                style={{ flexShrink: 0, alignSelf: 'flex-start', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: 'var(--card-radius-xs, 5px)', color: GOLD, fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.05em', padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                                 {gameplanTake?.loading ? '…' : '✨ MORE FROM ALEX'}
                             </button>
                         )}
@@ -1246,7 +1246,7 @@ function LineupTab({
                     {/* Hero — Pro: Your lineup vs Optimal. Free: raw working total
                         (sum of the slots the user set) + optimizer teaser; the
                         optimal total / bench delta are optimizer outputs. */}
-                    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '18px 20px', marginBottom: '14px' }}>
+                    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '18px 20px', marginBottom: '14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
                     <div>
                         <div style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600 }}>WEEK {result.week} · GAME DAY CENTRAL</div>
@@ -1296,7 +1296,7 @@ function LineupTab({
                 probability, margin, position strength and the slot-by-slot
                 breakdown are Pro. */}
             {matchup && !pro ? (
-                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '16px 20px', marginBottom: '14px' }}>
+                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '16px 20px', marginBottom: '14px' }}>
                     <div style={{ fontSize: '0.7rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600 }}>WEEK {result.week} MATCHUP · vs {matchup.oppName}</div>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: '1.5rem', fontWeight: 700, color: TEXT, fontVariantNumeric: 'tabular-nums' }}>{matchup.fc.projMe.toFixed(1)}</span>
@@ -1312,7 +1312,7 @@ function LineupTab({
                     ) : null}
                 </div>
             ) : matchup ? (
-                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '16px 20px', marginBottom: '14px' }}>
+                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '16px 20px', marginBottom: '14px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
                         <div style={{ minWidth: 0 }}>
                             <div style={{ fontSize: '0.7rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600 }}>WEEK {result.week} MATCHUP · vs {matchup.oppName}</div>
@@ -1374,7 +1374,7 @@ function LineupTab({
             ) : null}
 
             {/* Unified interactive lineup table */}
-            <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', overflow: 'hidden' }}>
+            <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', overflow: 'hidden' }}>
                 <div style={{ padding: '10px 14px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.7rem', letterSpacing: '0.08em', color: SILVER, fontWeight: 600 }}>STARTING LINEUP · tap a slot to set it</span>
                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>

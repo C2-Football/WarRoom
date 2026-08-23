@@ -66,7 +66,7 @@
         const css = {
             background: 'var(--off-black, var(--k-1a1a1a, #1a1a1a))',
             border: accent ? ('1px solid ' + accent + '33') : '1px solid var(--ov-5, rgba(255,255,255,0.08))',
-            borderRadius: '10px',
+            borderRadius: 'var(--card-radius, 10px)',
             padding: padding || '14px 16px',
             transition: 'background 0.15s',
             cursor: onClick ? 'pointer' : 'default',
@@ -105,7 +105,7 @@
             style: {
                 display: 'inline-flex', alignItems: 'center',
                 fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700,
-                padding: '1px 7px', borderRadius: '10px',
+                padding: '1px 7px', borderRadius: 'var(--card-radius, 10px)',
                 background: wrAlpha(t.c, '22'), color: t.c,
                 border: '1px solid ' + wrAlpha(t.c, '4d'),
                 letterSpacing: '0.08em',
@@ -130,7 +130,7 @@
             style: {
                 fontFamily: 'JetBrains Mono, monospace',
                 fontSize: 'var(--text-label, 0.75rem)', letterSpacing: '0.08em',
-                padding: '1px 7px', borderRadius: '10px',
+                padding: '1px 7px', borderRadius: 'var(--card-radius, 10px)',
                 background: wrAlpha(t.c, '26'), color: t.c,
                 border: '1px solid ' + wrAlpha(t.c, '4d'),
                 fontWeight: 600,
@@ -216,13 +216,13 @@
                 display: 'grid', gridTemplateColumns: iconSize + 'px 1fr',
                 gap: compact ? '12px' : '14px', alignItems: 'flex-start',
                 background: 'var(--off-black, var(--k-1a1a1a, #1a1a1a))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))',
-                borderRadius: '12px', padding: pad,
+                borderRadius: 'var(--card-radius-lg, 14px)', padding: pad,
             }
         },
-            h('div', { style: { position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(135deg, ' + bg + ' 0%, transparent 55%)', opacity: 0.5, borderRadius: '12px' } }),
+            h('div', { style: { position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(135deg, ' + bg + ' 0%, transparent 55%)', opacity: 0.5, borderRadius: 'var(--card-radius-lg, 14px)' } }),
             h('div', {
                 style: {
-                    width: iconSize + 'px', height: iconSize + 'px', borderRadius: '10px', flexShrink: 0,
+                    width: iconSize + 'px', height: iconSize + 'px', borderRadius: 'var(--card-radius, 10px)', flexShrink: 0,
                     background: bg, border: '1px solid ' + border,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: compact ? '1rem' : '1.25rem', color: color,
@@ -243,7 +243,7 @@
                     onClick: ctaOnClick,
                     style: {
                         display: 'inline-flex', alignItems: 'center', gap: '6px',
-                        padding: '6px 12px', borderRadius: '5px', minHeight: '44px',
+                        padding: '6px 12px', borderRadius: 'var(--card-radius-xs, 5px)', minHeight: '44px',
                         background: bg, border: '1px solid ' + border, color: color,
                         fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, cursor: 'pointer',
                         fontFamily: 'DM Sans, sans-serif',
@@ -285,7 +285,7 @@
             h('div', { style: { marginTop: '4px', fontWeight: 700, color: 'var(--gold)', fontSize: 'var(--text-label, 0.75rem)' } },
                 'Total: ' + (assets || []).reduce((s, a) => s + (a.dhq || 0), 0).toLocaleString())
         );
-        return h('div', { style: { marginTop: '10px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '10px', padding: '10px', fontSize: 'var(--text-body, 1rem)' } },
+        return h('div', { style: { marginTop: '10px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius, 10px)', padding: '10px', fontSize: 'var(--text-body, 1rem)' } },
             h('div', { style: { fontFamily: 'var(--font-body)', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' } },
                 'Proposed Trade' + (tradeCard.target ? ' → ' + tradeCard.target : '')),
             h('div', { style: { display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '8px', alignItems: 'start' } },
@@ -301,7 +301,7 @@
             h('div', { style: { display: 'flex', gap: '6px', marginTop: '8px' } },
                 tradeCard.sleeperDM && h('button', {
                     onClick: () => { try { navigator.clipboard.writeText(tradeCard.sleeperDM); } catch (_) {} },
-                    style: { padding: '5px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', background: 'linear-gradient(135deg, var(--k-7c6bf8, #7c6bf8), var(--k-9b8afb, #9b8afb))', color: 'var(--k-ffffff, #ffffff)', border: 'none', borderRadius: '14px', cursor: 'pointer', minHeight: '32px' },
+                    style: { padding: '5px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', background: 'linear-gradient(135deg, var(--k-7c6bf8, #7c6bf8), var(--k-9b8afb, #9b8afb))', color: 'var(--k-ffffff, #ffffff)', border: 'none', borderRadius: 'var(--card-radius-lg, 14px)', cursor: 'pointer', minHeight: '32px' },
                 }, 'Copy DM'),
                 h('button', {
                     onClick: () => {
@@ -318,7 +318,7 @@
                         saved.unshift({ ...tradeCard, savedAt: Date.now() });
                         storage.set(keys.SAVED_TRADES(leagueId), saved.slice(0, 60));
                     },
-                    style: { padding: '5px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '14px', cursor: 'pointer', minHeight: '32px' },
+                    style: { padding: '5px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius-lg, 14px)', cursor: 'pointer', minHeight: '32px' },
                 }, 'Save')
             )
         );
@@ -521,7 +521,7 @@
                     showClose !== false ? h('button', {
                         onClick: onClose,
                         'aria-label': 'Close',
-                        style: { background: 'none', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: '6px', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 'var(--text-body, 1rem)', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
+                        style: { background: 'none', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 'var(--text-body, 1rem)', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
                     }, '✕') : null
                 ),
                 h('div', {
@@ -575,7 +575,7 @@
         const ctaBase = {
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             marginTop: '9px', minHeight: '44px', padding: '8px 14px',
-            borderRadius: '6px', cursor: 'pointer',
+            borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer',
             fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
             fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700,
             letterSpacing: '0.06em', textTransform: 'uppercase',
@@ -636,7 +636,7 @@
             style: {
                 background: 'var(--black, #121217)',
                 border: '1px solid ' + borderColor,
-                borderRadius: '9px',
+                borderRadius: 'var(--card-radius, 10px)',
                 overflow: 'hidden',
             },
             ...rest,
@@ -654,7 +654,7 @@
             },
                 pid ? h('span', {
                     style: {
-                        width: '30px', height: '30px', borderRadius: '7px', flexShrink: 0,
+                        width: '30px', height: '30px', borderRadius: 'var(--card-radius-sm, 8px)', flexShrink: 0,
                         position: 'relative', display: 'inline-flex', overflow: 'hidden',
                         background: tint.bg, border: '1px solid rgba(255,255,255,0.14)',
                     }
@@ -677,7 +677,7 @@
                     }, String(name || pos || '?').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase())
                 ) : h('span', {
                     style: {
-                        width: '30px', height: '30px', borderRadius: '7px', flexShrink: 0,
+                        width: '30px', height: '30px', borderRadius: 'var(--card-radius-sm, 8px)', flexShrink: 0,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         background: tint.bg, color: tint.fg,
                         fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
@@ -882,7 +882,7 @@
                     scroller = scroller.parentElement;
                 }
                 const ghost = row.cloneNode(true);
-                ghost.style.cssText += ';position:fixed;left:' + rect.left + 'px;top:' + rect.top + 'px;width:' + rect.width + 'px;height:' + rect.height + 'px;margin:0;z-index:9999;pointer-events:none;opacity:0.97;background:var(--black, #121217);border:1px solid var(--acc-line4, rgba(212,175,55,0.55));border-radius:8px;box-shadow:0 12px 30px rgba(0,0,0,0.55);transition:none;';
+                ghost.style.cssText += ';position:fixed;left:' + rect.left + 'px;top:' + rect.top + 'px;width:' + rect.width + 'px;height:' + rect.height + 'px;margin:0;z-index:9999;pointer-events:none;opacity:0.97;background:var(--black, #121217);border:1px solid var(--acc-line4, rgba(212,175,55,0.55));border-radius:var(--card-radius-sm, 8px);box-shadow:0 12px 30px rgba(0,0,0,0.55);transition:none;';
                 document.body.appendChild(ghost);
                 _dragSes = {
                     key, grip, row, ghost,

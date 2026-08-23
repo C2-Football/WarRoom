@@ -394,7 +394,7 @@ function AnalyticsPanel({
                         return (
                             <button key={key} type="button" aria-expanded={open}
                                 onClick={() => _setProofOpen(open ? null : key)}
-                                style={{ textAlign: 'left', gridColumn: open ? '1 / -1' : 'auto', minHeight: '58px', background: 'var(--black, #121217)', border: '1px solid ' + (open ? 'var(--acc-line2, rgba(212,175,55,0.32))' : 'rgba(255,255,255,0.07)'), borderLeft: '3px solid ' + col, borderRadius: '9px', padding: '8px 10px', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                                style={{ textAlign: 'left', gridColumn: open ? '1 / -1' : 'auto', minHeight: '58px', background: 'var(--black, #121217)', border: '1px solid ' + (open ? 'var(--acc-line2, rgba(212,175,55,0.32))' : 'rgba(255,255,255,0.07)'), borderLeft: '3px solid ' + col, borderRadius: 'var(--card-radius, 10px)', padding: '8px 10px', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
                                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', minWidth: 0 }}>
                                     <span style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, color: 'var(--text-muted, #8B8B96)', textTransform: 'uppercase', letterSpacing: '0.05em', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
                                     <span aria-hidden="true" style={{ color: 'var(--text-muted, #55555f)', fontSize: '0.62rem', flexShrink: 0, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.12s' }}>›</span>
@@ -614,7 +614,7 @@ function AnalyticsPanel({
             const kpiCardStyle = {
                 background: 'linear-gradient(135deg, var(--surf-solid, rgba(26,26,26,0.95)), var(--surf-solid, rgba(10,10,10,0.98)))',
                 border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))',
-                borderRadius: '10px',
+                borderRadius: 'var(--card-radius, 10px)',
                 padding: '10px 12px 8px',
                 flex: '1 1 0',
                 minWidth: '140px',
@@ -1044,8 +1044,8 @@ function AnalyticsPanel({
                             {proj.map((p, i) => (
                                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                                     <span style={{ color: 'var(--silver)', fontFamily: 'var(--font-body)', minWidth: '40px', fontSize: 'var(--text-body, 1rem)' }}>{p.year}</span>
-                                    <div style={{ flex: 1, position: 'relative', height: '24px', background: 'var(--ov-3, rgba(255,255,255,0.05))', borderRadius: '6px', overflow: 'hidden' }}>
-                                        <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: (p.projectedDHQ / maxDHQ * 100) + '%', background: tierColor(p.tier), borderRadius: '6px', opacity: 0.6, transition: 'width 0.5s ease' }} />
+                                    <div style={{ flex: 1, position: 'relative', height: '24px', background: 'var(--ov-3, rgba(255,255,255,0.05))', borderRadius: 'var(--card-radius-sm, 8px)', overflow: 'hidden' }}>
+                                        <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: (p.projectedDHQ / maxDHQ * 100) + '%', background: tierColor(p.tier), borderRadius: 'var(--card-radius-sm, 8px)', opacity: 0.6, transition: 'width 0.5s ease' }} />
                                         <div style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', color: 'var(--white)', fontWeight: 700, whiteSpace: 'nowrap' }}>
                                             {p.projectedDHQ.toLocaleString()} DHQ
                                         </div>
@@ -1111,7 +1111,7 @@ function AnalyticsPanel({
                                             <span style={{ color: 'var(--silver)' }}>{p.name} ({p.age})</span>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <span style={{ color: badColor }}>{p.dhq.toLocaleString()} DHQ</span>
-                                                <span style={{ padding: '2px 8px', background: 'rgba(231,76,60,0.15)', color: badColor, borderRadius: '4px', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, letterSpacing: '0.05em' }}>TRADE NOW</span>
+                                                <span style={{ padding: '2px 8px', background: 'rgba(231,76,60,0.15)', color: badColor, borderRadius: 'var(--card-radius-xs, 5px)', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, letterSpacing: '0.05em' }}>TRADE NOW</span>
                                             </span>
                                         </div>
                                     ))}
@@ -1175,7 +1175,7 @@ function AnalyticsPanel({
             const dKpiCardStyle = {
                 background: 'linear-gradient(135deg, var(--surf-solid, rgba(26,26,26,0.95)), var(--surf-solid, rgba(10,10,10,0.98)))',
                 border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))',
-                borderRadius: '14px',
+                borderRadius: 'var(--card-radius-lg, 14px)',
                 padding: '20px 18px 14px',
                 flex: '1 1 0',
                 minWidth: '140px',
@@ -1522,7 +1522,7 @@ function AnalyticsPanel({
                                         <button key={t.key} type="button" disabled={!has} onClick={() => setSlotTierTab(t.key)}
                                             title={has ? t.sub : 'Not enough champion picks from this third of the draft yet'}
                                             style={{
-                                                flex: '1 1 0', padding: '8px 10px', borderRadius: '6px', cursor: has ? 'pointer' : 'not-allowed',
+                                                flex: '1 1 0', padding: '8px 10px', borderRadius: 'var(--card-radius-sm, 8px)', cursor: has ? 'pointer' : 'not-allowed',
                                                 border: '1px solid ' + (strategyTab === t.key ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.08))'),
                                                 background: strategyTab === t.key ? 'rgba(212,175,55,0.1)' : 'transparent',
                                                 color: !has ? 'var(--ov-8, rgba(255,255,255,0.3))' : strategyTab === t.key ? 'var(--gold)' : 'var(--silver)',
@@ -1633,7 +1633,7 @@ function AnalyticsPanel({
                                 const tint = t.state !== 'solid' ? 'rgba(255,255,255,0.02)' : (t.gap >= 0 ? 'linear-gradient(90deg,rgba(46,204,113,0.10),transparent)' : 'rgba(240,165,0,0.10)');
                                 const gapColor = t.state !== 'solid' ? 'rgba(189,184,173,0.45)' : (t.gap >= 0 ? 'var(--good)' : 'var(--warn)');
                                 return (
-                                <div key={t.rd} style={{ display: 'grid', gridTemplateColumns: _phone ? '44px 28px minmax(0,1fr) 78px' : '52px 34px minmax(0,1fr) 132px', alignItems: 'center', gap: _phone ? '7px' : '10px', minHeight: '34px', borderRadius: '6px', padding: '4px 8px', borderBottom: '1px solid var(--ov-4,rgba(255,255,255,0.06))', background: tint, opacity: t.state === 'empty' ? 0.5 : 1 }}>
+                                <div key={t.rd} style={{ display: 'grid', gridTemplateColumns: _phone ? '44px 28px minmax(0,1fr) 78px' : '52px 34px minmax(0,1fr) 132px', alignItems: 'center', gap: _phone ? '7px' : '10px', minHeight: '34px', borderRadius: 'var(--card-radius-sm, 8px)', padding: '4px 8px', borderBottom: '1px solid var(--ov-4,rgba(255,255,255,0.06))', background: tint, opacity: t.state === 'empty' ? 0.5 : 1 }}>
                                     <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', color: 'var(--gold)' }}>R{t.rd}</span>
                                     <span style={{ fontSize: 'var(--text-micro)', color: t.n === 1 ? 'var(--warn)' : 'var(--silver)' }}>{t.n === 0 ? '\u2014' : 'n=' + t.n}</span>
                                     <div style={{ position: 'relative', height: '10px', borderRadius: '99px', background: 'rgba(255,255,255,0.055)', overflow: 'visible' }}>
@@ -1692,7 +1692,7 @@ function AnalyticsPanel({
                                         <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>{myRdCount ? 'you n=' + myRdCount : 'you: \u2014'}</div>
                                     </div>
                                     <div>
-                                        <div style={{ display: 'flex', height: '26px', borderRadius: '6px', overflow: 'hidden', opacity: myRdCount ? 1 : 0.55 }}>
+                                        <div style={{ display: 'flex', height: '26px', borderRadius: 'var(--card-radius-sm, 8px)', overflow: 'hidden', opacity: myRdCount ? 1 : 0.55 }}>
                                             {wEntries.map(([pos, pct]) => (
                                                 <span key={pos} title={posLabel(pos) + ' ' + pctFmt(pct)} style={{ width: (pct * 100) + '%', background: POS_COLOR[pos] || POS_COLOR.UNK, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-micro)', color: '#0c0c0f', overflow: 'hidden', whiteSpace: 'nowrap' }}>{pct >= 0.12 ? posLabel(pos) + ' ' + pctFmt(pct) : ''}</span>
                                             ))}
@@ -1785,7 +1785,7 @@ function AnalyticsPanel({
                                         <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.95rem', color: 'var(--gold)' }}>R{rd}</div>
                                         <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>n={total}</div>
                                     </div>
-                                    <div style={{ display: 'flex', height: '24px', borderRadius: '6px', overflow: 'hidden' }}>
+                                    <div style={{ display: 'flex', height: '24px', borderRadius: 'var(--card-radius-sm, 8px)', overflow: 'hidden' }}>
                                         {entries.map(([pos, cnt]) => {
                                             const pct = total ? cnt / total : 0;
                                             return (
@@ -1862,7 +1862,7 @@ function AnalyticsPanel({
             const tKpiCardStyle = {
                 background: 'linear-gradient(135deg, var(--surf-solid, rgba(26,26,26,0.95)), var(--surf-solid, rgba(10,10,10,0.98)))',
                 border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))',
-                borderRadius: '14px',
+                borderRadius: 'var(--card-radius-lg, 14px)',
                 padding: '20px 18px 14px',
                 flex: '1 1 0',
                 minWidth: '140px',
@@ -1956,7 +1956,7 @@ function AnalyticsPanel({
                                     <span style={{ color: row.gold ? 'var(--gold)' : 'var(--silver)', fontWeight: 700, letterSpacing: '0.04em' }}>{row.label}</span>
                                     <span style={{ color: 'var(--silver)', fontFamily: 'JetBrains Mono, monospace' }}>{'E ' + pctFmt(row.t.early || 0) + ' · M ' + pctFmt(row.t.mid || 0) + ' · L ' + pctFmt(row.t.late || 0)}</span>
                                 </div>
-                                <div style={{ display: 'flex', height: '16px', borderRadius: '5px', overflow: 'hidden', background: 'rgba(255,255,255,0.04)' }}>
+                                <div style={{ display: 'flex', height: '16px', borderRadius: 'var(--card-radius-xs, 5px)', overflow: 'hidden', background: 'rgba(255,255,255,0.04)' }}>
                                     {segs.map(([sl, v, bg]) => v > 0 ? (
                                         <span key={sl} title={sl + ' ' + pctFmt(v)} style={{ width: (v * 100) + '%', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-micro)', color: '#0c0c0f', overflow: 'hidden', whiteSpace: 'nowrap' }}>{v >= 0.12 ? sl : ''}</span>
                                     ) : null)}
@@ -1988,7 +1988,7 @@ function AnalyticsPanel({
                                 {[{ deal: tr.myBiggestWin, kicker: 'Best Deal', color: goodColor }, { deal: tr.myBiggestLoss, kicker: 'Worst Deal', color: badColor }].filter(x => x.deal).map((x, i) => {
                                     const d = x.deal; const net = d.netDhq != null ? d.netDhq : d.net;
                                     return (
-                                    <div key={i} style={{ border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderLeft: '3px solid ' + x.color, borderRadius: '8px', padding: '10px 12px', background: 'rgba(255,255,255,0.02)' }}>
+                                    <div key={i} style={{ border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderLeft: '3px solid ' + x.color, borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', background: 'rgba(255,255,255,0.02)' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                                             <span style={{ fontSize: 'var(--text-micro)', color: x.color, textTransform: 'uppercase', letterSpacing: '0.09em', fontWeight: 800 }}>{x.kicker}</span>
                                             <span style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>S{d.season || '?'}{d.fairness != null ? ' · fairness ' + Math.round(d.fairness) : ''}</span>
@@ -2013,7 +2013,7 @@ function AnalyticsPanel({
                                 <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <span style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--gold)', fontFamily: 'var(--font-body)' }}>S{trade.season || '?'} W{trade.week || '?'}</span>
-                                        <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', padding: '2px 8px', borderRadius: '10px', background: wrAlpha(resultColor, '22'), color: resultColor, border: '1px solid ' + wrAlpha(resultColor, '44'), fontWeight: 700 }}>{result}</span>
+                                        <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', padding: '2px 8px', borderRadius: 'var(--card-radius, 10px)', background: wrAlpha(resultColor, '22'), color: resultColor, border: '1px solid ' + wrAlpha(resultColor, '44'), fontWeight: 700 }}>{result}</span>
                                     </div>
                                     <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', fontFamily: 'var(--font-body)' }}>
                                         {assetListText(trade.gave, trade.gavePicks)} <span style={{ color: 'var(--gold)', margin: '0 4px' }}>{'\u2192'}</span> {assetListText(trade.got, trade.gotPicks)}

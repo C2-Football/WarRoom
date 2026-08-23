@@ -14,9 +14,9 @@
         if (children && hasTasteLeft() && !tasteUsed) {
             return React.createElement(React.Fragment, null,
                 children,
-                React.createElement('div', { style: { textAlign:'center', padding:'12px', background:'var(--acc-fill1, rgba(212,175,55,0.06))', border:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius:'8px', marginTop:'12px' } },
+                React.createElement('div', { style: { textAlign:'center', padding:'12px', background:'var(--acc-fill1, rgba(212,175,55,0.06))', border:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius:'var(--card-radius-sm, 8px)', marginTop:'12px' } },
                     React.createElement('div', { style: { fontSize:'var(--text-body, 1rem)', color:'var(--gold)', fontWeight:700, marginBottom:'4px' } }, 'Free preview — upgrade to keep using this feature'),
-                    React.createElement('button', { onClick: () => setTasteUsed(true), style: { padding:'6px 16px', background:'var(--gold)', color:'var(--black)', border:'none', borderRadius:'6px', fontFamily:'Rajdhani, sans-serif', fontSize:'var(--text-body, 1rem)', cursor:'pointer' } }, 'Got it')
+                    React.createElement('button', { onClick: () => setTasteUsed(true), style: { padding:'6px 16px', background:'var(--gold)', color:'var(--black)', border:'none', borderRadius:'var(--card-radius-sm, 8px)', fontFamily:'Rajdhani, sans-serif', fontSize:'var(--text-body, 1rem)', cursor:'pointer' } }, 'Got it')
                 )
             );
         }
@@ -28,7 +28,7 @@
             React.createElement('div', { style: { fontFamily:'Rajdhani, sans-serif', fontSize:'1.6rem', color:'var(--gold)', letterSpacing:'0.06em', marginBottom:'8px' } }, title || 'UPGRADE TO UNLOCK'),
             React.createElement('div', { style: { fontSize:'var(--text-body, 1rem)', color:'var(--silver)', lineHeight:1.7, marginBottom:'16px' } }, description || 'This feature requires a paid subscription.'),
             React.createElement('div', { style: { display:'flex', gap:'10px', justifyContent:'center', marginBottom:'12px' } },
-                React.createElement('button', { onClick: () => { window.location.href = 'landing.html'; }, style: { padding:'10px 24px', background:'var(--gold)', color:'var(--black)', border:'none', borderRadius:'6px', fontFamily:'Rajdhani, sans-serif', fontSize:'1.1rem', letterSpacing:'0.05em', cursor:'pointer' } }, 'Unlock ' + tierLabel + ' — ' + tierPrice),
+                React.createElement('button', { onClick: () => { window.location.href = 'landing.html'; }, style: { padding:'10px 24px', background:'var(--gold)', color:'var(--black)', border:'none', borderRadius:'var(--card-radius-sm, 8px)', fontFamily:'Rajdhani, sans-serif', fontSize:'1.1rem', letterSpacing:'0.05em', cursor:'pointer' } }, 'Unlock ' + tierLabel + ' — ' + tierPrice),
             ),
             React.createElement('div', { style: { fontSize:'var(--text-body, 1rem)', color:'var(--silver)', opacity:0.5 } }, 'Currently on Scout (free) plan'),
             onClose ? React.createElement('button', { onClick: onClose, style: { marginTop:'10px', background:'none', border:'none', color:'var(--silver)', cursor:'pointer', fontSize:'var(--text-body, 1rem)' } }, 'Maybe later') : null
@@ -116,12 +116,12 @@
         const isMobile = viewportWidth < 440; // sheet threshold unchanged (D4 owns the ≤767 raise)
         const cardStyle = isMobile
             ? { position:'fixed', bottom:0, left:0, right:0, width:'100%', maxHeight:'85vh', overflowY:'auto', background:'var(--black)', border:'none', borderTop:'2px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius:'14px 14px 0 0', zIndex:250, boxShadow:'0 -12px 48px rgba(0,0,0,0.7)', animation:'wrFadeIn 0.2s ease', paddingBottom:'calc(12px + var(--sab, env(safe-area-inset-bottom, 0px)))' }
-            : { position:'fixed', bottom:'80px', right:'24px', width:'360px', maxHeight:'calc(100vh - 100px)', overflowY:'auto', background:'var(--black)', border:'2px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius:'14px', zIndex:250, boxShadow:'0 12px 48px rgba(0,0,0,0.7)', animation:'wrFadeIn 0.2s ease' };
+            : { position:'fixed', bottom:'80px', right:'24px', width:'360px', maxHeight:'calc(100vh - 100px)', overflowY:'auto', background:'var(--black)', border:'2px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius:'var(--card-radius-lg, 14px)', zIndex:250, boxShadow:'0 12px 48px rgba(0,0,0,0.7)', animation:'wrFadeIn 0.2s ease' };
 
         return React.createElement('div', { style: cardStyle },
             // Header with photo
             React.createElement('div', { style:{ padding:'14px 16px', background:'linear-gradient(135deg, var(--acc-fill2, rgba(212,175,55,0.08)), transparent)', borderBottom:'1px solid var(--acc-fill3, rgba(212,175,55,0.15))', display:'flex', gap:'12px', alignItems:'center' } },
-                React.createElement('div', { className: 'wr-ring wr-ring-' + nPos, style:{ width:'48px', height:'48px', borderRadius:'10px', overflow:'hidden', background:'var(--acc-fill2, rgba(212,175,55,0.1))', border:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 } },
+                React.createElement('div', { className: 'wr-ring wr-ring-' + nPos, style:{ width:'48px', height:'48px', borderRadius:'var(--card-radius, 10px)', overflow:'hidden', background:'var(--acc-fill2, rgba(212,175,55,0.1))', border:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 } },
                     React.createElement('img', { src:'https://sleepercdn.com/content/nfl/players/'+pid+'.jpg', style:{width:'48px',height:'48px',objectFit:'cover'}, onError:function(e){ e.target.style.display='none'; const s=document.createElement('span'); s.style.cssText='font-size:16px;font-weight:700;color:var(--k-d4af37, #d4af37)'; s.textContent=initials; e.target.after(s);; } })
                 ),
                 React.createElement('div', { style:{flex:1} },
@@ -149,7 +149,7 @@
                     React.createElement('div', { style:{ fontSize:'var(--text-label, 0.75rem)', color: 'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700 } }, 'Age Curve'),
                     React.createElement('div', { style:{ fontSize:'var(--text-label, 0.75rem)', color:peakCol } }, !age ? 'Age unknown' : peakLabel+' \u00B7 '+(peakYrs > 0 ? peakYrs+'yr peak left' : valueYrs > 0 ? valueYrs+'yr value left' : 'Past value window'))
                 ),
-                React.createElement('div', { style:{ display:'flex', height:'16px', borderRadius:'4px', overflow:'hidden', gap:'1px' } },
+                React.createElement('div', { style:{ display:'flex', height:'16px', borderRadius:'var(--card-radius-xs, 5px)', overflow:'hidden', gap:'1px' } },
                     ...Array.from({length:17}, function(_,i){ var a=i+20; var col=a<pLo-3?'rgba(96,165,250,0.3)':a<pLo?'rgba(46,204,113,0.45)':(a>=pLo&&a<=pHi)?'rgba(46,204,113,0.75)':a<=declineHi?'var(--acc-line3, rgba(212,175,55,0.45))':'rgba(231,76,60,0.35)'; return React.createElement('div', { key:a, style:{ flex:1, background:col, opacity:a===age?1:0.55, outline:a===age?'2px solid var(--k-d4af37, #d4af37)':'none', outlineOffset:'-1px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'var(--text-label, 0.75rem)', fontWeight:700, color:a===age?'var(--text-primary)':'transparent' } }, a===age?String(age):''); })
                 ),
                 React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', fontSize:'var(--text-label, 0.75rem)', color: 'var(--text-muted)', marginTop:'2px' } },
@@ -160,8 +160,8 @@
             ),
             // Action buttons
             React.createElement('div', { style:{ padding:'10px 16px', display:'flex', gap:'6px', borderTop:'1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
-                React.createElement('button', { onClick:onFullProfile, style:{ flex:1, padding:'8px', minHeight:'44px', background:'var(--k-d4af37, #d4af37)', color:'var(--k-0a0a0a, #0a0a0a)', border:'none', borderRadius:'6px', fontFamily:'Rajdhani, sans-serif', fontSize:'var(--text-body, 1rem)', cursor:'pointer' } }, 'FULL PROFILE'),
-                React.createElement('button', { onClick:onClose, style:{ padding:'8px 14px', minHeight:'44px', background:'transparent', border:'1px solid var(--acc-line2, rgba(212,175,55,0.3))', color:'var(--k-d4af37, #d4af37)', borderRadius:'6px', fontFamily:'Rajdhani, sans-serif', fontSize:'var(--text-body, 1rem)', cursor:'pointer' } }, 'CLOSE')
+                React.createElement('button', { onClick:onFullProfile, style:{ flex:1, padding:'8px', minHeight:'44px', background:'var(--k-d4af37, #d4af37)', color:'var(--k-0a0a0a, #0a0a0a)', border:'none', borderRadius:'var(--card-radius-sm, 8px)', fontFamily:'Rajdhani, sans-serif', fontSize:'var(--text-body, 1rem)', cursor:'pointer' } }, 'FULL PROFILE'),
+                React.createElement('button', { onClick:onClose, style:{ padding:'8px 14px', minHeight:'44px', background:'transparent', border:'1px solid var(--acc-line2, rgba(212,175,55,0.3))', color:'var(--k-d4af37, #d4af37)', borderRadius:'var(--card-radius-sm, 8px)', fontFamily:'Rajdhani, sans-serif', fontSize:'var(--text-body, 1rem)', cursor:'pointer' } }, 'CLOSE')
             )
         );
     }
@@ -274,7 +274,7 @@
         if (compact) {
             return React.createElement('div', { style: {
                 display: 'flex', gap: '8px', alignItems: 'flex-start', padding: '4px 10px',
-                background: 'var(--acc-fill1, rgba(212,175,55,0.04))', borderRadius: '8px', marginBottom: '6px',
+                background: 'var(--acc-fill1, rgba(212,175,55,0.04))', borderRadius: 'var(--card-radius-sm, 8px)', marginBottom: '6px',
                 border: '1px solid var(--acc-fill2, rgba(212,175,55,0.1))'
             }},
                 React.createElement(AlexAvatar, { size: 20 }),
@@ -288,7 +288,7 @@
         }
         return React.createElement('div', { style: {
             background: 'var(--acc-fill1, rgba(212,175,55,0.03))', border: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))',
-            borderRadius: '8px', padding: '10px 14px', marginBottom: '8px'
+            borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 14px', marginBottom: '8px'
         }},
             React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' } },
                 React.createElement(AlexAvatar, { size: 28 }),
@@ -379,7 +379,7 @@
             ));
         }
 
-        return React.createElement('div', { style: { background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' } }, ...sections);
+        return React.createElement('div', { style: { background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', marginBottom: '12px' } }, ...sections);
     }
 
     function SkeletonRows({ count, cols }) {
@@ -510,7 +510,7 @@
                     style: {
                         padding: '40px 20px', textAlign: 'center', maxWidth: '500px',
                         margin: '80px auto', background: 'var(--black)', border: '1px solid rgba(231,76,60,0.3)',
-                        borderRadius: '10px'
+                        borderRadius: 'var(--card-radius, 10px)'
                     }
                 },
                     React.createElement('div', { style: { fontSize: '2rem', marginBottom: '12px' } }, '\u26A0\uFE0F'),
@@ -519,11 +519,11 @@
                         'Dynasty HQ encountered an error. This usually fixes itself on reload.'),
                     React.createElement('button', {
                         onClick: () => { this.setState({ hasError: false, error: null }); },
-                        style: { padding: '10px 24px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'var(--font-body)', fontSize: '1rem', cursor: 'pointer', marginRight: '8px' }
+                        style: { padding: '10px 24px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: 'var(--font-body)', fontSize: '1rem', cursor: 'pointer', marginRight: '8px' }
                     }, 'Try Again'),
                     React.createElement('button', {
                         onClick: () => window.location.reload(),
-                        style: { padding: '10px 24px', background: 'transparent', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', fontFamily: 'var(--font-body)', fontSize: '1rem', cursor: 'pointer' }
+                        style: { padding: '10px 24px', background: 'transparent', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: 'var(--font-body)', fontSize: '1rem', cursor: 'pointer' }
                     }, 'Reload Page'),
                     React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5, marginTop: '12px' } },
                         String(this.state.error?.message || '').substring(0, 100))

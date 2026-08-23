@@ -1602,7 +1602,7 @@ function EmpireStyles() {
             .empire-main-grid { display: grid; grid-template-columns: minmax(270px, 0.84fr) minmax(420px, 1.34fr) minmax(290px, 0.92fr); gap: 12px; align-items: start; }
             .empire-bridge { display: grid; grid-template-columns: minmax(320px, 1.05fr) minmax(280px, 0.95fr); gap: 12px; margin-bottom: 12px; align-items: start; }
             .empire-brief { display: flex; gap: 11px; }
-            .empire-brief-av { width: 38px; height: 38px; flex: 0 0 auto; border-radius: 10px; background: linear-gradient(135deg, var(--k-7c6bf8, #7c6bf8), var(--k-4ecdc4, #4ecdc4)); display: grid; place-items: center; font-family: var(--font-title); font-weight: 700; font-size: 1.05rem; color: var(--k-0a0a0c, #0a0a0c); }
+            .empire-brief-av { width: 38px; height: 38px; flex: 0 0 auto; border-radius: var(--card-radius, 10px); background: linear-gradient(135deg, var(--k-7c6bf8, #7c6bf8), var(--k-4ecdc4, #4ecdc4)); display: grid; place-items: center; font-family: var(--font-title); font-weight: 700; font-size: 1.05rem; color: var(--k-0a0a0c, #0a0a0c); }
             .empire-brief-meta { color: var(--purple); font-size: var(--text-micro); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
             .empire-brief-body { color: var(--ov-9, rgb(176,176,177)); font-size: var(--text-body, 1rem); line-height: 1.5; margin-top: 5px; }
             .empire-rolodex { margin-bottom: 12px; }

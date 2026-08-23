@@ -902,14 +902,14 @@
                     disabled: teamDiagLoading,
                     style: {
                         display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px',
-                        padding: '6px 12px', borderRadius: '6px', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600,
+                        padding: '6px 12px', borderRadius: 'var(--card-radius-sm, 8px)', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600,
                         fontFamily: 'var(--font-body)',
                         background: teamDiagLoading ? 'rgba(124,107,248,0.08)' : 'rgba(124,107,248,0.12)',
                         border: '1px solid rgba(124,107,248,0.35)', color: 'var(--purple)',
                         cursor: teamDiagLoading ? 'wait' : 'pointer', opacity: teamDiagLoading ? 0.7 : 1,
                     },
                 }, '✨ ', teamDiagLoading ? 'Reading your team…' : 'Get Alex’s Team Diagnosis'),
-                teamDiagError && h('div', { style: { padding: '10px 14px', background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: '6px', fontSize: 'var(--text-body, 1rem)', color: 'var(--bad)' } },
+                teamDiagError && h('div', { style: { padding: '10px 14px', background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 'var(--card-radius-sm, 8px)', fontSize: 'var(--text-body, 1rem)', color: 'var(--bad)' } },
                     'Alex couldn’t diagnose your team: ', teamDiagError),
                 teamDiag.text && h(window.GMMessage, { title: 'Team Diagnosis' },
                     window.WR?.ClampedRead
@@ -920,14 +920,14 @@
                     h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', flexWrap: 'wrap' } },
                         h('button', {
                             onClick: doGenerateTeamDiag, disabled: teamDiagLoading,
-                            style: { background: 'none', border: '1px solid rgba(124,107,248,0.35)', borderRadius: '4px', color: 'var(--purple)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px', minHeight: '32px' },
+                            style: { background: 'none', border: '1px solid rgba(124,107,248,0.35)', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--purple)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px', minHeight: '32px' },
                         }, teamDiagLoading ? 'Reading…' : (teamDiagStale ? 'Regenerate' : 'Refresh')),
                         teamDiagFeedback
                             ? h('span', { style: { fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6 } }, teamDiagFeedback === 'up' ? 'Glad it helped.' : 'Noted — Alex learns from this.')
                             : h(React.Fragment, null,
                                 h('span', { style: { fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6 } }, 'Useful?'),
-                                h('button', { onClick: () => sendTeamDiagFeedback('up'), style: { background: 'none', border: '1px solid rgba(124,107,248,0.25)', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px' } }, 'Agree'),
-                                h('button', { onClick: () => sendTeamDiagFeedback('down'), style: { background: 'none', border: '1px solid rgba(124,107,248,0.25)', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px' } }, 'Disagree')
+                                h('button', { onClick: () => sendTeamDiagFeedback('up'), style: { background: 'none', border: '1px solid rgba(124,107,248,0.25)', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px' } }, 'Agree'),
+                                h('button', { onClick: () => sendTeamDiagFeedback('down'), style: { background: 'none', border: '1px solid rgba(124,107,248,0.25)', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px' } }, 'Disagree')
                             )
                     )
                 )
@@ -982,7 +982,7 @@
                     disabled: aiLoading,
                     style: {
                         display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px',
-                        padding: '6px 12px', borderRadius: '6px', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600,
+                        padding: '6px 12px', borderRadius: 'var(--card-radius-sm, 8px)', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600,
                         fontFamily: 'var(--font-body)',
                         background: aiLoading ? 'rgba(124,107,248,0.08)' : 'rgba(124,107,248,0.12)',
                         border: '1px solid rgba(124,107,248,0.35)',
@@ -995,7 +995,7 @@
                     onClick: doClear,
                     style: {
                         minHeight: '44px',
-                        padding: '6px 10px', borderRadius: '6px', fontSize: 'var(--text-label, 0.75rem)',
+                        padding: '6px 10px', borderRadius: 'var(--card-radius-sm, 8px)', fontSize: 'var(--text-label, 0.75rem)',
                         fontFamily: 'var(--font-body)', background: 'transparent',
                         border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', color: 'var(--silver)',
                         cursor: 'pointer',
@@ -1004,7 +1004,7 @@
                 aiInsights.length > 0 && cacheAge != null && h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5, fontFamily: 'var(--font-mono)' } },
                     cacheAge < 1 ? 'just now' : cacheAge < 60 ? cacheAge + 'm ago' : Math.floor(cacheAge / 60) + 'h ago')
             ),
-            aiError && h('div', { style: { padding: '10px 14px', marginBottom: '12px', background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: '6px', fontSize: 'var(--text-body, 1rem)', color: 'var(--bad)' } },
+            aiError && h('div', { style: { padding: '10px 14px', marginBottom: '12px', background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 'var(--card-radius-sm, 8px)', fontSize: 'var(--text-body, 1rem)', color: 'var(--bad)' } },
                 'Alex couldn\u2019t generate insights: ', aiError),
             // Free: section shell + one locked teaser row, zero real insight
             // cards reach the DOM (mirrors reconai Field Log GM Insights).
@@ -1054,14 +1054,14 @@
                                     color: 'var(--k-d0e7fa, #d0e7fa)',
                                     background: 'rgba(125,183,232,0.07)',
                                     border: '1px solid rgba(125,183,232,0.18)',
-                                    borderRadius: '4px',
+                                    borderRadius: 'var(--card-radius-xs, 5px)',
                                     padding: '2px 5px',
                                     fontSize: 'var(--text-micro)',
                                     lineHeight: 1.25,
                                 }
                             }, line))
                         ),
-                        ins.isAi && h('div', { style: { position: 'absolute', top: 10, right: 10, fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro)', fontWeight: 700, letterSpacing: '0.12em', padding: '2px 6px', borderRadius: '4px', background: 'rgba(124,107,248,0.2)', color: 'var(--purple)', border: '1px solid rgba(124,107,248,0.4)' } }, '\u2728 AI')
+                        ins.isAi && h('div', { style: { position: 'absolute', top: 10, right: 10, fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro)', fontWeight: 700, letterSpacing: '0.12em', padding: '2px 6px', borderRadius: 'var(--card-radius-xs, 5px)', background: 'rgba(124,107,248,0.2)', color: 'var(--purple)', border: '1px solid rgba(124,107,248,0.4)' } }, '\u2728 AI')
                         );
                     })
                 )
@@ -1662,7 +1662,7 @@
             const renderChips = (pids, prefix, color) => pids.length === 0 ? null : h('span', { style: { display: 'inline-flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' } },
                 pids.slice(0, 4).map(pid => h('span', {
                     key: pid,
-                    style: { fontSize: 'var(--text-label, 0.75rem)', padding: '2px 6px', borderRadius: '4px', background: wrAlpha(color, '12'), border: '1px solid ' + wrAlpha(color, '33'), color: color, fontWeight: 600 },
+                    style: { fontSize: 'var(--text-label, 0.75rem)', padding: '2px 6px', borderRadius: 'var(--card-radius-xs, 5px)', background: wrAlpha(color, '12'), border: '1px solid ' + wrAlpha(color, '33'), color: color, fontWeight: 600 },
                 }, prefix, chipText(pid))),
                 pids.length > 4 ? h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6 } }, '+' + (pids.length - 4)) : null,
             );
@@ -1683,12 +1683,12 @@
             const renderPickChips = (picks, prefix, color) => picks.length === 0 ? null : h('span', { style: { display: 'inline-flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' } },
                 picks.slice(0, 4).map((pk, idx) => h('span', {
                     key: [pk.season, pk.round, pk.roster_id, idx].join(':'),
-                    style: { fontSize: 'var(--text-label, 0.75rem)', padding: '2px 6px', borderRadius: '4px', background: wrAlpha(color, '12'), border: '1px solid ' + wrAlpha(color, '33'), color: color, fontWeight: 600 },
+                    style: { fontSize: 'var(--text-label, 0.75rem)', padding: '2px 6px', borderRadius: 'var(--card-radius-xs, 5px)', background: wrAlpha(color, '12'), border: '1px solid ' + wrAlpha(color, '33'), color: color, fontWeight: 600 },
                 }, prefix, pickText(pk))),
                 picks.length > 4 ? h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6 } }, '+' + (picks.length - 4) + ' picks') : null,
             );
             const renderFaabChip = (amount, prefix, color) => !amount ? null : h('span', {
-                style: { fontSize: 'var(--text-label, 0.75rem)', padding: '2px 6px', borderRadius: '4px', background: wrAlpha(color, '12'), border: '1px solid ' + wrAlpha(color, '33'), color: color, fontWeight: 600 },
+                style: { fontSize: 'var(--text-label, 0.75rem)', padding: '2px 6px', borderRadius: 'var(--card-radius-xs, 5px)', background: wrAlpha(color, '12'), border: '1px solid ' + wrAlpha(color, '33'), color: color, fontWeight: 600 },
             }, prefix, '$' + amount + ' FAAB');
             const hasIncoming = !!(addedPids.length || addedPicks.length || addedFaab);
             const hasOutgoing = !!(droppedPids.length || droppedPicks.length || droppedFaab);
@@ -1963,7 +1963,7 @@
     }
 
     const presetBtnStyle = {
-        flex: 1, padding: '7px 10px', borderRadius: '6px',
+        flex: 1, padding: '7px 10px', borderRadius: 'var(--card-radius-sm, 8px)',
         fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, cursor: 'pointer',
         background: 'transparent', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))',
         color: 'var(--silver)', fontFamily: 'var(--font-body)',

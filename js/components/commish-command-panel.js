@@ -125,7 +125,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
 
     if (!queue && !kpis && !grid && !desks) {
         return (
-            <div style={{ background: SURF, border: '1px solid ' + LINE, borderRadius: '10px', padding: '16px' }}>
+            <div style={{ background: SURF, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius, 10px)', padding: '16px' }}>
                 <div style={T.body}>The office is still reading your leagues. Command fills in the moment the desk has something to rank.</div>
             </div>
         );
@@ -144,7 +144,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                 ...bare, display: 'block', width: '100%', boxSizing: 'border-box',
                 background: hovTile === id ? SURF3 : SURF2,
                 border: '1px solid ' + LINE, borderTop: '2px solid ' + accent,
-                borderRadius: '8px', padding: '12px 14px',
+                borderRadius: 'var(--card-radius-sm, 8px)', padding: '12px 14px',
                 minHeight: phone ? '96px' : undefined,
             }}>
             <div style={{ ...T.label, marginBottom: '12px' }}>{label}</div>
@@ -177,7 +177,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
     const maxSeats = Math.max(1, ...seatLeagues.map(l => l.openSeats || 0));
 
     const band1 = (
-        <div style={{ background: SURF, border: '1px solid ' + LINE, borderRadius: '10px', overflow: 'hidden' }}>
+        <div style={{ background: SURF, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius, 10px)', overflow: 'hidden' }}>
             <div style={{ ...T.lede, padding: '16px 16px 12px' }}>
                 {q.diagnosis || 'The office is quiet. Nothing is overdue, nothing is drifting, and no seat is empty.'}
             </div>
@@ -189,7 +189,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                     onClick: () => gridRef.current && gridRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' }),
                     extra: K.humans ? (
                         <div>
-                            <div style={{ height: '6px', background: SURF, borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ height: '6px', background: SURF, borderRadius: 'var(--card-radius-xs, 5px)', overflow: 'hidden' }}>
                                 <i style={{ display: 'block', height: '100%', width: crossoverPct + '%', background: ACCENT }} />
                             </div>
                             <div style={{ ...T.chip, color: MUTED, marginTop: '4px' }}>{crossoverPct}% OVERLAP ACROSS LEAGUES</div>
@@ -202,7 +202,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                     sub: (needs.soon || 0) + ' this week · ' + (needs.backlog || 0) + ' backlog · ' + needsTotal + ' total',
                     onClick: () => emit({ tier: 'NOW' }),
                     extra: needsTotal ? (
-                        <div style={{ height: '6px', background: SURF, borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
+                        <div style={{ height: '6px', background: SURF, borderRadius: 'var(--card-radius-xs, 5px)', overflow: 'hidden', display: 'flex' }}>
                             {needs.now ? <i style={{ display: 'block', height: '100%', width: Math.round((100 * needs.now) / needsTotal) + '%', background: BAD }} /> : null}
                             {needs.soon ? <i style={{ display: 'block', height: '100%', width: Math.round((100 * needs.soon) / needsTotal) + '%', background: WARN }} /> : null}
                             {needs.backlog ? <i style={{ display: 'block', height: '100%', width: Math.round((100 * needs.backlog) / needsTotal) + '%', background: MUTED }} /> : null}
@@ -218,7 +218,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(' + readiness.length + ', 1fr)', gap: '2px' }}>
                             {readiness.map((r, i) => (
                                 <div key={r.leagueId || i}>
-                                    <div style={{ height: '6px', background: SURF, borderRadius: '4px', overflow: 'hidden' }}>
+                                    <div style={{ height: '6px', background: SURF, borderRadius: 'var(--card-radius-xs, 5px)', overflow: 'hidden' }}>
                                         <i style={{ display: 'block', height: '100%', width: Math.max(0, Math.min(100, Number(r.pct) || 0)) + '%', background: ACCENT }} />
                                     </div>
                                     <div style={{ ...T.chip, color: MUTED, marginTop: '4px' }}>{String(r.tag || '').slice(0, 3)}</div>
@@ -237,7 +237,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                     extra: upcoming.length ? (
                         <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                             {upcoming.map((u, i) => (
-                                <span key={i} title={u.leagueName + ' ' + u.type} style={{ ...T.chip, color: MUTED, border: '1px solid ' + LINE, borderRadius: '4px', padding: '2px 6px' }}>{u.label}</span>
+                                <span key={i} title={u.leagueName + ' ' + u.type} style={{ ...T.chip, color: MUTED, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 6px' }}>{u.label}</span>
                             ))}
                         </div>
                     ) : null,
@@ -252,7 +252,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(' + seatLeagues.length + ', 1fr)', gap: '2px' }}>
                             {seatLeagues.map((l, i) => (
                                 <div key={l.leagueId || i}>
-                                    <div style={{ height: '6px', background: SURF, borderRadius: '4px', overflow: 'hidden' }}>
+                                    <div style={{ height: '6px', background: SURF, borderRadius: 'var(--card-radius-xs, 5px)', overflow: 'hidden' }}>
                                         <i style={{ display: 'block', height: '100%', width: Math.round((100 * (l.openSeats || 0)) / maxSeats) + '%', background: (l.openSeats || 0) > 0 ? BAD : GOOD }} />
                                     </div>
                                     <div style={{ ...T.chip, color: MUTED, marginTop: '4px' }}>{l.tag}</div>
@@ -274,7 +274,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
             style={{
                 ...bare, display: 'flex', alignItems: 'center', gap: '8px',
                 background: !f.tier ? ACCENT_FILL : SURF2,
-                border: '1px solid ' + (!f.tier ? ACCENT : LINE), borderRadius: '4px',
+                border: '1px solid ' + (!f.tier ? ACCENT : LINE), borderRadius: 'var(--card-radius-xs, 5px)',
                 padding: '0 8px', height: phone ? '44px' : '28px',
             }}>
             <span style={{ ...T.metricSm, color: !f.tier ? ACCENT : SILVER }}>{items.length}</span>
@@ -289,7 +289,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                 style={{
                     ...bare, display: 'flex', alignItems: 'center', gap: '8px',
                     background: on ? ACCENT_FILL : SURF2,
-                    border: '1px solid ' + (on ? ACCENT : LINE), borderRadius: '4px',
+                    border: '1px solid ' + (on ? ACCENT : LINE), borderRadius: 'var(--card-radius-xs, 5px)',
                     padding: '0 8px', height: phone ? '44px' : '28px',
                 }}>
                 <span style={{ ...T.metricSm, color: sevColor(t) }}>{tierCount(t)}</span>
@@ -301,7 +301,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
         <button type="button" key={id} onClick={onClick}
             style={{
                 ...bare, background: active ? ACCENT_FILL : SURF2,
-                border: '1px solid ' + (active ? ACCENT : LINE), borderRadius: '4px',
+                border: '1px solid ' + (active ? ACCENT : LINE), borderRadius: 'var(--card-radius-xs, 5px)',
                 padding: '0 8px', height: phone ? '44px' : '28px',
                 ...T.chip, color: active ? ACCENT : SILVER,
                 display: 'inline-flex', alignItems: 'center',
@@ -314,7 +314,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
         return (
             <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'nowrap', overflow: 'hidden' }}>
                 {shown.map((t, i) => (
-                    <span key={i} style={{ ...T.chip, color: WHITE, background: SURF2, border: '1px solid ' + LINE, borderRadius: '4px', padding: '4px 4px' }}>{t}</span>
+                    <span key={i} style={{ ...T.chip, color: WHITE, background: SURF2, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius-xs, 5px)', padding: '4px 4px' }}>{t}</span>
                 ))}
                 {rest > 0 ? <span style={{ ...T.chip, color: MUTED }}>+{rest}</span> : null}
             </div>
@@ -329,7 +329,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                 onClick={(e) => { e.stopPropagation(); openHub(it.hub, { leagueId: (it.leagueIds || [])[0] || null, action: it.action.kind || null }); }}
                 onMouseEnter={() => setHovAct(it.id)} onMouseLeave={() => setHovAct(null)}
                 style={{
-                    ...bare, background: hov ? ACCENT_FILL : 'transparent', border: '1px solid ' + ACCENT_LINE, borderRadius: '6px',
+                    ...bare, background: hov ? ACCENT_FILL : 'transparent', border: '1px solid ' + ACCENT_LINE, borderRadius: 'var(--card-radius-sm, 8px)',
                     color: ACCENT, ...T.chip, height: full ? '44px' : '28px', width: full ? '100%' : 'auto',
                     padding: '0 10px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 }}>{it.action.label}</button>
@@ -429,7 +429,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                     }))}
                 </div>
             </div>
-            <div style={{ background: SURF, border: '1px solid ' + LINE, borderRadius: '10px', overflow: 'hidden', minHeight: f.tier ? undefined : '420px' }}>
+            <div style={{ background: SURF, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius, 10px)', overflow: 'hidden', minHeight: f.tier ? undefined : '420px' }}>
                 {groups.length ? groups.map(g => (
                     <React.Fragment key={g.tier}>
                         <div style={{ height: '28px', display: 'flex', alignItems: 'center', padding: '0 14px', background: WELL, borderBottom: '1px solid ' + LINE, ...T.label }}>
@@ -499,7 +499,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                                     <span style={{ ...T.subject, ...ell }} title={l.name || ''}>{l.name}</span>
                                     {l.openSeats > 0 ? (
                                         <span title={l.openSeats + ' open seat' + (l.openSeats === 1 ? '' : 's')}
-                                            style={{ ...T.chip, color: BAD, background: FILL_BAD, borderRadius: '4px', padding: '1px 5px', flex: '0 0 auto' }}>
+                                            style={{ ...T.chip, color: BAD, background: FILL_BAD, borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 5px', flex: '0 0 auto' }}>
                                             {l.openSeats} open
                                         </span>
                                     ) : null}
@@ -522,7 +522,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                                         title={l.name + ' · ' + d.label + (counted ? ' · ' + c.n + ' open' : c.state === 'NOT_YET' ? ' · nothing to read until Week 1' : ' · clear')}
                                         style={{
                                             ...bare, height: '44px', width: '100%', boxSizing: 'border-box',
-                                            background: st.bg, border: '1px solid ' + LINE, borderRadius: '4px',
+                                            background: st.bg, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius-xs, 5px)',
                                             outline: sel ? '1px solid ' + ACCENT : 'none', outlineOffset: '-1px',
                                             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px',
                                         }}>
@@ -554,7 +554,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                 style={{
                     position: 'relative', height: '96px', boxSizing: 'border-box', cursor: 'pointer',
                     background: hov ? SURF3 : SURF, border: '1px solid ' + (hov ? ACCENT : LINE),
-                    borderRadius: '8px', padding: '10px 12px',
+                    borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px',
                     display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden',
                 }}>
                 <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '3px', background: dormant ? LINE : sc }} />
@@ -562,7 +562,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                     <span style={{ ...T.label, ...ell }}>{d.name}</span>
                     {badge && badge.n ? (
                         <span style={{
-                            ...T.chip, color: sevColor(badge.severity), background: SURF2, borderRadius: '4px',
+                            ...T.chip, color: sevColor(badge.severity), background: SURF2, borderRadius: 'var(--card-radius-xs, 5px)',
                             minWidth: '18px', height: '18px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto',
                         }}>{badge.n}</span>
                     ) : null}
@@ -587,7 +587,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                     <div key={g.name}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                             <span style={T.label}>{g.name}</span>
-                            {broadcast ? <span style={{ ...T.chip, color: ACCENT, background: ACCENT_FILL, border: '1px solid ' + ACCENT_LINE, borderRadius: '4px', padding: '4px' }}>Wakes wk 1</span> : null}
+                            {broadcast ? <span style={{ ...T.chip, color: ACCENT, background: ACCENT_FILL, border: '1px solid ' + ACCENT_LINE, borderRadius: 'var(--card-radius-xs, 5px)', padding: '4px' }}>Wakes wk 1</span> : null}
                             <span style={{ flex: 1, height: '1px', background: LINE }} />
                             <span style={T.label}>{g.cards.length} desk{g.cards.length === 1 ? '' : 's'}{open ? ' · ' + open + ' open' : ''}</span>
                         </div>

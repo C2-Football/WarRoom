@@ -84,7 +84,7 @@
         };
         const onClick = () => { if (isClickable) openAnalytics(); };
         function analyticsButton() {
-            return <button onClick={openAnalytics} title="Open League Analytics" style={{ padding: '3px 8px', minHeight: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: colors.accent || 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '5px', cursor: 'pointer', fontSize: fs(0.56), fontFamily: fonts.ui, fontWeight: 700, whiteSpace: 'nowrap' }}>Analytics</button>;
+            return <button onClick={openAnalytics} title="Open League Analytics" style={{ padding: '3px 8px', minHeight: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: colors.accent || 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: 'var(--card-radius-xs, 5px)', cursor: 'pointer', fontSize: fs(0.56), fontFamily: fonts.ui, fontWeight: 700, whiteSpace: 'nowrap' }}>Analytics</button>;
         }
 
         // Tier distribution

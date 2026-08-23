@@ -142,12 +142,12 @@
                     <span style={{ fontSize: opts.large ? '1.05rem' : '0.95rem' }}>⏳</span>
                     <span style={{ fontFamily: fonts.display, fontSize: fs(opts.large ? 1.0 : 0.9), fontWeight: 700, color: colors.warn || 'var(--k-f0a500, #f0a500)', letterSpacing: '0.06em', textTransform: 'uppercase', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Window Forecast</span>
                     {gm?.hasStrategy && (
-                        <span title={'Horizon set by GM Strategy timeline (' + (gm.modeLabel || 'plan') + ')'} style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--gold)', fontFamily: fonts.mono, whiteSpace: 'nowrap', padding: '1px 6px', borderRadius: '4px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))' }}>{horizon}yr</span>
+                        <span title={'Horizon set by GM Strategy timeline (' + (gm.modeLabel || 'plan') + ')'} style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--gold)', fontFamily: fonts.mono, whiteSpace: 'nowrap', padding: '1px 6px', borderRadius: 'var(--card-radius-xs, 5px)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))' }}>{horizon}yr</span>
                     )}
                     {nearest
                         ? <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: cliffCol(nearest), fontFamily: fonts.mono, whiteSpace: 'nowrap' }}>{posLabel(nearest.pos)} cliff {cliffLabel(nearest)}</span>
                         : <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: colors.positive, fontFamily: fonts.ui, whiteSpace: 'nowrap' }}>No cliffs in view</span>}
-                    {opts.button && <button onClick={openMyRoster} title="Open My Roster" style={{ padding: '3px 8px', minHeight: '44px', marginTop: '-10px', marginBottom: '-10px', display: 'inline-flex', alignItems: 'center', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '5px', cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: fonts.ui, fontWeight: 700, whiteSpace: 'nowrap' }}>Roster</button>}
+                    {opts.button && <button onClick={openMyRoster} title="Open My Roster" style={{ padding: '3px 8px', minHeight: '44px', marginTop: '-10px', marginBottom: '-10px', display: 'inline-flex', alignItems: 'center', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: 'var(--card-radius-xs, 5px)', cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: fonts.ui, fontWeight: 700, whiteSpace: 'nowrap' }}>Roster</button>}
                 </div>
             );
         }
@@ -243,7 +243,7 @@
                     {/* TALL extras: prime% table + action note */}
                     {size === 'tall' && (
                         <React.Fragment>
-                            <div style={{ marginTop: '8px', flexShrink: 0, padding: '6px 8px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid ' + (colors.border || 'var(--ov-4, rgba(255,255,255,0.06))'), borderRadius: '6px' }}>
+                            <div style={{ marginTop: '8px', flexShrink: 0, padding: '6px 8px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid ' + (colors.border || 'var(--ov-4, rgba(255,255,255,0.06))'), borderRadius: 'var(--card-radius-sm, 8px)' }}>
                                 <div style={{ fontSize: fs(0.6), fontWeight: 700, color: colors.accent, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px', fontFamily: fonts.ui }}>% of value in prime · by season</div>
                                 {forecast.map(g => (
                                     <div key={g.pos} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '1px 0' }}>
@@ -255,7 +255,7 @@
                                     </div>
                                 ))}
                             </div>
-                            <div style={{ marginTop: '8px', flexShrink: 0, padding: '8px 10px', background: wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '0D'), border: '1px solid ' + wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '33'), borderRadius: '6px', fontSize: fs(0.7), color: colors.textMuted, lineHeight: 1.5, fontFamily: fonts.ui }}>
+                            <div style={{ marginTop: '8px', flexShrink: 0, padding: '8px 10px', background: wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '0D'), border: '1px solid ' + wrAlpha(colors.warn || 'var(--k-f0a500, #f0a500)', '33'), borderRadius: 'var(--card-radius-sm, 8px)', fontSize: fs(0.7), color: colors.textMuted, lineHeight: 1.5, fontFamily: fonts.ui }}>
                                 {nearest
                                     ? <span><strong style={{ color: colors.warn || 'var(--k-f0a500, #f0a500)' }}>{posLabel(nearest.pos)}</strong> is your first cliff ({cliffLabel(nearest)}). {sellByAll.length ? 'Move ' + sellByAll[0].name + ' while contenders still pay prime prices.' : 'Start sourcing younger ' + posLabel(nearest.pos) + ' depth now.'}</span>
                                     : 'Your core stays in its prime through ' + (season + horizon - 1) + ' — extend the window by flipping aging depth for picks.'}

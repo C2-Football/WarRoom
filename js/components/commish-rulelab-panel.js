@@ -68,7 +68,7 @@ const microHdr = { font: '600 var(--text-micro, 0.6875rem) ' + MONO, color: MUTE
 const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(Number(v) || 0).toFixed(1);
 
 const Section = ({ title, meta, children }) => (
-    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
+    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
             <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
             {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
@@ -274,13 +274,13 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {typeof onCopyBallot === 'function' ? (
                     <button onClick={() => onCopyBallot(leagueName, result)}
-                        style={{ padding: '7px 12px', cursor: 'pointer', background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: '6px', color: ACCENT, font: '700 0.625rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                        style={{ padding: '7px 12px', cursor: 'pointer', background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: ACCENT, font: '700 0.625rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                         Copy ballot text
                     </button>
                 ) : null}
                 {typeof onExportBallot === 'function' ? (
                     <button onClick={() => onExportBallot(leagueName, result)}
-                        style={{ padding: '7px 12px', cursor: 'pointer', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: TEXT, font: '700 0.625rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                        style={{ padding: '7px 12px', cursor: 'pointer', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, font: '700 0.625rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                         Export PNG
                     </button>
                 ) : null}
@@ -494,7 +494,7 @@ function WrCommishRuleLabPanel({
     }
 
     const chipBtn = (on, extra) => ({
-        padding: '6px 11px', cursor: 'pointer', borderRadius: '5px',
+        padding: '6px 11px', cursor: 'pointer', borderRadius: 'var(--card-radius-xs, 5px)',
         font: '600 0.7rem ' + MONO, letterSpacing: '0.03em',
         background: on ? ACC_FILL : 'transparent',
         color: on ? ACCENT : SILVER,
@@ -547,7 +547,7 @@ function WrCommishRuleLabPanel({
             {/* Stated at SELECTION time, not buried in the editor — the cost of
                 the omnibus is exactly what you lose by not scoping. */}
             {!baselineScoring && (leagues || []).length > 1 ? (
-                <div style={{ background: 'var(--co-fill-warn, #2A2010)', border: `1px solid ${LINE}`, borderRadius: '6px', padding: '8px 11px', fontSize: '0.74rem', color: TEXT, lineHeight: 1.5, fontFamily: 'var(--font-body)' }}>
+                <div style={{ background: 'var(--co-fill-warn, #2A2010)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 11px', fontSize: '0.74rem', color: TEXT, lineHeight: 1.5, fontFamily: 'var(--font-body)' }}>
                     Running across <b>every league at once</b>. Each keeps its own scoring, so proposals show no current value and nothing resets to baseline. Pick a single league to edit against real numbers.
                 </div>
             ) : null}
@@ -576,7 +576,7 @@ function WrCommishRuleLabPanel({
                             return (
                                 <button key={p.key} onClick={() => toggle(p)}
                                     style={{
-                                        padding: '6px 11px', cursor: 'pointer', borderRadius: '5px',
+                                        padding: '6px 11px', cursor: 'pointer', borderRadius: 'var(--card-radius-xs, 5px)',
                                         font: '600 0.7rem ' + MONO, letterSpacing: '0.03em',
                                         background: on ? 'rgba(212,175,55,0.08)' : 'transparent',
                                         color: on ? GOLD : SILVER,
@@ -596,7 +596,7 @@ function WrCommishRuleLabPanel({
                     )}
                     {propKeys.length ? (
                         <button onClick={() => { if (typeof onProposalChange === 'function') onProposalChange({}); }}
-                            style={{ padding: '4px 10px', background: 'transparent', color: TEXT, border: `1px solid ${LINE}`, borderRadius: '5px', font: '700 0.62rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                            style={{ padding: '4px 10px', background: 'transparent', color: TEXT, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', font: '700 0.62rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>
                             Clear
                         </button>
                     ) : null}
@@ -638,12 +638,12 @@ function WrCommishRuleLabPanel({
                                 <button key={'add' + s} onClick={() => setSlots(rp.concat([s]))} style={chipBtn(false)}>+ {s.replace('_', ' ')}</button>
                             ))}
                             <button onClick={() => setSlots(null)}
-                                style={{ padding: '4px 10px', background: 'transparent', color: TEXT, border: `1px solid ${LINE}`, borderRadius: '5px', font: '700 0.62rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>Clear</button>
+                                style={{ padding: '4px 10px', background: 'transparent', color: TEXT, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', font: '700 0.62rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>Clear</button>
                         </React.Fragment>
                     )}
                 </div>
                 {rp ? (
-                    <div style={{ background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: '6px', padding: '9px 12px', fontSize: '0.76rem', color: TEXT, lineHeight: 1.55, fontFamily: 'var(--font-body)' }}>
+                    <div style={{ background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 12px', fontSize: '0.76rem', color: TEXT, lineHeight: 1.55, fontFamily: 'var(--font-body)' }}>
                         Structure change staged → the replay switches to <b>best-lineup mode</b>: both runs refield every roster's optimal lineup from the players they actually had, because as-played starters can't sit in slots that didn't exist. The diff still isolates the rule change.
                     </div>
                 ) : null}
@@ -687,7 +687,7 @@ function WrCommishRuleLabPanel({
                                                 value={shownValue}
                                                 placeholder={cur == null ? '—' : undefined}
                                                 onChange={e => setKey(k, e.target.value)}
-                                                style={{ width: '100%', background: overridden ? ACC_FILL : 'var(--co-page, #08080B)', border: '1px solid ' + (overridden ? ACC_LINE : LINE), borderRadius: '5px', color: overridden ? TEXT : SILVER, padding: '5px 8px', fontSize: '16px', ...mono, textAlign: 'right' }} />
+                                                style={{ width: '100%', background: overridden ? ACC_FILL : 'var(--co-page, #08080B)', border: '1px solid ' + (overridden ? ACC_LINE : LINE), borderRadius: 'var(--card-radius-xs, 5px)', color: overridden ? TEXT : SILVER, padding: '5px 8px', fontSize: '16px', ...mono, textAlign: 'right' }} />
                                         </label>
                                     );
                                 })}
@@ -731,7 +731,7 @@ function WrCommishRuleLabPanel({
                 {/* Any-key picker: every rule the editor knows is sweepable. */}
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <select value={swKey} onChange={e => setSwKey(e.target.value)} disabled={!!sweepBusy}
-                        style={{ background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: '5px', color: TEXT, padding: '7px 8px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', maxWidth: '240px' }}>
+                        style={{ background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '7px 8px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', maxWidth: '240px' }}>
                         {groupKeys(editorKeys).map(g => (
                             <optgroup key={g.name} label={g.name}>
                                 {g.keys.map(k => <option key={k} value={k}>{humanizeKey(k)}</option>)}
@@ -814,7 +814,7 @@ function WrCommishRuleLabPanel({
                                 <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                                     {pl.steps.filter(s => !s.empty).map(s => (
                                         <div key={s.value} title={s.seedFlips ? '#1 seed flips to ' + s.seedTo : (s.ranksMoved + ' ranks move · ' + s.fieldMoves + ' field changes')}
-                                            style={{ minWidth: '58px', textAlign: 'center', padding: '6px 4px', borderRadius: '5px', border: '1px solid ' + (s.isCurrent ? ACC_LINE : LINE), background: s.seedFlips ? 'var(--co-fill-bad, #2A1512)' : s.fieldMoves > 0 ? 'var(--co-fill-warn, #2A2010)' : s.ranksMoved > 0 ? SURF2 : 'transparent' }}>
+                                            style={{ minWidth: '58px', textAlign: 'center', padding: '6px 4px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + (s.isCurrent ? ACC_LINE : LINE), background: s.seedFlips ? 'var(--co-fill-bad, #2A1512)' : s.fieldMoves > 0 ? 'var(--co-fill-warn, #2A2010)' : s.ranksMoved > 0 ? SURF2 : 'transparent' }}>
                                             <div style={{ ...mono, fontSize: '0.78rem', fontWeight: 700, color: s.seedFlips ? RED : s.fieldMoves > 0 ? AMBER : s.ranksMoved > 0 ? TEXT : MUTED }}>{s.value}</div>
                                             <div style={{ ...microHdr, fontSize: '0.575rem' }}>{s.isCurrent ? 'NOW' : s.seedFlips ? 'SEED' : s.fieldMoves > 0 ? 'FIELD' : s.ranksMoved > 0 ? s.ranksMoved + ' MV' : 'HOLD'}</div>
                                         </div>
@@ -835,7 +835,7 @@ function WrCommishRuleLabPanel({
             <Section title="Saved Proposals" meta="name it, bring it back, ratify it into the amendment ledger">
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: (saved || []).length ? '10px' : 0 }}>
                     <input value={saveName} onChange={e => setSaveName(e.target.value)} placeholder="Name this proposal — 'TE premium 2027'"
-                        style={{ flex: 1, minWidth: '200px', background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: '5px', color: TEXT, padding: '7px 10px', fontSize: '16px', fontFamily: 'var(--font-body)' }} />
+                        style={{ flex: 1, minWidth: '200px', background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '7px 10px', fontSize: '16px', fontFamily: 'var(--font-body)' }} />
                     <button disabled={!saveName.trim() || (!propKeys.length && !rp)}
                         onClick={() => { if (onSaveProposal) onSaveProposal(saveName.trim()); setSaveName(''); }}
                         style={chipBtn(true, (!saveName.trim() || (!propKeys.length && !rp)) ? { opacity: 0.45, cursor: 'default' } : null)}>

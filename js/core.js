@@ -864,7 +864,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
                     border: '1px solid rgba(240,165,0,0.45)',
                     background: 'rgba(240,165,0,0.12)',
                     color: 'var(--k-f0a500, #f0a500)',
-                    borderRadius: '5px',
+                    borderRadius: 'var(--card-radius-xs, 5px)',
                     fontFamily: 'var(--font-body)',
                     fontSize: compact ? '0.62rem' : '0.72rem',
                     fontWeight: 800,

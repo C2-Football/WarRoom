@@ -206,7 +206,7 @@
 
         return React.createElement('div', {
             key: 'scouting-report',
-            style: { margin: '12px 20px 0', padding: '12px 14px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '8px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))' }
+            style: { margin: '12px 20px 0', padding: '12px 14px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--acc-fill1, rgba(212,175,55,0.06))' }
         },
             React.createElement('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' } },
                 React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: gold } }, '🔍 Scouting Report'),
@@ -227,7 +227,7 @@
             sourceChips.length ? React.createElement('div', { style: { marginBottom: (summaryReal || summaryDerived) ? '10px' : '0' } },
                 React.createElement('div', { style: { ...labelStyle, marginBottom: '5px' } }, 'Source Ranks'),
                 React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px' } },
-                    sourceChips.map((c, i) => React.createElement('span', { key: i, style: { padding: '3px 8px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '6px', fontSize: 'var(--text-label, 0.72rem)', color: 'var(--k-d0d0d0, #d0d0d0)', fontFamily: 'JetBrains Mono, monospace' } }, c.source + ' ' + c.rank))
+                    sourceChips.map((c, i) => React.createElement('span', { key: i, style: { padding: '3px 8px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius-sm, 8px)', fontSize: 'var(--text-label, 0.72rem)', color: 'var(--k-d0d0d0, #d0d0d0)', fontFamily: 'JetBrains Mono, monospace' } }, c.source + ' ' + c.rank))
                 )
             ) : null,
             (summaryReal || summaryDerived) ? React.createElement('div', { style: { fontSize: 'var(--text-body, 0.92rem)', color: 'var(--k-d0d0d0, #d0d0d0)', lineHeight: 1.45, marginBottom: pr.highlightUrl ? '8px' : '0' } }, summaryReal || summaryDerived) : null,
@@ -515,7 +515,7 @@
                 // equal-width grid untouched.
                 isPhone
                     ? React.createElement('div', { className: 'wr-kpi-strip', style: { padding: '14px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
-                        statCells.map((s, i) => React.createElement('div', { key: i, style: { background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '9px', padding: '9px 11px' } },
+                        statCells.map((s, i) => React.createElement('div', { key: i, style: { background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 'var(--card-radius, 10px)', padding: '9px 11px' } },
                             React.createElement('div', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' } }, s.l),
                             React.createElement('div', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '1.05rem', fontWeight: 700, color: s.c, marginTop: '2px' } }, s.v)
                         ))
@@ -531,7 +531,7 @@
                         margin: '12px 20px 0',
                         padding: '9px 11px',
                         border: '1px solid var(--acc-fill3, rgba(212,175,55,0.16))',
-                        borderRadius: '7px',
+                        borderRadius: 'var(--card-radius-sm, 8px)',
                         background: 'var(--ov-2, rgba(255,255,255,0.025))',
                         color: dhqContextCol,
                         fontSize: 'var(--text-body, 1rem)',
@@ -543,7 +543,7 @@
                         margin: '10px 20px 0',
                         padding: '9px 11px',
                         border: '1px solid rgba(46,204,113,0.18)',
-                        borderRadius: '7px',
+                        borderRadius: 'var(--card-radius-sm, 8px)',
                         background: 'rgba(46,204,113,0.05)',
                     }
                 },
@@ -559,7 +559,7 @@
 	                        React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: peakCol } },
 	                            peakLabel + ' · ' + (peakYrs > 0 ? peakYrs + 'yr peak left' : valueYrs > 0 ? valueYrs + 'yr value left' : 'Past value window'))
                     ),
-                    React.createElement('div', { style: { display: 'flex', height: '18px', borderRadius: '4px', overflow: 'hidden', gap: '1px' } },
+                    React.createElement('div', { style: { display: 'flex', height: '18px', borderRadius: 'var(--card-radius-xs, 5px)', overflow: 'hidden', gap: '1px' } },
                         Array.from({ length: 17 }, (_, i) => {
                             const a = i + 20;
                             const col = a < pLo - 3 ? 'rgba(96,165,250,0.3)' :
@@ -607,7 +607,7 @@
                                     key: i,
                                     style: {
                                         padding: '4px 10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))',
-                                        border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '6px',
+                                        border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius-sm, 8px)',
                                         fontSize: 'var(--text-body, 1rem)', color: 'var(--text-primary)', fontFamily: 'JetBrains Mono, monospace'
                                     }
                                 }, r.team + ' ' + (r.start === r.end ? r.start : r.start + '–' + r.end)))
@@ -626,7 +626,7 @@
                 customAwards.length > 0 && React.createElement('div', { style: { padding: '14px 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' } },
                     React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: '8px' } }, 'Custom Awards'),
                     React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
-                        customAwards.map((a, i) => React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderRadius: '6px' } },
+                        customAwards.map((a, i) => React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderRadius: 'var(--card-radius-sm, 8px)' } },
                             React.createElement('span', { style: { fontSize: 'var(--text-body, 1rem)' } }, '\uD83C\uDFC5'),
                             React.createElement('div', { style: { flex: 1, minWidth: 0 } },
                                 React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--text-primary)' } }, a.name),
@@ -693,7 +693,7 @@
                 p.injury_status ? React.createElement('div', { style: sectionStyle },
                     React.createElement('div', { style: hdrStyle }, 'Injury'),
                     React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '10px' } },
-                        React.createElement('span', { style: { padding: '3px 10px', borderRadius: '5px', fontWeight: 800, fontSize: 'var(--text-label, 0.75rem)', color: avail.available ? AMBER : RED, border: '1px solid ' + (avail.available ? 'rgba(240,165,0,0.4)' : 'rgba(231,76,60,0.4)') } }, String(p.injury_status).toUpperCase()),
+                        React.createElement('span', { style: { padding: '3px 10px', borderRadius: 'var(--card-radius-xs, 5px)', fontWeight: 800, fontSize: 'var(--text-label, 0.75rem)', color: avail.available ? AMBER : RED, border: '1px solid ' + (avail.available ? 'rgba(240,165,0,0.4)' : 'rgba(231,76,60,0.4)') } }, String(p.injury_status).toUpperCase()),
                         React.createElement('span', { style: { fontSize: 'var(--text-label, 0.8rem)', color: 'var(--text-muted)' } }, avail.available ? ('~' + Math.round((avail.mult || 1) * 100) + '% expected') : 'Not expected to play')
                     )
                 ) : null,
@@ -807,7 +807,7 @@
         const modal = {
             width: '100%', maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto',
             background: 'var(--k-0a0b0d, #0a0b0d)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
-            borderRadius: '14px', boxShadow: '0 24px 80px rgba(0,0,0,0.8)',
+            borderRadius: 'var(--card-radius-lg, 14px)', boxShadow: '0 24px 80px rgba(0,0,0,0.8)',
             animation: 'wrFadeIn 0.2s ease'
         };
 
@@ -815,7 +815,7 @@
         const cardBody = React.createElement(React.Fragment, null,
                 // Hero
                 React.createElement('div', { style: { padding: '18px 20px', background: 'linear-gradient(135deg, var(--acc-fill2, rgba(212,175,55,0.10)), transparent 60%)', borderBottom: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', display: 'flex', gap: '14px', alignItems: 'center' } },
-                    React.createElement('div', { className: 'wr-ring wr-ring-' + nPos, style: { width: '60px', height: '60px', borderRadius: '12px', overflow: 'hidden', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } },
+                    React.createElement('div', { className: 'wr-ring wr-ring-' + nPos, style: { width: '60px', height: '60px', borderRadius: 'var(--card-radius-lg, 14px)', overflow: 'hidden', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } },
                         React.createElement('img', {
                             src: 'https://sleepercdn.com/content/nfl/players/' + pid + '.jpg',
                             style: { width: '60px', height: '60px', objectFit: 'cover' },
@@ -831,12 +831,12 @@
                     ),
                     React.createElement('button', {
                         ref: closeRef, onClick: onClose,
-                        style: { background: 'none', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: '6px', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 'var(--text-body, 1rem)', padding: '4px 10px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+                        style: { background: 'none', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 'var(--text-body, 1rem)', padding: '4px 10px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }
                     }, '✕')
                 ),
                 // Private scouting note from the Draft Big Board (if any)
                 scoutNote && React.createElement('div', {
-                    style: { margin: '12px 20px 0', padding: '10px 12px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '8px' }
+                    style: { margin: '12px 20px 0', padding: '10px 12px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: 'var(--card-radius-sm, 8px)' }
                 },
                     React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--gold)', marginBottom: '4px' } }, '📝 Your scouting note'),
                     React.createElement('div', { style: { fontSize: 'var(--text-label, 0.8rem)', color: 'var(--k-d0d0d0, #d0d0d0)', lineHeight: 1.45, whiteSpace: 'pre-wrap' } }, scoutNote)
@@ -884,12 +884,12 @@
                     tagMenu ? React.createElement('div', {
                         // Phone: full-width above the grid so the 4 tag rows are
                         // easy 44px targets; desktop anchors right, unchanged.
-                        style: { position: 'absolute', bottom: '54px', right: '20px', background: 'var(--k-0a0b0d, #0a0b0d)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '8px', padding: '6px', zIndex: 5, minWidth: '160px', boxShadow: '0 8px 24px rgba(0,0,0,0.6)', ...(isPhone ? { left: '20px', right: '20px', bottom: '60px' } : null) }
+                        style: { position: 'absolute', bottom: '54px', right: '20px', background: 'var(--k-0a0b0d, #0a0b0d)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '6px', zIndex: 5, minWidth: '160px', boxShadow: '0 8px 24px rgba(0,0,0,0.6)', ...(isPhone ? { left: '20px', right: '20px', bottom: '60px' } : null) }
                     },
                         ['trade', 'cut', 'watch', 'untouchable'].map(t =>
                             React.createElement('button', {
                                 key: t, onClick: () => applyTag(t),
-                                style: { display: 'block', width: '100%', textAlign: 'left', padding: '12px 10px', minHeight: '44px', background: 'transparent', border: 'none', color: 'var(--k-d0d0d0, #d0d0d0)', fontSize: 'var(--text-body, 1rem)', cursor: 'pointer', borderRadius: '4px' }
+                                style: { display: 'block', width: '100%', textAlign: 'left', padding: '12px 10px', minHeight: '44px', background: 'transparent', border: 'none', color: 'var(--k-d0d0d0, #d0d0d0)', fontSize: 'var(--text-body, 1rem)', cursor: 'pointer', borderRadius: 'var(--card-radius-xs, 5px)' }
                             }, 'Tag as ' + t.charAt(0).toUpperCase() + t.slice(1))
                         )
                     ) : null,
@@ -912,7 +912,7 @@
     function btnStyle(variant, extra) {
         const base = {
             padding: '9px 14px', minHeight: '44px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
-            borderRadius: '6px', fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-body, 1rem)',
+            borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-body, 1rem)',
             letterSpacing: '0.03em', cursor: 'pointer'
         };
         if (variant === 'primary') return { ...base, background: 'var(--k-d4af37, #d4af37)', color: 'var(--k-0a0a0a, #0a0a0a)', border: '1px solid var(--k-d4af37, #d4af37)', ...(extra || {}) };

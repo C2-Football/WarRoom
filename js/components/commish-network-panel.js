@@ -44,7 +44,7 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
     const hasRatings = rows.some(r => r.rating != null);
 
     const Section = ({ title, meta, children }) => (
-        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
+        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
                 <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
@@ -98,7 +98,7 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
                     </div>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {overlap.map(o => (
-                            <span key={o.userId} style={{ ...mono, fontSize: '0.68rem', color: TEXT, background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: '4px', padding: '3px 8px', whiteSpace: 'nowrap' }}>
+                            <span key={o.userId} style={{ ...mono, fontSize: '0.68rem', color: TEXT, background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '3px 8px', whiteSpace: 'nowrap' }}>
                                 {o.name} <span style={{ color: GOLD }}>×{o.leagueCount}</span>
                             </span>
                         ))}
@@ -174,7 +174,7 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
     const MUTED = 'var(--text-muted, #8D887E)';
     const mono = { fontFamily: MONO, fontVariantNumeric: 'tabular-nums' };
     const microHdr = { font: '600 var(--text-micro, 0.6875rem) ' + MONO, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' };
-    const goldBtn = { padding: '6px 12px', background: 'transparent', color: GOLD, border: '1px solid rgba(212,175,55,0.5)', borderRadius: '5px', font: '700 0.66rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' };
+    const goldBtn = { padding: '6px 12px', background: 'transparent', color: GOLD, border: '1px solid rgba(212,175,55,0.5)', borderRadius: 'var(--card-radius-xs, 5px)', font: '700 0.66rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' };
 
     const list = Array.isArray(programmes) ? programmes : [];
 
@@ -188,7 +188,7 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
     const num = n => Number(n || 0).toFixed(1); // toFixed(1) everywhere — mono columns misalign when 100 sits beside 98.4
 
     const Card = ({ p }) => (
-        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {/* The captured region: everything inside this id ships as the PNG. */}
             <div id={'wr-programme-' + p.leagueId} style={{ background: 'var(--black, #121217)', padding: '12px 14px', flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', borderBottom: `1px solid ${LINE}`, paddingBottom: '8px', marginBottom: '10px' }}>
@@ -279,7 +279,7 @@ function WrCommishProgrammePanel({ programmes, onExportAll }) {
                     {list.map((p, i) => <Card key={p.leagueId || i} p={p} />)}
                 </div>
             ) : (
-                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px', color: TEXT, fontSize: '0.78rem', lineHeight: 1.5 }}>
+                <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px', color: TEXT, fontSize: '0.78rem', lineHeight: 1.5 }}>
                     No commissioned leagues to print — the programme composes one page per league you run, from its latest scored week.
                 </div>
             )}

@@ -178,7 +178,7 @@
                     border: '1px solid var(--acc-fill3, rgba(212,175,55,0.18))',
                     background: 'var(--acc-fill1, rgba(212,175,55,0.06))',
                     color: 'var(--gold)',
-                    borderRadius: '6px',
+                    borderRadius: 'var(--card-radius-sm, 8px)',
                     cursor: 'pointer',
                     fontSize: 'var(--text-micro, 0.6875rem)',
                     fontFamily: 'var(--font-body)',
@@ -226,7 +226,7 @@
                             justifyContent: 'center',
                             fontSize: 'var(--text-micro, 0.6875rem)',
                             fontFamily: 'var(--font-body)',
-                            borderRadius: '5px',
+                            borderRadius: 'var(--card-radius-xs, 5px)',
                             cursor: 'pointer',
                             letterSpacing: '0',
                             border: '1px solid ' + (view === k ? 'var(--acc-line3, rgba(212,175,55,0.5))' : 'var(--ov-6, rgba(255,255,255,0.1))'),
@@ -262,7 +262,7 @@
                 style: {
                     background: TONE.panel,
                     border: '1px solid var(--ov-4, rgba(255,255,255,0.055))',
-                    borderRadius: '8px',
+                    borderRadius: 'var(--card-radius-sm, 8px)',
                     padding: compact ? '5px 9px' : '8px 10px',
                     minWidth: 0,
                 }
@@ -292,7 +292,7 @@
                     gap: micro ? '5px' : dense ? '7px' : '10px',
                     minHeight: micro ? '23px' : dense ? '30px' : '36px',
                     padding: micro ? '1px 6px' : dense ? '3px 7px' : '5px 8px',
-                    borderRadius: '6px',
+                    borderRadius: 'var(--card-radius-sm, 8px)',
                     background: isMe ? 'var(--acc-fill2, rgba(212,175,55,0.11))' : 'transparent',
                     border: isMe ? '1px solid var(--acc-line1, rgba(212,175,55,0.2))' : '1px solid transparent',
                 }
@@ -400,8 +400,8 @@
                     React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '2.15rem', lineHeight: 1, fontWeight: 900, color } }, myRank ? '#' + myRank : '\u2014'),
                     React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.72, marginTop: '6px' } }, total ? 'of ' + total + ' teams' : 'No teams')
                 ),
-                React.createElement('div', { style: { height: '7px', borderRadius: '7px', background: 'var(--ov-4, rgba(255,255,255,0.07))', overflow: 'hidden' } },
-                    React.createElement('div', { style: { width: pct + '%', height: '100%', background: color, borderRadius: '7px' } })
+                React.createElement('div', { style: { height: '7px', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--ov-4, rgba(255,255,255,0.07))', overflow: 'hidden' } },
+                    React.createElement('div', { style: { width: pct + '%', height: '100%', background: color, borderRadius: 'var(--card-radius-sm, 8px)' } })
                 )
             );
         }
@@ -417,7 +417,7 @@
                         style: {
                             border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
                             background: TONE.panel,
-                            borderRadius: '8px',
+                            borderRadius: 'var(--card-radius-sm, 8px)',
                             padding: '10px 8px',
                             textAlign: 'center',
                         }
@@ -428,16 +428,16 @@
                     ),
                     React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '7px', minWidth: 0 } },
                         React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' } },
-                            React.createElement('div', { style: { background: TONE.panel, borderRadius: '7px', padding: '7px 8px' } },
+                            React.createElement('div', { style: { background: TONE.panel, borderRadius: 'var(--card-radius-sm, 8px)', padding: '7px 8px' } },
                                 React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase' } }, 'Ahead'),
                                 React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.05rem', fontWeight: 800, color: 'var(--white)' } }, ahead)
                             ),
-                            React.createElement('div', { style: { background: TONE.panel, borderRadius: '7px', padding: '7px 8px' } },
+                            React.createElement('div', { style: { background: TONE.panel, borderRadius: 'var(--card-radius-sm, 8px)', padding: '7px 8px' } },
                                 React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase' } }, 'Behind'),
                                 React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.05rem', fontWeight: 800, color: 'var(--white)' } }, behind)
                             )
                         ),
-                        React.createElement('div', { style: { display: 'flex', height: '12px', borderRadius: '7px', overflow: 'hidden', background: 'var(--ov-4, rgba(255,255,255,0.07))' } },
+                        React.createElement('div', { style: { display: 'flex', height: '12px', borderRadius: 'var(--card-radius-sm, 8px)', overflow: 'hidden', background: 'var(--ov-4, rgba(255,255,255,0.07))' } },
                             ...cur.data.map((t, i) => React.createElement('div', {
                                 key: t.rosterId || i,
                                 title: (i + 1) + '. ' + getTeamName(t) + ' - ' + cur.fmtFn(cur.valFn(t)),
@@ -475,7 +475,7 @@
                                 minWidth: 0,
                                 border: '1px solid ' + (isMe ? 'var(--acc-line3, rgba(212,175,55,0.38))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
                                 background: isMe ? 'var(--acc-fill2, rgba(212,175,55,0.1))' : TONE.panel,
-                                borderRadius: '8px',
+                                borderRadius: 'var(--card-radius-sm, 8px)',
                                 padding: '8px',
                             }
                         },
@@ -581,7 +581,7 @@
                     style: {
                         background: TONE.panel,
                         border: '1px solid var(--ov-4, rgba(255,255,255,0.055))',
-                        borderRadius: '8px',
+                        borderRadius: 'var(--card-radius-sm, 8px)',
                         padding: '9px 10px',
                         minHeight: 0,
                     }
@@ -715,7 +715,7 @@
                                     minWidth: 0,
                                     border: '1px solid ' + (isMe ? 'var(--acc-line3, rgba(212,175,55,0.42))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
                                     background: isMe ? 'var(--acc-fill2, rgba(212,175,55,0.11))' : TONE.panel,
-                                    borderRadius: '9px',
+                                    borderRadius: 'var(--card-radius, 10px)',
                                     padding: '10px',
                                 }
                             },
@@ -770,15 +770,15 @@
                     gap: '8px',
                 }
             },
-                React.createElement('div', { style: { background: TONE.panel, borderRadius: '8px', padding: '8px 10px' } },
+                React.createElement('div', { style: { background: TONE.panel, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 10px' } },
                     React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.66, textTransform: 'uppercase' } }, 'Your Rank'),
                     React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.25rem', fontWeight: 900, color: myRank ? rankTone(myRank) : TONE.middle } }, myRank ? '#' + myRank : '\u2014')
                 ),
-                React.createElement('div', { style: { background: TONE.panel, borderRadius: '8px', padding: '8px 10px' } },
+                React.createElement('div', { style: { background: TONE.panel, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 10px' } },
                     React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.66, textTransform: 'uppercase' } }, 'Leader'),
                     React.createElement('div', { style: { fontSize: '0.78rem', fontWeight: 750, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, leader ? getTeamName(leader) : '\u2014')
                 ),
-                React.createElement('div', { style: { background: TONE.panel, borderRadius: '8px', padding: '8px 10px' } },
+                React.createElement('div', { style: { background: TONE.panel, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 10px' } },
                     React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.66, textTransform: 'uppercase' } }, metricLabel(view)),
                     React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.25rem', fontWeight: 900, color: TONE.gold } }, cur.fmtFn(myVal))
                 )

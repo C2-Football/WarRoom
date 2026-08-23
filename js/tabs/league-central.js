@@ -298,7 +298,7 @@ function LeagueCentralTab({
 
     // ── Shells ──
     const Panel = ({ title, meta, right, children }) => (
-        <div style={{ background: PANEL, border: '1px solid ' + LINE, borderRadius: '10px', padding: '14px 16px', marginBottom: '16px' }}>
+        <div style={{ background: PANEL, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius, 10px)', padding: '14px 16px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
                 <span style={{ fontFamily: RAJ, fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.03em', color: WHITE }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
@@ -308,7 +308,7 @@ function LeagueCentralTab({
         </div>
     );
     const Kpi = ({ label, value, sub }) => (
-        <div style={{ background: WELL, border: '1px solid ' + LINE, borderRadius: '8px', padding: '10px 12px', flex: '1 1 150px', minWidth: '140px' }}>
+        <div style={{ background: WELL, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', flex: '1 1 150px', minWidth: '140px' }}>
             <div style={microHdr}>{label}</div>
             <div style={{ ...mono, fontSize: '1.4rem', fontWeight: 700, color: WHITE, marginTop: '3px' }}>{value}</div>
             {sub ? <div style={{ fontFamily: DM, fontSize: '0.75rem', color: MUTED, marginTop: '2px' }}>{sub}</div> : null}
@@ -323,7 +323,7 @@ function LeagueCentralTab({
         </div>
     );
     const Avatar = ({ label }) => (
-        <div style={{ width: '26px', height: '26px', borderRadius: '6px', background: 'rgba(212,175,55,0.14)', color: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: RAJ, fontWeight: 700, fontSize: '0.68rem', flexShrink: 0 }}>
+        <div style={{ width: '26px', height: '26px', borderRadius: 'var(--card-radius-sm, 8px)', background: 'rgba(212,175,55,0.14)', color: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: RAJ, fontWeight: 700, fontSize: '0.68rem', flexShrink: 0 }}>
             {label}
         </div>
     );
@@ -426,7 +426,7 @@ function LeagueCentralTab({
                             const nameFor = rid => { const t = enrichedStandings.find(t => sameId(t.rosterId, rid)); return t ? (t.teamName || t.displayName) : _getOwnerName(rid); };
                             const recFor = rid => { const t = enrichedStandings.find(t => sameId(t.rosterId, rid)); return t ? (t.wins + '-' + t.losses) : ''; };
                             return (
-                                <div key={i} style={{ background: WELL, border: '1px solid ' + LINE, borderRadius: '8px', padding: '10px 12px', minWidth: '210px', flexShrink: 0 }}>
+                                <div key={i} style={{ background: WELL, border: '1px solid ' + LINE, borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', minWidth: '210px', flexShrink: 0 }}>
                                     <div style={{ ...microHdr, marginBottom: '6px', color: started ? GOOD : MUTED }}>{started ? 'Reporting' : 'Not started'}</div>
                                     {[a, b].map((p, j) => (
                                         <div key={j} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: j === 0 ? '4px' : 0 }}>
@@ -448,11 +448,11 @@ function LeagueCentralTab({
                 {/* Standings */}
                 <div>
                     <Panel title="Standings & Playoff Picture" right={hasDivisions ? (
-                        <div style={{ display: 'flex', gap: '2px', background: WELL, borderRadius: '6px', padding: '2px', border: '1px solid ' + LINE }}>
+                        <div style={{ display: 'flex', gap: '2px', background: WELL, borderRadius: 'var(--card-radius-sm, 8px)', padding: '2px', border: '1px solid ' + LINE }}>
                             {['division', 'overall'].map(v => (
                                 <button key={v} onClick={() => setStandingsView(v)} style={{
                                     fontFamily: MONO, fontSize: '0.65rem', letterSpacing: '0.05em', textTransform: 'uppercase',
-                                    padding: '5px 9px', borderRadius: '4px', border: 'none', cursor: 'pointer',
+                                    padding: '5px 9px', borderRadius: 'var(--card-radius-xs, 5px)', border: 'none', cursor: 'pointer',
                                     background: standingsView === v ? 'rgba(212,175,55,0.16)' : 'transparent',
                                     color: standingsView === v ? GOLD : MUTED,
                                 }}>{v === 'division' ? 'By Division' : 'Overall'}</button>
@@ -465,7 +465,7 @@ function LeagueCentralTab({
                             <div>
                                 {divisionGroups.map(group => (
                                     <div key={group.key} style={{ marginBottom: '10px' }}>
-                                        <div style={{ ...microHdr, color: GOLD, padding: '6px 6px', background: 'rgba(212,175,55,0.06)', borderRadius: '4px', marginBottom: '2px' }}>
+                                        <div style={{ ...microHdr, color: GOLD, padding: '6px 6px', background: 'rgba(212,175,55,0.06)', borderRadius: 'var(--card-radius-xs, 5px)', marginBottom: '2px' }}>
                                             {group.name} <span style={{ color: MUTED, textTransform: 'none', letterSpacing: 0 }}>· {group.teams.length} teams</span>
                                         </div>
                                         <StandingsHeader showDiv={false} />
@@ -496,7 +496,7 @@ function LeagueCentralTab({
                             {['Overall', ...leaguePositions].map(p => (
                                 <button key={p} onClick={() => setLeaderPos(p)} style={{
                                     fontFamily: MONO, fontSize: '0.65rem', letterSpacing: '0.05em', textTransform: 'uppercase',
-                                    padding: '5px 9px', borderRadius: '4px', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                                    padding: '5px 9px', borderRadius: 'var(--card-radius-xs, 5px)', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
                                     background: leaderPos === p ? 'rgba(212,175,55,0.16)' : 'transparent',
                                     color: leaderPos === p ? GOLD : MUTED,
                                 }}>{p}</button>

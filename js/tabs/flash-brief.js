@@ -539,7 +539,7 @@ function IntelligenceBriefWidget({
     }
 
     // ── Reusable action button ───────────────────────────────────────
-    const baseBtn = { background: 'var(--acc-fill1, rgba(212,175,55,0.05))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: '10px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 500, textAlign: 'left', display: 'flex', alignItems: 'flex-start', gap: '10px', transition: 'all 0.15s', lineHeight: 1.4 };
+    const baseBtn = { background: 'var(--acc-fill1, rgba(212,175,55,0.05))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: 'var(--card-radius, 10px)', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 500, textAlign: 'left', display: 'flex', alignItems: 'flex-start', gap: '10px', transition: 'all 0.15s', lineHeight: 1.4 };
     function renderActionBtn(a, key, opts = {}) {
         const compact = !!opts.compact;
         const btnStyle = {
@@ -593,7 +593,7 @@ function IntelligenceBriefWidget({
                 gm.horizonYears ? 'Horizon ~' + gm.horizonYears + 'y' : null,
             ] : []),
         ].filter(Boolean) : null;
-        const chipStyle = { fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: "'JetBrains Mono', monospace", color: 'var(--silver)', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'var(--ov-1, rgba(255,255,255,0.02))', borderRadius: '4px', padding: '2px 7px', whiteSpace: 'nowrap' };
+        const chipStyle = { fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: "'JetBrains Mono', monospace", color: 'var(--silver)', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', background: 'var(--ov-1, rgba(255,255,255,0.02))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 7px', whiteSpace: 'nowrap' };
         return React.createElement('div', {
             onClick: (e) => { e.stopPropagation(); goTo(isChopped ? 'fa' : 'strategy'); },
             title: isChopped ? 'Your survival plan — open Free Agency' : (gm.hasStrategy ? 'Your GM plan — tap to adjust' : 'No GM plan set — tap to set one'),
@@ -723,7 +723,7 @@ function IntelligenceBriefWidget({
                 React.createElement('div', { className: 'wr-ib-kpi-strip', style: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '6px', flexShrink: 0 } },
                     ...kpis.map((k, i) => React.createElement('div', {
                         key: i,
-                        style: { background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '6px', padding: '8px 6px', textAlign: 'center' },
+                        style: { background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 6px', textAlign: 'center' },
                     },
                         React.createElement('div', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '1.1rem', fontWeight: 700, color: k.col, lineHeight: 1.1 } }, String(k.value)),
                         React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '3px' } }, k.label),
@@ -856,7 +856,7 @@ function FieldNotesWidget({ size = 'lg', navigateWidget }) {
 	            !tight && React.createElement('button', {
 	                type: 'button',
 	                onClick: e => { e.stopPropagation(); openNotes(); },
-	                style: { marginTop: '4px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', borderRadius: '6px', padding: '7px 10px', minHeight: '44px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: monoFont, fontWeight: 800, letterSpacing: '0.04em', cursor: navigateWidget ? 'pointer' : 'default' },
+	                style: { marginTop: '4px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', borderRadius: 'var(--card-radius-sm, 8px)', padding: '7px 10px', minHeight: '44px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: monoFont, fontWeight: 800, letterSpacing: '0.04em', cursor: navigateWidget ? 'pointer' : 'default' },
 	            }, 'OPEN GM OFFICE'),
 	        );
 	    }

@@ -2161,7 +2161,7 @@
                         padding: 'var(--space-md) var(--space-lg)',
                         background: 'linear-gradient(90deg, var(--acc-fill2, rgba(212,175,55,0.12)), var(--acc-fill1, rgba(212,175,55,0.02)))',
                         border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))',
-                        borderRadius: '8px',
+                        borderRadius: 'var(--card-radius-sm, 8px)',
                         marginBottom: 'var(--card-gap)',
                         display: 'flex',
                         alignItems: 'center',
@@ -2590,7 +2590,7 @@
             padding: '7px 9px',
             background: 'var(--ov-3, rgba(255,255,255,0.04))',
             border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))',
-            borderRadius: '6px',
+            borderRadius: 'var(--card-radius-sm, 8px)',
             color: 'var(--white)',
             fontSize: 'var(--text-micro, 0.6875rem)',
             fontFamily: FONT_UI,
@@ -2599,7 +2599,7 @@
         };
         const chipStyle = activeChip => ({
             padding: '5px 8px',
-            borderRadius: '5px',
+            borderRadius: 'var(--card-radius-xs, 5px)',
             border: '1px solid ' + (activeChip ? 'var(--acc-line3, rgba(212,175,55,0.46))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
             background: activeChip ? 'var(--acc-fill2, rgba(212,175,55,0.13))' : 'var(--ov-2, rgba(255,255,255,0.025))',
             color: activeChip ? 'var(--gold)' : 'var(--silver)',
@@ -2637,7 +2637,7 @@
                                 padding: '7px 10px',
                                 background: 'var(--ov-3, rgba(255,255,255,0.04))',
                                 border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))',
-                                borderRadius: '6px',
+                                borderRadius: 'var(--card-radius-sm, 8px)',
                                 color: 'var(--white)',
                                 fontSize: '0.76rem',
                                 fontFamily: FONT_UI,
@@ -2653,7 +2653,7 @@
                                 background: 'var(--gold)',
                                 color: 'var(--black)',
                                 border: '1px solid var(--gold)',
-                                borderRadius: '6px',
+                                borderRadius: 'var(--card-radius-sm, 8px)',
                                 cursor: 'pointer',
                                 fontSize: '0.72rem',
                                 fontFamily: FONT_UI,
@@ -2666,7 +2666,7 @@
                                     background: 'rgba(46,204,113,0.12)',
                                     color: 'var(--k-2ecc71, #2ecc71)',
                                     border: '1px solid rgba(46,204,113,0.35)',
-                                    borderRadius: '6px',
+                                    borderRadius: 'var(--card-radius-sm, 8px)',
                                     cursor: 'pointer',
                                     fontSize: '0.72rem',
                                     fontFamily: FONT_UI,
@@ -2680,7 +2680,7 @@
                         padding: '10px 12px',
                         background: 'var(--ov-2, rgba(255,255,255,0.025))',
                         border: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))',
-                        borderRadius: '8px',
+                        borderRadius: 'var(--card-radius-sm, 8px)',
                     }}>
                         {!active && (
                             <div style={{ color: 'var(--silver)', opacity: 0.62, fontSize: '0.72rem', lineHeight: 1.55 }}>
@@ -2700,7 +2700,7 @@
                                         padding: '8px 9px',
                                         background: 'var(--acc-fill1, rgba(212,175,55,0.055))',
                                         border: '1px solid var(--acc-fill3, rgba(212,175,55,0.16))',
-                                        borderRadius: '7px',
+                                        borderRadius: 'var(--card-radius-sm, 8px)',
                                     }}>
                                         <div style={{ color: 'var(--gold)', fontSize: 'var(--text-micro, 0.6875rem)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 900, fontFamily: FONT_UI, marginBottom: 3 }}>Report Brief</div>
                                         <div style={{ color: 'var(--white)', fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.35, fontFamily: FONT_UI }}>{brief.headline}</div>
@@ -2728,7 +2728,7 @@
                                     {reports.map(r => (
                                         <button key={r.id} type="button" onClick={() => setActiveId(r.id)} style={{
                                             padding: '3px 7px',
-                                            borderRadius: '4px',
+                                            borderRadius: 'var(--card-radius-xs, 5px)',
                                             border: '1px solid ' + (active.id === r.id ? 'var(--acc-line3, rgba(212,175,55,0.45))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
                                             background: active.id === r.id ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'transparent',
                                             color: active.id === r.id ? 'var(--gold)' : 'var(--silver)',
@@ -2919,7 +2919,7 @@
                     marginTop: '6px',
                     background: 'var(--ov-2, rgba(255,255,255,0.025))',
                     border: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))',
-                    borderRadius: '8px',
+                    borderRadius: 'var(--card-radius-sm, 8px)',
                 }}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(118px, 1fr))', gap: 6 }}>
                         {presets.map(preset => {
@@ -3025,7 +3025,7 @@
                     marginTop: '6px',
                     background: 'var(--ov-2, rgba(255,255,255,0.025))',
                     border: '1px solid var(--acc-fill2, rgba(212,175,55,0.12))',
-                    borderRadius: '8px',
+                    borderRadius: 'var(--card-radius-sm, 8px)',
                 }}>
                     {rows.map(row => {
                         const value = t[row.key] ?? (row.key === 'ownerDna' ? 70 : row.key === 'classValue' ? 65 : row.key === 'needFit' ? 60 : row.key === 'tradeActivity' ? 50 : 45);
@@ -3081,7 +3081,7 @@
                                 padding: '10px 8px',
                                 background: isActive ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'var(--ov-2, rgba(255,255,255,0.03))',
                                 border: '1px solid ' + (isActive ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                                borderRadius: '6px',
+                                borderRadius: 'var(--card-radius-sm, 8px)',
                                 color: isActive ? 'var(--gold)' : 'var(--silver)',
                                 fontSize: '0.72rem',
                                 fontWeight: 600,
@@ -3123,7 +3123,7 @@
                                 padding: '10px 14px',
                                 background: isActive ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'var(--ov-2, rgba(255,255,255,0.03))',
                                 border: '1px solid ' + (isActive ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                                borderRadius: '6px',
+                                borderRadius: 'var(--card-radius-sm, 8px)',
                                 color: 'var(--white)',
                                 cursor: 'pointer',
                                 textAlign: 'left',
@@ -3199,7 +3199,7 @@
                         padding: '10px 14px',
                         background: 'var(--ov-1, rgba(255,255,255,0.02))',
                         border: '1px solid var(--ov-3, rgba(255,255,255,0.05))',
-                        borderRadius: '5px',
+                        borderRadius: 'var(--card-radius-xs, 5px)',
                     }}>
                         {progress || 'Loading drafts from Sleeper…'}
                     </div>
@@ -3209,7 +3209,7 @@
                         padding: '10px 14px',
                         background: 'rgba(231,76,60,0.08)',
                         border: '1px solid rgba(231,76,60,0.25)',
-                        borderRadius: '6px',
+                        borderRadius: 'var(--card-radius-sm, 8px)',
                         fontSize: '0.72rem',
                         color: 'var(--k-e74c3c, #e74c3c)',
                     }}>
@@ -3221,7 +3221,7 @@
                         padding: '10px 14px',
                         background: 'rgba(240,165,0,0.08)',
                         border: '1px solid rgba(240,165,0,0.3)',
-                        borderRadius: '6px',
+                        borderRadius: 'var(--card-radius-sm, 8px)',
                         fontSize: '0.72rem',
                         color: 'var(--k-f0a500, #f0a500)',
                         marginBottom: '6px',
@@ -3251,7 +3251,7 @@
                                         padding: '8px 12px',
                                         background: isActive ? 'var(--acc-fill3, rgba(212,175,55,0.14))' : 'var(--ov-2, rgba(255,255,255,0.03))',
                                         border: '1px solid ' + (isActive ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                                        borderRadius: '5px',
+                                        borderRadius: 'var(--card-radius-xs, 5px)',
                                         color: 'var(--white)',
                                         cursor: 'pointer',
                                         textAlign: 'left',
@@ -3306,7 +3306,7 @@
                                         padding: '5px 10px',
                                         background: 'var(--ov-1, rgba(255,255,255,0.015))',
                                         border: '1px dashed var(--ov-3, rgba(255,255,255,0.05))',
-                                        borderRadius: '4px',
+                                        borderRadius: 'var(--card-radius-xs, 5px)',
                                         color: 'var(--silver)',
                                         cursor: 'not-allowed',
                                         fontFamily: FONT_UI,
@@ -3484,7 +3484,7 @@
                         padding: '10px 14px',
                         background: 'var(--ov-1, rgba(255,255,255,0.02))',
                         border: '1px solid var(--ov-3, rgba(255,255,255,0.05))',
-                        borderRadius: '5px',
+                        borderRadius: 'var(--card-radius-xs, 5px)',
                     }}>
                         Loading upcoming drafts…
                     </div>
@@ -3494,7 +3494,7 @@
                         padding: '10px 14px',
                         background: 'rgba(240,165,0,0.08)',
                         border: '1px solid rgba(240,165,0,0.3)',
-                        borderRadius: '6px',
+                        borderRadius: 'var(--card-radius-sm, 8px)',
                         fontSize: '0.72rem',
                         color: 'var(--k-f0a500, #f0a500)',
                         lineHeight: 1.5,
@@ -3525,7 +3525,7 @@
                                         padding: '10px 12px',
                                         background: isActive ? 'var(--acc-fill3, rgba(212,175,55,0.14))' : 'var(--ov-2, rgba(255,255,255,0.03))',
                                         border: '1px solid ' + (isActive ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                                        borderRadius: '5px',
+                                        borderRadius: 'var(--card-radius-xs, 5px)',
                                         color: 'var(--white)',
                                         cursor: 'pointer',
                                         textAlign: 'left',
@@ -3612,7 +3612,7 @@
                             padding: '6px 10px',
                             background: 'var(--ov-2, rgba(255,255,255,0.03))',
                             border: '1px solid var(--ov-4, rgba(255,255,255,0.06))',
-                            borderRadius: '4px',
+                            borderRadius: 'var(--card-radius-xs, 5px)',
                             fontFamily: FONT_UI,
                             fontSize: '0.72rem',
                         }}>
@@ -3773,7 +3773,7 @@
                 padding: '8px 10px',
                 background: 'var(--black)',
                 border: 'var(--card-border)',
-                borderRadius: '8px',
+                borderRadius: 'var(--card-radius-sm, 8px)',
                 overflow: 'hidden',
                 fontFamily: FONT_UI,
             }}>
@@ -3782,11 +3782,11 @@
                     <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65 }}>{myPicks.length} picks</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '8px', flexShrink: 0 }}>
-                    <div style={{ padding: '6px 8px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.14))', borderRadius: '5px' }}>
+                    <div style={{ padding: '6px 8px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.14))', borderRadius: 'var(--card-radius-xs, 5px)' }}>
                         <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase' }}>Roster DHQ</div>
                         <div style={{ fontFamily: FONT_MONO, color: 'var(--gold)', fontWeight: 700, fontSize: '0.84rem' }}>{fmt(totalDhq)}</div>
                     </div>
-                    <div style={{ padding: '6px 8px', background: 'rgba(46,204,113,0.06)', border: '1px solid rgba(46,204,113,0.14)', borderRadius: '5px' }}>
+                    <div style={{ padding: '6px 8px', background: 'rgba(46,204,113,0.06)', border: '1px solid rgba(46,204,113,0.14)', borderRadius: 'var(--card-radius-xs, 5px)' }}>
                         <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase' }}>Draft Added</div>
                         <div style={{ fontFamily: FONT_MONO, color: 'var(--k-2ecc71, #2ecc71)', fontWeight: 700, fontSize: '0.84rem' }}>{fmt(pickDhq)}</div>
                     </div>
@@ -3871,7 +3871,7 @@
                 flexDirection: 'column',
                 background: 'var(--ov-1, rgba(255,255,255,0.02))',
                 border: '1px solid var(--acc-fill3, rgba(212,175,55,0.14))',
-                borderRadius: '8px',
+                borderRadius: 'var(--card-radius-sm, 8px)',
                 overflow: 'hidden',
             }}>
                 <div style={{
@@ -3915,7 +3915,7 @@
                                 alignItems: 'center',
                                 minHeight: 34,
                                 padding: '5px 7px',
-                                borderRadius: '6px',
+                                borderRadius: 'var(--card-radius-sm, 8px)',
                                 border: '1px solid ' + (isCurrent ? 'var(--acc-line2, rgba(212,175,55,0.34))' : isUser ? 'var(--acc-fill3, rgba(212,175,55,0.18))' : 'var(--ov-3, rgba(255,255,255,0.04))'),
                                 background: isCurrent ? 'var(--acc-fill2, rgba(212,175,55,0.09))' : isUser ? 'var(--acc-fill1, rgba(212,175,55,0.045))' : 'var(--ov-1, rgba(255,255,255,0.012))',
                                 marginBottom: 4,
@@ -3944,7 +3944,7 @@
                                             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                             background: 'transparent',
                                             border: '1px solid var(--acc-line1, rgba(212,175,55,0.3))',
-                                            borderRadius: '4px', color: 'var(--gold)',
+                                            borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--gold)',
                                             fontSize: '0.72rem', cursor: 'pointer', lineHeight: 1,
                                         }}
                                     >⇄</button>
@@ -5009,7 +5009,7 @@
             padding: '5px 12px',
             background: 'transparent',
             border: '1px solid var(--ov-6, rgba(255,255,255,0.1))',
-            borderRadius: '4px',
+            borderRadius: 'var(--card-radius-xs, 5px)',
             color: 'var(--silver)',
             cursor: 'pointer',
             fontSize: 'var(--text-micro, 0.6875rem)',
@@ -5306,7 +5306,7 @@
                                 background: 'var(--ov-2, rgba(255,255,255,0.03))',
                                 border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
                                 borderLeft: '3px solid ' + (color || 'var(--acc-line4, rgba(212,175,55,0.55))'),
-                                borderRadius: '8px',
+                                borderRadius: 'var(--card-radius-sm, 8px)',
                                 cursor: onClick ? 'pointer' : 'default',
                                 fontFamily: FONT_UI,
                                 minHeight: '92px',
@@ -5350,7 +5350,7 @@
                                             )}
                                         </div>
                                         {recapPro && effPct != null && (
-                                            <div style={{ textAlign: 'center', flexShrink: 0, padding: compact ? '10px 14px' : '12px 18px', borderRadius: '12px', background: wrAlpha(effColor, '12'), border: '1px solid ' + wrAlpha(effColor, '40'), minWidth: compact ? 0 : '128px', display: compact ? 'flex' : 'block', alignItems: compact ? 'center' : undefined, gap: compact ? '12px' : 0, justifyContent: compact ? 'flex-start' : undefined }}>
+                                            <div style={{ textAlign: 'center', flexShrink: 0, padding: compact ? '10px 14px' : '12px 18px', borderRadius: 'var(--card-radius-lg, 14px)', background: wrAlpha(effColor, '12'), border: '1px solid ' + wrAlpha(effColor, '40'), minWidth: compact ? 0 : '128px', display: compact ? 'flex' : 'block', alignItems: compact ? 'center' : undefined, gap: compact ? '12px' : 0, justifyContent: compact ? 'flex-start' : undefined }}>
                                                 <div style={{ fontFamily: FONT_DISPL, fontSize: compact ? '1.9rem' : '2.6rem', fontWeight: 700, color: effColor, lineHeight: 1 }}>{effPct}%</div>
                                                 <div style={{ textAlign: compact ? 'left' : 'center' }}>
                                                     <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: compact ? 0 : '4px' }}>{gradeBasis === 'vs $ spent' ? <>of expected value{compact ? ' ' : <br/>}for your spend</> : <>of expected DHQ{compact ? ' ' : <br/>}for your slots</>}</div>
@@ -5418,7 +5418,7 @@
                                             {recapPositions.map(s => {
                                                 const pos = s.pos;
                                                 const posCol = (window.App?.POS_COLORS || {})[pos] || 'var(--silver)';
-                                                return <div key={pos} style={{ padding: '10px 12px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderRadius: '8px', borderLeft: '3px solid ' + posCol }}>
+                                                return <div key={pos} style={{ padding: '10px 12px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderRadius: 'var(--card-radius-sm, 8px)', borderLeft: '3px solid ' + posCol }}>
                                                     <div style={{ fontSize: '0.82rem', fontWeight: 700, color: posCol, letterSpacing: '0.04em' }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</div>
                                                     <div style={{ fontFamily: FONT_DISPL, fontSize: '1.2rem', fontWeight: 700, color: 'var(--white)', marginTop: '2px' }}>{s.count}</div>
                                                     <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.7 }}>{s.dhq.toLocaleString()} DHQ</div>
@@ -5443,7 +5443,7 @@
                                                 return <div
                                                     key={i}
                                                     onClick={() => openRecapPlayer(normalized?.pid || pk.pid)}
-                                                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 10px', borderRadius: '6px', background: 'var(--ov-1, rgba(255,255,255,0.02))', cursor: (normalized?.pid || pk.pid) ? 'pointer' : 'default' }}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 10px', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--ov-1, rgba(255,255,255,0.02))', cursor: (normalized?.pid || pk.pid) ? 'pointer' : 'default' }}
                                                 >
                                                     <span style={{ fontFamily: FONT_DISPL, fontSize: '0.72rem', color: 'var(--gold)', width: '48px' }}>
                                                         {pk.round && pk.pickInRound ? (pk.round + '.' + String(pk.pickInRound).padStart(2, '0')) : ('#' + (i + 1))}
@@ -5499,7 +5499,7 @@
                                         {tradeVolume.total > 0 ? (
                                             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                                                 {Object.keys(tradeVolume.byRound).sort((a, b) => Number(a) - Number(b)).map(r => (
-                                                    <span key={r} style={{ padding: '5px 10px', borderRadius: '6px', background: 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)' }}>{Number(r) > 0 ? 'R' + r : 'Other'}: <strong style={{ color: 'var(--white)' }}>{tradeVolume.byRound[r]}</strong></span>
+                                                    <span key={r} style={{ padding: '5px 10px', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)' }}>{Number(r) > 0 ? 'R' + r : 'Other'}: <strong style={{ color: 'var(--white)' }}>{tradeVolume.byRound[r]}</strong></span>
                                                 ))}
                                             </div>
                                         ) : <div style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.6 }}>No pick trades during this draft.</div>}
@@ -5513,7 +5513,7 @@
                                     {recapPro && leagueStorylines.length > 0 && (
                                         <div style={{ display: 'grid', gap: '6px', marginBottom: '12px' }}>
                                             {leagueStorylines.slice(0, 4).map((line, i) => (
-                                                <div key={i} style={{ fontSize: '0.76rem', color: 'var(--silver)', lineHeight: 1.45, padding: '7px 10px', background: 'var(--ov-2, rgba(255,255,255,0.025))', borderRadius: '6px' }}>{line}</div>
+                                                <div key={i} style={{ fontSize: '0.76rem', color: 'var(--silver)', lineHeight: 1.45, padding: '7px 10px', background: 'var(--ov-2, rgba(255,255,255,0.025))', borderRadius: 'var(--card-radius-sm, 8px)' }}>{line}</div>
                                             ))}
                                         </div>
                                     )}
@@ -5538,7 +5538,7 @@
                                                 // each with the full row width to itself.
                                                 if (compact) {
                                                     return (
-                                                        <div key={team.rosterId || team.teamName} style={{ padding: '8px 10px', borderRadius: '7px', border: rowBorder, background: rowBg }}>
+                                                        <div key={team.rosterId || team.teamName} style={{ padding: '8px 10px', borderRadius: 'var(--card-radius-sm, 8px)', border: rowBorder, background: rowBg }}>
                                                             <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
                                                                 <span style={{ color: isUser ? 'var(--gold)' : 'var(--silver)', fontFamily: FONT_MONO, fontSize: '0.72rem', fontWeight: 800, flexShrink: 0 }}>#{team.rank}</span>
                                                                 <button
@@ -5579,7 +5579,7 @@
                                                         gap: '10px',
                                                         alignItems: 'center',
                                                         padding: '8px 10px',
-                                                        borderRadius: '7px',
+                                                        borderRadius: 'var(--card-radius-sm, 8px)',
                                                         border: rowBorder,
                                                         background: rowBg,
                                                     }}>
@@ -5619,7 +5619,7 @@
                                 {/* Actions — wraps (rather than overflowing off-screen) and
                                     stacks full-width on phone so every button stays reachable. */}
                                 <div style={{ padding: compact ? '14px 14px 18px' : '18px 32px 24px', display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: compact ? 'stretch' : 'flex-end', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    {onSaveRecap && <button onClick={onSaveRecap} style={{ flex: compact ? '1 1 auto' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>SAVE RECAP</button>}
+                                    {onSaveRecap && <button onClick={onSaveRecap} style={{ flex: compact ? '1 1 auto' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>SAVE RECAP</button>}
                                     {/* share/export text embeds the A–F grade + value calls → Pro
                                         (clean absence; save-to-archive above stays free) */}
                                     {recapPro && <button onClick={() => {
@@ -5630,7 +5630,7 @@
                                             if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(() => alert('Share report copied.')).catch(e => alert('Copy failed: ' + e.message));
                                             else alert('Clipboard unavailable in this browser.');
                                         } catch (e) { alert('Copy failed: ' + e.message); }
-                                    }} style={{ flex: compact ? '1 1 auto' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'var(--ov-3, rgba(255,255,255,0.035))', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.14))', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>COPY REPORT</button>}
+                                    }} style={{ flex: compact ? '1 1 auto' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'var(--ov-3, rgba(255,255,255,0.035))', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.14))', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>COPY REPORT</button>}
                                     {recapPro && <button onClick={() => {
                                         try {
                                             const text = stateHelpers.formatDraftShareReport
@@ -5641,8 +5641,8 @@
                                             const blob = new Blob([text], { type: 'text/markdown' });
                                             const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'draft-recap-' + Date.now() + '.md'; a.click(); URL.revokeObjectURL(url);
                                         } catch (e) { alert('Export failed: ' + e.message); }
-                                    }} style={{ flex: compact ? '1 1 auto' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.15))', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>EXPORT REPORT</button>}
-                                    {onPrimary && <button onClick={onPrimary} style={{ flex: compact ? '1 1 100%' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: FONT_DISPL, fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>{primaryLabel || 'DONE'}</button>}
+                                    }} style={{ flex: compact ? '1 1 auto' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.15))', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>EXPORT REPORT</button>}
+                                    {onPrimary && <button onClick={onPrimary} style={{ flex: compact ? '1 1 100%' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: FONT_DISPL, fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>{primaryLabel || 'DONE'}</button>}
                                 </div>
                             </div>
         );
@@ -5695,7 +5695,7 @@
             padding: '12px 14px',
             background: 'linear-gradient(90deg, var(--surf-solid, rgba(7,9,14,0.98)), var(--surf-solid, rgba(17,23,33,0.96)) 42%, var(--surf-solid, rgba(30,24,10,0.92)))',
             border: '1px solid var(--acc-line2, rgba(212,175,55,0.34))',
-            borderRadius: '8px',
+            borderRadius: 'var(--card-radius-sm, 8px)',
             marginBottom: (L.GRID_GAP) + 'px',
             boxShadow: 'inset 0 -1px 0 var(--ov-3, rgba(255,255,255,0.05)), 0 10px 26px rgba(0,0,0,0.24)',
         };
@@ -5986,7 +5986,7 @@
                         <div style={{
                             width: 44,
                             height: 44,
-                            borderRadius: '7px',
+                            borderRadius: 'var(--card-radius-sm, 8px)',
                             display: 'grid',
                             placeItems: 'center',
                             background: 'var(--gold)',
@@ -6096,7 +6096,7 @@
                                 minWidth: 0,
                                 border: '1px solid var(--acc-fill3, rgba(212,175,55,0.14))',
                                 background: 'var(--ov-1, rgba(255,255,255,0.024))',
-                                borderRadius: '7px',
+                                borderRadius: 'var(--card-radius-sm, 8px)',
                                 padding: '8px 9px',
                             }}>
                                 <div style={{ color: card.tone, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.09em', marginBottom: 3 }}>{card.label}</div>
@@ -6133,7 +6133,7 @@
                             padding: '4px 10px',
                             background: 'var(--acc-fill2, rgba(212,175,55,0.08))',
                             border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))',
-                            borderRadius: '4px',
+                            borderRadius: 'var(--card-radius-xs, 5px)',
                             fontSize: 'var(--text-micro, 0.6875rem)',
                             fontWeight: 700,
                             color: 'var(--gold)',
@@ -6162,7 +6162,7 @@
                                 padding: '5px 10px',
                                 background: 'var(--ov-2, rgba(255,255,255,0.04))',
                                 border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
-                                borderRadius: '4px',
+                                borderRadius: 'var(--card-radius-xs, 5px)',
                                 color: 'var(--silver)',
                                 cursor: 'pointer',
                                 fontSize: 'var(--text-micro, 0.6875rem)',
@@ -6184,7 +6184,7 @@
                                 padding: '5px 10px',
                                 background: 'var(--acc-fill2, rgba(212,175,55,0.12))',
                                 border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))',
-                                borderRadius: '4px',
+                                borderRadius: 'var(--card-radius-xs, 5px)',
                                 color: 'var(--gold)',
                                 cursor: 'pointer',
                                 fontSize: 'var(--text-micro, 0.6875rem)',
@@ -6206,7 +6206,7 @@
                                 padding: '5px 10px',
                                 background: 'rgba(155,138,251,0.12)',
                                 border: '1px solid rgba(155,138,251,0.35)',
-                                borderRadius: '4px',
+                                borderRadius: 'var(--card-radius-xs, 5px)',
                                 color: 'rgba(214,208,255,0.98)',
                                 cursor: 'pointer',
                                 fontSize: 'var(--text-micro, 0.6875rem)',
@@ -6246,7 +6246,7 @@
                                 padding: '5px 10px',
                                 background: 'rgba(46,204,113,0.12)',
                                 border: '1px solid rgba(46,204,113,0.3)',
-                                borderRadius: '4px',
+                                borderRadius: 'var(--card-radius-xs, 5px)',
                                 color: 'var(--k-2ecc71, #2ecc71)',
                                 cursor: 'pointer',
                                 fontSize: 'var(--text-micro, 0.6875rem)',
@@ -6265,7 +6265,7 @@
                                 padding: '5px 10px',
                                 background: 'rgba(124,107,248,0.12)',
                                 border: '1px solid rgba(124,107,248,0.3)',
-                                borderRadius: '4px',
+                                borderRadius: 'var(--card-radius-xs, 5px)',
                                 color: 'rgba(155,138,251,0.9)',
                                 cursor: 'pointer',
                                 fontSize: 'var(--text-micro, 0.6875rem)',
@@ -6279,7 +6279,7 @@
                         padding: '5px 12px',
                         background: 'transparent',
                         border: '1px solid var(--ov-6, rgba(255,255,255,0.1))',
-                        borderRadius: '4px',
+                        borderRadius: 'var(--card-radius-xs, 5px)',
                         color: 'var(--silver)',
                         cursor: 'pointer',
                         fontSize: 'var(--text-micro, 0.6875rem)',
@@ -6355,7 +6355,7 @@
                         marginBottom: L.GRID_GAP + 'px',
                         background: 'linear-gradient(90deg, var(--acc-fill3, rgba(212,175,55,0.15)), var(--acc-fill1, rgba(212,175,55,0.02)))',
                         border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))',
-                        borderRadius: '6px',
+                        borderRadius: 'var(--card-radius-sm, 8px)',
                         fontSize: '0.72rem',
                         color: 'var(--gold)',
                         fontWeight: 600,
@@ -6372,7 +6372,7 @@
                         marginBottom: L.GRID_GAP + 'px',
                         background: 'rgba(124,107,248,0.05)',
                         border: '1px solid rgba(124,107,248,0.3)',
-                        borderRadius: '6px',
+                        borderRadius: 'var(--card-radius-sm, 8px)',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '10px',
@@ -6795,7 +6795,7 @@
                 background: 'linear-gradient(90deg, rgba(155,138,251,0.07), var(--ov-1, rgba(255,255,255,0.024)) 42%, var(--acc-fill1, rgba(212,175,55,0.045)))',
                 border: '1px solid rgba(155,138,251,0.24)',
                 borderLeft: '3px solid ' + color,
-                borderRadius: '8px',
+                borderRadius: 'var(--card-radius-sm, 8px)',
                 display: 'grid',
                 gridTemplateColumns: dispatch && state.phase === 'drafting' ? 'minmax(0, 1fr) auto' : '1fr',
                 alignItems: 'center',
@@ -6857,7 +6857,7 @@
                 marginBottom: (layoutGap || 8) + 'px',
                 background: 'rgba(124,107,248,0.045)',
                 border: '1px solid rgba(155,138,251,0.24)',
-                borderRadius: '6px',
+                borderRadius: 'var(--card-radius-sm, 8px)',
                 fontFamily: FONT_UI,
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 7 }}>
@@ -6911,7 +6911,7 @@
                 padding: '7px 8px',
                 background: 'var(--ov-2, rgba(255,255,255,0.03))',
                 border: '1px solid var(--ov-4, rgba(255,255,255,0.07))',
-                borderRadius: '5px',
+                borderRadius: 'var(--card-radius-xs, 5px)',
             }}>
                 <div style={{ flex: '1 1 240px', minWidth: 0 }}>
                     <div style={{ color: 'var(--white)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -7025,7 +7025,7 @@
                 marginBottom: (layoutGap || 8) + 'px',
                 background: 'var(--ov-1, rgba(255,255,255,0.022))',
                 border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))',
-                borderRadius: '6px',
+                borderRadius: 'var(--card-radius-sm, 8px)',
                 fontFamily: FONT_UI,
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -7062,7 +7062,7 @@
                                     background: tone.bg,
                                     border: '1px solid ' + tone.border,
                                     borderLeft: '3px solid ' + tone.main,
-                                    borderRadius: '5px',
+                                    borderRadius: 'var(--card-radius-xs, 5px)',
                                     textAlign: 'left',
                                     cursor: clickable ? 'pointer' : 'default',
                                     fontFamily: FONT_UI,
@@ -7132,7 +7132,7 @@
                                     padding: '6px 8px',
                                     background: tone.bg,
                                     border: '1px solid ' + tone.border,
-                                    borderRadius: '4px',
+                                    borderRadius: 'var(--card-radius-xs, 5px)',
                                 }}>
                                     <div style={{ color: tone.main, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{alert.title}</div>
                                     <div style={{ color: 'var(--silver)', opacity: 0.8, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.35, marginTop: 2 }}>{alert.text}</div>
@@ -7163,7 +7163,7 @@
                     marginBottom: inline ? 0 : (layoutGap || 8) + 'px',
                     background: 'rgba(124,107,248,0.055)',
                     border: '1px solid rgba(155,138,251,0.28)',
-                    borderRadius: '6px',
+                    borderRadius: 'var(--card-radius-sm, 8px)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '8px',
@@ -7235,7 +7235,7 @@
                             padding: '6px 10px',
                             background: 'rgba(155,138,251,0.14)',
                             border: '1px solid rgba(155,138,251,0.34)',
-                            borderRadius: '4px',
+                            borderRadius: 'var(--card-radius-xs, 5px)',
                             color: 'rgba(214,208,255,0.98)',
                             cursor: 'pointer',
                             fontFamily: FONT_UI,
@@ -7567,7 +7567,7 @@
                         padding: '14px 18px',
                         background: 'rgba(240,165,0,0.08)',
                         border: '1px solid rgba(240,165,0,0.25)',
-                        borderRadius: '8px',
+                        borderRadius: 'var(--card-radius-sm, 8px)',
                         marginBottom: '16px',
                         fontSize: '0.76rem',
                         color: 'var(--k-f0a500, #f0a500)',
@@ -7582,7 +7582,7 @@
                         background: 'var(--gold)',
                         color: 'var(--black)',
                         border: 'none',
-                        borderRadius: '8px',
+                        borderRadius: 'var(--card-radius-sm, 8px)',
                         fontFamily: FONT_DISPL,
                         fontSize: '1rem',
                         fontWeight: 700,
@@ -7811,7 +7811,7 @@
                 <div style={{
                     width: '100%', maxWidth: '720px', maxHeight: '88vh', overflowY: 'auto', overscrollBehavior: 'contain',
                     background: 'var(--k-0a0b0d, #0a0b0d)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.34))',
-                    borderRadius: '14px', boxShadow: '0 28px 80px rgba(0,0,0,0.78)', fontFamily: FONT_UI,
+                    borderRadius: 'var(--card-radius-lg, 14px)', boxShadow: '0 28px 80px rgba(0,0,0,0.78)', fontFamily: FONT_UI,
                 }}>
                     {/* Header */}
                     <div style={{

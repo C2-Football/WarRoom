@@ -958,7 +958,7 @@
                                     history.pushState({ view: 'hub' }, '', routeUrl(''));
                                 }
                             }}
-                            style={{ marginTop: '16px', padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                            style={{ marginTop: '16px', padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', fontWeight: 600 }}
                         >{empireModuleState === 'error' ? 'Reload' : 'Back to Hub'}</button>
                     </div>
                 </div>
@@ -1004,7 +1004,7 @@
                         <div>
                             <button
                                 onClick={() => { if (commishModuleState === 'error') { window.location.reload(); return; } setCommishMode(false); }}
-                                style={{ marginTop: '16px', padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                                style={{ marginTop: '16px', padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', fontWeight: 600 }}
                             >{commishModuleState === 'error' ? 'Reload' : 'Back to Hub'}</button>
                         </div>
                     </div>
@@ -1036,7 +1036,7 @@
                         <div>
                             <button
                                 onClick={() => { if (timeLeagueModuleState === 'error') { window.location.reload(); return; } setTimeLeagueMode(false); }}
-                                style={{ marginTop: '16px', padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                                style={{ marginTop: '16px', padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', fontWeight: 600 }}
                             >{timeLeagueModuleState === 'error' ? 'Reload' : 'Back to Hub'}</button>
                         </div>
                     </div>
@@ -1221,14 +1221,14 @@
                 <div className="hub-franchise-picker" style={{ padding: '4px 12px 14px' }}>
                     {EMPIRE_ENABLED && (isPaid ? (
                         <div className="empire-hero" onClick={() => setProMode(true)}
-                            style={{ cursor: 'pointer', marginBottom: '14px', borderRadius: '14px', padding: '16px', background: 'linear-gradient(135deg, rgba(212,175,55,0.16), rgba(212,175,55,0.04))', border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 0 0 1px var(--acc-line1, rgba(212,175,55,0.12)), 0 0 22px rgba(212,175,55,0.10)', transition: 'all .16s' }}
+                            style={{ cursor: 'pointer', marginBottom: '14px', borderRadius: 'var(--card-radius-lg, 14px)', padding: '16px', background: 'linear-gradient(135deg, rgba(212,175,55,0.16), rgba(212,175,55,0.04))', border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', gap: '14px', boxShadow: '0 0 0 1px var(--acc-line1, rgba(212,175,55,0.12)), 0 0 22px rgba(212,175,55,0.10)', transition: 'all .16s' }}
                             onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 0 1px var(--gold), 0 0 28px rgba(212,175,55,0.22)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
                             onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 0 0 1px rgba(212,175,55,0.12), 0 0 22px rgba(212,175,55,0.10)'; e.currentTarget.style.transform = 'none'; }}>
                             <div style={{ width: '44px', height: '44px', flexShrink: 0 }}><ProTierIcon size={44} /></div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
                                     <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.15rem', letterSpacing: '.08em', color: 'var(--gold)' }}>EMPIRE COMMAND</span>
-                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '.06em', color: 'var(--black)', background: 'var(--gold)', borderRadius: '5px', padding: '1px 6px' }}>PRO</span>
+                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '.06em', color: 'var(--black)', background: 'var(--gold)', borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 6px' }}>PRO</span>
                                 </div>
                                 <div style={{ fontSize: 'var(--text-label, 0.8rem)', color: 'var(--silver)', marginTop: '4px' }}>All {leagues.length} league{leagues.length !== 1 ? 's' : ''} in one terminal · cross-league trade intelligence</div>
                             </div>
@@ -1236,7 +1236,7 @@
                         </div>
                     ) : (
                         <div className="empire-hero locked" onClick={() => { if (typeof window.showProLaunchPage === 'function') window.showProLaunchPage(); else window.location.href = 'landing.html'; }}
-                            style={{ cursor: 'pointer', marginBottom: '14px', borderRadius: '14px', padding: '16px', background: 'linear-gradient(135deg, rgba(212,175,55,0.07), rgba(212,175,55,0.02))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', display: 'flex', alignItems: 'center', gap: '14px', transition: 'all .16s' }}
+                            style={{ cursor: 'pointer', marginBottom: '14px', borderRadius: 'var(--card-radius-lg, 14px)', padding: '16px', background: 'linear-gradient(135deg, rgba(212,175,55,0.07), rgba(212,175,55,0.02))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', display: 'flex', alignItems: 'center', gap: '14px', transition: 'all .16s' }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--gold)'; }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--acc-line2, rgba(212,175,55,0.3))'; }}>
                             <div style={{ width: '44px', height: '44px', flexShrink: 0, borderRadius: '50%', border: '1.5px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1245,7 +1245,7 @@
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
                                     <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.15rem', letterSpacing: '.08em', color: 'var(--gold)' }}>EMPIRE COMMAND</span>
-                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '.06em', color: 'var(--gold)', border: '1px solid var(--gold)', borderRadius: '5px', padding: '1px 6px' }}>PRO</span>
+                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '.06em', color: 'var(--gold)', border: '1px solid var(--gold)', borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 6px' }}>PRO</span>
                                 </div>
                                 <div style={{ fontSize: 'var(--text-label, 0.8rem)', color: 'var(--silver)', marginTop: '4px' }}>Command every league from one terminal — see cross-league trades you can't spot inside a single league.</div>
                             </div>
@@ -1255,7 +1255,7 @@
 
                     {COMMISH_ENABLED && commishCount >= 1 && (
                         <div className="commish-hero" onClick={openCommishOffice}
-                            style={{ cursor: 'pointer', marginBottom: '14px', borderRadius: '14px', padding: '14px 16px', background: 'linear-gradient(135deg, rgba(93,173,226,0.10), rgba(93,173,226,0.02))', border: '1px solid var(--info, #5DADE2)', display: 'flex', alignItems: 'center', gap: '14px', transition: 'all .16s' }}
+                            style={{ cursor: 'pointer', marginBottom: '14px', borderRadius: 'var(--card-radius-lg, 14px)', padding: '14px 16px', background: 'linear-gradient(135deg, rgba(93,173,226,0.10), rgba(93,173,226,0.02))', border: '1px solid var(--info, #5DADE2)', display: 'flex', alignItems: 'center', gap: '14px', transition: 'all .16s' }}
                             onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 22px rgba(93,173,226,0.18)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
                             onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}>
                             <div style={{ width: '44px', height: '44px', flexShrink: 0, borderRadius: '50%', border: '1.5px solid var(--info, #5DADE2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1264,7 +1264,7 @@
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
                                     <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.15rem', letterSpacing: '.08em', color: 'var(--info, #5DADE2)' }}>COMMISSIONER'S OFFICE</span>
-                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '.06em', color: 'var(--black)', background: 'var(--info, #5DADE2)', borderRadius: '5px', padding: '1px 6px' }}>LABS</span>
+                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '.06em', color: 'var(--black)', background: 'var(--info, #5DADE2)', borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 6px' }}>LABS</span>
                                 </div>
                                 <div style={{ fontSize: 'var(--text-label, 0.8rem)', color: 'var(--silver)', marginTop: '4px' }}>{commishCount} league{commishCount !== 1 ? 's' : ''} under your gavel · integrity, people, ops and programmes on one desk</div>
                             </div>
@@ -1274,14 +1274,14 @@
 
                     {TIME_LEAGUE_ENABLED && (
                         <div className="time-league-hero" onClick={openTimeLeague}
-                            style={{ cursor: 'pointer', marginBottom: '14px', borderRadius: '14px', padding: '14px 16px', background: 'linear-gradient(135deg, rgba(212,175,55,0.10), rgba(212,175,55,0.02))', border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', gap: '14px', transition: 'all .16s' }}
+                            style={{ cursor: 'pointer', marginBottom: '14px', borderRadius: 'var(--card-radius-lg, 14px)', padding: '14px 16px', background: 'linear-gradient(135deg, rgba(212,175,55,0.10), rgba(212,175,55,0.02))', border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', gap: '14px', transition: 'all .16s' }}
                             onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 22px rgba(212,175,55,0.18)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
                             onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}>
                             <div style={{ width: '44px', height: '44px', flexShrink: 0, borderRadius: '50%', border: '1.5px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>🔐</div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
                                     <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.15rem', letterSpacing: '.08em', color: 'var(--gold)' }}>THE VAULT</span>
-                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '.06em', color: 'var(--black)', background: 'var(--gold)', borderRadius: '5px', padding: '1px 6px' }}>SANDBOX</span>
+                                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '.06em', color: 'var(--black)', background: 'var(--gold)', borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 6px' }}>SANDBOX</span>
                                 </div>
                                 <div style={{ fontSize: 'var(--text-label, 0.8rem)', color: 'var(--silver)', marginTop: '4px' }}>Draft any season since '70, play it out for real — AI-GM opponents, mystery seasons, live gamecast.</div>
                             </div>
@@ -1290,13 +1290,13 @@
                     )}
 
                     {pendingInvite && !(window.App.OD?.getCurrentUserId && window.App.OD.getCurrentUserId()) && (
-                        <div style={{ marginBottom: '14px', borderRadius: '14px', padding: '14px 16px', background: 'rgba(212,175,55,0.06)', border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                        <div style={{ marginBottom: '14px', borderRadius: 'var(--card-radius-lg, 14px)', padding: '14px 16px', background: 'rgba(212,175,55,0.06)', border: '1px solid var(--gold)', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                             <span style={{ fontSize: '18px' }}>🔐</span>
                             <div style={{ flex: 1, minWidth: '200px' }}>
                                 <div style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '0.95rem', color: 'var(--gold)' }}>You have a pending Vault invite</div>
                                 <div style={{ fontSize: 'var(--text-label, 0.8rem)', color: 'var(--silver)', marginTop: '2px' }}>Sign in with the account you want to play from, then come back to claim your seat.</div>
                             </div>
-                            <a href="login.html" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--black)', background: 'var(--gold)', borderRadius: '7px', padding: '7px 14px', textDecoration: 'none' }}>Sign In</a>
+                            <a href="login.html" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--black)', background: 'var(--gold)', borderRadius: 'var(--card-radius-sm, 8px)', padding: '7px 14px', textDecoration: 'none' }}>Sign In</a>
                         </div>
                     )}
 
@@ -1313,7 +1313,7 @@
                             const recordCol = h.wp === null ? 'var(--silver)' : h.wp >= 60 ? 'var(--win-green)' : h.wp < 40 ? 'var(--loss-red)' : 'var(--silver)';
                             return (
                                 <div key={l.id} onClick={() => onSelect(l)}
-                                    style={{ position: 'relative', cursor: 'pointer', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid ' + (isLast ? 'var(--gold)' : 'var(--acc-line1, rgba(212,175,55,0.18))'), borderRadius: '12px', padding: '14px', transition: 'all .14s' }}
+                                    style={{ position: 'relative', cursor: 'pointer', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid ' + (isLast ? 'var(--gold)' : 'var(--acc-line1, rgba(212,175,55,0.18))'), borderRadius: 'var(--card-radius-lg, 14px)', padding: '14px', transition: 'all .14s' }}
                                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--gold)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
                                     onMouseLeave={e => { e.currentTarget.style.borderColor = isLast ? 'var(--gold)' : 'var(--acc-line1, rgba(212,175,55,0.18))'; e.currentTarget.style.transform = 'none'; }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
@@ -1321,7 +1321,7 @@
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
                                                 <span style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
-                                                {isLast && <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 600, color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '4px', padding: '0 4px', flexShrink: 0 }}>LAST</span>}
+                                                {isLast && <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 600, color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '0 4px', flexShrink: 0 }}>LAST</span>}
                                             </div>
                                             {sub && <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>}
                                         </div>
@@ -1334,7 +1334,7 @@
                             );
                         })}
                         <div onClick={() => setShowConnect(true)}
-                            style={{ cursor: 'pointer', border: '1px dashed var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '12px', padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '9px', color: 'var(--silver)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-label, 0.8rem)', minHeight: '92px', transition: 'all .14s' }}
+                            style={{ cursor: 'pointer', border: '1px dashed var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-lg, 14px)', padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '9px', color: 'var(--silver)', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-label, 0.8rem)', minHeight: '92px', transition: 'all .14s' }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--gold)'; e.currentTarget.style.color = 'var(--gold)'; }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--acc-line2, rgba(212,175,55,0.3))'; e.currentTarget.style.color = 'var(--silver)'; }}>
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1462,7 +1462,7 @@
         // runs without a username — so treat the hub as syncing only when a Sleeper
         // fetch is actually in flight (a signed-out user goes straight to connect).
         const hubSyncing = loading && !!sleeperUsername;
-        const hubCtrlStyle = { fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 600, letterSpacing: '.12em', color: 'var(--silver)', background: 'transparent', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: '4px', padding: '7px 11px', cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', lineHeight: 1 };
+        const hubCtrlStyle = { fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 600, letterSpacing: '.12em', color: 'var(--silver)', background: 'transparent', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '7px 11px', cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', lineHeight: 1 };
 
         return (
             <div className="app-container">
@@ -1488,7 +1488,7 @@
                     <div className="header-brand" role="link" aria-label="Dynasty HQ home"
                         onClick={() => { window.location.href = distPrefix + 'landing.html'; }}
                         style={{ cursor: 'pointer' }}>
-                        <img src={iconSrc} alt="Logo" style={{ width:'44px',height:'44px',borderRadius:'10px',boxShadow:'0 2px 12px var(--acc-line2, rgba(212,175,55,.3))' }} />
+                        <img src={iconSrc} alt="Logo" style={{ width:'44px',height:'44px',borderRadius:'var(--card-radius, 10px)',boxShadow:'0 2px 12px var(--acc-line2, rgba(212,175,55,.3))' }} />
                         <div className="header-text">
                             <h1 className="owner-name wr-wordmark" style={{ fontSize:'1.1rem',letterSpacing:'.06em' }}>DYNASTY HQ</h1>
                             <div className="header-subtitle">{String(displayName)}</div>
@@ -1526,7 +1526,7 @@
                         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-label, 0.75rem)', letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.7, margin: '2px 0 10px' }}>Syncing franchises…</div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
                             {[0, 1, 2].map(i => (
-                                <div key={i} style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.18))', borderRadius: '12px', padding: '14px', background: 'var(--ov-1, rgba(255,255,255,0.02))', animation: 'wr-hub-shimmer 1.4s ease-in-out infinite', animationDelay: (i * 0.18) + 's' }}>
+                                <div key={i} style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.18))', borderRadius: 'var(--card-radius-lg, 14px)', padding: '14px', background: 'var(--ov-1, rgba(255,255,255,0.02))', animation: 'wr-hub-shimmer 1.4s ease-in-out infinite', animationDelay: (i * 0.18) + 's' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '11px' }}>
                                         <div style={{ width: '40px', height: '40px', flexShrink: 0, borderRadius: '50%', border: '1.5px solid var(--acc-line2, rgba(212,175,55,0.3))', background: 'var(--black)' }} />
                                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -1626,7 +1626,7 @@
                                     <div style={{ maxHeight: '200px', overflow: 'auto' }}>
                                         {mflFranchises.map(f => (
                                             <button key={f.id} onClick={() => finalizeMFLConnect(f.id)}
-                                                style={{ display: 'block', width: '100%', padding: '8px 10px', marginBottom: '4px', background: 'rgba(46,125,50,0.08)', border: '1px solid rgba(46,125,50,0.25)', borderRadius: '6px', color: 'var(--white)', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', cursor: 'pointer', textAlign: 'left' }}>
+                                                style={{ display: 'block', width: '100%', padding: '8px 10px', marginBottom: '4px', background: 'rgba(46,125,50,0.08)', border: '1px solid rgba(46,125,50,0.25)', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--white)', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', cursor: 'pointer', textAlign: 'left' }}>
                                                 {f.name || f.owner_name || ('Team ' + f.id)}
                                             </button>
                                         ))}
@@ -1644,19 +1644,19 @@
                                             ['Private', 'API key'],
                                             ['Team', 'franchise pick'],
                                         ].map(([label, detail]) => (
-                                            <div key={label} style={{ border: '1px solid rgba(46,125,50,0.18)', background: 'rgba(46,125,50,0.06)', borderRadius: '6px', padding: '7px 8px', minWidth: 0 }}>
+                                            <div key={label} style={{ border: '1px solid rgba(46,125,50,0.18)', background: 'rgba(46,125,50,0.06)', borderRadius: 'var(--card-radius-sm, 8px)', padding: '7px 8px', minWidth: 0 }}>
                                                 <strong style={{ display: 'block', color: 'var(--k-81c784, #81c784)', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)' }}>{label}</strong>
                                                 <span style={{ display: 'block', color: 'var(--silver)', fontSize: 'var(--text-label, 0.75rem)', opacity: 0.72, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{detail}</span>
                                             </div>
                                         ))}
                                     </div>
                                     <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
-                                        <input id="wr-mfl-id" placeholder="League ID" style={{ flex: 1, padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '6px', color: 'var(--white)', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)' }} />
-                                        <input id="wr-mfl-year" placeholder="Year" defaultValue="2026" style={{ width: '70px', padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '6px', color: 'var(--white)', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', textAlign: 'center' }} />
+                                        <input id="wr-mfl-id" placeholder="League ID" style={{ flex: 1, padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--white)', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)' }} />
+                                        <input id="wr-mfl-year" placeholder="Year" defaultValue="2026" style={{ width: '70px', padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--white)', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', textAlign: 'center' }} />
                                     </div>
                                     <details style={{ marginBottom: '8px' }}>
                                         <summary style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', cursor: 'pointer', opacity: 0.7 }}>Private league? Add API key</summary>
-                                        <input id="wr-mfl-apikey" placeholder="API Key (optional)" style={{ width: '100%', marginTop: '6px', padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '6px', color: 'var(--white)', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)' }} />
+                                        <input id="wr-mfl-apikey" placeholder="API Key (optional)" style={{ width: '100%', marginTop: '6px', padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--white)', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)' }} />
                                     </details>
                                     {mflError && <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--k-e74c3c, #e74c3c)', marginBottom: '8px' }}>{mflError}</div>}
                                     <button className="hub-cta gold" disabled={mflConnecting} onClick={() => {

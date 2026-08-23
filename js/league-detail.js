@@ -28,7 +28,7 @@
                     label + ' module failed to load. ',
                     React.createElement('button', {
                         onClick: () => window.location.reload(),
-                        style: { marginTop: '12px', padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 },
+                        style: { marginTop: '12px', padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', fontWeight: 600 },
                     }, 'Reload'));
             }
             const Comp = resolveComponent();
@@ -730,13 +730,13 @@
 	            if (module) {
 	                return React.createElement('div', { style: { padding: '10px 16px 16px', maxWidth: '1280px', margin: '0 auto' } },
 	                    React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px', marginBottom: '14px' } },
-	                        ...quickItems.map(item => React.createElement('div', { key: item.term, style: { padding: '12px 13px', background: 'var(--black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.18))', borderRadius: '8px' } },
+	                        ...quickItems.map(item => React.createElement('div', { key: item.term, style: { padding: '12px 13px', background: 'var(--black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.18))', borderRadius: 'var(--card-radius-sm, 8px)' } },
 	                            React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', fontWeight: 800, color: 'var(--gold)', fontFamily: 'var(--font-body)', marginBottom: '4px' } }, item.term),
 	                            React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', lineHeight: 1.45 } }, item.def)
 	                        ))
 	                    ),
 	                    React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '12px' } },
-	                        ...fullItems.map(section => React.createElement('section', { key: section.cat, style: { padding: '13px 14px', background: 'var(--black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.18))', borderRadius: '8px' } },
+	                        ...fullItems.map(section => React.createElement('section', { key: section.cat, style: { padding: '13px 14px', background: 'var(--black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.18))', borderRadius: 'var(--card-radius-sm, 8px)' } },
 	                            React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-body, 1rem)', color: 'var(--gold)', letterSpacing: '0.08em', marginBottom: '10px', textTransform: 'uppercase' } }, section.cat),
 	                            ...section.items.map(item => React.createElement('div', { key: item.term, style: { marginBottom: '10px' } },
 	                                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', fontWeight: 800, color: 'var(--white)', marginBottom: '2px' } }, item.term),
@@ -756,7 +756,7 @@
                 open && React.createElement('div', { style: { padding: '8px 12px', maxHeight: '300px', overflowY: 'auto' } },
                     React.createElement('button', {
                         onClick: () => setExpanded(true),
-                        style: { width: '100%', marginBottom: '10px', padding: '6px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '4px', color: 'var(--gold)', cursor: 'pointer' }
+                        style: { width: '100%', marginBottom: '10px', padding: '6px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--gold)', cursor: 'pointer' }
                     }, 'FULL GUIDE \u2192'),
                     ...quickItems.map(item => React.createElement('div', { key: item.term, style: { marginBottom: '8px' } },
                         React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)' } }, item.term),
@@ -770,7 +770,7 @@
                 },
                     React.createElement('div', {
                         onClick: e => e.stopPropagation(),
-                        style: { background: 'var(--off-black)', border: '2px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '14px', width: '100%', maxWidth: '640px', maxHeight: '80vh', overflowY: 'auto', padding: '24px 28px' }
+                        style: { background: 'var(--off-black)', border: '2px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-lg, 14px)', width: '100%', maxWidth: '640px', maxHeight: '80vh', overflowY: 'auto', padding: '24px 28px' }
                     },
                         React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' } },
                             React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.4rem', color: 'var(--gold)', letterSpacing: '0.06em' } }, 'DYNASTY HQ GUIDE'),
@@ -2344,7 +2344,7 @@
                 <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--white)', padding: '2rem', textAlign: 'center' }}>
                     <div style={{ color: 'var(--k-e74c3c, #e74c3c)', fontSize: '1.5rem', marginBottom: '1rem' }}>Error Loading League</div>
                     <div style={{ color: 'var(--silver)', marginBottom: '2rem' }}>{error}</div>
-                    <button onClick={onBack} style={{ padding: '0.75rem 1.5rem', background: 'var(--gold)', border: 'none', borderRadius: '8px', color: 'var(--black)', fontFamily: 'var(--font-body)', fontSize: '1rem', fontWeight: '700', cursor: 'pointer' }}>← Back to Dashboard</button>
+                    <button onClick={onBack} style={{ padding: '0.75rem 1.5rem', background: 'var(--gold)', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--black)', fontFamily: 'var(--font-body)', fontSize: '1rem', fontWeight: '700', cursor: 'pointer' }}>← Back to Dashboard</button>
                 </div>
             );
         }
@@ -2437,7 +2437,7 @@
                     marginBottom: '0.3rem',
                     background: bgColor,
                     borderLeft: borderColor !== 'transparent' ? `3px solid ${borderColor}` : 'none',
-                    borderRadius: '4px',
+                    borderRadius: 'var(--card-radius-xs, 5px)',
                     gap: '0.5rem'
                 }}>
                     {/* Gold position box */}
@@ -2684,11 +2684,11 @@
                                 <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', marginTop: '2px' }}>{dhqStatus.step}</div>
                             </div>
                         </div>
-                        <div style={{ background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '4px', height: '4px', overflow: 'hidden' }}>
+                        <div style={{ background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: 'var(--card-radius-xs, 5px)', height: '4px', overflow: 'hidden' }}>
                             <div style={{
                                 width: dhqStatus.progress + '%', height: '100%',
                                 background: 'linear-gradient(90deg, var(--gold), var(--k-f0a500, #f0a500))',
-                                borderRadius: '4px', transition: 'width 0.5s ease'
+                                borderRadius: 'var(--card-radius-xs, 5px)', transition: 'width 0.5s ease'
                             }}></div>
                         </div>
                         <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginTop: '6px', opacity: 0.6 }}>
@@ -2715,7 +2715,7 @@
                     // iPad pass (G3): --sat/--sal terms are env()=0 everywhere but
                     // installed-PWA on device — desktop stays byte-identical.
                     display: 'none', position: 'fixed', top: 'calc(10px + var(--sat, 0px) + var(--wr-dev-banner-height, 0px))', left: 'calc(10px + var(--sal, 0px))', zIndex: 201,
-                    background: 'var(--black)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px',
+                    background: 'var(--black)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)',
                     padding: '6px 10px', cursor: 'pointer', color: 'var(--gold)', fontSize: '1.2rem', lineHeight: 1
                 }} className="wr-hamburger">{sidebarOpen ? '\u2715' : '\u2630'}</button>}
                 <style>{`@media(max-width:1023px){
@@ -2778,7 +2778,7 @@
                 }}>
                     {/* Logo — click to go home */}
                     <div className="wr-sidebar-brand" onClick={onBack} style={{ padding: '0 14px', marginBottom: sidebarCollapsed ? '10px' : '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }} title="Back to Dynasty HQ home">
-                      <img src={iconSrc} alt="Dynasty HQ" style={{ width: '28px', height: '28px', borderRadius: '6px' }} onError={e => { e.target.style.display = 'none'; }} />
+                      <img src={iconSrc} alt="Dynasty HQ" style={{ width: '28px', height: '28px', borderRadius: 'var(--card-radius-sm, 8px)' }} onError={e => { e.target.style.display = 'none'; }} />
                       <div className="wr-sidebar-wordmark">
                         <div className="wr-wordmark" style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', lineHeight: 1.1 }}>DYNASTY HQ</div>
                       </div>
@@ -2833,7 +2833,7 @@
                                 ref: inputRef, type: 'text', placeholder: 'Search...', value: q,
                                 onChange: e => setQ(e.target.value),
                                 onKeyDown: e => { if (e.key === 'Escape') { setQ(''); setResults([]); } },
-                                style: { width: '100%', padding: '7px 10px 7px 28px', fontSize: 'var(--text-label, 0.75rem)', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: '6px', color: 'var(--silver)', fontFamily: 'var(--font-body)', outline: 'none', boxSizing: 'border-box' }
+                                style: { width: '100%', padding: '7px 10px 7px 28px', fontSize: 'var(--text-label, 0.75rem)', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--silver)', fontFamily: 'var(--font-body)', outline: 'none', boxSizing: 'border-box' }
                             }),
                             React.createElement('svg', { viewBox: '0 0 24 24', width: 12, height: 12, fill: 'none', stroke: 'var(--acc-line3, rgba(212,175,55,0.4))', strokeWidth: 2, style: { position: 'absolute', left: '20px', top: '11px', pointerEvents: 'none' } },
                                 React.createElement('circle', { cx: 11, cy: 11, r: 8 }),
@@ -3031,7 +3031,7 @@
                                         <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.02em', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentLeague.name}</span>
                                         <span aria-hidden="true" style={{ color: 'var(--text-muted)', fontSize: '0.65rem', flex: 'none' }}>▾</span>
                                     </div>
-                                    <button className="wr-phone-hdr-refresh" onClick={doRefresh} disabled={!!loadStage} aria-label="Refresh data" title="Reload DHQ values, league history, and AI data" style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px', minHeight: '36px', padding: '6px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', color: 'var(--gold)', cursor: loadStage ? 'default' : 'pointer' }}>
+                                    <button className="wr-phone-hdr-refresh" onClick={doRefresh} disabled={!!loadStage} aria-label="Refresh data" title="Reload DHQ values, league history, and AI data" style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px', minHeight: '36px', padding: '6px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--gold)', cursor: loadStage ? 'default' : 'pointer' }}>
                                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={loadStage ? { animation: 'dhqSpin 0.8s linear infinite' } : undefined}>
                                             {NAV_ICON_PATHS.refresh.map((d, i) => <path key={i} d={d} />)}
                                         </svg>
@@ -3039,11 +3039,11 @@
                                     {/* Feedback (bug report + feature board) — re-homed here from the
                                         floating bottom-right launcher that sat over the dock. */}
                                     {window.WR?.Feedback?.toggleMenu && (
-                                        <button onClick={(e) => { e.stopPropagation(); window.WR.Feedback.toggleMenu(e.currentTarget); }} aria-label="Feedback" title="Report a bug or request a feature" style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px', minHeight: '36px', padding: '6px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', color: 'var(--gold)', cursor: 'pointer' }}>
+                                        <button onClick={(e) => { e.stopPropagation(); window.WR.Feedback.toggleMenu(e.currentTarget); }} aria-label="Feedback" title="Report a bug or request a feature" style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px', minHeight: '36px', padding: '6px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--gold)', cursor: 'pointer' }}>
                                             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
                                         </button>
                                     )}
-                                    <button className="wr-league-switch" onClick={onBack} style={{ padding: '7px 12px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--acc-fill2, rgba(212,175,55,0.10))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, minHeight: '36px' }}>SWITCH</button>
+                                    <button className="wr-league-switch" onClick={onBack} style={{ padding: '7px 12px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--acc-fill2, rgba(212,175,55,0.10))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, minHeight: '36px' }}>SWITCH</button>
                                 </div>
                                 {phHdrSheetOpen && <window.WR.Sheet open={true} onClose={() => setPhHdrSheetOpen(false)} title={currentLeague.name}>
                                     <div style={{ padding: '2px 16px 8px' }}>
@@ -3057,7 +3057,7 @@
                                             Native select → the iOS wheel picker; same handleTimeYearChange. */}
                                         <div style={{ ...rowSt, cursor: 'default' }}>
                                             <span style={rowLbl}>Season</span>
-                                            <select value={timeYear} onChange={e => handleTimeYearChange(Number(e.target.value))} aria-label="Season year" style={{ flex: 1, minWidth: 0, background: 'var(--ov-2, rgba(255,255,255,0.04))', color: isCurrentYear ? 'var(--gold)' : 'var(--k-45b7d1, #45b7d1)', border: '1px solid var(--ov-4, rgba(255,255,255,0.08))', borderRadius: '6px', padding: '8px 10px', minHeight: '40px', fontFamily: 'var(--font-body)', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
+                                            <select value={timeYear} onChange={e => handleTimeYearChange(Number(e.target.value))} aria-label="Season year" style={{ flex: 1, minWidth: 0, background: 'var(--ov-2, rgba(255,255,255,0.04))', color: isCurrentYear ? 'var(--gold)' : 'var(--k-45b7d1, #45b7d1)', border: '1px solid var(--ov-4, rgba(255,255,255,0.08))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 10px', minHeight: '40px', fontFamily: 'var(--font-body)', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
                                                 {(() => {
                                                     const opt = (yr) => <option key={yr} value={yr} style={{ background: 'var(--black)', color: 'var(--white)' }}>{yr}{yr === currentSeason ? ' • current' : ''}</option>;
                                                     const past = timeYears.filter(y => y < currentSeason);
@@ -3091,11 +3091,11 @@
                     })() : (
                     <div className="wr-league-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '8px 10px', flexWrap: 'wrap', minWidth: 0 }}>
                         <div className="header-title" style={{ fontSize: '1.05rem', minWidth: 0, maxWidth: 'min(460px, 100%)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentLeague.name}</div>
-                        <button className="wr-league-switch" onClick={onBack} style={{ padding: '4px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--acc-fill2, rgba(212,175,55,0.10))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>SWITCH</button>
+                        <button className="wr-league-switch" onClick={onBack} style={{ padding: '4px 12px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'var(--acc-fill2, rgba(212,175,55,0.10))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>SWITCH</button>
                         {/* Feedback (bug report + feature board) — re-homed here from the
                             floating bottom-right launcher that covered page content. */}
                         {window.WR?.Feedback?.toggleMenu && (
-                            <button onClick={(e) => { e.stopPropagation(); window.WR.Feedback.toggleMenu(e.currentTarget); }} aria-label="Feedback" title="Report a bug or request a feature" style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '30px', minHeight: '28px', padding: '4px 8px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', color: 'var(--gold)', cursor: 'pointer' }}>
+                            <button onClick={(e) => { e.stopPropagation(); window.WR.Feedback.toggleMenu(e.currentTarget); }} aria-label="Feedback" title="Report a bug or request a feature" style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '30px', minHeight: '28px', padding: '4px 8px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--gold)', cursor: 'pointer' }}>
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
                             </button>
                         )}
@@ -3124,7 +3124,7 @@
                                     letterSpacing: '0.02em',
                                     background: 'transparent', color: 'var(--silver)',
                                     border: '1px solid transparent',
-                                    borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
+                                    borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
                                 }
                             },
                                 React.createElement('span', { style: { width: 6, height: 6, borderRadius: '50%', background: gm.badgeColor, flexShrink: 0 } }),
@@ -3187,7 +3187,7 @@
                             style: {
                                 display: 'inline-flex', alignItems: 'center', gap: '7px',
                                 flex: '0 0 auto',
-                                padding: '4px 10px', borderRadius: '6px',
+                                padding: '4px 10px', borderRadius: 'var(--card-radius-sm, 8px)',
                                 border: '1px solid var(--acc-line3, rgba(212,175,55,0.42))',
                                 background: 'var(--acc-fill2, rgba(212,175,55,0.12))',
                                 color: 'var(--gold)',
@@ -3245,7 +3245,7 @@
                                                 color: isHistoricalYear ? 'var(--black)' : 'var(--silver)',
                                                 border: '1px solid ' + (isHistoricalYear ? 'var(--gold)' : 'var(--ov-4, rgba(255,255,255,0.06))'),
                                                 opacity: isHistoricalYear ? 1 : 0.8,
-                                                borderRadius: '4px', cursor: 'pointer', outline: 'none'
+                                                borderRadius: 'var(--card-radius-xs, 5px)', cursor: 'pointer', outline: 'none'
                                             }}>
                                                 <option value="" style={{ background: 'var(--black)', color: 'var(--white)' }}>Past seasons</option>
                                                 {pastYears.map(yr => <option key={yr} value={yr} style={{ background: 'var(--black)', color: 'var(--white)' }}>{yr}</option>)}
@@ -3273,7 +3273,7 @@
                                                 <button onClick={() => handleTimeYearChange(yr)} title={kind === 'future' ? yr + ' — projected' : yr + ' — current season'} style={{
                                                     padding: '4px 10px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)',
                                                     fontWeight: weight, background: bg, color: color, border: border, opacity,
-                                                    borderRadius: '4px', cursor: 'pointer', transition: 'all 0.15s'
+                                                    borderRadius: 'var(--card-radius-xs, 5px)', cursor: 'pointer', transition: 'all 0.15s'
                                                 }}>{yr}</button>
                                             </React.Fragment>
                                         );
@@ -3286,7 +3286,7 @@
                     <select className="wr-time-years-select" value={timeYear} onChange={e => handleTimeYearChange(Number(e.target.value))} aria-label="Season year" style={{
                         display: 'none', padding: '5px 8px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)',
                         fontWeight: 700, background: 'var(--gold)', color: 'var(--black)', border: '1px solid var(--gold)',
-                        borderRadius: '4px', cursor: 'pointer', minHeight: '32px'
+                        borderRadius: 'var(--card-radius-xs, 5px)', cursor: 'pointer', minHeight: '32px'
                     }}>
                         {(() => {
                             const opt = (yr) => <option key={yr} value={yr} style={{ background: 'var(--black)', color: 'var(--white)' }}>{yr}{yr === currentSeason ? ' • current' : ''}</option>;
@@ -3313,7 +3313,7 @@
                     } : {
                         fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: timeModeColor,
                         background: wrAlpha(timeModeColor, '15'), border: '1px solid ' + wrAlpha(timeModeColor, '30'),
-                        padding: '2px 10px', borderRadius: '12px',
+                        padding: '2px 10px', borderRadius: 'var(--card-radius-lg, 14px)',
                         fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em'
                     }}>{timeModeLabel}</span>
                     {/* Loading indicator */}
@@ -3334,7 +3334,7 @@
                     <span style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', opacity: 0.6 }}>
                         {isFutureYear ? 'Player ages projected +' + timeDelta + 'yr. Values and stats are estimates.' : 'Showing ' + timeYear + ' season stats. Roster composition reflects current state.'}
                     </span>
-                    <button onClick={() => handleTimeYearChange(currentSeason)} style={{ marginLeft: 'auto', fontSize: 'var(--text-label, 0.75rem)', padding: '3px 10px', background: 'transparent', border: '1px solid ' + timeModeColor, color: timeModeColor, borderRadius: '4px', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Back to {currentSeason}</button>
+                    <button onClick={() => handleTimeYearChange(currentSeason)} style={{ marginLeft: 'auto', fontSize: 'var(--text-label, 0.75rem)', padding: '3px 10px', background: 'transparent', border: '1px solid ' + timeModeColor, color: timeModeColor, borderRadius: 'var(--card-radius-xs, 5px)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Back to {currentSeason}</button>
                 </div>}
 
                 {/* Debug panel (dev only) */}

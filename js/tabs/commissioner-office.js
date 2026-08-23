@@ -961,12 +961,12 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         ) : null}
         <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '20px 16px 60px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
-                <button onClick={onBack} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: TEXT, cursor: 'pointer', padding: '6px 12px', fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em' }}>‹ HUB</button>
+                <button onClick={onBack} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, cursor: 'pointer', padding: '6px 12px', fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em' }}>‹ HUB</button>
                 {/* Blue wordmark, not gold: the cheapest signal that the Office
                     is a different room from Empire. Gold survives in exactly two
                     places office-wide — the LABS chip and the "this is you" row. */}
                 <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: isPhone ? '1.15rem' : '1.5rem', letterSpacing: '.06em', textTransform: 'uppercase', color: TEXT, display: 'inline-block', borderBottom: `3px solid ${ACCENT}`, paddingBottom: '3px' }}>Commissioner's Office</span>
-                <span style={{ fontFamily: MONO, fontSize: '0.625rem', fontWeight: 700, letterSpacing: '.08em', color: '#121217', background: GOLD, borderRadius: '4px', padding: '2px 6px' }}>LABS</span>
+                <span style={{ fontFamily: MONO, fontSize: '0.625rem', fontWeight: 700, letterSpacing: '.08em', color: '#121217', background: GOLD, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 6px' }}>LABS</span>
                 {state.status === 'ready' ? (
                     <span style={{ marginLeft: isPhone ? 0 : 'auto', flexBasis: isPhone ? '100%' : 'auto', fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
                         {state.mine.length} LEAGUES · {Object.keys(state.graph?.people || {}).length} HUMANS · {(state.graph?.overlap || []).length} CROSSOVER
@@ -988,13 +988,13 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                         {isPhone ? (
                             <button onClick={() => setNavOpen(true)}
-                                style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', minHeight: '44px', padding: '10px 14px', cursor: 'pointer', background: 'var(--co-surface-2)', border: `1px solid ${LINE}`, borderRadius: '6px', color: TEXT, fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                                style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', minHeight: '44px', padding: '10px 14px', cursor: 'pointer', background: 'var(--co-surface-2)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                                 ☰ Desks
                             </button>
                         ) : null}
                         {scopeLeagueId ? (
                             <button onClick={() => setScopeLeagueId(null)}
-                                style={{ marginBottom: '12px', padding: '6px 11px', cursor: 'pointer', background: 'var(--co-accent-fill)', border: `1px solid var(--co-accent-line)`, borderRadius: '6px', color: ACCENT, fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
+                                style={{ marginBottom: '12px', padding: '6px 11px', cursor: 'pointer', background: 'var(--co-accent-fill)', border: `1px solid var(--co-accent-line)`, borderRadius: 'var(--card-radius-sm, 8px)', color: ACCENT, fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
                                 {(state.mine || []).find(l => String(l.league_id || l.id) === scopeLeagueId)?.name || 'SCOPED'} ✕
                             </button>
                         ) : null}
@@ -1014,18 +1014,18 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     );
 
     if (state.status === 'idle' || state.status === 'loading') {
-        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '18px', color: TEXT, fontFamily: MONO, fontSize: '0.78rem' }}>{state.step || 'Opening the office…'}</div>);
+        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '18px', color: TEXT, fontFamily: MONO, fontSize: '0.78rem' }}>{state.step || 'Opening the office…'}</div>);
     }
     if (state.status === 'none') {
-        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '18px', color: TEXT, fontSize: '0.82rem', lineHeight: 1.6 }}>No commissioned leagues found on this account. Sleeper marks commissioners on each league — when one of your leagues carries your gavel, the office opens by itself.</div>);
+        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '18px', color: TEXT, fontSize: '0.82rem', lineHeight: 1.6 }}>No commissioned leagues found on this account. Sleeper marks commissioners on each league — when one of your leagues carries your gavel, the office opens by itself.</div>);
     }
     if (state.status === 'error' || state.status === 'unavailable') {
-        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '18px', color: TEXT, fontSize: '0.82rem' }}>The office couldn't load — league data was unavailable. Try again from the hub.</div>);
+        return shell(<div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '18px', color: TEXT, fontSize: '0.82rem' }}>The office couldn't load — league data was unavailable. Try again from the hub.</div>);
     }
 
     const Net = window.WrCommishCoefficientPanel, Prog = window.WrCommishProgrammePanel;
     const People = window.WrCommishPeoplePanel, Ops = window.WrCommishOpsPanel;
-    const missing = (name) => <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '16px', color: TEXT, fontSize: '0.78rem', fontFamily: MONO }}>{name} module not loaded.</div>;
+    const missing = (name) => <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '16px', color: TEXT, fontSize: '0.78rem', fontFamily: MONO }}>{name} module not loaded.</div>;
 
     return shell(
         <React.Fragment>

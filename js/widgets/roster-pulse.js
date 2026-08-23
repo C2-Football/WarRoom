@@ -250,7 +250,7 @@
                         <span style={{ fontFamily: fonts.display, fontSize: fs(1.0), fontWeight: 700, color: colors.accent, letterSpacing: '0.07em', textTransform: 'uppercase', flex: 1 }}>Roster Pulse</span>
                         {/* free keeps the raw rank; the tier verdict word is Pro */}
                         <Badge label={(pro ? tier + ' · ' : '') + '#' + (healthRank || '—')} color={pro ? tierCol : colors.accent} theme={theme} />
-                        <button onClick={openMyRoster} title="Open My Roster" style={{ padding: '3px 8px', minHeight: '44px', marginTop: '-12px', marginBottom: '-12px', display: 'flex', alignItems: 'center', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '5px', cursor: 'pointer', fontSize: fs(0.58), fontFamily: fonts.ui, fontWeight: 700, whiteSpace: 'nowrap' }}>Roster</button>
+                        <button onClick={openMyRoster} title="Open My Roster" style={{ padding: '3px 8px', minHeight: '44px', marginTop: '-12px', marginBottom: '-12px', display: 'flex', alignItems: 'center', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: 'var(--card-radius-xs, 5px)', cursor: 'pointer', fontSize: fs(0.58), fontFamily: fonts.ui, fontWeight: 700, whiteSpace: 'nowrap' }}>Roster</button>
                     </div>
 
                     {/* Vital signs grid */}
@@ -287,7 +287,7 @@
                                 <div key={i} style={{
                                     background: 'var(--ov-1, rgba(255,255,255,0.02))',
                                     border: '1px solid ' + wrAlpha(p.col, '33'),
-                                    borderRadius: '4px',
+                                    borderRadius: 'var(--card-radius-xs, 5px)',
                                     padding: '4px 2px', textAlign: 'center',
                                 }}>
                                     <div style={{ fontSize: fs(0.58), fontWeight: 700, color: colors.textMuted, fontFamily: fonts.ui, lineHeight: 1 }}>{window.App?.posLabel?.(p.pos) || (p.pos === 'DEF' ? 'D/ST' : p.pos)}</div>
@@ -501,7 +501,7 @@
                         <div key={pos} style={{
                             background: 'var(--ov-1, rgba(255,255,255,0.02))',
                             border: '1px solid ' + (colors.border || 'var(--ov-4, rgba(255,255,255,0.06))'),
-                            borderRadius: '4px', padding: '6px 8px',
+                            borderRadius: 'var(--card-radius-xs, 5px)', padding: '6px 8px',
                             opacity: 0.4,
                         }}>
                             <div style={{ fontSize: fs(0.62), fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: fonts.ui }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</div>
@@ -512,7 +512,7 @@
                         <div key={pos} style={{
                             background: 'var(--ov-1, rgba(255,255,255,0.02))',
                             border: '1px solid ' + (colors.border || 'var(--ov-4, rgba(255,255,255,0.06))'),
-                            borderRadius: '4px', padding: '6px 8px',
+                            borderRadius: 'var(--card-radius-xs, 5px)', padding: '6px 8px',
                             display: 'flex', flexDirection: 'column', gap: '3px', minHeight: 0,
                             overflow: 'hidden',
                         }}>

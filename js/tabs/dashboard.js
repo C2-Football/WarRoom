@@ -354,7 +354,7 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
         const monoCaps = { fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' };
         const chipBase = (active, accentCol) => ({
             display: 'inline-flex', alignItems: 'center', gap: '6px',
-            minHeight: '44px', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer',
+            minHeight: '44px', padding: '8px 14px', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer',
             border: '1px solid ' + (active ? (accentCol || 'var(--gold)') : 'var(--ov-6, rgba(255,255,255,0.1))'),
             background: active ? 'var(--acc-fill2, rgba(212,175,55,0.1))' : 'var(--ov-1, rgba(255,255,255,0.02))',
             color: active ? 'var(--gold)' : 'var(--silver)',
@@ -432,7 +432,7 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
                     borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.07))',
                 }}>
                     <button type="button" onClick={handleConfirm} disabled={!selectedModule || !selectedSize} style={{
-                        width: '100%', minHeight: '48px', padding: '12px', borderRadius: '8px',
+                        width: '100%', minHeight: '48px', padding: '12px', borderRadius: 'var(--card-radius-sm, 8px)',
                         cursor: (selectedModule && selectedSize) ? 'pointer' : 'not-allowed',
                         background: (selectedModule && selectedSize) ? 'var(--gold)' : 'var(--ov-4, rgba(255,255,255,0.06))',
                         border: 'none', color: (selectedModule && selectedSize) ? 'var(--k-000000, #000000)' : 'var(--silver)',
@@ -482,11 +482,11 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         {step !== 'module' && (
                             <button onClick={() => setStep(step === 'size' ? 'module' : 'size')}
-                                style={{ background: 'var(--ov-4, rgba(255,255,255,0.06))', border: 'none', borderRadius: '8px', padding: '6px 12px', minHeight: '44px', color: 'var(--silver)', cursor: 'pointer', fontSize: 'var(--text-body, 1rem)', fontFamily: 'DM Sans, sans-serif' }}>
+                                style={{ background: 'var(--ov-4, rgba(255,255,255,0.06))', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', padding: '6px 12px', minHeight: '44px', color: 'var(--silver)', cursor: 'pointer', fontSize: 'var(--text-body, 1rem)', fontFamily: 'DM Sans, sans-serif' }}>
                                 ← Back
                             </button>
                         )}
-                        <button onClick={onClose} style={{ background: 'var(--ov-4, rgba(255,255,255,0.06))', border: 'none', borderRadius: '8px', padding: '6px 10px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--silver)', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>✕</button>
+                        <button onClick={onClose} style={{ background: 'var(--ov-4, rgba(255,255,255,0.06))', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', padding: '6px 10px', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--silver)', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>✕</button>
                     </div>
                 </div>
 
@@ -503,7 +503,7 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
                                     style={{
                                         background: hoverModule === key ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'var(--ov-2, rgba(255,255,255,0.03))',
                                         border: '1px solid ' + (hoverModule === key ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                                        borderRadius: '10px', padding: '14px 12px', cursor: 'pointer',
+                                        borderRadius: 'var(--card-radius, 10px)', padding: '14px 12px', cursor: 'pointer',
                                         transition: 'all 0.15s', textAlign: 'center', fontFamily: 'inherit',
                                     }}>
                                     <div style={{ fontSize: '1.5rem', marginBottom: '4px', lineHeight: 1 }}>{m.icon}</div>
@@ -524,7 +524,7 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
                 {step === 'size' && mod && (
                     <div className="wr-widget-picker-body" style={{ padding: '16px 20px' }}>
                         {/* Module info — compact */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', padding: '10px 14px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderRadius: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', padding: '10px 14px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderRadius: 'var(--card-radius-sm, 8px)' }}>
                             <span style={{ fontSize: '1.4rem' }}>{mod.icon}</span>
                             <div>
                                 <div style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, color: 'var(--white)', fontSize: 'var(--text-body, 1rem)' }}>{mod.label}</div>
@@ -542,7 +542,7 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
                                 return (
                                     <div key={sz} onClick={() => setSelectedSize(sz)} style={{
                                         display: 'flex', flexDirection: 'column', alignItems: 'center',
-                                        padding: '10px 14px', borderRadius: '8px', cursor: 'pointer',
+                                        padding: '10px 14px', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer',
                                         border: '1.5px solid ' + (isActive ? (accentCol || 'var(--gold)') : 'var(--ov-5, rgba(255,255,255,0.08))'),
                                         background: isActive ? 'var(--acc-fill2, rgba(212,175,55,0.1))' : 'var(--ov-1, rgba(255,255,255,0.02))',
                                         transition: 'all 0.12s', minWidth: 70,
@@ -570,7 +570,7 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
                                         const accentCol = typeof mod.accent === 'function' ? mod.accent() : mod.accent;
                                         return (
                                             <button key={m.key} className="wr-picker-metric-chip" onClick={() => setSelectedMetric(m.key)} style={{
-                                                padding: '4px 10px', borderRadius: '14px', cursor: 'pointer',
+                                                padding: '4px 10px', borderRadius: 'var(--card-radius-lg, 14px)', cursor: 'pointer',
                                                 border: '1px solid ' + (selectedMetric === m.key ? (accentCol || 'var(--gold)') : 'var(--ov-6, rgba(255,255,255,0.1))'),
                                                 background: selectedMetric === m.key ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : 'transparent',
                                                 color: selectedMetric === m.key ? 'var(--gold)' : 'var(--silver)',
@@ -585,7 +585,7 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
 
                         {/* Add button */}
                         <button onClick={handleConfirm} disabled={!selectedSize} style={{
-                            width: '100%', padding: '12px', borderRadius: '8px', cursor: selectedSize ? 'pointer' : 'not-allowed',
+                            width: '100%', padding: '12px', borderRadius: 'var(--card-radius-sm, 8px)', cursor: selectedSize ? 'pointer' : 'not-allowed',
                             background: selectedSize ? 'var(--gold)' : 'var(--ov-4, rgba(255,255,255,0.06))',
                             border: 'none', color: selectedSize ? 'var(--k-000000, #000000)' : 'var(--silver)',
                             fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-body, 1rem)', fontWeight: 700,
@@ -676,7 +676,7 @@ function WrDashReorder({ widgets, modules, onReorder, onClose }) {
                             padding: '10px', minHeight: '52px',
                             background: isDrag ? 'var(--surface-3, #27262E)' : 'var(--black, #121217)',
                             border: '1px solid ' + (isDrag ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.07)'),
-                            borderRadius: '9px',
+                            borderRadius: 'var(--card-radius, 10px)',
                             boxShadow: isDrag ? '0 8px 22px rgba(0,0,0,0.5)' : 'none',
                             opacity: (dragRef.current && !isDrag) ? 0.7 : 1,
                             touchAction: 'pan-y',
@@ -1000,7 +1000,7 @@ function DashboardPanel({
                 {allMetrics.length > 1 && (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginBottom: '12px' }}>
                         {allMetrics.map(m => (
-                            <div key={m.key} style={{ background: 'var(--ov-2, rgba(255,255,255,0.03))', borderRadius: '8px', padding: '8px 10px' }}>
+                            <div key={m.key} style={{ background: 'var(--ov-2, rgba(255,255,255,0.03))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 10px' }}>
                                 <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: S, opacity: 0.6, fontFamily: dmFont, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>{m.label}</div>
                                 <div style={{ fontFamily: monoFont, fontSize: 'var(--text-body, 1rem)', fontWeight: 600, color: m.val.color || W }}>{m.val.value}</div>
                                 <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: S, opacity: 0.5, fontFamily: dmFont, marginTop: '1px' }}>{m.val.sub}</div>
@@ -1478,7 +1478,7 @@ function DashboardPanel({
                         position: 'absolute', top: '26px', right: '2px', zIndex: 7,
                         display: 'flex', gap: '4px', padding: '3px 4px',
                         background: 'var(--surf-solid, rgba(10,10,10,0.92))', backdropFilter: 'blur(4px)',
-                        border: '1px solid var(--ov-6, rgba(255,255,255,0.15))', borderRadius: '9px',
+                        border: '1px solid var(--ov-6, rgba(255,255,255,0.15))', borderRadius: 'var(--card-radius, 10px)',
                     }}>
                         <button
                             onClick={e => { e.stopPropagation(); setPhoneMenu(false); setEditingWidget({ widget, idx }); setPickerOpen(true); }}
@@ -1704,7 +1704,7 @@ function DashboardPanel({
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
                     {starredWidgets.map(item => (
-                        <div key={item.id} style={{ background: 'var(--acc-fill1, rgba(212,175,55,0.05))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '10px', padding: '12px 14px', position: 'relative' }}>
+                        <div key={item.id} style={{ background: 'var(--acc-fill1, rgba(212,175,55,0.05))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius, 10px)', padding: '12px 14px', position: 'relative' }}>
                             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
                                 <div style={{ fontFamily: dmFont, fontSize: 'var(--text-body, 1rem)', fontWeight: 600, color: W, lineHeight: 1.3 }}>{item.title}</div>
                                 <button onClick={() => window.WrStarWidget?.remove(item.id)} title="Unpin" style={{ background: 'none', border: 'none', cursor: 'pointer', color: G, fontSize: 'var(--text-body, 1rem)', flexShrink: 0, padding: 0, lineHeight: 1, minWidth: '44px', minHeight: '44px', margin: '-12px -14px -12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>★</button>
@@ -1805,7 +1805,7 @@ function DashboardPanel({
             const clickTab = resolveWidgetDestination(mod?.clickTarget?.sm || mod?.clickTarget?.md || null);
             const tileBase = {
                 background: BK, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
-                borderRadius: '9px', padding: '9px 11px', minHeight: '68px', maxWidth: '150px',
+                borderRadius: 'var(--card-radius, 10px)', padding: '9px 11px', minHeight: '68px', maxWidth: '150px',
                 display: 'flex', flexDirection: 'column', gap: '2px', cursor: 'pointer', boxSizing: 'border-box',
             };
             const labelCss = { fontFamily: monoFont, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, color: S, opacity: 0.65, letterSpacing: '0.05em', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
@@ -1907,7 +1907,7 @@ function DashboardPanel({
                         <button type="button" onClick={() => setReorderOpen(true)} style={{
                             flex: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '40px', padding: '0 14px',
                             background: 'var(--acc-fill2, rgba(212,175,55,0.10))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
-                            borderRadius: '8px', color: G, cursor: 'pointer', fontFamily: dmFont, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, letterSpacing: '0.04em',
+                            borderRadius: 'var(--card-radius-sm, 8px)', color: G, cursor: 'pointer', fontFamily: dmFont, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, letterSpacing: '0.04em',
                         }}>
                             <span aria-hidden="true" style={{ fontSize: '1rem', lineHeight: 1 }}>⇅</span> Reorder
                         </button>
@@ -1939,7 +1939,7 @@ function DashboardPanel({
                         style={{
                             width: '100%', minHeight: '56px',
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                            border: '1px dashed var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '10px',
+                            border: '1px dashed var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 'var(--card-radius, 10px)',
                             background: 'transparent', cursor: 'pointer',
                             color: 'var(--acc-line2, rgba(212,175,55,0.35))', fontFamily: 'inherit',
                         }}
@@ -2009,7 +2009,7 @@ function DashboardPanel({
                     <button onClick={dismissHint} style={{
                         padding: '5px 14px', fontSize: 'var(--text-label, 0.75rem)', fontFamily: dmFont, fontWeight: 600,
                         background: 'var(--acc-fill2, rgba(212,175,55,0.12))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))',
-                        borderRadius: '5px', color: G, cursor: 'pointer', flexShrink: 0,
+                        borderRadius: 'var(--card-radius-xs, 5px)', color: G, cursor: 'pointer', flexShrink: 0,
                     }}>Got it</button>
                 </div>
             )}
@@ -2107,7 +2107,7 @@ function DashboardPanel({
                     style={{
                         gridColumn: 'span 1', gridRow: 'span 1',
                         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                        border: '1px dashed var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '10px',
+                        border: '1px dashed var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 'var(--card-radius, 10px)',
                         background: 'transparent',
                         cursor: 'pointer', minHeight: '160px',
                         transition: 'all 0.15s', color: 'var(--acc-line2, rgba(212,175,55,0.35))',

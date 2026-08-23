@@ -108,7 +108,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
 
     // ── Shells (same idiom as season-odds-panel) ─────────────────────
     const Section = ({ title, meta, action, children }) => (
-        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
+        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
                 <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
@@ -119,7 +119,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
     );
     const TypeChip = ({ type }) => {
         const c = CHIP[type] || CHIP.playoffs;
-        return <span style={{ ...mono, fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.06em', color: c.color, border: `1px solid ${c.border}`, background: c.bg, borderRadius: '4px', padding: '2px 6px', whiteSpace: 'nowrap' }}>{c.text}</span>;
+        return <span style={{ ...mono, fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.06em', color: c.color, border: `1px solid ${c.border}`, background: c.bg, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 6px', whiteSpace: 'nowrap' }}>{c.text}</span>;
     };
     const calGrid = { display: 'grid', gridTemplateColumns: '128px 78px minmax(0,1fr) minmax(0,1.4fr)', gap: '10px', alignItems: 'center', padding: '5px 10px', minWidth: 0 };
     // One row, scheduled or unscheduled. Manual (custom:true) rows get a
@@ -135,7 +135,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
                 {ev.custom ? (
                     <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                         <button title={ev.done ? 'Mark not done' : 'Mark done'} onClick={() => { if (typeof onToggleTask === 'function') onToggleTask(ev.id); }}
-                            style={{ background: 'none', border: `1px solid ${LINE}`, borderRadius: '4px', color: ev.done ? GREEN : SILVER, cursor: 'pointer', font: '700 0.62rem ' + MONO, padding: '2px 5px', lineHeight: 1 }}>
+                            style={{ background: 'none', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: ev.done ? GREEN : SILVER, cursor: 'pointer', font: '700 0.62rem ' + MONO, padding: '2px 5px', lineHeight: 1 }}>
                             {ev.done ? '✓' : '○'}
                         </button>
                         <button title="Remove" onClick={() => { if (typeof onRemoveTask === 'function') onRemoveTask(ev.id); }}
@@ -188,7 +188,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
                                     </div>
                                 </div>
                                 <button onClick={() => { if (typeof onAcknowledge === 'function') onAcknowledge(lg.leagueId); }}
-                                    style={{ marginTop: '10px', padding: '6px 12px', background: 'transparent', color: AMBER, border: '1px solid rgba(240,165,0,0.5)', borderRadius: '5px', font: '700 0.66rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                                    style={{ marginTop: '10px', padding: '6px 12px', background: 'transparent', color: AMBER, border: '1px solid rgba(240,165,0,0.5)', borderRadius: 'var(--card-radius-xs, 5px)', font: '700 0.66rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>
                                     Acknowledge &amp; ratify
                                 </button>
                             </div>
@@ -211,33 +211,33 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
             <Section title="Master Calendar" meta={events.length ? events.length + ' event' + (events.length === 1 ? '' : 's') + ' · every league, one board' : null}
                 action={typeof onAddTask === 'function' ? (
                     <button onClick={() => setShowAdd(s => !s)}
-                        style={{ background: 'none', border: `1px solid ${LINE}`, borderRadius: '5px', color: showAdd ? TEXT : SILVER, cursor: 'pointer', font: '700 0.66rem ' + MONO, letterSpacing: '0.05em', padding: '5px 10px' }}>
+                        style={{ background: 'none', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: showAdd ? TEXT : SILVER, cursor: 'pointer', font: '700 0.66rem ' + MONO, letterSpacing: '0.05em', padding: '5px 10px' }}>
                         {showAdd ? 'Cancel' : '+ Add task / milestone / event'}
                     </button>
                 ) : null}>
                 {showAdd ? (
-                    <div style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: '6px', padding: '10px 12px', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder='Title (e.g. "Collect dues")'
-                            style={{ padding: '7px 9px', background: PANEL, border: `1px solid ${LINE}`, borderRadius: '4px', color: TEXT, fontSize: '0.78rem', fontFamily: 'inherit' }} />
+                            style={{ padding: '7px 9px', background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, fontSize: '0.78rem', fontFamily: 'inherit' }} />
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                             <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
-                                style={{ padding: '7px 9px', background: PANEL, border: `1px solid ${LINE}`, borderRadius: '4px', color: TEXT, fontSize: '0.76rem', fontFamily: 'inherit' }}>
+                                style={{ padding: '7px 9px', background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, fontSize: '0.76rem', fontFamily: 'inherit' }}>
                                 <option value="task">Task</option>
                                 <option value="milestone">Milestone</option>
                                 <option value="event">Event</option>
                             </select>
                             <input type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })}
-                                style={{ padding: '7px 9px', background: PANEL, border: `1px solid ${LINE}`, borderRadius: '4px', color: TEXT, fontSize: '0.76rem', fontFamily: 'inherit' }} />
+                                style={{ padding: '7px 9px', background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, fontSize: '0.76rem', fontFamily: 'inherit' }} />
                             <select value={form.leagueId} onChange={e => setForm({ ...form, leagueId: e.target.value })}
-                                style={{ padding: '7px 9px', background: PANEL, border: `1px solid ${LINE}`, borderRadius: '4px', color: TEXT, fontSize: '0.76rem', fontFamily: 'inherit', flex: '1 1 140px' }}>
+                                style={{ padding: '7px 9px', background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, fontSize: '0.76rem', fontFamily: 'inherit', flex: '1 1 140px' }}>
                                 <option value="">All leagues</option>
                                 {leagueOptions.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                             </select>
                         </div>
                         <input value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="Note (optional)"
-                            style={{ padding: '7px 9px', background: PANEL, border: `1px solid ${LINE}`, borderRadius: '4px', color: TEXT, fontSize: '0.78rem', fontFamily: 'inherit' }} />
+                            style={{ padding: '7px 9px', background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, fontSize: '0.78rem', fontFamily: 'inherit' }} />
                         <button onClick={submitTask} disabled={!form.title.trim()}
-                            style={{ alignSelf: 'flex-start', padding: '6px 14px', background: form.title.trim() ? GOLD : LINE, color: form.title.trim() ? '#121217' : SILVER, border: 'none', borderRadius: '5px', font: '700 0.7rem ' + MONO, letterSpacing: '0.05em', cursor: form.title.trim() ? 'pointer' : 'default' }}>
+                            style={{ alignSelf: 'flex-start', padding: '6px 14px', background: form.title.trim() ? GOLD : LINE, color: form.title.trim() ? '#121217' : SILVER, border: 'none', borderRadius: 'var(--card-radius-xs, 5px)', font: '700 0.7rem ' + MONO, letterSpacing: '0.05em', cursor: form.title.trim() ? 'pointer' : 'default' }}>
                             Add to board
                         </button>
                     </div>

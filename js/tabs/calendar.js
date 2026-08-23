@@ -287,7 +287,7 @@ function CalendarTab({ currentLeague, myRoster, leagueSkin }) {
                             ),
                             // Content
                             React.createElement('div', { style: { flex: 1 } },
-                                React.createElement('div', { style: { fontSize: 'var(--text-body)', fontWeight: 600, color: isNext ? 'var(--gold)' : 'var(--white)' } }, event.title, isNext && React.createElement('span', { style: { fontSize: 'var(--text-micro)', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', background: 'var(--gold)', color: 'var(--black)', marginLeft: '6px' } }, 'NEXT')),
+                                React.createElement('div', { style: { fontSize: 'var(--text-body)', fontWeight: 600, color: isNext ? 'var(--gold)' : 'var(--white)' } }, event.title, isNext && React.createElement('span', { style: { fontSize: 'var(--text-micro)', fontWeight: 700, padding: '1px 6px', borderRadius: 'var(--card-radius-xs, 5px)', background: 'var(--gold)', color: 'var(--black)', marginLeft: '6px' } }, 'NEXT')),
                                 React.createElement('div', { style: { fontSize: 'var(--text-label)', color: 'var(--silver)', marginTop: '2px' } }, dateStr, event.detail ? ' \u00B7 ' + event.detail : ''),
                             ),
                             // Countdown or delete

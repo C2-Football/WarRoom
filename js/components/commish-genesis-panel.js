@@ -42,7 +42,7 @@ function WrCommishGenesisPanel({ readiness, onToggle }) {
     const flip = lid => setOpen(o => ({ ...o, [lid]: !o[lid] }));
 
     const Section = ({ title, meta, children }) => (
-        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
+        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
                 <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
@@ -91,7 +91,7 @@ function WrCommishGenesisPanel({ readiness, onToggle }) {
             ) : !list.length ? (
                 <div style={{ color: TEXT, fontSize: '0.78rem' }}>No commissioned leagues to score — connect a league you run and the wall lights up.</div>
             ) : allReady ? (
-                <div style={{ background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: '6px', padding: '9px 12px', color: GREEN, fontSize: '0.78rem' }}>
+                <div style={{ background: 'rgba(46,204,113,0.08)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 12px', color: GREEN, fontSize: '0.78rem' }}>
                     Every league is opening-day ready.
                 </div>
             ) : list.map((r, i) => {
@@ -99,7 +99,7 @@ function WrCommishGenesisPanel({ readiness, onToggle }) {
                 const needs = needsLine(r.blockers);
                 const items = Array.isArray(r.items) ? r.items : [];
                 return (
-                    <div key={r.leagueId} style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: '6px', marginBottom: i === list.length - 1 ? 0 : '10px' }}>
+                    <div key={r.leagueId} style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', marginBottom: i === list.length - 1 ? 0 : '10px' }}>
                         <button onClick={() => flip(r.leagueId)} aria-expanded={isOpen}
                             style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', background: 'transparent', border: 'none', padding: '10px 12px', cursor: 'pointer', textAlign: 'left' }}>
                             <span style={{ ...mono, fontSize: '1.3rem', fontWeight: 700, color: pctColor(r.pct), minWidth: '58px' }}>{r.pct}%</span>
@@ -166,7 +166,7 @@ function WrCommishRenewalPanel({ forecast }) {
     };
 
     const Section = ({ title, meta, children }) => (
-        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
+        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
                 <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
@@ -175,7 +175,7 @@ function WrCommishRenewalPanel({ forecast }) {
         </div>
     );
     const Kpi = ({ label, value, sub }) => (
-        <div style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: '6px', padding: '9px 11px', minWidth: '104px', flex: 1 }}>
+        <div style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 11px', minWidth: '104px', flex: 1 }}>
             <div style={{ ...microHdr }}>{label}</div>
             <div style={{ ...mono, fontSize: '1.3rem', fontWeight: 700, color: TEXT, marginTop: '2px' }}>{value}</div>
             {sub ? <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '1px' }}>{sub}</div> : null}
@@ -230,7 +230,7 @@ function WrCommishRenewalPanel({ forecast }) {
                                 {factors.length ? (
                                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
                                         {factors.map((f, fi) => (
-                                            <span key={fi} style={{ fontSize: '0.62rem', color: MUTED, border: `1px solid ${LINE}`, borderRadius: '4px', padding: '1px 6px' }}>{f}</span>
+                                            <span key={fi} style={{ fontSize: '0.62rem', color: MUTED, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 6px' }}>{f}</span>
                                         ))}
                                     </div>
                                 ) : null}
@@ -240,7 +240,7 @@ function WrCommishRenewalPanel({ forecast }) {
                                             “{play}”
                                         </div>
                                         <button onClick={() => doCopy('play:' + p.userId + ':' + pi, play)}
-                                            style={{ padding: '4px 10px', background: 'transparent', color: GOLD, border: '1px solid rgba(212,175,55,0.5)', borderRadius: '5px', font: '700 0.62rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer', flexShrink: 0 }}>
+                                            style={{ padding: '4px 10px', background: 'transparent', color: GOLD, border: '1px solid rgba(212,175,55,0.5)', borderRadius: 'var(--card-radius-xs, 5px)', font: '700 0.62rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer', flexShrink: 0 }}>
                                             {copiedKey === 'play:' + p.userId + ':' + pi ? 'Copied' : 'Copy'}
                                         </button>
                                     </div>

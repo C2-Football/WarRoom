@@ -203,7 +203,7 @@
         const [whyOpen, setWhyOpen] = React.useState(false);
         return (
             <div className="tc-ta-verdict tc-ta-sticky-summary" id="wr-export-trade">
-                <div className="tc-section-hdr" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>TRADE ANALYSIS<button onClick={() => window.wrExport?.capture(document.getElementById('wr-export-trade'), 'trade-analysis')} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'4px', padding:'2px 8px', color:'var(--gold)', fontSize:'var(--text-micro, 0.6875rem)', cursor:'pointer', fontFamily: 'var(--font-body)', minHeight:'44px', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>Snapshot</button></div>
+                <div className="tc-section-hdr" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>TRADE ANALYSIS<button onClick={() => window.wrExport?.capture(document.getElementById('wr-export-trade'), 'trade-analysis')} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'var(--card-radius-xs, 5px)', padding:'2px 8px', color:'var(--gold)', fontSize:'var(--text-micro, 0.6875rem)', cursor:'pointer', fontFamily: 'var(--font-body)', minHeight:'44px', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>Snapshot</button></div>
                 <div style={{ display:'flex', alignItems:'baseline', gap:'0.6rem', flexWrap:'wrap' }}>
                     <span className="tc-verdict-diff" style={{ color: verdictColor }}>{grade?.grade || '--'}</span>
                     <span style={{ fontFamily:'var(--font-title)', fontSize:'1.1rem', color: verdictColor }}>{(grade?.label || '').toUpperCase()}</span>
@@ -308,7 +308,7 @@
                             {gmViability && (() => {
                                 const vColor = gmViability === 'Playable' ? 'var(--win-green)' : gmViability === 'Negotiable' ? 'var(--warn)' : 'var(--loss-red)';
                                 const vBg = gmViability === 'Playable' ? 'rgba(46,204,113,0.12)' : gmViability === 'Negotiable' ? 'rgba(230,176,40,0.12)' : 'rgba(231,76,60,0.12)';
-                                return <span style={{ fontSize:'0.68rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', padding:'2px 8px', borderRadius:'4px', color:vColor, border:`1px solid ${vColor}`, background:vBg }}>{gmViability}</span>;
+                                return <span style={{ fontSize:'0.68rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', padding:'2px 8px', borderRadius:'var(--card-radius-xs, 5px)', color:vColor, border:`1px solid ${vColor}`, background:vBg }}>{gmViability}</span>;
                             })()}
                             <span style={{ fontSize:'0.7rem', color:'var(--silver)', opacity:0.72 }}>
                                 {gmModeLabel ? `${gmModeLabel} lens` : 'GM lens'} · your bar to act {typeof gmFloor === 'number' ? `${gmFloor}%` : '—'}
@@ -2410,7 +2410,7 @@
             return (
                 <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                     {/* Left pane: PR-sorted owner list (phone: the whole surface until a pick) */}
-                    {showList && <div style={{ flex: phone ? '1 1 100%' : '0 0 240px', minWidth: phone ? 0 : '200px', maxHeight: phone ? 'none' : '78vh', overflowY: phone ? 'visible' : 'auto', background: 'var(--off-black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: '10px', padding: '6px' }}>
+                    {showList && <div style={{ flex: phone ? '1 1 100%' : '0 0 240px', minWidth: phone ? 0 : '200px', maxHeight: phone ? 'none' : '78vh', overflowY: phone ? 'visible' : 'auto', background: 'var(--off-black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: 'var(--card-radius, 10px)', padding: '6px' }}>
                         <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '6px 8px' }}>Owners · sorted by power</div>
                         {sortedAssessments.map((a, idx) => {
                             const rid = a.rosterId;
@@ -2424,7 +2424,7 @@
                             return (
                                 <div key={rid} onClick={() => setExpandedDnaOwner(rid)} style={{
                                     display: 'flex', alignItems: 'center', gap: '8px',
-                                    padding: '7px 8px', minHeight: phone ? '44px' : undefined, borderRadius: '6px', cursor: 'pointer',
+                                    padding: '7px 8px', minHeight: phone ? '44px' : undefined, borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer',
                                     background: isSel ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'transparent',
                                     border: '1px solid ' + (isSel ? 'var(--acc-line2, rgba(212,175,55,0.35))' : 'transparent'),
                                     marginBottom: '2px', transition: 'background 0.15s'
@@ -2448,7 +2448,7 @@
                     {/* Right pane: selected owner detail (phone: single pane + back) */}
                     {showDetail && <div style={{ flex: phone ? '1 1 100%' : '1 1 480px', minWidth: phone ? 0 : '320px' }}>
                         {phone && (
-                            <button type="button" onClick={() => setExpandedDnaOwner(null)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px', marginBottom: '8px', padding: '6px 14px 6px 10px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '6px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>‹ All owners</button>
+                            <button type="button" onClick={() => setExpandedDnaOwner(null)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '44px', marginBottom: '8px', padding: '6px 14px 6px 10px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>‹ All owners</button>
                         )}
                         <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px', lineHeight: 1.5 }}>
                             Profile each owner's behavioral DNA. {React.createElement(Tip, null, 'Owner DNA classifies each league member\'s trading personality. DNA now affects acceptance through psychological tax drivers, not separate multiplier curves.')}
@@ -2456,11 +2456,11 @@
                             {React.createElement(function DnaGuideInline() {
                                 const [guideOpen, setGuideOpen] = React.useState(false);
                                 return React.createElement(React.Fragment, null,
-                                    React.createElement('button', { onClick:()=>setGuideOpen(!guideOpen), style:{fontSize:'0.7rem',color:'var(--gold)',background:'var(--acc-fill2, rgba(212,175,55,0.08))',border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))',borderRadius:'4px',padding:'2px 8px',cursor:'pointer',fontFamily: 'var(--font-body)',textTransform:'uppercase',letterSpacing:'0.05em',marginLeft:'6px',minHeight:'44px',display:'inline-flex',alignItems:'center'} }, guideOpen ? 'Hide DNA Guide' : 'Show DNA Guide'),
+                                    React.createElement('button', { onClick:()=>setGuideOpen(!guideOpen), style:{fontSize:'0.7rem',color:'var(--gold)',background:'var(--acc-fill2, rgba(212,175,55,0.08))',border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))',borderRadius:'var(--card-radius-xs, 5px)',padding:'2px 8px',cursor:'pointer',fontFamily: 'var(--font-body)',textTransform:'uppercase',letterSpacing:'0.05em',marginLeft:'6px',minHeight:'44px',display:'inline-flex',alignItems:'center'} }, guideOpen ? 'Hide DNA Guide' : 'Show DNA Guide'),
                                     guideOpen ? React.createElement('div', { style:{marginTop:'8px', display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'8px'} },
                                         ...Object.entries(DNA_TYPES).filter(function(e){return e[0]!=='NONE'}).map(function(entry) {
                                             var key=entry[0], d=entry[1];
-                                            return React.createElement('div', { key:key, style:{background:wrAlpha(d.color, '08'),border:'1px solid '+wrAlpha(d.color, '44'),borderLeft:'3px solid '+d.color,borderRadius:'6px',padding:'8px 10px'} },
+                                            return React.createElement('div', { key:key, style:{background:wrAlpha(d.color, '08'),border:'1px solid '+wrAlpha(d.color, '44'),borderLeft:'3px solid '+d.color,borderRadius:'var(--card-radius-sm, 8px)',padding:'8px 10px'} },
                                                 React.createElement('div', { style:{display:'flex', alignItems:'center', gap:'6px', marginBottom:'4px'} },
                                                     React.createElement('span', { style:{fontFamily:'var(--font-title)',fontSize:'0.9rem',color:d.color,fontWeight:700,letterSpacing:'0.03em'} }, d.label)
                                                 ),
@@ -2643,7 +2643,7 @@
                             { label: 'PANIC', value: a.panic + '/5', color: a.panic >= 3 ? 'var(--loss-red)' : 'var(--silver)' },
                             { label: 'WINDOW', value: a.window || '—', color: a.tierColor },
                             { label: 'PF', value: a.pf > 0 ? Math.round(a.pf) : '—', color: 'var(--silver)' },
-                        ].map((k, i) => <div key={i} style={{ padding: '8px', background: 'var(--black)', border: '1px solid var(--ov-3, rgba(255,255,255,0.05))', borderRadius: '6px', textAlign: 'center' }}>
+                        ].map((k, i) => <div key={i} style={{ padding: '8px', background: 'var(--black)', border: '1px solid var(--ov-3, rgba(255,255,255,0.05))', borderRadius: 'var(--card-radius-sm, 8px)', textAlign: 'center' }}>
                             <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.1rem', fontWeight: 700, color: k.color }}>{k.value}</div>
                             <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>{k.label}</div>
                         </div>)}
@@ -2683,7 +2683,7 @@
                     {/* Observed behavior: facts first, inference second */}
                     {behaviorProfile && (
                         <div style={{ marginBottom: '14px', display: 'grid', gridTemplateColumns: _vp.isPhone ? '1fr' : 'minmax(0, 1.15fr) minmax(0, 0.85fr)', gap: '10px' }}>
-                            <div style={{ border: '1px solid rgba(125,183,232,0.16)', borderRadius: '7px', background: 'rgba(125,183,232,0.04)', padding: '9px 10px' }}>
+                            <div style={{ border: '1px solid rgba(125,183,232,0.16)', borderRadius: 'var(--card-radius-sm, 8px)', background: 'rgba(125,183,232,0.04)', padding: '9px 10px' }}>
                                 <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--k-7db7e8, #7db7e8)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Observed Behavior</div>
                                 <div style={{ display: 'grid', gap: '5px' }}>
                                     {behaviorFacts.slice(0, 4).map(fact => (
@@ -2694,11 +2694,11 @@
                                     {!behaviorFacts.length && <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6 }}>No behavioral sample yet.</div>}
                                 </div>
                             </div>
-                            <div style={{ border: '1px solid var(--acc-fill3, rgba(212,175,55,0.16))', borderRadius: '7px', background: 'var(--acc-fill1, rgba(212,175,55,0.04))', padding: '9px 10px' }}>
+                            <div style={{ border: '1px solid var(--acc-fill3, rgba(212,175,55,0.16))', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--acc-fill1, rgba(212,175,55,0.04))', padding: '9px 10px' }}>
                                 <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '6px' }}>Inference</div>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '7px' }}>
                                     {behaviorTags.length
-                                        ? behaviorTags.slice(0, 5).map(tag => <span key={tag} style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', background: 'var(--acc-fill1, rgba(212,175,55,0.07))', borderRadius: '4px', padding: '2px 5px' }}>{tag.replace(/-/g, ' ')}</span>)
+                                        ? behaviorTags.slice(0, 5).map(tag => <span key={tag} style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', background: 'var(--acc-fill1, rgba(212,175,55,0.07))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 5px' }}>{tag.replace(/-/g, ' ')}</span>)
                                         : <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6 }}>Sample too thin</span>}
                                 </div>
                                 <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.82, lineHeight: 1.42 }}>{behaviorProfile.strategy?.offerFrame}</div>
@@ -2708,7 +2708,7 @@
 
                     {/* Draft DNA (if present) */}
                     {draftDna && (
-                        <div style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '6px', padding: '8px 10px', marginBottom: '14px' }}>
+                        <div style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 10px', marginBottom: '14px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
                                 <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Draft DNA</span>
                                 <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--k-a5b4fc, #a5b4fc)' }}>{draftDna.label}</span>
@@ -3401,7 +3401,7 @@
                                 the primary action for this card and belongs where it's seen
                                 without scrolling past the whole control stack + board. */}
                             {finderPoolOn && !scanArmed && (
-                                <button type="button" onClick={() => setScanForKey(finderLoopKey)} style={{ padding: '5px 12px', border: '1px solid var(--gold)', borderRadius: '5px', background: 'var(--gold)', color: 'var(--page-bg, #0A0A0F)', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap' }}>Scan the league for moves</button>
+                                <button type="button" onClick={() => setScanForKey(finderLoopKey)} style={{ padding: '5px 12px', border: '1px solid var(--gold)', borderRadius: 'var(--card-radius-xs, 5px)', background: 'var(--gold)', color: 'var(--page-bg, #0A0A0F)', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap' }}>Scan the league for moves</button>
                             )}
                             {renderTcTabNav()}
                         </div>
@@ -3434,7 +3434,7 @@
                                 role="combobox"
                                 aria-expanded={typeaheadFlat.length > 0}
                                 aria-autocomplete="list"
-                                style={{ width: '100%', minHeight: _vp.isPhone ? '44px' : '32px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: '5px', background: 'rgba(255,255,255,0.045)', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '0.76rem', padding: '6px 10px' }}
+                                style={{ width: '100%', minHeight: _vp.isPhone ? '44px' : '32px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: 'var(--card-radius-xs, 5px)', background: 'rgba(255,255,255,0.045)', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '0.76rem', padding: '6px 10px' }}
                             />
                             {typeaheadFlat.length > 0 && (
                                 <div role="listbox" aria-label="Focus matches" ref={node => {
@@ -3456,7 +3456,7 @@
                                     const visibleBottom = window.innerHeight - bottomGuard;
                                     const maxH = Math.max(140, Math.min(320, visibleBottom - node.getBoundingClientRect().top - 8));
                                     node.style.maxHeight = maxH + 'px';
-                                }} style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 40, marginTop: '4px', background: 'var(--off-black, #10141b)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', maxHeight: '320px', overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', boxShadow: '0 12px 26px rgba(0,0,0,0.6)' }}>
+                                }} style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 40, marginTop: '4px', background: 'var(--off-black, #10141b)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 'var(--card-radius-sm, 8px)', maxHeight: '320px', overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', boxShadow: '0 12px 26px rgba(0,0,0,0.6)' }}>
                                     {typeaheadGroups.map(group => (
                                         <div key={group.label}>
                                             <div style={{ padding: '6px 10px 3px', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.6 }}>{group.label}</div>
@@ -3477,7 +3477,7 @@
 
                         {focusR && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: '1px solid rgba(212,175,55,0.35)', borderRadius: '5px', background: 'rgba(212,175,55,0.08)', padding: '4px 8px', fontSize: '0.74rem', color: 'var(--white)' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: '1px solid rgba(212,175,55,0.35)', borderRadius: 'var(--card-radius-xs, 5px)', background: 'rgba(212,175,55,0.08)', padding: '4px 8px', fontSize: '0.74rem', color: 'var(--white)' }}>
                                     <em style={{ fontStyle: 'normal', fontSize: '0.6rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)' }}>{focusR.kind === 'pick' ? 'Pick' : focusR.kind === 'owner' ? 'Owner' : (focusR.pos || 'Player')}</em>
                                     <strong style={{ fontWeight: 600 }}>{focusR.label}</strong>
                                     {focusR.kind !== 'owner' && <span style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>{String(focusR.rosterId) === String(myRosterId) ? 'yours' : (ownerNameForRosterId(focusR.rosterId) || 'league')}</span>}
@@ -3508,7 +3508,7 @@
                             partner, not the capped 6-chip facet; same setPartnerFacet
                             pin path as the chips (the phone full list, ported). */}
                         {partnerListOpen && partnerBoard.length > 6 && (
-                            <div style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '6px', background: 'var(--off-black, #10141b)', maxHeight: '260px', overflowY: 'auto', overscrollBehavior: 'contain' }}>
+                            <div style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--off-black, #10141b)', maxHeight: '260px', overflowY: 'auto', overscrollBehavior: 'contain' }}>
                                 {partnerBoard.map(item => {
                                     const a = item.assessment;
                                     const on = effPartnerId != null && String(a.ownerId) === String(effPartnerId);
@@ -3540,7 +3540,7 @@
                             .tc-dhq-asset-table.is-picks .tc-dhq-asset-row { grid-template-columns: minmax(170px,1.6fr) 56px minmax(130px,1fr) 80px 36px; min-width: 520px; }
                             div.tc-dhq-asset-row[tabindex] { cursor: pointer; }
                             div.tc-dhq-asset-row[tabindex]:hover, div.tc-dhq-asset-row.is-active { background: rgba(212,175,55,0.07); color: var(--white); }
-                            .tc-dhq-add-btn { width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; justify-self: end; border-radius: 6px; border: 1px solid var(--acc-line2, rgba(212,175,55,0.4)); background: rgba(212,175,55,0.10); color: var(--gold); font-family: var(--font-mono, monospace); font-size: 0.95rem; font-weight: 700; line-height: 1; padding: 0; cursor: pointer; }
+                            .tc-dhq-add-btn { width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; justify-self: end; border-radius: var(--card-radius-sm, 8px); border: 1px solid var(--acc-line2, rgba(212,175,55,0.4)); background: rgba(212,175,55,0.10); color: var(--gold); font-family: var(--font-mono, monospace); font-size: 0.95rem; font-weight: 700; line-height: 1; padding: 0; cursor: pointer; }
                             .tc-dhq-add-btn:hover { background: rgba(212,175,55,0.22); border-color: var(--gold); }
                         `}</style>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap', fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.8, lineHeight: 1.3 }}>
@@ -3752,7 +3752,7 @@
                             <span>Live Verdict</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 'none' }}>
                                 <em>{_verdict.hasTrade ? 'Tracks the builder' : 'No live deal'}</em>
-                                <button type="button" className="tc-rail-hide" onClick={() => setRailHidden(true)} title="Hide the deal-intel panel — reopen from the tab row" style={{ background: 'transparent', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.68rem', padding: '2px 7px', flex: 'none' }}>Hide ▸</button>
+                                <button type="button" className="tc-rail-hide" onClick={() => setRailHidden(true)} title="Hide the deal-intel panel — reopen from the tab row" style={{ background: 'transparent', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.68rem', padding: '2px 7px', flex: 'none' }}>Hide ▸</button>
                             </div>
                         </div>
                         <div className="tc-dhq-panel-body tc-dhq-dossier-body">
@@ -3821,7 +3821,7 @@
             // moment a trade is being built (owner ask 2026-07-12), and at the
             // bottom (its historical entry-point slot) when idle.
             const builderEl = active === 'desk' && (
-                        <div style={{ margin: buildingLive ? '0 0 12px' : '12px 0 0', border: '1px solid rgba(53,208,214,0.28)', borderRadius: '8px', background: 'rgba(53,208,214,0.05)', overflow: 'hidden' }}>
+                        <div style={{ margin: buildingLive ? '0 0 12px' : '12px 0 0', border: '1px solid rgba(53,208,214,0.28)', borderRadius: 'var(--card-radius-sm, 8px)', background: 'rgba(53,208,214,0.05)', overflow: 'hidden' }}>
                             <button type="button" onClick={() => setBuilderExpanded(v => !v)} title="Build or tweak a deal without leaving this view" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', textAlign: 'left', background: 'transparent', border: 'none', padding: '9px 13px', cursor: 'pointer' }}>
                                 <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#35d0d6' }}>{_verdict.hasTrade ? 'Live deal' : 'Trade builder'}</span>
                                 {_verdict.hasTrade ? (
@@ -3879,13 +3879,13 @@
                     <div className="tc-adaptive-main">
                     {buildingLive && builderEl}
                     {active === 'desk' && tradeContext && (
-                        <div className="trade-context-banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
+                        <div className="trade-context-banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', marginBottom: '12px' }}>
                             <div style={{ minWidth: 0 }}>
                                 <span style={{ display: 'block', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Trade Context</span>
                                 <strong style={{ display: 'block', color: 'var(--white)', fontSize: '0.9rem', fontFamily: 'var(--font-title)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Opened from transaction ticker</strong>
                                 <em style={{ display: 'block', color: 'var(--silver)', fontSize: '0.74rem', fontStyle: 'normal' }}>{formatTradeContextSummary(tradeContext) || 'Use this deal as context while evaluating partner fit and packages.'}</em>
                             </div>
-                            <button type="button" onClick={clearTradeContext} style={{ background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', borderRadius: '4px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.72rem', padding: '4px 10px', textTransform: 'uppercase' }}>Clear</button>
+                            <button type="button" onClick={clearTradeContext} style={{ background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.72rem', padding: '4px 10px', textTransform: 'uppercase' }}>Clear</button>
                         </div>
                     )}
                     {body}
@@ -4089,7 +4089,7 @@
                 <div style={{ marginTop: '10px' }}>
                     {!current && (
                         <button type="button" onClick={() => requestAlexVerdict(v, dealKey)}
-                            style={{ width:'100%', background:'var(--acc-fill2, rgba(212,175,55,0.08))', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'6px', color:'var(--gold)', cursor:'pointer', fontFamily:'var(--font-body)', fontSize:'0.8rem', fontWeight:700, letterSpacing:'0.05em', padding:'9px 12px', minHeight:'44px' }}>
+                            style={{ width:'100%', background:'var(--acc-fill2, rgba(212,175,55,0.08))', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'var(--card-radius-sm, 8px)', color:'var(--gold)', cursor:'pointer', fontFamily:'var(--font-body)', fontSize:'0.8rem', fontWeight:700, letterSpacing:'0.05em', padding:'9px 12px', minHeight:'44px' }}>
                             ✨ Ask Alex for a second opinion
                         </button>
                     )}
@@ -4113,8 +4113,8 @@
                                     ? <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.6 }}>{current.feedback === 'up' ? 'Glad it helped.' : 'Noted — Alex learns from this.'}</span>
                                     : <>
                                         <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.6 }}>Useful?</span>
-                                        <button type="button" onClick={() => sendVerdictFeedback('up', dealKey)} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'4px', color:'var(--silver)', cursor:'pointer', fontSize:'0.78rem', padding:'2px 9px' }}>Agree</button>
-                                        <button type="button" onClick={() => sendVerdictFeedback('down', dealKey)} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'4px', color:'var(--silver)', cursor:'pointer', fontSize:'0.78rem', padding:'2px 9px' }}>Disagree</button>
+                                        <button type="button" onClick={() => sendVerdictFeedback('up', dealKey)} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'var(--card-radius-xs, 5px)', color:'var(--silver)', cursor:'pointer', fontSize:'0.78rem', padding:'2px 9px' }}>Agree</button>
+                                        <button type="button" onClick={() => sendVerdictFeedback('down', dealKey)} style={{ background:'none', border:'1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius:'var(--card-radius-xs, 5px)', color:'var(--silver)', cursor:'pointer', fontSize:'0.78rem', padding:'2px 9px' }}>Disagree</button>
                                     </>}
                             </div>
                         </GMMessage>
@@ -4202,10 +4202,10 @@
             const outcomeColor = !gt ? 'var(--silver)' : gt.cat === 'rejected' ? 'var(--loss-red)' : gt.cat === 'counter' ? 'var(--warn)' : 'var(--win-green)';
             // Phone: 44px touch bumps on the lane controls (status select, outcome
             // select, Load in Builder, remove X) — glyph sizes unchanged, plan D7.
-            const selStyle = { padding: '3px 6px', minHeight: _vp.isPhone ? '44px' : undefined, fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'var(--charcoal)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer' };
-            const btnStyle = { padding: '3px 8px', minHeight: _vp.isPhone ? '44px' : undefined, minWidth: _vp.isPhone ? '44px' : undefined, fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer' };
+            const selStyle = { padding: '3px 6px', minHeight: _vp.isPhone ? '44px' : undefined, fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'var(--charcoal)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer' };
+            const btnStyle = { padding: '3px 8px', minHeight: _vp.isPhone ? '44px' : undefined, minWidth: _vp.isPhone ? '44px' : undefined, fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer' };
             return (
-                <div key={row.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', padding: '7px 10px', marginBottom: '5px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '6px' }}>
+                <div key={row.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', padding: '7px 10px', marginBottom: '5px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 'var(--card-radius-sm, 8px)' }}>
                     <div style={{ flex: '1 1 240px', minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
                             {s.grade && <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', fontWeight: 700, color: tcGradeColor(s.grade) }}>{s.grade}</span>}
@@ -4324,11 +4324,11 @@
                             {usingRaw ? 'Raw league trades (Sleeper) valued with DHQ.' : 'League history analyzed with DHQ values.'}
                         </div>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <select value={ledgerTeamFilter} onChange={e => { setLedgerTeamFilter(e.target.value); setLedgerShown(20); }} style={{ padding: '4px 8px', minHeight: _vp.isPhone ? '44px' : undefined, fontSize: '0.74rem', fontFamily: 'var(--font-body)', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer' }}>
+                            <select value={ledgerTeamFilter} onChange={e => { setLedgerTeamFilter(e.target.value); setLedgerShown(20); }} style={{ padding: '4px 8px', minHeight: _vp.isPhone ? '44px' : undefined, fontSize: '0.74rem', fontFamily: 'var(--font-body)', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer' }}>
                                 <option value="all">All Teams</option>
                                 {allRosters.map(r => <option key={r.roster_id} value={r.roster_id}>{ownerNameForRosterId(r.roster_id) || 'Team ' + r.roster_id}</option>)}
                             </select>
-                            {usingRaw && <button onClick={() => refreshLedger(true)} disabled={ledgerSyncing} style={{ padding: '4px 10px', minHeight: _vp.isPhone ? '44px' : undefined, fontSize: '0.72rem', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '4px', cursor: ledgerSyncing ? 'default' : 'pointer', opacity: ledgerSyncing ? 0.6 : 1 }}>{ledgerSyncing ? 'Refreshing…' : 'Refresh'}</button>}
+                            {usingRaw && <button onClick={() => refreshLedger(true)} disabled={ledgerSyncing} style={{ padding: '4px 10px', minHeight: _vp.isPhone ? '44px' : undefined, fontSize: '0.72rem', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 'var(--card-radius-xs, 5px)', cursor: ledgerSyncing ? 'default' : 'pointer', opacity: ledgerSyncing ? 0.6 : 1 }}>{ledgerSyncing ? 'Refreshing…' : 'Refresh'}</button>}
                         </div>
                     </div>
                     {loading ? (
@@ -4400,16 +4400,16 @@
 
             // ── Micro-UI helpers (house style: lineup.js / my-team.js pilots) ──
             const chip = (text, color) => (
-                <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, padding: '3px 8px', borderRadius: '5px', border: '1px solid ' + color, color, whiteSpace: 'nowrap' }}>{text}</span>
+                <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + color, color, whiteSpace: 'nowrap' }}>{text}</span>
             );
             const kpiTile = (label, value, sub, valColor) => (
-                <div key={label} style={{ background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '9px', padding: '9px 11px' }}>
+                <div key={label} style={{ background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 'var(--card-radius, 10px)', padding: '9px 11px' }}>
                     <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--text-muted, #8B8B96)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
                     <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.3rem', fontWeight: 700, color: valColor || 'var(--white)', lineHeight: 1.15, marginTop: '2px', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
                     {sub ? <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--silver)', opacity: 0.65, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '110px' }}>{sub}</div> : null}
                 </div>
             );
-            const actBtn = (goldOn) => ({ padding: '9px 14px', minHeight: '44px', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', borderRadius: '5px', fontFamily: 'var(--font-body)', border: '1px solid ' + (goldOn ? 'var(--acc-line2, rgba(212,175,55,0.4))' : 'rgba(255,255,255,0.14)'), background: goldOn ? 'rgba(212,175,55,0.12)' : 'transparent', color: goldOn ? 'var(--gold)' : 'var(--silver)' });
+            const actBtn = (goldOn) => ({ padding: '9px 14px', minHeight: '44px', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', borderRadius: 'var(--card-radius-xs, 5px)', fontFamily: 'var(--font-body)', border: '1px solid ' + (goldOn ? 'var(--acc-line2, rgba(212,175,55,0.4))' : 'rgba(255,255,255,0.14)'), background: goldOn ? 'rgba(212,175,55,0.12)' : 'transparent', color: goldOn ? 'var(--gold)' : 'var(--silver)' });
             const goldDiv = (label, sub) => (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
                     <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>{label}</span>
@@ -4417,7 +4417,7 @@
                     <span aria-hidden="true" style={{ flex: 1, height: '1px', background: 'rgba(212,175,55,0.25)' }} />
                 </div>
             );
-            const phSelStyle = { minHeight: '44px', padding: '8px 10px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'var(--charcoal, #0e0e12)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '5px', color: 'var(--silver)', cursor: 'pointer' };
+            const phSelStyle = { minHeight: '44px', padding: '8px 10px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'var(--charcoal, #0e0e12)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer' };
 
             // ── Finder-control seams — the EXACT same state setters as the desktop
             // finder panel (renderDealHQ's selectFinderFocus / clearFinderFocus /
@@ -4573,7 +4573,7 @@
             const phPlusChip = (row) => (
                 <button type="button" aria-label={'Add ' + row.name + ' to the builder'}
                     onClick={e => { e.stopPropagation(); addAssetToBuilder(row); }}
-                    style={{ width: '34px', height: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '7px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.10)', color: 'var(--gold)', fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer', fontFamily: MONO, lineHeight: 1, padding: 0 }}>+</button>
+                    style={{ width: '34px', height: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--card-radius-sm, 8px)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.10)', color: 'var(--gold)', fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer', fontFamily: MONO, lineHeight: 1, padding: 0 }}>+</button>
             );
             const phAssetRow = (row) => {
                 const rf = tcRookieInfoFor(row.pid);
@@ -4598,7 +4598,7 @@
             const phPickPlusChip = (row) => (
                 <button type="button" aria-label={'Add ' + row.label + ' to the builder'}
                     onClick={e => { e.stopPropagation(); addPickRowToBuilder(row); }}
-                    style={{ width: '34px', height: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '7px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.10)', color: 'var(--gold)', fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer', fontFamily: MONO, lineHeight: 1, padding: 0 }}>+</button>
+                    style={{ width: '34px', height: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--card-radius-sm, 8px)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.10)', color: 'var(--gold)', fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer', fontFamily: MONO, lineHeight: 1, padding: 0 }}>+</button>
             );
             const phPickRow = (row) => (
                 <AssetRow key={`${row.rosterId}-${row.id}`} pos="PK" name={row.label}
@@ -4641,7 +4641,7 @@
                 const deltaColor = deal.userGain >= 0 ? 'var(--good)' : 'var(--bad)';
                 const expanded = expandedDealId === deal.id;
                 return (
-                    <div key={deal.id} style={{ background: 'var(--black, #121217)', border: '1px solid ' + (idx === 0 ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.07)'), borderRadius: '9px', padding: '11px 12px' }}>
+                    <div key={deal.id} style={{ background: 'var(--black, #121217)', border: '1px solid ' + (idx === 0 ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.07)'), borderRadius: 'var(--card-radius, 10px)', padding: '11px 12px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                             <strong style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--white)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 auto' }}>{deal.partnerName}</strong>
                             {chip(deal.grade, deal.gradeColor || 'var(--gold)')}
@@ -4736,7 +4736,7 @@
             // the pill row — tap a value and it applies immediately + closes.
             // Replaces the old single "Finder controls" FilterSheet.
             const finderPanelWrap = body => (
-                <div style={{ background: 'var(--black, #121217)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '8px', padding: '10px 11px' }}>{body}</div>
+                <div style={{ background: 'var(--black, #121217)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 11px' }}>{body}</div>
             );
             let finderPanelEl = null;
             if (_pro && rosterState.isUsable && phFinderPanel === 'intent') {
@@ -4755,7 +4755,7 @@
                 const partnerRow = on => ({ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', minHeight: '44px', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)', background: on ? 'rgba(212,175,55,0.12)' : 'transparent', textAlign: 'left', padding: '7px 10px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.8rem' });
                 finderPanelEl = finderPanelWrap(
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        <div style={{ maxHeight: '42vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: '6px' }}>
+                        <div style={{ maxHeight: '42vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-sm, 8px)' }}>
                             <button type="button" style={partnerRow(effPartnerId == null)} onClick={() => { phSetPartner(null); setPhFinderPanel(null); }}>
                                 <strong style={{ color: effPartnerId == null ? 'var(--gold)' : 'var(--white)', fontWeight: 600 }}>Auto</strong>
                                 <span style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.65, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Best partner picked for you</span>
@@ -4776,7 +4776,7 @@
                             <div style={{ fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.6, marginBottom: '5px' }}>Or target a player / pick</div>
                             {focusR && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: '1px solid rgba(212,175,55,0.35)', borderRadius: '5px', background: 'rgba(212,175,55,0.08)', padding: '6px 9px', fontSize: '0.76rem', color: 'var(--white)', minWidth: 0 }}>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: '1px solid rgba(212,175,55,0.35)', borderRadius: 'var(--card-radius-xs, 5px)', background: 'rgba(212,175,55,0.08)', padding: '6px 9px', fontSize: '0.76rem', color: 'var(--white)', minWidth: 0 }}>
                                         <em style={{ fontStyle: 'normal', fontSize: '0.6rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)' }}>{focusR.kind === 'pick' ? 'Pick' : focusR.kind === 'owner' ? 'Owner' : (focusR.pos || 'Player')}</em>
                                         <strong style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{focusR.label}</strong>
                                     </span>
@@ -4787,7 +4787,7 @@
                                 onChange={e => setFinderSearch(e.target.value)}
                                 placeholder="Search players, picks, owners"
                                 aria-label="Finder focus search"
-                                style={{ width: '100%', minHeight: '44px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: '5px', background: 'rgba(255,255,255,0.045)', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '16px', padding: '8px 10px' }} />
+                                style={{ width: '100%', minHeight: '44px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: 'var(--card-radius-xs, 5px)', background: 'rgba(255,255,255,0.045)', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '16px', padding: '8px 10px' }} />
                             {phTypeGroups.map(group => (
                                 <div key={group.label}>
                                     <div style={{ padding: '8px 2px 3px', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.6 }}>{group.label}</div>
@@ -4878,7 +4878,7 @@
                     <React.Fragment>
                         {dealHqNotice && <div className="tc-dhq-notice" onAnimationEnd={() => setDealHqNotice(null)}>{dealHqNotice}</div>}
                         {tradeContext && (
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', borderRadius: '8px', padding: '9px 11px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 11px' }}>
                                 <div style={{ minWidth: 0 }}>
                                     <span style={{ display: 'block', fontSize: MICRO, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, fontFamily: MONO }}>Trade Context</span>
                                     <em style={{ display: 'block', color: 'var(--silver)', fontSize: '0.74rem', fontStyle: 'normal', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatTradeContextSummary(tradeContext) || 'Opened from the transaction ticker.'}</em>
@@ -4899,7 +4899,7 @@
                         {_pro && rosterState.isUsable && (
                             (finderPoolOn && !scanArmed)
                                 ? <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                                    <button type="button" onClick={() => setScanForKey(finderLoopKey)} style={{ flex: 'none', minHeight: '40px', padding: '9px 16px', borderRadius: '8px', border: 'none', background: 'var(--gold)', color: 'var(--page-bg, #0A0A0F)', fontFamily: MONO, fontSize: MICRO, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>{scanForKey != null ? 'Re-run scan' : 'Scan for moves'}</button>
+                                    <button type="button" onClick={() => setScanForKey(finderLoopKey)} style={{ flex: 'none', minHeight: '40px', padding: '9px 16px', borderRadius: 'var(--card-radius-sm, 8px)', border: 'none', background: 'var(--gold)', color: 'var(--page-bg, #0A0A0F)', fontFamily: MONO, fontSize: MICRO, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>{scanForKey != null ? 'Re-run scan' : 'Scan for moves'}</button>
                                     <span style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--silver)', opacity: 0.7 }}>{scanForKey != null ? 'Settings changed — re-run to refresh moves.' : `League-wide across ${partnerBoard.length} partners.`}</span>
                                 </div>
                                 : finderDeals.length
@@ -4982,7 +4982,7 @@
                         <div key={row.id} role="button" tabIndex={0}
                             onClick={() => setPhLogRowId(row.id)}
                             onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPhLogRowId(row.id); } }}
-                            style={{ display: 'flex', alignItems: 'center', gap: '9px', minHeight: '56px', padding: '9px 10px', background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '9px', cursor: 'pointer' }}>
+                            style={{ display: 'flex', alignItems: 'center', gap: '9px', minHeight: '56px', padding: '9px 10px', background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 'var(--card-radius, 10px)', cursor: 'pointer' }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pipelineRowSummary(row)}</div>
                                 <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--text-muted, #8B8B96)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '1px' }}>{[whenLabel(row), row.partnerName || null, row.source === 'alex-chat' ? 'Alex' : null].filter(Boolean).join(' · ')}</div>
@@ -5060,7 +5060,7 @@
                                         <div style={{ fontFamily: MONO, fontSize: MICRO, letterSpacing: '0.05em', color: 'var(--silver)', textTransform: 'uppercase', marginBottom: '6px' }}>{phLogRow.partnerOwnerId ? 'Log the real-world outcome — teaches Alex this owner\'s psychology' : 'Log outcome (no partner identity — updates status only)'}</div>
                                         {Object.keys(GRUDGE_TYPES).map(k => (
                                             <button key={k} type="button" onClick={() => logDealOutcome(phLogRow, k)}
-                                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', minHeight: '44px', marginBottom: '6px', padding: '8px 10px', background: 'var(--black, #121217)', border: '1px solid ' + (GRUDGE_TYPES[k].color || 'rgba(255,255,255,0.1)'), borderRadius: '7px', color: GRUDGE_TYPES[k].color || 'var(--silver)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.78rem', fontWeight: 600, textAlign: 'left' }}>
+                                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', minHeight: '44px', marginBottom: '6px', padding: '8px 10px', background: 'var(--black, #121217)', border: '1px solid ' + (GRUDGE_TYPES[k].color || 'rgba(255,255,255,0.1)'), borderRadius: 'var(--card-radius-sm, 8px)', color: GRUDGE_TYPES[k].color || 'var(--silver)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.78rem', fontWeight: 600, textAlign: 'left' }}>
                                                 {GRUDGE_TYPES[k].label}
                                             </button>
                                         ))}
@@ -5157,8 +5157,8 @@
                 <div key={i} style={{ background: 'var(--black)', border: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', borderLeft: '4px solid ' + (t.dna.color || 'var(--gold)'), borderRadius: 'var(--card-radius)', padding: '16px 20px', marginBottom: '10px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
                         <span style={{ fontFamily: 'var(--font-title)', fontSize: '1.2rem', color: 'var(--white)' }}>{t.ownerName}</span>
-                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: t.labelCol, background: wrAlpha(t.labelCol, '15'), padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>{t.label}</span>
-                        {t.dk !== 'NONE' && <span style={{ fontSize: '0.72rem', fontWeight: 700, color: t.dna.color, background: wrAlpha(t.dna.color, '15'), padding: '2px 8px', borderRadius: '4px' }}>{t.dna.label}</span>}
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: t.labelCol, background: wrAlpha(t.labelCol, '15'), padding: '2px 8px', borderRadius: 'var(--card-radius-xs, 5px)', textTransform: 'uppercase' }}>{t.label}</span>
+                        {t.dk !== 'NONE' && <span style={{ fontSize: '0.72rem', fontWeight: 700, color: t.dna.color, background: wrAlpha(t.dna.color, '15'), padding: '2px 8px', borderRadius: 'var(--card-radius-xs, 5px)' }}>{t.dna.label}</span>}
                         <span style={{ fontSize: '0.72rem', color: t.posture.color }}>{t.posture.label}</span>
                         <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-title)', fontSize: '1.1rem', color: t.compat >= 50 ? 'var(--good)' : t.compat >= 30 ? 'var(--warn)' : 'var(--silver)' }}>{t.compat}%</span>
                     </div>
@@ -5170,7 +5170,7 @@
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.5 }}>{t.healthScore} health {'\u00B7'} {t.wins}-{t.losses} {'\u00B7'} {t.tier}</span>
                         {showCTA && <React.Fragment>
-                            <button onClick={() => { const targetRoster = allRosters.find(r => r.roster_id === t.rosterId); const topPid = (targetRoster?.players || []).map(pid => ({ pid, val: getPlayerValue(pid).value })).filter(p => p.val > 0).sort((a, b) => b.val - a.val)[0]; setFinderQuery(qr => ({ ...qr, intent: 'shop', partnerFilter: t.ownerId, focus: topPid ? { kind: 'player', id: topPid.pid } : { kind: 'owner', id: t.ownerId, label: t.ownerName } })); setTcTab('desk'); }} style={{ marginLeft: 'auto', padding: '5px 12px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '4px', fontFamily: 'var(--font-body)', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 700 }}>GENERATE TRADES</button>
+                            <button onClick={() => { const targetRoster = allRosters.find(r => r.roster_id === t.rosterId); const topPid = (targetRoster?.players || []).map(pid => ({ pid, val: getPlayerValue(pid).value })).filter(p => p.val > 0).sort((a, b) => b.val - a.val)[0]; setFinderQuery(qr => ({ ...qr, intent: 'shop', partnerFilter: t.ownerId, focus: topPid ? { kind: 'player', id: topPid.pid } : { kind: 'owner', id: t.ownerId, label: t.ownerName } })); setTcTab('desk'); }} style={{ marginLeft: 'auto', padding: '5px 12px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: 'var(--card-radius-xs, 5px)', fontFamily: 'var(--font-body)', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 700 }}>GENERATE TRADES</button>
                         </React.Fragment>}
                     </div>
                 </div>
@@ -5187,7 +5187,7 @@
                     </div>
 
                     {/* Strategy summary */}
-                    <div style={{ background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '10px', padding: '14px 18px', marginBottom: '20px', fontSize: '0.85rem', color: 'var(--silver)', lineHeight: 1.7 }}>
+                    <div style={{ background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 'var(--card-radius, 10px)', padding: '14px 18px', marginBottom: '20px', fontSize: '0.85rem', color: 'var(--silver)', lineHeight: 1.7 }}>
                         {stratText}
                     </div>
 
@@ -5206,7 +5206,7 @@
                     {/* Avoid / low probability */}
                     {avoid.length > 0 && <div style={{ marginBottom: '20px' }}>
                         <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.1rem', color: 'var(--silver)', letterSpacing: '0.06em', marginBottom: '8px', opacity: 0.6 }}>LOW PROBABILITY</div>
-                        {avoid.map((t, i) => <div key={'avoid-'+i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'var(--ov-1, rgba(255,255,255,0.02))', borderRadius: '6px', marginBottom: '4px', opacity: 0.5 }}>
+                        {avoid.map((t, i) => <div key={'avoid-'+i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'var(--ov-1, rgba(255,255,255,0.02))', borderRadius: 'var(--card-radius-sm, 8px)', marginBottom: '4px', opacity: 0.5 }}>
                             <span style={{ fontSize: '0.82rem', color: 'var(--silver)' }}>{t.ownerName}</span>
                             <span style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>{t.compat}% fit {'\u00B7'} {t.dna.label}</span>
                             <span style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.4 }}>Low roster overlap</span>
@@ -5214,24 +5214,24 @@
                     </div>}
 
                     {/* Target map summary */}
-                    <div style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
+                    <div style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius, 10px)', padding: '14px', marginBottom: '16px' }}>
                         <div style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--gold)', marginBottom: '8px' }}>LEAGUE TARGET MAP</div>
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                            {allTargets.map((t, i) => <span key={i} style={{ fontSize: '0.74rem', padding: '3px 10px', borderRadius: '4px', background: wrAlpha(t.labelCol, '12'), border: '1px solid ' + wrAlpha(t.labelCol, '30'), color: t.labelCol, fontWeight: 600 }}>{t.ownerName} {t.compat}%</span>)}
+                            {allTargets.map((t, i) => <span key={i} style={{ fontSize: '0.74rem', padding: '3px 10px', borderRadius: 'var(--card-radius-xs, 5px)', background: wrAlpha(t.labelCol, '12'), border: '1px solid ' + wrAlpha(t.labelCol, '30'), color: t.labelCol, fontWeight: 600 }}>{t.ownerName} {t.compat}%</span>)}
                         </div>
                     </div>
 
                     {/* Trade history insight */}
                     {(() => {
                         const tradeHist = window.App?.LI?.tradeHistory || [];
-                        if (!tradeHist.length) return <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
+                        if (!tradeHist.length) return <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: 'var(--card-radius, 10px)', padding: '14px', marginBottom: '16px' }}>
                             <div style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '4px' }}>LEAGUE TRADE PATTERNS</div>
                             <div style={{ fontSize: '0.82rem', color: 'var(--silver)', opacity: 0.4 }}>No trade history available yet. As trades occur, patterns will emerge here.</div>
                         </div>;
                         const activeCounts = {};
                         tradeHist.forEach(t => (t.roster_ids || []).forEach(rid => { activeCounts[rid] = (activeCounts[rid] || 0) + 1; }));
                         const mostActive = Object.entries(activeCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
-                        return <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
+                        return <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: 'var(--card-radius, 10px)', padding: '14px', marginBottom: '16px' }}>
                             <div style={{ fontFamily: 'var(--font-title)', fontSize: '1rem', color: 'var(--gold)', marginBottom: '6px' }}>WHAT WORKS IN THIS LEAGUE</div>
                             <div style={{ fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.6 }}>
                                 {tradeHist.length} trades completed. Most active: {mostActive.map(([rid, cnt]) => (ownerNameForRosterId(parseInt(rid)) || 'Team ' + rid) + ' (' + cnt + ')').join(', ')}.

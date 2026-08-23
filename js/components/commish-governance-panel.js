@@ -40,7 +40,7 @@ function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, t
     const [sheetBusy, setSheetBusy] = React.useState(null);
 
     const Section = ({ title, meta, children }) => (
-        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '14px 16px' }}>
+        <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
                 <span style={{ fontSize: '0.72rem', letterSpacing: '0.08em', color: TEXT, fontWeight: 600, textTransform: 'uppercase' }}>{title}</span>
                 {meta ? <span style={{ ...microHdr, textTransform: 'none', letterSpacing: 0 }}>{meta}</span> : null}
@@ -50,7 +50,7 @@ function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, t
     );
     const btn = (label, onClick, opts) => (
         <button onClick={onClick} disabled={opts && opts.disabled}
-            style={{ padding: '5px 12px', cursor: 'pointer', background: 'transparent', color: (opts && opts.color) || GOLD, border: '1px solid ' + ((opts && opts.color) || 'rgba(212,175,55,0.5)'), borderRadius: '5px', font: '700 0.66rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', opacity: opts && opts.disabled ? 0.5 : 1 }}>
+            style={{ padding: '5px 12px', cursor: 'pointer', background: 'transparent', color: (opts && opts.color) || GOLD, border: '1px solid ' + ((opts && opts.color) || 'rgba(212,175,55,0.5)'), borderRadius: 'var(--card-radius-xs, 5px)', font: '700 0.66rem ' + MONO, letterSpacing: '0.05em', textTransform: 'uppercase', opacity: opts && opts.disabled ? 0.5 : 1 }}>
             {label}
         </button>
     );
@@ -75,7 +75,7 @@ function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, t
                         const draft = urlDrafts[lid] || {};
                         const rul = ruling[lid];
                         return (
-                            <div key={lid} style={{ border: `1px solid ${LINE}`, borderRadius: '6px' }}>
+                            <div key={lid} style={{ border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)' }}>
                                 <div onClick={() => setOpenLid(open ? null : lid)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', flexWrap: 'wrap' }}>
                                     <span style={{ color: TEXT, fontWeight: 700, fontSize: '0.85rem' }}>{l.name}</span>
                                     <span style={{ ...microHdr, color: con && con.clauses.length ? GREEN : AMBER }}>
@@ -99,7 +99,7 @@ function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, t
                                                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                                                         <input value={question} onChange={e => setQuestion(e.target.value)}
                                                             placeholder="Ask the constitution — 'can a team trade next year's FAAB?'"
-                                                            style={{ flex: 1, minWidth: '220px', background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: '5px', color: TEXT, padding: '8px 10px', fontSize: '16px', fontFamily: 'var(--font-body)' }} />
+                                                            style={{ flex: 1, minWidth: '220px', background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '8px 10px', fontSize: '16px', fontFamily: 'var(--font-body)' }} />
                                                         {btn(rul && rul.loading ? 'Consulting…' : 'Ruling', () => askRuling(lid), { disabled: rul && rul.loading })}
                                                     </div>
                                                     {rul && rul.text ? (
@@ -131,10 +131,10 @@ function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, t
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '8px' }}>
                                                         <span style={{ ...mono, fontSize: '1.1rem', fontWeight: 700, color: tre.summary.pct === 100 ? GREEN : tre.summary.pct >= 50 ? GOLD : AMBER }}>{tre.summary.paid}/{tre.summary.total} paid</span>
                                                         {tre.leagueSafeUrl
-                                                            ? <a href={tre.leagueSafeUrl} target="_blank" rel="noopener noreferrer" style={{ ...microHdr, color: 'var(--info, #5DADE2)', textDecoration: 'none', border: '1px solid rgba(93,173,226,0.4)', borderRadius: '5px', padding: '3px 8px' }}>Open LeagueSafe ↗</a>
+                                                            ? <a href={tre.leagueSafeUrl} target="_blank" rel="noopener noreferrer" style={{ ...microHdr, color: 'var(--info, #5DADE2)', textDecoration: 'none', border: '1px solid rgba(93,173,226,0.4)', borderRadius: 'var(--card-radius-xs, 5px)', padding: '3px 8px' }}>Open LeagueSafe ↗</a>
                                                             : null}
                                                     </div>
-                                                    <div style={{ maxHeight: '220px', overflowY: 'auto', border: `1px solid ${LINE}`, borderRadius: '5px' }}>
+                                                    <div style={{ maxHeight: '220px', overflowY: 'auto', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)' }}>
                                                         {tre.rows.map(r => (
                                                             <label key={r.userId} style={{ display: 'grid', gridTemplateColumns: '20px minmax(0,1fr) auto', gap: '10px', alignItems: 'center', padding: '6px 10px', borderBottom: `1px solid rgba(255,255,255,0.04)`, cursor: 'pointer' }}>
                                                                 <input type="checkbox" checked={!!r.paid} onChange={() => onMarkPaid && onMarkPaid(lid, r.userId, !r.paid)} />
@@ -147,13 +147,13 @@ function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, t
                                                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginTop: '10px' }}>
                                                         <input value={draft.ls != null ? draft.ls : (tre.leagueSafeUrl || '')} onChange={e => setUrlDrafts(d => ({ ...d, [lid]: { ...d[lid], ls: e.target.value } }))}
                                                             placeholder="https://www.leaguesafe.com/… (this league's page)"
-                                                            style={{ flex: 1, minWidth: '200px', background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: '5px', color: TEXT, padding: '7px 10px', fontSize: '16px', fontFamily: MONO }} />
+                                                            style={{ flex: 1, minWidth: '200px', background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '7px 10px', fontSize: '16px', fontFamily: MONO }} />
                                                         {btn('Save link', () => { const ok = onSetLeagueSafe && onSetLeagueSafe(lid, draft.ls || ''); setCsvNote(n => ({ ...n, [lid]: ok ? 'LeagueSafe link saved.' : 'Rejected — must be an https leaguesafe.com URL.' })); })}
                                                     </div>
                                                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginTop: '8px' }}>
                                                         <input value={draft.sheet != null ? draft.sheet : (tre.sheetUrl || '')} onChange={e => setUrlDrafts(d => ({ ...d, [lid]: { ...d[lid], sheet: e.target.value } }))}
                                                             placeholder="Published Google Sheet CSV URL (File → Share → Publish to web)"
-                                                            style={{ flex: 1, minWidth: '200px', background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: '5px', color: TEXT, padding: '7px 10px', fontSize: '16px', fontFamily: MONO }} />
+                                                            style={{ flex: 1, minWidth: '200px', background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '7px 10px', fontSize: '16px', fontFamily: MONO }} />
                                                         {btn('Save', () => { const ok = onSetSheet && onSetSheet(lid, draft.sheet || ''); setCsvNote(n => ({ ...n, [lid]: ok ? 'Sheet link saved.' : 'Rejected — must be an https docs.google.com URL.' })); })}
                                                         {btn(sheetBusy === lid ? 'Fetching…' : 'Sync from sheet', async () => {
                                                             if (!onFetchSheet) return;
@@ -165,7 +165,7 @@ function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, t
                                                     </div>
                                                     <textarea value={csvDraft} onChange={e => setCsvDraft(e.target.value)}
                                                         placeholder="…or paste dues CSV here (name, paid) — always works, no publishing needed"
-                                                        style={{ width: '100%', minHeight: '54px', marginTop: '8px', background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: '5px', color: TEXT, padding: '8px 10px', fontSize: '16px', fontFamily: MONO }} />
+                                                        style={{ width: '100%', minHeight: '54px', marginTop: '8px', background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '8px 10px', fontSize: '16px', fontFamily: MONO }} />
                                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap' }}>
                                                         {btn('Apply pasted CSV', () => {
                                                             const res = onPasteCsv && onPasteCsv(lid, csvDraft);

@@ -146,7 +146,7 @@
         <div id="pro-launch-tiers" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:32px"></div>
 
         <!-- Trial recap (shown only if usage data exists) -->
-        <div id="pro-launch-recap" style="display:none;background:rgba(212,175,55,.06);border:1px solid rgba(212,175,55,.16);border-radius:14px;padding:16px 20px;margin-bottom:32px">
+        <div id="pro-launch-recap" style="display:none;background:rgba(212,175,55,.06);border:1px solid rgba(212,175,55,.16);border-radius:var(--card-radius-lg, 14px);padding:16px 20px;margin-bottom:32px">
           <div style="font-size:11px;font-weight:700;letter-spacing:0;text-transform:uppercase;color:rgba(212,175,55,.6);margin-bottom:10px">Your trial activity</div>
           <div id="pro-launch-recap-list"></div>
         </div>
@@ -159,7 +159,7 @@
 
         <!-- Primary CTA -->
         <button id="pro-launch-cta"
-          style="width:100%;padding:18px;background:linear-gradient(135deg,#d4af37,#b8941f);color:#1a1000;border:none;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:0;box-shadow:0 8px 32px rgba(212,175,55,.32);margin-bottom:12px;font-family:inherit;transition:transform .15s,box-shadow .15s"
+          style="width:100%;padding:18px;background:linear-gradient(135deg,#d4af37,#b8941f);color:#1a1000;border:none;border-radius:var(--card-radius-lg, 14px);font-size:16px;font-weight:800;cursor:pointer;letter-spacing:0;box-shadow:0 8px 32px rgba(212,175,55,.32);margin-bottom:12px;font-family:inherit;transition:transform .15s,box-shadow .15s"
           onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 14px 48px rgba(212,175,55,.45)'"
           onmouseout="this.style.transform='';this.style.boxShadow='0 8px 32px rgba(212,175,55,.32)'">
           Upgrade to Dynasty HQ &mdash; $9.99/month
@@ -177,28 +177,28 @@
         </div>
 
         <!-- Product proof -->
-        <div id="pro-launch-social" style="margin-bottom:36px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:20px">
+        <div id="pro-launch-social" style="margin-bottom:36px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:var(--card-radius-lg, 14px);padding:20px">
           <div style="font-size:11px;font-weight:700;letter-spacing:0;text-transform:uppercase;color:rgba(255,255,255,.22);margin-bottom:16px;text-align:center">Built for the live product</div>
           <div style="display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:20px;flex-wrap:wrap">
-            <div style="background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.18);border-radius:12px;padding:8px 16px;text-align:center">
+            <div style="background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.18);border-radius:var(--card-radius-lg, 14px);padding:8px 16px;text-align:center">
               <div style="font-size:22px;font-weight:800;color:#d4af37;letter-spacing:0">Sleeper</div>
               <div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:1px">Live platform</div>
             </div>
-            <div style="background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.18);border-radius:12px;padding:8px 16px;text-align:center">
+            <div style="background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.18);border-radius:var(--card-radius-lg, 14px);padding:8px 16px;text-align:center">
               <div style="font-size:22px;font-weight:800;color:#d4af37;letter-spacing:0">Scout</div>
               <div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:1px">Mobile surface</div>
             </div>
-            <div style="background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.18);border-radius:12px;padding:8px 16px;text-align:center">
+            <div style="background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.18);border-radius:var(--card-radius-lg, 14px);padding:8px 16px;text-align:center">
               <div style="font-size:22px;font-weight:800;color:#d4af37;letter-spacing:0">War Room</div>
               <div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:1px">Desktop surface</div>
             </div>
           </div>
           <div style="display:flex;flex-direction:column;gap:10px">
-            <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:14px 16px">
+            <div style="background:rgba(255,255,255,.04);border-radius:var(--card-radius, 10px);padding:14px 16px">
               <div style="font-size:13px;color:rgba(255,255,255,.72);font-weight:700;margin-bottom:6px">Owner DNA</div>
               <div style="font-size:13px;color:rgba(255,255,255,.55);line-height:1.6">Spot manager tendencies, trade pressure, and deal timing from your active Sleeper league.</div>
             </div>
-            <div style="background:rgba(255,255,255,.04);border-radius:10px;padding:14px 16px">
+            <div style="background:rgba(255,255,255,.04);border-radius:var(--card-radius, 10px);padding:14px 16px">
               <div style="font-size:13px;color:rgba(255,255,255,.72);font-weight:700;margin-bottom:6px">League briefings</div>
               <div style="font-size:13px;color:rgba(255,255,255,.55);line-height:1.6">Turn roster changes, waiver windows, and contender shifts into weekly action items.</div>
             </div>
@@ -235,7 +235,7 @@
     container.innerHTML = TIERS.map(t => {
       const isCurrent = (currentTier === 'paid' && t.name === 'Dynasty HQ') || (currentTier === 'free' && t.name === 'Free');
       return `
-      <div style="background:${t.recommended ? 'rgba(212,175,55,.06)' : 'rgba(255,255,255,.03)'};border:${t.recommended ? '2px solid rgba(212,175,55,.35)' : '1px solid rgba(255,255,255,.08)'};border-radius:12px;padding:14px;position:relative;${isCurrent ? 'outline:2px solid rgba(46,204,113,.4);outline-offset:2px' : ''}">
+      <div style="background:${t.recommended ? 'rgba(212,175,55,.06)' : 'rgba(255,255,255,.03)'};border:${t.recommended ? '2px solid rgba(212,175,55,.35)' : '1px solid rgba(255,255,255,.08)'};border-radius:var(--card-radius-lg, 14px);padding:14px;position:relative;${isCurrent ? 'outline:2px solid rgba(46,204,113,.4);outline-offset:2px' : ''}">
         ${t.recommended ? '<div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;letter-spacing:0;text-transform:uppercase;color:#d4af37;background:#090909;padding:0 8px;white-space:nowrap">MOST POPULAR</div>' : ''}
         <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:8px">
           <span style="font-size:22px;font-weight:800;color:${t.accent};letter-spacing:0">${t.price}</span>
@@ -254,8 +254,8 @@
     const container = document.getElementById('pro-launch-features');
     if (!container) return;
     container.innerHTML = PRO_FEATURES.map((f, i) => `
-      <div class="pro-feat-card" style="display:flex;align-items:flex-start;gap:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:13px;padding:17px;opacity:0;transform:translateY(16px);transition:opacity .4s ${(i * 0.1).toFixed(2)}s ease,transform .4s ${(i * 0.1).toFixed(2)}s ease">
-        <div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(135deg,rgba(212,175,55,.2),rgba(212,175,55,.05));display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${f.icon}</div>
+      <div class="pro-feat-card" style="display:flex;align-items:flex-start;gap:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:var(--card-radius-lg, 14px);padding:17px;opacity:0;transform:translateY(16px);transition:opacity .4s ${(i * 0.1).toFixed(2)}s ease,transform .4s ${(i * 0.1).toFixed(2)}s ease">
+        <div style="width:44px;height:44px;border-radius:var(--card-radius-lg, 14px);background:linear-gradient(135deg,rgba(212,175,55,.2),rgba(212,175,55,.05));display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${f.icon}</div>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;flex-wrap:wrap">
             <span style="font-size:14px;font-weight:700;color:#fff">${f.title}</span>

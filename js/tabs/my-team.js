@@ -712,7 +712,7 @@ function MyTeamTab({
     <span key={key} style={{
       fontSize: 'var(--text-micro, 0.6875rem)',
       padding: '2px 5px',
-      borderRadius: '4px',
+      borderRadius: 'var(--card-radius-xs, 5px)',
       fontWeight: 600,
       background: cfg.bg,
       color: cfg.col,
@@ -734,7 +734,7 @@ function MyTeamTab({
     background: active ? 'var(--gold)' : 'var(--ov-3, rgba(255,255,255,0.045))',
     color: active ? 'var(--black)' : 'var(--silver)',
     border: '1px solid ' + (active ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.09))'),
-    borderRadius: '6px',
+    borderRadius: 'var(--card-radius-sm, 8px)',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
   });
@@ -750,7 +750,7 @@ function MyTeamTab({
     background: active ? 'var(--acc-fill2, rgba(212,175,55,0.13))' : 'var(--ov-3, rgba(255,255,255,0.045))',
     color: active ? 'var(--gold)' : 'var(--silver)',
     border: '1px solid ' + (active ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'),
-    borderRadius: '6px',
+    borderRadius: 'var(--card-radius-sm, 8px)',
     cursor: 'pointer',
     outline: 'none',
     minWidth: 0,
@@ -1072,9 +1072,9 @@ function MyTeamTab({
                       {/* Identity + roster call */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px', flexWrap: 'wrap' }}>
                         <div style={{ flexShrink: 0, position: 'relative' }}>
-                          <img src={'https://sleepercdn.com/content/nfl/players/' + r.pid + '.jpg'} alt="" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} style={{ width: '58px', height: '58px', borderRadius: '8px', objectFit: 'cover', objectPosition: 'top', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))' }} />
-                          <div style={{ display: 'none', width: '58px', height: '58px', borderRadius: '8px', background: 'var(--charcoal)', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 700, color: 'var(--silver)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))' }}>{(r.p.first_name || '?')[0]}{(r.p.last_name || '?')[0]}</div>
-                          <div style={{ position: 'absolute', bottom: '-4px', left: '50%', transform: 'translateX(-50%)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, padding: '1px 7px', borderRadius: '7px', background: (posColors[r.pos] || 'var(--k-666666, #666666)') + '22', color: posColors[r.pos] || 'var(--silver)', whiteSpace: 'nowrap' }}>{posLbl}</div>
+                          <img src={'https://sleepercdn.com/content/nfl/players/' + r.pid + '.jpg'} alt="" onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} style={{ width: '58px', height: '58px', borderRadius: 'var(--card-radius-sm, 8px)', objectFit: 'cover', objectPosition: 'top', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))' }} />
+                          <div style={{ display: 'none', width: '58px', height: '58px', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--charcoal)', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 700, color: 'var(--silver)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))' }}>{(r.p.first_name || '?')[0]}{(r.p.last_name || '?')[0]}</div>
+                          <div style={{ position: 'absolute', bottom: '-4px', left: '50%', transform: 'translateX(-50%)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, padding: '1px 7px', borderRadius: 'var(--card-radius-sm, 8px)', background: (posColors[r.pos] || 'var(--k-666666, #666666)') + '22', color: posColors[r.pos] || 'var(--silver)', whiteSpace: 'nowrap' }}>{posLbl}</div>
                         </div>
                         <div style={{ flex: 1, minWidth: '150px' }}>
                           <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.35rem', color: 'var(--white)', letterSpacing: '0.01em', lineHeight: 1.04 }}>{r.p.full_name || getPlayerName(r.pid)}</div>
@@ -1126,9 +1126,9 @@ function MyTeamTab({
                         {VERDICT_OPTIONS.map(t => {
                           const active = cur === t.toLowerCase();
                           const c = _recColor(t);
-                          return <button key={t} onClick={e => { e.stopPropagation(); setPlayerVerdict(r.pid, t); setTagEditPid(null); }} style={{ minHeight: '38px', padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', borderRadius: '6px', cursor: 'pointer', color: active ? c : 'var(--silver)', background: active ? wrAlpha(c, '22') : 'transparent', border: '1px solid ' + (active ? wrAlpha(c, '99') : 'var(--ov-6, rgba(255,255,255,0.12))') }}>{t}</button>;
+                          return <button key={t} onClick={e => { e.stopPropagation(); setPlayerVerdict(r.pid, t); setTagEditPid(null); }} style={{ minHeight: '38px', padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', color: active ? c : 'var(--silver)', background: active ? wrAlpha(c, '22') : 'transparent', border: '1px solid ' + (active ? wrAlpha(c, '99') : 'var(--ov-6, rgba(255,255,255,0.12))') }}>{t}</button>;
                         })}
-                        {hasOverride && <button onClick={e => { e.stopPropagation(); setPlayerVerdict(r.pid, null); setTagEditPid(null); }} title="Revert to the DHQ engine call" style={{ minHeight: '38px', padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', borderRadius: '6px', cursor: 'pointer', color: 'var(--text-muted)', background: 'transparent', border: '1px dashed var(--ov-6, rgba(255,255,255,0.14))' }}>{'↺'} Auto</button>}
+                        {hasOverride && <button onClick={e => { e.stopPropagation(); setPlayerVerdict(r.pid, null); setTagEditPid(null); }} title="Revert to the DHQ engine call" style={{ minHeight: '38px', padding: '6px 12px', fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', color: 'var(--text-muted)', background: 'transparent', border: '1px dashed var(--ov-6, rgba(255,255,255,0.14))' }}>{'↺'} Auto</button>}
                       </div>
                         );
                       })()}
@@ -1143,7 +1143,7 @@ function MyTeamTab({
                       </div>
 
                       {/* Signals — 2x2 grid, compact now that this box runs full width */}
-                      <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: '8px', padding: '9px 11px', marginBottom: '10px' }}>
+                      <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.065))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 11px', marginBottom: '10px' }}>
                         <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.58, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '6px' }}>Signals</div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '6px 16px' }}>
                           {sigCell('Ceiling', sigCeiling)}
@@ -1164,12 +1164,12 @@ function MyTeamTab({
 	                    const [pLo, pHi] = curve.peak;
 	                    const declineHi = curve.decline[1];
 	                    const ages = Array.from({length: 17}, (_, i) => i + 20);
-                    return <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
+                    return <div style={{ background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--ov-4, rgba(255,255,255,0.06))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', marginBottom: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                         <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Age Curve</div>
 	                        <div style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>{'Currently age ' + (r.age || '?') + ' \u00B7 ' + r.peakPhase + ' \u00B7 ' + (r.peakYrsLeft > 0 ? '~' + r.peakYrsLeft + ' peak yr left' : r.valueYrsLeft > 0 ? '~' + r.valueYrsLeft + ' value yr left' : 'Past value window')}</div>
                       </div>
-                      <div style={{ display: 'flex', height: '22px', borderRadius: '5px', overflow: 'hidden', gap: '1px' }}>
+                      <div style={{ display: 'flex', height: '22px', borderRadius: 'var(--card-radius-xs, 5px)', overflow: 'hidden', gap: '1px' }}>
                         {ages.map(a => {
 	                          const col = a < pLo - 3 ? 'rgba(96,165,250,0.3)' : a < pLo ? 'rgba(46,204,113,0.45)' : (a >= pLo && a <= pHi) ? 'rgba(46,204,113,0.75)' : a <= declineHi ? 'var(--acc-line3, rgba(212,175,55,0.45))' : 'rgba(231,76,60,0.35)';
                           const isMe = a === (r.age || 0);
@@ -1200,8 +1200,8 @@ function MyTeamTab({
                         else if (typeof setActiveTab === 'function') setActiveTab('trades');
                         window.dispatchEvent(new CustomEvent('wr:open-trade-finder', { detail: { pid: r.pid } }));
                       } catch (err) { console.warn('[MyTeam] Trade Finder deep-link unavailable', err); }
-                    }} style={{ padding: '7px 16px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Trade Finder</button>
-                    <button onClick={e => { e.stopPropagation(); setExpandedPid(null); }} style={{ padding: '7px 16px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: '6px', cursor: 'pointer' }}>COLLAPSE</button>
+                    }} style={{ padding: '7px 16px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', fontWeight: 600 }}>Trade Finder</button>
+                    <button onClick={e => { e.stopPropagation(); setExpandedPid(null); }} style={{ padding: '7px 16px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer' }}>COLLAPSE</button>
                   </div>
   </React.Fragment>);
 
@@ -1305,7 +1305,7 @@ function MyTeamTab({
     const isManual = !!verdictOverrides[r.pid];
     const col = _recColor(rec);
     return (
-      <span title={isManual ? 'Your call (tap the badge in the player card to change)' : (r.gmSellNudge ? 'Nudged to Sell by GM Strategy (position/age trips a sell rule)' : '')} style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, padding: '2px 6px', borderRadius: '4px', border: '1px solid ' + wrAlpha(col, '80'), color: col, letterSpacing: '0.02em', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
+      <span title={isManual ? 'Your call (tap the badge in the player card to change)' : (r.gmSellNudge ? 'Nudged to Sell by GM Strategy (position/age trips a sell rule)' : '')} style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600, padding: '2px 6px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + wrAlpha(col, '80'), color: col, letterSpacing: '0.02em', whiteSpace: 'nowrap', textTransform: 'uppercase' }}>
         {rec}{isManual ? ' *' : (r.gmSellNudge ? ' ·GM' : '')}
       </span>
     );
@@ -1493,7 +1493,7 @@ function MyTeamTab({
       }, isExpanded ? renderExpandBody(r) : null));
     });
     if (!groups.length) {
-      return <div style={{ padding: '14px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', borderRadius: '9px', color: 'var(--silver)', opacity: 0.7, fontSize: '0.78rem' }}>No roster rows match this view.</div>;
+      return <div style={{ padding: '14px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 'var(--card-radius, 10px)', color: 'var(--silver)', opacity: 0.7, fontSize: '0.78rem' }}>No roster rows match this view.</div>;
     }
     return React.createElement(window.WR.CardList, {
       groups: groups.map(g => ({ label: g.label, sub: g.rows.length + (g.rows.length === 1 ? ' player' : ' players'), rows: g.rows })),
@@ -1720,7 +1720,7 @@ function MyTeamTab({
           the SAME showColPicker state into the WR.FilterSheet below (shared
           customizer treatment with Free Agency's colpick). */}
       {showColPicker && !_phone && (
-        <div style={{ background: 'linear-gradient(180deg, var(--surf-solid, rgba(22,22,29,0.98)), var(--surf-solid, rgba(10,10,14,0.98)))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '10px', padding: '12px', marginBottom: '10px', boxShadow: '0 10px 28px rgba(0,0,0,0.24)' }}>
+        <div style={{ background: 'linear-gradient(180deg, var(--surf-solid, rgba(22,22,29,0.98)), var(--surf-solid, rgba(10,10,14,0.98)))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: 'var(--card-radius, 10px)', padding: '12px', marginBottom: '10px', boxShadow: '0 10px 28px rgba(0,0,0,0.24)' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
             <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', color: 'var(--white)', fontWeight: 700, letterSpacing: '0.04em' }}>Customize Columns</div>
             <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.58 }}>{visibleCols.length} of {Object.keys(ROSTER_COLUMNS).length} active</div>
@@ -1731,23 +1731,23 @@ function MyTeamTab({
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: rosterViewportWidth <= 820 ? '1fr' : 'minmax(280px, 0.9fr) minmax(360px, 1.4fr)', gap: '12px', alignItems: 'start' }}>
-            <div style={{ background: 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: '8px', padding: '10px', minWidth: 0 }}>
+            <div style={{ background: 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px', minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px' }}>
                 <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800 }}>Active Order</div>
                 <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.54 }}>{activeColumnOrder.length} visible</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', paddingRight: '2px' }}>
                 {activeColumnOrder.length === 0 ? (
-                  <div style={{ padding: '12px', borderRadius: '8px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', color: 'var(--silver)', opacity: 0.62, fontSize: '0.74rem' }}>Only the player column is visible.</div>
+                  <div style={{ padding: '12px', borderRadius: 'var(--card-radius-sm, 8px)', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', color: 'var(--silver)', opacity: 0.62, fontSize: '0.74rem' }}>Only the player column is visible.</div>
                 ) : activeColumnOrder.map((key, idx) => {
                   const col = ROSTER_COLUMNS[key];
                   return (
-                    <div key={key} style={{ display: 'grid', gridTemplateColumns: '22px minmax(0, 1fr) 26px 26px 26px', gap: '5px', alignItems: 'center', padding: '5px 6px', borderRadius: '7px', background: 'var(--acc-fill2, rgba(212,175,55,0.075))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.14))' }}>
+                    <div key={key} style={{ display: 'grid', gridTemplateColumns: '22px minmax(0, 1fr) 26px 26px 26px', gap: '5px', alignItems: 'center', padding: '5px 6px', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--acc-fill2, rgba(212,175,55,0.075))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.14))' }}>
                       <span style={{ color: 'var(--silver)', opacity: 0.55, fontSize: 'var(--text-micro, 0.6875rem)', textAlign: 'right' }}>{idx + 1}</span>
                       <span title={col.label} style={{ color: 'var(--white)', fontSize: '0.74rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.shortLabel || col.label}</span>
-                      <button disabled={idx === 0} onClick={() => moveVisibleColumn(key, -1)} title="Move left" style={{ height: '24px', borderRadius: '5px', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: idx === 0 ? 'var(--ov-2, rgba(255,255,255,0.025))' : 'var(--ov-4, rgba(255,255,255,0.06))', color: idx === 0 ? 'var(--ov-7, rgba(255,255,255,0.24))' : 'var(--silver)', cursor: idx === 0 ? 'default' : 'pointer' }}>{'\u2039'}</button>
-                      <button disabled={idx === activeColumnOrder.length - 1} onClick={() => moveVisibleColumn(key, 1)} title="Move right" style={{ height: '24px', borderRadius: '5px', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: idx === activeColumnOrder.length - 1 ? 'var(--ov-2, rgba(255,255,255,0.025))' : 'var(--ov-4, rgba(255,255,255,0.06))', color: idx === activeColumnOrder.length - 1 ? 'var(--ov-7, rgba(255,255,255,0.24))' : 'var(--silver)', cursor: idx === activeColumnOrder.length - 1 ? 'default' : 'pointer' }}>{'\u203A'}</button>
-                      <button onClick={() => removeVisibleColumn(key)} title="Hide column" style={{ height: '24px', borderRadius: '5px', border: '1px solid rgba(231,76,60,0.22)', background: 'rgba(231,76,60,0.08)', color: 'var(--bad)', cursor: 'pointer' }}>{'\u00D7'}</button>
+                      <button disabled={idx === 0} onClick={() => moveVisibleColumn(key, -1)} title="Move left" style={{ height: '24px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: idx === 0 ? 'var(--ov-2, rgba(255,255,255,0.025))' : 'var(--ov-4, rgba(255,255,255,0.06))', color: idx === 0 ? 'var(--ov-7, rgba(255,255,255,0.24))' : 'var(--silver)', cursor: idx === 0 ? 'default' : 'pointer' }}>{'\u2039'}</button>
+                      <button disabled={idx === activeColumnOrder.length - 1} onClick={() => moveVisibleColumn(key, 1)} title="Move right" style={{ height: '24px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: idx === activeColumnOrder.length - 1 ? 'var(--ov-2, rgba(255,255,255,0.025))' : 'var(--ov-4, rgba(255,255,255,0.06))', color: idx === activeColumnOrder.length - 1 ? 'var(--ov-7, rgba(255,255,255,0.24))' : 'var(--silver)', cursor: idx === activeColumnOrder.length - 1 ? 'default' : 'pointer' }}>{'\u203A'}</button>
+                      <button onClick={() => removeVisibleColumn(key)} title="Hide column" style={{ height: '24px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid rgba(231,76,60,0.22)', background: 'rgba(231,76,60,0.08)', color: 'var(--bad)', cursor: 'pointer' }}>{'\u00D7'}</button>
                     </div>
                   );
                 })}
@@ -1765,13 +1765,13 @@ function MyTeamTab({
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px' }}>
               {columnGroups.map(({ group, columns }) => (
-                <div key={group} style={{ background: 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: '8px', padding: '8px' }}>
+                <div key={group} style={{ background: 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid var(--ov-4, rgba(255,255,255,0.07))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px' }}>
                   <div style={{ marginBottom: '6px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800 }}>{group}</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     {columns.map(([key, col]) => {
                       const active = visibleCols.includes(key);
                       return (
-                        <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '5px 7px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.74rem', background: active ? 'var(--acc-fill2, rgba(212,175,55,0.1))' : 'var(--ov-1, rgba(255,255,255,0.018))', color: active ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (active ? 'var(--acc-fill3, rgba(212,175,55,0.18))' : 'var(--ov-3, rgba(255,255,255,0.04))') }}>
+                        <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '5px 7px', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', fontSize: '0.74rem', background: active ? 'var(--acc-fill2, rgba(212,175,55,0.1))' : 'var(--ov-1, rgba(255,255,255,0.018))', color: active ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (active ? 'var(--acc-fill3, rgba(212,175,55,0.18))' : 'var(--ov-3, rgba(255,255,255,0.04))') }}>
                           <input type="checkbox" checked={active} onChange={() => {
                             if (active) removeVisibleColumn(key);
                             else addVisibleColumn(key);
@@ -1803,16 +1803,16 @@ function MyTeamTab({
           { label: 'Active (' + activeColumnOrder.length + ')', node: (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               {activeColumnOrder.length === 0 ? (
-                <div style={{ padding: '12px', borderRadius: '8px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', color: 'var(--silver)', opacity: 0.62, fontSize: '0.74rem' }}>Only the player column is visible.</div>
+                <div style={{ padding: '12px', borderRadius: 'var(--card-radius-sm, 8px)', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', color: 'var(--silver)', opacity: 0.62, fontSize: '0.74rem' }}>Only the player column is visible.</div>
               ) : activeColumnOrder.map((key, idx) => {
                 const col = ROSTER_COLUMNS[key];
                 return (
-                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0, 1fr) 44px 44px 44px', gap: '3px', alignItems: 'center', minHeight: '44px', padding: '0 2px 0 8px', borderRadius: '7px', background: 'var(--acc-fill2, rgba(212,175,55,0.075))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.14))' }}>
+                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '18px minmax(0, 1fr) 44px 44px 44px', gap: '3px', alignItems: 'center', minHeight: '44px', padding: '0 2px 0 8px', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--acc-fill2, rgba(212,175,55,0.075))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.14))' }}>
                     <span style={{ color: 'var(--silver)', opacity: 0.55, fontSize: 'var(--text-micro, 0.6875rem)', textAlign: 'right' }}>{idx + 1}</span>
                     <span title={col.label} style={{ color: 'var(--white)', fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.shortLabel || col.label}</span>
-                    <button disabled={idx === 0} onClick={() => moveVisibleColumn(key, -1)} title="Move up" style={{ minWidth: '44px', minHeight: '44px', borderRadius: '5px', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: idx === 0 ? 'var(--ov-2, rgba(255,255,255,0.025))' : 'var(--ov-4, rgba(255,255,255,0.06))', color: idx === 0 ? 'var(--ov-7, rgba(255,255,255,0.24))' : 'var(--silver)', cursor: idx === 0 ? 'default' : 'pointer' }}>{'▲'}</button>
-                    <button disabled={idx === activeColumnOrder.length - 1} onClick={() => moveVisibleColumn(key, 1)} title="Move down" style={{ minWidth: '44px', minHeight: '44px', borderRadius: '5px', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: idx === activeColumnOrder.length - 1 ? 'var(--ov-2, rgba(255,255,255,0.025))' : 'var(--ov-4, rgba(255,255,255,0.06))', color: idx === activeColumnOrder.length - 1 ? 'var(--ov-7, rgba(255,255,255,0.24))' : 'var(--silver)', cursor: idx === activeColumnOrder.length - 1 ? 'default' : 'pointer' }}>{'▼'}</button>
-                    <button onClick={() => removeVisibleColumn(key)} title="Hide column" style={{ minWidth: '44px', minHeight: '44px', borderRadius: '5px', border: '1px solid rgba(231,76,60,0.22)', background: 'rgba(231,76,60,0.08)', color: 'var(--bad)', cursor: 'pointer' }}>{'×'}</button>
+                    <button disabled={idx === 0} onClick={() => moveVisibleColumn(key, -1)} title="Move up" style={{ minWidth: '44px', minHeight: '44px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: idx === 0 ? 'var(--ov-2, rgba(255,255,255,0.025))' : 'var(--ov-4, rgba(255,255,255,0.06))', color: idx === 0 ? 'var(--ov-7, rgba(255,255,255,0.24))' : 'var(--silver)', cursor: idx === 0 ? 'default' : 'pointer' }}>{'▲'}</button>
+                    <button disabled={idx === activeColumnOrder.length - 1} onClick={() => moveVisibleColumn(key, 1)} title="Move down" style={{ minWidth: '44px', minHeight: '44px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', background: idx === activeColumnOrder.length - 1 ? 'var(--ov-2, rgba(255,255,255,0.025))' : 'var(--ov-4, rgba(255,255,255,0.06))', color: idx === activeColumnOrder.length - 1 ? 'var(--ov-7, rgba(255,255,255,0.24))' : 'var(--silver)', cursor: idx === activeColumnOrder.length - 1 ? 'default' : 'pointer' }}>{'▼'}</button>
+                    <button onClick={() => removeVisibleColumn(key)} title="Hide column" style={{ minWidth: '44px', minHeight: '44px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid rgba(231,76,60,0.22)', background: 'rgba(231,76,60,0.08)', color: 'var(--bad)', cursor: 'pointer' }}>{'×'}</button>
                   </div>
                 );
               })}
@@ -1831,7 +1831,7 @@ function MyTeamTab({
                     <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '6px' }}>{group}</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                       {inactive.map(([key, col]) => (
-                        <button key={key} onClick={() => addVisibleColumn(key)} title={'Add ' + col.label} style={{ minHeight: '44px', padding: '7px 12px', fontSize: '0.74rem', fontFamily: 'var(--font-body)', background: 'var(--ov-1, rgba(255,255,255,0.018))', color: 'var(--silver)', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap' }}>+ {col.shortLabel || col.label}</button>
+                        <button key={key} onClick={() => addVisibleColumn(key)} title={'Add ' + col.label} style={{ minHeight: '44px', padding: '7px 12px', fontSize: '0.74rem', fontFamily: 'var(--font-body)', background: 'var(--ov-1, rgba(255,255,255,0.018))', color: 'var(--silver)', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', whiteSpace: 'nowrap' }}>+ {col.shortLabel || col.label}</button>
                       ))}
                     </div>
                   </div>
@@ -1864,7 +1864,7 @@ function MyTeamTab({
             slots: [{ label: 'KEEPER VAL', value: (r.dhq || 0).toLocaleString(), strong: true }],
             verdict: ka && React.createElement('span', {
               title: ka.reason,
-              style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', border: '1px solid ' + wrAlpha(ka.col, '80'), color: ka.col, letterSpacing: '0.02em', whiteSpace: 'nowrap', textTransform: 'uppercase' }
+              style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, padding: '2px 6px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + wrAlpha(ka.col, '80'), color: ka.col, letterSpacing: '0.02em', whiteSpace: 'nowrap', textTransform: 'uppercase' }
             }, ka.label),
             expanded: expandedPid === r.pid,
             onClick: () => setExpandedPid(prev => prev === r.pid ? null : r.pid),
@@ -1896,13 +1896,13 @@ function MyTeamTab({
                     : (
                       <React.Fragment>
                         <span style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6 }}>Useful?</span>
-                        <button onClick={() => sendKeeperTakeFeedback('up')} style={{ background: 'none', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px' }}>👍</button>
-                        <button onClick={() => sendKeeperTakeFeedback('down')} style={{ background: 'none', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px' }}>👎</button>
+                        <button onClick={() => sendKeeperTakeFeedback('up')} style={{ background: 'none', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px' }}>👍</button>
+                        <button onClick={() => sendKeeperTakeFeedback('down')} style={{ background: 'none', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer', fontSize: '0.78rem', padding: '2px 9px' }}>👎</button>
                       </React.Fragment>
                     )}
                 </React.Fragment>
               ) : (
-                <button onClick={getKeeperTake} disabled={keeperTake?.loading} style={{ padding: '6px 12px', fontSize: '0.8rem', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '6px', cursor: 'pointer' }}>
+                <button onClick={getKeeperTake} disabled={keeperTake?.loading} style={{ padding: '6px 12px', fontSize: '0.8rem', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer' }}>
                     {keeperTake?.loading ? '✨ Thinking…' : '✨ Alex’s take'}
                   </button>
                 )}
@@ -1930,7 +1930,7 @@ function MyTeamTab({
           </button>
         );
         return (
-          <div style={{ marginBottom: '10px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: '8px', background: 'var(--ov-1, rgba(255,255,255,0.015))', overflow: 'hidden' }}>
+          <div style={{ marginBottom: '10px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--ov-1, rgba(255,255,255,0.015))', overflow: 'hidden' }}>
             <button type="button" onClick={() => setReviewStripOpen(v => !v)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Review Roster</span>
               {cutdownInfo && (

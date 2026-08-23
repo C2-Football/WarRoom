@@ -159,7 +159,7 @@
                 <div style={{
                     flex: 1,
                     overflow: 'auto',
-                    borderRadius: '6px',
+                    borderRadius: 'var(--card-radius-sm, 8px)',
                     border: '1px solid var(--acc-fill2, rgba(212,175,55,0.1))',
                     background: 'var(--ov-1, rgba(255,255,255,0.01))',
                 }}>
@@ -338,7 +338,7 @@
                             ? 'linear-gradient(90deg, var(--acc-fill3, rgba(212,175,55,0.18)), var(--acc-fill1, rgba(212,175,55,0.04)))'
                             : 'var(--ov-2, rgba(255,255,255,0.03))',
                         border: '1px solid ' + (onTheClock.isUser ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                        borderRadius: '6px',
+                        borderRadius: 'var(--card-radius-sm, 8px)',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '10px',
@@ -459,7 +459,7 @@
                                     background: state.overrideMode ? 'var(--k-9b8afb, #9b8afb)' : 'rgba(124,107,248,0.12)',
                                     color: state.overrideMode ? 'var(--k-ffffff, #ffffff)' : 'rgba(155,138,251,0.9)',
                                     border: '1px solid ' + (state.overrideMode ? 'var(--k-9b8afb, #9b8afb)' : 'rgba(124,107,248,0.3)'),
-                                    borderRadius: '4px',
+                                    borderRadius: 'var(--card-radius-xs, 5px)',
                                     cursor: 'pointer',
                                     flexShrink: 0,
                                     letterSpacing: '0.04em',

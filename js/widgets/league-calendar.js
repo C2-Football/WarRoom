@@ -89,7 +89,7 @@
                 key: event.id,
                 style: {
                     display: 'flex', alignItems: 'center', gap: '8px',
-                    padding: '6px 8px', borderRadius: '6px',
+                    padding: '6px 8px', borderRadius: 'var(--card-radius-sm, 8px)',
                     background: highlight ? 'var(--acc-fill1, rgba(212,175,55,0.06))' : 'var(--ov-1, rgba(255,255,255,0.02))',
                     border: '1px solid ' + (highlight ? 'var(--acc-line1, rgba(212,175,55,0.25))' : 'var(--ov-3, rgba(255,255,255,0.05))'),
                 },
@@ -98,7 +98,7 @@
                 React.createElement('div', { style: { flex: 1, minWidth: 0 } },
                     React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, color: highlight ? 'var(--gold)' : 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } },
                         event.title,
-                        highlight && React.createElement('span', { style: { fontSize: '0.55rem', fontWeight: 700, padding: '1px 5px', borderRadius: '4px', background: 'var(--gold)', color: 'var(--black)', marginLeft: '6px', verticalAlign: 'middle', letterSpacing: '0.04em' } }, 'NEXT'),
+                        highlight && React.createElement('span', { style: { fontSize: '0.55rem', fontWeight: 700, padding: '1px 5px', borderRadius: 'var(--card-radius-xs, 5px)', background: 'var(--gold)', color: 'var(--black)', marginLeft: '6px', verticalAlign: 'middle', letterSpacing: '0.04em' } }, 'NEXT'),
                     ),
                     React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.7, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, dateLabel(event.date) + (event.detail ? ' · ' + event.detail : '')),
                 ),

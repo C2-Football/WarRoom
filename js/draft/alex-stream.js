@@ -278,7 +278,7 @@
                                 background: 'rgba(124,107,248,0.08)',
                                 border: '1px solid rgba(124,107,248,0.2)',
                                 color: 'rgba(155,138,251,0.9)',
-                                borderRadius: '10px',
+                                borderRadius: 'var(--card-radius, 10px)',
                                 cursor: 'pointer',
                                 fontFamily: FONT_UI,
                             }}

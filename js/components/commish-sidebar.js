@@ -59,7 +59,7 @@
                     style={{
                         display: 'flex', alignItems: 'center', gap: '8px', width: '100%', textAlign: 'left',
                         padding: '10px 12px', cursor: 'pointer', border: '1px solid ' + (active === 'command' ? ACC_LINE : LINE),
-                        borderRadius: '6px', marginBottom: '8px',
+                        borderRadius: 'var(--card-radius-sm, 8px)', marginBottom: '8px',
                         background: active === 'command' ? ACC_FILL : 'transparent',
                         color: active === 'command' ? ACCENT : SILVER,
                         font: '700 0.75rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase',
@@ -130,7 +130,7 @@
                     flex: opts && opts.wide ? '1 1 100%' : '1 1 auto', minHeight: '38px', padding: '8px 12px', cursor: 'pointer',
                     background: opts && opts.primary ? ACC_FILL : 'transparent',
                     border: '1px solid ' + (opts && opts.primary ? ACC_LINE : LINE),
-                    borderRadius: '6px', color: opts && opts.primary ? ACCENT : SILVER,
+                    borderRadius: 'var(--card-radius-sm, 8px)', color: opts && opts.primary ? ACCENT : SILVER,
                     ...chip,
                 }}>{text}</button>
         );
@@ -143,7 +143,7 @@
                         <span style={{ width: '3px', height: '16px', background: sevColor, borderRadius: '2px', flex: 'none' }} />
                         <span style={{ ...label, color: sevColor }}>{item.tier}</span>
                         <span style={{ ...label }}>{item.kicker}</span>
-                        <button onClick={onClose} aria-label="Close" style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: TEXT, cursor: 'pointer', padding: '4px 10px', ...chip }}>✕</button>
+                        <button onClick={onClose} aria-label="Close" style={{ marginLeft: 'auto', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, cursor: 'pointer', padding: '4px 10px', ...chip }}>✕</button>
                     </div>
 
                     <div style={{ padding: '16px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -154,12 +154,12 @@
 
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             {(item.leagueNames || []).map((n, i) => (
-                                <span key={i} style={{ ...chip, color: TEXT, background: SURF2, border: `1px solid ${LINE}`, borderRadius: '4px', padding: '3px 7px' }}>{n}</span>
+                                <span key={i} style={{ ...chip, color: TEXT, background: SURF2, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '3px 7px' }}>{n}</span>
                             ))}
                         </div>
 
                         {item.metric && item.metric.value != null ? (
-                            <div style={{ background: WELL, border: `1px solid ${LINE}`, borderRadius: '8px', padding: '12px 14px' }}>
+                            <div style={{ background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '12px 14px' }}>
                                 <div style={{ ...label }}>{item.metric.unit}</div>
                                 <div style={{ ...num, fontSize: '1.5rem', fontWeight: 700, color: item.metric.breach ? sevColor : TEXT, lineHeight: 1, marginTop: '4px' }}>{item.metric.value}</div>
                             </div>
@@ -168,7 +168,7 @@
                         {/* Printing the arithmetic is what keeps the ranking
                             credible — a queue that won't explain its own order
                             is just an opinion. */}
-                        <div style={{ background: WELL, border: `1px solid ${LINE}`, borderRadius: '8px', padding: '12px 14px' }}>
+                        <div style={{ background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '12px 14px' }}>
                             <div style={{ ...label, marginBottom: '6px' }}>Why it ranks here</div>
                             <div style={{ ...num, display: 'flex', alignItems: 'baseline', gap: '8px' }}>
                                 <span style={{ fontSize: '1.25rem', fontWeight: 700, color: sevColor }}>{item.score}</span>
@@ -181,7 +181,7 @@
                         </div>
 
                         {state ? (
-                            <div style={{ background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: '8px', padding: '10px 12px' }}>
+                            <div style={{ background: ACC_FILL, border: `1px solid ${ACC_LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px' }}>
                                 <div style={{ ...label, color: ACCENT }}>Currently {state.state}</div>
                                 <div style={{ font: '400 0.75rem var(--font-body)', color: TEXT, marginTop: '4px', lineHeight: 1.5 }}>
                                     {state.state === 'done' ? 'Hidden until the underlying number changes — if it gets worse, this comes back on its own.'
@@ -191,19 +191,19 @@
                             </div>
                         ) : null}
 
-                        <div style={{ background: SURF2, border: `1px solid ${LINE}`, borderRadius: '8px', padding: '12px 14px' }} data-testid="commish-followup-editor">
+                        <div style={{ background: SURF2, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '12px 14px' }} data-testid="commish-followup-editor">
                             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', marginBottom: '9px' }}>
                                 <div style={{ ...label, color: ACCENT }}>Follow-up</div>
                                 <div style={{ ...label, textTransform: 'none', letterSpacing: 0 }}>{followup?.status || 'OPEN'}</div>
                             </div>
                             <label style={{ ...label, display: 'block', marginBottom: '5px' }}>Message draft</label>
                             <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Draft a commissioner message"
-                                style={{ width: '100%', minHeight: '92px', resize: 'vertical', boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '9px 10px', color: TEXT, font: '400 0.8125rem/1.5 var(--font-body)' }} />
+                                style={{ width: '100%', minHeight: '92px', resize: 'vertical', boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '9px 10px', color: TEXT, font: '400 0.8125rem/1.5 var(--font-body)' }} />
                             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 132px', gap: '8px', marginTop: '8px' }}>
                                 <input value={note} onChange={e => setNote(e.target.value)} placeholder="Private note"
-                                    style={{ minWidth: 0, boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '8px 9px', color: TEXT, font: '400 0.75rem var(--font-body)' }} />
+                                    style={{ minWidth: 0, boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 9px', color: TEXT, font: '400 0.75rem var(--font-body)' }} />
                                 <input type="date" value={dueAt} onChange={e => setDueAt(e.target.value)} aria-label="Follow-up date"
-                                    style={{ minWidth: 0, boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: '6px', padding: '8px 9px', color: TEXT, font: '600 0.75rem var(--font-mono)' }} />
+                                    style={{ minWidth: 0, boxSizing: 'border-box', background: WELL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '8px 9px', color: TEXT, font: '600 0.75rem var(--font-mono)' }} />
                             </div>
                             <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
                                 {act('Save follow-up', commit)}
@@ -240,7 +240,7 @@
     // ── Settings ─────────────────────────────────────────────────────
     function WrCommishSettingsPanel({ leagues, isManaged, onToggleLeague, alerts, onToggleDomain, onSetFloor, domainLabels, suppressed, onRestore, followups, onRemoveFollowup }) {
         const Section = ({ title, meta, children }) => (
-            <div style={{ background: SURF, border: `1px solid ${LINE}`, borderRadius: '10px', overflow: 'hidden' }}>
+            <div style={{ background: SURF, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius, 10px)', overflow: 'hidden' }}>
                 <div style={{ background: SURF2, borderBottom: `1px solid ${LINE}`, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ width: '3px', height: '16px', background: ACCENT, borderRadius: '2px' }} />
                     <span style={{ font: '700 0.9375rem var(--font-title)', letterSpacing: '0.06em', textTransform: 'uppercase', color: TEXT }}>{title}</span>
@@ -277,7 +277,7 @@
                         return <Toggle key={lid} on={isManaged(lid)} onChange={v => onToggleLeague(lid, v)} sub={(l.settings && l.settings.num_teams ? l.settings.num_teams + '-team · ' : '') + (l.season || '')}>{l.name}</Toggle>;
                     })}
                     {managedN === 0 ? (
-                        <div style={{ marginTop: '12px', background: 'var(--co-fill-warn, #2A2010)', border: `1px solid ${WARN}`, borderRadius: '8px', padding: '10px 12px', font: '400 0.8125rem var(--font-body)', color: TEXT, lineHeight: 1.5 }}>
+                        <div style={{ marginTop: '12px', background: 'var(--co-fill-warn, #2A2010)', border: `1px solid ${WARN}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', font: '400 0.8125rem var(--font-body)', color: TEXT, lineHeight: 1.5 }}>
                             Every league is switched off, so the office has nothing to show. Turn at least one back on.
                         </div>
                     ) : null}
@@ -294,7 +294,7 @@
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         {FLOORS.map(([k, name, sub]) => (
                             <button key={k} onClick={() => onSetFloor(k)} title={sub}
-                                style={{ padding: '8px 12px', minHeight: '38px', cursor: 'pointer', borderRadius: '6px', background: alerts.floor === k ? ACC_FILL : 'transparent', border: '1px solid ' + (alerts.floor === k ? ACC_LINE : LINE), color: alerts.floor === k ? ACCENT : SILVER, ...chip }}>
+                                style={{ padding: '8px 12px', minHeight: '38px', cursor: 'pointer', borderRadius: 'var(--card-radius-sm, 8px)', background: alerts.floor === k ? ACC_FILL : 'transparent', border: '1px solid ' + (alerts.floor === k ? ACC_LINE : LINE), color: alerts.floor === k ? ACCENT : SILVER, ...chip }}>
                                 {name}
                             </button>
                         ))}
@@ -309,7 +309,7 @@
                             <div key={s.item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 0', borderBottom: `1px solid var(--co-line-soft, #201F27)` }}>
                                 <span style={{ ...chip, color: s.state === 'done' ? GOOD : s.state === 'skipped' ? WARN : MUTED, minWidth: '54px' }}>{s.state}</span>
                                 <span style={{ flex: 1, minWidth: 0, font: '400 0.8125rem var(--font-body)', color: TEXT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.item.headline}</span>
-                                <button onClick={() => onRestore(s.item.id)} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: ACCENT, cursor: 'pointer', padding: '5px 10px', minHeight: '32px', ...chip }}>Restore</button>
+                                <button onClick={() => onRestore(s.item.id)} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: ACCENT, cursor: 'pointer', padding: '5px 10px', minHeight: '32px', ...chip }}>Restore</button>
                             </div>
                         ))
                     )}
@@ -328,7 +328,7 @@
                                         <span style={{ display: 'block', font: '600 0.8125rem/1.35 var(--font-body)', color: TEXT }}>{f.headline}</span>
                                         <span style={{ display: 'block', marginTop: '3px', font: '400 0.72rem/1.4 var(--font-body)', color: MUTED }}>{f.note || f.message}{f.dueAt ? ' · due ' + f.dueAt : ''}{last ? ' · last ' + last.type.toLowerCase() : ''}</span>
                                     </span>
-                                    <button onClick={() => onRemoveFollowup?.(f.itemId)} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', color: MUTED, cursor: 'pointer', padding: '5px 9px', ...chip }}>Remove</button>
+                                    <button onClick={() => onRemoveFollowup?.(f.itemId)} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: MUTED, cursor: 'pointer', padding: '5px 9px', ...chip }}>Remove</button>
                                 </div>
                             );
                         })

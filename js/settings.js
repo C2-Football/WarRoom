@@ -47,10 +47,10 @@
                             padding: '12px 8px', textAlign: 'center',
                             background: isActive ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'var(--ov-1, rgba(255,255,255,0.02))',
                             border: isActive ? '2px solid var(--gold)' : '1px solid var(--ov-5, rgba(255,255,255,0.08))',
-                            borderRadius: '10px', cursor: 'pointer',
+                            borderRadius: 'var(--card-radius, 10px)', cursor: 'pointer',
                         }}>
                         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
-                            <div style={{ width: '44px', height: '44px', borderRadius: '8px', background: 'linear-gradient(135deg, ' + bc.from + ', ' + bc.to + ')', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: bc.text, fontFamily: 'Rajdhani, sans-serif', boxShadow: isActive ? '0 0 0 2px var(--acc-line3, rgba(212,175,55,0.4))' : 'none' }}>AI</div>
+                            <div style={{ width: '44px', height: '44px', borderRadius: 'var(--card-radius-sm, 8px)', background: 'linear-gradient(135deg, ' + bc.from + ', ' + bc.to + ')', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: bc.text, fontFamily: 'Rajdhani, sans-serif', boxShadow: isActive ? '0 0 0 2px var(--acc-line3, rgba(212,175,55,0.4))' : 'none' }}>AI</div>
                         </div>
                         <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: isActive ? 'var(--gold)' : 'var(--silver)' }}>{bc.label}</div>
                     </button>;
@@ -60,11 +60,11 @@
                 <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.85rem', flexWrap: 'wrap' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>
                         Text color
-                        <input type="color" value={customColors.text} onChange={e => updateCustomColor('text', e.target.value)} style={{ width: '36px', height: '36px', padding: 0, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: '6px', background: 'none', cursor: 'pointer' }} />
+                        <input type="color" value={customColors.text} onChange={e => updateCustomColor('text', e.target.value)} style={{ width: '36px', height: '36px', padding: 0, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 'var(--card-radius-sm, 8px)', background: 'none', cursor: 'pointer' }} />
                     </label>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>
                         Background color
-                        <input type="color" value={customColors.bg} onChange={e => updateCustomColor('bg', e.target.value)} style={{ width: '36px', height: '36px', padding: 0, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: '6px', background: 'none', cursor: 'pointer' }} />
+                        <input type="color" value={customColors.bg} onChange={e => updateCustomColor('bg', e.target.value)} style={{ width: '36px', height: '36px', padding: 0, border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 'var(--card-radius-sm, 8px)', background: 'none', cursor: 'pointer' }} />
                     </label>
                 </div>
             )}
@@ -72,7 +72,7 @@
         <div style={sectionStyle}>
             <div style={sectionTitle}>GM BRIEFING</div>
             <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginBottom: '0.75rem', lineHeight: 1.45 }}>Replay the welcome tour any time you want to re-orient the room.</div>
-            <button onClick={() => window.replayWRTutorial?.()} style={{ width: '100%', padding: '0.65rem 0.85rem', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: '6px', color: 'var(--gold)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>Replay GM Briefing</button>
+            <button onClick={() => window.replayWRTutorial?.()} style={{ width: '100%', padding: '0.65rem 0.85rem', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--gold)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>Replay GM Briefing</button>
         </div>
         </>);
     }
@@ -201,20 +201,20 @@
 
         const sectionStyle = { marginBottom: 'var(--space-xl)', padding: 'var(--card-pad)', background: 'var(--acc-fill1, rgba(212,175,55,0.07))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius)' };
         const sectionTitle = { fontFamily: 'var(--font-title)', fontSize: 'var(--text-title, 1.125rem)', color: 'var(--gold)', letterSpacing: '0.12em', marginBottom: '0.75rem' };
-        const inputStyle = { width: '100%', padding: '0.55rem 0.75rem', background: 'var(--black)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: '6px', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', marginBottom: '0.5rem' };
-        const btnPrimary = { flex: 1, padding: '0.6rem', minHeight: '44px', background: 'var(--gold)', border: 'none', borderRadius: '6px', color: 'var(--black)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' };
-        const btnOutline = { flex: 1, padding: '0.6rem', minHeight: '44px', background: 'transparent', border: '1px solid var(--gold)', borderRadius: '6px', color: 'var(--gold)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' };
+        const inputStyle = { width: '100%', padding: '0.55rem 0.75rem', background: 'var(--black)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', marginBottom: '0.5rem' };
+        const btnPrimary = { flex: 1, padding: '0.6rem', minHeight: '44px', background: 'var(--gold)', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--black)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' };
+        const btnOutline = { flex: 1, padding: '0.6rem', minHeight: '44px', background: 'transparent', border: '1px solid var(--gold)', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--gold)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' };
         const isModule = mode === 'module';
         // phoneSheet (≤767 via WR.Sheet in SettingsModal): the sheet owns the
         // border/radius/scroll/safe-area chrome, so the content shell goes flat
         // and full-width. Desktop/tablet keep the centered 720px dialog untouched.
         const shellStyle = isModule
-            ? { background: 'linear-gradient(135deg, var(--off-black) 0%, var(--charcoal) 100%)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', borderRadius: '10px', padding: '1.1rem', width: '100%', boxSizing: 'border-box', boxShadow: '0 12px 28px rgba(0,0,0,0.22)' }
+            ? { background: 'linear-gradient(135deg, var(--off-black) 0%, var(--charcoal) 100%)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', borderRadius: 'var(--card-radius, 10px)', padding: '1.1rem', width: '100%', boxSizing: 'border-box', boxShadow: '0 12px 28px rgba(0,0,0,0.22)' }
             : phoneSheet
                 // Bottom pad clears --wr-bottom-inset so the Logout/Close
                 // stack stays tappable above the home indicator + dock zone.
                 ? { background: 'transparent', padding: '0.25rem 1rem calc(1rem + var(--wr-bottom-inset, 0px))', width: '100%', boxSizing: 'border-box' }
-                : { background: 'linear-gradient(135deg, var(--off-black) 0%, var(--charcoal) 100%)', border: '3px solid var(--gold)', borderRadius: '12px', padding: '1.5rem', maxWidth: 'min(720px, calc(100vw - 48px))', width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.8)', maxHeight: '90vh', overflowY: 'auto' };
+                : { background: 'linear-gradient(135deg, var(--off-black) 0%, var(--charcoal) 100%)', border: '3px solid var(--gold)', borderRadius: 'var(--card-radius-lg, 14px)', padding: '1.5rem', maxWidth: 'min(720px, calc(100vw - 48px))', width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.8)', maxHeight: '90vh', overflowY: 'auto' };
 
         if (isModule) {
             const moduleSectionStyle = { ...sectionStyle, marginBottom: '0.7rem', background: 'var(--ov-2, rgba(255,255,255,0.025))' };
@@ -223,7 +223,7 @@
             return (
                 <div className="wr-settings-module-screen" style={{ width: '100%' }}>
                     {isGiftedAccount && (
-                        <div style={{ marginBottom: '12px', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', padding: '0.55rem 0.75rem', borderRadius: '6px' }}>
+                        <div style={{ marginBottom: '12px', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', padding: '0.55rem 0.75rem', borderRadius: 'var(--card-radius-sm, 8px)' }}>
                             Gifted account - change your password below.
                         </div>
                     )}
@@ -252,7 +252,7 @@
                             </div>
                             <div style={moduleSectionStyle}>
                                 <div style={sectionTitle}>ACCOUNT ACTIONS</div>
-                                <button onClick={handleLogout} style={{ width: '100%', padding: '0.7rem', background: 'rgba(231,76,60,0.18)', border: '1px solid rgba(231,76,60,0.45)', borderRadius: '6px', color: 'var(--k-fca5a5, #fca5a5)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>
+                                <button onClick={handleLogout} style={{ width: '100%', padding: '0.7rem', background: 'rgba(231,76,60,0.18)', border: '1px solid rgba(231,76,60,0.45)', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--k-fca5a5, #fca5a5)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>
                                     Logout
                                 </button>
                             </div>
@@ -315,7 +315,7 @@
                                 <div style={sectionTitle}>PLAN</div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' }}>
                                     <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>Current plan:</span>
-                                    <span style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: tierColor[currentTier] || 'var(--silver)', background: tierBg[currentTier] || 'rgba(192,192,192,0.12)', padding: '0.15rem 0.55rem', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                    <span style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: tierColor[currentTier] || 'var(--silver)', background: tierBg[currentTier] || 'rgba(192,192,192,0.12)', padding: '0.15rem 0.55rem', borderRadius: 'var(--card-radius-xs, 5px)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                                         {tierLabel[currentTier] || 'Dynasty HQ Free'}
                                     </span>
                                 </div>
@@ -332,11 +332,11 @@
                                         Object.keys(localStorage).filter(k => k.startsWith('dhq_leagueintel_') || k.startsWith('dhq_hist_')).forEach(k => localStorage.removeItem(k));
                                         if (window.App) { window.App.LI = {}; window.App.LI_LOADED = false; }
                                         alert('DHQ cache cleared. Reload to rebuild.');
-                                    }} style={{ padding: '6px 12px', minHeight: '44px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', background: 'rgba(231,76,60,0.1)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: '4px', color: 'var(--k-e74c3c, #e74c3c)', cursor: 'pointer' }}>
+                                    }} style={{ padding: '6px 12px', minHeight: '44px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', background: 'rgba(231,76,60,0.1)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--k-e74c3c, #e74c3c)', cursor: 'pointer' }}>
                                         Clear DHQ Cache
                                     </button>
                                     <button onClick={() => { sessionStorage.clear(); alert('Session cache cleared.'); }}
-                                        style={{ padding: '6px 12px', minHeight: '44px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer' }}>
+                                        style={{ padding: '6px 12px', minHeight: '44px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer' }}>
                                         Clear Session Cache
                                     </button>
                                 </div>
@@ -357,14 +357,14 @@
             return (
                 <div className="wr-settings-modal wr-account-modal" style={phoneSheet
                     ? { background: 'transparent', width: '100%', boxSizing: 'border-box', paddingBottom: 'calc(0.5rem + var(--wr-bottom-inset, 0px))' }
-                    : { background: 'linear-gradient(135deg, var(--off-black) 0%, var(--charcoal) 100%)', border: '1px solid var(--gold)', borderRadius: '14px', maxWidth: 'min(440px, calc(100vw - 40px))', width: '100%', boxShadow: '0 16px 48px rgba(0,0,0,0.7)', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+                    : { background: 'linear-gradient(135deg, var(--off-black) 0%, var(--charcoal) 100%)', border: '1px solid var(--gold)', borderRadius: 'var(--card-radius-lg, 14px)', maxWidth: 'min(440px, calc(100vw - 40px))', width: '100%', boxShadow: '0 16px 48px rgba(0,0,0,0.7)', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '18px 18px 14px', borderBottom: '1px solid var(--acc-line1, rgba(212,175,55,0.18))' }}>
                         <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: '1.5px solid var(--gold)', background: 'var(--black)', color: 'var(--gold)', fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{ini}</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontFamily: 'var(--font-title)', fontSize: '1.15rem', letterSpacing: '0.1em', color: 'var(--gold)' }}>ACCOUNT</div>
                             <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Signed in as {uname || '—'}{isGiftedAccount ? ' · gifted' : ''}</div>
                         </div>
-                        <button onClick={onClose} aria-label="Close" style={{ flexShrink: 0, width: phoneSheet ? '44px' : '32px', height: phoneSheet ? '44px' : '32px', borderRadius: '8px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', color: 'var(--silver)', fontSize: '1.2rem', cursor: 'pointer', lineHeight: 1 }}>×</button>
+                        <button onClick={onClose} aria-label="Close" style={{ flexShrink: 0, width: phoneSheet ? '44px' : '32px', height: phoneSheet ? '44px' : '32px', borderRadius: 'var(--card-radius-sm, 8px)', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', color: 'var(--silver)', fontSize: '1.2rem', cursor: 'pointer', lineHeight: 1 }}>×</button>
                     </div>
                     <div style={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
                         <div>
@@ -386,7 +386,7 @@
                                 {pwMsg && <div style={{ marginTop: '0.5rem', fontSize: 'var(--text-label, 0.75rem)', color: pwMsg.startsWith('ok') ? 'var(--win-green)' : 'var(--k-e74c3c, #e74c3c)' }}>{pwMsg.replace(/^ok /, '').replace(/^x /, '')}</div>}
                             </>)}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '12px 14px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.18))', borderRadius: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '12px 14px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.18))', borderRadius: 'var(--card-radius, 10px)' }}>
                             <div style={{ minWidth: 0 }}>
                                 <div style={labelStyle} >Plan</div>
                                 <div style={{ marginTop: '2px', fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: tierColor[currentTier] || 'var(--silver)' }}>{tierLabel[currentTier] || 'Dynasty HQ Free'}</div>
@@ -395,7 +395,7 @@
                         </div>
                         {/* Community / Discord — hidden until the owner sets WR_DISCORD_URL (js/app.js) */}
                         {window.WR_DISCORD_URL && (
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '12px 14px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.18))', borderRadius: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '12px 14px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.18))', borderRadius: 'var(--card-radius, 10px)' }}>
                                 <div style={{ minWidth: 0 }}>
                                     <div style={labelStyle}>Community</div>
                                     <div style={{ marginTop: '2px', fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: 'var(--white)' }}>Dynasty HQ Discord</div>
@@ -403,7 +403,7 @@
                                 <a href={window.WR_DISCORD_URL} target="_blank" rel="noopener" style={{ ...btnOutline, flex: 'none', padding: '0.5rem 0.9rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Join</a>
                             </div>
                         )}
-                        <button onClick={handleLogout} style={{ padding: '0.8rem', background: 'rgba(231,76,60,0.14)', border: '1px solid rgba(231,76,60,0.4)', borderRadius: '10px', color: 'var(--k-fca5a5, #fca5a5)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>Sign out</button>
+                        <button onClick={handleLogout} style={{ padding: '0.8rem', background: 'rgba(231,76,60,0.14)', border: '1px solid rgba(231,76,60,0.4)', borderRadius: 'var(--card-radius, 10px)', color: 'var(--k-fca5a5, #fca5a5)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>Sign out</button>
                     </div>
                 </div>
             );
@@ -415,7 +415,7 @@
 
                     <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', marginBottom: '1rem' }}>
                         Logged in as: <strong style={{ color: 'var(--white)' }}>{sleeperUsername}</strong>
-                        {isGiftedAccount && <span style={{ marginLeft: '0.5rem', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', background: 'var(--acc-fill3, rgba(212,175,55,0.15))', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>GIFTED — change your password below</span>}
+                        {isGiftedAccount && <span style={{ marginLeft: '0.5rem', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', background: 'var(--acc-fill3, rgba(212,175,55,0.15))', padding: '0.1rem 0.4rem', borderRadius: 'var(--card-radius-xs, 5px)' }}>GIFTED — change your password below</span>}
                     </div>
 
                     {/* Tab bar — phone re-pours the same six sections as P2
@@ -539,7 +539,7 @@
                         <div style={sectionTitle}>CURRENT PLAN</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' }}>
                             <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>Current plan:</span>
-                            <span style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: tierColor[currentTier] || 'var(--silver)', background: tierBg[currentTier] || 'rgba(192,192,192,0.12)', padding: '0.15rem 0.55rem', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                            <span style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 700, color: tierColor[currentTier] || 'var(--silver)', background: tierBg[currentTier] || 'rgba(192,192,192,0.12)', padding: '0.15rem 0.55rem', borderRadius: 'var(--card-radius-xs, 5px)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                                 {tierLabel[currentTier] || 'Dynasty HQ Free'}
                             </span>
                         </div>
@@ -568,11 +568,11 @@
                                 Object.keys(localStorage).filter(k => k.startsWith('dhq_leagueintel_') || k.startsWith('dhq_hist_')).forEach(k => localStorage.removeItem(k));
                                 if (window.App) { window.App.LI = {}; window.App.LI_LOADED = false; }
                                 alert('DHQ cache cleared. Reload to rebuild.');
-                            }} style={{ padding: '6px 12px', minHeight: '44px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', background: 'rgba(231,76,60,0.1)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: '4px', color: 'var(--k-e74c3c, #e74c3c)', cursor: 'pointer' }}>
+                            }} style={{ padding: '6px 12px', minHeight: '44px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', background: 'rgba(231,76,60,0.1)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--k-e74c3c, #e74c3c)', cursor: 'pointer' }}>
                                 Clear DHQ Cache
                             </button>
                             <button onClick={() => { sessionStorage.clear(); alert('Session cache cleared.'); }}
-                                style={{ padding: '6px 12px', minHeight: '44px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer' }}>
+                                style={{ padding: '6px 12px', minHeight: '44px', fontSize: 'var(--text-body, 1rem)', fontFamily: 'var(--font-body)', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer' }}>
                                 Clear Session Cache
                             </button>
                         </div>
@@ -588,10 +588,10 @@
                     </>)}
 
                     <div style={{ display: 'flex', gap: '0.75rem', flexDirection: 'column', marginTop: '1.5rem' }}>
-                        <button onClick={handleLogout} style={{ padding: '0.75rem', background: 'linear-gradient(135deg, var(--k-e74c3c, #e74c3c) 0%, var(--k-c0392b, #c0392b) 100%)', border: 'none', borderRadius: '8px', color: 'white', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>
+                        <button onClick={handleLogout} style={{ padding: '0.75rem', background: 'linear-gradient(135deg, var(--k-e74c3c, #e74c3c) 0%, var(--k-c0392b, #c0392b) 100%)', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', color: 'white', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>
                             Logout
                         </button>
-                        {!isModule && <button onClick={onClose} style={{ padding: '0.75rem', background: 'var(--black)', border: '2px solid var(--gold)', borderRadius: '8px', color: 'var(--gold)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>
+                        {!isModule && <button onClick={onClose} style={{ padding: '0.75rem', background: 'var(--black)', border: '2px solid var(--gold)', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--gold)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>
                             Close
                         </button>}
                     </div>

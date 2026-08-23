@@ -2686,7 +2686,7 @@
                 <div style={{ fontSize: '0.8rem', color: 'var(--silver)', lineHeight: 1.45, marginBottom: '10px' }}>{arch.blurb}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(54px, 1fr))', gap: '5px' }}>
                     {arch.picks.map(pk => (
-                        <div key={pk.round} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: '5px 0', border: '1px solid var(--ov-4, rgba(255,255,255,0.08))', borderRadius: '5px' }} title={'Round ' + pk.round + ' → ' + pk.pos}>
+                        <div key={pk.round} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: '5px 0', border: '1px solid var(--ov-4, rgba(255,255,255,0.08))', borderRadius: 'var(--card-radius-xs, 5px)' }} title={'Round ' + pk.round + ' → ' + pk.pos}>
                             <span style={{ fontSize: '0.58rem', color: 'var(--silver)', letterSpacing: '0.04em' }}>R{pk.round}</span>
                             <span style={{ fontSize: '0.82rem', fontWeight: 700, color: posColor(pk.pos) }}>{pk.pos === 'DEF' ? 'DST' : pk.pos}</span>
                         </div>
@@ -2787,7 +2787,7 @@
                             hero grid below stacks 1-col at this width already. */}
                         {_phone && (() => {
                             const _phKpi = (label, value, sub) => (
-                                <div key={label} style={{ background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '9px', padding: '9px 11px' }}>
+                                <div key={label} style={{ background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 'var(--card-radius, 10px)', padding: '9px 11px' }}>
                                     <div style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--text-muted, #8B8B96)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
                                     <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.3rem', fontWeight: 700, color: 'var(--white)', lineHeight: 1.15, marginTop: '2px', fontVariantNumeric: 'tabular-nums' }}>{value}</div>
                                     {sub ? <div style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, whiteSpace: 'nowrap' }}>{sub}</div> : null}
@@ -3730,7 +3730,7 @@
                     if (_phone) {
                         const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
                         const MICRO = 'var(--text-micro, 0.6875rem)';
-                        const phChipBtn = (on, color) => ({ padding: '9px 12px', minHeight: '44px', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', borderRadius: '5px', fontFamily: 'var(--font-body)', border: '1px solid ' + (on ? (color || 'var(--acc-line2, rgba(212,175,55,0.4))') : 'rgba(255,255,255,0.14)'), background: on ? 'rgba(212,175,55,0.12)' : 'transparent', color: on ? (color || 'var(--gold)') : 'var(--silver)' });
+                        const phChipBtn = (on, color) => ({ padding: '9px 12px', minHeight: '44px', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer', borderRadius: 'var(--card-radius-xs, 5px)', fontFamily: 'var(--font-body)', border: '1px solid ' + (on ? (color || 'var(--acc-line2, rgba(212,175,55,0.4))') : 'rgba(255,255,255,0.14)'), background: on ? 'rgba(212,175,55,0.12)' : 'transparent', color: on ? (color || 'var(--gold)') : 'var(--silver)' });
                         const phDossier = (r) => {
                             const pos = normPos(r.p.position) || r.p.position;
                             const cs = r.csv || {};
@@ -3827,9 +3827,9 @@
                                             { label: 'Rank', value: rankStr, tone: 'mute' },
                                         ],
                                         verdict: isDrafted
-                                            ? <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, padding: '3px 8px', borderRadius: '5px', border: '1px solid var(--bad)', color: 'var(--bad)', whiteSpace: 'nowrap' }}>GONE</span>
+                                            ? <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid var(--bad)', color: 'var(--bad)', whiteSpace: 'nowrap' }}>GONE</span>
                                             : tagDef
-                                                ? <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, padding: '3px 8px', borderRadius: '5px', border: '1px solid ' + tagDef.color, color: tagDef.color, whiteSpace: 'nowrap', textTransform: 'uppercase' }}>{tagDef.label}</span>
+                                                ? <span style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + tagDef.color, color: tagDef.color, whiteSpace: 'nowrap', textTransform: 'uppercase' }}>{tagDef.label}</span>
                                                 : null,
                                         accent: tag === 'must' || tag === 'target' ? 'gold' : tag === 'avoid' ? 'risk' : undefined,
                                         expanded: isExp,
@@ -3851,7 +3851,7 @@
                         // rendered right under the pill row — no modal sheet. Lane/Pos are
                         // single-select (apply + close); Filters bundles search/team/round.
                         const phBoardPanelWrap = (body) => (
-                            <div style={{ background: 'var(--black, #121217)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: '8px', padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: '9px' }}>{body}</div>
+                            <div style={{ background: 'var(--black, #121217)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: '9px' }}>{body}</div>
                         );
                         const phBoardPanelLbl = (t) => <div style={{ fontFamily: MONO, fontSize: MICRO, fontWeight: 700, color: 'var(--silver)', opacity: 0.6, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{t}</div>;
                         let phBoardPanelEl = null;
@@ -3879,9 +3879,9 @@
                             phBoardPanelEl = phBoardPanelWrap(
                                 <React.Fragment>
                                     {phBoardPanelLbl('Search')}
-                                    <input type="text" value={boardSearch} onChange={e => setBoardSearch(e.target.value)} placeholder="Players, teams, colleges..." style={{ width: '100%', padding: '9px 12px', minHeight: '44px', fontSize: '16px', fontFamily: 'var(--font-body)', background: 'var(--ov-2, rgba(255,255,255,0.03))', color: 'var(--white)', border: '1px solid ' + (boardSearch ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'), borderRadius: '10px', outline: 'none', boxSizing: 'border-box' }} />
+                                    <input type="text" value={boardSearch} onChange={e => setBoardSearch(e.target.value)} placeholder="Players, teams, colleges..." style={{ width: '100%', padding: '9px 12px', minHeight: '44px', fontSize: '16px', fontFamily: 'var(--font-body)', background: 'var(--ov-2, rgba(255,255,255,0.03))', color: 'var(--white)', border: '1px solid ' + (boardSearch ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'), borderRadius: 'var(--card-radius, 10px)', outline: 'none', boxSizing: 'border-box' }} />
                                     {phBoardPanelLbl('NFL team')}
-                                    <select value={boardTeamFilter} onChange={e => setBoardTeamFilter(e.target.value)} style={{ width: '100%', padding: '9px 10px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)', background: 'var(--charcoal, #0e0e12)', color: boardTeamFilter ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (boardTeamFilter ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'), borderRadius: '6px', cursor: 'pointer', outline: 'none' }}>
+                                    <select value={boardTeamFilter} onChange={e => setBoardTeamFilter(e.target.value)} style={{ width: '100%', padding: '9px 10px', minHeight: '44px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)', background: 'var(--charcoal, #0e0e12)', color: boardTeamFilter ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (boardTeamFilter ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'), borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', outline: 'none' }}>
                                         <option value="">All teams</option>
                                         {availableTeams.map(t => <option key={t} value={t}>{t}</option>)}
                                     </select>
@@ -3925,7 +3925,7 @@
                                         groups: phGroups.map(g => ({ label: g.key, sub: g.rows.length + (g.rows.length === 1 ? ' player' : ' players'), rows: g.rows })),
                                     })
                                 ) : (
-                                    <div style={{ padding: '14px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', borderRadius: '9px', color: 'var(--silver)', opacity: 0.7, fontSize: '0.78rem' }}>No players match filter</div>
+                                    <div style={{ padding: '14px', border: '1px dashed var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 'var(--card-radius, 10px)', color: 'var(--silver)', opacity: 0.7, fontSize: '0.78rem' }}>No players match filter</div>
                                 )}
                                 {/* Pick inventory in view while ranking (P4) */}
                                 {myPicks.length > 0 && (
@@ -3936,13 +3936,13 @@
                                         </div>
                                         <div className="wr-kpi-strip">
                                             {currentCapitalRow.picks.map((pk, i) => (
-                                                <div key={currentCapitalRow.year + '-' + pk.round + '-' + i} style={{ background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '9px', padding: '9px 11px' }}>
+                                                <div key={currentCapitalRow.year + '-' + pk.round + '-' + i} style={{ background: 'var(--black, #121217)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 'var(--card-radius, 10px)', padding: '9px 11px' }}>
                                                     <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--text-muted, #8B8B96)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Round {pk.round}</div>
                                                     <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.3rem', fontWeight: 700, color: 'var(--white)', lineHeight: 1.15, marginTop: '2px' }}>{fmtPick(pk)}</div>
                                                     <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--silver)', opacity: 0.65 }}>{pk.own ? 'native' : 'acquired'}</div>
                                                 </div>
                                             ))}
-                                            <div style={{ background: 'var(--black, #121217)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '9px', padding: '9px 11px' }}>
+                                            <div style={{ background: 'var(--black, #121217)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 'var(--card-radius, 10px)', padding: '9px 11px' }}>
                                                 <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--text-muted, #8B8B96)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Capital</div>
                                                 <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.3rem', fontWeight: 700, color: 'var(--gold)', lineHeight: 1.15, marginTop: '2px' }}>{fmtDhq(totalPickCapital)}</div>
                                                 <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--silver)', opacity: 0.65 }}>{valueShortLabel}</div>
@@ -4014,7 +4014,7 @@
                                 value={boardSearch}
                                 onChange={e => setBoardSearch(e.target.value)}
                                 placeholder="Search players, teams, colleges..."
-                                style={{ width: '100%', padding: '9px 30px 9px 12px', minHeight: '44px', fontSize: '0.8rem', fontFamily: 'var(--font-body)', background: 'var(--ov-2, rgba(255,255,255,0.03))', color: 'var(--white)', border: '1px solid ' + (boardSearch ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'), borderRadius: '10px', outline: 'none', boxSizing: 'border-box' }}
+                                style={{ width: '100%', padding: '9px 30px 9px 12px', minHeight: '44px', fontSize: '0.8rem', fontFamily: 'var(--font-body)', background: 'var(--ov-2, rgba(255,255,255,0.03))', color: 'var(--white)', border: '1px solid ' + (boardSearch ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'), borderRadius: 'var(--card-radius, 10px)', outline: 'none', boxSizing: 'border-box' }}
                             />
                             {boardSearch && (
                                 <button onClick={() => setBoardSearch('')} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--silver)', cursor: 'pointer', fontSize: '1rem', lineHeight: 1, padding: '4px' }} aria-label="Clear search">{'×'}</button>
@@ -4023,9 +4023,9 @@
 
                         {/* Position filters */}
                         <div style={{ display: 'flex', gap: '4px', marginBottom: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                            <button onClick={() => setBoardPosFilter('')} style={{ padding: '4px 10px', minHeight: '44px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', borderRadius: '14px', cursor: 'pointer', border: '1px solid ' + (!boardPosFilter ? 'var(--acc-line2, rgba(212,175,55,0.3))' : 'var(--ov-5, rgba(255,255,255,0.08))'), background: !boardPosFilter ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'transparent', color: !boardPosFilter ? 'var(--gold)' : 'var(--silver)' }}>Master</button>
+                            <button onClick={() => setBoardPosFilter('')} style={{ padding: '4px 10px', minHeight: '44px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', borderRadius: 'var(--card-radius-lg, 14px)', cursor: 'pointer', border: '1px solid ' + (!boardPosFilter ? 'var(--acc-line2, rgba(212,175,55,0.3))' : 'var(--ov-5, rgba(255,255,255,0.08))'), background: !boardPosFilter ? 'var(--acc-fill2, rgba(212,175,55,0.12))' : 'transparent', color: !boardPosFilter ? 'var(--gold)' : 'var(--silver)' }}>Master</button>
                             {[...(typeof getLeaguePositions === 'function' ? getLeaguePositions() : ['QB','RB','WR','TE','K','DEF','DL','LB','DB']), ...(window.App?.getLeagueFlexGroups?.() || [])].map(pos => (
-                                <button key={pos} onClick={() => setBoardPosFilter(boardPosFilter === pos ? '' : pos)} style={{ padding: '4px 10px', minHeight: '44px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', borderRadius: '14px', cursor: 'pointer', border: '1px solid ' + (boardPosFilter === pos ? (posColors[pos] || 'var(--k-666666, #666666)') + '55' : 'var(--ov-5, rgba(255,255,255,0.08))'), background: boardPosFilter === pos ? (posColors[pos] || 'var(--k-666666, #666666)') + '18' : 'transparent', color: boardPosFilter === pos ? posColors[pos] : 'var(--silver)' }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</button>
+                                <button key={pos} onClick={() => setBoardPosFilter(boardPosFilter === pos ? '' : pos)} style={{ padding: '4px 10px', minHeight: '44px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', borderRadius: 'var(--card-radius-lg, 14px)', cursor: 'pointer', border: '1px solid ' + (boardPosFilter === pos ? (posColors[pos] || 'var(--k-666666, #666666)') + '55' : 'var(--ov-5, rgba(255,255,255,0.08))'), background: boardPosFilter === pos ? (posColors[pos] || 'var(--k-666666, #666666)') + '18' : 'transparent', color: boardPosFilter === pos ? posColors[pos] : 'var(--silver)' }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</button>
                             ))}
                             <span style={{ marginLeft: 'auto', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.4 }}>Click row to expand {'\u00B7'} Hold ≡ to drag — or use arrows — to reorder My Board</span>
                         </div>
@@ -4034,7 +4034,7 @@
                         <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Team</span>
-                                <select value={boardTeamFilter} onChange={e => setBoardTeamFilter(e.target.value)} style={{ padding: '3px 6px', minHeight: '44px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', background: 'var(--ov-3, rgba(255,255,255,0.04))', color: boardTeamFilter ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (boardTeamFilter ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'), borderRadius: '6px', cursor: 'pointer', outline: 'none' }}>
+                                <select value={boardTeamFilter} onChange={e => setBoardTeamFilter(e.target.value)} style={{ padding: '3px 6px', minHeight: '44px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', background: 'var(--ov-3, rgba(255,255,255,0.04))', color: boardTeamFilter ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (boardTeamFilter ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'), borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', outline: 'none' }}>
                                     <option value="">All teams</option>
                                     {availableTeams.map(t => <option key={t} value={t}>{t}</option>)}
                                 </select>
@@ -4053,14 +4053,14 @@
 	                                    { k: '7', label: 'R7' },
 	                                    { k: 'UDFA', label: 'UDFA' },
 	                                ].map(opt => (
-	                                    <button key={opt.k} onClick={() => setBoardRoundFilter(boardRoundFilter === opt.k ? '' : opt.k)} style={{ padding: '3px 8px', minHeight: '44px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', borderRadius: '10px', cursor: 'pointer', border: '1px solid ' + (boardRoundFilter === opt.k ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'), background: boardRoundFilter === opt.k ? 'var(--acc-fill3, rgba(212,175,55,0.14))' : 'transparent', color: boardRoundFilter === opt.k ? 'var(--gold)' : 'var(--silver)' }}>{opt.label}</button>
+	                                    <button key={opt.k} onClick={() => setBoardRoundFilter(boardRoundFilter === opt.k ? '' : opt.k)} style={{ padding: '3px 8px', minHeight: '44px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', borderRadius: 'var(--card-radius, 10px)', cursor: 'pointer', border: '1px solid ' + (boardRoundFilter === opt.k ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-5, rgba(255,255,255,0.08))'), background: boardRoundFilter === opt.k ? 'var(--acc-fill3, rgba(212,175,55,0.14))' : 'transparent', color: boardRoundFilter === opt.k ? 'var(--gold)' : 'var(--silver)' }}>{opt.label}</button>
 	                                ))}
 	                            </div>
 	                            )}
                             {(boardTeamFilter || boardRoundFilter) && (
-                                <button onClick={() => { setBoardTeamFilter(''); setBoardRoundFilter(''); }} style={{ marginLeft: 'auto', padding: '3px 10px', minHeight: '44px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: '10px', cursor: 'pointer' }}>Clear</button>
+                                <button onClick={() => { setBoardTeamFilter(''); setBoardRoundFilter(''); }} style={{ marginLeft: 'auto', padding: '3px 10px', minHeight: '44px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius, 10px)', cursor: 'pointer' }}>Clear</button>
                             )}
-                            <button type="button" onClick={toggleHideDrafted} title="Hide players who have already been drafted" style={{ marginLeft: (boardTeamFilter || boardRoundFilter) ? '6px' : 'auto', padding: '3px 10px', minHeight: '44px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', borderRadius: '10px', cursor: 'pointer', whiteSpace: 'nowrap', border: '1px solid ' + (hideDrafted ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'), background: hideDrafted ? 'var(--acc-fill3, rgba(212,175,55,0.14))' : 'transparent', color: hideDrafted ? 'var(--gold)' : 'var(--silver)' }}>{hideDrafted ? '✓ Hide drafted' : 'Hide drafted'}</button>
+                            <button type="button" onClick={toggleHideDrafted} title="Hide players who have already been drafted" style={{ marginLeft: (boardTeamFilter || boardRoundFilter) ? '6px' : 'auto', padding: '3px 10px', minHeight: '44px', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', borderRadius: 'var(--card-radius, 10px)', cursor: 'pointer', whiteSpace: 'nowrap', border: '1px solid ' + (hideDrafted ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'), background: hideDrafted ? 'var(--acc-fill3, rgba(212,175,55,0.14))' : 'transparent', color: hideDrafted ? 'var(--gold)' : 'var(--silver)' }}>{hideDrafted ? '✓ Hide drafted' : 'Hide drafted'}</button>
                         </div>
 
                         <div style={{ marginBottom: '14px' }}>
@@ -4073,10 +4073,10 @@
                             </div>
                             {boardVisibleCount < visibleBoardPlayers.length && (
                                 <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 10 }}>
-                                    <button type="button" onClick={() => setBoardVisibleCount(c => c + BOARD_PAGE_SIZE)} style={{ padding: '8px 16px', minHeight: '40px', fontSize: '0.76rem', fontFamily: 'var(--font-body)', fontWeight: 700, borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--acc-line3, rgba(212,175,55,0.4))', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', color: 'var(--gold)' }}>
+                                    <button type="button" onClick={() => setBoardVisibleCount(c => c + BOARD_PAGE_SIZE)} style={{ padding: '8px 16px', minHeight: '40px', fontSize: '0.76rem', fontFamily: 'var(--font-body)', fontWeight: 700, borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', border: '1px solid var(--acc-line3, rgba(212,175,55,0.4))', background: 'var(--acc-fill2, rgba(212,175,55,0.1))', color: 'var(--gold)' }}>
                                         Show {Math.min(BOARD_PAGE_SIZE, visibleBoardPlayers.length - boardVisibleCount)} more
                                     </button>
-                                    <button type="button" onClick={() => setBoardVisibleCount(visibleBoardPlayers.length)} style={{ padding: '8px 16px', minHeight: '40px', fontSize: '0.76rem', fontFamily: 'var(--font-body)', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', background: 'transparent', color: 'var(--silver)' }}>
+                                    <button type="button" onClick={() => setBoardVisibleCount(visibleBoardPlayers.length)} style={{ padding: '8px 16px', minHeight: '40px', fontSize: '0.76rem', fontFamily: 'var(--font-body)', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', background: 'transparent', color: 'var(--silver)' }}>
                                         Show all {visibleBoardPlayers.length}
                                     </button>
                                 </div>
