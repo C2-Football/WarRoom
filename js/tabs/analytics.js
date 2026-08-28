@@ -855,31 +855,46 @@ function AnalyticsPanel({
             // Strategy is set (and still seeds the directive copy in every case). Drive that
             // fallback off the robust tier/window/cliff signals; only lean on noisy
             // winner-template deltas when the champion sample is trustworthy (winnerN >= 2).
-            let tierModeLabel, tierModeColor, rosterStrategy;
+            // Each branch names a CANONICAL mode id, never a bespoke word. This
+            // inference used to emit REBUILD / RETOOL / RELOAD / WIN-NOW / RUN IT
+            // BACK — five postures against GM Strategy's three, and three of them
+            // (RETOOL, RELOAD, RUN IT BACK) named a stance the owner cannot
+            // actually select anywhere, while COMPETE — the default preset —
+            // never appeared at all. gm-mode.js's LEGACY_MAP already encodes the
+            // translation (retool → compete); the display path just never used it.
+            //
+            // The nuance is not lost: it was always carried by the DIRECTIVE
+            // sentence, not the badge, and every one of those sentences is kept
+            // verbatim below. Only the badge is made settable.
+            let tierModeId, tierModeColor, rosterStrategy;
             if (winnerN < 2) {
-                if (tier === 'REBUILDING') { tierModeLabel = 'REBUILD'; tierModeColor = warnColor; rosterStrategy = 'accumulate youth and picks — you are early in the build (champion benchmark unavailable)'; }
-                else { tierModeLabel = 'RETOOL'; tierModeColor = warnColor; rosterStrategy = 'target your weakest starter rooms (champion benchmark unavailable for template comparison)'; }
+                if (tier === 'REBUILDING') { tierModeId = 'rebuild'; tierModeColor = warnColor; rosterStrategy = 'accumulate youth and picks — you are early in the build (champion benchmark unavailable)'; }
+                else { tierModeId = 'compete'; tierModeColor = warnColor; rosterStrategy = 'target your weakest starter rooms (champion benchmark unavailable for template comparison)'; }
             } else if (tier === 'REBUILDING' || compYears <= 1) {
-                tierModeLabel = 'REBUILD'; tierModeColor = badColor; rosterStrategy = 'sell aging veterans for youth and picks — your window is closing';
+                tierModeId = 'rebuild'; tierModeColor = badColor; rosterStrategy = 'sell aging veterans for youth and picks — your window is closing';
             } else if (rosterCliffPct >= 25 && compYears <= 2) {
-                tierModeLabel = 'WIN-NOW'; tierModeColor = warnColor; rosterStrategy = 'win now — cash aging value before the cliff while your window is open';
+                tierModeId = 'win_now'; tierModeColor = warnColor; rosterStrategy = 'win now — cash aging value before the cliff while your window is open';
             } else if (ageDiffDiag > 1.5 && dhqGap < 0) {
-                tierModeLabel = 'RETOOL'; tierModeColor = warnColor; rosterStrategy = 'sell aging veterans and acquire young elites';
+                tierModeId = 'compete'; tierModeColor = warnColor; rosterStrategy = 'sell aging veterans and acquire young elites';
             } else if (eliteDiffDiag < -1) {
-                tierModeLabel = 'RELOAD'; tierModeColor = warnColor; rosterStrategy = 'buy young elite players to close the talent gap';
+                tierModeId = 'compete'; tierModeColor = warnColor; rosterStrategy = 'buy young elite players to close the talent gap';
             } else if (dhqGap >= 0 && ageDiffDiag <= 0.5) {
-                tierModeLabel = 'RUN IT BACK'; tierModeColor = goodColor; rosterStrategy = 'hold course — your roster matches the elite tier template';
+                tierModeId = 'compete'; tierModeColor = goodColor; rosterStrategy = 'hold course — your roster matches the elite tier template';
             } else {
-                tierModeLabel = 'RETOOL'; tierModeColor = warnColor; rosterStrategy = 'target strategic upgrades at your weakest positions';
+                tierModeId = 'compete'; tierModeColor = warnColor; rosterStrategy = 'target strategic upgrades at your weakest positions';
             }
+            // Badge text off the canonical presets, so Analytics can only ever
+            // name a posture that exists in the GM Strategy picker.
+            const presetLabel = (id) => String(window.WR?.GmMode?.PRESETS?.[id]?.label || id || '').toUpperCase();
+            const tierModeLabel = presetLabel(tierModeId);
             const tierModeDirective = rosterStrategy.charAt(0).toUpperCase() + rosterStrategy.slice(1) + '.';
             // Football-framed directives for the three GM Strategy presets — used when the owner
             // has explicitly set a strategy so the posture matches their plan, not the inference.
             const GM_MODE_FRAME = {
-                rebuild:  { label: 'REBUILD',     color: gm.badgeColor || warnColor, directive: 'Accumulate youth and picks; sell aging veterans for your next dynasty core.' },
-                compete:  { label: 'COMPETE',     color: gm.badgeColor || goodColor, directive: 'Balance present and future — hold your core and upgrade only at peak value.' },
-                win_now:  { label: 'WIN-NOW',     color: gm.badgeColor || badColor,  directive: 'Spend future picks and young depth on proven starters — the window is open now.' },
-                custom:   { label: gm.modeLabel || 'CUSTOM', color: gm.badgeColor || warnColor, directive: tierModeDirective },
+                rebuild:  { label: presetLabel('rebuild'), color: gm.badgeColor || warnColor, directive: 'Accumulate youth and picks; sell aging veterans for your next dynasty core.' },
+                compete:  { label: presetLabel('compete'), color: gm.badgeColor || goodColor, directive: 'Balance present and future — hold your core and upgrade only at peak value.' },
+                win_now:  { label: presetLabel('win_now'), color: gm.badgeColor || badColor,  directive: 'Spend future picks and young depth on proven starters — the window is open now.' },
+                custom:   { label: String(gm.modeLabel || 'Custom').toUpperCase(), color: gm.badgeColor || warnColor, directive: tierModeDirective },
             };
             // GM Strategy is primary. When no strategy is set, defer to the SAME
             // recommendation GM's Office computes (window.WR.GmMode.recommendMode,
