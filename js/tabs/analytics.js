@@ -458,6 +458,15 @@ function AnalyticsPanel({
                     <div>
                         {!compact && <span>{r.kicker || r.label}</span>}
                         <strong>{r.label}</strong>
+                        {/* GM Strategy marker. Compact rows drop `detail` into a
+                            title tooltip, so a plan note written there would only
+                            exist on hover — this keeps the acknowledgement visible.
+                            Guarded on r.planTag, which only the Priority Evidence
+                            rows set, so the other stacks render unchanged. */}
+                        {/* display:inline is load-bearing — the shared
+                            `.analytics-data-row span` rule is display:block, which
+                            dropped this marker onto its own line under the label. */}
+                        {r.planTag && <span style={{ display: 'inline', marginLeft: '6px', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, letterSpacing: '0.06em', whiteSpace: 'nowrap', color: r.planTag === 'TARGETING' ? 'var(--gold)' : 'var(--silver)', opacity: r.planTag === 'TARGETING' ? 0.95 : 0.65 }}>· {r.planTag}</span>}
                     </div>
                     {!compact && <em>{r.detail}</em>}
                     <b style={{ color: r.color || undefined }}>{r.value}</b>
@@ -948,6 +957,43 @@ function AnalyticsPanel({
             // Coverage Matrix grades (so the two cards always agree), then champion-template
             // gaps, then draft capital — all sorted CRITICAL → HIGH → MEDIUM → LOW.
             const SEV_WEIGHT = { critical: 3, high: 2, medium: 1, low: 0 };
+            // ── GM Strategy priorities ────────────────────────────────────────
+            // This queue graded every room against the league and then ignored the
+            // fact that the owner had already said which rooms they intend to fix.
+            // targetPositions / sellPositions were honoured by My Roster, the Trade
+            // Center, Free Agency, the Brief and the draft — and by nothing here,
+            // so a stated plan changed no row on the one surface whose whole job is
+            // "what should I fix first".
+            //
+            // The plan ORDERS, it never re-grades. Severity is a measurement and is
+            // left alone — a CRITICAL gap still outranks a HIGH one whether or not
+            // it is on the plan, because a D-grade room is a fact about the roster,
+            // not a preference. Within a severity tier the plan breaks the tie: a
+            // room the owner is targeting comes first (they have already decided to
+            // act on it), one they are deliberately selling comes last (a gap there
+            // is intentional).
+            //
+            // Note the second-order effect: the list is capped at 6 rows, so a
+            // demoted room CAN fall off the visible end — a sold room displaced by
+            // same-severity rooms behind it. That is intended (you said you do not
+            // care about that room) but it is a real consequence of reordering, not
+            // a no-op, and the row is still reachable in the Coverage Matrix below.
+            //
+            // Deliberately NOT wired: acceptanceFloor and untouchable are trade-
+            // execution inputs and this queue proposes no trades; marketPosture is
+            // already carried by the mode directive above. Wiring them here would
+            // be motion without meaning.
+            const _planHas = (set, pos) => !!(pos && gm.hasStrategy && set && typeof set.has === 'function' && set.has(pos));
+            const planBias = (pos) => _planHas(gm.targetPositions, pos) ? -1 : _planHas(gm.sellPositions, pos) ? 1 : 0;
+            const planNote = (pos) => _planHas(gm.targetPositions, pos)
+                ? ' Your plan targets ' + posLabel(pos) + '.'
+                : _planHas(gm.sellPositions, pos)
+                    ? ' Your plan sells ' + posLabel(pos) + ', so this gap may be deliberate.'
+                    : '';
+            // Compact rows render only label + value (detail becomes a hover
+            // title), so the note above needs a visible counterpart.
+            const planTag = (pos) => _planHas(gm.targetPositions, pos) ? 'TARGETING'
+                : _planHas(gm.sellPositions, pos) ? 'SELLING' : '';
             const evidenceRows = [];
             const evidencePos = new Set();
             coveragePosList.forEach(pos => {
@@ -957,10 +1003,12 @@ function AnalyticsPanel({
                 evidenceRows.push({
                     kicker: 'Starter Quality',
                     label: (c.have === 0 ? 'Add ' : 'Upgrade ') + posLabel(pos) + (c.have === 0 ? ' starter' : ' room'),
-                    detail: posLabel(pos) + ' grades ' + c.grade + ' — ' + c.have + ' of your players rank inside the top ' + c.threshold + ' (' + c.slotsInt + ' slot' + (c.slotsInt > 1 ? 's' : '') + ' × ' + numTeams + ' teams).',
+                    detail: posLabel(pos) + ' grades ' + c.grade + ' — ' + c.have + ' of your players rank inside the top ' + c.threshold + ' (' + c.slotsInt + ' slot' + (c.slotsInt > 1 ? 's' : '') + ' × ' + numTeams + ' teams).' + planNote(pos),
                     value: c.severity.toUpperCase(),
                     color: c.color,
                     weight: SEV_WEIGHT[c.severity],
+                    plan: planBias(pos),
+                    planTag: planTag(pos),
                     score: c.have - c.slotsInt, // most negative (furthest from a full room) first within a tier
                 });
             });
@@ -970,10 +1018,12 @@ function AnalyticsPanel({
                 evidenceRows.push({
                     kicker: 'Champion Template',
                     label: g.action || g.area || 'Roster signal',
-                    detail: g.detail || 'Use module tabs to inspect the player-level evidence behind this room.',
+                    detail: (g.detail || 'Use module tabs to inspect the player-level evidence behind this room.') + planNote(g.pos),
                     value: sev.toUpperCase(),
                     color: sevColor(sev),
                     weight: SEV_WEIGHT[sev] ?? 0,
+                    plan: planBias(g.pos),
+                    planTag: planTag(g.pos),
                     score: 0,
                 });
             });
@@ -983,15 +1033,23 @@ function AnalyticsPanel({
                 evidenceRows.push({
                     kicker: 'Draft Capital',
                     label: (pickNet >= 0 ? 'Pick Surplus' : 'Pick Deficit') + ' (' + picks.totalPicks + '/' + picks.idealTotal + ')',
-                    detail: picks.roundsMissing ? picks.roundsMissing + ' draft round(s) with zero picks across your horizon — ammo to close the talent gap is ' + (pickNet >= 0 ? 'available' : 'short') + '.' : 'You hold ' + picks.totalPicks + ' future picks vs an ideal of ' + picks.idealTotal + '.',
+                    detail: (picks.roundsMissing ? picks.roundsMissing + ' draft round(s) with zero picks across your horizon — ammo to close the talent gap is ' + (pickNet >= 0 ? 'available' : 'short') + '.' : 'You hold ' + picks.totalPicks + ' future picks vs an ideal of ' + picks.idealTotal + '.') + planNote('PICKS'),
                     value: (pickNet >= 0 ? '+' : '') + pickNet,
                     color: pickNet >= 0 ? goodColor : (picks.status === 'deficit' ? badColor : warnColor),
                     weight: SEV_WEIGHT[pickSev],
+                    // PICKS is a settable target/sell position in the GM Strategy
+                    // picker, so draft capital reads the plan like any room does.
+                    plan: planBias('PICKS'),
+                    planTag: planTag('PICKS'),
                     score: pickNet,
                 });
             }
-            const gapRows = (evidenceRows.length ? evidenceRows : [{ kicker: 'Roster', label: 'No starter-quality gap', detail: 'Every starting room grades B or better against the league.', value: 'OK', color: goodColor, weight: 0, score: 0 }])
-                .sort((a, b) => (b.weight - a.weight) || (a.score - b.score))
+            const gapRows = (evidenceRows.length ? evidenceRows : [{ kicker: 'Roster', label: 'No starter-quality gap', detail: 'Every starting room grades B or better against the league.', value: 'OK', color: goodColor, weight: 0, plan: 0, score: 0 }])
+                // Severity first (measurement), then the plan (preference), then
+                // the within-tier magnitude. The plan sits BELOW severity on
+                // purpose — it reorders rooms of equal urgency, it cannot promote
+                // a MEDIUM gap over a CRITICAL one.
+                .sort((a, b) => (b.weight - a.weight) || ((a.plan || 0) - (b.plan || 0)) || (a.score - b.score))
                 .slice(0, 6);
 
             return (
