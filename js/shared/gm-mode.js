@@ -108,6 +108,29 @@
         return LEGACY_MAP[mode] || 'compete';
     }
 
+    // ── Canonical timeline vocabulary ─────────────────────────────
+    // The three timeline values were being LABELLED independently by every
+    // surface that showed them — the editor said "2–3 Years", the Brief's plan
+    // chip said "2-3 yr window", and Analytics said "2-3yr window". Analytics
+    // additionally rendered '1_year' as "win-now (1yr)", naming a MODE for what
+    // is a timeline, so a Compete owner on a one-year horizon read as win-now.
+    // Mode already lives here; the words for its bundled timeline belong here
+    // too, so no surface has to invent a name for a value it did not define.
+    //   label — the setting's name, matching the editor where it is SET
+    //   short — compact form for chips and inline reads
+    //   years — planning horizon, mirrors effects().horizonYears
+    const TIMELINES = [
+        { value: '1_year',       label: '1 Year',       short: '1yr',     years: 1,   desc: 'All chips on this season.' },
+        { value: '2_3_years',    label: '2–3 Years',    short: '2-3yr',   years: 2.5, desc: 'Medium-term contention window.' },
+        { value: 'dynasty_long', label: 'Dynasty Long', short: 'dynasty', years: 7,   desc: 'Build a program, not just a season.' },
+    ];
+
+    // describeTimeline — always returns a descriptor; unknown or legacy values
+    // fall back to 2-3 years, the same default effects() applies.
+    function describeTimeline(timeline) {
+        return TIMELINES.find(t => t.value === timeline) || TIMELINES[1];
+    }
+
     function getMode(leagueId) {
         // Priority: shared global store (ONLY if it actually exists — see
         // sharedStrategyStoreExists; getStrategy() otherwise returns a default
@@ -288,7 +311,9 @@
             maxUserGainPct: 0.14 + aggression * 0.26,
             maxOverpayPct: (timeline === '1_year' || mode === 'win_now') ? 0.20 : mode === 'rebuild' ? 0.07 : 0.12,
             pickHorizon: timeline === '1_year' ? 1 : timeline === 'dynasty_long' ? 3 : 2,
-            horizonYears: timeline === '1_year' ? 1 : timeline === 'dynasty_long' ? 7 : 2.5,
+            // Off the canonical descriptor, so the number a surface computes with
+            // and the words it prints can never drift apart.
+            horizonYears: describeTimeline(timeline).years,
             tradeWeights: desc.tradeWeights,
             draftWeights: desc.draftWeights,
             draftStyle: strategy.draftStyle || cfg.draftStyle || 'bpa',
@@ -439,6 +464,8 @@
     window.WR.GmMode = {
         PRESETS,
         AGGRESSION_MAP,
+        TIMELINES,
+        describeTimeline,
         normalize,
         getMode,
         getPreset,

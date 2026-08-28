@@ -315,11 +315,21 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
         { value: 'exploit',   label: 'Exploit',   desc: 'Identify and attack league-wide market inefficiencies.' },
     ];
 
-    const TIMELINES = [
+    // Canonical vocabulary (window.WR.GmMode.TIMELINES) — this editor is where a
+    // timeline is SET, so its labels are the names every other surface renders.
+    // Read at render time, not module init, so load order stays irrelevant; the
+    // literal below is the clean-absence fallback if gm-mode.js is missing.
+    const TIMELINES = window.WR?.GmMode?.TIMELINES || [
         { value: '1_year',       label: '1 Year',       desc: 'All chips on this season.' },
         { value: '2_3_years',    label: '2–3 Years',    desc: 'Medium-term contention window.' },
         { value: 'dynasty_long', label: 'Dynasty Long', desc: 'Build a program, not just a season.' },
     ];
+
+    // Raw enum values are storage keys, never display text. The preset summary
+    // below was printing them straight through, so the editor told the owner
+    // their timeline was "2_3_years". Falls back to the raw value so an
+    // unmapped/legacy key still shows something rather than blank.
+    const labelOf = (list, value) => (list.find(o => o.value === value) || {}).label || value;
 
     const currentMode = MODES.find(m => m.value === draft.mode);
     const currentAggression = AGGRESSION.find(a => a.value === draft.aggression);
@@ -443,8 +453,8 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                     </div>
                 )}
                 {!isCustom && (
-                    <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 6, fontSize: 'var(--text-label)', color: 'var(--ov-9, rgba(255,255,255,0.7))', fontFamily: 'var(--font-body)', lineHeight: 1.5 }}>
-                        <strong style={{ color: 'var(--gold)' }}>Preset applied:</strong> aggression <em>{draft.aggression}</em> · draft <em>{draft.draftStyle}</em> · market <em>{draft.marketPosture}</em> · timeline <em>{draft.timeline}</em>
+                    <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius-xs, 5px)', fontSize: 'var(--text-label)', color: 'var(--ov-9, rgba(255,255,255,0.7))', fontFamily: 'var(--font-body)', lineHeight: 1.5 }}>
+                        <strong style={{ color: 'var(--gold)' }}>Preset applied:</strong> aggression <em>{labelOf(AGGRESSION, draft.aggression)}</em> · draft <em>{labelOf(DRAFT_STYLES, draft.draftStyle)}</em> · market <em>{labelOf(MARKET_POSTURES, draft.marketPosture)}</em> · timeline <em>{labelOf(TIMELINES, draft.timeline)}</em>
                     </div>
                 )}
             </div>

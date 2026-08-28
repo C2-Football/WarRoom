@@ -894,12 +894,31 @@ function AnalyticsPanel({
             const modeColor = gmFrame ? gmFrame.color : tierModeColor;
             const modeDirective = gmFrame ? gmFrame.directive : tierModeDirective;
             const modeSource = gm.hasStrategy ? 'GM Strategy' : (recommendedMode ? 'recommended, matches GM’s Office' : 'inferred from tier');
-            // Analysis window label — driven by GM Strategy timeline when set, else the model's
-            // estimated compete window. horizonYears: 1 | 2.5 | 7.
-            const _windowYears = gm.hasStrategy ? gm.horizonYears : compYears;
-            const windowLabel = gm.hasStrategy
-                ? (gm.timeline === '1_year' ? 'win-now (1yr) window' : gm.timeline === 'dynasty_long' ? 'dynasty (long) window' : '2-3yr window')
-                : (compYears + 'yr window (model est.)');
+            // Analysis window. Both of these were computed and then never read —
+            // the timeline the owner set in GM Strategy reached this component and
+            // was dropped on the floor, so the setting changed nothing here while
+            // every other surface honoured it.
+            //
+            // The two numbers are NOT interchangeable and are deliberately not
+            // merged: gm.horizonYears is the owner's stated PLAN (1 | 2.5 | 7),
+            // compYears is the model's MEASURED compete window. Everything below
+            // still computes against compYears — substituting a preference for a
+            // measurement would quietly corrupt the tier read and the win-now
+            // pressure score. What was missing is that the panel never said which
+            // window it was reading against, so the two could disagree in silence.
+            // Now it states the owner's plan and flags the model's disagreement
+            // when the gap is wide enough to matter (>1yr).
+            const _tl = window.WR?.GmMode?.describeTimeline?.(gm.timeline);
+            const windowLabel = gm.hasStrategy && _tl
+                ? (compYears > 0 && Math.abs((gm.horizonYears || 0) - compYears) > 1
+                    ? 'your ' + _tl.short + ' plan · model reads ' + compYears + 'yr'
+                    : 'your ' + _tl.short + ' plan')
+                // compYears is 0 whenever the model reads the window as closed
+                // (analyticsData.window.label "Window closed — rebuild mode"), so
+                // the bare concat printed "0yr window (model est.)" for exactly the
+                // rosters that most need a clear read. Pre-existing; fixed here
+                // because it is the same expression.
+                : (compYears > 0 ? compYears + 'yr window (model est.)' : 'window closed (model est.)');
             const rosterProofItems = [
                 { label: 'Champion Value Gap', value: winnerN < 2 ? '—' : signedNum(dhqGap, ' DHQ'), detail: winnerN < 2 ? 'Champion sample too small (' + winnerN + ') to benchmark.' : 'You vs ' + winnerN + '-team ' + (winnerSource === 'brackets' ? 'champion' : 'top-standings') + ' template (avg ' + numFmt(w.avgTotalDHQ) + ' DHQ).', tone: winnerN < 2 ? 'warn' : toneFromDelta(dhqGap), color: winnerN < 2 ? warnColor : (dhqGap >= 0 ? goodColor : badColor) },
                 { label: 'Elite Asset Gap', value: winnerN < 2 ? '—' : signedNum(eliteDiffDiag), detail: winnerN < 2 ? 'Champion sample too small to benchmark elites.' : 'Your ' + mElite + ' elites vs ' + wElite + ' for the ' + winnerN + '-team template.', tone: winnerN < 2 ? 'warn' : toneFromDelta(eliteDiffDiag), color: winnerN < 2 ? warnColor : (eliteDiffDiag >= 0 ? goodColor : badColor) },
@@ -967,7 +986,7 @@ function AnalyticsPanel({
                 {!isPro && <ProLock label="Analytics Command" sub="The research thesis, suggested mode directive, and tier / win-now pressure reads for this roster are Pro." />}
                 {isPro && <AnalyticsCommandPanel
                     title="What exactly separates this roster from the league's winning build?"
-                    mode={{ label: modeLabel, directive: modeDirective + ' (' + modeSource + ')', color: modeColor }}
+                    mode={{ label: modeLabel, directive: modeDirective + ' (' + modeSource + ' · ' + windowLabel + ')', color: modeColor }}
                 />}
 
                 <AnalyticsProofGrid items={rosterProofItems} />
