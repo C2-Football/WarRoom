@@ -557,9 +557,16 @@
             };
         },
 
-        /** Scale a font size by the theme's size multiplier */
+        /** Scale a font size by the theme's size multiplier.
+         *  Floored at --text-micro (0.6875rem / 11px), the documented
+         *  dense-data floor. ~170 widget call sites pass a base below that
+         *  (fs(0.46) … fs(0.66)) and a skin with sizeScale < 1 pushes them
+         *  lower still, which is where the 7-10px chip text came from. The
+         *  floor lives here so it holds for every skin and every call site. */
+        MIN_REM: 0.6875,
         fontSize: function(baseRem) {
-            return (baseRem * this.get().fonts.sizeScale) + 'rem';
+            const scaled = baseRem * this.get().fonts.sizeScale;
+            return Math.max(scaled, this.MIN_REM) + 'rem';
         },
 
         /** Badge style (pills, chips) */

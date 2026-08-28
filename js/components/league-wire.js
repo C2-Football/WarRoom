@@ -379,14 +379,14 @@ function WrLeagueWire({ currentLeague, standings, transactions, playersData, get
         const tone = TONE[it.kind] || TONE.score;
         return (
             <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '0 17px', fontFamily: MONO, fontSize: '0.72rem', color: SILVER, borderRight: '1px solid rgba(255,255,255,0.05)', whiteSpace: 'nowrap' }}>
-                <span style={{ fontSize: '0.55rem', fontWeight: 800, letterSpacing: '0.09em', padding: '2px 6px', borderRadius: 'var(--card-radius-xs, 5px)', textTransform: 'uppercase', background: tone.bg, color: tone.fg }}>{it.label}</span>
+                <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 800, letterSpacing: '0.09em', padding: '2px 6px', borderRadius: 'var(--card-radius-xs, 5px)', textTransform: 'uppercase', background: tone.bg, color: tone.fg }}>{it.label}</span>
                 {it.text}
             </span>
         );
     };
     return (
         <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, height: '38px', background: '#0a0a0c', borderTop: '1px solid rgba(212,175,55,0.16)', display: 'flex', alignItems: 'center', zIndex: 80, overflow: 'hidden' }}>
-            <div style={{ flex: '0 0 auto', height: '100%', display: 'flex', alignItems: 'center', gap: '7px', padding: '0 14px', background: '#171206', color: GOLD, fontFamily: MONO, fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.11em', borderRight: '1px solid rgba(212,175,55,0.16)', zIndex: 2 }}>
+            <div style={{ flex: '0 0 auto', height: '100%', display: 'flex', alignItems: 'center', gap: '7px', padding: '0 14px', background: '#171206', color: GOLD, fontFamily: MONO, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 800, letterSpacing: '0.11em', borderRight: '1px solid rgba(212,175,55,0.16)', zIndex: 2 }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--good, #2ecc71)', boxShadow: '0 0 7px var(--good, #2ecc71)' }} />
                 LEAGUE WIRE
             </div>

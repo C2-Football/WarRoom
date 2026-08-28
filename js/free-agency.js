@@ -2592,7 +2592,7 @@
                                             if (!stat) return rkDash;
                                             const v = SC.computeStat(stat.key, statsData[pid] || {}, { perGame: true });
                                             if (v == null) return rkDash;
-                                            return <span title={stat.label} style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>{SC.formatStat(v, stat.format)} <span style={{ opacity: 0.55, fontSize: '0.62rem' }}>{stat.short}</span></span>;
+                                            return <span title={stat.label} style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>{SC.formatStat(v, stat.format)} <span style={{ opacity: 0.55, fontSize: 'var(--text-label, 0.75rem)' }}>{stat.short}</span></span>;
                                         }
                                         case 'rkSlot': {
                                             // Prospect slot wins; vets show R<rd> #<overall> / UDFA from the static dataset.

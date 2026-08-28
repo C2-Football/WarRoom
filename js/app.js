@@ -1321,7 +1321,7 @@
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
                                                 <span style={{ fontSize: 'var(--text-body, 1rem)', fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
-                                                {isLast && <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', fontWeight: 600, color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '0 4px', flexShrink: 0 }}>LAST</span>}
+                                                {isLast && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '0 4px', flexShrink: 0 }}>LAST</span>}
                                             </div>
                                             {sub && <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>}
                                         </div>
@@ -1462,7 +1462,7 @@
         // runs without a username — so treat the hub as syncing only when a Sleeper
         // fetch is actually in flight (a signed-out user goes straight to connect).
         const hubSyncing = loading && !!sleeperUsername;
-        const hubCtrlStyle = { fontFamily: 'var(--font-mono)', fontSize: '0.68rem', fontWeight: 600, letterSpacing: '.12em', color: 'var(--silver)', background: 'transparent', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '7px 11px', cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', lineHeight: 1 };
+        const hubCtrlStyle = { fontFamily: 'var(--font-mono)', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, letterSpacing: '.12em', color: 'var(--silver)', background: 'transparent', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '7px 11px', cursor: 'pointer', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', lineHeight: 1 };
 
         return (
             <div className="app-container">

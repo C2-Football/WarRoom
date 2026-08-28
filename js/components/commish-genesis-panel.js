@@ -221,16 +221,16 @@ function WrCommishRenewalPanel({ forecast }) {
                             <div key={p.userId} style={{ padding: '9px 0', borderBottom: i === people.length - 1 ? 'none' : `1px solid ${LINE}` }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                                     <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.82rem', color: TEXT }}>{p.name}</span>
-                                    {p.leagueCount ? <span style={{ ...mono, fontSize: '0.68rem', color: MUTED }}>{p.leagueCount} league{p.leagueCount === 1 ? '' : 's'}</span> : null}
+                                    {p.leagueCount ? <span style={{ ...mono, fontSize: 'var(--text-label, 0.75rem)', color: MUTED }}>{p.leagueCount} league{p.leagueCount === 1 ? '' : 's'}</span> : null}
                                     <span style={{ marginLeft: 'auto', textAlign: 'right', flexShrink: 0 }}>
                                         <span style={{ ...mono, display: 'block', fontSize: '1.05rem', fontWeight: 700, color: col }}>{Math.round((p.probability || 0) * 100)}%</span>
-                                        <span style={{ ...mono, display: 'block', fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: col }}>{bandLabel(p.band)}</span>
+                                        <span style={{ ...mono, display: 'block', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: col }}>{bandLabel(p.band)}</span>
                                     </span>
                                 </div>
                                 {factors.length ? (
                                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
                                         {factors.map((f, fi) => (
-                                            <span key={fi} style={{ fontSize: '0.62rem', color: MUTED, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 6px' }}>{f}</span>
+                                            <span key={fi} style={{ fontSize: 'var(--text-label, 0.75rem)', color: MUTED, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 6px' }}>{f}</span>
                                         ))}
                                     </div>
                                 ) : null}

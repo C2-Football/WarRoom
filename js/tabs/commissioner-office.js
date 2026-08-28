@@ -966,7 +966,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                     is a different room from Empire. Gold survives in exactly two
                     places office-wide — the LABS chip and the "this is you" row. */}
                 <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: isPhone ? '1.15rem' : '1.5rem', letterSpacing: '.06em', textTransform: 'uppercase', color: TEXT, display: 'inline-block', borderBottom: `3px solid ${ACCENT}`, paddingBottom: '3px' }}>Commissioner's Office</span>
-                <span style={{ fontFamily: MONO, fontSize: '0.625rem', fontWeight: 700, letterSpacing: '.08em', color: '#121217', background: GOLD, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 6px' }}>LABS</span>
+                <span style={{ fontFamily: MONO, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, letterSpacing: '.08em', color: '#121217', background: GOLD, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 6px' }}>LABS</span>
                 {state.status === 'ready' ? (
                     <span style={{ marginLeft: isPhone ? 0 : 'auto', flexBasis: isPhone ? '100%' : 'auto', fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
                         {state.mine.length} LEAGUES · {Object.keys(state.graph?.people || {}).length} HUMANS · {(state.graph?.overlap || []).length} CROSSOVER

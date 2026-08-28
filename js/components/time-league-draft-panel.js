@@ -87,7 +87,7 @@
     const ERA_CEREMONY_CSS = `
         .tl-era-card.pending { border-color: rgba(212,175,55,0.10); background: rgba(255,255,255,0.015); }
         .tl-era-die { display: block; margin-top: 8px; font-size: 19px; line-height: 1; animation: tlEraDieSpin 0.9s linear infinite; }
-        .tl-era-rolling-label { display: block; margin-top: 4px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); animation: tlEraRollPulse 1.1s ease-in-out infinite; }
+        .tl-era-rolling-label { display: block; margin-top: 4px; font-family: var(--font-mono); font-size: var(--text-label, 0.75rem); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); animation: tlEraRollPulse 1.1s ease-in-out infinite; }
         .tl-era-card.landed { animation: tlEraLand .48s cubic-bezier(.22,.8,.22,1) both; }
         .tl-era-rolling-tag { color: var(--gold); animation: tlEraRollPulse 1.1s ease-in-out infinite; }
         @keyframes tlEraDieSpin { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(190deg) scale(1.1); } 100% { transform: rotate(360deg) scale(1); } }

@@ -1159,7 +1159,7 @@ function CompareTab({
                                         <div key={p.rosterId} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: 'var(--card-radius-sm, 8px)', background: p.isMine ? 'var(--acc-fill2, rgba(212,175,55,0.1))' : 'var(--ov-2, rgba(255,255,255,0.025))', border: '1px solid ' + (p.isMine ? 'rgba(212,175,55,0.4)' : 'var(--ov-4, rgba(255,255,255,0.06))') }}>
                                             <span style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: p.isMine ? 'var(--gold)' : 'var(--text-muted, #8B8B96)', minWidth: '20px' }}>{i + 1}</span>
                                             <span style={{ flex: 1, minWidth: 0, fontSize: '0.85rem', fontWeight: 600, color: p.isMine ? 'var(--gold)' : 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                                            {isLead ? <span style={{ ...mono, fontSize: '0.56rem', fontWeight: 800, color: 'var(--good)', letterSpacing: '0.06em' }}>TOP</span> : null}
+                                            {isLead ? <span style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: 'var(--good)', letterSpacing: '0.06em' }}>TOP</span> : null}
                                             <div style={{ flex: '0 0 82px', height: '6px', background: 'var(--ov-4, rgba(255,255,255,0.06))', borderRadius: '3px', overflow: 'hidden' }}><div style={{ width: (val / maxV * 100) + '%', height: '100%', background: barC }} /></div>
                                             <span style={{ ...mono, fontSize: '0.78rem', fontWeight: 700, color: p.isMine ? 'var(--gold)' : 'var(--silver)', minWidth: '34px', textAlign: 'right' }}>{Math.round(val / 1000)}k</span>
                                         </div>
@@ -1329,7 +1329,7 @@ function CompareTab({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 0', borderTop: '1px solid var(--ov-3, rgba(255,255,255,0.04))' }}>
                 <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.66, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
                 <span style={{ ...mono, fontWeight: 850, fontSize: '0.82rem', color: valueColor || (isBest ? 'var(--good)' : 'var(--white)') }}>
-                    {value}{isBest ? <span style={{ marginLeft: '5px', fontSize: '0.6rem', color: 'var(--good)' }}>▲</span> : null}
+                    {value}{isBest ? <span style={{ marginLeft: '5px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--good)' }}>▲</span> : null}
                 </span>
             </div>
         );
@@ -1361,7 +1361,7 @@ function CompareTab({
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
                                     <div style={{ fontFamily: 'var(--font-title)', color: 'var(--white)', fontWeight: 850, fontSize: '0.98rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pl.name}</div>
-                                    {isLeader ? <span style={{ ...mono, fontSize: '0.56rem', fontWeight: 850, color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 5px', letterSpacing: '0.04em', flexShrink: 0 }}>DHQ LEAD</span> : null}
+                                    {isLeader ? <span style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 850, color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 5px', letterSpacing: '0.04em', flexShrink: 0 }}>DHQ LEAD</span> : null}
                                 </div>
                                 <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.72, marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                     <span style={{ color: posColors[pl.pos] || 'var(--silver)', fontWeight: 800 }}>{posLabel(pl.pos)}</span> · {pl.team}{pl.age ? ' · ' + pl.age + 'yo' : ''}{pl.yrsExp != null ? ' · ' + pl.yrsExp + 'y exp' : ''}
@@ -1431,7 +1431,7 @@ function CompareTab({
                             tag={[pl.team, pl.age ? pl.age + 'yo' : null, pl.posRank ? posLabel(pl.pos) + ' #' + pl.posRank : null, pl.tier.label].filter(Boolean).join(' · ')}
                             slots={[{ label: valueShortLabel, value: pl.dhq > 0 ? pl.dhq.toLocaleString() : '—', tone: isLeader ? 'gold' : undefined }]}
                             verdict={<React.Fragment>
-                                {isLeader ? <span style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: '0.56rem', fontWeight: 700, color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 5px', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>LEAD</span> : null}
+                                {isLeader ? <span style={{ fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 5px', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>LEAD</span> : null}
                                 {phoneRemoveX(pl.pid)}
                             </React.Fragment>}
                             accent={isLeader ? 'gold' : undefined}
@@ -1577,12 +1577,12 @@ function CompareTab({
                             <img src={'https://sleepercdn.com/content/nfl/players/thumb/' + pl.pid + '.jpg'} onError={e => e.target.style.display = 'none'} style={{ width: '46px', height: '46px', borderRadius: '50%', objectFit: 'cover', border: '2px solid ' + (isLead ? 'var(--gold)' : (posColors[pl.pos] || 'var(--silver)')) }} />
                             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', maxWidth: '100%' }}>
                                 <span style={{ fontFamily: 'var(--font-title)', color: 'var(--white)', fontWeight: 850, fontSize: '0.92rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pl.name}</span>
-                                {isLead ? <span style={{ ...mono, fontSize: '0.5rem', fontWeight: 850, color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 4px', flexShrink: 0 }}>LEAD</span> : null}
+                                {isLead ? <span style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 850, color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 4px', flexShrink: 0 }}>LEAD</span> : null}
                             </div>
                             <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.72, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}><span style={{ color: posColors[pl.pos] || 'var(--silver)', fontWeight: 800 }}>{posLabel(pl.pos)}</span> · {pl.team}{pl.age ? ' · ' + pl.age + 'yo' : ''}</div>
                             <div style={{ ...mono, fontSize: '1.45rem', fontWeight: 850, color: dhqCol, lineHeight: 1.05 }}>{pl.dhq > 0 ? pl.dhq.toLocaleString() : '—'}</div>
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
-                                <span style={{ ...mono, fontSize: '0.68rem', fontWeight: 850, color: pl.tier.color }}>{pl.tier.label}</span>
+                                <span style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 850, color: pl.tier.color }}>{pl.tier.label}</span>
                                 {k > 0 ? <span style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 850, color: 'var(--gold)' }}>· leads {k}</span> : null}
                             </div>
                         </div>
@@ -1632,7 +1632,7 @@ function CompareTab({
                             return (
                                 <div key={i} style={{ textAlign: 'center', minWidth: 0 }}>
                                     <div style={{ ...mono, fontWeight: 850, fontSize: '0.84rem', color: col, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {m.display[i]}{win ? <span style={{ marginLeft: '4px', fontSize: '0.56rem', color: isPhone ? 'var(--gold)' : 'var(--good)' }}>▲</span> : null}
+                                        {m.display[i]}{win ? <span style={{ marginLeft: '4px', fontSize: 'var(--text-micro, 0.6875rem)', color: isPhone ? 'var(--gold)' : 'var(--good)' }}>▲</span> : null}
                                     </div>
                                     {showGap ? <div style={{ ...mono, fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.5, marginTop: '1px' }}>−{m.gapFmt ? m.gapFmt(best - vals[i]) : (best - vals[i])}</div> : null}
                                 </div>

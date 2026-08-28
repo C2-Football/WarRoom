@@ -98,7 +98,7 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
                     </div>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {overlap.map(o => (
-                            <span key={o.userId} style={{ ...mono, fontSize: '0.68rem', color: TEXT, background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '3px 8px', whiteSpace: 'nowrap' }}>
+                            <span key={o.userId} style={{ ...mono, fontSize: 'var(--text-label, 0.75rem)', color: TEXT, background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '3px 8px', whiteSpace: 'nowrap' }}>
                                 {o.name} <span style={{ color: GOLD }}>×{o.leagueCount}</span>
                             </span>
                         ))}
@@ -129,7 +129,7 @@ function WrCommishCoefficientPanel({ coefficient, graph }) {
                                     </span>
                                     <span style={{ textAlign: 'right', fontWeight: 700, color: r.rating != null ? TEXT : MUTED }}>
                                         {r.rating != null ? r.rating : '—'}
-                                        {r.provisional && r.rating != null ? <span style={{ color: MUTED, fontWeight: 400, fontSize: '0.62rem' }}> (prov)</span> : null}
+                                        {r.provisional && r.rating != null ? <span style={{ color: MUTED, fontWeight: 400, fontSize: 'var(--text-label, 0.75rem)' }}> (prov)</span> : null}
                                     </span>
                                     <span style={{ textAlign: 'right' }}>{delta(r)}</span>
                                     {/* apGames guards the record: 0 counted games prints '—', never a fake 0-0. */}

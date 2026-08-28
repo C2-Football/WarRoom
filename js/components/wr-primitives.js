@@ -251,9 +251,9 @@
                 }, ctaLabel, h('span', { style: { fontSize: '1rem', lineHeight: 0.8 } }, '\u203A')),
                 feedback && h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' } },
                     feedback.given
-                        ? h('span', { style: { fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.5 } }, 'Thanks \u2014 Alex learns from this.')
+                        ? h('span', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5 } }, 'Thanks \u2014 Alex learns from this.')
                         : [
-                            h('span', { key: 'q', style: { fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.45 } }, 'Useful?'),
+                            h('span', { key: 'q', style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.45 } }, 'Useful?'),
                             h('button', { key: 'up', onClick: feedback.onUp, style: { background: 'none', border: 'none', color: 'var(--silver)', opacity: 0.5, cursor: 'pointer', fontSize: '0.78rem', padding: '0 4px' } }, '\uD83D\uDC4D'),
                             h('button', { key: 'down', onClick: feedback.onDown, style: { background: 'none', border: 'none', color: 'var(--silver)', opacity: 0.5, cursor: 'pointer', fontSize: '0.78rem', padding: '0 4px' } }, '\uD83D\uDC4E'),
                         ]

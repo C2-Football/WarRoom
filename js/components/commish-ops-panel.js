@@ -119,7 +119,7 @@ function WrCommishOpsPanel({ drift, calendar, conflicts, leagues, onAcknowledge,
     );
     const TypeChip = ({ type }) => {
         const c = CHIP[type] || CHIP.playoffs;
-        return <span style={{ ...mono, fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.06em', color: c.color, border: `1px solid ${c.border}`, background: c.bg, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 6px', whiteSpace: 'nowrap' }}>{c.text}</span>;
+        return <span style={{ ...mono, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, letterSpacing: '0.06em', color: c.color, border: `1px solid ${c.border}`, background: c.bg, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 6px', whiteSpace: 'nowrap' }}>{c.text}</span>;
     };
     const calGrid = { display: 'grid', gridTemplateColumns: '128px 78px minmax(0,1fr) minmax(0,1.4fr)', gap: '10px', alignItems: 'center', padding: '5px 10px', minWidth: 0 };
     // One row, scheduled or unscheduled. Manual (custom:true) rows get a

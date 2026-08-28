@@ -37,12 +37,19 @@
 // Usage:
 //   node scripts/typescale-codemod.cjs --dry      (report only)
 //   node scripts/typescale-codemod.cjs            (write + emit manifest)
+//   node scripts/typescale-codemod.cjs --floor-only   (sub-11px band only)
+//   node scripts/typescale-codemod.cjs --floor-only --index  (+ index.html CSS)
 // ════════════════════════════════════════════════════════════════════
 
 const fs = require('fs');
 const path = require('path');
 
 const DRY = process.argv.includes('--dry');
+// --floor-only: migrate ONLY the illegible sub-11px band onto the scale and
+// leave the 11-15px density alone. The full pass also promotes 12-15px body
+// copy to 16px, which is right for desktop tables but overshoots on phone,
+// where the loose body copy is already the complaint.
+const FLOOR_ONLY = process.argv.includes('--floor-only');
 const ROOT = path.resolve(__dirname, '..');
 const JS_DIR = path.join(ROOT, 'js');
 
@@ -58,7 +65,12 @@ function walk(dir) {
     return out;
 }
 const SKIP = new Set(['theme.js', 'landing-content.js', 'landing-editor.js']);
+// --index also sweeps index.html's inline <style> blocks. Off by default:
+// the full (non-floor) pass would promote the shell's dense table CSS to
+// 16px, which is not what index.html wants. Pair it with --floor-only.
+const INCLUDE_INDEX = process.argv.includes('--index');
 const FILES = walk(JS_DIR).filter(f => !SKIP.has(path.basename(f)));
+if (INCLUDE_INDEX) FILES.push(path.join(ROOT, 'index.html'));
 
 // ── Dense-data surfaces: intentionally compact tables / boards / fixed
 //    tiles. Per the iPad UI audit these are the reflow-regression risks, so
@@ -77,6 +89,10 @@ const DENSE = new Set([
     'draft-capital.js', 'my-trophies.js',
     // Dense tabular tabs
     'my-team.js', 'compare.js', 'trophy-room.js', 'league-map.js',
+    // The shell's own <style> blocks are almost entirely dense-surface CSS
+    // (.tc-*, .draft-*, .mock-*, .analytics-*), so floor them at 11px rather
+    // than promoting terminal tables to the 12px caption tier.
+    'index.html',
 ]);
 
 // ── Value -> px (root = 16px). Returns null for forms we must not touch. ─
@@ -95,6 +111,8 @@ function bucket(px, dense) {
         if (px < 11) return ['text-micro', '0.6875rem'];  // illegible -> 11
         return null;                                       // keep 11-15 dense
     }
+    if (px < 11) return ['text-label', '0.75rem'];   // illegible -> 12
+    if (FLOOR_ONLY) return null;                     // stop at the floor
     if (px < 12) return ['text-label', '0.75rem'];   // caption soup -> 12
     return ['text-body', '1rem'];                    // body -> 16
 }
@@ -140,7 +158,7 @@ function processFile(file) {
     }
 }
 
-console.log(`${DRY ? '[DRY RUN] ' : ''}Processing ${FILES.length} files...\n`);
+console.log(`${DRY ? '[DRY RUN] ' : ''}${FLOOR_ONLY ? '[FLOOR ONLY] ' : ''}Processing ${FILES.length} files...\n`);
 FILES.forEach(processFile);
 
 console.log(`\nTotals: ${totals.hits} literals migrated across ${totals.files} files`);

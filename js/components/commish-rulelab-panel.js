@@ -142,11 +142,11 @@ const LeagueResult = ({ leagueName, result, onCopyBallot, onExportBallot }) => {
                     ) : (
                         <React.Fragment>
                             <div>
-                                <span style={{ ...mono, fontSize: '0.68rem', fontWeight: 700, color: GREEN, marginRight: '8px' }}>IN</span>
+                                <span style={{ ...mono, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: GREEN, marginRight: '8px' }}>IN</span>
                                 <span style={{ color: TEXT, ...mono }}>{(field.in || []).join(', ') || '—'}</span>
                             </div>
                             <div>
-                                <span style={{ ...mono, fontSize: '0.68rem', fontWeight: 700, color: RED, marginRight: '8px' }}>OUT</span>
+                                <span style={{ ...mono, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: RED, marginRight: '8px' }}>OUT</span>
                                 <span style={{ color: TEXT, ...mono }}>{(field.out || []).join(', ') || '—'}</span>
                             </div>
                         </React.Fragment>
@@ -661,7 +661,7 @@ function WrCommishRuleLabPanel({
                 <div style={{ marginBottom: '14px' }}>
                     {groupKeys(editorKeys).map((g, gi) => (
                         <div key={g.name} style={{ marginBottom: '16px', paddingTop: gi ? '14px' : 0, borderTop: gi ? `1px solid ${LINE}` : 'none' }}>
-                            <div style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: ACCENT, marginBottom: '8px' }}>{g.name}</div>
+                            <div style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: ACCENT, marginBottom: '8px' }}>{g.name}</div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '8px 16px' }}>
                                 {g.keys.map(k => {
                                     // No baseline (omnibus) → no placeholder. Showing "0.0"
@@ -786,7 +786,7 @@ function WrCommishRuleLabPanel({
                                                         const cell = r.bySeason[season];
                                                         const bg = cell === 'SEED' ? 'var(--co-fill-bad, #2A1512)' : cell === 'FIELD' ? 'var(--co-fill-warn, #2A2010)' : cell && cell !== 'HOLD' ? SURF2 : 'transparent';
                                                         const fg = cell === 'SEED' ? RED : cell === 'FIELD' ? AMBER : cell && cell !== 'HOLD' ? TEXT : MUTED;
-                                                        return <td key={r.value} style={{ ...microHdr, fontSize: '0.575rem', color: fg, background: bg, padding: '5px 7px', textAlign: 'center', border: `1px solid var(--co-line-soft, #201F27)` }}>{cell || '—'}</td>;
+                                                        return <td key={r.value} style={{ ...microHdr, fontSize: 'var(--text-label, 0.75rem)', color: fg, background: bg, padding: '5px 7px', textAlign: 'center', border: `1px solid var(--co-line-soft, #201F27)` }}>{cell || '—'}</td>;
                                                     })}
                                                 </tr>
                                             ))}
@@ -816,7 +816,7 @@ function WrCommishRuleLabPanel({
                                         <div key={s.value} title={s.seedFlips ? '#1 seed flips to ' + s.seedTo : (s.ranksMoved + ' ranks move · ' + s.fieldMoves + ' field changes')}
                                             style={{ minWidth: '58px', textAlign: 'center', padding: '6px 4px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + (s.isCurrent ? ACC_LINE : LINE), background: s.seedFlips ? 'var(--co-fill-bad, #2A1512)' : s.fieldMoves > 0 ? 'var(--co-fill-warn, #2A2010)' : s.ranksMoved > 0 ? SURF2 : 'transparent' }}>
                                             <div style={{ ...mono, fontSize: '0.78rem', fontWeight: 700, color: s.seedFlips ? RED : s.fieldMoves > 0 ? AMBER : s.ranksMoved > 0 ? TEXT : MUTED }}>{s.value}</div>
-                                            <div style={{ ...microHdr, fontSize: '0.575rem' }}>{s.isCurrent ? 'NOW' : s.seedFlips ? 'SEED' : s.fieldMoves > 0 ? 'FIELD' : s.ranksMoved > 0 ? s.ranksMoved + ' MV' : 'HOLD'}</div>
+                                            <div style={{ ...microHdr, fontSize: 'var(--text-label, 0.75rem)' }}>{s.isCurrent ? 'NOW' : s.seedFlips ? 'SEED' : s.fieldMoves > 0 ? 'FIELD' : s.ranksMoved > 0 ? s.ranksMoved + ' MV' : 'HOLD'}</div>
                                         </div>
                                     ))}
                                 </div>

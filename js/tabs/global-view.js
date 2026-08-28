@@ -1549,7 +1549,7 @@ function EmpireStyles() {
             .empire-wire-track { position: relative; z-index: 1; display: inline-block; white-space: nowrap; animation: empire-wire-scroll 48s linear infinite; }
             .empire-wire:hover .empire-wire-track { animation-play-state: paused; }
             .empire-wire-item { display: inline-block; padding: 0 22px; font-size: var(--text-label, 0.75rem); color: var(--ov-9, rgb(161,161,162)); }
-            .empire-wire-item::before { content: '\\25C6'; color: var(--acc-line3, rgb(110,92,33)); margin-right: 22px; font-size: 0.6rem; vertical-align: middle; }
+            .empire-wire-item::before { content: '\\25C6'; color: var(--acc-line3, rgb(110,92,33)); margin-right: 22px; font-size: var(--text-label, 0.75rem); vertical-align: middle; }
             @keyframes empire-wire-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
             @media (max-width: 1023px) { .empire-root.is-terminal { padding-left: 0; } .empire-rail { display: none; } }
             /* ── Asset Floor: exposure matrix + DHQ heat tiles ── */

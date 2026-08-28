@@ -116,7 +116,7 @@
         if (size === 'sm') {
             return (
                 <div style={base} onClick={go}>
-                    <div style={{ fontSize: '0.64rem', letterSpacing: '0.06em', color: SILVER, fontWeight: 700 }}>FAAB COMMAND</div>
+                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', letterSpacing: '0.06em', color: SILVER, fontWeight: 700 }}>FAAB COMMAND</div>
                     <div style={{ marginTop: 'auto' }}>
                         <div style={{ fontFamily: monoFont, fontSize: '1.9rem', fontWeight: 700, color: GOLD, lineHeight: 1 }}>${a.rec.bid}</div>
                         <div style={{ fontSize: '0.7rem', color: SILVER, marginTop: '2px' }}>{uncontested ? 'uncontested' : Math.round(a.rec.winPct * 100) + '% to win'} · {target.name}</div>
@@ -129,7 +129,7 @@
             <div style={base} onClick={go}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <div style={{ fontSize: '0.72rem', letterSpacing: '0.07em', color: GOLD, fontWeight: 700 }}>FAAB COMMAND</div>
-                    <div style={{ fontSize: '0.62rem', color: SILVER, opacity: 0.8 }}>${a.myLeft} of ${a.budget} left</div>
+                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: SILVER, opacity: 0.8 }}>${a.myLeft} of ${a.budget} left</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '8px' }}>
                     <span style={{ fontFamily: monoFont, fontSize: '2rem', fontWeight: 700, color: GOLD, lineHeight: 1 }}>${a.rec.bid}</span>
@@ -145,7 +145,7 @@
                         <b>You are hoarding.</b> ~{a.pacing.horizonWeeks} weeks left — at your ${a.pacing.myPacePerWeek}/wk pace, ${a.pacing.projectedUnspent.toLocaleString()} goes unspent.
                     </div>
                 ) : null}
-                <div style={{ marginTop: 'auto', paddingTop: '8px', fontSize: '0.68rem', color: GOLD, opacity: 0.85 }}>Open Free Agency →</div>
+                <div style={{ marginTop: 'auto', paddingTop: '8px', fontSize: 'var(--text-label, 0.75rem)', color: GOLD, opacity: 0.85 }}>Open Free Agency →</div>
             </div>
         );
     }

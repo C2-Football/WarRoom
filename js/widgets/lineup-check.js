@@ -62,7 +62,7 @@
         if (size === 'sm') {
             return (
                 <div style={base} onClick={go}>
-                    <div style={{ fontSize: '0.64rem', letterSpacing: '0.06em', color: SILVER, fontWeight: 700 }}>LINEUP CHECK</div>
+                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', letterSpacing: '0.06em', color: SILVER, fontWeight: 700 }}>LINEUP CHECK</div>
                     <div style={{ marginTop: 'auto' }}>
                         <div style={{ fontFamily: monoFont, fontSize: '1.9rem', fontWeight: 700, color: accent, lineHeight: 1 }}>{headline}</div>
                         <div style={{ fontSize: '0.7rem', color: SILVER, marginTop: '2px' }}>{sub}</div>
@@ -76,7 +76,7 @@
             <div style={base} onClick={go}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <div style={{ fontSize: '0.72rem', letterSpacing: '0.07em', color: accent, fontWeight: 700 }}>LINEUP CHECK</div>
-                    <div style={{ fontSize: '0.62rem', color: SILVER, opacity: 0.8 }}>WK {result.week} · {OBJ[result.objective] || result.objective}</div>
+                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: SILVER, opacity: 0.8 }}>WK {result.week} · {OBJ[result.objective] || result.objective}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '8px' }}>
                     <span style={{ fontFamily: monoFont, fontSize: '2rem', fontWeight: 700, color: accent, lineHeight: 1 }}>{headline}</span>
@@ -86,7 +86,7 @@
                     <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {swaps.map((s, i) => (
                             <div key={i} style={{ fontSize: '0.78rem', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                <span style={{ color: GREEN, fontWeight: 700, fontSize: '0.64rem' }}>START</span>
+                                <span style={{ color: GREEN, fontWeight: 700, fontSize: 'var(--text-label, 0.75rem)' }}>START</span>
                                 <span style={{ color: WHITE, fontWeight: 600 }}>{nameOf(s.pid)}</span>
                                 <span style={{ color: SILVER, fontSize: '0.7rem' }}>{(s.pos || '') + ' → ' + String(s.slot).replace('_', ' ')}</span>
                             </div>
@@ -95,7 +95,7 @@
                 ) : (
                     <div style={{ marginTop: '10px', color: SILVER, opacity: 0.75, fontSize: '0.78rem' }}>Your lineup is already optimal this week.</div>
                 )}
-                <div style={{ marginTop: 'auto', paddingTop: '8px', fontSize: '0.68rem', color: GOLD, opacity: 0.85 }}>Open Lineup →</div>
+                <div style={{ marginTop: 'auto', paddingTop: '8px', fontSize: 'var(--text-label, 0.75rem)', color: GOLD, opacity: 0.85 }}>Open Lineup →</div>
             </div>
         );
     }

@@ -2687,12 +2687,12 @@
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(54px, 1fr))', gap: '5px' }}>
                     {arch.picks.map(pk => (
                         <div key={pk.round} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: '5px 0', border: '1px solid var(--ov-4, rgba(255,255,255,0.08))', borderRadius: 'var(--card-radius-xs, 5px)' }} title={'Round ' + pk.round + ' → ' + pk.pos}>
-                            <span style={{ fontSize: '0.58rem', color: 'var(--silver)', letterSpacing: '0.04em' }}>R{pk.round}</span>
+                            <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', letterSpacing: '0.04em' }}>R{pk.round}</span>
                             <span style={{ fontSize: '0.82rem', fontWeight: 700, color: posColor(pk.pos) }}>{pk.pos === 'DEF' ? 'DST' : pk.pos}</span>
                         </div>
                     ))}
                 </div>
-                <div style={{ fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.7, marginTop: '8px' }}>Position targets from your roster slots + scoring — a blueprint, not locked picks. Pair with the Big Board to take the best player at each slot.</div>
+                <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.7, marginTop: '8px' }}>Position targets from your roster slots + scoring — a blueprint, not locked picks. Pair with the Big Board to take the best player at each slot.</div>
             </section>
             );
         };

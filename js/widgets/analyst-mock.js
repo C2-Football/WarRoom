@@ -118,7 +118,7 @@
             <div style={base} onClick={go}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <div style={{ fontSize: '0.72rem', letterSpacing: '0.07em', color: GOLD, fontWeight: 700 }}>ANALYST MOCK</div>
-                    <div style={{ fontSize: '0.62rem', color: SILVER, opacity: 0.8 }}>Round 1 projection</div>
+                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: SILVER, opacity: 0.8 }}>Round 1 projection</div>
                 </div>
                 {firstUserPick ? (
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '8px' }}>
@@ -129,7 +129,7 @@
                     <div style={{ marginTop: '8px', fontSize: '0.9rem', color: WHITE }}>No user pick lands inside this projection window.</div>
                 )}
                 <div style={{ marginTop: '6px', fontSize: '0.78rem', color: SILVER }}>{brief.headline || brief.userPath || ''}</div>
-                <div style={{ marginTop: 'auto', paddingTop: '8px', fontSize: '0.68rem', color: GOLD, opacity: 0.85 }}>Open Draft Center →</div>
+                <div style={{ marginTop: 'auto', paddingTop: '8px', fontSize: 'var(--text-label, 0.75rem)', color: GOLD, opacity: 0.85 }}>Open Draft Center →</div>
             </div>
         );
     }
