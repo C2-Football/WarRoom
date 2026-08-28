@@ -411,6 +411,18 @@ function IntelligenceBriefWidget({
     // rule: prose is a lead, not a summary).
     const briefText = strategyFrame ? strategyFrame + ' ' + tierMsg : tierMsg;
 
+    // …except where planChips() renders directly beneath the prose — `tall` and
+    // `xl`. There the frame sentence and the first two chips say the same thing:
+    // "Your plan: Compete, building for a 2-3 year window" sitting on top of
+    // chips reading Compete / 2-3 yr window. That breaks both rules stated above
+    // ("never restate adjacent KPIs", "never narrated twice"), and the chips are
+    // the denser carrier — five facts in the space the sentence spends on two
+    // plus a line of meta-narration ("everything below is read against that").
+    // So those two variants lead with the tier read and let the chips carry the
+    // plan. On phone (`tall` IS the phone path) this is ~48px, two of five
+    // prose lines, on the screen where the first action was sitting 57% down.
+    const briefTextBesideChips = tierMsg;
+
     // Three-sentence summary — fits a 160px-tall md row, no scroll
     const threeSentence = (() => {
         if (!rosterState.isUsable) return tierMsg + ' ' + rosterState.message;
@@ -687,7 +699,7 @@ function IntelligenceBriefWidget({
         return React.createElement('div', { style: cardStyle },
             header(),
             React.createElement('div', { style: { padding: '16px 20px', flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' } },
-                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: BRIEF_LH, marginBottom: '12px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical', flexShrink: 0 } }, briefText),
+                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: BRIEF_LH, marginBottom: '12px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical', flexShrink: 0 } }, briefTextBesideChips),
                 React.createElement('div', { style: { marginBottom: '14px' } }, planChips()),
                 React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
                     ...actions.slice(0, 5).map((a, i) => renderActionBtn(a, 'tall-' + i)),
@@ -703,7 +715,7 @@ function IntelligenceBriefWidget({
             header({ tight: true }),
             React.createElement('div', { className: 'wr-ib-xl-body', style: { padding: '10px 14px', flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '14px', overflow: 'hidden' } },
                 React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '10px', minHeight: 0, overflow: 'hidden' } },
-                    React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: BRIEF_LH, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 7, WebkitBoxOrient: 'vertical' } }, briefText),
+                    React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: BRIEF_LH, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 7, WebkitBoxOrient: 'vertical' } }, briefTextBesideChips),
                     planChips(),
                 ),
                 React.createElement('div', { className: 'wr-ib-xl-actions', style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', minHeight: 0 } },
