@@ -800,6 +800,13 @@ function DashboardPanel({
     const W = theme.colors?.text || 'var(--white)';
     const S = theme.colors?.textMuted || 'var(--silver)';
     const BK = theme.colors?.card || 'var(--black)';
+    // The dashboard section is one continuous field that widget CARDS float on,
+    // so its bands (phone hero, section header, the grid itself, + Add Widget)
+    // paint the page background — not the card background. theme.js already
+    // forces `.wr-dashboard-grid` to colors.bg !important; when the bands used
+    // BK (colors.card) instead, skins that define both painted the grid as a
+    // darker stripe between two lighter bars. Card surfaces still use BK.
+    const SECTION_BG = theme.colors?.bg || 'var(--black)';
     const cardBase = window.WrTheme?.cardStyle?.() || { background: BK, border: 'var(--card-border)', borderRadius: 'var(--card-radius)', overflow: 'hidden', height: '100%' };
     const monoFont = theme.fonts?.mono || 'JetBrains Mono, monospace';
     const rajFont = theme.fonts?.display || 'Rajdhani, sans-serif';
@@ -1893,7 +1900,7 @@ function DashboardPanel({
                     render on desktop/tablet via the grid; _phoneSm is left
                     built (unrendered) so re-enabling is a one-line change. */}
                 {_phoneHeroEl && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: 'var(--space-md) var(--space-md) 0', background: BK }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: 'var(--space-md) var(--space-md) 0', background: SECTION_BG }}>
                         {_phoneHeroEl}
                     </div>
                 )}
@@ -1901,7 +1908,7 @@ function DashboardPanel({
                 {/* Customizable-widgets section header + reorder entry. The
                     ⇅ Reorder button opens the drag-to-rearrange sheet (replaces
                     the per-card ▲▼ arrows on phone, owner ask). */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '16px var(--space-md) 2px', background: BK }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '16px var(--space-md) 2px', background: SECTION_BG }}>
                     <div role="heading" aria-level={2} style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '1.05rem', fontWeight: 700, letterSpacing: '0.03em', color: W, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{isFixedHome ? 'Home' : 'Customizable Widgets'}</div>
                     {!isFixedHome && widgets.length >= 2 && (
                         <button type="button" onClick={() => setReorderOpen(true)} style={{
@@ -1921,7 +1928,7 @@ function DashboardPanel({
                     gridAutoRows: 'minmax(160px,auto)',
                     gap: 'var(--space-md)',
                     padding: 'var(--space-md) var(--space-md) 0',
-                    background: BK,
+                    background: SECTION_BG,
                     minWidth: 0,
                     maxWidth: '100%',
                     overflowX: 'hidden',
@@ -1931,7 +1938,7 @@ function DashboardPanel({
 
                 {/* Add widget — bottom of the phone stack */}
                 {!isFixedHome && (
-                <div style={{ padding: 'var(--space-md)', background: BK, borderBottom: '1px solid ' + (theme.colors?.border || 'var(--acc-fill2, rgba(212,175,55,0.12))') }}>
+                <div style={{ padding: 'var(--space-md)', background: SECTION_BG, borderBottom: '1px solid ' + (theme.colors?.border || 'var(--acc-fill2, rgba(212,175,55,0.12))') }}>
                     <button
                         type="button"
                         className="wr-add-widget"
@@ -2045,6 +2052,20 @@ function DashboardPanel({
                     .wr-dashboard-grid>.wr-widget[data-widget-size="xxl"]{
                         grid-column:span 2 !important;
                     }
+                    /* Any widget that ends up FULL WIDTH here also drops its row
+                       span. Those spans are sized for the 4-column desktop, where a
+                       tall card stands beside shorter ones; at 2 columns it is alone
+                       in its row, so the span buys nothing and just leaves dead black
+                       inside the card (the Intelligence Briefing ran ~180px past its
+                       content). grid-auto-rows:minmax(160px,auto) then sizes each one
+                       to content. narrow/slim are NOT here on purpose — they stay
+                       1 column wide, so they still pair with a neighbour. */
+                    .wr-dashboard-grid>.wr-widget[data-widget-size="lg"],
+                    .wr-dashboard-grid>.wr-widget[data-widget-size="tall"],
+                    .wr-dashboard-grid>.wr-widget[data-widget-size="xl"],
+                    .wr-dashboard-grid>.wr-widget[data-widget-size="xxl"]{
+                        grid-row:auto !important;
+                    }
                 }
                 @media(min-width:1024px) and (max-width:1279px){
                     .wr-dashboard-grid{
@@ -2058,6 +2079,13 @@ function DashboardPanel({
                     .wr-dashboard-grid>.wr-widget[data-widget-size="xxl"]{
                         grid-column:span 2 !important;
                     }
+                    /* Full-width widgets drop their row span — see the 768-1023 note */
+                    .wr-dashboard-grid>.wr-widget[data-widget-size="lg"],
+                    .wr-dashboard-grid>.wr-widget[data-widget-size="tall"],
+                    .wr-dashboard-grid>.wr-widget[data-widget-size="xl"],
+                    .wr-dashboard-grid>.wr-widget[data-widget-size="xxl"]{
+                        grid-row:auto !important;
+                    }
                 }
                 @media(min-width:1280px) and (max-width:1439px){
                     .wr-dashboard-grid{
@@ -2070,6 +2098,7 @@ function DashboardPanel({
                     .wr-dashboard-grid>.wr-widget[data-widget-size="xl"],
                     .wr-dashboard-grid>.wr-widget[data-widget-size="xxl"]{
                         grid-column:span 3 !important;
+                        grid-row:auto !important;   /* see the 768-1023 note */
                     }
                 }
                 @media(min-width:1440px){
@@ -2087,10 +2116,16 @@ function DashboardPanel({
             <div className="wr-dashboard-grid" style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(4, minmax(140px, 1fr))',
-                gridAutoRows: '160px',
+                // minmax, not a flat 160px: a card whose content outgrows its row
+                // span used to clip instead of growing. `dense` backfills the
+                // column slots a tall (row-spanning) widget leaves empty beside
+                // it — without it a span-4 hero next to two sm widgets left ~350px
+                // of dead column on desktop.
+                gridAutoRows: 'minmax(160px, auto)',
+                gridAutoFlow: 'row dense',
                 gap: 'var(--space-md)',
                 padding: 'var(--space-lg) var(--space-xl)',
-                background: BK,
+                background: SECTION_BG,
                 borderBottom: '1px solid ' + (theme.colors?.border || 'var(--acc-fill2, rgba(212,175,55,0.12))'),
                 minWidth: 0,
                 maxWidth: '100%',
