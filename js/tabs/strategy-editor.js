@@ -295,10 +295,13 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
         { value: 'custom',   label: 'Custom',   desc: 'Hand-tune every variable below.', color: 'var(--k-7c6bf8, #7c6bf8)' },
     ];
 
-    const AGGRESSION = [
-        { value: 'conservative', label: 'Conservative', desc: 'Wait for value, never overpay.' },
-        { value: 'medium',       label: 'Medium',        desc: 'Calculated moves, balanced risk.' },
-        { value: 'aggressive',   label: 'Aggressive',    desc: 'Make the big swing, force the deal.' },
+    // Canonical vocabulary (window.WR.GmMode.AGGRESSION) — this picker used to
+    // say "Medium" while the acceptance-floor quick-set a few rows below it, and
+    // the Brief's plan chip, both said "Balanced" for the same stored value.
+    const AGGRESSION = window.WR?.GmMode?.AGGRESSION || [
+        { value: 'conservative', label: 'Conservative', floor: 82, desc: 'Wait for value, never overpay.' },
+        { value: 'medium',       label: 'Balanced',     floor: 75, desc: 'Calculated moves, balanced risk.' },
+        { value: 'aggressive',   label: 'Aggressive',   floor: 58, desc: 'Make the big swing, force the deal.' },
     ];
 
     const DRAFT_STYLES = [
@@ -481,7 +484,12 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                 <div style={{ marginTop: 14 }}>
                     <div style={styles.subLabel}>Quick set</div>
                     <PillGroup
-                        options={[{ value: 82, label: 'Conservative · 82%' }, { value: 75, label: 'Balanced · 75%' }, { value: 58, label: 'Aggressive · 58%' }]}
+                        // Built from the canonical bands, not a second copy of
+                        // them: these 82/75/58 were hardcoded here while
+                        // acceptanceFloorFor read its own AGGR_FLOOR map, so the
+                        // quick-set could have printed anchors the engine no
+                        // longer used.
+                        options={AGGRESSION.map(a => ({ value: a.floor, label: a.label + ' · ' + a.floor + '%' }))}
                         value={draft.acceptanceFloor}
                         onChange={v => set('acceptanceFloor', v)}
                     />
