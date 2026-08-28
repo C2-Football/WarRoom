@@ -694,9 +694,16 @@ function IntelligenceBriefWidget({
         );
     }
 
-    // ── tall (2×4, 640px tall) — full vertical layout ────────────────
+    // ── tall (2×3) — full vertical layout ────────────────────────────
+    // minHeight instead of height so the card can OUTGROW its grid area. The
+    // row span was cut 4→3 (dashboard.js rowSpan) to match this layout's real
+    // content height, and `tall` slices up to 5 actions — 5 would overflow 3
+    // rows. With `height: 100%` that overflow clips (the card sets
+    // overflow: hidden); with minHeight the card grows instead and the grid's
+    // `grid-auto-rows: minmax(160px, auto)` lets the row grow with it. Fits
+    // the common case exactly, degrades by growing rather than truncating.
     if (size === 'tall') {
-        return React.createElement('div', { style: cardStyle },
+        return React.createElement('div', { style: { ...cardStyle, height: 'auto', minHeight: '100%' } },
             header(),
             React.createElement('div', { style: { padding: '16px 20px', flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' } },
                 React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: BRIEF_LH, marginBottom: '12px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical', flexShrink: 0 } }, briefTextBesideChips),

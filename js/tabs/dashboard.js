@@ -1331,7 +1331,15 @@ function DashboardPanel({
         const shellPhone = dashViewport.isPhone;
         const [phoneMenu, setPhoneMenu] = React.useState(false);
         const sizeSpan = { sm: 'span 1', slim: 'span 1', narrow: 'span 1', md: 'span 2', lg: 'span 2', tall: 'span 2', xl: 'span 4', xxl: 'span 4' };
-        const rowSpan = { sm: 'span 1', slim: 'span 2', narrow: 'span 4', md: 'span 1', lg: 'span 2', tall: 'span 4', xl: 'span 2', xxl: 'span 4' };
+        // `tall` is span 3, not 4. It is the shipped default size for the Intel
+        // Brief (league-detail.js DEFAULT_WIDGETS / REDRAFT_FIXED_WIDGETS), and 4
+        // rows is 676px against ~454px of real content — a 222px void measured at
+        // 1280x900. Because this map is keyed by size NAME and read at render
+        // time, correcting it here fixes every saved layout too, not just new
+        // ones. 3 rows is 504px, which fits the 4-action common case with normal
+        // breathing room; the brief's card carries minHeight:100% so a 5-action
+        // brief grows the row rather than clipping.
+        const rowSpan = { sm: 'span 1', slim: 'span 2', narrow: 'span 4', md: 'span 1', lg: 'span 2', tall: 'span 3', xl: 'span 2', xxl: 'span 4' };
 
         // Touch reorder: move this widget one slot earlier/later in the same
         // layout array the desktop drag-and-drop mutates.
