@@ -56,6 +56,40 @@ npm run sync:shared
 
 The `var()` fallbacks mean those shared files still render correctly standalone.
 
+## GM Strategy vocabulary lives in `js/shared/gm-mode.js`
+
+A strategy field's **display name is owned by `gm-mode.js`**, next to the presets
+that bundle it. Surfaces read it; they never invent one.
+
+| Export | Covers |
+|---|---|
+| `PRESETS[id].label` | mode — Rebuild / Compete / Win Now / Custom |
+| `TIMELINES` / `describeTimeline()` | timeline — label, `short`, `years` |
+| `AGGRESSION` / `describeAggression()` | aggression — label, `floor` |
+
+Before this, each surface named the same stored value independently: the editor
+said "2–3 Years", the Brief said "2-3 yr window", Analytics said "2-3yr window"
+and rendered `1_year` as "win-now (1yr)" — naming a *mode* for a *timeline*. The
+editor contradicted itself, calling aggression `medium` "Medium" in its picker
+and "Balanced" in the quick-set one panel down. Analytics ran a five-word posture
+vocabulary (REBUILD / RETOOL / RELOAD / WIN-NOW / RUN IT BACK) against the three
+presets you can actually select.
+
+### Rules for new code
+
+- **Never** write a label for a strategy enum inline. Read the descriptor.
+- **Never** print a raw enum (`2_3_years`, `sell_high`) at the user — that was a
+  live bug in the editor's "Preset applied" line.
+- Derived numbers come off the same descriptor as the words (`horizonYears` from
+  `describeTimeline().years`, quick-set anchors from `AGGRESSION[].floor`), so a
+  surface cannot print one number and compute with another.
+- Read at **render** time (`window.WR?.GmMode?.X || [fallback]`), not module init
+  — load order stays irrelevant and the file still renders standalone.
+
+A *voice* variant is fine and is not drift: the Brief's chip strip says "Holding
+assets" for Hold. That elaborates the name for a chip. A second, competing *name*
+for the same value is the defect.
+
 ## Related conventions
 
 - Any edit to a `js/*.js` file needs its `?v=` cache-buster bumped in `index.html`
