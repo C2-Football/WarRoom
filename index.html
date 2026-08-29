@@ -2581,12 +2581,12 @@ WRShared.preloadMany(WR_SHARED_FILES);
         .tc-dhq-modebar button, .tc-dhq-browser-controls button,
         .tc-dhq-show-more, .tc-dhq-detail-toggle,
         .tc-dhq-actions button, .tc-dhq-hero-actions button,
-        .tc-rail-hide, .wr-drop-chip { position:relative; }
+        .tc-rail-hide, .wr-drop-chip, .wr-cut-toggle-chip { position:relative; }
         .tc-dhq-modebar button::after, .tc-dhq-browser-controls button::after,
         .tc-dhq-show-more::after, .tc-dhq-detail-toggle::after,
         .tc-dhq-actions button::after, .tc-dhq-hero-actions button::after,
         .tc-rail-hide::after { content:''; position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); height:44px; }
-        .wr-drop-chip::after { content:''; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:44px; height:44px; }
+        .wr-drop-chip::after, .wr-cut-toggle-chip::after { content:''; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:44px; height:44px; }
         /* Drag-reorder grips (boards): small visual, full 44pt press target.
            The halo inherits the grip's touch-action:none, so a press that
            starts in it drags instead of scrolling. */
@@ -2603,7 +2603,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
         .tc-dhq-modebar button:active, .tc-dhq-browser-controls button:active,
         .tc-dhq-show-more:active, .tc-dhq-detail-toggle:active, .tc-dhq-add-btn:active,
         .wr-brd-move-btn:active, .tc-ta-roster-item:active, .tc-rail-dna-link:active,
-        .session-strip-btn:active, .wr-drop-chip:active, .tc-rail-hide:active,
+        .session-strip-btn:active, .wr-drop-chip:active, .wr-cut-toggle-chip:active, .tc-rail-hide:active,
         .fa-hq-mini-card:active, .fa-hq-swap:active, .fa-mkt-row:active,
         .wr-drag-grip:active {
             background:rgba(212,175,55,0.14) !important;
@@ -2943,7 +2943,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- Group "analysis": analytics.js embeds LeagueMapTab, so both defer together
      (league-map.js first — DOM order is execution order within a group). -->
 <script type="text/babel" data-wr-defer="analysis" src="js/tabs/league-map.js?v=20260614dynread1"></script>
-<script type="text/babel" data-wr-defer="myteam" src="js/tabs/my-team.js?v=20260614card4"></script>
+<script type="text/babel" data-wr-defer="myteam" src="js/tabs/my-team.js?v=20260829taxi2"></script>
 <!-- Compare: extracted from My Roster's former sub-view, now a top-level ROSTER-group tab. -->
 <script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20260616compare5"></script>
 <script type="text/babel" data-wr-defer="central" src="js/tabs/league-central.js?v=20260823cc12"></script>
