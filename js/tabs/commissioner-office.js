@@ -508,6 +508,17 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         const nameFor = (id) => (cur.teams.find(t => t.id === String(id)) || {}).name || ('Team ' + id);
         onCopy(C.Schedule.toText(cur.schedule, nameFor));
     };
+    // toCSV existed and was tested from the first commit but had no button —
+    // clipboard, not a file download: nothing else in the office downloads a
+    // file, and pasted CSV text drops straight into a spreadsheet's grid the
+    // same as a real .csv would, without adding new download plumbing for one
+    // button.
+    const onScheduleCopyCSV = () => {
+        const cur = schedules[scheduleActiveId];
+        if (!cur || !cur.schedule || !C?.Schedule) return;
+        const nameFor = (id) => (cur.teams.find(t => t.id === String(id)) || {}).name || ('Team ' + id);
+        onCopy(C.Schedule.toCSV(cur.schedule, nameFor));
+    };
     const scheduleValidation = React.useMemo(() => {
         const cur = schedules[scheduleActiveId];
         if (!cur || !cur.schedule || !C?.Schedule) return null;
@@ -1374,6 +1385,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                         actualsSynced={(schedules[scheduleActiveId] || {}).actualsSynced || 0}
                         onForcePairing={onScheduleForcePairing}
                         onCopyText={onScheduleCopyText}
+                        onCopyCSV={onScheduleCopyCSV}
                         mode={(schedules[scheduleActiveId] || {}).mode || 'simple'}
                         onModeChange={onScheduleModeChange}
                         seasonYear={(schedules[scheduleActiveId] || {}).seasonYear}

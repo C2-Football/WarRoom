@@ -48,6 +48,8 @@
 //                             existing clipboard helper (same onCopy the
 //                             Rule Lab ballot uses) — no new export
 //                             plumbing for a v1 tool.
+//     onCopyCSV()              Copies a CSV export the same way — pasted
+//                             straight into a spreadsheet's grid.
 //
 //   ── NFL-style division mode (only offered when teams carry real
 //      divisions — window.App.Commish.ScheduleNFL.isEligible(teams),
@@ -86,7 +88,7 @@ function WrCommishSchedulePanel({
     teams, weeksConfig, onWeeksConfigChange,
     schedule, validation, onGenerate,
     currentWeek, onSyncActuals, actualsStatus, actualsSynced,
-    onForcePairing, onCopyText,
+    onForcePairing, onCopyText, onCopyCSV,
     mode, onModeChange, seasonYear, onSeasonYearChange, nflMeta,
     priorStandingsStatus, priorStandingsFallback,
     onFlex, flexStatus, flexNotes,
@@ -223,6 +225,10 @@ function WrCommishSchedulePanel({
                             <button onClick={onCopyText}
                                 style={{ padding: '7px 14px', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', background: PANEL2, border: `1px solid ${LINE}`, color: SILVER, fontWeight: 600, fontSize: '0.78rem' }}>
                                 Copy as text
+                            </button>
+                            <button onClick={onCopyCSV} title="Paste directly into a spreadsheet"
+                                style={{ padding: '7px 14px', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', background: PANEL2, border: `1px solid ${LINE}`, color: SILVER, fontWeight: 600, fontSize: '0.78rem' }}>
+                                Copy as CSV
                             </button>
                             {actualsStatus === 'none' ? (
                                 <span style={{ fontSize: '0.72rem', color: MUTED, fontStyle: 'italic' }}>Nothing's been played yet this season.</span>
