@@ -411,6 +411,18 @@ function IntelligenceBriefWidget({
     // rule: prose is a lead, not a summary).
     const briefText = strategyFrame ? strategyFrame + ' ' + tierMsg : tierMsg;
 
+    // …except where planChips() renders directly beneath the prose — `tall` and
+    // `xl`. There the frame sentence and the first two chips say the same thing:
+    // "Your plan: Compete, building for a 2-3 year window" sitting on top of
+    // chips reading Compete / 2-3 yr window. That breaks both rules stated above
+    // ("never restate adjacent KPIs", "never narrated twice"), and the chips are
+    // the denser carrier — five facts in the space the sentence spends on two
+    // plus a line of meta-narration ("everything below is read against that").
+    // So those two variants lead with the tier read and let the chips carry the
+    // plan. On phone (`tall` IS the phone path) this is ~48px, two of five
+    // prose lines, on the screen where the first action was sitting 57% down.
+    const briefTextBesideChips = tierMsg;
+
     // Three-sentence summary — fits a 160px-tall md row, no scroll
     const threeSentence = (() => {
         if (!rosterState.isUsable) return tierMsg + ' ' + rosterState.message;
@@ -623,6 +635,16 @@ function IntelligenceBriefWidget({
     // read (tierMsg/briefText) and the action recs (waiver target, trade
     // steers, CTAs) never reach the DOM. Defense-in-depth behind the
     // dashboard registry gate (WIDGET_MODULES['intel-brief'].pro).
+    // One line-height for the briefing prose across every widget size. The five
+    // size branches below had drifted to four different values for the SAME
+    // briefText — md/lg 1.5, xl 1.65, tall/xxl 1.75 — with no reason for the
+    // spread. `tall` is the phone path (the Intelligence Briefing renders
+    // data-widget-size="tall" in the phone stack), so the loosest of the five
+    // landed on the narrowest screen: at 16px that is a 28px line, and one
+    // 179-character sentence ate six lines and most of the first screen. 1.5 is
+    // the value md/lg already chose, comfortable for a 6-line clamp of prose and
+    // ~24px tighter per card on phone.
+    const BRIEF_LH = 1.5;
     const briefPro = typeof window.wrIsPro !== 'function' || window.wrIsPro();
     if (!briefPro) {
         const tight = size === 'md' || size === 'lg' || size === 'xl';
@@ -653,7 +675,7 @@ function IntelligenceBriefWidget({
         return React.createElement('div', { onClick: () => goTo('alex'), style: { ...cardStyle, cursor: 'pointer' } },
             header({ tight: true }),
             React.createElement('div', { style: { padding: '10px 14px', flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden' } },
-                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' } }, threeSentence),
+                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: BRIEF_LH, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' } }, threeSentence),
             ),
         );
     }
@@ -664,7 +686,7 @@ function IntelligenceBriefWidget({
         return React.createElement('div', { style: cardStyle },
             header({ tight: true }),
             React.createElement('div', { style: { padding: '10px 14px', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', overflow: 'hidden' } },
-                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', flexShrink: 0 } }, oneSentence),
+                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: BRIEF_LH, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', flexShrink: 0 } }, oneSentence),
                 React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '5px', flex: 1, minHeight: 0 } },
                     ...top3.map((a, i) => renderActionBtn(a, 'lg-' + i, { compact: true, titleClamp: 1 })),
                 ),
@@ -672,12 +694,19 @@ function IntelligenceBriefWidget({
         );
     }
 
-    // ── tall (2×4, 640px tall) — full vertical layout ────────────────
+    // ── tall (2×3) — full vertical layout ────────────────────────────
+    // minHeight instead of height so the card can OUTGROW its grid area. The
+    // row span was cut 4→3 (dashboard.js rowSpan) to match this layout's real
+    // content height, and `tall` slices up to 5 actions — 5 would overflow 3
+    // rows. With `height: 100%` that overflow clips (the card sets
+    // overflow: hidden); with minHeight the card grows instead and the grid's
+    // `grid-auto-rows: minmax(160px, auto)` lets the row grow with it. Fits
+    // the common case exactly, degrades by growing rather than truncating.
     if (size === 'tall') {
-        return React.createElement('div', { style: cardStyle },
+        return React.createElement('div', { style: { ...cardStyle, height: 'auto', minHeight: '100%' } },
             header(),
             React.createElement('div', { style: { padding: '16px 20px', flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' } },
-                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.75, marginBottom: '12px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical', flexShrink: 0 } }, briefText),
+                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: BRIEF_LH, marginBottom: '12px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical', flexShrink: 0 } }, briefTextBesideChips),
                 React.createElement('div', { style: { marginBottom: '14px' } }, planChips()),
                 React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
                     ...actions.slice(0, 5).map((a, i) => renderActionBtn(a, 'tall-' + i)),
@@ -693,7 +722,7 @@ function IntelligenceBriefWidget({
             header({ tight: true }),
             React.createElement('div', { className: 'wr-ib-xl-body', style: { padding: '10px 14px', flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '14px', overflow: 'hidden' } },
                 React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '10px', minHeight: 0, overflow: 'hidden' } },
-                    React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.65, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 7, WebkitBoxOrient: 'vertical' } }, briefText),
+                    React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: BRIEF_LH, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 7, WebkitBoxOrient: 'vertical' } }, briefTextBesideChips),
                     planChips(),
                 ),
                 React.createElement('div', { className: 'wr-ib-xl-actions', style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', minHeight: 0 } },
@@ -761,7 +790,7 @@ function IntelligenceBriefWidget({
     return React.createElement('div', { style: cardStyle },
         header(),
         React.createElement('div', { style: { padding: '16px 20px', flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' } },
-            React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.75, marginBottom: '20px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical', flexShrink: 0 } }, briefText),
+            React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: BRIEF_LH, marginBottom: '20px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical', flexShrink: 0 } }, briefText),
             React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
                 ...actions.slice(0, 5).map((a, i) => renderActionBtn(a, 'def-' + i)),
             ),
