@@ -40,12 +40,27 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     // Coefficient, which is an empty table all offseason, which is a large part
     // of why it read as broken. Hubs are reached FROM the command view and
     // always have one fixed way back.
-    const [tab, setTab] = React.useState('command'); // command | network | people | ops | programmes | rulelab | genesis | governance
+    const [tab, setTab] = React.useState('command'); // command | network | people | ops | programmes | rulelab | genesis | governance | schedule
     const [scopeLeagueId, setScopeLeagueId] = React.useState(null);
     // Rule Lab league scope: a league id, or '__all' for the omnibus. null =
     // "not chosen yet" and resolves to the first league — the owner amends ONE
     // constitution at a time, so single-league is the default posture.
     const [rlLeagueId, setRlLeagueId] = React.useState(null);
+
+    // ── Schedule Builder state ──────────────────────────────────────
+    // Always scopes to ONE league (a schedule is inherently per-league — no
+    // omnibus, unlike Rule Lab). schedules[leagueId] = { config, schedule,
+    // actualsStatus, teams } — loaded lazily on first view of a league and
+    // persisted through App.WrStorage so a built plan survives a reload.
+    const [scheduleLeagueId, setScheduleLeagueId] = React.useState(null);
+    const [schedules, setSchedules] = React.useState({});
+    const scheduleActiveId = React.useMemo(() => {
+        const list = state.mine || [];
+        const ids = new Set(list.map(l => String(l.league_id || l.id)));
+        if (scheduleLeagueId && ids.has(String(scheduleLeagueId))) return String(scheduleLeagueId);
+        const first = list[0];
+        return first ? String(first.league_id || first.id) : null;
+    }, [scheduleLeagueId, state.mine]);
     // Command opens on the work that needs intervention now. Soon/backlog
     // remain one tap away, but they no longer turn the front door into a
     // multi-thousand-pixel audit log before the commissioner has acted today.
@@ -268,6 +283,113 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         })();
     }, [tab, ruleLab.status, state.status, rlSeason]);
     const onRlSeason = (s) => { setRlSeason(s); setRuleLab({ status: 'idle' }); };
+
+    // ── Schedule Builder: lazy per-league load (teams + persisted plan) ──
+    React.useEffect(() => {
+        if (state.status !== 'ready' || !scheduleActiveId) return;
+        if (schedules[scheduleActiveId]) return; // already loaded this session
+        const lid = scheduleActiveId;
+        const league = (state.mine || []).find(l => String(l.league_id || l.id) === lid);
+        if (!league) return;
+        let cancelled = false;
+        (async () => {
+            let users = Array.isArray(league.users) && league.users.length ? league.users : null;
+            let rosters = Array.isArray(league.rosters) && league.rosters.length ? league.rosters : null;
+            try {
+                if (!users && typeof window.fetchLeagueUsers === 'function') users = (await window.fetchLeagueUsers(lid)) || [];
+                if (!rosters && typeof window.fetchLeagueRosters === 'function') rosters = (await window.fetchLeagueRosters(lid)) || [];
+            } catch (e) { window.wrLog?.('commish.schedule.hydrate', e); }
+            if (cancelled) return;
+            const byOwner = {};
+            (users || []).forEach(u => { byOwner[String(u.user_id)] = u; });
+            const teams = (rosters || []).map(r => {
+                const owner = r.owner_id != null ? byOwner[String(r.owner_id)] : null;
+                const name = (r.metadata && r.metadata.team_name) || (owner && owner.metadata && owner.metadata.team_name) || (owner && owner.display_name) || ('Team ' + r.roster_id);
+                return { id: String(r.roster_id), name };
+            });
+            const saved = window.App?.WrStorage?.get?.(window.App.WR_KEYS.COMMISH_SCHEDULE(lid), null);
+            setSchedules(prev => ({
+                ...prev,
+                [lid]: {
+                    teams,
+                    config: (saved && saved.config) || { weeks: Math.max(1, teams.length - 1), doubleRoundRobin: false },
+                    schedule: (saved && saved.schedule) || null,
+                    actualsStatus: 'idle',
+                },
+            }));
+        })();
+        return () => { cancelled = true; };
+    }, [state.status, scheduleActiveId, state.mine, schedules]);
+
+    // Persist config + schedule together — a plan without its generator
+    // settings can't be regenerated with the same shape later.
+    const persistSchedule = (lid, patch) => {
+        setSchedules(prev => {
+            const next = { ...(prev[lid] || {}), ...patch };
+            window.App?.WrStorage?.set?.(window.App.WR_KEYS.COMMISH_SCHEDULE(lid), { config: next.config, schedule: next.schedule });
+            return { ...prev, [lid]: next };
+        });
+    };
+    const onScheduleWeeksConfigChange = (nextCfg) => {
+        if (!scheduleActiveId) return;
+        persistSchedule(scheduleActiveId, { config: nextCfg });
+    };
+    const onScheduleGenerate = () => {
+        const lid = scheduleActiveId;
+        const cur = schedules[lid];
+        if (!lid || !cur || !C?.Schedule) return;
+        const teamIds = cur.teams.map(t => t.id);
+        const { rounds } = C.Schedule.buildRoundRobin({ teamIds, weeks: cur.config.weeks });
+        const { schedule } = C.Schedule.applyPins({ rounds, pins: [] });
+        persistSchedule(lid, { schedule });
+    };
+    const onScheduleForcePairing = (week, teamA, teamB) => {
+        const lid = scheduleActiveId;
+        const cur = schedules[lid];
+        if (!lid || !cur || !cur.schedule || !C?.Schedule) return;
+        const wk = cur.schedule.find(w => w.week === Number(week));
+        if (wk && wk.source === 'actual') return; // never edit a real, played week
+        const { schedule, ok } = C.Schedule.forcePairing(cur.schedule, week, teamA, teamB);
+        if (ok) persistSchedule(lid, { schedule });
+    };
+    const onScheduleSyncActuals = async () => {
+        const lid = scheduleActiveId;
+        const cur = schedules[lid];
+        if (!lid || !cur || !cur.schedule || !C?.Schedule) return;
+        const nowWeek = Number(state.week) || 0;
+        // A silent no-op here used to look identical to a broken button — a
+        // click during preseason (nowWeek 0/1) produced zero visible change
+        // and zero network activity. 'none' is a real status the panel can
+        // say something about, not just an absence of 'loading'.
+        if (nowWeek < 2) { persistSchedule(lid, { actualsStatus: 'none' }); return; }
+        persistSchedule(lid, { actualsStatus: 'loading' });
+        try {
+            const actualsByWeek = {};
+            await Promise.all(cur.schedule.filter(w => w.week < nowWeek).map(async w => {
+                const pairs = await C.Schedule.fetchActualMatchups(lid, w.week);
+                if (pairs.length) actualsByWeek[w.week] = pairs;
+            }));
+            const merged = C.Schedule.mergeActuals(cur.schedule, actualsByWeek);
+            // 'done' vs 'empty': Sleeper had nothing to report for every played
+            // week (offseason data gaps, a bye-heavy early slate) is a
+            // different, honestly-labeled outcome from "synced N weeks".
+            persistSchedule(lid, { schedule: merged, actualsStatus: Object.keys(actualsByWeek).length ? 'done' : 'empty', actualsSynced: Object.keys(actualsByWeek).length });
+        } catch (e) {
+            window.wrLog?.('commish.schedule.sync', e);
+            persistSchedule(lid, { actualsStatus: 'error' });
+        }
+    };
+    const onScheduleCopyText = () => {
+        const cur = schedules[scheduleActiveId];
+        if (!cur || !cur.schedule || !C?.Schedule) return;
+        const nameFor = (id) => (cur.teams.find(t => t.id === String(id)) || {}).name || ('Team ' + id);
+        onCopy(C.Schedule.toText(cur.schedule, nameFor));
+    };
+    const scheduleValidation = React.useMemo(() => {
+        const cur = schedules[scheduleActiveId];
+        if (!cur || !cur.schedule || !C?.Schedule) return null;
+        return C.Schedule.validateSchedule(cur.schedule, cur.teams.map(t => t.id));
+    }, [schedules, scheduleActiveId]);
 
     // Proposal recompute is pure and fast (as-played sums over ~18 weeks) —
     // but the Wind Tunnel's multi-stat grid free-types, so re-running the
@@ -578,6 +700,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         { key: 'operations', label: 'Operations', hub: 'ops' },
         { key: 'programmes', label: 'Programmes', hub: 'programmes' },
         { key: 'rulelab', label: 'Rule Lab', hub: 'rulelab' },
+        { key: 'schedule', label: 'Schedule Builder', hub: 'schedule' },
         { key: 'genesis', label: 'Season Setup', hub: 'genesis' },
         { key: 'bylaws', label: 'Bylaws + Dues', hub: 'governance' },
     ];
@@ -592,6 +715,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         { key: 'programmes', label: 'Weekly broadcast', sub: 'Recaps composed but not sent. Quiet until Week 1.' },
         { key: 'coefficient', label: 'Cross-league ratings', sub: 'The human leaderboard. Quiet until Week 1.' },
         { key: 'rulelab', label: 'Rule Lab', sub: 'A tool rather than an obligation — never queues work.' },
+        { key: 'schedule', label: 'Schedule Builder', sub: 'A planning tool, like Rule Lab — never queues work.' },
     ];
 
     // Preferences read fresh on every prefTick so a toggle is reflected
@@ -774,6 +898,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         };
     }, [state.status, queue, genesis]);
 
+    const schedulesBuilt = Object.values(schedules).filter(s => s && s.schedule).length;
     const commandDesks = React.useMemo(() => {
         if (state.status !== 'ready') return null;
         const items = (queue && queue.items) || [];
@@ -790,12 +915,13 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
             { group: 'OPEN THE SEASON', hub: 'genesis', name: 'Season Setup', badge: badge('genesis'), stat: avg + '%', unit: 'AVG READINESS', status: lowest ? ('Lowest: ' + lowest.leagueName + ' ' + lowest.pct + '% — ' + (lowest.blockers?.[0] || 'blockers open') + '.') : 'Readiness pending.', dormant: false },
             { group: 'OPEN THE SEASON', hub: 'ops', name: 'Operations', badge: badge('ops'), stat: String(driftN), unit: 'UNRATIFIED EDITS', status: (state.conflicts.length ? state.conflicts.length + ' calendar conflict' + (state.conflicts.length === 1 ? '' : 's') : 'No collisions') + ' · ' + driftN + ' settings change' + (driftN === 1 ? '' : 's'), dormant: false },
             { group: 'OPEN THE SEASON', hub: 'rulelab', name: 'Rule Lab', badge: null, stat: ruleLab.season ? String(ruleLab.season) : '—', unit: 'REPLAY SEASON', status: 'Test a scoring change against a finished season.', dormant: false },
+            { group: 'OPEN THE SEASON', hub: 'schedule', name: 'Schedule Builder', badge: null, stat: schedulesBuilt + '/' + managedLeagues.length, unit: 'PLANS BUILT', status: 'Plan the season\u2019s week-by-week matchups \u2014 a tool, not a queue.', dormant: false },
             { group: 'HOLD THE ROOM', hub: 'people', name: 'People', badge: badge('people'), stat: String(darkCount), unit: 'FLAGGED DARK', status: ((state.renewal?.summary?.atRisk ?? 0) + ' renewals at risk · ' + state.seats.length + ' seat' + (state.seats.length === 1 ? '' : 's') + ' open'), dormant: false },
             { group: 'HOLD THE ROOM', hub: 'governance', name: 'Bylaws & Dues', badge: badge('governance'), stat: duesTotals.total ? (duesTotals.paid + '/' + duesTotals.total) : '—', unit: 'DUES MARKED', status: noCon ? ('No constitution on file in ' + noCon + ' of ' + managedLeagues.length + ' leagues.') : 'Constitutions on file.', dormant: false },
             { group: 'THE BROADCAST', hub: 'network', name: 'The Coefficient', badge: scored ? badge('network') : null, stat: scored ? String((state.coefficient?.rows || []).length) : '—', unit: scored ? 'HUMANS RATED' : 'NO SCORED WEEKS', status: 'Rates every human across your leagues on one all-play scale. Starts Week 1 — ' + Object.keys(state.graph.people || {}).length + ' humans staged.', dormant: !scored },
             { group: 'THE BROADCAST', hub: 'programmes', name: 'Programmes', badge: scored ? badge('programmes') : null, stat: '—', unit: 'WEEKS PUBLISHED', status: 'One shareable recap per league per week. The first one prints after Week 1.', dormant: !scored },
         ];
-    }, [state.status, queue, genesis, treasuries, ruleLab.season]);
+    }, [state.status, queue, genesis, treasuries, ruleLab.season, schedulesBuilt]);
 
     const onGenesisToggle = (leagueId, itemId) => {
         try { C?.Genesis?.toggleManual?.(leagueId, itemId, { nowMs: Date.now() }); } catch (e) { /* unchanged */ }
@@ -899,7 +1025,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     // desks wants the whole map visible. The sidebar carries the same group
     // vocabulary as the Command view's desk cards, so the two teach each other.
     const HUB_GROUPS = [
-        { name: 'OPEN THE SEASON', hubs: [['genesis', 'Season Setup'], ['ops', 'Operations'], ['rulelab', 'Rule Lab']] },
+        { name: 'OPEN THE SEASON', hubs: [['genesis', 'Season Setup'], ['ops', 'Operations'], ['rulelab', 'Rule Lab'], ['schedule', 'Schedule Builder']] },
         { name: 'HOLD THE ROOM', hubs: [['people', 'People'], ['governance', 'Bylaws & Dues']] },
         { name: 'THE BROADCAST', hubs: [['network', 'The Coefficient'], ['programmes', 'Programmes']] },
     ];
@@ -1094,6 +1220,29 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                         onExportBallot={onExportBallot}
                     />
                 ) : missing('Rule Lab')) : null}
+                {tab === 'schedule' ? (window.WrCommishSchedulePanel ? (
+                    // currentWeek: Number(state.week) || 0, matching onScheduleSyncActuals's
+                    // own nowWeek guard exactly — || null looked equivalent but treats a
+                    // real week 0 (preseason) the same as "unknown," which un-disabled the
+                    // sync button for the one case this prop exists to disable.
+                    <window.WrCommishSchedulePanel
+                        leagues={(state.mine || []).map(l => ({ id: String(l.league_id || l.id), name: l.name }))}
+                        selectedLeagueId={scheduleActiveId}
+                        onSelectLeague={setScheduleLeagueId}
+                        teams={(schedules[scheduleActiveId] || {}).teams || []}
+                        weeksConfig={(schedules[scheduleActiveId] || {}).config}
+                        onWeeksConfigChange={onScheduleWeeksConfigChange}
+                        schedule={(schedules[scheduleActiveId] || {}).schedule || null}
+                        validation={scheduleValidation}
+                        onGenerate={onScheduleGenerate}
+                        currentWeek={Number(state.week) || 0}
+                        onSyncActuals={onScheduleSyncActuals}
+                        actualsStatus={(schedules[scheduleActiveId] || {}).actualsStatus || 'idle'}
+                        actualsSynced={(schedules[scheduleActiveId] || {}).actualsSynced || 0}
+                        onForcePairing={onScheduleForcePairing}
+                        onCopyText={onScheduleCopyText}
+                    />
+                ) : missing('Schedule Builder')) : null}
                 {tab === 'genesis' ? (window.WrCommishGenesisPanel ? (
                     genesis ? <window.WrCommishGenesisPanel readiness={genesis} onToggle={onGenesisToggle} /> : missing('Season Setup')
                 ) : missing('Season Setup')) : null}

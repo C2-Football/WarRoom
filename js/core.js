@@ -677,6 +677,7 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         ROSTER_COLS:      'wr_roster_cols',
         KPI_SELECTION:    (leagueId) => `wr_kpi_selection_${leagueId}`,
         GM_STRATEGY:      (leagueId) => `wr_gm_strategy_${leagueId}`,
+        COMMISH_SCHEDULE: (leagueId) => `wr_commish_schedule_${leagueId}`,
         CHAT:             (leagueId) => `wr_chat_${leagueId}`,
         SAVED_TRADES:     (leagueId) => `wr_saved_trades_${leagueId}`,
         WELCOMED:         (leagueId) => `wr_welcomed_v2_${leagueId}`,
