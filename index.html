@@ -2770,12 +2770,14 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script src="js/shared/viewport.js?v=20260707vp1"></script>
 <!-- 1b. Format/phase skin contract for league-type-aware modules -->
 <script src="js/league-skin.js?v=20260814dyn1"></script>
+<!-- 1c. Trend-badge classifier — window.App.classifyTrend — single source of truth for the upside/downside read on player card + draft board -->
+<script src="js/shared/trend-badge.js?v=20260829tb1"></script>
 <!-- 2. Shared components: UpgradeGate, GMMessage, PlayerInlineCard -->
 <script type="text/babel" src="js/components.js?v=20260803rv2"></script>
 <!-- 2b. Unified Player Card (SI-2) — window.WR.openPlayerCard — replaces CDN modal -->
 <!-- Shared visual primitives (WR.Card / Badge / Chip / ConfChip / DeltaLine / Kpi / InsightCard) -->
 <script type="text/babel" src="js/components/wr-primitives.js?v=20260427font1"></script>
-    <script type="text/babel" src="js/components/player-card.js?v=20260702scout1"></script>
+    <script type="text/babel" src="js/components/player-card.js?v=20260829trend1"></script>
 <!-- 2c. Saved List Views (SI-1) — window.WR.SavedViews — shared across list surfaces -->
 <script type="text/babel" src="js/shared/saved-views.js?v=20260427font1"></script>
 <!-- 2c-2. Saved Alex Reports — window.WR.SavedReports — local cache + ai_analysis server sync -->
@@ -2895,7 +2897,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/persona.js?v=20260814dna1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/cpu-engine.js?v=20260814auc1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/state.js?v=20260814auc8"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/big-board.js?v=20260816chipfix2"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/big-board.js?v=20260829trend1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/draft-grid.js?v=20260418a"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/opponent-intel.js?v=20260601layout"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/alex-stream.js?v=20260601layout"></script>

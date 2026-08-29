@@ -372,6 +372,7 @@
         const ppgRaw = typeof window.App?.calcPPG === 'function' ? window.App.calcPPG(st, sc) : 0;
         const ppg = ppgRaw > 0 ? +ppgRaw.toFixed(1) : (meta.ppg || 0);
         const trend = meta.trend || 0;
+        const trendBadge = window.App?.classifyTrend?.(trend) || null;
         const playerContext = typeof window.App?.Intelligence?.buildPlayerContext === 'function'
             ? window.App.Intelligence.buildPlayerContext({
                 id: 'player_context_' + pid,
@@ -823,7 +824,17 @@
                         })
                     ),
                     React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-                        React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-hero, 2rem)', color: 'var(--text-primary)', letterSpacing: '0.02em' } }, name),
+                        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' } },
+                            React.createElement('span', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-hero, 2rem)', color: 'var(--text-primary)', letterSpacing: '0.02em' } }, name),
+                            trendBadge && React.createElement('span', {
+                                title: 'Year-over-year PPG change: ' + (trendBadge.pct > 0 ? '+' : '') + trendBadge.pct + '%',
+                                style: {
+                                    fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em',
+                                    padding: '2px 8px', borderRadius: 'var(--card-radius-xs, 5px)', whiteSpace: 'nowrap',
+                                    color: trendBadge.color, border: '1px solid ' + window.wrAlpha(trendBadge.color, '55'), background: window.wrAlpha(trendBadge.color, '18'),
+                                }
+                            }, trendBadge.glyph + ' ' + trendBadge.label)
+                        ),
                         // Single-row identity strip — no redundant profile block below
                         React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--k-d0d0d0, #d0d0d0)', marginTop: '2px' } },
                             [nPos, team, 'Age ' + (age || '?'), heightWeight, p.college].filter(Boolean).join(' · ')

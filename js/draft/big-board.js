@@ -675,6 +675,7 @@
                         {available.map((p, idx) => {
                             const b = p._board || {};
                             const tag = TAG_META[b.tag];
+                            const trendBadge = window.App?.classifyTrend?.(window.App?.LI?.playerMeta?.[p.pid]?.trend);
                             const rowRank = b.activeRank < 99999 ? b.activeRank : idx + 1;
                             const nflTeam = nflTeamOf(p);
                             const college = collegeOf(p);
@@ -701,6 +702,7 @@
                                             : [{ label: 'DHQ', value: fmt(p.dhq) }],
                                         verdict: (
                                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                                {trendBadge && <span title={'Year-over-year PPG change: ' + (trendBadge.pct > 0 ? '+' : '') + trendBadge.pct + '%'} style={{ color: trendBadge.color, fontSize: MICRO, fontWeight: 800, fontFamily: FONT_UI, border: '1px solid ' + wrAlpha(trendBadge.color, '55'), background: wrAlpha(trendBadge.color, '18'), borderRadius: '3px', padding: '2px 5px', whiteSpace: 'nowrap' }}>{trendBadge.glyph}</span>}
                                                 {tag && <span style={{ color: tag.color, fontSize: MICRO, fontWeight: 800, fontFamily: FONT_UI, border: '1px solid ' + wrAlpha(tag.color, '55'), background: wrAlpha(tag.color, '18'), borderRadius: '3px', padding: '2px 5px', whiteSpace: 'nowrap' }}>{tag.label}</span>}
                                                 {p._copies > 1 && p._copiesTaken > 0 && remaining > 0 && <span style={{ color: remaining === 1 ? 'var(--k-f0a500, #f0a500)' : 'var(--k-2ecc71, #2ecc71)', fontSize: MICRO, fontWeight: 800, fontFamily: FONT_MONO, whiteSpace: 'nowrap' }}>{p._copiesTaken}/{p._copies}</span>}
                                                 {canPick && !p._drafted ? phDraftBtn(p) : null}
@@ -891,6 +893,7 @@
                     {available.map((p, idx) => {
                         const b = p._board || {};
                         const tag = TAG_META[b.tag];
+                        const trendBadge = window.App?.classifyTrend?.(window.App?.LI?.playerMeta?.[p.pid]?.trend);
                         const col = dhqColor(p.dhq);
                         const tCol = tierColor(b.tier);
                         const rowRank = b.activeRank < 99999 ? b.activeRank : idx + 1;
@@ -972,6 +975,9 @@
                                     })()}
                                     {tag && (
                                         <span style={{ flexShrink: 0, color: tag.color, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, border: '1px solid ' + wrAlpha(tag.color, '55'), background: wrAlpha(tag.color, '18'), borderRadius: '3px', padding: '0 4px' }}>{tag.label}</span>
+                                    )}
+                                    {trendBadge && (
+                                        <span title={'Year-over-year PPG change: ' + (trendBadge.pct > 0 ? '+' : '') + trendBadge.pct + '%'} style={{ flexShrink: 0, color: trendBadge.color, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, border: '1px solid ' + wrAlpha(trendBadge.color, '55'), background: wrAlpha(trendBadge.color, '18'), borderRadius: '3px', padding: '0 4px' }}>{trendBadge.glyph}</span>
                                     )}
                                 </div>
                                 <span title={nflTeam} style={{ color: 'var(--silver)', opacity: 0.78, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nflTeam || '—'}</span>
