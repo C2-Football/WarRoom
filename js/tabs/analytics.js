@@ -458,6 +458,15 @@ function AnalyticsPanel({
                     <div>
                         {!compact && <span>{r.kicker || r.label}</span>}
                         <strong>{r.label}</strong>
+                        {/* GM Strategy marker. Compact rows drop `detail` into a
+                            title tooltip, so a plan note written there would only
+                            exist on hover — this keeps the acknowledgement visible.
+                            Guarded on r.planTag, which only the Priority Evidence
+                            rows set, so the other stacks render unchanged. */}
+                        {/* display:inline is load-bearing — the shared
+                            `.analytics-data-row span` rule is display:block, which
+                            dropped this marker onto its own line under the label. */}
+                        {r.planTag && <span style={{ display: 'inline', marginLeft: '6px', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, letterSpacing: '0.06em', whiteSpace: 'nowrap', color: r.planTag === 'TARGETING' ? 'var(--gold)' : 'var(--silver)', opacity: r.planTag === 'TARGETING' ? 0.95 : 0.65 }}>· {r.planTag}</span>}
                     </div>
                     {!compact && <em>{r.detail}</em>}
                     <b style={{ color: r.color || undefined }}>{r.value}</b>
@@ -855,31 +864,46 @@ function AnalyticsPanel({
             // Strategy is set (and still seeds the directive copy in every case). Drive that
             // fallback off the robust tier/window/cliff signals; only lean on noisy
             // winner-template deltas when the champion sample is trustworthy (winnerN >= 2).
-            let tierModeLabel, tierModeColor, rosterStrategy;
+            // Each branch names a CANONICAL mode id, never a bespoke word. This
+            // inference used to emit REBUILD / RETOOL / RELOAD / WIN-NOW / RUN IT
+            // BACK — five postures against GM Strategy's three, and three of them
+            // (RETOOL, RELOAD, RUN IT BACK) named a stance the owner cannot
+            // actually select anywhere, while COMPETE — the default preset —
+            // never appeared at all. gm-mode.js's LEGACY_MAP already encodes the
+            // translation (retool → compete); the display path just never used it.
+            //
+            // The nuance is not lost: it was always carried by the DIRECTIVE
+            // sentence, not the badge, and every one of those sentences is kept
+            // verbatim below. Only the badge is made settable.
+            let tierModeId, tierModeColor, rosterStrategy;
             if (winnerN < 2) {
-                if (tier === 'REBUILDING') { tierModeLabel = 'REBUILD'; tierModeColor = warnColor; rosterStrategy = 'accumulate youth and picks — you are early in the build (champion benchmark unavailable)'; }
-                else { tierModeLabel = 'RETOOL'; tierModeColor = warnColor; rosterStrategy = 'target your weakest starter rooms (champion benchmark unavailable for template comparison)'; }
+                if (tier === 'REBUILDING') { tierModeId = 'rebuild'; tierModeColor = warnColor; rosterStrategy = 'accumulate youth and picks — you are early in the build (champion benchmark unavailable)'; }
+                else { tierModeId = 'compete'; tierModeColor = warnColor; rosterStrategy = 'target your weakest starter rooms (champion benchmark unavailable for template comparison)'; }
             } else if (tier === 'REBUILDING' || compYears <= 1) {
-                tierModeLabel = 'REBUILD'; tierModeColor = badColor; rosterStrategy = 'sell aging veterans for youth and picks — your window is closing';
+                tierModeId = 'rebuild'; tierModeColor = badColor; rosterStrategy = 'sell aging veterans for youth and picks — your window is closing';
             } else if (rosterCliffPct >= 25 && compYears <= 2) {
-                tierModeLabel = 'WIN-NOW'; tierModeColor = warnColor; rosterStrategy = 'win now — cash aging value before the cliff while your window is open';
+                tierModeId = 'win_now'; tierModeColor = warnColor; rosterStrategy = 'win now — cash aging value before the cliff while your window is open';
             } else if (ageDiffDiag > 1.5 && dhqGap < 0) {
-                tierModeLabel = 'RETOOL'; tierModeColor = warnColor; rosterStrategy = 'sell aging veterans and acquire young elites';
+                tierModeId = 'compete'; tierModeColor = warnColor; rosterStrategy = 'sell aging veterans and acquire young elites';
             } else if (eliteDiffDiag < -1) {
-                tierModeLabel = 'RELOAD'; tierModeColor = warnColor; rosterStrategy = 'buy young elite players to close the talent gap';
+                tierModeId = 'compete'; tierModeColor = warnColor; rosterStrategy = 'buy young elite players to close the talent gap';
             } else if (dhqGap >= 0 && ageDiffDiag <= 0.5) {
-                tierModeLabel = 'RUN IT BACK'; tierModeColor = goodColor; rosterStrategy = 'hold course — your roster matches the elite tier template';
+                tierModeId = 'compete'; tierModeColor = goodColor; rosterStrategy = 'hold course — your roster matches the elite tier template';
             } else {
-                tierModeLabel = 'RETOOL'; tierModeColor = warnColor; rosterStrategy = 'target strategic upgrades at your weakest positions';
+                tierModeId = 'compete'; tierModeColor = warnColor; rosterStrategy = 'target strategic upgrades at your weakest positions';
             }
+            // Badge text off the canonical presets, so Analytics can only ever
+            // name a posture that exists in the GM Strategy picker.
+            const presetLabel = (id) => String(window.WR?.GmMode?.PRESETS?.[id]?.label || id || '').toUpperCase();
+            const tierModeLabel = presetLabel(tierModeId);
             const tierModeDirective = rosterStrategy.charAt(0).toUpperCase() + rosterStrategy.slice(1) + '.';
             // Football-framed directives for the three GM Strategy presets — used when the owner
             // has explicitly set a strategy so the posture matches their plan, not the inference.
             const GM_MODE_FRAME = {
-                rebuild:  { label: 'REBUILD',     color: gm.badgeColor || warnColor, directive: 'Accumulate youth and picks; sell aging veterans for your next dynasty core.' },
-                compete:  { label: 'COMPETE',     color: gm.badgeColor || goodColor, directive: 'Balance present and future — hold your core and upgrade only at peak value.' },
-                win_now:  { label: 'WIN-NOW',     color: gm.badgeColor || badColor,  directive: 'Spend future picks and young depth on proven starters — the window is open now.' },
-                custom:   { label: gm.modeLabel || 'CUSTOM', color: gm.badgeColor || warnColor, directive: tierModeDirective },
+                rebuild:  { label: presetLabel('rebuild'), color: gm.badgeColor || warnColor, directive: 'Accumulate youth and picks; sell aging veterans for your next dynasty core.' },
+                compete:  { label: presetLabel('compete'), color: gm.badgeColor || goodColor, directive: 'Balance present and future — hold your core and upgrade only at peak value.' },
+                win_now:  { label: presetLabel('win_now'), color: gm.badgeColor || badColor,  directive: 'Spend future picks and young depth on proven starters — the window is open now.' },
+                custom:   { label: String(gm.modeLabel || 'Custom').toUpperCase(), color: gm.badgeColor || warnColor, directive: tierModeDirective },
             };
             // GM Strategy is primary. When no strategy is set, defer to the SAME
             // recommendation GM's Office computes (window.WR.GmMode.recommendMode,
@@ -894,12 +918,31 @@ function AnalyticsPanel({
             const modeColor = gmFrame ? gmFrame.color : tierModeColor;
             const modeDirective = gmFrame ? gmFrame.directive : tierModeDirective;
             const modeSource = gm.hasStrategy ? 'GM Strategy' : (recommendedMode ? 'recommended, matches GM’s Office' : 'inferred from tier');
-            // Analysis window label — driven by GM Strategy timeline when set, else the model's
-            // estimated compete window. horizonYears: 1 | 2.5 | 7.
-            const _windowYears = gm.hasStrategy ? gm.horizonYears : compYears;
-            const windowLabel = gm.hasStrategy
-                ? (gm.timeline === '1_year' ? 'win-now (1yr) window' : gm.timeline === 'dynasty_long' ? 'dynasty (long) window' : '2-3yr window')
-                : (compYears + 'yr window (model est.)');
+            // Analysis window. Both of these were computed and then never read —
+            // the timeline the owner set in GM Strategy reached this component and
+            // was dropped on the floor, so the setting changed nothing here while
+            // every other surface honoured it.
+            //
+            // The two numbers are NOT interchangeable and are deliberately not
+            // merged: gm.horizonYears is the owner's stated PLAN (1 | 2.5 | 7),
+            // compYears is the model's MEASURED compete window. Everything below
+            // still computes against compYears — substituting a preference for a
+            // measurement would quietly corrupt the tier read and the win-now
+            // pressure score. What was missing is that the panel never said which
+            // window it was reading against, so the two could disagree in silence.
+            // Now it states the owner's plan and flags the model's disagreement
+            // when the gap is wide enough to matter (>1yr).
+            const _tl = window.WR?.GmMode?.describeTimeline?.(gm.timeline);
+            const windowLabel = gm.hasStrategy && _tl
+                ? (compYears > 0 && Math.abs((gm.horizonYears || 0) - compYears) > 1
+                    ? 'your ' + _tl.short + ' plan · model reads ' + compYears + 'yr'
+                    : 'your ' + _tl.short + ' plan')
+                // compYears is 0 whenever the model reads the window as closed
+                // (analyticsData.window.label "Window closed — rebuild mode"), so
+                // the bare concat printed "0yr window (model est.)" for exactly the
+                // rosters that most need a clear read. Pre-existing; fixed here
+                // because it is the same expression.
+                : (compYears > 0 ? compYears + 'yr window (model est.)' : 'window closed (model est.)');
             const rosterProofItems = [
                 { label: 'Champion Value Gap', value: winnerN < 2 ? '—' : signedNum(dhqGap, ' DHQ'), detail: winnerN < 2 ? 'Champion sample too small (' + winnerN + ') to benchmark.' : 'You vs ' + winnerN + '-team ' + (winnerSource === 'brackets' ? 'champion' : 'top-standings') + ' template (avg ' + numFmt(w.avgTotalDHQ) + ' DHQ).', tone: winnerN < 2 ? 'warn' : toneFromDelta(dhqGap), color: winnerN < 2 ? warnColor : (dhqGap >= 0 ? goodColor : badColor) },
                 { label: 'Elite Asset Gap', value: winnerN < 2 ? '—' : signedNum(eliteDiffDiag), detail: winnerN < 2 ? 'Champion sample too small to benchmark elites.' : 'Your ' + mElite + ' elites vs ' + wElite + ' for the ' + winnerN + '-team template.', tone: winnerN < 2 ? 'warn' : toneFromDelta(eliteDiffDiag), color: winnerN < 2 ? warnColor : (eliteDiffDiag >= 0 ? goodColor : badColor) },
@@ -914,6 +957,43 @@ function AnalyticsPanel({
             // Coverage Matrix grades (so the two cards always agree), then champion-template
             // gaps, then draft capital — all sorted CRITICAL → HIGH → MEDIUM → LOW.
             const SEV_WEIGHT = { critical: 3, high: 2, medium: 1, low: 0 };
+            // ── GM Strategy priorities ────────────────────────────────────────
+            // This queue graded every room against the league and then ignored the
+            // fact that the owner had already said which rooms they intend to fix.
+            // targetPositions / sellPositions were honoured by My Roster, the Trade
+            // Center, Free Agency, the Brief and the draft — and by nothing here,
+            // so a stated plan changed no row on the one surface whose whole job is
+            // "what should I fix first".
+            //
+            // The plan ORDERS, it never re-grades. Severity is a measurement and is
+            // left alone — a CRITICAL gap still outranks a HIGH one whether or not
+            // it is on the plan, because a D-grade room is a fact about the roster,
+            // not a preference. Within a severity tier the plan breaks the tie: a
+            // room the owner is targeting comes first (they have already decided to
+            // act on it), one they are deliberately selling comes last (a gap there
+            // is intentional).
+            //
+            // Note the second-order effect: the list is capped at 6 rows, so a
+            // demoted room CAN fall off the visible end — a sold room displaced by
+            // same-severity rooms behind it. That is intended (you said you do not
+            // care about that room) but it is a real consequence of reordering, not
+            // a no-op, and the row is still reachable in the Coverage Matrix below.
+            //
+            // Deliberately NOT wired: acceptanceFloor and untouchable are trade-
+            // execution inputs and this queue proposes no trades; marketPosture is
+            // already carried by the mode directive above. Wiring them here would
+            // be motion without meaning.
+            const _planHas = (set, pos) => !!(pos && gm.hasStrategy && set && typeof set.has === 'function' && set.has(pos));
+            const planBias = (pos) => _planHas(gm.targetPositions, pos) ? -1 : _planHas(gm.sellPositions, pos) ? 1 : 0;
+            const planNote = (pos) => _planHas(gm.targetPositions, pos)
+                ? ' Your plan targets ' + posLabel(pos) + '.'
+                : _planHas(gm.sellPositions, pos)
+                    ? ' Your plan sells ' + posLabel(pos) + ', so this gap may be deliberate.'
+                    : '';
+            // Compact rows render only label + value (detail becomes a hover
+            // title), so the note above needs a visible counterpart.
+            const planTag = (pos) => _planHas(gm.targetPositions, pos) ? 'TARGETING'
+                : _planHas(gm.sellPositions, pos) ? 'SELLING' : '';
             const evidenceRows = [];
             const evidencePos = new Set();
             coveragePosList.forEach(pos => {
@@ -923,10 +1003,12 @@ function AnalyticsPanel({
                 evidenceRows.push({
                     kicker: 'Starter Quality',
                     label: (c.have === 0 ? 'Add ' : 'Upgrade ') + posLabel(pos) + (c.have === 0 ? ' starter' : ' room'),
-                    detail: posLabel(pos) + ' grades ' + c.grade + ' — ' + c.have + ' of your players rank inside the top ' + c.threshold + ' (' + c.slotsInt + ' slot' + (c.slotsInt > 1 ? 's' : '') + ' × ' + numTeams + ' teams).',
+                    detail: posLabel(pos) + ' grades ' + c.grade + ' — ' + c.have + ' of your players rank inside the top ' + c.threshold + ' (' + c.slotsInt + ' slot' + (c.slotsInt > 1 ? 's' : '') + ' × ' + numTeams + ' teams).' + planNote(pos),
                     value: c.severity.toUpperCase(),
                     color: c.color,
                     weight: SEV_WEIGHT[c.severity],
+                    plan: planBias(pos),
+                    planTag: planTag(pos),
                     score: c.have - c.slotsInt, // most negative (furthest from a full room) first within a tier
                 });
             });
@@ -936,10 +1018,12 @@ function AnalyticsPanel({
                 evidenceRows.push({
                     kicker: 'Champion Template',
                     label: g.action || g.area || 'Roster signal',
-                    detail: g.detail || 'Use module tabs to inspect the player-level evidence behind this room.',
+                    detail: (g.detail || 'Use module tabs to inspect the player-level evidence behind this room.') + planNote(g.pos),
                     value: sev.toUpperCase(),
                     color: sevColor(sev),
                     weight: SEV_WEIGHT[sev] ?? 0,
+                    plan: planBias(g.pos),
+                    planTag: planTag(g.pos),
                     score: 0,
                 });
             });
@@ -949,15 +1033,23 @@ function AnalyticsPanel({
                 evidenceRows.push({
                     kicker: 'Draft Capital',
                     label: (pickNet >= 0 ? 'Pick Surplus' : 'Pick Deficit') + ' (' + picks.totalPicks + '/' + picks.idealTotal + ')',
-                    detail: picks.roundsMissing ? picks.roundsMissing + ' draft round(s) with zero picks across your horizon — ammo to close the talent gap is ' + (pickNet >= 0 ? 'available' : 'short') + '.' : 'You hold ' + picks.totalPicks + ' future picks vs an ideal of ' + picks.idealTotal + '.',
+                    detail: (picks.roundsMissing ? picks.roundsMissing + ' draft round(s) with zero picks across your horizon — ammo to close the talent gap is ' + (pickNet >= 0 ? 'available' : 'short') + '.' : 'You hold ' + picks.totalPicks + ' future picks vs an ideal of ' + picks.idealTotal + '.') + planNote('PICKS'),
                     value: (pickNet >= 0 ? '+' : '') + pickNet,
                     color: pickNet >= 0 ? goodColor : (picks.status === 'deficit' ? badColor : warnColor),
                     weight: SEV_WEIGHT[pickSev],
+                    // PICKS is a settable target/sell position in the GM Strategy
+                    // picker, so draft capital reads the plan like any room does.
+                    plan: planBias('PICKS'),
+                    planTag: planTag('PICKS'),
                     score: pickNet,
                 });
             }
-            const gapRows = (evidenceRows.length ? evidenceRows : [{ kicker: 'Roster', label: 'No starter-quality gap', detail: 'Every starting room grades B or better against the league.', value: 'OK', color: goodColor, weight: 0, score: 0 }])
-                .sort((a, b) => (b.weight - a.weight) || (a.score - b.score))
+            const gapRows = (evidenceRows.length ? evidenceRows : [{ kicker: 'Roster', label: 'No starter-quality gap', detail: 'Every starting room grades B or better against the league.', value: 'OK', color: goodColor, weight: 0, plan: 0, score: 0 }])
+                // Severity first (measurement), then the plan (preference), then
+                // the within-tier magnitude. The plan sits BELOW severity on
+                // purpose — it reorders rooms of equal urgency, it cannot promote
+                // a MEDIUM gap over a CRITICAL one.
+                .sort((a, b) => (b.weight - a.weight) || ((a.plan || 0) - (b.plan || 0)) || (a.score - b.score))
                 .slice(0, 6);
 
             return (
@@ -967,7 +1059,7 @@ function AnalyticsPanel({
                 {!isPro && <ProLock label="Analytics Command" sub="The research thesis, suggested mode directive, and tier / win-now pressure reads for this roster are Pro." />}
                 {isPro && <AnalyticsCommandPanel
                     title="What exactly separates this roster from the league's winning build?"
-                    mode={{ label: modeLabel, directive: modeDirective + ' (' + modeSource + ')', color: modeColor }}
+                    mode={{ label: modeLabel, directive: modeDirective + ' (' + modeSource + ' · ' + windowLabel + ')', color: modeColor }}
                 />}
 
                 <AnalyticsProofGrid items={rosterProofItems} />

@@ -573,7 +573,16 @@ function IntelligenceBriefWidget({
     // editor. No plan set → a single "Set your strategy" chip.
     const POSTURE_CHIP = { buy_low: 'Buying low', sell_high: 'Selling high', hold: 'Holding assets', exploit: 'Exploiting edges' };
     const DRAFT_CHIP = { accumulate: 'Stockpiling picks', consolidate: 'Consolidating up', positional_need: 'Drafting for need', bpa: 'Best available' };
-    const AGGR_CHIP = { conservative: 'Conservative', medium: 'Balanced', aggressive: 'Aggressive' };
+    // Aggression reads the canonical band label (window.WR.GmMode.AGGRESSION)
+    // rather than a local map — this chip and the editor's picker disagreed on
+    // the middle band ("Balanced" here, "Medium" there) for the same value.
+    // POSTURE/DRAFT/TIMELINE below stay local on purpose: those are the chip
+    // strip's gerund voice ("Holding assets" for Hold), an elaboration of the
+    // setting's name rather than a competing name for it.
+    const AGGR_CHIP = (window.WR?.GmMode?.AGGRESSION || []).reduce(
+        (m, a) => { m[a.value] = a.label; return m; },
+        { conservative: 'Conservative', medium: 'Balanced', aggressive: 'Aggressive' },
+    );
     const TIMELINE_CHIP = { '1_year': 'This year', '2_3_years': '2-3 yr window', 'dynasty_long': 'Long game' };
     function planChips(opts = {}) {
         const deep = !!opts.deep;
