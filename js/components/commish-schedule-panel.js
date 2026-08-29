@@ -48,6 +48,32 @@
 //                             existing clipboard helper (same onCopy the
 //                             Rule Lab ballot uses) — no new export
 //                             plumbing for a v1 tool.
+//
+//   ── NFL-style division mode (only offered when teams carry real
+//      divisions — window.App.Commish.ScheduleNFL.isEligible(teams),
+//      exactly 4 divisions of exactly 4 teams) ──
+//     mode                    'simple' | 'nfl'. onModeChange(mode) to switch.
+//     seasonYear              drives the 3-year division-rotation pattern.
+//                             onSeasonYearChange(year).
+//     nflMeta                 { divisionPairing:{pairs}, usedFallbackStandings }
+//                             from the last NFL-mode Generate, or null.
+//     priorStandingsStatus    'idle' | 'loading' | 'done' — fetching the
+//                             prior season's final standings for the rank
+//                             block. Generate stays disabled while loading.
+//     priorStandingsFallback  team ids with no prior-season data (a new
+//                             owner took over the slot) — seeded at the
+//                             worst rank in their division rather than left
+//                             out; named here so that is never presented
+//                             as if it were real history.
+//     onFlex()                Post-week-11 action: reads LIVE Sleeper
+//                             standings and reorders weeks 12-14 so each
+//                             division's CURRENT #1 plays #2 on week 14.
+//                             Never touches weeks 1-11.
+//     flexStatus              'idle' | 'loading' | 'done' | 'error'.
+//     flexNotes                [{division, ok, changed, week14|reason}] from
+//                             the last flex — one line per division, so a
+//                             division that couldn't be flexed (no current
+//                             standings data) is named, not silently skipped.
 //   />
 //
 // Pure presentation — props + callbacks only, no fetching, no persistence.
@@ -61,6 +87,9 @@ function WrCommishSchedulePanel({
     schedule, validation, onGenerate,
     currentWeek, onSyncActuals, actualsStatus, actualsSynced,
     onForcePairing, onCopyText,
+    mode, onModeChange, seasonYear, onSeasonYearChange, nflMeta,
+    priorStandingsStatus, priorStandingsFallback,
+    onFlex, flexStatus, flexNotes,
 }) {
     const GOLD = 'var(--gold, #D4AF37)', SILVER = 'var(--silver, #BDB8AD)', TEXT = 'var(--white, #F5F2EA)';
     const MUTED = '#8D887E';
@@ -98,6 +127,8 @@ function WrCommishSchedulePanel({
 
     const cfg = weeksConfig || { weeks: Math.max(1, (teams || []).length - 1), doubleRoundRobin: false };
     const teamCount = (teams || []).length;
+    const nflEligible = !!window.App?.Commish?.ScheduleNFL?.isEligible?.(teams);
+    const nflMode = mode === 'nfl' && nflEligible;
 
     // ── Per-week edit state (which two teams are being force-paired) ──
     const [editWeek, setEditWeek] = React.useState(null);
@@ -118,7 +149,7 @@ function WrCommishSchedulePanel({
                     No platform this app reads exposes a way to WRITE a matchup schedule, so this builds a plan for you to
                     hand-enter or keep as the league's record — never something that silently changes what Sleeper shows.
                 </div>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: nflEligible ? '10px' : 0 }}>
                     <span style={{ ...microHdr, alignSelf: 'center' }}>League</span>
                     {leagues.map(l => (
                         <button key={l.id} onClick={() => onSelectLeague && onSelectLeague(l.id)} style={chipBtn(String(selectedLeagueId) === String(l.id))}>
@@ -126,27 +157,50 @@ function WrCommishSchedulePanel({
                         </button>
                     ))}
                 </div>
+                {/* Only offered when the league's own Sleeper roster data
+                    actually has 4 divisions of 4 — never a generic control
+                    that could produce a broken schedule for a shape this
+                    format was never built for. */}
+                {nflEligible ? (
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ ...microHdr, alignSelf: 'center' }}>Format</span>
+                        <button onClick={() => onModeChange && onModeChange('simple')} style={chipBtn(mode !== 'nfl')}>Round-robin</button>
+                        <button onClick={() => onModeChange && onModeChange('nfl')} style={chipBtn(mode === 'nfl')}>NFL-style (divisions)</button>
+                    </div>
+                ) : null}
             </Section>
 
-            <Section title="Build" meta={teamCount + ' team' + (teamCount === 1 ? '' : 's') + (teamCount % 2 ? ' · odd — one bye per week' : '')}>
+            <Section title="Build" meta={nflMode ? teamCount + ' teams · 4 divisions · 14 weeks' : teamCount + ' team' + (teamCount === 1 ? '' : 's') + (teamCount % 2 ? ' · odd — one bye per week' : '')}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: TEXT }}>
-                        Weeks
-                        <input type="number" min={1} max={Math.max(1, (teamCount - 1) * 4)} value={cfg.weeks}
-                            onChange={e => onWeeksConfigChange && onWeeksConfigChange({ ...cfg, weeks: Math.max(1, Number(e.target.value) || 1) })}
-                            style={{ width: '56px', background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '5px 6px', fontSize: '0.78rem', ...mono }} />
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: TEXT, cursor: 'pointer' }}>
-                        <input type="checkbox" checked={!!cfg.doubleRoundRobin}
-                            onChange={e => {
-                                const dbl = e.target.checked;
-                                onWeeksConfigChange && onWeeksConfigChange({ ...cfg, doubleRoundRobin: dbl, weeks: Math.max(1, (teamCount - 1) * (dbl ? 2 : 1)) });
-                            }} />
-                        Double round-robin (play everyone twice)
-                    </label>
-                    <button onClick={onGenerate} disabled={teamCount < 2}
-                        style={{ padding: '7px 16px', borderRadius: 'var(--card-radius-sm, 8px)', cursor: teamCount < 2 ? 'default' : 'pointer', opacity: teamCount < 2 ? 0.5 : 1, background: 'var(--co-accent-fill, #12212B)', border: '1px solid var(--co-accent-line, #2B4B63)', color: 'var(--co-accent, #5DADE2)', fontWeight: 700, fontSize: '0.78rem' }}>
-                        {schedule ? 'Regenerate' : 'Generate schedule'}
+                    {nflMode ? (
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: TEXT }}>
+                            Season
+                            <input type="number" value={seasonYear || new Date().getFullYear()}
+                                onChange={e => onSeasonYearChange && onSeasonYearChange(e.target.value)}
+                                title="Which year of the 3-year division-rotation cycle this season is"
+                                style={{ width: '72px', background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '5px 6px', fontSize: '0.78rem', ...mono }} />
+                        </label>
+                    ) : (
+                        <React.Fragment>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: TEXT }}>
+                                Weeks
+                                <input type="number" min={1} max={Math.max(1, (teamCount - 1) * 4)} value={cfg.weeks}
+                                    onChange={e => onWeeksConfigChange && onWeeksConfigChange({ ...cfg, weeks: Math.max(1, Number(e.target.value) || 1) })}
+                                    style={{ width: '56px', background: 'var(--co-page, #08080B)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', color: TEXT, padding: '5px 6px', fontSize: '0.78rem', ...mono }} />
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: TEXT, cursor: 'pointer' }}>
+                                <input type="checkbox" checked={!!cfg.doubleRoundRobin}
+                                    onChange={e => {
+                                        const dbl = e.target.checked;
+                                        onWeeksConfigChange && onWeeksConfigChange({ ...cfg, doubleRoundRobin: dbl, weeks: Math.max(1, (teamCount - 1) * (dbl ? 2 : 1)) });
+                                    }} />
+                                Double round-robin (play everyone twice)
+                            </label>
+                        </React.Fragment>
+                    )}
+                    <button onClick={onGenerate} disabled={teamCount < 2 || (nflMode && priorStandingsStatus === 'loading')}
+                        style={{ padding: '7px 16px', borderRadius: 'var(--card-radius-sm, 8px)', cursor: (teamCount < 2 || (nflMode && priorStandingsStatus === 'loading')) ? 'default' : 'pointer', opacity: (teamCount < 2 || (nflMode && priorStandingsStatus === 'loading')) ? 0.5 : 1, background: 'var(--co-accent-fill, #12212B)', border: '1px solid var(--co-accent-line, #2B4B63)', color: 'var(--co-accent, #5DADE2)', fontWeight: 700, fontSize: '0.78rem' }}>
+                        {nflMode && priorStandingsStatus === 'loading' ? 'Loading last season…' : schedule ? 'Regenerate' : 'Generate schedule'}
                     </button>
                     {schedule ? (
                         <React.Fragment>
@@ -159,6 +213,13 @@ function WrCommishSchedulePanel({
                                 style={{ padding: '7px 14px', borderRadius: 'var(--card-radius-sm, 8px)', cursor: (actualsStatus === 'loading' || (currentWeek != null && currentWeek < 2)) ? 'default' : 'pointer', opacity: (currentWeek != null && currentWeek < 2) ? 0.5 : 1, background: PANEL2, border: `1px solid ${LINE}`, color: SILVER, fontWeight: 600, fontSize: '0.78rem' }}>
                                 {actualsStatus === 'loading' ? 'Syncing…' : 'Sync actual results'}
                             </button>
+                            {nflMode ? (
+                                <button onClick={onFlex} disabled={flexStatus === 'loading' || currentWeek == null || currentWeek < 12}
+                                    title={currentWeek != null && currentWeek < 12 ? 'Available once week 11 has been played' : 'Reads live standings and puts each division\'s current #1 vs #2 on week 14'}
+                                    style={{ padding: '7px 14px', borderRadius: 'var(--card-radius-sm, 8px)', cursor: (flexStatus === 'loading' || currentWeek == null || currentWeek < 12) ? 'default' : 'pointer', opacity: (currentWeek == null || currentWeek < 12) ? 0.5 : 1, background: PANEL2, border: `1px solid ${LINE}`, color: SILVER, fontWeight: 600, fontSize: '0.78rem' }}>
+                                    {flexStatus === 'loading' ? 'Flexing…' : 'Flex weeks 12-14'}
+                                </button>
+                            ) : null}
                             <button onClick={onCopyText}
                                 style={{ padding: '7px 14px', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', background: PANEL2, border: `1px solid ${LINE}`, color: SILVER, fontWeight: 600, fontSize: '0.78rem' }}>
                                 Copy as text
@@ -175,8 +236,35 @@ function WrCommishSchedulePanel({
                         </React.Fragment>
                     ) : null}
                 </div>
-                {schedule && cfg.doubleRoundRobin === undefined ? null : null}
+                {nflMode && flexNotes ? (
+                    <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        {flexNotes.map((n, i) => (
+                            <span key={i} style={{ fontSize: '0.72rem', color: n.ok ? GOOD : WARN }}>
+                                Division {n.division}: {n.ok ? (n.changed ? 'week 14 set to the current #1 vs #2' : 'already had the current #1 vs #2 on week 14') : n.reason}
+                            </span>
+                        ))}
+                    </div>
+                ) : null}
             </Section>
+
+            {nflMode && nflMeta ? (
+                <Section title="Division Plan">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <span style={{ fontSize: '0.76rem', color: TEXT }}>
+                            This year's full-division matchups: {nflMeta.divisionPairing.pairs.map(([a, b]) => 'Div ' + a + ' vs Div ' + b).join(' · ')}
+                        </span>
+                        {nflMeta.usedFallbackStandings ? (
+                            <span style={{ fontSize: '0.72rem', color: WARN }}>
+                                ⚠ No prior-season standings found for this league — the rank-based weeks (8-9) used roster order instead of real results.
+                            </span>
+                        ) : (priorStandingsFallback || []).length ? (
+                            <span style={{ fontSize: '0.72rem', color: WARN }}>
+                                ⚠ No prior-season data for {(priorStandingsFallback || []).map(nameFor).join(', ')} — seeded at the worst rank in their division for the rank-based weeks (8-9).
+                            </span>
+                        ) : null}
+                    </div>
+                </Section>
+            ) : null}
 
             {validation ? (
                 <Section title="Balance">
@@ -206,6 +294,7 @@ function WrCommishSchedulePanel({
                 <Section title="Weeks" meta={schedule.length + ' week' + (schedule.length === 1 ? '' : 's')}>
                     {schedule.map(wk => {
                         const isActual = wk.source === 'actual';
+                        const isLottery = wk.source === 'lottery';
                         const isPast = currentWeek != null && wk.week < currentWeek;
                         const editingThis = editWeek === wk.week;
                         return (
@@ -214,6 +303,8 @@ function WrCommishSchedulePanel({
                                     <span style={{ ...mono, fontSize: '0.72rem', fontWeight: 700, color: TEXT, minWidth: '52px' }}>WEEK {wk.week}</span>
                                     {isActual ? (
                                         <span style={{ ...microHdr, color: GOOD, letterSpacing: '0.06em' }}>actual</span>
+                                    ) : isLottery ? (
+                                        <span style={{ ...microHdr, color: 'var(--co-accent, #5DADE2)', letterSpacing: '0.06em' }} title="Seeded at random — overwrite with the real bingo draw using “force a pairing” below">lottery — seeded, not drawn</span>
                                     ) : isPast ? (
                                         <span style={{ ...microHdr, color: WARN }}>past, unsynced</span>
                                     ) : null}

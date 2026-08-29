@@ -58,15 +58,16 @@
 //     null, seasonYear, rng? } — rng defaults to Math.random, injectable
 //     for deterministic tests.
 //     → { schedule, meta:{ divisionPairing, usedFallbackStandings } }
-//     Requires EXACTLY 4 divisions of EQUAL size (this format's own
+//     Requires EXACTLY 4 divisions of EXACTLY 4 teams (this format's own
 //     assumption — see isEligible). priorStandings=null (a league's true
 //     first season) falls back to ranking by team id within each division
 //     and sets meta.usedFallbackStandings so the UI can say so plainly —
 //     never a silent, unlabeled fabrication.
 //
 //   isEligible(teams)                                  — pure
-//     → true only for exactly 4 divisions of equal size. The generic
-//     round-robin stays the universal default; this format only offers
+//     → true only for exactly 4 divisions of exactly 4 teams each — not
+//     "any equal size." The generic round-robin stays the universal
+//     default; this format only offers
 //     itself where its own assumptions actually hold.
 //
 //   retargetPairToWeek(schedule, teams4, targetWeek, teamA, teamB,
@@ -159,13 +160,17 @@
     }
 
     // ── Eligibility (pure) ──────────────────────────────────────────────
+    // Exactly 4 divisions of exactly 4 teams — not "any equal size." The
+    // inter-division 4x4 sweep and the rank block's cross-pair matching are
+    // both built and verified specifically for size-4 divisions; a league
+    // with, say, 3 divisions of 6 has different combinatorics this file has
+    // never been tested against, so it stays off the menu rather than
+    // silently offering a shape nobody has verified works.
     function isEligible(teams) {
         const byDiv = {};
-        (teams || []).forEach(t => { const d = String(t.division); (byDiv[d] = byDiv[d] || []).push(t); });
+        (teams || []).forEach(t => { if (t.division == null) return; const d = String(t.division); (byDiv[d] = byDiv[d] || []).push(t); });
         const divs = Object.values(byDiv);
-        if (divs.length !== 4) return false;
-        const size = divs[0].length;
-        return size > 0 && divs.every(d => d.length === size);
+        return divs.length === 4 && divs.every(d => d.length === 4);
     }
 
     function defaultRng() { return Math.random; }

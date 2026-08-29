@@ -305,13 +305,25 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
             const teams = (rosters || []).map(r => {
                 const owner = r.owner_id != null ? byOwner[String(r.owner_id)] : null;
                 const name = (r.metadata && r.metadata.team_name) || (owner && owner.metadata && owner.metadata.team_name) || (owner && owner.display_name) || ('Team ' + r.roster_id);
-                return { id: String(r.roster_id), name };
+                // division/ownerId feed the NFL-style generator (isEligible,
+                // buildNFLStyleSeason, and matching this team to its OWNER's
+                // row in the prior season's standings). Absent on leagues
+                // without real Sleeper divisions — division ends up undefined
+                // for everyone, so isEligible's "exactly 4 divisions" check
+                // fails naturally and the NFL mode option never appears.
+                const division = r.settings && r.settings.division != null ? String(r.settings.division) : null;
+                return { id: String(r.roster_id), name, division, ownerId: r.owner_id != null ? String(r.owner_id) : null };
             });
             const saved = window.App?.WrStorage?.get?.(window.App.WR_KEYS.COMMISH_SCHEDULE(lid), null);
             setSchedules(prev => ({
                 ...prev,
                 [lid]: {
                     teams,
+                    mode: (saved && saved.mode) || 'simple',
+                    seasonYear: (saved && saved.seasonYear) || Number(league.season) || new Date().getFullYear(),
+                    priorStandings: (saved && saved.priorStandings) || null,   // fetched lazily otherwise
+                    priorStandingsStatus: 'idle',
+                    nflMeta: (saved && saved.nflMeta) || null,
                     config: (saved && saved.config) || { weeks: Math.max(1, teams.length - 1), doubleRoundRobin: false },
                     schedule: (saved && saved.schedule) || null,
                     actualsStatus: 'idle',
@@ -321,12 +333,19 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         return () => { cancelled = true; };
     }, [state.status, scheduleActiveId, state.mine, schedules]);
 
-    // Persist config + schedule together — a plan without its generator
-    // settings can't be regenerated with the same shape later.
+    // Persist the generator's settings alongside its output — a plan without
+    // the mode/config that produced it can't be regenerated with the same
+    // shape later. priorStandings is included too: it's a snapshot of a
+    // SEALED prior season, so it never goes stale, and persisting it means
+    // reopening the tool doesn't re-fetch the same completed season's
+    // rosters every time.
     const persistSchedule = (lid, patch) => {
         setSchedules(prev => {
             const next = { ...(prev[lid] || {}), ...patch };
-            window.App?.WrStorage?.set?.(window.App.WR_KEYS.COMMISH_SCHEDULE(lid), { config: next.config, schedule: next.schedule });
+            window.App?.WrStorage?.set?.(window.App.WR_KEYS.COMMISH_SCHEDULE(lid), {
+                config: next.config, schedule: next.schedule, mode: next.mode,
+                seasonYear: next.seasonYear, priorStandings: next.priorStandings, nflMeta: next.nflMeta,
+            });
             return { ...prev, [lid]: next };
         });
     };
@@ -334,14 +353,118 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         if (!scheduleActiveId) return;
         persistSchedule(scheduleActiveId, { config: nextCfg });
     };
+    const onScheduleSeasonYearChange = (year) => {
+        if (!scheduleActiveId) return;
+        persistSchedule(scheduleActiveId, { seasonYear: Math.round(Number(year)) || new Date().getFullYear() });
+    };
+    // Prior-season standings for the NFL-style rank block ("2nd place plays
+    // other 2nd place teams"). ONE hop back — not Rule Lab's 3-hop chain —
+    // because this format only ever looks at the immediately preceding
+    // season, never further. Same previous_league_id-then-fetchLeagueInfo
+    // fallback RuleLab already uses for the identical "is it already on the
+    // league object" uncertainty.
+    //
+    // A current team with no owner_id match in the prior season (a brand
+    // new owner took over a slot) has no real "last year's rank" to
+    // inherit. Rather than leave them out of the rank-block entirely —
+    // which the engine would treat as a missing opponent, not a fallback —
+    // they're seeded at the WORST rank in their current division: the
+    // safest assumption for someone with no track record, and named
+    // explicitly in fallbackTeams so the UI never presents it as real data.
+    const fetchPriorStandings = async (lid, league, teams) => {
+        try {
+            let prevId = league.previous_league_id || null;
+            if (!prevId && typeof window.fetchLeagueInfo === 'function') {
+                try { prevId = (await window.fetchLeagueInfo(lid))?.previous_league_id || null; } catch (e) { prevId = null; }
+            }
+            if (!prevId) return { priorStandings: null, fallbackTeams: [] };
+            const prevRosters = (typeof window.fetchLeagueRosters === 'function' ? await window.fetchLeagueRosters(prevId) : null) || [];
+            const byOwner = {};
+            prevRosters.forEach(r => { if (r.owner_id != null) byOwner[String(r.owner_id)] = r; });
+            const fallbackTeams = [];
+            const priorRows = [];
+            teams.forEach(t => {
+                const prev = t.ownerId != null ? byOwner[t.ownerId] : null;
+                if (prev && prev.settings && prev.settings.division != null) {
+                    priorRows.push({
+                        teamId: t.id, division: String(prev.settings.division),
+                        wins: Number(prev.settings.wins) || 0, losses: Number(prev.settings.losses) || 0, fpts: Number(prev.settings.fpts) || 0,
+                    });
+                } else {
+                    fallbackTeams.push(t.id);
+                    // Worst rank in THEIR CURRENT division — division is what
+                    // buildNFLStyleSeason groups by, so the fallback row must
+                    // use the current one, not a division that may not even
+                    // exist in this season's alignment.
+                    priorRows.push({ teamId: t.id, division: t.division, wins: -1, losses: 0, fpts: -1 });
+                }
+            });
+            const priorStandings = C.ScheduleNFL.rankPriorSeason(priorRows);
+            return { priorStandings, fallbackTeams };
+        } catch (e) {
+            window.wrLog?.('commish.schedule.priorStandings', e);
+            return { priorStandings: null, fallbackTeams: [] };
+        }
+    };
+    const onScheduleModeChange = (mode) => {
+        const lid = scheduleActiveId;
+        const cur = schedules[lid];
+        if (!lid || !cur) return;
+        if (mode !== 'nfl' || cur.priorStandings || cur.priorStandingsStatus === 'loading') {
+            persistSchedule(lid, { mode });
+            return;
+        }
+        // First time this league has selected NFL mode this session — fetch
+        // once, cache on the persisted record (a sealed season never goes
+        // stale), never refetch on every mode toggle after.
+        persistSchedule(lid, { mode, priorStandingsStatus: 'loading' });
+        const league = (state.mine || []).find(l => String(l.league_id || l.id) === lid);
+        (async () => {
+            const { priorStandings, fallbackTeams } = league
+                ? await fetchPriorStandings(lid, league, cur.teams)
+                : { priorStandings: null, fallbackTeams: [] };
+            persistSchedule(lid, { priorStandings, priorStandingsFallback: fallbackTeams, priorStandingsStatus: 'done' });
+        })();
+    };
     const onScheduleGenerate = () => {
         const lid = scheduleActiveId;
         const cur = schedules[lid];
         if (!lid || !cur || !C?.Schedule) return;
+        if (cur.mode === 'nfl') {
+            if (!C.ScheduleNFL || !C.ScheduleNFL.isEligible(cur.teams)) return;
+            const result = C.ScheduleNFL.buildNFLStyleSeason({ teams: cur.teams, priorStandings: cur.priorStandings, seasonYear: cur.seasonYear });
+            if (!result) return; // isEligible already gates this; defensive only
+            persistSchedule(lid, { schedule: result.schedule, nflMeta: result.meta });
+            return;
+        }
         const teamIds = cur.teams.map(t => t.id);
         const { rounds } = C.Schedule.buildRoundRobin({ teamIds, weeks: cur.config.weeks });
         const { schedule } = C.Schedule.applyPins({ rounds, pins: [] });
-        persistSchedule(lid, { schedule });
+        persistSchedule(lid, { schedule, nflMeta: null });
+    };
+    // Post-week-11 flex: reads LIVE standings straight off Sleeper's own
+    // roster.settings (wins/losses/fpts, updated as games are scored) rather
+    // than re-deriving a record from the schedule's own synced actuals —
+    // Sleeper already computes this and re-deriving it would just be a
+    // second, redundant place for a discrepancy to live.
+    const onScheduleFlex = async () => {
+        const lid = scheduleActiveId;
+        const cur = schedules[lid];
+        if (!lid || !cur || !cur.schedule || cur.mode !== 'nfl' || !C?.ScheduleNFL) return;
+        persistSchedule(lid, { flexStatus: 'loading' });
+        try {
+            const rosters = (typeof window.fetchLeagueRosters === 'function' ? await window.fetchLeagueRosters(lid) : null) || [];
+            const currentStandings = {};
+            rosters.forEach(r => {
+                const s = r.settings || {};
+                currentStandings[String(r.roster_id)] = { wins: Number(s.wins) || 0, losses: Number(s.losses) || 0, fpts: Number(s.fpts) || 0 };
+            });
+            const { schedule, notes } = C.ScheduleNFL.flexFinalWeeks({ schedule: cur.schedule, teams: cur.teams, currentStandings });
+            persistSchedule(lid, { schedule, flexStatus: 'done', flexNotes: notes });
+        } catch (e) {
+            window.wrLog?.('commish.schedule.flex', e);
+            persistSchedule(lid, { flexStatus: 'error' });
+        }
     };
     const onScheduleForcePairing = (week, teamA, teamB) => {
         const lid = scheduleActiveId;
@@ -388,7 +511,17 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     const scheduleValidation = React.useMemo(() => {
         const cur = schedules[scheduleActiveId];
         if (!cur || !cur.schedule || !C?.Schedule) return null;
-        return C.Schedule.validateSchedule(cur.schedule, cur.teams.map(t => t.id));
+        const v = C.Schedule.validateSchedule(cur.schedule, cur.teams.map(t => t.id));
+        if (cur.mode !== 'nfl') return v;
+        // The generic validator's "some pairs meet more/fewer times" warning
+        // assumes a flat round-robin where every pair should meet equally.
+        // In NFL mode that is never true BY DESIGN — division-mates meet
+        // twice, the full inter-division slate once, and the lottery weeks
+        // deliberately allow duplicates — so that warning would fire on
+        // every correctly-built NFL-style schedule. Games-per-team and
+        // consecutive-bye warnings stay: those would still mean something
+        // is actually wrong.
+        return { ...v, warnings: v.warnings.filter(w => !/pairs meet/.test(w)) };
     }, [schedules, scheduleActiveId]);
 
     // Proposal recompute is pure and fast (as-played sums over ~18 weeks) —
@@ -1241,6 +1374,16 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                         actualsSynced={(schedules[scheduleActiveId] || {}).actualsSynced || 0}
                         onForcePairing={onScheduleForcePairing}
                         onCopyText={onScheduleCopyText}
+                        mode={(schedules[scheduleActiveId] || {}).mode || 'simple'}
+                        onModeChange={onScheduleModeChange}
+                        seasonYear={(schedules[scheduleActiveId] || {}).seasonYear}
+                        onSeasonYearChange={onScheduleSeasonYearChange}
+                        nflMeta={(schedules[scheduleActiveId] || {}).nflMeta || null}
+                        priorStandingsStatus={(schedules[scheduleActiveId] || {}).priorStandingsStatus || 'idle'}
+                        priorStandingsFallback={(schedules[scheduleActiveId] || {}).priorStandingsFallback || []}
+                        onFlex={onScheduleFlex}
+                        flexStatus={(schedules[scheduleActiveId] || {}).flexStatus || 'idle'}
+                        flexNotes={(schedules[scheduleActiveId] || {}).flexNotes || null}
                     />
                 ) : missing('Schedule Builder')) : null}
                 {tab === 'genesis' ? (window.WrCommishGenesisPanel ? (
