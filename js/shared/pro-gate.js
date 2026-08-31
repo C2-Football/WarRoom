@@ -109,7 +109,7 @@
         '<div style="display:flex;align-items:center;gap:8px">' +
           '<span aria-hidden="true" style="font-size:0.9rem">🔒</span>' +
           '<span style="flex:1;font-family:\'JetBrains Mono\',monospace;font-size:0.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--white,#E6E9ED)">' + _esc(featureLabel || 'Pro Feature') + '</span>' +
-          '<span style="font-family:\'JetBrains Mono\',monospace;font-size:0.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--gold,#d4af37);border:1px solid rgba(212,175,55,.45);border-radius:2px;padding:1px 6px">Pro</span>' +
+          '<span style="font-family:\'JetBrains Mono\',monospace;font-size:var(--text-label, 0.75rem);letter-spacing:.08em;text-transform:uppercase;color:var(--gold,#d4af37);border:1px solid rgba(212,175,55,.45);border-radius:2px;padding:1px 6px">Pro</span>' +
         '</div>' +
         (sub ? '<div style="font-size:0.8rem;color:var(--silver,#98A1AD);line-height:1.5;margin:8px 0 0 22px">' + _esc(sub) + '</div>' : '') +
         '<button onclick="if(window.showProLaunchPage){showProLaunchPage()}else if(window.showUpgradePrompt){showUpgradePrompt(\'' + feat + '\')}" ' +

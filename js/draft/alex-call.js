@@ -111,7 +111,7 @@
 
                 <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                        <span style={{ fontFamily: FONT_DISPL, fontWeight: 800, letterSpacing: '0.14em', fontSize: '0.62rem', textTransform: 'uppercase', color: ALEX }}>
+                        <span style={{ fontFamily: FONT_DISPL, fontWeight: 800, letterSpacing: '0.14em', fontSize: 'var(--text-label, 0.75rem)', textTransform: 'uppercase', color: ALEX }}>
                             Alex on the call
                         </span>
                         <span style={{ flex: 1, height: 1, background: wrAlpha(call.color, '33') }} />

@@ -256,7 +256,7 @@ function WrSeasonOdds({ active, currentLeague, myRoster, playersData, statsData,
                                 const cell = sos.weeks[i]?.byPos?.[p];
                                 return (
                                     <span key={w} title={cell ? cell.team + ' vs ' + cell.opp + ' — allows rank ' + cell.rank + ' fantasy pts to ' + p : 'No starter / opponent unresolved'}
-                                        style={{ ...mono, fontSize: '0.66rem', fontWeight: 600, textAlign: 'center', padding: '6px 2px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + (cell ? (cell.tag === 'EASY' ? 'rgba(46,204,113,0.45)' : cell.tag === 'HARD' ? 'rgba(231,76,60,0.45)' : LINE) : 'rgba(255,255,255,0.07)'), color: cell ? tagColor(cell.tag) : 'var(--text-muted, #8D887E)' }}>
+                                        style={{ ...mono, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, textAlign: 'center', padding: '6px 2px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + (cell ? (cell.tag === 'EASY' ? 'rgba(46,204,113,0.45)' : cell.tag === 'HARD' ? 'rgba(231,76,60,0.45)' : LINE) : 'rgba(255,255,255,0.07)'), color: cell ? tagColor(cell.tag) : 'var(--text-muted, #8D887E)' }}>
                                         {cell ? cell.tag : '—'}
                                     </span>
                                 );

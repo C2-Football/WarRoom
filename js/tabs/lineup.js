@@ -66,7 +66,10 @@ function LineupTab({
     const isPhone = !!_vp.isPhone;
     // Phone micro-type floor (plan D7): sub-0.65rem labels read at ~9px — lift
     // them to 0.7rem at the phone tier only; other tiers get the exact literal.
-    const fz = s => (isPhone && parseFloat(s) < 0.65 ? '0.7rem' : s);
+    // Floor every tier at --text-micro (11px), not just phone: the old
+    // phone-only guard left the same call sites rendering at 8.9-10.4px on
+    // desktop and iPad, where this tab's ledger rows are just as dense.
+    const fz = s => (parseFloat(s) < 0.6875 ? (isPhone ? '0.7rem' : '0.6875rem') : s);
     // Free drops the Mtch column (A–F matchup grade is a Pro interpretation).
     // Phone drops the Form/Hi/Lo columns so rows fit 375px with no horizontal
     // scroll — form stats resurface inside the row-tap expand instead.
@@ -488,7 +491,7 @@ function LineupTab({
             <span style={{ minWidth: 0, overflow: 'hidden' }}>
                 <span style={{ color: unavail ? SILVER : TEXT, fontWeight: 500, textDecoration: unavail ? 'line-through' : 'none' }}>{meta.name}</span>
                 <span style={{ color: SILVER, fontSize: '0.7rem', marginLeft: '6px' }}>{meta.pos}{meta.team ? ' · ' + meta.team : ''}</span>
-                {opp && opp.abbr ? <span style={{ color: SILVER, fontSize: '0.66rem', marginLeft: '6px', opacity: 0.85 }}>{opp.home ? 'vs ' : '@ '}{opp.abbr}</span> : null}
+                {opp && opp.abbr ? <span style={{ color: SILVER, fontSize: 'var(--text-label, 0.75rem)', marginLeft: '6px', opacity: 0.85 }}>{opp.home ? 'vs ' : '@ '}{opp.abbr}</span> : null}
                 {wxTag(weather)}
                 {status ? <span style={{ color: status === 'BYE' ? SILVER : AMBER, fontSize: fz('0.62rem'), marginLeft: '6px', fontWeight: 700 }}>{status}</span> : null}
             </span>
@@ -688,7 +691,7 @@ function LineupTab({
         return (
             <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '12px 16px', marginBottom: '14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-                    <div style={{ fontSize: '0.66rem', letterSpacing: '0.07em', color: GOLD, fontWeight: 700 }}>PUSH LINEUP TO MFL</div>
+                    <div style={{ fontSize: 'var(--text-label, 0.75rem)', letterSpacing: '0.07em', color: GOLD, fontWeight: 700 }}>PUSH LINEUP TO MFL</div>
                     {mflCookie ? <span onClick={mflDisconnect} style={{ fontSize: fz('0.62rem'), color: SILVER, cursor: 'pointer', padding: isPhone ? '12px 0 12px 12px' : 0 }}>● connected · disconnect</span> : null}
                 </div>
                 {!mflCookie ? (
@@ -812,7 +815,7 @@ function LineupTab({
                                     <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontSize: '0.74rem', color: (w.isPast && !w.result) ? SILVER : TEXT }}>{w.bye ? <span style={{ color: SILVER, opacity: 0.6 }}>bye</span> : w.oppName}</span>
                                     {bye.count ? <span title={bye.unfilled ? "You can't field a full lineup this week" : bye.count + ' of your starters on bye'} style={{ flex: '0 0 auto', fontSize: fz('0.56rem'), fontWeight: 700, color: bye.thin ? (bye.unfilled ? RED : AMBER) : SILVER }}>{bye.unfilled ? '⚠' : bye.count + '·b'}</span> : null}
                                 </span>
-                                <span style={{ textAlign: 'right', fontSize: '0.68rem', fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>
+                                <span style={{ textAlign: 'right', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>
                                     {w.result ? (w.result + (w.myProj != null ? ' ' + Math.round(w.myProj) : '')) : (wp != null ? wp + '%' : w.bye ? '—' : '·')}
                                 </span>
                             </div>
@@ -1025,7 +1028,7 @@ function LineupTab({
                             {/* Game-plan expansion — one-shot, ask once (chat retired). */}
                             {!gameplanTake?.text && (
                                 <button onClick={askGameplanTake} disabled={gameplanTake?.loading}
-                                    style={{ flexShrink: 0, alignSelf: 'flex-start', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: 'var(--card-radius-xs, 5px)', color: GOLD, fontFamily: MONO, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.05em', padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                    style={{ flexShrink: 0, alignSelf: 'flex-start', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: 'var(--card-radius-xs, 5px)', color: GOLD, fontFamily: MONO, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, letterSpacing: '0.05em', padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                                     {gameplanTake?.loading ? '…' : '✨ MORE'}
                                 </button>
                             )}
@@ -1091,7 +1094,7 @@ function LineupTab({
                             {matchup.posStrength.map(ps => {
                                 const tot = (ps.mine + ps.theirs) || 1, myShare = ps.mine / tot * 100, meLead = ps.mine >= ps.theirs;
                                 return <div key={ps.pos} style={{ display: 'grid', gridTemplateColumns: '34px 52px 1fr 52px', gap: '8px', alignItems: 'center', padding: '4px 0' }}>
-                                    <span style={{ fontSize: '0.66rem', fontWeight: 700, color: GOLD }}>{ps.pos}</span>
+                                    <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: GOLD }}>{ps.pos}</span>
                                     <span style={{ textAlign: 'right', fontSize: '0.78rem', fontWeight: meLead ? 700 : 400, color: meLead ? GREEN : SILVER, fontVariantNumeric: 'tabular-nums' }}>{ps.mine.toFixed(1)}</span>
                                     <span style={{ position: 'relative', height: '6px', background: 'var(--ov-3, rgba(255,255,255,0.05))', borderRadius: '3px' }}>
                                         <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: myShare + '%', background: meLead ? 'rgba(46,204,113,0.5)' : 'rgba(212,175,55,0.32)', borderRadius: '3px' }} />
@@ -1229,7 +1232,7 @@ function LineupTab({
                         {/* Game-plan expansion — one-shot, ask once (chat retired). */}
                         {!gameplanTake?.text && (
                             <button onClick={askGameplanTake} disabled={gameplanTake?.loading}
-                                style={{ flexShrink: 0, alignSelf: 'flex-start', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: 'var(--card-radius-xs, 5px)', color: GOLD, fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.05em', padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                style={{ flexShrink: 0, alignSelf: 'flex-start', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: 'var(--card-radius-xs, 5px)', color: GOLD, fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, letterSpacing: '0.05em', padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                                 {gameplanTake?.loading ? '…' : '✨ MORE FROM ALEX'}
                             </button>
                         )}
@@ -1273,7 +1276,7 @@ function LineupTab({
                     <div style={{ textAlign: 'right' }}>
                         {pro ? (
                             <React.Fragment>
-                                <div style={{ fontSize: '0.66rem', color: SILVER, letterSpacing: '0.06em' }}>OPTIMIZING FOR</div>
+                                <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: SILVER, letterSpacing: '0.06em' }}>OPTIMIZING FOR</div>
                                 <div style={{ fontSize: '0.82rem', color: GOLD, fontWeight: 600, marginTop: '3px' }}>{OBJ_LABEL[objective] || objective}</div>
                             </React.Fragment>
                         ) : null}
@@ -1334,7 +1337,7 @@ function LineupTab({
                             {/* winPct null = one side has no projectable players — no forecast. */}
                             <div style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1, color: matchup.fc.winPct == null ? SILVER : matchup.fc.winPct >= 55 ? GREEN : matchup.fc.winPct <= 45 ? RED : GOLD }}>{matchup.fc.winPct == null ? '—' : matchup.fc.winPct + '%'}</div>
                             <div style={{ fontSize: fz('0.6rem'), color: SILVER, letterSpacing: '0.06em', marginTop: '3px' }}>WIN PROBABILITY</div>
-                            <div style={{ fontSize: '0.66rem', color: SILVER, marginTop: '4px' }}>{matchup.fc.margin == null ? '—' : (matchup.fc.margin >= 0 ? '+' : '') + matchup.fc.margin.toFixed(1) + ' proj margin'}</div>
+                            <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: SILVER, marginTop: '4px' }}>{matchup.fc.margin == null ? '—' : (matchup.fc.margin >= 0 ? '+' : '') + matchup.fc.margin.toFixed(1) + ' proj margin'}</div>
                         </div>
                     </div>
                     {showOpp ? (
@@ -1344,7 +1347,7 @@ function LineupTab({
                             {matchup.posStrength.map(ps => {
                                 const tot = (ps.mine + ps.theirs) || 1, myShare = ps.mine / tot * 100, meLead = ps.mine >= ps.theirs;
                                 return <div key={ps.pos} style={{ display: 'grid', gridTemplateColumns: '34px 52px 1fr 52px', gap: '8px', alignItems: 'center', padding: '3px 0' }}>
-                                    <span style={{ fontSize: '0.66rem', fontWeight: 700, color: GOLD }}>{ps.pos}</span>
+                                    <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: GOLD }}>{ps.pos}</span>
                                     <span style={{ textAlign: 'right', fontSize: '0.76rem', fontWeight: meLead ? 700 : 400, color: meLead ? GREEN : SILVER, fontVariantNumeric: 'tabular-nums' }}>{ps.mine.toFixed(1)}</span>
                                     <span style={{ position: 'relative', height: '6px', background: 'var(--ov-3, rgba(255,255,255,0.05))', borderRadius: '3px' }}>
                                         <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: myShare + '%', background: meLead ? 'rgba(46,204,113,0.5)' : 'rgba(212,175,55,0.32)', borderRadius: '3px' }} />
@@ -1363,9 +1366,9 @@ function LineupTab({
                                 const meWin = r.myMed > r.theirMed, theyWin = r.theirMed > r.myMed;
                                 return <div key={i} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 70px 1fr', gap: '8px', alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${LINE}` }}>
                                     <span style={{ fontSize: fz('0.62rem'), fontWeight: 700, color: GOLD }}>{r.slot.replace('_', ' ')}</span>
-                                    <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: meWin ? TEXT : SILVER, fontWeight: meWin ? 600 : 400, fontSize: '0.8rem' }}>{r.myPid ? me.name : '—'}<span style={{ color: SILVER, fontSize: '0.66rem', marginLeft: '5px', fontVariantNumeric: 'tabular-nums' }}>{r.myMed.toFixed(1)}</span></span>
+                                    <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: meWin ? TEXT : SILVER, fontWeight: meWin ? 600 : 400, fontSize: '0.8rem' }}>{r.myPid ? me.name : '—'}<span style={{ color: SILVER, fontSize: 'var(--text-label, 0.75rem)', marginLeft: '5px', fontVariantNumeric: 'tabular-nums' }}>{r.myMed.toFixed(1)}</span></span>
                                     <span style={{ textAlign: 'center', fontSize: fz('0.64rem'), fontWeight: 700, color: meWin ? GREEN : theyWin ? RED : SILVER }}>{meWin ? '◄ ' + (r.myMed - r.theirMed).toFixed(1) : theyWin ? (r.theirMed - r.myMed).toFixed(1) + ' ►' : 'even'}</span>
-                                    <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', textAlign: 'right', color: theyWin ? TEXT : SILVER, fontWeight: theyWin ? 600 : 400, fontSize: '0.8rem' }}><span style={{ color: SILVER, fontSize: '0.66rem', marginRight: '5px', fontVariantNumeric: 'tabular-nums' }}>{r.theirMed.toFixed(1)}</span>{r.theirPid ? them.name : '—'}</span>
+                                    <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', textAlign: 'right', color: theyWin ? TEXT : SILVER, fontWeight: theyWin ? 600 : 400, fontSize: '0.8rem' }}><span style={{ color: SILVER, fontSize: 'var(--text-label, 0.75rem)', marginRight: '5px', fontVariantNumeric: 'tabular-nums' }}>{r.theirMed.toFixed(1)}</span>{r.theirPid ? them.name : '—'}</span>
                                 </div>;
                             })}
                         </div>
@@ -1393,7 +1396,7 @@ function LineupTab({
                         <div key={sl.idx} style={{ borderBottom: `1px solid ${LINE}` }}>
                             <div onClick={() => setOpenSlot(open ? null : sl.idx)}
                                 style={{ display: 'grid', gridTemplateColumns: GRID, gap: '8px', padding: isPhone ? '11px 14px' : '9px 14px', minHeight: isPhone ? '44px' : undefined, alignItems: 'center', cursor: 'pointer', background: open ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'transparent' }}>
-                                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: GOLD, letterSpacing: '0.04em' }}>{sl.slotName.replace('_', ' ')}<span style={{ color: SILVER, marginLeft: '4px', fontSize: fz('0.6rem') }}>{open ? '▾' : '▸'}</span></span>
+                                <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, color: GOLD, letterSpacing: '0.04em' }}>{sl.slotName.replace('_', ' ')}<span style={{ color: SILVER, marginLeft: '4px', fontSize: fz('0.6rem') }}>{open ? '▾' : '▸'}</span></span>
                                 <PlayerCells pid={pid} />
                             </div>
                             {open ? (
@@ -1433,7 +1436,7 @@ function LineupTab({
                 })}
             </div>
 
-            <div style={{ color: SILVER, fontSize: '0.66rem', marginTop: '10px', lineHeight: 1.6, opacity: 0.9 }}>
+            <div style={{ color: SILVER, fontSize: 'var(--text-label, 0.75rem)', marginTop: '10px', lineHeight: 1.6, opacity: 0.9 }}>
                 <strong style={{ color: TEXT }}>Proj</strong> projected pts (your {objective} strategy){pro ? <React.Fragment> · <strong style={{ color: TEXT }}>Mtch</strong> matchup grade A–F (opponent's implied total)</React.Fragment> : null} · <strong style={{ color: TEXT }}>{formWinLabel}</strong> rolling avg of actual pts · <strong style={{ color: TEXT }}>Hi/Lo</strong> season best/worst week
             </div>
             <div style={{ color: SILVER, fontSize: '0.72rem', marginTop: '8px', lineHeight: 1.5 }}>

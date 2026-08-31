@@ -428,7 +428,7 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', paddingRight: 14 }}>
                                     <div style={{ fontFamily: 'var(--font-title)', fontSize: 'var(--text-body)', fontWeight: 700, color: active ? m.color : 'var(--ov-9, rgba(255,255,255,0.8))', letterSpacing: '0.03em' }}>{m.label}</div>
                                     {m.value === recommendedMode && (
-                                        <span title={teamRec?.tierLabel ? `Your roster grades ${teamRec.tierLabel}` : 'Based on your roster'} style={{ fontSize: '0.5rem', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--gold)', background: 'var(--acc-fill2, rgba(212,175,55,0.16))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.4))', borderRadius: 4, padding: '1px 5px', textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1.4 }}>★ Rec</span>
+                                        <span title={teamRec?.tierLabel ? `Your roster grades ${teamRec.tierLabel}` : 'Based on your roster'} style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--gold)', background: 'var(--acc-fill2, rgba(212,175,55,0.16))', border: '1px solid var(--acc-line2, rgba(212,175,55,0.4))', borderRadius: 4, padding: '1px 5px', textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1.4 }}>★ Rec</span>
                                     )}
                                 </div>
                                 <div style={{ fontSize: 'var(--text-micro)', color: 'var(--ov-8, rgba(255,255,255,0.4))', marginTop: 3, fontFamily: 'var(--font-body)', lineHeight: 1.3 }}>{m.desc}</div>

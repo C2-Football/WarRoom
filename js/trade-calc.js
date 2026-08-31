@@ -308,7 +308,7 @@
                             {gmViability && (() => {
                                 const vColor = gmViability === 'Playable' ? 'var(--win-green)' : gmViability === 'Negotiable' ? 'var(--warn)' : 'var(--loss-red)';
                                 const vBg = gmViability === 'Playable' ? 'rgba(46,204,113,0.12)' : gmViability === 'Negotiable' ? 'rgba(230,176,40,0.12)' : 'rgba(231,76,60,0.12)';
-                                return <span style={{ fontSize:'0.68rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', padding:'2px 8px', borderRadius:'var(--card-radius-xs, 5px)', color:vColor, border:`1px solid ${vColor}`, background:vBg }}>{gmViability}</span>;
+                                return <span style={{ fontSize:'var(--text-micro, 0.6875rem)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em', padding:'2px 8px', borderRadius:'var(--card-radius-xs, 5px)', color:vColor, border:`1px solid ${vColor}`, background:vBg }}>{gmViability}</span>;
                             })()}
                             <span style={{ fontSize:'0.7rem', color:'var(--silver)', opacity:0.72 }}>
                                 {gmModeLabel ? `${gmModeLabel} lens` : 'GM lens'} · your bar to act {typeof gmFloor === 'number' ? `${gmFloor}%` : '—'}
@@ -3411,7 +3411,7 @@
                             focus search share one line; PARTNER is a labeled row below;
                             the GM-lens read rides as a caption just above the board. */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.65, flex: 'none' }}>Intent</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.65, flex: 'none' }}>Intent</span>
                         <div className="tc-dhq-modebar" role="group" aria-label="Finder intent" style={{ flex: 'none' }}>
                             {finderIntents.map(i => <button key={i.key} type="button" className={finderQuery.intent === i.key ? 'is-active' : ''} onClick={() => { setFinderQuery(qr => ({ ...qr, intent: i.key })); setAssetBrowserPos('ALL'); setShowAllDeals(false); }}>{i.label}</button>)}
                         </div>
@@ -3459,12 +3459,12 @@
                                 }} style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 40, marginTop: '4px', background: 'var(--off-black, #10141b)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 'var(--card-radius-sm, 8px)', maxHeight: '320px', overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', boxShadow: '0 12px 26px rgba(0,0,0,0.6)' }}>
                                     {typeaheadGroups.map(group => (
                                         <div key={group.label}>
-                                            <div style={{ padding: '6px 10px 3px', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.6 }}>{group.label}</div>
+                                            <div style={{ padding: '6px 10px 3px', fontSize: 'var(--text-micro, 0.6875rem)', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.6 }}>{group.label}</div>
                                             {group.rows.map(row => {
                                                 const active = typeaheadFlat.indexOf(row) === finderTypeaheadIdx;
                                                 return <button key={row.key} type="button" role="option" aria-selected={active} onMouseDown={e => e.preventDefault()} onClick={() => selectFinderFocus(row)} style={{ width: '100%', display: 'flex', alignItems: _vp.isPhone ? 'center' : 'baseline', gap: '8px', minHeight: _vp.isPhone ? '44px' : undefined, border: 'none', borderBottom: '1px solid rgba(255,255,255,0.04)', background: active ? 'rgba(212,175,55,0.12)' : 'transparent', color: active ? 'var(--white)' : 'var(--silver)', textAlign: 'left', padding: '7px 10px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>
                                                     <strong style={{ color: 'var(--white)', fontWeight: 600, whiteSpace: 'nowrap' }}>{row.label}</strong>
-                                                    <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.68rem', opacity: 0.7 }}>{row.sub}</span>
+                                                    <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'var(--text-micro, 0.6875rem)', opacity: 0.7 }}>{row.sub}</span>
                                                     {row.value != null && <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{row.value.toLocaleString()}</span>}
                                                 </button>;
                                             })}
@@ -3478,9 +3478,9 @@
                         {focusR && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: '1px solid rgba(212,175,55,0.35)', borderRadius: 'var(--card-radius-xs, 5px)', background: 'rgba(212,175,55,0.08)', padding: '4px 8px', fontSize: '0.74rem', color: 'var(--white)' }}>
-                                    <em style={{ fontStyle: 'normal', fontSize: '0.6rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)' }}>{focusR.kind === 'pick' ? 'Pick' : focusR.kind === 'owner' ? 'Owner' : (focusR.pos || 'Player')}</em>
+                                    <em style={{ fontStyle: 'normal', fontSize: 'var(--text-micro, 0.6875rem)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)' }}>{focusR.kind === 'pick' ? 'Pick' : focusR.kind === 'owner' ? 'Owner' : (focusR.pos || 'Player')}</em>
                                     <strong style={{ fontWeight: 600 }}>{focusR.label}</strong>
-                                    {focusR.kind !== 'owner' && <span style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>{String(focusR.rosterId) === String(myRosterId) ? 'yours' : (ownerNameForRosterId(focusR.rosterId) || 'league')}</span>}
+                                    {focusR.kind !== 'owner' && <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)' }}>{String(focusR.rosterId) === String(myRosterId) ? 'yours' : (ownerNameForRosterId(focusR.rosterId) || 'league')}</span>}
                                     {/* Phone + coarse (iPad pass): hit-padding only (negative
                                         margin cancels the layout shift) so the chip row's
                                         height doesn't change — plan D7 / G4. */}
@@ -3491,7 +3491,7 @@
                         )}
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.65, flex: 'none' }}>Partner</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.65, flex: 'none' }}>Partner</span>
                         <div className="tc-dhq-modebar" role="group" aria-label="Partner filter" style={{ flex: '1 1 auto', minWidth: 0 }}>
                             <button type="button" className={effPartnerId == null ? 'is-active' : ''} onClick={() => setPartnerFacet(null)}>Auto</button>
                             {partnerBoard.slice(0, 6).map(item => {
@@ -3517,7 +3517,7 @@
                                             onClick={() => { setPartnerFacet(on ? null : a.ownerId); setPartnerListOpen(false); }}
                                             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)', background: on ? 'rgba(212,175,55,0.12)' : 'transparent', textAlign: 'left', padding: '7px 10px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>
                                             <strong style={{ color: on ? 'var(--gold)' : 'var(--white)', fontWeight: 600, minWidth: 0, flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.ownerName}</strong>
-                                            {item.posture && <span style={{ fontSize: '0.58rem', letterSpacing: '0.06em', textTransform: 'uppercase', color: item.posture.color, whiteSpace: 'nowrap' }}>{item.posture.label}</span>}
+                                            {item.posture && <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', letterSpacing: '0.06em', textTransform: 'uppercase', color: item.posture.color, whiteSpace: 'nowrap' }}>{item.posture.label}</span>}
                                             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--silver)' }}>{item.score}</span>
                                         </button>
                                     );
@@ -3535,7 +3535,7 @@
                             /* Condensed Intent/Partner control rows (owner ask) — tighter
                                than the shared .tc-dhq-modebar default so this settings
                                stack reads as a compact instrument strip, not stacked cards. */
-                            .tc-dhq-modebar button { padding: 4px 9px; font-size: 0.68rem; }
+                            .tc-dhq-modebar button { padding: 4px 9px; font-size: var(--text-micro, 0.6875rem); }
                             .tc-dhq-asset-table.has-add .tc-dhq-asset-row { grid-template-columns: minmax(150px,1.5fr) 46px 72px 48px minmax(118px,1fr) 68px 58px 36px; min-width: 764px; }
                             .tc-dhq-asset-table.is-picks .tc-dhq-asset-row { grid-template-columns: minmax(170px,1.6fr) 56px minmax(130px,1fr) 80px 36px; min-width: 520px; }
                             div.tc-dhq-asset-row[tabindex] { cursor: pointer; }
@@ -3543,8 +3543,8 @@
                             .tc-dhq-add-btn { width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; justify-self: end; border-radius: var(--card-radius-sm, 8px); border: 1px solid var(--acc-line2, rgba(212,175,55,0.4)); background: rgba(212,175,55,0.10); color: var(--gold); font-family: var(--font-mono, monospace); font-size: 0.95rem; font-weight: 700; line-height: 1; padding: 0; cursor: pointer; }
                             .tc-dhq-add-btn:hover { background: rgba(212,175,55,0.22); border-color: var(--gold); }
                         `}</style>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap', fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.8, lineHeight: 1.3 }}>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.65 }}>GM lens</span>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.8, lineHeight: 1.3 }}>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.65 }}>GM lens</span>
                             <strong style={{ color: 'var(--gold)', fontWeight: 700 }}>{focusTuning.modeLabel}</strong>
                             <span>· bar {actionFloor}% · {focusTuning.untouchable.size} untouchable{focusTuning.untouchable.size === 1 ? '' : 's'} · {modeDescriptor}</span>
                         </div>
@@ -3638,7 +3638,7 @@
                                                 if (!rf) return null;
                                                 const bits = [rf.college, rf.draftSlot || (rf.isUDFA ? 'UDFA' : ''), rf.tierLabel].filter(Boolean);
                                                 if (!bits.length) return null;
-                                                return <em style={{ display:'block', fontStyle:'normal', fontSize:'0.64rem', color:'var(--gold)', opacity:0.85, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{bits.join(' · ')}</em>;
+                                                return <em style={{ display:'block', fontStyle:'normal', fontSize:'var(--text-micro, 0.6875rem)', color:'var(--gold)', opacity:0.85, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{bits.join(' · ')}</em>;
                                             })()}</span>
                                             <span style={{ color:posColor(row.pos) }}>{row.pos}</span>
                                             <span>{row.value.toLocaleString()}</span>
@@ -3752,7 +3752,7 @@
                             <span>Live Verdict</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 'none' }}>
                                 <em>{_verdict.hasTrade ? 'Tracks the builder' : 'No live deal'}</em>
-                                <button type="button" className="tc-rail-hide" onClick={() => setRailHidden(true)} title="Hide the deal-intel panel — reopen from the tab row" style={{ background: 'transparent', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.68rem', padding: '2px 7px', flex: 'none' }}>Hide ▸</button>
+                                <button type="button" className="tc-rail-hide" onClick={() => setRailHidden(true)} title="Hide the deal-intel panel — reopen from the tab row" style={{ background: 'transparent', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: 'var(--text-micro, 0.6875rem)', padding: '2px 7px', flex: 'none' }}>Hide ▸</button>
                             </div>
                         </div>
                         <div className="tc-dhq-panel-body tc-dhq-dossier-body">
@@ -3823,7 +3823,7 @@
             const builderEl = active === 'desk' && (
                         <div style={{ margin: buildingLive ? '0 0 12px' : '12px 0 0', border: '1px solid rgba(53,208,214,0.28)', borderRadius: 'var(--card-radius-sm, 8px)', background: 'rgba(53,208,214,0.05)', overflow: 'hidden' }}>
                             <button type="button" onClick={() => setBuilderExpanded(v => !v)} title="Build or tweak a deal without leaving this view" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', textAlign: 'left', background: 'transparent', border: 'none', padding: '9px 13px', cursor: 'pointer' }}>
-                                <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#35d0d6' }}>{_verdict.hasTrade ? 'Live deal' : 'Trade builder'}</span>
+                                <span style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#35d0d6' }}>{_verdict.hasTrade ? 'Live deal' : 'Trade builder'}</span>
                                 {_verdict.hasTrade ? (
                                     <>
                                         <strong style={{ fontFamily: 'var(--font-title)', fontSize: '0.95rem', color: _verdict.verdictColor }}>{_verdict.verdictText} {_verdict.diffDisplay}</strong>
@@ -4202,8 +4202,8 @@
             const outcomeColor = !gt ? 'var(--silver)' : gt.cat === 'rejected' ? 'var(--loss-red)' : gt.cat === 'counter' ? 'var(--warn)' : 'var(--win-green)';
             // Phone: 44px touch bumps on the lane controls (status select, outcome
             // select, Load in Builder, remove X) — glyph sizes unchanged, plan D7.
-            const selStyle = { padding: '3px 6px', minHeight: _vp.isPhone ? '44px' : undefined, fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'var(--charcoal)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer' };
-            const btnStyle = { padding: '3px 8px', minHeight: _vp.isPhone ? '44px' : undefined, minWidth: _vp.isPhone ? '44px' : undefined, fontSize: '0.68rem', fontFamily: 'var(--font-body)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer' };
+            const selStyle = { padding: '3px 6px', minHeight: _vp.isPhone ? '44px' : undefined, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'var(--charcoal)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer' };
+            const btnStyle = { padding: '3px 8px', minHeight: _vp.isPhone ? '44px' : undefined, minWidth: _vp.isPhone ? '44px' : undefined, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: 'var(--font-body)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer' };
             return (
                 <div key={row.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', padding: '7px 10px', marginBottom: '5px', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 'var(--card-radius-sm, 8px)' }}>
                     <div style={{ flex: '1 1 240px', minWidth: 0 }}>
@@ -4216,7 +4216,7 @@
                         <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pipelineRowSummary(row)}</div>
                     </div>
                     {terminal
-                        ? <span title={row.outcome?.date ? new Date(row.outcome.date).toLocaleDateString() : undefined} style={{ fontSize: '0.68rem', fontWeight: 700, color: outcomeColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{gt?.label || row.status}</span>
+                        ? <span title={row.outcome?.date ? new Date(row.outcome.date).toLocaleDateString() : undefined} style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: outcomeColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{gt?.label || row.status}</span>
                         : <React.Fragment>
                             <select value={row.status} onChange={e => updatePipelineRow(row.id, { status: e.target.value })} style={selStyle} title="Pipeline status">
                                 <option value="idea">Idea</option>
@@ -4252,7 +4252,7 @@
                     if (!rows.length) return null;
                     return (
                         <div key={lane.key} style={{ marginBottom: '10px' }}>
-                            <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.7, margin: '0 0 4px' }}>{lane.label} · {rows.length}</div>
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.7, margin: '0 0 4px' }}>{lane.label} · {rows.length}</div>
                             {rows.map(renderPipelineRow)}
                         </div>
                     );
@@ -4758,7 +4758,7 @@
                         <div style={{ maxHeight: '42vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-sm, 8px)' }}>
                             <button type="button" style={partnerRow(effPartnerId == null)} onClick={() => { phSetPartner(null); setPhFinderPanel(null); }}>
                                 <strong style={{ color: effPartnerId == null ? 'var(--gold)' : 'var(--white)', fontWeight: 600 }}>Auto</strong>
-                                <span style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.65, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Best partner picked for you</span>
+                                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.65, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Best partner picked for you</span>
                             </button>
                             {partnerBoard.map(item => {
                                 const a = item.assessment;
@@ -4766,18 +4766,18 @@
                                 return (
                                     <button key={a.rosterId} type="button" style={partnerRow(on)} onClick={() => { phSetPartner(on ? null : a.ownerId); setPhFinderPanel(null); }}>
                                         <strong style={{ color: on ? 'var(--gold)' : 'var(--white)', fontWeight: 600, minWidth: 0, flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.ownerName}</strong>
-                                        {item.posture && <span style={{ fontSize: '0.58rem', letterSpacing: '0.06em', textTransform: 'uppercase', color: item.posture.color, whiteSpace: 'nowrap' }}>{item.posture.label}</span>}
+                                        {item.posture && <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', letterSpacing: '0.06em', textTransform: 'uppercase', color: item.posture.color, whiteSpace: 'nowrap' }}>{item.posture.label}</span>}
                                         <span style={{ fontFamily: MONO, fontSize: '0.72rem', color: 'var(--silver)' }}>{item.score}</span>
                                     </button>
                                 );
                             })}
                         </div>
                         <div>
-                            <div style={{ fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.6, marginBottom: '5px' }}>Or target a player / pick</div>
+                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.6, marginBottom: '5px' }}>Or target a player / pick</div>
                             {focusR && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: '1px solid rgba(212,175,55,0.35)', borderRadius: 'var(--card-radius-xs, 5px)', background: 'rgba(212,175,55,0.08)', padding: '6px 9px', fontSize: '0.76rem', color: 'var(--white)', minWidth: 0 }}>
-                                        <em style={{ fontStyle: 'normal', fontSize: '0.6rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)' }}>{focusR.kind === 'pick' ? 'Pick' : focusR.kind === 'owner' ? 'Owner' : (focusR.pos || 'Player')}</em>
+                                        <em style={{ fontStyle: 'normal', fontSize: 'var(--text-micro, 0.6875rem)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)' }}>{focusR.kind === 'pick' ? 'Pick' : focusR.kind === 'owner' ? 'Owner' : (focusR.pos || 'Player')}</em>
                                         <strong style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{focusR.label}</strong>
                                     </span>
                                     <button type="button" onClick={phClearFocus} aria-label="Clear focus" style={{ ...actBtn(false), padding: '6px 12px' }}>✕ Clear</button>
@@ -4790,12 +4790,12 @@
                                 style={{ width: '100%', minHeight: '44px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: 'var(--card-radius-xs, 5px)', background: 'rgba(255,255,255,0.045)', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '16px', padding: '8px 10px' }} />
                             {phTypeGroups.map(group => (
                                 <div key={group.label}>
-                                    <div style={{ padding: '8px 2px 3px', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.6 }}>{group.label}</div>
+                                    <div style={{ padding: '8px 2px 3px', fontSize: 'var(--text-micro, 0.6875rem)', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.6 }}>{group.label}</div>
                                     {group.rows.map(row => (
                                         <button key={row.key} type="button" onClick={() => phSelectFocus(row)}
                                             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', minHeight: '44px', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.04)', background: 'transparent', color: 'var(--silver)', textAlign: 'left', padding: '7px 2px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>
                                             <strong style={{ color: 'var(--white)', fontWeight: 600, whiteSpace: 'nowrap' }}>{row.label}</strong>
-                                            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.68rem', opacity: 0.7 }}>{row.sub}</span>
+                                            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'var(--text-micro, 0.6875rem)', opacity: 0.7 }}>{row.sub}</span>
                                             {row.value != null && <span style={{ marginLeft: 'auto', fontFamily: MONO, fontSize: '0.72rem' }}>{row.value.toLocaleString()}</span>}
                                         </button>
                                     ))}

@@ -2802,9 +2802,25 @@
                 <style>{`@media(max-width:1023px){
                     .wr-time-years{display:none !important}
                     .wr-time-years-select{display:inline-block !important}
+                    /* On the compact tiers the season control collapses to the
+                       dropdown, whose selected option already reads "2026 •
+                       current" — so the CURRENT SEASON label beside it is pure
+                       duplication. The loud wr-time-banner still calls out any
+                       NON-current season, so nothing is lost. */
+                    .wr-time-mode.is-current{display:none !important}
                 }
                 @media(min-width:768px) and (max-width:1023px){
+                    /* The bar carries one dropdown at this tier — it does not need
+                       the desktop row's vertical padding. */
+                    .wr-time-bar{padding-top:5px !important;padding-bottom:5px !important}
                     .wr-league-header-row{flex-wrap:nowrap !important;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+                    /* The title is the only flex:0 1 item in this row — every badge
+                       is 0 0 auto — so it absorbed ALL the overflow and collapsed to
+                       ~70px ("The Psy…") while the badges kept full width. This tier
+                       is already declared scrollable; give the league name a floor so
+                       the badge cluster is what scrolls instead. !important because
+                       the element carries an inline min-width:0. */
+                    .wr-league-header-row .header-title{min-width:min(210px, 34vw) !important}
                     .wr-league-header-row::-webkit-scrollbar{display:none}
                     .wr-time-bar{flex-wrap:nowrap !important;overflow-x:auto;scrollbar-width:none}
                     .wr-time-bar::-webkit-scrollbar{display:none}
@@ -3078,7 +3094,7 @@
                                         style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', minHeight: '44px' }}>
                                         <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', flex: 'none', background: phaseColor }} />
                                         <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.02em', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentLeague.name}</span>
-                                        <span aria-hidden="true" style={{ color: 'var(--text-muted)', fontSize: '0.65rem', flex: 'none' }}>▾</span>
+                                        <span aria-hidden="true" style={{ color: 'var(--text-muted)', fontSize: 'var(--text-label, 0.75rem)', flex: 'none' }}>▾</span>
                                     </div>
                                     <button className="wr-phone-hdr-refresh" onClick={doRefresh} disabled={!!loadStage} aria-label="Refresh data" title="Reload DHQ values, league history, and AI data" style={{ flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '36px', minHeight: '36px', padding: '6px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--gold)', cursor: loadStage ? 'default' : 'pointer' }}>
                                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={loadStage ? { animation: 'dhqSpin 0.8s linear infinite' } : undefined}>
@@ -3355,7 +3371,7 @@
                         the wr-time-banner below already carries the loud version of this
                         signal when viewing a historical/future season, so this pill was
                         just restating "current season" in a colored chip most of the time. */}
-                    <span className="wr-time-mode" style={isCurrentYear ? {
+                    <span className={'wr-time-mode' + (isCurrentYear ? ' is-current' : '')} style={isCurrentYear ? {
                         fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, color: 'var(--silver)',
                         padding: '2px 4px',
                         fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.04em'

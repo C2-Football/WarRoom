@@ -315,14 +315,14 @@ function LeagueCentralTab({
     // (playoff picture) are two reads of the same enriched rows, so a team
     // can never rank differently between them.
     const FormGuide = ({ form }) => {
-        if (!form || !form.length) return <span style={{ color: FAINT, fontFamily: MONO, fontSize: '0.65rem' }}>—</span>;
+        if (!form || !form.length) return <span style={{ color: FAINT, fontFamily: MONO, fontSize: 'var(--text-label, 0.75rem)' }}>—</span>;
         return (
             <span style={{ display: 'inline-flex', gap: '3px' }}>
                 {form.map((g, i) => (
                     <i key={i} title={'Week ' + g.week + (g.pts != null ? ' · ' + Number(g.pts).toFixed(1) : '')}
                         style={{
                             width: '16px', height: '16px', borderRadius: 'var(--card-radius-xs, 5px)',
-                            display: 'grid', placeItems: 'center', fontFamily: MONO, fontSize: '0.5rem',
+                            display: 'grid', placeItems: 'center', fontFamily: MONO, fontSize: 'var(--text-label, 0.75rem)',
                             fontWeight: 800, fontStyle: 'normal',
                             background: g.result === 'W' ? 'rgba(46,204,113,0.16)' : 'rgba(231,76,60,0.14)',
                             color: g.result === 'W' ? GOOD : BAD,
@@ -333,7 +333,7 @@ function LeagueCentralTab({
         );
     };
 
-    const th = { fontFamily: MONO, fontSize: '0.6rem', color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left', padding: '6px 7px', borderBottom: '1px solid ' + LINE, whiteSpace: 'nowrap' };
+    const th = { fontFamily: MONO, fontSize: 'var(--text-label, 0.75rem)', color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left', padding: '6px 7px', borderBottom: '1px solid ' + LINE, whiteSpace: 'nowrap' };
     const thNum = { ...th, textAlign: 'right' };
     const td = { padding: '7px', borderBottom: '1px solid rgba(255,255,255,0.04)', whiteSpace: 'nowrap', fontFamily: DM, fontSize: '0.78rem' };
     const tdNum = { ...td, textAlign: 'right', ...mono };
@@ -413,7 +413,7 @@ function LeagueCentralTab({
     );
 
     const segBtn = (on) => ({
-        fontFamily: MONO, fontSize: '0.6rem', letterSpacing: '0.05em', textTransform: 'uppercase',
+        fontFamily: MONO, fontSize: 'var(--text-label, 0.75rem)', letterSpacing: '0.05em', textTransform: 'uppercase',
         padding: '5px 9px', borderRadius: 'var(--card-radius-xs, 5px)', border: 'none', cursor: 'pointer',
         whiteSpace: 'nowrap',
         background: on ? 'rgba(212,175,55,0.16)' : 'transparent', color: on ? GOLD : MUTED,
@@ -586,7 +586,7 @@ function LeagueCentralTab({
                                             <td style={{ ...td, ...mono, color: MUTED, width: '18px' }}>{i + 1}</td>
                                             <td style={{ ...td, maxWidth: '170px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                 <div style={{ fontWeight: 600, color: WHITE }}>{r.name}</div>
-                                                <div style={{ fontFamily: MONO, fontSize: '0.62rem', color: MUTED }}>{r.pos} · {r.team}</div>
+                                                <div style={{ fontFamily: MONO, fontSize: 'var(--text-label, 0.75rem)', color: MUTED }}>{r.pos} · {r.team}</div>
                                             </td>
                                             {leaderPos === 'Overall' && !isPhone && (
                                                 <td style={{ ...td, color: SILVER, fontSize: '0.72rem', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{_getOwnerName(r.rosterId)}</td>

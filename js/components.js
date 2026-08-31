@@ -258,7 +258,12 @@
     function AlexAvatar({ size }) {
         const sz = size || 28;
         const c = getAlexBadgeColor();
-        return React.createElement('div', { style: { width: sz+'px', height: sz+'px', borderRadius: sz > 24 ? '8px' : '6px', background: 'linear-gradient(135deg, ' + c.from + ', ' + c.to + ')', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: (sz * 0.024) + 'rem', fontWeight: 800, color: c.text, fontFamily: 'Rajdhani, sans-serif' } }, 'AI');
+        // The monogram is a brand mark, not data text, so it is floored at 8px
+        // rather than the 11px --text-micro body floor — 11px will not fit a
+        // 16px badge. Below the floor the old ratio rendered "AI" at 6.1px in
+        // the 16px badge the briefing header uses, i.e. an illegible smudge.
+        const glyphRem = Math.max(sz * 0.024, 0.5);
+        return React.createElement('div', { style: { width: sz+'px', height: sz+'px', borderRadius: sz > 24 ? 'var(--card-radius-sm, 8px)' : 'var(--card-radius-xs, 5px)', background: 'linear-gradient(135deg, ' + c.from + ', ' + c.to + ')', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: glyphRem + 'rem', fontWeight: 800, color: c.text, fontFamily: 'Rajdhani, sans-serif' } }, 'AI');
     }
     window.AlexAvatar = AlexAvatar;
     window.ALEX_AVATARS = ALEX_AVATARS;

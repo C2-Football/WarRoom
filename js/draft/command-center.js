@@ -2349,9 +2349,9 @@
                                     <div className="draft-setup-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                         <span>{state.draftMechanic === 'auction' ? 'Nomination Order' : 'Team Order'}{state.customSlotOrder ? ' (custom)' : ''}</span>
                                         <span style={{ display: 'flex', gap: 6 }}>
-                                            <button type="button" onClick={shuffleOrder} style={{ padding: '3px 9px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', borderRadius: 5, background: 'transparent', color: 'var(--gold)', fontFamily: FONT_UI, fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer' }}>Shuffle</button>
+                                            <button type="button" onClick={shuffleOrder} style={{ padding: '3px 9px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', borderRadius: 5, background: 'transparent', color: 'var(--gold)', fontFamily: FONT_UI, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer' }}>Shuffle</button>
                                             {state.customSlotOrder && (
-                                                <button type="button" onClick={() => update({ customSlotOrder: null })} style={{ padding: '3px 9px', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 5, background: 'transparent', color: 'var(--silver)', fontFamily: FONT_UI, fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer' }}>Reset</button>
+                                                <button type="button" onClick={() => update({ customSlotOrder: null })} style={{ padding: '3px 9px', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 5, background: 'transparent', color: 'var(--silver)', fontFamily: FONT_UI, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer' }}>Reset</button>
                                             )}
                                         </span>
                                     </div>
@@ -2366,7 +2366,7 @@
                                                     <span style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.78rem', color: isMine ? 'var(--gold)' : 'var(--white)', fontWeight: isMine ? 700 : 400 }}>
                                                         {info.ownerName || 'Team ' + slot}{isMine ? ' (YOU)' : ''}
                                                         {!isMine && dnaByRosterId[rosterId]?.label && (
-                                                            <em style={{ marginLeft: 6, fontStyle: 'normal', fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.6 }}>· {dnaByRosterId[rosterId].label}</em>
+                                                            <em style={{ marginLeft: 6, fontStyle: 'normal', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6 }}>· {dnaByRosterId[rosterId].label}</em>
                                                         )}
                                                     </span>
                                                     <button type="button" aria-label={'Move ' + (info.ownerName || 'team ' + slot) + ' up'} disabled={i === 0} onClick={() => moveSlot(i, -1)} style={{ width: 26, height: 26, flex: 'none', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 4, background: 'transparent', color: i === 0 ? 'var(--text-disabled, #444)' : 'var(--silver)', cursor: i === 0 ? 'default' : 'pointer', fontSize: '0.7rem', lineHeight: 1 }}>▲</button>
@@ -4775,13 +4775,13 @@
                             <div key={rosterId} style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: 6, padding: '6px 9px', background: isMe ? 'rgba(212,175,55,0.06)' : 'transparent' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6 }}>
                                     <strong style={{ color: isMe ? 'var(--gold)' : 'var(--white)', fontSize: '0.72rem', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mockTeamName(state, rosterId)}{isMe ? ' (YOU)' : ''}</strong>
-                                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.68rem', color, flex: 'none' }}>${b.remaining}<span style={{ color: 'var(--silver)', opacity: 0.6 }}> / ${b.total}</span></span>
+                                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-micro, 0.6875rem)', color, flex: 'none' }}>${b.remaining}<span style={{ color: 'var(--silver)', opacity: 0.6 }}> / ${b.total}</span></span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
                                     <div style={{ flex: '1 1 auto', height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
                                         <div style={{ width: pct + '%', height: '100%', background: color }} />
                                     </div>
-                                    <span style={{ flex: 'none', fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.6 }}>{filled}/{state.rounds}</span>
+                                    <span style={{ flex: 'none', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6 }}>{filled}/{state.rounds}</span>
                                 </div>
                             </div>
                         );
@@ -4827,11 +4827,11 @@
             <section className="mock-panel">
                 <div className="mock-panel-head"><span>On the Block</span><em>{state.speed === 'paused' ? '⏸ Paused' : secLeft + 's'}</em></div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.6rem', fontWeight: 900, color: posColors[nom.pos] || 'var(--gold)', border: '1px solid currentColor', borderRadius: 4, padding: '2px 6px' }}>{nom.pos}</span>
+                    <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, color: posColors[nom.pos] || 'var(--gold)', border: '1px solid currentColor', borderRadius: 4, padding: '2px 6px' }}>{nom.pos}</span>
                     <strong style={{ color: 'var(--white)', fontSize: '0.94rem', flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nom.name}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 8 }}>
-                    <span style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.7 }}>High bid — {mockTeamName(state, nom.highBidderRosterId)}{userIsHigh ? ' (YOU)' : ''}</span>
+                    <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.7 }}>High bid — {mockTeamName(state, nom.highBidderRosterId)}{userIsHigh ? ' (YOU)' : ''}</span>
                     <strong style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1.3rem', color: 'var(--gold)' }}>${nom.highBid}</strong>
                 </div>
                 <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', marginTop: 6 }}>
@@ -4845,14 +4845,14 @@
                         <button type="button" onClick={() => bid(userCeiling)} style={{ padding: '6px 10px', border: '1px solid var(--gold)', borderRadius: 5, background: 'var(--gold)', color: 'var(--page-bg, #0A0A0F)', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer' }}>Max (${userCeiling})</button>
                     </div>
                 ) : (
-                    <div style={{ marginTop: 10, fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.6 }}>
+                    <div style={{ marginTop: 10, fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6 }}>
                         {userIsHigh ? "You're the high bidder." : openSlots <= 0 ? 'Your roster is full.' : 'Budget-safe max reached — can\'t outbid.'}
                     </div>
                 )}
                 {recent.length > 0 && (
                     <div style={{ marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
                         {recent.map((b, i) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.75 }}>
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.75 }}>
                                 <span>{mockTeamName(state, b.rosterId)}</span>
                                 <span style={{ fontFamily: 'JetBrains Mono, monospace' }}>${b.amount}</span>
                             </div>
@@ -4882,7 +4882,7 @@
                 <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
                     <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search players…" style={{ flex: '1 1 160px', minHeight: 32, border: '1px solid rgba(212,175,55,0.22)', borderRadius: 5, background: 'rgba(255,255,255,0.045)', color: 'var(--white)', fontSize: '0.74rem', padding: '4px 8px' }} />
                     {positions.map(p => (
-                        <button key={p} type="button" className={pos === p ? 'is-active' : ''} onClick={() => setPos(p)} style={{ padding: '4px 8px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: 5, background: pos === p ? 'var(--gold)' : 'transparent', color: pos === p ? 'var(--black)' : 'var(--silver)', fontSize: '0.66rem', fontWeight: 700, cursor: 'pointer' }}>{p}</button>
+                        <button key={p} type="button" className={pos === p ? 'is-active' : ''} onClick={() => setPos(p)} style={{ padding: '4px 8px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: 5, background: pos === p ? 'var(--gold)' : 'transparent', color: pos === p ? 'var(--black)' : 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, cursor: 'pointer' }}>{p}</button>
                     ))}
                 </div>
                 <div className="mock-board-scroll" style={{ overflowY: 'auto', flex: '1 1 auto' }}>
@@ -4892,9 +4892,9 @@
                         return (
                             <div key={p.pid} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 34px 56px 70px', gap: 8, alignItems: 'center', padding: '6px 4px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                                 <span style={{ color: 'var(--white)', fontSize: '0.76rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                                <span style={{ color: posColors[p.pos] || 'var(--gold)', fontSize: '0.68rem', fontWeight: 700 }}>{p.pos}</span>
+                                <span style={{ color: posColors[p.pos] || 'var(--gold)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700 }}>{p.pos}</span>
                                 <span style={{ fontFamily: 'JetBrains Mono, monospace', color: 'var(--gold)', fontSize: '0.72rem', textAlign: 'right' }}>{mockFmt(p.dhq || p.val)}</span>
-                                <button type="button" disabled={!canNominate} onClick={() => dispatch({ type: 'NOMINATE_PLAYER', pid: p.pid, player: p, nominatorRosterId: state.userRosterId })} style={{ padding: '4px 8px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', borderRadius: 5, background: canNominate ? 'rgba(212,175,55,0.10)' : 'transparent', color: canNominate ? 'var(--gold)' : 'var(--text-disabled, #444)', fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', cursor: canNominate ? 'pointer' : 'default' }}>Nominate</button>
+                                <button type="button" disabled={!canNominate} onClick={() => dispatch({ type: 'NOMINATE_PLAYER', pid: p.pid, player: p, nominatorRosterId: state.userRosterId })} style={{ padding: '4px 8px', border: '1px solid var(--acc-line2, rgba(212,175,55,0.32))', borderRadius: 5, background: canNominate ? 'rgba(212,175,55,0.10)' : 'transparent', color: canNominate ? 'var(--gold)' : 'var(--text-disabled, #444)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, textTransform: 'uppercase', cursor: canNominate ? 'pointer' : 'default' }}>Nominate</button>
                             </div>
                         );
                     })}
@@ -5337,7 +5337,7 @@
                                     <div style={{ display: 'flex', flexDirection: compact ? 'column' : 'row', alignItems: compact ? 'stretch' : 'center', gap: compact ? '10px' : '24px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: compact ? '14px' : '0', textAlign: compact ? 'left' : 'center', flexShrink: 0 }}>
                                             <div style={{ fontFamily: FONT_DISPL, fontSize: compact ? '3.4rem' : '5.5rem', fontWeight: 700, color: gradeColor, lineHeight: 1 }}>{recapPro ? (grade.letter || '—') : '🔒'}</div>
-                                            <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: compact ? 0 : '2px' }}>{recapPro ? 'Overall Grade' : 'Grade — Scout Pro'}</div>
+                                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: compact ? 0 : '2px' }}>{recapPro ? 'Overall Grade' : 'Grade — Scout Pro'}</div>
                                         </div>
                                         <div style={{ flex: 1 }}>
                                             <div style={{ fontSize: '0.96rem', color: 'var(--white)', lineHeight: 1.5 }}>
@@ -5353,8 +5353,8 @@
                                             <div style={{ textAlign: 'center', flexShrink: 0, padding: compact ? '10px 14px' : '12px 18px', borderRadius: 'var(--card-radius-lg, 14px)', background: wrAlpha(effColor, '12'), border: '1px solid ' + wrAlpha(effColor, '40'), minWidth: compact ? 0 : '128px', display: compact ? 'flex' : 'block', alignItems: compact ? 'center' : undefined, gap: compact ? '12px' : 0, justifyContent: compact ? 'flex-start' : undefined }}>
                                                 <div style={{ fontFamily: FONT_DISPL, fontSize: compact ? '1.9rem' : '2.6rem', fontWeight: 700, color: effColor, lineHeight: 1 }}>{effPct}%</div>
                                                 <div style={{ textAlign: compact ? 'left' : 'center' }}>
-                                                    <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: compact ? 0 : '4px' }}>{gradeBasis === 'vs $ spent' ? <>of expected value{compact ? ' ' : <br/>}for your spend</> : <>of expected DHQ{compact ? ' ' : <br/>}for your slots</>}</div>
-                                                    <div style={{ fontSize: '0.6rem', color: effColor, opacity: 0.9, marginTop: '4px', fontWeight: 700 }}>{effPct >= 100 ? 'NAILED YOUR SLOTS' : effPct >= 85 ? 'SOLID FOR YOUR SLOTS' : 'LEFT VALUE ON BOARD'}</div>
+                                                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: compact ? 0 : '4px' }}>{gradeBasis === 'vs $ spent' ? <>of expected value{compact ? ' ' : <br/>}for your spend</> : <>of expected DHQ{compact ? ' ' : <br/>}for your slots</>}</div>
+                                                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: effColor, opacity: 0.9, marginTop: '4px', fontWeight: 700 }}>{effPct >= 100 ? 'NAILED YOUR SLOTS' : effPct >= 85 ? 'SOLID FOR YOUR SLOTS' : 'LEFT VALUE ON BOARD'}</div>
                                                 </div>
                                             </div>
                                         )}
@@ -5553,7 +5553,7 @@
                                                                     </div>
                                                                 </button>
                                                                 <span style={{ color: recapPro ? gradeCol : 'var(--silver)', fontFamily: FONT_DISPL, fontSize: '0.9rem', fontWeight: 900, flexShrink: 0 }}>{recapPro ? team.grade : '🔒'}</span>
-                                                                <span style={{ color: 'var(--silver)', fontSize: '0.66rem', fontFamily: FONT_MONO, flexShrink: 0 }}>{fmtDhq(team.totalDHQ)}</span>
+                                                                <span style={{ color: 'var(--silver)', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO, flexShrink: 0 }}>{fmtDhq(team.totalDHQ)}</span>
                                                             </div>
                                                             <div style={{ marginTop: '3px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                                                 <span style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', flexShrink: 0, whiteSpace: 'nowrap' }}>{team.buildLabel}</span>
@@ -7461,7 +7461,7 @@
             return Math.floor(s / 86400) + 'd';
         };
         const avatarEl = (label, color, bg) => (
-            <span style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: bg, color, fontFamily: FONT_MONO, fontSize: '0.62rem', fontWeight: 900, border: '1px solid ' + color }}>{label}</span>
+            <span style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: bg, color, fontFamily: FONT_MONO, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, border: '1px solid ' + color }}>{label}</span>
         );
         const initialsOf = s => String(s || '?').trim().split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
         const pickRowEl = pk => {

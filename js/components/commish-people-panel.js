@@ -106,7 +106,7 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
                         <div key={p.userId} style={{ padding: '9px 0', borderBottom: i === people.length - 1 ? 'none' : `1px solid ${LINE}` }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                                 <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.82rem', color: TEXT }}>{p.name}{p.isMe ? ' (you)' : ''}</span>
-                                <span style={{ ...mono, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: chip.color, border: '1px solid ' + chip.border, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 7px', whiteSpace: 'nowrap' }}>{chip.label}</span>
+                                <span style={{ ...mono, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: chip.color, border: '1px solid ' + chip.border, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 7px', whiteSpace: 'nowrap' }}>{chip.label}</span>
                             </div>
                             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '5px' }}>
                                 {(p.teams || []).map(t => (
@@ -144,7 +144,7 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
                         <div key={seat.leagueId + ':' + seat.rosterId} style={{ background: 'var(--black, #121217)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', marginBottom: i === seatList.length - 1 ? 0 : '10px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '7px' }}>
                                 <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.82rem', color: TEXT }}>{seat.leagueName}</span>
-                                <span style={{ ...mono, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: TEXT, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 7px' }}>
+                                <span style={{ ...mono, fontSize: 'var(--text-label, 0.75rem)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: TEXT, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '2px 7px' }}>
                                     {seat.reason === 'owner_left' ? 'Owner left' : 'Unowned'}
                                 </span>
                             </div>
@@ -153,9 +153,9 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
                             ) : bench.map((c, ci) => (
                                 <div key={c.userId} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', padding: '5px 0', borderBottom: ci === bench.length - 1 ? 'none' : `1px solid ${LINE}` }}>
                                     <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.78rem', color: TEXT }}>{c.name}</span>
-                                    <span style={{ ...mono, fontSize: '0.68rem', color: TEXT }}>fit {c.score}</span>
+                                    <span style={{ ...mono, fontSize: 'var(--text-label, 0.75rem)', color: TEXT }}>fit {c.score}</span>
                                     {(c.reasons || []).map((r, ri) => (
-                                        <span key={ri} style={{ fontSize: '0.62rem', color: MUTED, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 6px' }}>{r}</span>
+                                        <span key={ri} style={{ fontSize: 'var(--text-label, 0.75rem)', color: MUTED, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 6px' }}>{r}</span>
                                     ))}
                                 </div>
                             ))}

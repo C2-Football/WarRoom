@@ -995,7 +995,7 @@
                                     const v = raw ? SC.computeStat(stat.key, raw, { perGame: true }) : null;
                                     return (
                                         <span title={stat ? stat.label : undefined} style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: v != null ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.28))', fontFamily: FONT_MONO, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                                            {v != null ? <React.Fragment>{SC.formatStat(v, stat.format)} <span style={{ opacity: 0.6, fontSize: '0.6rem' }}>{stat.short}</span></React.Fragment> : '—'}
+                                            {v != null ? <React.Fragment>{SC.formatStat(v, stat.format)} <span style={{ opacity: 0.6, fontSize: 'var(--text-micro, 0.6875rem)' }}>{stat.short}</span></React.Fragment> : '—'}
                                         </span>
                                     );
                                 })()}
