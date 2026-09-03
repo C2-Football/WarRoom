@@ -2776,7 +2776,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" src="js/components.js?v=20260803rv2"></script>
 <!-- 2b. Unified Player Card (SI-2) — window.WR.openPlayerCard — replaces CDN modal -->
 <!-- Shared visual primitives (WR.Card / Badge / Chip / ConfChip / DeltaLine / Kpi / InsightCard) -->
-<script type="text/babel" src="js/components/wr-primitives.js?v=20260427font1"></script>
+<script type="text/babel" src="js/components/wr-primitives.js?v=20260830namefix1"></script>
     <script type="text/babel" src="js/components/player-card.js?v=20260829trend1"></script>
 <!-- 2c. Saved List Views (SI-1) — window.WR.SavedViews — shared across list surfaces -->
 <script type="text/babel" src="js/shared/saved-views.js?v=20260427font1"></script>
@@ -2881,13 +2881,13 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" src="js/settings.js?v=20260613strip1"></script>
 <script type="text/babel" data-wr-defer="trade" src="js/trade-calc.js?v=20260817desk2"></script>
 <script type="text/babel" src="js/post-draft.js?v=20260609postdraft1"></script>
-<script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260808fahq1"></script>
+<script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260830age1"></script>
 <!-- Season Odds panel loads with Game Day (owner ruling 2026-07-30) — must
      precede lineup.js in the group so window.WrSeasonOdds exists on first render. -->
 <script type="text/babel" data-wr-defer="lineup" src="js/components/season-odds-panel.js?v=20260805ch1"></script>
 <script type="text/babel" src="js/components/chop-block-panel.js?v=20260805ch2"></script>
 <script type="text/babel" src="js/components/league-wire.js?v=20260823wire1"></script>
-<script type="text/babel" data-wr-defer="lineup" src="js/tabs/lineup.js?v=20260805ch2"></script>
+<script type="text/babel" data-wr-defer="lineup" src="js/tabs/lineup.js?v=20260830lean1"></script>
 <!-- 4b. Draft Command Center modules — group "draft" (~28 scripts, ~1.26MB),
      loaded on first Draft-tab open. -->
 <script type="text/babel" data-wr-defer="draft" src="js/draft/styles.js?v=20260427font1"></script>
@@ -2943,7 +2943,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- Group "analysis": analytics.js embeds LeagueMapTab, so both defer together
      (league-map.js first — DOM order is execution order within a group). -->
 <script type="text/babel" data-wr-defer="analysis" src="js/tabs/league-map.js?v=20260614dynread1"></script>
-<script type="text/babel" data-wr-defer="myteam" src="js/tabs/my-team.js?v=20260829taxi2"></script>
+<script type="text/babel" data-wr-defer="myteam" src="js/tabs/my-team.js?v=20260902gmdesk1"></script>
 <!-- Compare: extracted from My Roster's former sub-view, now a top-level ROSTER-group tab. -->
 <script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20260616compare5"></script>
 <script type="text/babel" data-wr-defer="central" src="js/tabs/league-central.js?v=20260823cc12"></script>

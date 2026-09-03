@@ -133,6 +133,54 @@ function MyTeamTab({
     });
   }, [gmSellPositions, gmSellRulesParsed]);
 
+  // GM Strategy-aware cut/taxi scoring — how strongly a bench player's OWN
+  // mode nudges him toward CUT or STASH, independent of raw DHQ. Rebuild
+  // protects developing players and pushes out aging vets; Win Now does the
+  // opposite (protects proven vets, pushes out pieces that can't help THIS
+  // season); Compete stays close to raw DHQ with a light decline-phase nudge.
+  // Feeds both the drop/taxi candidate ranking below and the GM's Desk copy.
+  const CUT_SCORE_DHQ_WEIGHT = 120; // DHQ points one strategy-point is worth —
+  // tuned to reorder the borderline bench crowd without overriding a real value gap.
+  const _cutScore = React.useCallback((r) => {
+    let score = 0;
+    const mode = gm?.mode;
+    const ageCutoff = gm?.tradeWeights?.ageCutoff || 30;
+    if (mode === 'rebuild') {
+      if (r.peakPhase === 'VET' || r.peakPhase === 'POST') score += 15;
+      if (r.age != null && r.age >= ageCutoff) score += 10;
+      if (r.peakPhase === 'PRE') score -= 20;
+    } else if (mode === 'win_now') {
+      if (r.peakPhase === 'PRE') score += 15;
+      if (r.age != null && r.age <= 22 && !r.curGP) score += 10;
+      if (r.peakPhase === 'VET') score -= 15;
+    } else {
+      if (r.peakPhase === 'POST') score += 5;
+    }
+    if (gmSellPositions.has(String(r.pos))) score += 8;
+    if (gmTargetPositions.has(String(r.pos))) score -= 5;
+    return score;
+  }, [gm?.mode, gm?.tradeWeights, gmSellPositions, gmTargetPositions]);
+  const _adjustedDhq = React.useCallback((r) => r.dhq - _cutScore(r) * CUT_SCORE_DHQ_WEIGHT, [_cutScore]);
+  // One-line, strategy-grounded reasoning for a GM's Desk call.
+  const _gmDeskReason = React.useCallback((r, verdict) => {
+    const mode = gm?.mode;
+    const ageTxt = r.age != null ? r.age + '-year-old ' : '';
+    if (verdict === 'STASH') {
+      if (mode === 'win_now') return 'Not ready to move the needle this season — taxi him and save the bench spot for a win-now piece.';
+      if (mode === 'rebuild') return ageTxt + r.pos + ', still building — exactly what a rebuild protects. Taxi him, don’t cut him.';
+      return 'Taxi-eligible with real upside left — no reason to burn a bench spot on him yet.';
+    }
+    if (mode === 'rebuild') {
+      if (r.valueYrsLeft <= 0) return 'Value window’s closed — that’s trade bait in a rebuild, not a roster spot.';
+      return ageTxt + r.pos + ' doesn’t fit a youth build. Sell him or cut him.';
+    }
+    if (mode === 'win_now') {
+      if (!r.curGP) return 'Hasn’t played a snap that matters — a win-now roster can’t carry a developmental piece.';
+      return ageTxt + r.pos + ' isn’t helping this year’s push.';
+    }
+    return 'Lowest DHQ on the bench — not developing, not producing.';
+  }, [gm?.mode]);
+
   // ── Weekly start/sit projections (redraft) — league-scored via App.WeeklyProj.
   // Computed once; the 'proj' column + its sort read it. Neutral matchup until the
   // projections feed lands; guarded so dynasty/offseason rows just render '—'.
@@ -528,31 +576,53 @@ function MyTeamTab({
     return Number.isFinite(configured) ? configured : 1;
   }, [currentLeague]);
 
-  // Drop/taxi candidate PIDs: non-starters with lowest DHQ — normally the
-  // bottom 3 bench players go in dropCandidatePids. Once a Cutdown rule is
-  // set, bench and taxi are ranked separately against cutdownInfo's per-pool
-  // overage. For the active-side overage specifically: a taxi-eligible bench
-  // player is better STASHED than cut — he's still on your roster, just off
-  // the active cap — so he's routed to taxiCandidatePids instead, capped by
-  // how much taxi room the pending rule actually leaves.
+  // Real taxi-squad capacity from the league's own roster shape — distinct
+  // from the GM's Office Cutdown Day rule (a separate, opt-in pending-limit
+  // concept below). This is what lets the standing (no-cutdown-pending) taxi
+  // suggestion know whether taxi room genuinely exists today.
+  const taxiSlotsCap = React.useMemo(() => {
+    const configured = Number(currentLeague?.settings?.taxi_slots);
+    if (Number.isFinite(configured) && configured > 0) return configured;
+    return (currentLeague?.roster_positions || []).filter(p => p === 'TAXI').length;
+  }, [currentLeague]);
+
+  // Drop/taxi candidate PIDs: non-starters ranked by strategy-adjusted DHQ
+  // (_adjustedDhq — see GM Strategy scoring above), so a rebuild pushes aging
+  // vets to the top of the cut list even over a slightly-higher-DHQ prospect,
+  // and Win Now does the reverse. Untouchable players never enter the pool.
+  // Once a Cutdown rule is set, bench and taxi are ranked separately against
+  // cutdownInfo's per-pool overage; otherwise this is a standing "3 weakest
+  // bench spots" advisory that runs every time. Either way, a taxi-eligible
+  // active-side candidate is routed to taxiCandidatePids instead of a cut
+  // whenever real taxi room exists — he's still on your roster, just off the
+  // active cap.
   const { dropCandidatePids, taxiCandidatePids } = React.useMemo(() => {
-    const benchPlayers = rows.filter(r => !r.isStarter && !r.isIR && !r.isTaxi).sort((a, b) => a.dhq - b.dhq);
-    if (!cutdownInfo) return { dropCandidatePids: new Set(benchPlayers.slice(0, 3).map(r => r.pid)), taxiCandidatePids: new Set() };
+    const benchPlayers = rows
+      .filter(r => !r.isStarter && !r.isIR && !r.isTaxi && !r.gmIsUntouchable)
+      .sort((a, b) => _adjustedDhq(a) - _adjustedDhq(b));
     const taxiPlayers = rows.filter(r => r.isTaxi && !r.isIR).sort((a, b) => a.dhq - b.dhq);
-    const activeCandidates = benchPlayers.slice(0, cutdownInfo.activeOver > 0 ? cutdownInfo.activeOver : 3);
-    let taxiRoomLeft = cutdownInfo.activeOver > 0 ? Math.max(0, (cutdownInfo.rule.taxiSlots || 0) - taxiPlayers.length) : 0;
-    const cutPicks = [];
-    const taxiPicks = [];
-    activeCandidates.forEach(r => {
-      const eligible = (r.p?.years_exp ?? 99) <= taxiEligibleCap;
-      if (eligible && taxiRoomLeft > 0) { taxiPicks.push(r.pid); taxiRoomLeft--; }
-      else cutPicks.push(r.pid);
-    });
-    return {
-      dropCandidatePids: new Set([...cutPicks, ...taxiPlayers.slice(0, cutdownInfo.taxiOver).map(r => r.pid)]),
-      taxiCandidatePids: new Set(taxiPicks),
+    const routeToTaxiOrCut = (candidates, roomStart) => {
+      let taxiRoomLeft = roomStart;
+      const cutPicks = [], taxiPicks = [];
+      candidates.forEach(r => {
+        const eligible = (r.p?.years_exp ?? 99) <= taxiEligibleCap;
+        if (eligible && taxiRoomLeft > 0) { taxiPicks.push(r.pid); taxiRoomLeft--; }
+        else cutPicks.push(r.pid);
+      });
+      return { cutPicks, taxiPicks };
     };
-  }, [rows, cutdownInfo, taxiEligibleCap]);
+    if (cutdownInfo) {
+      const activeCandidates = benchPlayers.slice(0, cutdownInfo.activeOver > 0 ? cutdownInfo.activeOver : 3);
+      const roomStart = cutdownInfo.activeOver > 0 ? Math.max(0, (cutdownInfo.rule.taxiSlots || 0) - taxiPlayers.length) : 0;
+      const { cutPicks, taxiPicks } = routeToTaxiOrCut(activeCandidates, roomStart);
+      return {
+        dropCandidatePids: new Set([...cutPicks, ...taxiPlayers.slice(0, cutdownInfo.taxiOver).map(r => r.pid)]),
+        taxiCandidatePids: new Set(taxiPicks),
+      };
+    }
+    const { cutPicks, taxiPicks } = routeToTaxiOrCut(benchPlayers.slice(0, 3), Math.max(0, taxiSlotsCap - taxiPlayers.length));
+    return { dropCandidatePids: new Set(cutPicks), taxiCandidatePids: new Set(taxiPicks) };
+  }, [rows, cutdownInfo, taxiEligibleCap, taxiSlotsCap, _adjustedDhq]);
 
   // Keeper recommendations — rows.dhq is already the keeper-blended value for
   // keeper leagues (see the dhq computation above), so ranking by it here
@@ -928,6 +998,14 @@ function MyTeamTab({
     if (!isPro || !taxiCandidatePids.has(r.pid) || dismissedTaxiSuggestions.has(r.pid)) return false;
     return window._playerTags?.[r.pid] !== 'cut';
   };
+  // GM's Desk — the top 3 unresolved cut/taxi calls, strategy-ranked (most
+  // urgent first), for the memo-style panel below. Same active/unresolved
+  // definition as the chips and Review Roster strip so a mark or dismiss
+  // anywhere resolves it everywhere.
+  const gmDeskCalls = !isPro ? [] : [
+    ...rows.filter(_isActiveDrop).map(r => ({ r, verdict: 'CUT' })),
+    ...rows.filter(_isActiveTaxiSuggestion).map(r => ({ r, verdict: 'STASH' })),
+  ].sort((a, b) => _adjustedDhq(a.r) - _adjustedDhq(b.r)).slice(0, 3);
   // Call → accent color, shared by chip + badge + picker + desktop action col.
   const _recColor = (rec) => {
     const s = String(rec || '');
@@ -1595,10 +1673,11 @@ function MyTeamTab({
         name: getPlayerName(r.pid),
         tag: _phoneTagFor(r),
         slots: _phoneSlotKeys.map(k => _phoneSlotFor(k, r)),
-        verdict: _phoneVerdictChip(r),
-        // No colored row accent — the verdict chip + injury tag already carry
-        // the status; the outline read as ambiguous (owner call). Rows keep
-        // AssetRow's default faint border.
+        // Verdict chip dropped from the collapsed row (owner ask, 2026-08-30)
+        // to give the name/slots more width — Hold/Stash/Sell is still the
+        // first thing you see when you tap into the player card.
+        // No colored row accent either — the outline read as ambiguous
+        // (owner call). Rows keep AssetRow's default faint border.
         expanded: isExpanded,
         onClick: () => setExpandedPid(prev => prev === r.pid ? null : r.pid),
         title: 'Open roster player detail',
@@ -1715,7 +1794,7 @@ function MyTeamTab({
                       {!r.gmIsUntouchable && r.gmIsTarget && <span title="GM Strategy: acquisition-focus position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.28))', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>TGT</span>}
                       {!r.gmIsUntouchable && r.gmIsSellPos && <span title="GM Strategy: sell-candidate position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'rgba(240,165,0,0.13)', color: 'var(--warn)', border: '1px solid rgba(240,165,0,0.32)', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>SELL</span>}
                       {isPro && dropCandidatePids.has(r.pid) && !dismissedDrops.has(r.pid) && <span className="wr-drop-chip" onClick={e => { e.stopPropagation(); dismissDrop(r.pid); }} title="Drop candidate (click to dismiss)" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(231,76,60,0.2)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>DROP?</span>}
-                      {isPro && taxiCandidatePids.has(r.pid) && !dismissedTaxiSuggestions.has(r.pid) && <span className="wr-drop-chip" onClick={e => { e.stopPropagation(); dismissTaxiSuggestion(r.pid); }} title="Better stashed than cut — room on taxi under the pending cutdown (click to dismiss)" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(52,152,219,0.2)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>TAXI?</span>}
+                      {isPro && taxiCandidatePids.has(r.pid) && !dismissedTaxiSuggestions.has(r.pid) && <span className="wr-drop-chip" onClick={e => { e.stopPropagation(); dismissTaxiSuggestion(r.pid); }} title={(cutdownInfo ? 'Better stashed than cut — room on taxi under the pending cutdown' : 'Better stashed than cut — real taxi room open on your roster') + ' (click to dismiss)'} style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(52,152,219,0.2)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>TAXI?</span>}
                       {isPro && (() => {
                         const isCut = window._playerTags?.[r.pid] === 'cut';
                         return (
@@ -1991,6 +2070,59 @@ function MyTeamTab({
           </React.Fragment>
         ),
       })}
+
+      {/* GM's Desk — the standing cut/taxi advisory, framed as a decision memo
+          rather than another data row. Same dropCandidatePids/taxiCandidatePids
+          engine that drives the chips and Review Roster strip elsewhere on this
+          page, now strategy-ranked (_adjustedDhq) and given a one-line reason
+          in the active GM Strategy mode's own voice. Confirm/Keep write to the
+          same window._playerTags store as every other tag surface (player card,
+          Dashboard's Cut Candidates widget), so a call made here is made
+          everywhere. Pro-gated like the rest of the roster call engine. */}
+      {isPro && (
+        <section style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius)', background: 'var(--surf-solid, rgba(20,20,26,0.72))', padding: 'var(--card-pad-sm)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.04em' }}>GM's Desk</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: '999px', color: gm?.badgeColor || 'var(--gold)', border: '1px solid ' + wrAlpha(gm?.badgeColor || 'var(--gold)', '55'), background: wrAlpha(gm?.badgeColor || 'var(--gold)', '14') }}>{(gm?.modeLabel || 'Compete') + ' Mode'}</span>
+          </div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.75, fontStyle: 'italic', marginTop: '-4px' }}>{window.WR.GmMode.getPreset(gm?.mode)?.tagline || ''}</div>
+          {gmDeskCalls.length === 0 ? (
+            <div style={{ fontSize: '0.82rem', color: 'var(--silver)', opacity: 0.7, padding: '4px 0' }}>Bench is settled — no cuts or stashes flagged under {(gm?.modeLabel || 'Compete').toUpperCase()} mode.</div>
+          ) : React.createElement(window.WR.CardList, {
+            groups: [{
+              label: 'Recommended Moves',
+              sub: gmDeskCalls.length + ' call' + (gmDeskCalls.length === 1 ? '' : 's'),
+              rows: gmDeskCalls.map(({ r, verdict }) => {
+                const col = verdict === 'CUT' ? 'var(--bad)' : 'var(--k-3498db, #3498db)';
+                return React.createElement(window.WR.AssetRow, {
+                  key: 'desk-' + r.pid,
+                  pid: r.pid,
+                  pos: r.pos,
+                  name: getPlayerName(r.pid),
+                  tag: [r.p?.team || 'FA', r.age ? String(r.age) : null, r.peakPhase].filter(Boolean).join(' · '),
+                  slots: [{ label: 'DHQ', value: (r.dhq || 0).toLocaleString(), strong: true }],
+                  verdict: React.createElement('span', {
+                    style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, padding: '2px 6px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + wrAlpha(col, '80'), color: col, letterSpacing: '0.02em', whiteSpace: 'nowrap', textTransform: 'uppercase' },
+                  }, verdict === 'CUT' ? 'CUT' : 'STASH → TAXI'),
+                  expanded: true,
+                }, (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)', lineHeight: 1.4 }}>{_gmDeskReason(r, verdict)}</span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={() => verdict === 'CUT' ? toggleCutTag(r.pid) : toggleTaxiTag(r.pid)} style={{ padding: '5px 11px', fontSize: '0.76rem', fontWeight: 700, fontFamily: 'var(--font-body)', background: wrAlpha(col, '14'), color: col, border: '1px solid ' + wrAlpha(col, '55'), borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer' }}>
+                        {'✓ Confirm ' + (verdict === 'CUT' ? 'cut' : 'stash')}
+                      </button>
+                      <button onClick={() => verdict === 'CUT' ? dismissDrop(r.pid) : dismissTaxiSuggestion(r.pid)} style={{ padding: '5px 11px', fontSize: '0.76rem', fontWeight: 600, fontFamily: 'var(--font-body)', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-5, rgba(255,255,255,0.09))', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer' }}>
+                        Keep him
+                      </button>
+                    </div>
+                  </div>
+                ));
+              }),
+            }],
+          })}
+        </section>
+      )}
 
       {/* Keeper recommendations — keeper leagues only, Pro-gated same as the
           Move column / Dynasty Read. Additive to the existing roster board,
