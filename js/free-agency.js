@@ -2270,7 +2270,7 @@
             const _faPhoneMkt = sortedPlayers.slice(0, 25);
             const _faMktRows = _faPhoneMkt.map(x => {
                 const bits = [x.p.team || 'FA'];
-                if (x.p.age) bits.push('Age ' + x.p.age);
+                if (x.p.age) bits.push(String(x.p.age));
                 if (x.p.injury_status) bits.push(x.p.injury_status);
                 return React.createElement(window.WR.AssetRow, {
                     key: x.pid,

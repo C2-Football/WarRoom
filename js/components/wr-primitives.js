@@ -684,8 +684,14 @@
                         fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700,
                     }
                 }, pos),
-                h('div', { style: { flex: 1, minWidth: 0 } },
-                    h('div', { style: { fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontSize: '0.85rem', fontWeight: 600, color: 'var(--white)', lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, name),
+                h('div', { style: { flex: '1 1 76px', minWidth: 0 } },
+                    // flex-basis 76px (not the bare 0% that `flex: 1` implies) gives the
+                    // name a real starting share before the fixed-width slots/verdict/
+                    // chevron eat the row — without it, names were squeezed to ~2-3
+                    // visible characters ("Danie…") on 375px phones. Two-line clamp
+                    // (vs. single-line ellipsis) so a still-tight name reads in full
+                    // ("Aaron / Rodgers") instead of truncating mid-word.
+                    h('div', { style: { fontFamily: 'var(--font-body, "DM Sans", sans-serif)', fontSize: '0.85rem', fontWeight: 600, color: 'var(--white)', lineHeight: 1.25, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' } }, name),
                     tag != null && h('div', { style: { fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 500, color: 'var(--text-muted, #8B8B96)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '1px' } }, tag)
                 ),
                 h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 } },

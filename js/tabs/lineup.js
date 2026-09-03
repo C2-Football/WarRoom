@@ -983,7 +983,6 @@ function LineupTab({
                     their-ideal and the breakdown stay Pro (existing gates). */}
                 {matchup ? (
                     <React.Fragment>
-                        {goldDiv('Matchup · vs ' + matchup.oppName)}
                         <div className="wr-kpi-strip">
                             {pro ? [
                                 kpiTile('Win%', matchup.fc.winPct == null ? '—' : matchup.fc.winPct + '%', matchup.fc.margin == null ? null : (matchup.fc.margin >= 0 ? '+' : '') + matchup.fc.margin.toFixed(1) + ' margin', winColor),
@@ -1016,25 +1015,6 @@ function LineupTab({
                     </React.Fragment>
                 ) : null}
 
-                {/* Alex game-day note as a card (note state is Pro-gated upstream: free = '') */}
-                {note ? (
-                    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '12px 14px' }}>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                            <span style={{ fontSize: fz('0.6rem'), fontWeight: 800, letterSpacing: '0.08em', color: GOLD, marginTop: '3px', whiteSpace: 'nowrap' }}>ALEX ·</span>
-                            <span style={{ fontSize: '0.86rem', color: TEXT, lineHeight: 1.5 }}>{note}</span>
-                            {/* Game-plan expansion — one-shot, ask once (chat retired). */}
-                            {!gameplanTake?.text && (
-                                <button onClick={askGameplanTake} disabled={gameplanTake?.loading}
-                                    style={{ flexShrink: 0, alignSelf: 'flex-start', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: 'var(--card-radius-xs, 5px)', color: GOLD, fontFamily: MONO, fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.05em', padding: '4px 8px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                                    {gameplanTake?.loading ? '…' : '✨ MORE'}
-                                </button>
-                            )}
-                        </div>
-                        {gameplanTake?.text && (
-                            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: `1px solid ${LINE}`, fontSize: '0.82rem', color: TEXT, opacity: 0.9, lineHeight: 1.5 }}>{gameplanTake.text}</div>
-                        )}
-                    </div>
-                ) : null}
 
                 {/* Optimizer + working lineup, below the matchup lead. */}
                 {heroEl}
