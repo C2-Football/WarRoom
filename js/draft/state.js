@@ -993,6 +993,18 @@
     }
 
     function pickDhq(pick) {
+        // A completed pick's DHQ is frozen at pick time — the MAKE_PICK reducer
+        // stamps resolvePlayerDhq's result onto pick.dhq permanently, as the
+        // historical record of what the pick was worth THEN. This used to
+        // re-resolve live unconditionally, which silently drifted every
+        // recap/grading consumer (League Grades panel, position breakdowns,
+        // best/worst pick) away from the Draft Recap's own hero grade
+        // (gradeDraft reads pick.dhq directly) any time DHQ recalculated after
+        // the draft — two views of the identical draft showing different
+        // totals. Prefer the frozen value when a pick actually has one;
+        // undrafted board/pool entries (no pick.dhq yet) still resolve live.
+        const frozen = Number(pick?.dhq);
+        if (Number.isFinite(frozen) && frozen > 0) return frozen;
         const player = pick?.player || {};
         const pid = pick?.pid || pick?.player_id || player.pid || player.player_id || null;
         return resolvePlayerDhq({ ...player, ...pick, pid, csv: pick?.csv || player.csv }).value;
@@ -2941,8 +2953,18 @@
             const enriched = (p.consensusRank || !fallbackRank) ? p : { ...p, consensusRank: fallbackRank };
             total += scorePick(enriched, scoreCtx);
         }
-        const score = Math.round(aggregateGrade(total / myPicks.length, ctx.variant));
-        return { letter: gradeLetter(score), totalDHQ, pct: score, score };
+        // Rounded here (not left as the raw mean) to match buildTeamRecaps'
+        // avgPickScore exactly — that function rounds before this same
+        // aggregateGrade/recapLetter path runs, so leaving this unrounded could
+        // tip a borderline score a fraction of a letter-grade band apart between
+        // the two surfaces even after they're otherwise blending identically.
+        const avgPickScore = Math.round(total / myPicks.length);
+        const score = Math.round(aggregateGrade(avgPickScore, ctx.variant));
+        // avgPickScore exposed (raw, pre-spread mean of scorePick) so callers that
+        // need to re-blend with recapLetter — e.g. folding in league percentile —
+        // pass the right input. recapLetter applies aggregateGrade itself; feeding
+        // it the already-spread `score` instead double-applies the spread curve.
+        return { letter: gradeLetter(score), totalDHQ, pct: score, score, avgPickScore };
     }
 
     function buildDraftRecap(state, opts = {}) {

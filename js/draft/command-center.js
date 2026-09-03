@@ -4532,14 +4532,13 @@
             const topDelta = Math.abs(opponentReach[0]?.delta || 0);
             return topDelta ? Math.max(35, Math.min(85, Math.round(40 + (topDelta / 0.25) * 45))) : null;
         })();
-        const opponentConfBand = opponentConf == null ? null : opponentConf >= 66 ? 'HIGH' : opponentConf >= 40 ? 'MED' : 'LOW';
-        const opponentDraftDna = opponentPersona?.draftDna?.label || 'Balanced';
-        const opponentTradeDna = opponentPersona?.tradeDna?.label || '—';
         const opponentPosture = opponentPersona?.posture?.label || 'Neutral';
         const opponentTier = opponentPersona?.assessment?.tier || '—';
         const opponentHealth = opponentPersona?.assessment?.healthScore || 0;
         const opponentHistorical = window.DraftCC?.context?.summarizeOwnerIntel?.(opponentPersona?.ownerIntel)
             || (nextOpponentSlot ? opponentTeamName + ' — reading the board now, no history yet.' : 'No opponent picks left to scout.');
+        const opponentTierColor = opponentTier === 'ELITE' ? 'var(--k-2ecc71, #2ecc71)' : opponentTier === 'CONTENDER' ? 'var(--gold)' : opponentTier === 'CROSSROADS' ? 'var(--k-f0a500, #f0a500)' : opponentTier === '—' ? 'var(--silver)' : 'var(--k-e74c3c, #e74c3c)';
+        const opponentHealthColor = opponentHealth >= 70 ? 'var(--k-2ecc71, #2ecc71)' : opponentHealth >= 40 ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
         const cards = [
             { key: 'rec', label: 'Recommended Pick', player: best, tone: 'var(--k-2ecc71, #2ecc71)', text: pickWhy(best, 'rec') },
             { key: 'safe', label: 'Safe Pick', player: safe, tone: 'var(--k-3498db, #3498db)', text: pickWhy(safe, 'safe') },
@@ -4557,7 +4556,7 @@
                         const p = card.player;
                         const photo = mockPlayerPhoto(p);
                         return (
-                            <button key={card.key} type="button" className="mock-decision-card" style={{ '--accent': card.tone, ...(card.key === 'opponent' ? { gridColumn: '1 / -1' } : {}) }} onClick={() => card.key === 'opponent' ? (nextOpponentSlot && dispatch({ type: 'PIN_TEAM', rosterId: nextOpponentSlot.rosterId })) : mockMakePick(dispatch, state, isUserTurn, p)} disabled={card.key === 'opponent' && !nextOpponentSlot} title={card.key === 'opponent' ? 'Pin this team in the Opponent Intel panel' : undefined}>
+                            <button key={card.key} type="button" className="mock-decision-card" style={{ '--accent': card.tone }} onClick={() => card.key === 'opponent' ? (nextOpponentSlot && dispatch({ type: 'PIN_TEAM', rosterId: nextOpponentSlot.rosterId })) : mockMakePick(dispatch, state, isUserTurn, p)} disabled={card.key === 'opponent' && !nextOpponentSlot} title={card.key === 'opponent' ? 'Pin this team in the Opponent Intel panel for the full read (Draft/Trade DNA included)' : undefined}>
                                 <span>{card.label}</span>
                                 {p ? (
                                     <div className="mock-decision-player">
@@ -4576,42 +4575,51 @@
                                         </div>
                                     </div>
                                 )}
-                                {/* Full read, not the condensed one-liner — same fields the
-                                    Opponent Intel sidebar panel shows (Needs, Prediction Engine,
-                                    Draft/Trade DNA, Posture, Tier, Health), laid out as compact
-                                    rows since this card spans full width instead of sharing a
-                                    grid cell. */}
-                                {card.key === 'opponent' && nextOpponentSlot && (
-                                    <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px 18px' }}>
+                                {/* Same card footprint as its siblings — a scouting-report
+                                    stat grid instead of a prose paragraph, since 6 facts don't
+                                    fit as sentences in this space. Color-coded like the rest of
+                                    the app (red=need, green=opportunity, tier/health bands) so
+                                    it reads at a glance instead of requiring the words to be
+                                    read. Draft/Trade DNA stay in the full sidebar panel (tap
+                                    pins it there) — the two lowest-signal fields, cut to fit. */}
+                                {card.key === 'opponent' && nextOpponentSlot ? (
+                                    <div style={{ marginTop: '7px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px 6px' }}>
                                         {opponentNeeds.length > 0 && (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                {opponentNeeds.map(pos => (
-                                                    <span key={pos} style={{ fontSize: '0.62rem', fontWeight: 800, padding: '1px 6px', borderRadius: 'var(--card-radius-xs, 5px)', background: 'rgba(231,76,60,0.1)', border: '1px solid rgba(231,76,60,0.3)', color: 'var(--k-e74c3c, #e74c3c)' }}>{pos}!</span>
-                                                ))}
+                                            <div>
+                                                <div style={{ fontSize: '0.56rem', fontWeight: 800, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Needs</div>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px', marginTop: '2px' }}>
+                                                    {opponentNeeds.slice(0, 3).map(pos => (
+                                                        <span key={pos} style={{ fontSize: '0.58rem', fontWeight: 800, padding: '0 4px', borderRadius: '3px', background: 'rgba(231,76,60,0.12)', border: '1px solid rgba(231,76,60,0.3)', color: 'var(--k-e74c3c, #e74c3c)' }}>{pos}</span>
+                                                    ))}
+                                                </div>
                                             </div>
                                         )}
-                                        {opponentLikely?.name && (
-                                            <div style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>
-                                                <span style={{ color: 'var(--gold)', fontWeight: 700 }}>Likely </span>
-                                                {opponentLikely.name} ({opponentLikely.pos}){opponentConf != null && ' · ' + opponentConf + '% ' + opponentConfBand}
-                                            </div>
-                                        )}
-                                        {opponentReach.length > 0 && (
-                                            <div style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>
-                                                <span style={{ color: 'var(--gold)', fontWeight: 700 }}>Reaches for </span>
-                                                {opponentReach.map(r => r.pos + ' +' + Math.round(Math.abs(r.delta || 0) * 100) + '%').join(', ')}
-                                            </div>
-                                        )}
-                                        <div style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>
-                                            <span style={{ color: 'var(--gold)', fontWeight: 700 }}>DNA </span>
-                                            {opponentDraftDna} draft · {opponentTradeDna} trade · {opponentPosture}
+                                        <div>
+                                            <div style={{ fontSize: '0.56rem', fontWeight: 800, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tier</div>
+                                            <div style={{ fontSize: '0.62rem', fontWeight: 700, color: opponentTierColor, marginTop: '2px' }}>{opponentTier}</div>
                                         </div>
-                                        <div style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>
-                                            <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{opponentTier}</span> · Health {opponentHealth}/100
+                                        {opponentLikely?.pos && (
+                                            <div>
+                                                <div style={{ fontSize: '0.56rem', fontWeight: 800, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Likely</div>
+                                                <div style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--white)', marginTop: '2px' }}>{opponentLikely.pos}{opponentConf != null ? ' ' + opponentConf + '%' : ''}</div>
+                                            </div>
+                                        )}
+                                        <div>
+                                            <div style={{ fontSize: '0.56rem', fontWeight: 800, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Health</div>
+                                            <div style={{ fontSize: '0.62rem', fontWeight: 700, color: opponentHealthColor, marginTop: '2px' }}>{opponentHealth}/100</div>
+                                        </div>
+                                        {opponentReach[0] && (
+                                            <div>
+                                                <div style={{ fontSize: '0.56rem', fontWeight: 800, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Reaches</div>
+                                                <div style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--k-2ecc71, #2ecc71)', marginTop: '2px' }}>{opponentReach[0].pos} +{Math.round(Math.abs(opponentReach[0].delta || 0) * 100)}%</div>
+                                            </div>
+                                        )}
+                                        <div>
+                                            <div style={{ fontSize: '0.56rem', fontWeight: 800, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Market</div>
+                                            <div style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--silver)', marginTop: '2px' }}>{opponentPosture}</div>
                                         </div>
                                     </div>
-                                )}
-                                <p>{card.text}</p>
+                                ) : card.key !== 'opponent' ? <p>{card.text}</p> : null}
                             </button>
                         );
                     })}
@@ -5741,14 +5749,35 @@
             [state.picks, state.userRosterId]
         );
         const grade = React.useMemo(
-            () => window.DraftCC.state.gradeDraft(myPicks, state.originalPool, {
-                assessment: state.personas?.[state.userRosterId]?.assessment,
-                variant: state.variant,
-                leagueSize: state.leagueSize,
-                rounds: state.rounds,
-                budget: state.auctionBudget,
-            }),
-            [myPicks, state.originalPool, state.personas, state.userRosterId, state.variant, state.leagueSize, state.rounds, state.auctionBudget]
+            () => {
+                const g = window.DraftCC.state.gradeDraft(myPicks, state.originalPool, {
+                    assessment: state.personas?.[state.userRosterId]?.assessment,
+                    variant: state.variant,
+                    leagueSize: state.leagueSize,
+                    rounds: state.rounds,
+                    budget: state.auctionBudget,
+                });
+                // Fold in league standing the SAME way the League Grades table's
+                // recapLetter does (85% pick-quality score + 15% intra-league DHQ
+                // percentile) — gradeDraft alone only scores pick-by-pick value vs
+                // expected, with zero awareness of how the WHOLE draft stacked up
+                // against the other teams. Without this, the hero grade shown here
+                // (and on MockRosterBuildCard, which reads this same value) could
+                // show a completely different letter than the League Grades table
+                // for the identical draft — e.g. "A-" here while finishing 9th
+                // percentile showed "B" there, with no visible reason why.
+                try {
+                    const totals = window.DraftCC.state.leagueTotalsFromPicks(state.picks);
+                    const ranked = Object.entries(totals).map(([rid, total]) => ({ rid, total })).sort((a, b) => b.total - a.total);
+                    const rank = ranked.findIndex(r => String(r.rid) === String(state.userRosterId)) + 1;
+                    const percentile = ranked.length > 1 && rank > 0 ? Math.round(((ranked.length - rank) / (ranked.length - 1)) * 100) : 100;
+                    const blended = window.DraftCC.state.recapLetter(percentile, g.avgPickScore, state.variant);
+                    return { ...g, letter: blended.letter, score: blended.score, rawScore: g.score, percentile, leagueRank: rank || null };
+                } catch (e) {
+                    return g;
+                }
+            },
+            [myPicks, state.originalPool, state.personas, state.userRosterId, state.variant, state.leagueSize, state.rounds, state.auctionBudget, state.picks]
         );
 
         // Belt-and-suspenders: a draft persisted mid-negotiation by a Pro/trial
