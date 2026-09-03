@@ -11,7 +11,7 @@
         } catch (e) {}
         return 'https://c2-football.github.io/ReconAI/shared/';
     })();
-    const DEFAULT_VERSION = '20260814arch1'; // bumped: strategy.js gained draftArchetype field
+    const DEFAULT_VERSION = '20260903assessfix1'; // bumped: team-assess.js assessTeamFromGlobal string/number rosterId cache fix
     const config = {
         localBase: null,
         remoteBase: REMOTE_BASE,
