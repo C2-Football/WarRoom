@@ -154,7 +154,7 @@
         // Big Board / Mock Draft scoring this card used to have no effect on.
         const gmArchFx = window.WR?.GmMode?.useGmEffects ? window.WR.GmMode.useGmEffects(currentLeague) : null;
         const gameplanArch = gmArchFx?.draftArchetype || 'balanced';
-        const setGameplanArch = (key) => { if (window.GMStrategy?.saveStrategy) window.GMStrategy.saveStrategy({ draftArchetype: key }); };
+        const setGameplanArch = (key) => { if (window.WR?.GmMode?.patchStrategy) window.WR.GmMode.patchStrategy(leagueKey, { draftArchetype: key }); };
         const [showFuturePickCapital, setShowFuturePickCapital] = useState(false);
         const [liveAutoStartToken, setLiveAutoStartToken] = useState(0);
         // Draft History — archived recaps of finished drafts (local + Supabase-synced)

@@ -2789,7 +2789,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- 2c-2. Saved Alex Reports — window.WR.SavedReports — local cache + ai_analysis server sync -->
 <script src="js/shared/saved-reports.js?v=20260601reports1"></script>
 <!-- 2d. GM Mode helper (Phase 1) — window.WR.GmMode — canonical mode/preset source of truth -->
-<script type="text/babel" src="js/shared/gm-mode.js?v=20260814arch1"></script>
+<script type="text/babel" src="js/shared/gm-mode.js?v=20260903leaguefix1"></script>
 <!-- 2d-2. Roster Cutdown Day — window.App.RosterCutdown — settable from Commissioner
      Office or GM's Office; consumed by Calendar + My Roster's drop-alert engine -->
 <script src="js/shared/roster-cutdown.js?v=20260810rc1"></script>
@@ -2899,7 +2899,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/styles.js?v=20260427font1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/scouting.js?v=20260803rv2"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/trade-helpers.js?v=20260415cd8"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/context.js?v=20260814arch1"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/context.js?v=20260903leaguefix1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/persona.js?v=20260814dna1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/cpu-engine.js?v=20260814auc1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/state.js?v=20260814auc8"></script>
@@ -2923,7 +2923,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-decision-engine.js?v=20260814arch1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/analyst-mock.js?v=20260531voice1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260903oppintel2"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260822wr2"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260903leaguefix1"></script>
 <!-- 5. League detail tab components (extracted from league-detail.js) -->
 <!-- v2 widget modules (load before dashboard.js which consumes them) -->
 <script type="text/babel" src="js/widgets/roster-pulse.js?v=20260613gm1"></script>
@@ -2945,7 +2945,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- League Calendar widget — depends on window.WrCalendar (js/tabs/calendar.js) -->
 <script type="text/babel" src="js/widgets/league-calendar.js?v=20260619cal1"></script>
 <script type="text/babel" src="js/tabs/dashboard.js?v=20260805ch2"></script>
-<script type="text/babel" src="js/tabs/flash-brief.js?v=20260613gm1"></script>
+<script type="text/babel" src="js/tabs/flash-brief.js?v=20260903leaguefix1"></script>
 <!-- Group "analysis": analytics.js embeds LeagueMapTab, so both defer together
      (league-map.js first — DOM order is execution order within a group). -->
 <script type="text/babel" data-wr-defer="analysis" src="js/tabs/league-map.js?v=20260614dynread1"></script>
@@ -2988,7 +2988,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- 6. Strategy editor: calls shared GMStrategy API, no logic duplication.
      Only consumed by alex-insights' Strategy sub-view, so it rides the same
      "alex" lazy group — inert at boot, loaded on first GM's Office / Strategy open. -->
-<script type="text/babel" data-wr-defer="alex" src="js/tabs/strategy-editor.js?v=20260814arch1"></script>
+<script type="text/babel" data-wr-defer="alex" src="js/tabs/strategy-editor.js?v=20260903leaguefix1"></script>
 <!-- 7. League detail: coordinator shell, depends on all above -->
     <script type="text/babel" src="js/league-detail.js?v=20260823wire1"></script>
 <!-- 8. App: OwnerDashboard + ReactDOM.render (loads last) -->

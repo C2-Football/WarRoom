@@ -16,10 +16,17 @@ function StrategyEditorTab({ currentLeague, myRoster, playersData, gmStrategy, s
 
     const getWarRoomStorage = () => window.App?.WrStorage || window.WrStorage || null;
     const getWarRoomKeys = () => window.App?.WR_KEYS || window.WR_KEYS || null;
+    // Routed through GmMode.effects (leagueId-aware resolveStrategy) rather
+    // than a raw window.GMStrategy.getStrategy(leagueId) call — that call
+    // silently ignores leagueId at the storage layer and always returns a
+    // truthy object (even the untouched default), which made the per-league
+    // WrStorage fallback in readSavedStrategy below permanently dead code:
+    // this editor could load (and then re-save, permanentizing) a strategy
+    // that was actually set for a completely different league.
     const readSharedStrategy = () => {
         try {
-            if (!localStorage.getItem('dhq_gm_strategy_v1')) return null;
-            return window.GMStrategy?.getStrategy?.(leagueId) || null;
+            const fx = window.WR?.GmMode?.effects?.(leagueId);
+            return (fx && fx.hasStrategy) ? fx.strategy : null;
         } catch (_) {
             return null;
         }

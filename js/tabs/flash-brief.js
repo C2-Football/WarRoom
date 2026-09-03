@@ -90,6 +90,12 @@ function IntelligenceBriefWidget({
     const gm = window.WR.GmMode.useGmEffects(currentLeague);
     const leagueSkin = window.App?.LeagueSkin?.build?.({ league: currentLeague, rosters: currentLeague?.rosters || [] });
     const isChopped = window.App?.Chopped?.isChopped?.(currentLeague) || leagueSkin?.type === 'chopped';
+    // GM Strategy's Rebuild/Compete/Win-Now modes are a multi-YEAR roster-
+    // building framing (timeline, "stockpile picks", sell-high posture) —
+    // it doesn't mean anything in a league that resets every season. Same
+    // "seasonal" definition league-skin.js already uses elsewhere (redraft/
+    // best_ball/dfs, chopped handled separately above via its own framing).
+    const isSeasonal = !isChopped && (leagueSkin?.type === 'redraft' || leagueSkin?.type === 'best_ball' || leagueSkin?.type === 'dfs');
 
     const rosterState = window.App?.getRosterDataState?.({ roster: myRoster, currentLeague, rosters: currentLeague?.rosters }) || { isUsable: true };
     const myAssess = typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(myRoster?.roster_id) : null;
@@ -218,7 +224,7 @@ function IntelligenceBriefWidget({
                 delta: lineupAlert.delta,
                 rosterId: myRoster?.roster_id,
                 swaps: lineupAlert.swap ? [lineupAlert.swap] : [],
-                gmPlanNote: gm.hasStrategy && gm.mode === 'win_now' ? 'Win-now plan — weekly points are the priority.' : null,
+                gmPlanNote: gm.hasStrategy && !isSeasonal && gm.mode === 'win_now' ? 'Win-now plan — weekly points are the priority.' : null,
             });
             if (rec) I.publishRecommendations('lineup', [rec], { surface: 'intel-brief' });
         } catch (e) { /* the brief renders fine without the bus */ }
@@ -401,7 +407,7 @@ function IntelligenceBriefWidget({
     const TIMELINE_FRAME = { '1_year': 'all-in on this season', '2_3_years': 'building for a 2-3 year window', 'dynasty_long': 'playing the long game' };
     const strategyFrame = isChopped
         ? 'Your survival plan: protect the weekly floor, preserve FAAB flexibility, and attack the player pool after every chop.'
-        : gm.hasStrategy
+        : (gm.hasStrategy && !isSeasonal)
         ? 'Your plan: ' + (gm.modeLabel || gm.mode) + ', ' + (TIMELINE_FRAME[gm.timeline] || 'on your timeline') + ' — everything below is read against that.'
         : '';
 
@@ -576,6 +582,11 @@ function IntelligenceBriefWidget({
     const AGGR_CHIP = { conservative: 'Conservative', medium: 'Balanced', aggressive: 'Aggressive' };
     const TIMELINE_CHIP = { '1_year': 'This year', '2_3_years': '2-3 yr window', 'dynasty_long': 'Long game' };
     function planChips(opts = {}) {
+        // GM Strategy mode itself (Rebuild/Compete/Win-Now — every preset's own
+        // copy talks about picks and multi-year builds) is a dynasty concept;
+        // a seasonal league has nothing to show here, not even a "set your
+        // strategy" prompt (there's no strategy TO set).
+        if (isSeasonal) return null;
         const deep = !!opts.deep;
         const chips = isChopped ? [
             'Survive',
@@ -678,7 +689,7 @@ function IntelligenceBriefWidget({
             header(),
             React.createElement('div', { style: { padding: '16px 20px', flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' } },
                 React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)', lineHeight: 1.75, marginBottom: '12px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical', flexShrink: 0 } }, briefText),
-                React.createElement('div', { style: { marginBottom: '14px' } }, planChips()),
+                !isSeasonal && React.createElement('div', { style: { marginBottom: '14px' } }, planChips()),
                 React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
                     ...actions.slice(0, 5).map((a, i) => renderActionBtn(a, 'tall-' + i)),
                 ),

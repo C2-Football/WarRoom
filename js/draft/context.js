@@ -325,7 +325,16 @@
             }
         } catch (e) {}
         try {
-            if (window.GMStrategy?.getStrategy) strategy = window.GMStrategy.getStrategy() || null;
+            // Routed through GmMode.effects (resolveStrategy) rather than the
+            // raw window.GMStrategy bypass — that call ignored leagueId
+            // entirely and, worse, always returns a truthy default object
+            // even when nothing was ever saved, so the per-league WrStorage
+            // fallback two lines below could never actually fire. Gated on
+            // hasStrategy (not just object truthiness) for the same reason —
+            // resolveStrategy's own "nothing found" case is {}, still a
+            // truthy object.
+            const fx = window.WR?.GmMode?.effects?.(leagueId);
+            strategy = (fx && fx.hasStrategy) ? fx.strategy : null;
         } catch (e) {}
         try {
             const keys = window.App?.WR_KEYS;
