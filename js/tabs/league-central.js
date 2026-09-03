@@ -66,6 +66,7 @@ function LeagueCentralTab({
     const sameId = (a, b) => String(a) === String(b);
 
     const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
+    const isChopped = window.App?.Chopped?.isChopped?.(currentLeague) || resolvedLeagueSkin?.type === 'chopped';
     const vp = window.WR?.useViewport?.() || {};
     const isPhone = !!vp.isPhone;
 
@@ -275,8 +276,10 @@ function LeagueCentralTab({
     const [stMode, setStMode] = React.useState('table'); // 'table' | 'odds'
     // Merged-home inner tabs + briefing collapse. The collapse sticks, because
     // the briefing is a once-a-visit read, not something to re-dismiss on every
-    // page load.
-    const [innerTab, setInnerTab] = React.useState('league'); // 'league' | 'kpis'
+    // page load. Chopped leagues lead with KPIs (weekly scoring is the whole
+    // game — standings/W-L barely mean anything with the field shrinking
+    // every week), matching Chopped's survival framing elsewhere in the app.
+    const [innerTab, setInnerTab] = React.useState(() => isChopped ? 'kpis' : 'league'); // 'league' | 'kpis'
     const BRIEF_KEY = 'wr_cc_brief_collapsed';
     const [briefCollapsed, setBriefCollapsed] = React.useState(
         () => window.App?.WrStorage?.get?.(BRIEF_KEY, false) === true
@@ -460,7 +463,7 @@ function LeagueCentralTab({
             {/* League / KPIs */}
             {homeMerged && (
                 <div style={{ display: 'flex', gap: '22px', borderBottom: '1px solid rgba(255,255,255,0.07)', marginBottom: '14px' }}>
-                    {[['league', 'League'], ['kpis', 'KPIs']].map(([k, label]) => (
+                    {(isChopped ? [['kpis', 'KPIs'], ['league', 'League']] : [['league', 'League'], ['kpis', 'KPIs']]).map(([k, label]) => (
                         <button key={k} type="button" onClick={() => setInnerTab(k)} style={{
                             fontFamily: RAJ, fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.04em',
                             textTransform: 'uppercase', padding: '10px 2px', background: 'transparent',
