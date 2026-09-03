@@ -4486,17 +4486,42 @@
                 'I\'ve got ' + player.name + ' here. It\'s a value-and-fit call, not just "next name up."',
             ]);
         };
-        const tradeWindowText = currentSlot
-            ? avPick('pw:trade:' + slotLabel, [
-                'I\'d pick up the phone if someone overpays. Aim for a top-40 pick or better to move off ' + slotLabel + '.',
-                'Open to moving ' + slotLabel + ' if the price is right — think top-40 pick or better.',
-              ])
-            : 'No active trade window yet.';
+        // Next OPPONENT slot after this pick — skips any of the user's own
+        // future picks, since the point is "who might snipe my target before
+        // I pick again," not a readout of the user's own team. ownerIntel is
+        // precomputed onto the persona at creation (persona.js) so this is a
+        // cheap lookup, not a recompute.
+        const nextOpponentSlot = (state.pickOrder || []).slice((state.currentIdx || 0) + 1)
+            .find(slot => slot?.rosterId != null && String(slot.rosterId) !== String(state.userRosterId || ''));
+        const opponentPersona = nextOpponentSlot ? (state.personas || {})[nextOpponentSlot.rosterId] : null;
+        const opponentTeamName = nextOpponentSlot ? mockTeamName(state, nextOpponentSlot.rosterId, nextOpponentSlot) : '';
+        // Same two reads as the Opponent Intel panel's Needs chips + Prediction
+        // Engine header (opponent-intel.js) — condensed to one line for the deck
+        // card. predictions is cached per-round on the persona (see the
+        // computePredictions loop above), so this is a read, not a recompute;
+        // the confidence fallback mirrors opponent-intel.js's predConfidence
+        // (that helper isn't exported, so it's small enough to inline here).
+        const opponentNeeds = (opponentPersona?.assessment?.needs || [])
+            .map(n => (typeof n === 'string' ? n : n?.pos)).filter(Boolean).slice(0, 2);
+        const opponentLikely = opponentPersona?.predictions?.likelyPick || null;
+        const opponentConf = (() => {
+            const c = opponentLikely?.confidence;
+            if (typeof c === 'number' && isFinite(c) && c >= 0 && c <= 1) return Math.round(c * 100);
+            const topDelta = Math.abs(opponentPersona?.predictions?.willReach?.[0]?.delta || 0);
+            return topDelta ? Math.max(35, Math.min(85, Math.round(40 + (topDelta / 0.25) * 45))) : null;
+        })();
+        const opponentIntelText = !nextOpponentSlot
+            ? 'No opponent picks left to scout.'
+            : [
+                opponentNeeds.length ? 'Needs ' + opponentNeeds.join(', ') + '.' : null,
+                opponentLikely?.pos ? 'Likely grabs ' + opponentLikely.pos + (opponentConf ? ' (' + opponentConf + '% conf).' : ' next.') : null,
+              ].filter(Boolean).join(' ')
+                || (window.DraftCC?.context?.summarizeOwnerIntel?.(opponentPersona?.ownerIntel) || (opponentTeamName + ' — reading the board now, no history yet.'));
         const cards = [
             { key: 'rec', label: 'Recommended Pick', player: best, tone: 'var(--k-2ecc71, #2ecc71)', text: pickWhy(best, 'rec') },
             { key: 'safe', label: 'Safe Pick', player: safe, tone: 'var(--k-3498db, #3498db)', text: pickWhy(safe, 'safe') },
             { key: 'upside', label: 'Upside Swing', player: upside, tone: 'var(--k-9b8afb, #9b8afb)', text: pickWhy(upside, 'upside') },
-            { key: 'trade', label: 'Trade Window', player: null, tone: 'var(--gold)', text: tradeWindowText },
+            { key: 'opponent', label: 'Opponent Intel', player: null, tone: 'var(--gold)', text: opponentIntelText },
         ];
         return (
             <section className="mock-panel mock-decision-deck">
@@ -4509,7 +4534,7 @@
                         const p = card.player;
                         const photo = mockPlayerPhoto(p);
                         return (
-                            <button key={card.key} type="button" className="mock-decision-card" style={{ '--accent': card.tone }} onClick={() => card.key === 'trade' ? onOpenTradeDesk?.() : mockMakePick(dispatch, state, isUserTurn, p)} disabled={card.key === 'trade' && !onOpenTradeDesk}>
+                            <button key={card.key} type="button" className="mock-decision-card" style={{ '--accent': card.tone }} onClick={() => card.key === 'opponent' ? (nextOpponentSlot && dispatch({ type: 'PIN_TEAM', rosterId: nextOpponentSlot.rosterId })) : mockMakePick(dispatch, state, isUserTurn, p)} disabled={card.key === 'opponent' && !nextOpponentSlot} title={card.key === 'opponent' ? 'Pin this team in the Opponent Intel panel' : undefined}>
                                 <span>{card.label}</span>
                                 {p ? (
                                     <div className="mock-decision-player">
@@ -4520,11 +4545,11 @@
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="mock-decision-player is-trade">
-                                        <i>⇄</i>
+                                    <div className="mock-decision-player is-intel">
+                                        <i>👁</i>
                                         <div>
-                                            <strong>{currentSlot ? 'Value ' + slotLabel : 'No window'}</strong>
-                                            <em>Market: {state.activeOffer ? 'Paused' : 'Open'}</em>
+                                            <strong>{nextOpponentSlot ? opponentTeamName : 'No one on deck'}</strong>
+                                            <em>{nextOpponentSlot ? mockPickLabel(nextOpponentSlot, state.leagueSize) + ' next' : 'Draft is over'}</em>
                                         </div>
                                     </div>
                                 )}

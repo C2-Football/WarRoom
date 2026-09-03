@@ -1754,7 +1754,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 	    .mock-decision-player { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 9px; align-items: start; margin-top: 8px; min-width: 0; }
 	    .mock-decision-player > div { min-width: 0; }
 	    .mock-decision-player img, .mock-decision-player i { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 1px solid color-mix(in srgb, var(--accent) 52%, rgba(255,255,255,0.16)); background: rgba(0,0,0,0.22); display: grid; place-items: center; color: var(--accent); font-style: normal; font-size: 0.62rem; font-weight: 900; }
-	    .mock-decision-player.is-trade i { border-radius: var(--card-radius-sm, 8px); background: rgba(212,175,55,0.12); color: var(--gold); font-size: 1rem; }
+	    .mock-decision-player.is-trade i, .mock-decision-player.is-intel i { border-radius: var(--card-radius-sm, 8px); background: rgba(212,175,55,0.12); color: var(--gold); font-size: 1rem; }
 	    .mock-decision-player strong { margin-top: 0; }
 	    .mock-log-scroll { flex: 1; min-height: 0; overflow-y: auto; display: grid; gap: 5px; align-content: start; }
 	    .mock-log-row { display: grid; grid-template-columns: 48px minmax(0,0.82fr) minmax(0,1.38fr) 82px; gap: 8px; align-items: center; min-height: 36px; border: 1px solid rgba(255,255,255,0.055); background: rgba(255,255,255,0.02); border-radius: var(--card-radius-sm, 8px); padding: 7px 9px; cursor: pointer; }
@@ -2922,7 +2922,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-sync.js?v=20260516p6redo"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-decision-engine.js?v=20260814arch1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/analyst-mock.js?v=20260531voice1"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260823gp4"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260903oppintel2"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260822wr2"></script>
 <!-- 5. League detail tab components (extracted from league-detail.js) -->
 <!-- v2 widget modules (load before dashboard.js which consumes them) -->
