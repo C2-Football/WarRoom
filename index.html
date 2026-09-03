@@ -2142,6 +2142,22 @@ WRShared.preloadMany(WR_SHARED_FILES);
         .wr-sidebar.is-collapsed .wr-sidebar-nav-btn { justify-content:flex-start !important; padding-left:20px !important; padding-right:16px !important; }
     }
 
+    /* Dashboard widget picker: 18 modules render as many two-column rows as
+       a ~345px-tall body needs — the overflow:hidden panel hides most of
+       them past the max-height with no scroll path AT ANY WIDTH (this used
+       to be nested in the phone-only media query below, so ≥768 — desktop
+       included — had no scroll path at all; not phone-specific, so it's
+       unconditional here). Body scrolls; panel capped in dynamic-viewport
+       units so Safari's collapsing URL bar can't clip the confirm button
+       (85vh fallback for pre-15.4 iOS). !important beats the inline 90vh. */
+    .wr-widget-picker-panel { max-height:85vh !important; max-height:85dvh !important; }
+    .wr-widget-picker-body {
+        min-height:0;
+        overflow-y:auto;
+        -webkit-overflow-scrolling:touch;
+        overscroll-behavior:contain;
+    }
+
     /* ══ PHONE TIER (≤767) — safe-area offsets, bottom dock, and touch
        scaffold for the league-shell fixed layer. Scoped to the phone tier so
        the just-shipped 768–1023 tablet tier is untouched (iPad installed-PWA
@@ -2364,19 +2380,9 @@ WRShared.preloadMany(WR_SHARED_FILES);
         .wr-module-nav-item:active { background:rgba(212,175,55,0.14) !important; }
 
         /* ── Lane H smoke-pass fixes (My Roster / Dashboard / FA / Trade Desk) ── */
-
-        /* Dashboard widget picker: 18 modules render ~9 two-column rows at a
-           ~345px panel — the overflow:hidden 90vh panel hid most of them with
-           no scroll path. Body scrolls; panel capped in dynamic-viewport units
-           so Safari's collapsing URL bar can't clip the confirm button (85vh
-           fallback for pre-15.4 iOS). !important beats the inline 90vh. */
-        .wr-widget-picker-panel { max-height:85vh !important; max-height:85dvh !important; }
-        .wr-widget-picker-body {
-            min-height:0;
-            overflow-y:auto;
-            -webkit-overflow-scrolling:touch;
-            overscroll-behavior:contain;
-        }
+        /* Dashboard widget picker scroll fix moved out of this phone-only
+           block — it applies at every width, see the unconditional rule
+           right above the PHONE TIER media query. */
 
         /* FA detail drawer (fixed right panel, top:0/bottom:0): pad for the
            notch + home indicator — installed-PWA (black-translucent) draws it
