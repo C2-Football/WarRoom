@@ -139,6 +139,23 @@ function MyTeamTab({
   // opposite (protects proven vets, pushes out pieces that can't help THIS
   // season); Compete stays close to raw DHQ with a light decline-phase nudge.
   // Feeds both the drop/taxi candidate ranking below and the GM's Desk copy.
+  //
+  // Positional scarcity — mirrors free-agency.js's getScarcityMultiplier
+  // (same league-format signal: superflex QB, TE-premium TE, RB-heavy roster
+  // shape) so "scarce" means the same thing everywhere in the app. This is a
+  // standing protection nudge, not a strategy preference — losing your only
+  // real depth at a scarce position is a mistake in ANY mode, so it applies
+  // on top of (not instead of) the rebuild/compete/win_now signal below.
+  const _scarcityMult = React.useCallback((pos) => {
+    const positions = currentLeague?.roster_positions || [];
+    const scoring = currentLeague?.scoring_settings || {};
+    let mult = 1.0;
+    if (positions.includes('SUPER_FLEX') && pos === 'QB') mult = 1.8;
+    if ((scoring.bonus_rec_te || scoring.rec_te || 0) > 0 && pos === 'TE') mult = 1.5;
+    const rbSlots = positions.filter(s => s === 'RB').length;
+    if (pos === 'RB' && rbSlots >= 2) mult = Math.max(mult, 1.3);
+    return mult;
+  }, [currentLeague]);
   const _cutScore = React.useCallback((r) => {
     let score = 0;
     const mode = gm?.mode;
@@ -156,8 +173,9 @@ function MyTeamTab({
     }
     if (gmSellPositions.has(String(r.pos))) score += 8;
     if (gmTargetPositions.has(String(r.pos))) score -= 5;
+    score -= (_scarcityMult(r.pos) - 1) * 20;
     return score;
-  }, [gm?.mode, gm?.tradeWeights, gmSellPositions, gmTargetPositions]);
+  }, [gm?.mode, gm?.tradeWeights, gmSellPositions, gmTargetPositions, _scarcityMult]);
   // Strategy's influence is capped to a FRACTION of the player's own DHQ (max
   // ±20%), not a flat point deduction — so it can only reorder near-equal-value
   // bench players. A blunt age/phase signal must never outrank real production:
