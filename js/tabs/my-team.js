@@ -139,8 +139,6 @@ function MyTeamTab({
   // opposite (protects proven vets, pushes out pieces that can't help THIS
   // season); Compete stays close to raw DHQ with a light decline-phase nudge.
   // Feeds both the drop/taxi candidate ranking below and the GM's Desk copy.
-  const CUT_SCORE_DHQ_WEIGHT = 120; // DHQ points one strategy-point is worth —
-  // tuned to reorder the borderline bench crowd without overriding a real value gap.
   const _cutScore = React.useCallback((r) => {
     let score = 0;
     const mode = gm?.mode;
@@ -160,7 +158,17 @@ function MyTeamTab({
     if (gmTargetPositions.has(String(r.pos))) score -= 5;
     return score;
   }, [gm?.mode, gm?.tradeWeights, gmSellPositions, gmTargetPositions]);
-  const _adjustedDhq = React.useCallback((r) => r.dhq - _cutScore(r) * CUT_SCORE_DHQ_WEIGHT, [_cutScore]);
+  // Strategy's influence is capped to a FRACTION of the player's own DHQ (max
+  // ±20%), not a flat point deduction — so it can only reorder near-equal-value
+  // bench players. A blunt age/phase signal must never outrank real production:
+  // a still-strong older player (last year's 3rd-best scorer at his position,
+  // say) keeps ~80%+ of his real value and stays well clear of the worst bench
+  // spots, even in Rebuild mode. Only players ALREADY close in raw DHQ get
+  // reshuffled by strategy fit.
+  const _adjustedDhq = React.useCallback((r) => {
+    const scorePct = Math.max(-0.2, Math.min(0.2, _cutScore(r) / 200));
+    return r.dhq * (1 - scorePct);
+  }, [_cutScore]);
   // One-line, strategy-grounded reasoning for a GM's Desk call.
   const _gmDeskReason = React.useCallback((r, verdict) => {
     const mode = gm?.mode;
