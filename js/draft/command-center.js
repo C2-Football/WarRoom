@@ -4601,7 +4601,8 @@
                                         {opponentLikely?.pos && (
                                             <div>
                                                 <div style={{ fontSize: '0.56rem', fontWeight: 800, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Likely</div>
-                                                <div style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--white)', marginTop: '2px' }}>{opponentLikely.pos}{opponentConf != null ? ' ' + opponentConf + '%' : ''}</div>
+                                                <div style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--white)', marginTop: '2px', lineHeight: 1.2 }}>{opponentLikely.name || opponentLikely.pos}</div>
+                                                <div style={{ fontSize: '0.56rem', color: 'var(--silver)', opacity: 0.75, marginTop: '1px' }}>{opponentLikely.pos}{opponentConf != null ? ' · ' + opponentConf + '%' : ''}</div>
                                             </div>
                                         )}
                                         <div>
