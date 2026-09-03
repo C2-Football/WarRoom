@@ -4459,6 +4459,24 @@
                     : Number(player.dhq || 0) >= 2200 ? 'lineup starter'
                         : 'depth value';
             const sd = 'pw:' + (player.pid || player.name) + ':' + lane;
+            // DEF/K play by completely different logic than skill positions —
+            // "role security," "spike weeks," and rookie school/landing-spot
+            // framing (below) don't mean anything for a team defense or a
+            // kicker, whose "player name" is literally an NFL team.
+            if (pos === 'DEF' || pos === 'K') {
+                if (lane === 'safe') return avPick(sd, [
+                    player.name + ' is the safe ' + pos + ' — steady scheme, low week-to-week variance, and ' + valueBand + ' pricing.',
+                    'Boring but reliable: ' + player.name + ' at ' + pos + ', ' + valueBand + ' with little bust risk.',
+                ]);
+                if (lane === 'upside') return avPick(sd, [
+                    player.name + ' is the ' + pos + ' with real matchup-swing equity — the ceiling weeks that actually decide a ' + pos + ' slot.',
+                    'If you want the streaming-proof ' + pos + ', it\'s ' + player.name + ' — the ceiling weeks are real, not theoretical.',
+                ]);
+                return avPick(sd, [
+                    player.name + ' is my ' + pos + ' pick — matchup profile and DHQ both clear what\'s left on the wire.',
+                    'I\'d take ' + player.name + ' here. Best mix of matchup and value left at ' + pos + '.',
+                ]);
+            }
             if (established) {
                 if (lane === 'safe') return avPick(sd, [
                     player.name + ' is the stability play — a proven ' + pos + ' on ' + team + ', ' + valueBand + ' pricing, and a lot less projection risk than the names around him.',
@@ -4495,33 +4513,38 @@
             .find(slot => slot?.rosterId != null && String(slot.rosterId) !== String(state.userRosterId || ''));
         const opponentPersona = nextOpponentSlot ? (state.personas || {})[nextOpponentSlot.rosterId] : null;
         const opponentTeamName = nextOpponentSlot ? mockTeamName(state, nextOpponentSlot.rosterId, nextOpponentSlot) : '';
-        // Same two reads as the Opponent Intel panel's Needs chips + Prediction
-        // Engine header (opponent-intel.js) — condensed to one line for the deck
-        // card. predictions is cached per-round on the persona (see the
-        // computePredictions loop above), so this is a read, not a recompute;
-        // the confidence fallback mirrors opponent-intel.js's predConfidence
-        // (that helper isn't exported, so it's small enough to inline here).
+        // Full read of the SAME data the Opponent Intel sidebar panel shows
+        // (opponent-intel.js) — Needs, Prediction Engine (likely pick +
+        // confidence + will-reach), Draft/Trade DNA, Posture, Tier, Health,
+        // Historical Intel. All of it is precomputed on the persona already
+        // (ownerIntel at creation via persona.js, predictions per-round via
+        // the computePredictions loop above) — this is a set of cheap field
+        // reads, not a recompute. The confidence fallback mirrors
+        // opponent-intel.js's predConfidence (that helper isn't exported, so
+        // it's small enough to inline here).
         const opponentNeeds = (opponentPersona?.assessment?.needs || [])
-            .map(n => (typeof n === 'string' ? n : n?.pos)).filter(Boolean).slice(0, 2);
+            .map(n => (typeof n === 'string' ? n : n?.pos)).filter(Boolean).slice(0, 4);
         const opponentLikely = opponentPersona?.predictions?.likelyPick || null;
+        const opponentReach = (opponentPersona?.predictions?.willReach || []).slice(0, 3);
         const opponentConf = (() => {
             const c = opponentLikely?.confidence;
             if (typeof c === 'number' && isFinite(c) && c >= 0 && c <= 1) return Math.round(c * 100);
-            const topDelta = Math.abs(opponentPersona?.predictions?.willReach?.[0]?.delta || 0);
+            const topDelta = Math.abs(opponentReach[0]?.delta || 0);
             return topDelta ? Math.max(35, Math.min(85, Math.round(40 + (topDelta / 0.25) * 45))) : null;
         })();
-        const opponentIntelText = !nextOpponentSlot
-            ? 'No opponent picks left to scout.'
-            : [
-                opponentNeeds.length ? 'Needs ' + opponentNeeds.join(', ') + '.' : null,
-                opponentLikely?.pos ? 'Likely grabs ' + opponentLikely.pos + (opponentConf ? ' (' + opponentConf + '% conf).' : ' next.') : null,
-              ].filter(Boolean).join(' ')
-                || (window.DraftCC?.context?.summarizeOwnerIntel?.(opponentPersona?.ownerIntel) || (opponentTeamName + ' — reading the board now, no history yet.'));
+        const opponentConfBand = opponentConf == null ? null : opponentConf >= 66 ? 'HIGH' : opponentConf >= 40 ? 'MED' : 'LOW';
+        const opponentDraftDna = opponentPersona?.draftDna?.label || 'Balanced';
+        const opponentTradeDna = opponentPersona?.tradeDna?.label || '—';
+        const opponentPosture = opponentPersona?.posture?.label || 'Neutral';
+        const opponentTier = opponentPersona?.assessment?.tier || '—';
+        const opponentHealth = opponentPersona?.assessment?.healthScore || 0;
+        const opponentHistorical = window.DraftCC?.context?.summarizeOwnerIntel?.(opponentPersona?.ownerIntel)
+            || (nextOpponentSlot ? opponentTeamName + ' — reading the board now, no history yet.' : 'No opponent picks left to scout.');
         const cards = [
             { key: 'rec', label: 'Recommended Pick', player: best, tone: 'var(--k-2ecc71, #2ecc71)', text: pickWhy(best, 'rec') },
             { key: 'safe', label: 'Safe Pick', player: safe, tone: 'var(--k-3498db, #3498db)', text: pickWhy(safe, 'safe') },
             { key: 'upside', label: 'Upside Swing', player: upside, tone: 'var(--k-9b8afb, #9b8afb)', text: pickWhy(upside, 'upside') },
-            { key: 'opponent', label: 'Opponent Intel', player: null, tone: 'var(--gold)', text: opponentIntelText },
+            { key: 'opponent', label: 'Opponent Intel', player: null, tone: 'var(--gold)', text: opponentHistorical },
         ];
         return (
             <section className="mock-panel mock-decision-deck">
@@ -4534,7 +4557,7 @@
                         const p = card.player;
                         const photo = mockPlayerPhoto(p);
                         return (
-                            <button key={card.key} type="button" className="mock-decision-card" style={{ '--accent': card.tone }} onClick={() => card.key === 'opponent' ? (nextOpponentSlot && dispatch({ type: 'PIN_TEAM', rosterId: nextOpponentSlot.rosterId })) : mockMakePick(dispatch, state, isUserTurn, p)} disabled={card.key === 'opponent' && !nextOpponentSlot} title={card.key === 'opponent' ? 'Pin this team in the Opponent Intel panel' : undefined}>
+                            <button key={card.key} type="button" className="mock-decision-card" style={{ '--accent': card.tone, ...(card.key === 'opponent' ? { gridColumn: '1 / -1' } : {}) }} onClick={() => card.key === 'opponent' ? (nextOpponentSlot && dispatch({ type: 'PIN_TEAM', rosterId: nextOpponentSlot.rosterId })) : mockMakePick(dispatch, state, isUserTurn, p)} disabled={card.key === 'opponent' && !nextOpponentSlot} title={card.key === 'opponent' ? 'Pin this team in the Opponent Intel panel' : undefined}>
                                 <span>{card.label}</span>
                                 {p ? (
                                     <div className="mock-decision-player">
@@ -4550,6 +4573,41 @@
                                         <div>
                                             <strong>{nextOpponentSlot ? opponentTeamName : 'No one on deck'}</strong>
                                             <em>{nextOpponentSlot ? mockPickLabel(nextOpponentSlot, state.leagueSize) + ' next' : 'Draft is over'}</em>
+                                        </div>
+                                    </div>
+                                )}
+                                {/* Full read, not the condensed one-liner — same fields the
+                                    Opponent Intel sidebar panel shows (Needs, Prediction Engine,
+                                    Draft/Trade DNA, Posture, Tier, Health), laid out as compact
+                                    rows since this card spans full width instead of sharing a
+                                    grid cell. */}
+                                {card.key === 'opponent' && nextOpponentSlot && (
+                                    <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px 18px' }}>
+                                        {opponentNeeds.length > 0 && (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                {opponentNeeds.map(pos => (
+                                                    <span key={pos} style={{ fontSize: '0.62rem', fontWeight: 800, padding: '1px 6px', borderRadius: 'var(--card-radius-xs, 5px)', background: 'rgba(231,76,60,0.1)', border: '1px solid rgba(231,76,60,0.3)', color: 'var(--k-e74c3c, #e74c3c)' }}>{pos}!</span>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {opponentLikely?.name && (
+                                            <div style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>
+                                                <span style={{ color: 'var(--gold)', fontWeight: 700 }}>Likely </span>
+                                                {opponentLikely.name} ({opponentLikely.pos}){opponentConf != null && ' · ' + opponentConf + '% ' + opponentConfBand}
+                                            </div>
+                                        )}
+                                        {opponentReach.length > 0 && (
+                                            <div style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>
+                                                <span style={{ color: 'var(--gold)', fontWeight: 700 }}>Reaches for </span>
+                                                {opponentReach.map(r => r.pos + ' +' + Math.round(Math.abs(r.delta || 0) * 100) + '%').join(', ')}
+                                            </div>
+                                        )}
+                                        <div style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>
+                                            <span style={{ color: 'var(--gold)', fontWeight: 700 }}>DNA </span>
+                                            {opponentDraftDna} draft · {opponentTradeDna} trade · {opponentPosture}
+                                        </div>
+                                        <div style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>
+                                            <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{opponentTier}</span> · Health {opponentHealth}/100
                                         </div>
                                     </div>
                                 )}
