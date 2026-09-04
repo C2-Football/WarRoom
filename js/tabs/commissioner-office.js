@@ -184,8 +184,14 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                     benches.push(bench);
                     try { prospectuses.push(C.Bench?.buildProspectus ? C.Bench.buildProspectus({ seat, league, graph, playersData, values: null }) : null); } catch (e) { prospectuses.push(null); }
                     try {
+                        // The constitution was already fetched above and is keyed by the
+                        // same league-id string seat.leagueId carries. Passing null here
+                        // regardless meant buildDayOneFolder's House Rules section always
+                        // took its "No constitution on file for this league" branch — even
+                        // for leagues that have one on file.
+                        const seatConstitution = constitutions[seat.leagueId]?.text || null;
                         folders.push(bench[0] && C.Bench?.buildDayOneFolder
-                            ? C.Bench.buildDayOneFolder({ league, seat, recruitName: bench[0].name, graph, playersData, values: null, constitutionDigest: null })
+                            ? C.Bench.buildDayOneFolder({ league, seat, recruitName: bench[0].name, graph, playersData, values: null, constitutionDigest: seatConstitution })
                             : null);
                     } catch (e) { folders.push(null); }
                 }

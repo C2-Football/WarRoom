@@ -55,6 +55,20 @@ function setEmpireLeagueOn(leagueId, on) {
     return p;
 }
 
+// Tier → color. Module-level and shared: this used to be nested inside
+// buildEmpirePortfolioModel while buildThreatBoard kept its own private
+// `tierTone` with a DIFFERENT mapping, so the same league's tier rendered
+// one color on the Threat Board and another everywhere else in Empire —
+// and the two top tiers were effectively swapped (ELITE gold / CONTENDER
+// green there, vs ELITE green / CONTENDER blue here).
+function tierColor(tier) {
+    if (tier === 'ELITE') return 'var(--k-2ecc71, #2ecc71)';
+    if (tier === 'CONTENDER') return 'var(--k-3498db, #3498db)';
+    if (tier === 'CROSSROADS') return 'var(--k-f0a500, #f0a500)';
+    if (tier === 'REBUILDING') return 'var(--k-e74c3c, #e74c3c)';
+    return 'var(--ov-9, rgba(255,255,255,0.46))';
+}
+
 function buildEmpirePortfolioModel(input) {
     input = input || {};
     const allLeagues = input.allLeagues || [];
@@ -94,13 +108,6 @@ function buildEmpirePortfolioModel(input) {
     }
     function leagueId(league) {
         return league?.id || league?.league_id || league?.leagueId || '';
-    }
-    function tierColor(tier) {
-        if (tier === 'ELITE') return 'var(--k-2ecc71, #2ecc71)';
-        if (tier === 'CONTENDER') return 'var(--k-3498db, #3498db)';
-        if (tier === 'CROSSROADS') return 'var(--k-f0a500, #f0a500)';
-        if (tier === 'REBUILDING') return 'var(--k-e74c3c, #e74c3c)';
-        return 'var(--ov-9, rgba(255,255,255,0.46))';
     }
     function statusFromTier(tier) {
         if (tier === 'ELITE' || tier === 'CONTENDER') return 'contender';
@@ -703,13 +710,9 @@ function buildThreatBoard(input) {
   // Tier weight — how dangerous the roster itself is. Uppercase keys come straight off
   // assessAllTeams (ELITE / CONTENDER / CROSSROADS / REBUILDING). Tolerate mixed case / labels.
   var TIER_W = { ELITE: 40, CONTENDER: 30, CROSSROADS: 14, REBUILDING: 4, UNKNOWN: 10 };
-  var tierTone = function (t) {
-    if (t === 'ELITE') return 'var(--gold)';
-    if (t === 'CONTENDER') return 'var(--good)';
-    if (t === 'CROSSROADS') return 'var(--warn)';
-    if (t === 'REBUILDING') return 'var(--bad)';
-    return 'var(--silver)';
-  };
+  // Delegates to the shared tierColor (top of file) so the Threat Board can't
+  // drift from the rest of Empire Command's tier palette again.
+  var tierTone = function (t) { return tierColor(t); };
   // Aggressive DNA — fleecers/dominators actively build threats; passive types less so.
   var DNA_THREAT = { FLEECER: 10, DOMINATOR: 9, STALWART: 3, ACCEPTOR: 1, DESPERATE: 0 };
 

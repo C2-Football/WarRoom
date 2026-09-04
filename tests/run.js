@@ -152,8 +152,12 @@ process.stdout.write('OK\n\n');
 
 process.stdout.write('  Extracting buildEmpirePortfolioModel … ');
 const globalViewSrc = fs.readFileSync(path.join(ROOT, 'js/tabs/global-view.js'), 'utf8');
+// tierColor is module-level in global-view.js (shared with buildThreatBoard so
+// the Threat Board can't drift from the rest of Empire's tier palette), so it
+// isn't inside the extracted model function — pull it in alongside.
+const tierColorSrc = extractFunction(globalViewSrc, 'function tierColor(tier)');
 const empireModelSrc = extractFunction(globalViewSrc, 'function buildEmpirePortfolioModel(input)');
-vm.runInContext(empireModelSrc, ctx);
+vm.runInContext(`${tierColorSrc}\n${empireModelSrc}`, ctx);
 process.stdout.write('OK\n\n');
 
 // ── Grab references from context ──────────────────────────────────
