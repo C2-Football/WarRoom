@@ -1230,7 +1230,12 @@
                                     <span style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '1.15rem', letterSpacing: '.08em', color: 'var(--gold)' }}>EMPIRE COMMAND</span>
                                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '.06em', color: 'var(--black)', background: 'var(--gold)', borderRadius: 'var(--card-radius-xs, 5px)', padding: '1px 6px' }}>PRO</span>
                                 </div>
-                                <div style={{ fontSize: 'var(--text-label, 0.8rem)', color: 'var(--silver)', marginTop: '4px' }}>All {leagues.length} league{leagues.length !== 1 ? 's' : ''} in one terminal · cross-league trade intelligence</div>
+                                {/* Count is only meaningful once the league sync has produced
+                                    something. On a cold start the sync takes seconds, and
+                                    rendering the raw count made the hero assert "All 0 leagues"
+                                    — reads as "you have none" exactly when the user is waiting
+                                    to find out. Fall back to the sync state until a league lands. */}
+                                <div style={{ fontSize: 'var(--text-label, 0.8rem)', color: 'var(--silver)', marginTop: '4px' }}>{leagues.length === 0 && loading ? 'Syncing your leagues…' : 'All ' + leagues.length + ' league' + (leagues.length !== 1 ? 's' : '') + ' in one terminal'} · cross-league trade intelligence</div>
                             </div>
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--gold)" strokeWidth="2" style={{ flexShrink: 0, opacity: 0.7 }}><polyline points="9 18 15 12 9 6"/></svg>
                         </div>
