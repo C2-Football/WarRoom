@@ -1546,6 +1546,8 @@ function EmpireStyles() {
             .empire-rail-spacer { flex: 1; }
             .empire-live { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-micro); font-weight: 800; letter-spacing: 0.12em; color: var(--good); text-transform: uppercase; }
             .empire-live::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--good); animation: empire-pulse 1.8s infinite; }
+            .empire-live.is-stale { color: var(--ov-9, rgb(144,144,145)); }
+            .empire-live.is-stale::before { background: var(--ov-7, rgb(90,90,92)); animation: none; }
             @keyframes empire-pulse { 0% { box-shadow: 0 0 0 0 rgb(27,106,62); } 70% { box-shadow: 0 0 0 6px rgb(8,8,11); } 100% { box-shadow: 0 0 0 0 rgb(8,8,11); } }
             .empire-wire { overflow: hidden; white-space: nowrap; min-height: 28px; margin-top: 18px; background: rgb(8,8,12); border: 1px solid var(--ov-5, rgb(30,30,33)); border-radius: var(--card-radius-sm); padding: 5px 0; display: flex; align-items: center; position: relative; z-index: 1; }
             .empire-wire-tag { position: relative; z-index: 2; flex-shrink: 0; padding: 0 14px; font-size: var(--text-micro); font-weight: 900; letter-spacing: 0.14em; color: var(--gold); text-transform: uppercase; background: rgb(8,8,12); border-right: 1px solid var(--ov-4, rgb(28,28,31)); }
@@ -1554,7 +1556,33 @@ function EmpireStyles() {
             .empire-wire-item { display: inline-block; padding: 0 22px; font-size: var(--text-label, 0.75rem); color: var(--ov-9, rgb(161,161,162)); }
             .empire-wire-item::before { content: '\\25C6'; color: var(--acc-line3, rgb(110,92,33)); margin-right: 22px; font-size: 0.6rem; vertical-align: middle; }
             @keyframes empire-wire-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-            @media (max-width: 1023px) { .empire-root.is-terminal { padding-left: 0; } .empire-rail { display: none; } }
+            /* Touch replacement for the rail. Hidden on desktop (the rail is
+               always visible there); below 1024px it's the only way into
+               Empire Index / Threat / War Table / Outlook / Provinces / Scout. */
+            .empire-sections-btn { display: none; align-items: center; gap: 6px; flex-shrink: 0;
+                min-height: 34px; padding: 6px 11px; border: 1px solid var(--acc-line2, rgb(69,58,24));
+                border-radius: var(--card-radius-sm, 8px); background: var(--acc-fill1, rgb(20,18,14));
+                color: var(--k-f7e9b0, #f7e9b0); font-family: inherit; font-size: var(--text-label, 0.75rem);
+                font-weight: 800; letter-spacing: 0.04em; cursor: pointer; }
+            .empire-sections-btn.is-active { color: var(--off-black, #070707); background: var(--gold); border-color: var(--gold); }
+            /* Lives inside the sticky header, so it caps its own height rather
+               than pushing the KPI strip off a phone screen. */
+            .empire-sections-sheet { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
+                margin: 10px 14px 12px; padding: 10px; max-height: 46vh; overflow-y: auto;
+                border: 1px solid var(--acc-line1, rgb(53,45,21));
+                border-radius: var(--card-radius, 10px); background: var(--ov-1, rgb(14,14,17)); }
+            .empire-section-tile { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 10px;
+                border: 1px solid var(--ov-5, rgb(30,30,33)); border-radius: var(--card-radius-sm, 8px);
+                background: var(--ov-2, rgb(18,18,21)); color: var(--ov-9, rgb(161,161,162));
+                font-family: inherit; font-size: var(--text-label, 0.75rem); font-weight: 700; text-align: left; cursor: pointer; }
+            .empire-section-tile svg { flex-shrink: 0; color: var(--gold); }
+            .empire-section-tile span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .empire-section-tile:active { border-color: var(--acc-line3, rgb(110,92,33)); color: var(--white, var(--k-ffffff, #fff)); }
+            @media (max-width: 479px) { .empire-sections-btn span { display: none; } .empire-sections-btn { padding: 6px 9px; } }
+            @media (min-width: 560px) { .empire-sections-sheet { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+            @media (min-width: 768px) { .empire-sections-sheet { margin-left: 24px; margin-right: 24px; } }
+            @media (max-width: 1023px) { .empire-root.is-terminal { padding-left: 0; } .empire-rail { display: none; } .empire-sections-btn { display: inline-flex; } }
+            @media (min-width: 1024px) { .empire-sections-sheet { display: none; } }
             /* ── Asset Floor: exposure matrix + DHQ heat tiles ── */
             .empire-floor-matrix { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px; margin-bottom: 12px; }
             .empire-expo-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(60px, 1fr) auto; gap: 10px; align-items: center; text-align: left; border: 1px solid var(--ov-4, rgb(25,25,28)); background: var(--ov-1, rgb(14,14,17)); border-radius: var(--card-radius-sm, 8px); padding: 7px 10px; cursor: pointer; color: inherit; font-family: inherit; }
@@ -1727,6 +1755,12 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const [sort, setSort] = useState('dhq');
     const [detail, setDetail] = useState(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    // The left icon rail is desktop-only (it needs hover tooltips and a
+    // 52px gutter). Below 1024px it's hidden, which used to strand six
+    // sections — Empire Index, Threat Board, War Table, Season Outlook,
+    // Provinces and Scout Board have no other entry point. This drives a
+    // tap-to-open grid of the same destinations on phone/portrait iPad.
+    const [navOpen, setNavOpen] = useState(false);
     const [decisionTick, setDecisionTick] = useState(0);
     // Arbitrage board default: owned rows only. The board is sorted
     // mine-first regardless, but a portfolio with a deep player pool can
@@ -2990,28 +3024,51 @@ const renderScoutDetail = () => {
     if (detail?.type === 'slice' || detail?.type === 'quality') return renderSliceDetail(detail);
     if (detail?.type === 'moves') return renderMovesDetail();
 
+    // Single source for both navigations: the desktop icon rail and the
+    // phone/tablet section grid render from this list, so a new section
+    // can't reach one surface and miss the other.
+    const sectionNav = [
+        { icon: 'home', t: 'Command Bridge', go: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
+        { icon: 'zap', t: 'Empire Moves', go: () => setDetail({ type: 'moves' }) },
+        { icon: 'layers', t: 'Allocation & Leagues', go: () => document.querySelector('.empire-main-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+        { icon: 'trendingUp', t: 'Asset Floor', go: () => document.querySelector('.empire-floor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+        { icon: 'barChart', t: 'Empire Index', go: () => setDetail({ type: 'index' }) },
+        { icon: 'alertTriangle', t: 'Threat Board', go: () => setDetail({ type: 'threat' }) },
+        { icon: 'target', t: 'War Table', go: () => setDetail({ type: 'war' }) },
+        { icon: 'trophy', t: 'Season Outlook', go: () => setDetail({ type: 'outlook' }) },
+        { icon: 'trade', t: 'Trade Desk', go: () => setDetail({ type: 'tradeDesk' }) },
+        { icon: 'map', t: 'Provinces Map', go: () => setDetail({ type: 'provinces' }) },
+        { icon: 'search', t: 'Scout Board', go: () => setDetail({ type: 'scout', groupBy: 'none', sortBy: 'dhq' }) },
+        { icon: 'briefcase', t: 'Asset Workspace', go: () => document.querySelector('.empire-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
+    ];
+    // The header used to show an unconditional pulsing "Live" badge, but
+    // Empire only re-reads league data when you hit Refresh Leagues. Report
+    // the real age of the intel build instead, and reserve "Live" for data
+    // that genuinely is fresh.
+    const freshness = (() => {
+        const builtAt = Date.parse(window.App?.LI?.builtAt || '');
+        if (!Number.isFinite(builtAt)) return null;
+        const mins = Math.max(0, Math.round((Date.now() - builtAt) / 60000));
+        if (mins <= 15) return { live: true, label: 'Live' };
+        if (mins < 60) return { live: false, label: mins + 'm old' };
+        const hrs = Math.round(mins / 60);
+        if (hrs < 24) return { live: false, label: hrs + 'h old' };
+        return { live: false, label: Math.round(hrs / 24) + 'd old' };
+    })();
+
+    const navIcon = (name, size) => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: size, height: size }}>
+            {(EMPIRE_ICON_PATHS[name] || EMPIRE_ICON_PATHS.home).map((d, i) => <path key={i} d={d} />)}
+        </svg>
+    );
+
     return (
         <div className={rootClassName + ' is-terminal'} data-testid="empire-root">
             <EmpireStyles />
             <nav className="empire-rail" aria-label="Empire sections">
-                {[
-                    { icon: 'home', t: 'Command Bridge', go: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
-                    { icon: 'zap', t: 'Empire Moves', go: () => setDetail({ type: 'moves' }) },
-                    { icon: 'layers', t: 'Allocation & Leagues', go: () => document.querySelector('.empire-main-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
-                    { icon: 'trendingUp', t: 'Asset Floor', go: () => document.querySelector('.empire-floor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
-                    { icon: 'barChart', t: 'Empire Index', go: () => setDetail({ type: 'index' }) },
-                    { icon: 'alertTriangle', t: 'Threat Board', go: () => setDetail({ type: 'threat' }) },
-                    { icon: 'target', t: 'War Table', go: () => setDetail({ type: 'war' }) },
-                    { icon: 'trophy', t: 'Season Outlook', go: () => setDetail({ type: 'outlook' }) },
-                    { icon: 'trade', t: 'Trade Desk', go: () => setDetail({ type: 'tradeDesk' }) },
-                    { icon: 'map', t: 'Provinces Map', go: () => setDetail({ type: 'provinces' }) },
-                    { icon: 'search', t: 'Scout Board', go: () => setDetail({ type: 'scout', groupBy: 'none', sortBy: 'dhq' }) },
-                    { icon: 'briefcase', t: 'Asset Workspace', go: () => document.querySelector('.empire-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
-                ].map(it => (
+                {sectionNav.map(it => (
                     <button key={it.t} className="empire-rail-btn" type="button" title={it.t} aria-label={it.t} onClick={it.go}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: 18, height: 18 }}>
-                            {(EMPIRE_ICON_PATHS[it.icon] || EMPIRE_ICON_PATHS.home).map((d, i) => <path key={i} d={d} />)}
-                        </svg>
+                        {navIcon(it.icon, 18)}
                     </button>
                 ))}
                 <div className="empire-rail-spacer" />
@@ -3020,17 +3077,37 @@ const renderScoutDetail = () => {
             <header className="empire-header">
                 <div className="empire-topbar">
                     <button className="empire-back" type="button" onClick={onBack}>{"<"}</button>
+                    <button className={'empire-sections-btn' + (navOpen ? ' is-active' : '')} type="button"
+                        aria-expanded={navOpen} aria-controls="empire-sections-sheet" aria-label="Empire sections"
+                        onClick={() => setNavOpen(v => !v)}>
+                        {navIcon('layers', 15)}<span>Sections</span>
+                    </button>
                     <div className="empire-title">
                         <strong>Empire Command</strong>
                         <span>{model.totals.leagues} leagues · asset allocation · exposure · pick capital</span>
                     </div>
-                    <span className="empire-live" style={{ marginLeft: 12 }}>Live</span>
+                    {freshness ? (
+                        <span className={'empire-live' + (freshness.live ? '' : ' is-stale')} style={{ marginLeft: 12 }}
+                            title={freshness.live ? 'League data rebuilt in the last 15 minutes' : 'Empire reads cached league data — hit Refresh Leagues to re-sync'}>
+                            {freshness.label}
+                        </span>
+                    ) : null}
                     <button className="empire-action" type="button" style={{ marginLeft: 'auto' }} disabled={!!refreshing} onClick={onRefresh}
                         title={hasNonSleeperLeagues ? "Re-syncs Sleeper leagues' rosters, standings and scoring — ESPN/MFL leagues update on their own connection cycle" : "Re-sync every league's rosters, standings and scoring"}>
                         {refreshing ? 'Refreshing…' : justSynced ? 'Synced ✓' : 'Refresh Leagues'}
                     </button>
                     <div className="empire-user">{userName}</div>
                 </div>
+                {navOpen ? (
+                    <div className="empire-sections-sheet" id="empire-sections-sheet" data-testid="empire-sections-sheet">
+                        {sectionNav.map(it => (
+                            <button key={it.t} className="empire-section-tile" type="button"
+                                onClick={() => { setNavOpen(false); it.go(); }}>
+                                {navIcon(it.icon, 16)}<span>{it.t}</span>
+                            </button>
+                        ))}
+                    </div>
+                ) : null}
                 <div className="empire-kpis" data-testid="empire-command-strip">
                     {/* Command Bridge KPI strip — empire-wide overview (mockup contract), with
                         week-over-week deltas from the snapshot store. Lens filters drive the asset

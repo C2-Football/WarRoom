@@ -104,7 +104,7 @@ function fixtures() {
   const seats = [{ leagueId: 'L2', leagueName: 'Empire', rosterId: 7, reason: 'owner_left' }];
   const benches = [[{ userId: 'u3', name: 'Cal', score: 4, reasons: ['active on radar', 'runs 2 leagues deep'], radarClass: 'ACTIVE' }]];
   const prospectuses = [{ leagueName: 'Empire', recordLine: '7-6', rosterSize: 25, topAssets: [], positionCounts: {}, pitch: 'Empire is a 12-team dynasty seat with a live playoff roster.' }];
-  const folders = [{ leagueName: 'Empire', sections: [
+  const folders = [{ leagueName: 'Empire', recruitName: 'Sam Rivera', sections: [
     { title: 'Welcome', body: 'Welcome to Empire.' },
     { title: 'House Rules', body: 'No constitution on file for this league yet.' },
   ] }];
@@ -166,7 +166,18 @@ console.log('\nWrCommishPeoplePanel contract');
   test('day one folder renders every section title and body', () => {
     assert.ok(text.includes('Welcome to Empire.'));
     assert.ok(text.includes('House Rules'));
-    assert.ok(!text.includes('Generates when a recruit accepts a seat.'));
+    assert.ok(!text.includes('Generates once a seat has a shortlist to draft one for.'));
+  });
+  // Sleeper never reports "this recruit accepted" — the folder is written for
+  // the top shortlist candidate. It must never read as a settled hire.
+  test('day one folder is labelled a draft and names who it was written for', () => {
+    assert.ok(text.includes('Draft'), 'folder must be marked a draft');
+    assert.ok(text.includes('Sam Rivera'), 'names the candidate it was written for');
+    assert.ok(text.includes('Day One Folder') && text.includes('\u2014 Empire'), 'labels which league the folder is for');
+  });
+  test('a folder with no recruitName still says who it is for, without inventing a name', () => {
+    const t = textOf(render(Panel({ folders: [{ leagueName: 'Empire', sections: [{ title: 'Welcome', body: 'Hi.' }] }] }))).join('|');
+    assert.ok(t.includes('the top shortlist candidate'));
   });
   test('copy buttons fall back to onCopy when navigator.clipboard is absent', () => {
     const btns = findAll(tree, n => n.type === 'button');
@@ -210,7 +221,7 @@ console.log('\nWrCommishPeoplePanel contract');
     assert.ok(text.includes("The radar hasn't swept yet"));
     assert.ok(text.includes("The seat scan hasn't run yet"), 'missing seats must NOT claim all seats filled');
     assert.ok(!text.includes('Every seat is filled.'));
-    assert.ok(text.includes('Generates when a recruit accepts a seat.'));
+    assert.ok(text.includes('Generates once a seat has a shortlist to draft one for.'));
   });
   test('seats: [] → the green all-clear line', () => {
     const text = textOf(render(Panel({ radar: { people: [] }, seats: [], benches: [], prospectuses: [], folders: [] }))).join('|');

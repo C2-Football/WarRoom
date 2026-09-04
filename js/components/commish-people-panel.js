@@ -10,8 +10,11 @@
 //   seats         member graph .seats              → [{ leagueId, leagueName, rosterId, reason }]
 //   benches       App.Commish.Bench.candidatesForSeat() per seat (parallel to seats)
 //   prospectuses  App.Commish.Bench.buildProspectus() per seat (parallel to seats)
-//   folders       App.Commish.Bench.buildDayOneFolder() array — empty until a
-//                 recruit actually accepts; we say so instead of inventing one
+//   folders       App.Commish.Bench.buildDayOneFolder() array, one per open
+//                 seat, drafted for that seat's TOP shortlist candidate.
+//                 Sleeper has no "recruit accepted" signal to gate on, so
+//                 each folder is labelled a draft and names who it was
+//                 written for rather than reading as a done deal.
 //   onCopy(text)  clipboard fallback — navigator.clipboard is undefined on
 //                 non-HTTPS/older WebViews, so the host app owns plan B
 // ══════════════════════════════════════════════════════════════════
@@ -170,9 +173,9 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
                 })}
             </Section>
 
-            <Section title="Day One Folder" meta={folderList.length ? folderList.length + ' ready' : null}>
+            <Section title="Day One Folder" meta={folderList.length ? folderList.length + ' drafted' : null}>
                 {folderList.length === 0 ? (
-                    <div style={{ color: TEXT, fontSize: '0.78rem' }}>Generates when a recruit accepts a seat.</div>
+                    <div style={{ color: TEXT, fontSize: '0.78rem' }}>Generates once a seat has a shortlist to draft one for.</div>
                 ) : folderList.map((f, fi) => {
                     const sections = Array.isArray(f?.sections) ? f.sections : [];
                     const copyAll = sections.map(s => (s.title || '').toUpperCase() + '\n' + (s.body || '')).join('\n\n');
@@ -181,6 +184,13 @@ function WrCommishPeoplePanel({ radar, seats, benches, prospectuses, folders, on
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '9px' }}>
                                 <span style={{ ...microHdr, color: GOLD }}>Day One Folder{f.leagueName ? ' — ' + f.leagueName : ''}</span>
                                 <CopyBtn k={'folder:' + fi} text={copyAll} label="Copy all" />
+                            </div>
+                            {/* Nobody has accepted anything — Sleeper only tells us a
+                                seat is EMPTY, never that a recruit said yes. Say whose
+                                name is in the welcome and that it is a draft, so this
+                                is never sent out as a done deal. */}
+                            <div style={{ fontSize: 'var(--text-micro)', color: MUTED, marginBottom: '9px', lineHeight: 1.5 }}>
+                                Draft — written for {f.recruitName || 'the top shortlist candidate'}. Swap the name before you send it.
                             </div>
                             {sections.length === 0 ? (
                                 <div style={{ color: TEXT, fontSize: '0.76rem' }}>This folder came back empty — regenerate it from the seat.</div>

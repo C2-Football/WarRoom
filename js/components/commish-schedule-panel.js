@@ -131,6 +131,17 @@ function WrCommishSchedulePanel({
     const teamCount = (teams || []).length;
     const nflEligible = !!window.App?.Commish?.ScheduleNFL?.isEligible?.(teams);
     const nflMode = mode === 'nfl' && nflEligible;
+    // Human description of the league's own division layout, so an ineligible
+    // league can be told what it has rather than just what it lacks.
+    const divisionShape = React.useMemo(() => {
+        const sizes = {};
+        (teams || []).forEach(t => { if (t.division == null) return; const d = String(t.division); sizes[d] = (sizes[d] || 0) + 1; });
+        const counts = Object.values(sizes);
+        if (!counts.length) return null;
+        const uniform = counts.every(c => c === counts[0]);
+        return counts.length + ' division' + (counts.length === 1 ? '' : 's')
+            + (uniform ? ' of ' + counts[0] : ' of ' + counts.slice().sort((a, b) => b - a).join('/'));
+    }, [teams]);
 
     // ── Per-week edit state (which two teams are being force-paired) ──
     const [editWeek, setEditWeek] = React.useState(null);
@@ -151,7 +162,7 @@ function WrCommishSchedulePanel({
                     No platform this app reads exposes a way to WRITE a matchup schedule, so this builds a plan for you to
                     hand-enter or keep as the league's record — never something that silently changes what Sleeper shows.
                 </div>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: nflEligible ? '10px' : 0 }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
                     <span style={{ ...microHdr, alignSelf: 'center' }}>League</span>
                     {leagues.map(l => (
                         <button key={l.id} onClick={() => onSelectLeague && onSelectLeague(l.id)} style={chipBtn(String(selectedLeagueId) === String(l.id))}>
@@ -169,7 +180,15 @@ function WrCommishSchedulePanel({
                         <button onClick={() => onModeChange && onModeChange('simple')} style={chipBtn(mode !== 'nfl')}>Round-robin</button>
                         <button onClick={() => onModeChange && onModeChange('nfl')} style={chipBtn(mode === 'nfl')}>NFL-style (divisions)</button>
                     </div>
-                ) : null}
+                ) : (
+                    /* Silently hiding the Format control read as "this league
+                       can't do divisions" with no way to find out why. Say
+                       what's required and what this league actually has. */
+                    <div style={{ fontSize: 'var(--text-micro)', color: SILVER, lineHeight: 1.5 }}>
+                        <b style={{ color: 'var(--co-accent, #5DADE2)' }}>Round-robin</b> — NFL-style divisions need exactly 4 divisions of 4 teams;{' '}
+                        {divisionShape ? 'this league has ' + divisionShape + '.' : 'this league has no divisions set in Sleeper.'}
+                    </div>
+                )}
             </Section>
 
             <Section title="Build" meta={nflMode ? teamCount + ' teams · 4 divisions · 14 weeks' : teamCount + ' team' + (teamCount === 1 ? '' : 's') + (teamCount % 2 ? ' · odd — one bye per week' : '')}>

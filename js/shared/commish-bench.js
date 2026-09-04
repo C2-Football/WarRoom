@@ -14,8 +14,10 @@
 //         pitch }   // the one-glance sell sheet for the open roster
 //   buildDayOneFolder({ league, seat, recruitName, graph, playersData,
 //                       values, constitutionDigest })
-//     → { sections: [{ title, body }] }   // Welcome / Your Roster /
-//        Your Rivals / First 90 Days / House Rules
+//     → { sections: [{ title, body }], leagueName, recruitName }
+//        // Welcome / Your Roster / Your Rivals / First 90 Days /
+//        // House Rules. leagueName + recruitName let a caller label
+//        // one folder among several without re-deriving them.
 //
 // Inputs are App.Commish.buildMemberGraph output (read-only) plus the radar
 // classification from the engagement engine. Pure compute throughout — no
@@ -320,7 +322,10 @@
                 : 'No constitution on file for this league. Until one is written, rulings come from the commissioner — ask before assuming.',
         });
 
-        return { sections };
+        // leagueName/recruitName travel with the folder: the People panel
+        // renders one folder per open seat and had no way to say which
+        // league (or which candidate) a given folder was for.
+        return { sections, leagueName, recruitName: recruitName || null };
     }
 
     const api = { candidatesForSeat, buildProspectus, buildDayOneFolder };
