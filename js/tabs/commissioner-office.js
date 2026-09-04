@@ -838,7 +838,13 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     // The triage queue is the office's single ranked work list; the KPI band,
     // pressure grid and desk cards are all views onto it, so they can never
     // disagree with each other.
-    const isPhone = !!(window.WR && window.WR.useViewport && window.WR.useViewport().isPhone);
+    const vp = (window.WR && window.WR.useViewport) ? window.WR.useViewport() : null;
+    const isPhone = !!(vp && vp.isPhone);
+    // Portrait iPad keeps the 208px sidebar, which leaves the grid's eight
+    // domain columns ~36px each — the headers break into vertical letter
+    // soup. Anything narrower than desktop gets the grid's fixed-width,
+    // horizontally scrolling layout, not just phones.
+    const narrowGrid = !!(vp ? !vp.isDesktop : isPhone);
     // Declared HERE, above every memo that reads them. Babel compiles const to
     // a hoisted var, so a dep referenced above its declaration is silently
     // `undefined` at memo-evaluation time rather than a loud TDZ error — the
@@ -1309,7 +1315,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                 {tab === 'command' ? (window.WrCommishCommandPanel ? (
                     <window.WrCommishCommandPanel
                         queue={queue} kpis={commandKpis} grid={commandGrid} desks={commandDesks}
-                        onOpenHub={openHub} onFilter={setQueueFilter} filter={queueFilter} phone={isPhone}
+                        onOpenHub={openHub} onFilter={setQueueFilter} filter={queueFilter} phone={isPhone} narrowGrid={narrowGrid}
                         onSelectItem={onQueueItem} onEnterLeague={handleEnterLeague}
                     />
                 ) : missing('Command')) : null}

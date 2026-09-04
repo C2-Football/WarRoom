@@ -17,7 +17,11 @@
 //
 //   <WrCommishCommandPanel queue={buildQueue(...)} kpis={...} grid={...}
 //                          desks={[...]} filter={filter}
-//                          onOpenHub={fn} onFilter={fn} phone={bool} />
+//                          onOpenHub={fn} onFilter={fn} phone={bool}
+//                          narrowGrid={bool} />
+//   narrowGrid  fixed-width, horizontally scrolling grid + 2-up desk cards.
+//               Defaults to `phone`; the office passes !isDesktop so portrait
+//               iPad gets it too (208px sidebar + 8 fluid columns is unreadable).
 //
 // TOKENS — the office ladder (CO_* customs defined on the office shell).
 // The older season-odds/network idiom reached for --panel / --ov-4 / --text /
@@ -29,7 +33,7 @@
 // its own label (two size steps and 100 weight apart, minimum). That rule is
 // the whole reason the office reads as an instrument instead of a table dump.
 // ══════════════════════════════════════════════════════════════════
-function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, filter, phone, onSelectItem, onEnterLeague }) {
+function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, filter, phone, narrowGrid, onSelectItem, onEnterLeague }) {
     // ── The ladder ───────────────────────────────────────────────────
     const PAGE = 'var(--co-page, #08080B)';
     const SURF = 'var(--co-surface, #121217)';
@@ -466,10 +470,14 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
         CLEAR: { bg: SURF, fg: DIM },
         NOT_YET: { bg: SURF, fg: DIM },
     };
-    const gridCols = phone
+    // Fluid columns need real desktop width; below that the eight domain
+    // headers squeeze under ~40px and wrap one letter per line. Narrow
+    // viewports (phone AND portrait tablet) get fixed columns that scroll.
+    const gNarrow = narrowGrid != null ? !!narrowGrid : !!phone;
+    const gridCols = gNarrow
         ? '140px repeat(' + (gDomains.length || 7) + ', 56px)'
         : '190px repeat(' + (gDomains.length || 7) + ', minmax(0,1fr))';
-    const stickyCell = phone ? { position: 'sticky', left: 0, zIndex: 1, background: SURF } : null;
+    const stickyCell = gNarrow ? { position: 'sticky', left: 0, zIndex: 1, background: SURF } : null;
 
     const band3 = (
         <div ref={gridRef}>
@@ -477,8 +485,8 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                 <span style={T.title}>The grid</span>
                 <span style={T.label}>Cell = open items · click to filter · click a column to open the hub</span>
             </div>
-            <div style={phone ? { overflowX: 'auto', WebkitOverflowScrolling: 'touch' } : null}>
-                <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: '4px', minWidth: phone ? 'min-content' : undefined }}>
+            <div style={gNarrow ? { overflowX: 'auto', WebkitOverflowScrolling: 'touch' } : null}>
+                <div style={{ display: 'grid', gridTemplateColumns: gridCols, gap: '4px', minWidth: gNarrow ? 'min-content' : undefined }}>
                     <div style={{ ...(stickyCell || {}) }} />
                     {gDomains.map(d => (
                         <button type="button" key={d.key} onClick={() => openHub(d.hub, null)}
@@ -591,7 +599,7 @@ function WrCommishCommandPanel({ queue, kpis, grid, desks, onOpenHub, onFilter, 
                             <span style={{ flex: 1, height: '1px', background: LINE }} />
                             <span style={T.label}>{g.cards.length} desk{g.cards.length === 1 ? '' : 's'}{open ? ' · ' + open + ' open' : ''}</span>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: phone ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '12px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: gNarrow ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '12px' }}>
                             {g.cards.map((d, i) => renderDesk(d, i, broadcast))}
                         </div>
                     </div>
