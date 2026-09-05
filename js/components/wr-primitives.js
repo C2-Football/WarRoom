@@ -430,6 +430,11 @@
         // default leaves ~320px — take the full height; the kbOpen min() at
         // the style site still shrinks it when a keyboard is up.
         const maxH = vp.height <= 520 ? '100dvh' : (height || '85dvh');
+        // A full-height sheet reaches the top of the screen, so its header row
+        // lands under the status bar / notch — the body already pads for --sab
+        // but nothing padded the top. Only full-height sheets need it; the
+        // default 85dvh never gets near the inset.
+        const topInset = maxH === '100dvh' ? 'var(--sat, env(safe-area-inset-top, 0px))' : '';
         const lift = vp.kbOpen ? vp.kbHeight : 0;
         const hasHeaderRow = !!title || showClose !== false;
 
@@ -501,7 +506,9 @@
                         flex: 'none', position: 'relative',
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
                         minHeight: hasHeaderRow ? '44px' : '24px',
-                        padding: hasHeaderRow ? '10px 10px 2px 16px' : '0',
+                        padding: hasHeaderRow
+                            ? 'calc(10px + ' + (topInset || '0px') + ') 10px 2px 16px'
+                            : (topInset ? topInset + ' 0 0' : '0'),
                         touchAction: 'none',
                     },
                     onTouchStart: onGrabStart,
@@ -511,7 +518,7 @@
                 },
                     h('div', {
                         'aria-hidden': 'true',
-                        style: { position: 'absolute', top: '6px', left: '50%', transform: 'translateX(-50%)', width: '38px', height: '4px', borderRadius: '2px', background: 'var(--ov-6, rgba(255,255,255,0.16))' }
+                        style: { position: 'absolute', top: 'calc(6px + ' + (topInset || '0px') + ')', left: '50%', transform: 'translateX(-50%)', width: '38px', height: '4px', borderRadius: '2px', background: 'var(--ov-6, rgba(255,255,255,0.16))' }
                     }),
                     title
                         ? h('div', {

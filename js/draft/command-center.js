@@ -5365,7 +5365,10 @@
         // phone — it used the roomy desktop padding/row layout and wasted most of
         // a phone screen's width before this).
         const compact = inline || bpBucket() === 'mobile';
-        const PAD = compact ? '16px 14px' : '22px 32px';
+        // Phone recap runs long (owner ask 2026-09-05: "takes up way too much
+        // screen"). Every compact number below is a density pass only — no
+        // section was cut, nothing collapsed; desktop is untouched.
+        const PAD = compact ? '11px 13px' : '22px 32px';
                     // Build per-position summary from myPicks
                     const posSummary = {};
                     (myPicks || []).forEach(pk => {
@@ -5442,19 +5445,22 @@
                             disabled={!onClick}
                             style={{
                                 textAlign: 'left',
-                                padding: '12px 14px',
+                                padding: compact ? '9px 10px' : '12px 14px',
                                 background: 'var(--ov-2, rgba(255,255,255,0.03))',
                                 border: '1px solid var(--ov-5, rgba(255,255,255,0.08))',
                                 borderLeft: '3px solid ' + (color || 'var(--acc-line4, rgba(212,175,55,0.55))'),
                                 borderRadius: 'var(--card-radius-sm, 8px)',
                                 cursor: onClick ? 'pointer' : 'default',
                                 fontFamily: FONT_UI,
-                                minHeight: '92px',
+                                // 92px x5 cards was the single biggest block of dead
+                                // vertical space on a phone; 44px still clears the tap
+                                // target and the text sets its own height past that.
+                                minHeight: compact ? '44px' : '92px',
                             }}
                         >
-                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.68, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>{label}</div>
-                            <div style={{ color: color || 'var(--white)', fontWeight: 800, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value || '—'}</div>
-                            <div style={{ color: 'var(--silver)', opacity: 0.74, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: 1.45, marginTop: '4px' }}>{detail || 'No signal yet.'}</div>
+                            <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.68, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: compact ? '3px' : '6px' }}>{label}</div>
+                            <div style={{ color: color || 'var(--white)', fontWeight: 800, fontSize: compact ? '0.82rem' : '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value || '—'}</div>
+                            <div style={{ color: 'var(--silver)', opacity: 0.74, fontSize: 'var(--text-micro, 0.6875rem)', lineHeight: compact ? 1.35 : 1.45, marginTop: compact ? '2px' : '4px' }}>{detail || 'No signal yet.'}</div>
                         </button>
                     );
 
@@ -5472,11 +5478,11 @@
                                 borderRadius: '16px',
                             }}>
                                 {/* Hero */}
-                                <div style={{ padding: compact ? '14px 14px' : '28px 32px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', background: 'linear-gradient(135deg, ' + gradeColor + '15, transparent 70%)' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '6px' }}>Draft Complete — Recap</div>
-                                    <div style={{ display: 'flex', flexDirection: compact ? 'column' : 'row', alignItems: compact ? 'stretch' : 'center', gap: compact ? '10px' : '24px' }}>
+                                <div style={{ padding: compact ? '11px 13px' : '28px 32px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))', background: 'linear-gradient(135deg, ' + gradeColor + '15, transparent 70%)' }}>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: compact ? '3px' : '6px' }}>Draft Complete — Recap</div>
+                                    <div style={{ display: 'flex', flexDirection: compact ? 'column' : 'row', alignItems: compact ? 'stretch' : 'center', gap: compact ? '7px' : '24px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: compact ? '14px' : '0', textAlign: compact ? 'left' : 'center', flexShrink: 0 }}>
-                                            <div style={{ fontFamily: FONT_DISPL, fontSize: compact ? '3.4rem' : '5.5rem', fontWeight: 700, color: gradeColor, lineHeight: 1 }}>{recapPro ? (grade.letter || '—') : '🔒'}</div>
+                                            <div style={{ fontFamily: FONT_DISPL, fontSize: compact ? '2.5rem' : '5.5rem', fontWeight: 700, color: gradeColor, lineHeight: 1 }}>{recapPro ? (grade.letter || '—') : '🔒'}</div>
                                             <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: compact ? 0 : '2px' }}>{recapPro ? 'Overall Grade' : 'Grade — Scout Pro'}</div>
                                         </div>
                                         <div style={{ flex: 1 }}>
@@ -5490,8 +5496,8 @@
                                             )}
                                         </div>
                                         {recapPro && effPct != null && (
-                                            <div style={{ textAlign: 'center', flexShrink: 0, padding: compact ? '10px 14px' : '12px 18px', borderRadius: 'var(--card-radius-lg, 14px)', background: wrAlpha(effColor, '12'), border: '1px solid ' + wrAlpha(effColor, '40'), minWidth: compact ? 0 : '128px', display: compact ? 'flex' : 'block', alignItems: compact ? 'center' : undefined, gap: compact ? '12px' : 0, justifyContent: compact ? 'flex-start' : undefined }}>
-                                                <div style={{ fontFamily: FONT_DISPL, fontSize: compact ? '1.9rem' : '2.6rem', fontWeight: 700, color: effColor, lineHeight: 1 }}>{effPct}%</div>
+                                            <div style={{ textAlign: 'center', flexShrink: 0, padding: compact ? '7px 11px' : '12px 18px', borderRadius: 'var(--card-radius-lg, 14px)', background: wrAlpha(effColor, '12'), border: '1px solid ' + wrAlpha(effColor, '40'), minWidth: compact ? 0 : '128px', display: compact ? 'flex' : 'block', alignItems: compact ? 'center' : undefined, gap: compact ? '12px' : 0, justifyContent: compact ? 'flex-start' : undefined }}>
+                                                <div style={{ fontFamily: FONT_DISPL, fontSize: compact ? '1.5rem' : '2.6rem', fontWeight: 700, color: effColor, lineHeight: 1 }}>{effPct}%</div>
                                                 <div style={{ textAlign: compact ? 'left' : 'center' }}>
                                                     <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: compact ? 0 : '4px' }}>{gradeBasis === 'vs $ spent' ? <>of expected value{compact ? ' ' : <br/>}for your spend</> : <>of expected DHQ{compact ? ' ' : <br/>}for your slots</>}</div>
                                                     <div style={{ fontSize: '0.6rem', color: effColor, opacity: 0.9, marginTop: '4px', fontWeight: 700 }}>{effPct >= 100 ? 'NAILED YOUR SLOTS' : effPct >= 85 ? 'SOLID FOR YOUR SLOTS' : 'LEFT VALUE ON BOARD'}</div>
@@ -5503,14 +5509,14 @@
 
                                 {/* P4 strategic readout */}
                                 <div style={{ padding: PAD, borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>Strategic Readout</div>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: compact ? '7px' : '10px' }}>Strategic Readout</div>
                                     {/* best/reach/worst/alternative calls are grade reads → Pro */}
                                     {!recapPro ? (
                                         window.WrGatedMoreRow
                                             ? React.createElement(window.WrGatedMoreRow, { title: 'Best pick, biggest reach, worst pick', sub: 'The value calls behind your grade are Scout Pro.', feature: 'draft_recap_reads' })
                                             : <div dangerouslySetInnerHTML={{ __html: window.wrLockCard ? window.wrLockCard('Strategic Readout', 'draft_recap_reads', 'Post-draft value calls are Scout Pro.') : '' }} />
                                     ) : (
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: compact ? 'repeat(auto-fit, minmax(150px, 1fr))' : 'repeat(auto-fit, minmax(190px, 1fr))', gap: compact ? '7px' : '10px' }}>
                                         {insightCard(
                                             'Best Pick',
                                             bestPick ? `${bestPick.name} #${bestPick.overall}` : 'No pick',
@@ -5552,7 +5558,7 @@
 
                                 {/* Per-position breakdown */}
                                 <div style={{ padding: PAD, borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>Positional Breakdown</div>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: compact ? '6px' : '10px' }}>Positional Breakdown</div>
                                     {recapPositions.length ? (
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
                                             {recapPositions.map(s => {
@@ -5570,7 +5576,7 @@
 
                                 {/* Pick-by-pick roster list */}
                                 <div style={{ padding: PAD, borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>Your Draft Class</div>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: compact ? '6px' : '10px' }}>Your Draft Class</div>
                                     {(myPicks || []).length ? (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             {myPicks.map((pk, i) => {
@@ -5600,10 +5606,10 @@
 
                                 {/* Around the league — extremes + draft-day trade volume */}
                                 <div style={{ padding: PAD, borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>Around the League</div>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: compact ? '6px' : '10px' }}>Around the League</div>
                                     {/* league best/reach/worst calls → Pro; raw trade volume below stays */}
                                     {recapPro && (
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: compact ? 'repeat(auto-fit, minmax(150px, 1fr))' : 'repeat(auto-fit, minmax(190px, 1fr))', gap: compact ? '7px' : '10px' }}>
                                         {insightCard(
                                             'League Best Pick',
                                             leagueExtremes.bestPick ? `${leagueExtremes.bestPick.name} #${leagueExtremes.bestPick.overall}` : '—',
@@ -5648,17 +5654,17 @@
 
                                 {/* League-wide recap — where teams stand after the draft */}
                                 <div style={{ padding: PAD, borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '10px' }}>Where Teams Stand After the Draft</div>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--gold)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: compact ? '6px' : '10px' }}>Where Teams Stand After the Draft</div>
                                     {/* narrative storylines are reads → Pro */}
                                     {recapPro && leagueStorylines.length > 0 && (
-                                        <div style={{ display: 'grid', gap: '6px', marginBottom: '12px' }}>
+                                        <div style={{ display: 'grid', gap: compact ? '4px' : '6px', marginBottom: compact ? '8px' : '12px' }}>
                                             {leagueStorylines.slice(0, 4).map((line, i) => (
-                                                <div key={i} style={{ fontSize: '0.76rem', color: 'var(--silver)', lineHeight: 1.45, padding: '7px 10px', background: 'var(--ov-2, rgba(255,255,255,0.025))', borderRadius: 'var(--card-radius-sm, 8px)' }}>{line}</div>
+                                                <div key={i} style={{ fontSize: compact ? '0.72rem' : '0.76rem', color: 'var(--silver)', lineHeight: compact ? 1.35 : 1.45, padding: compact ? '5px 8px' : '7px 10px', background: 'var(--ov-2, rgba(255,255,255,0.025))', borderRadius: 'var(--card-radius-sm, 8px)' }}>{line}</div>
                                             ))}
                                         </div>
                                     )}
                                     {teamRecaps.length ? (
-                                        <div style={{ display: 'grid', gap: '6px' }}>
+                                        <div style={{ display: 'grid', gap: compact ? '4px' : '6px' }}>
                                             {teamRecaps.slice(0, 12).map(team => {
                                                 const isUser = String(team.rosterId) === String(userRosterId);
                                                 const topPlayer = team.topPick || team.picks?.[0];
@@ -5678,7 +5684,7 @@
                                                 // each with the full row width to itself.
                                                 if (compact) {
                                                     return (
-                                                        <div key={team.rosterId || team.teamName} style={{ padding: '8px 10px', borderRadius: 'var(--card-radius-sm, 8px)', border: rowBorder, background: rowBg }}>
+                                                        <div key={team.rosterId || team.teamName} style={{ padding: '5px 8px', borderRadius: 'var(--card-radius-sm, 8px)', border: rowBorder, background: rowBg }}>
                                                             <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
                                                                 <span style={{ color: isUser ? 'var(--gold)' : 'var(--silver)', fontFamily: FONT_MONO, fontSize: '0.72rem', fontWeight: 800, flexShrink: 0 }}>#{team.rank}</span>
                                                                 <button
@@ -5695,7 +5701,7 @@
                                                                 <span style={{ color: recapPro ? gradeCol : 'var(--silver)', fontFamily: FONT_DISPL, fontSize: '0.9rem', fontWeight: 900, flexShrink: 0 }}>{recapPro ? team.grade : '🔒'}</span>
                                                                 <span style={{ color: 'var(--silver)', fontSize: '0.66rem', fontFamily: FONT_MONO, flexShrink: 0 }}>{fmtDhq(team.totalDHQ)}</span>
                                                             </div>
-                                                            <div style={{ marginTop: '3px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                                            <div style={{ marginTop: '1px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                                                 <span style={{ color: 'var(--silver)', opacity: 0.62, fontSize: 'var(--text-micro, 0.6875rem)', flexShrink: 0, whiteSpace: 'nowrap' }}>{team.buildLabel}</span>
                                                                 <button
                                                                     type="button"
@@ -5758,7 +5764,7 @@
 
                                 {/* Actions — wraps (rather than overflowing off-screen) and
                                     stacks full-width on phone so every button stays reachable. */}
-                                <div style={{ padding: compact ? '14px 14px 18px' : '18px 32px 24px', display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: compact ? 'stretch' : 'flex-end', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
+                                <div style={{ padding: compact ? '10px 13px 14px' : '18px 32px 24px', display: 'flex', flexWrap: 'wrap', gap: compact ? '7px' : '10px', justifyContent: compact ? 'stretch' : 'flex-end', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }}>
                                     {onSaveRecap && <button onClick={onSaveRecap} style={{ flex: compact ? '1 1 auto' : '0 0 auto', minHeight: '44px', padding: '10px 22px', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.35))', borderRadius: 'var(--card-radius-sm, 8px)', fontFamily: FONT_DISPL, fontSize: '0.86rem', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>SAVE RECAP</button>}
                                     {/* share/export text embeds the A–F grade + value calls → Pro
                                         (clean absence; save-to-archive above stays free) */}
