@@ -1024,6 +1024,16 @@ function MyTeamTab({
     if (!isPro || !taxiCandidatePids.has(r.pid) || dismissedTaxiSuggestions.has(r.pid)) return false;
     return window._playerTags?.[r.pid] !== 'cut';
   };
+  // GM's Desk is a MULTI-YEAR roster-construction memo: its calls are framed by
+  // the GM Strategy window (rebuild / compete / win-now) and it advises stashing
+  // youth on taxi. None of that exists in a league that resets every season, so
+  // a redraft owner got "Youth, picks, and patience. Tear it down to build the
+  // next dynasty." over an empty bench (owner ask 2026-09-05). Gated on the same
+  // showFuturePicks seam the app already uses for its other long-horizon
+  // surfaces (future capital, age curves) — dynasty and keeper keep the desk,
+  // redraft / best-ball / chopped / DFS drop it. Fail-open: an unknown skin
+  // keeps it rather than silently losing the panel.
+  const showGmDesk = skinFeatures.showFuturePicks !== false;
   // GM's Desk — the top 3 unresolved cut/taxi calls, strategy-ranked (most
   // urgent first), for the memo-style panel below. Same active/unresolved
   // definition as the chips and Review Roster strip so a mark or dismiss
@@ -2104,8 +2114,9 @@ function MyTeamTab({
           in the active GM Strategy mode's own voice. Confirm/Keep write to the
           same window._playerTags store as every other tag surface (player card,
           Dashboard's Cut Candidates widget), so a call made here is made
-          everywhere. Pro-gated like the rest of the roster call engine. */}
-      {isPro && (
+          everywhere. Pro-gated like the rest of the roster call engine, and
+          long-horizon-gated by showGmDesk (see above). */}
+      {isPro && showGmDesk && (
         <section style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius)', background: 'var(--surf-solid, rgba(20,20,26,0.72))', padding: 'var(--card-pad-sm)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.04em' }}>GM's Desk</span>
