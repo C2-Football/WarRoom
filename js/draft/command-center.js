@@ -507,6 +507,9 @@
                 rounds: upcoming.settings?.rounds || legacyLeagueSettings.draft_rounds || null,
                 teams:  upcoming.settings?.teams  || legacyLeagueSettings.num_teams || null,
                 type:   upcoming.type || null,
+                // Auction starting budget, so the mock setup can seed it the same
+                // way liveDraftSetupPatch does for a real live auction.
+                budget: Number(upcoming.settings?.budget) > 0 ? Number(upcoming.settings.budget) : null,
                 variant: draftVariant,
                 startTime: upcoming.start_time || null,
                 status:  upcoming.status || null,
@@ -516,6 +519,7 @@
                 rounds: legacyLeagueSettings.draft_rounds || null,
                 teams:  legacyLeagueSettings.num_teams || null,
                 type:   null,
+                budget: null,
                 variant: draftVariant,
                 startTime: null,
                 status:  null,
@@ -2066,12 +2070,23 @@
             { id: 'rookie', label: 'rookie', sub: csvReady ? (window.getProspects?.()?.length || 0) + ' prospects loaded' : 'loading CSV...' },
             { id: 'redraft', label: 'redraft', sub: 'current-season adapter' },
         ];
-        const setupSummary = [
+        // draftMechanic (turns vs auction) and draftType (snake vs linear) are
+        // orthogonal: draftType is the turn PATTERN and only means anything for a
+        // turns draft, which is why the setup panel swaps "Draft Order" out for
+        // "Starting Budget" on auction. Reading draftType alone billed every
+        // auction league as "Linear draft" — contradicting the draft-source line
+        // rendered directly underneath, which reads Sleeper's real draft.type.
+        const isAuctionSetup = state.draftMechanic === 'auction';
+        const setupSummaryParts = [
             variantLabels[state.variant] || 'Dynasty Start Up pool',
-            state.draftType === 'snake' ? 'Snake draft' : 'Linear draft',
+            isAuctionSetup ? 'Auction draft' : (state.draftType === 'snake' ? 'Snake draft' : 'Linear draft'),
             state.rounds + ' rounds',
             state.leagueSize + ' teams',
-        ].join(' - ');
+        ];
+        // The budget is what "Draft Order" would have told you on a turns draft —
+        // surface it in its place rather than leaving the line a segment shorter.
+        if (isAuctionSetup) setupSummaryParts.push('$' + Math.max(1, Number(state.auctionBudget) || 200) + ' budget');
+        const setupSummary = setupSummaryParts.join(' - ');
         const paceLabel = state.mode === 'manual'
             ? 'manual entry'
             : state.mode === 'live-sync'
@@ -2098,7 +2113,21 @@
             const patch = { mode: 'solo' };
             if (upcoming.rounds) patch.rounds = Number(upcoming.rounds);
             if (upcoming.teams) patch.leagueSize = Number(upcoming.teams);
-            if (upcoming.type) patch.draftType = upcoming.type;
+            // Sleeper folds the mechanic into draft.type ('snake' | 'linear' |
+            // 'auction'); this panel splits it into draftMechanic (turns|auction)
+            // + draftType (the turn pattern, snake|linear). Assigning type
+            // straight through left draftType === 'auction' — a value the Draft
+            // Order select has no option for — and never flipped draftMechanic,
+            // so an auction league opened on Turns and billed itself as "Linear
+            // draft". Same split liveDraftSetupPatch already does for live drafts.
+            if (upcoming.type === 'auction') {
+                patch.draftMechanic = 'auction';
+                patch.auctionPoolSource = upcoming.variant || state.variant;
+                if (upcoming.budget) patch.auctionBudget = Number(upcoming.budget);
+            } else if (upcoming.type) {
+                patch.draftMechanic = 'turns';
+                patch.draftType = upcoming.type;
+            }
             if (upcoming.variant) patch.variant = upcoming.variant;
             if (draftMeta.mySlot) patch.userSlot = draftMeta.mySlot;
             if (myRoster?.roster_id) patch.userRosterId = myRoster.roster_id;
@@ -2116,16 +2145,35 @@
         const matchesUpcoming = !!upcoming
             && (!upcoming.rounds || Number(state.rounds) === Number(upcoming.rounds))
             && (!upcoming.teams || Number(state.leagueSize) === Number(upcoming.teams))
-            && (!upcoming.type || String(state.draftType) === String(upcoming.type))
+            // Mechanic-aware, matching the split in upcomingPatch: an auction
+            // league is in sync when the mechanic is auction (draftType keeps
+            // holding the turn pattern and will never equal 'auction'), which
+            // otherwise left "League settings" reading as never-applied.
+            && (!upcoming.type || (upcoming.type === 'auction'
+                ? state.draftMechanic === 'auction'
+                : state.draftMechanic !== 'auction' && String(state.draftType) === String(upcoming.type)))
             && (!upcoming.variant || String(state.variant) === String(upcoming.variant))
             && (!draftMeta.mySlot || Number(state.userSlot) === Number(draftMeta.mySlot));
         // League settings are the DEFAULT mock source (owner ask): sync the setup
-        // to the upcoming draft once, as soon as it resolves. Ref-guarded so a
-        // user who switches to "Other" is never re-synced.
-        const appliedUpcomingRef = React.useRef(false);
+        // to the upcoming draft as soon as it resolves.
+        //
+        // Keyed on the draft's identity rather than a plain once-only boolean.
+        // upcomingSettings resolves in two stages: a legacy pre-fetch object
+        // built from cached league settings (rounds/teams only, type null),
+        // then the real draft once the drafts fetch lands. A boolean ref
+        // latched onto stage one, so rounds/teams synced and the draft TYPE
+        // never did — an auction league silently stayed on Turns and billed
+        // itself "Linear draft". The signature lets the sync re-run exactly
+        // once more when the real type arrives, and then go quiet: it only
+        // changes when the upcoming draft itself does, so a setup the user has
+        // since hand-edited (or switched to "Other") is never re-clobbered.
+        const upcomingSyncKey = upcoming
+            ? [upcoming.draftId || '', upcoming.type || '', upcoming.rounds || '', upcoming.teams || '', upcoming.variant || ''].join('|')
+            : '';
+        const appliedUpcomingRef = React.useRef(null);
         React.useEffect(() => {
-            if (appliedUpcomingRef.current || !upcoming) return;
-            appliedUpcomingRef.current = true;
+            if (!upcoming || appliedUpcomingRef.current === upcomingSyncKey) return;
+            appliedUpcomingRef.current = upcomingSyncKey;
             if (!matchesUpcoming) applyUpcomingDraft();
         });
         const upcomingStart = upcoming?.startTime
