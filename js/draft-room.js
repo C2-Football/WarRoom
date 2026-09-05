@@ -3334,19 +3334,6 @@
                         setDragPid(null);
                         if (boardMode !== 'my') setBoardMode('my');
                     };
-                    const handleBoardMove = (pid, delta) => {
-                        setMyBoardOrder(prev => {
-                            const order = prev.length ? [...prev] : aiSeedOrder.slice();
-                            const fromIdx = order.indexOf(pid);
-                            if (fromIdx === -1) return order;
-                            const toIdx = Math.max(0, Math.min(order.length - 1, fromIdx + delta));
-                            if (fromIdx === toIdx) return order;
-                            const [moved] = order.splice(fromIdx, 1);
-                            order.splice(toIdx, 0, moved);
-                            return order;
-                        });
-                        if (boardMode !== 'my') setBoardMode('my');
-                    };
                     // Grip drag commit (WR.dragReorderGrip): like handleDrop but honors
                     // the insertion-line half — lower half lands AFTER the target row.
                     const handleGripDrop = (srcPid, targetPid, after) => {
@@ -3423,32 +3410,6 @@
 
                         return (
 		                        <div style={{ background: 'var(--black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: 'var(--card-radius-sm)', maxHeight: 'none', overflowX: 'auto', WebkitOverflowScrolling: 'touch', overflowY: 'visible' }}>
-	                          {/* Phone-tier tap-target bump for the ▲/▼ board-move fallback
-	                              (mobile plan D7/D10): HTML5 drag is inert on iOS, so these
-	                              buttons are the only reorder path — 16×14px is untappable.
-	                              44px-wide buttons stacked under the rank number (the rank
-	                              cell flips to a column so they fit the 58px # column).
-	                              Scoped ≤767 only; tablet/desktop keep the dense 16×14. */}
-	                          <style>{`@media (max-width:767px){
-	                              .wr-brd-numcell{flex-direction:column !important;gap:3px !important;padding:6px 0;}
-	                              .wr-brd-move{gap:4px !important;}
-	                              .wr-brd-move-btn{width:44px !important;height:36px !important;font-size:0.8rem !important;position:relative;}
-	                              /* Invisible ±4px vertical hit halo → effective 44px target
-	                                 without moving the 36px visual or the 4px gap. */
-	                              .wr-brd-move-btn::after{content:'';position:absolute;left:0;right:0;top:-4px;bottom:-4px;}
-	                          }
-	                          /* iPad pass F3: drag is inert on touch and these 16x14 buttons
-	                             are the ONLY reorder path at ≥768. Density is ruled frozen,
-	                             so grow the HIT AREA only — 44px-wide halos biased away from
-	                             each other (▲ up / ▼ down), zero overlap at the 2px gap.
-	                             hover:none keeps mouse desktops out; trackpad iPads still
-	                             match and keep row drag too. */
-	                          @media (hover:none) and (pointer:coarse) and (min-width:768px){
-	                              .wr-brd-move-btn{position:relative;}
-	                              .wr-brd-move-btn::after{content:'';position:absolute;left:-14px;right:-14px;top:-1px;bottom:-1px;}
-	                              .wr-brd-move .wr-brd-move-btn:first-child::after{top:-12px;}
-	                              .wr-brd-move .wr-brd-move-btn:last-child::after{bottom:-12px;}
-	                          }`}</style>
 	                          <div style={{ minWidth: '100%' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: boardGridCols, minHeight: '34px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', alignItems: 'center', position: 'sticky', top: 0, zIndex: 1 }}>
                                 <div style={{ textAlign: 'center' }}>#</div>
@@ -3550,22 +3511,19 @@
                                         onMouseLeave={e => { if (!isExp) e.currentTarget.style.background = idx % 2 === 1 ? 'var(--ov-1, rgba(255,255,255,0.016))' : 'transparent'; }}>
                                         <div className="wr-brd-numcell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, fontFamily: 'var(--font-body)', fontSize: '0.74rem', color: idx < 3 ? 'var(--gold)' : 'var(--silver)', fontWeight: 800 }}>
                                             {!isDhq && (() => {
-                                                // Grip drag handle (owner ask 2026-07-13): pointer-based reorder
-                                                // for touch/pencil/mouse; HTML5 row drag + ▲/▼ stay as-is.
+                                                // Grip drag handle: pointer-based reorder for
+                                                // touch/pencil/mouse, and since 2026-09-05 the only
+                                                // reorder control (owner ask: drag, not arrows). Sized
+                                                // to a 44px target on a coarse pointer — at 14x30 it
+                                                // read as decoration next to the buttons it replaced.
                                                 const gp = window.WR && window.WR.dragReorderGrip ? window.WR.dragReorderGrip({ key: r.pid, onDrop: handleGripDrop }) : null;
                                                 return gp && (
                                                     <button type="button" className="wr-drag-grip" title="Hold and drag to reorder" aria-label={'Drag ' + pName(r.p) + ' to reorder'}
                                                         {...gp}
-                                                        style={{ ...gp.style, width: 14, height: 30, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 3, background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', fontSize: '0.7rem', lineHeight: 1, flexShrink: 0, position: 'relative' }}>≡</button>
+                                                        style={{ ...gp.style, width: _vp.isCoarse || _vp.isPhone ? 26 : 14, height: _vp.isCoarse || _vp.isPhone ? 44 : 30, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 3, background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', fontSize: '0.7rem', lineHeight: 1, flexShrink: 0, position: 'relative' }}>≡</button>
                                                 );
                                             })()}
                                             <span>{idx + 1}</span>
-                                            {!isDhq && (
-                                                <span className="wr-brd-move" style={{ display: 'inline-grid', gap: 2 }}>
-                                                    <button type="button" className="wr-brd-move-btn" title="Move up" onClick={e => { e.stopPropagation(); handleBoardMove(r.pid, -1); }} style={{ width: 16, height: 14, lineHeight: 1, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 3, background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', padding: 0 }}>▲</button>
-                                                    <button type="button" className="wr-brd-move-btn" title="Move down" onClick={e => { e.stopPropagation(); handleBoardMove(r.pid, 1); }} style={{ width: 16, height: 14, lineHeight: 1, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 3, background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', padding: 0 }}>▼</button>
-                                                </span>
-                                            )}
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, padding: '5px 7px' }}>
                                             <div style={{ width: 28, height: 28, flexShrink: 0 }}>
@@ -3731,8 +3689,8 @@
                     // boardMode/setBoardMode, boardSearch, boardPosFilter, team/round
                     // filters, hideDrafted (wr_bb_hide_drafted), boardTags/boardNotes,
                     // expandedDraftPid. The USER BOARD lane keeps the shipped
-                    // renderCompactBoard table so the custom-board ▲/▼ reorder path
-                    // (handleBoardMove + the ≤767 .wr-brd-move-btn bump) ships as-is.
+                    // renderCompactBoard table so the custom-board reorder path
+                    // (the ≡ grip → handleGripDrop) ships as-is.
                     if (_phone) {
                         const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
                         const MICRO = 'var(--text-micro, 0.6875rem)';
@@ -3923,7 +3881,7 @@
                                 {phBoardPanelEl}
                                 {boardMode === 'my' ? (
                                     <React.Fragment>
-                                        <div style={{ color: 'var(--gold)', opacity: 0.72, fontSize: MICRO, fontFamily: MONO }}>{'↕'} Tap ▲ / ▼ in the # column to reorder your board</div>
+                                        <div style={{ color: 'var(--gold)', opacity: 0.72, fontSize: MICRO, fontFamily: MONO }}>{'↕'} Hold the ≡ grip in the # column and drag to reorder your board</div>
                                         {renderCompactBoard(visibleBoardPlayers, false)}
                                     </React.Fragment>
                                 ) : phGroups.length ? (

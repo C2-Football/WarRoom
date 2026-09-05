@@ -137,12 +137,11 @@
             return () => window.removeEventListener('wr:adp-loaded', onAdpLoaded);
         }, [adpEligible]);
 
-        // Phone/touch tier (mobile plan Phase 2 item 13): HTML5 drag is inert on
-        // iOS/touch, and this exact panel is what MobileFeed mounts on phones —
-        // the ▲/▼ move buttons rendered under my-lane rows are the only way to
-        // reorder My Board there. They write through the same commit path as the
-        // drag (saveManualOrder → persistBoardPatch). Tier-agnostic (free keeps
-        // its my lane); shown for any coarse pointer; desktop mouse drag untouched.
+        // Phone/touch tier: HTML5 row drag is inert on iOS, so touch reorders My
+        // Board by dragging the ≡ grip (WR.dragReorderGrip — pointer events, so
+        // mouse/touch/pencil all work) into onGripDrop → saveManualOrder →
+        // persistBoardPatch. This flag now only sizes the grip up to a 44px
+        // target on a coarse pointer; the desktop mouse drag is untouched.
         const vp = window.WR.useViewport();
         const touchReorder = vp.isPhone || vp.isCoarse;
 
@@ -467,25 +466,6 @@
             persistBoardPatch({ activeLane: 'my', myOrder: order });
         }, [persistBoardPatch]);
 
-        const onMovePlayer = (player, delta) => {
-            const pid = idOf(player);
-            if (!pid) return;
-            // Move relative to the VISIBLE neighbor (mirrors onDropPlayer):
-            // the rendered list is filtered (hideDrafted/pos/search/row cap),
-            // so a raw ±1 through the full manual order can be a no-op or
-            // silently reorder rows the user can't see.
-            const visIdx = available.findIndex(p => idOf(p) === pid);
-            if (visIdx < 0) return;
-            const neighbor = available[visIdx + delta];
-            if (!neighbor) return; // already at the visible edge
-            const nPid = idOf(neighbor);
-            const order = manualOrderIds();
-            if (order.indexOf(pid) < 0 || order.indexOf(nPid) < 0) return;
-            const next = order.filter(id => id !== pid);
-            const at = next.indexOf(nPid);
-            next.splice(delta < 0 ? at : at + 1, 0, pid);
-            saveManualOrder(next);
-        };
 
         const onDropPlayer = (target) => {
             const sourcePid = dragPid;
@@ -574,33 +554,13 @@
         // Touch reorder controls (my lane, coarse pointer/phone only): 44px-tall
         // terminal-styled buttons — 1px gold border, near-zero radius, mono
         // micro-caps — rendered as a control row under the player row.
-        const moveBtnCss = {
-            flex: '1 1 0',
-            maxWidth: 132,
-            minHeight: 44,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 4,
-            padding: '0 10px',
-            background: 'var(--acc-fill2, rgba(212,175,55,0.08))',
-            border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))',
-            borderRadius: 3,
-            color: 'var(--gold)',
-            fontFamily: FONT_UI,
-            fontWeight: 800,
-            fontSize: 'var(--text-micro, 0.6875rem)',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            touchAction: 'manipulation',
-        };
 
         // iPad / narrow cap: show ~15 player rows then scroll. Desktop is unrestricted
-        // (flex fills the panel). DHQ/AI rows are one line (~46px incl. padding+border);
-        // My Board on a touch device adds the ▲/▼ move-control row (~56px) per row.
+        // (flex fills the panel). DHQ/AI rows are one line (~46px incl. padding+border).
         const ROWS_VISIBLE = 15;
-        const rowHeight = activeLane === 'my' ? (touchReorder ? 104 : 84) : 46;
+        // My-lane rows no longer carry a ▲/▼ band under them (drag the ≡ grip
+        // instead), so touch and desktop are the same height again.
+        const rowHeight = activeLane === 'my' ? 84 : 46;
         const scrollMaxHeight = bucket === 'desktop' ? undefined : (ROWS_VISIBLE * rowHeight) + 'px';
 
         // Desktop table grid — shared between the header row and every player
@@ -629,8 +589,8 @@
         // desktop/tablet panel below never mounts on phone and stays
         // byte-identical. Everything rides the SAME state and handlers —
         // onLaneSelect / onSeedMyBoardFromAi / onDraft / onOpenModal, and the
-        // shipped my-lane touch reorder commit path onMovePlayer →
-        // saveManualOrder → persistBoardPatch (moves vs the VISIBLE neighbor).
+        // shipped my-lane reorder commit path onGripDrop → saveManualOrder →
+        // persistBoardPatch.
         const _phKit = !!(window.WR && window.WR.AssetRow && window.WR.FilterPill && window.WR.FilterSheet);
         if (vp.isPhone && _phKit) {
             const AssetRowC = window.WR.AssetRow, FilterPillC = window.WR.FilterPill, FilterSheetC = window.WR.FilterSheet;
@@ -658,7 +618,7 @@
                         ))}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '7px', minHeight: 18 }}>
-                        <span style={{ flex: 1, minWidth: 0, color: 'var(--silver)', opacity: 0.62, fontSize: MICRO, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeLane === 'my' ? 'Hold ≡ and drag to reorder — or tap ▲ / ▼' : laneCopy}</span>
+                        <span style={{ flex: 1, minWidth: 0, color: 'var(--silver)', opacity: 0.62, fontSize: MICRO, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeLane === 'my' ? 'Hold ≡ and drag to reorder' : laneCopy}</span>
                         {pro && activeLane === 'my' && boardContext?.canSeedMyBoardFromAi && (
                             <button onClick={onSeedMyBoardFromAi} style={{ padding: '6px 10px', minHeight: '36px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', borderRadius: 'var(--card-radius-xs, 5px)', cursor: 'pointer', fontSize: MICRO, fontFamily: FONT_UI, fontWeight: 700, flexShrink: 0 }}>SEED</button>
                         )}
@@ -681,8 +641,8 @@
                             const college = collegeOf(p);
                             const showTouchMove = activeLane === 'my' && !p._drafted;
                             const remaining = p._copies - p._copiesTaken;
-                            // Grip drag handle beside my-lane cards (owner ask 2026-07-13);
-                            // ▲/▼ under the card stays as the precision fallback.
+                            // Grip drag handle beside my-lane cards — the only reorder
+                            // control now (owner ask 2026-09-05: drag, not arrows).
                             const phGp = showTouchMove && window.WR && window.WR.dragReorderGrip ? window.WR.dragReorderGrip({ key: idOf(p), onDrop: onGripDrop }) : null;
                             return (
                                 <div key={p.pid} data-reorder-key={idOf(p)} style={p._drafted ? { opacity: 0.45 } : undefined}>
@@ -713,12 +673,6 @@
                                     })}
                                     </div>
                                     </div>
-                                    {showTouchMove && (
-                                        <div style={{ display: 'flex', gap: 6, padding: '5px 2px 2px' }}>
-                                            <button type="button" aria-label={'Move ' + (p.name || 'player') + ' up'} onClick={e => { e.stopPropagation(); onMovePlayer(p, -1); }} style={moveBtnCss}>▲ Up</button>
-                                            <button type="button" aria-label={'Move ' + (p.name || 'player') + ' down'} onClick={e => { e.stopPropagation(); onMovePlayer(p, 1); }} style={moveBtnCss}>▼ Down</button>
-                                        </div>
-                                    )}
                                 </div>
                             );
                         })}
@@ -860,7 +814,7 @@
 
                 {activeLane === 'my' && (
                     <div style={{ padding: '4px 2px 7px', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', opacity: 0.72, fontFamily: FONT_UI, display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{ fontWeight: 900 }}>{'↕'}</span> {touchReorder ? 'Hold ≡ and drag to reorder — or tap ▲ / ▼' : 'Hold ≡ (or drag a row) to reorder your board'}
+                        <span style={{ fontWeight: 900 }}>{'↕'}</span> {touchReorder ? 'Hold ≡ and drag to reorder' : 'Hold ≡ (or drag a row) to reorder your board'}
                     </div>
                 )}
 
@@ -900,7 +854,6 @@
                         const posColor = posColors[normEdPos(p.pos)] || 'var(--silver)';
                         const nflTeam = nflTeamOf(p);
                         const college = collegeOf(p);
-                        const showTouchMove = touchReorder && activeLane === 'my' && !p._drafted;
                         return (
                             <React.Fragment key={p.pid}>
                             <div
@@ -931,7 +884,7 @@
                                     gap: '5px',
                                     alignItems: 'center',
                                     padding: '3px 3px 3px 0',
-                                    borderBottom: showTouchMove ? 'none' : '1px solid var(--ov-3, rgba(255,255,255,0.035))',
+                                    borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.035))',
                                     borderLeft: b.tier ? '2px solid ' + tCol : '2px solid transparent',
                                     paddingLeft: '5px',
                                     cursor: activeLane === 'my' && !p._drafted ? 'grab' : 'pointer',
@@ -944,14 +897,14 @@
                             >
                                 {activeLane === 'my' && !p._drafted ? (() => {
                                     // Grip drag handle (owner ask 2026-07-13): pointer-based reorder
-                                    // for touch/pencil/mouse; row-body HTML5 drag + ▲/▼ stay as-is.
+                                    // for touch/pencil/mouse; the row-body HTML5 drag stays as-is.
                                     const gp = window.WR && window.WR.dragReorderGrip ? window.WR.dragReorderGrip({ key: idOf(p), onDrop: onGripDrop }) : null;
                                     return (
                                         <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px' }}>
                                             {gp && (
                                                 <button type="button" className="wr-drag-grip" title="Hold and drag to reorder" aria-label={'Drag ' + (p.name || 'player') + ' to reorder'}
                                                     {...gp}
-                                                    style={{ ...gp.style, width: '15px', height: '22px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 'var(--card-radius-xs, 5px)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', fontSize: '0.7rem', lineHeight: 1, flexShrink: 0, position: 'relative' }}>≡</button>
+                                                    style={{ ...gp.style, width: touchReorder ? '30px' : '15px', height: touchReorder ? '44px' : '22px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0, border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 'var(--card-radius-xs, 5px)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', color: 'var(--gold)', fontSize: '0.7rem', lineHeight: 1, flexShrink: 0, position: 'relative' }}>≡</button>
                                             )}
                                             <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: rowRank <= 12 ? 'var(--gold)' : 'var(--ov-8, rgba(255,255,255,0.34))', fontFamily: FONT_MONO }}>{rowRank}</span>
                                         </span>
@@ -1028,27 +981,6 @@
                                     >{state.mode === 'live-sync' && state.overrideMode ? 'APPLY' : state.mode === 'manual' ? 'PICK' : (state.overrideMode ? 'FORCE' : 'DRAFT')}</button>
                                 )}
                             </div>
-                            {showTouchMove && (
-                                <div style={{
-                                    display: 'flex',
-                                    gap: 6,
-                                    padding: '4px 4px 8px 27px',
-                                    borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.035))',
-                                }}>
-                                    <button
-                                        type="button"
-                                        aria-label={'Move ' + (p.name || 'player') + ' up'}
-                                        onClick={e => { e.stopPropagation(); onMovePlayer(p, -1); }}
-                                        style={moveBtnCss}
-                                    >▲ Up</button>
-                                    <button
-                                        type="button"
-                                        aria-label={'Move ' + (p.name || 'player') + ' down'}
-                                        onClick={e => { e.stopPropagation(); onMovePlayer(p, 1); }}
-                                        style={moveBtnCss}
-                                    >▼ Down</button>
-                                </div>
-                            )}
                             </React.Fragment>
                         );
                     })}
