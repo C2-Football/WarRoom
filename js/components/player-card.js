@@ -956,7 +956,11 @@
         if (!state) return null;
         const playersData = (window.App && window.App._playersCache) || {};
         const statsData = window._wrStatsData || window.App?._statsCache || {};
-        const sc = state.options.scoringSettings || window.S?.leagues?.[0]?.scoring_settings;
+        // Callers that don't pass scoring settings fall through to PlayerCard's
+        // own resolver, which reads the CURRENT league. Defaulting to
+        // leagues[0] here silently scored every such card against whichever
+        // league happened to sync first.
+        const sc = state.options.scoringSettings;
         return React.createElement(PlayerCard, {
             pid: state.pid,
             playersData,

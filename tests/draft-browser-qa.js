@@ -147,7 +147,12 @@ async function main() {
 
   try {
     const context = await browser.newContext();
-    await context.addInitScript(leagueId => {
+    await context.addInitScript((leagueId, user) => {
+      // The hub reads its username through OD.getCurrentUsername() (od_auth_v1),
+      // not the ?user= param — without this seed no leagues ever load, the
+      // deep link never resolves, and every assertion below times out waiting
+      // for a Draft tab that was never reached. That masked a real crash.
+      localStorage.setItem('od_auth_v1', JSON.stringify({ sleeperUsername: user }));
       localStorage.setItem('wr_tutorial_done_v1', '1');
       localStorage.setItem('wr_dashboard_hint_dismissed', '1');
       Object.keys(localStorage)
@@ -155,7 +160,7 @@ async function main() {
         .forEach(key => localStorage.removeItem(key));
       localStorage.removeItem(`wr_draft_cc_current_mock_${leagueId}`);
       localStorage.removeItem(`wr_draft_cc_current_live_${leagueId}`);
-    }, LEAGUE_ID);
+    }, LEAGUE_ID, USER);
     await context.route('**/*', route => {
       const type = route.request().resourceType();
       if (['image', 'font', 'media'].includes(type)) return route.abort();

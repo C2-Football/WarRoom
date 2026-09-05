@@ -2783,7 +2783,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- 2b. Unified Player Card (SI-2) — window.WR.openPlayerCard — replaces CDN modal -->
 <!-- Shared visual primitives (WR.Card / Badge / Chip / ConfChip / DeltaLine / Kpi / InsightCard) -->
 <script type="text/babel" src="js/components/wr-primitives.js?v=20260830namefix1"></script>
-    <script type="text/babel" src="js/components/player-card.js?v=20260829trend1"></script>
+    <script type="text/babel" src="js/components/player-card.js?v=20260905anacard1"></script>
 <!-- 2c. Saved List Views (SI-1) — window.WR.SavedViews — shared across list surfaces -->
 <script type="text/babel" src="js/shared/saved-views.js?v=20260427font1"></script>
 <!-- 2c-2. Saved Alex Reports — window.WR.SavedReports — local cache + ai_analysis server sync -->
@@ -2883,7 +2883,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
      every build/serve pipeline) so the browser does NOT parse/execute them at app
      boot. js/module-loader.js injects executable copies, in DOM order within each
      group, when the owning surface first calls wrLoadModuleGroup('<group>'). -->
-<script src="js/module-loader.js?v=20260612modlazy1"></script>
+<script src="js/module-loader.js?v=20260905lazyretry1"></script>
 <script type="text/babel" src="js/settings.js?v=20260613strip1"></script>
 <script type="text/babel" data-wr-defer="trade" src="js/trade-calc.js?v=20260817desk2"></script>
 <script type="text/babel" src="js/post-draft.js?v=20260609postdraft1"></script>
@@ -2923,7 +2923,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-decision-engine.js?v=20260814arch1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/analyst-mock.js?v=20260531voice1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260903likely1"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260903leaguefix1"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260905tdz1"></script>
 <!-- 5. League detail tab components (extracted from league-detail.js) -->
 <!-- v2 widget modules (load before dashboard.js which consumes them) -->
 <script type="text/babel" src="js/widgets/roster-pulse.js?v=20260613gm1"></script>
@@ -2948,7 +2948,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" src="js/tabs/flash-brief.js?v=20260903leaguefix1"></script>
 <!-- Group "analysis": analytics.js embeds LeagueMapTab, so both defer together
      (league-map.js first — DOM order is execution order within a group). -->
-<script type="text/babel" data-wr-defer="analysis" src="js/tabs/league-map.js?v=20260614dynread1"></script>
+<script type="text/babel" data-wr-defer="analysis" src="js/tabs/league-map.js?v=20260905anacard1"></script>
 <script type="text/babel" data-wr-defer="myteam" src="js/tabs/my-team.js?v=20260902gmdesk3"></script>
 <!-- Compare: extracted from My Roster's former sub-view, now a top-level ROSTER-group tab. -->
 <script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20260616compare5"></script>
@@ -2990,7 +2990,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
      "alex" lazy group — inert at boot, loaded on first GM's Office / Strategy open. -->
 <script type="text/babel" data-wr-defer="alex" src="js/tabs/strategy-editor.js?v=20260903leaguefix1"></script>
 <!-- 7. League detail: coordinator shell, depends on all above -->
-    <script type="text/babel" src="js/league-detail.js?v=20260823wire1"></script>
+    <script type="text/babel" src="js/league-detail.js?v=20260905lazyretry1"></script>
 <!-- 8. App: OwnerDashboard + ReactDOM.render (loads last) -->
 <script type="text/babel" src="js/app.js?v=20260904syncstate1"></script>
 

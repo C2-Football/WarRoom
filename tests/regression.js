@@ -429,12 +429,28 @@ test('custom report player rows open the unified player card', () => {
   sourceHas(leagueMapSrc, 'function canOpenReportPlayer(row, report)', 'custom reports need a player-row gate');
   sourceHas(leagueMapSrc, "report?.dataSource === 'players' && row?.pid", 'custom report rows must only be clickable when player-backed');
   sourceHas(leagueMapSrc, "context: 'custom_report'", 'custom report player-card context missing');
-  sourceHas(leagueMapSrc, 'window.WR.openPlayerCard(row.pid, options);', 'custom reports should prefer the unified player card');
-  sourceHas(leagueMapSrc, 'window.openPlayerModal(row.pid);', 'custom reports should fall back to the shared player modal');
+  // Both ledgers on this tab now route through one opener so they cannot drift
+  // into two different cards again (Analytics' All Players used to expand its
+  // own bespoke dossier). Pin the seam, not the inlined call it replaced.
+  sourceHas(leagueMapSrc, 'function openLeagueMapPlayerCard(pid, options)', 'league-map needs a single player-card opener');
+  sourceHas(leagueMapSrc, 'window.WR.openPlayerCard(pid, options || {});', 'the shared opener should prefer the unified player card');
+  sourceHas(leagueMapSrc, 'window.openPlayerModal(pid);', 'the shared opener should fall back to the shared player modal');
+  sourceHas(leagueMapSrc, "openLeagueMapPlayerCard(row.pid, { context: 'custom_report'", 'custom reports must route through the shared opener');
   sourceHas(leagueMapSrc, "role: 'button'", 'custom report player rows should be accessible controls');
   sourceHas(leagueMapSrc, 'handleReportPlayerRowKey(e, row, report)', 'custom report player rows need keyboard activation');
   sourceHas(leagueMapSrc, '{...reportPlayerRowProps(row, previewReport)}', 'analytics report preview rows must carry player-card click props');
   sourceHas(leagueMapSrc, '{...reportPlayerRowProps(row, report)}', 'full report rows must carry player-card click props');
+});
+
+test('analytics All Players rows open the same unified card as Free Agency', () => {
+  // Owner ask 2026-09-05: the Analytics ledger had its own inline dossier that
+  // had drifted from every other surface (legacy TRADE BLOCK/CUT tag buttons,
+  // no verdict, no KPI strip). Both the phone AssetRow and the desktop table
+  // row now open the unified card instead.
+  const opens = leagueMapSrc.match(/openLeagueMapPlayerCard\(x\.pid, \{ context: 'analytics_all_players'/g) || [];
+  ok(opens.length === 2, `All Players rows (phone + desktop) must open the unified card, found ${opens.length}`);
+  ok(!/RosterPlayerDossier/.test(leagueMapSrc), 'the bespoke analytics dossier should be gone, not merely unused');
+  sourceHas(leagueMapSrc, "title=\"Open player card\"", 'desktop All Players rows need the player-card affordance');
 });
 
 group('live platform gate');

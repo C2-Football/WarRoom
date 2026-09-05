@@ -15,6 +15,11 @@
             const [phase, setPhase] = React.useState(
                 (window.wrModuleGroupLoaded?.(group) && typeof resolveComponent() === 'function') ? 'ready' : 'loading'
             );
+            // Bumped by "Try again" to re-run the loader effect. The loader drops
+            // its memoised promise on failure (js/module-loader.js), so a retry
+            // re-fetches only the scripts that never executed — no page reload,
+            // and no lost tab/league state.
+            const [attempt, setAttempt] = React.useState(0);
             React.useEffect(() => {
                 if (phase === 'ready') return;
                 let alive = true;
@@ -22,14 +27,21 @@
                 loader.then(() => { if (alive) setPhase('ready'); })
                       .catch((e) => { if (window.wrLog) window.wrLog(group + '.lazyLoad', e); if (alive) setPhase('error'); });
                 return () => { alive = false; };
-            }, []);
+            }, [attempt]);
             if (phase === 'error') {
+                const retryBtn = { marginTop: '12px', padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', fontWeight: 600, minHeight: '44px' };
+                const reloadBtn = { ...retryBtn, marginLeft: '8px', background: 'transparent', color: 'var(--silver)', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))' };
                 return React.createElement('div', { style: { padding: '48px 24px', textAlign: 'center', color: 'var(--silver)' } },
-                    label + ' module failed to load. ',
-                    React.createElement('button', {
-                        onClick: () => window.location.reload(),
-                        style: { marginTop: '12px', padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', fontWeight: 600 },
-                    }, 'Reload'));
+                    label + " module didn't load — check your connection. ",
+                    React.createElement('div', null,
+                        React.createElement('button', {
+                            onClick: () => { setPhase('loading'); setAttempt(a => a + 1); },
+                            style: retryBtn,
+                        }, 'Try again'),
+                        React.createElement('button', {
+                            onClick: () => window.location.reload(),
+                            style: reloadBtn,
+                        }, 'Reload')));
             }
             const Comp = resolveComponent();
             if (phase !== 'ready' || typeof Comp !== 'function') {

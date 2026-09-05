@@ -116,12 +116,18 @@
         // (renderCompactBoard's outer div gets a fixed max-height/overflowY below).
         const BOARD_PAGE_SIZE = 50;
         const [boardVisibleCount, setBoardVisibleCount] = useState(BOARD_PAGE_SIZE);
-        useEffect(() => { setBoardVisibleCount(BOARD_PAGE_SIZE); }, [boardMode, boardSearch, boardPosFilter, boardTeamFilter, boardRoundFilter, hideDrafted]);
         // Hide-drafted toggle for the standalone Big Board. Shares the SAME WrStorage key as
         // the Command Center BigBoardPanel (js/draft/big-board.js) so the two boards stay in
         // sync. Default OFF (preserves the always-show + dim/strike behavior).
+        // MUST stay above the reset effect below — that effect lists hideDrafted in its
+        // dep array, and the shipped build keeps `const` (the Babel config is react-only,
+        // no preset-env), so declaring it after put the read in the temporal dead zone and
+        // threw "Cannot access 'hideDrafted' before initialization" on DraftTab's very
+        // first render. Raw dev mode hid it: in-browser Babel hoists const to var, so the
+        // same read quietly yielded undefined.
         const [hideDrafted, setHideDrafted] = useState(() => { try { return DraftStorage.get('wr_bb_hide_drafted', false) === true; } catch (e) { return false; } });
         const toggleHideDrafted = () => setHideDrafted(v => { const next = !v; try { DraftStorage.set('wr_bb_hide_drafted', next); } catch (e) {} return next; });
+        useEffect(() => { setBoardVisibleCount(BOARD_PAGE_SIZE); }, [boardMode, boardSearch, boardPosFilter, boardTeamFilter, boardRoundFilter, hideDrafted]);
         const [expandedDraftPid, setExpandedDraftPid] = useState(null);
         // Phone Big Board controls — inline Lane/Pos/Filters choosers (like the
         // Trade Center). Hoisted here because the board view renders inside an
