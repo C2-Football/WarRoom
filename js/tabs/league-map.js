@@ -307,6 +307,9 @@ function ReportSubView({
 
     const inputStyle = { background: 'var(--ov-4, rgba(255,255,255,0.06))', border: '1px solid var(--ov-6, rgba(255,255,255,0.12))', borderRadius: 'var(--card-radius-xs, 5px)', padding: '5px 8px', color: 'var(--white)', fontSize: '0.78rem', fontFamily: 'var(--font-body)', outline: 'none' };
     const selectStyle = { ...inputStyle, cursor: 'pointer' };
+    // Shared filter control (js/components/wr-primitives.js) — one dropdown
+    // idiom app-wide instead of this file's local selectStyle natives.
+    const WrSelect = window.WR && window.WR.Select;
     const labelStyle = { fontSize: '0.72rem', color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'block' };
 
     // ══ PHONE (≤767) — stepper WR.Sheet flow (gallery scr-analytics-reports
@@ -508,17 +511,22 @@ function ReportSubView({
               const optSet = typeof getFilterOptionSet === 'function' ? getFilterOptionSet(f.field) : null;
               return (
               <div key={i} style={{ display: 'flex', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
-                <select value={f.field} onChange={e => updateFilter(i, { field: e.target.value, value: '' })} style={selectStyle}>
-                  {filterFields.map(ff => <option key={ff} value={ff}>{ff}</option>)}
-                </select>
-                <select value={f.op} onChange={e => updateFilter(i, { op: e.target.value })} style={selectStyle}>
-                  {ops.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-                </select>
+                {WrSelect && React.createElement(WrSelect, {
+                  label: null, value: f.field, title: 'Field',
+                  onChange: v => updateFilter(i, { field: v, value: '' }),
+                  options: filterFields.map(ff => ({ value: ff, label: ff })),
+                })}
+                {WrSelect && React.createElement(WrSelect, {
+                  label: null, value: f.op, title: 'Operator',
+                  onChange: v => updateFilter(i, { op: v }),
+                  options: ops.map(o => ({ value: o.key, label: o.label })),
+                })}
                 {optSet && optSet.length && f.op !== 'in' ? (
-                  <select value={f.value} onChange={e => updateFilter(i, { value: e.target.value })} style={{ ...selectStyle, flex: 1 }}>
-                    <option value="">— choose —</option>
-                    {optSet.map(v => <option key={v} value={v}>{f.field === 'pos' ? leagueMapPosLabel(v) : v}</option>)}
-                  </select>
+                  React.createElement(WrSelect, {
+                    label: null, value: f.value, placeholder: '— choose —', active: !!f.value, title: 'Value',
+                    onChange: v => updateFilter(i, { value: v }),
+                    options: [{ value: '', label: '— choose —' }].concat(optSet.map(v => ({ value: v, label: f.field === 'pos' ? leagueMapPosLabel(v) : v }))),
+                  })
                 ) : (
                   <input value={f.value} onChange={e => updateFilter(i, { value: e.target.value })} placeholder={optSet && f.op === 'in' ? optSet.slice(0, 3).join(',') + '…' : 'value'} style={{ ...inputStyle, flex: 1 }} />
                 )}
@@ -532,10 +540,11 @@ function ReportSubView({
           <div>
             <label style={labelStyle}>Sort By</label>
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <select value={draft.sort?.field || ''} onChange={e => updateDraft({ sort: { ...draft.sort, field: e.target.value } })} style={selectStyle}>
-                <option value="">None</option>
-                {sortableFields.map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
+              {WrSelect && React.createElement(WrSelect, {
+                label: null, value: draft.sort?.field || '', placeholder: 'None', active: !!draft.sort?.field, title: 'Sort field',
+                onChange: v => updateDraft({ sort: { ...draft.sort, field: v } }),
+                options: [{ value: '', label: 'None' }].concat(sortableFields.map(f => ({ value: f, label: f }))),
+              })}
               <button onClick={() => updateDraft({ sort: { ...draft.sort, dir: draft.sort?.dir === 'asc' ? 'desc' : 'asc' } })} style={sortBtnStyle(false)}>
                 {draft.sort?.dir === 'asc' ? 'ASC \u25B2' : 'DESC \u25BC'}
               </button>
@@ -544,10 +553,11 @@ function ReportSubView({
           {/* Group By */}
           <div>
             <label style={labelStyle}>Group By (optional)</label>
-            <select value={draft.groupBy || ''} onChange={e => updateDraft({ groupBy: e.target.value || null })} style={selectStyle}>
-              <option value="">None</option>
-              {groupableFields.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
+            {WrSelect && React.createElement(WrSelect, {
+              label: null, value: draft.groupBy || '', placeholder: 'None', active: !!draft.groupBy, title: 'Group by',
+              onChange: v => updateDraft({ groupBy: v || null }),
+              options: [{ value: '', label: 'None' }].concat(groupableFields.map(f => ({ value: f, label: f }))),
+            })}
           </div>
           {/* Limit */}
           <div>

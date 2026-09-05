@@ -2393,19 +2393,30 @@
 
                 {/* Rookie/UDFA drill-down — same filter pieces as the Draft Room big board */}
                 {rookieOnly && (() => {
-                    const rkSelectStyle = (active) => ({ padding: '3px 6px', minHeight: '44px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', background: 'var(--ov-3, rgba(255,255,255,0.04))', color: active ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (active ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'), borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', outline: 'none', maxWidth: '170px' });
+                    // WR.Select (shared filter control) replaces the local
+                    // rkSelectStyle native dropdowns — the pill carries its own
+                    // label, so the separate toolbar-label spans go too.
+                    const WrSelect = window.WR && window.WR.Select;
                     return (
                         <div className="fa-market-toolbar wr-module-toolbar">
-                            <span className="wr-module-toolbar-label">Team</span>
-                            <select value={rookieTeamFilter} onChange={e => setRookieTeamFilter(e.target.value)} style={rkSelectStyle(!!rookieTeamFilter)}>
-                                <option value="">All teams</option>
-                                {rookieFilterOptions.teams.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                            <span className="wr-module-toolbar-label">College</span>
-                            <select value={rookieCollegeFilter} onChange={e => setRookieCollegeFilter(e.target.value)} style={rkSelectStyle(!!rookieCollegeFilter)}>
-                                <option value="">All colleges</option>
-                                {rookieFilterOptions.colleges.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
+                            {WrSelect && React.createElement(WrSelect, {
+                                label: 'Team',
+                                value: rookieTeamFilter,
+                                placeholder: 'All',
+                                active: !!rookieTeamFilter,
+                                title: 'Filter by NFL team',
+                                onChange: v => setRookieTeamFilter(v),
+                                options: [{ value: '', label: 'All teams' }].concat(rookieFilterOptions.teams.map(t => ({ value: t, label: t }))),
+                            })}
+                            {WrSelect && React.createElement(WrSelect, {
+                                label: 'College',
+                                value: rookieCollegeFilter,
+                                placeholder: 'All',
+                                active: !!rookieCollegeFilter,
+                                title: 'Filter by college',
+                                onChange: v => setRookieCollegeFilter(v),
+                                options: [{ value: '', label: 'All colleges' }].concat(rookieFilterOptions.colleges.map(c => ({ value: c, label: c }))),
+                            })}
                             <span className="wr-module-toolbar-label">Slot</span>
                             <div className="wr-module-nav">
                                 {[{ k: '', label: 'All' }, { k: '1', label: 'R1' }, { k: '2', label: 'R2' }, { k: '3', label: 'R3' }, { k: '4', label: 'R4' }, { k: '5', label: 'R5' }, { k: '6', label: 'R6' }, { k: '7', label: 'R7' }, { k: 'UDFA', label: 'UDFA' }].map(opt => (

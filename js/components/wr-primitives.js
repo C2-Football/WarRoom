@@ -801,6 +801,179 @@
         );
     }
 
+    // ── Select (one filter control for every screen) ──────────────
+    // Replaces the app's 64 hand-styled native <select>s and their six
+    // competing style objects (league-map selectStyle, my-team
+    // rosterSelectStyle, free-agency rkSelectStyle/_faSheetSelect,
+    // trade-calc + command-center selStyle). One API, two presentations:
+    // a FilterPill-styled trigger everywhere, opening an anchored popover
+    // listbox on desktop/tablet and the existing WR.Sheet on phone — so the
+    // pill row that shipped on phone is now the control on every tier.
+    //
+    //   WR.Select({ label, value, options, onChange })
+    //   options: ['a','b'] | [{ value, label, sub, disabled }]
+    //
+    // A native <select> can't style its own option list (the OS draws it),
+    // which is the actually-dated part on desktop; this owns the list. The
+    // trigger keeps button semantics + aria-haspopup/expanded, and the list
+    // is a real listbox with arrow/Home/End/Enter/Escape keys, so it stays
+    // keyboard- and screen-reader-usable without the native element.
+    function Select(opts) {
+        const o = opts || {};
+        const useVp = window.WR && window.WR.useViewport;
+        const vp = useVp ? useVp() : { isPhone: false };
+        const [open, setOpen] = React.useState(false);
+        const [activeIdx, setActiveIdx] = React.useState(-1);
+        const wrapRef = React.useRef(null);
+        const listRef = React.useRef(null);
+
+        const items = (o.options || []).map(it => (
+            it && typeof it === 'object' ? it : { value: it, label: String(it) }
+        ));
+        const selIdx = items.findIndex(it => String(it.value) === String(o.value));
+        const current = selIdx >= 0 ? items[selIdx] : null;
+        const disabled = !!o.disabled || !items.length;
+
+        // Close on outside pointer / Escape / scroll of an ancestor. Pointerdown
+        // (not click) so the popover is gone before the click lands underneath.
+        React.useEffect(() => {
+            if (!open || vp.isPhone) return undefined;
+            const onDown = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+            const onKey = (e) => { if (e.key === 'Escape') { setOpen(false); } };
+            document.addEventListener('pointerdown', onDown, true);
+            document.addEventListener('keydown', onKey, true);
+            return () => {
+                document.removeEventListener('pointerdown', onDown, true);
+                document.removeEventListener('keydown', onKey, true);
+            };
+        }, [open, vp.isPhone]);
+
+        React.useEffect(() => { if (open) setActiveIdx(selIdx >= 0 ? selIdx : 0); }, [open]);
+        React.useEffect(() => {
+            if (!open || vp.isPhone || activeIdx < 0 || !listRef.current) return;
+            const el = listRef.current.children[activeIdx];
+            if (el && el.scrollIntoView) { try { el.scrollIntoView({ block: 'nearest' }); } catch (e) { /* older WebKit */ } }
+        }, [open, activeIdx, vp.isPhone]);
+
+        function choose(it) {
+            setOpen(false);
+            if (it && !it.disabled && o.onChange) o.onChange(it.value, it);
+        }
+        function onTriggerKey(e) {
+            if (disabled) return;
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault(); setOpen(true);
+            }
+        }
+        function onListKey(e) {
+            if (e.key === 'Escape') { e.preventDefault(); setOpen(false); return; }
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(items[activeIdx]); return; }
+            let next = activeIdx;
+            if (e.key === 'ArrowDown') next = Math.min(items.length - 1, activeIdx + 1);
+            else if (e.key === 'ArrowUp') next = Math.max(0, activeIdx - 1);
+            else if (e.key === 'Home') next = 0;
+            else if (e.key === 'End') next = items.length - 1;
+            else return;
+            e.preventDefault();
+            setActiveIdx(next);
+        }
+
+        // Trigger — FilterPill's exact language so a Select and a FilterPill
+        // can sit in the same row without reading as two different controls.
+        const isSet = !!o.active || (current && o.defaultValue !== undefined && String(o.value) !== String(o.defaultValue));
+        const trigger = h('button', {
+            type: 'button',
+            disabled: disabled,
+            'aria-haspopup': 'listbox',
+            'aria-expanded': open ? 'true' : 'false',
+            'aria-label': o.title || o.label || undefined,
+            title: o.title || undefined,
+            onClick: () => { if (!disabled) setOpen(v => !v); },
+            onKeyDown: onTriggerKey,
+            style: {
+                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                minHeight: vp.isPhone ? '44px' : '30px',
+                maxWidth: '100%',
+                background: 'var(--black, #121217)',
+                border: '1px solid ' + (open || isSet ? 'var(--acc-line2, rgba(212,175,55,0.32))' : 'rgba(255,255,255,0.08)'),
+                borderRadius: '16px', padding: '5px 10px',
+                fontFamily: 'var(--font-mono, "JetBrains Mono", monospace)',
+                fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 600,
+                color: 'var(--silver)', letterSpacing: '0.03em',
+                textTransform: 'uppercase', whiteSpace: 'nowrap',
+                cursor: disabled ? 'default' : 'pointer',
+                opacity: disabled ? 0.45 : 1,
+                flexShrink: 0, position: 'relative',
+            },
+        },
+            o.label ? h('span', null, o.label) : null,
+            h('b', {
+                style: { color: 'var(--gold)', fontWeight: 600, maxWidth: '112px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', verticalAlign: 'bottom' }
+            }, current ? current.label : (o.placeholder || 'Any')),
+            h('span', {
+                'aria-hidden': 'true',
+                style: { color: 'var(--silver)', opacity: 0.7, fontSize: '0.6rem', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.12s ease', lineHeight: 1 }
+            }, '▾')
+        );
+
+        const rows = (onPick) => items.map((it, i) => h('div', {
+            key: String(it.value) + ':' + i,
+            role: 'option',
+            'aria-selected': i === selIdx ? 'true' : 'false',
+            'aria-disabled': it.disabled ? 'true' : undefined,
+            onClick: () => { if (!it.disabled) onPick(it); },
+            onMouseEnter: () => { if (!vp.isPhone) setActiveIdx(i); },
+            style: {
+                display: 'flex', alignItems: 'center', gap: '8px',
+                minHeight: vp.isPhone ? '44px' : '30px',
+                padding: vp.isPhone ? '9px 14px' : '5px 10px',
+                cursor: it.disabled ? 'default' : 'pointer',
+                opacity: it.disabled ? 0.4 : 1,
+                background: i === selIdx ? 'var(--acc-fill2, rgba(212,175,55,0.12))'
+                    : (!vp.isPhone && i === activeIdx ? 'var(--ov-3, rgba(255,255,255,0.05))' : 'transparent'),
+                color: i === selIdx ? 'var(--gold)' : 'var(--white)',
+                fontFamily: 'var(--font-body)', fontSize: vp.isPhone ? '0.9rem' : '0.78rem',
+            },
+        },
+            h('span', { 'aria-hidden': 'true', style: { width: '11px', flexShrink: 0, color: 'var(--gold)', fontSize: '0.7rem' } }, i === selIdx ? '✓' : ''),
+            h('span', { style: { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, it.label),
+            it.sub ? h('span', { style: { flexShrink: 0, color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--text-micro, 0.6875rem)' } }, it.sub) : null
+        ));
+
+        // Phone: reuse the shipped sheet rather than floating a popover over a
+        // 375px screen. Desktop/tablet: anchored popover.
+        if (vp.isPhone) {
+            return h('span', { ref: wrapRef, style: { display: 'inline-flex', maxWidth: '100%' } },
+                trigger,
+                Sheet && open ? h(Sheet, { open: true, onClose: () => setOpen(false), title: o.label || 'Select', desktop: null },
+                    h('div', { role: 'listbox', style: { padding: '4px 0 8px' } }, rows(choose))
+                ) : null
+            );
+        }
+        return h('span', { ref: wrapRef, style: { display: 'inline-flex', position: 'relative', maxWidth: '100%' } },
+            trigger,
+            open ? h('div', {
+                role: 'listbox',
+                tabIndex: -1,
+                onKeyDown: onListKey,
+                // Callback ref doubles as the autofocus hook so arrow keys work
+                // the moment the list opens, without a second effect.
+                ref: (el) => { listRef.current = el; if (el) { try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); } } },
+                style: {
+                    position: 'absolute', top: 'calc(100% + 4px)', zIndex: 'var(--wr-z-popover, 400)',
+                    [o.align === 'right' ? 'right' : 'left']: 0,
+                    minWidth: '100%', maxWidth: '260px', width: 'max-content',
+                    maxHeight: '272px', overflowY: 'auto', overscrollBehavior: 'contain',
+                    background: 'var(--k-0a0b0d, #0a0b0d)',
+                    border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))',
+                    borderRadius: 'var(--card-radius-sm, 8px)',
+                    boxShadow: '0 14px 38px rgba(0,0,0,0.62)',
+                    padding: '4px 0', outline: 'none',
+                },
+            }, rows(choose)) : null
+        );
+    }
+
     // ── ActionBar (P6 live-decision strip) ────────────────────────
     // Fixed .wr-phone-actionbar above the dock (z --wr-z-actionbar, bottom
     // --wr-bottom-inset+8px — both from the index.html ≤767 block). Whole
@@ -961,6 +1134,7 @@
     window.WR.CardList = CardList;
     window.WR.FilterPill = FilterPill;
     window.WR.FilterSheet = FilterSheet;
+    window.WR.Select = Select;
     window.WR.ActionBar = ActionBar;
     window.WR.dragReorderGrip = dragReorderGrip;
     // Inject the shared sheet/hscroll CSS up front (idempotent) so the
