@@ -5250,7 +5250,6 @@
     // `state` and already supports live-sync's manual-override pick flow (see
     // mockMakePick / state.js MAKE_PICK's manual-live source derivation).
     function MockDraftCockpit({ state, dispatch, isUserTurn, currentSlot, onExit, onPropose, tradeDeskTarget, openTradeDesk, grade, canUndoManualPick, isLive, liveConfidenceCard, liveDecisionDeck, liveTradeWindow, stagedLiveOffers }) {
-        const OpponentIntelPanel = window.DraftCC.OpponentIntelPanel;
         const totalPicks = state.pickOrder?.length || 0;
         const progress = totalPicks ? Math.round(((state.currentIdx || 0) / totalPicks) * 100) : 0;
         const lastPick = state.picks?.[state.picks.length - 1] || null;
@@ -5392,11 +5391,13 @@
                         <MockPickLog state={state} currentSlot={currentSlot} />
                         <MockRosterBuildCard state={state} grade={grade} />
                         <MockTradeOfferPanel state={state} dispatch={dispatch} />
-                        {OpponentIntelPanel && (
-                            <div className="mock-opponent-shell">
-                                <OpponentIntelPanel state={state} dispatch={dispatch} currentSlot={currentSlot} onPropose={onPropose} />
-                            </div>
-                        )}
+                        {/* Opponent Intel card removed from the cockpit (owner ask
+                            2026-09-06): the on-clock read now lives in the DraftCast
+                            header — status tiles, the decision deck, and the trade
+                            window's owner tell — so the card at the bottom of the
+                            right stack was saying it twice. Still available on phone
+                            as the demoted "intel" panel, and in the pre-draft /
+                            completed grid below. */}
                     </div>
                 </div>
             </div>

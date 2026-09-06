@@ -367,7 +367,6 @@
 [data-wr-theme="light"] .mock-cast-controls div,
 [data-wr-theme="light"] .mock-status-row div,
 [data-wr-theme="light"] .mock-panel,
-[data-wr-theme="light"] .mock-opponent-shell,
 [data-wr-theme="light"] .mock-trade-card {
     background: ${c.card} !important;
     color: ${c.text} !important;

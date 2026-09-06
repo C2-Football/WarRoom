@@ -1712,9 +1712,9 @@ WRShared.preloadMany(WR_SHARED_FILES);
 	       trade, opponent intel) split the width between them, which also
 	       means the 1-column collapse below needs a lot less room to avoid. */
 	    .mock-cockpit-grid { display: grid; grid-template-columns: minmax(480px, 1.15fr) minmax(420px, 0.85fr); gap: 12px; height: clamp(780px, calc(100vh - 220px), 1000px); min-height: 760px; }
-	    .mock-right-stack { display: grid; gap: 10px; min-height: 0; grid-template-rows: minmax(220px,0.45fr) minmax(420px,1fr) minmax(230px,0.5fr); grid-auto-rows: minmax(200px, auto); }
-	    .mock-right-stack.has-trade-offer { grid-template-rows: minmax(220px,0.45fr) minmax(370px,0.9fr) auto minmax(210px,0.45fr); }
-	    .mock-panel, .mock-opponent-shell, .mock-trade-card { border: 1px solid rgba(212,175,55,0.19); background: linear-gradient(160deg, rgba(35,36,42,0.96), rgba(18,20,25,0.98) 52%, rgba(11,13,17,0.98)); border-radius: var(--card-radius, 10px); min-width: 0; overflow: hidden; box-shadow: 0 14px 28px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.04); }
+	    .mock-right-stack { display: grid; gap: 10px; min-height: 0; grid-template-rows: minmax(220px,0.45fr) minmax(420px,1fr); grid-auto-rows: minmax(200px, auto); }
+	    .mock-right-stack.has-trade-offer { grid-template-rows: minmax(220px,0.45fr) minmax(370px,0.9fr) auto; }
+	    .mock-panel, .mock-trade-card { border: 1px solid rgba(212,175,55,0.19); background: linear-gradient(160deg, rgba(35,36,42,0.96), rgba(18,20,25,0.98) 52%, rgba(11,13,17,0.98)); border-radius: var(--card-radius, 10px); min-width: 0; overflow: hidden; box-shadow: 0 14px 28px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.04); }
 	    .mock-panel { padding: 12px 13px; display: flex; flex-direction: column; min-height: 0; }
 	    .mock-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-bottom: 9px; border-bottom: 1px solid rgba(212,175,55,0.12); margin-bottom: 10px; }
 	    .mock-panel-head em { color: var(--silver); opacity: 0.62; font-style: normal; font-size: 0.62rem; text-align: right; }
@@ -1801,8 +1801,6 @@ WRShared.preloadMany(WR_SHARED_FILES);
 	    .mock-shape-row div { height: 6px; background: rgba(255,255,255,0.09); border-radius: 999px; overflow: hidden; }
 	    .mock-shape-row i { display: block; height: 100%; background: linear-gradient(90deg, #8BC34A, var(--gold)); border-radius: inherit; }
 	    .mock-shape-row em { color: var(--silver); opacity: 0.76; font-style: normal; font-family: 'JetBrains Mono', monospace; font-size: 0.56rem; text-align: right; }
-	    .mock-opponent-shell { min-height: 0; background: linear-gradient(155deg, rgba(28,30,36,0.98), rgba(11,13,17,0.98)); }
-	    .mock-opponent-shell > div { border: 0 !important; border-radius: 0 !important; background: transparent !important; }
 	    .mock-trade-card { padding: 11px 12px 12px; min-height: 190px; border-color: rgba(240,165,0,0.36); background: linear-gradient(135deg, rgba(240,165,0,0.08), rgba(255,255,255,0.02)); }
 	    .mock-trade-body { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
 	    .mock-trade-body strong { display: block; color: var(--white); font-size: 0.76rem; }
@@ -2762,7 +2760,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.29.2/babel.min.js"></script>
 
 <!-- 0. Theme engine — must load before any widget/component (plain JS, no Babel needed) -->
-<script src="js/theme.js?v=20260526lightgate1"></script>
+<script src="js/theme.js?v=20260906nointel1"></script>
 <!-- 0b. Alex voice helper — seeded phrase variation + template-first AI upgrade (plain JS) -->
 <script src="js/shared/alex-voice.js?v=20260531voice2"></script>
 <!-- (removed unused 'Press Start 2P' web font — it was a render-blocking request but referenced by no font-family) -->
@@ -2922,7 +2920,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-sync.js?v=20260516p6redo"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-decision-engine.js?v=20260814arch1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/analyst-mock.js?v=20260531voice1"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260906recapexit1"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260906nointel1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260905select2"></script>
 <!-- 5. League detail tab components (extracted from league-detail.js) -->
 <!-- v2 widget modules (load before dashboard.js which consumes them) -->
