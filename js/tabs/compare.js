@@ -93,6 +93,8 @@ function CompareTab({
     // Phone tier (≤767): shared viewport seam (js/shared/viewport.js) — every
     // phone-conditional style below keys off this so tablet/desktop never change.
     const { isPhone } = window.WR.useViewport();
+    // Shared filter control (js/components/wr-primitives.js).
+    const _cmpWrSelect = window.WR && window.WR.Select;
 
     // Phone pattern kit (iPhone program Phase 2). wr-primitives.js loads
     // earlier in the babel chain, so presence is fixed for the page's
@@ -1818,12 +1820,14 @@ function CompareTab({
           <div className="wr-module-actions">
             {renderScopeControls()}
             {compareScope === 'duel' ? (
-                <select className="wr-module-select" value={compareTeamId || ''} onChange={e => setCompareTeamId(e.target.value || null)} style={selectStyle}>
-                  <option value="">Select team to compare...</option>
-                  {opponentOptions.map(t => (
-                    <option key={t.rosterId} value={String(t.rosterId)}>{t.name} ({t.wins || 0}-{t.losses || 0})</option>
-                  ))}
-                </select>
+                _cmpWrSelect ? React.createElement(_cmpWrSelect, {
+                  label: 'Team', value: compareTeamId ? String(compareTeamId) : '', placeholder: 'Select team…',
+                  active: !!compareTeamId, title: 'Team to compare against',
+                  onChange: v => setCompareTeamId(v || null),
+                  options: [{ value: '', label: 'Select team to compare...' }].concat(opponentOptions.map(t => ({
+                    value: String(t.rosterId), label: t.name, sub: (t.wins || 0) + '-' + (t.losses || 0),
+                  }))),
+                }) : null
             ) : compareScope === 'players' ? (_phoneKit ? (
                 <WrFilterPill label="Add player" value={comparePlayerIds.length + '/4'} onClick={() => setSearchOpen(true)} />
             ) : renderPlayerSearch()) : (

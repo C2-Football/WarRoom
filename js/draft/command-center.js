@@ -2041,6 +2041,10 @@
     // ── Setup screen ─────────────────────────────────────────────────
     function SetupScreen({ state, dispatch, draftMeta, playersData, currentLeague, myRoster, csvReady, showResume, onStartDraft, onResumeYes, onResumeNo, forcedMode }) {
         const [showPoolOther, setShowPoolOther] = React.useState(false); // custom pool + advanced mock options hide behind "Other" (league settings are the default)
+        // Shared filter control (js/components/wr-primitives.js) — the setup
+        // dropdowns route through it; selStyle survives for the one remaining
+        // native (CPU speed, inside its own <label>).
+        const WrSelect = window.WR && window.WR.Select;
         const selStyle = {
             width: '100%',
             padding: '8px 10px',
@@ -2337,22 +2341,25 @@
                             {structureFields.map(field => (
                                 <div key={field.label}>
                                     <div className="draft-setup-label">{field.label}</div>
-                                    <select value={field.value} onChange={field.onChange} style={selStyle}>
-                                        {field.options.map(v => <option key={v} value={v} style={{ background: 'var(--k-111111, #111111)' }}>{v}{field.suffix === ' rounds' && v === 1 ? ' round' : field.suffix}</option>)}
-                                    </select>
+                                    {WrSelect && React.createElement(WrSelect, {
+                                        label: null, value: String(field.value), title: field.label,
+                                        onChange: v => field.onChange({ target: { value: v } }),
+                                        options: field.options.map(v => ({ value: String(v), label: String(v) + (field.suffix === ' rounds' && v === 1 ? ' round' : (field.suffix || '')) })),
+                                    })}
                                 </div>
                             ))}
                             <div>
                                 <div className="draft-setup-label">Your Draft Position</div>
-                                <select value={state.userSlot} onChange={e => update({ userSlot: +e.target.value })} style={selStyle}>
-                                    {Array.from({ length: state.leagueSize }, (_, i) => {
+                                {WrSelect && React.createElement(WrSelect, {
+                                    label: null, value: String(state.userSlot), title: 'Your draft position',
+                                    onChange: v => update({ userSlot: +v }),
+                                    options: Array.from({ length: state.leagueSize }, (_, i) => {
                                         const slot = i + 1;
                                         const info = draftMeta.slotToRoster[slot];
                                         const isMine = slot === draftMeta.mySlot;
-                                        const ownerLabel = info?.ownerName ? ' - ' + info.ownerName : '';
-                                        return <option key={slot} value={slot} style={{ background: 'var(--k-111111, #111111)' }}>{slot}.01{ownerLabel}{isMine ? ' (YOU)' : ''}</option>;
-                                    })}
-                                </select>
+                                        return { value: String(slot), label: slot + '.01' + (info?.ownerName ? ' - ' + info.ownerName : ''), sub: isMine ? 'YOU' : null };
+                                    }),
+                                })}
                             </div>
                             <div>
                                 <div className="draft-setup-label">Draft Mechanic</div>
@@ -2364,10 +2371,11 @@
                             {state.draftMechanic !== 'auction' ? (
                             <div>
                                 <div className="draft-setup-label">Draft Order</div>
-                                <select value={state.draftType} onChange={e => update({ draftType: e.target.value })} style={selStyle}>
-                                    <option value="snake" style={{ background: 'var(--k-111111, #111111)' }}>Snake</option>
-                                    <option value="linear" style={{ background: 'var(--k-111111, #111111)' }}>Linear</option>
-                                </select>
+                                {WrSelect && React.createElement(WrSelect, {
+                                    label: null, value: state.draftType, title: 'Turn pattern',
+                                    onChange: v => update({ draftType: v }),
+                                    options: [{ value: 'snake', label: 'Snake' }, { value: 'linear', label: 'Linear' }],
+                                })}
                             </div>
                             ) : (
                             <div>

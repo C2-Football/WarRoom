@@ -1027,6 +1027,9 @@
         // Phone tier (plan D1/D7): shared viewport seam — js/shared/viewport.js
         // loads before the babel chain, so the hook always exists here.
         const _vp = window.WR.useViewport();
+        // Shared filter control (js/components/wr-primitives.js) — replaces this
+        // file's local selStyle natives with the app-wide dropdown idiom.
+        const WrSelect = window.WR && window.WR.Select;
         const [tcTab, _setTcTabRaw] = useState('desk');
         const [builderExpanded, setBuilderExpanded] = useState(false); // persistent builder panel open/closed
         const [railHidden, setRailHidden] = useState(false); // Deal-intel side panel (verdict + Owner DNA) manually hidden while building (owner ask 2026-07-12)
@@ -3594,16 +3597,16 @@
                                         <strong>{browsingMyRoster ? 'Your roster' : 'League player board'}</strong>
                                     </div>
                                     <div className="tc-dhq-browser-controls">
-                                        <label>Pos
-                                            <select value={assetBrowserPos} onChange={e => setAssetBrowserPos(e.target.value)}>
-                                                {browserPositions.map(pos => <option key={pos} value={pos}>{pos === 'ALL' ? 'All' : pos}</option>)}
-                                            </select>
-                                        </label>
-                                        <label>Sort
-                                            <select value={assetBrowserSort} onChange={e => setAssetBrowserSort(e.target.value)}>
-                                                {assetBrowserSorts.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
-                                            </select>
-                                        </label>
+                                        {WrSelect && React.createElement(WrSelect, {
+                                            label: 'Pos', value: assetBrowserPos, active: assetBrowserPos !== 'ALL', title: 'Filter the board by position',
+                                            onChange: v => setAssetBrowserPos(v),
+                                            options: browserPositions.map(pos => ({ value: pos, label: pos === 'ALL' ? 'All' : pos })),
+                                        })}
+                                        {WrSelect && React.createElement(WrSelect, {
+                                            label: 'Sort', value: assetBrowserSort, title: 'Sort the board',
+                                            onChange: v => setAssetBrowserSort(v),
+                                            options: assetBrowserSorts.map(opt => ({ value: opt.key, label: opt.label })),
+                                        })}
                                         {tcRookieFields && <button type="button" className={assetBrowserRookieOnly ? 'is-active' : ''} title="Show only rookies — college, draft slot, and tier appear under each name" onClick={() => setAssetBrowserRookieOnly(v => !v)}>Rookies</button>}
                                         {/* Show-all lives ON the board head with the other board
                                             controls (owner ask 2026-07-12) — it floated alone above
@@ -4324,10 +4327,11 @@
                             {usingRaw ? 'Raw league trades (Sleeper) valued with DHQ.' : 'League history analyzed with DHQ values.'}
                         </div>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <select value={ledgerTeamFilter} onChange={e => { setLedgerTeamFilter(e.target.value); setLedgerShown(20); }} style={{ padding: '4px 8px', minHeight: _vp.isPhone ? '44px' : undefined, fontSize: '0.74rem', fontFamily: 'var(--font-body)', background: 'var(--charcoal)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--silver)', cursor: 'pointer' }}>
-                                <option value="all">All Teams</option>
-                                {allRosters.map(r => <option key={r.roster_id} value={r.roster_id}>{ownerNameForRosterId(r.roster_id) || 'Team ' + r.roster_id}</option>)}
-                            </select>
+                            {WrSelect && React.createElement(WrSelect, {
+                                label: 'Team', value: String(ledgerTeamFilter), active: ledgerTeamFilter !== 'all', title: 'Filter the trade log by team',
+                                onChange: v => { setLedgerTeamFilter(v); setLedgerShown(20); },
+                                options: [{ value: 'all', label: 'All Teams' }].concat(allRosters.map(r => ({ value: String(r.roster_id), label: ownerNameForRosterId(r.roster_id) || 'Team ' + r.roster_id }))),
+                            })}
                             {usingRaw && <button onClick={() => refreshLedger(true)} disabled={ledgerSyncing} style={{ padding: '4px 10px', minHeight: _vp.isPhone ? '44px' : undefined, fontSize: '0.72rem', fontFamily: 'var(--font-body)', background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.25))', borderRadius: 'var(--card-radius-xs, 5px)', cursor: ledgerSyncing ? 'default' : 'pointer', opacity: ledgerSyncing ? 0.6 : 1 }}>{ledgerSyncing ? 'Refreshing…' : 'Refresh'}</button>}
                         </div>
                     </div>

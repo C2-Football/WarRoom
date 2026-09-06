@@ -37,6 +37,8 @@
         // flag is fixed for the page's lifetime — no hook hazards). Everything
         // `_phone` gates is phone-only; desktop/tablet markup stays untouched.
         const _vp = window.WR.useViewport();
+        // Shared filter control (js/components/wr-primitives.js).
+        const _WrSelect = window.WR && window.WR.Select;
         const _phoneKitReady = !!(window.WR && window.WR.HeroCard && window.WR.AssetRow && window.WR.CardList && window.WR.FilterPill && window.WR.FilterSheet);
         const _phone = !!_vp.isPhone && _phoneKitReady;
         const [draftSort, setDraftSort] = useState({ key: 'dhq', dir: -1 });
@@ -2571,6 +2573,11 @@
                         ))}
                     </div>
                     <label className="draft-alex-rounds">
+                        {_WrSelect ? React.createElement(_WrSelect, {
+                            label: 'Rounds', value: String(flashAnalystRoundLimit), title: 'How many rounds the analyst mock projects',
+                            onChange: v => setFlashAnalystRoundLimit(v),
+                            options: flashRoundOptions.map(round => ({ value: String(round), label: round + 'R' })).concat([{ value: 'full', label: 'Full' }]),
+                        }) : <React.Fragment>
                         <span>Rounds</span>
                         <select value={flashAnalystRoundLimit} onChange={e => setFlashAnalystRoundLimit(e.target.value)}>
                             {flashRoundOptions.map(round => (
@@ -2578,6 +2585,7 @@
                             ))}
                             <option value="full" style={{ background: 'var(--k-111111, #111111)' }}>Full</option>
                         </select>
+                        </React.Fragment>}
                     </label>
                 </div>
                 {activeFlashAlexBrief ? (
@@ -3991,18 +3999,17 @@
                             {[...(typeof getLeaguePositions === 'function' ? getLeaguePositions() : ['QB','RB','WR','TE','K','DEF','DL','LB','DB']), ...(window.App?.getLeagueFlexGroups?.() || [])].map(pos => (
                                 <button key={pos} onClick={() => setBoardPosFilter(boardPosFilter === pos ? '' : pos)} style={{ padding: '4px 10px', minHeight: '44px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', borderRadius: 'var(--card-radius-lg, 14px)', cursor: 'pointer', border: '1px solid ' + (boardPosFilter === pos ? (posColors[pos] || 'var(--k-666666, #666666)') + '55' : 'var(--ov-5, rgba(255,255,255,0.08))'), background: boardPosFilter === pos ? (posColors[pos] || 'var(--k-666666, #666666)') + '18' : 'transparent', color: boardPosFilter === pos ? posColors[pos] : 'var(--silver)' }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</button>
                             ))}
-                            <span style={{ marginLeft: 'auto', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.4 }}>Click row to expand {'\u00B7'} Hold ≡ to drag — or use arrows — to reorder My Board</span>
+                            <span style={{ marginLeft: 'auto', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.4 }}>Click row to expand {'\u00B7'} Hold ≡ to drag and reorder My Board</span>
                         </div>
 
                         {/* Team & Round filters */}
                         <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Team</span>
-                                <select value={boardTeamFilter} onChange={e => setBoardTeamFilter(e.target.value)} style={{ padding: '3px 6px', minHeight: '44px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', background: 'var(--ov-3, rgba(255,255,255,0.04))', color: boardTeamFilter ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (boardTeamFilter ? 'var(--acc-line3, rgba(212,175,55,0.4))' : 'var(--ov-6, rgba(255,255,255,0.1))'), borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer', outline: 'none' }}>
-                                    <option value="">All teams</option>
-                                    {availableTeams.map(t => <option key={t} value={t}>{t}</option>)}
-                                </select>
-                            </div>
+                            {_WrSelect && React.createElement(_WrSelect, {
+                                label: 'Team', value: boardTeamFilter, placeholder: 'All', active: !!boardTeamFilter,
+                                title: 'Filter the board by NFL team',
+                                onChange: v => setBoardTeamFilter(v),
+                                options: [{ value: '', label: 'All teams' }].concat(availableTeams.map(t => ({ value: t, label: t }))),
+                            })}
 	                            {isRookieDraft && (
 	                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
 	                                <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.6, fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: '2px' }}>Round</span>

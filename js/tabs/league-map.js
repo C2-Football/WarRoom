@@ -797,6 +797,9 @@ function LeagueMapTab({
   // page's lifetime. Desktop/tablet output below stays byte-identical.
   const _lmVp = window.WR.useViewport();
   const _phone = !!_lmVp.isPhone && !!(window.WR && window.WR.AssetRow && window.WR.CardList);
+  // Shared filter control — ReportSubView binds its own; this is the copy for
+  // the asset ledgers (Draft Picks year/owner filters).
+  const WrSelect = window.WR && window.WR.Select;
 
   // Scout-free vs Pro (gate-map row 15 + Q3/Q7 rulings): raw player/pick
   // tables, search/filters, saved views, power rankings, and raw health
@@ -2246,14 +2249,16 @@ function LeagueMapTab({
                     </div>
                 )}
                 <div className="analytics-filter-row">
-                    <select value={pickYearFilter} onChange={e => setPickYearFilter(e.target.value)}>
-                        <option value="all">All Years</option>
-                        {years.map(yr => <option key={yr} value={yr}>{yr}</option>)}
-                    </select>
-                    <select value={pickOwnerFilter} onChange={e => setPickOwnerFilter(e.target.value)}>
-                        <option value="all">All Owners</option>
-                        {(currentLeague.rosters || []).map(r => <option key={r.roster_id} value={r.roster_id}>{getOwnerName(r.roster_id)}</option>)}
-                    </select>
+                    {WrSelect && React.createElement(WrSelect, {
+                        label: 'Year', value: pickYearFilter, active: pickYearFilter !== 'all', title: 'Filter picks by draft year',
+                        onChange: v => setPickYearFilter(v),
+                        options: [{ value: 'all', label: 'All Years' }].concat(years.map(yr => ({ value: String(yr), label: String(yr) }))),
+                    })}
+                    {WrSelect && React.createElement(WrSelect, {
+                        label: 'Owner', value: String(pickOwnerFilter), active: pickOwnerFilter !== 'all', title: 'Filter picks by owner',
+                        onChange: v => setPickOwnerFilter(v),
+                        options: [{ value: 'all', label: 'All Owners' }].concat((currentLeague.rosters || []).map(r => ({ value: String(r.roster_id), label: getOwnerName(r.roster_id) }))),
+                    })}
                     {[
                         ['all', 'All Picks'],
                         ['mine', 'My Picks'],
