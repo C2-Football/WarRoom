@@ -200,9 +200,25 @@
         return ss.blendLines([{ line: projLine, weight: w }, { line: hist, weight: 1 - w }]);
     }
 
+    // A player with no NFL team has no game to play — in any week.
+    // Sleeper leaves `team` null for one (sometimes the literal 'FA'), carries
+    // no bye_week, and keeps status 'Active' (that is ROSTER status, not a
+    // team), so none of the checks below caught it: an unsigned back scored a
+    // full projection off last season's baseline and got recommended as a
+    // start. Owner report 2026-09-06: Kareem Hunt (pid 4098, team null)
+    // projected ~13 points while a free agent.
+    const NO_NFL_TEAM = new Set(['', 'FA', 'FA*', 'NONE', 'NULL', 'UNDEFINED']);
+    function hasNflTeam(player) {
+        const t = String((player && player.team) || '').trim().toUpperCase();
+        return !t ? false : !NO_NFL_TEAM.has(t);
+    }
+
     function isByeOrOut(player, ctx, pid, week) {
         const sleeperStatus = (player && player.injury_status) || '';
         const ctxStatus = ctx && ctx.injury && ctx.injury[pid];
+        // Checked before bye/injury so the reason surfaces as "FA" rather than
+        // an empty status the UI would render as playable.
+        if (!hasNflTeam(player)) return 'FA';
         if (Number(player && player.bye_week) === week) return 'BYE';
         return ctxStatus || sleeperStatus || '';
     }

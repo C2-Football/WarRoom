@@ -203,6 +203,56 @@ test('explain: stages reconcile to the final league-scored number', () => {
   assert.ok(Math.abs((ex.leaguePts - ex.standardPts) - ex.scoringEdge) < 0.06, 'edge = league − standard');
 });
 
+// ── Unsigned players (no NFL team) ──────────────────────────────────
+// Owner report 2026-09-06: DHQ recommended STARTING Kareem Hunt at ~13 points
+// while he was an NFL free agent. Sleeper leaves `team` null for an unsigned
+// player, carries no bye_week, and keeps status 'Active' (roster status, not a
+// team) — so nothing marked him out and he scored a full projection off his
+// prior-season line.
+
+test('availability: FA (no NFL team) is out, like BYE and IR', () => {
+  assert.strictEqual(StartSit.availability ? StartSit.availability('FA').available : false, false,
+    'FA must be an out-status');
+});
+
+test('projectPlayer: an unsigned player projects zero and is unavailable', () => {
+  // projectPlayer scores through the global calcFantasyPts (no calcFn seam),
+  // so stand one up the way the app does.
+  globalThis.calcFantasyPts = calc;
+  const scoring = { rush_yd: 0.1, rush_td: 6, rec: 1, rec_yd: 0.1, rec_td: 6 };
+  // Same prior-season line for both; only the NFL team differs.
+  const priorData = { rb1: { gp: 17, rush_yd: 611, rush_td: 8, rec: 18, rec_yd: 143, rec_td: 1 } };
+  const statsData = { rb1: {} };
+
+  const signed = WeeklyProj.projectPlayer('rb1', {
+    playersData: { rb1: { position: 'RB', team: 'KC', injury_status: '' } },
+    statsData, priorData, scoring, week: 3,
+  });
+  const unsigned = WeeklyProj.projectPlayer('rb1', {
+    playersData: { rb1: { position: 'RB', team: null, injury_status: '' } },
+    statsData, priorData, scoring, week: 3,
+  });
+
+  assert.ok(signed && signed.points.median > 0, 'the same line on a real team still projects');
+  assert.ok(unsigned, 'unsigned player still returns a projection object');
+  assert.strictEqual(unsigned.injuryStatus, 'FA', 'reason surfaces as FA, not an empty status');
+  assert.strictEqual(unsigned.available, false, 'unsigned player is not startable');
+  assert.strictEqual(unsigned.points.median, 0, 'unsigned player projects zero, not a prior-season baseline');
+});
+
+test("projectPlayer: the literal 'FA' team string is treated the same as null", () => {
+  globalThis.calcFantasyPts = calc;
+  const scoring = { rec: 1, rec_yd: 0.1, rec_td: 6 };
+  const out = WeeklyProj.projectPlayer('wr1', {
+    playersData: { wr1: { position: 'WR', team: 'FA', injury_status: '' } },
+    statsData: { wr1: {} },
+    priorData: { wr1: { gp: 17, rec: 80, rec_yd: 1000, rec_td: 6 } },
+    scoring, week: 3,
+  });
+  assert.strictEqual(out.available, false, "team 'FA' is also unsigned");
+  assert.strictEqual(out.points.median, 0, "team 'FA' projects zero");
+});
+
 // ── Async: the weekly-score fetch contract ──────────────────────────
 async function testAsync(name, fn) {
   try { await fn(); passed++; console.log('  ok  ' + name); }

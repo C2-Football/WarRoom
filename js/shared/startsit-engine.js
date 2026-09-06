@@ -140,7 +140,10 @@
     }
 
     // ── Availability ─────────────────────────────────────────────────
-    const OUT_STATUSES = new Set(['OUT', 'IR', 'PUP', 'SUS', 'NA', 'DNP', 'BYE', 'COV']);
+    // 'FA' = no NFL team, so no game — weekly-proj tags it (hasNflTeam) and it
+    // has to zero out here too, or the optimizer keeps ranking an unsigned
+    // player into the recommended lineup.
+    const OUT_STATUSES = new Set(['OUT', 'IR', 'PUP', 'SUS', 'NA', 'DNP', 'BYE', 'COV', 'FA']);
     function availability(injuryStatus) {
         const s = String(injuryStatus || '').trim().toUpperCase();
         if (!s) return { available: true, mult: 1, floorPenalty: 0 };
