@@ -1768,7 +1768,20 @@ function LeagueMapTab({
                             style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', fontSize: '16px', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--white)', fontFamily: 'var(--font-body)', outline: 'none', minHeight: '44px' }}
                         />
                         <div className="wr-hscroll" style={{ display: 'flex', gap: '5px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', paddingBottom: '2px', alignItems: 'center' }}>
-                            {['', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB', '__ROOKIE__'].map(pos => {
+                            {/* League-aware, same source as the desktop chip row below.
+                                This was a hardcoded literal, so a 1QB half-PPR redraft
+                                with no IDP still offered DL / LB / DB chips that could
+                                only ever return an empty board — and it never offered
+                                the FLEX / SFLEX / IDP FLEX groups the league does roster.
+                                getLeaguePositions drops slots the league doesn't use;
+                                getLeagueFlexGroups adds the ones it does, and
+                                posMatchesFilter (already wired into the filter) expands
+                                a flex click into its member positions. */}
+                            {['', ...(typeof window.getLeaguePositions === 'function'
+                                    ? window.getLeaguePositions({ league: currentLeague })
+                                    : ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB']),
+                                ...(window.App?.getLeagueFlexGroups?.({ league: currentLeague }) || []),
+                                '__ROOKIE__'].map(pos => {
                                 const on = lpFilter === pos;
                                 const label = pos === '' ? 'All' : pos === '__ROOKIE__' ? 'Rookies' : (window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos));
                                 return (
