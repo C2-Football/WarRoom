@@ -6745,8 +6745,14 @@
                         </div>
                     );
                     if (!Sheet) return desktopModal;
+                    // 92dvh, not 100 (owner stuck in the recap on their phone,
+                    // 2026-09-06). At full height the sheet covers the screen, so the
+                    // ✕ in its header is the ONLY exit — no scrim is left to tap and
+                    // the footer's "view board" sits ~2,600px down a scrolling report.
+                    // Leaving a strip of backdrop gives a second, always-reachable way
+                    // out and keeps the header clear of the notch.
                     return (
-                        <Sheet open={true} onClose={onExit} title="Draft Recap" height="100dvh" desktop={desktopModal}>
+                        <Sheet open={true} onClose={onExit} title="Draft Recap" height="92dvh" desktop={desktopModal}>
                             <DraftRecapReport {...recapProps} inline />
                         </Sheet>
                     );

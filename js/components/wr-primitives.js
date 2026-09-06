@@ -429,12 +429,14 @@
         // Landscape phones (SE at 667×375 stays in the phone tier): the 85dvh
         // default leaves ~320px — take the full height; the kbOpen min() at
         // the style site still shrinks it when a keyboard is up.
-        const maxH = vp.height <= 520 ? '100dvh' : (height || '85dvh');
+        // Landscape phones took the full height, which also removed the scrim —
+        // leaving a sheet with no tap-outside escape. Keep a strip of backdrop.
+        const maxH = vp.height <= 520 ? '94dvh' : (height || '85dvh');
         // A full-height sheet reaches the top of the screen, so its header row
         // lands under the status bar / notch — the body already pads for --sab
         // but nothing padded the top. Only full-height sheets need it; the
         // default 85dvh never gets near the inset.
-        const topInset = maxH === '100dvh' ? 'var(--sat, env(safe-area-inset-top, 0px))' : '';
+        const topInset = /^(9[2-9]|100)dvh$/.test(String(maxH)) ? 'var(--sat, env(safe-area-inset-top, 0px))' : '';
         const lift = vp.kbOpen ? vp.kbHeight : 0;
         const hasHeaderRow = !!title || showClose !== false;
 
