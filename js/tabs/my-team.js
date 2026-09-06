@@ -394,10 +394,12 @@ function MyTeamTab({
   // (raw pts; renderCell strips the verdict so saved views can't resurrect it).
   const COLUMN_PRESETS = {
     default: ['pos','age','dhq','posRankLg','ppg',...(wkVerdict ? ['proj'] : []),'durability','peak','action','sos'].filter(k => ROSTER_COLUMNS[k]),
-    ...(wkVerdict ? { redraft: ['pos','proj','ppg','prev','trend','hi','lo','sos'] } : {}),
-    stats:   ['pos','dhq','ppg','prev','trend','gp','durability','sos'],
-    scout:   ['pos','age','college','slot','height','weight','depthChart','yrsExp','starterSzn','posRankNfl'],
-    rookie:  ['pos','age','college','rkSlot','rkTeam','rkProfile'],
+    ...(wkVerdict ? { redraft: ['pos','proj','ppg','prev','trend','hi','lo','sos'].filter(k => ROSTER_COLUMNS[k]) } : {}),
+    // Same ROSTER_COLUMNS guard `default` carries — a renamed or retired column
+    // should drop out of a preset, not render an empty column in it.
+    stats:   ['pos','dhq','ppg','prev','trend','gp','durability','sos'].filter(k => ROSTER_COLUMNS[k]),
+    scout:   ['pos','age','college','slot','height','weight','depthChart','yrsExp','starterSzn','posRankNfl'].filter(k => ROSTER_COLUMNS[k]),
+    rookie:  ['pos','age','college','rkSlot','rkTeam','rkProfile'].filter(k => ROSTER_COLUMNS[k]),
     full:    Object.keys(ROSTER_COLUMNS),
   };
   const COLUMN_PRESET_META = {
@@ -841,6 +843,36 @@ function MyTeamTab({
   const cutMarkedCount = React.useMemo(() => {
     return rows.filter(r => window._playerTags?.[r.pid] === 'cut' || window._playerTags?.[r.pid] === 'taxi').length;
   }, [rows, timeRecomputeTs]);
+
+  // Which sort keys run high-to-low at dir=1. The row comparator is a mix:
+  // most numeric columns are written `(b.x - a.x) * dir` (so dir=1 is
+  // DESCENDING — best first), while rank/age/alphabetical ones are
+  // `(a.x - b.x) * dir` (dir=1 is ASCENDING). The header glyph was derived
+  // from `dir` alone, so every column in this set showed "^" while actually
+  // sorting high-to-low — DHQ read "^" with your best player on top.
+  // Keep in sync with the comparator in the rows memo above.
+  const DESC_FIRST_SORTS = new Set([
+    'dhq', 'ppg', 'proj', 'hi', 'lo', 'prev', 'trend', 'gp', 'durability',
+    'peak', 'action', 'yrsExp', 'starterSzn', 'height', 'weight', 'sos',
+  ]);
+  const sortGlyph = React.useCallback((key) => {
+    if (rosterSort.key !== key) return '';
+    const descending = DESC_FIRST_SORTS.has(key) ? rosterSort.dir === 1 : rosterSort.dir === -1;
+    return descending ? ' v' : ' ^';
+  }, [rosterSort]);
+
+  // Sorting by a column has to drop grouping. The row comparator resolves the
+  // group rank BEFORE it ever looks at the sort key, so with the default
+  // 'position' grouping a "sort by DHQ" only ordered players *within* each
+  // position block — never a straight best-to-worst board. Owner ask
+  // 2026-09-06 ("I want to sort by DHQ"). Grouping and an explicit column sort
+  // are mutually exclusive now, last action wins: tapping a header flattens
+  // (and the Group By control visibly moves to None, so it isn't hidden
+  // state), and picking a grouping again re-groups.
+  const sortByColumn = React.useCallback((colKey) => {
+    setRosterGroupMode('none');
+    setRosterSort(prev => (prev.key === colKey ? { ...prev, dir: prev.dir * -1 } : { key: colKey, dir: 1 }));
+  }, [setRosterSort, setRosterGroupMode]);
 
   const GROUP_MODES = [
     { key: 'position', label: 'Position' },
@@ -1749,8 +1781,8 @@ function MyTeamTab({
             {/* Header row */}
             <div style={{ display: 'flex', height: '32px', background: 'var(--ov-2, rgba(255,255,255,0.03))', borderBottom: '1px solid var(--ov-6, rgba(255,255,255,0.12))', position: 'sticky', top: 0, zIndex: 5 }}>
               <div title="Player" style={{ width: playerColWidth + 'px', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: '0.72rem', fontWeight: 600, color: rosterSort.key === 'name' ? 'var(--gold)' : 'var(--silver)', fontFamily: 'var(--font-body)', letterSpacing: '0.035em', cursor: 'pointer', userSelect: 'none', borderRight: '1px solid var(--ov-6, rgba(255,255,255,0.1))', textTransform: 'uppercase', position: 'sticky', left: 0, zIndex: 7, background: 'linear-gradient(180deg, var(--k-1b1d23, #1b1d23), var(--k-15161b, #15161b))', boxShadow: '8px 0 14px rgba(0,0,0,0.2)' }}
-                onClick={() => setRosterSort(prev => prev.key === 'name' ? {...prev, dir: prev.dir*-1} : {key: 'name', dir: 1})}>
-                Player{rosterSort.key === 'name' ? (rosterSort.dir === -1 ? ' v' : ' ^') : ''}
+                onClick={() => sortByColumn('name')}>
+                Player{sortGlyph('name')}
               </div>
               <div style={{ flex: 1, display: 'flex' }}>
                 {rosterTableCols.map(colKey => {
@@ -1759,9 +1791,9 @@ function MyTeamTab({
                   const isSorted = rosterSort.key === colKey;
                   const isGroupStart = visibleColGroupStarts.has(colKey);
                   return (
-                    <div key={colKey} title={col.label} onClick={() => setRosterSort(prev => prev.key === colKey ? {...prev, dir: prev.dir*-1} : {key: colKey, dir: 1})}
+                    <div key={colKey} title={col.label} onClick={() => sortByColumn(colKey)}
                       style={{ width: col.width, minWidth: col.width, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: isSorted ? 700 : 600, color: isSorted ? 'var(--gold)' : 'var(--silver)', fontFamily: 'var(--font-body)', letterSpacing: '0.025em', cursor: 'pointer', userSelect: 'none', textTransform: 'uppercase', borderLeft: isGroupStart ? '1px solid var(--ov-4, rgba(255,255,255,0.06))' : '1px solid var(--ov-3, rgba(255,255,255,0.035))', padding: '0 3px', textAlign: 'center', lineHeight: 1.05, background: isSorted ? 'var(--acc-fill1, rgba(212,175,55,0.06))' : 'transparent' }}>
-                      <span>{col.shortLabel || col.label}{rosterSort.key === colKey ? (rosterSort.dir === -1 ? ' v' : ' ^') : ''}</span>
+                      <span>{col.shortLabel || col.label}{sortGlyph(colKey)}</span>
                     </div>
                   );
                 })}
