@@ -701,15 +701,7 @@
     // stable across reloads rather than reshuffling every load.
     const readHelmet = (value, teamId) => {
         const Helmet = App.TimeLeagueHelmet;
-        if (isRecord(value)) {
-            return {
-                color: Helmet.colorById(readString(value.color) || "").id,
-                facemask: Helmet.facemaskById(readString(value.facemask) || "").id,
-                stripe: value.stripe !== false,
-                stripeColor: readString(value.stripeColor) || Helmet.STRIPE_COLORS[0],
-            };
-        }
-        return Helmet.defaultHelmet(teamId);
+        return Helmet.normalizeHelmet(isRecord(value) ? value : null, teamId);
     };
 
     const readTeam = (value) => {

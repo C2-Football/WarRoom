@@ -649,9 +649,13 @@
                 overflow: 'hidden',
             },
             ...rest,
+            // Babel's shared browser helpers can leak onClick into rest when
+            // deferred scripts load. Only the header should toggle this card.
+            onClick: undefined,
         },
             h('div', {
                 role: onClick ? 'button' : undefined,
+                'aria-expanded': onClick && expanded !== undefined ? !!expanded : undefined,
                 tabIndex: onClick ? 0 : undefined,
                 onClick: onClick,
                 onKeyDown: onKey,

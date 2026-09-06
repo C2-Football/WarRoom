@@ -1,12 +1,7 @@
 // ══════════════════════════════════════════════════════════════════
 // js/components/time-league-home-panel.js — window.WrTimeLeagueHomePanel
-// The Vault Gazette: a newspaper front-page treatment for the League Home
-// landing screen. Lead story text is generated from the same
-// Gamecast.weekHeadlines() output that already drives the Gameday wire —
-// no separate copy-generation layer, just a different container for text
-// the engine already produces. Stat leaders (season high, biggest
-// blowout, eras in play, oldest starter) are all computed from real
-// league state, nothing fabricated.
+// Matchup-first league home. The most important player decisions lead the
+// page; the Vault Gazette survives as flavor in the League Pulse below.
 // ══════════════════════════════════════════════════════════════════
 (function () {
     'use strict';
@@ -18,18 +13,6 @@
     const EraRules = window.App.TimeLeagueEraRules;
     const UI = window.App.TimeLeagueUI;
 
-    /** Splits a message at the earliest team-name match so it can render bolded, like a wire caption. */
-    function withBoldName(message, teams) {
-        let best = null; let bestIndex = Infinity;
-        for (const team of teams) {
-            const index = message.indexOf(team.name);
-            if (index !== -1 && index < bestIndex) { best = team; bestIndex = index; }
-        }
-        if (!best) return message;
-        const end = bestIndex + best.name.length;
-        return [message.slice(0, bestIndex), h('b', { key: 'b' }, best.name), message.slice(end)];
-    }
-
     function computeSeasonHigh(league) {
         let best = null;
         for (const week of league.finalizedWeeks) {
@@ -40,24 +23,8 @@
         return best;
     }
 
-    function computeBiggestBlowout(league) {
-        let best = null;
-        for (const week of league.finalizedWeeks) {
-            for (const matchup of week.matchups) {
-                if (!matchup.winner) continue;
-                const margin = Math.abs(matchup.homePoints - matchup.awayPoints);
-                if (!best || margin > best.margin) {
-                    const loser = matchup.winner === matchup.home ? matchup.away : matchup.home;
-                    best = { winnerTeamId: matchup.winner, loserTeamId: loser, margin, week: week.week };
-                }
-            }
-        }
-        return best;
-    }
-
-    /** Pulls straight from drawnSeason on the roster — no card lookup needed, the draw is already stored. */
     function computeEraSpread(league) {
-        const entries = league.teams.flatMap((t) => t.roster);
+        const entries = league.teams.flatMap((team) => team.roster);
         const decades = new Set();
         let oldest = null;
         for (const entry of entries) {
@@ -65,97 +32,149 @@
             if (decade) decades.add(decade);
             if (!oldest || entry.drawnSeason < oldest.drawnSeason) oldest = entry;
         }
-        return { decadeCount: decades.size, oldest };
+        return { decades: [...decades].sort(), oldest };
     }
 
-    function standingsBlurb(league, standings, row) {
-        const streak = UI.streakFor(league, row.teamId);
-        if (streak && streak.kind === 'W' && streak.count >= 2) return `riding a ${streak.kind}${streak.count} streak`;
-        const topScorer = [...standings].sort((a, b) => b.pointsFor - a.pointsFor)[0];
-        if (topScorer && topScorer.teamId === row.teamId) return `the league's top scorer at ${row.pointsFor.toFixed(1)} PF`;
-        if (streak && streak.kind === 'L' && streak.count >= 2) return `has dropped ${streak.count} straight`;
-        return `${row.wins}-${row.losses}${row.ties ? `-${row.ties}` : ''}, ${row.pointsFor.toFixed(1)} PF`;
+    function TeamLockup({ team, standing, side }) {
+        if (!team) return h('div', { className: `tl-home-team ${side}` }, h('div', { className: 'tl-home-bye' }, 'BYE'));
+        return h('div', { className: `tl-home-team ${side}` },
+            h(window.TimeLeagueHelmetIcon, { helmet: team.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team.name), size: 86 }),
+            h('strong', null, team.name),
+            h('span', null, standing ? `${standing.wins}-${standing.losses}${standing.ties ? `-${standing.ties}` : ''} · ${standing.pointsFor.toFixed(1)} PF` : '0-0 · SEASON OPENER'));
+    }
+
+    function ActionCard({ icon, kicker, title, detail, action, tone, onClick }) {
+        return h('button', { type: 'button', className: `tl-home-action ${tone || ''}`, onClick },
+            h('span', { className: 'tl-home-action-icon' }, icon),
+            h('span', { className: 'tl-home-action-copy' }, h('small', null, kicker), h('strong', null, title), h('span', null, detail)),
+            h('span', { className: 'tl-home-action-go' }, action, ' →'));
     }
 
     function WrTimeLeagueHomePanel({ league, onNavigate }) {
         const standings = useMemo(() => Engine.computeStandings(league), [league]);
-        const teamOf = (teamId) => league.teams.find((t) => t.teamId === teamId);
+        const teamOf = (teamId) => league.teams.find((team) => team.teamId === teamId);
         const teamName = (teamId) => teamOf(teamId)?.name ?? teamId;
-        const myTeam = league.teams.find((t) => t.manager === 'human') ?? league.teams[0];
-        const pendingWaivers = league.pendingClaims.filter((c) => c.teamId === myTeam.teamId).length;
-
+        const standingOf = (teamId) => standings.find((row) => row.teamId === teamId);
+        const myTeam = league.teams.find((team) => team.manager === 'human') ?? league.teams[0];
+        const myStanding = standingOf(myTeam.teamId);
+        const currentSchedule = league.schedule.find((item) => item.week === league.currentWeek);
+        const currentPair = currentSchedule?.pairs.find((pair) => pair.includes(myTeam.teamId)) ?? null;
+        const opponentId = currentPair?.find((teamId) => teamId !== myTeam.teamId) ?? null;
+        const opponent = opponentId ? teamOf(opponentId) : null;
+        const opponentStanding = opponent ? standingOf(opponent.teamId) : null;
+        const lineupProblems = Engine.lineupProblems(league, myTeam.teamId);
+        const pendingWaivers = league.pendingClaims.filter((claim) => claim.teamId === myTeam.teamId).length;
+        const openTrades = league.trades.filter((trade) => trade.status === 'pending' && trade.toTeamId === myTeam.teamId).length;
         const lastFinalized = league.finalizedWeeks[league.finalizedWeeks.length - 1] ?? null;
-        const story = useMemo(() => {
+        const lastMatchup = lastFinalized?.matchups.find((matchup) => matchup.home === myTeam.teamId || matchup.away === myTeam.teamId) ?? null;
+        const lastResult = lastMatchup ? (lastMatchup.winner === null ? 'T' : lastMatchup.winner === myTeam.teamId ? 'W' : 'L') : null;
+        const seasonHigh = useMemo(() => computeSeasonHigh(league), [league]);
+        const eraSpread = useMemo(() => computeEraSpread(league), [league]);
+        const recentActivity = [...league.activity].reverse().slice(0, 5);
+        const champion = league.championTeamId ? teamOf(league.championTeamId) : null;
+
+        const pulse = useMemo(() => {
             if (!lastFinalized) {
-                const eraSpread = computeEraSpread(league);
                 return {
-                    headline: `${league.name.toUpperCase()} OPENS — ${league.teams.length} MANAGERS, ${eraSpread.decadeCount} DECADES ON THE BOARD`,
-                    byline: `Filed Week ${league.currentWeek}`,
-                    lede: `The mystery seasons are sealed and the schedule is set. First matchups tip off this week, with rosters spanning from ${eraSpread.oldest ? eraSpread.oldest.drawnSeason : 'the 1970 merger'} to the present day.`,
-                    boxscore: null,
+                    headline: 'THE TEAMS ARE SET. THE SEASONS ARE REVEALED. NOW IT COUNTS.',
+                    lede: `${league.teams.length} managers enter Week 1 with rosters pulled from across football history. Every lineup decision can change the timeline.`,
                 };
             }
             const headlines = Gamecast.weekHeadlines(lastFinalized.results, lastFinalized.matchups, teamName);
-            const top = [...lastFinalized.results].sort((a, b) => b.total - a.total)[0];
-            const matchup = lastFinalized.matchups.find((m) => m.home === top.teamId || m.away === top.teamId);
+            const top = [...lastFinalized.results].sort((left, right) => right.total - left.total)[0];
             return {
-                headline: `${teamName(top.teamId).toUpperCase()} STORMS TO ${top.total.toFixed(1)}, SETS THE WEEK'S PACE`,
-                byline: `Filed Week ${lastFinalized.week}`,
+                headline: `${teamName(top.teamId).toUpperCase()} SETS THE PACE WITH ${top.total.toFixed(1)}`,
                 lede: headlines.join(' '),
-                boxscore: matchup ? { home: matchup.home, away: matchup.away, homePoints: matchup.homePoints, awayPoints: matchup.awayPoints, winner: matchup.winner, week: lastFinalized.week } : null,
             };
         }, [league, lastFinalized]);
 
-        const seasonHigh = useMemo(() => computeSeasonHigh(league), [league]);
-        const blowout = useMemo(() => computeBiggestBlowout(league), [league]);
-        const eraSpread = useMemo(() => computeEraSpread(league), [league]);
-        const recentActivity = [...league.activity].reverse().slice(0, 4);
+        const heroStatus = league.phase === 'complete'
+            ? 'SEASON COMPLETE'
+            : lastResult
+                ? `${lastResult === 'W' ? 'WIN' : lastResult === 'L' ? 'LOSS' : 'TIE'} LAST WEEK · WEEK ${Math.min(league.currentWeek, league.settings.regularSeasonWeeks)}`
+                : `WEEK ${Math.min(league.currentWeek, league.settings.regularSeasonWeeks)} · SEASON OPENER`;
+        const ready = lineupProblems.length === 0;
 
-        return h('div', { className: 'tl-gazette' },
-            h('div', { className: 'tl-masthead' },
-                h('div', { className: 'tl-kicker' }, "Est. 1970 · Every Season, One League"),
-                h('div', { className: 'tl-name' }, 'THE VAULT ', h('em', null, 'GAZETTE')),
-                h('div', { className: 'tl-dateline' },
-                    h('span', null, league.name.toUpperCase() + ' EDITION'), h('span', null, '·'),
-                    h('span', null, `WEEK ${Math.min(league.currentWeek, league.settings.regularSeasonWeeks)} OF ${league.settings.regularSeasonWeeks}`))),
-            h('div', { className: 'tl-gazette-rule' }), h('div', { className: 'tl-gazette-rule thin' }),
+        return h('div', { className: 'tl-home' },
+            h('section', { className: `tl-home-hero${league.phase === 'complete' ? ' champion' : ''}` },
+                h('div', { className: 'tl-home-hero-copy' },
+                    h('span', { className: 'tl-eyebrow' }, heroStatus),
+                    league.phase === 'complete'
+                        ? h('h1', null, champion?.teamId === myTeam.teamId ? 'You own the timeline.' : `${champion?.name ?? 'A champion'} owns the timeline.`)
+                        : h('h1', null, opponent ? `${myTeam.name} vs. ${opponent.name}` : `${myTeam.name} has the week off`),
+                    h('p', null, league.phase === 'complete'
+                        ? `${champion?.name ?? 'The champion'} survived every era and finished on top of ${league.name}.`
+                        : ready
+                            ? 'Your lineup is ready. Review the matchup, make a final move, then let the week play out live.'
+                            : `${lineupProblems.length} lineup ${lineupProblems.length === 1 ? 'decision needs' : 'decisions need'} your attention before kickoff.`),
+                    league.phase !== 'complete' && h('div', { className: 'tl-home-hero-actions' },
+                        h('button', { type: 'button', className: `tl-btn ${ready ? '' : 'primary'}`, onClick: () => onNavigate('roster') }, ready ? 'REVIEW LINEUP' : `FIX LINEUP (${lineupProblems.length})`),
+                        h('button', { type: 'button', className: `tl-btn ${ready ? 'primary' : ''}`, onClick: () => onNavigate('gameday') }, 'GO TO GAME DAY →'))),
+                h('div', { className: 'tl-home-matchup' },
+                    league.phase === 'complete'
+                        ? h('div', { className: 'tl-home-trophy' }, h('span', null, '♛'), h('strong', null, 'VAULT CHAMPION'), h('small', null, champion?.name ?? 'Season complete'))
+                        : h(React.Fragment, null,
+                            h(TeamLockup, { team: myTeam, standing: myStanding, side: 'mine' }),
+                            h('div', { className: 'tl-home-vs' }, h('span', null, `WK ${league.currentWeek}`), h('strong', null, 'VS'), h('small', null, 'UPCOMING')),
+                            h(TeamLockup, { team: opponent, standing: opponentStanding, side: 'opponent' }))),
+                h('div', { className: 'tl-home-yardline one' }),
+                h('div', { className: 'tl-home-yardline two' })),
 
-            h('div', { className: 'tl-gazette-grid' },
-                h('div', { className: 'tl-col-rule' },
-                    h('div', { className: 'tl-section-label' }, "This Week's Wire"),
-                    h('div', { className: 'tl-gaz-headline' }, story.headline),
-                    h('div', { className: 'tl-gaz-byline' }, `By the Wire Desk · ${story.byline}`),
-                    h('p', { className: 'tl-gaz-lede drop' }, story.lede),
-                    story.boxscore ? h('div', { className: 'tl-boxscore' },
-                        h('div', { className: 'tl-boxscore-head' }, `Week ${story.boxscore.week} — Final`),
-                        [{ id: story.boxscore.home, pts: story.boxscore.homePoints }, { id: story.boxscore.away, pts: story.boxscore.awayPoints }].map((side) => {
-                            const team = teamOf(side.id);
-                            return h('div', { key: side.id, className: `tl-boxscore-row${story.boxscore.winner === side.id ? ' winner' : ''}` },
-                                h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 8 } }, h(window.TimeLeagueHelmetIcon, { helmet: team?.helmet, letter: window.App.TimeLeagueHelmet.letterFor(team?.name || side.id), size: 20 }), teamName(side.id)),
-                                h('span', { className: 'tabular' }, side.pts.toFixed(1)));
-                        }))
-                        : null,
-                    h('div', { className: 'tl-section-label', style: { marginTop: 20 } }, 'Transaction Wire'),
-                    recentActivity.length === 0
-                        ? h('p', { className: 'tl-empty' }, 'Nothing on the wire yet.')
-                        : recentActivity.map((event) => h('div', { key: event.id, className: 'tl-wire-item' }, withBoldName(event.message, league.teams)))),
+            league.phase !== 'complete' && h('section', { className: 'tl-home-action-grid' },
+                h(ActionCard, {
+                    icon: ready ? '✓' : '!', kicker: 'LINEUP', tone: ready ? 'good' : 'warn',
+                    title: ready ? 'Ready for kickoff' : `${lineupProblems.length} move${lineupProblems.length === 1 ? '' : 's'} to make`,
+                    detail: ready ? 'Every starting slot is filled.' : lineupProblems[0], action: ready ? 'REVIEW' : 'FIX NOW', onClick: () => onNavigate('roster'),
+                }),
+                h(ActionCard, {
+                    icon: '+', kicker: 'WAIVER WIRE', tone: pendingWaivers ? 'info' : '',
+                    title: pendingWaivers ? `${pendingWaivers} claim${pendingWaivers === 1 ? '' : 's'} pending` : 'Find a difference-maker',
+                    detail: league.settings.waiversEnabled ? 'Shop more than five decades of talent.' : 'Waivers are off in this league.',
+                    action: 'BROWSE', onClick: () => onNavigate('waivers'),
+                }),
+                h(ActionCard, {
+                    icon: '⇄', kicker: 'TRADE BLOCK', tone: openTrades ? 'gold' : '',
+                    title: openTrades ? `${openTrades} offer${openTrades === 1 ? '' : 's'} waiting` : 'Shake up the timeline',
+                    detail: league.settings.tradesEnabled ? 'Deal with rivals before game day.' : 'Trades are off in this league.',
+                    action: 'OPEN', onClick: () => onNavigate('trades'),
+                })),
 
-                h('div', null,
-                    h('div', { className: 'tl-section-label' }, 'Stat Leaders'),
-                    h('div', { className: 'tl-kpi-grid' },
-                        h('div', { className: 'tl-gazette-kpi' }, h('div', { className: 'k-label' }, 'Season High'), h('div', { className: 'k-value tabular' }, seasonHigh ? seasonHigh.points.toFixed(1) : '—'), h('div', { className: 'k-sub' }, seasonHigh ? `${teamName(seasonHigh.teamId)}, Wk ${seasonHigh.week}` : 'No weeks scored')),
-                        h('div', { className: 'tl-gazette-kpi' }, h('div', { className: 'k-label' }, 'Biggest Blowout'), h('div', { className: 'k-value tabular' }, blowout ? blowout.margin.toFixed(1) : '—'), h('div', { className: 'k-sub' }, blowout ? `${teamName(blowout.winnerTeamId)} def. ${teamName(blowout.loserTeamId)}` : 'No weeks scored')),
-                        h('div', { className: 'tl-gazette-kpi' }, h('div', { className: 'k-label' }, 'Eras in Play'), h('div', { className: 'k-value' }, eraSpread.decadeCount || '—'), h('div', { className: 'k-sub' }, 'decades rostered')),
-                        h('div', { className: 'tl-gazette-kpi' }, h('div', { className: 'k-label' }, 'Oldest Starter'), h('div', { className: 'k-value tabular' }, eraSpread.oldest ? eraSpread.oldest.drawnSeason : '—'), h('div', { className: 'k-sub' }, eraSpread.oldest ? `${eraSpread.oldest.name}, ${eraSpread.oldest.position}` : '—'))),
+            h('section', { className: 'tl-home-grid' },
+                h('article', { className: 'tl-card tl-home-standings' },
+                    h('div', { className: 'tl-card-title' }, h('span', null, 'LEAGUE TABLE'), h('button', { type: 'button', onClick: () => onNavigate('standings') }, 'FULL STANDINGS →')),
+                    standings.slice(0, 5).map((row, index) => {
+                        const team = teamOf(row.teamId);
+                        const streak = UI.streakFor(league, row.teamId);
+                        return h('div', { key: row.teamId, className: `tl-home-standing-row${row.teamId === myTeam.teamId ? ' mine' : ''}` },
+                            h('span', { className: 'rank' }, index + 1),
+                            h(window.TimeLeagueHelmetIcon, { helmet: team?.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team?.name || row.teamId), size: 31 }),
+                            h('span', { className: 'team' }, h('b', null, team?.name ?? row.teamId), h('small', null, row.teamId === myTeam.teamId ? 'YOUR TEAM' : team?.manager === 'ai' ? (team.aiPersona || 'AI GM').toUpperCase() : 'HUMAN GM')),
+                            streak && h('span', { className: `tl-streak ${streak.kind}` }, `${streak.kind}${streak.count}`),
+                            h('span', { className: 'record tabular' }, `${row.wins}-${row.losses}`),
+                            h('span', { className: 'points tabular' }, row.pointsFor.toFixed(1), h('small', null, 'PF')));
+                    })),
 
-                    h('div', { className: 'tl-section-label' }, 'Standings'),
-                    standings.slice(0, 3).map((row, i) => h('div', { key: row.teamId, className: 'tl-brief' }, h('b', null, `${i + 1}. ${teamName(row.teamId)}`), ` (${row.wins}-${row.losses}) — ${standingsBlurb(league, standings, row)}.`)),
+                h('article', { className: 'tl-card tl-home-pulse' },
+                    h('div', { className: 'tl-pulse-masthead' },
+                        h('span', null, 'THE VAULT'), h('strong', null, 'LEAGUE PULSE'), h('small', null, `WEEK ${Math.min(league.currentWeek, league.settings.regularSeasonWeeks)} EDITION`)),
+                    h('h2', null, pulse.headline),
+                    h('p', null, pulse.lede),
+                    h('div', { className: 'tl-pulse-stats' },
+                        h('span', null, h('b', { className: 'tabular' }, seasonHigh ? seasonHigh.points.toFixed(1) : '—'), h('small', null, 'SEASON HIGH')),
+                        h('span', null, h('b', null, eraSpread.decades.length || '—'), h('small', null, 'ERAS IN PLAY')),
+                        h('span', null, h('b', { className: 'tabular' }, eraSpread.oldest?.drawnSeason ?? '—'), h('small', null, 'OLDEST SEASON'))),
+                    h('div', { className: 'tl-pulse-wire' },
+                        h('span', { className: 'tl-label' }, 'LATEST FROM THE WIRE'),
+                        recentActivity.length
+                            ? recentActivity.slice(0, 3).map((event) => h('div', { key: event.id }, h('time', null, `W${event.week}`), h('p', null, event.message)))
+                            : h('p', { className: 'tl-empty' }, 'The wire is quiet—for now.')))),
 
-                    h('div', { className: 'tl-issue-bar' },
-                        h('button', { className: 'primary', onClick: () => onNavigate('gameday') }, '▶ View Gamecast'),
-                        h('button', { onClick: () => onNavigate('roster') }, 'Set Lineup'),
-                        h('button', { onClick: () => onNavigate('waivers') }, `Waivers${pendingWaivers ? ` (${pendingWaivers})` : ''}`),
-                        h('button', { onClick: () => onNavigate('standings') }, 'Full Standings')))));
+            h('section', { className: 'tl-home-era-strip' },
+                h('div', null, h('span', { className: 'tl-eyebrow' }, 'YOUR LEAGUE DNA'), h('strong', null, 'Football history is the playing field')),
+                h('div', { className: 'tl-home-era-line' }, EraRules.ERA_DECADES.map((decade) => h('span', {
+                    key: decade.id, className: eraSpread.decades.includes(decade.id) ? 'live' : '',
+                }, h('b', null, decade.label), h('small', null, `${decade.from}–${decade.to}`)))),
+                h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate('achievements') }, 'VIEW TROPHY CASE →')));
     }
 
     window.WrTimeLeagueHomePanel = WrTimeLeagueHomePanel;

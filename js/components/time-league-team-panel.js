@@ -409,7 +409,7 @@
                             flex: 'none', textAlign: 'left', cursor: 'pointer', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8,
                             borderColor: item.teamId === activeTeamId ? 'var(--gold)' : undefined,
                         },
-                    }, h(window.TimeLeagueHelmetIcon, { helmet: item.helmet, letter: window.App.TimeLeagueHelmet.letterFor(item.name), size: 24 }),
+                    }, h(window.TimeLeagueHelmetIcon, { helmet: item.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(item.name), size: 24 }),
                         h('div', null, h('strong', { style: { display: 'block', fontSize: 12.5 } }, item.name),
                             h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 } },
                                 item.manager === 'human' ? h('span', { className: 'tl-pill' }, 'HUMAN') : h('span', { className: `tl-pill ${PERSONA_PILL[item.aiPersona ?? 'steward']}` }, (persona?.label ?? 'AI').toUpperCase()),

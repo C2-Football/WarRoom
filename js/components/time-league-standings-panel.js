@@ -29,7 +29,7 @@
                     return h('tr', { key: row.teamId, className: league.championTeamId === row.teamId ? 'selected' : undefined },
                         h('td', { className: 'num tabular' }, position + 1),
                         h('td', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-                            h(window.TimeLeagueHelmetIcon, { helmet: team?.helmet, letter: window.App.TimeLeagueHelmet.letterFor(team?.name || row.teamId), size: 22 }),
+                            h(window.TimeLeagueHelmetIcon, { helmet: team?.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team?.name || row.teamId), size: 22 }),
                             team?.name ?? row.teamId, ' ', h('span', { className: `tl-pill${team?.manager === 'ai' ? ' info' : ''}` }, team?.manager === 'ai' ? 'AI' : 'HUM')),
                         h('td', { className: 'num tabular' }, row.wins), h('td', { className: 'num tabular' }, row.losses), h('td', { className: 'num tabular' }, row.ties),
                         h('td', { className: 'num' }, streak ? h('span', { className: `tl-streak ${streak.kind}` }, `${streak.kind}${streak.count}`) : '—'),

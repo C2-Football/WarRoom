@@ -129,7 +129,7 @@
                 const onClock = team.teamId === onClockTeamId;
                 return h('div', { key: team.teamId, style: { padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' } },
                     h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 5 } },
-                        h(window.TimeLeagueHelmetIcon, { helmet: team.helmet, letter: window.App.TimeLeagueHelmet.letterFor(team.name), size: 20, title: team.name }),
+                        h(window.TimeLeagueHelmetIcon, { helmet: team.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team.name), size: 20, title: team.name }),
                         h('strong', { style: { fontSize: 12.5 } }, team.name),
                         persona && h('span', { className: 'tl-pill info' }, persona.label.toUpperCase()),
                         onClock && h('span', { className: 'tl-pill gold' }, 'ON THE CLOCK')),
@@ -449,7 +449,7 @@
             h('div', { className: 'tl-card' },
                 h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 } },
                     seat ? h('div', { className: 'tl-clock-ring' }) : null,
-                    onClockTeam && h(window.TimeLeagueHelmetIcon, { helmet: onClockTeam.helmet, letter: window.App.TimeLeagueHelmet.letterFor(onClockTeam.name), size: 34, title: onClockTeam.name }),
+                    onClockTeam && h(window.TimeLeagueHelmetIcon, { helmet: onClockTeam.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(onClockTeam.name), size: 34, title: onClockTeam.name }),
                     h('div', { style: { flex: 1 } },
                         h('div', { style: { fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: 15 } }, seat && onClockTeam ? `On the clock — ${onClockTeam.name}` : 'Draft complete'),
                         h('small', { style: { color: 'var(--text-muted)' } }, seat ? `Pick ${seat.overall}/${league.draftOrder.length} · ${pickLabel(league.draftOrder, seat.overall, seat.round)}` : `${league.draftPicks.length} picks recorded`))),

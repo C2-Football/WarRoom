@@ -29,7 +29,7 @@
                     const team = teamFor(event.message);
                     return h('div', { key: event.id, className: `tl-feedrow${rowTone(event.kind)}`, style: { alignItems: 'center' } },
                         team
-                            ? h(window.TimeLeagueHelmetIcon, { helmet: team.helmet, letter: window.App.TimeLeagueHelmet.letterFor(team.name), size: 22 })
+                            ? h(window.TimeLeagueHelmetIcon, { helmet: team.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team.name), size: 22 })
                             : h('time', null, `W${String(event.week).padStart(2, '0')}`),
                         h('p', { style: { flex: 1 } }, event.message),
                         h('time', { style: { fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' } }, event.kind.toUpperCase()));
