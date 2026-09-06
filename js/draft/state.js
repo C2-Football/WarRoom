@@ -2902,6 +2902,18 @@
         }
     }
 
+    // Refresh a persisted pool's values in place (order/membership untouched).
+    function revaluePool(pool) {
+        if (!Array.isArray(pool) || !pool.length) return pool;
+        return pool.map(row => {
+            if (!row || row.pid == null) return row;
+            const resolved = resolvePlayerDhq({ pid: row.pid, player: row.player, csv: row.csv, name: row.name, dhq: row.dhq, val: row.val });
+            const next = Number(resolved && resolved.value) || 0;
+            if (!(next > 0) || next === Number(row.dhq)) return row;
+            return { ...row, dhq: next, val: next };
+        });
+    }
+
     function loadFromLocal(leagueId, forcedMode) {
         if (!leagueId) return null;
         try {
@@ -2925,6 +2937,20 @@
                 if (!parsed.alex.alexSpend) parsed.alex.alexSpend = { sonnet: 0, flash: 0, budget: 12 };
                 if (!Array.isArray(parsed.alex.stream)) parsed.alex.stream = [];
             }
+            // Re-price the saved pool against CURRENT values before handing it
+            // back. saveToLocal persists pool/originalPool with the dhq each row
+            // carried when the draft was built, and nothing ever refreshed them —
+            // so a resumed room showed frozen numbers while the standalone Big
+            // Board (which rebuilds from buildPool every render) showed live
+            // ones. Owner report 2026-09-06: the same player read 5,896 in
+            // Follow Live Draft and 5,870 on the Big Board tab.
+            //
+            // Membership, ordering (incl. a user board), drafted flags and every
+            // other row field are left exactly as saved — only the value is
+            // refreshed, and only when the resolver can actually price the
+            // player, so an unresolvable row keeps whatever it had.
+            parsed.pool = revaluePool(parsed.pool);
+            parsed.originalPool = revaluePool(parsed.originalPool);
             return parsed;
         } catch (e) {
             if (window.wrLog) window.wrLog('draftState.load', e);

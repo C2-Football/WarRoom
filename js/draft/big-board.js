@@ -117,6 +117,10 @@
         // way draft-room.js's redraft market-mode check does: off the live League
         // Skin singleton, not off the draft state.
         const adpSkinType = window.App?.LeagueSkin?.getCurrent?.()?.type;
+        // Same value vocabulary the standalone Big Board uses (js/draft-room.js) —
+        // a redraft league calls this column ROS, not DHQ. This panel hardcoded
+        // "DHQ", so the two boards labelled the identical number differently.
+        const valueShortLabel = window.App?.LeagueSkin?.getCurrent?.()?.vocabulary?.valueShortLabel || 'DHQ';
         const adpEligible = state.variant === 'redraft'
             || state.draftContext?.draftType === 'redraft'
             || state.draftContext?.leagueFormat?.draftType === 'redraft'
@@ -658,8 +662,8 @@
                                         name: p.name,
                                         tag: ['#' + rowRank, nflTeam || college || null, b.tier ? 'T' + b.tier : null, p._copies > 1 && p._copiesTaken > 0 ? p._copiesTaken + '/' + p._copies + ' taken' : null].filter(Boolean).join(' · '),
                                         slots: adpEligible && adpFor(p)
-                                            ? [{ label: 'DHQ', value: fmt(p.dhq) }, { label: 'ADP', value: adpFor(p).adp.toFixed(1) }]
-                                            : [{ label: 'DHQ', value: fmt(p.dhq) }],
+                                            ? [{ label: valueShortLabel, value: fmt(p.dhq) }, { label: 'ADP', value: adpFor(p).adp.toFixed(1) }]
+                                            : [{ label: valueShortLabel, value: fmt(p.dhq) }],
                                         verdict: (
                                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                                 {trendBadge && <span title={'Year-over-year PPG change: ' + (trendBadge.pct > 0 ? '+' : '') + trendBadge.pct + '%'} style={{ color: trendBadge.color, fontSize: MICRO, fontWeight: 800, fontFamily: FONT_UI, border: '1px solid ' + wrAlpha(trendBadge.color, '55'), background: wrAlpha(trendBadge.color, '18'), borderRadius: '3px', padding: '2px 5px', whiteSpace: 'nowrap' }}>{trendBadge.glyph}</span>}
@@ -832,7 +836,7 @@
                     {colHeader('team', 'Team', 'left')}
                     {colHeader('college', 'College', 'left')}
                     {colHeader('pos', 'Pos', 'center')}
-                    {colHeader('dhq', 'DHQ', 'right')}
+                    {colHeader('dhq', valueShortLabel, 'right')}
                     <span title="This season's most decision-relevant stat for the player's position — targets/gm, snap%, CMP%, tackles, etc." style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_UI, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--silver)', opacity: 0.62, textAlign: 'right' }}>Usage</span>
                     {adpEligible && colHeader('adp', 'ADP', 'right')}
                     {(isUserTurn || state.overrideMode || state.mode === 'manual') && <span />}
