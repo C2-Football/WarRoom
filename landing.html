@@ -214,23 +214,6 @@ html.js-nav .topbar--frosted{background:rgba(8,9,12,.78);backdrop-filter:blur(10
 .ftag--soon{border-color:#2c5e80;color:var(--tactical)}
 @media(max-width:560px){.nav-features{display:none}}
 
-/* ===== DHQ Labs / Discord community band (#community) ===== */
-.community{position:relative;padding:var(--sp-9) 0;overflow:hidden}
-.joinband{position:relative;border:1px solid var(--border-strong);border-left:3px solid #5865F2;background:linear-gradient(180deg,var(--bg-1),var(--bg-inset));border-radius:12px;padding:var(--sp-7);display:grid;grid-template-columns:1.35fr .85fr;gap:var(--sp-7);align-items:center}
-.joinband__eye{display:inline-flex;align-items:center;gap:var(--sp-2);font:500 var(--fs-label) var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--tactical)}
-.joinband h2{font:600 clamp(26px,3vw,40px)/1.06 var(--font-mono);letter-spacing:-.015em;margin:var(--sp-3) 0 0;color:var(--text-1)}
-.joinband p{font:400 clamp(15px,1.3vw,17px)/1.55 var(--font-sans);color:var(--text-2);margin:var(--sp-4) 0 0;max-width:54ch}
-.joinperks{list-style:none;padding:0;margin:var(--sp-5) 0 0;display:flex;flex-direction:column;gap:var(--sp-3)}
-.joinperks li{display:flex;gap:var(--sp-3);align-items:flex-start;font:400 14px/1.45 var(--font-sans);color:var(--text-2)}
-.joinperks b{color:var(--text-1);font-weight:600}
-.jp-ic{flex:none;width:24px;height:24px;border-radius:6px;display:grid;place-items:center;background:var(--tactical-tint);color:var(--tactical);font:600 12px var(--font-mono);margin-top:1px}
-.joinband__cta{display:flex;flex-direction:column;align-items:flex-start;gap:var(--sp-4);border-left:1px solid var(--border);padding-left:var(--sp-7)}
-.btn--discord{background:#5865F2;border-color:#5865F2;color:#fff;display:inline-flex;align-items:center;gap:9px}
-.btn--discord:hover{background:#4954da;border-color:#4954da}
-.joinband__note{font:500 var(--fs-micro) var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
-.joinband__stat{display:inline-flex;align-items:center;gap:8px;font:600 14px var(--font-mono);color:var(--text-1)}
-.joinband__stat i{width:7px;height:7px;border-radius:50%;background:var(--pos);display:inline-block;box-shadow:0 0 0 3px var(--pos-tint)}
-@media(max-width:820px){.joinband{grid-template-columns:1fr;padding:var(--sp-6)}.joinband__cta{border-left:none;border-top:1px solid var(--border);padding-left:0;padding-top:var(--sp-5);width:100%}}
 
 /* ===== About / founder note (#about) ===== */
 .about__in{max-width:720px;margin:0 auto;text-align:center}
@@ -640,7 +623,6 @@ body.editing .ed-del{opacity:.45;text-decoration:line-through;outline:1px dashed
     <button class="btn btn--ghost nav-features" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">Features</button>
     <button class="btn btn--ghost nav-features" onclick="document.getElementById('pricing').scrollIntoView({behavior:'smooth'})">Plans</button>
     <button class="btn btn--ghost nav-features" onclick="document.getElementById('about').scrollIntoView({behavior:'smooth'})">Vision</button>
-    <button class="btn btn--ghost nav-features" onclick="document.getElementById('community').scrollIntoView({behavior:'smooth'})">Discord</button>
     <button class="btn btn--primary" onclick="document.getElementById('engine').scrollIntoView({behavior:'smooth'})">Start free</button>
   </div>
 </div></header>
@@ -1005,27 +987,6 @@ body.editing .ed-del{opacity:.45;text-decoration:line-through;outline:1px dashed
       <div class="bcell"><div class="bcell__t">Full redraft functionality</div><div class="bcell__d">The complete redraft front office — every tool tuned for single-season leagues.</div></div>
       <div class="bcell"><div class="bcell__t">Empire mode</div><div class="bcell__d">Every league and asset you run — managed from one terminal.</div></div>
       <div class="bcell"><div class="bcell__t">And more</div><div class="bcell__d">Commissioner mode, deep MFL sync, different league formats, and more.</div></div>
-    </div>
-  </div>
-</div></section>
-
-<!-- DHQ LABS / DISCORD — sell the beta -->
-<section class="community" id="community"><div class="wrap">
-  <div class="joinband reveal">
-    <div>
-      <span class="joinband__eye">DHQ Labs · Beta program</span>
-      <h2>Get in early. <span class="gild">Shape what's next.</span></h2>
-      <p>DHQ Labs is where the next front office gets built — full redraft, Empire mode, MFL sync — and our beta testers get their hands on it first. Join the Discord to break unreleased tools, tell us what to build next, and lock in founding-member perks before they're gone.</p>
-      <ul class="joinperks">
-        <li><span class="jp-ic">✦</span><div><b>First access to DHQ Labs.</b> Redraft, Empire mode and MFL sync land in your hands before they ship.</div></li>
-        <li><span class="jp-ic">◎</span><div><b>A direct line to the build.</b> Vote on the roadmap and talk features straight with the team.</div></li>
-        <li><span class="jp-ic">★</span><div><b>Founding-tester perks.</b> A role, a say, and early-adopter pricing that sticks.</div></li>
-      </ul>
-    </div>
-    <div class="joinband__cta">
-      <div class="joinband__stat"><i></i> The war room is open</div>
-      <a class="btn btn--discord btn--lg" href="https://discord.gg/UspK4KAVt" target="_blank" rel="noopener">Join the Discord</a>
-      <span class="joinband__note">Free to join · #dhq-labs · beta testers welcome</span>
     </div>
   </div>
 </div></section>
@@ -1482,8 +1443,6 @@ function initMotion(){
   gsap.fromTo('#pricing .tier',{opacity:0,y:26},{opacity:1,y:0,duration:0.7,ease:'apple',stagger:0.1,scrollTrigger:{trigger:'#pricing .tiers',start:'top 80%',toggleActions:once}});
   gsap.fromTo('#pricing .tier--feat',{opacity:0,y:34},{opacity:1,y:0,duration:0.85,ease:'appleHero',overwrite:'auto',scrollTrigger:{trigger:'#pricing .tiers',start:'top 80%',toggleActions:once}});
 
-  /* ===== DHQ LABS / COMMUNITY (#community) — the beta band rises as one block ===== */
-  gsap.fromTo('#community .joinband',{opacity:0,y:26},{opacity:1,y:0,duration:0.8,ease:'appleHero',scrollTrigger:{trigger:'#community .joinband',start:'top 82%',toggleActions:once}});
 
   /* ===== ABOUT (#about) — founder note fades up ===== */
   gsap.fromTo('#about .about__in',{opacity:0,y:24},{opacity:1,y:0,duration:0.8,ease:'apple',scrollTrigger:{trigger:'#about .about__in',start:'top 82%',toggleActions:once}});
