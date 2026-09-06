@@ -453,6 +453,20 @@ test('analytics All Players rows open the same unified card as Free Agency', () 
   sourceHas(leagueMapSrc, "title=\"Open player card\"", 'desktop All Players rows need the player-card affordance');
 });
 
+group('live draft feed');
+
+test('live trade windows are narrated once, not re-posted', () => {
+  // Owner report 2026-09-05: the live feed showed the same "A Kupp of STFU ·
+  // R1.01 · 88%" trade card twice with another team's card between, all at
+  // pick 0. The dedupe held ONE last-key string, so it only caught immediate
+  // repeats — the effect re-runs on persona/tradedAsset/tuning/pick churn and
+  // `best` ping-pongs between teams, so A -> B -> A posted A twice.
+  sourceHas(draftCommandCenterSrc, 'const liveTradeSeenRef', 'live trade windows need a seen-SET, not a single last key');
+  sourceHas(draftCommandCenterSrc, 'liveTradeSeenRef.current.has(dealKey)', 'a deal already narrated must be suppressed');
+  sourceHas(draftCommandCenterSrc, 'liveTradeIdxRef.current === state.currentIdx', 'at most one trade window per pick');
+  ok(!/liveTradeAlertRef/.test(draftCommandCenterSrc), 'the single-slot liveTradeAlertRef must be gone, not merely unused');
+});
+
 group('live platform gate');
 
 test('live loader keeps non-Sleeper connector files sandbox-only', () => {

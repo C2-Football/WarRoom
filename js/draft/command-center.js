@@ -1423,7 +1423,26 @@
         // ── P2E: Live trade-window readout ─────────────────────────────
         // Live drafts stay read-only, but Alex should still flag actionable
         // windows based on owner intel, remaining picks, and buyer-line odds.
-        const liveTradeAlertRef = React.useRef('');
+        // Dedupe (owner ask 2026-09-05: "redundant trade calls ... happening too
+        // many times"). This used to hold a single last-key string, so the feed
+        // only suppressed an IMMEDIATE repeat: this effect re-runs on every
+        // persona/tradedAsset/tuning/pick change, `best` ping-pongs between
+        // teams as those inputs churn, and A → B → A posted A twice. The
+        // screenshot showed the identical "A Kupp of STFU · R1.01 · 88%" card
+        // twice with a Jiggy Jaguar card between, all at pick 0.
+        //   - seenRef: every DEAL (team + suggestion) narrated this draft, so a
+        //     given window is called once no matter what came between.
+        //   - idxRef: at most one window per pick, so a single slot can't stream
+        //     a card per recalculation for each team in the room.
+        const liveTradeSeenRef = React.useRef(null);
+        const liveTradeIdxRef = React.useRef(-1);
+        if (liveTradeSeenRef.current === null) liveTradeSeenRef.current = new Set();
+        // A new draft (or leaving live-sync) starts the feed over.
+        React.useEffect(() => {
+            if (state.phase === 'drafting' && state.mode === 'live-sync') return;
+            liveTradeSeenRef.current = new Set();
+            liveTradeIdxRef.current = -1;
+        }, [state.mode, state.phase]);
         React.useEffect(() => {
             if (state.mode !== 'live-sync') return;
             if (state.phase !== 'drafting') return;
@@ -1433,9 +1452,13 @@
             if (best.viable === false) return; // don't narrate a non-starter trade window
             const alertFloor = Math.max((best.acceptanceLine || 70) - 8, best.suggestion?.evaluation?.counterLine || 0);
             if ((best.likelihood || 0) < alertFloor) return;
-            const key = [state.currentIdx, best.rosterId, best.suggestion?.id].join(':');
-            if (liveTradeAlertRef.current === key) return;
-            liveTradeAlertRef.current = key;
+            // One window per pick.
+            if (liveTradeIdxRef.current === state.currentIdx) return;
+            // …and never the same deal twice, even at a later pick.
+            const dealKey = [best.rosterId, best.suggestion?.id].join(':');
+            if (liveTradeSeenRef.current.has(dealKey)) return;
+            liveTradeSeenRef.current.add(dealKey);
+            liveTradeIdxRef.current = state.currentIdx;
 
             const clears = best.likelihood >= best.acceptanceLine;
             dispatch({
