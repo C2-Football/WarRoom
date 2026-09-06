@@ -56,10 +56,6 @@
     const TIME_LEAGUE_ENABLED = PLATFORM_SANDBOX_ACCESS || !TIME_LEAGUE_SANDBOX_ONLY;
     window.App.TIME_LEAGUE_ENABLED = TIME_LEAGUE_ENABLED;
 
-    const WR_DISCORD_URL = ''; // owner: paste the Discord invite URL here — hub button + settings row stay hidden until set
-    window.App.WR_DISCORD_URL = WR_DISCORD_URL;
-    window.WR_DISCORD_URL = WR_DISCORD_URL;
-
     // ── Owner default: bigloco's locked-in MFL franchise in the "MLS Dynasty
     // League" (id 41969). Used to auto-select the team on rehydrate when no
     // mfl_franchise_id is persisted yet. Matched by NAME in loadMflData so the
@@ -1502,9 +1498,6 @@
                     {/* Calm control row — sits left of the absolutely-positioned gear (44px + gutter) */}
                     <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '52px' }}>
                         <button onClick={() => { window.location.href = (typeof window.wrIsPro === 'function' && !window.wrIsPro()) ? 'upgrade.html' : 'onboarding.html?manage=true'; }} style={hubCtrlStyle}>BILLING</button>
-                        {WR_DISCORD_URL && (
-                            <a href={WR_DISCORD_URL} target="_blank" rel="noopener" style={hubCtrlStyle}>DISCORD</a>
-                        )}
                     </div>
                     <svg className="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" onClick={() => setShowSettings(true)} style={{ cursor: 'pointer' }}>
                         <circle cx="12" cy="12" r="3" stroke="var(--gold)"/>

@@ -453,6 +453,19 @@ test('analytics All Players rows open the same unified card as Free Agency', () 
   sourceHas(leagueMapSrc, "title=\"Open player card\"", 'desktop All Players rows need the player-card affordance');
 });
 
+group('draft autosave');
+
+test('draft autosave has a max wait, not just a debounce', () => {
+  // Found hunting the mock draft 2026-09-06: the autosave was a bare 500ms
+  // debounce reset on every state change, and the CPU at 'fast' picks every
+  // 250ms — so during an unbroken CPU run it NEVER fired. Measured in a 12x15
+  // mock: the board showed 60/180 while localStorage sat at 17. A reload
+  // mid-run silently lost every pick back to the last pause.
+  sourceHas(draftCommandCenterSrc, 'const lastSaveRef', 'autosave needs to track its last write');
+  sourceHas(draftCommandCenterSrc, 'Date.now() - lastSaveRef.current >= 2000', 'autosave needs a max wait, not just a debounce');
+  sourceHas(draftCommandCenterSrc, 'saveTimerRef.current = setTimeout(flush, 500)', 'the quiet-period debounce should still be 500ms');
+});
+
 group('live draft feed');
 
 test('live trade windows are narrated once, not re-posted', () => {

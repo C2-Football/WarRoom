@@ -692,14 +692,31 @@
             return () => { cancelled = true; };
         }, [csvReady]);
 
-        // Auto-save to localStorage (debounced 500ms)
+        // Auto-save to localStorage — 500ms debounce with a 2s MAX WAIT.
+        //
+        // The plain debounce reset on every state change and had no ceiling, so
+        // a run of picks closer together than 500ms never let it fire: the CPU
+        // at 'fast' picks every 250ms, so during an unbroken CPU run nothing
+        // was ever persisted. Observed live in a 12x15 mock — the board showed
+        // 15/180 while the saved state sat at 6, and it only caught up when the
+        // room paused on the user's pick. A reload mid-run silently lost every
+        // pick back to the last pause.
+        //
+        // The max wait keeps the quiet-period debounce (cheap when idle) while
+        // guaranteeing a write at least every 2s under continuous churn.
         const saveTimerRef = React.useRef(null);
+        const lastSaveRef = React.useRef(0);
         React.useEffect(() => {
-            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-            saveTimerRef.current = setTimeout(() => {
+            const flush = () => {
+                lastSaveRef.current = Date.now();
+                saveTimerRef.current = null;
                 stateFns.saveToLocal(state, forcedMode);
-            }, 500);
-            return () => clearTimeout(saveTimerRef.current);
+            };
+            if (!lastSaveRef.current) lastSaveRef.current = Date.now();
+            if (Date.now() - lastSaveRef.current >= 2000) { flush(); return undefined; }
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+            saveTimerRef.current = setTimeout(flush, 500);
+            return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
         }, [state]);
 
         // Current slot + whose turn is it
