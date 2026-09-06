@@ -4090,6 +4090,7 @@
                     if (typeof DraftCC === 'function') {
                         return (
                             <DraftCC
+                                key="mock-draft-center"
                                 playersData={playersData}
                                 myRoster={myRoster}
                                 currentLeague={currentLeague}
@@ -4110,6 +4111,7 @@
                     if (typeof DraftCC === 'function') {
                         return (
                             <DraftCC
+                                key="live-draft-follower"
                                 playersData={playersData}
                                 myRoster={myRoster}
                                 currentLeague={currentLeague}
