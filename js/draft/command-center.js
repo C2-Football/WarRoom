@@ -18,6 +18,11 @@
 // ══════════════════════════════════════════════════════════════════
 
 (function() {
+    // Shared filter control (js/components/wr-primitives.js) — module scope so
+    // every panel in this file uses the one dropdown idiom. wr-primitives loads
+    // earlier in the babel chain, and this whole file is a deferred module, so
+    // window.WR.Select is always resolved by the time this evaluates.
+    const WrSelect = window.WR && window.WR.Select;
     const { DRAFT_CC_LAYOUT, FONT_UI, FONT_DISPL, FONT_MONO, panelCard, bpBucket } = window.DraftCC.styles;
     const SpeedMap = { slow: 1600, medium: 700, fast: 250, paused: -1 };
     const avPick = (seed, arr) => (window.AlexVoice ? window.AlexVoice.pick(seed, arr) : arr[0]);
@@ -2041,10 +2046,6 @@
     // ── Setup screen ─────────────────────────────────────────────────
     function SetupScreen({ state, dispatch, draftMeta, playersData, currentLeague, myRoster, csvReady, showResume, onStartDraft, onResumeYes, onResumeNo, forcedMode }) {
         const [showPoolOther, setShowPoolOther] = React.useState(false); // custom pool + advanced mock options hide behind "Other" (league settings are the default)
-        // Shared filter control (js/components/wr-primitives.js) — the setup
-        // dropdowns route through it; selStyle survives for the one remaining
-        // native (CPU speed, inside its own <label>).
-        const WrSelect = window.WR && window.WR.Select;
         const selStyle = {
             width: '100%',
             padding: '8px 10px',
@@ -2834,18 +2835,21 @@
                                     </div>
                                 )}
                                 <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.62fr 0.62fr 1fr', gap: 6, marginBottom: 7 }}>
-                                    <select value={filters.team} onChange={e => patchFilters({ team: e.target.value })} style={controlStyle}>
-                                        <option value="all" style={{ background: 'var(--k-111111, #111111)' }}>All teams</option>
-                                        {teamOptions.map(t => <option key={t.key} value={t.key} style={{ background: 'var(--k-111111, #111111)' }}>{t.label}</option>)}
-                                    </select>
-                                    <select value={filters.round} onChange={e => patchFilters({ round: e.target.value })} style={controlStyle}>
-                                        <option value="all" style={{ background: 'var(--k-111111, #111111)' }}>All rounds</option>
-                                        {roundOptions.map(r => <option key={r} value={r} style={{ background: 'var(--k-111111, #111111)' }}>R{r}</option>)}
-                                    </select>
-                                    <select value={filters.pos} onChange={e => patchFilters({ pos: e.target.value })} style={controlStyle}>
-                                        <option value="ALL" style={{ background: 'var(--k-111111, #111111)' }}>All pos</option>
-                                        {posOptions.map(pos => <option key={pos} value={pos} style={{ background: 'var(--k-111111, #111111)' }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</option>)}
-                                    </select>
+                                    {WrSelect && React.createElement(WrSelect, {
+                                        label: 'Team', value: String(filters.team), placeholder: 'All', active: filters.team !== 'all', title: 'Filter picks by team',
+                                        onChange: v => patchFilters({ team: v }),
+                                        options: [{ value: 'all', label: 'All teams' }].concat(teamOptions.map(t => ({ value: String(t.key), label: t.label }))),
+                                    })}
+                                    {WrSelect && React.createElement(WrSelect, {
+                                        label: 'Rd', value: String(filters.round), placeholder: 'All', active: filters.round !== 'all', title: 'Filter picks by round',
+                                        onChange: v => patchFilters({ round: v }),
+                                        options: [{ value: 'all', label: 'All rounds' }].concat(roundOptions.map(r => ({ value: String(r), label: 'R' + r }))),
+                                    })}
+                                    {WrSelect && React.createElement(WrSelect, {
+                                        label: 'Pos', value: String(filters.pos), placeholder: 'All', active: filters.pos !== 'ALL', title: 'Filter picks by position',
+                                        onChange: v => patchFilters({ pos: v }),
+                                        options: [{ value: 'ALL', label: 'All pos' }].concat(posOptions.map(pos => ({ value: pos, label: (window.App?.posLabel?.(pos)) || pos }))),
+                                    })}
                                     <input value={filters.query} onChange={e => patchFilters({ query: e.target.value })} placeholder="Search report..." style={{ ...controlStyle, width: '100%' }} />
                                 </div>
                                 <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
