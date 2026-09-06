@@ -1854,7 +1854,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 	    .draft-setup-secondary > button { width: 100%; display: flex; justify-content: space-between; align-items: center; background: transparent; color: var(--silver); border-style: dashed; }
 	    .draft-setup-other { margin-top: 10px; padding: 12px; border: 1px solid rgba(255,255,255,0.06); border-radius: var(--card-radius-sm, 8px); background: rgba(255,255,255,0.02); }
 	    @media(max-width:1280px){ .draft-gm-command, .draft-hq-hero, .draft-hq-grid, .draft-setup-grid { grid-template-columns: 1fr; } .draft-hq-actions { display: grid; grid-template-columns: 1fr 1fr; } }
-	    @media(max-width:760px){ .draft-gm-command-chips, .draft-hq-kpis, .draft-setup-two, .draft-setup-choice, .draft-setup-kpis, .draft-hq-actions { grid-template-columns: 1fr; } .draft-target-header { display: none; } .draft-run-list .draft-target-row { grid-template-columns: 42px minmax(0, 1fr); } .draft-run-list .draft-target-row em, .draft-run-list .draft-target-row p { grid-column: 2 / -1; } .draft-rec-card, .draft-user-mock-card { grid-template-columns: 42px minmax(0, 1fr) auto; } .draft-rec-photo { display: none; } .draft-rec-score, .draft-rec-reason, .draft-rec-actions { grid-column: 2 / -1; text-align: left; } .draft-alex-toolbar, .draft-alex-footer { align-items: stretch; flex-direction: column; } .draft-alex-preview-picks { grid-template-columns: 1fr; } .draft-alex-pick-line { grid-template-columns: 42px 30px minmax(0, 1fr); } .draft-alex-pick-value { grid-column: 3 / -1; text-align: left; } }
+	    @media(max-width:760px){ .draft-gm-command-chips, .draft-hq-kpis, .draft-setup-two, .draft-setup-kpis, .draft-hq-actions { grid-template-columns: 1fr; } .draft-target-header { display: none; } .draft-run-list .draft-target-row { grid-template-columns: 42px minmax(0, 1fr); } .draft-run-list .draft-target-row em, .draft-run-list .draft-target-row p { grid-column: 2 / -1; } .draft-rec-card, .draft-user-mock-card { grid-template-columns: 42px minmax(0, 1fr) auto; } .draft-rec-photo { display: none; } .draft-rec-score, .draft-rec-reason, .draft-rec-actions { grid-column: 2 / -1; text-align: left; } .draft-alex-toolbar, .draft-alex-footer { align-items: stretch; flex-direction: column; } .draft-alex-preview-picks { grid-template-columns: 1fr; } .draft-alex-pick-line { grid-template-columns: 42px 30px minmax(0, 1fr); } .draft-alex-pick-value { grid-column: 3 / -1; text-align: left; } }
 
 	    .draft-setup-head-pro { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 9px 12px; border: 1px solid rgba(212,175,55,0.13); border-radius: var(--card-radius, 10px); background: rgba(255,255,255,0.018); }
 	    .draft-setup-eyebrow { color: var(--gold); font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.16em; font-weight: 900; margin-bottom: 3px; }
@@ -1893,7 +1893,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 	    @media(min-width:1281px){ .draft-setup-grid.draft-setup-grid-pro { grid-template-columns: minmax(0, 1.42fr) minmax(360px, 0.58fr); } }
 	    @media(max-width:1280px){ .draft-setup-grid.draft-setup-grid-pro { grid-template-columns: 1fr; grid-template-rows: auto; } .draft-setup-league-card, .draft-setup-config-card, .draft-setup-launch-card { grid-column: auto; grid-row: auto; } }
 	    @media(max-width:980px){ .draft-setup-head-pro, .draft-league-primary { grid-template-columns: 1fr; display: grid; } .draft-setup-head-summary { justify-content: flex-start; min-width: 0; white-space: normal; } .draft-setup-hero-action { width: 100%; min-width: 0; } .draft-league-actions { justify-content: flex-start; } .draft-league-metrics, .draft-setup-field-grid, .draft-setup-choice-pro { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-	    @media(max-width:560px){ .draft-league-metrics, .draft-setup-field-grid, .draft-setup-choice-pro { grid-template-columns: 1fr; } .draft-league-copy strong { white-space: normal; } .draft-league-actions { flex-direction: column; align-items: stretch; } .draft-league-actions button { width: 100%; } }
+	    @media(max-width:560px){ .draft-league-metrics { grid-template-columns: 1fr; } .draft-league-copy strong { white-space: normal; } .draft-league-actions { flex-direction: column; align-items: stretch; } .draft-league-actions button { width: 100%; } }
 
 	    /* Featured team card */
 	    .tc-featured-wrap { display: grid; grid-template-columns: 1fr; gap: 1rem; background: var(--off-black); border: 2px solid var(--gold); border-radius: var(--card-radius, 10px); padding: 1rem; margin-bottom: 1.25rem; box-shadow: 0 0 24px rgba(212,175,55,0.1); }
@@ -2345,6 +2345,22 @@ WRShared.preloadMany(WR_SHARED_FILES);
         .draft-setup-choice button, .draft-setup-speed button,
         .draft-league-actions button, .draft-setup-secondary > button { min-height: 44px; }
 
+        /* Mock setup on a phone (owner screenshot 2026-09-06): every field had a
+           row to itself and both choice pairs rendered as full-width stacked
+           cards, so six controls cost ~1,300px of scrolling. Pack the fields
+           2-up, keep the pairs side by side, and stop the sub-labels forcing
+           the buttons tall. */
+        .draft-setup-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; }
+        .draft-setup-choice { grid-template-columns: 1fr 1fr; gap: 8px; }
+        .draft-setup-choice-pro { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        /* The Draft Source sub-line ("15 rds x 12 - snake - …") is the only one
+           long enough to wrap at half width — let it wrap to two lines and clip
+           rather than stretching the card. */
+        .draft-setup-choice button span { font-size: 0.58rem; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        /* Field labels sat on their own line above each control, doubling the
+           height of a row that only holds a pill. */
+        .draft-setup-label { margin-bottom: 3px; }
+
         /* Analytics phone re-pour: the Waiver Economy price map collapses to a
            full-width card PER POSITION at ≤720 — pack it 2-up instead; and the
            shell's desktop padding (inline style, hence !important) tightens. */
@@ -2780,7 +2796,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" src="js/components.js?v=20260803rv2"></script>
 <!-- 2b. Unified Player Card (SI-2) — window.WR.openPlayerCard — replaces CDN modal -->
 <!-- Shared visual primitives (WR.Card / Badge / Chip / ConfChip / DeltaLine / Kpi / InsightCard) -->
-<script type="text/babel" src="js/components/wr-primitives.js?v=20260906rostertap1"></script>
+<script type="text/babel" src="js/components/wr-primitives.js?v=20260906setupui1"></script>
     <script type="text/babel" src="js/components/player-card.js?v=20260905anacard1"></script>
 <!-- 2c. Saved List Views (SI-1) — window.WR.SavedViews — shared across list surfaces -->
 <script type="text/babel" src="js/shared/saved-views.js?v=20260427font1"></script>
@@ -2920,7 +2936,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-sync.js?v=20260516p6redo"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-decision-engine.js?v=20260814arch1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/analyst-mock.js?v=20260531voice1"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260906nointel1"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260906setupui1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260905select2"></script>
 <!-- 5. League detail tab components (extracted from league-detail.js) -->
 <!-- v2 widget modules (load before dashboard.js which consumes them) -->

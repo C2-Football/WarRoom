@@ -2375,7 +2375,16 @@
                                         const slot = i + 1;
                                         const info = draftMeta.slotToRoster[slot];
                                         const isMine = slot === draftMeta.mySlot;
-                                        return { value: String(slot), label: slot + '.01' + (info?.ownerName ? ' - ' + info.ownerName : ''), sub: isMine ? 'YOU' : null };
+                                        // Trigger shows the slot alone — a half-width phone
+                                        // cell ellipsised "7.01 - The Benghazi Bullies" down to
+                                        // "7.01 - THE BE…". The owner rides the option's sub
+                                        // slot instead, so the open list still names every team.
+                                        const owner = info?.ownerName || '';
+                                        return {
+                                            value: String(slot),
+                                            label: slot + '.01',
+                                            sub: [owner, isMine ? 'YOU' : null].filter(Boolean).join(' · ') || null,
+                                        };
                                     }),
                                 })}
                             </div>

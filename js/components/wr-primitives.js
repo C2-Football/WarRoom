@@ -914,7 +914,11 @@
         },
             o.label ? h('span', null, o.label) : null,
             h('b', {
-                style: { color: 'var(--gold)', fontWeight: 600, maxWidth: '112px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', verticalAlign: 'bottom' }
+                // Was a hard 112px cap, which truncated mid-word in a narrow
+                // cell — "7.01 - THE BENGHAZI BULLIES" rendered "7.01 - THE BE…"
+                // even when the pill had room. Shrink to fit the trigger instead
+                // and only ellipsize when it actually runs out.
+                style: { color: 'var(--gold)', fontWeight: 600, flex: '0 1 auto', minWidth: 0, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block', verticalAlign: 'bottom' }
             }, current ? current.label : (o.placeholder || 'Any')),
             h('span', {
                 'aria-hidden': 'true',
