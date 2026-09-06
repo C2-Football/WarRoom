@@ -5286,8 +5286,11 @@
                         </span>
                     </div>
                     <div className="mock-cast-clock">
-                        <span>
-                            {state.activeOffer ? 'TRADE OFFER PAUSED' : 'ON THE CLOCK'}
+                        {/* Green on your own pick, matching the other two headers
+                            and the draft grid — the cockpit's CSS paints this gold
+                            by default, so the user's turn needs the inline override. */}
+                        <span style={!state.activeOffer && isUserTurn ? { color: 'var(--k-2ecc71, #2ecc71)' } : undefined}>
+                            {state.activeOffer ? 'TRADE OFFER PAUSED' : (isUserTurn ? "YOU'RE ON THE CLOCK" : 'ON THE CLOCK')}
                             {isLive && liveConfidenceCard && (
                                 <em title={liveConfidenceCard.detail} style={{ marginLeft: 10, fontStyle: 'normal', fontWeight: 800, color: liveConfidenceCard.tone, letterSpacing: '0.04em' }}>
                                     {'● '}{liveConfidenceCard.value}
@@ -6227,8 +6230,13 @@
                         borderLeft: '4px solid var(--gold)',
                         padding: '7px 0 7px 14px',
                     }}>
-                        <div style={{ color: state.activeOffer ? 'var(--k-f0a500, #f0a500)' : 'var(--gold)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-                            {state.activeOffer ? 'Trade offer on deck' : 'On the clock'}
+                        {/* Owner ask 2026-09-06: at your own pick the header only
+                            named your team, which is easy to miss mid-draft. Say it
+                            outright, and in green so it reads without being read —
+                            the draft grid has flagged the user's turn this way all
+                            along (js/draft/draft-grid.js). */}
+                        <div style={{ color: state.activeOffer ? 'var(--k-f0a500, #f0a500)' : (isUserTurn ? 'var(--k-2ecc71, #2ecc71)' : 'var(--gold)'), fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+                            {state.activeOffer ? 'Trade offer on deck' : (isUserTurn ? "You're on the clock" : 'On the clock')}
                         </div>
                         <div style={{ color: 'var(--white)', fontFamily: FONT_DISPL, fontSize: '1.62rem', fontWeight: 900, lineHeight: 1.02, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {currentTeamName}
@@ -6784,7 +6792,7 @@
         const pickMeta = currentSlot
             ? 'R' + (currentSlot.round || '?') + '.' + String(pickInRoundOf(currentSlot, state.leagueSize) || 0).padStart(2, '0') + ' · #' + (currentSlot.overall || '--')
             : 'No active pick';
-        const onClockLabel = state.activeOffer ? 'Trade offer on deck' : 'On the clock';
+        const onClockLabel = state.activeOffer ? 'Trade offer on deck' : (isUserTurn ? "You're on the clock" : 'On the clock');
 
         // Alex Live Read: who is likely available at the user's next pick + an outlier worth trading up for.
         const readout = (state.activeOffer || typeof window.DraftCC?.liveDecisionEngine?.buildLiveReadout !== 'function')
@@ -6833,7 +6841,7 @@
                             <div style={{ color: 'var(--silver)', opacity: 0.72, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.09em', fontSize: 'var(--text-micro, 0.6875rem)', marginTop: 3 }}>{state.mode} · {state.variant}</div>
                         </div>
                         <div style={{ borderLeft: '3px solid ' + GOLD, paddingLeft: 12, marginLeft: 8, flex: 1, minWidth: 0, marginTop: -6 }}>
-                            <div style={{ color: state.activeOffer ? 'var(--k-f0a500, #f0a500)' : GOLD, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em' }}>{onClockLabel}</div>
+                            <div style={{ color: state.activeOffer ? 'var(--k-f0a500, #f0a500)' : (isUserTurn ? 'var(--k-2ecc71, #2ecc71)' : GOLD), fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em' }}>{onClockLabel}</div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
                                 <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', background: 'radial-gradient(circle at 30% 25%, #4a4368, #221d34 70%)', border: '1px solid rgba(155,138,251,0.55)', color: '#d6d0ff', fontFamily: FONT_DISPL, fontWeight: 900, fontSize: '1rem', overflow: 'hidden' }}>
                                     {teamAvatarUrl
