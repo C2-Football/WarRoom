@@ -229,8 +229,7 @@ test('submitWaiverClaim then processWaivers lands the claim and clears the queue
     // free agent would be correctly refused — pick a non-QB to test the happy path.
     const fa = Engine.freeAgents(state, cards).find((c) => c.position !== 'QB');
     assert.ok(fa, 'sample pool must have a non-QB free agent left after a 4-team draft');
-    // The bench is already at capacity after a full draft (adds always land on
-    // BN), so a claim needs a drop to actually clear room.
+    // The full roster needs a drop to clear an eligible landing slot.
     const dropEntry = team.roster.find((e) => e.slot === 'BN');
     assert.ok(dropEntry, 'a full draft should fill the bench');
     state = Engine.submitWaiverClaim(state, { teamId: team.teamId, addIdentity: fa.identity, addName: fa.name, addPosition: fa.position, dropEntryId: dropEntry.entryId }, '2026-01-01T00:00:00Z');
@@ -240,6 +239,30 @@ test('submitWaiverClaim then processWaivers lands the claim and clears the queue
     const updatedTeam = state.teams.find((t) => t.teamId === team.teamId);
     assert.ok(updatedTeam.roster.some((e) => e.identity === fa.identity));
     assert.ok(!updatedTeam.roster.some((e) => e.entryId === dropEntry.entryId));
+});
+
+test('waivers replace a compatible starter with a full bench or no bench', () => {
+    for (const bench of [3, 0]) {
+        const cards = samplePool();
+        let state = Engine.createTimeLeague({ name: 'Starter swap', seed: 'starter-swap', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings({ rosterSlots: { ...ROSTER_SLOTS, BN: bench } }), seats: seats() });
+        state = draftFullRoster(state, cards);
+        const team = state.teams[0];
+        const target = Engine.freeAgents(state, cards).find(c => c.position === 'WR');
+        const drop = team.roster.find(e => e.slot === 'WR');
+        assert.ok(target && drop);
+        assert.strictEqual(Engine.waiverLandingSlot(state, team, 'WR', drop.entryId), 'WR');
+        assert.strictEqual(Engine.waiverLandingSlot(state, team, 'WR', ''), null);
+        const wrongDrop = team.roster.find(e => e.slot === 'QB');
+        assert.strictEqual(Engine.waiverLandingSlot(state, team, 'WR', wrongDrop.entryId), null);
+        const invalid = Engine.processWaivers(Engine.submitWaiverClaim(state, { teamId: team.teamId, addIdentity: target.identity, dropEntryId: wrongDrop.entryId }, '2026-01-01T00:00:00Z'), cards, '2026-01-01T00:00:00Z');
+        assert.deepStrictEqual(invalid.teams[0].roster, team.roster);
+        state = Engine.submitWaiverClaim(state, { teamId: team.teamId, addIdentity: target.identity, dropEntryId: drop.entryId }, '2026-01-01T00:00:00Z');
+        state = Engine.processWaivers(state, cards, '2026-01-01T00:00:00Z');
+        const roster = state.teams[0].roster;
+        assert.strictEqual(roster.length, team.roster.length);
+        assert.strictEqual(roster.find(e => e.identity === target.identity)?.slot, 'WR');
+        assert.ok(!roster.some(e => e.entryId === drop.entryId));
+    }
 });
 
 test('FAAB: highest bid wins a contested free agent and pays its own bid', () => {

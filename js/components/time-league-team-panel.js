@@ -151,6 +151,8 @@
         const [targetIdentity, setTargetIdentity] = useState('');
         const [dropEntryId, setDropEntryId] = useState('');
         const [bidAmount, setBidAmount] = useState(0);
+        const [filing, setFiling] = useState(false);
+        const [claimMessage, setClaimMessage] = useState('');
         const pool = useMemo(() => Engine.freeAgents(league, cards), [league, cards]);
         const faab = league.settings.waiverMode === 'faab';
         const clearTarget = (identity) => { setTargetIdentity(identity); setBidAmount(0); };
@@ -168,10 +170,10 @@
         const target = targetIdentity ? cards.get(targetIdentity) : undefined;
         const alreadyClaimed = Boolean(target) && league.pendingClaims.some((c) => c.teamId === team.teamId && c.addIdentity === targetIdentity);
         const benchCap = league.settings.rosterSlots.BN ?? 0;
-        const benchCount = team.roster.filter((e) => e.slot === 'BN').length;
-        const mustDrop = benchCount >= benchCap;
+        const mustDrop = Boolean(target) && !Engine.waiverLandingSlot(league, team, target.position, '');
         const dropEntry = team.roster.find((e) => e.entryId === dropEntryId);
-        const dropBlocks = mustDrop && (!dropEntry || dropEntry.slot !== 'BN');
+        const landingSlot = target ? Engine.waiverLandingSlot(league, team, target.position, dropEntryId) : null;
+        const dropBlocks = Boolean(target) && !landingSlot;
         const dropOptions = [...team.roster].sort((l, r) => (l.slot === 'BN' ? 0 : 1) - (r.slot === 'BN' ? 0 : 1) || l.name.localeCompare(r.name));
         const mine = league.pendingClaims.filter((c) => c.teamId === team.teamId);
         const others = league.pendingClaims.length - mine.length;
@@ -181,14 +183,21 @@
         const budgetReserved = mine.reduce((sum, c) => sum + (c.bidAmount ?? 0), 0);
         const budgetAvailable = Math.max(0, budgetRemaining - budgetReserved);
         const bidInvalid = faab && (!Number.isFinite(bidAmount) || bidAmount < 0 || bidAmount > budgetAvailable);
-        const canFile = wireOpen && Boolean(target) && !alreadyClaimed && !dropBlocks && !bidInvalid;
-        const fileClaim = () => {
-            if (!target) return;
-            apply(Engine.submitWaiverClaim(league, {
-                teamId: team.teamId, addIdentity: target.identity, addName: target.name, addPosition: target.position,
-                dropEntryId: dropEntry ? dropEntry.entryId : '', ...(faab ? { bidAmount } : {}),
-            }, nowIso()), { type: 'claim', teamId: team.teamId, identity: target.identity, dropEntryId: dropEntry?.entryId || '', bidAmount });
-            setTargetIdentity(''); setDropEntryId(''); setBidAmount(0);
+        const canFile = !filing && wireOpen && Boolean(target) && !alreadyClaimed && !dropBlocks && !bidInvalid;
+        const fileClaim = async () => {
+            if (!canFile) return;
+            setFiling(true); setClaimMessage('');
+            try {
+                const saved = await apply(Engine.submitWaiverClaim(league, {
+                    teamId: team.teamId, addIdentity: target.identity, addName: target.name, addPosition: target.position,
+                    dropEntryId: dropEntry ? dropEntry.entryId : '', ...(faab ? { bidAmount } : {}),
+                }, nowIso()), { type: 'claim', teamId: team.teamId, identity: target.identity, dropEntryId: dropEntry?.entryId || '', bidAmount });
+                if (saved) {
+                    setTargetIdentity(''); setDropEntryId(''); setBidAmount(0);
+                    setClaimMessage('Claim filed. It will process at the next game day.');
+                } else setClaimMessage('Claim was not saved. Review your selection and try again.');
+            } catch (_error) { setClaimMessage('Claim could not be saved. Please try again.'); }
+            finally { setFiling(false); }
         };
 
         return h('div', { className: 'tl-grid-2' },
@@ -210,7 +219,7 @@
                                 h('div', { className: 'tl-p-meta' },
                                     h('span', { className: `tl-pos-badge tl-pos-${card.position}` }, card.position),
                                     h('span', { className: 'tl-p-era' }, card.seasons.length ? `${card.seasons[0].season}–${card.seasons[card.seasons.length - 1].season}` : '—'))),
-                            h('div', { className: 'tl-p-pts tabular' }, fmt1(card.peak), h('small', null, `PEAK · ${best ? best.season : '—'}`)),
+                            h('div', { className: 'tl-p-pts tabular' }, fmt1(card.peak), h('small', null, `CAREER BEST · ${best ? best.season : '—'}`)),
                             h('button', { className: 'tl-btn icon', disabled: !wireOpen, onClick: () => clearTarget(selected ? '' : card.identity) }, selected ? 'PICKED' : 'CLAIM'));
                     })),
                 filtered.length > shown.length && h('p', { className: 'tl-hint', style: { marginTop: 8 } }, `Showing ${WIRE_ROW_CAP} of ${filtered.length} — refine the search`)),
@@ -221,9 +230,11 @@
                     h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Claims'), h('strong', { style: { fontSize: 18, fontFamily: 'var(--font-title)' } }, mine.length)),
                     faab && h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Budget'), h('strong', { className: 'tabular', style: { fontSize: 18, fontFamily: 'var(--font-title)' } }, `$${budgetAvailable}`))),
                 h('div', { className: 'tl-card' },
+                    claimMessage ? h('p', { role: 'status' }, claimMessage) : null,
                     h('div', { className: 'tl-card-title' }, h('span', null, 'File a claim'), h('small', null, 'processes at the next game day')),
+                    h('p',{className:'tl-hint'},'Career-best points are a reference, not your awarded season. An eligible season is drawn when the claim succeeds.'),
                     !wireOpen && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'HOLD'), h('p', null, league.phase === 'draft' ? 'The wire opens when the draft completes.' : 'Season complete — no more claims.')),
-                    benchCap <= 0 && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'WARN'), h('p', null, 'No bench configured — waiver adds have nowhere to land, so every claim will void.')),
+                    benchCap <= 0 && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'WARN'), h('p', null, 'No bench configured — choose a drop that opens an eligible starting slot.')),
                     target ? h(React.Fragment, null,
                         h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0' } },
                             h('span', { className: `tl-pos-badge tl-pos-${target.position}` }, target.position),
@@ -241,10 +252,11 @@
                                 onChange: (e) => setBidAmount(Math.max(0, Math.round(Number(e.target.value)) || 0)),
                             }),
                             h('span', { className: 'tabular', style: { color: 'var(--text-muted)', fontSize: 11 } }, `of $${budgetAvailable} available`)),
+                        target && landingSlot && h('p',{className:'tl-hint'},`If awarded: ${target.name} enters ${landingSlot}${dropEntry ? ', replacing '+dropEntry.name : ''}.`),
                         alreadyClaimed && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'DUPE'), h('p', null, 'You already have a live claim on this player.')),
-                        mustDrop && dropEntry && dropEntry.slot !== 'BN' && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'WARN'), h('p', null, 'Dropping a starter leaves the bench full — the claim will void. Pick a bench drop.')),
+                        dropBlocks && dropEntry && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'WARN'), h('p', null, 'This drop does not open an eligible slot for the target. Choose a compatible player or a bench drop.')),
                         faab && bidAmount > budgetAvailable && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'WARN'), h('p', null, 'Bid exceeds your remaining FAAB budget.')),
-                        h('button', { className: 'tl-btn primary', disabled: !canFile, onClick: fileClaim, style: { marginTop: 8 } }, '⚖ FILE CLAIM'))
+                        h('button', { className: 'tl-btn primary', disabled: !canFile, onClick: fileClaim, style: { marginTop: 8 } }, filing ? 'FILING…' : '⚖ FILE CLAIM'))
                         : h('p', { className: 'tl-empty' }, 'Pick a target from the wire to build a claim.'),
                     h('p', { className: 'tl-hint', style: { marginTop: 8 } }, faab ? 'Blind bid — highest offer wins; ties break by worst record.' : 'Processing order: reverse standings — worst record first.')),
                 h('div', { className: 'tl-card' },

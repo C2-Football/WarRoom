@@ -463,6 +463,17 @@
         return { ...state, pendingClaims: state.pendingClaims.filter((item) => item.claimId !== claimId) };
     }
 
+    function waiverLandingSlot(state, team, position, dropEntryId) {
+        const dropped = team.roster.find(entry => entry.entryId === dropEntryId);
+        const remaining = team.roster.filter(entry => entry.entryId !== dropEntryId);
+        const open = slot => (slot === 'BN' || isStarterSlot(slot)) &&
+            (SLOT_ELIGIBILITY[slot] || []).includes(position) &&
+            remaining.filter(entry => entry.slot === slot).length < (state.settings.rosterSlots[slot] || 0);
+        if (dropped && open(dropped.slot)) return dropped.slot;
+        if (open('BN')) return 'BN';
+        return ROSTER_SLOT_IDS.find(open) || null;
+    }
+
     function processWaivers(state, cards, createdAt) {
         if (!state.pendingClaims.length) return state;
         const faab = state.settings.waiverMode === "faab";
@@ -478,7 +489,7 @@
         ));
         const taken = new Set(state.teams.flatMap((team) => team.roster.map((entry) => entry.identity)));
         const week = state.currentWeek;
-        const benchCapacity = state.settings.rosterSlots.BN ?? 0;
+
         const events = appendEvents(state.activity);
         let teams = state.teams;
         let entryNumber = nextEntryNumber(state);
@@ -502,7 +513,8 @@
                 continue;
             }
             const afterDrop = dropEntry ? team.roster.filter((entry) => entry.entryId !== dropEntry.entryId) : team.roster;
-            if (afterDrop.filter((entry) => entry.slot === "BN").length >= benchCapacity) {
+            const landingSlot = waiverLandingSlot(state, team, card.position, claim.dropEntryId);
+            if (!landingSlot) {
                 events.push(week, "waiver", `Waivers W${week} — ${team.name} claim on ${card.name} voided`, createdAt);
                 continue;
             }
@@ -521,7 +533,7 @@
                 name: card.name,
                 position: card.position,
                 drawnSeason,
-                slot: "BN",
+                slot: landingSlot,
                 acquiredVia: "waiver",
                 acquiredWeek: week,
             };
@@ -918,7 +930,7 @@
         rosterCapacity, createTimeLeague, currentDraftSeat, draftedIdentities, eraEligibleCards,
         positionIsStartable, applyDraftPick, setEntrySlot, autoFillLineup, lineupProblems,
         finalizeCurrentWeek, computeStandings, freeAgents, submitWaiverClaim, cancelWaiverClaim,
-        processWaivers, proposeTrade, respondToTrade, normalizeTimeLeague,
+        processWaivers, waiverLandingSlot, proposeTrade, respondToTrade, normalizeTimeLeague,
     };
     App.TimeLeagueEngine = api;
     /* global module */
