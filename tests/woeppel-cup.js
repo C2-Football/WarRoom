@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict');
+const C=require('../js/shared/woeppel-cup.js');
+const s={groups:{A:['1','2','3','4'],B:['5','6','7','8'],C:['9','10','11','12']},drawMargin:4,weeks:{}};
+const f=C.fixtures(s);assert.equal(f.length,36);
+for(let week=6;week<=11;week++)assert.equal(new Set(f.filter(x=>x.week===week).flatMap(x=>[x.a,x.b])).size,12);
+const pairs={};f.forEach(x=>{const k=[x.a,x.b].sort().join(':');pairs[k]=(pairs[k]||0)+1;});assert.ok(Object.values(pairs).every(n=>n===2));
+s.weeks[6]={scores:Object.fromEntries(Array.from({length:12},(_,i)=>[String(i+1),100])),final:false};assert.equal(C.tables(s).A[0].played,0);
+s.weeks[6].final=true;s.weeks[6].scores['1']=104;assert.equal(C.tables(s).A.find(r=>r.id==='1').d,1);
+s.weeks[6].scores['1']=104.01;assert.equal(C.tables(s).A.find(r=>r.id==='1').w,1);
+assert.throws(()=>C.bracket(s),/six group weeks/);
+for(let w=6;w<=11;w++)s.weeks[w]={final:true,scores:Object.fromEntries(Array.from({length:12},(_,i)=>[String(i+1),300-i*10]))};
+assert.equal(C.qualifiers(s).length,8);const b=C.bracket(s);assert.equal(b.length,4);const group=id=>Object.keys(s.groups).find(g=>s.groups[g].includes(id));assert.ok(b.every(([a,b])=>group(a)!==group(b)));
+for(let w=15;w<=17;w++)s.weeks[w]={final:true,scores:Object.fromEntries(Array.from({length:12},(_,i)=>[String(i+1),300-i*10]))};assert.equal(C.knockout(s).length,3);assert.ok(C.knockout(s)[2][0].winner);
+s.weeks[15].scores[b[0][1]]=s.weeks[15].scores[b[0][0]];assert.equal(C.knockout(s)[0][0].winner,null);assert.equal(C.knockout(s).length,1);
+s.tieRulings={[`15:${b[0][0]}:${b[0][1]}`]:{winner:b[0][0],reason:'League ruling'}};assert.ok(C.knockout(s)[0][0].winner);
+assert.throws(()=>C.validate({...s,groups:{...s.groups,A:['1','1','2','3']}}));
+console.log('Cup schedule, draw boundary, provisional scores, qualification, bracket and tie rulings passed');
