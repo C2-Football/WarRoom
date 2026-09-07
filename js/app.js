@@ -36,24 +36,13 @@
     const EMPIRE_FREE_PRELIVE = true;
     window.App.EMPIRE_FREE_PRELIVE = EMPIRE_FREE_PRELIVE;
 
-    // ── Empire Dashboard is sandbox-only while it bakes. Flip EMPIRE_SANDBOX_ONLY
-    // to false to relaunch it on production (EMPIRE_FREE_PRELIVE above then decides
-    // whether the relaunched surface is paid-gated). ──
-    const EMPIRE_SANDBOX_ONLY = true;
-    const EMPIRE_ENABLED = PLATFORM_SANDBOX_ACCESS || !EMPIRE_SANDBOX_ONLY;
+    // Main hub modes are available on production and local instances.
+    // Existing subscription and commissioner-ownership checks still apply.
+    const EMPIRE_ENABLED = true;
     window.App.EMPIRE_ENABLED = EMPIRE_ENABLED;
-
-    // ── Commissioner's Office (vision doc §7) rides the same sandbox lever
-    // while it bakes; it graduates to the Labs waitlist per the monetization
-    // plan, never straight to a paid gate. ──
-    const COMMISH_ENABLED = EMPIRE_ENABLED;
+    const COMMISH_ENABLED = true;
     window.App.COMMISH_ENABLED = COMMISH_ENABLED;
-
-    // ── Time League is sandbox-only: it bundles a dataset (data/time-league/)
-    // that must not ship on origin. Rides its own lever rather than
-    // EMPIRE_ENABLED's, since it has nothing to do with that feature baking. ──
-    const TIME_LEAGUE_SANDBOX_ONLY = true;
-    const TIME_LEAGUE_ENABLED = PLATFORM_SANDBOX_ACCESS || !TIME_LEAGUE_SANDBOX_ONLY;
+    const TIME_LEAGUE_ENABLED = true;
     window.App.TIME_LEAGUE_ENABLED = TIME_LEAGUE_ENABLED;
 
     // ── Owner default: bigloco's locked-in MFL franchise in the "MLS Dynasty
@@ -930,8 +919,7 @@
             })();
         }, [proMode, empirePlayersLoaded]);
 
-        // Defense-in-depth: Empire is sandbox-only — even if stale history state or
-        // a stray caller flips proMode on in production, never mount the surface.
+        // Honor the mode switch if a saved navigation state opens a disabled surface.
         // (Render-phase reset is safe here: all hooks above have already run, and
         // the condition is false on the immediate re-render.)
         if (proMode && !EMPIRE_ENABLED) {

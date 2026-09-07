@@ -67,6 +67,9 @@ jobs:
           # Overlay the precompiled entries + plain-JS modules on top of the raw
           # sources, replacing the JSX files and the index.html that loaded Babel.
           cp -R dist-deploy/. pages-artifact/
+          # The Vault loads its historical player cards and game logs on demand.
+          mkdir -p pages-artifact/data
+          cp -R data/time-league pages-artifact/data/
           rm -rf pages-artifact/**/.git pages-artifact/**/node_modules pages-artifact/**/supabase pages-artifact/**/tests
 
       - name: Setup Pages
