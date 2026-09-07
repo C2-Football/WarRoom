@@ -293,6 +293,33 @@
         };
     }
 
+    // Always available, including backfills and the final pick. Commentary is
+    // matched to the exact selection so a delayed response cannot trail a new pick.
+    function buildPickAnalysis(state) {
+        const room = buildLiveRoom(state);
+        const last = room.teams.flatMap(t => t.picks).sort((a, b) => b.overall - a.overall)[0];
+        if (!last) return null;
+        const team = room.teamsById[last.rosterId];
+        const before = buildLiveRoom({ ...state, picks: arr(state.picks).filter((p, i) => (positive(p.overall) || positive(p.sleeperPickNo) || i + 1) < last.overall) }).teamsById[last.rosterId];
+        const parts = [];
+        if (last.valueDelta != null) parts.push(last.valueDelta > 0
+            ? last.name + ' landed ' + last.valueDelta + ' places after his DHQ rank — value against this board.'
+            : last.valueDelta < 0 ? last.name + ' went ' + Math.abs(last.valueDelta) + ' places ahead of his DHQ rank — a premium for this selection.'
+                : last.name + ' went exactly at his DHQ rank.');
+        const count = team.positionBuild.find(p => p.pos === last.pos)?.count || 1;
+        if (team.startingLineup.known && before?.startingLineup.known) {
+            parts.push(team.startingLineup.filled > before.startingLineup.filled
+                ? 'This covers another starting slot for ' + team.teamName + ' (' + team.startingLineup.filled + '/' + team.startingLineup.total + ').'
+                : team.teamName + ' now has ' + count + ' ' + last.pos + 's; this adds depth or competition without covering another starting slot.');
+        } else parts.push(team.teamName + ' has drafted ' + count + ' ' + last.pos + (count === 1 ? '' : 's') + '.');
+        const needs = team.needs.filter(n => n.status === 'open').map(n => n.pos);
+        if (needs.length) parts.push((room.isComplete ? 'The finished roster still has needs at ' : 'Still to address: ') + needs.join(', ') + '.');
+        else if (team.startingLineup.known && team.startingLineup.filled === team.startingLineup.total) parts.push('Every starting slot is covered.');
+        if (!last.valueDelta && last.valueDelta !== 0 && !room.isAuction) parts.push('DHQ rank unavailable for a value comparison.');
+        const event = arr(state.alex?.stream).slice().reverse().find(e => e.type === 'ai' && Number(e.relatedPickNo) === last.overall && typeof e.text === 'string' && e.text.trim());
+        return { overall: last.overall, playerId: last.pid, text: parts.join(' '), commentary: event?.text || null };
+    }
+
     window.DraftCC = window.DraftCC || {};
-    window.DraftCC.liveRoomEngine = { buildLiveRoom };
+    window.DraftCC.liveRoomEngine = { buildLiveRoom, buildPickAnalysis };
 })();

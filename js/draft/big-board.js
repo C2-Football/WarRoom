@@ -117,10 +117,8 @@
         // way draft-room.js's redraft market-mode check does: off the live League
         // Skin singleton, not off the draft state.
         const adpSkinType = window.App?.LeagueSkin?.getCurrent?.()?.type;
-        // Same value vocabulary the standalone Big Board uses (js/draft-room.js) —
-        // a redraft league calls this column ROS, not DHQ. This panel hardcoded
-        // "DHQ", so the two boards labelled the identical number differently.
-        const valueShortLabel = window.App?.LeagueSkin?.getCurrent?.()?.vocabulary?.valueShortLabel || 'DHQ';
+        // DHQ remains the value brand across league formats.
+        const valueShortLabel = 'DHQ';
         const adpEligible = state.variant === 'redraft'
             || state.draftContext?.draftType === 'redraft'
             || state.draftContext?.leagueFormat?.draftType === 'redraft'

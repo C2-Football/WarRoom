@@ -396,5 +396,47 @@ test('a deeply frozen state is accepted and repeated calls are deterministic', (
     assert.deepEqual(state.picks.map(p => p.overall), [1, 2]);
 });
 
+test('pick analysis covers the latest pick, even after completion', () => {
+    const state = fixture({ variant: 'redraft', phase: 'complete' });
+    const take = engine.buildPickAnalysis(state);
+    assert.equal(take.overall, 2);
+    assert.match(take.text, /First Receiver/);
+    assert.match(take.text, /covers another starting slot for Beta/);
+});
+
+test('a second QB in a single-QB lineup adds depth instead of claiming a new starter', () => {
+    const state = fixture({ variant: 'redraft', draftContext: { leagueFormat: { rosterSlots: ['QB', 'RB', 'BN'] } }, picks: [
+        { ...pool[2], overall: 1, rosterId: 1 },
+        { pid: 'qb2', name: 'Second QB', pos: 'QB', overall: 2, rosterId: 1 },
+    ] });
+    const take = engine.buildPickAnalysis(state);
+    assert.match(take.text, /without covering another starting slot/);
+    assert.match(take.text, /Still to address: RB/);
+    assert.match(take.text, /DHQ rank unavailable/);
+});
+
+test('delayed Alex commentary never attaches to a different pick', () => {
+    const state = fixture({ alex: { stream: [
+        { type: 'ai', relatedPickNo: 2, text: 'Correct selection.' },
+        { type: 'ai', relatedPickNo: 1, text: 'Late response.' },
+    ] } });
+    assert.equal(engine.buildPickAnalysis(state).commentary, 'Correct selection.');
+    state.alex.stream.shift();
+    assert.equal(engine.buildPickAnalysis(state).commentary, null);
+    assert.equal(engine.buildPickAnalysis(fixture({ picks: [] })), null);
+});
+
+test('auction analysis discusses the build without a snake rank comparison', () => {
+    const take = engine.buildPickAnalysis(fixture({ variant: 'auction', draftMechanic: 'auction' }));
+    assert.doesNotMatch(take.text, /DHQ rank|places ahead|places after/);
+    assert.match(take.text, /Beta/);
+});
+
+test('pick analysis is deterministic and accepts immutable state', () => {
+    const state = freeze(fixture({ variant: 'redraft' }));
+    assert.deepEqual(plain(engine.buildPickAnalysis(state)), plain(engine.buildPickAnalysis(state)));
+    assert.equal(state.picks.length, 2);
+});
+
 process.stdout.write('\n' + passed + ' passed, ' + failed + ' failed\n');
 process.exitCode = failed ? 1 : 0;

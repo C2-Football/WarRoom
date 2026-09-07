@@ -26,6 +26,7 @@
         .pick-brief-threat{border-top:1px solid var(--brief-line);padding-top:9px;margin-top:11px!important}.pick-brief-threat strong{color:var(--white)}.pick-brief-method{font-size:.61rem!important;color:var(--silver);opacity:.8;line-height:1.5!important}
         .pick-brief-empty{padding:20px;border:1px dashed var(--brief-line);border-radius:9px;color:var(--silver);font-size:.78rem;line-height:1.6}.pick-brief-set{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;background:rgba(97,215,180,.045);border:1px solid rgba(97,215,180,.16);border-radius:7px;margin-top:12px;font-size:.73rem;color:var(--silver);line-height:1.5}.pick-brief-set strong{color:var(--good,#61d7b4)}
         .pick-brief-wire{font-size:.68rem;color:var(--silver);border-top:1px solid var(--brief-line);padding-top:10px;margin:12px 0 0;line-height:1.5}.pick-brief-wire strong{color:var(--white)}
+        .pick-brief-take{border-left:2px solid var(--gold);padding:10px 13px;margin-top:9px;background:var(--ov-2,rgba(255,255,255,.025));border-radius:0 8px 8px 0}.pick-brief-take p{font-size:.76rem;color:var(--silver);line-height:1.6;margin:5px 0 0}
         .pick-roster{display:flex;flex-direction:column;min-height:0;min-width:0;border:1px solid var(--acc-line1,rgba(212,175,55,.2));border-radius:10px;background:var(--surf-solid,#10161e);padding:13px;font-family:var(--font-body,'DM Sans',sans-serif);color:var(--white)}.pick-roster.is-contained{height:100%;max-height:100%;box-sizing:border-box;overflow:hidden}.pick-roster.is-contained>div:first-of-type,.pick-roster.is-contained>p{flex-shrink:0}.pick-roster.is-contained .pick-roster-scroll{flex:1}.pick-roster h3{font:700 1.1rem var(--font-display,Rajdhani,sans-serif);margin:0}.pick-roster>p{font-size:.72rem;color:var(--silver);line-height:1.5;margin:6px 0 12px}.pick-roster-scroll{min-height:0;overflow:auto;overscroll-behavior:contain}.pick-roster-group{border-top:1px solid var(--ov-5,rgba(255,255,255,.08));padding:10px 0}.pick-roster-group>div:first-child{display:flex;gap:8px;align-items:center;justify-content:space-between}.pick-roster-group strong{font-size:.76rem;color:var(--pos)}.pick-roster-group span{font-size:.67rem;color:var(--silver)}.pick-roster-players{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}.pick-roster button{font-family:inherit;min-height:36px;padding:5px 7px;border:1px solid var(--ov-5,rgba(255,255,255,.08));border-radius:5px;color:var(--white);background:transparent;font-size:.69rem;cursor:pointer;text-align:left}
         .redraft-extra-details{border-top:1px solid var(--ov-5,rgba(255,255,255,.08));margin-top:12px;padding-top:8px}.redraft-extra-details>summary{min-height:44px;display:list-item;align-content:center;cursor:pointer;font-size:.72rem;color:var(--gold);font-weight:700}.redraft-extra-details[open]>summary{margin-bottom:10px}
         @media(max-width:1050px){.pick-brief-grid{grid-template-columns:1fr 1fr}.pick-brief-portrait{width:48px;height:48px}}
@@ -73,6 +74,7 @@
     function LivePickBrief({ state, read: suppliedRead, compact = false }) {
         const deck = React.useMemo(() => window.DraftCC.liveDecisionEngine?.buildDecisionDeck(state), [state]);
         const read = React.useMemo(() => suppliedRead || window.DraftCC.liveDecisionEngine?.buildRedraftRoomRead(state), [suppliedRead, state]);
+        const pickAnalysis = React.useMemo(() => window.DraftCC.liveRoomEngine?.buildPickAnalysis(state), [state]);
         if (!read || !deck || !isPro()) return null;
         const plan = read.rosterPlan || deck.rosterPlan || {};
         const noPicks = plan.remainingPicks === 0;
@@ -110,7 +112,9 @@
                 </div>
                 {!compact && !noPicks && <PositionRunway read={read} hero={hero} awaitingTurn={awaitingTurn} />}
             </div>
-            {!compact && last && <p className="pick-brief-wire"><strong>Just happened:</strong> {(state.personas || {})[String(last.rosterId)]?.teamName || 'Team ' + last.rosterId} selected {last.name} · {last.pos} · #{last.overall}</p>}
+            {last && <div className="pick-brief-latest" aria-live="polite" aria-atomic="true"><p className="pick-brief-wire"><strong>Just happened:</strong> {(state.personas || {})[String(last.rosterId)]?.teamName || 'Team ' + last.rosterId} selected {last.name} · {last.pos} · #{last.overall}</p>
+                {pickAnalysis?.overall === Number(last.overall) && <div className="pick-brief-take"><span className="pick-brief-eyebrow">Alex · Pick analysis</span><p>{pickAnalysis.text}</p>{pickAnalysis.commentary && <p>{pickAnalysis.commentary}</p>}</div>}
+            </div>}
         </section>;
     }
 

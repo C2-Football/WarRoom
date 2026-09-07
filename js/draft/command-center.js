@@ -6790,7 +6790,7 @@
                     </div>
                 )}
 
-                {state.mode === 'live-sync' && window.DraftCC.LiveRoomPanel && <div style={{ height: 'min(680px, 72dvh)', minHeight: 380, marginBottom: 12, display: 'flex', flexDirection: 'column' }}>
+                {state.mode === 'live-sync' && window.DraftCC.LiveRoomPanel && <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column' }}>
                     {React.createElement(window.DraftCC.LiveRoomPanel, { state })}
                 </div>}
                 {/* ── TOP ROW: Big Board / Roster Build / Opponent Intel ───── */}
@@ -8199,7 +8199,7 @@
                     ))}
                 </div>
                 {hasTeamTracker && phTab === 'feed' && LiveRoomPulse && <LiveRoomPulse state={state} onOpen={() => setPhTab('teams')} />}
-                {hasTeamTracker && <div hidden={phTab !== 'teams'} style={{ height: '62dvh', minHeight: 360, display: phTab === 'teams' ? 'flex' : 'none', flexDirection: 'column' }}><LiveRoomPanel state={state} /></div>}
+                {hasTeamTracker && <div hidden={phTab !== 'teams'} style={{ display: phTab === 'teams' ? 'flex' : 'none', flexDirection: 'column' }}><LiveRoomPanel state={state} /></div>}
                 {/* Panes scroll IN PLACE (owner ask): fixed-height containers so the
                     DraftCast bar, tabs, and bottom chips all stay on screen. */}
                 {phTab === 'feed' && (

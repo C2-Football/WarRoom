@@ -21,9 +21,9 @@
         .live-room{color:var(--white);background:var(--surf-solid,#10161e);border:1px solid var(--acc-line1,rgba(212,175,55,.2));border-radius:12px;font-family:var(--font-body,'DM Sans',sans-serif);min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
         .live-room-head{padding:15px 16px 12px;border-bottom:1px solid var(--ov-5,rgba(255,255,255,.08))}
         .live-room-title{display:flex;align-items:center;justify-content:space-between;gap:8px}.live-room h3{font:700 1.2rem var(--font-display,Rajdhani,sans-serif);margin:0;letter-spacing:.04em}.live-room h4{font-size:.82rem;margin:0 0 10px}.live-room-head p{color:var(--silver);font-size:.72rem;line-height:1.5;margin:5px 0 0}
-        .live-room-count{font-size:.7rem;color:var(--gold);white-space:nowrap}.live-room-tools{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.live-room-control:disabled{opacity:.45;cursor:default}
-        .live-room-scroll{overflow-y:auto;overscroll-behavior:contain;padding:12px;min-height:0;flex:1;scrollbar-gutter:stable}
-        .live-room-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:9px}
+        .live-room-count{font-size:.7rem;color:var(--gold);white-space:nowrap}.live-room-tools{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.live-room-tools select{max-width:100%;min-width:0}.live-room-control:disabled{opacity:.45;cursor:default}
+        .live-room-content{padding:12px;min-width:0}.live-room{flex-shrink:0}.live-room-pager{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;font-size:.72rem;color:var(--silver)}.live-room-summary{display:flex;flex-direction:column;gap:5px;font-size:.75rem}.live-room-summary>span{color:var(--silver);line-height:1.5}.live-room-need-line{font-size:.72rem;color:var(--gold);margin:7px 0 12px}.live-room-class-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.live-room-class-head h4{margin:0}
+        .live-room-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
         .live-room-team{width:100%;text-align:left;color:var(--white);background:var(--ov-2,rgba(255,255,255,.025));border:1px solid var(--ov-5,rgba(255,255,255,.08));border-radius:9px;padding:12px;min-width:0;transition:border-color .15s,background .15s}
         .live-room-team:hover{background:var(--acc-fill1,rgba(212,175,55,.07));border-color:var(--acc-line2,rgba(212,175,55,.35))}.live-room-team.is-clock{border-color:var(--gold);box-shadow:inset 3px 0 var(--gold)}
         .live-room-team-title{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.live-room-team-title strong{font-size:.86rem;line-height:1.4;overflow-wrap:anywhere}.live-room-grade{font:800 1.15rem var(--font-display,Rajdhani,sans-serif);white-space:nowrap}
@@ -36,8 +36,8 @@
         .live-room-needs{padding:12px;background:var(--ov-2,rgba(255,255,255,.025));border-radius:8px;margin:12px 0}.live-room-needs p{margin:5px 0;font-size:.74rem;color:var(--silver);line-height:1.5}.live-room-needs strong{color:var(--gold)}
         .live-room-picks{width:100%;border-collapse:collapse;font-size:.75rem;table-layout:fixed}.live-room-picks th{font-size:.61rem;text-transform:uppercase;color:var(--silver);text-align:left;padding:9px 5px;border-bottom:1px solid var(--ov-6,rgba(255,255,255,.12))}.live-room-picks th:first-child{width:49px}.live-room-picks th:last-child{width:60px;text-align:right}.live-room-picks td{padding:5px;border-bottom:1px solid var(--ov-4,rgba(255,255,255,.06));overflow-wrap:anywhere}.live-room-picks td:last-child{text-align:right;color:var(--silver)}.live-room-player{color:var(--white);background:none;border:0;padding:7px 0;min-height:44px;text-align:left;font-weight:700;line-height:1.4;width:100%}.live-room-player:disabled{cursor:default}.live-room-player small{display:block;font-size:.65rem;font-weight:400;color:var(--silver);margin-top:3px}
         .live-room-method{font-size:.66rem;color:var(--silver);line-height:1.6;margin:12px 0 0;padding-top:10px;border-top:1px solid var(--ov-4,rgba(255,255,255,.06))}
-        @media(max-width:1000px){.live-room-workspace .live-room{max-height:760px}.live-room-workspace .mock-panel{min-height:500px}}
-        @media(max-width:767px){.live-room-head{padding:12px}.live-room-scroll{padding:9px}.live-room-team{padding:12px}.live-room-grid{grid-template-columns:1fr}.live-room-pulse{padding:10px;font-size:.73rem}.live-room-pulse button{width:100%}.live-room-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.live-room-tools>.live-room-control{min-width:0;white-space:nowrap}.live-room-tools>select{grid-column:1/-1;width:100%}.live-room-detail-top>.live-room-control{padding:8px}.live-room-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:1000px){.live-room-workspace .mock-panel{min-height:500px}}
+        @media(max-width:767px){.live-room-head{padding:12px}.live-room-content{padding:9px}.live-room-team{padding:12px}.live-room-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.live-room-team-title strong{font-size:.75rem}.live-room-team .live-room-positions{gap:3px}.live-room-team .live-room-position{padding:2px 3px;font-size:.6rem}.live-room-team .live-room-last{display:none}.live-room-pulse{padding:10px;font-size:.73rem}.live-room-pulse button{width:100%}.live-room-tools{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.live-room-tools>.live-room-control{min-width:0;white-space:nowrap}.live-room-tools>select{grid-column:1/-1;width:100%}.live-room-detail-top>.live-room-control{padding:8px}.live-room-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
     `;
 
     function LiveRoomStyles() { return <style>{CSS}</style>; }
@@ -83,33 +83,31 @@
     function TeamDetail({ team, room, onBack, onSelect, following, onFollow }) {
         const showGrades = pro() && !room.isAuction;
         const average = team.value.averageDelta;
+        const [position, setPosition] = React.useState('all');
+        const [page, setPage] = React.useState(0);
+        const picks = team.picks.slice().reverse().filter(p => position === 'all' || p.pos === position);
+        const pages = Math.max(1, Math.ceil(picks.length / 3));
+        const currentPage = Math.min(page, pages - 1);
         return <>
             <div className="live-room-detail-top">
                 <button type="button" className="live-room-control" onClick={onBack}>← All teams</button>
                 <select className="live-room-control" aria-label="Team to inspect" value={team.rosterId} onChange={e => onSelect(e.target.value)}>{room.teams.map(t => <option key={t.rosterId} value={t.rosterId}>{t.teamName}{t.isUser ? ' (You)' : ''}</option>)}</select>
                 {!room.isComplete && !room.isAuction && <button type="button" className="live-room-control" aria-pressed={following} onClick={onFollow}>Follow clock</button>}
             </div>
-            <h2 className="live-room-detail-title">{team.teamName}{team.isUser ? ' · You' : ''}</h2>
-            <p className="live-room-story">{nextText(team, room)}<br />{team.story}</p>
-            <div className="live-room-metrics">
-                <div className="live-room-metric"><small>Players drafted</small><strong>{team.pickCount}</strong><span>{room.isAuction ? 'Auction selections' : team.remainingPicks == null ? 'Pick order unavailable' : team.remainingPicks + ' picks remaining'}</span></div>
-                <div className="live-room-metric"><small>Lineup coverage</small><strong>{team.startingLineup.known ? team.startingLineup.filled + '/' + team.startingLineup.total : '—'}</strong><span>{team.startingLineup.known ? 'starting slots filled' : room.isRookie ? 'Rookie additions' : 'Lineup settings unavailable'}</span></div>
-                {showGrades && <div className="live-room-metric"><small>Draft grade</small><strong style={{ color: gradeColor(team.grade.letter) }}>{team.grade.letter}</strong><span>{team.grade.available ? (room.isComplete ? 'Final class' : 'So far · provisional') : team.pickCount ? 'Value data incomplete' : 'Awaiting first pick'}</span></div>}
-                {showGrades && <div className="live-room-metric"><small>Board value / pick</small><strong>{average == null ? '—' : (average > 0 ? '+' : '') + average.toFixed(1)}</strong><span>{average == null ? 'Ranking unavailable' : 'places vs DHQ board'}</span></div>}
-            </div>
+            <div className="live-room-summary"><strong>{nextText(team, room)}</strong><span>{team.pickCount} drafted · {team.startingLineup.known ? team.startingLineup.filled + '/' + team.startingLineup.total + ' starters' : 'Lineup unknown'}{showGrades ? ' · Grade ' + team.grade.letter : ''}{showGrades && average != null ? ' · ' + (average > 0 ? '+' : '') + average.toFixed(1) + ' places / pick' : ''}</span></div>
             <Positions team={team} />
-            <div className="live-room-needs"><h4>{team.needsBasis}</h4>
-                {!team.needsKnown ? <p>Needs will appear when roster and lineup information is available.</p>
-                    : team.needs.length ? team.needs.map(n => <p key={n.pos}><strong>{n.pos}</strong> · {n.label}</p>)
-                        : <p>{team.startingLineup.known ? 'All starting slots are covered. Additional picks build depth.' : 'No pre-draft needs were recorded.'}</p>}
-                {team.startingLineup.known && team.startingLineup.openSlots.length > 0 && <p>Still open: {team.startingLineup.openSlots.join(', ')}</p>}
-            </div>
-            <h4>Draft class · latest first</h4>
-            {!team.picks.length ? <div className="live-room-empty">{team.teamName} hasn’t selected a player yet.</div> : <table className="live-room-picks"><thead><tr><th>Pick</th><th>Player</th><th>DHQ</th></tr></thead><tbody>
-                {team.picks.slice().reverse().map(p => <tr key={p.overall + ':' + p.pid}><td>{p.pickLabel}</td><td><button type="button" className="live-room-player" disabled={!p.pid || typeof window.openPlayerModal !== 'function'} onClick={() => window.openPlayerModal(p.pid)}>{p.name}<small><span style={{ color: COLORS[p.pos] }}>{p.pos}</span>{p.team ? ' · ' + p.team : ''}{showGrades && p.valueDelta != null ? ' · ' + (p.valueDelta > 0 ? '+' : '') + p.valueDelta + ' vs board' : ''}</small></button></td><td>{p.dhq > 0 ? number(p.dhq) : '—'}</td></tr>)}
+            <p className="live-room-need-line">{needsText(team)}</p>
+            <div className="live-room-class-head"><h4>Draft class</h4><select className="live-room-control" aria-label="Filter draft class by position" value={position} onChange={e => { setPosition(e.target.value); setPage(0); }}><option value="all">All positions</option>{team.positionBuild.map(p => <option key={p.pos} value={p.pos}>{p.pos}</option>)}</select></div>
+            {!picks.length ? <div className="live-room-empty">No selections here yet.</div> : <table className="live-room-picks"><thead><tr><th>Pick</th><th>Player · latest first</th><th>DHQ</th></tr></thead><tbody>
+                {picks.slice(currentPage * 3, currentPage * 3 + 3).map(p => <tr key={p.overall + ':' + p.pid}><td>{p.pickLabel}</td><td><button type="button" className="live-room-player" disabled={!p.pid || typeof window.openPlayerModal !== 'function'} onClick={() => window.openPlayerModal(p.pid)}>{p.name}<small><span style={{ color: COLORS[p.pos] }}>{p.pos}</span>{p.team ? ' · ' + p.team : ''}{showGrades && p.valueDelta != null ? ' · ' + (p.valueDelta > 0 ? '+' : '') + p.valueDelta + ' vs DHQ rank' : ''}</small></button></td><td>{p.dhq > 0 ? number(p.dhq) : '—'}</td></tr>)}
             </tbody></table>}
-            {showGrades && <p className="live-room-method">{team.grade.basis}{team.grade.available ? '' : ' · ' + team.grade.reason} Positive board value means selected later than the common DHQ rank; negative means earlier. {team.value.rankedPicks}/{team.pickCount} picks ranked. {room.isComplete ? '' : 'Grades can change as the draft continues.'}</p>}
+            <Pager page={currentPage} pages={pages} onChange={setPage} label="Draft class" />
         </>;
+    }
+
+    function Pager({ page, pages, onChange, label }) {
+        if (pages <= 1) return null;
+        return <nav className="live-room-pager" aria-label={label + ' pages'}><button type="button" className="live-room-control" disabled={page === 0} onClick={() => onChange(page - 1)}>← Previous</button><span>{page + 1} / {pages}</span><button type="button" className="live-room-control" disabled={page + 1 >= pages} onClick={() => onChange(page + 1)}>Next →</button></nav>;
     }
 
     function LiveRoomPanel({ state }) {
@@ -118,39 +116,43 @@
         const [following, setFollowing] = React.useState(false);
         const [filter, setFilter] = React.useState('all');
         const [sort, setSort] = React.useState('next');
-        const scrollRef = React.useRef(null);
+        const [page, setPage] = React.useState(0);
+        React.useEffect(() => setPage(0), [filter, sort]);
         const effectiveFilter = room.nextUserPick && !room.isComplete && !room.isAuction ? filter : 'all';
         React.useEffect(() => {
             if (following && room.onClockRosterId) setSelectedId(room.onClockRosterId);
         }, [following, room.onClockRosterId]);
         const selected = room.teamsById[following ? room.onClockRosterId : selectedId] || room.teamsById[selectedId] || null;
-        const select = id => { setFollowing(false); setSelectedId(String(id)); if (scrollRef.current) scrollRef.current.scrollTop = 0; };
+        const select = id => { setFollowing(false); setSelectedId(String(id)); };
         const teams = room.teams.filter(t => effectiveFilter !== 'before' || (!t.isUser && t.picksBeforeUser > 0)).slice().sort((a, b) => {
             if (sort === 'value' && pro() && !room.isAuction) return (b.value.averageDelta ?? -Infinity) - (a.value.averageDelta ?? -Infinity) || a.teamName.localeCompare(b.teamName);
             if (sort === 'picks') return b.pickCount - a.pickCount || a.teamName.localeCompare(b.teamName);
             return (a.picksAway ?? Infinity) - (b.picksAway ?? Infinity) || a.teamName.localeCompare(b.teamName);
         });
+        const pages = Math.max(1, Math.ceil(teams.length / 4));
+        const currentPage = Math.min(page, pages - 1);
         return <section className="live-room" aria-label="Live team tracker">
             <LiveRoomStyles />
             <div className="live-room-head"><div className="live-room-title"><h3>Team tracker</h3><span className="live-room-count">{room.totalPicks > 0 ? room.pickCount + '/' + room.totalPicks + ' picks' : room.pickCount + ' picks synced'}</span></div>
-                <p>{room.isComplete ? 'The full picture of every team’s draft.' : 'Every roster taking shape. Select a team to inspect its entire draft.'}</p>
+                <p>{room.isComplete ? 'Compare the room. Open any team’s draft class.' : 'Who is building what — and who picks before you.'}</p>
                 {!room.isComplete && (state.liveSync?.stale || ['error', 'stale', 'offline'].includes(state.liveSync?.status)) && <p role="status" style={{ color: 'var(--warn, #efc271)' }}>Sync interrupted · showing the last received picks. Updates resume when the connection recovers.</p>}
                 {!selected && <div className="live-room-tools">
+                    <select className="live-room-control" aria-label="Jump to team" value="" onChange={e => select(e.target.value)}><option value="" disabled>Jump to team…</option>{room.teams.map(t => <option key={t.rosterId} value={t.rosterId}>{t.teamName}{t.isUser ? ' (You)' : ''}</option>)}</select>
                     <button type="button" className="live-room-control" aria-pressed={effectiveFilter === 'all'} onClick={() => setFilter('all')}>All teams</button>
                     {!room.isAuction && !room.isComplete && <button type="button" className="live-room-control" aria-pressed={effectiveFilter === 'before'} onClick={() => setFilter('before')} disabled={!room.nextUserPick}>Before my pick</button>}
                     <select className="live-room-control" aria-label="Sort teams" value={sort === 'value' && (!pro() || room.isAuction) ? 'next' : sort} onChange={e => setSort(e.target.value)}><option value="next">{room.isAuction || room.isComplete ? 'Team name' : 'Next to pick'}</option><option value="picks">Most picks</option>{pro() && !room.isAuction && <option value="value">Best board value</option>}</select>
                 </div>}
             </div>
-            <div className="live-room-scroll" ref={scrollRef}>
-                {selected ? <TeamDetail team={selected} room={room} onBack={() => { setSelectedId(null); setFollowing(false); }} onSelect={select} following={following} onFollow={() => { setSelectedId(selected.rosterId); setFollowing(!following); }} />
-                    : <div className="live-room-grid">{teams.map(team => <button type="button" className={'live-room-team' + (team.isOnClock ? ' is-clock' : '')} key={team.rosterId} onClick={() => select(team.rosterId)} aria-label={'Inspect ' + team.teamName + ' draft'}>
+            <div className="live-room-content">
+                {selected ? <TeamDetail key={selected.rosterId} team={selected} room={room} onBack={() => { setSelectedId(null); setFollowing(false); }} onSelect={select} following={following} onFollow={() => { setSelectedId(selected.rosterId); setFollowing(!following); }} />
+                    : <><div className="live-room-grid">{teams.slice(currentPage * 4, currentPage * 4 + 4).map(team => <button type="button" className={'live-room-team' + (team.isOnClock ? ' is-clock' : '')} key={team.rosterId} onClick={() => select(team.rosterId)} aria-label={'Inspect ' + team.teamName + ' draft'}>
                         {(team.isOnClock || team.isUser || team.picksBeforeUser > 0) && <span className="live-room-tag">{team.isOnClock ? 'On the clock' : team.isUser ? 'Your team' : 'Picks before you'}</span>}
                         <div className="live-room-team-title"><strong>{team.teamName}</strong>{pro() && !room.isAuction && <span className="live-room-grade" style={{ color: gradeColor(team.grade.letter) }} title={team.grade.available ? 'Draft grade so far' : team.grade.reason}>{team.grade.letter}</span>}</div>
                         <small>{team.pickCount} drafted · {nextText(team, room)}</small>
                         <Positions team={team} />
                         <small>{needsText(team)}</small>
                         <small className="live-room-last">{team.lastPick ? 'Last: ' + team.lastPick.name + ' · ' + team.lastPick.pickLabel : 'Waiting for first selection'} <span aria-hidden="true">→</span></small>
-                    </button>)}{!teams.length && <div className="live-room-empty">{effectiveFilter === 'before' ? (room.nextUserPick?.picksAway === 0 ? (room.onClockRosterId ? 'You’re on the clock. No teams pick before you.' : 'You have the next scheduled pick. No teams pick before you.') : 'No teams pick before your next selection.') : 'Team information is loading. The tracker will fill as the draft syncs.'}</div>}</div>}
+                    </button>)}{!teams.length && <div className="live-room-empty">{effectiveFilter === 'before' ? (room.nextUserPick?.picksAway === 0 ? (room.onClockRosterId ? 'You’re on the clock. No teams pick before you.' : 'You have the next scheduled pick. No teams pick before you.') : 'No teams pick before your next selection.') : 'Team information is loading. The tracker will fill as the draft syncs.'}</div>}</div><Pager page={currentPage} pages={pages} onChange={setPage} label="Teams" /></>}
             </div>
         </section>;
     }
