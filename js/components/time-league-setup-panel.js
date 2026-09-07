@@ -144,6 +144,10 @@
         const [tradesEnabled, setTradesEnabled] = useState(true);
         const [aiDifficulty, setAiDifficulty] = useState('veteran');
 
+        const [customSlots, setCustomSlots] = useState(null);
+        const [customStats, setCustomStats] = useState({});
+        const [customExtended, setCustomExtended] = useState(null);
+        const [qbLimit, setQbLimit] = useState(window.TimeLeagueUtils.MAX_QUARTERBACKS);
         const origin = playMode === 'friends' ? 'online' : 'local';
         const rosterOption = ROSTER_PRESET_OPTIONS.find((option) => option.id === rosterPreset) ?? ROSTER_PRESET_OPTIONS[1];
         const scoringOption = SCORING_PRESET_OPTIONS.find((option) => option.id === scoringPreset) ?? SCORING_PRESET_OPTIONS[0];
@@ -152,13 +156,13 @@
             decades: eraMode === 'any-era' ? [] : EraRules.ERA_DECADES.filter((decade) => eraDecades.includes(decade.id)).map((decade) => decade.id),
         }), [eraMode, eraDecades]);
         const settings = useMemo(() => ({
-            rosterSlots: rosterOption.slots,
-            scoring: scoringOption.scoring,
+            rosterSlots: customSlots || rosterOption.slots,
+            scoring: { ...scoringOption.scoring, stats: customStats, ...(customExtended ? { extended: customExtended } : {}) },
             regularSeasonWeeks: window.TimeLeagueUtils.REGULAR_SEASON_WEEKS,
             playoffTeams: seats.length >= playoffTeams ? playoffTeams : 2,
-            maxQuarterbacks: window.TimeLeagueUtils.MAX_QUARTERBACKS,
+            maxQuarterbacks: Math.max(qbLimit, (customSlots || rosterOption.slots).QB || 0),
             eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty,
-        }), [playoffTeams, seats.length, rosterOption, scoringOption, eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty]);
+        }), [customSlots, customStats, customExtended, qbLimit, playoffTeams, seats.length, rosterOption, scoringOption, eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty]);
         const capacity = Engine.rosterCapacity(settings);
         const humanSeats = seats.filter((seat) => seat.manager === 'human').length;
         const signedIn = onlineIndexState !== 'signed-out' && Boolean(window.App.OD && window.App.OD.getCurrentUserId && window.App.OD.getCurrentUserId());
@@ -290,11 +294,26 @@
                         }))),
                     h('div', { className: 'tl-rules-grid' },
                         h('label', { className: 'tl-field' }, h('span', { className: 'tl-label' }, 'Roster size'),
-                            h('select', { className: 'tl-select', value: rosterPreset, onChange: (event) => setRosterPreset(event.target.value) }, ROSTER_PRESET_OPTIONS.map((option) => h('option', { key: option.id, value: option.id }, option.label))),
+                            h('select', { className: 'tl-select', value: rosterPreset, onChange: (event) => { setRosterPreset(event.target.value); setCustomSlots(null); } }, ROSTER_PRESET_OPTIONS.map((option) => h('option', { key: option.id, value: option.id }, option.label))),
                             h('small', null, rosterOption.detail)),
                         h('label', { className: 'tl-field' }, h('span', { className: 'tl-label' }, 'Scoring'),
-                            h('select', { className: 'tl-select', value: scoringPreset, onChange: (event) => setScoringPreset(event.target.value) }, SCORING_PRESET_OPTIONS.map((option) => h('option', { key: option.id, value: option.id }, option.label))),
+                            h('select', { className: 'tl-select', value: scoringPreset, onChange: (event) => { setScoringPreset(event.target.value); setCustomStats({}); setCustomExtended(null); } }, SCORING_PRESET_OPTIONS.map((option) => h('option', { key: option.id, value: option.id }, option.label))),
                             h('small', null, scoringOption.detail))),
+                    h('details', { className: 'tl-custom-rules' }, h('summary', null, `Customize roster · ${capacity} slots`),
+                        h('div', { className: 'tl-custom-grid' }, window.App.TimeLeagueRoster.ROSTER_SLOT_IDS.map(slot => h('label', { key: slot }, h('span', null, slot),
+                            h('input', { className: 'tl-input', type: 'number', min: 0, max: 12, step: 1, value: settings.rosterSlots[slot] || 0, onChange: event => setCustomSlots({ ...settings.rosterSlots, [slot]: Math.max(0, Math.min(12, Math.floor(Number(event.target.value) || 0))) }) })))),
+                        h('label', null, 'Maximum quarterbacks on a roster', h('input', { className: 'tl-input', type: 'number', min: Math.max(0, settings.rosterSlots.QB || 0), max: 12, value: settings.maxQuarterbacks, onChange: event => setQbLimit(Math.max(0, Math.min(12, Number(event.target.value) || 0))) })),
+                        h('p', { className: 'tl-hint' }, 'Start with a preset, then set each slot count. IR and taxi are reserves. Historical player coverage varies by position and era.')),
+                    h('details', { className: 'tl-custom-rules' }, h('summary', null, 'Customize scoring · points per stat'),
+                        h('div', { className: 'tl-custom-grid' }, [
+                            ['passYd','Passing yard',scoringOption.scoring.passingYd], ['passTd','Passing TD',scoringOption.scoring.passTd], ['passInt','Interception thrown',scoringOption.scoring.turnover],
+                            ['rushYd','Rushing yard',scoringOption.scoring.rushRecYd], ['rushTd','Rushing TD',6], ['rec','Reception',scoringOption.scoring.reception],
+                            ['recYd','Receiving yard',scoringOption.scoring.rushRecYd], ['recTd','Receiving TD',6], ['fumblesLost','Fumble lost',scoringOption.scoring.turnover], ['twoPointConversions','Two-point conversion',2]
+                        ].map(([key,label,fallback]) => h('label', { key }, h('span', null, label), h('input', { className: 'tl-input', type: 'number', step: 'any', value: customStats[key] ?? fallback, onChange: event => { const value = Number(event.target.value); if (Number.isFinite(value)) setCustomStats({ ...customStats, [key]: value }); } })))),
+                        h('details', null, h('summary', null, 'Kicking, defense & IDP'),
+                            h('p', { className: 'tl-hint' }, 'Only stats present in historical game logs can score. Total field goals and distance bands overlap: use one method to avoid double-counting.'),
+                            h('div', { className: 'tl-custom-grid' }, window.App.TimeLeagueSeason.EXTENDED_STAT_IDS.map(key => h('label', { key }, h('span', null, ({ fgm: 'Field goal made (total)', fgmiss: 'Field goal missed (total)', xpm: 'Extra point made', xpmiss: 'Extra point missed', sack: 'Defense sack', int: 'Defense interception', ff: 'Defense forced fumble', fr: 'Defense fumble recovery', def_td: 'Defense touchdown', def_st_td: 'Special teams touchdown', safe: 'Defense safety' }[key] || key.replace('fgmiss_', 'Field goal missed ').replace('fgm_', 'Field goal made ').replace('idp_', 'IDP ').replace('tkl_solo','solo tackle').replace('tkl_ast','assisted tackle').replace('tkl_loss','tackle for loss').replace('pass_def','pass defended').replace(/_/g, ' ').replace('50p','50+ yards'))), h('input', { className: 'tl-input', type: 'number', step: 'any', value: (customExtended || window.App.TimeLeagueSeason.REFERENCE_EXTENDED_SCORING)[key] ?? 0, onChange: event => { const value = Number(event.target.value); if (Number.isFinite(value)) setCustomExtended({ ...(customExtended || window.App.TimeLeagueSeason.REFERENCE_EXTENDED_SCORING), [key]: value }); } }))))),
+                        h('p', { className: 'tl-hint' }, 'Positive values award points; negative values deduct points. Preset selection resets custom scoring. Custom rules apply to game results; archive card totals remain reference values.')),
                     h('div', { className: 'tl-toggle-grid' },
                         h('label', { className: 'tl-toggle' }, h('input', { type: 'checkbox', checked: eraAdjusted, onChange: (event) => setEraAdjusted(event.target.checked) }),
                             h('span', null, h('b', null, 'Era-adjusted scoring'), h('small', null, 'Normalize production across decades.'))),
@@ -312,7 +331,7 @@
                 h('div', null,
                     h('span', { className: `tl-era-icon ${selectedEra.tone}` }, selectedEra.icon),
                     h('p', null, h('b', null, `${selectedEra.label} · ${seats.length} teams`), h('span', null, `${seats.length * capacity} draft picks · ${window.TimeLeagueUtils.REGULAR_SEASON_WEEKS}-week season`))),
-                h('button', { type: 'button', className: 'tl-btn primary tl-launch-btn', onClick: startLeague, disabled: creating || (origin === 'online' && !signedIn) },
+                h('button', { type: 'button', className: 'tl-btn primary tl-launch-btn', onClick: startLeague, disabled: creating || capacity === 0 || !Object.entries(settings.rosterSlots).some(([slot,count]) => !['BN','IR','TAXI'].includes(slot) && count > 0) || (origin === 'online' && !signedIn) },
                     creating ? 'CREATING LEAGUE…' : playMode === 'friends' ? 'CREATE & INVITE →' : 'START SOLO DRAFT →')));
     }
 

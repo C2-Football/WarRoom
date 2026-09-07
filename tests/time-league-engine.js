@@ -301,6 +301,18 @@ test('completed standings-only season can explicitly reopen for playoffs once', 
     assert.strictEqual(Engine.startPlayoffs(reopened, 4), reopened);
 });
 
+test('custom roster and scoring survive storage and price full stat lines', () => {
+    const scoring = { ...SCORING, stats: { rushTd: 9, recTd: 8, passInt: -4, rec: 2 }, extended: { idp_sack: 5, fgm_50p: 7 } };
+    const state = Engine.createTimeLeague({ name: 'Custom', seed: 'custom', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings({ rosterSlots: { QB: 2, RB: 3, WR: 4, TE: 2, FLEX: 2, BN: 5 }, scoring, maxQuarterbacks: 4 }), seats: seats() });
+    const restored = Engine.normalizeTimeLeague(JSON.parse(JSON.stringify(state)));
+    assert.deepStrictEqual(restored.settings.scoring, scoring);
+    assert.equal(Engine.rosterCapacity(restored.settings), 18);
+    const S = window.App.TimeLeagueSeason;
+    const line = { ...S.emptyStatLine(), rushTd: 1, recTd: 1, passInt: 1, rec: 3, extra: { idp_sack: 1, fgm_50p: 1 } };
+    assert.equal(S.scoreStatLine(line, restored.settings.scoring), 31);
+    assert.equal(Engine.normalizeTimeLeague({ ...state, settings: { ...state.settings, scoring: { ...scoring, stats: { rec: Infinity } } } }), null);
+});
+
 test('FAAB: highest bid wins a contested free agent and pays its own bid', () => {
     const cards = samplePool();
     const settings = baseSettings({ waiverMode: 'faab', faabBudget: 100 });

@@ -220,15 +220,14 @@
      * `stats.extra` (kicking, team defense, IDP) is paid against `extended`.
      */
     function scoreStatLine(stats, scoring, extended = REFERENCE_EXTENDED_SCORING) {
-        const points = stats.passYd * scoring.passingYd
-            + stats.passTd * scoring.passTd
-            + (stats.rushYd + stats.recYd) * scoring.rushRecYd
-            + stats.rec * scoring.reception
-            + (stats.rushTd + stats.recTd) * RUSH_REC_TD_POINTS
-            + stats.twoPointConversions * TWO_POINT_CONVERSION_POINTS
-            + (stats.passInt + stats.fumblesLost) * scoring.turnover;
+        const weights = { passYd: scoring.passingYd, passTd: scoring.passTd,
+            rushYd: scoring.rushRecYd, recYd: scoring.rushRecYd, rec: scoring.reception,
+            rushTd: RUSH_REC_TD_POINTS, recTd: RUSH_REC_TD_POINTS,
+            twoPointConversions: TWO_POINT_CONVERSION_POINTS, passInt: scoring.turnover,
+            fumblesLost: scoring.turnover, ...scoring.stats };
+        const points = Object.entries(weights).reduce((sum, [key, weight]) => sum + (stats[key] || 0) * weight, 0);
         const core = Math.round(points * 100) / 100;
-        const extraPoints = scoreExtendedStats(stats.extra, extended);
+        const extraPoints = scoreExtendedStats(stats.extra, scoring.extended || extended);
         return extraPoints === 0 ? core : Math.round((core + extraPoints) * 100) / 100;
     }
 
@@ -286,7 +285,7 @@
     }
 
     const api = {
-        isStarterSlot, emptyStatLine, REFERENCE_EXTENDED_SCORING, scoreExtendedStats,
+        isStarterSlot, emptyStatLine, EXTENDED_STAT_IDS, REFERENCE_EXTENDED_SCORING, scoreExtendedStats,
         gameLogKey, parseGameLogCsv, buildGameLogIndex, scoreStatLine, eraFactorFor,
         buildRoundRobinSchedule, rosterOutlook,
     };

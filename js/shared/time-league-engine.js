@@ -690,6 +690,15 @@
             if (parsed === null) return null;
             scoring[key] = parsed;
         }
+        for (const [group, keys] of [['stats', STAT_KEYS], ['extended', App.TimeLeagueSeason.EXTENDED_STAT_IDS]]) {
+            if (value.scoring[group] === undefined) continue;
+            if (!isRecord(value.scoring[group])) return null;
+            scoring[group] = {};
+            for (const [key, weight] of Object.entries(value.scoring[group])) {
+                if (!keys.includes(key) || readNumber(weight) === null) return null;
+                scoring[group][key] = weight;
+            }
+        }
         const regularSeasonWeeks = readNumber(value.regularSeasonWeeks);
         const maxQuarterbacks = readNumber(value.maxQuarterbacks);
         if (regularSeasonWeeks === null || maxQuarterbacks === null) return null;
@@ -698,7 +707,7 @@
             scoring,
             regularSeasonWeeks: clampInt(regularSeasonWeeks, 1, 18),
             playoffTeams: [2,4].includes(value.playoffTeams) && regularSeasonWeeks + (value.playoffTeams === 4 ? 2 : 1) <= 18 ? value.playoffTeams : 0,
-            maxQuarterbacks: clampInt(maxQuarterbacks, 0, 8),
+            maxQuarterbacks: clampInt(maxQuarterbacks, 0, 12),
             // Saves written before era drafting existed carry no rules at all; they
             // load as any-era instead of locking the league out of every player.
             eraRules: normalizeEraDraftRules(value.eraRules),
