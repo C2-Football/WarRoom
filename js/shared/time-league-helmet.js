@@ -1,13 +1,19 @@
 // ══════════════════════════════════════════════════════════════════
 // js/shared/time-league-helmet.js — window.App.TimeLeagueHelmet
-// A deterministic, backwards-compatible retro football helmet identity.
-// The saved spec is intentionally small; the SVG component turns it into
-// a detailed shell, stripe, decal and facemask everywhere in The Vault.
+// A backwards-compatible team identity backed by complete sourced helmet art.
+// Legacy component choices are retained in saves, but only the selected whole
+// artwork and its supported colors determine the rendered helmet.
 // ══════════════════════════════════════════════════════════════════
 (function (root) {
     'use strict';
     const App = root.App = root.App || {};
     const Roster = App.TimeLeagueRoster;
+
+    const ARTWORKS = [
+        { id: 'cyberscooty', label: 'Classic side view', artist: 'cyberscooty', sourceUrl: 'https://openclipart.org/detail/212653/american-football-helmet', license: 'CC0', licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/', src: 'images/time-league/helmets/cyberscooty.svg', colors: ['shell', 'stripe', 'facemask'] },
+        { id: 'simanek', label: 'Three-quarter view', artist: 'simanek', sourceUrl: 'https://commons.wikimedia.org/wiki/File:FootballHelmet.svg', license: 'CC0', licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/', src: 'images/time-league/helmets/simanek.svg', colors: ['shell', 'stripe', 'facemask'] },
+    ];
+    function artworkById(id) { return ARTWORKS.find(artwork => artwork.id === id) || ARTWORKS[0]; }
 
     const HELMET_COLORS = [
         { id: 'crimson', label: 'Crimson', hex: '#8C1D2C' },
@@ -46,9 +52,9 @@
         { id: 'mint', label: 'Mint', hex: '#89EED3' },
     ];
     const SHELL_STYLES = [
-        { id: 'round-70', label: '70s Round', era: '1970s', path: 'M1 57V29h3v-9h5v-6h7V9h10V5h12V2h24v2h11v4h8v6h6v9h3v21h-6v5H74v10h-5v17h-7v9H39v-4H28v-6H16v-3H7v-7H1Z' },
-        { id: 'high-80', label: '80s High Dome', era: '1980s', path: 'M1 57V27h3v-9h5v-6h7V7h10V3h12V1h24v2h11v4h8v6h6v9h3v22h-6v5H74v10h-5v17h-7v9H39v-4H28v-6H16v-3H7v-7H1Z' },
-        { id: 'low-90', label: '90s Low Crown', era: '1990s', path: 'M1 57V32h3v-8h5v-6h7v-5h10V9h12V6h27v2h11v4h8v6h6v8h3v18h-7v5H74v10h-5v17h-7v9H39v-4H28v-6H16v-3H7v-7H1Z' },
+        { id: 'round-70', label: '70s Round', era: '1970s' },
+        { id: 'high-80', label: '80s High Dome', era: '1980s' },
+        { id: 'low-90', label: '90s Low Crown', era: '1990s' },
         { id: 'speed', label: 'Speed Shell', era: 'Swept crown · rear vents' },
         { id: 'sculpted', label: 'Sculpted Shell', era: 'Angular brow · contoured panels' },
         { id: 'impact', label: 'Impact Shell', era: 'Wide crown · split panels' },
@@ -147,7 +153,7 @@
     function buildHelmet(seedKey) {
         const random = Roster.createSeededRandom(`helmet:${seedKey}`);
         const preset = HELMET_PRESETS[Math.floor(random() * HELMET_PRESETS.length)];
-        return { paintStyle: 'solid', visor: 'none', ...preset.spec, shellColor: '', stripe: preset.spec.stripeStyle !== 'none', monogram: '' };
+        return { assetId: ARTWORKS[0].id, artworkMode: 'team-colors', paintStyle: 'solid', visor: 'none', ...preset.spec, shellColor: '', stripe: preset.spec.stripeStyle !== 'none', monogram: '' };
     }
 
     function defaultHelmet(seedKey) { return buildHelmet(seedKey); }
@@ -157,6 +163,8 @@
         if (!value || typeof value !== 'object' || Array.isArray(value)) return fallback;
         const stripeStyle = value.stripe === false ? 'none' : stripeById(value.stripeStyle || 'single').id;
         return {
+            assetId: artworkById(value.assetId).id,
+            artworkMode: value.artworkMode === 'original' ? 'original' : 'team-colors',
             shell: shellById(value.shell || fallback.shell).id,
             color: colorById(value.color || fallback.color).id,
             shellColor: safeHex(value.shellColor, ''),
@@ -175,7 +183,7 @@
 
     function presetHelmet(id) {
         const preset = HELMET_PRESETS.find((item) => item.id === id) || HELMET_PRESETS[0];
-        return { paintStyle: 'solid', visor: 'none', shellColor: '', ...preset.spec, stripe: preset.spec.stripeStyle !== 'none' };
+        return { assetId: ARTWORKS[0].id, artworkMode: 'team-colors', paintStyle: 'solid', visor: 'none', shellColor: '', ...preset.spec, stripe: preset.spec.stripeStyle !== 'none' };
     }
 
     function letterFor(name) {
@@ -191,6 +199,7 @@
     }
 
     const api = {
+        ARTWORKS, artworkById,
         HELMET_COLORS, ACCENT_COLORS, SHELL_STYLES, FACEMASK_STYLES, FACEMASK_COLORS, FACEMASK_FINISHES,
         DECAL_STYLES, STRIPE_STYLES, STRIPE_COLORS, HELMET_PRESETS, PAINT_STYLES, VISOR_STYLES,
         colorById, shellById, facemaskById, decalById, stripeById, paintById, visorById, shellColorFor,

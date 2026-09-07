@@ -9,7 +9,7 @@ global.localStorage = { getItem: key => disk.get(key) || null, setItem: (key, va
 let userId = null;
 App.OD = { getCurrentUserId: () => userId };
 const Profile = require('../js/shared/time-league-profile.js');
-const named = { displayName: 'A Manager', teamName: 'Night Owls', primaryColor: '#123456', secondaryColor: '#fedcba', backdrop: 'aurora', helmet: { ...App.TimeLeagueHelmet.presetHelmet('ice-wolves'), shellColor: '#123456', visor: 'smoke' }, publicProfile: true, lookingForLeague: true };
+const named = { displayName: 'A Manager', teamName: 'Night Owls', primaryColor: '#123456', secondaryColor: '#fedcba', backdrop: 'aurora', helmet: { ...App.TimeLeagueHelmet.presetHelmet('ice-wolves'), assetId: 'simanek', artworkMode: 'original', shellColor: '#123456', visor: 'smoke' }, publicProfile: true, lookingForLeague: true };
 async function run() {
     assert.equal(Profile.hasSaved(), false);
     assert.equal(Profile.teamDefaults(), null, 'New players keep the existing default setup until they save an identity');
@@ -29,6 +29,8 @@ async function run() {
     assert.equal(result.profile.lookingForLeague, false);
     assert.equal(Profile.teamDefaults().name, 'Night Owls');
     assert.equal(Profile.teamDefaults().helmet.visor, 'smoke');
+    assert.equal(Profile.teamDefaults().helmet.assetId, 'simanek');
+    assert.equal(Profile.teamDefaults().helmet.artworkMode, 'original');
     assert.equal(Profile.teamDefaults().backdrop, 'aurora');
     let calls = 0;
     userId = 'alice';
@@ -45,6 +47,8 @@ async function run() {
     assert.equal(result.storage, 'account');
     assert.equal(result.profile.profileId, 'public-alice');
     assert.equal(Profile.readLocal().publicProfile, true);
+    assert.equal(Profile.readLocal().helmet.assetId, 'simanek', 'Account save must retain the complete artwork selection');
+    assert.equal(Profile.readLocal().helmet.artworkMode, 'original', 'Account save must retain original artist colors');
     result = await Profile.save({ ...Profile.readLocal(), publicProfile: false });
     assert.equal(result.profile.lookingForLeague, false, 'Leaving the public community also leaves discovery');
     userId = 'bob';

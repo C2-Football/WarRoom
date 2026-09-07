@@ -29,12 +29,9 @@
             setSnapshot(previous => ({ userId, loading: false, profile: Profile.normalize({ ...(previous.userId === userId ? previous.profile : Profile.readLocal()), ...patch }) }));
             setFeedback(null);
         };
-        const updateHelmet = helmet => {
-            change({ helmet, primaryColor: Helmet.shellColorFor?.(helmet) || Helmet.colorById(helmet.color).hex, secondaryColor: helmet.accentColor });
-        };
-        const changeColor = (key, color) => {
-            change({ [key]: color, helmet: { ...draft.helmet, ...(key === 'primaryColor' ? { shellColor: color } : { accentColor: color, ...(draft.helmet.stripeColor === draft.secondaryColor ? { stripeColor: color } : {}) }) } });
-        };
+        const updateHelmet = helmet => change({ helmet });
+        const changeColor = (key, color) => change({ [key]: color });
+        const matchTeamColors = () => change({ helmet: { ...draft.helmet, artworkMode: 'team-colors', shellColor: draft.primaryColor, stripeColor: draft.secondaryColor } });
         const save = async event => {
             event.preventDefault();
             if (frozen || saveInProgress.current) return;
@@ -70,7 +67,7 @@
                             setSnapshot(previous => ({ ...previous, profile: { ...previous.profile, teamName: value } })); setFeedback(null);
                         } }))),
                     h('div', { className: 'tl-profile-design-row' },
-                        h('div', { className: 'tl-profile-helmet-control' }, h(window.TimeLeagueHelmetPicker, { helmet: draft.helmet, name: draft.teamName, letter: mark, onChange: updateHelmet }), h('div', null, h('strong', null, 'Helmet studio'), h('p', null, 'Choose your shell, paint, logo, facemask and visor.'))),
+                        h('div', { className: 'tl-profile-helmet-control' }, h(window.TimeLeagueHelmetPicker, { helmet: draft.helmet, name: draft.teamName, letter: mark, onChange: updateHelmet }), h('div', null, h('strong', null, 'Helmet artwork'), h('p', null, 'Choose a complete helmet illustration and its colors.'), h('button', { type: 'button', className: 'tl-btn', onClick: matchTeamColors }, 'Use team colors on helmet'))),
                         [['primaryColor', 'Primary color'], ['secondaryColor', 'Accent color']].map(([id, label]) => h('label', { key: id, className: 'tl-profile-color' }, h('span', null, label), h('div', null, h('input', { type: 'color', value: draft[id], 'aria-label': label, onChange: event => changeColor(id, event.target.value) }), h('b', null, draft[id]))))),
                     h('div', { className: 'tl-profile-backdrops' }, h('h4', null, 'Your backdrop'), h('div', { className: 'tl-profile-backdrop-options' }, Profile.BACKDROPS.map(item => h('button', { type: 'button', key: item.id, className: `tl-profile-backdrop-option tl-profile-backdrop-${item.id}${draft.backdrop === item.id ? ' selected' : ''}`, 'aria-pressed': draft.backdrop === item.id, onClick: () => change({ backdrop: item.id }) }, h('strong', null, item.label), h('small', null, item.detail), draft.backdrop === item.id && h('span', { 'aria-hidden': true }, '✓'))))),
                     h('div', { className: 'tl-profile-visibility' }, h('h4', null, 'Join the community'),

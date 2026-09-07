@@ -53,7 +53,9 @@ jobs:
       # + trade-calculator) to plain JS so production no longer downloads ~3.1MB of
       # @babel/standalone or runs the in-browser JSX transform on cold load.
       - name: Precompile JSX for production (drop in-browser Babel)
-        run: node scripts/build-deploy.cjs
+        run: |
+          node scripts/build-time-league-helmet-sources.cjs --check
+          node scripts/build-deploy.cjs
 
       - name: Build Pages artifact
         run: |
@@ -70,6 +72,9 @@ jobs:
           # The Vault loads its historical player cards and game logs on demand.
           mkdir -p pages-artifact/data
           cp -R data/time-league pages-artifact/data/
+          # Complete helmet originals are loaded directly in artist-color mode.
+          mkdir -p pages-artifact/images/time-league
+          cp -R images/time-league/helmets pages-artifact/images/time-league/
           rm -rf pages-artifact/**/.git pages-artifact/**/node_modules pages-artifact/**/supabase pages-artifact/**/tests
 
       - name: Setup Pages

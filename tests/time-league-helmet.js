@@ -99,16 +99,39 @@ test('legacy designs acquire no surprise paint or visor and invalid custom value
     assert.strictEqual(invalid.paintStyle, 'solid');
 });
 
-// Render the real component tree without a browser. This catches a previous
-// regression where the saved shell/mask controls had no effect on SVG geometry.
-let renderId = 0;
+test('whole artwork selections and original color mode survive a saved-spec round trip', () => {
+    for (const artwork of Helmet.ARTWORKS) {
+        const selected = Helmet.normalizeHelmet({ ...Helmet.presetHelmet('midnight'), assetId: artwork.id, artworkMode: 'original' });
+        assert.strictEqual(selected.assetId, artwork.id);
+        assert.strictEqual(selected.artworkMode, 'original');
+        assert.deepStrictEqual(Helmet.normalizeHelmet(JSON.parse(JSON.stringify(selected))), selected);
+        assert.ok(require('fs').existsSync(require('path').join(__dirname, '..', artwork.src)));
+        assert.ok(artwork.sourceUrl.startsWith('https://'));
+        assert.strictEqual(artwork.license, 'CC0');
+    }
+});
+
+test('legacy specs select complete artwork and untrusted asset paths are rejected', () => {
+    const legacy = Helmet.normalizeHelmet({ color: 'navy', facemaskColor: '#111111' });
+    assert.strictEqual(legacy.assetId, 'cyberscooty');
+    assert.strictEqual(legacy.artworkMode, 'team-colors');
+    assert.strictEqual(legacy.color, 'navy');
+    const invalid = Helmet.normalizeHelmet({ assetId: 'https://example.test/tracking.svg', artworkMode: '<script>', src: 'javascript:alert(1)' });
+    assert.strictEqual(invalid.assetId, 'cyberscooty');
+    assert.strictEqual(invalid.artworkMode, 'team-colors');
+    assert.strictEqual(invalid.src, undefined);
+});
+
+// Render the actual shared image and picker without a browser. The renderer
+// must use one complete sourced image, regardless of saved legacy gear fields.
 global.React = {
     createElement: (type, props, ...children) => ({ type, props: props || {}, children }),
-    useId: () => `helmet-test-${++renderId}`,
     Fragment: 'fragment',
 };
+require('../js/shared/time-league-helmet-sources.js');
+require('../js/shared/time-league-helmet-artwork.js');
 require('../js/components/time-league-helmet.js');
-function helmetNodes(helmet) {
+function nodesFor(tree) {
     const nodes = [];
     function visit(node) {
         if (!node || typeof node !== 'object') return;
@@ -117,36 +140,59 @@ function helmetNodes(helmet) {
         nodes.push(node);
         (node.children || []).forEach(visit);
     }
-    visit(window.TimeLeagueHelmetIcon({ helmet, letter: 'VC' }));
+    visit(tree);
     return nodes;
 }
 
-test('each shell and facemask choice changes real rendered geometry', () => {
-    const base = Helmet.presetHelmet('blue-horseshoe');
-    const contours = Helmet.SHELL_STYLES.map(({ id }) => {
-        const nodes = helmetNodes({ ...base, shell: id });
-        return nodes.find(node => node.props['data-helmet-shell'] === id)?.props.d;
-    });
-    assert.ok(contours.every(Boolean));
-    assert.strictEqual(new Set(contours).size, Helmet.SHELL_STYLES.length);
-    const masks = Helmet.FACEMASK_STYLES.map(({ id }) => helmetNodes({ ...base, facemask: id }).filter(node => node.type === 'path').map(node => node.props.d).join('|'));
-    assert.strictEqual(new Set(masks).size, Helmet.FACEMASK_STYLES.length);
-    const heritage = helmetNodes(base).filter(node => node.type === 'path');
-    assert.ok(heritage.some(node => node.props.d.startsWith('m771.53 369.88c-16.945')), 'native heritage cage geometry remains intact');
-    assert.ok(!helmetNodes({ ...base, facemask: 'none' }).some(node => node.props.d?.startsWith('m771.53 369.88c-16.945')), 'open shell removes the cage');
+test('icons render complete source images and never draw separate shells, masks or logos', () => {
+    for (const artwork of Helmet.ARTWORKS) {
+        const helmet = Helmet.normalizeHelmet({ assetId: artwork.id, artworkMode: 'original', shell: 'speed', facemask: 'power', paintStyle: 'winged', visor: 'ice', decal: 'wolf' });
+        const icon = window.TimeLeagueHelmetIcon({ helmet, letter: 'VC', size: 80, title: 'Vault Club helmet' });
+        assert.strictEqual(icon.type, 'img');
+        assert.strictEqual(icon.props.src, App.TimeLeagueHelmetArtwork.imageFor(helmet));
+        assert.strictEqual(icon.props['data-helmet-artwork'], artwork.id);
+        assert.strictEqual(icon.props.alt, 'Vault Club helmet');
+        assert.strictEqual(icon.props.width, 80);
+        assert.strictEqual(icon.props.height, 80);
+        assert.strictEqual(icon.children.length, 0);
+    }
+    const decorative = window.TimeLeagueHelmetIcon({ helmet: Helmet.defaultHelmet('VC') });
+    assert.strictEqual(decorative.props.alt, '');
+    assert.strictEqual(decorative.props['aria-hidden'], 'true');
 });
 
-test('paint and visor choices add visible layers while legacy defaults remain clean', () => {
-    const base = Helmet.presetHelmet('blue-horseshoe');
-    assert.ok(!helmetNodes(base).some(node => node.props['data-helmet-paint'] || node.props['data-helmet-visor']));
-    for (const { id } of Helmet.PAINT_STYLES.filter(style => style.id !== 'solid')) {
-        const layer = helmetNodes({ ...base, paintStyle: id }).find(node => node.props['data-helmet-paint'] === id);
-        assert.ok(layer?.children.length, id + ' has actual painted artwork');
+test('picker uses original asset thumbnails and only exposes supported color controls', () => {
+    const state = [];
+    let cursor = 0;
+    React.useState = initial => {
+        const index = cursor++;
+        if (!(index in state)) state[index] = typeof initial === 'function' ? initial() : initial;
+        return [state[index], value => { state[index] = typeof value === 'function' ? value(state[index]) : value; }];
+    };
+    React.useRef = value => ({ current: value });
+    React.useEffect = () => {};
+    const render = () => {
+        cursor = 0;
+        return nodesFor(window.TimeLeagueHelmetPicker({ helmet: Helmet.defaultHelmet('Club'), name: 'Club', onChange: () => {} }));
+    };
+    let nodes = render();
+    nodes.find(node => node.props['aria-label'] === 'Choose Club helmet').props.onClick();
+    nodes = render();
+    const choices = nodes.filter(node => node.type === 'button' && node.props.className === 'tl-artwork-choice');
+    assert.strictEqual(choices.length, Helmet.ARTWORKS.length);
+    for (const choice of choices) {
+        const preview = nodesFor(choice).find(node => node.type === 'img');
+        assert.strictEqual(preview.props['data-artwork-mode'], 'original');
     }
-    for (const { id } of Helmet.VISOR_STYLES.filter(style => style.id !== 'none')) {
-        const layer = helmetNodes({ ...base, visor: id }).find(node => node.props['data-helmet-visor'] === id);
-        assert.ok(layer?.children.length, id + ' has a lens');
-    }
+    const nav = nodes.find(node => node.props['aria-label'] === 'Helmet design controls');
+    const tabs = nodesFor(nav).filter(node => node.type === 'button');
+    assert.deepStrictEqual(tabs.map(node => node.children[0]), ['Helmets', 'Colors']);
+    tabs[1].props.onClick();
+    nodes = render();
+    assert.deepStrictEqual(nodes.filter(node => node.type === 'input').map(node => node.props['aria-label']), ['Custom shell color', 'Custom stripe color', 'Custom facemask color']);
+    const original = nodes.find(node => node.type === 'button' && node.children[0] === 'Original artwork');
+    original.props.onClick();
+    assert.strictEqual(render().filter(node => node.type === 'input').length, 0);
 });
 
 console.log('');

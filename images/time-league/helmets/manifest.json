@@ -1,0 +1,30 @@
+[
+  {
+    "id": "cyberscooty",
+    "author": "cyberscooty",
+    "title": "American Football Helmet",
+    "source": "https://openclipart.org/detail/212653/american-football-helmet",
+    "download": "https://openclipart.org/download/212653",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "file": "cyberscooty.svg",
+    "sha256": "e8bc2f0e91772cee56fb3a63e1205b2967a7dc792e68913d036709781bc42300",
+    "bytes": 25280,
+    "downloaded": "2026-09-07",
+    "sourceFileModified": false
+  },
+  {
+    "id": "simanek",
+    "author": "Simanek",
+    "title": "Football Helmet",
+    "source": "https://commons.wikimedia.org/wiki/File:FootballHelmet.svg",
+    "download": "https://openclipart.org/download/86827",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "file": "simanek.svg",
+    "sha256": "dce506482424033bd40355528d642e3990148a553467eb9fe96dd4563e91b7b3",
+    "bytes": 14471,
+    "downloaded": "2026-09-07",
+    "sourceFileModified": false
+  }
+]

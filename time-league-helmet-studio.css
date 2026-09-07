@@ -1,23 +1,31 @@
-/* Additional controls for the shared Vault helmet workshop. */
-.tl-identity-studio .tl-studio-gear-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
-.tl-identity-studio .tl-studio-gear-choice { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 8px 6px 13px; border: 2px solid #50617f; border-radius: 14px; color: #f2f5fc; background: #303f5b; cursor: pointer; min-width: 0; }
-.tl-identity-studio .tl-studio-gear-choice:hover { border-color: var(--lilac,#b8a1ff); }
-.tl-identity-studio .tl-studio-gear-choice[aria-pressed=true] { border-color: var(--mint,#89eed3); background: #345953; }
-.tl-identity-studio .tl-studio-gear-choice .tl-helmet { width: 100%; height: auto; max-width: 112px; filter: drop-shadow(0 4px 3px #08122566); }
-.tl-identity-studio .tl-studio-gear-choice b { font: 700 12px var(--font-body); text-align: center; }
-.tl-identity-studio .tl-studio-gear-choice small { margin-top: 5px; color: #bacce7; font: 10px/1.4 var(--font-body); text-align: center; }
-.tl-identity-studio .tl-studio-custom-color { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 10px 12px; border: 1px solid #536581; border-radius: 10px; background: #26344c; font-size: 12px; }
-.tl-identity-studio .tl-studio-custom-color span { margin-right: auto; }
-.tl-identity-studio .tl-studio-custom-color code { color: #bacce7; font-size: 10px; }
-.tl-identity-studio .tl-studio-custom-color input[type=color] { flex: none; width: 44px; height: 36px; padding: 2px; border: 1px solid #8294ae; border-radius: 6px; background: transparent; cursor: pointer; }
-.tl-identity-studio .tl-studio-visor-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
-.tl-identity-studio .tl-studio-visor-grid .tl-helmet-choice { text-align: center; padding: 12px 6px; }
+/* Whole sourced helmet art: no generated shell or facemask layers. */
+.tl-helmet-artwork { object-fit: contain; flex-shrink: 0; }
+.tl-sourced-helmets .tl-artwork-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+.tl-sourced-helmets .tl-artwork-choice { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; padding: 12px 10px 18px; border: 2px solid #50617f; border-radius: 16px; color: #f2f5fc; background: #303f5b; cursor: pointer; }
+.tl-sourced-helmets .tl-artwork-choice:hover { border-color: var(--lilac,#b8a1ff); }
+.tl-sourced-helmets .tl-artwork-choice[aria-pressed=true] { border-color: var(--mint,#89eed3); background: #345953; }
+.tl-sourced-helmets .tl-artwork-choice .tl-helmet { width: 100%; height: 180px; filter: drop-shadow(0 4px 3px #08122566); }
+.tl-sourced-helmets .tl-artwork-choice b { font: 700 14px var(--font-body); text-align: center; }
+.tl-sourced-helmets .tl-artwork-choice small { color: #bacce7; font: 11px/1.4 var(--font-body); text-align: center; }
+.tl-sourced-helmets .tl-artwork-note { margin: 18px 0; color: #c6d4e9; font: 12px/1.6 var(--font-body); }
+.tl-sourced-helmets .tl-artwork-modes { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+.tl-sourced-helmets .tl-artwork-modes button { flex: 1; min-height: 44px; padding: 10px 12px; color: #e9f0fa; background: #303f5b; border: 2px solid #50617f; border-radius: 10px; cursor: pointer; font: 700 12px var(--font-body); }
+.tl-sourced-helmets .tl-artwork-modes button[aria-pressed=true] { color: #102a26; background: var(--mint,#89eed3); border-color: var(--mint,#89eed3); }
+.tl-sourced-helmets .tl-artwork-credit { margin: 20px 0 0; color: #b7c6df; font: 11px/1.6 var(--font-body); }
+.tl-sourced-helmets .tl-artwork-credit a { color: #c9baff; text-decoration: underline; text-underline-offset: 3px; }
+.tl-sourced-helmets .tl-studio-signature b { font-size: 23px; }
+.tl-sourced-helmets .tl-studio-custom-color { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 10px 12px; border: 1px solid #536581; border-radius: 10px; background: #26344c; font-size: 12px; }
+.tl-sourced-helmets .tl-studio-custom-color span { margin-right: auto; }
+.tl-sourced-helmets .tl-studio-custom-color code { color: #bacce7; font-size: 10px; }
+.tl-sourced-helmets .tl-studio-custom-color input[type=color] { flex: none; width: 44px; height: 36px; padding: 2px; border: 1px solid #8294ae; border-radius: 6px; background: transparent; cursor: pointer; }
 @media(max-width:700px) {
-  .tl-identity-studio .tl-studio-tabs { gap: 4px; }
-  .tl-identity-studio .tl-studio-tabs button { font-size: 11px; padding: 10px 3px; }
-  .tl-identity-studio .tl-studio-gear-grid { gap: 8px; }
-  .tl-identity-studio .tl-studio-custom-color { flex-wrap: wrap; }
+  .tl-sourced-helmets .tl-artwork-grid { gap: 10px; }
+  .tl-sourced-helmets .tl-artwork-choice .tl-helmet { height: 140px; }
+  .tl-sourced-helmets .tl-artwork-choice b { font-size: 12px; }
+  .tl-sourced-helmets .tl-studio-custom-color { flex-wrap: wrap; }
+  .tl-sourced-helmets .tl-studio-signature b { font-size: 18px; }
 }
 @media(max-width:370px) {
-  .tl-identity-studio .tl-studio-gear-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .tl-sourced-helmets .tl-artwork-choice .tl-helmet { height: 110px; }
+  .tl-sourced-helmets .tl-artwork-modes { flex-direction: column; }
 }
