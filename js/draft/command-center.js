@@ -4401,6 +4401,7 @@
         const laneChoices = boardIsPro ? ['dhq', 'ai', 'my'] : ['dhq', 'my'];
         const initialLane = laneChoices.includes(boardContext.activeLane) ? boardContext.activeLane : 'dhq';
         const [boardLane, setBoardLane] = React.useState(initialLane);
+        const showDraftedRows = state.mode === 'live-sync';
         const posColors = window.App?.POS_COLORS || {};
         const normPos = window.App?.normPos || (p => p);
         const canPick = isUserTurn || state.overrideMode || state.mode === 'manual';
@@ -4429,7 +4430,12 @@
             return [...base, ...groups];
         }, [state.pool, state.draftContext?.leagueFormat, isRedraftBoard]);
         const lanePool = React.useMemo(() => {
-            const pool = state.pool || [];
+            // Mocks consume players from the board as they are selected. The live
+            // follower is a tracking surface: retain the original board so synced
+            // picks remain visible as crossed-off rows instead of disappearing.
+            const pool = showDraftedRows && state.originalPool?.length
+                ? state.originalPool
+                : (state.pool || []);
             const laneOrder = boardContext?.lanes?.[boardLane]?.order || [];
             if (!laneOrder.length) return pool.map((p, idx) => ({ ...p, boardRank: idx + 1 }));
             const byId = new Map();
@@ -4449,7 +4455,7 @@
                 if (!seen.has(String(player.pid))) ordered.push(player);
             });
             return ordered.map((p, idx) => ({ ...p, boardRank: idx + 1 }));
-        }, [state.pool, boardContext, boardLane]);
+        }, [state.pool, state.originalPool, boardContext, boardLane, showDraftedRows]);
         const rows = React.useMemo(() => {
             const q = search.trim().toLowerCase();
             return lanePool.filter(p => {
@@ -4555,10 +4561,12 @@
                 </div>
                 <div className="mock-board-scroll">
                     {rows.map(player => {
+                        const draftedCount = Number(state.draftedPids?.[player.pid] || 0);
+                        const isDrafted = showDraftedRows && draftedCount >= Math.max(1, Number(state.playerCopies) || 1);
                         const fitScore = player.fit?.score || player.fitScore || 0;
                         const tier = player.tier || player.csv?.tier || '—';
                         const displayPos = normPos(player.pos || player.position) || player.pos || player.position || '—';
-                        const rowClass = 'mock-board-row' + (player.boardRank === 1 ? ' is-board-one' : '') + (player.boardRank <= 8 ? ' is-premium' : '');
+                        const rowClass = 'mock-board-row' + (player.boardRank === 1 ? ' is-board-one' : '') + (player.boardRank <= 8 ? ' is-premium' : '') + (isDrafted ? ' is-drafted' : '');
                         return (
                             <div key={player.pid} className={rowClass} style={boardGridStyle} onClick={() => mockOpenPlayer(player)}>
                                 <span className="mock-rank">{player.boardRank}</span>
@@ -4585,7 +4593,7 @@
                                 })()}
                                 <span className={fitScore >= 70 ? 'is-good' : fitScore >= 45 ? 'is-ok' : ''}>{fitScore ? fitScore : '—'}</span>
                                 <span>{tier}</span>
-                                <button type="button" onClick={e => { e.stopPropagation(); mockMakePick(dispatch, state, isUserTurn, player); }}>{canPick ? 'Draft' : 'Open'}</button>
+                                <button type="button" disabled={isDrafted} onClick={e => { e.stopPropagation(); if (!isDrafted) mockMakePick(dispatch, state, isUserTurn, player); }}>{isDrafted ? 'Drafted' : canPick ? 'Draft' : 'Open'}</button>
                             </div>
                         );
                     })}

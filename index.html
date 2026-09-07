@@ -1738,6 +1738,9 @@ WRShared.preloadMany(WR_SHARED_FILES);
 	    .mock-board-row:hover { border-color: rgba(212,175,55,0.22); background: rgba(212,175,55,0.055); }
 	    .mock-board-row.is-premium { background: rgba(255,255,255,0.012); }
 	    .mock-board-row.is-board-one { border-color: rgba(212,175,55,0.34); background: linear-gradient(90deg, rgba(212,175,55,0.12), rgba(255,255,255,0.018)); box-shadow: inset 3px 0 0 var(--gold); }
+	    .mock-board-row.is-drafted { opacity: 0.42; background: rgba(255,255,255,0.012); border-color: transparent; box-shadow: none; }
+	    .mock-board-row.is-drafted strong { text-decoration: line-through; }
+	    .mock-board-row.is-drafted button { color: var(--silver); border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.035); cursor: default; }
 		    .mock-board-row strong { color: var(--white); font-size: 0.64rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 		    .mock-board-row span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 	    .mock-board-row .mock-rank, .mock-board-row .mock-dhq { color: var(--gold); font-family: 'JetBrains Mono', monospace; font-weight: 900; }
