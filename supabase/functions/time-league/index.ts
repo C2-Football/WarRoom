@@ -62,13 +62,7 @@ Deno.serve(async (req: Request) => {
             started = true;
         } else {
             if (!started && action.type !== 'team' && action.type !== 'queue') return fail('Wait for the commissioner to start the draft.');
-            if (action.type === 'week' && members!.some(m => (row.current_week <= row.state.settings.regularSeasonWeeks || App.TimeLeagueEngine.playoffPairs(row.state, row.current_week).some((pair: string[]) => pair.includes(m.seat_team_id))) && m.ready_week !== row.current_week)) return fail('Wait for every manager to mark their lineup ready.');
-            if (member.ready_week === row.current_week && ['lineup', 'auto-lineup', 'respond-trade', 'ping-ai'].includes(action.type)) return fail('Unmark Ready before changing your lineup.');
-            if (action.type === 'respond-trade' && action.accept === true) {
-                const trade = row.state.trades.find((t: any) => t.tradeId === action.tradeId);
-                if (trade && members!.some(m => [trade.fromTeamId, trade.toTeamId].includes(m.seat_team_id) && m.ready_week === row.current_week)) return fail('Both managers must unmark Ready before accepting a trade.');
-            }
-            next = App.TimeLeagueActions.applyOnlineAction(row.state, action, member, await loadData(action.type === 'week' ? row.current_week : 0), new Date().toISOString());
+            next = App.TimeLeagueActions.applyOnlineAction(row.state, action, member, await loadData((action.type === 'week' || (['vote-advance', 'timed-advance'].includes(action.type) && row.state.weekStage === 'ready')) ? row.current_week : 0), new Date().toISOString());
         }
         const { data: saved, error: saveError } = await admin.from('time_leagues').update({ state: next, version: row.version + 1, draft_started: started }).eq('id', row.id).eq('version', row.version).select('id, state, version, draft_started').maybeSingle();
         if (saveError) throw saveError;

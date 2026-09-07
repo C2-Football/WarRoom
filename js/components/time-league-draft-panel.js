@@ -81,19 +81,6 @@
     function saveRevealedPositions(leagueId, positions) {
         try { window.localStorage.setItem(ERA_REVEAL_STORAGE_PREFIX + leagueId, JSON.stringify([...positions])); } catch (err) { /* private mode / quota — worst case a reveal replays once more */ }
     }
-    // Scoped to the ceremony only — the flat grid shown on every later visit
-    // renders none of these classes, so it is untouched by this stylesheet.
-    const ERA_CEREMONY_CSS = `
-        .tl-era-card.pending { border-color: rgba(212,175,55,0.10); background: rgba(255,255,255,0.015); }
-        .tl-era-die { display: block; margin-top: 8px; font-size: 19px; line-height: 1; animation: tlEraDieSpin 0.9s linear infinite; }
-        .tl-era-rolling-label { display: block; margin-top: 4px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); animation: tlEraRollPulse 1.1s ease-in-out infinite; }
-        .tl-era-card.landed { animation: tlEraLand .48s cubic-bezier(.22,.8,.22,1) both; }
-        .tl-era-rolling-tag { color: var(--gold); animation: tlEraRollPulse 1.1s ease-in-out infinite; }
-        @keyframes tlEraDieSpin { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(190deg) scale(1.1); } 100% { transform: rotate(360deg) scale(1); } }
-        @keyframes tlEraRollPulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
-        @keyframes tlEraLand { 0% { opacity: 0; transform: scale(.82) translateY(6px) rotateX(-16deg); box-shadow: 0 0 0 rgba(212,175,55,0); } 55% { opacity: 1; transform: scale(1.05) translateY(-2px) rotateX(0deg); box-shadow: 0 0 16px rgba(212,175,55,.32); } 100% { opacity: 1; transform: scale(1) translateY(0) rotateX(0deg); box-shadow: 0 0 0 rgba(212,175,55,0); } }
-    `;
-
     /** Mirrors War Room's real opponent-intel needs analysis (js/draft/opponent-intel.js,
      * via assessTeamLocal in js/trade-calc.js) — roster composition vs. starter-slot demand,
      * except grounded in this league's own settings rather than a hardcoded external ideal
@@ -144,7 +131,8 @@
         const [query, setQuery] = useState('');
         const [positionFilter, setPositionFilter] = useState('ALL');
         const [selectedIdentity, setSelectedIdentity] = useState(null);
-        const [showBoardGrid, setShowBoardGrid] = useState(false);
+        const [showBoardGrid, setShowBoardGrid] = useState(true);
+        const [pinnedRosterId, setPinnedRosterId] = useState(null);
         const [note, setNote] = useState('');
         const [boardLimit, setBoardLimit] = useState(24);
         const scoutRef = useRef(null);
@@ -352,19 +340,19 @@
         const scoutHidden = selectedCard ? selectedCard.seasons.length - scoutSeasons.length : 0;
 
         const anyPending = allEraPositions.some((p) => !revealedPositions.has(p));
-        const eraBanner = eraRules.mode === 'position-roulette' ? h('div', { className: 'tl-card' },
+        const eraBanner = eraRules.mode === 'position-roulette' ? h('div', { className: 'tl-card tl-era-show' },
             h('div', { className: 'tl-card-title' },
-                h('span', null, '🎲 Era assignment'),
+                h('span', null, 'Your era draw'),
                 anyPending
                     ? h('button', { className: 'tl-btn icon', onClick: revealAllPositions, disabled: Boolean(rollingPosition) }, 'Reveal all')
                     : h('small', null, 'dealt at founding · frozen for the life of the league')),
             eraAssignments.length === 0
                 ? h('p', { className: 'tl-empty' }, 'The wheel has not been spun — decades are dealt the moment the league is founded.')
                 : h(React.Fragment, null,
-                    h('style', null, ERA_CEREMONY_CSS),
+                    h('div', { className: 'tl-era-show-title' }, h('span', { className: 'tl-label' }, 'THE VAULT OPENS'), h('h2', null, `${eraAssignments.length} positions. Decades of possibility.`), h('p', null, 'Open each position to discover your draft class.')),
                     h('p', { className: 'tl-hint', style: { marginBottom: 10 } }, 'Every position group draws from one decade, and one decade only — turn one over to see who was actually available at it. This is the hand the league was dealt; there is no re-roll.'),
-                    h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, perspective: '700px' } },
-                        eraAssignments.map((row) => {
+                    h('div', { className: 'tl-era-stage' },
+                        eraAssignments.map((row, eraIndex) => {
                             const landed = revealedPositions.has(row.position);
                             const rolling = rollingPosition === row.position;
                             const fresh = freshlyRevealedRef.current.has(row.position);
@@ -372,18 +360,19 @@
                             const top10 = topTenByPosition[row.position] || [];
                             const cls = rolling || !landed
                                 ? `tl-card tl-era-card ${rolling ? 'landed' : 'pending'}`.trim()
-                                : fresh ? 'tl-card tl-era-card landed' : 'tl-card';
-                            return h('div', { key: row.position, className: cls, style: { padding: '10px 12px' } },
+                                : fresh ? 'tl-card tl-era-card landed' : 'tl-card tl-era-card revealed';
+                            return h('div', { key: row.position, className: cls, style: { padding: '10px 12px', animationDelay: `${eraIndex * 65}ms` } },
                                 h('span', { className: 'tl-pill gold' }, row.position),
                                 rolling
                                     ? h(React.Fragment, null,
-                                        h('span', { className: 'tl-era-die', 'aria-hidden': 'true' }, '🎲'),
-                                        h('span', { className: 'tl-era-rolling-label' }, 'rolling…'))
+                                        h('span', { className: 'tl-era-die', 'aria-hidden': 'true' }, '70 / 80 / 90 / 00 / 10'),
+                                        h('span', { className: 'tl-era-rolling-label' }, 'Opening the archive…'))
                                     : landed
                                         ? h(React.Fragment, null,
-                                            h('strong', { style: { display: 'block', marginTop: 6, fontFamily: 'var(--font-title)', fontSize: 15 } }, row.detail?.label ?? row.decade),
+                                            h('strong', { className: 'tl-era-decade' }, row.detail?.label ?? row.decade),
                                             h('span', { className: 'tl-label' }, row.detail ? `${row.detail.from}–${row.detail.to}` : '—'),
                                             h('span', { className: `tl-pill ${row.pool === 0 ? 'bad' : 'good'}`, style: { display: 'inline-block', marginTop: 6, marginBottom: 8 } }, row.pool === 0 ? 'None left' : `${row.pool} draftable`),
+                                            top10.length > 0 && h('p', { className: 'tl-era-headliners' }, top10.slice(0, 3).map(({ card }) => card.name).join(' · ')),
                                             top10.length > 0 && h('button', {
                                                 className: 'tl-btn icon', style: { display: 'block', width: '100%', marginBottom: expanded ? 8 : 0 },
                                                 onClick: () => toggleBreakdown(row.position),
@@ -396,25 +385,47 @@
                                         : h('button', {
                                             className: 'tl-btn', style: { display: 'block', width: '100%', marginTop: 8 },
                                             onClick: () => revealPosition(row.position), disabled: Boolean(rollingPosition),
-                                        }, 'Reveal'));
+                                        }, h('span', { className: 'tl-era-lock', 'aria-hidden': 'true' }, '✦'), 'Open ', row.position, ' archive'));
                         }))))
             : eraRestricted ? h('div', { className: 'tl-card' },
                 h('div', { className: 'tl-card-title' }, h('span', null, 'Era of play'), h('small', null, `${eraRules.decades.length} decade${eraRules.decades.length === 1 ? '' : 's'} in play · ${available.length} draftable`)),
                 h('div', { className: 'tl-chip-row' }, eraRules.decades.map((id) => h('span', { key: id, className: 'tl-pill info' }, DECADE_BY_ID.get(id)?.label ?? id))))
             : null;
 
+        const drawnByOverall = new Map((reveal?.teams || []).flatMap((row) => row.picks.map((pick) => [pick.overall, pick])));
+        const draftCell = (pick) => {
+            const drawn = drawnByOverall.get(pick.overall);
+            return h('div', { className: `tl-draft-pick tl-draft-pick-${pick.pos || pick.position}` },
+                h('small', null, `#${pick.overall} · ${pick.pos || pick.position}`),
+                h('strong', null, pick.name),
+                drawn && h('span', null, `${drawn.drawnSeason ?? '—'} · ${drawn.points.toFixed(1)} pts`));
+        };
+        const dhqState = {
+            picks: league.draftPicks.map((pick) => ({ ...pick, pos: pick.position, teamIdx: league.teams.findIndex((team) => team.teamId === pick.teamId), isUser: pick.teamId === humanTeam?.teamId })),
+            pickOrder: league.draftOrder.map((slot) => ({ ...slot, teamIdx: league.teams.findIndex((team) => team.teamId === slot.teamId), rosterId: slot.teamId, ownerName: teamName(slot.teamId) })),
+            userSlot: league.teams.findIndex((team) => team.teamId === humanTeam?.teamId) + 1,
+            userRosterId: humanTeam?.teamId, leagueSize: league.teams.length, rounds: boardRounds.length,
+            currentIdx: league.draftPicks.length, phase: 'vault', mode: 'ghost', pinnedRosterId,
+            personas: Object.fromEntries(league.teams.map((team) => [team.teamId, { teamName: team.name }]))
+        };
+        const sharedGrid = window.DraftCC?.DraftGridPanel ? h(window.DraftCC.DraftGridPanel, {
+            state: dhqState, currentSlot: seat ? dhqState.pickOrder.find((slot) => slot.overall === seat.overall) : null,
+            isUserTurn: myTurn, dispatch: (action) => { if (action.type === 'PIN_TEAM') setPinnedRosterId(action.rosterId); }, renderPick: draftCell
+        }) : null;
         const draftLog = h('div', { className: 'tl-card' },
             h('div', { className: 'tl-card-title' }, h('span', null, 'Draft log'),
                 h('button', { className: 'tl-btn icon', onClick: () => setShowBoardGrid((c) => !c) }, showBoardGrid ? 'Pick list' : 'Board grid')),
             league.draftPicks.length === 0 ? h('p', { className: 'tl-empty' }, 'No picks yet — the log fills as the room drafts.')
                 : showBoardGrid
-                    ? h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'tl-tbl' },
-                        h('thead', null, h('tr', null, h('th', null, 'Rd'), (boardRounds[0]?.[1] ?? []).map((_, i) => h('th', { key: i }, `P${i + 1}`)))),
+                    ? sharedGrid || h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'tl-tbl' },
+                        h('thead', null, h('tr', null, h('th', null, 'Rd'), league.teams.map((team) => h('th', { key: team.teamId }, team.name)))),
                         h('tbody', null, boardRounds.map(([round, seats]) => h('tr', { key: round },
                             h('td', { className: 'num' }, round),
-                            seats.map((cell) => {
+                            league.teams.map((team) => {
+                                const cell = seats.find((slot) => slot.teamId === team.teamId);
+                                if (!cell) return h('td', { key: team.teamId }, '—');
                                 const pick = pickByOverall.get(cell.overall);
-                                return h('td', { key: cell.overall }, h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, teamName(cell.teamId)), h('strong', { style: { fontSize: 11.5 } }, pick ? `${pick.name} · ${pick.position}` : '—')));
+                                return h('td', { key: cell.overall }, h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, teamName(cell.teamId)), pick ? draftCell(pick) : h('span', null, '—')));
                             }))))))
                     : h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'tl-tbl' },
                         h('thead', null, h('tr', null, h('th', null, 'Pick'), h('th', null, 'Team'), h('th', null, 'Player'), h('th', null, 'Pos'), h('th', null, 'By'))),
@@ -426,7 +437,7 @@
         if (league.seasonsRevealed && reveal) {
             return h('div', null,
                 h('div', { className: 'tl-card' },
-                    h('div', { className: 'tl-card-title' }, h('span', null, 'The reveal'), h('small', null, `${league.draftPicks.length} picks · mystery seasons unsealed`)),
+                    h('div', { className: 'tl-card-title' }, h('span', null, 'Draft night report card'), h('small', null, `${league.draftPicks.length} picks · mystery seasons unsealed`)),
                     h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 } },
                         h('span', { className: 'tl-pill gold' }, 'Draft complete'),
                         h('p', { style: { fontSize: 12.5, color: 'var(--text-secondary)', margin: 0 } }, `Every drawn season is on the record below — the war room moves to week ${league.currentWeek} lineups next.`)),
@@ -434,12 +445,14 @@
                         h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'League median haul'), h('strong', { style: { fontSize: 20, fontFamily: 'var(--font-title)' } }, reveal.median.toFixed(1))),
                         h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, `Best haul — ${reveal.best ? reveal.best.team.name : '—'}`), h('strong', { style: { fontSize: 20, fontFamily: 'var(--font-title)' } }, reveal.best ? reveal.best.total.toFixed(1) : '0.0')),
                         h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Rounds drafted'), h('strong', { style: { fontSize: 20, fontFamily: 'var(--font-title)' } }, boardRounds.length)))),
-                h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14, margin: '14px 0' } },
+                draftLog,
+                h('p', { className: 'tl-hint' }, 'Grades compare each team’s drawn-season points with the league median. They describe the draw, not a prediction of wins.'),
+                h('div', { className: 'tl-draft-grade-grid' },
                     reveal.teams.map(({ team, picks, total }) => {
                         const grade = gradeFor(total, reveal.median);
                         const best = [...picks].sort((l, r) => r.points - l.points).slice(0, 2);
-                        return h('div', { key: team.teamId, className: 'tl-card' },
-                            h('div', { className: 'tl-card-title' }, h('span', null, team.name), h('span', { className: `tl-pill ${GRADE_PILL[grade]}` }, `${grade} · ${total.toFixed(1)}`)),
+                        return h('details', { key: team.teamId, className: 'tl-card tl-draft-grade' },
+                            h('summary', { className: 'tl-card-title' }, h('span', null, team.name), h('span', { className: `tl-pill tl-draft-letter ${GRADE_PILL[grade]}` }, grade), h('small', null, `${total.toFixed(1)} pts · View class`)),
                             h('p', { style: { fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 10 } }, `${grade} — ${best.length ? `left with ${best.map((p) => `${p.drawnSeason ?? '?'} ${p.name}`).join(' and ')}` : 'left with an empty vault'}`),
                             h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'tl-tbl' },
                                 h('thead', null, h('tr', null, h('th', null, 'Pick'), h('th', null, 'Player'), h('th', null, 'Pos'), h('th', { className: 'num' }, 'Season'), h('th', { className: 'num' }, 'Pts'))),
@@ -448,8 +461,7 @@
                                     h('td', null, h('span', { className: `tl-pos-badge tl-pos-${pick.position}` }, pick.position)),
                                     h('td', { className: 'num tl-pill gold', style: { display: 'table-cell' } }, pick.drawnSeason ?? '—'),
                                     h('td', { className: 'num' }, pick.points.toFixed(1))))))));
-                    })),
-                draftLog);
+                    })));
         }
 
         return h('div', null,

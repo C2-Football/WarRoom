@@ -1,0 +1,18 @@
+/* Vault lineup clues and unified league home. */
+.tl-week-stars { display:block; flex-basis:100%; color:var(--gold,#ffe189); font-size:13px; letter-spacing:2px; margin-top:4px; }
+.tl-lineup-row[draggable="true"] { cursor:grab; transition:opacity .15s,background .15s; }
+.tl-lineup-row.is-dragging { opacity:.4; }
+.tl-lineup-row[draggable="true"]:hover { background:rgba(133,237,213,.07); }
+.tl-home-recap-grid { display:grid; grid-template-columns:minmax(0,1fr); }
+.tl-playoff-hunt { border-top:3px solid var(--gold,#ffe189); }
+.tl-hunt-field { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px 18px; }
+.tl-hunt-team { display:grid; grid-template-columns:56px minmax(0,1fr) auto; gap:8px; align-items:center; padding:12px; border-radius:8px; background:rgba(255,255,255,.025); }
+.tl-hunt-team.in-field { background:rgba(133,237,213,.09); }
+.tl-hunt-team small { grid-column:2 / -1; color:var(--text-muted); }
+.tl-hunt-seed { color:var(--gold,#ffe189); font-size:10px; text-transform:uppercase; }
+.tl-hunt-bracket { display:flex; flex-wrap:wrap; gap:12px; margin-top:16px; }
+.tl-hunt-bracket > div { padding:12px; border:1px solid var(--gold,#ffe189); border-radius:8px; flex:1; }
+.tl-hunt-bracket small,.tl-hunt-bracket strong { display:block; margin:4px 0; }
+@media(max-width:640px) { .tl-hunt-field { grid-template-columns:1fr; } .tl-week-stars { font-size:11px; letter-spacing:1px; } }
+.tl-stars-ceiling { display:block; flex-basis:100%; color:var(--text-muted); font-size:10px; margin-top:2px; }
+.tl-hunt-team.cut-line { border-top:1px dashed var(--gold,#ffe189); }

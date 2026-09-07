@@ -411,6 +411,29 @@ test('normalizeTimeLeague round-trips a valid state exactly', () => {
     assert.deepStrictEqual(roundTripped, state);
 });
 
+test('eight-team playoffs use weeks twelve through fourteen and re-seed each round', () => {
+    let state = Engine.createTimeLeague({ name: 'Eight', seed: 'eight', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings({ regularSeasonWeeks: 11, playoffTeams: 8 }), seats: Array.from({ length: 8 }, (_, i) => ({ name: `Team ${i}`, manager: 'human' })) });
+    state = { ...state, phase: 'season', currentWeek: 12 };
+    assert.equal(Engine.seasonEndWeek(state), 14);
+    assert.equal(Engine.playoffPairs(state, 12).length, 4);
+    state = Engine.finalizeCurrentWeek(state, new Map(), null, '2026-01-01T00:00:00Z');
+    assert.equal(Engine.playoffPairs(state, 13).length, 2);
+    state = Engine.finalizeCurrentWeek(state, new Map(), null, '2026-01-01T00:00:00Z');
+    assert.equal(Engine.playoffPairs(state, 14).length, 1);
+    state = Engine.finalizeCurrentWeek(state, new Map(), null, '2026-01-01T00:00:00Z');
+    assert.equal(state.phase, 'complete');
+    assert(state.championTeamId);
+});
+
+test('drag target selects the exact reciprocal swap and rejects foreign targets', () => {
+    let state = Engine.createTimeLeague({ name: 'Swap', seed: 'swap', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings({ rosterSlots: { RB: 2, BN: 1 } }), seats: seats() });
+    state.teams[0].roster = [{ entryId: 'a', position: 'RB', slot: 'RB' }, { entryId: 'b', position: 'RB', slot: 'RB' }, { entryId: 'c', position: 'RB', slot: 'BN' }];
+    const next = Engine.setEntrySlot(state, state.teams[0].teamId, 'c', 'RB', 'b');
+    assert.equal(next.teams[0].roster.find(e => e.entryId === 'a').slot, 'RB');
+    assert.equal(next.teams[0].roster.find(e => e.entryId === 'b').slot, 'BN');
+    assert.strictEqual(Engine.setEntrySlot(state, state.teams[0].teamId, 'c', 'RB', 'foreign'), state);
+});
+
 test('normalizeTimeLeague rejects malformed/foreign payloads', () => {
     assert.strictEqual(Engine.normalizeTimeLeague(null), null);
     assert.strictEqual(Engine.normalizeTimeLeague({}), null);

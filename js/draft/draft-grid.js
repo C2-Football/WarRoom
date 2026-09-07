@@ -16,7 +16,7 @@
 (function() {
     const { DRAFT_CC_LAYOUT, FONT_UI, FONT_DISPL, FONT_MONO, panelCard } = window.DraftCC.styles;
 
-    function DraftGridPanel({ state, dispatch, isUserTurn, currentSlot }) {
+    function DraftGridPanel({ state, dispatch, isUserTurn, currentSlot, renderPick }) {
         const posColors = window.App?.POS_COLORS || {
             QB: 'var(--k-ff6b6b, #ff6b6b)', RB: 'var(--k-4ecdc4, #4ecdc4)', WR: 'var(--k-45b7d1, #45b7d1)', TE: 'var(--k-f7dc6f, #f7dc6f)',
             DL: 'var(--k-e67e22, #e67e22)', LB: 'var(--k-f0a500, #f0a500)', DB: 'var(--k-5dade2, #5dade2)', K: 'var(--k-bb8fce, #bb8fce)',
@@ -274,7 +274,7 @@
                                                 verticalAlign: 'middle',
                                                 position: 'relative',
                                             }}>
-                                                {pick ? (
+                                                {pick ? (renderPick ? renderPick(pick) : (
                                                     <div style={{ lineHeight: 1.1 }}>
                                                         <div style={{
                                                             fontWeight: 600,
@@ -298,7 +298,7 @@
                                                             marginTop: '1px',
                                                         }}>{pick.pos}</span>
                                                     </div>
-                                                ) : isCurrent ? (
+                                                )) : isCurrent ? (
                                                     <span style={{
                                                         color: 'var(--gold)',
                                                         fontWeight: 800,

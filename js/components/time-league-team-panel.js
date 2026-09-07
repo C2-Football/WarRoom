@@ -15,7 +15,7 @@
     const UI = window.App.TimeLeagueUI;
 
     const STARTER_SLOTS = Roster.ROSTER_SLOT_IDS.filter((slot) => Season.isStarterSlot(slot));
-    const RESERVE_SLOTS = ['IR', 'TAXI'];
+    const RESERVE_SLOTS = ['IR'];
     const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
     const PERSONA_PILL = { warlord: 'bad', archivist: 'info', gambler: 'warn', steward: 'good' };
     const WIRE_ROW_CAP = 60;
@@ -59,34 +59,52 @@
 
     function RosterSection({ league, cards, team, apply, logIndex, eraFactors }) {
         const [selectedId,setSelectedId]=useState(null);
+        const [draggedId, setDraggedId] = useState(null);
+        const [moveNotice, setMoveNotice] = useState('');
         const dossierRef=React.useRef(null);
         React.useEffect(()=>{if(selectedId)dossierRef.current?.focus();},[selectedId]);
         const revealed = league.seasonsRevealed;
+        const editable = league.phase === 'season' && ['claims', 'lineup'].includes(league.weekStage);
         const outlooks = useMemo(() => new Map(team.roster.map(entry => [entry.entryId,
             revealed ? Season.rosterOutlook(entry, league.currentWeek, Engine.seasonEndWeek(league), logIndex, league.settings.scoring, league.settings.eraAdjusted ? eraFactors : null) : null
         ])), [team.roster, revealed, league.currentWeek, league.settings, logIndex, eraFactors]);
         const capacity = Engine.rosterCapacity(league.settings);
         const problems = Engine.lineupProblems(league, team.teamId);
         const moveTargets = (entry) => Roster.ROSTER_SLOT_IDS.filter((slot) => slot !== entry.slot && (league.settings.rosterSlots[slot] ?? 0) > 0 && Roster.SLOT_ELIGIBILITY[slot].includes(entry.position));
+        const moveEntry = async (entryId, slot, targetEntryId) => {
+            if (!editable) { setMoveNotice('Lineups open during the waiver and roster gates.'); return; }
+            const next = Engine.setEntrySlot(league, team.teamId, entryId, slot, targetEntryId);
+            if (next === league) { setMoveNotice('That player cannot move into this slot. Choose a compatible position.'); return; }
+            try {
+                const saved = await apply(next, { type: 'lineup', teamId: team.teamId, entryId, slot, targetEntryId });
+                setMoveNotice(saved === false ? 'Move was not saved. Review the current lineup and try again.' : 'Lineup updated.');
+            } catch { setMoveNotice('Move could not be saved. Please try again.'); }
+        };
+        const dropProps = (slot, targetEntryId) => ({
+            onDragOver: (event) => { if (editable && draggedId) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } },
+            onDrop: (event) => { event.preventDefault(); const id = draggedId; setDraggedId(null); if (id) moveEntry(id, slot, targetEntryId); },
+        });
         const entryRow = (entry, slotLabel) => {
             const outlook = outlooks.get(entry.entryId);
+            const rating = revealed && Season.weeklyStarOutlook ? Season.weeklyStarOutlook(entry, league.currentWeek, Engine.seasonEndWeek(league), logIndex, league.settings.scoring, league.settings.eraAdjusted ? eraFactors : null) : null;
             const eraColor = revealed ? UI.eraColorOf(entry.drawnSeason) : null;
-            return h('div', { key: entry.entryId, className: 'tl-lineup-row', style: { gridTemplateColumns: LINEUP_GRID } },
+            return h('div', { key: entry.entryId, className: 'tl-lineup-row' + (draggedId === entry.entryId ? ' is-dragging' : ''), draggable: editable, onDragStart: (event) => { setDraggedId(entry.entryId); event.dataTransfer.setData('text/plain', entry.entryId); event.dataTransfer.effectAllowed = 'move'; }, onDragEnd: () => setDraggedId(null), ...dropProps(entry.slot, entry.entryId), style: { gridTemplateColumns: LINEUP_GRID } },
                 h('span', { className: 'tl-lineup-slot' }, slotLabel),
                 h('button', { type:'button', className: 'tl-lineup-player tl-roster-player-link', onClick:()=>setSelectedId(entry.entryId), 'aria-label':`Explore ${entry.name}'s history`, 'aria-pressed':selectedId===entry.entryId },
                     h('span', { className: 'name' }, entry.name),
                     h('span', { className: `tl-pos-badge tl-pos-${entry.position}`, style: { marginLeft: 6 } }, entry.position),
                     revealed
-                        ? h('span', { className: 'meta' }, `${entry.drawnSeason} · ${outlook ? `${outlook.remaining} games left · ${outlook.signal}` : UI.decadeLabelOf(entry.drawnSeason)}`)
-                        : h('span', { className: 'tl-pill warn', style: { marginLeft: 6 } }, 'SEALED')),
+                        ? h('span', { className: 'meta' }, `${entry.drawnSeason} · ${outlook ? `${outlook.remaining} games left` : UI.decadeLabelOf(entry.drawnSeason)}`)
+                        : h('span', { className: 'tl-pill warn', style: { marginLeft: 6 } }, 'SEALED'),
+                    rating && h('span', { className: 'tl-week-stars', title: rating.stars !== null ? `Week ${league.currentWeek}: ${rating.stars} of 5 stars. Highest remaining rating: ${rating.maxRemainingStars}.` : 'No archived game this week: zero points.', 'aria-label': rating.stars !== null ? `${rating.stars} of 5 stars this week` : 'No archived game this week' }, rating.stars !== null ? '★'.repeat(rating.stars) + '☆'.repeat(5-rating.stars) : '— No game log'), rating && rating.maxRemainingStars !== null && h('small', { className: 'tl-stars-ceiling' }, `Remaining ceiling: ${rating.maxRemainingStars}★`)),
                 h('span', { className: 'tl-lineup-pts tabular', style: eraColor ? { color: eraColor } : undefined },
                     revealed ? fmt1(cardSeasonPoints(cards, entry)) : '—', h('small', null, 'SZN PTS')),
                 h('select', {
-                    className: 'tl-select', style: { fontSize: 10.5, padding: '5px 4px' }, 'aria-label': `Move ${entry.name}`, value: '',
-                    onChange: (e) => { const slot = e.target.value; if (slot) apply(Engine.setEntrySlot(league, team.teamId, entry.entryId, slot), { type: 'lineup', teamId: team.teamId, entryId: entry.entryId, slot }); },
+                    className: 'tl-select', style: { fontSize: 10.5, padding: '5px 4px' }, 'aria-label': `Move ${entry.name}`, value: '', disabled: !editable,
+                    onChange: (e) => { const slot = e.target.value; if (slot) moveEntry(entry.entryId, slot); },
                 }, h('option', { value: '' }, 'MOVE'), moveTargets(entry).map((slot) => h('option', { key: slot, value: slot }, slot))));
         };
-        const openRow = (slotLabel, key) => h('div', { key, className: 'tl-lineup-row open-slot', style: { gridTemplateColumns: LINEUP_GRID } },
+        const openRow = (slotLabel, key) => h('div', { key, className: 'tl-lineup-row open-slot', ...dropProps(slotLabel), style: { gridTemplateColumns: LINEUP_GRID } },
             h('span', { className: 'tl-lineup-slot' }, slotLabel), h('span', null, 'Open slot — start someone'), h('span', null), h('span', null));
 
         const starterRows = [];
@@ -104,6 +122,7 @@
         const headline = league.phase === 'draft' ? 'DRAFT IN PROGRESS' : optimal ? 'LINEUP IS VALID' : `${problems.length} ISSUE${problems.length === 1 ? '' : 'S'} TO FIX`;
 
         const selected=team.roster.find(e=>e.entryId===selectedId);
+        const selectedRating = selected && revealed && Season.weeklyStarOutlook ? Season.weeklyStarOutlook(selected, league.currentWeek, Engine.seasonEndWeek(league), logIndex, league.settings.scoring, league.settings.eraAdjusted ? eraFactors : null) : null;
         const card=selected?cards.get(selected.identity):null;
         const history=selected&&revealed?window.App.TimeLeaguePlayerCards.beforeSeason(card,selected.drawnSeason):null;
         const stat=(label,value)=>h('div',{className:'tl-archive-stat',key:label},h('small',null,label),h('strong',null,value));
@@ -122,7 +141,7 @@
                         stat('Remaining pace estimate', outlooks.get(selected.entryId).estimatedRemaining === null ? 'Needs a completed game' : `${fmt1(outlooks.get(selected.entryId).estimatedRemaining)} pts`)),
                     h('p', { className: 'tl-hint' }, 'Estimate = completed-game average × remaining logged games. Assumes you start every game; future scores stay hidden. Form compares the last three games with earlier games.'),
                     h('div', { className: 'tl-outlook-weeks' }, outlooks.get(selected.entryId).schedule.map(row => h('div', { key: row.week, className: `tl-outlook-week${row.week === league.currentWeek ? ' current' : ''}${!row.available ? ' missing' : ''}` },
-                        h('small', null, `W${row.week}`), h('strong', null, row.played ? fmt1(row.points) : row.available ? 'Game' : '—')))),
+                        h('small', null, `W${row.week}`), h('strong', null, row.played ? fmt1(row.points) : row.available ? `${selectedRating?.schedule.find(item => item.week === row.week)?.stars ?? '—'}★` : '—')))),
                     h('p', { className: 'tl-hint' }, 'A dash means no archived game log: zero points under Vault scoring. It may be a bye, missed game, or archive gap. Only weeks inside this league’s season are shown.')),
                 history&&h(React.Fragment,null,
                     h('div',{className:'tl-archive-stats'},stat('Earlier seasons in archive',history.seasons.length),stat('Previous season',history.latest?`${history.latest.season} · ${history.latest.points.toFixed(1)} pts`:'Not available'),stat('Best earlier season',history.best?`${history.best.season} · ${history.best.points.toFixed(1)} pts`:'Not available')),
@@ -138,8 +157,10 @@
                     h('div', { className: 'lh-sub' }, `${team.name} · ${team.roster.length}/${capacity} rostered${league.settings.eraAdjusted ? ' · era-adjusted scoring' : ''}`),
                     !optimal && problems.length > 0 && h('div', { style: { marginBottom: 12 } },
                         problems.map((p, i) => h('div', { key: i, className: 'tl-feedrow caution' }, h('time', null, 'FIX'), h('p', null, p)))),
-                    h('p', { className: 'tl-hint' }, 'Select a player for their remaining schedule, points outlook, and recent form. Future scores stay hidden.'),
-                    h('div', { className: 'lh-actions' }, h('button', { className: 'tl-btn primary', onClick: () => apply(Engine.autoFillLineup(league, team.teamId, cards), { type: 'auto-lineup', teamId: team.teamId }) }, '⚡ AUTO-SET LINEUP'))),
+                    h('p', { className: 'tl-hint' }, 'Drag a player onto a compatible slot or player to swap; the Move menu works with touch and keyboard. Stars are historical game-strength clues, not forecasts. They compare this week with that player’s own season: best three games earn 5, worst three earn 1. No-game weeks are excluded.'),
+                    h('p', { className: 'tl-hint' }, 'A dash means no archived game log: a bye, missed game, or archive gap. That week scores zero.'),
+                    h('p', { className: 'tl-hint', role: 'status' }, moveNotice),
+                    h('div', { className: 'lh-actions' }, h('button', { className: 'tl-btn primary', disabled: !editable, onClick: () => apply(Engine.autoFillLineup(league, team.teamId, cards), { type: 'auto-lineup', teamId: team.teamId }) }, '⚡ AUTO-SET LINEUP'))),
 
                 h('div', { className: 'tl-lineup-table' },
                     h('div', { className: 'tl-lineup-table-title' }, 'Starting Lineup'),
@@ -147,7 +168,7 @@
                         h('span', null, 'Slot'), h('span', null, 'Player'), h('span', { style: { textAlign: 'right' } }, 'Pts'), h('span', null)),
                     starterRows),
                 h('div', { className: 'tl-lineup-table' },
-                    h('div', { className: 'tl-lineup-table-title' }, 'Bench'),
+                    h('div', { className: 'tl-lineup-table-title', ...dropProps('BN') }, 'Bench · drop here'),
                     bench.length
                         ? bench.map((entry) => entryRow(entry, 'BN'))
                         : h('p', { className: 'tl-empty', style: { padding: '10px 14px' } }, 'Bench is empty.')),
@@ -219,7 +240,7 @@
         return h('div', { className: 'tl-waiver-desk' },
             h('header', { className: 'tl-waiver-heading' },
                 h('div', null, h('span', { className: 'tl-label' }, 'FREE AGENCY'), h('h2', null, 'Find your next difference-maker')),
-                h('span', { className: 'tl-pill' }, wireOpen ? `W${league.currentWeek} · CLAIMS OPEN` : league.phase === 'draft' ? 'OPENS AFTER DRAFT' : 'SEASON COMPLETE')),
+                h('span', { className: 'tl-pill' }, wireOpen ? `W${league.currentWeek} · CLAIMS OPEN` : league.phase === 'draft' ? 'OPENS AFTER DRAFT' : league.phase === 'season' ? `W${league.currentWeek} · CLAIMS CLOSED` : 'SEASON COMPLETE')),
             h('div', { className: 'tl-waiver-layout' },
             h('section', { className: 'tl-card tl-waiver-market' },
                 h('div', { className: 'tl-card-title' }, h('span', null, 'Market explorer'), h('small', null, `${filtered.length} available players`)),
@@ -321,7 +342,8 @@
                 h('p', { style: { marginTop: 8, fontSize: 12.5, color: 'var(--text-secondary)' } }, "Trades are switched off in this league's settings. The desk never opens."));
         }
         const revealed = league.seasonsRevealed;
-        const deskOpen = league.phase === 'season';
+        const deskOpen = league.phase === 'season' && league.weekStage === 'claims';
+        const responseOpen = league.phase === 'season' && league.weekStage === 'lineup';
         const counterparty = league.teams.find((t) => t.teamId === counterpartyId);
         const valueOf = (entry) => AI.entryValueFromCard(cards.get(entry.identity), revealed ? entry.drawnSeason : undefined);
         const give = giveIds.filter((id) => team.roster.some((e) => e.entryId === id));
@@ -399,20 +421,23 @@
                         const from = teamById(trade.fromTeamId); const to = teamById(trade.toTeamId);
                         const incoming = trade.toTeamId === team.teamId;
                         const toAi = to?.manager === 'ai';
+                        const canRespond = responseOpen && !(trade.deferredUntilWeek > league.currentWeek);
                         return h('div', { key: trade.tradeId, style: { padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' } },
                             h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 } },
                                 h('span', { className: `tl-pill ${incoming ? 'gold' : 'info'}` }, incoming ? 'INCOMING' : 'OUTGOING'),
                                 h('span', { className: 'tl-label' }, `W${trade.week} · ${from?.name ?? trade.fromTeamId} → ${to?.name ?? trade.toTeamId}`)),
                             h('p', { style: { fontSize: 12, margin: '2px 0', color: 'var(--text-secondary)' } }, h('b', { style: { color: 'var(--white)' } }, from?.name ?? trade.fromTeamId), ` sends ${names(trade.giveEntryIds)}`),
                             h('p', { style: { fontSize: 12, margin: '2px 0 6px', color: 'var(--text-secondary)' } }, h('b', { style: { color: 'var(--white)' } }, to?.name ?? trade.toTeamId), ` sends ${names(trade.receiveEntryIds)}`),
+                            trade.deferredUntilWeek > league.currentWeek && h('p', { className: 'tl-hint' }, `Delayed until Week ${trade.deferredUntilWeek}`),
                             trade.note && h('p', { style: { fontSize: 11.5, fontStyle: 'italic', color: 'var(--text-faint, rgba(189,184,173,0.6))', margin: '0 0 6px' } }, `"${trade.note}"`),
                             h('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
                                 incoming && !toAi && h(React.Fragment, null,
-                                    h('button', { className: 'tl-btn', onClick: () => apply(Engine.respondToTrade(league, trade.tradeId, true, '', nowIso()), { type: 'respond-trade', tradeId: trade.tradeId, accept: true }) }, '✓ ACCEPT'),
-                                    h('button', { className: 'tl-btn', onClick: () => apply(Engine.respondToTrade(league, trade.tradeId, false, '', nowIso()), { type: 'respond-trade', tradeId: trade.tradeId, accept: false }) }, '✕ REJECT')),
+                                    h('button', { className: 'tl-btn', disabled: !canRespond, onClick: () => apply(Engine.respondToTrade(league, trade.tradeId, true, '', nowIso()), { type: 'respond-trade', tradeId: trade.tradeId, accept: true }) }, '✓ ACCEPT'),
+                                    h('button', { className: 'tl-btn', disabled: !canRespond, onClick: () => apply(Engine.respondToTrade(league, trade.tradeId, false, '', nowIso()), { type: 'respond-trade', tradeId: trade.tradeId, accept: false }) }, '✕ REJECT'),
+                                    h('button', { className: 'tl-btn', disabled: !canRespond, onClick: () => apply({ ...league, trades: league.trades.map(item => item.tradeId === trade.tradeId ? { ...item, deferredUntilWeek: league.currentWeek + 1 } : item) }, { type: 'respond-trade', tradeId: trade.tradeId, decision: 'delay' }) }, 'DELAY TO NEXT WEEK')),
                                 toAi && h(React.Fragment, null,
                                     h('span', { className: 'tl-pill info' }, 'THE GM IS CONSIDERING'),
-                                    h('button', { className: 'tl-btn', onClick: () => apply(AI.aiRespondToTrades(league, cards, nowIso()), { type: 'ping-ai' }) }, '📡 PING THE GM')),
+                                    h('button', { className: 'tl-btn', disabled: !canRespond, onClick: () => apply(AI.aiRespondToTrades(league, cards, nowIso()), { type: 'ping-ai' }) }, '📡 PING THE GM')),
                                 !incoming && !toAi && h('span', { className: 'tl-pill info' }, 'AWAITING RESPONSE')));
                     }),
                     !pending.length && h('p', { className: 'tl-empty' }, 'No pending offers on the desk.')),

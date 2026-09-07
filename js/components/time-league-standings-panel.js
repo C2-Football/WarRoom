@@ -10,13 +10,13 @@
     const Engine = window.App.TimeLeagueEngine;
     const UI = window.App.TimeLeagueUI;
 
-    function WrTimeLeagueStandingsPanel({ league, onNavigate }) {
+    function WrTimeLeagueStandingsPanel({ league }) {
         const standings = useMemo(() => Engine.computeStandings(league), [league]);
         const teamOf = (teamId) => league.teams.find((t) => t.teamId === teamId);
         const [selectedId, setSelectedId] = React.useState(league.teams.find(team => team.manager === 'human')?.teamId);
         const selected = teamOf(selectedId) || league.teams[0];
         const selectedRow = standings.find(row => row.teamId === selected?.teamId);
-        const scored = league.finalizedWeeks.length;
+        const scored = league.finalizedWeeks.filter(week => week.week <= league.settings.regularSeasonWeeks).length;
         const leader = standings[0];
         const scoringLeader = [...standings].sort((a,b) => b.pointsFor-a.pointsFor)[0];
         const past = league.finalizedWeeks.map(week => ({ week: week.week, result: week.results.find(row => row.teamId === selected?.teamId), match: week.matchups.find(match => match.home === selected?.teamId || match.away === selected?.teamId) }));
@@ -27,10 +27,6 @@
         const metric = (label, value, detail) => h('div', { className: 'tl-command-metric' }, h('small', null, label), h('strong', null, value), h('span', null, detail));
         const champion = league.phase === 'complete' && league.championTeamId ? teamOf(league.championTeamId) : null;
         return h('div', { className: 'tl-command-center' },
-            h('header', { className: 'tl-command-header' }, h('div', null, h('span', { className: 'tl-label' }, 'THE VAULT · LEAGUE INTELLIGENCE'), h('h2', null, 'Command Central'), h('p', null, `${league.name} · ${league.teams.length} teams · ${scored} weeks scored`)),
-                h('button', { className: 'tl-btn', onClick: () => onNavigate('gameday') }, 'Game day →')),
-            h('details', { className: 'tl-command-brief', open: true }, h('summary', null, 'League briefing'),
-                h('p', null, scored && leader ? `${teamOf(leader.teamId)?.name} leads at ${leader.wins}–${leader.losses}${leader.ties ? '–'+leader.ties : ''}. ${teamOf(scoringLeader.teamId)?.name} has scored the most points (${scoringLeader.pointsFor.toFixed(1)}). ${Math.max(0, league.settings.regularSeasonWeeks-scored)} weeks remain.` : 'The race starts with the first game day. Standings and team form update after each completed week.')),
             h('div', { className: 'tl-command-metrics' },
                 metric('League leader', scored ? teamOf(leader?.teamId)?.name : 'Not yet decided', scored ? `${leader.wins} wins · ${leader.losses} losses` : 'Season opener ahead'),
                 metric('Scoring pace', scored ? (scoringLeader.pointsFor/scored).toFixed(1) : '—', scored ? `${teamOf(scoringLeader.teamId)?.name} · points/week` : 'No completed games'),

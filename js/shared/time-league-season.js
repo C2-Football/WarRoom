@@ -226,7 +226,11 @@
             twoPointConversions: TWO_POINT_CONVERSION_POINTS, passInt: scoring.turnover,
             fumblesLost: scoring.turnover, ...scoring.stats };
         const points = Object.entries(weights).reduce((sum, [key, weight]) => sum + (stats[key] || 0) * weight, 0);
-        const core = Math.round(points * 100) / 100;
+        const bonuses = (scoring.bonuses || []).reduce((sum, bonus) =>
+            ['passYd', 'rushYd', 'recYd', 'rec'].includes(bonus.stat)
+                && Number.isFinite(bonus.threshold) && bonus.threshold > 0 && Number.isFinite(bonus.points)
+                && (stats[bonus.stat] || 0) >= bonus.threshold ? sum + bonus.points : sum, 0);
+        const core = Math.round((points + bonuses) * 100) / 100;
         const extraPoints = scoreExtendedStats(stats.extra, scoring.extended || extended);
         return extraPoints === 0 ? core : Math.round((core + extraPoints) * 100) / 100;
     }
@@ -284,10 +288,35 @@
             signal: !current ? 'Season complete' : !current.available ? 'No game log' : change === null ? 'Building form' : change > 3 ? 'Trending up' : change < -3 ? 'Cooling off' : 'Steady form' };
     }
 
+    // Intentional game mechanic: reveal ordinal historical strength, never the
+    // future point total. Fixed season ranks ensure spent elite games stay spent.
+    function weeklyStarOutlook(entry, currentWeek, weeks, index, scoring, factors) {
+        if (!index) return null;
+        const factor = eraFactorFor(factors, entry.drawnSeason, entry.position);
+        const schedule = Array.from({ length: weeks }, (_, i) => ({
+            week: i + 1, available: index.has(gameLogKey(entry.identity, entry.drawnSeason, i + 1)),
+            played: i + 1 < currentWeek, stars: null,
+        }));
+        const ranked = schedule.filter(row => row.available).map(row => ({
+            week: row.week, points: scoreStatLine(index.get(gameLogKey(entry.identity, entry.drawnSeason, row.week)).stats, scoring) * factor,
+        })).sort((a, b) => b.points - a.points || a.week - b.week);
+        const edge = Math.min(3, Math.floor(ranked.length / 2));
+        const middle = ranked.length - edge * 2;
+        ranked.forEach((row, rank) => {
+            const stars = ranked.length === 1 ? 5 : rank < edge ? 5 : rank >= ranked.length - edge ? 1
+                : 4 - Math.min(2, Math.floor((rank - edge) * 3 / Math.max(1, middle)));
+            schedule[row.week - 1].stars = stars;
+        });
+        const remaining = schedule.filter(row => !row.played && row.available);
+        return { stars: schedule.find(row => row.week === currentWeek)?.stars ?? null,
+            maxRemainingStars: remaining.length ? Math.max(...remaining.map(row => row.stars)) : null,
+            remainingGames: remaining.length, schedule };
+    }
+
     const api = {
         isStarterSlot, emptyStatLine, EXTENDED_STAT_IDS, REFERENCE_EXTENDED_SCORING, scoreExtendedStats,
         gameLogKey, parseGameLogCsv, buildGameLogIndex, scoreStatLine, eraFactorFor,
-        buildRoundRobinSchedule, rosterOutlook,
+        buildRoundRobinSchedule, rosterOutlook, weeklyStarOutlook,
     };
     App.TimeLeagueSeason = api;
     /* global module */

@@ -40,9 +40,23 @@ test('both managers can set their own lineups', () => { state = run({ type: 'aut
 test('trade recipient alone can accept', () => {
   state = run({ type: 'trade', teamId: 't1', toTeamId: 't2', giveEntryIds: [state.teams[0].roster[0].entryId], receiveEntryIds: [state.teams[1].roster[0].entryId], note: 'Trade QA' });
   const tradeId = state.trades.at(-1).tradeId;
+  assert.throws(() => run({ type: 'respond-trade', tradeId, accept: true }, friend), /after waivers/);
+  assert.throws(() => run({ type: 'ping-ai' }), /after waivers/);
+  state = { ...state, weekStage: 'lineup' };
   assert.throws(() => run({ type: 'respond-trade', tradeId, accept: true }), /receiving manager/);
   state = run({ type: 'respond-trade', tradeId, accept: true }, friend);
   assert.equal(state.trades.at(-1).status, 'accepted');
+  state = { ...state, weekStage: 'claims' };
+});
+test('AI trade responses wait for final decisions', () => {
+  const original = state;
+  state = run({ type: 'trade', teamId: 't1', toTeamId: 't3', giveEntryIds: [state.teams[0].roster[0].entryId], receiveEntryIds: [state.teams[2].roster[0].entryId], note: 'AI gate QA' });
+  const id = state.trades.at(-1).tradeId;
+  assert.throws(() => run({ type: 'ping-ai' }), /after waivers/);
+  state = { ...state, weekStage: 'lineup' };
+  state = run({ type: 'ping-ai' });
+  assert.notEqual(state.trades.find(t => t.tradeId === id).status, 'pending');
+  state = original;
 });
 test('cannot cancel another manager claim', () => {
   state = { ...state, weekStage: 'claims' };
@@ -50,6 +64,37 @@ test('cannot cancel another manager claim', () => {
   state = run({ type: 'claim', teamId: 't2', identity: card.identity, dropEntryId: state.teams[1].roster.find(e => e.position !== 'QB').entryId, bidAmount: 4 }, friend);
   const claimId = state.pendingClaims.at(-1).claimId;
   assert.throws(() => run({ type: 'cancel-claim', claimId }), /another manager/);
+});
+test('majority and timer gates authorize advances without granting commissioner powers', () => {
+  state = E.autoFillLineup(E.autoFillLineup(state, 't1', data.cards), 't2', data.cards);
+  const original = state;
+  state = { ...state, weekStage: 'lineup', settings: { ...state.settings, advancementMode: 'majority' }, gateVotes: [] };
+  state = run({ type: 'vote-advance' }, friend);
+  assert.equal(state.weekStage, 'lineup');
+  state = run({ type: 'vote-advance' }, friend);
+  assert.equal(state.gateVotes.length, 1);
+  state = run({ type: 'vote-advance' });
+  assert.equal(state.weekStage, 'ready');
+  assert.deepEqual(state.gateVotes, []);
+  state = { ...state, weekStage: 'lineup', settings: { ...state.settings, advancementMode: 'timed', gateHours: 1 }, gateStartedAt: '2026-09-07T00:00:00Z' };
+  assert.throws(() => run({ type: 'timed-advance' }, friend), /deadline/);
+  state.gateStartedAt = '2026-09-06T00:00:00Z';
+  state = run({ type: 'timed-advance' }, friend);
+  assert.equal(state.weekStage, 'ready');
+  state = original;
+});
+test('commissioner controls settings and reopening while invalid lineups cannot finalize', () => {
+  const original = state;
+  assert.throws(() => run({ type: 'gate-settings', advancementMode: 'timed', gateHours: 2 }, friend), /commissioner/);
+  state = run({ type: 'gate-settings', advancementMode: 'timed', gateHours: 2 });
+  assert.equal(state.settings.gateHours, 2);
+  assert.equal(state.gateStartedAt, '2026-09-07T00:00:01Z');
+  state = { ...state, weekStage: 'ready' };
+  assert.throws(() => run({ type: 'reopen-lineups' }, friend), /commissioner/);
+  state = run({ type: 'reopen-lineups' });
+  state = { ...state, teams: state.teams.map((t, i) => i ? t : { ...t, roster: [] }) };
+  assert.throws(() => run({ type: 'finalize-rosters' }), /fill every/);
+  state = original;
 });
 test('shared game weeks settle through a champion with real historical logs', () => {
   while (state.phase === 'season') {
@@ -63,6 +108,10 @@ test('shared game weeks settle through a champion with real historical logs', ()
     if (state.weekStage === 'claims') {
       state = run({ type: 'process-claims' });
       assert.equal(state.pendingClaims.length, 0);
+      assert.equal(state.weekStage, 'lineup');
+      assert.throws(() => run({ type: 'week' }), /planning/);
+      state = E.autoFillLineup(E.autoFillLineup(state, 't1', data.cards), 't2', data.cards);
+      state = run({ type: 'finalize-rosters' });
       assert.equal(state.weekStage, 'ready');
       assert.throws(() => run({ type: 'process-claims' }), /planning/);
     }

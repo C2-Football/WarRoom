@@ -113,6 +113,8 @@
         const settings = {
             ...input.settings,
             playoffTeams: input.settings.playoffTeams || 0,
+            advancementMode: input.settings.advancementMode || 'commissioner',
+            gateHours: input.settings.gateHours || 24,
             eraRules: openDraftEra(input.settings.eraRules, `${input.seed}:era`, POSITIONS.filter(position => positionIsStartable(input.settings, position))),
         };
         const founding = [{
@@ -137,7 +139,9 @@
             draftPicks: [],
             seasonsRevealed: false,
             currentWeek: 1,
-            weekStage: 'ready',
+            weekStage: 'claims',
+            gateStartedAt: input.createdAt,
+            gateVotes: [],
             schedule,
             finalizedWeeks: [],
             pendingClaims: [],
@@ -227,16 +231,18 @@
         };
     }
 
-    function setEntrySlot(state, teamId, entryId, slot) {
+    function setEntrySlot(state, teamId, entryId, slot, targetEntryId) {
         const team = state.teams.find((item) => item.teamId === teamId);
         const entry = team?.roster.find((item) => item.entryId === entryId);
         if (!team || !entry || entry.slot === slot) return state;
+        const target = targetEntryId ? team.roster.find(item => item.entryId === targetEntryId && item.slot === slot) : null;
+        if (targetEntryId && (!target || !SLOT_ELIGIBILITY[entry.slot]?.includes(target.position))) return state;
         const capacity = state.settings.rosterSlots[slot] ?? 0;
         if (capacity <= 0 || !SLOT_ELIGIBILITY[slot].includes(entry.position)) return state;
         const moves = new Map([[entryId, slot]]);
         const occupants = team.roster.filter((item) => item.slot === slot);
-        if (occupants.length >= capacity) {
-            const partner = occupants.find((item) => SLOT_ELIGIBILITY[entry.slot].includes(item.position));
+        if (target || occupants.length >= capacity) {
+            const partner = target || occupants.find((item) => SLOT_ELIGIBILITY[entry.slot].includes(item.position));
             if (partner) {
                 moves.set(partner.entryId, entry.slot);
             } else {
@@ -310,20 +316,20 @@
      * reference table is what keeps a drafted K or DEF from scoring a
      * permanent 0.00.
      */
-    const playoffCount = state => state.settings.playoffTeams === 4 && state.teams.length >= 4 ? 4 : state.settings.playoffTeams >= 2 && state.teams.length >= 2 ? 2 : 0;
-    const seasonEndWeek = state => state.settings.regularSeasonWeeks + (playoffCount(state) === 4 ? 2 : playoffCount(state) === 2 ? 1 : 0);
+    const playoffCount = state => [8,4,2].find(count => state.settings.playoffTeams >= count && state.teams.length >= count) || 0;
+    const seasonEndWeek = state => state.settings.regularSeasonWeeks + (playoffCount(state) ? Math.log2(playoffCount(state)) : 0);
     function playoffPairs(state, week) {
         const count = playoffCount(state);
         const regular = state.settings.regularSeasonWeeks;
         if (!count || week <= regular || week > seasonEndWeek(state)) return [];
         const seeds = computeStandings(state).slice(0, count).map(row => row.teamId);
-        if (week === regular + 1) return count === 4 ? [[seeds[0], seeds[3]], [seeds[1], seeds[2]]] : [[seeds[0], seeds[1]]];
+        if (week === regular + 1) return seeds.slice(0, count / 2).map((seed, index) => [seed, seeds[count - 1 - index]]);
         const previous = state.finalizedWeeks.find(row => row.week === week - 1);
         const winners = (previous?.matchups || []).map(match => match.winner || match.home).sort((a,b) => seeds.indexOf(a)-seeds.indexOf(b));
-        return winners.length === 2 ? [winners] : [];
+        return winners.length >= 2 ? winners.slice(0, winners.length / 2).map((seed, index) => [seed, winners[winners.length - 1 - index]]) : [];
     }
     function startPlayoffs(state, count) {
-        if (state.phase !== 'complete' || playoffCount(state) || ![2,4].includes(count) || count > state.teams.length || state.currentWeek !== state.settings.regularSeasonWeeks + 1 || state.settings.regularSeasonWeeks + (count === 4 ? 2 : 1) > 18) return state;
+        if (state.phase !== 'complete' || playoffCount(state) || ![2,4,8].includes(count) || count > state.teams.length || state.currentWeek !== state.settings.regularSeasonWeeks + 1 || state.settings.regularSeasonWeeks + Math.log2(count) > 18) return state;
         const { championTeamId: _champion, ...rest } = state;
         return { ...rest, settings: { ...state.settings, playoffTeams: count }, phase: 'season', weekStage: 'postgame' };
     }
@@ -600,7 +606,7 @@
 
     function respondToTrade(state, tradeId, accept, note, createdAt) {
         const trade = state.trades.find((item) => item.tradeId === tradeId);
-        if (!trade || trade.status !== "pending") return state;
+        if (!trade || trade.status !== "pending" || trade.deferredUntilWeek > state.currentWeek) return state;
         const from = state.teams.find((item) => item.teamId === trade.fromTeamId);
         const to = state.teams.find((item) => item.teamId === trade.toTeamId);
         if (!from || !to) return state;
@@ -699,6 +705,10 @@
                 scoring[group][key] = weight;
             }
         }
+        if (value.scoring.bonuses !== undefined) {
+            if (!Array.isArray(value.scoring.bonuses) || value.scoring.bonuses.length > 20 || value.scoring.bonuses.some(b => !isRecord(b) || !['passYd', 'rushYd', 'recYd', 'rec'].includes(b.stat) || readNumber(b.threshold) === null || b.threshold <= 0 || readNumber(b.points) === null)) return null;
+            scoring.bonuses = value.scoring.bonuses.map(b => ({ stat: b.stat, threshold: b.threshold, points: b.points }));
+        }
         const regularSeasonWeeks = readNumber(value.regularSeasonWeeks);
         const maxQuarterbacks = readNumber(value.maxQuarterbacks);
         if (regularSeasonWeeks === null || maxQuarterbacks === null) return null;
@@ -706,7 +716,9 @@
             rosterSlots,
             scoring,
             regularSeasonWeeks: clampInt(regularSeasonWeeks, 1, 18),
-            playoffTeams: [2,4].includes(value.playoffTeams) && regularSeasonWeeks + (value.playoffTeams === 4 ? 2 : 1) <= 18 ? value.playoffTeams : 0,
+            playoffTeams: [2,4,8].includes(value.playoffTeams) && regularSeasonWeeks + Math.log2(value.playoffTeams) <= 18 ? value.playoffTeams : 0,
+            advancementMode: ['majority', 'timed'].includes(value.advancementMode) ? value.advancementMode : 'commissioner',
+            gateHours: Math.min(168, Math.max(0.0167, readNumber(value.gateHours) ?? 24)),
             maxQuarterbacks: clampInt(maxQuarterbacks, 0, 12),
             // Saves written before era drafting existed carry no rules at all; they
             // load as any-era instead of locking the league out of every player.
@@ -902,7 +914,7 @@
         const status = value.status === "pending" || value.status === "accepted" || value.status === "rejected" || value.status === "withdrawn" ? value.status : null;
         const createdAt = readString(value.createdAt);
         if (!tradeId || !fromTeamId || !toTeamId || !giveEntryIds || !receiveEntryIds || week === null || !status || !createdAt) return null;
-        return { tradeId, fromTeamId, toTeamId, giveEntryIds, receiveEntryIds, week, status, note: readString(value.note) ?? "", createdAt };
+        return { tradeId, fromTeamId, toTeamId, giveEntryIds, receiveEntryIds, week, status, deferredUntilWeek: clampInt(readNumber(value.deferredUntilWeek) ?? 0, 0, 19), note: readString(value.note) ?? "", createdAt };
     };
 
     const readActivityEvent = (value) => {
@@ -949,7 +961,9 @@
             draftPicks,
             seasonsRevealed: raw.seasonsRevealed === true,
             currentWeek: clampInt(currentWeek, 1, seasonEndWeek({ settings, teams }) + 1),
-            weekStage: ['postgame', 'claims', 'ready'].includes(raw.weekStage) ? raw.weekStage : 'ready',
+            weekStage: ['postgame', 'claims', 'lineup', 'ready'].includes(raw.weekStage) ? raw.weekStage : 'ready',
+            gateStartedAt: typeof raw.gateStartedAt === 'string' && Number.isFinite(Date.parse(raw.gateStartedAt)) ? raw.gateStartedAt : createdAt,
+            gateVotes: Array.isArray(raw.gateVotes) ? [...new Set(raw.gateVotes.filter(id => teams.some(t => t.teamId === id && t.manager === 'human')))] : [],
             schedule,
             finalizedWeeks,
             pendingClaims,

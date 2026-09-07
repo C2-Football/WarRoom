@@ -11,7 +11,22 @@
         const deny = (message) => { throw new Error(message); };
         const ownTeam = () => { if (action.teamId !== own) deny('You can only manage your own team.'); };
         const commissioner = () => { if (!host) deny('Only the commissioner can advance the league.'); };
+        if (['lineup', 'auto-lineup', 'trade', 'respond-trade', 'ping-ai', 'cancel-claim'].includes(action.type) && state.phase === 'season' && ['ready', 'postgame'].includes(state.weekStage)) deny('Roster decisions are locked until the next planning gate.');
         let next = state;
+        const gateAction = () => ({ claims: 'process-claims', lineup: 'finalize-rosters', ready: 'week', postgame: 'advance-week' })[state.weekStage];
+        if (['vote-advance', 'timed-advance'].includes(action.type)) {
+            if (state.phase !== 'season' || !gateAction()) deny('No weekly gate is open.');
+            const humans = state.teams.filter(t => t.manager === 'human');
+            if (!humans.some(t => t.teamId === own)) deny('Only a league manager can advance a gate.');
+            if (action.type === 'vote-advance') {
+                if (state.settings.advancementMode !== 'majority') deny('This league does not use majority advancement.');
+                const votes = [...new Set([...(state.gateVotes || []), own])];
+                if (votes.length <= humans.length / 2) return E.normalizeTimeLeague({ ...state, gateVotes: votes });
+            } else {
+                if (state.settings.advancementMode !== 'timed' || Date.parse(stamp) < Date.parse(state.gateStartedAt || stamp) + (state.settings.gateHours || 24) * 3600000) deny('The gate deadline has not arrived.');
+            }
+            return applyOnlineAction(state, { type: gateAction() }, { ...member, role: 'commissioner' }, data, stamp);
+        }
         switch (action.type) {
         case 'draft': {
             const seat = E.currentDraftSeat(state);
@@ -43,7 +58,7 @@
         case 'lineup':
             ownTeam();
             if (state.phase !== 'season') deny('Lineups open during the season.');
-            next = E.setEntrySlot(state, own, action.entryId, action.slot);
+            next = E.setEntrySlot(state, own, action.entryId, action.slot, action.targetEntryId);
             break;
         case 'auto-lineup':
             ownTeam();
@@ -69,15 +84,29 @@
             break;
         case 'trade':
             ownTeam();
+            if (state.weekStage !== 'claims') deny('Submit trade requests during waiver planning.');
             next = E.proposeTrade(state, { fromTeamId: own, toTeamId: action.toTeamId, giveEntryIds: action.giveEntryIds, receiveEntryIds: action.receiveEntryIds, note: String(action.note || '').slice(0, 500) }, stamp);
             break;
         case 'respond-trade':
+            if (state.weekStage !== 'lineup') deny('Final trade decisions open after waivers settle.');
             if (!state.trades.some(t => t.tradeId === action.tradeId && t.toTeamId === own && t.status === 'pending')) deny('Only the receiving manager can answer this offer.');
-            next = E.respondToTrade(state, action.tradeId, action.accept === true, '', stamp);
+            if (action.decision === 'delay') next = { ...state, trades: state.trades.map(t => t.tradeId === action.tradeId ? { ...t, deferredUntilWeek: state.currentWeek + 1 } : t) };
+            else next = E.respondToTrade(state, action.tradeId, action.accept === true, '', stamp);
             break;
         case 'ping-ai':
+            if (state.weekStage !== 'lineup') deny('Final trade decisions open after waivers settle.');
             if (!state.trades.some(t => t.fromTeamId === own && t.status === 'pending' && state.teams.some(team => team.teamId === t.toTeamId && team.manager === 'ai'))) deny('No pending offer to an AI manager.');
             next = AI.aiRespondToTrades(state, cards, stamp);
+            break;
+        case 'gate-settings':
+            commissioner();
+            if (!['commissioner', 'majority', 'timed'].includes(action.advancementMode) || !Number.isFinite(action.gateHours) || action.gateHours < 1 || action.gateHours > 168) deny('Choose an advancement mode and 1–168 hours per gate.');
+            next = { ...state, settings: { ...state.settings, advancementMode: action.advancementMode, gateHours: action.gateHours }, gateStartedAt: stamp, gateVotes: [] };
+            break;
+        case 'reopen-lineups':
+            commissioner();
+            if (state.phase !== 'season' || state.weekStage !== 'ready') deny('Only a finalized lineup gate can be reopened.');
+            next = { ...state, weekStage: 'lineup' };
             break;
         case 'start-playoffs':
             commissioner();
@@ -86,7 +115,7 @@
         case 'advance-week':
             commissioner();
             if (state.phase !== 'season' || state.weekStage !== 'postgame') deny('Review the current week first.');
-            next = { ...state, weekStage: 'claims' };
+            next = { ...AI.aiGenerateTrades(state, cards, stamp), weekStage: 'claims' };
             break;
         case 'process-claims': {
             commissioner();
@@ -94,12 +123,18 @@
             // Each AI files against the same pre-resolution pool as human managers.
             const staged = AI.aiSubmitWaiverClaims(state, cards, stamp);
             next = E.processWaivers(staged, cards, stamp);
-            next = { ...AI.aiRespondToTrades(AI.aiGenerateTrades(next, cards, stamp), cards, stamp), weekStage: 'ready' };
+            next = AI.aiRespondToTrades({ ...AI.aiGenerateTrades(next, cards, stamp), weekStage: 'lineup' }, cards, stamp);
             break;
         }
+        case 'finalize-rosters':
+            commissioner();
+            if (state.phase !== 'season' || state.weekStage !== 'lineup') deny('Resolve waivers before finalizing rosters.');
+            if (state.teams.filter(t => t.manager === 'human' && (state.currentWeek <= state.settings.regularSeasonWeeks || E.playoffPairs(state, state.currentWeek).some(pair => pair.includes(t.teamId)))).some(t => E.lineupProblems(state, t.teamId).length)) deny('Managers still need to fill every starting lineup before finalizing.');
+            next = { ...state, weekStage: 'ready' };
+            break;
         case 'week': {
             commissioner();
-            if (state.phase !== 'season' || ['postgame', 'claims'].includes(state.weekStage)) deny('Complete the weekly planning steps first.');
+            if (state.phase !== 'season' || state.weekStage !== 'ready') deny('Complete the weekly planning steps first.');
             const prepared = AI.aiPrepareWeek(state, cards);
             const problems = prepared.teams.filter(t => t.manager === 'human' && (state.currentWeek <= state.settings.regularSeasonWeeks || E.playoffPairs(state, state.currentWeek).some(pair => pair.includes(t.teamId)))).flatMap(t => E.lineupProblems(prepared, t.teamId));
             if (problems.length && !action.force) deny('Managers still need to set their lineups.');
@@ -110,6 +145,8 @@
         default: deny('Unknown game action.');
         }
         if (next === state && action.type !== 'auto-lineup') deny('That move is no longer legal. Refresh and try again.');
+        if (state.phase === 'draft' && next.phase === 'season') next = AI.aiGenerateTrades(next, cards, stamp);
+        if (next.weekStage !== state.weekStage || next.phase !== state.phase) next = { ...next, gateStartedAt: stamp, gateVotes: [] };
         const taken = E.draftedIdentities(next);
         next = { ...next, teams: next.teams.map(t => ({ ...t, queue: t.queue.filter(id => !taken.has(id)) })) };
         return E.normalizeTimeLeague(next);

@@ -9,19 +9,7 @@
     const h = React.createElement;
 
     const Engine = window.App.TimeLeagueEngine;
-    const Gamecast = window.App.TimeLeagueGamecast;
     const EraRules = window.App.TimeLeagueEraRules;
-    const UI = window.App.TimeLeagueUI;
-
-    function computeSeasonHigh(league) {
-        let best = null;
-        for (const week of league.finalizedWeeks) {
-            for (const result of week.results) {
-                if (!best || result.total > best.points) best = { teamId: result.teamId, week: week.week, points: result.total };
-            }
-        }
-        return best;
-    }
 
     function computeEraSpread(league) {
         const entries = league.teams.flatMap((team) => team.roster);
@@ -35,11 +23,12 @@
         return { decades: [...decades].sort(), oldest };
     }
 
-    function TeamLockup({ team, standing, side }) {
+    function TeamLockup({ team, standing, side, score }) {
         if (!team) return h('div', { className: `tl-home-team ${side}` }, h('div', { className: 'tl-home-bye' }, 'BYE'));
         return h('div', { className: `tl-home-team ${side}` },
             h(window.TimeLeagueHelmetIcon, { helmet: team.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team.name), size: 86 }),
             h('strong', null, team.name),
+            Number.isFinite(score) && h('strong', { className: 'tabular', style: { fontSize: 28 } }, score.toFixed(1)),
             h('span', null, standing ? `${standing.wins}-${standing.losses}${standing.ties ? `-${standing.ties}` : ''} · ${standing.pointsFor.toFixed(1)} PF` : '0-0 · SEASON OPENER'));
     }
 
@@ -58,7 +47,10 @@
         const myTeam = league.teams.find((team) => seatTeamId ? team.teamId === seatTeamId : team.manager === 'human') ?? league.teams[0];
         const myStanding = standingOf(myTeam.teamId);
         const currentSchedule = league.currentWeek > league.settings.regularSeasonWeeks ? { pairs: Engine.playoffPairs(league, league.currentWeek) } : league.schedule.find((item) => item.week === league.currentWeek);
-        const currentPair = currentSchedule?.pairs.find((pair) => pair.includes(myTeam.teamId)) ?? null;
+        const postgame = league.weekStage === 'postgame';
+        const justFinished = postgame ? league.finalizedWeeks[league.finalizedWeeks.length - 1] : null;
+        const finishedMatch = justFinished?.matchups.find(match => match.home === myTeam.teamId || match.away === myTeam.teamId);
+        const currentPair = postgame ? (finishedMatch ? [finishedMatch.home, finishedMatch.away] : null) : currentSchedule?.pairs.find((pair) => pair.includes(myTeam.teamId)) ?? null;
         const opponentId = currentPair?.find((teamId) => teamId !== myTeam.teamId) ?? null;
         const opponent = opponentId ? teamOf(opponentId) : null;
         const opponentStanding = opponent ? standingOf(opponent.teamId) : null;
@@ -68,7 +60,6 @@
         const lastFinalized = league.finalizedWeeks[league.finalizedWeeks.length - 1] ?? null;
         const lastMatchup = lastFinalized?.matchups.find((matchup) => matchup.home === myTeam.teamId || matchup.away === myTeam.teamId) ?? null;
         const lastResult = lastMatchup ? (lastMatchup.winner === null ? 'T' : lastMatchup.winner === myTeam.teamId ? 'W' : 'L') : null;
-        const seasonHigh = useMemo(() => computeSeasonHigh(league), [league]);
         const eraSpread = useMemo(() => computeEraSpread(league), [league]);
         const recentActivity = [...league.activity].reverse().slice(0, 5);
         const champion = league.championTeamId ? teamOf(league.championTeamId) : null;
@@ -80,7 +71,6 @@
                     lede: `${league.teams.length} managers enter Week 1 with rosters pulled from across football history. Every lineup decision can change the timeline.`,
                 };
             }
-            const headlines = Gamecast.weekHeadlines(lastFinalized.results, lastFinalized.matchups, teamName);
             const top = [...lastFinalized.results].sort((left, right) => right.total - left.total)[0];
             return {
                 headline: `${teamName(top.teamId).toUpperCase()} SETS THE PACE WITH ${top.total.toFixed(1)}`,
@@ -94,6 +84,16 @@
                 ? `${lastResult === 'W' ? 'WIN' : lastResult === 'L' ? 'LOSS' : 'TIE'} IN WEEK ${lastFinalized?.week ?? league.currentWeek - 1}`
                 : `WEEK ${Math.min(league.currentWeek, league.settings.regularSeasonWeeks)} · SEASON OPENER`;
         const ready = lineupProblems.length === 0;
+        const playoffCount = Engine.playoffCount(league);
+        const showHunt = playoffCount > 0 && league.currentWeek > Math.floor(league.settings.regularSeasonWeeks / 2);
+        const remaining = Math.max(0, league.settings.regularSeasonWeeks - league.finalizedWeeks.filter(week => week.week <= league.settings.regularSeasonWeeks).length);
+        const playoffHunt = showHunt && h('section', { className: 'tl-card tl-playoff-hunt' },
+            h('div', { className: 'tl-card-title' }, h('span', null, '🏆 Playoff Hunt'), h('small', null, remaining ? `${remaining} regular-season games left · Top ${playoffCount} advance` : 'Postseason field')),
+            h('p', { className: 'tl-hint' }, remaining ? 'The field if the season ended today. The line separates playoff seeds from the chase; standings can still change.' : champion ? `${champion.name} is your champion.` : 'The regular season is settled. Follow the bracket through game day.'),
+            h('div', { className: 'tl-hunt-field' }, standings.map((row, index) => h('div', { key: row.teamId, className: 'tl-hunt-team' + (index < playoffCount ? ' in-field' : '') + (index === playoffCount ? ' cut-line' : '') },
+                h('span', { className: 'tl-hunt-seed' }, index < playoffCount ? `#${index+1}` : 'Chasing'),
+                h('strong', null, teamName(row.teamId)), h('span', null, `${row.wins}–${row.losses}${row.ties ? '–'+row.ties : ''}`), h('small', null, `${row.pointsFor.toFixed(1)} PF`)))),
+            !remaining && league.currentWeek <= Engine.seasonEndWeek(league) && h('div', { className: 'tl-hunt-bracket' }, Engine.playoffPairs(league, league.currentWeek).map((pair, index) => h('div', { key: index }, h('small', null, `WEEK ${league.currentWeek}`), h('strong', null, pair.map(teamName).join(' vs. '))))));
 
         return h('div', { className: 'tl-home' },
             h('section', { className: `tl-home-hero${league.phase === 'complete' ? ' champion' : ''}` },
@@ -104,23 +104,25 @@
                         : h('h1', null, opponent ? `${myTeam.name} vs. ${opponent.name}` : `${myTeam.name} has the week off`),
                     h('p', null, league.phase === 'complete'
                         ? `${champion?.name ?? 'The champion'} survived every era and finished on top of ${league.name}.`
+                        : postgame
+                            ? 'The final is in. Review the results below, then use Advance week to open the next bidding window.'
                         : ready
                             ? 'Your lineup is ready. Review the matchup, make a final move, then let the week play out live.'
                             : `${lineupProblems.length} lineup ${lineupProblems.length === 1 ? 'decision needs' : 'decisions need'} your attention before kickoff.`),
-                    league.phase !== 'complete' && h('div', { className: 'tl-home-hero-actions' },
+                    league.phase !== 'complete' && !postgame && h('div', { className: 'tl-home-hero-actions' },
                         h('button', { type: 'button', className: `tl-btn ${ready ? '' : 'primary'}`, onClick: () => onNavigate('roster') }, ready ? 'REVIEW LINEUP' : `FIX LINEUP (${lineupProblems.length})`),
                         h('button', { type: 'button', className: `tl-btn ${ready ? 'primary' : ''}`, onClick: () => onNavigate('gameday') }, 'GO TO GAME DAY →'))),
                 h('div', { className: 'tl-home-matchup' },
                     league.phase === 'complete'
                         ? h('div', { className: 'tl-home-trophy' }, h('span', null, '♛'), h('strong', null, 'VAULT CHAMPION'), h('small', null, champion?.name ?? 'Season complete'))
                         : h(React.Fragment, null,
-                            h(TeamLockup, { team: myTeam, standing: myStanding, side: 'mine' }),
-                            h('div', { className: 'tl-home-vs' }, h('span', null, `WK ${league.currentWeek}`), h('strong', null, 'VS'), h('small', null, 'UPCOMING')),
-                            h(TeamLockup, { team: opponent, standing: opponentStanding, side: 'opponent' }))),
+                            h(TeamLockup, { team: myTeam, standing: myStanding, side: 'mine', score: finishedMatch ? (finishedMatch.home === myTeam.teamId ? finishedMatch.homePoints : finishedMatch.awayPoints) : undefined }),
+                            h('div', { className: 'tl-home-vs' }, h('span', null, `WK ${justFinished?.week ?? league.currentWeek}`), h('strong', null, 'VS'), h('small', null, postgame ? 'FINAL' : 'UPCOMING')),
+                            h(TeamLockup, { team: opponent, standing: opponentStanding, side: 'opponent', score: finishedMatch ? (finishedMatch.home === opponentId ? finishedMatch.homePoints : finishedMatch.awayPoints) : undefined }))),
                 h('div', { className: 'tl-home-yardline one' }),
                 h('div', { className: 'tl-home-yardline two' })),
 
-            league.phase !== 'complete' && h('section', { className: 'tl-home-action-grid' },
+            league.phase !== 'complete' && !postgame && h('section', { className: 'tl-home-action-grid' },
                 h(ActionCard, {
                     icon: ready ? '✓' : '!', kicker: 'LINEUP', tone: ready ? 'good' : 'warn',
                     title: ready ? 'Ready for kickoff' : `${lineupProblems.length} move${lineupProblems.length === 1 ? '' : 's'} to make`,
@@ -139,21 +141,9 @@
                     action: 'OPEN', onClick: () => onNavigate('trades'),
                 })),
 
-            h('section', { className: 'tl-home-grid' },
-                h('article', { className: 'tl-card tl-home-standings' },
-                    h('div', { className: 'tl-card-title' }, h('span', null, 'LEAGUE TABLE'), h('button', { type: 'button', onClick: () => onNavigate('standings') }, 'FULL STANDINGS →')),
-                    standings.slice(0, 5).map((row, index) => {
-                        const team = teamOf(row.teamId);
-                        const streak = UI.streakFor(league, row.teamId);
-                        return h('div', { key: row.teamId, className: `tl-home-standing-row${row.teamId === myTeam.teamId ? ' mine' : ''}` },
-                            h('span', { className: 'rank' }, index + 1),
-                            h(window.TimeLeagueHelmetIcon, { helmet: team?.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team?.name || row.teamId), size: 31 }),
-                            h('span', { className: 'team' }, h('b', null, team?.name ?? row.teamId), h('small', null, row.teamId === myTeam.teamId ? 'YOUR TEAM' : team?.manager === 'ai' ? (team.aiPersona || 'AI GM').toUpperCase() : 'HUMAN GM')),
-                            streak && h('span', { className: `tl-streak ${streak.kind}` }, `${streak.kind}${streak.count}`),
-                            h('span', { className: 'record tabular' }, `${row.wins}-${row.losses}`),
-                            h('span', { className: 'points tabular' }, row.pointsFor.toFixed(1), h('small', null, 'PF')));
-                    })),
-
+            playoffHunt,
+            h(window.WrTimeLeagueStandingsPanel, { league, onNavigate }),
+            h('section', { className: 'tl-home-recap-grid' },
                 h('article', { className: 'tl-card tl-home-pulse' },
                     h('div', { className: 'tl-pulse-masthead' },
                         h('span', null, 'THE VAULT'), h('strong', null, 'LEAGUE PULSE'), h('small', null, lastFinalized ? `WEEK ${lastFinalized.week} RECAP` : 'PRESEASON EDITION')),

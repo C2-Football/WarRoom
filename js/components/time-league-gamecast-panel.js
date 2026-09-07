@@ -34,7 +34,7 @@
                 }))));
     }
 
-    function ScoreboardStrip({ rows, teams, myTeamId, statusLabel, live }) {
+    function ScoreboardStrip({ rows, teams, myTeamId, statusLabel, live, leaders = [], showLeaders = false }) {
         if (!rows.length) return null;
         return h('div', { className: 'tl-scoreboard-strip' }, rows.map((row) => {
             const homeTeam = teams.find((t) => t.teamId === row.home);
@@ -42,6 +42,7 @@
             const mine = row.home === myTeamId || row.away === myTeamId;
             const homeLeading = row.homePoints > row.awayPoints;
             const awayLeading = row.awayPoints > row.homePoints;
+            const leader = leaders.find(player => player.teamId === row.home || player.teamId === row.away);
             return h('div', { key: `${row.home}:${row.away}`, className: `tl-score-chip${mine ? ' mine' : ''}${live ? ' live' : ''}` },
                 h('div', { className: 'tl-sc-tag' }, live ? h('span', { className: 'tl-sc-dot' }) : null, mine ? `${statusLabel} · YOUR MATCHUP` : statusLabel),
                 h('div', { className: `tl-sc-row${homeLeading ? ' winning' : ''}` },
@@ -49,7 +50,11 @@
                     h('span', { className: 'tl-sc-pts tabular' }, row.homePoints.toFixed(1))),
                 h('div', { className: `tl-sc-row${awayLeading ? ' winning' : ''}` },
                     h('span', { className: 'tl-sc-team' }, h(window.TimeLeagueHelmetIcon, { helmet: awayTeam?.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(awayTeam?.name || row.away), size: 20 }), h('span', null, awayTeam?.name ?? row.away)),
-                    h('span', { className: 'tl-sc-pts tabular' }, row.awayPoints.toFixed(1))));
+                    h('span', { className: 'tl-sc-pts tabular' }, row.awayPoints.toFixed(1))),
+                showLeaders && h('div', { className: 'tl-sc-leader' },
+                    h('small', null, 'AROUND THE LEAGUE'),
+                    leader ? h('span', null, h('b', null, leader.name), ` · ${leader.points.toFixed(1)} pts${leader.touchdowns ? ` · ${leader.touchdowns} TD` : ''}`)
+                        : h('span', null, 'Waiting for the first scoring moment')));
         }));
     }
 
@@ -82,7 +87,7 @@
 
     }
 
-    function WrTimeLeagueGamecastPanel({ league, cards, logIndex, logsMissing, eraFactors, onUpdate, onGoRoster, onlineMeta }) {
+    function WrTimeLeagueGamecastPanel({ league, cards, logIndex, logsMissing, eraFactors, onUpdate, onGoRoster, onlineMeta, autoPlayWeek }) {
         const [playback, setPlayback] = useState(null);
         const [clock, setClock] = useState(0);
         const [playing, setPlaying] = useState(false);
@@ -91,6 +96,15 @@
         const [warnings, setWarnings] = useState(null);
         const [boxWeek, setBoxWeek] = useState(null);
         const clockRef = useRef(0);
+        const autoPlayed = useRef(null);
+        useEffect(() => {
+            if (!autoPlayWeek || autoPlayed.current === autoPlayWeek) return;
+            const weekData = league.finalizedWeeks.find(week => week.week === autoPlayWeek);
+            if (!weekData) return;
+            autoPlayed.current = autoPlayWeek;
+            setPlayback({ timeline: Gamecast.buildGamecast({ week: weekData.week, results: weekData.results, matchups: weekData.matchups, seed: league.seed }), weekData, finalized: league, live: true });
+            setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(300); setPlaying(true);
+        }, [autoPlayWeek, league.finalizedWeeks, league.seed]);
 
         const myTeamId = (league.teams.find((t) => onlineMeta ? t.teamId === onlineMeta.seatTeamId : t.manager === 'human') ?? league.teams[0])?.teamId;
 
@@ -118,7 +132,7 @@
         }, [playing, speed, finishPlayback]);
 
         const skipToEnd = () => { clockRef.current = GAMECAST_END; setClock(GAMECAST_END); if (playing) finishPlayback(); };
-        const canRun = !['postgame', 'claims'].includes(league.weekStage) && (!onlineMeta || (onlineMeta.role === 'commissioner' && onlineMeta.members.every(m => (league.currentWeek > league.settings.regularSeasonWeeks && !Engine.playoffPairs(league, league.currentWeek).some(pair => pair.includes(m.seat_team_id))) || m.ready_week === league.currentWeek))) && league.phase === 'season' && cards !== null && cards.size > 0 && logIndex !== null;
+        const canRun = league.weekStage === 'ready' && (!onlineMeta || onlineMeta.role === 'commissioner') && league.phase === 'season' && cards !== null && cards.size > 0 && logIndex !== null;
 
         const runGameDay = async (force) => {
             if (!canRun || !cards || !logIndex) return;
@@ -167,16 +181,24 @@
         // Normalize this week's matchups into one shape whether we're pre-run
         // (0-0, from the schedule) or mid/post-gamecast (from the playback timeline),
         // so the scoreboard strip and hero card render identically either way.
+        const savedFinal = !playback && (league.weekStage === 'postgame' || league.phase === 'complete') ? league.finalizedWeeks[league.finalizedWeeks.length - 1] : null;
         const matchupRows = playback
             ? playback.weekData.matchups.map((m) => ({ home: m.home, away: m.away, homePoints: liveTotals.get(m.home) ?? 0, awayPoints: liveTotals.get(m.away) ?? 0 }))
-            : pairs.map(([home, away]) => ({ home, away, homePoints: 0, awayPoints: 0 }));
+            : savedFinal ? savedFinal.matchups.map(match => ({ home: match.home, away: match.away, homePoints: match.homePoints, awayPoints: match.awayPoints })) : pairs.map(([home, away]) => ({ home, away, homePoints: 0, awayPoints: 0 }));
         const myRow = (() => {
             const row = matchupRows.find((m) => m.home === myTeamId || m.away === myTeamId);
             return row ? { ...row, mineIsHome: row.home === myTeamId } : null;
         })();
-        const weekLabel = playback ? playback.weekData.week : league.currentWeek;
+        const weekLabel = playback ? playback.weekData.week : savedFinal ? savedFinal.week : league.currentWeek;
+        const leaders = new Map();
+        for (const event of landed) {
+            const key = `${event.teamId}:${event.entryId}`;
+            const row = leaders.get(key) || { name: event.playerName, teamId: event.teamId, points: 0, touchdowns: 0 };
+            row.points += event.points; row.touchdowns += event.isTouchdown ? 1 : 0; leaders.set(key, row);
+        }
+        const leagueLeaders = [...leaders.values()].sort((a,b) => b.points-a.points);
         const strip = league.phase !== 'draft' && matchupRows.length
-            ? h(ScoreboardStrip, { rows: matchupRows, teams: league.teams, myTeamId, live: Boolean(playback) && !done, statusLabel: playback ? (done ? 'FINAL' : playing ? 'PLAYING' : 'PAUSED') : 'UPCOMING' })
+            ? h(ScoreboardStrip, { rows: matchupRows, teams: league.teams, myTeamId, leaders: leagueLeaders, showLeaders: Boolean(playback) && speed === 300, live: Boolean(playback) && !done, statusLabel: playback ? (done ? 'FINAL' : playing ? 'PLAYING' : 'PAUSED') : savedFinal ? 'FINAL' : 'UPCOMING' })
             : null;
         const visibleEvents=followMine&&myRow?landed.filter(e=>e.teamId===myRow.home||e.teamId===myRow.away):landed;
         const currentPlay=visibleEvents[visibleEvents.length-1];
@@ -187,15 +209,8 @@
             currentPlay && h('strong', null, `${currentPlay.points >= 0 ? '+' : ''}${currentPlay.points.toFixed(2)} fantasy points`));
         const records = Engine.computeStandings({ ...league, finalizedWeeks: league.finalizedWeeks.filter(week => week.week < weekLabel) });
         const hero = myRow ? h(HeroMatchup, { row: myRow, teams: league.teams, week: weekLabel, records, spotlight,
-            progress: clock / GAMECAST_END, statusLabel: playback ? (done ? 'FINAL' : playing ? 'SIMULATION' : 'PAUSED') : 'UPCOMING',
+            progress: clock / GAMECAST_END, statusLabel: playback ? (done ? 'FINAL' : playing ? 'SIMULATION' : 'PAUSED') : savedFinal ? 'FINAL' : 'UPCOMING',
             clockLabel: playback ? `${Math.floor(clock / GAMECAST_END * 100)}% played` : `WK ${weekLabel}` }) : spotlight;
-        const leaders = new Map();
-        for (const event of landed) {
-            const key = `${event.teamId}:${event.entryId}`;
-            const row = leaders.get(key) || { name: event.playerName, teamId: event.teamId, points: 0, touchdowns: 0 };
-            row.points += event.points; row.touchdowns += event.isTouchdown ? 1 : 0; leaders.set(key, row);
-        }
-        const leagueLeaders = [...leaders.values()].sort((a,b) => b.points-a.points).slice(0, 3);
         if (playback) {
             return h('div', null,
                 strip, hero,
@@ -213,8 +228,6 @@
                         h('button',{className:'tl-btn','aria-pressed':followMine,onClick:()=>setFollowMine(v=>!v)},followMine?'MY MATCHUP':'ALL MATCHUPS'),
                         CAST_DURATIONS.map(duration => h('button', { key: duration, className: `tl-btn${speed === duration ? ' primary' : ''}`, 'aria-pressed': speed === duration, onClick: () => setSpeed(duration) }, `${duration / 60} MIN`)),
                         h('button', { className: 'tl-btn icon', disabled: done, onClick: skipToEnd }, 'INSTANT')),
-                    speed === 300 && h('section', { className: 'tl-league-live' }, h('h3', null, 'Around the league · Live leaders'),
-                        leagueLeaders.length ? leagueLeaders.map(row => h('div', { key: row.teamId + row.name }, h('strong', null, row.name), h('span', null, `${teamName(row.teamId)} · ${row.points.toFixed(1)} pts${row.touchdowns ? ` · ${row.touchdowns} TD` : ''}`))) : h('p', null, 'League highlights arrive as the games unfold.')),
                     done && headlines.length > 0 && h('div', { style: { marginBottom: 14 } },
                         h('span', { className: 'tl-label' }, `Week ${playback.weekData.week} Wire`),
                         headlines.map((headline, i) => h('p', { key: i, style: { fontSize: 12.5, color: 'var(--text-secondary)', margin: '4px 0' } }, headline))),
@@ -230,7 +243,7 @@
 
         return h('div', null,
             strip, hero,
-            league.phase === 'season' && h('div', { className: 'tl-card' },
+            league.phase === 'season' && league.weekStage === 'ready' && h('div', { className: 'tl-card' },
                 h('div', { className: 'tl-card-title' }, h('span', null, `Week ${league.currentWeek} Command`), h('small', null, `${pairs.length} matchups · ${league.settings.eraAdjusted ? 'era-adjusted' : 'raw scoring'}`)),
                 logsMissing && h('div', { className: 'tl-feedrow urgent' }, h('time', null, 'DATA'), h('p', null, 'Bundled game logs missing — check data/time-league/.')),
                 !logsMissing && !logIndex && h('div', { className: 'tl-feedrow' }, h('time', null, 'DATA'), h('p', null, 'Parsing bundled game logs (170k weekly lines)…')),

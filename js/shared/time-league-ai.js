@@ -203,7 +203,7 @@
 
     function aiRespondToTrades(state, cards, createdAt) {
         return state.trades.reduce((next, trade) => {
-            if (trade.status !== "pending") return next;
+            if (trade.status !== "pending" || trade.deferredUntilWeek > state.currentWeek) return next;
             const to = next.teams.find((team) => team.teamId === trade.toTeamId);
             if (!to || to.manager !== "ai") return next;
             const live = next.trades.find((item) => item.tradeId === trade.tradeId);
