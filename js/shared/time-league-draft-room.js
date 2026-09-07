@@ -26,8 +26,8 @@
     }
 
     /**
-     * Creates the complete seat schedule up front. Time League only uses
-     * snake drafts, but the `type` param is kept for parity with the source.
+     * Creates the complete seat schedule up front for snake and linear drafts.
+     * Auction nominations rotate separately because winners may bid out of turn.
      */
     function createDraftOrder(teamIds, rounds, type) {
         const cleanTeams = teamIds.filter(Boolean);

@@ -23,6 +23,10 @@ Deno.serve(async (req: Request) => {
             // Normalize and bound settings BEFORE creating schedules or draft orders.
             const settings = input.settings;
             if (!settings || !settings.rosterSlots || Object.values(settings.rosterSlots).some((v: any) => !Number.isInteger(v) || v < 0 || v > 12) || !Number.isInteger(settings.regularSeasonWeeks) || settings.regularSeasonWeeks < 1 || settings.regularSeasonWeeks > 18) return fail('Invalid league rules.');
+            if (settings.draftFormat !== undefined && !['snake', 'linear', 'auction'].includes(settings.draftFormat)) return fail('Choose snake, linear, or auction.');
+            if (settings.draftPickSeconds !== undefined && !App.TimeLeagueEngine.DRAFT_PICK_SECONDS.includes(settings.draftPickSeconds)) return fail('Choose a supported draft clock.');
+            if (settings.draftAiSeconds !== undefined && !App.TimeLeagueEngine.DRAFT_AI_SECONDS.includes(settings.draftAiSeconds)) return fail('Choose a supported AI pace.');
+            if (settings.draftAuctionBudget !== undefined && (!Number.isInteger(settings.draftAuctionBudget) || settings.draftAuctionBudget < 50 || settings.draftAuctionBudget > 1000)) return fail('Auction budgets must be between 50 and 1,000.');
             const capacity = App.TimeLeagueEngine.rosterCapacity(settings);
             if (capacity < 1 || capacity > 30) return fail('Choose between 1 and 30 roster spots.');
             const state = App.TimeLeagueEngine.normalizeTimeLeague(App.TimeLeagueEngine.createTimeLeague({ ...input, seed: crypto.randomUUID(), createdAt: new Date().toISOString() }));
@@ -57,6 +61,7 @@ Deno.serve(async (req: Request) => {
         if (row.version !== body.version) return json(req, { ok: false, conflict: true }, 409);
         const action = body.action;
         if (!action || typeof action.type !== 'string') return fail('Choose a game action.');
+        if (action.type === 'draft-clock-start' && members!.some(m => m.user_id && m.ready_week !== row.current_week)) return fail('Wait for every manager to finish the reveal.');
         let next = row.state;
         let started = row.draft_started;
         if (action.type === 'start') {

@@ -27,17 +27,67 @@
             }
             return applyOnlineAction(state, { type: gateAction() }, { ...member, role: 'commissioner' }, data, stamp);
         }
+        const draftRunning = () => {
+            if (state.phase !== 'draft' || (state.draftClock && state.draftClock.status !== 'running')) deny('No draft action is legal until the draft is started and resumed.');
+        };
+        const draftBeforeDeadline = () => {
+            draftRunning();
+            if (state.draftClock?.deadlineAt && Date.parse(stamp) >= Date.parse(state.draftClock.deadlineAt)) deny('The draft clock expired. Resolve the timed pick before continuing.');
+        };
+        const aiDue = () => {
+            const start = Math.max(Date.parse(state.draftClock?.startedAt) || 0, Date.parse(state.draftAuction?.lastAiAt) || 0);
+            if (Date.parse(stamp) < start + (state.settings.draftAiSeconds || 2) * 1000) deny('The next AI decision is not due yet.');
+        };
         switch (action.type) {
+        case 'draft-clock-start':
+            commissioner(); next = E.startDraft(state, stamp); break;
+        case 'draft-clock-pause':
+            commissioner(); next = E.pauseDraft(state, stamp); break;
+        case 'draft-clock-resume':
+            commissioner(); next = E.resumeDraft(state, stamp); break;
+        case 'draft-clock-settings':
+            commissioner(); next = E.configureDraft(state, action, stamp); break;
+        case 'draft-timeout':
+            draftRunning(); next = E.expireDraftClock(state, cards, stamp); break;
+        case 'auction-nominate':
+            ownTeam(); draftBeforeDeadline();
+            next = E.nominateAuctionPlayer(state, own, cards.get(action.identity), action.amount ?? 1, stamp); break;
+        case 'auction-bid':
+            ownTeam(); draftBeforeDeadline();
+            next = E.bidAuctionPlayer(state, own, action.amount, stamp, cards); break;
+        case 'auction-close':
+            commissioner(); draftRunning();
+            if (state.settings.draftPickSeconds !== 0) deny('Bidding closes when the auction clock expires.');
+            if (!E.auctionCanClose(state, cards, stamp)) deny('AI managers are still considering bids. Let them finish before closing bidding.');
+            next = E.closeAuction(state, cards, stamp); break;
+        case 'auction-ai-step':
+            draftBeforeDeadline(); aiDue();
+            if (!state.teams.some(t => t.teamId === own && t.manager === 'human')) deny('Only a league manager can advance the draft.');
+            next = AI.aiAuctionStep(state, cards, stamp); break;
+        case 'draft-ai-step': {
+            draftBeforeDeadline(); aiDue();
+            if (!state.teams.some(t => t.teamId === own && t.manager === 'human')) deny('Only a league manager can advance the draft.');
+            if (state.settings.draftFormat === 'auction') deny('Use the auction bidding desk.');
+            const seat = E.currentDraftSeat(state);
+            if (state.teams.find(t => t.teamId === seat?.teamId)?.manager !== 'ai') deny('Wait for the human manager to pick.');
+            const card = AI.aiDraftChoice(state, cards);
+            if (card) next = E.applyDraftPick(state, card, { madeBy: 'ai', createdAt: stamp });
+            break;
+        }
         case 'draft': {
             const seat = E.currentDraftSeat(state);
             if (!seat || seat.teamId !== own) deny('Wait for your draft turn.');
             if (!cards.has(action.identity)) deny('Player not found.');
+            draftBeforeDeadline();
+            if (state.settings.draftFormat === 'auction') deny('Use the auction bidding desk.');
             next = E.applyDraftPick(state, cards.get(action.identity), { madeBy: 'human', createdAt: stamp });
             break;
         }
         case 'ai-pick':
         case 'ai-run': {
             commissioner();
+            draftBeforeDeadline();
+            if (state.settings.draftFormat === 'auction') deny('Use the auction bidding desk.');
             for (let i = 0; i < state.draftOrder.length; i++) {
                 const seat = E.currentDraftSeat(next);
                 if (next.phase !== 'draft' || !seat || next.teams.find(t => t.teamId === seat.teamId)?.manager !== 'ai') break;

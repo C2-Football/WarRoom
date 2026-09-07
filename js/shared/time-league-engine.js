@@ -84,6 +84,131 @@
         return expandRosterSlots(settings.rosterSlots).length;
     }
 
+    const DRAFT_PICK_SECONDS = [0, 15, 30, 60, 90, 120, 180, 300];
+    const DRAFT_AI_SECONDS = [0.5, 1, 2, 4, 8];
+    function draftSettings(value = {}, isNew = false) {
+        return {
+            draftFormat: ['linear', 'auction'].includes(value.draftFormat) ? value.draftFormat : 'snake',
+            draftPickSeconds: DRAFT_PICK_SECONDS.includes(value.draftPickSeconds) ? value.draftPickSeconds : (isNew ? 60 : 0),
+            draftAiSeconds: DRAFT_AI_SECONDS.includes(value.draftAiSeconds) ? value.draftAiSeconds : 2,
+            draftAuctionBudget: Number.isInteger(value.draftAuctionBudget) ? Math.max(50, Math.min(1000, value.draftAuctionBudget)) : 200,
+        };
+    }
+    const validStamp = stamp => typeof stamp === 'string' && Number.isFinite(Date.parse(stamp));
+    function normalizeDraftClock(clock, settings) {
+        // Existing saves never acquire a ticking deadline simply by being opened.
+        if (!clock || !['waiting', 'running', 'paused'].includes(clock.status)) return { status: 'running', startedAt: null, deadlineAt: null, remainingMs: 0 };
+        return {
+            status: clock.status,
+            startedAt: validStamp(clock.startedAt) ? clock.startedAt : null,
+            deadlineAt: clock.status === 'running' && settings.draftPickSeconds > 0 && validStamp(clock.deadlineAt) ? clock.deadlineAt : null,
+            remainingMs: Number.isFinite(clock.remainingMs) ? Math.max(0, Math.min(300000, clock.remainingMs)) : settings.draftPickSeconds * 1000,
+        };
+    }
+    function restartedClock(state, stamp, durationMs = (state.settings.draftPickSeconds || 0) * 1000) {
+        const clock = normalizeDraftClock(state.draftClock, state.settings);
+        const running = clock.status === 'running';
+        return { status: clock.status, startedAt: validStamp(stamp) ? stamp : clock.startedAt, deadlineAt: running && durationMs > 0 && validStamp(stamp) ? new Date(Date.parse(stamp) + durationMs).toISOString() : null, remainingMs: durationMs };
+    }
+    function startDraft(state, stamp) {
+        if (state.phase !== 'draft' || !validStamp(stamp) || state.draftClock?.status !== 'waiting') return state;
+        const next = { ...state, draftClock: { ...state.draftClock, status: 'running' } };
+        return { ...next, draftClock: restartedClock(next, stamp) };
+    }
+    function pauseDraft(state, stamp) {
+        if (state.phase !== 'draft' || !validStamp(stamp) || state.draftClock?.status !== 'running') return state;
+        const remainingMs = state.draftClock.deadlineAt ? Math.max(0, Date.parse(state.draftClock.deadlineAt) - Date.parse(stamp)) : 0;
+        return { ...state, draftClock: { ...state.draftClock, status: 'paused', deadlineAt: null, remainingMs } };
+    }
+    function resumeDraft(state, stamp) {
+        if (state.phase !== 'draft' || !validStamp(stamp) || state.draftClock?.status !== 'paused') return state;
+        const next = { ...state, draftClock: { ...state.draftClock, status: 'running' } };
+        const remaining = state.settings.draftPickSeconds > 0 ? Math.max(1, state.draftClock.remainingMs) : 0;
+        return { ...next, draftClock: restartedClock(next, stamp, remaining) };
+    }
+    function configureDraft(state, patch, stamp) {
+        if (state.phase !== 'draft' || !validStamp(stamp) || !patch) return state;
+        if (patch.draftPickSeconds !== undefined && !DRAFT_PICK_SECONDS.includes(patch.draftPickSeconds)) return state;
+        if (patch.draftAiSeconds !== undefined && !DRAFT_AI_SECONDS.includes(patch.draftAiSeconds)) return state;
+        const settings = { ...state.settings, ...draftSettings({ ...state.settings, draftPickSeconds: patch.draftPickSeconds ?? state.settings.draftPickSeconds, draftAiSeconds: patch.draftAiSeconds ?? state.settings.draftAiSeconds }) };
+        const next = { ...state, settings };
+        return { ...next, draftClock: patch.draftPickSeconds !== undefined ? restartedClock(next, stamp) : state.draftClock };
+    }
+    function normalizeAuction(raw, teams, picks) {
+        let nomination = null;
+        const n = raw?.nomination;
+        if (n && typeof n.identity === 'string' && typeof n.name === 'string' && normalizePlayerPosition(n.position)
+            && teams.some(t => t.teamId === n.nominatedBy) && teams.some(t => t.teamId === n.highTeamId)
+            && Number.isInteger(n.highBid) && n.highBid > 0 && n.highBid <= 1000 && !picks.some(p => p.identity === n.identity)) {
+            nomination = { identity: n.identity, name: n.name, position: n.position, nominatedBy: n.nominatedBy, highTeamId: n.highTeamId, highBid: n.highBid };
+        }
+        return { nomination, nominationIndex: Number.isInteger(raw?.nominationIndex) && raw.nominationIndex >= 0 ? raw.nominationIndex : 0, lastAiAt: validStamp(raw?.lastAiAt) ? raw.lastAiAt : null };
+    }
+    function auctionMaxBid(state, teamId) {
+        const team = state.teams.find(item => item.teamId === teamId);
+        if (!team) return 0;
+        const spots = rosterCapacity(state.settings) - team.roster.length;
+        return spots > 0 ? Math.max(0, (team.draftBudgetRemaining ?? state.settings.draftAuctionBudget ?? 200) - (spots - 1)) : 0;
+    }
+    function auctionCanBid(state, teamId, card) {
+        const team = state.teams.find(item => item.teamId === teamId);
+        return Boolean(team && card && auctionMaxBid(state, teamId) > 0 && !draftedIdentities(state).has(card.identity)
+            && positionIsStartable(state.settings, card.position) && eraEligibleCard(card, state.settings.eraRules)
+            && findOpenRosterSlot(card.position, team.roster.map(entry => entry.slot), state.settings.rosterSlots, state.settings.maxQuarterbacks, team.roster.map(entry => entry.position)));
+    }
+    const draftOpen = state => state.phase === 'draft' && (!state.draftClock || state.draftClock.status === 'running');
+    const beforeDeadline = (state, stamp) => !state.draftClock?.deadlineAt || Date.parse(stamp) < Date.parse(state.draftClock.deadlineAt);
+    function nominateAuctionPlayer(state, teamId, card, amount = 1, stamp) {
+        if (state.settings.draftFormat !== 'auction' || !draftOpen(state) || !validStamp(stamp) || !beforeDeadline(state, stamp)
+            || state.draftAuction?.nomination || currentDraftSeat(state)?.teamId !== teamId || !auctionCanBid(state, teamId, card)
+            || !Number.isInteger(amount) || amount < 1 || amount > auctionMaxBid(state, teamId)) return state;
+        return { ...state, draftAuction: { ...state.draftAuction, nomination: { identity: card.identity, name: card.name, position: card.position, nominatedBy: teamId, highTeamId: teamId, highBid: amount }, lastAiAt: stamp }, draftClock: restartedClock(state, stamp) };
+    }
+    function bidAuctionPlayer(state, teamId, amount, stamp, cards) {
+        const n = state.draftAuction?.nomination;
+        const card = cards?.get(n?.identity);
+        // With no card index, roster legality still uses the nominated position;
+        // its era eligibility was validated when the nomination was opened.
+        const team = state.teams.find(item => item.teamId === teamId);
+        const legal = team && n && findOpenRosterSlot(n.position, team.roster.map(e => e.slot), state.settings.rosterSlots, state.settings.maxQuarterbacks, team.roster.map(e => e.position));
+        if (state.settings.draftFormat !== 'auction' || !draftOpen(state) || !validStamp(stamp) || !beforeDeadline(state, stamp)
+            || !n || n.highTeamId === teamId || !legal || !Number.isInteger(amount) || amount <= n.highBid || amount > auctionMaxBid(state, teamId)
+            || (cards && !auctionCanBid(state, teamId, card))) return state;
+        return { ...state, draftAuction: { ...state.draftAuction, nomination: { ...n, highTeamId: teamId, highBid: amount } }, draftClock: restartedClock(state, stamp) };
+    }
+    function auctionCanClose(state, cards, stamp) {
+        if (!state.draftAuction?.nomination || !draftOpen(state) || !validStamp(stamp)) return false;
+        if (state.draftClock?.deadlineAt) return Date.parse(stamp) >= Date.parse(state.draftClock.deadlineAt);
+        const due = Math.max(Date.parse(state.draftClock?.startedAt) || 0, Date.parse(state.draftAuction?.lastAiAt) || 0) + (state.settings.draftAiSeconds || 2) * 1000;
+        return Date.parse(stamp) >= due && (!App.TimeLeagueAI || App.TimeLeagueAI.aiAuctionStep(state, cards, stamp) === state);
+    }
+    function closeAuction(state, cards, stamp) {
+        const n = state.draftAuction?.nomination;
+        if (state.settings.draftFormat !== 'auction' || !draftOpen(state) || !validStamp(stamp) || !n || !cards.has(n.identity)) return state;
+        if (state.draftClock?.deadlineAt && Date.parse(stamp) < Date.parse(state.draftClock.deadlineAt)) return state;
+        const winner = state.teams.find(t => t.teamId === n.highTeamId);
+        const next = applyDraftPick(state, cards.get(n.identity), { madeBy: winner.manager, createdAt: stamp, auctionAward: true });
+        if (next === state) return state;
+        return { ...next,
+            teams: next.teams.map(team => team.teamId === winner.teamId ? { ...team, draftBudgetRemaining: (winner.draftBudgetRemaining ?? state.settings.draftAuctionBudget ?? 200) - n.highBid } : team),
+            draftAuction: { nomination: null, nominationIndex: (state.teams.findIndex(t => t.teamId === n.nominatedBy) + 1) % state.teams.length, lastAiAt: stamp },
+        };
+    }
+    function expireDraftClock(state, cards, stamp) {
+        if (!draftOpen(state) || !validStamp(stamp) || !state.draftClock?.deadlineAt || Date.parse(stamp) < Date.parse(state.draftClock.deadlineAt)) return state;
+        if (state.settings.draftFormat === 'auction' && state.draftAuction?.nomination) return closeAuction(state, cards, stamp);
+        const seat = currentDraftSeat(state), team = state.teams.find(t => t.teamId === seat?.teamId);
+        if (!team) return state;
+        const legal = card => auctionCanBid({ ...state, teams: state.teams.map(t => t.teamId === team.teamId ? { ...t, draftBudgetRemaining: 1000 } : t) }, team.teamId, card);
+        const card = team.queue.map(id => cards.get(id)).find(legal) || App.TimeLeagueAI?.aiDraftChoice(state, cards) || eraEligibleCards(state, cards).find(legal);
+        if (!card) return state;
+        if (state.settings.draftFormat === 'auction') {
+            const open = { ...state, draftClock: restartedClock(state, stamp) };
+            return nominateAuctionPlayer(open, team.teamId, card, 1, stamp);
+        }
+        return applyDraftPick(state, card, { madeBy: team.manager, createdAt: stamp });
+    }
+
     // Cosmetic identity must survive the same round trips as roster state.
     // Missing or malformed cosmetics never invalidate an older league save.
     const TEAM_BACKDROPS = ['midnight', 'stadium', 'gridiron', 'heritage', 'aurora'];
@@ -117,7 +242,7 @@
             };
         });
         const teamIds = teams.map((team) => team.teamId);
-        const draftOrder = createDraftOrder(teamIds, rosterCapacity(input.settings), "snake")
+        const draftOrder = createDraftOrder(teamIds, rosterCapacity(input.settings), input.settings.draftFormat === "linear" ? "linear" : "snake")
             .map(({ overall, round, teamId }) => ({ overall, round, teamId }));
         const schedule = buildRoundRobinSchedule(teamIds, input.settings.regularSeasonWeeks)
             .map(({ week, pairs }) => ({ week, pairs }));
@@ -127,10 +252,11 @@
         // board, the draws and the waiver wire all read the same assignment forever.
         const settings = {
             ...input.settings,
+            ...draftSettings(input.settings, true),
             playoffTeams: input.settings.playoffTeams || 0,
             advancementMode: input.settings.advancementMode || 'commissioner',
             gateHours: input.settings.gateHours || 24,
-            eraRules: openDraftEra(input.settings.eraRules, `${input.seed}:era`, POSITIONS.filter(position => positionIsStartable(input.settings, position))),
+            eraRules: openDraftEra(input.settings.eraRules || { mode: "position-roulette", decades: [] }, `${input.seed}:era`, POSITIONS.filter(position => positionIsStartable(input.settings, position))),
         };
         const founding = [{
             id: "a1",
@@ -140,7 +266,7 @@
             createdAt: input.createdAt,
         }];
         const roulette = rouletteLine(settings.eraRules);
-        if (roulette) founding.push({ id: "a2", week: 1, kind: "league", message: roulette, createdAt: input.createdAt });
+        if (roulette) founding.push({ id: "a2", week: 1, kind: "league", message: "Position Roulette sealed — reveal each position in the draft room.", createdAt: input.createdAt });
         return {
             version: 1,
             leagueId,
@@ -149,8 +275,10 @@
             createdAt: input.createdAt,
             phase: "draft",
             settings,
-            teams,
+            teams: teams.map(team => ({ ...team, draftBudgetRemaining: settings.draftAuctionBudget })),
             draftOrder,
+            draftClock: { status: "waiting", startedAt: null, deadlineAt: null, remainingMs: settings.draftPickSeconds * 1000 },
+            draftAuction: { nomination: null, nominationIndex: 0, lastAiAt: null },
             draftPicks: [],
             seasonsRevealed: false,
             currentWeek: 1,
@@ -167,6 +295,13 @@
     }
 
     function currentDraftSeat(state) {
+        if (state.settings.draftFormat === 'auction') {
+            const eligible = state.teams.filter(team => team.roster.length < rosterCapacity(state.settings));
+            if (!eligible.length) return null;
+            const start = (state.draftAuction?.nominationIndex || 0) % state.teams.length;
+            const team = state.teams.slice(start).concat(state.teams.slice(0, start)).find(item => eligible.includes(item));
+            return { overall: state.draftPicks.length + 1, round: Math.floor(state.draftPicks.length / state.teams.length) + 1, teamId: team.teamId };
+        }
         const taken = new Set(state.draftPicks.map((pick) => pick.overall));
         return state.draftOrder.find((seat) => !taken.has(seat.overall)) ?? null;
     }
@@ -198,7 +333,11 @@
     }
 
     function applyDraftPick(state, card, opts) {
-        const seat = state.phase === "draft" ? currentDraftSeat(state) : null;
+        let seat = state.phase === "draft" ? currentDraftSeat(state) : null;
+        if (state.settings.draftFormat === 'auction') {
+            if (!opts.auctionAward || !state.draftAuction?.nomination) return state;
+            seat = { ...seat, teamId: state.draftAuction.nomination.highTeamId };
+        }
         if (!seat || draftedIdentities(state).has(card.identity)) return state;
         const team = state.teams.find((item) => item.teamId === seat.teamId);
         if (!team) return state;
@@ -230,16 +369,18 @@
             name: card.name,
             position: card.position,
             madeBy: opts.madeBy,
+            ...(opts.auctionAward ? { auctionPrice: state.draftAuction.nomination.highBid } : {}),
         };
         const pickInRound = state.draftOrder.filter((item) => item.round === seat.round)
             .findIndex((item) => item.overall === seat.overall) + 1;
         const complete = state.draftPicks.length + 1 >= state.draftOrder.length;
         const events = appendEvents(state.activity);
-        events.push(state.currentWeek, "draft", `R${seat.round}.${String(pickInRound).padStart(2, "0")} — ${team.name} selects ${card.name}, ${card.position}`, opts.createdAt);
+        events.push(state.currentWeek, "draft", opts.auctionAward ? `Auction — ${team.name} wins ${card.name}, ${card.position} for $${state.draftAuction.nomination.highBid}` : `R${seat.round}.${String(pickInRound).padStart(2, "0")} — ${team.name} selects ${card.name}, ${card.position}`, opts.createdAt);
         if (complete) events.push(state.currentWeek, "league", "Draft complete — mystery seasons revealed", opts.createdAt);
         return {
             ...state,
             phase: complete ? "season" : state.phase,
+            draftClock: complete ? { ...state.draftClock, status: "paused", deadlineAt: null, remainingMs: 0 } : restartedClock(state, opts.createdAt),
             seasonsRevealed: complete || state.seasonsRevealed,
             teams: state.teams.map((item) => (item.teamId === team.teamId ? { ...item, roster: [...item.roster, entry] } : item)),
             draftPicks: [...state.draftPicks, pick],
@@ -739,6 +880,7 @@
         return {
             rosterSlots,
             scoring,
+            ...draftSettings(value, false),
             regularSeasonWeeks: clampInt(regularSeasonWeeks, 1, 18),
             playoffTeams: [2,4,8].includes(value.playoffTeams) && regularSeasonWeeks + Math.log2(value.playoffTeams) <= 18 ? value.playoffTeams : 0,
             advancementMode: ['majority', 'timed'].includes(value.advancementMode) ? value.advancementMode : 'commissioner',
@@ -786,7 +928,7 @@
         const hasFaab = "faabRemaining" in value;
         const faabRemaining = hasFaab ? readNumber(value.faabRemaining) : undefined;
         if (hasFaab && faabRemaining === null) return null;
-        return { teamId, name, manager, ...(aiPersona ? { aiPersona } : {}), ...design, roster, queue, ...(faabRemaining !== undefined ? { faabRemaining } : {}) };
+        return { teamId, name, manager, ...(aiPersona ? { aiPersona } : {}), ...design, roster, queue, ...(Number.isInteger(value.draftBudgetRemaining) && value.draftBudgetRemaining >= 0 ? { draftBudgetRemaining: value.draftBudgetRemaining } : {}), ...(faabRemaining !== undefined ? { faabRemaining } : {}) };
     };
 
     const readSeat = (value) => {
@@ -806,7 +948,7 @@
         const position = normalizePlayerPosition(value.position);
         const madeBy = value.madeBy === "human" || value.madeBy === "ai" ? value.madeBy : null;
         if (!seat || !entryId || !identity || !name || !position || !madeBy) return null;
-        return { ...seat, entryId, identity, name, position, madeBy };
+        return { ...seat, entryId, identity, name, position, madeBy, ...(Number.isInteger(value.auctionPrice) && value.auctionPrice > 0 ? { auctionPrice: value.auctionPrice } : {}) };
     };
 
     const readPair = (value) => {
@@ -975,6 +1117,8 @@
             teams,
             draftOrder,
             draftPicks,
+            draftClock: normalizeDraftClock(raw.draftClock, settings),
+            draftAuction: normalizeAuction(raw.draftAuction, teams, draftPicks),
             seasonsRevealed: raw.seasonsRevealed === true,
             currentWeek: clampInt(currentWeek, 1, seasonEndWeek({ settings, teams }) + 1),
             weekStage: ['postgame', 'claims', 'lineup', 'ready'].includes(raw.weekStage) ? raw.weekStage : 'ready',
@@ -992,6 +1136,8 @@
 
     const api = {
         rosterCapacity, createTimeLeague, currentDraftSeat, draftedIdentities, eraEligibleCards,
+        DRAFT_PICK_SECONDS, DRAFT_AI_SECONDS, draftSettings, startDraft, pauseDraft, resumeDraft, configureDraft, expireDraftClock,
+        auctionMaxBid, auctionCanBid, auctionCanClose, nominateAuctionPlayer, bidAuctionPlayer, closeAuction,
         positionIsStartable, applyDraftPick, setEntrySlot, autoFillLineup, lineupProblems,
         finalizeCurrentWeek, computeStandings, freeAgents, submitWaiverClaim, cancelWaiverClaim,
         playoffCount, seasonEndWeek, playoffPairs, startPlayoffs, processWaivers, waiverLandingSlot, proposeTrade, respondToTrade, deferTrade, normalizeTimeLeague,

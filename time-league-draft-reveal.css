@@ -1,0 +1,38 @@
+/* The reveal keeps the draft class sealed; scouting opens in the same view on every screen. */
+.tl-era-years { display: block; color: #c7d4e8; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; margin: 8px 0; }
+.tl-era-shortlist { display: grid; gap: 6px; margin-top: 6px; }
+.tl-era-headliner { display: grid; grid-template-columns: 20px minmax(0,1fr) 14px; align-items: center; gap: 7px; min-height: 58px; width: 100%; padding: 9px 8px; border: 1px solid #7184a35c; border-radius: 10px; background: #142237b0; color: #f1f5fc; text-align: left; cursor: pointer; }
+.tl-era-headliner:hover { border-color: #87efcf; background: #293d53; }
+.tl-era-headliner:focus-visible,.tl-scout-player-name:focus-visible { outline: 3px solid #87efcf; outline-offset: 2px; }
+.tl-era-headliner strong { display: block; font-size: 12px; line-height: 1.35; }
+.tl-era-headliner small { display: block; font-size: 10px; color: #b6c8e0; line-height: 1.5; margin-top: 3px; }
+.tl-era-headliner-rank { color: #ffe08a; font-family: var(--font-mono,monospace); }
+.tl-draft-sealed-note { margin-top: 14px; padding: 18px; text-align: center; color: #f1f5fc; }
+.tl-draft-sealed-note strong { color: #87efcf; font-size: 17px; }
+.tl-draft-sealed-note p { margin: 8px 0 0; color: #b6c8e0; font-size: 13px; line-height: 1.6; }
+.tl-scout-player-name { border: 0; background: none; color: inherit; padding: 8px 0; font: inherit; min-height: 44px; text-align: left; cursor: pointer; }
+.tl-scout-overlay { position: fixed; inset: 0; z-index: 1500; display: flex; align-items: center; justify-content: center; padding: 24px; background: #060e1bdd; overscroll-behavior: contain; }
+.tl-scout-dialog { width: min(780px,100%); max-height: min(90dvh,920px); overflow-y: auto; border: 1px solid #8397b6; border-radius: 18px; background: #172338; color: #edf3fd; box-shadow: 0 24px 80px #0008; overscroll-behavior: contain; }
+.tl-scout-dialog-header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: #213149; border-bottom: 1px solid #50637f; }
+.tl-scout-dialog-header strong { color: #87efcf; font-family: var(--font-title,sans-serif); font-size: 18px; }
+.tl-scout-dialog-header .tl-btn { min-height: 44px; white-space: nowrap; }
+.tl-scout-dialog .tl-scout-file { border: 0; margin: 0; padding: 18px; background: transparent; box-shadow: none; }
+.tl-scout-dialog .tl-scout-file > .tl-card-title { display: none; }
+.tl-scout-dialog .tl-scout-seasons { border: 1px solid #465b78; border-radius: 10px; }
+.tl-scout-dialog .tl-scout-seasons .tl-tbl { min-width: 470px; }
+.tl-scout-dialog .tl-scout-seasons td:first-child,.tl-scout-dialog .tl-scout-seasons th:first-child { position: sticky; left: 0; z-index: 1; background: #1b2b42; font-weight: 700; }
+@media (max-width:600px) {
+    .tl-era-stage { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+    .tl-era-stage .tl-era-card { padding: 10px 8px !important; }
+    .tl-era-headliner { grid-template-columns: minmax(0,1fr) 12px; gap: 4px; padding: 9px 7px; }
+    .tl-era-headliner-rank { display: none; }
+    .tl-era-headliner strong { font-size: 11px; }
+    .tl-era-years { font-size: 10px; }
+    .tl-scout-overlay { padding: 0; align-items: stretch; }
+    .tl-scout-dialog { width: 100%; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; padding-bottom: env(safe-area-inset-bottom); }
+    .tl-scout-dialog-header { padding-top: max(12px,env(safe-area-inset-top)); }
+    .tl-scout-dialog-header strong { font-size: 17px; }
+    .tl-scout-dialog .tl-scout-file { padding: 16px 12px 28px; }
+    .tl-scout-dialog .tl-scout-file .tl-btn { min-height: 48px; white-space: normal; }
+}
+@media (max-width:350px) { .tl-era-stage { grid-template-columns: 1fr; } }

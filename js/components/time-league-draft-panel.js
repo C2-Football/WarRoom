@@ -21,7 +21,7 @@
     const QB_COLUMNS = [{ key: 'passYd', label: 'Pa Yd' }, { key: 'passTd', label: 'Pa TD' }, { key: 'passInt', label: 'Int' }, { key: 'rushYd', label: 'Ru Yd' }, { key: 'rushTd', label: 'Ru TD' }];
     const RB_COLUMNS = [{ key: 'rushYd', label: 'Ru Yd' }, { key: 'rushTd', label: 'Ru TD' }, { key: 'rec', label: 'Rec' }, { key: 'recYd', label: 'Re Yd' }, { key: 'recTd', label: 'Re TD' }];
     const RECEIVER_COLUMNS = [{ key: 'rec', label: 'Rec' }, { key: 'recYd', label: 'Re Yd' }, { key: 'recTd', label: 'Re TD' }, { key: 'rushYd', label: 'Ru Yd' }, { key: 'rushTd', label: 'Ru TD' }];
-    const statColumnsFor = (position) => (position === 'QB' ? QB_COLUMNS : position === 'RB' ? RB_COLUMNS : RECEIVER_COLUMNS);
+    const statColumnsFor = (position) => (position === 'QB' ? QB_COLUMNS : position === 'RB' ? RB_COLUMNS : position === 'K' || position === 'DEF' ? [] : RECEIVER_COLUMNS);
 
     const spanOf = (seasons) => {
         const first = seasons[0]; const last = seasons[seasons.length - 1];
@@ -29,6 +29,7 @@
         return first.season === last.season ? String(first.season) : `${first.season}-${last.season}`;
     };
     const seasonSpan = (card) => spanOf(card.seasons);
+    const availableYears = (seasons) => [...new Set(seasons.map((season) => season.season))].sort((a, b) => a - b).join(', ') || 'None';
     const peakOf = (seasons) => seasons.reduce((max, s) => Math.max(max, s.points), 0);
     const careerGames = (card) => card.seasons.reduce((sum, s) => sum + s.games, 0);
     const pickLabel = (order, overall, round) => {
@@ -50,7 +51,7 @@
     // already-computed result gets *revealed* to the human — one position at
     // a time, on demand, rather than an auto-staggered deal-them-all cascade
     // the moment the draft room mounts. Turning a position over also opens
-    // that position's top-10 draftable board for the decade it landed on —
+    // that position's three leading draftable players for the decade it landed on —
     // a bare decade label doesn't tell you whether you got a stacked pool or
     // an empty one.
     //
@@ -127,7 +128,7 @@
             }));
     }
 
-    function WrTimeLeagueDraftPanel({ league, cards, onUpdate, onlineMeta }) {
+    function WrTimeLeagueDraftPanel({ league, cards, onUpdate, onlineMeta, onRevealReadyChange, draftControls, onDraftAction }) {
         const [query, setQuery] = useState('');
         const [positionFilter, setPositionFilter] = useState('ALL');
         const [selectedIdentity, setSelectedIdentity] = useState(null);
@@ -136,12 +137,17 @@
         const [note, setNote] = useState('');
         const [boardLimit, setBoardLimit] = useState(24);
         const scoutRef = useRef(null);
+        const [scoutOpen, setScoutOpen] = useState(false);
+        const scoutDialogRef = useRef(null);
+        const scoutTriggerRef = useRef(null);
         useEffect(() => setBoardLimit(24), [query, positionFilter]);
 
         const seat = useMemo(() => Engine.currentDraftSeat(league), [league]);
         const drafted = useMemo(() => Engine.draftedIdentities(league), [league]);
         const onClockTeam = seat ? league.teams.find((t) => t.teamId === seat.teamId) ?? null : null;
         const humanTeam = league.teams.find((t) => onlineMeta ? t.teamId === onlineMeta.seatTeamId : t.manager === 'human') ?? null;
+        const isAuction = league.settings.draftFormat === 'auction';
+        const clockReady = !league.draftClock || league.draftClock.status === 'running';
         const canSim = !onlineMeta || onlineMeta.role === 'commissioner';
         const persona = onClockTeam?.aiPersona ? AI.AI_PERSONAS[onClockTeam.aiPersona] : null;
 
@@ -155,35 +161,33 @@
             const present = new Set(available.map(({ card }) => card.position));
             return POSITION_ORDER.filter((p) => present.has(p));
         }, [available]);
-        const cardPositions = useMemo(() => new Set([...cards.values()].map((c) => c.position)), [cards]);
         const eraAssignments = useMemo(() => {
             if (eraRules.mode !== 'position-roulette') return [];
             const poolSize = new Map();
             for (const { card } of available) poolSize.set(card.position, (poolSize.get(card.position) ?? 0) + 1);
             return Object.entries(eraRules.positionDecades ?? {})
-                .flatMap(([position, decade]) => (decade && POSITION_ORDER.includes(position) && cardPositions.has(position) && positionDemand(league.settings, position) > 0 ? [{ position, decade }] : []))
+                .flatMap(([position, decade]) => (decade && POSITION_ORDER.includes(position) && positionDemand(league.settings, position) > 0 ? [{ position, decade }] : []))
                 .sort((l, r) => positionRank(l.position) - positionRank(r.position) || l.position.localeCompare(r.position))
                 .map((row) => ({ ...row, detail: DECADE_BY_ID.get(row.decade) ?? null, pool: poolSize.get(row.position) ?? 0 }));
-        }, [available, cardPositions, eraRules, league.settings]);
+        }, [available, eraRules, league.settings]);
 
-        // Top 10 draftable cards per position, in the league's existing
-        // best-peak-first order (Engine.eraEligibleCards) — already
-        // era-restricted per position by position-roulette, so filtering by
-        // position alone gives exactly that position's decade pool.
-        const topTenByPosition = useMemo(() => {
+        // Rank the reveal leaders by seasons inside their assigned decade.
+        // A career peak outside that decade must not move a player up this list.
+        const topThreeByPosition = useMemo(() => {
             const map = {};
             for (const entry of available) {
                 const pos = entry.card.position;
                 const bucket = map[pos] || (map[pos] = []);
-                if (bucket.length < 10) bucket.push(entry);
+                bucket.push(entry);
             }
+            for (const position of Object.keys(map)) map[position] = map[position].sort((left, right) =>
+                peakOf(EraRules.filterSeasonsForEra(right.card.seasons, eraRules, position)) - peakOf(EraRules.filterSeasonsForEra(left.card.seasons, eraRules, position)) || left.card.identity.localeCompare(right.card.identity)).slice(0, 3);
             return map;
-        }, [available]);
+        }, [available, eraRules]);
 
         const allEraPositions = useMemo(() => eraAssignments.map((row) => row.position), [eraAssignments]);
         const [revealedPositions, setRevealedPositions] = useState(() => loadRevealedPositions(league.leagueId, allEraPositions));
         const [rollingPosition, setRollingPosition] = useState(null); // the one position currently mid-spin, or null
-        const [expandedPositions, setExpandedPositions] = useState(() => new Set());
         // Positions turned over THIS mount get the flip/land animation; ones
         // already revealed in a prior session render as plain flat cards
         // (same distinction the old ceremony drew between "playing" and
@@ -203,11 +207,6 @@
                     saveRevealedPositions(league.leagueId, next);
                     return next;
                 });
-                setExpandedPositions((prev) => {
-                    const next = new Set(prev);
-                    next.add(position);
-                    return next;
-                });
                 setRollingPosition(null);
                 rollTimerRef.current = null;
             }, ERA_REVEAL_ROLL_MS);
@@ -218,33 +217,76 @@
             const next = new Set([...revealedPositions, ...allEraPositions]);
             saveRevealedPositions(league.leagueId, next);
             setRevealedPositions(next);
-            setExpandedPositions(next);
         }
-        function toggleBreakdown(position) {
-            setExpandedPositions((prev) => {
-                const next = new Set(prev);
-                if (next.has(position)) next.delete(position); else next.add(position);
-                return next;
-            });
+        const anyPending = eraRules.mode === 'position-roulette' && allEraPositions.some((position) => !revealedPositions.has(position));
+        const revealReady = league.seasonsRevealed || !anyPending;
+        useEffect(() => { onRevealReadyChange?.(revealReady); }, [onRevealReadyChange, revealReady]);
+        const canScoutCard = (card) => Boolean(card && (eraRules.mode !== 'position-roulette' || revealedPositions.has(card.position)));
+        function openScout(card, event) {
+            if (!canScoutCard(card)) return;
+            scoutTriggerRef.current = event?.currentTarget || null;
+            setSelectedIdentity(card.identity);
+            setScoutOpen(true);
         }
+        function closeScout() {
+            setScoutOpen(false);
+            scoutTriggerRef.current?.focus?.();
+        }
+        useEffect(() => {
+            if (!scoutOpen || !window.document) return undefined;
+            const dialog = scoutDialogRef.current;
+            const previousOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            dialog?.querySelector('button')?.focus();
+            const handleKey = (event) => {
+                if (event.key === 'Escape') { event.preventDefault(); closeScout(); return; }
+                if (event.key !== 'Tab') return;
+                const controls = [...(dialog?.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), [tabindex="0"]') || [])];
+                const first = controls[0]; const last = controls[controls.length - 1];
+                if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+                else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+            };
+            document.addEventListener('keydown', handleKey);
+            return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', handleKey); };
+        }, [scoutOpen, selectedIdentity]);
 
         const filtered = useMemo(() => {
             const term = query.trim().toLowerCase();
+            if (!revealReady) return [];
             return available.filter(({ card }) => (positionFilter === 'ALL' || card.position === positionFilter) && (!term || card.name.toLowerCase().includes(term)));
-        }, [available, positionFilter, query]);
+        }, [available, positionFilter, query, revealReady]);
         const visible = filtered.slice(0, boardLimit);
 
-        const selectedCard = (selectedIdentity && !drafted.has(selectedIdentity) ? cards.get(selectedIdentity) : undefined) ?? visible[0]?.card ?? available[0]?.card ?? null;
-        const queueCards = useMemo(() => (humanTeam
+        const requestedCard = selectedIdentity && !drafted.has(selectedIdentity) ? cards.get(selectedIdentity) : null;
+        const selectedCard = (canScoutCard(requestedCard) ? requestedCard : null) ?? visible[0]?.card ?? null;
+        const queueCards = useMemo(() => (humanTeam && revealReady
             ? humanTeam.queue.map((id) => cards.get(id)).filter((c) => c && !drafted.has(c.identity))
-            : []), [cards, drafted, humanTeam]);
+            : []), [cards, drafted, humanTeam, revealReady]);
 
+        const gridPicks = useMemo(() => {
+            if (!isAuction) return league.draftPicks;
+            const acquired = new Map();
+            return [...league.draftPicks].sort((left, right) => left.overall - right.overall).map((pick) => {
+                const row = (acquired.get(pick.teamId) || 0) + 1;
+                acquired.set(pick.teamId, row);
+                return { ...pick, round: row };
+            });
+        }, [isAuction, league.draftPicks]);
+        const gridOrder = useMemo(() => {
+            if (!isAuction) return league.draftOrder;
+            const rowCount = Math.max(1, ...league.draftOrder.map((slot) => slot.round), ...gridPicks.map((pick) => pick.round));
+            return Array.from({ length: rowCount }, (_, index) => league.teams.map((team) => {
+                const pick = gridPicks.find((entry) => entry.round === index + 1 && entry.teamId === team.teamId);
+                return { round: index + 1, teamId: team.teamId, overall: pick?.overall ?? null };
+            })).flat();
+        }, [isAuction, league.draftOrder, league.teams, gridPicks]);
+        const draftPickLabel = (pick) => isAuction ? `Award #${pick.overall}` : pickLabel(league.draftOrder, pick.overall, pick.round);
         const pickByOverall = useMemo(() => new Map(league.draftPicks.map((p) => [p.overall, p])), [league.draftPicks]);
         const boardRounds = useMemo(() => {
             const rounds = new Map();
-            for (const orderSeat of league.draftOrder) rounds.set(orderSeat.round, [...(rounds.get(orderSeat.round) ?? []), orderSeat]);
+            for (const orderSeat of gridOrder) rounds.set(orderSeat.round, [...(rounds.get(orderSeat.round) ?? []), orderSeat]);
             return [...rounds.entries()];
-        }, [league.draftOrder]);
+        }, [gridOrder]);
         const teamName = (teamId) => league.teams.find((t) => t.teamId === teamId)?.name ?? teamId;
 
         const reveal = useMemo(() => {
@@ -264,7 +306,10 @@
         }, [cards, league]);
 
         function draftBlockReason(card) {
+            if (!revealReady) return 'Open every position archive before the draft begins';
             if (!seat || !onClockTeam) return 'Draft complete';
+            if (!clockReady) return league.draftClock.status === 'paused' ? 'Draft paused' : 'Start the draft to make picks';
+            if (isAuction && league.draftAuction?.nomination) return 'Bidding is open — finish the current player first';
             if (onlineMeta && seat.teamId !== onlineMeta.seatTeamId) return `Waiting for ${onClockTeam.name} to pick`;
             if (drafted.has(card.identity)) return 'Already drafted';
             if (!card.seasons.length) return 'No playable seasons on file';
@@ -283,16 +328,28 @@
         };
 
         async function draftCard(card, madeBy) {
-            if (onlineMeta && draftBlockReason(card)) return;
+            if (draftBlockReason(card)) return;
+            if (isAuction) {
+                if (!onDraftAction) return;
+                const saved = await onDraftAction({ type: 'auction-nominate', identity: card.identity, amount: 1, teamId: seat.teamId });
+                if (saved !== false) { setScoutOpen(false); setNote(`${card.name} nominated for bidding.`); }
+                return;
+            }
+            if (onDraftAction) {
+                const saved = await onDraftAction({ type: 'draft', identity: card.identity });
+                if (saved !== false) { setNote(`${card.name} — locked in!`); setSelectedIdentity(null); setScoutOpen(false); }
+                return;
+            }
             const next = Engine.applyDraftPick(league, card, { madeBy, createdAt: new Date().toISOString() });
             if (next === league) { setNote(`${card.name} could not be drafted — ${draftBlockReason(card) ?? 'the engine rejected the pick'}.`); return; }
             setNote('');
             const saved = await onUpdate(stripDraftedFromQueues(next), { type: 'draft', identity: card.identity });
-            if (saved !== false) { setNote(`${card.name} — locked in!`); setSelectedIdentity(null); }
+            if (saved !== false) { setNote(`${card.name} — locked in!`); setSelectedIdentity(null); setScoutOpen(false); }
         }
 
         function simAiPick() {
-            if (!canSim || !seat || onClockTeam?.manager !== 'ai') return;
+            if (!revealReady || !clockReady || isAuction || !canSim || !seat || onClockTeam?.manager !== 'ai') return;
+            if (onDraftAction) { onDraftAction({ type: 'ai-pick' }); return; }
             const choice = AI.aiDraftChoice(league, cards);
             if (!choice) { setNote('AI found no eligible player for this seat.'); return; }
             const next = Engine.applyDraftPick(league, choice, { madeBy: 'ai', createdAt: new Date().toISOString() });
@@ -302,7 +359,8 @@
         }
 
         function simToMyPick() {
-            if (!canSim) return;
+            if (!revealReady || !clockReady || isAuction || !canSim) return;
+            if (onDraftAction) { onDraftAction({ type: 'ai-run' }); return; }
             let state = league;
             const createdAt = new Date().toISOString();
             for (let iteration = 0; iteration <= state.draftOrder.length; iteration += 1) {
@@ -321,7 +379,7 @@
         }
 
         function toggleQueueFor(identity) {
-            if (!humanTeam) return;
+            if (!humanTeam || !revealReady) return;
             onUpdate({ ...league, teams: league.teams.map((t) => (t.teamId === humanTeam.teamId ? { ...t, queue: DraftRoom.toggleDraftQueue(t.queue, identity) } : t)) }, { type: 'queue', teamId: humanTeam.teamId, identity });
         }
 
@@ -339,7 +397,39 @@
         const scoutSeasons = selectedCard ? EraRules.filterSeasonsForEra(selectedCard.seasons, eraRules, selectedCard.position) : [];
         const scoutHidden = selectedCard ? selectedCard.seasons.length - scoutSeasons.length : 0;
 
-        const anyPending = allEraPositions.some((p) => !revealedPositions.has(p));
+        const scoutFile = h('div', { className: 'tl-card tl-scout-file', ref: scoutRef },
+                        h('div', { className: 'tl-card-title' }, h('span', null, 'Scout file'), h('small', null, selectedCard ? (scoutHidden > 0 ? `${scoutSeasons.length} of ${selectedCard.seasons.length} seasons draftable` : `${scoutSeasons.length} seasons on record`) : 'no selection')),
+                        selectedCard ? h(React.Fragment, null,
+                            h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10 } },
+                                h('strong', { style: { fontSize: 15 } }, selectedCard.name),
+                                h('span', { className: 'tl-pos-badge tl-pos-' + selectedCard.position }, selectedCard.position),
+                                selectedCard.bio?.hofYear && h('span', { className: 'tl-pill gold' }, `HOF ${selectedCard.bio.hofYear}`),
+                                h('span', { className: 'tl-label' }, `${spanOf(scoutSeasons)} · draw peak ${peakOf(scoutSeasons).toFixed(1)}`),
+                                scoutHidden > 0 && scoutSeasons.length > 0 && h('span', { className: 'tl-pill warn' }, `Draw ${spanOf(scoutSeasons)} · ${peakOf(scoutSeasons).toFixed(1)}`)),
+                            selectedCard.bio ? h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10, fontSize: 12 } },
+                                selectedCard.bio.college && h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'College'), h('strong', null, selectedCard.bio.college)),
+                                (selectedCard.bio.height || selectedCard.bio.weight) && h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Size'), h('strong', null, [selectedCard.bio.height, selectedCard.bio.weight].filter(Boolean).join(' · '))),
+                                (selectedCard.bio.draftTeam || selectedCard.bio.draftYear) && h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'NFL draft'), h('strong', null, [selectedCard.bio.draftYear, selectedCard.bio.draftTeam].filter(Boolean).join(' · '))),
+                                selectedCard.bio.birthDate && h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Born'), h('strong', null, selectedCard.bio.birthDate)))
+                                : h('p', { className: 'tl-empty' }, 'Biography is not available for this player yet.'),
+                            h('p', { style: { fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 10 } }, scoutSeasons.length === 0 ? "No season on this file clears the league's era rule — nothing here can be drawn." : 'One of these seasons comes out of the vault — the draw is sealed until the draft ends.'),
+                            scoutSeasons.length > 0 && h('p', { className: 'tl-era-years' }, `Available years: ${availableYears(scoutSeasons)}`),
+                            scoutSeasons.length > 0 && h('div', { className: 'tl-scout-seasons', style: { overflowX: 'auto', marginBottom: 10 } }, h('table', { className: 'tl-tbl' },
+                                h('thead', null, h('tr', null, h('th', null, 'Year'), h('th', { className: 'num' }, 'G'), statColumnsFor(selectedCard.position).map((c) => h('th', { className: 'num', key: c.key }, c.label)), h('th', { className: 'num' }, 'Pts'))),
+                                h('tbody', null, scoutSeasons.map((season) => h('tr', { key: season.season },
+                                    h('td', null, season.season), h('td', { className: 'num' }, season.games),
+                                    statColumnsFor(selectedCard.position).map((c) => h('td', { className: 'num', key: c.key }, season[c.key])),
+                                    h('td', { className: 'num' }, season.points.toFixed(1))))))),
+                            scoutHidden > 0 && h('p', { className: 'tl-hint', style: { marginBottom: 10 } }, `${scoutHidden} season${scoutHidden === 1 ? '' : 's'} hidden — outside the league's era rule for ${selectedCard.position}, so they cannot be drawn.`),
+                            h('div', { style: { display: 'flex', gap: 8 } },
+                                h('button', { className: 'tl-btn primary', disabled: !canDraftSelected, onClick: () => draftCard(selectedCard, 'human') }, `${isAuction ? 'NOMINATE' : 'DRAFT'} ${selectedCard.name.toUpperCase()}`),
+                                h('button', { className: 'tl-btn', disabled: !humanTeam || !revealReady, 'aria-pressed': selectedQueued, onClick: () => toggleQueueFor(selectedCard.identity) }, selectedQueued ? 'Unqueue' : 'Queue')),
+                            scoutBlock && h('p', { style: { fontSize: 11.5, color: 'var(--warn)', marginTop: 8 } }, scoutBlock))
+                            : h('p', { className: 'tl-empty' }, 'Select a player on the big board to open the scout file.'));
+        const scoutDialog = scoutOpen && selectedCard ? h('div', { className: 'tl-scout-overlay', onClick: (event) => { if (event.target === event.currentTarget) closeScout(); } },
+            h('section', { className: 'tl-scout-dialog', role: 'dialog', 'aria-modal': true, 'aria-label': `${selectedCard.name} career scout`, ref: scoutDialogRef },
+                h('div', { className: 'tl-scout-dialog-header' }, h('strong', null, 'Career in this draw'), h('button', { type: 'button', className: 'tl-btn', onClick: closeScout }, '← Back to draft')), scoutFile)) : null;
+
         const eraBanner = eraRules.mode === 'position-roulette' ? h('div', { className: 'tl-card tl-era-show' },
             h('div', { className: 'tl-card-title' },
                 h('span', null, 'Your era draw'),
@@ -356,8 +446,8 @@
                             const landed = revealedPositions.has(row.position);
                             const rolling = rollingPosition === row.position;
                             const fresh = freshlyRevealedRef.current.has(row.position);
-                            const expanded = expandedPositions.has(row.position);
-                            const top10 = topTenByPosition[row.position] || [];
+                            const topThree = topThreeByPosition[row.position] || [];
+                            const yearList = availableYears(available.filter(({ card }) => card.position === row.position).flatMap(({ card }) => EraRules.filterSeasonsForEra(card.seasons, eraRules, card.position)));
                             const cls = rolling || !landed
                                 ? `tl-card tl-era-card ${rolling ? 'landed' : 'pending'}`.trim()
                                 : fresh ? 'tl-card tl-era-card landed' : 'tl-card tl-era-card revealed';
@@ -370,18 +460,17 @@
                                     : landed
                                         ? h(React.Fragment, null,
                                             h('strong', { className: 'tl-era-decade' }, row.detail?.label ?? row.decade),
-                                            h('span', { className: 'tl-label' }, row.detail ? `${row.detail.from}–${row.detail.to}` : '—'),
+                                            h('span', { className: 'tl-era-years' }, `Available years: ${yearList}`),
                                             h('span', { className: `tl-pill ${row.pool === 0 ? 'bad' : 'good'}`, style: { display: 'inline-block', marginTop: 6, marginBottom: 8 } }, row.pool === 0 ? 'None left' : `${row.pool} draftable`),
-                                            top10.length > 0 && h('p', { className: 'tl-era-headliners' }, top10.slice(0, 3).map(({ card }) => card.name).join(' · ')),
-                                            top10.length > 0 && h('button', {
-                                                className: 'tl-btn icon', style: { display: 'block', width: '100%', marginBottom: expanded ? 8 : 0 },
-                                                onClick: () => toggleBreakdown(row.position),
-                                            }, expanded ? 'Hide top 10 ▲' : 'Top 10 ▾'),
-                                            expanded && top10.length > 0 && h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'tl-tbl' },
-                                                h('thead', null, h('tr', null, h('th', { className: 'num' }, 'Rk'), h('th', null, 'Player'), h('th', null, 'Draw'), h('th', { className: 'num' }, 'Peak'))),
-                                                h('tbody', null, top10.map(({ card, draw }, i) => h('tr', { key: card.identity },
-                                                    h('td', { className: 'num tabular' }, i + 1), h('td', null, card.name),
-                                                    h('td', null, draw), h('td', { className: 'num tabular' }, card.peak.toFixed(1))))))))
+                                            topThree.length > 0 && h('div', { className: 'tl-era-shortlist', 'aria-label': `${row.position} top three` },
+                                                h('span', { className: 'tl-label' }, 'Top three · Tap to scout'),
+                                                topThree.map(({ card }, index) => h('button', {
+                                                    key: card.identity, type: 'button', className: 'tl-era-headliner',
+                                                    'aria-label': `Scout ${card.name} in the ${row.detail?.label ?? row.decade}`,
+                                                    onClick: (event) => openScout(card, event),
+                                                }, h('span', { className: 'tl-era-headliner-rank' }, index + 1),
+                                                h('span', null, h('strong', null, card.name), h('small', null, availableYears(EraRules.filterSeasonsForEra(card.seasons, eraRules, card.position)))),
+                                                h('span', { 'aria-hidden': 'true' }, '↗')))))
                                         : h('button', {
                                             className: 'tl-btn', style: { display: 'block', width: '100%', marginTop: 8 },
                                             onClick: () => revealPosition(row.position), disabled: Boolean(rollingPosition),
@@ -396,41 +485,41 @@
         const draftCell = (pick) => {
             const drawn = drawnByOverall.get(pick.overall);
             return h('div', { className: `tl-draft-pick tl-draft-pick-${pick.pos || pick.position}` },
-                h('small', null, `#${pick.overall} · ${pick.pos || pick.position}`),
+                h('small', null, `#${pick.overall} · ${pick.pos || pick.position}${Number.isFinite(pick.auctionPrice) ? ` · $${pick.auctionPrice}` : ''}`),
                 h('strong', null, pick.name),
                 drawn && h('span', null, `${drawn.drawnSeason ?? '—'} · ${drawn.points.toFixed(1)} pts`));
         };
         const dhqState = {
-            picks: league.draftPicks.map((pick) => ({ ...pick, pos: pick.position, teamIdx: league.teams.findIndex((team) => team.teamId === pick.teamId), isUser: pick.teamId === humanTeam?.teamId })),
-            pickOrder: league.draftOrder.map((slot) => ({ ...slot, teamIdx: league.teams.findIndex((team) => team.teamId === slot.teamId), rosterId: slot.teamId, ownerName: teamName(slot.teamId) })),
+            picks: gridPicks.map((pick) => ({ ...pick, pos: pick.position, teamIdx: league.teams.findIndex((team) => team.teamId === pick.teamId), isUser: pick.teamId === humanTeam?.teamId })),
+            pickOrder: gridOrder.map((slot) => ({ ...slot, teamIdx: league.teams.findIndex((team) => team.teamId === slot.teamId), rosterId: slot.teamId, ownerName: teamName(slot.teamId) })),
             userSlot: league.teams.findIndex((team) => team.teamId === humanTeam?.teamId) + 1,
             userRosterId: humanTeam?.teamId, leagueSize: league.teams.length, rounds: boardRounds.length,
             currentIdx: league.draftPicks.length, phase: 'vault', mode: 'ghost', pinnedRosterId,
             personas: Object.fromEntries(league.teams.map((team) => [team.teamId, { teamName: team.name }]))
         };
         const sharedGrid = window.DraftCC?.DraftGridPanel ? h(window.DraftCC.DraftGridPanel, {
-            state: dhqState, currentSlot: seat ? dhqState.pickOrder.find((slot) => slot.overall === seat.overall) : null,
+            state: dhqState, currentSlot: seat && !isAuction ? dhqState.pickOrder.find((slot) => slot.overall === seat.overall) : null,
             isUserTurn: myTurn, dispatch: (action) => { if (action.type === 'PIN_TEAM') setPinnedRosterId(action.rosterId); }, renderPick: draftCell
         }) : null;
         const draftLog = h('div', { className: 'tl-card' },
-            h('div', { className: 'tl-card-title' }, h('span', null, 'Draft log'),
+            h('div', { className: 'tl-card-title' }, h('span', null, isAuction ? 'Auction results · each row is one team acquisition' : 'Draft log'),
                 h('button', { className: 'tl-btn icon', onClick: () => setShowBoardGrid((c) => !c) }, showBoardGrid ? 'Pick list' : 'Board grid')),
             league.draftPicks.length === 0 ? h('p', { className: 'tl-empty' }, 'No picks yet — the log fills as the room drafts.')
                 : showBoardGrid
                     ? sharedGrid || h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'tl-tbl' },
-                        h('thead', null, h('tr', null, h('th', null, 'Rd'), league.teams.map((team) => h('th', { key: team.teamId }, team.name)))),
+                        h('thead', null, h('tr', null, h('th', null, isAuction ? 'Add' : 'Rd'), league.teams.map((team) => h('th', { key: team.teamId }, team.name)))),
                         h('tbody', null, boardRounds.map(([round, seats]) => h('tr', { key: round },
                             h('td', { className: 'num' }, round),
                             league.teams.map((team) => {
                                 const cell = seats.find((slot) => slot.teamId === team.teamId);
                                 if (!cell) return h('td', { key: team.teamId }, '—');
                                 const pick = pickByOverall.get(cell.overall);
-                                return h('td', { key: cell.overall }, h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, teamName(cell.teamId)), pick ? draftCell(pick) : h('span', null, '—')));
+                                return h('td', { key: team.teamId }, h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, teamName(cell.teamId)), pick ? draftCell(pick) : h('span', null, '—')));
                             }))))))
                     : h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'tl-tbl' },
                         h('thead', null, h('tr', null, h('th', null, 'Pick'), h('th', null, 'Team'), h('th', null, 'Player'), h('th', null, 'Pos'), h('th', null, 'By'))),
                         h('tbody', null, [...league.draftPicks].reverse().map((pick) => h('tr', { key: pick.overall },
-                            h('td', null, pickLabel(league.draftOrder, pick.overall, pick.round)), h('td', null, teamName(pick.teamId)),
+                            h('td', null, draftPickLabel(pick)), h('td', null, teamName(pick.teamId)),
                             h('td', null, pick.name), h('td', null, h('span', { className: `tl-pos-badge tl-pos-${pick.position}` }, pick.position)),
                             h('td', null, pick.madeBy === 'ai' ? 'AI' : 'HU')))))));
 
@@ -457,15 +546,24 @@
                             h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'tl-tbl' },
                                 h('thead', null, h('tr', null, h('th', null, 'Pick'), h('th', null, 'Player'), h('th', null, 'Pos'), h('th', { className: 'num' }, 'Season'), h('th', { className: 'num' }, 'Pts'))),
                                 h('tbody', null, picks.map((pick) => h('tr', { key: pick.overall },
-                                    h('td', null, pickLabel(league.draftOrder, pick.overall, pick.round)), h('td', null, pick.name),
+                                    h('td', null, draftPickLabel(pick)), h('td', null, pick.name),
                                     h('td', null, h('span', { className: `tl-pos-badge tl-pos-${pick.position}` }, pick.position)),
                                     h('td', { className: 'num tl-pill gold', style: { display: 'table-cell' } }, pick.drawnSeason ?? '—'),
                                     h('td', { className: 'num' }, pick.points.toFixed(1))))))));
                     })));
         }
 
+        if (!revealReady) return h('div', { className: 'tl-draft-sealed' },
+            eraBanner,
+            h('div', { className: 'tl-card tl-draft-sealed-note', role: 'status' },
+                h('strong', null, 'Open your archives to begin'),
+                h('p', null, `${allEraPositions.filter((position) => revealedPositions.has(position)).length} of ${allEraPositions.length} positions revealed. Your player board and draft clock open after the final reveal.`)),
+            scoutDialog);
+
         return h('div', null,
             eraBanner,
+            draftControls,
+            scoutDialog,
             h('div', { className: `tl-card tl-on-clock${myTurn ? ' your-turn' : ''}` },
                 h('div', { className: 'tl-draft-progress', 'aria-label': `Draft ${Math.round(league.draftPicks.length / league.draftOrder.length * 100)} percent complete` }, h('span', { style: { width: `${league.draftPicks.length / league.draftOrder.length * 100}%` } })),
                 h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 } },
@@ -477,16 +575,16 @@
                 h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' } },
                     onClockTeam && (humanOnClock ? h('span', { className: 'tl-pill gold' }, myTurn ? '✦ YOU’RE UP' : 'ON THE CLOCK') : h('span', { className: 'tl-pill info' }, `AI · ${persona ? persona.label : 'GM'}`)),
                     !humanOnClock && persona && h('p', { style: { fontStyle: 'italic', fontSize: 12, color: 'var(--text-faint, rgba(189,184,173,0.6))', margin: 0 } }, `"${persona.tell}"`),
-                    humanOnClock && h('p', { style: { fontSize: 12, color: 'var(--text-secondary)', margin: 0 } }, myTurn ? 'Your pick — draft from the big board or scout file.' : `Waiting for ${onClockTeam.name} to pick.`),
-                    onClockTeam && !humanOnClock && canSim && h('div', { style: { display: 'flex', gap: 8, marginLeft: 'auto' } },
-                        h('button', { className: 'tl-btn', onClick: simAiPick }, '▶ Sim pick'),
-                        h('button', { className: 'tl-btn', onClick: simToMyPick }, '⏭ Sim to my pick'))),
+                    humanOnClock && h('p', { style: { fontSize: 12, color: 'var(--text-secondary)', margin: 0 } }, myTurn ? (isAuction ? 'Your nomination — choose a player to open bidding.' : 'Your pick — draft from the big board or scout file.') : `Waiting for ${onClockTeam.name} to pick.`),
+                    onClockTeam && !humanOnClock && canSim && !isAuction && h('div', { style: { display: 'flex', gap: 8, marginLeft: 'auto' } },
+                        h('button', { className: 'tl-btn', disabled: !clockReady, onClick: simAiPick }, '▶ Sim pick'),
+                        h('button', { className: 'tl-btn', disabled: !clockReady, onClick: simToMyPick }, '⏭ Sim to my pick'))),
                 note && h('p', { className: 'tl-pick-feedback', role: 'status', style: { fontSize: 12, color: 'var(--warn)', marginTop: 8 } }, note)),
 
             selectedCard && h('div', { className: 'tl-draft-dock' },
-                h('button', { className: 'tl-dock-player', onClick: () => scoutRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' }), 'aria-label': `Scout ${selectedCard.name}` },
+                h('button', { className: 'tl-dock-player', onClick: (event) => openScout(selectedCard, event), 'aria-label': `Scout ${selectedCard.name}` },
                     h('span', { className: `tl-pos-badge tl-pos-${selectedCard.position}` }, selectedCard.position), h('span', null, h('small', null, myTurn ? 'YOUR NEXT LEGEND?' : 'SCOUT WHILE YOU WAIT'), h('b', null, selectedCard.name))),
-                h('button', { className: 'tl-btn primary', 'aria-label': `Draft ${selectedCard.name}`, disabled: !canDraftSelected, onClick: () => draftCard(selectedCard, 'human') }, 'Draft', h('span', { 'aria-hidden': 'true' }, '↗'))),
+                h('button', { className: 'tl-btn primary', 'aria-label': `${isAuction ? 'Nominate' : 'Draft'} ${selectedCard.name}`, disabled: !canDraftSelected, onClick: () => draftCard(selectedCard, 'human') }, isAuction ? 'Nominate' : 'Draft', h('span', { 'aria-hidden': 'true' }, '↗'))),
             h('div', { className: 'tl-grid-2 tl-draft-grid' },
                 h('div', null,
                     h('div', { className: 'tl-card tl-player-board' },
@@ -496,7 +594,7 @@
                             h('select', { className: 'tl-select', style: { width: 130 }, value: positionFilter, onChange: (e) => setPositionFilter(e.target.value), 'aria-label': 'Filter position' },
                                 h('option', { value: 'ALL' }, 'ALL POS'), positions.map((p) => h('option', { key: p, value: p }, p)))),
                         h('div', { className: 'tl-mobile-player-list' }, visible.map(({ card, rank, draw }) => h('div', { key: card.identity, className: `tl-mobile-player${selectedCard?.identity === card.identity ? ' selected' : ''}`, 'data-position': card.position },
-                            h('button', { className: 'tl-mobile-player-pick', 'aria-pressed': selectedCard?.identity === card.identity, onClick: () => setSelectedIdentity(card.identity) },
+                            h('button', { className: 'tl-mobile-player-pick', 'aria-pressed': selectedCard?.identity === card.identity, 'aria-label': `Scout ${card.name}`, onClick: (event) => openScout(card, event) },
                                 h('span', { className: 'tl-player-number' }, h('small', null, String(rank).padStart(2, '0')), h('b', null, card.position)),
                                 h('span', { className: 'tl-player-name' }, h('b', null, card.name), h('small', null, `${eraRestricted ? draw : seasonSpan(card)} · Mystery season`)),
                                 h('span', { className: 'tl-player-peak' }, h('b', null, Math.round(card.peak)), h('small', null, 'PEAK'))),
@@ -507,8 +605,8 @@
                                 h('thead', null, h('tr', null, h('th', { className: 'num' }, 'Rk'), h('th', null, 'Player'), h('th', null, 'Pos'), h('th', null, eraRestricted ? 'Draw' : 'Seasons'), h('th', { className: 'num' }, 'Peak'), h('th', { className: 'num' }, 'G'), h('th', null, 'Q'))),
                                 h('tbody', null, visible.map(({ card, rank, draw }) => {
                                     const queued = Boolean(humanTeam?.queue.includes(card.identity));
-                                    return h('tr', { key: card.identity, className: `clickable${selectedCard?.identity === card.identity ? ' selected' : ''}`, onClick: () => setSelectedIdentity(card.identity) },
-                                        h('td', { className: 'num tabular' }, rank), h('td', null, card.name),
+                                    return h('tr', { key: card.identity, className: `clickable${selectedCard?.identity === card.identity ? ' selected' : ''}`, onClick: (event) => openScout(card, event) },
+                                        h('td', { className: 'num tabular' }, rank), h('td', null, h('button', { className: 'tl-scout-player-name', type: 'button', onClick: (event) => { event.stopPropagation(); openScout(card, event); } }, card.name)),
                                         h('td', null, h('span', { className: `tl-pos-badge tl-pos-${card.position}` }, card.position)),
                                         h('td', null, eraRestricted ? draw : seasonSpan(card)),
                                         h('td', { className: 'num tabular' }, card.peak.toFixed(1)), h('td', { className: 'num tabular' }, careerGames(card)),
@@ -521,43 +619,16 @@
                     draftLog),
                 h('div', null,
                     h(OpponentIntel, { league, humanTeam, onClockTeamId: seat?.teamId }),
-                    h('div', { className: 'tl-card tl-scout-file', ref: scoutRef },
-                        h('div', { className: 'tl-card-title' }, h('span', null, 'Scout file'), h('small', null, selectedCard ? (scoutHidden > 0 ? `${scoutSeasons.length} of ${selectedCard.seasons.length} seasons draftable` : `${scoutSeasons.length} seasons on record`) : 'no selection')),
-                        selectedCard ? h(React.Fragment, null,
-                            h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10 } },
-                                h('strong', { style: { fontSize: 15 } }, selectedCard.name),
-                                h('span', { className: 'tl-pos-badge tl-pos-' + selectedCard.position }, selectedCard.position),
-                                selectedCard.bio?.hofYear && h('span', { className: 'tl-pill gold' }, `HOF ${selectedCard.bio.hofYear}`),
-                                h('span', { className: 'tl-label' }, `${seasonSpan(selectedCard)} · peak ${selectedCard.peak.toFixed(1)}`),
-                                scoutHidden > 0 && scoutSeasons.length > 0 && h('span', { className: 'tl-pill warn' }, `Draw ${spanOf(scoutSeasons)} · ${peakOf(scoutSeasons).toFixed(1)}`)),
-                            selectedCard.bio ? h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10, fontSize: 12 } },
-                                selectedCard.bio.college && h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'College'), h('strong', null, selectedCard.bio.college)),
-                                (selectedCard.bio.height || selectedCard.bio.weight) && h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Size'), h('strong', null, [selectedCard.bio.height, selectedCard.bio.weight].filter(Boolean).join(' · '))),
-                                (selectedCard.bio.draftTeam || selectedCard.bio.draftYear) && h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'NFL draft'), h('strong', null, [selectedCard.bio.draftYear, selectedCard.bio.draftTeam].filter(Boolean).join(' · '))),
-                                selectedCard.bio.birthDate && h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Born'), h('strong', null, selectedCard.bio.birthDate)))
-                                : h('p', { className: 'tl-empty' }, 'No file — post-2017 identity'),
-                            h('p', { style: { fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 10 } }, scoutSeasons.length === 0 ? "No season on this file clears the league's era rule — nothing here can be drawn." : 'One of these seasons comes out of the vault — the draw is sealed until the draft ends.'),
-                            scoutSeasons.length > 0 && h('div', { style: { overflowX: 'auto', marginBottom: 10 } }, h('table', { className: 'tl-tbl' },
-                                h('thead', null, h('tr', null, h('th', null, 'Year'), h('th', { className: 'num' }, 'G'), statColumnsFor(selectedCard.position).map((c) => h('th', { className: 'num', key: c.key }, c.label)), h('th', { className: 'num' }, 'Pts'))),
-                                h('tbody', null, scoutSeasons.map((season) => h('tr', { key: season.season },
-                                    h('td', null, season.season), h('td', { className: 'num' }, season.games),
-                                    statColumnsFor(selectedCard.position).map((c) => h('td', { className: 'num', key: c.key }, season[c.key])),
-                                    h('td', { className: 'num' }, season.points.toFixed(1))))))),
-                            scoutHidden > 0 && h('p', { className: 'tl-hint', style: { marginBottom: 10 } }, `${scoutHidden} season${scoutHidden === 1 ? '' : 's'} hidden — outside the league's era rule for ${selectedCard.position}, so they cannot be drawn.`),
-                            h('div', { style: { display: 'flex', gap: 8 } },
-                                h('button', { className: 'tl-btn primary', disabled: !canDraftSelected, onClick: () => draftCard(selectedCard, 'human') }, `DRAFT ${selectedCard.name.toUpperCase()}`),
-                                h('button', { className: 'tl-btn', disabled: !humanTeam, 'aria-pressed': selectedQueued, onClick: () => toggleQueueFor(selectedCard.identity) }, selectedQueued ? 'Unqueue' : 'Queue')),
-                            scoutBlock && h('p', { style: { fontSize: 11.5, color: 'var(--warn)', marginTop: 8 } }, scoutBlock))
-                            : h('p', { className: 'tl-empty' }, 'Select a player on the big board to open the scout file.')),
+                    scoutFile,
                     h('div', { className: 'tl-card' },
                         h('div', { className: 'tl-card-title' }, h('span', null, 'My queue'), h('small', null, humanTeam ? `${humanTeam.name} · ${queueCards.length} queued` : 'no human seat')),
                         queueCards.length === 0 ? h('p', { className: 'tl-empty' }, 'Queue empty — star players on the big board.')
-                            : h('div', { className: 'tl-queue-strip' }, queueCards.map((card, i) => h('div', { key: card.identity, className: 'tl-queue-chip', onClick: () => setSelectedIdentity(card.identity) },
+                            : h('div', { className: 'tl-queue-strip' }, queueCards.map((card, i) => h('div', { key: card.identity, className: 'tl-queue-chip', onClick: (event) => openScout(card, event) },
                                 h('span', { className: 'tl-qnum' }, i + 1),
                                 h('span', null, card.name),
                                 h('span', { className: `tl-pos-badge tl-pos-${card.position}` }, card.position),
                                 h('button', { className: 'tl-btn icon', style: { padding: '2px 5px' }, 'aria-label': `Remove ${card.name} from queue`, onClick: (e) => { e.stopPropagation(); toggleQueueFor(card.identity); } }, '✕')))),
-                        h('button', { className: 'tl-btn', disabled: !myTurn || queueCards.length === 0, onClick: autoFromQueue, style: { marginTop: 8 } }, 'Auto from queue')))));
+                        h('button', { className: 'tl-btn', disabled: !myTurn || !clockReady || (isAuction && Boolean(league.draftAuction?.nomination)) || queueCards.length === 0, onClick: autoFromQueue, style: { marginTop: 8 } }, isAuction ? 'Nominate from queue' : 'Auto from queue')))));
     }
 
     window.WrTimeLeagueDraftPanel = WrTimeLeagueDraftPanel;

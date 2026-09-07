@@ -65,6 +65,7 @@ jobs:
               '20260907010000': 'supabase/migrations/20260907010000_cup_honours.sql',
               '20260907193000': 'supabase/migrations/20260907193000_time_league_multiplayer.sql',
               '20260908010000': 'supabase/migrations/20260908010000_time_league_community.sql',
+              '20260908020000': 'supabase/migrations/20260908020000_time_league_draft_readiness.sql',
               '20260907000000': 'supabase/migrations/20260907000000_league_cups.sql',
               '20260610000000': 'supabase/migrations/20260610000000_ai_response_cache.sql',
               '20260610010000': 'supabase/migrations/20260610010000_ai_feedback.sql',
@@ -130,6 +131,7 @@ jobs:
           token = os.environ.get('SUPABASE_ACCESS_TOKEN', '')
           expected = {
               '20260908010000': 'supabase/migrations/20260908010000_time_league_community.sql',
+              '20260908020000': 'supabase/migrations/20260908020000_time_league_draft_readiness.sql',
               '20260317000000': 'supabase/migrations/20260317000000_app_users_and_subscriptions.sql',
               '20260503000000': 'supabase/migrations/20260503000000_ai_usage_controls.sql',
               '20260503010000': 'supabase/migrations/20260503010000_tutorial_state.sql',

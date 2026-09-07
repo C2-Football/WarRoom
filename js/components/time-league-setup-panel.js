@@ -25,10 +25,18 @@
         { id: 'standard', label: 'Standard', detail: '4 pass TD · no PPR · 0.1/rush-rec yd · 0.04/pass yd · -2 TO', scoring: { passTd: 4, reception: 0, rushRecYd: 0.1, passingYd: 0.04, turnover: -2 } },
     ];
     const ERA_MODE_OPTIONS = [
+        { id: 'position-roulette', icon: '✦', label: 'Position Roulette', eyebrow: 'THE VAULT ORIGINAL', blurb: 'Every position is dealt a surprise decade.', tone: 'roulette' },
         { id: 'any-era', icon: '∞', label: 'All-Era Classic', eyebrow: 'THE FULL VAULT', blurb: 'Every season since 1970 can be drawn.', tone: 'classic' },
         { id: 'selected-decades', icon: '◫', label: 'Decade Draft', eyebrow: 'YOUR FOOTBALL ERA', blurb: 'Choose which decades make the player pool.', tone: 'decades' },
-        { id: 'position-roulette', icon: '✦', label: 'Position Roulette', eyebrow: 'CHAOS MODE', blurb: 'Every position is dealt a surprise decade.', tone: 'roulette' },
     ];
+
+    const DRAFT_FORMATS = [
+        { id: 'snake', label: 'Snake', detail: 'The order reverses each round.' },
+        { id: 'linear', label: 'Linear', detail: 'The same order every round.' },
+        { id: 'auction', label: 'Auction', detail: 'Nominate a legend. Everyone can bid.' },
+    ];
+    const DRAFT_SECONDS = [0, 15, 30, 60, 90, 120, 180, 300];
+    const AI_PACES = [[0.5, 'Fastest'], [1, 'Fast'], [2, 'Standard'], [4, 'Relaxed'], [8, 'Take your time']];
 
     const defaultSeatsFor = (playMode) => window.TimeLeagueUtils.defaultSeats().map((seat, index) => ({
         ...seat,
@@ -123,7 +131,7 @@
                 h('small', null, option.eyebrow),
                 h('strong', null, option.label),
                 h('span', null, option.blurb)),
-            option.id === 'position-roulette' && h('span', { className: 'tl-mode-badge' }, 'MOST FUN'));
+            option.id === 'position-roulette' && h('span', { className: 'tl-mode-badge' }, 'THE ORIGINAL'));
     }
 
     function LeagueBuilder({ onCreate, onCreateOnline, onOpenOnline, onlineIndexState }) {
@@ -172,6 +180,10 @@
         const [faabBudget, setFaabBudget] = useState(100);
         const [tradesEnabled, setTradesEnabled] = useState(true);
         const [aiDifficulty, setAiDifficulty] = useState('veteran');
+        const [draftFormat, setDraftFormat] = useState('snake');
+        const [draftPickSeconds, setDraftPickSeconds] = useState(60);
+        const [draftAiSeconds, setDraftAiSeconds] = useState(2);
+        const [draftAuctionBudget, setDraftAuctionBudget] = useState(200);
 
         const [customSlots, setCustomSlots] = useState(null);
         const [customStats, setCustomStats] = useState({});
@@ -186,6 +198,7 @@
             decades: eraMode === 'any-era' ? [] : EraRules.ERA_DECADES.filter((decade) => eraDecades.includes(decade.id)).map((decade) => decade.id),
         }), [eraMode, eraDecades]);
         const settings = useMemo(() => ({
+            draftFormat, draftPickSeconds, draftAiSeconds, draftAuctionBudget,
             rosterSlots: customSlots || rosterOption.slots,
             scoring: { ...scoringOption.scoring, stats: customStats, bonuses, ...(customExtended ? { extended: customExtended } : {}) },
             regularSeasonWeeks: 14 - Math.log2((seats.length >= playoffTeams ? playoffTeams : 2) || 1),
@@ -193,7 +206,7 @@
             playoffTeams: seats.length >= playoffTeams ? playoffTeams : 2,
             maxQuarterbacks: Math.max(qbLimit, (customSlots || rosterOption.slots).QB || 0),
             eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty,
-        }), [playMode, bonuses, advancementMode, gateHours, customSlots, customStats, customExtended, qbLimit, playoffTeams, seats.length, rosterOption, scoringOption, eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty]);
+        }), [draftFormat, draftPickSeconds, draftAiSeconds, draftAuctionBudget, playMode, bonuses, advancementMode, gateHours, customSlots, customStats, customExtended, qbLimit, playoffTeams, seats.length, rosterOption, scoringOption, eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty]);
         const capacity = Engine.rosterCapacity(settings);
         const humanSeats = seats.filter((seat) => seat.manager === 'human').length;
         const signedIn = onlineIndexState !== 'signed-out' && Boolean(window.App.OD && window.App.OD.getCurrentUserId && window.App.OD.getCurrentUserId());
@@ -246,7 +259,7 @@
         };
 
 
-        const selectedEra = ERA_MODE_OPTIONS.find((option) => option.id === eraMode) ?? ERA_MODE_OPTIONS[2];
+        const selectedEra = ERA_MODE_OPTIONS.find((option) => option.id === eraMode) ?? ERA_MODE_OPTIONS[0];
         const opponentSeats = seats.slice(1);
         return h('section', { className: 'tl-builder' },
             h('div', { className: 'tl-builder-head' },
@@ -265,11 +278,6 @@
                     h('a', { className: 'tl-btn', href: 'login.html' }, 'SIGN IN'))),
 
             h('div', { className: 'tl-builder-section', id: 'vault-setup-1' },
-                h('label', { className: 'tl-playoff-setting' }, h('span', { className: 'tl-label' }, 'SEASON FINISH'),
-                    h('select', { className: 'tl-select', value: settings.playoffTeams, onChange: event => setPlayoffTeams(Number(event.target.value)) },
-                        h('option', { value: 0 }, 'Standings champion'), h('option', { value: 2 }, 'Top 2 · Championship final'), h('option', { value: 4, disabled: seats.length < 4 }, 'Top 4 · 12 games + playoffs'), h('option', { value: 8, disabled: seats.length < 8 }, 'Top 8 · 11 games + playoffs')),
-                    h('p', { className: 'tl-hint' }, `${settings.regularSeasonWeeks} regular-season games · 14 weeks total. Higher seed wins a playoff tie. Missing game logs score zero.`)),
-                playMode === 'friends' && h('label', { className: 'tl-field' }, h('span', { className: 'tl-label' }, 'WEEKLY ADVANCEMENT'), h('select', { className: 'tl-select', value: advancementMode, onChange: event => setAdvancementMode(event.target.value) }, h('option', { value: 'commissioner' }, 'Commissioner advances'), h('option', { value: 'majority' }, 'Majority vote'), h('option', { value: 'timed' }, 'Timed gates')), advancementMode === 'timed' && h('input', { className: 'tl-input', type: 'number', min: 1, max: 168, value: gateHours, onChange: event => setGateHours(Math.max(1, Math.min(168, Number(event.target.value) || 24))), 'aria-label': 'Hours per gate' }), h('p', { className: 'tl-hint' }, 'Four stops each week: claims, final roster decisions, game day, and final results. The commissioner can override any gate.', advancementMode === 'timed' && ' Deadlines are checked while a manager has the room open and resume on return.')),
                 h('div', { className: 'tl-question' }, h('span', null, '2'), h('div', null, h('h3', null, 'Pick the time-travel twist'), h('p', null, 'You draft the player. The Vault reveals the season.'))),
                 h('div', { className: 'tl-era-mode-grid' }, ERA_MODE_OPTIONS.map((option) => h(EraModeCard, {
                     key: option.id, option, selected: eraMode === option.id, onClick: () => setEraMode(option.id),
@@ -278,7 +286,32 @@
                     h('div', null, h('b', null, eraMode === 'position-roulette' ? 'Roulette pool' : 'Draftable decades'), h('small', null, eraDecades.length ? `${eraDecades.length} selected` : 'All decades included')),
                     h('div', { className: 'tl-decade-row' }, EraRules.ERA_DECADES.map((decade) => h('button', {
                         key: decade.id, type: 'button', className: eraDecades.includes(decade.id) ? 'selected' : '', onClick: () => toggleDecade(decade.id),
-                    }, decade.label))))),
+                    }, decade.label)))),
+                h('section', { className: 'tl-draft-setup-rules', 'aria-label': 'Draft rules' },
+                    h('div', null, h('h4', null, 'How will you draft?'), h('p', { className: 'tl-hint' }, 'Keep the same mystery seasons with any draft format.')),
+                    h('div', { className: 'tl-draft-format-options' }, DRAFT_FORMATS.map(option => h('button', {
+                        key: option.id, type: 'button', className: `tl-draft-format${draftFormat === option.id ? ' selected' : ''}`,
+                        'aria-pressed': draftFormat === option.id, onClick: () => setDraftFormat(option.id),
+                    }, h('strong', null, option.label), h('span', null, option.detail)))),
+                    h('div', { className: 'tl-draft-setup-fields' },
+                        h('label', { className: 'tl-field' }, h('span', { className: 'tl-label' }, draftFormat === 'auction' ? 'Nomination & bid clock' : 'Pick clock'),
+                            h('select', { className: 'tl-select', 'aria-label': 'Draft clock duration', value: draftPickSeconds, onChange: event => setDraftPickSeconds(Number(event.target.value)) },
+                                DRAFT_SECONDS.map(seconds => h('option', { key: seconds, value: seconds }, seconds ? `${seconds} seconds` : 'Off · no timer')))),
+                        playMode === 'solo' && h('label', { className: 'tl-field' }, h('span', { className: 'tl-label' }, 'AI draft pace'),
+                            h('select', { className: 'tl-select', 'aria-label': 'AI draft pace', value: draftAiSeconds, onChange: event => setDraftAiSeconds(Number(event.target.value)) },
+                                AI_PACES.map(([seconds, label]) => h('option', { key: seconds, value: seconds }, `${label} · ${seconds}s`)))),
+                        draftFormat === 'auction' && h('label', { className: 'tl-field' }, h('span', { className: 'tl-label' }, 'Auction budget per team'),
+                            h('input', { className: 'tl-input', 'aria-label': 'Auction budget per team', type: 'number', min: 50, max: 1000, step: 1, value: draftAuctionBudget,
+                                onChange: event => setDraftAuctionBudget(Math.max(50, Math.min(1000, Math.round(Number(event.target.value) || 200)))) }))),
+                    h('p', { className: 'tl-hint' }, draftFormat === 'auction'
+                        ? `Each team starts with $${draftAuctionBudget}. Keep $1 for every unfilled roster spot. Bids restart the clock.`
+                        : draftPickSeconds ? 'When time runs out, the next legal pick comes from your queue or the available board.' : 'Make each pick when you are ready.',
+                    playMode === 'solo' ? ' You can pause the countdown and change the AI pace in the draft room.' : 'The commissioner can pause or change the draft clock for the room.')),
+                h('label', { className: 'tl-playoff-setting' }, h('span', { className: 'tl-label' }, 'SEASON FINISH'),
+                    h('select', { className: 'tl-select', value: settings.playoffTeams, onChange: event => setPlayoffTeams(Number(event.target.value)) },
+                        h('option', { value: 0 }, 'Standings champion'), h('option', { value: 2 }, 'Top 2 · Championship final'), h('option', { value: 4, disabled: seats.length < 4 }, 'Top 4 · 12 games + playoffs'), h('option', { value: 8, disabled: seats.length < 8 }, 'Top 8 · 11 games + playoffs')),
+                    h('p', { className: 'tl-hint' }, `${settings.regularSeasonWeeks} regular-season games · 14 weeks total. Higher seed wins a playoff tie. Missing game logs score zero.`)),
+                playMode === 'friends' && h('label', { className: 'tl-field' }, h('span', { className: 'tl-label' }, 'WEEKLY ADVANCEMENT'), h('select', { className: 'tl-select', value: advancementMode, onChange: event => setAdvancementMode(event.target.value) }, h('option', { value: 'commissioner' }, 'Commissioner advances'), h('option', { value: 'majority' }, 'Majority vote'), h('option', { value: 'timed' }, 'Timed gates')), advancementMode === 'timed' && h('input', { className: 'tl-input', type: 'number', min: 1, max: 168, value: gateHours, onChange: event => setGateHours(Math.max(1, Math.min(168, Number(event.target.value) || 24))), 'aria-label': 'Hours per gate' }), h('p', { className: 'tl-hint' }, 'Four stops each week: claims, final roster decisions, game day, and final results. The commissioner can override any gate.', advancementMode === 'timed' && ' Deadlines are checked while a manager has the room open and resume on return.'))),
 
             h('div', { className: 'tl-builder-section', id: 'vault-setup-2' },
                 h('div', { className: 'tl-question' }, h('span', null, '3'), h('div', null, h('h3', null, 'Name your team. Build your helmet.'), h('p', null, 'Choose a retro identity, then take the ready-to-play defaults or tune every rule below.'))),
@@ -340,7 +373,7 @@
                         h('div', { className: 'tl-custom-grid' }, window.App.TimeLeagueRoster.ROSTER_SLOT_IDS.filter(slot => !['DL', 'LB', 'DB', 'IDP_FLEX', 'TAXI', 'REC_FLEX'].includes(slot)).map(slot => h('label', { key: slot }, h('span', null, slot),
                             h('input', { className: 'tl-input', type: 'number', min: 0, max: 12, step: 1, value: settings.rosterSlots[slot] || 0, onChange: event => setCustomSlots({ ...settings.rosterSlots, [slot]: Math.max(0, Math.min(12, Math.floor(Number(event.target.value) || 0))) }) })))),
                         h('label', null, 'Maximum quarterbacks on a roster', h('input', { className: 'tl-input', type: 'number', min: Math.max(0, settings.rosterSlots.QB || 0), max: 12, value: settings.maxQuarterbacks, onChange: event => setQbLimit(Math.max(0, Math.min(12, Number(event.target.value) || 0))) })),
-                        h('p', { className: 'tl-hint' }, 'Start with a preset, then set each slot count. IR and taxi are reserves. Kickers and team defenses use historical weekly game logs, with roulette draws from 2000 onward. Set K or DEF to zero to leave them out.')),
+                        h('p', { className: 'tl-hint' }, 'Start with a preset, then set each slot count. IR is a reserve slot. Kickers and team defenses use historical weekly game logs, with roulette draws from 2000 onward. Set K or DEF to zero to leave them out.')),
                     h('details', { className: 'tl-custom-rules' }, h('summary', null, 'Customize scoring · points per stat'),
                         h('div', { className: 'tl-custom-grid' }, [
                             ['passYd','Passing yard',scoringOption.scoring.passingYd], ['passTd','Passing TD',scoringOption.scoring.passTd], ['passInt','Interception thrown',scoringOption.scoring.turnover],
@@ -367,7 +400,7 @@
             h('div', { className: 'tl-launch-bar' },
                 h('div', null,
                     h('span', { className: `tl-era-icon ${selectedEra.tone}` }, selectedEra.icon),
-                    h('p', null, h('b', null, `${selectedEra.label} · ${seats.length} teams`), h('span', null, `${seats.length * capacity} draft picks · ${window.TimeLeagueUtils.REGULAR_SEASON_WEEKS}-week season`))),
+                    h('p', null, h('b', null, `${selectedEra.label} · ${seats.length} teams`), h('span', null, `${DRAFT_FORMATS.find(format => format.id === draftFormat).label} · ${seats.length * capacity} players drafted · 14 gameweeks`))),
                 h('button', { type: 'button', className: 'tl-btn primary tl-launch-btn', onClick: startLeague, disabled: creating || capacity === 0 || !Object.entries(settings.rosterSlots).some(([slot,count]) => !['BN','IR','TAXI'].includes(slot) && count > 0) || (origin === 'online' && !signedIn) },
                     creating ? 'CREATING LEAGUE…' : playMode === 'friends' ? 'CREATE & INVITE →' : 'START SOLO DRAFT →')));
     }

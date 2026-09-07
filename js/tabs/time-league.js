@@ -865,8 +865,8 @@
                         h('button', { className: 'tl-btn', onClick: async () => { try { await navigator.clipboard.writeText(linkFor(m.invite_code)); setCopied(m.id); } catch { setCopied('manual'); } } }, copied === m.id ? 'COPIED' : 'COPY LINK')));
             }),
             copied === 'manual' && h('p', { role: 'status' }, 'Select the invite link above and copy it to share.'),
-            !meta.draftStarted && h('p', null, meta.role === 'commissioner' ? 'Share one seat link with each friend. Start after everyone has joined.' : 'The commissioner will start once everyone has joined.'),
-            !meta.draftStarted && meta.role === 'commissioner' && h('button', { className: 'tl-btn primary', disabled: saving || !allJoined, onClick: () => onAction({ type: 'start' }) }, 'START SHARED DRAFT'));
+            !meta.draftStarted && h('p', null, meta.role === 'commissioner' ? 'Share one seat link with each friend. Open the room after everyone has joined; the clock waits until all managers finish the reveal.' : 'The commissioner will open the room once everyone has joined. Finish your reveal before the clock starts.'),
+            !meta.draftStarted && meta.role === 'commissioner' && h('button', { className: 'tl-btn primary', disabled: saving || !allJoined, onClick: () => onAction({ type: 'start' }) }, 'OPEN DRAFT ROOM'));
     }
 
     // ── shell ──
@@ -902,6 +902,15 @@
         const [connectionError, setConnectionError] = useState(null);
         const [showCareer, setShowCareer] = useState(false);
         const [showCommunity, setShowCommunity] = useState(false);
+        const [draftReveal, setDraftReveal] = useState({ leagueId: null, ready: false });
+        const draftRevealed = league?.settings.eraRules?.mode !== 'position-roulette' || league?.seasonsRevealed || (draftReveal.leagueId === league?.leagueId && draftReveal.ready);
+        const revealRef = useRef(false);
+        revealRef.current = Boolean(draftRevealed);
+        const draftActionBusy = useRef(false);
+        const draftRetryAt = useRef(0);
+        const onDraftRevealReady = useCallback(ready => {
+            setDraftReveal(previous => previous.leagueId === league?.leagueId && previous.ready === ready ? previous : { leagueId: league?.leagueId, ready });
+        }, [league?.leagueId]);
         const onlineRef = useRef(null);
         const writeBusy = useRef(false);
         const openGeneration = useRef(0);
@@ -916,6 +925,7 @@
                 seatTeamId: row.seatTeamId || onlineRef.current?.seatTeamId,
                 members: row.members || onlineRef.current?.members || [], draftStarted: row.draft_started };
             onlineRef.current = meta;
+            leagueRef.current = safe;
             window.App.TimeLeagueCareerStore?.remember(safe, meta);
             setOnlineMeta(meta);
             setLeague(safe);
@@ -1011,7 +1021,7 @@
             });
         }, []);
 
-        const handleUpdate = useCallback(async (next, action) => {
+        const handleUpdate = useCallback(async (next, action, options = {}) => {
             const meta = onlineRef.current;
             if (meta) {
                 if (writeBusy.current || !action) return false;
@@ -1023,9 +1033,10 @@
                     if (result.ok) {
                         if (result.row) acceptRow(result.row);
                         else { onlineRef.current = { ...onlineRef.current, version: result.version }; setConnectionError('Move saved; waiting for the updated room.'); }
-                        setConflictNotice(null); return result.row?.state || true;
+                        if (!options.background) setConflictNotice(null);
+                        return result.row?.state || true;
                     }
-                    setConflictNotice(result.conflict ? 'Someone else acted first. Your move was not saved; review the updated room and try again.' : result.error);
+                    if (!(options.background && result.conflict)) setConflictNotice(result.conflict ? 'Someone else acted first. Your move was not saved; review the updated room and try again.' : result.error);
                     try { acceptRow(await Remote.loadOnlineLeague(meta.rowId)); } catch (error) { setConnectionError(error.message); }
                     return false;
                 } finally { writeBusy.current = false; setSaving(false); }
@@ -1037,6 +1048,7 @@
             const safe = Engine.normalizeTimeLeague(next);
             if (!safe) return false;
             if (previous?.leagueId === safe.leagueId && safe.finalizedWeeks.length > previous.finalizedWeeks.length) setAutoPlayWeek(safe.finalizedWeeks[safe.finalizedWeeks.length - 1]?.week);
+            leagueRef.current = safe;
             persistLeague(safe);
             setLeague(safe);
             return true;
@@ -1059,6 +1071,56 @@
                 return saved;
             } catch (error) { setConflictNotice(error.message); return false; }
         }, [activeTeamId, cards, logIndex, eraFactors, handleUpdate]);
+
+        const dispatchDraft = useCallback(async (action, options = {}) => {
+            const current = leagueRef.current;
+            if (!current || current.phase !== 'draft' || !revealRef.current || draftActionBusy.current) return false;
+            draftActionBusy.current = true;
+            try {
+                const nominatedTeam = action.teamId || Engine.currentDraftSeat(current)?.teamId;
+                const own = onlineRef.current?.seatTeamId || current.teams.find(team => team.teamId === nominatedTeam && team.manager === 'human')?.teamId || current.teams.find(team => team.manager === 'human')?.teamId;
+                const next = onlineRef.current ? current : window.App.TimeLeagueActions.applyOnlineAction(current, action,
+                    { role: 'commissioner', seat_team_id: own }, { cards, logIndex, eraFactors }, new Date().toISOString());
+                return await handleUpdate(next, action, options);
+            } catch (error) { setConflictNotice(error.message); return false; }
+            finally { draftActionBusy.current = false; }
+        }, [cards, logIndex, eraFactors, handleUpdate]);
+
+        // A manager finishes their own reveal before the shared clock can start.
+        // Readiness is server-owned and is visible to the commissioner on refresh.
+        useEffect(() => {
+            if (!Remote || !onlineMeta?.draftStarted || league?.phase !== 'draft' || !draftRevealed) return undefined;
+            if (onlineMeta.members?.some(member => member.seat_team_id === onlineMeta.seatTeamId && member.ready_week === league.currentWeek)) return undefined;
+            let cancelled = false;
+            const rowId = onlineMeta.rowId;
+            Remote.setReady(rowId, true).then(async result => {
+                if (cancelled || onlineRef.current?.rowId !== rowId) return;
+                if (!result.ok) { setConnectionError(result.error); return; }
+                try { const row = await Remote.loadOnlineLeague(rowId); if (!cancelled) acceptRow(row); }
+                catch (error) { if (!cancelled) setConnectionError(error.message); }
+            });
+            return () => { cancelled = true; };
+        }, [onlineMeta?.rowId, onlineMeta?.draftStarted, onlineMeta?.members, league?.phase, draftRevealed, acceptRow]);
+
+        // Keep the displayed clock and automatic picks independent of the active
+        // tab. A stored absolute deadline also resumes correctly after reconnect.
+        useEffect(() => {
+            if (league?.phase !== 'draft' || !cards?.size || !window.App.TimeLeagueDraftClock) return undefined;
+            const checkDraft = async () => {
+                const current = leagueRef.current;
+                const meta = onlineRef.current;
+                if (!current || writeBusy.current || draftActionBusy.current || Date.now() < draftRetryAt.current || (meta && !meta.draftStarted)) return;
+                const action = window.App.TimeLeagueDraftClock.nextAction(current, cards, Date.now(), revealRef.current);
+                if (!action) return;
+                // A rejected stale-version request gets time to fetch the latest
+                // room, preventing overlapping writes or repeated error messages.
+                draftRetryAt.current = Date.now() + 2000;
+                if (await dispatchDraft(action, { background: true })) draftRetryAt.current = 0;
+            };
+            const timer = window.setInterval(checkDraft, 250);
+            checkDraft();
+            return () => window.clearInterval(timer);
+        }, [league?.leagueId, league?.phase, cards, dispatchDraft]);
 
         useEffect(() => {
             if (!onlineMeta || league?.phase !== 'season' || league.settings.advancementMode !== 'timed') return undefined;
@@ -1141,6 +1203,8 @@
 
         const SetupPanel = window.WrTimeLeagueSetupPanel;
         const DraftPanel = window.WrTimeLeagueDraftPanel;
+        const DraftClock = window.WrTimeLeagueDraftClock;
+        const AuctionPanel = window.WrTimeLeagueAuctionPanel;
         const TeamPanel = window.WrTimeLeagueTeamPanel;
         const WeekGates = window.WrTimeLeagueWeekGates;
         const ActivityPanel = window.WrTimeLeagueActivityPanel;
@@ -1255,7 +1319,12 @@
                 activeTab === 'home' && league.phase !== 'complete' && RivalsPanel ? h(RivalsPanel, { league, teamId: onlineMeta?.seatTeamId || league.teams.find(team => team.manager === 'human')?.teamId, compact: true, onNavigate: navigateTab }) : null,
                 activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: onlineMeta?.seatTeamId }) : null,
                 ((activeTab === 'home' && league.phase === 'complete') || activeTab === 'messages') && RivalsPanel ? h(RivalsPanel, { league, teamId: onlineMeta?.seatTeamId || league.teams.find(team => team.manager === 'human')?.teamId, compact: activeTab === 'home', onNavigate: navigateTab }) : null,
-                activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, { league, cards, onUpdate: handleUpdate, onlineMeta }) : loadingNotice) : null,
+                activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, {
+                    key: league.leagueId, league, cards, onUpdate: handleUpdate, onlineMeta, onRevealReadyChange: onDraftRevealReady, onDraftAction: dispatchDraft,
+                    draftControls: league.phase === 'draft' && h(React.Fragment, null,
+                        DraftClock && h(DraftClock, { league, onlineMeta, saving, onAction: dispatchDraft }),
+                        league.settings.draftFormat === 'auction' && AuctionPanel && h(AuctionPanel, { league, cards, currentTeamId: responseTeam, onlineMeta, saving, onAction: dispatchDraft })),
+                }) : loadingNotice) : null,
                 activeTab === 'gameday' && GamecastPanel ? h(GamecastPanel, {
                     league, cards, logIndex, logsMissing, eraFactors, onlineMeta, autoPlayWeek, onGoCeremony: () => navigateTab('home'), onUpdate: handleUpdate, onGoRoster: () => navigateTab('roster'),
                 }) : null,
@@ -1265,7 +1334,9 @@
                         : loadingNotice)
                     : null,
 
-                activeTab === 'activity' && ActivityPanel ? h(ActivityPanel, { league }) : null))));
+                activeTab === 'activity' && ActivityPanel ? (league.phase === 'draft' && !draftRevealed
+                    ? h('section', { className: 'tl-card' }, h('h3', null, 'The draft archives are sealed'), h('p', null, 'Finish the position reveal to open your league wire.'), h('button', { className: 'tl-btn primary', onClick: () => navigateTab('draft') }, 'Open the reveal'))
+                    : h(ActivityPanel, { league })) : null))));
     }
 
     window.TimeLeague = TimeLeagueMode;

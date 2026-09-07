@@ -8,6 +8,7 @@ const { TimeLeagueEngine: E, TimeLeagueActions: A, TimeLeaguePlayerCards: P, Tim
 const data = { cards: P.buildPlayerCardIndex(JSON.parse(fs.readFileSync('data/time-league/player-cards.json'))), logIndex: S.buildGameLogIndex(S.parseGameLogCsv(fs.readFileSync('data/time-league/nflverse-game-logs.csv', 'utf8')).logs), eraFactors: new Map() };
 const host = { seat_team_id: 't1', role: 'commissioner' }, friend = { seat_team_id: 't2', role: 'member' };
 let state = E.createTimeLeague({ name: 'Multiplayer QA', seed: 'friends-test', createdAt: '2026-09-07T00:00:00Z', seats: [{ name: 'Host', manager: 'human' }, { name: 'Friend', manager: 'human' }, { name: 'AI', manager: 'ai', aiPersona: 'steward' }], settings: { rosterSlots: { QB: 1, RB: 1, WR: 1, BN: 1 }, scoring: { passTd: 4, reception: 0.5, rushRecYd: 0.1, passingYd: 0.04, turnover: -2 }, maxQuarterbacks: 1, regularSeasonWeeks: 2, eraRules: { mode: 'any-era', decades: [] }, waiversEnabled: true, waiverMode: 'faab', faabBudget: 100, tradesEnabled: true, aiDifficulty: 'veteran' } });
+state = E.startDraft(state, state.createdAt);
 let passed = 0;
 function test(name, fn) { fn(); console.log(`ok ${name}`); passed++; }
 const run = (action, member = host) => A.applyOnlineAction(state, action, member, data, '2026-09-07T00:00:01Z');

@@ -114,6 +114,42 @@
         return best?.card ?? null;
     }
 
+    /** Auction rivals price only the visible, era-eligible board, never the mystery draw. */
+    function aiAuctionStep(state, cards, stamp) {
+        const E = App.TimeLeagueEngine;
+        if (state.phase !== 'draft' || state.settings.draftFormat !== 'auction' || state.draftClock?.status !== 'running') return state;
+        const n = state.draftAuction?.nomination;
+        if (!n) {
+            const seat = currentDraftSeat(state), team = state.teams.find(t => t.teamId === seat?.teamId);
+            if (team?.manager !== 'ai') return state;
+            const card = team.queue.map(id => cards.get(id)).find(c => E.auctionCanBid(state, team.teamId, c)) || aiDraftChoice(state, cards);
+            return card ? E.nominateAuctionPlayer(state, team.teamId, card, 1, stamp) : state;
+        }
+        const card = cards.get(n.identity);
+        if (!card) return state;
+        const board = eraEligibleCards(state, cards);
+        const visibleValue = player => {
+            const seasons = App.TimeLeagueEraRules.filterSeasonsForEra(player.seasons, state.settings.eraRules, player.position);
+            return seasons.length ? seasons.reduce((sum, season) => sum + season.points, 0) / seasons.length : 0;
+        };
+        const peak = Math.max(1, ...board.map(visibleValue));
+        const value = visibleValue(card);
+        const contenders = state.teams.filter(t => t.manager === 'ai' && t.teamId !== n.highTeamId && E.auctionCanBid(state, t.teamId, card));
+        const random = createSeededRandom(`${state.seed}:auction:${n.identity}:${n.highBid}`);
+        const ranked = contenders.map(team => {
+            const persona = personaFor(team);
+            const max = E.auctionMaxBid(state, team.teamId);
+            const average = (state.settings.draftAuctionBudget || 200) / Math.max(1, rosterCapacity(state.settings));
+            const factor = 0.55 + (value / peak) * 2.25 + persona.aggression / 200;
+            const limit = Math.min(max, Math.max(1, Math.round(average * factor * difficultyFor(state).bidMult)));
+            return { team, limit, order: random() };
+        }).filter(item => item.limit > n.highBid).sort((a, b) => a.order - b.order);
+        if (!ranked.length) return state;
+        const bidder = ranked[0];
+        const next = E.bidAuctionPlayer(state, bidder.team.teamId, n.highBid + 1, stamp, cards);
+        return next === state ? state : { ...next, draftAuction: { ...next.draftAuction, lastAiAt: stamp } };
+    }
+
     function aiPrepareWeek(state, cards) {
         return state.teams.reduce((next, team) => (team.manager === "ai" ? autoFillLineup(next, team.teamId, cards) : next), state);
     }
@@ -306,7 +342,7 @@
     }
 
     const api = {
-        AI_PERSONAS, AI_DIFFICULTY_LABELS, entryValueFromCard, aiDraftChoice, aiPrepareWeek, aiSubmitWaiverClaims,
+        AI_PERSONAS, AI_DIFFICULTY_LABELS, entryValueFromCard, aiDraftChoice, aiAuctionStep, aiPrepareWeek, aiSubmitWaiverClaims,
         aiRespondToTrades, aiGenerateTrades,
     };
     App.TimeLeagueAI = api;
