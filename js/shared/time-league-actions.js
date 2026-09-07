@@ -57,6 +57,7 @@
             break;
         case 'claim': {
             ownTeam();
+            if (state.weekStage !== 'claims') deny('Waiver planning is not open.');
             const card = E.freeAgents(state, cards).find(c => c.identity === action.identity);
             if (!card) deny('That free agent is no longer available.');
             next = E.submitWaiverClaim(state, { teamId: own, addIdentity: card.identity, addName: card.name, addPosition: card.position, dropEntryId: action.dropEntryId || '', bidAmount: action.bidAmount }, stamp);
@@ -78,15 +79,28 @@
             if (!state.trades.some(t => t.fromTeamId === own && t.status === 'pending' && state.teams.some(team => team.teamId === t.toTeamId && team.manager === 'ai'))) deny('No pending offer to an AI manager.');
             next = AI.aiRespondToTrades(state, cards, stamp);
             break;
+        case 'advance-week':
+            commissioner();
+            if (state.phase !== 'season' || state.weekStage !== 'postgame') deny('Review the current week first.');
+            next = { ...state, weekStage: 'claims' };
+            break;
+        case 'process-claims': {
+            commissioner();
+            if (state.phase !== 'season' || state.weekStage !== 'claims') deny('Open waiver planning first.');
+            // Each AI files against the same pre-resolution pool as human managers.
+            const staged = AI.aiSubmitWaiverClaims(state, cards, stamp);
+            next = E.processWaivers(staged, cards, stamp);
+            next = { ...AI.aiRespondToTrades(AI.aiGenerateTrades(next, cards, stamp), cards, stamp), weekStage: 'ready' };
+            break;
+        }
         case 'week': {
             commissioner();
-            if (state.phase !== 'season') deny('The season is not ready.');
+            if (state.phase !== 'season' || ['postgame', 'claims'].includes(state.weekStage)) deny('Complete the weekly planning steps first.');
             const prepared = AI.aiPrepareWeek(state, cards);
             const problems = prepared.teams.filter(t => t.manager === 'human').flatMap(t => E.lineupProblems(prepared, t.teamId));
             if (problems.length && !action.force) deny('Managers still need to set their lineups.');
             next = E.finalizeCurrentWeek(prepared, data.logIndex, data.eraFactors, stamp);
-            next = E.processWaivers(AI.aiSubmitWaiverClaims(next, cards, stamp), cards, stamp);
-            next = AI.aiRespondToTrades(AI.aiGenerateTrades(next, cards, stamp), cards, stamp);
+            next = { ...next, weekStage: 'postgame' };
             break;
         }
         default: deny('Unknown game action.');

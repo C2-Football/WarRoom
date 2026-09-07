@@ -114,7 +114,7 @@
         }, [playing, speed, finishPlayback]);
 
         const skipToEnd = () => { clockRef.current = GAMECAST_END; setClock(GAMECAST_END); if (playing) finishPlayback(); };
-        const canRun = (!onlineMeta || (onlineMeta.role === 'commissioner' && onlineMeta.members.every(m => m.ready_week === league.currentWeek))) && league.phase === 'season' && cards !== null && cards.size > 0 && logIndex !== null;
+        const canRun = !['postgame', 'claims'].includes(league.weekStage) && (!onlineMeta || (onlineMeta.role === 'commissioner' && onlineMeta.members.every(m => m.ready_week === league.currentWeek))) && league.phase === 'season' && cards !== null && cards.size > 0 && logIndex !== null;
 
         const runGameDay = async (force) => {
             if (!canRun || !cards || !logIndex) return;
@@ -128,10 +128,7 @@
             const finalized = Engine.finalizeCurrentWeek(prepared, logIndex, eraFactors, stamp);
             const weekData = finalized.finalizedWeeks.find((item) => item.week === league.currentWeek);
             if (!weekData) return;
-            let settled = AI.aiSubmitWaiverClaims(finalized, cards, stamp);
-            settled = Engine.processWaivers(settled, cards, stamp);
-            settled = AI.aiGenerateTrades(settled, cards, stamp);
-            settled = AI.aiRespondToTrades(settled, cards, stamp);
+            const settled = { ...finalized, weekStage: 'postgame' };
             const saved = await onUpdate(settled, { type: 'week', force });
             if (saved === false) return;
             const canonical = saved && typeof saved === 'object' ? saved : settled;

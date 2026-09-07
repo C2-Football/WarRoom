@@ -45,13 +45,30 @@ test('trade recipient alone can accept', () => {
   assert.equal(state.trades.at(-1).status, 'accepted');
 });
 test('cannot cancel another manager claim', () => {
+  state = { ...state, weekStage: 'claims' };
   const card = E.freeAgents(state, data.cards).find(c => c.position === 'WR');
   state = run({ type: 'claim', teamId: 't2', identity: card.identity, dropEntryId: state.teams[1].roster.find(e => e.position !== 'QB').entryId, bidAmount: 4 }, friend);
   const claimId = state.pendingClaims.at(-1).claimId;
   assert.throws(() => run({ type: 'cancel-claim', claimId }), /another manager/);
 });
 test('shared game weeks settle through a champion with real historical logs', () => {
-  while (state.phase === 'season') state = run({ type: 'week', force: true });
+  while (state.phase === 'season') {
+    if (state.weekStage === 'postgame') {
+      const rosters = JSON.stringify(state.teams);
+      assert.throws(() => run({ type: 'week', force: true }), /planning/);
+      assert.throws(() => run({ type: 'advance-week' }, friend), /commissioner/);
+      state = run({ type: 'advance-week' });
+      assert.equal(JSON.stringify(state.teams), rosters);
+    }
+    if (state.weekStage === 'claims') {
+      state = run({ type: 'process-claims' });
+      assert.equal(state.pendingClaims.length, 0);
+      assert.equal(state.weekStage, 'ready');
+      assert.throws(() => run({ type: 'process-claims' }), /planning/);
+    }
+    state = run({ type: 'week', force: true });
+    assert.equal(state.weekStage, 'postgame');
+  }
   assert.equal(state.phase, 'complete'); assert.equal(state.finalizedWeeks.length, 2); assert(state.championTeamId);
   assert(state.finalizedWeeks.some(w => w.results.some(r => r.total > 0)));
 });

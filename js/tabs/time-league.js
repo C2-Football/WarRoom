@@ -1172,6 +1172,16 @@
                     },
                 }),
                 h('fieldset', { disabled: saving || Boolean(onlineMeta && !onlineMeta.draftStarted), style: { border: 0, padding: 0, margin: 0, minWidth: 0 } },
+                league.phase === 'season' && h('section', { className: 'tl-week-gate tl-card' },
+                    h('div', null, h('strong', null, league.weekStage === 'postgame' ? `Week ${league.currentWeek - 1} is final` : league.weekStage === 'claims' ? `Week ${league.currentWeek} · Waiver planning` : `Week ${league.currentWeek} · Ready for game day`),
+                        h('p', null, league.weekStage === 'postgame' ? 'Review the recap. Advance when you are ready to open the next waiver window.' : league.weekStage === 'claims' ? 'File or revise claims. AI managers submit before the same batch resolves; no AI adds happen ahead of you.' : 'Set your lineup and start game day when ready.')),
+                    league.weekStage === 'claims' && h('button', { className: 'tl-btn', onClick: () => navigateTab('waivers') }, 'Plan claims'),
+                    ['postgame', 'claims'].includes(league.weekStage) && h('button', { className: 'tl-btn primary', disabled: saving || !cardsReady || (onlineMeta && onlineMeta.role !== 'commissioner'), onClick: async () => {
+                        const action = { type: league.weekStage === 'postgame' ? 'advance-week' : 'process-claims' };
+                        const next = onlineMeta ? league : window.App.TimeLeagueActions.applyOnlineAction(league, action, { role: 'commissioner' }, { cards }, new Date().toISOString());
+                        const saved = await handleUpdate(next, action);
+                        if (saved) navigateTab(action.type === 'advance-week' ? 'waivers' : 'roster');
+                    } }, league.weekStage === 'postgame' ? 'Advance week →' : 'Run waiver claims →')),
                 activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: onlineMeta?.seatTeamId }) : null,
                 activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, { league, cards, onUpdate: handleUpdate, onlineMeta }) : loadingNotice) : null,
                 activeTab === 'gameday' && GamecastPanel ? h(GamecastPanel, {

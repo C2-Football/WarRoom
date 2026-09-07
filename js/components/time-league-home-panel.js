@@ -84,14 +84,14 @@
             const top = [...lastFinalized.results].sort((left, right) => right.total - left.total)[0];
             return {
                 headline: `${teamName(top.teamId).toUpperCase()} SETS THE PACE WITH ${top.total.toFixed(1)}`,
-                lede: headlines.join(' '),
+                lede: `${lastFinalized.results.length} teams played. The league scored ${lastFinalized.results.reduce((sum, result) => sum + result.total, 0).toFixed(1)} points in Week ${lastFinalized.week}. Results and lineup leaders are below.`,
             };
         }, [league, lastFinalized]);
 
         const heroStatus = league.phase === 'complete'
             ? 'SEASON COMPLETE'
             : lastResult
-                ? `${lastResult === 'W' ? 'WIN' : lastResult === 'L' ? 'LOSS' : 'TIE'} LAST WEEK · WEEK ${Math.min(league.currentWeek, league.settings.regularSeasonWeeks)}`
+                ? `${lastResult === 'W' ? 'WIN' : lastResult === 'L' ? 'LOSS' : 'TIE'} IN WEEK ${lastFinalized?.week ?? league.currentWeek - 1}`
                 : `WEEK ${Math.min(league.currentWeek, league.settings.regularSeasonWeeks)} · SEASON OPENER`;
         const ready = lineupProblems.length === 0;
 
@@ -156,17 +156,26 @@
 
                 h('article', { className: 'tl-card tl-home-pulse' },
                     h('div', { className: 'tl-pulse-masthead' },
-                        h('span', null, 'THE VAULT'), h('strong', null, 'LEAGUE PULSE'), h('small', null, `WEEK ${Math.min(league.currentWeek, league.settings.regularSeasonWeeks)} EDITION`)),
+                        h('span', null, 'THE VAULT'), h('strong', null, 'LEAGUE PULSE'), h('small', null, lastFinalized ? `WEEK ${lastFinalized.week} RECAP` : 'PRESEASON EDITION')),
                     h('h2', null, pulse.headline),
                     h('p', null, pulse.lede),
-                    h('div', { className: 'tl-pulse-stats' },
-                        h('span', null, h('b', { className: 'tabular' }, seasonHigh ? seasonHigh.points.toFixed(1) : '—'), h('small', null, 'SEASON HIGH')),
-                        h('span', null, h('b', null, eraSpread.decades.length || '—'), h('small', null, 'ERAS IN PLAY')),
-                        h('span', null, h('b', { className: 'tabular' }, eraSpread.oldest?.drawnSeason ?? '—'), h('small', null, 'OLDEST SEASON'))),
+                    lastFinalized && h('div', { className: 'tl-weekly-report' },
+                        h('h3', null, 'Around the league'),
+                        lastFinalized.matchups.map((match, i) => h('div', { key: i, className: 'tl-recap-match' },
+                            h('strong', null, `${teamName(match.home)} ${match.homePoints.toFixed(1)} — ${match.awayPoints.toFixed(1)} ${teamName(match.away)}`),
+                            h('small', null, match.homePoints === match.awayPoints ? 'A dead heat — both teams take a tie.' : `${teamName(match.homePoints > match.awayPoints ? match.home : match.away)} wins by ${Math.abs(match.homePoints - match.awayPoints).toFixed(1)} points.`))),
+                        h('h3', null, 'Team report cards'),
+                        [...lastFinalized.results].sort((a,b) => b.total-a.total).map((result, i) => {
+                            const star = [...result.starters].sort((a,b) => b.points-a.points)[0];
+                            const blanks = result.starters.filter(player => !player.stats).length;
+                            return h('div', { key: result.teamId, className: 'tl-recap-match' },
+                                h('strong', null, `#${i + 1} · ${teamName(result.teamId)} · ${result.total.toFixed(1)} pts`),
+                                h('small', null, star ? `${star.name} (${star.drawnSeason}) led the lineup with ${star.points.toFixed(1)}. ${blanks ? `${blanks} starter(s) had no game log.` : 'Every starter had a recorded game.'}` : 'No starters recorded.'));
+                        })),
                     h('div', { className: 'tl-pulse-wire' },
                         h('span', { className: 'tl-label' }, 'LATEST FROM THE WIRE'),
                         recentActivity.length
-                            ? recentActivity.slice(0, 3).map((event) => h('div', { key: event.id }, h('time', null, `W${event.week}`), h('p', null, event.message)))
+                            ? recentActivity.filter(event => !lastFinalized || event.week === lastFinalized.week).slice(0, 6).map((event) => h('div', { key: event.id }, h('time', null, `W${event.week}`), h('p', null, event.message)))
                             : h('p', { className: 'tl-empty' }, 'The wire is quiet—for now.')))),
 
             h('section', { className: 'tl-home-era-strip' },

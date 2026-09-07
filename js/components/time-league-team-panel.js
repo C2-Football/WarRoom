@@ -179,7 +179,7 @@
                 h('span', { className: 'tl-pill bad' }, 'DISABLED'),
                 h('p', { style: { marginTop: 8, fontSize: 12.5, color: 'var(--text-secondary)' } }, "Waivers are switched off in this league's settings. The wire stays dark all season."));
         }
-        const wireOpen = league.phase === 'season';
+        const wireOpen = league.phase === 'season' && league.weekStage === 'claims';
         const positions = POSITION_ORDER.filter((p) => pool.some((c) => c.position === p));
         const filtered = pool.filter((c) => (pos === 'ALL' || c.position === pos) && (!query.trim() || c.name.toLowerCase().includes(query.trim().toLowerCase())));
         const shown = filtered.slice(0, visibleCount);
@@ -210,7 +210,7 @@
                 }, nowIso()), { type: 'claim', teamId: team.teamId, identity: target.identity, dropEntryId: dropEntry?.entryId || '', bidAmount });
                 if (saved) {
                     setTargetIdentity(''); setDropEntryId(''); setBidAmount(0);
-                    setClaimMessage('Claim filed. It will process at the next game day.');
+                    setClaimMessage('Claim filed. It will process with the next waiver batch.');
                 } else setClaimMessage('Claim was not saved. Review your selection and try again.');
             } catch (_error) { setClaimMessage('Claim could not be saved. Please try again.'); }
             finally { setFiling(false); }
@@ -253,9 +253,9 @@
                     faab && h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Budget'), h('strong', { className: 'tabular', style: { fontSize: 18, fontFamily: 'var(--font-title)' } }, `$${budgetAvailable}`))),
                 h('div', { className: 'tl-card tl-waiver-claim' },
                     claimMessage ? h('p', { role: 'status' }, claimMessage) : null,
-                    h('div', { className: 'tl-card-title' }, h('span', null, 'Claim builder'), h('small', null, 'processes at the next game day')),
+                    h('div', { className: 'tl-card-title' }, h('span', null, 'Claim builder'), h('small', null, 'processes when the waiver batch runs')),
                     h('p',{className:'tl-hint'},'Career-best points are a reference, not your awarded season. An eligible season is drawn when the claim succeeds.'),
-                    !wireOpen && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'HOLD'), h('p', null, league.phase === 'draft' ? 'The wire opens when the draft completes.' : 'Season complete — no more claims.')),
+                    !wireOpen && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'HOLD'), h('p', null, league.phase === 'draft' ? 'The wire opens after the first game day.' : league.phase === 'complete' ? 'Season complete — no more claims.' : 'Advance from the postgame recap to open waiver planning.')),
                     benchCap <= 0 && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'WARN'), h('p', null, 'No bench configured — choose a drop that opens an eligible starting slot.')),
                     target ? h(React.Fragment, null,
                         h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0' } },
