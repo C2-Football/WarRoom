@@ -281,6 +281,11 @@
         const [giveIds, setGiveIds] = useState([]);
         const [receiveIds, setReceiveIds] = useState([]);
         const [note, setNote] = useState('');
+        const [deskView, setDeskView] = useState('builder');
+        const [search, setSearch] = useState('');
+        const [position, setPosition] = useState('ALL');
+        const [sending, setSending] = useState(false);
+        const [message, setMessage] = useState('');
         const entryById = useMemo(() => {
             const map = new Map();
             for (const item of league.teams) for (const entry of item.roster) map.set(entry.entryId, entry);
@@ -305,57 +310,68 @@
         const grade = fairnessGrade(giveValue, receiveValue);
         const toggle = (ids, id) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
         const sortByValue = (roster) => [...roster].sort((l, r) => valueOf(r) - valueOf(l) || l.entryId.localeCompare(r.entryId));
-        const maxValue = Math.max(1, ...team.roster.map(valueOf), ...(counterparty ? counterparty.roster.map(valueOf) : []));
-        const pickRow = (entry, checked, onToggle, barColor) => h('label', { key: entry.entryId, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '6px 4px', borderRadius: 6, background: checked ? 'rgba(212,175,55,0.08)' : 'transparent', cursor: deskOpen ? 'pointer' : 'default' } },
-            h('input', { type: 'checkbox', checked, onChange: onToggle, disabled: !deskOpen }),
-            h('span', { className: 'tl-pill', style: { flex: 'none', minWidth: 38, textAlign: 'center' } }, entry.slot),
-            h('span', { style: { flex: 1, minWidth: 0 } },
-                h('strong', { style: { display: 'block', fontSize: 12 } }, entry.name),
-                h('small', { style: { color: 'var(--text-muted)', fontSize: 10 } }, `${entry.position} · ${revealed ? `${entry.drawnSeason} SZN` : 'SEALED'}`),
-                h('div', { className: 'tl-val-bar' }, h('div', { className: 'tl-val-bar-fill', style: { width: `${(valueOf(entry) / maxValue) * 100}%`, background: barColor } }))),
-            h('span', { className: 'tabular', style: { fontSize: 11.5, color: 'var(--gold)', flex: 'none' } }, fmt1(valueOf(entry))));
+        const visibleRoster = roster => sortByValue(roster).filter(entry =>
+            (position === 'ALL' || entry.position === position) && entry.name.toLowerCase().includes(search.trim().toLowerCase()));
+        const pickRow = (entry, checked, onToggle) => h('label', { key: entry.entryId, className: `tl-trade-player${checked ? ' is-selected' : ''}` },
+            h('input', { type: 'checkbox', checked, onChange: onToggle, disabled: !deskOpen || sending, 'aria-label': `Select ${entry.name}` }),
+            h('span', { className: `tl-pos ${entry.position}` }, entry.position),
+            h('span', { className: 'tl-trade-player-name' }, h('strong', null, entry.name),
+                h('small', null, `${revealed ? entry.drawnSeason + ' season' : 'Sealed season'} · ${entry.slot}`)),
+            h('span', { className: 'tabular' }, fmt1(valueOf(entry))));
         const teamById = (id) => league.teams.find((t) => t.teamId === id);
         const names = (ids) => ids.map((id) => entryById.get(id)?.name ?? id).join(', ') || '—';
         const pending = league.trades.filter((t) => t.status === 'pending' && (t.fromTeamId === team.teamId || t.toTeamId === team.teamId));
         const settled = league.trades.filter((t) => t.status !== 'pending').slice().reverse();
-        const send = () => {
-            if (!counterparty) return;
+        const send = async () => {
+            if (!counterparty || !balanced || sending || !deskOpen) return;
             const next = Engine.proposeTrade(league, { fromTeamId: team.teamId, toTeamId: counterparty.teamId, giveEntryIds: give, receiveEntryIds: receive, note }, nowIso());
-            if (next === league) return;
-            apply(next, { type: 'trade', teamId: team.teamId, toTeamId: counterparty.teamId, giveEntryIds: give, receiveEntryIds: receive, note }); setGiveIds([]); setReceiveIds([]); setNote('');
+            if (next === league) { setMessage('This offer cannot be submitted. Check the selected players.'); return; }
+            setSending(true); setMessage('');
+            try {
+                const saved = await apply(next, { type: 'trade', teamId: team.teamId, toTeamId: counterparty.teamId, giveEntryIds: give, receiveEntryIds: receive, note });
+                if (saved) { setGiveIds([]); setReceiveIds([]); setNote(''); setMessage('Offer sent. Follow the response in your inbox.'); setDeskView('inbox'); }
+                else setMessage('Offer was not saved. Your selections are still here to try again.');
+            } catch (_error) { setMessage('Offer could not be saved. Please try again.'); }
+            finally { setSending(false); }
         };
+        const side = (label, owner, ids, total, onToggle) => h('section', { className: 'tl-trade-side' },
+            h('div', { className: 'tl-trade-side-head' }, h('div', null, h('small', null, label), h('h3', null, owner?.name || 'Choose a partner')),
+                h('div', { className: 'tl-trade-total' }, h('strong', { className: 'tabular' }, fmt1(total)), h('small', null, revealed ? 'SEASON PTS' : 'REFERENCE PTS'))),
+            h('div', { className: 'tl-trade-package' }, ids.length ? ids.map(id => h('button', { key: id, className: 'tl-trade-chip', disabled: sending, onClick: () => onToggle(id), 'aria-label': `Remove ${entryById.get(id)?.name}` }, entryById.get(id)?.name, ' ×')) : h('span', null, 'Select players below to build this side.')),
+            h('div', { className: 'tl-trade-list-label' }, h('span', null, `ROSTER · ${owner?.roster.length || 0} PLAYERS`), h('span', null, revealed ? 'SEASON PTS' : 'REFERENCE PTS')),
+            h('div', { className: 'tl-trade-player-list' }, owner && visibleRoster(owner.roster).map(entry => pickRow(entry, ids.includes(entry.entryId), () => onToggle(entry.entryId))),
+                (!owner || !visibleRoster(owner.roster).length) && h('p', { className: 'tl-empty' }, 'No players match these filters.')));
 
-        return h('div', null,
-            h('div', { className: 'tl-grid-2' },
-                h('div', { className: 'tl-card' },
-                    h('div', { className: 'tl-card-title' }, h('span', null, 'Compose offer'), h('small', null, deskOpen ? `W${league.currentWeek} DESK OPEN` : league.phase === 'draft' ? 'OPENS AFTER THE DRAFT' : 'DESK CLOSED')),
-                    h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 } },
-                        h('span', { className: 'tl-label' }, 'Counterparty'),
-                        h('select', { className: 'tl-select', 'aria-label': 'Counterparty team', value: counterpartyId, onChange: (e) => { setCounterpartyId(e.target.value); setReceiveIds([]); } },
-                            others.map((item) => h('option', { key: item.teamId, value: item.teamId }, `${item.name} — ${item.manager === 'human' ? 'HUMAN' : (item.aiPersona ? AI.AI_PERSONAS[item.aiPersona].label : 'AI').toUpperCase()}`)))),
-                    h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 } },
-                        h('div', null, h('span', { className: 'tl-label', style: { display: 'block', marginBottom: 6 } }, `You send — ${team.name}`),
-                            sortByValue(team.roster).map((entry) => pickRow(entry, give.includes(entry.entryId), () => setGiveIds(toggle(giveIds, entry.entryId)), 'var(--info)')),
-                            !team.roster.length && h('p', { className: 'tl-empty' }, 'No entries to offer.')),
-                        h('div', null, h('span', { className: 'tl-label', style: { display: 'block', marginBottom: 6 } }, `You receive — ${counterparty?.name ?? '—'}`),
-                            counterparty && sortByValue(counterparty.roster).map((entry) => pickRow(entry, receive.includes(entry.entryId), () => setReceiveIds(toggle(receiveIds, entry.entryId)), 'var(--gold)')),
-                            counterparty && !counterparty.roster.length && h('p', { className: 'tl-empty' }, 'Their roster is empty.'))),
-                    (give.length > 0 || receive.length > 0) && h('div', { className: 'tl-fairness-grade' },
-                        h('div', { className: `fg-letter ${grade.tone}` }, grade.grade),
-                        h('div', null,
-                            h('div', { className: 'fg-label' }, grade.label),
-                            h('div', { className: 'fg-sub' }, `${give.length} FOR ${receive.length} · YOU SEND `, h('b', { className: 'tabular' }, fmt1(giveValue)), ' · YOU GET ', h('b', { className: 'tabular' }, fmt1(receiveValue))))),
-                    !balanced && (give.length > 0 || receive.length > 0) && h('p', { className: 'tl-hint', style: { marginBottom: 10 } }, 'Equal-count swaps only — roster sizes are fixed.'),
-                    h('div', { style: { display: 'flex', gap: 8 } },
-                        h('input', { className: 'tl-input', placeholder: 'Attach a note — sell the deal', value: note, onChange: (e) => setNote(e.target.value) }),
-                        h('button', { className: 'tl-btn primary', disabled: !deskOpen || !balanced || !counterparty, onClick: send }, '⇄ SEND OFFER'))),
-                h('div', null,
-                    counterparty && counterparty.manager === 'ai'
-                        ? h(GmProfile, { team: counterparty, title: 'Opposing GM' })
-                        : h('div', { className: 'tl-card' }, h('div', { className: 'tl-card-title' }, h('span', null, 'Opposing desk'), h('small', null, 'HUMAN')), h('p', { style: { fontSize: 12, color: 'var(--text-secondary)' } }, 'No tells on a human desk. Negotiate in the open — attach a note.')),
-                    team.manager === 'ai' && h(GmProfile, { team, title: 'Your GM' }))),
-            h('div', { className: 'tl-grid-2 even', style: { marginTop: 16 } },
-                h('div', { className: 'tl-card' },
+        return h('div', { className: 'tl-trade-desk' },
+            h('div', { className: 'tl-trade-toolbar' },
+                h('div', null, h('span', { className: 'tl-label' }, 'TRADE CENTER'), h('strong', null, 'Build your next move')),
+                h('nav', { className: 'tl-trade-tabs', 'aria-label': 'Trade center views' },
+                    [['builder', 'Trade builder'], ['inbox', `Inbox · ${pending.length}`], ['history', 'Trade log']].map(([id, label]) => h('button', { key: id, className: `tl-btn${deskView === id ? ' primary' : ''}`, 'aria-pressed': deskView === id, onClick: () => setDeskView(id) }, label)))),
+            message && h('p', { className: 'tl-trade-notice', role: 'status' }, message),
+            deskView === 'builder' && h('div', { className: 'tl-card tl-trade-builder' },
+                h('div', { className: 'tl-card-title' }, h('span', null, 'Trade builder'), h('small', null, deskOpen ? `W${league.currentWeek} · DESK OPEN` : 'DESK CLOSED')),
+                h('div', { className: 'tl-trade-controls' },
+                    h('label', null, h('span', { className: 'tl-label' }, 'PARTNER'),
+                        h('select', { className: 'tl-select', value: counterpartyId, disabled: sending, onChange: e => { setCounterpartyId(e.target.value); setReceiveIds([]); } },
+                            others.map(item => h('option', { key: item.teamId, value: item.teamId }, item.name)))),
+                    h('input', { className: 'tl-input', placeholder: 'Search either roster…', 'aria-label': 'Search trade players', value: search, onChange: e => setSearch(e.target.value) }),
+                    h('select', { className: 'tl-select', 'aria-label': 'Filter trade position', value: position, onChange: e => setPosition(e.target.value) },
+                        ['ALL', ...POSITION_ORDER.filter(pos => [...team.roster, ...(counterparty?.roster || [])].some(entry => entry.position === pos))].map(pos => h('option', { key: pos, value: pos }, pos === 'ALL' ? 'All positions' : pos)))),
+                h('div', { className: 'tl-trade-sides' },
+                    side('YOU SEND', team, give, giveValue, id => setGiveIds(toggle(giveIds, id))),
+                    side('YOU RECEIVE', counterparty, receive, receiveValue, id => setReceiveIds(toggle(receiveIds, id)))),
+                h('div', { className: 'tl-trade-verdict' },
+                    h('strong', null, balanced ? grade.label : 'Build both sides'),
+                    h('span', null, `${give.length} for ${receive.length} · ${balanced ? `${receiveValue - giveValue >= 0 ? '+' : ''}${fmt1(receiveValue - giveValue)} points to your side` : 'Equal-count swaps keep roster sizes fixed.'}`),
+                    h('small', null, 'Archived season points are a comparison, not a forecast or acceptance guarantee.')),
+                h('div', { className: 'tl-trade-submit' },
+                    h('input', { className: 'tl-input', 'aria-label': 'Trade offer note', placeholder: 'Add a note to your offer…', value: note, disabled: sending, onChange: e => setNote(e.target.value) }),
+                    h('button', { className: 'tl-btn', disabled: sending || (!give.length && !receive.length), onClick: () => { setGiveIds([]); setReceiveIds([]); } }, 'Clear'),
+                    h('button', { className: 'tl-btn primary', disabled: sending || !deskOpen || !balanced || !counterparty, onClick: send }, sending ? 'Sending…' : 'Send offer')),
+                h('details', { className: 'tl-trade-gm' }, h('summary', null, `Know your partner · ${counterparty?.name || 'Opposing GM'}`),
+                    counterparty?.manager === 'ai' ? h(GmProfile, { team: counterparty, title: 'Owner DNA' }) : h('p', null, 'Human manager — attach a note and negotiate directly.'))),
+            h('div', { className: 'tl-trade-records', hidden: deskView === 'builder' },
+                h('div', { className: 'tl-card', hidden: deskView !== 'inbox' },
                     h('div', { className: 'tl-card-title' }, h('span', null, 'Inbox'), h('small', null, pending.length ? `${pending.length} PENDING` : 'DESK CLEAR')),
                     pending.map((trade) => {
                         const from = teamById(trade.fromTeamId); const to = teamById(trade.toTeamId);
@@ -378,7 +394,7 @@
                                 !incoming && !toAi && h('span', { className: 'tl-pill info' }, 'AWAITING RESPONSE')));
                     }),
                     !pending.length && h('p', { className: 'tl-empty' }, 'No pending offers on the desk.')),
-                h('div', { className: 'tl-card' },
+                h('div', { className: 'tl-card', hidden: deskView !== 'history' },
                     h('div', { className: 'tl-card-title' }, h('span', null, 'Trade history'), h('small', null, 'league-wide')),
                     settled.map((trade) => {
                         const from = teamById(trade.fromTeamId); const to = teamById(trade.toTeamId);
