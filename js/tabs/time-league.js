@@ -29,7 +29,7 @@
     const TAB_IDS = ['home', 'draft', 'gameday', 'roster', 'waivers', 'trades', 'achievements', 'standings', 'activity'];
     const TAB_LABELS = {
         home: 'HOME', draft: 'DRAFT', gameday: 'GAMEDAY', roster: 'ROSTER', waivers: 'WAIVERS',
-        trades: 'TRADES', achievements: 'ACHIEVEMENTS', standings: 'STANDINGS', activity: 'ACTIVITY',
+        trades: 'TRADES', achievements: 'ACHIEVEMENTS', standings: 'COMMAND CENTRAL', activity: 'ACTIVITY',
     };
     const TAB_ICONS = {
         home: '⌂', draft: '▤', gameday: '▶', roster: '♙', waivers: '+', trades: '⇄',
@@ -828,7 +828,7 @@
         }, [expanded]);
         const primary = tabs.includes('home') ? ['home', 'roster', 'gameday', 'waivers'] : ['draft', 'activity'];
         const extra = tabs.filter(tab => !primary.includes(tab));
-        const labels = { home: 'Home', roster: 'My team', gameday: 'Game day', waivers: 'Players', draft: 'Draft', activity: 'Activity', trades: 'Trades', achievements: 'Trophies', standings: 'Standings' };
+        const labels = { home: 'Home', roster: 'My team', gameday: 'Game day', waivers: 'Players', draft: 'Draft', activity: 'Activity', trades: 'Trades', achievements: 'Trophies', standings: 'Command Central' };
         const choose = tab => { setExpanded(false); onNavigate(tab); };
         return h(React.Fragment, null,
             expanded && h('div', { className: 'tl-mobile-more', id: 'vault-more-navigation' },
@@ -1214,7 +1214,7 @@
                         ? h(TeamPanel, { league, cards, logIndex, eraFactors, section: activeTab, activeTeamId: activeTeam, onSelectTeam: setActiveTeamId, onUpdate: handleUpdate, onlineMeta })
                         : loadingNotice)
                     : null,
-                activeTab === 'standings' && StandingsPanel ? h(StandingsPanel, { league }) : null,
+                activeTab === 'standings' && StandingsPanel ? h(StandingsPanel, { league, onNavigate: navigateTab }) : null,
                 activeTab === 'activity' && ActivityPanel ? h(ActivityPanel, { league }) : null))));
     }
 
