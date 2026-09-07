@@ -83,6 +83,7 @@
         const [clock, setClock] = useState(0);
         const [playing, setPlaying] = useState(false);
         const [speed, setSpeed] = useState(1);
+        const [followMine,setFollowMine]=useState(true);
         const [warnings, setWarnings] = useState(null);
         const [boxWeek, setBoxWeek] = useState(null);
         const clockRef = useRef(0);
@@ -174,26 +175,40 @@
         })();
         const weekLabel = playback ? playback.weekData.week : league.currentWeek;
         const strip = league.phase !== 'draft' && matchupRows.length
-            ? h(ScoreboardStrip, { rows: matchupRows, teams: league.teams, myTeamId, live: Boolean(playback) && !done, statusLabel: playback ? (done ? 'FINAL' : 'LIVE') : 'UPCOMING' })
+            ? h(ScoreboardStrip, { rows: matchupRows, teams: league.teams, myTeamId, live: Boolean(playback) && !done, statusLabel: playback ? (done ? 'FINAL' : playing ? 'PLAYING' : 'PAUSED') : 'UPCOMING' })
             : null;
         const hero = myRow
             ? h(HeroMatchup, {
                 row: myRow, teams: league.teams, week: weekLabel,
-                statusLabel: playback ? (done ? 'FINAL' : 'WIN PROB') : 'UPCOMING',
+                statusLabel: playback ? (done ? 'FINAL' : playing ? 'SIMULATION' : 'PAUSED') : 'UPCOMING',
                 clockLabel: playback ? `T+${String(Math.floor(clock)).padStart(3, '0')}′` : `WK ${weekLabel}`,
             })
             : null;
 
+        const visibleEvents=followMine&&myRow?landed.filter(e=>e.teamId===myRow.home||e.teamId===myRow.away):landed;
+        const currentPlay=visibleEvents[visibleEvents.length-1];
+        const nextPlay=()=>{setPlaying(false);const next=playback.timeline.events.find(e=>e.t>clockRef.current && (!followMine||!myRow||e.teamId===myRow.home||e.teamId===myRow.away));clockRef.current=next?next.t:GAMECAST_END;setClock(clockRef.current);};
+        const field=h('section',{className:'tl-play-field','aria-label':'Illustrated event spotlight'},
+            h('div',{className:'tl-field-label'},'EVENT SPOTLIGHT · ILLUSTRATED, NOT HISTORICAL FIELD POSITION'),
+            h('div',{className:'tl-field-turf'},h('span',{className:'tl-field-end'},'THE VAULT'),
+                h('div',{key:currentPlay?`${currentPlay.t}-${visibleEvents.length}`:'kickoff',className:`tl-field-ball${playing?' is-moving':''}${currentPlay?.isTouchdown?' is-td':''}`,'aria-hidden':true},'🏈'),
+                h('span',{className:'tl-field-end'},currentPlay?.isTouchdown?'TOUCHDOWN':'GAME DAY')),
+            h('div',{className:'tl-current-play'},h('span',{className:'tl-label'},currentPlay?`${teamName(currentPlay.teamId)} · T+${Math.round(currentPlay.t)}′`:'READY FOR KICKOFF'),h('h3',null,currentPlay?.description||'Follow your matchup, one moment at a time.'),currentPlay&&h('strong',null,`${currentPlay.points>=0?'+':''}${currentPlay.points.toFixed(2)} fantasy points`)));
         if (playback) {
             return h('div', null,
-                strip, hero,
+                strip, hero, field,
+                h('p',{className:'tl-hint'},'Playback controls pause the presentation, not the saved week result. Field movement is illustrative; events are reconstructed from historical stat totals.'),
                 h('div', { className: 'tl-card' },
-                    h('div', { className: 'tl-card-title' }, h('span', null, `Week ${playback.weekData.week} — ${playback.live ? 'Live' : 'Replay'}`), h('small', null, `${landed.length}/${playback.timeline.events.length} plays landed`)),
-                    h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 } },
+                    h('div', { className: 'tl-card-title' }, h('span', null, `Week ${playback.weekData.week} — ${done ? 'Final' : playing ? 'Playing' : 'Paused'}`), h('small', null, `${landed.length}/${playback.timeline.events.length} scoring moments`)),
+                    h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap:'wrap' } },
                         h('span', { style: { color: playing ? 'var(--gold)' : 'var(--text-muted)' } }, '📡'),
                         h('span', { className: 'tabular', style: { fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--gold)' } }, `T+${String(Math.floor(clock)).padStart(3, '0')}′`),
                         h('span', { style: { flex: 1, height: 5, background: 'rgba(255,255,255,0.08)', borderRadius: 100, overflow: 'hidden' } },
                             h('span', { style: { display: 'block', height: '100%', width: `${(clock / GAMECAST_END) * 100}%`, background: 'var(--gold)' } })),
+                        h('button',{className:'tl-btn primary',disabled:done,onClick:()=>setPlaying(v=>!v)},playing?'PAUSE':'RESUME'),
+                        h('button',{className:'tl-btn',disabled:done,onClick:nextPlay},'NEXT PLAY'),
+                        done&&h('button',{className:'tl-btn',onClick:()=>{clockRef.current=0;setClock(0);setPlaying(false);}},'REPLAY FROM START'),
+                        h('button',{className:'tl-btn','aria-pressed':followMine,onClick:()=>setFollowMine(v=>!v)},followMine?'MY MATCHUP':'ALL MATCHUPS'),
                         h('button', { className: `tl-btn icon${speed === 1 ? ' primary' : ''}`, onClick: () => setSpeed(1) }, '1X'),
                         h('button', { className: `tl-btn icon${speed === 4 ? ' primary' : ''}`, onClick: () => setSpeed(4) }, '4X'),
                         h('button', { className: 'tl-btn icon', disabled: done, onClick: skipToEnd }, 'INSTANT')),
@@ -201,9 +216,9 @@
                         h('span', { className: 'tl-label' }, `Week ${playback.weekData.week} Wire`),
                         headlines.map((headline, i) => h('p', { key: i, style: { fontSize: 12.5, color: 'var(--text-secondary)', margin: '4px 0' } }, headline))),
                     h('div', { style: { maxHeight: 320, overflowY: 'auto' } },
-                        landed.length === 0
+                        visibleEvents.length === 0
                             ? h('div', { className: 'tl-feedrow' }, h('time', null, 'T+000′'), h('p', null, 'Crews are in the booth — kickoff momentarily.'))
-                            : landed.slice().reverse().map((event, i) => h('div', { key: i, className: `tl-feedrow${event.isTouchdown ? ' urgent' : ''}` },
+                            : visibleEvents.slice().reverse().map((event, i) => h('div', { key: i, className: `tl-feedrow${event.isTouchdown ? ' urgent' : ''}` },
                                 h('time', null, `T+${String(Math.round(event.t)).padStart(3, '0')}′ · +${event.points.toFixed(2)}`),
                                 h('p', null, `${event.description} — ${teamName(event.teamId)}`)))),
                     done && h('div', { style: { marginTop: 14, textAlign: 'center' } },
