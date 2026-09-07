@@ -1920,34 +1920,6 @@ function MyTeamTab({
                       {!r.gmIsUntouchable && r.gmIsSellPos && <span title="GM Strategy: sell-candidate position" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'rgba(240,165,0,0.13)', color: 'var(--warn)', border: '1px solid rgba(240,165,0,0.32)', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>SELL</span>}
                       {isPro && dropCandidatePids.has(r.pid) && !dismissedDrops.has(r.pid) && <span className="wr-drop-chip" onClick={e => { e.stopPropagation(); dismissDrop(r.pid); }} title="Drop candidate (click to dismiss)" style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(231,76,60,0.2)', color: 'var(--bad)', border: '1px solid rgba(231,76,60,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>DROP?</span>}
                       {isPro && taxiCandidatePids.has(r.pid) && !dismissedTaxiSuggestions.has(r.pid) && <span className="wr-drop-chip" onClick={e => { e.stopPropagation(); dismissTaxiSuggestion(r.pid); }} title={(cutdownInfo ? 'Better stashed than cut — room on taxi under the pending cutdown' : 'Better stashed than cut — real taxi room open on your roster') + ' (click to dismiss)'} style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(52,152,219,0.2)', color: 'var(--k-3498db, #3498db)', border: '1px solid rgba(52,152,219,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>TAXI?</span>}
-                      {isPro && (() => {
-                        const isCut = window._playerTags?.[r.pid] === 'cut';
-                        return (
-                          <span className="wr-cut-toggle-chip" onClick={e => { e.stopPropagation(); toggleCutTag(r.pid); }}
-                            title={isCut ? 'Marked to cut — click to unmark' : 'Mark this player to cut'}
-                            style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700,
-                              background: isCut ? 'rgba(231,76,60,0.2)' : 'transparent',
-                              color: isCut ? 'var(--bad)' : 'var(--silver)',
-                              border: '1px solid ' + (isCut ? 'rgba(231,76,60,0.4)' : 'var(--ov-6, rgba(255,255,255,0.14))'),
-                              opacity: isCut ? 1 : 0.5, flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>
-                            {isCut ? 'CUTTING ✕' : '+ CUT'}
-                          </span>
-                        );
-                      })()}
-                      {isPro && !r.isStarter && !r.isTaxi && !r.isIR && (r.p?.years_exp ?? 99) <= taxiEligibleCap && (() => {
-                        const isStashed = window._playerTags?.[r.pid] === 'taxi';
-                        return (
-                          <span className="wr-cut-toggle-chip" onClick={e => { e.stopPropagation(); toggleTaxiTag(r.pid); }}
-                            title={isStashed ? 'Marked to stash on taxi — click to unmark' : 'Mark this player to move to taxi'}
-                            style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700,
-                              background: isStashed ? 'rgba(52,152,219,0.2)' : 'transparent',
-                              color: isStashed ? 'var(--k-3498db, #3498db)' : 'var(--silver)',
-                              border: '1px solid ' + (isStashed ? 'rgba(52,152,219,0.4)' : 'var(--ov-6, rgba(255,255,255,0.14))'),
-                              opacity: isStashed ? 1 : 0.5, flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>
-                            {isStashed ? 'STASHING ✕' : '+ STASH'}
-                          </span>
-                        );
-                      })()}
                       {isPro && resolvedLeagueSkin?.type === 'keeper' && keeperTopPids.has(r.pid) && <span title={'Recommended keep — top ' + maxKeepers + ' by keeper value'} style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.28))', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>KEEP</span>}
                       </React.Fragment>}
                     </div>
