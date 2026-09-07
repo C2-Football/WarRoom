@@ -17,6 +17,20 @@ Deno.serve(async req=>{
  else return reply({error:'A member sign-in is required.'},401);
  const response=await fetch('https://api.sleeper.app/v1/league/'+leagueId+'/users');if(!response.ok)throw Error('Could not verify league permissions.');const users=await response.json();if(!Array.isArray(users))throw Error('League permissions unavailable.');
  const canManage=siteAdmin||users.some((u:Record<string,unknown>)=>String(u.user_id)===sleeperId&&u.is_owner===true);
+ if(['history','save-history'].includes(action)) {
+  let root=leagueId;const seen=new Set<string>();
+  for(let i=0;i<30;i++){if(seen.has(root))throw Error('Invalid league history chain');seen.add(root);const r=await fetch('https://api.sleeper.app/v1/league/'+root);if(!r.ok)throw Error('League history unavailable');const l=await r.json();if(!l?.league_id)throw Error('League history unavailable');if(!l.previous_league_id||l.previous_league_id==='0')break;root=String(l.previous_league_id);if(i===29)throw Error('League history exceeds supported depth');}
+  if(action==='history'){const {data,error}=await db.from('cup_honours').select('season,result,revision,updated_at').eq('league_root',root).order('season',{ascending:false});if(error)throw error;return reply({records:data,canManage});}
+  if(!canManage)return reply({error:'Commissioner permission required'},403);
+  const result=state;
+  if(!result||typeof result.winner!=='string'||!result.winner.trim()||result.winner.length>120||typeof result.runnerUp!=='string'||result.runnerUp.length>120||typeof result.notes!=='string'||result.notes.length>1000)return reply({error:'Enter a winner and valid result details.'},400);
+  if(result.runnerUp.trim()&&result.winner.trim().toLowerCase()===result.runnerUp.trim().toLowerCase())return reply({error:'Winner and runner-up must differ.'},400);
+  const scores=[result.winnerScore,result.runnerScore];if(scores.some(x=>x!==null&&(typeof x!=='number'||!Number.isFinite(x)))||(scores[0]===null)!==(scores[1]===null))return reply({error:'Enter both final scores, or leave both blank.'},400);
+  if(!Number.isInteger(revision)||revision<0)return reply({error:'Invalid revision'},400);
+  const record={league_root:root,season,result:{winner:result.winner.trim(),runnerUp:result.runnerUp.trim(),winnerScore:result.winnerScore,runnerScore:result.runnerScore,notes:result.notes.trim()},revision:revision+1,updated_by:actor,updated_at:new Date().toISOString()};
+  const q=revision===0?db.from('cup_honours').insert(record):db.from('cup_honours').update(record).eq('league_root',root).eq('season',season).eq('revision',revision);
+  const {data,error}=await q.select('season,result,revision,updated_at').maybeSingle();if(error?.code==='23505'||(!error&&!data))return reply({error:'This season was updated elsewhere. Refresh before saving.'},409);if(error)throw error;return reply({record:data,canManage});
+ }
  if(action==='load'){const {data,error}=await db.from('league_cups').select('state,revision,updated_at').eq('league_id',leagueId).eq('season',season).maybeSingle();if(error)throw error;return reply({cup:data,canManage});}
  if(action!=='save')return reply({error:'Unknown action'},400);
  if(!canManage)return reply({error:'Only a verified league commissioner or site administrator can edit the Cup.'},403);

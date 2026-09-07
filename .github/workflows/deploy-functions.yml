@@ -56,6 +56,7 @@ jobs:
           endpoint = 'https://api.supabase.com/v1/projects/sxshiqyxhhifvtfqawbq/database/query'
 
           pending = {
+              '20260907010000': 'supabase/migrations/20260907010000_cup_honours.sql',
               '20260907000000': 'supabase/migrations/20260907000000_league_cups.sql',
               '20260610000000': 'supabase/migrations/20260610000000_ai_response_cache.sql',
               '20260610010000': 'supabase/migrations/20260610010000_ai_feedback.sql',
