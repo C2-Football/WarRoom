@@ -56,6 +56,7 @@ jobs:
           endpoint = 'https://api.supabase.com/v1/projects/sxshiqyxhhifvtfqawbq/database/query'
 
           pending = {
+              '20260907000000': 'supabase/migrations/20260907000000_league_cups.sql',
               '20260610000000': 'supabase/migrations/20260610000000_ai_response_cache.sql',
               '20260610010000': 'supabase/migrations/20260610010000_ai_feedback.sql',
               '20260615000000': 'supabase/migrations/20260615000000_mfl_connection.sql',
@@ -230,3 +231,6 @@ jobs:
       # (Vegas / weather / future-week opponents for projections).
       - name: Deploy nfl-scoreboard function
         run: supabase functions deploy nfl-scoreboard --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
+
+      - name: Deploy league-cup function
+        run: supabase functions deploy league-cup --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
