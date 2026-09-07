@@ -975,10 +975,7 @@ function AnalyticsPanel({
                 {/* Thesis + mode directive + tier/win-now reads = Pro; the raw
                     proof-grid numbers below stay free (D7 raw math). */}
                 {!isPro && <ProLock label="Analytics Command" sub="The research thesis, suggested mode directive, and tier / win-now pressure reads for this roster are Pro." />}
-                {isPro && <AnalyticsCommandPanel
-                    title="What exactly separates this roster from the league's winning build?"
-                    mode={{ label: modeLabel, directive: modeDirective + ' (' + modeSource + ')', color: modeColor }}
-                />}
+                {isPro && <div className="analytics-draft-summary"><strong>Roster &amp; winning benchmarks</strong><span>Suggested mode · <b style={{ color: modeColor }}>{modeLabel}</b></span><details><summary>How to read this</summary><p>{modeDirective} ({modeSource})</p><p>Elite player = 7000+ DHQ or top 5 at position. Team benchmarks compare your roster against this league’s proven top teams.</p></details></div>}
 
                 <AnalyticsProofGrid items={rosterProofItems} />
 
