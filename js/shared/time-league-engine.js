@@ -53,7 +53,7 @@
     };
 
     /** PlayerPosition order; the roulette deals a decade to every one of them. */
-    const POSITIONS = ["QB", "RB", "WR", "TE", "K", "DEF", "DL", "LB", "DB"];
+    const POSITIONS = ["QB", "RB", "WR", "TE", "K", "DEF"];
 
     /** Seasons this card may still be drawn from under the league's era rules. */
     const eraSeasons = (state, card) => filterSeasonsForEra(card.seasons, state.settings.eraRules, card.position);
@@ -113,7 +113,7 @@
         const settings = {
             ...input.settings,
             playoffTeams: input.settings.playoffTeams || 0,
-            eraRules: openDraftEra(input.settings.eraRules, `${input.seed}:era`, POSITIONS),
+            eraRules: openDraftEra(input.settings.eraRules, `${input.seed}:era`, POSITIONS.filter(position => positionIsStartable(input.settings, position))),
         };
         const founding = [{
             id: "a1",

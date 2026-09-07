@@ -14,7 +14,7 @@
     const Engine = window.App.TimeLeagueEngine;
     const Roster = window.App.TimeLeagueRoster;
 
-    const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
+    const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
     const DECADE_BY_ID = new Map(EraRules.ERA_DECADES.map((d) => [d.id, d]));
     const positionRank = (position) => { const i = POSITION_ORDER.indexOf(position); return i === -1 ? POSITION_ORDER.length : i; };
 
@@ -173,10 +173,10 @@
             const poolSize = new Map();
             for (const { card } of available) poolSize.set(card.position, (poolSize.get(card.position) ?? 0) + 1);
             return Object.entries(eraRules.positionDecades ?? {})
-                .flatMap(([position, decade]) => (decade && cardPositions.has(position) ? [{ position, decade }] : []))
+                .flatMap(([position, decade]) => (decade && POSITION_ORDER.includes(position) && cardPositions.has(position) && positionDemand(league.settings, position) > 0 ? [{ position, decade }] : []))
                 .sort((l, r) => positionRank(l.position) - positionRank(r.position) || l.position.localeCompare(r.position))
                 .map((row) => ({ ...row, detail: DECADE_BY_ID.get(row.decade) ?? null, pool: poolSize.get(row.position) ?? 0 }));
-        }, [available, cardPositions, eraRules]);
+        }, [available, cardPositions, eraRules, league.settings]);
 
         // Top 10 draftable cards per position, in the league's existing
         // best-peak-first order (Engine.eraEligibleCards) — already

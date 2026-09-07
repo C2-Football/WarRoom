@@ -16,7 +16,7 @@
 
     const STARTER_SLOTS = Roster.ROSTER_SLOT_IDS.filter((slot) => Season.isStarterSlot(slot));
     const RESERVE_SLOTS = ['IR', 'TAXI'];
-    const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
+    const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
     const PERSONA_PILL = { warlord: 'bad', archivist: 'info', gambler: 'warn', steward: 'good' };
     const WIRE_ROW_CAP = 60;
 
