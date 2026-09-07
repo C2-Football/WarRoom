@@ -1983,11 +1983,12 @@
         });
         const resolvedLeagueSkin = props.leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
         const hideStrategyTab = resolvedLeagueSkin?.type === 'redraft';
-        const activeSubTab = hideStrategyTab && subTab === 'strategy' ? 'overview' : subTab;
+        const combinePatterns = !!resolvedLeagueSkin?.type && !['dynasty', 'unknown'].includes(resolvedLeagueSkin.type);
+        const activeSubTab = (hideStrategyTab && subTab === 'strategy') || (combinePatterns && subTab === 'patterns') ? 'overview' : subTab;
         const alexTabs = [
             { k: 'overview', label: 'Overview' },
             ...(hideStrategyTab ? [] : [{ k: 'strategy', label: 'My Strategy' }]),
-            { k: 'patterns', label: 'Patterns' },
+            ...(combinePatterns ? [] : [{ k: 'patterns', label: 'Patterns' }]),
             { k: 'history', label: 'Decision History' },
             { k: 'settings', label: 'Model Settings' },
         ];
@@ -2035,7 +2036,7 @@
             }),
             activeSubTab === 'overview' && h(OverviewView, { kpis, insights, props, settings, isPro, lockedInsightCount: rawInsightBase.length }),
             !hideStrategyTab && activeSubTab === 'strategy' && h(StrategySubview, { props }),
-            activeSubTab === 'patterns' && h(PatternsView, { props, isPro }),
+            ((combinePatterns && activeSubTab === 'overview') || (!combinePatterns && activeSubTab === 'patterns')) && h(PatternsView, { props, isPro }),
             activeSubTab === 'history' && h(HistoryView, { props }),
             activeSubTab === 'settings' && h(SettingsView, { settings, setSettings, leagueSkin: props.leagueSkin, currentLeague: props.currentLeague })
         );
