@@ -2812,6 +2812,12 @@ WRShared.preloadMany(WR_SHARED_FILES);
     @container(max-width:950px){.fa-hq-grid{grid-template-columns:minmax(0,1fr)}.fa-hq-grid>aside:last-child{grid-column:auto}}
     @container(max-width:1200px){.fa-hq-candidate,.fa-hq-board-head{grid-template-columns:22px 28px minmax(0,1fr) 76px}.fa-hq-board-head span:nth-child(4),.fa-hq-board-head span:nth-child(5),.fa-hq-cand-window{display:none}.fa-hq-player-value{grid-column:3;grid-row:2;text-align:left}.fa-hq-cand-bid{grid-column:4;grid-row:1/3;text-align:right}.fa-hq-why{grid-column:3/-1}}
 </style>
+<style>
+.analytics-draft-summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;padding:10px 12px;margin-bottom:12px;border:1px solid var(--acc-line1);border-radius:8px;font-size:.78rem;color:var(--silver)}
+.analytics-draft-summary>strong{color:var(--gold)}.analytics-draft-summary details{margin-left:auto}.analytics-draft-summary summary,.analytics-position-mix>summary{cursor:pointer;min-height:32px;align-content:center}.analytics-draft-summary p{max-width:650px;line-height:1.5}
+.analytics-perch-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:7px}.analytics-perch-tiles .analytics-data-row{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:10px;min-width:0}.analytics-perch-tiles b{font-size:.72rem!important;white-space:normal}
+.analytics-draft-note{font-size:.75rem;line-height:1.5;color:var(--silver);margin:8px 0 12px}.analytics-position-mix>summary>span{margin-right:10px}.analytics-position-mix>summary>strong{display:inline;font-size:.85rem}.analytics-position-mix[open]>summary{margin-bottom:14px}
+</style>
 </head>
 <body>
     <!-- Static boot splash: pure HTML/CSS, visible at first paint while the JS
@@ -3066,7 +3072,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- Compare: extracted from My Roster's former sub-view, now a top-level ROSTER-group tab. -->
 <script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20260905select2"></script>
 <script type="text/babel" data-wr-defer="central" src="js/tabs/league-central.js?v=20260903kpi1"></script>
-<script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260906perch2"></script>
+<script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260907strategy1"></script>
 <script type="text/babel" data-wr-defer="trophies" src="js/tabs/trophy-room.js?v=20260906manual1"></script>
 <script type="text/babel" src="js/tabs/calendar.js?v=20260619cal1"></script>
 <!-- Alex Insights (Option A): top-level tab for behavioral analysis + AI settings -->

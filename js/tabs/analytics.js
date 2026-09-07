@@ -251,7 +251,8 @@ function AnalyticsPanel({
     const [draftPosMix, setDraftPosMix] = React.useState({ status: 'loading', leagueId: null });
     // Ideal Draft Strategy — By Draft Slot (redraft/chopped only): which
     // third of the draft order the tab is reading.
-    const [slotTierTab, setSlotTierTab] = React.useState('early');
+    const [slotTierTab, setSlotTierTab] = React.useState(null);
+    React.useEffect(() => setSlotTierTab(null), [historyLeagueId]);
     // Winner's Perch — the editor (WR.ManualSeasonsEditor) owns its own rows;
     // this tick just re-reads the merged perch when one is saved elsewhere.
     const [perchTick, setPerchTick] = React.useState(0);
@@ -1335,7 +1336,7 @@ function AnalyticsPanel({
                 {
                     label: 'Latest Draft',
                     value: (latestRecap.grade?.letter || '\u2014') + ' \u00b7 ' + Number(latestRecap.totalDHQ || latestRecap.grade?.totalDHQ || 0).toLocaleString() + ' DHQ',
-                    detail: (latestRecap.rank ? 'Finished #' + latestRecap.rank + (latestRecap.percentile != null ? ' (' + latestRecap.percentile + 'th percentile)' : '') + '. ' : '')
+                    detail: (latestRecap.rank ? 'Draft value rank #' + latestRecap.rank + (latestRecap.percentile != null ? ' (' + latestRecap.percentile + 'th percentile)' : '') + '. ' : '')
                         + 'Round-by-round hit-rate needs a season of results, so that read stays slot-value-only until games are played.',
                     tone: 'good', color: goodColor,
                 },
@@ -1455,10 +1456,12 @@ function AnalyticsPanel({
                 { key: 'late', label: 'Late', sub: 'final third of the order' },
             ];
             const hasSlotTiers = isSeasonalLeague && !!bySlot && bySlot.hasSlotData
-                && SLOT_TIERS.some(t => Object.keys(bySlot[t.key] || {}).length > 0);
+                && SLOT_TIERS.some(t => Object.keys(bySlot?.[t.key] || {}).length > 0);
             // 'all' (pooled, every pick) is always the first tab; slot tiers only
             // join it when this league format + history actually supports them.
-            const strategyTab = hasSlotTiers ? slotTierTab : 'all';
+            const confirmedSlot = Number(draftOrder[leagueRosters.find(r => sameId(r.roster_id, myRid))?.owner_id]) || null;
+            const yourSlotTier = confirmedSlot ? (confirmedSlot <= totalTeams / 3 ? 'early' : confirmedSlot <= totalTeams * 2 / 3 ? 'mid' : 'late') : null;
+            const strategyTab = isSeasonalLeague ? (slotTierTab || yourSlotTier || 'all') : 'all';
             const activeHitRate = strategyTab === 'all' ? winnerPosHitRate : (bySlot?.[strategyTab] || {});
             const activeRounds = Object.keys(activeHitRate).map(Number).sort((a, b) => a - b)
                 .map(rd => ({ rd, ...activeHitRate[rd] }))
@@ -1491,48 +1494,7 @@ function AnalyticsPanel({
             return (
             <React.Fragment>
                 {!isPro && <ProLock label="Draft Intelligence Reads" sub="The draft research thesis and champion-benchmark conversion reads are Pro. The Ideal Draft Strategy read below stays free." />}
-                {isPro && <AnalyticsCommandPanel
-                    title="What does this league actually reward in the draft?"
-                />}
-
-                {isRedraftLeague && (
-                    <div key={'perch-' + perchTick} className="analytics-panel" style={{ marginBottom: 'var(--card-gap, 14px)' }}>
-                        <div className="analytics-panel-head">
-                            <span>The Winner's Perch</span>
-                            <em>
-                                {perchSeasons} season{perchSeasons === 1 ? '' : 's'} of draft history
-                                {perchManual.length ? ' · ' + perchManual.length + ' added by hand' : ''}
-                            </em>
-                        </div>
-                        {winnersPerch.length > 0 ? (
-                            <div style={{ display: 'grid', gap: '4px' }}>
-                                {winnersPerch.map(row => {
-                                    const isBest = row.top3 > 0 && row.top3 === perchMaxTop3;
-                                    return (
-                                        <div key={row.slot} className="analytics-data-row is-compact" style={isBest ? { borderColor: 'rgba(46,204,113,0.4)', background: 'rgba(46,204,113,0.08)' } : undefined}>
-                                            <strong>Slot {row.slot}</strong>
-                                            <b style={{ color: row.top3 ? (isBest ? 'var(--good)' : 'var(--gold)') : 'var(--silver)' }}>
-                                                {row.top3 ? row.top3 + (row.titles ? ' (' + row.titles + ')' : '') : '—'}
-                                            </b>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div style={{ color: 'var(--silver)', opacity: 0.75, fontSize: '0.8rem', lineHeight: 1.6, padding: '4px 0 2px' }}>
-                                Sleeper hasn't given us two seasons with a draft order for this league yet. Add the years it can't see and the perch fills in.
-                            </div>
-                        )}
-                        {perchRetiredSlots.length > 0 && (
-                            <div style={{ color: 'var(--silver)', fontSize: '0.72rem', lineHeight: 1.5, marginTop: 8, opacity: 0.65 }}>
-                                Slot{perchRetiredSlots.length === 1 ? '' : 's'} {perchRetiredSlots.map(r => r.slot).join(', ')} existed in a larger era of this league and {perchRetiredSlots.length === 1 ? 'is' : 'are'} left out — {perchRetiredSlots.reduce((n2, r) => n2 + r.top3, 0)} top-3 finish{perchRetiredSlots.reduce((n2, r) => n2 + r.top3, 0) === 1 ? '' : 'es'} from {perchRetiredSlots.reduce((n2, r) => n2 + r.seasons, 0)} season-slots you can no longer draft.
-                            </div>
-                        )}
-                        {window.WR?.ManualSeasonsEditor && (
-                            <window.WR.ManualSeasonsEditor leagueId={leagueId} teamCount={perchTeamCount} showSlots />
-                        )}
-                    </div>
-                )}
+                <div className="analytics-draft-summary"><strong>Draft strategy &amp; results</strong>{latestRecap && <span>Latest draft · {latestRecap.grade?.letter || '—'} · {Number(latestRecap.totalDHQ || latestRecap.grade?.totalDHQ || 0).toLocaleString()} DHQ{latestRecap.rank ? ' · Value rank #' + latestRecap.rank : ''}</span>}<details><summary>How to read this</summary><p>Draft-slot strategy compares historical starter hit rates by position and round. Winner’s Perch tracks top-three finishes and titles. Position Mix describes selections, not which strategy wins. Historical associations do not prove an optimal draft plan.</p></details></div>
 
                 {/* ── Ideal Draft Strategy ──────────────────────────────────────
                     One panel: "All Picks" is the original pooled read; Early/
@@ -1543,25 +1505,25 @@ function AnalyticsPanel({
                     repeated input; dynasty/keeper don't get the tabs since a
                     startup happens once and a rookie draft's slot is set by
                     standings, not a choice. */}
-                {(strategyRounds.length > 0 || hasSlotTiers) && (
+                {(isSeasonalLeague || strategyRounds.length > 0 || hasSlotTiers) && (
                     <div className="analytics-panel" style={{ marginBottom: 'var(--card-gap, 14px)' }}>
                         <div className="analytics-panel-head">
-                            <span>Ideal Draft Strategy</span>
-                            <em>Champion hit rate by round &amp; position</em>
+                            <span>Draft strategy by starting slot</span>
+                            <em>{confirmedSlot ? 'Your slot: ' + confirmedSlot + ' · ' : 'Choose a draft-order group · '}Historical starter hit rates</em>
                         </div>
 
-                        {hasSlotTiers && (
+                        {isSeasonalLeague && (
                             <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
                                 {[{ key: 'all', label: 'All Picks', sub: 'every draft slot' }, ...SLOT_TIERS].map(t => {
-                                    const has = t.key === 'all' ? strategyRounds.length > 0 : Object.keys(bySlot[t.key] || {}).length > 0;
+                                    const has = t.key === 'all' ? strategyRounds.length > 0 : Object.keys(bySlot?.[t.key] || {}).length > 0;
                                     return (
-                                        <button key={t.key} type="button" disabled={!has} onClick={() => setSlotTierTab(t.key)}
+                                        <button key={t.key} type="button" aria-pressed={strategyTab === t.key} onClick={() => setSlotTierTab(t.key)}
                                             title={has ? t.sub : 'Not enough champion picks from this third of the draft yet'}
                                             style={{
-                                                flex: '1 1 0', padding: '8px 10px', borderRadius: 'var(--card-radius-sm, 8px)', cursor: has ? 'pointer' : 'not-allowed',
+                                                flex: '1 1 0', padding: '8px 10px', borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer',
                                                 border: '1px solid ' + (strategyTab === t.key ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.08))'),
                                                 background: strategyTab === t.key ? 'rgba(212,175,55,0.1)' : 'transparent',
-                                                color: !has ? 'var(--ov-8, rgba(255,255,255,0.3))' : strategyTab === t.key ? 'var(--gold)' : 'var(--silver)',
+                                                color: strategyTab === t.key ? 'var(--gold)' : 'var(--silver)',
                                                 textAlign: 'center', fontFamily: 'var(--font-body)',
                                             }}>
                                             <div style={{ fontWeight: 700, fontSize: 'var(--text-body, 1rem)' }}>{t.label}</div>
@@ -1574,15 +1536,15 @@ function AnalyticsPanel({
 
                         {!activeRounds.length ? (
                             <div style={{ color: 'var(--silver)', fontSize: 'var(--text-body, 1rem)', padding: '8px 0' }}>
-                                Not enough champion draft history from this third of the order yet — needs more seasons before a real pattern shows.
+                                {strategyTab === 'all' ? 'No qualifying player-outcome history is loaded for this league.' : 'No qualifying player-outcome history is loaded for the ' + (strategyTab === 'mid' ? 'middle' : strategyTab) + ' third of the draft.'} Draft order and position counts alone cannot establish a winning strategy. The heatmap appears when position, round, slot, and starter outcomes are available together.
                             </div>
                         ) : (
                         <React.Fragment>
                         {activeHeadline && (
                             <div style={{ marginBottom: '14px' }}>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '6px 10px', marginBottom: '6px' }}>
-                                    <span style={{ fontSize: 'var(--text-micro)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Recommended path</span>
-                                    {pathConfidence && <span style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>confidence: {pathConfidence}</span>}
+                                    <span style={{ fontSize: 'var(--text-micro)', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Historical position pattern</span>
+                                    {pathConfidence && <span style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>sample coverage: {pathConfidence}</span>}
                                 </div>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                                     {activeRounds.map(r => (
@@ -1634,7 +1596,46 @@ function AnalyticsPanel({
                     </div>
                 )}
 
-                <AnalyticsProofGrid items={draftProofItems} />
+                {isRedraftLeague && (
+                    <div key={'perch-' + perchTick} className="analytics-panel" style={{ marginBottom: 'var(--card-gap, 14px)' }}>
+                        <div className="analytics-panel-head">
+                            <span>The Winner's Perch</span>
+                            <em>
+                                {perchSeasons} season{perchSeasons === 1 ? '' : 's'} of draft history
+                                {perchManual.length ? ' · ' + perchManual.length + ' added by hand' : ''}
+                            </em>
+                        </div>
+                        {winnersPerch.length > 0 ? (
+                            <div className="analytics-perch-tiles">
+                                {winnersPerch.map(row => {
+                                    const isBest = row.top3 > 0 && row.top3 === perchMaxTop3;
+                                    return (
+                                        <div key={row.slot} className="analytics-data-row is-compact" style={isBest ? { borderColor: 'rgba(46,204,113,0.4)', background: 'rgba(46,204,113,0.08)' } : undefined}>
+                                            <strong title={(row.seasons || 0) + ' observed seasons'}>Slot {row.slot}</strong>
+                                            <b style={{ color: row.top3 ? (isBest ? 'var(--good)' : 'var(--gold)') : 'var(--silver)' }}>
+                                                {row.top3} top 3 · {row.titles || 0} titles
+                                            </b>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div style={{ color: 'var(--silver)', opacity: 0.75, fontSize: '0.8rem', lineHeight: 1.6, padding: '4px 0 2px' }}>
+                                Sleeper hasn't given us two seasons with a draft order for this league yet. Add the years it can't see and the perch fills in.
+                            </div>
+                        )}
+                        {perchRetiredSlots.length > 0 && (
+                            <div style={{ color: 'var(--silver)', fontSize: '0.72rem', lineHeight: 1.5, marginTop: 8, opacity: 0.65 }}>
+                                Slot{perchRetiredSlots.length === 1 ? '' : 's'} {perchRetiredSlots.map(r => r.slot).join(', ')} existed in a larger era of this league and {perchRetiredSlots.length === 1 ? 'is' : 'are'} left out — {perchRetiredSlots.reduce((n2, r) => n2 + r.top3, 0)} top-3 finish{perchRetiredSlots.reduce((n2, r) => n2 + r.top3, 0) === 1 ? '' : 'es'} from {perchRetiredSlots.reduce((n2, r) => n2 + r.seasons, 0)} season-slots you can no longer draft.
+                            </div>
+                        )}
+                        {window.WR?.ManualSeasonsEditor && (
+                            <window.WR.ManualSeasonsEditor leagueId={leagueId} teamCount={perchTeamCount} showSlots />
+                        )}
+                    </div>
+                )}
+
+                {draftProofItems.length > 0 && !latestRecap && <p className="analytics-draft-note">No saved draft recap yet. Historical outcome analysis is shown only where supported.</p>}
 
                 {hasDraftOutcomeHistory && !isPro ? (
                     <ProLock label="Round Conversion + Winner Formula" sub="Hit-rate vs the champion standard and what title teams draft round-by-round are Pro reads." />
@@ -1806,9 +1807,7 @@ function AnalyticsPanel({
             const seasonSpan = seasonCount > 1 ? (mix.seasons[seasonCount - 1] + '–' + mix.seasons[0]) : String(mix.seasons[0]);
             return (
                 <div className="analytics-lab-grid" style={{ gridTemplateColumns: '1fr' }}>
-                    <div className="analytics-lab-card">
-                        <span>Draft DNA</span>
-                        <strong>Round-by-Round Position Mix</strong>
+                    <details className="analytics-lab-card analytics-position-mix"><summary><span>Draft DNA</span><strong>Round-by-Round Position Mix · all teams</strong></summary>
                         <p style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.75, marginTop: '-4px', marginBottom: '12px', lineHeight: 1.5 }}>
                             What every team drafted at each position, round by round, pooled across every season this league's Sleeper history reaches — <b style={{ color: 'var(--gold)' }}>{seasonCount} season{seasonCount === 1 ? '' : 's'}</b> ({seasonSpan}).
                         </p>
@@ -1843,7 +1842,7 @@ function AnalyticsPanel({
                                 <span key={p}><i style={{ display: 'inline-block', width: '10px', height: '10px', background: POS_COLOR[p], borderRadius: '2px', marginRight: '4px', verticalAlign: 'middle' }} />{posLabel(p)}</span>
                             ))}
                         </div>
-                    </div>
+                    </details>
                 </div>
             );
         })()}
