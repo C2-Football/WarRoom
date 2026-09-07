@@ -1940,9 +1940,7 @@ function AnalyticsPanel({
             return (
             <React.Fragment>
                 {!isPro && <ProLock label="Market Reads" sub="The market-mispricing thesis and trade-pattern read are Pro. Raw trade and waiver numbers stay below." />}
-                {isPro && <AnalyticsCommandPanel
-                    title="Where is the league market mispricing value?"
-                />}
+                {isPro && <div className="analytics-draft-summary"><strong>Market moves &amp; value</strong><details><summary>How to read this</summary><p>Compare your trade results, waiver prices, and transaction patterns with this league’s winning teams. Historical differences describe the market; they do not guarantee future returns.</p></details></div>}
 
                 <AnalyticsProofGrid items={marketProofItems} />
 
