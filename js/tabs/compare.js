@@ -691,8 +691,8 @@ function CompareTab({
                 ['division', 'Division', 'league divisions'],
                 ['league', 'League', 'all teams'],
             ].map(([key, label, sub]) => (
-                <button key={key} className={compareScope === key ? 'is-active' : ''} onClick={() => setScope(key)}>
-                    {label}<span>{sub}</span>
+                <button key={key} className={compareScope === key ? 'is-active' : ''} onClick={() => setScope(key)} title={sub}>
+                    {label}
                 </button>
             ))}
         </div>
@@ -1806,7 +1806,7 @@ function CompareTab({
     })();
 
     return (
-      <div style={pageStyle}>
+      <div className="compare-shell" style={pageStyle}>
         {/* Phone tier (≤767) only — hit-slop for the small × remove glyphs
             (26px/22px visuals stay; the tap area grows to ≥44px, plan D7:
             hit-padding, not bigger buttons). Buttons are position:absolute,

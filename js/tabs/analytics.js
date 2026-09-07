@@ -320,13 +320,13 @@ function AnalyticsPanel({
         </div>
     );
     const AnalyticsSection = ({ title, meta, children }) => (
-        <div className="analytics-panel">
-            <div className="analytics-panel-head">
+        <details className="analytics-panel analytics-fold" open>
+            <summary className="analytics-panel-head">
                 <span>{title}</span>
                 {meta && <em>{meta}</em>}
-            </div>
-            {children}
-        </div>
+            </summary>
+            <div className="analytics-fold-body">{children}</div>
+        </details>
     );
     const toneFromDelta = (delta, inverse = false) => {
         const good = inverse ? delta < 0 : delta >= 0;
@@ -370,21 +370,14 @@ function AnalyticsPanel({
             );
         }
         return (
-        <div className="analytics-command-panel is-bare">
-            <div>
-                <span>Research Question</span>
-                <h2>{title}</h2>
+        <div className="analytics-draft-summary">
+            <strong>{title}</strong>
+            {mode && <span>Suggested mode · <b style={{ color: mode.color }}>{mode.label}</b></span>}
+            {(thesis || mode?.directive || note) && <details><summary>How to read this</summary>
                 {thesis && <p>{thesis}</p>}
-                {mode && (
-                    <div className="analytics-mode-callout" style={{ borderLeftColor: mode.color }}>
-                        <span>Suggested Mode</span>
-                        <strong style={{ color: mode.color }}>{mode.label}</strong>
-                        <p>{mode.directive}</p>
-                    </div>
-                )}
-            </div>
-            {/* Methodology stat aside removed everywhere (owner ask). */}
-            {note && <div className="analytics-command-note">{note}</div>}
+                {mode?.directive && <p>{mode.directive}</p>}
+                {note && <p>{note}</p>}
+            </details>}
         </div>
         );
     };

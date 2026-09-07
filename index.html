@@ -2830,6 +2830,32 @@ WRShared.preloadMany(WR_SHARED_FILES);
 .analytics-player-saved{margin-left:auto}
 .analytics-player-toolbar :is(button,input,select):focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 @media(pointer:coarse){.analytics-player-toolbar button,.analytics-player-toolbar input,.analytics-player-toolbar select{min-height:44px!important}}
+</style><style>
+/* Shared density pass: preserve content while allowing narrow panels to shrink. */
+.wr-content-frame{min-width:0}
+.wr-content-frame :is(.wr-module-strip,.wr-module-actions,.wr-module-nav){max-width:100%;box-sizing:border-box}
+.wr-module-context strong{white-space:normal;line-height:1.2}
+.wr-module-nav button:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.compare-shell .wr-module-actions{width:100%;justify-content:flex-start}
+.compare-shell .wr-module-nav{flex:1 1 auto}
+.analytics-proof-grid{grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr))}
+.analytics-fold>.analytics-panel-head{cursor:pointer;list-style:none;min-height:32px}
+.analytics-fold>.analytics-panel-head:after{content:'−';margin-left:auto;color:var(--gold)}
+.analytics-fold:not([open])>.analytics-panel-head:after{content:'+'}
+.analytics-fold:not([open])>.analytics-panel-head{margin-bottom:0;padding-bottom:0;border-bottom:0}
+.analytics-fold>.analytics-panel-head::-webkit-details-marker{display:none}
+.analytics-fold-body{min-width:0}
+.empire-panel-head{flex-wrap:wrap}
+.empire-panel-head strong,.empire-panel-head em{overflow-wrap:anywhere;min-width:0}
+.tl-header,.tl-header-tools,.tl-header-title{flex-wrap:wrap;min-width:0}
+.tl-header-title{overflow-wrap:anywhere}
+@media(min-width:768px){
+ .wr-module-strip{gap:8px;padding:8px 10px}
+ .analytics-proof-card{padding:10px 12px}
+ .analytics-proof-card strong{margin:4px 0}
+ .analytics-panel,.analytics-lab-card{min-width:0}
+}
+@media(pointer:coarse){.analytics-fold>.analytics-panel-head{min-height:44px}}
 </style></head>
 <body>
     <!-- Static boot splash: pure HTML/CSS, visible at first paint while the JS
@@ -2906,7 +2932,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" src="js/components.js?v=20260803rv2"></script>
 <!-- 2b. Unified Player Card (SI-2) — window.WR.openPlayerCard — replaces CDN modal -->
 <!-- Shared visual primitives (WR.Card / Badge / Chip / ConfChip / DeltaLine / Kpi / InsightCard) -->
-<script type="text/babel" src="js/components/wr-primitives.js?v=20260906setupui1"></script>
+<script type="text/babel" src="js/components/wr-primitives.js?v=20260907density-20260906setupui1"></script>
     <script type="text/babel" src="js/components/manual-seasons-editor.js?v=20260906manual1"></script>
     <script type="text/babel" src="js/components/player-card.js?v=20260905anacard1"></script>
 <!-- 2c. Saved List Views (SI-1) — window.WR.SavedViews — shared across list surfaces -->
@@ -3082,9 +3108,9 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="analysis" src="js/tabs/league-map.js?v=20260907toolbar1"></script>
 <script type="text/babel" data-wr-defer="myteam" src="js/tabs/my-team.js?v=20260907name1"></script>
 <!-- Compare: extracted from My Roster's former sub-view, now a top-level ROSTER-group tab. -->
-<script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20260905select2"></script>
-<script type="text/babel" data-wr-defer="central" src="js/tabs/league-central.js?v=20260903kpi1"></script>
-<script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260907marketheader1"></script>
+<script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20260907density-20260905select2"></script>
+<script type="text/babel" data-wr-defer="central" src="js/tabs/league-central.js?v=20260907density-20260903kpi1"></script>
+<script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260907density-20260907marketheader1"></script>
 <script type="text/babel" data-wr-defer="trophies" src="js/tabs/trophy-room.js?v=20260906manual1"></script>
 <script type="text/babel" src="js/tabs/calendar.js?v=20260619cal1"></script>
 <!-- Alex Insights (Option A): top-level tab for behavioral analysis + AI settings -->
@@ -3103,7 +3129,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="commish" src="js/components/commish-command-panel.js?v=20260904tablet1"></script>
 <script type="text/babel" data-wr-defer="commish" src="js/components/commish-sidebar.js?v=20260904radius1"></script>
 <script type="text/babel" data-wr-defer="commish" src="js/components/commish-schedule-panel.js?v=20260904sched2"></script>
-<script type="text/babel" data-wr-defer="commish" src="js/tabs/commissioner-office.js?v=20260904commish2"></script>
+<script type="text/babel" data-wr-defer="commish" src="js/tabs/commissioner-office.js?v=20260907density-20260904commish2"></script>
 <!-- Time League UI — deferred: panels load first, orchestrator last (it
      reads window.WrTimeLeague*Panel off each). -->
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-helmet.js?v=20260905play1"></script>

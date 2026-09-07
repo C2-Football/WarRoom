@@ -1241,7 +1241,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                 onClose={() => setActionItem(null)}
             />
         ) : null}
-        <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '20px 16px 60px' }}>
+        <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '14px 16px 60px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
                 <button onClick={onBack} style={{ background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, cursor: 'pointer', padding: '6px 12px', fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em' }}>‹ HUB</button>
                 {/* Blue wordmark, not gold: the cheapest signal that the Office
@@ -1311,7 +1311,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
 
     return shell(
         <React.Fragment>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {tab === 'command' ? (window.WrCommishCommandPanel ? (
                     <window.WrCommishCommandPanel
                         queue={queue} kpis={commandKpis} grid={commandGrid} desks={commandDesks}

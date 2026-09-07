@@ -507,7 +507,7 @@ function LeagueCentralTab({
                     {/* Your own odds lead the playoff view — the season-odds read,
                         folded into standings instead of a separate slab. */}
                     {stMode === 'odds' && oddsReady && me && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '9px', marginBottom: '11px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(160px,100%),1fr))', gap: '9px', marginBottom: '11px' }}>
                             {[
                                 { lab: 'Make Playoffs', val: me.playoffPct, color: GOOD },
                                 { lab: 'First-Round Bye', val: me.byePct, color: INFO },
