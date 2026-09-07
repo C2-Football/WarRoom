@@ -1179,7 +1179,7 @@
                 }) : null,
                 (activeTab === 'roster' || activeTab === 'waivers' || activeTab === 'trades' || activeTab === 'achievements')
                     ? (cardsReady && TeamPanel
-                        ? h(TeamPanel, { league, cards, section: activeTab, activeTeamId: activeTeam, onSelectTeam: setActiveTeamId, onUpdate: handleUpdate, onlineMeta })
+                        ? h(TeamPanel, { league, cards, logIndex, eraFactors, section: activeTab, activeTeamId: activeTeam, onSelectTeam: setActiveTeamId, onUpdate: handleUpdate, onlineMeta })
                         : loadingNotice)
                     : null,
                 activeTab === 'standings' && StandingsPanel ? h(StandingsPanel, { league }) : null,

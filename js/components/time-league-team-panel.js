@@ -57,15 +57,19 @@
      * matchup/form columns that don't apply to fixed historical stat lines. */
     const LINEUP_GRID = '56px minmax(0,1fr) 78px 92px';
 
-    function RosterSection({ league, cards, team, apply }) {
+    function RosterSection({ league, cards, team, apply, logIndex, eraFactors }) {
         const [selectedId,setSelectedId]=useState(null);
         const dossierRef=React.useRef(null);
         React.useEffect(()=>{if(selectedId)dossierRef.current?.focus();},[selectedId]);
         const revealed = league.seasonsRevealed;
+        const outlooks = useMemo(() => new Map(team.roster.map(entry => [entry.entryId,
+            revealed ? Season.rosterOutlook(entry, league.currentWeek, league.settings.regularSeasonWeeks, logIndex, league.settings.scoring, league.settings.eraAdjusted ? eraFactors : null) : null
+        ])), [team.roster, revealed, league.currentWeek, league.settings, logIndex, eraFactors]);
         const capacity = Engine.rosterCapacity(league.settings);
         const problems = Engine.lineupProblems(league, team.teamId);
         const moveTargets = (entry) => Roster.ROSTER_SLOT_IDS.filter((slot) => slot !== entry.slot && (league.settings.rosterSlots[slot] ?? 0) > 0 && Roster.SLOT_ELIGIBILITY[slot].includes(entry.position));
         const entryRow = (entry, slotLabel) => {
+            const outlook = outlooks.get(entry.entryId);
             const eraColor = revealed ? UI.eraColorOf(entry.drawnSeason) : null;
             return h('div', { key: entry.entryId, className: 'tl-lineup-row', style: { gridTemplateColumns: LINEUP_GRID } },
                 h('span', { className: 'tl-lineup-slot' }, slotLabel),
@@ -73,7 +77,7 @@
                     h('span', { className: 'name' }, entry.name),
                     h('span', { className: `tl-pos-badge tl-pos-${entry.position}`, style: { marginLeft: 6 } }, entry.position),
                     revealed
-                        ? h('span', { className: 'meta' }, `${entry.drawnSeason} · ${UI.decadeLabelOf(entry.drawnSeason)}`)
+                        ? h('span', { className: 'meta' }, `${entry.drawnSeason} · ${outlook ? `${outlook.remaining} games left · ${outlook.signal}` : UI.decadeLabelOf(entry.drawnSeason)}`)
                         : h('span', { className: 'tl-pill warn', style: { marginLeft: 6 } }, 'SEALED')),
                 h('span', { className: 'tl-lineup-pts tabular', style: eraColor ? { color: eraColor } : undefined },
                     revealed ? fmt1(cardSeasonPoints(cards, entry)) : '—', h('small', null, 'SZN PTS')),
@@ -110,6 +114,16 @@
                 h('p',{className:'tl-hint'},revealed?`Your edition: ${selected.drawnSeason} · Looking back before this season`:'Your edition is sealed. Season-specific history unlocks at the reveal.'),
                 h('div',{className:'tl-archive-bio'},[['College',card?.bio?.college],['Born',card?.bio?.birthDate],['Size',[card?.bio?.height,card?.bio?.weight].filter(Boolean).join(' · ')],['NFL draft',[card?.bio?.draftYear,card?.bio?.draftTeam].filter(Boolean).join(' · ')]].filter(([,value])=>value).map(([label,value])=>stat(label,value))),
                 !card?.bio&&h('p',{className:'tl-hint'},'Biography is not available in the historical archive for this player.'),
+                revealed && outlooks.get(selected.entryId) && h('section', { className: 'tl-season-outlook' },
+                    h('h3', null, 'The road ahead'),
+                    h('div', { className: 'tl-archive-stats' },
+                        stat('Games left', outlooks.get(selected.entryId).remaining),
+                        stat('Recent form', outlooks.get(selected.entryId).signal),
+                        stat('Remaining pace estimate', outlooks.get(selected.entryId).estimatedRemaining === null ? 'Needs a completed game' : `${fmt1(outlooks.get(selected.entryId).estimatedRemaining)} pts`)),
+                    h('p', { className: 'tl-hint' }, 'Estimate = completed-game average × remaining logged games. Assumes you start every game; future scores stay hidden. Form compares the last three games with earlier games.'),
+                    h('div', { className: 'tl-outlook-weeks' }, outlooks.get(selected.entryId).schedule.map(row => h('div', { key: row.week, className: `tl-outlook-week${row.week === league.currentWeek ? ' current' : ''}${!row.available ? ' missing' : ''}` },
+                        h('small', null, `W${row.week}`), h('strong', null, row.played ? fmt1(row.points) : row.available ? 'Game' : '—')))),
+                    h('p', { className: 'tl-hint' }, 'A dash means no archived game log: zero points under Vault scoring. It may be a bye, missed game, or archive gap. Only weeks inside this league’s season are shown.')),
                 history&&h(React.Fragment,null,
                     h('div',{className:'tl-archive-stats'},stat('Earlier seasons in archive',history.seasons.length),stat('Previous season',history.latest?`${history.latest.season} · ${history.latest.points.toFixed(1)} pts`:'Not available'),stat('Best earlier season',history.best?`${history.best.season} · ${history.best.points.toFixed(1)} pts`:'Not available')),
                     h('div',{className:'tl-archive-read'},h('h3',null,'The story coming in'),h('p',null,!history.latest?`No seasons before ${selected.drawnSeason} are in this archive. That does not establish that this was a rookie year.`:`In ${history.latest.season}, ${selected.name} recorded ${history.latest.games} games and ${history.latest.points.toFixed(1)} fantasy points.`),history.change!==null&&h('p',null,`Points per game ${history.change>=0?'rose':'fell'} by ${Math.abs(history.change).toFixed(1)} between the last two available seasons (${history.seasons[history.seasons.length-2].season}–${history.latest.season}).`)),
@@ -124,6 +138,7 @@
                     h('div', { className: 'lh-sub' }, `${team.name} · ${team.roster.length}/${capacity} rostered${league.settings.eraAdjusted ? ' · era-adjusted scoring' : ''}`),
                     !optimal && problems.length > 0 && h('div', { style: { marginBottom: 12 } },
                         problems.map((p, i) => h('div', { key: i, className: 'tl-feedrow caution' }, h('time', null, 'FIX'), h('p', null, p)))),
+                    h('p', { className: 'tl-hint' }, 'Select a player for their remaining schedule, points outlook, and recent form. Future scores stay hidden.'),
                     h('div', { className: 'lh-actions' }, h('button', { className: 'tl-btn primary', onClick: () => apply(Engine.autoFillLineup(league, team.teamId, cards), { type: 'auto-lineup', teamId: team.teamId }) }, '⚡ AUTO-SET LINEUP'))),
 
                 h('div', { className: 'tl-lineup-table' },
@@ -448,7 +463,7 @@
             }));
     }
 
-    function WrTimeLeagueTeamPanel({ league, cards, section, activeTeamId, onSelectTeam, onUpdate, onlineMeta }) {
+    function WrTimeLeagueTeamPanel({ league, cards, section, activeTeamId, onSelectTeam, onUpdate, onlineMeta, logIndex, eraFactors }) {
         const standings = useMemo(() => Engine.computeStandings(league), [league]);
         const recordByTeam = useMemo(() => new Map(standings.map((s) => [s.teamId, s])), [standings]);
         const team = league.teams.find((t) => t.teamId === activeTeamId);
@@ -472,7 +487,7 @@
                 })),
             !team
                 ? h('div', { className: 'tl-card' }, h('p', { className: 'tl-empty' }, 'Unknown team — pick a desk above.'))
-                : section === 'roster' ? h(RosterSection, { key: activeTeamId, league, cards, team, apply })
+                : section === 'roster' ? h(RosterSection, { key: activeTeamId, league, cards, team, apply, logIndex, eraFactors })
                     : section === 'waivers' ? h(WaiversSection, { key: activeTeamId, league, cards, team, standings, apply })
                         : section === 'trades' ? h(TradesSection, { key: activeTeamId, league, cards, team, apply })
                             : h(AchievementsSection, { key: activeTeamId, league, team }));

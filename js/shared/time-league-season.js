@@ -263,10 +263,32 @@
         return schedule;
     }
 
+    // Future rows supply availability only; never inspect their scoring stats.
+    function rosterOutlook(entry, currentWeek, weeks, index, scoring, factors) {
+        if (!index) return null;
+        const factor = eraFactorFor(factors, entry.drawnSeason, entry.position);
+        const schedule = Array.from({ length: weeks }, (_, i) => {
+            const week = i + 1;
+            const log = index.get(gameLogKey(entry.identity, entry.drawnSeason, week));
+            return { week, available: Boolean(log), played: week < currentWeek,
+                points: week < currentWeek ? (log ? scoreStatLine(log.stats, scoring) * factor : 0) : null };
+        });
+        const played = schedule.filter(row => row.played && row.available);
+        const remaining = schedule.filter(row => !row.played && row.available).length;
+        const average = played.length ? played.reduce((sum, row) => sum + row.points, 0) / played.length : null;
+        const recent = played.slice(-3);
+        const prior = played.slice(0, -3);
+        const mean = rows => rows.reduce((sum, row) => sum + row.points, 0) / rows.length;
+        const change = prior.length >= 2 ? mean(recent) - mean(prior) : null;
+        const current = schedule.find(row => row.week === currentWeek);
+        return { schedule, remaining, average, estimatedRemaining: average === null ? null : average * remaining,
+            signal: !current ? 'Season complete' : !current.available ? 'No game log' : change === null ? 'Building form' : change > 3 ? 'Trending up' : change < -3 ? 'Cooling off' : 'Steady form' };
+    }
+
     const api = {
         isStarterSlot, emptyStatLine, REFERENCE_EXTENDED_SCORING, scoreExtendedStats,
         gameLogKey, parseGameLogCsv, buildGameLogIndex, scoreStatLine, eraFactorFor,
-        buildRoundRobinSchedule,
+        buildRoundRobinSchedule, rosterOutlook,
     };
     App.TimeLeagueSeason = api;
     /* global module */
