@@ -1120,6 +1120,12 @@
         const activeTeam = onlineMeta ? onlineMeta.seatTeamId : league.teams.some((team) => team.teamId === activeTeamId)
             ? activeTeamId
             : (league.teams.find((team) => team.manager === 'human')?.teamId ?? league.teams[0]?.teamId ?? 't1');
+        const responseTeam = onlineMeta?.seatTeamId || (league.teams.find(team => team.teamId === activeTeam && team.manager === 'human')?.teamId ?? league.teams.find(team => team.manager === 'human')?.teamId);
+        const incomingAi = league.trades.filter(trade => trade.status === 'pending' && trade.toTeamId === responseTeam && league.teams.some(team => team.teamId === trade.fromTeamId && team.manager === 'ai'));
+        const tradePlayerNames = ids => ids.map(id => {
+            const entry = league.teams.flatMap(team => team.roster).find(player => player.entryId === id);
+            return entry ? `${entry.name} · ${entry.drawnSeason}` : 'Player no longer rostered';
+        }).join(', ');
         const phaseTone = league.phase === 'draft' ? 'warn' : league.phase === 'season' ? 'info' : 'gold';
         const cardsReady = cards !== null && cards.size > 0;
         const loadingNotice = cards === null
@@ -1172,6 +1178,22 @@
                     },
                 }),
                 h('fieldset', { disabled: saving || Boolean(onlineMeta && !onlineMeta.draftStarted), style: { border: 0, padding: 0, margin: 0, minWidth: 0 } },
+                incomingAi.length > 0 && h('section', { className: 'tl-ai-offers tl-card', 'aria-label': 'Incoming AI trade offers' },
+                    h('div', { className: 'tl-card-title' }, h('span', null, `Trade offers · ${incomingAi.length} awaiting your response`), h('small', null, 'YOUR DECISION')),
+                    incomingAi.map(trade => h('details', { key: trade.tradeId, open: true, className: 'tl-ai-offer' },
+                        h('summary', null, `${league.teams.find(team => team.teamId === trade.fromTeamId)?.name || 'An AI manager'} wants to make a deal`),
+                        h('div', { className: 'tl-ai-offer-sides' },
+                            h('p', null, h('small', null, 'YOU RECEIVE'), h('strong', null, tradePlayerNames(trade.giveEntryIds))),
+                            h('p', null, h('small', null, 'YOU SEND'), h('strong', null, tradePlayerNames(trade.receiveEntryIds)))),
+                        trade.note && h('blockquote', null, trade.note),
+                        h('div', { className: 'tl-ai-offer-actions' },
+                            h('button', { className: 'tl-btn primary', onClick: async () => {
+                                const next = Engine.respondToTrade(league, trade.tradeId, true, '', new Date().toISOString());
+                                if (next === league) { setConflictNotice('This offer can no longer be accepted. Review the current rosters.'); return; }
+                                await handleUpdate(next, { type: 'respond-trade', tradeId: trade.tradeId, accept: true });
+                            } }, 'Accept trade'),
+                            h('button', { className: 'tl-btn', onClick: () => handleUpdate(Engine.respondToTrade(league, trade.tradeId, false, '', new Date().toISOString()), { type: 'respond-trade', tradeId: trade.tradeId, accept: false }) }, 'Decline'),
+                            h('button', { className: 'tl-btn', onClick: () => { setActiveTeamId(responseTeam); navigateTab('trades'); } }, 'Open trade desk'))))),
                 league.phase === 'season' && h('section', { className: 'tl-week-gate tl-card' },
                     h('div', null, h('strong', null, league.weekStage === 'postgame' ? `Week ${league.currentWeek - 1} is final` : league.weekStage === 'claims' ? `Week ${league.currentWeek} · Waiver planning` : `Week ${league.currentWeek} · Ready for game day`),
                         h('p', null, league.weekStage === 'postgame' ? 'Review the recap. Advance when you are ready to open the next waiver window.' : league.weekStage === 'claims' ? 'File or revise claims. AI managers submit before the same batch resolves; no AI adds happen ahead of you.' : 'Set your lineup and start game day when ready.')),

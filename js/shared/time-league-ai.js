@@ -271,7 +271,7 @@
             const locked = new Set(next.trades.filter((trade) => trade.status === "pending").flatMap((trade) => [...trade.giveEntryIds, ...trade.receiveEntryIds]));
             const myNeed = teamNeed(proposer, next.settings, cards);
             if (!myNeed) continue;
-            for (const partner of next.teams) {
+            for (const partner of [...next.teams].sort((a, b) => Number(b.manager === "human") - Number(a.manager === "human"))) {
                 if (partner.teamId === proposer.teamId) continue;
                 const theirNeed = teamNeed(partner, next.settings, cards);
                 if (!theirNeed || theirNeed === myNeed) continue;

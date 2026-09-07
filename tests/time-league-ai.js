@@ -225,6 +225,26 @@ test('aiGenerateTrades is deterministic for the same seed and week', () => {
     assert.deepStrictEqual(a.trades.map((t) => t.tradeId), b.trades.map((t) => t.tradeId));
 });
 
+test('AI offers reach human managers and remain pending until their response', () => {
+    const cards = new Map();
+    let state = Engine.createTimeLeague({ name: 'Incoming', seed: 'incoming', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings({ rosterSlots: { RB: 1, WR: 1, BN: 2 } }), seats: [{ name: 'AI', manager: 'ai', aiPersona: 'steward' }, { name: 'Human', manager: 'human' }] });
+    const make = (id, position, points, slot) => {
+        cards.set(id, { identity: id, name: id, position, peak: points, seasons: [{ season: 2000, points }] });
+        return { entryId: id, identity: id, name: id, position, drawnSeason: 2000, slot };
+    };
+    state = { ...state, phase: 'season', teams: state.teams.map((team, index) => ({ ...team, roster: index === 0
+        ? [make('a1','WR',100,'WR'), make('a2','WR',80,'BN'), make('a3','RB',20,'RB')]
+        : [make('h1','RB',100,'RB'), make('h2','RB',90,'BN'), make('h3','WR',20,'WR')] })) };
+    const next = AI.aiGenerateTrades(state, cards, '2026-01-01T00:00:00Z');
+    assert.ok(next.trades.length > 0);
+    const offer = next.trades[0];
+    assert.equal(offer.toTeamId, state.teams[1].teamId);
+    assert.equal(offer.status, 'pending');
+    const responded = AI.aiRespondToTrades(next, cards, '2026-01-01T00:00:00Z');
+    assert.equal(responded.trades[0].status, 'pending');
+    assert.deepStrictEqual(responded.teams, state.teams);
+});
+
 test('aiRespondToTrades resolves every pending offer addressed to an AI team', () => {
     const cards = samplePool();
     let state = Engine.createTimeLeague({ name: 'Respond AI', seed: 'respond-ai-seed', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings(), seats: seats() });
