@@ -1004,7 +1004,7 @@ function MyTeamTab({
   // A desktop column preset must never force a spreadsheet onto a phone.
   const [phoneTableOpen, setPhoneTableOpen] = React.useState(false);
   const [phoneSearch, setPhoneSearch] = React.useState('');
-  const [phoneDeskOpen, setPhoneDeskOpen] = React.useState(false);
+  const [phoneDeskOpen, setPhoneDeskOpen] = React.useState(() => { try { const saved = localStorage.getItem('wr_roster_desk_open'); return saved === null ? window.innerWidth > 767 : saved === 'true'; } catch { return true; } });
   const [reviewOpen, setReviewOpen] = React.useState(false); // phone "review flagged players" sheet
   const [reviewStripOpen, setReviewStripOpen] = React.useState(false); // desktop/iPad flagged-players triage strip (owner-approved iPad pass)
   // Manual verdict/tag override (owner ask): one picker sets the player's
@@ -1327,7 +1327,9 @@ function MyTeamTab({
                     const sigFloor = r.isStarter ? 'weekly starter' : (r.p.depth_chart_order != null && r.p.depth_chart_order <= 1 ? 'rotation role' : 'bench / depth');
                     const sigCeiling = r.trend >= 10 ? 'trending up' : (tier === 'Elite' || tier === 'Starter') ? 'proven ' + tier.toLowerCase() : r.peakPhase === 'PRE' ? 'developing' : 'limited upside';
                     const sigCell = (label, val) =>(<div style={{ fontSize: '0.74rem' }}><span style={{ color: 'var(--silver)', opacity: 0.65 }}>{label}{' '}</span><span style={{ color: 'var(--white)', fontWeight: 600 }}>{val}</span></div>);
-                    return (<React.Fragment>
+
+
+  return (<React.Fragment>
                       {/* Identity + roster call */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px', flexWrap: 'wrap' }}>
                         <div style={{ flexShrink: 0, position: 'relative' }}>
@@ -1979,6 +1981,49 @@ function MyTeamTab({
       </div>
   );
 
+  const renderRosterReview = () => (() => {
+        const dropAlerts = rows.filter(_isActiveDrop);
+        const taxiAlerts = rows.filter(_isActiveTaxiSuggestion);
+        const sellCalls = rows.filter(r => /sell/i.test(_effRec(r) || '') && !dropAlerts.some(d => d.pid === r.pid));
+        if (!dropAlerts.length && !taxiAlerts.length && !sellCalls.length) return null;
+        const chipColor = { DROP: 'var(--bad)', STASH: 'var(--k-3498db, #3498db)', SELL: 'var(--warn)' };
+        const chipBorder = { DROP: 'rgba(231,76,60,0.4)', STASH: 'rgba(52,152,219,0.4)', SELL: 'rgba(240,165,0,0.35)' };
+        const chip = (r, kind) => (
+          <button key={kind + '-' + r.pid} type="button" onClick={() => setExpandedPid(prev => prev === r.pid ? null : r.pid)}
+            title="Expand this player on the board below"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '999px', cursor: 'pointer', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid ' + chipBorder[kind], color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '0.76rem', fontWeight: 600 }}>
+            <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: chipColor[kind], letterSpacing: '0.04em' }}>{kind}</span>
+            {getPlayerName(r.pid)}
+            <span style={{ color: 'var(--silver)', opacity: 0.6, fontSize: 'var(--text-micro, 0.6875rem)' }}>{r.pos}</span>
+          </button>
+        );
+        return (
+          <div style={{ marginBottom: '10px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--ov-1, rgba(255,255,255,0.015))', overflow: 'hidden' }}>
+            <button type="button" onClick={() => setReviewStripOpen(v => !v)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Review Roster</span>
+              {cutdownInfo && (
+                <span style={{ fontSize: '0.76rem', fontWeight: 700, color: cutdownInfo.over > 0 ? 'var(--bad)' : 'var(--warn)' }}>
+                  {cutdownInfo.status.isPast
+                    ? (cutdownInfo.over > 0 ? 'Cutdown day passed — ' + cutdownInfo.over + ' over the ' + (cutdownInfo.rule.activeSlots + cutdownInfo.rule.taxiSlots) + '-man limit' : 'Cutdown day passed')
+                    : 'Cutdown in ' + cutdownInfo.status.daysUntil + ' day' + (cutdownInfo.status.daysUntil === 1 ? '' : 's') + (cutdownInfo.over > 0 ? ' — ' + cutdownInfo.over + ' over the ' + (cutdownInfo.rule.activeSlots + cutdownInfo.rule.taxiSlots) + '-man limit' : '')}
+                  {cutdownInfo.over > 0 && ' — ' + cutMarkedCount + ' of ' + (dropCandidatePids.size + taxiCandidatePids.size) + ' resolved'}
+                  {' ·'}
+                </span>
+              )}
+              <span style={{ fontSize: '0.76rem', color: 'var(--silver)' }}>{dropAlerts.length} drop alert{dropAlerts.length === 1 ? '' : 's'} · {taxiAlerts.length} taxi suggestion{taxiAlerts.length === 1 ? '' : 's'} · {sellCalls.length} sell call{sellCalls.length === 1 ? '' : 's'}</span>
+              <span style={{ marginLeft: 'auto', fontSize: '0.74rem', color: 'var(--gold)', fontWeight: 700 }}>{reviewStripOpen ? 'Hide ▴' : 'Review ▾'}</span>
+            </button>
+            {reviewStripOpen && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '2px 12px 10px' }}>
+                {dropAlerts.map(r => chip(r, 'DROP'))}
+                {taxiAlerts.map(r => chip(r, 'STASH'))}
+                {sellCalls.map(r => chip(r, 'SELL'))}
+              </div>
+            )}
+          </div>
+        );
+      })();
+
   return (
     <div style={{ padding: _phone ? '12px var(--wr-phone-gutter, 12px) 8px' : 'var(--card-pad, 16px 18px)', display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
       {_phone && <React.Fragment>
@@ -2205,8 +2250,8 @@ function MyTeamTab({
           long-horizon-gated by showGmDesk (see above). */}
       {isPro && showGmDesk && (
         <section style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius)', background: 'var(--surf-solid, rgba(20,20,26,0.72))', padding: 'var(--card-pad-sm)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {_phone && <button type="button" aria-expanded={phoneDeskOpen} onClick={() => setPhoneDeskOpen(value => !value)} style={{ ...controlBtn(false), minHeight: '44px', width: '100%', textAlign: 'left' }}>GM’s Desk · {gmDeskCalls.length ? `${gmDeskCalls.length} suggested moves` : 'No moves flagged'} {phoneDeskOpen ? '▴' : '▾'}</button>}
-          {(!_phone || phoneDeskOpen) && <React.Fragment>
+          <button type="button" aria-expanded={phoneDeskOpen} onClick={() => setPhoneDeskOpen(value => { const next = !value; try { localStorage.setItem('wr_roster_desk_open', String(next)); } catch {} return next; })} style={{ ...controlBtn(false), minHeight: '40px', width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}><span>GM’s Desk · Roster Review</span><span>{phoneDeskOpen ? 'Minimize ▴' : 'Expand ▾'}</span></button>
+          {phoneDeskOpen && <React.Fragment>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.04em' }}>GM's Desk</span>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '2px 8px', borderRadius: '999px', color: gm?.badgeColor || 'var(--gold)', border: '1px solid ' + wrAlpha(gm?.badgeColor || 'var(--gold)', '55'), background: wrAlpha(gm?.badgeColor || 'var(--gold)', '14') }}>{(gm?.modeLabel || 'Compete') + ' Mode'}</span>
@@ -2247,6 +2292,7 @@ function MyTeamTab({
               }),
             }],
           })}
+          {renderRosterReview()}
           </React.Fragment>}
         </section>
       )}
@@ -2313,53 +2359,7 @@ function MyTeamTab({
         );
       })()}
 
-      {/* Review Roster triage strip (iPad pass, owner-approved 2026-07-12):
-          the phone triage SHEET had no ≥768 equivalent — flags only lived
-          inline per row. Same data seams as the phone sheet (_isActiveDrop /
-          _effRec); chip tap expands the player on the board below. Collapsed
-          to a one-line count by default. */}
-      {!_phone && isPro && (() => {
-        const dropAlerts = rows.filter(_isActiveDrop);
-        const taxiAlerts = rows.filter(_isActiveTaxiSuggestion);
-        const sellCalls = rows.filter(r => /sell/i.test(_effRec(r) || '') && !dropAlerts.some(d => d.pid === r.pid));
-        if (!dropAlerts.length && !taxiAlerts.length && !sellCalls.length) return null;
-        const chipColor = { DROP: 'var(--bad)', STASH: 'var(--k-3498db, #3498db)', SELL: 'var(--warn)' };
-        const chipBorder = { DROP: 'rgba(231,76,60,0.4)', STASH: 'rgba(52,152,219,0.4)', SELL: 'rgba(240,165,0,0.35)' };
-        const chip = (r, kind) => (
-          <button key={kind + '-' + r.pid} type="button" onClick={() => setExpandedPid(prev => prev === r.pid ? null : r.pid)}
-            title="Expand this player on the board below"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '999px', cursor: 'pointer', background: 'var(--ov-1, rgba(255,255,255,0.02))', border: '1px solid ' + chipBorder[kind], color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '0.76rem', fontWeight: 600 }}>
-            <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, color: chipColor[kind], letterSpacing: '0.04em' }}>{kind}</span>
-            {getPlayerName(r.pid)}
-            <span style={{ color: 'var(--silver)', opacity: 0.6, fontSize: 'var(--text-micro, 0.6875rem)' }}>{r.pos}</span>
-          </button>
-        );
-        return (
-          <div style={{ marginBottom: '10px', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--ov-1, rgba(255,255,255,0.015))', overflow: 'hidden' }}>
-            <button type="button" onClick={() => setReviewStripOpen(v => !v)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Review Roster</span>
-              {cutdownInfo && (
-                <span style={{ fontSize: '0.76rem', fontWeight: 700, color: cutdownInfo.over > 0 ? 'var(--bad)' : 'var(--warn)' }}>
-                  {cutdownInfo.status.isPast
-                    ? (cutdownInfo.over > 0 ? 'Cutdown day passed — ' + cutdownInfo.over + ' over the ' + (cutdownInfo.rule.activeSlots + cutdownInfo.rule.taxiSlots) + '-man limit' : 'Cutdown day passed')
-                    : 'Cutdown in ' + cutdownInfo.status.daysUntil + ' day' + (cutdownInfo.status.daysUntil === 1 ? '' : 's') + (cutdownInfo.over > 0 ? ' — ' + cutdownInfo.over + ' over the ' + (cutdownInfo.rule.activeSlots + cutdownInfo.rule.taxiSlots) + '-man limit' : '')}
-                  {cutdownInfo.over > 0 && ' — ' + cutMarkedCount + ' of ' + (dropCandidatePids.size + taxiCandidatePids.size) + ' resolved'}
-                  {' ·'}
-                </span>
-              )}
-              <span style={{ fontSize: '0.76rem', color: 'var(--silver)' }}>{dropAlerts.length} drop alert{dropAlerts.length === 1 ? '' : 's'} · {taxiAlerts.length} taxi suggestion{taxiAlerts.length === 1 ? '' : 's'} · {sellCalls.length} sell call{sellCalls.length === 1 ? '' : 's'}</span>
-              <span style={{ marginLeft: 'auto', fontSize: '0.74rem', color: 'var(--gold)', fontWeight: 700 }}>{reviewStripOpen ? 'Hide ▴' : 'Review ▾'}</span>
-            </button>
-            {reviewStripOpen && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '2px 12px 10px' }}>
-                {dropAlerts.map(r => chip(r, 'DROP'))}
-                {taxiAlerts.map(r => chip(r, 'STASH'))}
-                {sellCalls.map(r => chip(r, 'SELL'))}
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      {!showGmDesk && !_phone && isPro && renderRosterReview()}
 
       {/* Roster table with inline expand cards — desktop/tablet renders the
           hoisted board verbatim; the phone tier re-homes it: AssetRow card
