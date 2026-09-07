@@ -1726,6 +1726,12 @@ WRShared.preloadMany(WR_SHARED_FILES);
 	    .mock-board-lanes span { display: block; color: var(--silver); opacity: 0.64; font-size: 0.54rem; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 	    .mock-board-tools { display: grid; grid-template-columns: minmax(0,1fr) 92px; gap: 7px; margin-bottom: 7px; }
 	    .mock-board-tools input, .mock-board-tools select { border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.18); color: var(--white); border-radius: var(--card-radius-sm, 8px); padding: 8px 9px; font-family: var(--font-body); font-size: 0.68rem; min-width: 0; }
+	    .mock-board-visibility { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 8px 0; margin-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+	    .mock-board-visibility > div { display: flex; flex-wrap: wrap; gap: 6px; }
+	    .mock-board-visibility button, .mock-board-more { border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); color: var(--silver); border-radius: 8px; padding: 8px 10px; font: 700 0.65rem var(--font-body); cursor: pointer; }
+	    .mock-board-visibility button[aria-pressed="true"] { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 40%, transparent); background: color-mix(in srgb, var(--gold) 8%, transparent); }
+	    .mock-board-visibility > span { color: var(--silver); font-size: 0.62rem; }
+	    .mock-board-more { display: block; width: 100%; margin: 10px 0; min-height: 44px; }
 	    .mock-board-pos { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
 	    .mock-board-pos button { border: 1px solid rgba(255,255,255,0.08); background: transparent; color: var(--silver); border-radius: var(--card-radius, 10px); padding: 3px 8px; font-family: var(--font-body); font-size: 0.58rem; font-weight: 800; cursor: pointer; }
 	    .mock-board-pos button.is-active { border-color: color-mix(in srgb, var(--pos-color, var(--gold)) 55%, transparent); background: color-mix(in srgb, var(--pos-color, var(--gold)) 18%, transparent); color: var(--pos-color, var(--gold)); }
@@ -2975,7 +2981,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/persona.js?v=20260814dna1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/cpu-engine.js?v=20260814auc1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/state.js?v=20260906broadcast2"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/big-board.js?v=20260906broadcast2"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/big-board.js?v=20260906available"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/draft-grid.js?v=20260418a"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/opponent-intel.js?v=20260601layout"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/alex-stream.js?v=20260906redraftreads"></script>
@@ -2994,7 +3000,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-sync.js?v=20260516p6redo"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-decision-engine.js?v=20260906broadcast2"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/analyst-mock.js?v=20260531voice1"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260906broadcast2"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260906available"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260906hist1"></script>
 <!-- 5. League detail tab components (extracted from league-detail.js) -->
 <!-- v2 widget modules (load before dashboard.js which consumes them) -->

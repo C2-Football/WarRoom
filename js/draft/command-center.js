@@ -4380,6 +4380,18 @@
     function MockBigBoardTable({ state, dispatch, isUserTurn }) {
         const [search, setSearch] = React.useState('');
         const [posFilter, setPosFilter] = React.useState('');
+        const [hideDrafted, setHideDrafted] = React.useState(() => {
+            try { return window.App?.WrStorage?.get('wr_bb_hide_drafted') !== false; } catch (e) { return true; }
+        });
+        const [trackedOnly, setTrackedOnly] = React.useState(false);
+        const [visibleLimit, setVisibleLimit] = React.useState(72);
+        const watchPids = state.redraftBroadcast?.watchPids;
+        const trackedIds = React.useMemo(() => new Set((watchPids || []).map(String)), [watchPids]);
+        const toggleHideDrafted = () => setHideDrafted(previous => {
+            const next = !previous;
+            try { window.App?.WrStorage?.set('wr_bb_hide_drafted', next); } catch (e) {}
+            return next;
+        });
         const [sortKey, setSortKey] = React.useState('board');
         const [sortDir, setSortDir] = React.useState(-1);
         const boardContext = state.draftContext?.boardContext || {};
@@ -4442,9 +4454,8 @@
             return [...base, ...groups];
         }, [state.pool, state.draftContext?.leagueFormat, isRedraftBoard]);
         const lanePool = React.useMemo(() => {
-            // Mocks consume players from the board as they are selected. The live
-            // follower is a tracking surface: retain the original board so synced
-            // picks remain visible as crossed-off rows instead of disappearing.
+            // Rank against the original live board, then filter drafted players.
+            // This keeps ranks stable when availability or visibility changes.
             const pool = showDraftedRows && state.originalPool?.length
                 ? state.originalPool
                 : (state.pool || []);
@@ -4468,9 +4479,11 @@
             });
             return ordered.map((p, idx) => ({ ...p, boardRank: idx + 1 }));
         }, [state.pool, state.originalPool, boardContext, boardLane, showDraftedRows]);
-        const rows = React.useMemo(() => {
+        const filteredRows = React.useMemo(() => {
             const q = search.trim().toLowerCase();
             return lanePool.filter(p => {
+                if (showDraftedRows && hideDrafted && Number(state.draftedPids?.[p.pid] || 0) >= Math.max(1, Number(state.playerCopies) || 1)) return false;
+                if (trackedOnly && !trackedIds.has(String(p.pid))) return false;
                 const rowPos = normPos(p.pos || p.position) || p.pos || p.position || '';
                 // Group-aware: posFilter may be a flex-group key (FLEX/SFLEX/…)
                 if (posFilter && !(window.App?.posMatchesFilter ? window.App.posMatchesFilter(rowPos, posFilter) : rowPos === posFilter)) return false;
@@ -4490,8 +4503,14 @@
                 // market entry sort last regardless of direction.
                 if (sortKey === 'adp') return sortDir * ((ccAdpFor(a)?.adp ?? Infinity) - (ccAdpFor(b)?.adp ?? Infinity));
                 return a.boardRank - b.boardRank;
-            }).slice(0, 72);
-        }, [lanePool, search, posFilter, sortKey, sortDir, ccAdpFor]);
+            });
+        }, [lanePool, search, posFilter, sortKey, sortDir, ccAdpFor, showDraftedRows, hideDrafted, state.draftedPids, state.playerCopies, trackedOnly, trackedIds]);
+        React.useEffect(() => {
+            setVisibleLimit(72);
+        }, [search, posFilter, sortKey, sortDir, boardLane, hideDrafted, trackedOnly]);
+        const rows = filteredRows.slice(0, visibleLimit);
+        const hasFilters = !!(search || posFilter || trackedOnly);
+        const clearFilters = () => { setSearch(''); setPosFilter(''); setTrackedOnly(false); };
         const setHeaderSort = key => {
             setSortKey(prev => {
                 if (prev === key) {
@@ -4547,11 +4566,11 @@
                     ))}
                 </div>
                 <div className="mock-board-tools">
-                    <input value={search} onChange={e => setSearch(e.target.value)} placeholder={isRedraftBoard ? 'Search players, teams...' : 'Search players, teams, colleges...'} />
-                    <select value={sortKey} onChange={e => {
+                    <input aria-label="Search the big board" value={search} onChange={e => setSearch(e.target.value)} placeholder={isRedraftBoard ? 'Search players, teams...' : 'Search players, teams, colleges...'} />
+                    <select aria-label="Sort the big board" value={sortKey} onChange={e => {
                         const key = e.target.value;
                         setSortKey(key);
-                        setSortDir(['rank', 'name', 'pos', 'team', 'school', 'tier'].includes(key) ? 1 : -1);
+                        setSortDir(['rank', 'name', 'pos', 'team', 'school', 'tier', 'adp'].includes(key) ? 1 : -1);
                     }}>
                         <option value="board">Board</option>
                         <option value="rank">Rank</option>
@@ -4567,6 +4586,14 @@
                     {positions.map(pos => (
                         <button key={pos} type="button" className={posFilter === pos ? 'is-active' : ''} style={{ '--pos-color': posColors[pos] || 'var(--gold)' }} onClick={() => setPosFilter(posFilter === pos ? '' : pos)}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</button>
                     ))}
+                </div>
+                <div className="mock-board-visibility">
+                    <div>
+                        {showDraftedRows && <button type="button" aria-pressed={hideDrafted} onClick={toggleHideDrafted} title="Turn off to include crossed-off drafted players">{hideDrafted ? '✓ Available only' : 'Showing drafted too'}</button>}
+                        {isRedraftLive(state) && <button type="button" aria-pressed={trackedOnly} onClick={() => setTrackedOnly(value => !value)}>★ Tracked ({trackedIds.size})</button>}
+                        {hasFilters && <button type="button" onClick={clearFilters}>Clear filters</button>}
+                    </div>
+                    <span>{rows.length} of {filteredRows.length}{hasFilters ? ' matching' : ' players'}</span>
                 </div>
                 <div className="mock-board-head" style={boardGridStyle}>
                     {headerCell('Rank', 'rank')}{headerCell('Player', 'name')}{headerCell('Pos', 'pos')}{headerCell('NFL', 'team')}{!isRedraftBoard && headerCell('School', 'school')}{headerCell('DHQ', 'dhq')}{isSeasonalBoard && headerCell('ADP', 'adp')}{isSeasonalBoard && <span title="This season's most decision-relevant stat for the player's position">Usage</span>}{headerCell('Fit', 'fit')}{headerCell('Tier', 'tier')}<span>Action</span>
@@ -4612,7 +4639,8 @@
                             </div>
                         );
                     })}
-                    {!rows.length && <div className="mock-empty">No players match the current board filters.</div>}
+                    {!rows.length && <div className="mock-empty">{trackedOnly && !trackedIds.size ? 'Use Track on a player to build your shortlist.' : 'No players match the current board filters.'}{hasFilters && <button type="button" className="mock-board-more" onClick={clearFilters}>Clear filters</button>}</div>}
+                    {filteredRows.length > rows.length && <button type="button" className="mock-board-more" onClick={() => setVisibleLimit(limit => limit + 72)}>Show {Math.min(72, filteredRows.length - rows.length)} more players · {filteredRows.length - rows.length} remaining</button>}
                 </div>
             </section>
         );

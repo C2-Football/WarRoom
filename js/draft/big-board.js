@@ -156,10 +156,10 @@
         const [boardLane, setBoardLane] = React.useState(defaultLane);
         const [dragPid, setDragPid] = React.useState(null);
         const [bucket, setBucket] = React.useState(() => bpBucket());
-        // Hide-drafted toggle (default OFF — matches the prior always-show behavior).
+        // Start with available players; respect an explicit saved show-all choice.
         // Persisted as a single user preference across leagues/variants.
         const [hideDrafted, setHideDrafted] = React.useState(() => {
-            try { return window.App?.WrStorage?.get('wr_bb_hide_drafted') === true; } catch (e) { return false; }
+            try { return window.App?.WrStorage?.get('wr_bb_hide_drafted') !== false; } catch (e) { return true; }
         });
         const toggleHideDrafted = () => setHideDrafted(v => {
             const next = !v;
