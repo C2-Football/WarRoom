@@ -5355,6 +5355,14 @@
     // `state` and already supports live-sync's manual-override pick flow (see
     // mockMakePick / state.js MAKE_PICK's manual-live source derivation).
     function MockDraftCockpit({ state, dispatch, isUserTurn, currentSlot, onExit, onPropose, tradeDeskTarget, openTradeDesk, grade, canUndoManualPick, isLive, liveConfidenceCard, liveDecisionDeck, liveTradeWindow, stagedLiveOffers }) {
+        const [roomView, setRoomView] = React.useState('board');
+        const roomWorkspaceRef = React.useRef(null);
+        const openTeamTracker = () => {
+            setRoomView('teams');
+            roomWorkspaceRef.current?.scrollIntoView({ block: 'start' });
+        };
+        const LiveRoomPanel = window.DraftCC.LiveRoomPanel;
+        const LiveRoomPulse = window.DraftCC.LiveRoomPulse;
         const totalPicks = state.pickOrder?.length || 0;
         const progress = totalPicks ? Math.round(((state.currentIdx || 0) / totalPicks) * 100) : 0;
         const lastPick = state.picks?.[state.picks.length - 1] || null;
@@ -5411,6 +5419,7 @@
                                 <button type="button" onClick={() => dispatch({ type: 'SET_OVERRIDE', enabled: !state.overrideMode })} title={state.overrideMode ? 'Return to read-only Sleeper mirror' : 'Apply the next pick manually from the Big Board'}>
                                     {state.overrideMode ? 'Manual On' : 'Manual Pick'}
                                 </button>
+                                {LiveRoomPanel && <button type="button" onClick={openTeamTracker}>View teams</button>}
                                 {!isRedraftLive(state) && <button type="button" onClick={openTradeDesk} disabled={!tradeDeskTarget}>Trade Desk</button>}
                                 {canUndoManualPick && <button type="button" onClick={() => dispatch({ type: 'UNDO_LAST_PICK', manualOnly: true })}>Undo</button>}
                                 <button type="button" onClick={onExit}>Exit</button>
@@ -5490,8 +5499,16 @@
                 {state.scenarioNarrative && (
                     <div className="mock-scenario-strip">{state.scenarioNarrative}</div>
                 )}
+                {isLive && LiveRoomPulse && <LiveRoomPulse state={state} onOpen={openTeamTracker} />}
                 <div className="mock-cockpit-grid">
-                    <MockBigBoardTable state={state} dispatch={dispatch} isUserTurn={isUserTurn} />
+                    {isLive && LiveRoomPanel ? <div className="live-room-workspace" ref={roomWorkspaceRef} style={{ scrollMarginTop: 80 }}>
+                        <div className="live-room-tabs" role="group" aria-label="Draft workspace">
+                            <button type="button" aria-pressed={roomView === 'board'} onClick={() => setRoomView('board')}>Available players</button>
+                            <button type="button" aria-pressed={roomView === 'teams'} onClick={() => setRoomView('teams')}>Team tracker</button>
+                        </div>
+                        <div className="live-room-pane" hidden={roomView !== 'teams'}><LiveRoomPanel state={state} /></div>
+                        <div className="live-room-pane" hidden={roomView !== 'board'}><MockBigBoardTable state={state} dispatch={dispatch} isUserTurn={isUserTurn} /></div>
+                    </div> : <MockBigBoardTable state={state} dispatch={dispatch} isUserTurn={isUserTurn} />}
                     <div className={'mock-right-stack' + (state.activeOffer ? ' has-trade-offer' : '')}>
                         <MockPickLog state={state} currentSlot={currentSlot} />
                         <MockRosterBuildCard state={state} grade={grade} />
@@ -6731,6 +6748,9 @@
                     </div>
                 )}
 
+                {state.mode === 'live-sync' && window.DraftCC.LiveRoomPanel && <div style={{ height: 'min(680px, 72dvh)', minHeight: 380, marginBottom: 12, display: 'flex', flexDirection: 'column' }}>
+                    {React.createElement(window.DraftCC.LiveRoomPanel, { state })}
+                </div>}
                 {/* ── TOP ROW: Big Board / Roster Build / Opponent Intel ───── */}
                 <div style={{
                     display: 'grid',
@@ -7986,6 +8006,9 @@
         const AlexEdgeGlow = window.DraftCC.AlexEdgeGlow;
         const OpponentIntelPanel = window.DraftCC.OpponentIntelPanel;
         const LiveAnalyticsPanel = window.DraftCC.LiveAnalyticsPanel;
+        const LiveRoomPanel = window.DraftCC.LiveRoomPanel;
+        const LiveRoomPulse = window.DraftCC.LiveRoomPulse;
+        const hasTeamTracker = state.mode === 'live-sync' && !!LiveRoomPanel;
         const Sheet = window.WR && window.WR.Sheet;
         // Which demoted side panel is open: 'alex'|'intel'|'analytics'.
         // Hooks sit above every early return so hook order never varies.
@@ -8053,6 +8076,7 @@
                         tier) — do not double-pad here. */}
                     <MobileClockBar state={state} currentSlot={currentSlot} isUserTurn={isUserTurn} />
                     {isRedraftLive(state) && <RedraftRoomReadPanel state={state} dispatch={dispatch} />}
+                    {hasTeamTracker && <LiveRoomPanel state={state} />}
                     <div style={{ minHeight: 320, maxHeight: '56vh', marginBottom: 10 }}>
                         <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={true} />
                     </div>
@@ -8106,7 +8130,7 @@
                 onTap: () => setPhPanel('intel'),
             };
         // Swipe left/right between FEED / BOARD / ROSTER (native-feel, no deps).
-        const TAB_KEYS = ['feed', 'board', 'roster'];
+        const TAB_KEYS = hasTeamTracker ? ['feed', 'board', 'teams', 'roster'] : ['feed', 'board', 'roster'];
         const onTouchStart = e => { const t = e.touches && e.touches[0]; if (t) swipeRef.current = { x: t.clientX, y: t.clientY }; };
         const onTouchEnd = e => {
             const st = swipeRef.current; swipeRef.current = null;
@@ -8126,10 +8150,12 @@
                 <MobileClockBar state={state} currentSlot={currentSlot} isUserTurn={isUserTurn}
                     intel={draftCastIntel} />
                 <div className="wr-seg" style={{ marginBottom: 10 }}>
-                    {[['feed', 'Draft Feed'], ['board', 'Big Board'], ['roster', 'My Roster']].map(([k, l]) => (
-                        <button key={k} type="button" className={phTab === k ? 'is-on' : ''} onClick={() => setPhTab(k)}>{l}</button>
+                    {(hasTeamTracker ? [['feed', 'Feed'], ['board', 'Board'], ['teams', 'Teams'], ['roster', 'My Roster']] : [['feed', 'Draft Feed'], ['board', 'Big Board'], ['roster', 'My Roster']]).map(([k, l]) => (
+                        <button key={k} type="button" aria-pressed={phTab === k} className={phTab === k ? 'is-on' : ''} onClick={() => setPhTab(k)}>{l}</button>
                     ))}
                 </div>
+                {hasTeamTracker && phTab === 'feed' && LiveRoomPulse && <LiveRoomPulse state={state} onOpen={() => setPhTab('teams')} />}
+                {hasTeamTracker && <div hidden={phTab !== 'teams'} style={{ height: '62dvh', minHeight: 360, display: phTab === 'teams' ? 'flex' : 'none', flexDirection: 'column' }}><LiveRoomPanel state={state} /></div>}
                 {/* Panes scroll IN PLACE (owner ask): fixed-height containers so the
                     DraftCast bar, tabs, and bottom chips all stay on screen. */}
                 {phTab === 'feed' && (

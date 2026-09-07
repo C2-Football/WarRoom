@@ -33,6 +33,44 @@ function eq(actual, expected, label) {
   }
 }
 
+const asyncTests = [];
+function testAsync(name, fn) {
+  asyncTests.push({ name, fn });
+}
+
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+  return { promise, resolve, reject };
+}
+
+const flushPoll = () => new Promise(resolve => setImmediate(resolve));
+
+function buildPollHarness(overrides = {}) {
+  const pollCtx = buildCtx();
+  const timers = new Map();
+  let timerId = 0;
+  const events = [], statuses = [], logs = [];
+  Object.assign(pollCtx, {
+    setInterval: fn => { timers.set(++timerId, fn); return timerId; },
+    clearInterval: id => timers.delete(id),
+    wrLog: (...args) => logs.push(args),
+    Sleeper: {
+      fetchDraftPicks: async () => [],
+      fetchDraft: async () => ({ status: 'drafting' }),
+      fetchDraftTradedPicks: async () => [],
+    },
+    ...overrides,
+  });
+  load(pollCtx, 'js/draft/live-sync.js');
+  const sync = pollCtx.DraftCC.liveSync;
+  return {
+    ctx: pollCtx, sync, events, statuses, logs, timers,
+    start: (id = 'D1', opts = {}) => sync.start(id, picks => events.push(picks), { onStatus: s => statuses.push(s), ...opts }),
+    tick: () => Promise.all([...timers.values()].map(fn => fn())),
+  };
+}
+
 function makeStorage() {
   const store = {};
   return {
@@ -522,11 +560,275 @@ test('broadcast locks before a real pick, persists, and scores without hindsight
   eq(ctx.DraftCC.liveDecisionEngine.predictionScorecard(manual).total, 0, 'manual guesses cannot score');
 });
 
-console.log('\n');
-if (failures.length) {
-  console.log(failures.join('\n'));
-  console.log('');
-}
+testAsync('polls stay single-flight until picks, metadata, and trades all settle', async () => {
+  const picks = deferred(), meta = deferred(), trades = deferred();
+  let pickCalls = 0, metaCalls = 0, tradeCalls = 0;
+  const h = buildPollHarness({ Sleeper: {
+    fetchDraftPicks: () => { pickCalls++; return picks.promise; },
+    fetchDraft: () => { metaCalls++; return meta.promise; },
+    fetchDraftTradedPicks: () => { tradeCalls++; return trades.promise; },
+  } });
+  try {
+    h.start();
+    await h.tick();
+    await h.tick();
+    eq(pickCalls, 1, 'busy interval ticks do not issue more picks requests');
+    picks.resolve([{ pick_no: 1, player_id: 'p1' }]);
+    meta.resolve({ status: 'drafting' });
+    await flushPoll();
+    await h.tick();
+    eq(pickCalls, 1, 'pending trade request keeps the poll busy');
+    eq(h.statuses.length, 0, 'no partial snapshot emitted');
+    trades.resolve([]);
+    await flushPoll();
+    eq(h.events.length, 1, 'first complete snapshot emits its pick');
+    await h.tick();
+    eq(pickCalls, 2, 'the next interval polls again after completion');
+    eq(metaCalls, 1, 'metadata keeps its slower refresh cadence');
+    eq(tradeCalls, 1, 'trades keep their slower refresh cadence');
+    eq(h.events.length, 1, 'repeated snapshot does not duplicate the pick');
+  } finally { h.sync.stop(); }
+});
 
-console.log(`${failed ? 'FAIL' : 'PASS'} ${passed + failed} tests - ${passed} passed, ${failed} failed`);
-process.exit(failed ? 1 : 0);
+testAsync('a prolonged poll reports stale once and automatically recovers when picks arrive', async () => {
+  let now = 1000, calls = 0;
+  const pending = deferred();
+  class PollDate extends Date { static now() { return now; } }
+  const h = buildPollHarness({ Date: PollDate });
+  h.ctx.Sleeper.fetchDraftPicks = () => ++calls === 1
+    ? Promise.resolve([{ pick_no: 1, player_id: 'p1' }]) : pending.promise;
+  try {
+    h.start();
+    await flushPoll();
+    eq(h.statuses[0].status, 'mirroring', 'first snapshot is healthy');
+    now += h.sync.POLL_INTERVAL_MS;
+    const ongoing = h.tick();
+    now += h.sync.STALE_AFTER_MS - 1;
+    await h.tick();
+    eq(h.statuses.length, 1, 'no warning before request freshness threshold');
+    now++;
+    await h.tick();
+    eq(h.statuses.length, 2, 'threshold emits one stale warning');
+    eq(h.statuses[1].status, 'stale', 'busy request is visibly stale');
+    eq(h.statuses[1].stale, true, 'stale flag reaches downstream surfaces');
+    eq(h.statuses[1].lastPollAt, 1000, 'warning preserves last successful check time');
+    now += h.sync.STALE_AFTER_MS;
+    await h.tick();
+    await h.tick();
+    eq(h.statuses.length, 2, 'repeated busy ticks do not repeat warning');
+    eq(calls, 2, 'warning does not overlap the pending request');
+    pending.resolve([{ pick_no: 1, player_id: 'p1' }, { pick_no: 2, player_id: 'p2' }]);
+    await ongoing;
+    const recovered = h.statuses[h.statuses.length - 1];
+    eq(recovered.status, 'mirroring', 'response automatically restores healthy status');
+    eq(recovered.stale, false, 'response clears stale flag');
+    eq(recovered.error, null, 'response clears slow-request message');
+    eq(h.events[1][0].player_id, 'p2', 'recovered pick is mirrored once');
+    const nextPending = deferred();
+    h.ctx.Sleeper.fetchDraftPicks = () => nextPending.promise;
+    now += h.sync.POLL_INTERVAL_MS;
+    const nextOngoing = h.tick();
+    now += h.sync.STALE_AFTER_MS;
+    await h.tick();
+    eq(h.statuses.filter(s => s.status === 'stale').length, 2, 'a separate prolonged request can report its own warning');
+    nextPending.resolve([{ pick_no: 1, player_id: 'p1' }, { pick_no: 2, player_id: 'p2' }]);
+    await nextOngoing;
+  } finally { h.sync.stop(); }
+});
+
+testAsync('stopped or replaced sessions cannot emit a pending slow-request warning', async () => {
+  let now = 1000;
+  const pending = deferred();
+  class PollDate extends Date { static now() { return now; } }
+  const h = buildPollHarness({ Date: PollDate });
+  h.ctx.Sleeper.fetchDraftPicks = id => id === 'OLD' ? pending.promise : Promise.resolve([]);
+  try {
+    h.start('OLD');
+    const oldTick = [...h.timers.values()][0];
+    h.sync.stop();
+    now += h.sync.STALE_AFTER_MS;
+    await oldTick();
+    eq(h.statuses.length, 0, 'queued old tick cannot warn after stop');
+    h.start('NEW');
+    await flushPoll();
+    const statusCount = h.statuses.length;
+    await oldTick();
+    eq(h.statuses.length, statusCount, 'queued old tick cannot warn in replacement session');
+    pending.resolve([{ pick_no: 1, player_id: 'old1' }]);
+    await flushPoll();
+    eq(h.statuses.length, statusCount, 'obsolete slow response remains suppressed');
+  } finally { h.sync.stop(); }
+});
+
+testAsync('stopping suppresses delayed successful, missing, and failed picks responses', async () => {
+  for (const outcome of ['success', 'missing', 'failure']) {
+    const pending = deferred();
+    const h = buildPollHarness();
+    h.ctx.Sleeper.fetchDraftPicks = () => pending.promise;
+    h.start();
+    h.sync.stop();
+    if (outcome === 'failure') pending.reject(new Error('old network error'));
+    else pending.resolve(outcome === 'missing' ? null : [{ pick_no: 1, player_id: 'p1' }]);
+    await flushPoll();
+    eq(h.sync.isRunning(), false, outcome + ': stopped state preserved');
+    eq(h.timers.size, 0, outcome + ': interval cleared');
+    eq(h.statuses.length, 0, outcome + ': no stale status callback');
+    eq(h.events.length, 0, outcome + ': no stale pick callback');
+    eq(h.logs.length, 0, outcome + ': obsolete error stays quiet');
+  }
+});
+
+testAsync('switching drafts isolates late metadata, trade ownership, and pick cursors', async () => {
+  const oldMeta = deferred(), oldTrades = deferred();
+  let newPickCalls = 0;
+  const h = buildPollHarness({ Sleeper: {
+    fetchDraftPicks: async id => id === 'OLD'
+      ? [{ pick_no: 1, player_id: 'old1' }, { pick_no: 2, player_id: 'old2' }]
+      : (++newPickCalls === 1 ? [{ pick_no: 1, player_id: 'new1' }]
+        : [{ pick_no: 1, player_id: 'new1' }, { pick_no: 2, player_id: 'new2' }]),
+    fetchDraft: id => id === 'OLD' ? oldMeta.promise : Promise.resolve({ status: 'drafting' }),
+    fetchDraftTradedPicks: id => id === 'OLD' ? oldTrades.promise : Promise.resolve([]),
+  } });
+  const oldEvents = [], oldStatuses = [];
+  try {
+    h.sync.start('OLD', p => oldEvents.push(p), { onStatus: s => oldStatuses.push(s) });
+    h.start('NEW');
+    await flushPoll();
+    eq(h.events[0][0].player_id, 'new1', 'new draft starts immediately');
+    oldMeta.resolve({ status: 'complete' });
+    oldTrades.resolve([{ round: 1, roster_id: 1, owner_id: 9 }]);
+    await flushPoll();
+    await h.tick();
+    eq(oldEvents.length, 0, 'old draft cannot emit picks');
+    eq(oldStatuses.length, 0, 'old draft cannot emit status');
+    eq(h.events.length, 2, 'late old cursor did not skip new draft pick two');
+    eq(h.events[1][0].player_id, 'new2', 'new draft keeps its own cursor');
+    eq(h.statuses[h.statuses.length - 1].status, 'mirroring', 'old complete status did not poison metadata cache');
+    eq(h.statuses[h.statuses.length - 1].tradedPicks.length, 0, 'old ownership did not poison trade cache');
+  } finally { h.sync.stop(); }
+});
+
+testAsync('an old request finishing cannot unlock an active replacement poll', async () => {
+  const oldPicks = deferred(), newPicks = deferred();
+  let newCalls = 0;
+  const h = buildPollHarness();
+  h.ctx.Sleeper.fetchDraftPicks = id => id === 'OLD' ? oldPicks.promise : (newCalls++, newPicks.promise);
+  try {
+    h.start('OLD');
+    h.start('NEW');
+    eq(newCalls, 1, 'replacement request starts despite old request in flight');
+    oldPicks.resolve([{ pick_no: 1, player_id: 'old1' }]);
+    await flushPoll();
+    await h.tick();
+    eq(newCalls, 1, 'old finally cannot unlock replacement request');
+    newPicks.resolve([{ pick_no: 1, player_id: 'new1' }]);
+    await flushPoll();
+    eq(h.events.length, 1, 'only replacement draft emits');
+    eq(h.events[0][0].player_id, 'new1', 'replacement player preserved');
+  } finally { h.sync.stop(); }
+});
+
+testAsync('restarting the same draft immediately resumes the caller supplied cursor', async () => {
+  const oldPicks = deferred();
+  let calls = 0;
+  const h = buildPollHarness();
+  h.ctx.Sleeper.fetchDraftPicks = () => ++calls === 1 ? oldPicks.promise
+    : Promise.resolve([{ pick_no: 1, player_id: 'p1' }, { pick_no: 2, player_id: 'p2' }]);
+  try {
+    h.start('D1');
+    h.start('D1', { initialPickNo: 1, seenPickKeys: ['no:1'] });
+    await flushPoll();
+    eq(calls, 2, 'explicit restart requests immediately despite the previous pending poll');
+    eq(h.events.length, 1, 'restart emits one batch');
+    eq(h.events[0].length, 1, 'already recorded pick is omitted');
+    eq(h.events[0][0].pick_no, 2, 'resume uses the caller supplied cursor');
+    oldPicks.resolve([{ pick_no: 1, player_id: 'p1' }]);
+    await flushPoll();
+    eq(h.events.length, 1, 'obsolete same-draft request stays suppressed');
+  } finally { h.sync.stop(); }
+});
+
+testAsync('raw fetch JSON resolving after stop cannot notify the room', async () => {
+  const body = deferred();
+  const h = buildPollHarness({
+    Sleeper: {},
+    fetch: async url => ({ ok: true, json: () => url.endsWith('/picks') ? body.promise
+      : Promise.resolve(url.endsWith('/traded_picks') ? [] : { status: 'drafting' }) }),
+  });
+  h.start();
+  await flushPoll();
+  h.sync.stop();
+  body.resolve([{ pick_no: 1, player_id: 'p1' }]);
+  await flushPoll();
+  eq(h.statuses.length, 0, 'late response body emits no status');
+  eq(h.events.length, 0, 'late response body emits no picks');
+});
+
+testAsync('failed picks wait for remaining requests and recover on the next poll', async () => {
+  const picks = deferred(), meta = deferred();
+  let pickCalls = 0;
+  const h = buildPollHarness({ Sleeper: {
+    fetchDraftPicks: () => ++pickCalls === 1 ? picks.promise : Promise.resolve([{ pick_no: 1, player_id: 'p1' }]),
+    fetchDraft: () => meta.promise,
+    fetchDraftTradedPicks: async () => [],
+  } });
+  try {
+    h.start();
+    picks.reject(new Error('temporary failure'));
+    await flushPoll();
+    await h.tick();
+    eq(pickCalls, 1, 'failed picks do not unlock pending metadata request');
+    meta.resolve({ status: 'drafting' });
+    await flushPoll();
+    eq(h.statuses.length, 1, 'current session reports its failure');
+    eq(h.statuses[0].error, 'temporary failure', 'failure reason preserved');
+    await h.tick();
+    eq(pickCalls, 2, 'retry runs after all previous branches settle');
+    eq(h.events[0][0].player_id, 'p1', 'retry applies the recovered pick');
+  } finally { h.sync.stop(); }
+});
+
+testAsync('MFL delayed successes and failures cannot notify a stopped room', async () => {
+  for (const fail of [false, true]) {
+    const pending = deferred();
+    const h = buildPollHarness({ MFL: { fetchDraftStatus: () => pending.promise } });
+    h.start('mfl_draft_123_2026');
+    h.sync.stop();
+    if (fail) pending.reject(new Error('old MFL failure'));
+    else pending.resolve([{ draft_id: 'mfl_draft_123_2026', status: 'drafting', picks: [{ pick_no: 1, player_id: 'm1' }], _slots: [{ round: 1, draft_slot: 1, roster_id: 9 }] }]);
+    await flushPoll();
+    eq(h.statuses.length, 0, 'old MFL status suppressed');
+    eq(h.events.length, 0, 'old MFL picks suppressed');
+    eq(h.logs.length, 0, 'old MFL failure stays quiet');
+  }
+});
+
+testAsync('a status callback stopping the room suppresses its remaining pick callback', async () => {
+  const h = buildPollHarness();
+  h.ctx.Sleeper.fetchDraftPicks = async () => [{ pick_no: 1, player_id: 'p1' }];
+  h.start('D1', { onStatus: () => h.sync.stop() });
+  await flushPoll();
+  eq(h.events.length, 0, 'pick callback respects stop from onStatus');
+  eq(h.timers.size, 0, 'no interval is installed after stop');
+});
+
+(async () => {
+  for (const { name, fn } of asyncTests) {
+    try {
+      await fn();
+      passed++;
+      process.stdout.write('.');
+    } catch (err) {
+      failed++;
+      failures.push(`  FAIL: ${name}\n        ${err.message}`);
+      process.stdout.write('F');
+    }
+  }
+  console.log('\n');
+  if (failures.length) {
+    console.log(failures.join('\n'));
+    console.log('');
+  }
+  console.log(`${failed ? 'FAIL' : 'PASS'} ${passed + failed} tests - ${passed} passed, ${failed} failed`);
+  process.exit(failed ? 1 : 0);
+})();

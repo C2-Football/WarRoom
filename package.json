@@ -15,6 +15,7 @@
     "test:draft-analyst-mock": "node tests/draft-analyst-mock.js",
     "test:draft-trade-simulator": "node tests/draft-trade-simulator.js",
     "test:draft-live-sync": "node tests/draft-live-sync.js",
+    "test:draft-live-room": "node tests/draft-live-room.js",
     "test:draft-live-decision": "node tests/draft-live-decision.js",
     "test:draft-recap": "node tests/draft-recap.js",
     "test:post-draft-craze": "node tests/post-draft-craze.js",

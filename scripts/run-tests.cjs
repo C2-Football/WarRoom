@@ -44,7 +44,7 @@ const SUITE_ORDER = [
   'test:design-tokens', 'test:landing-content', 'test:login-auth', 'test:regression',
   'test:click-paths', 'test:intelligence-surfaces', 'test:draft-context',
   'test:draft-analyst-mock', 'test:draft-trade-simulator', 'test:draft-live-sync',
-  'test:draft-live-decision', 'test:draft-recap', 'test:post-draft-craze',
+  'test:draft-live-decision', 'test:draft-live-room', 'test:draft-recap', 'test:post-draft-craze',
   'test:draft-strategy-studio', 'test:ai', 'test:ai-scale', 'test:billing',
   'test:security', 'test:bug-capture', 'test:analytics', 'test:tutorial',
   'test:rookies', 'test:rookie-capital', 'test:rookie-fields', 'test:redraft', 'test:forecast-ledger',

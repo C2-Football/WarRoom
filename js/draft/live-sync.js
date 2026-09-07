@@ -22,6 +22,7 @@
     // this often and reuse the last value in between.
     const SLOW_REFRESH_MS = 15000;
     let _pollTimer = null;
+    let _sessionId = 0;
     let _lastPickNo = 0;
     let _seenPickKeys = new Set();
     let _lastSuccessAt = 0;
@@ -42,9 +43,18 @@
      * @param {Object} opts — { initialPickNo, seenPickKeys, onStatus }
      */
     function start(draftId, onNewPicks, opts = {}) {
-        if (_pollTimer) stop();
+        stop();
         if (!draftId || typeof onNewPicks !== 'function') return;
 
+        // A stopped request can still resolve (including connector requests that
+        // cannot be aborted). Only the current session may touch the shared
+        // cursor/cache or notify the room. Keep inFlight local so an old poll's
+        // finally cannot unlock a newer session's request.
+        const sessionId = _sessionId;
+        const isCurrentSession = () => sessionId === _sessionId;
+        let inFlight = false;
+        let pollStartedAt = 0;
+        let busyStaleReported = false;
         _lastPickNo = Number(opts.initialPickNo || 0);
         _seenPickKeys = new Set(opts.seenPickKeys || []);
         _lastSuccessAt = 0;
@@ -62,6 +72,26 @@
             mflYear = parts[1] || String(new Date().getFullYear());
         }
         const poll = async () => {
+            if (!isCurrentSession()) return;
+            if (inFlight) {
+                // Connector requests have no guaranteed timeout. A hung request
+                // must not leave the room looking healthy just because the
+                // single-flight guard skips later ticks. Warn once per request;
+                // its eventual response resumes the normal health reporting.
+                if (!busyStaleReported && Date.now() - pollStartedAt >= STALE_AFTER_MS) {
+                    busyStaleReported = true;
+                    if (onStatus) onStatus({
+                        status: 'stale',
+                        lastPollAt: _lastSuccessAt || null,
+                        stale: true,
+                        error: 'Live sync is taking longer than expected. Showing the last received picks while the request finishes.',
+                    });
+                }
+                return;
+            }
+            inFlight = true;
+            pollStartedAt = Date.now();
+            busyStaleReported = false;
             try {
                 let picks = null;
                 let meta = null;
@@ -75,6 +105,7 @@
                     const arr = window.MFL?.fetchDraftStatus
                         ? await window.MFL.fetchDraftStatus(mflLeagueId, mflYear, key)
                         : [];
+                    if (!isCurrentSession()) return;
                     const list = Array.isArray(arr) ? arr : [];
                     const d = list.find(x => x.draft_id === draftId) || list[0] || null;
                     if (d) {
@@ -117,14 +148,19 @@
                     // trading while cutting redundant per-poll round-trips.
                     const nowTs = Date.now();
                     const refreshSlow = !_lastSlowAt || (nowTs - _lastSlowAt) >= SLOW_REFRESH_MS;
-                    const [picksRes, metaRes, tpRes] = await Promise.all([
+                    // Settle every branch before releasing the poll guard. A
+                    // rejected picks request must not leave metadata requests
+                    // overlapping the next poll.
+                    const [picksRes, metaRes, tpRes] = await Promise.allSettled([
                         fetchPicks(),
                         refreshSlow ? fetchMeta() : Promise.resolve(_lastMeta),
                         refreshSlow ? fetchTp() : Promise.resolve(_lastTradedPicks),
                     ]);
-                    picks = picksRes;
-                    meta = metaRes;
-                    tradedPicks = tpRes;
+                    if (!isCurrentSession()) return;
+                    if (picksRes.status === 'rejected') throw picksRes.reason;
+                    picks = picksRes.value;
+                    meta = metaRes.status === 'fulfilled' ? metaRes.value : null;
+                    tradedPicks = tpRes.status === 'fulfilled' ? tpRes.value : null;
                     _lastMeta = meta;
                     _lastTradedPicks = tradedPicks;
                     if (refreshSlow) _lastSlowAt = nowTs;
@@ -177,8 +213,11 @@
                     tradedPicks: Array.isArray(tradedPicks) ? tradedPicks : null,
                     mflSlots: Array.isArray(mflSlots) ? mflSlots : null,
                 });
-                if (snapshot.newPicks.length) onNewPicks(snapshot.newPicks, snapshot);
+                // onStatus can synchronously stop/restart the mirror (for
+                // example when the room changes), invalidating this callback.
+                if (isCurrentSession() && snapshot.newPicks.length) onNewPicks(snapshot.newPicks, snapshot);
             } catch (e) {
+                if (!isCurrentSession()) return;
                 const now = Date.now();
                 const stale = !_lastSuccessAt || now - _lastSuccessAt >= STALE_AFTER_MS;
                 if (onStatus) onStatus({
@@ -188,12 +227,15 @@
                     error: e?.message || 'Live sync poll failed.',
                 });
                 if (window.wrLog) window.wrLog('liveSync.poll', e);
+            } finally {
+                inFlight = false;
             }
         };
 
-        // Fire immediately then on interval
-        poll();
+        // Install the timer before the immediate poll so even a synchronous
+        // callback that stops the mirror cannot leave a new interval behind.
         _pollTimer = setInterval(poll, POLL_INTERVAL_MS);
+        poll();
     }
 
     function pickKey(pick) {
@@ -312,6 +354,7 @@
     }
 
     function stop() {
+        _sessionId += 1;
         if (_pollTimer) {
             clearInterval(_pollTimer);
             _pollTimer = null;
