@@ -11,6 +11,7 @@
     const SCHEMA = 'draft-live-decision-v1';
     const TARGET_TAGS = new Set(['target', 'must', 'sleeper']);
     const FADE_TAGS = new Set(['fade', 'avoid']);
+    const PLAYER_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB', 'DE', 'DT', 'EDGE', 'CB', 'S', 'SS', 'FS']);
 
     function idKey(value) {
         return value == null ? '' : String(value);
@@ -26,7 +27,7 @@
     }
 
     function posOf(player) {
-        return player?.pos || player?.position || player?.csv?.pos || '';
+        return String(player?.pos || player?.position || player?.csv?.pos || '').toUpperCase();
     }
 
     function isRedraftLive(state) {
@@ -38,7 +39,7 @@
     const FLEX_ELIGIBILITY = {
         FLEX: ['RB', 'WR', 'TE'], WRRBTE_FLEX: ['RB', 'WR', 'TE'],
         WRRB_FLEX: ['RB', 'WR'], REC_FLEX: ['WR', 'TE'],
-        SUPER_FLEX: ['QB', 'RB', 'WR', 'TE'], OP: ['QB', 'RB', 'WR', 'TE'],
+        SUPER_FLEX: ['QB', 'RB', 'WR', 'TE'], SFLEX: ['QB', 'RB', 'WR', 'TE'], OP: ['QB', 'RB', 'WR', 'TE'],
         IDP_FLEX: ['DL', 'LB', 'DB'], IDP: ['DL', 'LB', 'DB'],
     };
 
@@ -59,7 +60,138 @@
             return false;
         };
         players.forEach((_, i) => place(i, new Set()));
-        return { filled: occupants.size, total: slots.length };
+        return { filled: occupants.size, total: slots.length,
+            openSlots: slots.filter((_, i) => !occupants.has(i)),
+            known: slots.length > 0 && !slots.some(s => ['DE', 'DT', 'EDGE', 'CB', 'S', 'SS', 'FS'].includes(s)) };
+    }
+
+    // The live draft's additions are authoritative. In a keeper league include
+    // the existing roster too, deduplicating players already mirrored as picks.
+    // A regular redraft never imports a stale previous-season roster as keepers.
+    function rosterSnapshot(state, rosterId) {
+        const rid = idKey(rosterId);
+        const players = new Map();
+        [...asArray(state.originalPool), ...asArray(state.pool)].forEach(p => players.set(idKey(p.pid), p));
+        const owned = new Map();
+        const add = raw => {
+            const pid = idKey(typeof raw === 'object' ? raw?.pid ?? raw?.player_id : raw);
+            if (!pid || owned.has(pid)) return;
+            const player = typeof raw === 'object' ? raw : players.get(pid) || window.S?.players?.[pid] || {};
+            const pos = [posOf(player), posOf(players.get(pid)), posOf(window.S?.players?.[pid])]
+                .find(value => PLAYER_POSITIONS.has(value)) || '';
+            owned.set(pid, { pid, pos });
+        };
+        asArray(state.picks).filter(p => idKey(p.rosterId ?? p.roster_id) === rid).forEach(add);
+        if (state.draftContext?.leagueFormat?.flags?.keeper) {
+            const roster = asArray(window.S?.rosters).find(r => idKey(r.roster_id) === rid);
+            asArray(roster?.players).forEach(add);
+            if (rid === idKey(state.userRosterId)) asArray(state.draftContext?.teamContext?.currentRoster).forEach(add);
+        }
+        asArray(state.keepers?.[rid]).forEach(add);
+        const counts = {};
+        owned.forEach(p => { if (p.pos) counts[p.pos] = num(counts[p.pos]) + 1; });
+        return { counts, ownedIds: [...owned.keys()], unknownPlayers: [...owned.values()].filter(p => !p.pos).length };
+    }
+
+    function takenCounts(state) {
+        const mirrored = {};
+        const seen = new Set();
+        asArray(state.picks).forEach((p, i) => {
+            const pid = idKey(p.pid);
+            const event = idKey(p.overall ?? p.sleeperPickNo ?? p.id ?? i) + ':' + pid;
+            if (!pid || seen.has(event)) return;
+            seen.add(event);
+            mirrored[pid] = num(mirrored[pid]) + 1;
+        });
+        Object.entries(state.draftedPids || {}).forEach(([pid, count]) => { mirrored[pid] = Math.max(num(mirrored[pid]), num(count)); });
+        return mirrored;
+    }
+
+    function buildRosterPlan(state, rosterId = state?.userRosterId, overrideCounts, atIndex) {
+        if (!isRedraftLive(state)) return null;
+        const snapshot = rosterSnapshot(state, rosterId);
+        const rid = idKey(rosterId);
+        const identityKnown = !!rid && (Object.prototype.hasOwnProperty.call(state.personas || {}, rid)
+            || Object.prototype.hasOwnProperty.call(state.draftContext?.ownerContext || {}, rid)
+            || asArray(state.pickOrder).some(slot => idKey(slot.rosterId) === rid || idKey(slot.originalRosterId) === rid)
+            || snapshot.ownedIds.length > 0);
+        const counts = overrideCounts || snapshot.counts;
+        const fit = lineupFit(state, counts);
+        const slots = asArray(state.draftContext?.leagueFormat?.rosterSlots).map(s => String(s).toUpperCase());
+        const active = slots.filter(s => !['BN', 'BE', 'BENCH', 'IR', 'TAXI'].includes(s));
+        const rosterCapacity = slots.length ? slots.filter(s => !['IR', 'TAXI'].includes(s)).length : null;
+        const rosterSize = Object.values(counts).reduce((a, b) => a + num(b), 0) + snapshot.unknownPlayers;
+        const index = atIndex == null ? num(state.currentIdx) : atIndex;
+        const future = asArray(state.pickOrder).slice(index).filter(s => idKey(s.rosterId) === idKey(rosterId));
+        const complete = state.phase === 'complete';
+        const remainingPicks = !identityKnown ? null : complete ? 0 : state.draftMechanic === 'auction'
+            ? (rosterCapacity == null ? null : Math.max(0, rosterCapacity - rosterSize))
+            : asArray(state.pickOrder).length ? Math.min(future.length, rosterCapacity == null ? Infinity : Math.max(0, rosterCapacity - rosterSize)) : null;
+        const known = identityKnown && fit.known && snapshot.unknownPlayers === 0;
+        const open = known ? fit.total - fit.filled : null;
+        const mustFillStarters = known && remainingPicks != null && remainingPicks > 0 && open >= remainingPicks;
+        const positionLimits = state.positionLimits || state.draftContext?.leagueFormat?.positionLimits || {};
+        const allPositions = [...new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB',
+            ...active.flatMap(s => FLEX_ELIGIBILITY[s] || [s]), ...Object.keys(counts), ...asArray(state.pool).map(posOf).filter(Boolean)])];
+        const positions = allPositions.map(pos => {
+            const have = num(counts[pos]);
+            const starterCapacity = active.filter(s => (FLEX_ELIGIBILITY[s] || [s]).includes(pos)).length;
+            const fillsStarter = known && lineupFit(state, counts, pos).filled > fit.filled;
+            const starterUpgrade = known && pos === 'QB' && have < starterCapacity && starterCapacity > 1;
+            const explicit = Object.prototype.hasOwnProperty.call(positionLimits, pos) && Number.isFinite(Number(positionLimits[pos])) && Number(positionLimits[pos]) >= 0
+                ? Number(positionLimits[pos]) : null;
+            let status = 'unknown';
+            let reason = 'Lineup or roster information is incomplete; compare player value.';
+            if (explicit != null && have >= explicit) { status = 'blocked'; reason = pos + ' roster limit reached (' + have + '/' + explicit + ').'; }
+            else if (fit.known && !starterCapacity) { status = 'blocked'; reason = 'This lineup has no eligible ' + pos + ' slot.'; }
+            else if (known) {
+                if (remainingPicks === 0) { status = 'blocked'; reason = 'No remaining roster space or draft selections.'; }
+                else if (fillsStarter) { status = 'need'; reason = pos + ' fills an open starting slot' + (mustFillStarters ? '; reserve your remaining picks for starters.' : '.'); }
+                else if (mustFillStarters) { status = 'blocked'; reason = 'Adding another ' + pos + ' would use a pick needed for an unfilled starting slot.'; }
+                else if (starterUpgrade) { status = 'need'; reason = 'Adds a starting quarterback option in superflex; your current coverage relies on a skill player there.'; }
+                else if (pos === 'QB' && starterCapacity <= 1) { status = 'set'; reason = 'Your QB starter is covered. Use this pick for an open starter or RB/WR depth.'; }
+                else if (['K', 'DEF'].includes(pos)) { status = 'set'; reason = pos + ' is covered; a second specialist adds little weekly flexibility.'; }
+                else if (pos === 'QB' && have >= starterCapacity + 1) { status = 'set'; reason = 'Your quarterback starters and a backup are covered.'; }
+                else if (pos === 'TE' && have >= Math.max(2, active.filter(s => s === 'TE').length + 1)) { status = 'set'; reason = 'Your tight-end group has starter coverage and depth.'; }
+                else { status = 'depth'; reason = pos === 'QB' ? 'A backup supports your multi-QB lineup.' : pos + ' adds bench depth and lineup flexibility.'; }
+            }
+            return { pos, have, starterCapacity, fillsStarter, starterUpgrade, status, reason };
+        });
+        const summary = !known ? (snapshot.unknownPlayers ? 'Some player positions are unavailable. Roster fit is uncertain until those positions are known.'
+            : 'Roster fit is uncertain until lineup and keeper information are available.')
+            : remainingPicks === 0 ? (rosterCapacity != null && rosterSize >= rosterCapacity ? 'Your draft roster is complete.' : 'No draft selections remain for this roster.')
+                : mustFillStarters ? open + ' starting slots open with ' + remainingPicks + ' pick' + (remainingPicks === 1 ? '' : 's') + ' left. Fill the lineup now.'
+                    : open ? fit.filled + '/' + fit.total + ' starting slots covered. Add useful starters and depth while reserving picks for the open slots.'
+                        : 'Starting lineup covered. Build flexible depth for injuries and bye weeks.';
+        return { known, identityKnown, unknownPlayers: snapshot.unknownPlayers, counts, ownedIds: snapshot.ownedIds, filled: known ? fit.filled : null, total: fit.total,
+            openSlots: known ? fit.openSlots : [], remainingPicks, mustFillStarters, rosterSize, rosterCapacity,
+            positions, waitPositions: positions.filter(p => p.status === 'set').map(p => p.pos), summary };
+    }
+
+    function rosterFitFor(plan, player) {
+        const row = plan?.positions.find(p => p.pos === posOf(player));
+        return row || { pos: posOf(player), status: 'unknown', fillsStarter: false, reason: 'Position fit is unknown.' };
+    }
+
+    function applyRosterFit(rows, plan) {
+        if (!plan) return rows;
+        const eligible = rows.filter(row => !['set', 'blocked'].includes(rosterFitFor(plan, row.player).status)
+            && !plan.ownedIds.includes(idKey(row.player.pid)));
+        const maxValue = Math.max(1, ...eligible.map(row => Math.max(0, row.dhq)));
+        return rows.map(row => {
+            const fit = rosterFitFor(plan, row.player);
+            const useful = !['set', 'blocked'].includes(fit.status) && !plan.ownedIds.includes(idKey(row.player.pid));
+            // Compress raw player value before applying marginal roster utility:
+            // a 9,000-DHQ backup cannot overpower a 3,000-DHQ usable starter.
+            const priority = fit.status === 'need' ? (['K', 'DEF'].includes(fit.pos) && !plan.mustFillStarters ? 18 : 70)
+                : fit.status === 'depth' ? (['RB', 'WR'].includes(fit.pos) ? 18 : 5) : 0;
+            const score = plan.known ? 45 * Math.max(0, row.dhq) / maxValue + priority
+                + Math.max(-8, Math.min(8, row.score - row.dhq / 100)) : row.score;
+            const opportunityCost = fit.starterUpgrade && !fit.fillsStarter ? 'Improves superflex quarterback coverage; the remaining open slots still need later picks.'
+                : fit.status === 'need' ? 'This pick covers a starting slot; a backup would leave it open.'
+                : fit.status === 'depth' ? 'Adds a usable reserve after starting coverage; compare the next player at this position.' : fit.reason;
+            return { ...row, score, useful, rosterFit: { ...fit, opportunityCost } };
+        });
     }
 
     function historyLean(persona, pos) {
@@ -105,7 +237,9 @@
 
     function redraftBroadcastRead(state, read, counts, projectedTaken) {
         const copies = Math.max(1, num(state.playerCopies, 1));
-        const available = asArray(state.pool).filter(p => num(state.draftedPids?.[p.pid]) < copies);
+        const actualTaken = takenCounts(state);
+        const available = asArray(state.pool).filter(p => num(actualTaken[p.pid]) < copies);
+        const usefulOptions = candidates(state, Math.max(40, available.length)).filter(c => !c.fade).map(c => c.player);
         const tracked = asArray(state.redraftBroadcast?.watchPids);
         const marked = asArray(state.originalPool).filter(p => isTarget(boardEntry(state.draftContext?.boardContext, p))).map(p => idKey(p.pid));
         const watchIds = [...new Set([...tracked, ...marked])].slice(0, 8);
@@ -113,20 +247,20 @@
             const p = asArray(state.originalPool).find(p => idKey(p.pid) === pid) || asArray(state.picks).find(p => idKey(p.pid) === pid);
             if (!p) return null;
             const picks = asArray(state.picks).filter(p => idKey(p.pid) === pid);
-            const taken = num(state.draftedPids?.[pid]) >= copies;
+            const taken = num(actualTaken[pid]) >= copies;
             const yours = picks.some(p => idKey(p.rosterId) === idKey(state.userRosterId));
             const threats = read.forecasts.filter(f => idKey(f.player.pid) === pid || idKey(f.alternative?.pid) === pid);
             const projectedGone = num(projectedTaken[pid]) >= copies;
             const risk = taken ? (yours ? 'Yours' : 'Taken') : read.next?.picksAway === 0 ? 'Available now'
                 : read.isAuction || !read.next ? 'Unknown' : projectedGone ? 'Unlikely'
                     : !read.fullHorizon || threats.length ? 'Toss-up' : 'Likely';
-            const backup = available.filter(x => idKey(x.pid) !== pid && posOf(x) === posOf(p)).sort((a, b) => num(b.dhq) - num(a.dhq))[0]
-                || available.find(x => idKey(x.pid) !== pid);
+            const backup = usefulOptions.find(x => idKey(x.pid) !== pid && posOf(x) === posOf(p))
+                || usefulOptions.find(x => idKey(x.pid) !== pid) || null;
             return { player: p, risk, threats, backup, taken, yours,
                 owner: picks.length ? (state.personas?.[idKey(picks[picks.length - 1].rosterId)]?.teamName || 'Team ' + picks[picks.length - 1].rosterId) : null };
         }).filter(Boolean);
-        const shortlist = [...watch.filter(w => !w.taken).map(w => w.player), ...candidates(state, 30).filter(c => !c.fade).sort((a, b) => b.score - a.score).map(c => c.player)]
-            .filter((p, i, all) => all.findIndex(x => idKey(x.pid) === idKey(p.pid)) === i).slice(0, 3);
+        const recommendations = pickCards(state, null).filter(c => ['recommended', 'safe', 'upside'].includes(c.kind));
+        const shortlist = recommendations.map(c => available.find(p => idKey(p.pid) === idKey(c.player.pid))).filter(Boolean);
         const stories = Object.entries(counts).map(([rid, build]) => {
             const actual = asArray(state.picks).filter(p => idKey(p.rosterId) === rid);
             const fit = lineupFit(state, build);
@@ -137,7 +271,7 @@
                 text: actual.length + ' picks · ' + fit.filled + '/' + fit.total + ' starting slots covered'
                     + (dominant?.[1] >= 3 ? ' · ' + dominant[1] + ' ' + dominant[0] + ' selected' : '') };
         }).filter(Boolean).sort((a, b) => (a.rosterId === idKey(state.userRosterId) ? -1 : b.rosterId === idKey(state.userRosterId) ? 1 : 0)).slice(0, 4);
-        return { watch, shortlist, stories, scorecard: predictionScorecard(state) };
+        return { watch, shortlist, recommendations, stories, scorecard: predictionScorecard(state) };
     }
 
     // Conditional forecast: walk the real pick order, removing projected picks
@@ -145,16 +279,13 @@
     function buildRedraftRoomRead(state) {
         if (!isRedraftLive(state)) return null;
         const copies = Math.max(1, num(state.playerCopies, 1));
-        const taken = { ...state.draftedPids };
+        const taken = takenCounts(state);
         const pool = asArray(state.pool).filter(p => p?.pid && num(taken[p.pid]) < copies);
         const next = nextUserPick(state);
-        const rosterSlots = asArray(state.draftContext?.leagueFormat?.rosterSlots);
         const counts = {};
-        asArray(state.picks).forEach(p => {
-            const rid = idKey(p.rosterId);
-            counts[rid] = counts[rid] || {};
-            counts[rid][posOf(p)] = num(counts[rid][posOf(p)]) + 1;
-        });
+        const projectedOwned = {};
+        const rosterIds = new Set([...Object.keys(state.personas || {}), ...asArray(state.pickOrder).map(s => idKey(s.rosterId)), idKey(state.userRosterId)]);
+        rosterIds.forEach(rid => { const snapshot = rosterSnapshot(state, rid); counts[rid] = snapshot.counts; projectedOwned[rid] = new Set(snapshot.ownedIds); });
         const actualCounts = JSON.parse(JSON.stringify(counts));
         const maxValue = Math.max(1, ...pool.map(p => num(p.dhq)));
         const market = p => {
@@ -169,18 +300,19 @@
         const forecasts = [];
         const horizon = Math.min(24, Math.max(6, next?.picksAway || 0));
         const order = state.draftMechanic === 'auction' ? [] : asArray(state.pickOrder).slice(num(state.currentIdx), num(state.currentIdx) + horizon);
-        for (const slot of order) {
+        for (let orderIndex = 0; orderIndex < order.length; orderIndex++) {
+            const slot = order[orderIndex];
             const rid = idKey(slot.rosterId);
             if (rid === idKey(state.userRosterId)) break;
             const build = counts[rid] || {};
-            const baseFit = lineupFit(state, build).filled;
-            const fitByPos = {};
+            const plan = buildRosterPlan(state, rid, build, num(state.currentIdx) + orderIndex);
             const persona = state.personas?.[rid];
-            const ranked = pool.filter(p => num(taken[p.pid]) < copies).map(p => {
+            const ranked = pool.filter(p => num(taken[p.pid]) < copies && !projectedOwned[rid]?.has(idKey(p.pid)))
+                .filter(p => !['set', 'blocked'].includes(rosterFitFor(plan, p).status)).map(p => {
                 const { pos, adp, rank } = playerInputs.get(p);
-                const starters = rosterSlots.filter(s => s === pos).length;
-                const fillsStarter = fitByPos[pos] ?? (fitByPos[pos] = lineupFit(state, build, pos).filled > baseFit);
-                const missing = Math.max(fillsStarter ? 1 : 0, starters - num(build[pos]));
+                const fit = rosterFitFor(plan, p);
+                const fillsStarter = fit.fillsStarter;
+                const missing = fillsStarter ? 1 : 0;
                 // Market demand leads; actual missing starters and repeat-position
                 // selections adjust it. Missing ADP falls back to the DHQ board.
                 const history = historyLean(persona, pos);
@@ -191,20 +323,25 @@
                     + 20 * num(p.dhq) / maxValue + Math.min(2, missing) * 9
                     + history + scoringLean
                     - (fillsStarter ? 0 : num(build[pos]) * (['QB', 'TE', 'K', 'DEF'].includes(pos) ? 9 : 3));
-                return { p, score, adp, missing, pos, history, scoringLean, fillsStarter };
+                return { p, score, adp, missing, pos, history, scoringLean, fillsStarter, rosterFit: fit };
             }).sort((a, b) => b.score - a.score);
             if (!ranked.length) break;
             const locked = state.redraftBroadcast?.forecasts?.[idKey(slot.overall)];
-            const validLock = locked && idKey(locked.draftId) === idKey(state.sleeperDraftId) && locked.rosterId === rid;
-            const best = (validLock && ranked.find(r => idKey(r.p.pid) === locked.player.pid)) || ranked[0];
+            const lockRow = locked && idKey(locked.draftId) === idKey(state.sleeperDraftId) && locked.rosterId === rid
+                ? ranked.find(r => idKey(r.p.pid) === locked.player.pid) : null;
+            const validLock = !!lockRow;
+            const best = lockRow || ranked[0];
             forecasts.push({ slot, rosterId: rid, team: persona?.teamName || slot.ownerName || 'Team ' + rid,
-                player: best.p, alternative: validLock ? locked.alternative : ranked[1]?.p || null,
-                reason: validLock ? locked.reason : (best.adp ? 'ADP ' + best.adp.toFixed(1) : 'DHQ board fallback')
-                    + (best.fillsStarter ? ' · fills a starting slot (including flex)' : ' · roster depth')
+                player: best.p, alternative: validLock && ranked.some(r => idKey(r.p.pid) === idKey(locked.alternative?.pid)) ? locked.alternative : ranked.find(r => r !== best)?.p || null,
+                rosterFit: best.rosterFit,
+                reason: validLock && !best.rosterFit?.starterUpgrade ? locked.reason : (best.adp ? 'ADP ' + best.adp.toFixed(1) : 'DHQ board fallback')
+                    + (best.fillsStarter ? ' · fills a starting slot (including flex)'
+                        : best.rosterFit?.starterUpgrade ? ' · upgrades superflex quarterback coverage' : ' · roster depth')
                     + (best.history > 0 ? ' · history leans ' + best.pos + ' (' + persona.draftDna.picksAnalyzed + ' picks)' : '')
                     + (best.scoringLean ? ' · scoring bonus' : ''),
                 confidence: validLock ? 'Locked call' : ranked[1] && best.score - ranked[1].score < 8 ? 'Close call' : 'Stronger lean' });
             taken[best.p.pid] = num(taken[best.p.pid]) + 1;
+            (projectedOwned[rid] || (projectedOwned[rid] = new Set())).add(idKey(best.p.pid));
             counts[rid] = { ...build, [best.pos]: num(build[best.pos]) + 1 };
         }
         const recent = asArray(state.picks).slice(-8);
@@ -222,7 +359,9 @@
         }
         if (run && run[1] >= 3) commentary.push(run[1] + ' of the last ' + recent.length + ' picks were ' + run[0] + '. Compare the remaining options before following the run.');
         const targets = forecasts.filter(f => isTarget(boardEntry(state.draftContext?.boardContext, f.player))).slice(0, 3);
-        const survivors = pool.filter(p => num(taken[p.pid]) < copies).sort((a, b) => num(b.dhq) - num(a.dhq)).slice(0, 3);
+        const rosterPlan = buildRosterPlan(state);
+        const userCandidates = candidates(state, Math.max(40, pool.length)).filter(c => !c.fade);
+        const survivors = userCandidates.filter(c => num(taken[c.player.pid]) < copies).slice(0, 3).map(c => c.player);
         const read = { forecasts, commentary, targets, survivors, next, isAuction: state.draftMechanic === 'auction',
             fullHorizon: !!next && next.picksAway <= forecasts.length,
             basis: 'Estimates use market ADP, scoring-aware DHQ, lineup/flex needs and available draft history. Likely / toss-up / unlikely are uncalibrated judgments, not measured probabilities.' };
@@ -233,7 +372,19 @@
             commentary.push(needing + ' of ' + opponents.size + ' managers in this forecast can still use a ' + run[0] + ' in a starting slot. '
                 + (needing ? 'Keep a backup at that position on your shortlist.' : 'The run may leave value at another position; compare your shortlist.'));
         }
-        return { ...read, ...broadcast };
+        const canCompare = read.fullHorizon && !read.isAuction && num(next?.picksAway) > 0;
+        const positionOutlook = rosterPlan.positions.filter(position => ['need', 'depth'].includes(position.status)).map(position => {
+            const eligible = userCandidates.filter(c => posOf(c.player) === position.pos);
+            const projected = eligible.filter(c => num(taken[c.player.pid]) < copies);
+            const threats = forecasts.filter(f => posOf(f.player) === position.pos).map(f => ({ rosterId: f.rosterId, team: f.team, overall: f.slot.overall }));
+            return { pos: position.pos, eligibleAvailable: eligible.length, projectedSurvivors: canCompare ? projected.length : null,
+                bestNow: eligible[0]?.player || null, bestNext: canCompare ? projected[0]?.player || null : null, threats, canCompare,
+                basis: canCompare ? 'Conditional on the projected picks before your turn' : 'A full next-turn comparison is unavailable',
+                reason: !canCompare ? position.reason : !projected.length ? 'The forecast exhausts the useful ' + position.pos + ' options before your turn.'
+                    : projected[0]?.player.pid === eligible[0]?.player.pid ? 'The top useful ' + position.pos + ' survives this forecast; waiting is conditional, not guaranteed.'
+                        : 'The forecast removes the leading ' + position.pos + '; compare the next option before waiting.' };
+        });
+        return { ...read, ...broadcast, rosterPlan, positionOutlook };
     }
 
     function rankMap(order) {
@@ -315,13 +466,7 @@
 
     function userNeedMap(state) {
         if (isRedraftLive(state)) {
-            const counts = {};
-            asArray(state.picks).filter(p => idKey(p.rosterId) === idKey(state.userRosterId)).forEach(p => {
-                counts[posOf(p)] = num(counts[posOf(p)]) + 1;
-            });
-            const base = lineupFit(state, counts).filled;
-            return Object.fromEntries(['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'].map(pos => [pos,
-                lineupFit(state, counts, pos).filled > base ? 14 : 0]));
+            return Object.fromEntries(buildRosterPlan(state).positions.map(row => [row.pos, row.status === 'need' ? 14 : 0]));
         }
         const userPersona = state?.personas?.[state?.userRosterId] || state?.personas?.[String(state?.userRosterId)] || null;
         const intel = userPersona?.ownerIntel || state?.draftContext?.ownerContext?.[String(state?.userRosterId)] || {};
@@ -420,11 +565,16 @@
         const needs = userNeedMap(state);
         const gm = gmScoreContext(state);
         const ldCopies = Math.max(1, Number(state?.playerCopies) || 1);
-        return asArray(state?.pool)
-            .filter(p => p?.pid && (state?.draftedPids?.[p.pid] || 0) < ldCopies)
-            .map((p, idx) => decorateCandidate(state, p, idx, lane, rankLookup, needs, gm))
-            .sort((a, b) => (a.rank - b.rank) || (b.dhq - a.dhq))
-            .slice(0, limit);
+        const taken = takenCounts(state);
+        const rows = asArray(state?.pool)
+            .filter(p => p?.pid && num(taken[p.pid]) < ldCopies)
+            .map((p, idx) => decorateCandidate(state, p, idx, lane, rankLookup, needs, gm));
+        if (isRedraftLive(state)) {
+            const plan = buildRosterPlan(state);
+            if (state.phase === 'complete' || plan.remainingPicks === 0) return [];
+            return applyRosterFit(rows, plan).filter(row => row.useful).sort((a, b) => b.score - a.score || a.rank - b.rank).slice(0, limit);
+        }
+        return rows.sort((a, b) => (a.rank - b.rank) || (b.dhq - a.dhq)).slice(0, limit);
     }
 
     function card(kind, label, candidate, detail, tone = 'gold', extra = {}) {
@@ -454,6 +604,25 @@
         const redraft = isRedraftLive(state);
         const rows = candidates(state, 40);
         const clean = rows.filter(c => !c.fade);
+        if (redraft) {
+            const chosen = [];
+            if (clean[0]) chosen.push(clean[0]);
+            const differentPosition = clean.find(c => !chosen.some(p => idKey(p.player.pid) === idKey(c.player.pid)) && posOf(c.player) !== posOf(chosen[0]?.player));
+            const second = differentPosition || clean.find(c => !chosen.some(p => idKey(p.player.pid) === idKey(c.player.pid)));
+            if (second) chosen.push(second);
+            const third = clean.find(c => !chosen.some(p => idKey(p.player.pid) === idKey(c.player.pid)));
+            if (third) chosen.push(third);
+            return chosen.map((row, index) => card(
+                ['recommended', 'safe', 'upside'][index], ['Take now', 'Useful alternative', 'Another route'][index], row,
+                row.rosterFit?.reason || 'Best available value while roster requirements are unknown.',
+                ['gold', 'green', 'purple'][index], {
+                    drivers: [row.rosterFit?.status === 'unknown' ? 'roster_unknown' : 'marginal_roster_value',
+                        row.rosterFit?.fillsStarter ? 'open_starter' : row.rosterFit?.starterUpgrade ? 'starter_upgrade'
+                            : row.rosterFit?.status === 'unknown' ? 'board_value' : 'useful_depth', row.target ? 'user_target' : 'board_value'],
+                    meta: { rosterFit: row.rosterFit || null },
+                }
+            ));
+        }
         const recommended = clean.slice().sort((a, b) => b.score - a.score)[0] || rows[0];
         const safe = clean.slice().sort((a, b) => {
             const stabilityA = a.dhq + (a.tier ? (8 - Math.min(8, a.tier)) * 90 : 0) + Math.min(0, a.growth);
@@ -552,6 +721,7 @@
             schemaVersion: SCHEMA,
             mode: state?.mode || '',
             seasonal: isRedraftLive(state),
+            rosterPlan: buildRosterPlan(state),
             currentPick: currentSlot,
             nextUserPick: next,
             cards,
@@ -774,6 +944,7 @@
     window.DraftCC.liveDecisionEngine = {
         isRedraftLive,
         lineupFit,
+        buildRosterPlan,
         predictionScorecard,
         lockRedraftForecast: state => _ldePro() ? lockRedraftForecast(state) : state,
         buildRedraftRoomRead: _gateNull(buildRedraftRoomRead),

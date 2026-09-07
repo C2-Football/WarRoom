@@ -279,6 +279,9 @@
 
     function DraftCommandCenter({ playersData, myRoster, currentLeague, draftRounds: propRounds, forcedMode, autoStartLiveToken }) {
         const stateFns = window.DraftCC.state;
+        const livePlayersRef = React.useRef(playersData);
+        livePlayersRef.current = playersData;
+        const [liveDataReady, setLiveDataReady] = React.useState(false);
 
         // Phase 5+: mount-time fetch for the league's drafts so upcomingSettings
         // is populated even when window.S.drafts is empty (which is common —
@@ -548,7 +551,7 @@
                 draftVariant,
                 upcomingSettings,
             };
-        }, [myRoster, currentLeague, propRounds, fetchedDrafts, liveDraftTradedPicks, liveMflSlots]);
+        }, [myRoster, currentLeague, propRounds, fetchedDrafts, liveDraftTradedPicks, liveMflSlots, liveDataReady]);
 
         // Reducer + initial state (load from localStorage if possible)
         const [state, dispatch] = React.useReducer(
@@ -985,23 +988,11 @@
 
             window.DraftCC.liveSync.start(state.sleeperDraftId, (sleeperPicks, snapshot) => {
                 const active = liveStateRef.current || state;
-                const activePlayersData = window.S?.players || {};
+                const activePlayersData = Object.keys(window.S?.players || {}).length ? window.S.players : livePlayersRef.current || {};
                 const mapped = (sleeperPicks || []).map(sleeperPick => {
-                    const pid = sleeperPick.player_id;
-                    const p = activePlayersData[pid] || {};
-                    const poolMatch = (active.pool || []).find(x => String(x.pid) === String(pid))
-                        || (active.originalPool || []).find(x => String(x.pid) === String(pid));
-                    const player = {
-                        pid,
-                        name: poolMatch?.name || p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || 'Unknown',
-                        pos: poolMatch?.pos || normPos(p.position) || p.position || '?',
-                        dhq: poolMatch?.dhq || getDHQ(pid),
-                        consensusRank: poolMatch?.consensusRank || null,
-                        photoUrl: poolMatch?.photoUrl || ('https://sleepercdn.com/content/nfl/players/thumb/' + pid + '.jpg'),
-                        college: poolMatch?.college || p.college || '',
-                        tier: poolMatch?.tier || null,
-                        csv: poolMatch?.csv || null,
-                    };
+                    const player = window.DraftCC.liveSync.resolveLivePlayer(sleeperPick, {
+                        pool: active.pool, originalPool: active.originalPool, playersData: activePlayersData, getDHQ, normPos,
+                    });
                     return {
                         sleeperPick,
                         player,
@@ -1252,6 +1243,7 @@
                     lastRunRef.current = { pos: run.pos, count: run.count };
                     const ordinal = ['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth'][run.count] || (run.count + 'th');
                     const userNeedsRun = (() => {
+                        if (isRedraftLive(state)) return window.DraftCC.liveDecisionEngine.buildRosterPlan(state)?.positions.some(p => p.pos === run.pos && p.status === 'need');
                         const up = state.personas?.[state.userRosterId];
                         const needs = up?.assessment?.needs || [];
                         return needs.some(n => (typeof n === 'string' ? n : n?.pos) === run.pos);
@@ -1261,7 +1253,10 @@
                     // keep the read non-quantified.
                     const runSignals = window.DraftCC.liveDecisionEngine?.liveStreamSignals?.(state) || {};
                     const runCliff = runSignals.tierBreak && runSignals.tierBreak.pos === run.pos;
-                    const implication = userNeedsRun
+                    const liveRunFit = isRedraftLive(state) ? window.DraftCC.liveDecisionEngine.buildRosterPlan(state)?.positions.find(p => p.pos === run.pos) : null;
+                    const implication = liveRunFit && ['set', 'blocked', 'unknown'].includes(liveRunFit.status)
+                        ? (liveRunFit.status === 'unknown' ? 'Compare your actual roster before following the run.' : `Your ${run.pos} group is covered. Look for useful value at another position.`)
+                        : userNeedsRun
                         ? (runCliff
                             ? `You need ${run.pos} — the tier is down to its last man. If you want one, this is the window.`
                             : `You need ${run.pos} — the pocket is thinning fast. If you want one, this is the window.`)
@@ -1585,7 +1580,7 @@
                 : 200;
             let pool = stateFns.buildPool({
                 variant: activeState.variant,
-                playersData,
+                playersData: Object.keys(playersData || {}).length ? playersData : window.S?.players || {},
                 maxSize: maxPoolSize,
             });
             pool = applyUserBigBoardOrder(pool, leagueId, activeState.variant);
@@ -1794,9 +1789,21 @@
 
         const liveAutoStartedRef = React.useRef('');
         React.useEffect(() => {
+            if (forcedMode !== 'live-sync' && state.mode !== 'live-sync') return undefined;
+            const check = () => {
+                const ready = (Object.keys(window.S?.players || {}).length > 0 || Object.keys(livePlayersRef.current || {}).length > 0) && (window.S?.rosters || []).length > 0;
+                setLiveDataReady(ready);
+                return ready;
+            };
+            if (check()) return undefined;
+            const timer = setInterval(() => { if (check()) clearInterval(timer); }, 500);
+            return () => clearInterval(timer);
+        }, [forcedMode, state.mode, playersData, myRoster, currentLeague]);
+        React.useEffect(() => {
             if (forcedMode !== 'live-sync') return;
             if (!autoStartLiveToken) return;
             if (state.phase !== 'setup') return;
+            if (!liveDataReady) return;
             if (!Array.isArray(fetchedDrafts)) return;
             let cancelled = false;
             const launch = async () => {
@@ -1815,12 +1822,45 @@
                 if (liveAutoStartedRef.current === key) return;
                 liveAutoStartedRef.current = key;
                 const patch = liveDraftSetupPatch(liveDraft, currentLeague);
+                patch.userRosterId = myRoster?.roster_id ?? state.userRosterId ?? null;
+                patch.userSlot = draftMeta.mySlot || state.userSlot;
                 dispatch({ type: 'SETUP_CHANGE', payload: patch });
                 onStartDraft(patch);
             };
             launch();
             return () => { cancelled = true; };
-        }, [forcedMode, autoStartLiveToken, state.phase, fetchedDrafts, leagueIdForFetch, onStartDraft]);
+        }, [forcedMode, autoStartLiveToken, state.phase, fetchedDrafts, leagueIdForFetch, onStartDraft, liveDataReady, myRoster, draftMeta]);
+
+        // Repair saved live rooms created before player hydration finished.
+        // Pick ownership, timing, and user board choices remain authoritative.
+        React.useEffect(() => {
+            if (state.mode !== 'live-sync' || state.phase === 'setup' || !liveDataReady) return;
+            const data = Object.keys(window.S?.players || {}).length ? window.S.players : playersData || {};
+            const originalPool = state.originalPool?.length ? state.originalPool : stateFns.buildPool({
+                variant: state.auctionPoolSource || state.variant, playersData: data,
+                maxSize: Math.max(300, state.rounds * state.leagueSize + 80),
+            });
+            let changed = originalPool !== state.originalPool && originalPool.length > 0;
+            const picks = state.picks.map(p => {
+                if (p.name && p.name !== 'Unknown' && p.pos && p.pos !== '?') return p;
+                const resolved = window.DraftCC.liveSync.resolveLivePlayer({ player_id: p.pid }, {
+                    originalPool, playersData: data, normPos: window.App?.normPos, getDHQ: pid => stateFns.resolvePlayerDhq?.({ pid })?.value || 0,
+                });
+                if (resolved.name === 'Unknown' || resolved.pos === '?') return p;
+                changed = true;
+                return { ...p, ...resolved };
+            });
+            if (!changed) return;
+            const teamRosters = {};
+            picks.forEach(p => {
+                const key = state.draftMechanic === 'auction' ? p.rosterId : p.teamIdx;
+                if (key != null) (teamRosters[key] || (teamRosters[key] = [])).push(p.pos);
+            });
+            dispatch({ type: 'HYDRATE', state: {
+                originalPool, pool: state.originalPool?.length ? state.pool : originalPool.filter(p => (state.draftedPids[p.pid] || 0) < Math.max(1, state.playerCopies || 1)),
+                picks, pickedByIdx: Object.fromEntries(picks.map(p => [p.overall, p])), teamRosters,
+            } });
+        }, [state.mode, state.phase, state.originalPool, state.picks, liveDataReady, playersData]);
 
         // ── Manual handover from a memorialized completed board ─────
         // The completed draft holds the room until the next draft genuinely takes
@@ -1864,7 +1904,7 @@
         // session, which blanks Opponent Intel (and the prediction engine,
         // which bails on an empty persona set). Recompose once rosters appear.
         React.useEffect(() => {
-            if (state.phase === 'setup' || state.phase === 'complete') return;
+            if (state.phase === 'setup') return;
             const rosterCount = (window.S?.rosters || []).length;
             if (!rosterCount) return;
             if (Object.keys(state.personas || {}).length >= rosterCount) return;
@@ -1879,7 +1919,7 @@
             if (Object.keys(personas).length > Object.keys(state.personas || {}).length) {
                 dispatch({ type: 'HYDRATE', state: { personas } });
             }
-        }, [state.phase, state.personas, myRoster, currentLeague]);
+        }, [state.phase, state.personas, myRoster, currentLeague, liveDataReady]);
 
         // ── Phase 2: predictions refresh ────────────────────────────
         // Recompute willReach / willPassOn / likelyPick for every persona
@@ -5387,7 +5427,7 @@
         ];
         const ownerTell = isLive ? ((liveDecisionDeck?.alerts || []).find(a => a.type === 'owner_tendency') || null) : null;
         return (
-            <div className="mock-draft-cockpit draft-cc-scope">
+            <div className={'mock-draft-cockpit draft-cc-scope' + (isRedraftLive(state) ? ' is-live-redraft' : '')}>
                 <section className="mock-draftcast-rail">
                     <div className="mock-cast-brand">
                         <div>DHQ</div>
@@ -5444,7 +5484,7 @@
                             <LiveSyncCommandReadPanel state={state} liveSync={state.liveSync} currentSlot={currentSlot} nextUserSlot={nextUserSlot} trendText={runReport.value} dispatch={dispatch} />
                         </div>
                     )}
-                    <div className="mock-status-row">
+                    {!isRedraftLive(state) && <div className="mock-status-row">
                         {statusTiles.map(tile => (
                             <div key={tile.label} className={tile.extra ? 'has-extra' : ''}>
                                 <span>{tile.label}</span>
@@ -5457,7 +5497,7 @@
                                 )}
                             </div>
                         ))}
-                    </div>
+                    </div>}
                     {/* Decision Deck lives IN the rail card now, right under the
                         clock/status read — "here's the situation" and "here's
                         the pick" are one card, not one panel plus a scroll down
@@ -5466,7 +5506,7 @@
                         LiveDecisionDeckPanel instead of MockDecisionDeck — a real
                         Sleeper draft can't be auto-picked by clicking a card. */}
                     {isLive ? (
-                        liveDecisionDeck && (
+                        liveDecisionDeck && !isRedraftLive(state) && (
                             <div style={{ gridColumn: '1 / -1', margin: '12px 16px 14px' }}>
                                 <LiveDecisionDeckPanel deck={liveDecisionDeck} onTrade={openTradeDesk} layoutGap={0} />
                             </div>
@@ -5511,7 +5551,9 @@
                     </div> : <MockBigBoardTable state={state} dispatch={dispatch} isUserTurn={isUserTurn} />}
                     <div className={'mock-right-stack' + (state.activeOffer ? ' has-trade-offer' : '')}>
                         <MockPickLog state={state} currentSlot={currentSlot} />
-                        <MockRosterBuildCard state={state} grade={grade} />
+                        {isRedraftLive(state) && window.DraftCC.LiveRosterBuildCard
+                            ? React.createElement(window.DraftCC.LiveRosterBuildCard, { state, grade })
+                            : <MockRosterBuildCard state={state} grade={grade} />}
                         <MockTradeOfferPanel state={state} dispatch={dispatch} />
                         {/* Opponent Intel card removed from the cockpit (owner ask
                             2026-09-06): the on-clock read now lives in the DraftCast
@@ -6692,7 +6734,7 @@
                     />
                 )}
 
-                {state.mode === 'live-sync' && liveDecisionDeck && (
+                {state.mode === 'live-sync' && !isRedraftLive(state) && liveDecisionDeck && (
                     <LiveDecisionDeckPanel
                         deck={liveDecisionDeck}
                         onTrade={openTradeDesk}
@@ -6760,10 +6802,10 @@
                     marginBottom: L.GRID_GAP + 'px',
                 }}>
                     <div style={{ minHeight: isCompact ? 'clamp(420px, 50vh, 560px)' : '100%', minWidth: 0 }}>
-                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={true} />
+                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={!isRedraftLive(state)} />
                     </div>
                     <div style={{ minHeight: isCompact ? 'clamp(420px, 50vh, 560px)' : '100%', minWidth: 0 }}>
-                        <MyDraftRosterPanel state={state} />
+                        {isRedraftLive(state) && window.DraftCC.LiveRosterBuildCard ? React.createElement(window.DraftCC.LiveRosterBuildCard, { state }) : <MyDraftRosterPanel state={state} />}
                     </div>
                     {!isCompact && (
                         <div style={{ minHeight: '100%', minWidth: 0 }}>
@@ -7117,12 +7159,8 @@
     }
 
     function RedraftRoomReadPanel({ state, dispatch }) {
-        const read = React.useMemo(() => window.DraftCC?.liveDecisionEngine?.buildRedraftRoomRead?.(state), [
-            state.pool, state.originalPool, state.picks, state.draftedPids, state.currentIdx,
-            state.pickOrder, state.personas, state.draftContext, state.userRosterId, state.userSlot,
-            state.redraftBroadcast?.watchPids, state.redraftBroadcast?.forecasts,
-            state.mode, state.variant, state.draftMechanic, state.auctionPoolSource, state.playerCopies, state.sleeperDraftId,
-        ]);
+        const read = React.useMemo(() => window.DraftCC?.liveDecisionEngine?.buildRedraftRoomRead?.(state), [state]);
+        const LivePickBrief = window.DraftCC.LivePickBrief;
         const [selectedPid, setSelectedPid] = React.useState('');
         const [soundOn, setSoundOn] = React.useState(false);
         const audioRef = React.useRef(null);
@@ -7157,13 +7195,14 @@
         };
         return (
             <section className={'mock-panel redraft-room-read' + (quiet ? ' is-quiet' : '')}>
-                <div className="mock-panel-head"><span>Alex · Redraft Room Read</span><em>{state.picks?.length || 0} picks synced</em></div>
                 <div className="redraft-room-body">
+                    {LivePickBrief && <LivePickBrief state={state} read={read} />}
+                    <details className="redraft-extra-details"><summary>Targets &amp; draft-room forecast · {read.watch.length} tracked</summary>
                     <div className="redraft-broadcast-controls">
                         <button type="button" aria-pressed={quiet} onClick={() => dispatch?.({ type: 'REDRAFT_QUIET_TOGGLE' })}>{quiet ? 'Quiet mode on' : 'Quiet mode off'}</button>
                         <button type="button" aria-pressed={soundOn} disabled={quiet} onClick={toggleSound}>{soundOn ? 'Target sound on' : 'Target sound off'}</button>
                     </div>
-                    {onDeck && <div className="redraft-on-deck" role="status">
+                    {!LivePickBrief && onDeck && <div className="redraft-on-deck" role="status">
                         <strong>{read.next.picksAway === 0 ? "You're on the clock" : 'On deck · ' + read.next.picksAway + (read.next.picksAway === 1 ? ' pick away' : ' picks away')}</strong>
                         <p>{label(read.next.slot)} · Your shortlist</p>
                         <div className="redraft-shortlist">{read.shortlist.map(p => <button type="button" key={p.pid} onClick={() => mockOpenPlayer(p)}>{p.name}<small>{p.pos} · DHQ {mockFmt(p.dhq)}</small></button>)}</div>
@@ -7215,6 +7254,7 @@
                         {!read.scorecard.rows.length && <p>The scorecard starts with the next opponent pick observed while this room is open.</p>}
                     </details>}
                     <details className="redraft-method"><summary>How these estimates work</summary><small className="redraft-forecast-basis">{read.basis}</small></details>
+                    </details>
                 </div>
             </section>
         );
@@ -8078,7 +8118,7 @@
                     {isRedraftLive(state) && <RedraftRoomReadPanel state={state} dispatch={dispatch} />}
                     {hasTeamTracker && <LiveRoomPanel state={state} />}
                     <div style={{ minHeight: 320, maxHeight: '56vh', marginBottom: 10 }}>
-                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={true} />
+                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={!isRedraftLive(state)} />
                     </div>
                     <div style={{ minHeight: 300, marginBottom: 10 }}>
                         <AlexStreamPanel state={state} dispatch={dispatch} />
@@ -8116,7 +8156,9 @@
         // tab); otherwise the on-clock team's predicted pick, tap → Opponent
         // Intel. (Prediction is a Pro read; the sheet carries the free gate.)
         const onClockPersona = currentSlot ? personas[String(currentSlot.rosterId || '')] : null;
-        const lp = pro ? onClockPersona?.predictions?.likelyPick : null;
+        const liveForecast = pro && isRedraftLive(state)
+            ? window.DraftCC.liveDecisionEngine.buildRedraftRoomRead(state)?.forecasts.find(f => Number(f.slot?.overall) === Number(currentSlot?.overall)) : null;
+        const lp = pro ? isRedraftLive(state) ? liveForecast?.player : onClockPersona?.predictions?.likelyPick : null;
         const draftCastIntel = state.phase === 'complete' ? null : isUserTurn
             ? { tag: 'PICK', accent: 'var(--bad, #e5534b)', text: "You're up — open the Big Board and make the call", onTap: () => setPhTab('board') }
             : {
@@ -8166,7 +8208,10 @@
                     </div>
                 )}
                 {phTab === 'board' && (<div style={{ height: '56dvh', minHeight: 320, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', paddingRight: 2 }}>
-                    {drafting && (pro ? (
+                    {drafting && isRedraftLive(state) && window.DraftCC.LivePickBrief && <div style={{ marginBottom: 12, padding: 10 }}>
+                        {React.createElement(window.DraftCC.LivePickBrief, { state, compact: true })}
+                    </div>}
+                    {drafting && !isRedraftLive(state) && (pro ? (
                         <section style={{ marginBottom: 10, padding: '10px 12px', background: wrAlpha(ALEXC, '0a'), border: '1px solid ' + wrAlpha(ALEXC, '3d'), borderRadius: 8 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                                 <span style={{ color: ALEXC, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', flexShrink: 0 }}>Alex's pick</span>
@@ -8197,12 +8242,14 @@
                         </section>
                     ))}
                     <div style={{ marginBottom: 10 }}>
-                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={true} />
+                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={!isRedraftLive(state)} />
                     </div>
                 </div>)}
                 {phTab === 'roster' && (
                     <div style={{ height: '56dvh', minHeight: 320, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', paddingRight: 2 }}>
-                        <MyDraftRosterPanel state={state} />
+                        {isRedraftLive(state) && window.DraftCC.LiveRosterBuildCard
+                            ? React.createElement(window.DraftCC.LiveRosterBuildCard, { state })
+                            : <MyDraftRosterPanel state={state} />}
                     </div>
                 )}
                 {/* Opp Intel opens from the DraftCast card's Intel row (owner ask) —

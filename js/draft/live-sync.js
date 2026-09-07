@@ -34,6 +34,44 @@
         return !!_pollTimer;
     }
 
+    // Draft-pick metadata arrives with the live feed even when the full player
+    // database or draft pool has not loaded. Resolve each field independently so
+    // a placeholder pool row cannot hide that identity or a real zero DHQ.
+    function resolveLivePlayer(sleeperPick, opts = {}) {
+        const pick = sleeperPick || {};
+        const pid = pick.player_id ?? pick.pid ?? '';
+        const find = rows => (Array.isArray(rows) ? rows : []).find(p => p && String(p.pid) === String(pid));
+        const sources = [find(opts.pool), find(opts.originalPool), opts.playersData?.[pid], pick.metadata].filter(Boolean);
+        const usableText = value => {
+            const text = value == null ? '' : String(value).trim();
+            return text && !/^(?:unknown(?: player)?|\?|n\/a|null|undefined|—|-)$/i.test(text) ? text : '';
+        };
+        const firstText = values => values.map(usableText).find(Boolean) || '';
+        const name = firstText(sources.flatMap(p => [p.name, p.full_name,
+            [usableText(p.first_name), usableText(p.last_name)].filter(Boolean).join(' ')])) || 'Unknown';
+        const rawPos = firstText(sources.flatMap(p => [p.pos, p.position, p.fantasy_positions?.[0]])).toUpperCase();
+        const normalizedPos = typeof opts.normPos === 'function' && rawPos ? usableText(opts.normPos(rawPos)).toUpperCase() : rawPos;
+        const pos = ({ 'D/ST': 'DEF', DST: 'DEF', PK: 'K' })[normalizedPos || rawPos] || normalizedPos || rawPos || '?';
+        const numeric = value => value !== '' && value != null && Number.isFinite(Number(value)) ? Number(value) : null;
+        const poolSources = [find(opts.pool), find(opts.originalPool)].filter(Boolean);
+        const poolDhq = poolSources.map(p => numeric(p.dhq)).find(value => value != null);
+        const dhq = poolDhq ?? (typeof opts.getDHQ === 'function' ? numeric(opts.getDHQ(pid)) : null) ?? 0;
+        const firstValue = key => sources.map(p => p[key]).find(value => value != null) ?? null;
+        return {
+            pid,
+            name,
+            pos,
+            team: firstText(sources.map(p => p.team)),
+            dhq,
+            consensusRank: firstValue('consensusRank'),
+            photoUrl: firstText(sources.flatMap(p => [p.photoUrl, p.photo_url]))
+                || (pid ? 'https://sleepercdn.com/content/nfl/players/thumb/' + pid + '.jpg' : ''),
+            college: firstText(sources.map(p => p.college)),
+            tier: firstValue('tier'),
+            csv: firstValue('csv'),
+        };
+    }
+
     /**
      * start — begin polling a Sleeper draft. On each poll, reports status;
      * when new picks are detected, calls onNewPicks(newPicks, snapshot).
@@ -371,6 +409,7 @@
         start,
         stop,
         isRunning,
+        resolveLivePlayer,
         _private: {
             pickKey,
             reconcilePicks,

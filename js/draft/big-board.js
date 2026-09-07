@@ -328,18 +328,50 @@
             return sorted.slice(0, 100);
         }, [decoratedPool, posFilter, search, sortKey, sortDir, hideDrafted, adpFor]);
 
-        // Pick advisory — deterministic (zero AI cost), same Recommended/Safe/
-        // Upside selection MockDecisionDeck already uses for the sim board
-        // (command-center.js), applied to the live pool. Replaces the old
-        // "💬 Ask Alex" chat handoff (chat is retired).
+        // Live redraft advice shares the main decision deck's roster-aware
+        // choices. The raw board can still lead with an excellent extra QB;
+        // that ranking must never become a fallback recommendation.
+        const liveRedraftAdvisory = state.mode === 'live-sync' && (
+            state.variant === 'redraft' || state.auctionPoolSource === 'redraft'
+            || state.draftContext?.leagueFormat?.draftType === 'redraft'
+        );
         const pickAdvisory = React.useMemo(() => {
             const pool = state.pool || [];
+            if (liveRedraftAdvisory) {
+                const deck = pro ? window.DraftCC?.liveDecisionEngine?.buildDecisionDeck?.(state) : null;
+                const choice = kind => {
+                    const card = (deck?.cards || []).find(c => c.kind === kind);
+                    const player = card?.player;
+                    const available = player?.pid != null && pool.find(p => String(p.pid) === String(player.pid));
+                    return available ? { ...available, ...player, advisoryDetail: card.detail, advisoryLabel: card.label } : null;
+                };
+                return { best: choice('recommended'), safe: choice('safe'), upside: choice('upside'), rosterPlan: deck?.rosterPlan || null };
+            }
             const best = pool[0] || null;
             const safe = pool.find(p => Number(p.tier ?? p.csv?.tier ?? 99) <= 2 && p !== best) || pool[1] || best;
             const upside = pool.find(p => (p.fit?.score || 0) >= 55 && p !== best && p !== safe) || pool[2] || best;
             return { best, safe, upside };
-        }, [state.pool]);
-        const pickAdvisoryKey = 'bb-take:' + [pickAdvisory.best, pickAdvisory.safe, pickAdvisory.upside].map(p => p?.pid || p?.name || '').join(',');
+        }, [state, liveRedraftAdvisory, pro]);
+        const advisoryContext = {
+            recommended: pickAdvisory.best && { name: pickAdvisory.best.name, pos: pickAdvisory.best.pos, dhq: pickAdvisory.best.dhq, reason: pickAdvisory.best.advisoryDetail },
+            safe: pickAdvisory.safe && { name: pickAdvisory.safe.name, pos: pickAdvisory.safe.pos, dhq: pickAdvisory.safe.dhq, reason: pickAdvisory.safe.advisoryDetail },
+            upside: pickAdvisory.upside && { name: pickAdvisory.upside.name, pos: pickAdvisory.upside.pos, dhq: pickAdvisory.upside.dhq, reason: pickAdvisory.upside.advisoryDetail },
+            ...(liveRedraftAdvisory ? {
+                draftId: state.sleeperDraftId || state.id,
+                userRosterId: state.userRosterId,
+                currentIdx: state.currentIdx,
+                phase: state.phase,
+                startingSlots: state.draftContext?.leagueFormat?.rosterSlots || [],
+                scoring: state.draftContext?.leagueFormat?.scoring || {},
+                rosterPlan: pickAdvisory.rosterPlan,
+                myPicks: (state.picks || []).filter(p => String(p.rosterId) === String(state.userRosterId))
+                    .map(p => ({ pid: p.pid, pos: p.pos, overall: p.overall })),
+                nextPicks: (state.pickOrder || []).slice(state.currentIdx, state.currentIdx + 24)
+                    .map(p => [p.overall, p.rosterId]),
+            } : {}),
+        };
+        const pickAdvisoryKey = 'bb-take:' + [pickAdvisory.best, pickAdvisory.safe, pickAdvisory.upside].map(p => p?.pid || p?.name || '').join(',')
+            + (liveRedraftAdvisory ? ':' + JSON.stringify(advisoryContext) : '');
         // Live draft pool moves fast (another manager can pick while this is in
         // flight) — track the current board identity in a ref so a resolved
         // response can be dropped if it's no longer describing what's on screen.
@@ -349,17 +381,15 @@
         const getAlexTake = async () => {
             if (typeof window.AlexVoice?.enhance !== 'function' || typeof window.wrIsPro === 'function' && !window.wrIsPro()) return;
             setAlexTake({ loading: true });
-            const { best, safe, upside } = pickAdvisory;
+            const { best } = pickAdvisory;
             if (!best) { setAlexTake(null); return; }
             const cacheKey = pickAdvisoryKey;
-            const context = JSON.stringify({
-                recommended: best && { name: best.name, pos: best.pos, dhq: best.dhq },
-                safe: safe && { name: safe.name, pos: safe.pos, dhq: safe.dhq },
-                upside: upside && { name: upside.name, pos: upside.pos, dhq: upside.dhq },
-            });
+            const context = JSON.stringify(advisoryContext);
             const text = await window.AlexVoice.enhance({
                 type: 'strategy-analysis',
-                message: 'In 1-2 sentences, give your gut take on this pick decision — lean toward the recommended name unless the upside swing is clearly worth it here.',
+                message: liveRedraftAdvisory
+                    ? 'In 1-2 sentences, explain the supplied live-redraft recommendation using its roster fit and the current lineup. Choose only among the supplied eligible players and respect the roster plan. Do not add a surplus quarterback outside those choices. Describe any wait-versus-take forecast as an estimate; do not invent availability or player facts.'
+                    : 'In 1-2 sentences, give your gut take on this pick decision — lean toward the recommended name unless the upside swing is clearly worth it here.',
                 context,
                 fallback: null,
                 cacheKey,
@@ -731,9 +761,9 @@
                     <div style={{ marginBottom: '8px' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
                             {[
-                                { key: 'rec', label: 'Recommended', tone: '#2ecc71', p: pickAdvisory.best },
-                                { key: 'safe', label: 'Safe', tone: '#3498db', p: pickAdvisory.safe },
-                                { key: 'upside', label: 'Upside', tone: '#9b8afb', p: pickAdvisory.upside },
+                                { key: 'rec', label: pickAdvisory.best?.advisoryLabel || 'Recommended', tone: '#2ecc71', p: pickAdvisory.best },
+                                { key: 'safe', label: pickAdvisory.safe?.advisoryLabel || 'Safe', tone: '#3498db', p: pickAdvisory.safe },
+                                { key: 'upside', label: pickAdvisory.upside?.advisoryLabel || 'Upside', tone: '#9b8afb', p: pickAdvisory.upside },
                             ].map(row => row.p && (
                                 <div key={row.key} style={{ minWidth: 0, padding: '4px 6px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid ' + row.tone + '4d', background: row.tone + '14' }}>
                                     <div style={{ fontSize: 'var(--text-micro, 0.625rem)', fontWeight: 800, color: row.tone, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{row.label}</div>

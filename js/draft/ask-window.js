@@ -29,12 +29,27 @@
     function buildAskContext(state) {
         if (!state) return '';
         const lines = [];
-        if (window.DraftCC?.liveDecisionEngine?.isRedraftLive?.(state)) {
+        const engine = window.DraftCC?.liveDecisionEngine;
+        const liveRedraft = !!engine?.isRedraftLive?.(state);
+        const canAdvise = typeof window.wrIsPro !== 'function' || window.wrIsPro();
+        const rosterPlan = liveRedraft ? engine.buildRosterPlan?.(state) : null;
+        let liveRecommendations = [];
+        if (liveRedraft) {
             lines.push('LIVE REDRAFT: prioritize this season, starting lineup needs, market ADP and actual draft selections. Do not suggest trading picks, moving up/down, buyer lines, or five-year dynasty value. Give concrete player alternatives and label forecasts as conditional estimates, never known manager intentions.');
-            const read = window.DraftCC.liveDecisionEngine.buildRedraftRoomRead?.(state);
+            lines.push('When recommending a draft selection, choose only from the eligible live recommendations supplied below. Never turn a watched player, an opponent forecast, or a covered position into an extra recommendation. In a 1-QB lineup, do not recommend another QB after that group is covered. If roster fit or eligible recommendations are unavailable, explain the missing information instead of inventing a fit.');
+            const read = canAdvise ? engine.buildRedraftRoomRead?.(state) : null;
             if (read) {
                 lines.push('Room commentary: ' + read.commentary.join(' '));
                 lines.push('Conditional upcoming selections: ' + read.forecasts.map(f => '#' + f.slot.overall + ' ' + f.team + ': ' + f.player.name + ' (' + f.reason + '; ' + f.confidence + ')').join('; '));
+            }
+            liveRecommendations = canAdvise ? (read?.recommendations || engine.buildDecisionDeck?.(state)?.cards || [])
+                .filter(card => ['recommended', 'safe', 'upside'].includes(card.kind) && card.player) : [];
+            if (rosterPlan) {
+                lines.push('Actual roster plan: ' + rosterPlan.summary);
+                lines.push('Roster knowledge: ' + (rosterPlan.known ? 'known' : 'incomplete')
+                    + '; picks remaining: ' + (rosterPlan.remainingPicks == null ? 'unknown' : rosterPlan.remainingPicks)
+                    + '; starting slots open: ' + (rosterPlan.known ? rosterPlan.openSlots.join(', ') || 'none' : 'unknown') + '.');
+                lines.push('Current position groups: ' + rosterPlan.positions.map(p => p.pos + ' ' + p.have + ' [' + p.status + '] ' + p.reason).join('; '));
             }
         }
 
@@ -42,7 +57,10 @@
         const lf = state.draftContext?.leagueFormat || {};
         const fmt = [];
         if (lf.teams) fmt.push(`${lf.teams}-team`);
-        fmt.push(lf.flags?.superflex ? 'Superflex' : '1-QB');
+        const rosterSlots = Array.isArray(lf.rosterSlots) ? lf.rosterSlots.map(s => String(s).toUpperCase()) : [];
+        const superflex = lf.flags?.superflex || rosterSlots.some(s => ['SUPER_FLEX', 'SFLEX', 'OP'].includes(s));
+        const qbSlots = rosterSlots.filter(s => s === 'QB').length;
+        fmt.push(liveRedraft ? (superflex ? 'Superflex' : qbSlots ? qbSlots + '-QB' : 'QB format unknown') : lf.flags?.superflex ? 'Superflex' : '1-QB');
         if (lf.scoring?.ppr) {
             fmt.push(lf.scoring.ppr === 'ppr' ? 'Full PPR' : lf.scoring.ppr === 'half_ppr' ? 'Half PPR' : 'Standard');
         }
@@ -66,19 +84,20 @@
 
         // My roster so far + position counts
         const myPicks = (state.picks || []).filter(
-            p => p.isUser || String(p.rosterId) === String(state.userRosterId)
+            p => liveRedraft ? state.userRosterId != null && p.rosterId != null && String(p.rosterId) === String(state.userRosterId)
+                : p.isUser || String(p.rosterId) === String(state.userRosterId)
         );
         if (myPicks.length) {
             lines.push(`My roster so far (${myPicks.length}): ${myPicks.map(p => `${p.pos} ${p.name}`).join(', ')}.`);
-            const counts = {};
-            myPicks.forEach(p => { const k = (p.pos || '?').toUpperCase(); counts[k] = (counts[k] || 0) + 1; });
+            const counts = rosterPlan?.counts || {};
+            if (!rosterPlan) myPicks.forEach(p => { const k = (p.pos || '?').toUpperCase(); counts[k] = (counts[k] || 0) + 1; });
             lines.push(`My position counts: ${Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(', ')}.`);
         } else {
             lines.push('My roster so far: no picks yet.');
         }
 
         // Flagged needs (from persona assessment or team context)
-        const needs = (state.personas?.[state.userRosterId]?.assessment?.needs
+        const needs = (liveRedraft ? (rosterPlan?.positions || []).filter(p => p.status === 'need') : state.personas?.[state.userRosterId]?.assessment?.needs
             || state.draftContext?.teamContext?.needs || [])
             .map(n => (typeof n === 'string' ? n : n?.pos))
             .filter(Boolean);
@@ -86,14 +105,15 @@
 
         // Top available on the board (the single most important context)
         const drafted = state.draftedPids || {};
-        const top = (state.pool || []).slice(0, 15).map((p, i) => {
+        const top = (liveRedraft ? liveRecommendations.map(card => ({ ...card.player, recommendationReason: card.detail })) : (state.pool || []).slice(0, 15)).map((p, i) => {
             const val = Math.round(p.dhq || p.val || 0);
             const age = p.age ? `, age ${p.age}` : '';
             const taken = drafted[p.pid] || 0;
             const copyNote = copies > 1 ? `, ${Math.max(0, copies - taken)}/${copies} copies left` : '';
-            return `${i + 1}. ${p.name} (${p.pos}${p.team ? '-' + p.team : ''}, DHQ ${val}${age}${copyNote})`;
+            return `${i + 1}. ${p.name} (${p.pos}${p.team ? '-' + p.team : ''}, DHQ ${val}${age}${copyNote})${p.recommendationReason ? ' — ' + p.recommendationReason : ''}`;
         });
-        if (top.length) lines.push(`Top available players right now:\n${top.join('\n')}`);
+        if (top.length) lines.push(`${liveRedraft ? 'Eligible live recommendations' : 'Top available players right now'}:\n${top.join('\n')}`);
+        else if (liveRedraft) lines.push('Eligible live recommendations: unavailable. Do not invent a draft recommendation or fall back to the raw board.');
 
         // Pinned opponent (if the user is watching a specific team)
         if (state.pinnedRosterId) {

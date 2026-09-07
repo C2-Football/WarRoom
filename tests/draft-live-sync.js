@@ -123,6 +123,92 @@ const pickOrder = [
 
 console.log('\nWar Room live draft sync contract');
 
+test('live player resolves metadata-only quarterbacks without a loaded database', () => {
+  const player = ctx.DraftCC.liveSync.resolveLivePlayer({ player_id: 'q1', metadata: {
+    first_name: 'Josh', last_name: 'Allen', position: 'QB', team: 'BUF',
+  } }, { getDHQ: () => 8421 });
+  eq(player.name, 'Josh Allen');
+  eq(player.pos, 'QB');
+  eq(player.team, 'BUF');
+  eq(player.dhq, 8421);
+  ok(player.photoUrl.endsWith('/q1.jpg'));
+});
+
+test('live player metadata preserves kicker and team defense identities and zero values', () => {
+  for (const row of [
+    { pid: 'k1', first: 'Tyler', last: 'Bass', pos: 'K', team: 'BUF', name: 'Tyler Bass' },
+    { pid: 'BUF', first: 'Buffalo', last: 'Bills', pos: 'DEF', team: 'BUF', name: 'Buffalo Bills' },
+  ]) {
+    const player = ctx.DraftCC.liveSync.resolveLivePlayer({ player_id: row.pid, metadata: {
+      first_name: row.first, last_name: row.last, position: row.pos, team: row.team,
+    } }, { getDHQ: () => 0 });
+    eq(player.name, row.name);
+    eq(player.pos, row.pos);
+    eq(player.team, row.team);
+    eq(player.dhq, 0);
+  }
+});
+
+test('live player keeps enriched pool fields and never replaces an explicit zero DHQ', () => {
+  const csv = { rank: 7 };
+  const poolPlayer = Object.freeze({ pid: 123, name: 'Pool Player', pos: 'WR', dhq: 0,
+    team: 'GB', consensusRank: 18, tier: 2, csv, photoUrl: '/custom.jpg', college: 'College' });
+  const player = ctx.DraftCC.liveSync.resolveLivePlayer({ player_id: '123', metadata: {
+    first_name: 'Metadata', last_name: 'Player', position: 'QB', team: 'BUF',
+  } }, { pool: [poolPlayer], originalPool: [{ pid: '123', dhq: 999 }],
+    playersData: { 123: { full_name: 'Database Player', position: 'RB' } },
+    getDHQ: () => { throw new Error('zero DHQ must not call the fallback'); } });
+  eq(player.name, 'Pool Player');
+  eq(player.pos, 'WR');
+  eq(player.dhq, 0);
+  eq(player.team, 'GB');
+  eq(player.consensusRank, 18);
+  eq(player.tier, 2);
+  eq(player.csv, csv);
+  eq(player.photoUrl, '/custom.jpg');
+  eq(player.college, 'College');
+});
+
+test('live player skips placeholder fields independently across all identity sources', () => {
+  const player = ctx.DraftCC.liveSync.resolveLivePlayer({ player_id: 'p1', metadata: {
+    first_name: 'Real', last_name: 'Player', position: 'QB', team: 'BUF',
+  } }, { pool: [{ pid: 'p1', name: 'Unknown', pos: '?', team: '?' }],
+    originalPool: [{ pid: 'p1', name: 'Unknown Player', pos: 'unknown', tier: 3 }],
+    playersData: { p1: { full_name: '?', first_name: 'Unknown', position: '?', photoUrl: '/db.jpg' } },
+    getDHQ: () => 123 });
+  eq(player.name, 'Real Player');
+  eq(player.pos, 'QB');
+  eq(player.team, 'BUF');
+  eq(player.tier, 3);
+  eq(player.photoUrl, '/db.jpg');
+  eq(player.dhq, 123);
+});
+
+test('live player uses supplied database before metadata and applies position normalization', () => {
+  const player = ctx.DraftCC.liveSync.resolveLivePlayer({ player_id: 'd1', metadata: {
+    first_name: 'Fallback', last_name: 'Defender', position: 'LB',
+  } }, { playersData: { d1: { full_name: 'Known Defender', position: 'DE', team: 'DAL' } },
+    normPos: pos => pos === 'DE' ? 'DL' : pos });
+  eq(player.name, 'Known Defender');
+  eq(player.pos, 'DL');
+  eq(player.team, 'DAL');
+  eq(player.dhq, 0);
+});
+
+test('live player retains original-pool enrichment and handles absent identity honestly', () => {
+  const player = ctx.DraftCC.liveSync.resolveLivePlayer({ player_id: 'p2' }, {
+    originalPool: [{ pid: 'p2', name: 'Original Player', pos: 'RB', dhq: 42, csv: { rank: 2 } }],
+  });
+  eq(player.name, 'Original Player');
+  eq(player.dhq, 42);
+  eq(player.csv.rank, 2);
+  const missing = ctx.DraftCC.liveSync.resolveLivePlayer(null);
+  eq(missing.name, 'Unknown');
+  eq(missing.pos, '?');
+  eq(missing.dhq, 0);
+  eq(missing.photoUrl, '');
+});
+
 test('live sync reconciliation skips already-seen picks and returns only new picks', () => {
   const result = ctx.DraftCC.liveSync._private.reconcilePicks([
     { pick_no: 1, player_id: 'p1', roster_id: 1 },

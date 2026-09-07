@@ -1671,6 +1671,11 @@ WRShared.preloadMany(WR_SHARED_FILES);
 	    .mock-draftcast-rail { border: 1px solid rgba(212,175,55,0.28); background: linear-gradient(135deg, rgba(16,18,22,0.98), rgba(7,8,11,0.98) 48%, rgba(26,21,10,0.94)); border-radius: var(--card-radius, 10px); overflow: hidden; margin-bottom: 12px; box-shadow: 0 18px 36px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.06); }
 	    .mock-draftcast-rail > .mock-cast-brand, .mock-draftcast-rail > .mock-cast-clock, .mock-draftcast-rail > .mock-cast-controls { display: inline-grid; vertical-align: top; }
 	    .mock-draftcast-rail { display: grid; grid-template-columns: minmax(305px,0.66fr) minmax(560px,1.12fr) minmax(400px,0.72fr); }
+	    .mock-draft-cockpit.is-live-redraft { container-type: inline-size; }
+	    .is-live-redraft .mock-draftcast-rail { grid-template-columns: minmax(0,.75fr) minmax(0,1.2fr) minmax(0,.8fr); }
+	    .is-live-redraft .mock-draftcast-rail > div { min-width: 0; }
+	    .is-live-redraft .mock-cast-clock > span > em { position: static; font-size: inherit; }
+	    @container(max-width:940px) { .is-live-redraft .mock-draftcast-rail { grid-template-columns: minmax(0,1fr); } }
 	    .mock-cast-brand { grid-template-columns: 54px minmax(0,1fr); gap: 13px; align-items: center; padding: 17px 18px; border-right: 1px solid rgba(255,255,255,0.07); min-width: 0; }
 	    .mock-cast-brand > div { width: 48px; height: 48px; border-radius: var(--card-radius, 10px); display: grid; place-items: center; background: linear-gradient(180deg, #F2D76A, var(--gold)); color: var(--black); font-family: 'Rajdhani', sans-serif; font-weight: 900; letter-spacing: 0.08em; box-shadow: 0 8px 22px rgba(212,175,55,0.24), inset 0 -2px 0 rgba(0,0,0,0.18); }
 	    .mock-cast-brand span { min-width: 0; }
@@ -2981,13 +2986,13 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/persona.js?v=20260814dna1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/cpu-engine.js?v=20260814auc1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/state.js?v=20260906broadcast2"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/big-board.js?v=20260906available"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/big-board.js?v=20260907fit1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/draft-grid.js?v=20260418a"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/opponent-intel.js?v=20260601layout"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/alex-stream.js?v=20260906redraftreads"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/alex-call.js?v=20260601alexpresence"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/alex-edge-glow.js?v=20260601alexpresence"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/ask-window.js?v=20260906redraftreads"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/ask-window.js?v=20260907fit1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-analytics.js?v=20260601draftux"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/exports.js?v=20260415cd8"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/trade-simulator.js?v=20260802rv1"></script>
@@ -2997,12 +3002,13 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/persistence.js?v=20260415cd8"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/scenarios.js?v=20260415cd8"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/ghost-replay.js?v=20260803rv2"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/live-sync.js?v=20260907session1"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/live-decision-engine.js?v=20260906broadcast2"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/live-sync.js?v=20260907fit1"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/live-decision-engine.js?v=20260907fit1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-room-engine.js?v=20260907teams1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-room.js?v=20260907teams1"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/live-pick-brief.js?v=20260907fit1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/analyst-mock.js?v=20260531voice1"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260907teams1"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260907fit1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260906hist1"></script>
 <!-- 5. League detail tab components (extracted from league-detail.js) -->
 <!-- v2 widget modules (load before dashboard.js which consumes them) -->
