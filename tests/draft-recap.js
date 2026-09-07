@@ -170,7 +170,7 @@ test('saveDraftLearning feeds owner behavior profiles without dropping existing 
   const saved = ctx.DraftCC.state.saveDraftLearning(recap);
   ok(Array.isArray(saved) && saved.length === 1, 'learning saved');
   eq(ctx.App.LI.ownerBehaviorProfiles['2'].inferences[0], 'active-trader', 'existing profile preserved');
-  eq(ctx.App.LI.ownerBehaviorProfiles['2'].draftRecapLearning.buildLabel, 'WR-led build', 'profile enriched');
+  eq(ctx.App.LI.ownerBehaviorProfiles['2'].draftRecapLearning.buildLabel, 'TE/WR-led build', 'profile enriched');
   ok(ctx.App.LI.ownerDraftLearning['2'], 'owner draft learning map exposed');
 });
 
@@ -243,6 +243,38 @@ test('scorePick / gradeLetter produce a sane per-pick spread incl D/F', () => {
   // Aggregate transform gives a real team-level spread (D/F reachable):
   ok(s.gradeLetter(s.aggregateGrade(35)) === 'F' || s.gradeLetter(s.aggregateGrade(35)) === 'D', 'bad team avg → D/F');
   ok(s.gradeLetter(s.aggregateGrade(65)).startsWith('A'), 'great team avg → A');
+});
+
+test('build labels follow positional value, not QB-first display order', () => {
+  const state = buildState();
+  state.picks = [
+    { rosterId: 1, pid: 'q', pos: 'QB', dhq: 100, overall: 1 },
+    { rosterId: 1, pid: 'w', pos: 'WR', dhq: 1000, overall: 2 },
+    { rosterId: 2, pid: 'q2', pos: 'QB', dhq: 100, overall: 3 },
+    { rosterId: 2, pid: 'r', pos: 'RB', dhq: 1000, overall: 4 },
+  ];
+  const recap = ctx.DraftCC.state.buildDraftRecap(state);
+  const one = recap.teamRecaps.find(t => String(t.rosterId) === '1');
+  const two = recap.teamRecaps.find(t => String(t.rosterId) === '2');
+  eq(one.buildLabel, 'WR-led build');
+  eq(two.buildLabel, 'RB-led build');
+  eq(one.positionSummary[0].pos, 'QB', 'display order stays intact');
+  ok(recap.ownerLearning['1'].signals.includes('Class build: WR'), 'owner learning uses same leader');
+  state.picks.reverse();
+  eq(ctx.DraftCC.state.buildDraftRecap(state).teamRecaps.find(t => String(t.rosterId) === '1').buildLabel, 'WR-led build', 'order independent');
+});
+
+test('close positional values produce shared or balanced builds; genuine QB leaders remain', () => {
+  const state = buildState();
+  const label = values => {
+    state.picks = values.map(([pos, dhq], i) => ({ rosterId: 1, pid: 'p' + i, pos, dhq, overall: i + 1 }));
+    return ctx.DraftCC.state.buildDraftRecap(state).teamRecaps.find(t => String(t.rosterId) === '1').buildLabel;
+  };
+  eq(label([['QB', 100], ['RB', 1000], ['WR', 950]]), 'RB/WR-led build');
+  eq(label([['QB', 1000], ['RB', 980], ['WR', 950]]), 'Balanced build');
+  eq(label([['QB', 2000], ['RB', 1000]]), 'QB-led build');
+  eq(label([['QB', 2000], ['WR', 0], ['WR', 0]]), 'WR depth build');
+  eq(label([['?', 100]]), 'Build unavailable');
 });
 
 console.log('\n');

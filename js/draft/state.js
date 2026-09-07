@@ -1493,6 +1493,27 @@
         };
     }
 
+    function recapBuildProfile(picks, summary) {
+        if (!picks.length) return { label: 'No tracked picks', positions: [], basis: 'No selections recorded.' };
+        // Display order is QB first, not a measure of the team's investment.
+        // Missing values must not turn the remaining scored player into a leader.
+        const rows = Object.values(summary).filter(row => row.pos !== '?');
+        if (!rows.length) return { label: 'Build unavailable', positions: [], basis: 'Player positions are unavailable.' };
+        const hasValues = picks.every(p => pickDhq(p) > 0);
+        const metric = hasValues ? 'dhq' : 'count';
+        rows.sort((a, b) => b[metric] - a[metric] || a.pos.localeCompare(b.pos));
+        const [first, second, third] = rows;
+        const leaders = !second || first[metric] >= second[metric] * 1.2 ? [first]
+            : !third || second[metric] >= third[metric] * 1.2 ? [first, second] : [];
+        const positions = leaders.map(row => row.pos);
+        return {
+            label: positions.length ? positions.join('/') + (hasValues ? '-led build' : ' depth build') : 'Balanced build',
+            positions,
+            basis: (hasValues ? 'Based on total drafted DHQ by position. ' : 'Based on player counts because some DHQ values are missing. ')
+                + 'A leader needs a 20% edge over the next group; otherwise the build is shared or balanced.',
+        };
+    }
+
     function buildTeamRecaps(state, picks, leagueTotals) {
         const byRoster = {};
         picks.forEach(pick => {
@@ -1562,7 +1583,7 @@
                 ? Math.round(row.picks.reduce((s, p) => s + scorePick(p, scoreCtx), 0) / row.picks.length)
                 : 0;
             const valuePct = avgPickScore; // retained field name for downstream value sorts
-            const primaryPos = orderedPositionSummary(row.positionSummary)[0]?.pos || '';
+            const build = recapBuildProfile(row.picks, row.positionSummary);
             const grade = recapLetter(percentile, avgPickScore, state?.variant);
             row.rank = rank;
             row.percentile = percentile;
@@ -1571,9 +1592,9 @@
             row.score = grade.score;
             row.totalShare = Math.round((row.totalDHQ / maxTotal) * 100);
             row.positionSummary = orderedPositionSummary(row.positionSummary);
-            row.buildLabel = row.picks.length
-                ? (primaryPos ? `${primaryPos}-led build` : 'Balanced build')
-                : 'No tracked picks';
+            row.buildLabel = build.label;
+            row.buildPositions = build.positions;
+            row.buildBasis = build.basis;
             row.story = row.picks.length
                 ? `${row.teamName} finished #${rank} by draft DHQ with ${row.steals.length} steal${row.steals.length === 1 ? '' : 's'} and ${row.reaches.length} reach${row.reaches.length === 1 ? '' : 'es'}.`
                 : `${row.teamName} has no tracked draft picks in this recap.`;
@@ -1589,7 +1610,7 @@
                 return out;
             }, {});
             const primaryEarly = Object.entries(earlyCounts).sort((a, b) => b[1] - a[1])[0] || null;
-            const topPosition = team.positionSummary?.[0]?.pos || null;
+            const topPosition = (team.buildPositions || []).join('/');
             const signals = [];
             if (primaryEarly) signals.push(`Early-round lean: ${primaryEarly[0]}`);
             if (topPosition) signals.push(`Class build: ${topPosition}`);
