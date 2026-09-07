@@ -6796,19 +6796,20 @@
                 {/* ── TOP ROW: Big Board / Roster Build / Opponent Intel ───── */}
                 <div style={{
                     display: 'grid',
-                    gridTemplateColumns: isCompact ? '1fr 1fr' : 'minmax(0, 1.5fr) minmax(300px, 0.72fr) minmax(320px, 0.82fr)',
+                    gridTemplateRows: isCompact ? undefined : 'minmax(0, 1fr)',
+                    gridTemplateColumns: viewport === 'mobile' ? 'minmax(0, 1fr)' : isCompact ? 'repeat(2, minmax(0, 1fr))' : 'minmax(0, 1.5fr) minmax(300px, 0.72fr) minmax(320px, 0.82fr)',
                     gap: L.GRID_GAP + 'px',
                     height: isCompact ? 'auto' : 'clamp(520px, 58vh, 680px)',
                     marginBottom: L.GRID_GAP + 'px',
                 }}>
-                    <div style={{ minHeight: isCompact ? 'clamp(420px, 50vh, 560px)' : '100%', minWidth: 0 }}>
+                    <div style={{ height: isCompact ? 'clamp(420px, 50vh, 560px)' : '100%', minHeight: 0, minWidth: 0, overflowY: viewport === 'mobile' ? 'auto' : undefined, overscrollBehavior: 'contain' }}>
                         <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={!isRedraftLive(state)} />
                     </div>
-                    <div style={{ minHeight: isCompact ? 'clamp(420px, 50vh, 560px)' : '100%', minWidth: 0 }}>
-                        {isRedraftLive(state) && window.DraftCC.LiveRosterBuildCard ? React.createElement(window.DraftCC.LiveRosterBuildCard, { state }) : <MyDraftRosterPanel state={state} />}
+                    <div style={{ height: isCompact ? 'clamp(420px, 50vh, 560px)' : '100%', minHeight: 0, minWidth: 0 }}>
+                        {isRedraftLive(state) && window.DraftCC.LiveRosterBuildCard ? React.createElement(window.DraftCC.LiveRosterBuildCard, { state, contained: true }) : <MyDraftRosterPanel state={state} />}
                     </div>
                     {!isCompact && (
-                        <div style={{ minHeight: '100%', minWidth: 0 }}>
+                        <div style={{ minHeight: 0, minWidth: 0 }}>
                             <OpponentIntelPanel state={state} dispatch={dispatch} currentSlot={currentSlot} onPropose={onPropose} />
                         </div>
                     )}
@@ -6817,21 +6818,22 @@
                 {/* ── BOTTOM ROW: Pick List / Alex Stream ───── */}
                 <div style={{
                     display: 'grid',
-                    gridTemplateColumns: isCompact
-                        ? '1fr 1fr'
+                    gridTemplateRows: isCompact ? undefined : 'minmax(0, 1fr)',
+                    gridTemplateColumns: viewport === 'mobile' ? 'minmax(0, 1fr)' : isCompact
+                        ? 'repeat(2, minmax(0, 1fr))'
                         : 'minmax(0, 1.1fr) minmax(340px, 0.9fr)',
                     gap: L.GRID_GAP + 'px',
                     height: isCompact ? 'auto' : 'clamp(440px, 44vh, 600px)',
                 }}>
                     {isCompact && (
-                        <div style={{ minHeight: 'clamp(220px, 24vh, 300px)', minWidth: 0 }}>
+                        <div style={{ height: 'clamp(220px, 24vh, 300px)', minHeight: 0, minWidth: 0 }}>
                             <OpponentIntelPanel state={state} dispatch={dispatch} currentSlot={currentSlot} onPropose={onPropose} />
                         </div>
                     )}
-	                    <div style={{ minHeight: isCompact ? 'clamp(240px, 26vh, 320px)' : '100%', minWidth: 0 }}>
+	                    <div style={{ height: isCompact ? 'clamp(240px, 26vh, 320px)' : '100%', minHeight: 0, minWidth: 0 }}>
 	                        <DraftPickListPanel state={state} currentSlot={currentSlot} onPropose={onPropose} />
                     </div>
-                    <div style={{ minHeight: isCompact ? 'clamp(240px, 26vh, 320px)' : '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ height: isCompact ? 'clamp(240px, 26vh, 320px)' : '100%', minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {/* Room Feed ⇄ Ask Alex (owner ask 2026-07-13: phone crossover):
                             default = the phone room feed (Alex's commentary is IN it);
                             Ask Alex keeps the stream panel + input exactly as before. */}
