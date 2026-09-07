@@ -1837,54 +1837,16 @@ function LeagueMapTab({
                         )}
                     </div>
                 ) : (
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div className="analytics-player-toolbar">
+                    <div className="analytics-player-tools">
                     <input
-                        type="text"
+                        type="search"
+                        aria-label="Search players or owners"
                         value={lpSearch || ''}
                         onChange={e => setLpSearch && setLpSearch(e.target.value)}
                         placeholder="Search by player name or owner…"
-                        style={{ flex: '0 1 260px', padding: '5px 10px', fontSize: '0.76rem', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--white)', fontFamily: 'var(--font-body)', outline: 'none', minHeight: '44px' }}
+                        style={{ flex: '1 1 220px', padding: '5px 10px', fontSize: '0.76rem', background: 'var(--ov-3, rgba(255,255,255,0.04))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 'var(--card-radius-xs, 5px)', color: 'var(--white)', fontFamily: 'var(--font-body)', outline: 'none', minHeight: '34px' }}
                     />
-                    {/* League-specific position chips (only positions this league actually
-                        rosters — hardcoded QB/RB/WR/TE/K/DEF/DL/LB/DB used to show unconditionally,
-                        so e.g. an offense-only league still showed dead DL/LB/DB buttons and an
-                        IDP league had no chip that matched its own IDP_FLEX-only setup) plus
-                        league-derived flex groups (FLEX / SFLEX / IDP FLEX…, only when the
-                        league actually rosters that slot). posMatchesFilter (wired into the
-                        filter above) expands a flex-group click into its member positions. */}
-                    {['', ...(typeof window.getLeaguePositions === 'function'
-                            ? window.getLeaguePositions({ league: currentLeague })
-                            : ['QB','RB','WR','TE','K','DEF','DL','LB','DB']),
-                        ...(window.App?.getLeagueFlexGroups?.({ league: currentLeague }) || [])].map(pos => (
-                        <button key={pos || 'all'} onClick={() => setLpFilter(pos)} style={{
-                            padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', textTransform: 'uppercase',
-                            background: lpFilter === pos ? 'var(--gold)' : 'var(--ov-3, rgba(255,255,255,0.04))',
-                            color: lpFilter === pos ? 'var(--black)' : 'var(--silver)',
-                            border: '1px solid ' + (lpFilter === pos ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                            borderRadius: '3px', cursor: 'pointer', minHeight: '44px'
-                        }}>{pos ? (window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)) : 'All'}</button>
-                    ))}
-                    {/* Rookies quick-filter — surfaces years_exp===0 players (e.g. the pre-draft rookie pool). */}
-                    <button onClick={() => setLpFilter(lpFilter === '__ROOKIE__' ? '' : '__ROOKIE__')} style={{
-                        padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', textTransform: 'uppercase',
-                        background: lpFilter === '__ROOKIE__' ? 'var(--gold)' : 'var(--ov-3, rgba(255,255,255,0.04))',
-                        color: lpFilter === '__ROOKIE__' ? 'var(--black)' : 'var(--silver)',
-                        border: '1px solid ' + (lpFilter === '__ROOKIE__' ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                        borderRadius: '3px', cursor: 'pointer', minHeight: '44px'
-                    }}>Rookies</button>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--silver)', alignSelf: 'center' }}>{filtered.length} players</span>
-                    {/* Rolling PPG window selector */}
-                    <span style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.65, fontFamily: 'var(--font-body)' }}>PPG:</span>
-                    {[{k:'season',l:'Season'},{k:'l5',l:'L5'},{k:'l3',l:'L3'}].map(opt => (
-                        <button key={opt.k} onClick={() => setPpgWindow(opt.k)} title={opt.k === 'season' ? 'Season-to-date PPG' : 'Last ' + (opt.k === 'l5' ? 5 : 3) + ' games'} style={{
-                            padding: '3px 8px', fontSize: '0.7rem', fontWeight: ppgWindow === opt.k ? 700 : 400,
-                            fontFamily: 'var(--font-body)', textTransform: 'uppercase',
-                            background: ppgWindow === opt.k ? 'var(--gold)' : 'var(--ov-3, rgba(255,255,255,0.04))',
-                            color: ppgWindow === opt.k ? 'var(--black)' : 'var(--silver)',
-                            border: '1px solid ' + (ppgWindow === opt.k ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.08))'),
-                            borderRadius: '3px', cursor: 'pointer', letterSpacing: '0.03em', minHeight: '44px'
-                        }}>{opt.l}</button>
-                    ))}
                     {/* Column picker */}
                     <div style={{ position: 'relative' }}>
                         <button onClick={() => setAllPlayersColPickerOpen(o => !o)} style={{
@@ -1915,7 +1877,7 @@ function LeagueMapTab({
                         )}
                     </div>
                     {window.WR?.SavedViews?.SavedViewBar && (
-                        <div style={{ marginLeft: 'auto' }}>
+                        <div className="analytics-player-saved">
                             {React.createElement(window.WR.SavedViews.SavedViewBar, {
                                 surface: 'all_players',
                                 leagueId: currentLeague?.id || currentLeague?.league_id,
@@ -1931,6 +1893,53 @@ function LeagueMapTab({
                             })}
                         </div>
                     )}
+                    </div>
+                    <div className="analytics-player-filter-row">
+                        <div className="analytics-player-positions" role="group" aria-label="Player position">
+                    {/* League-specific position chips (only positions this league actually
+                        rosters — hardcoded QB/RB/WR/TE/K/DEF/DL/LB/DB used to show unconditionally,
+                        so e.g. an offense-only league still showed dead DL/LB/DB buttons and an
+                        IDP league had no chip that matched its own IDP_FLEX-only setup) plus
+                        league-derived flex groups (FLEX / SFLEX / IDP FLEX…, only when the
+                        league actually rosters that slot). posMatchesFilter (wired into the
+                        filter above) expands a flex-group click into its member positions. */}
+                    {['', ...(typeof window.getLeaguePositions === 'function'
+                            ? window.getLeaguePositions({ league: currentLeague })
+                            : ['QB','RB','WR','TE','K','DEF','DL','LB','DB']),
+                        ...(window.App?.getLeagueFlexGroups?.({ league: currentLeague }) || [])].map(pos => (
+                        <button key={pos || 'all'} onClick={() => setLpFilter(pos)} style={{
+                            padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', textTransform: 'uppercase',
+                            background: lpFilter === pos ? 'var(--gold)' : 'var(--ov-3, rgba(255,255,255,0.04))',
+                            color: lpFilter === pos ? 'var(--black)' : 'var(--silver)',
+                            border: '1px solid ' + (lpFilter === pos ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.08))'),
+                            borderRadius: '3px', cursor: 'pointer', minHeight: '34px'
+                        }}>{pos ? (window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)) : 'All'}</button>
+                    ))}
+                    {/* Rookies quick-filter — surfaces years_exp===0 players (e.g. the pre-draft rookie pool). */}
+                    <button onClick={() => setLpFilter(lpFilter === '__ROOKIE__' ? '' : '__ROOKIE__')} style={{
+                        padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', textTransform: 'uppercase',
+                        background: lpFilter === '__ROOKIE__' ? 'var(--gold)' : 'var(--ov-3, rgba(255,255,255,0.04))',
+                        color: lpFilter === '__ROOKIE__' ? 'var(--black)' : 'var(--silver)',
+                        border: '1px solid ' + (lpFilter === '__ROOKIE__' ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.08))'),
+                        borderRadius: '3px', cursor: 'pointer', minHeight: '34px'
+                    }}>Rookies</button>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--silver)', alignSelf: 'center' }}>{filtered.length} players</span>
+                        </div>
+                        <div className="analytics-player-ppg" role="group" aria-label="Points per game window">
+                    {/* Rolling PPG window selector */}
+                    <span style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.65, fontFamily: 'var(--font-body)' }}>PPG:</span>
+                    {[{k:'season',l:'Season'},{k:'l5',l:'L5'},{k:'l3',l:'L3'}].map(opt => (
+                        <button key={opt.k} onClick={() => setPpgWindow(opt.k)} title={opt.k === 'season' ? 'Season-to-date PPG' : 'Last ' + (opt.k === 'l5' ? 5 : 3) + ' games'} style={{
+                            padding: '3px 8px', fontSize: '0.7rem', fontWeight: ppgWindow === opt.k ? 700 : 400,
+                            fontFamily: 'var(--font-body)', textTransform: 'uppercase',
+                            background: ppgWindow === opt.k ? 'var(--gold)' : 'var(--ov-3, rgba(255,255,255,0.04))',
+                            color: ppgWindow === opt.k ? 'var(--black)' : 'var(--silver)',
+                            border: '1px solid ' + (ppgWindow === opt.k ? 'var(--gold)' : 'var(--ov-5, rgba(255,255,255,0.08))'),
+                            borderRadius: '3px', cursor: 'pointer', letterSpacing: '0.03em', minHeight: '34px'
+                        }}>{opt.l}</button>
+                    ))}
+                        </div>
+                    </div>
                 </div>
                 )}
                 {(() => {
