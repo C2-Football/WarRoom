@@ -141,7 +141,7 @@
             }));
     }
 
-    function WrTimeLeagueDraftPanel({ league, cards, onUpdate }) {
+    function WrTimeLeagueDraftPanel({ league, cards, onUpdate, onlineMeta }) {
         const [query, setQuery] = useState('');
         const [positionFilter, setPositionFilter] = useState('ALL');
         const [selectedIdentity, setSelectedIdentity] = useState(null);
@@ -151,7 +151,8 @@
         const seat = useMemo(() => Engine.currentDraftSeat(league), [league]);
         const drafted = useMemo(() => Engine.draftedIdentities(league), [league]);
         const onClockTeam = seat ? league.teams.find((t) => t.teamId === seat.teamId) ?? null : null;
-        const humanTeam = league.teams.find((t) => t.manager === 'human') ?? null;
+        const humanTeam = league.teams.find((t) => onlineMeta ? t.teamId === onlineMeta.seatTeamId : t.manager === 'human') ?? null;
+        const canSim = !onlineMeta || onlineMeta.role === 'commissioner';
         const persona = onClockTeam?.aiPersona ? AI.AI_PERSONAS[onClockTeam.aiPersona] : null;
 
         const eraRules = useMemo(() => EraRules.normalizeEraDraftRules(league.settings.eraRules), [league.settings.eraRules]);
@@ -274,6 +275,7 @@
 
         function draftBlockReason(card) {
             if (!seat || !onClockTeam) return 'Draft complete';
+            if (onlineMeta && seat.teamId !== onlineMeta.seatTeamId) return `Waiting for ${onClockTeam.name} to pick`;
             if (drafted.has(card.identity)) return 'Already drafted';
             if (!card.seasons.length) return 'No playable seasons on file';
             if (!EraRules.eraEligibleCard(card, eraRules)) return "No season on file clears the league's era rule";
@@ -291,23 +293,25 @@
         };
 
         function draftCard(card, madeBy) {
+            if (onlineMeta && draftBlockReason(card)) return;
             const next = Engine.applyDraftPick(league, card, { madeBy, createdAt: new Date().toISOString() });
             if (next === league) { setNote(`${card.name} could not be drafted — ${draftBlockReason(card) ?? 'the engine rejected the pick'}.`); return; }
             setNote('');
-            onUpdate(stripDraftedFromQueues(next));
+            onUpdate(stripDraftedFromQueues(next), { type: 'draft', identity: card.identity });
         }
 
         function simAiPick() {
-            if (!seat || onClockTeam?.manager !== 'ai') return;
+            if (!canSim || !seat || onClockTeam?.manager !== 'ai') return;
             const choice = AI.aiDraftChoice(league, cards);
             if (!choice) { setNote('AI found no eligible player for this seat.'); return; }
             const next = Engine.applyDraftPick(league, choice, { madeBy: 'ai', createdAt: new Date().toISOString() });
             if (next === league) { setNote('The AI pick was rejected by the engine.'); return; }
             setNote('');
-            onUpdate(stripDraftedFromQueues(next));
+            onUpdate(stripDraftedFromQueues(next), { type: 'ai-pick' });
         }
 
         function simToMyPick() {
+            if (!canSim) return;
             let state = league;
             const createdAt = new Date().toISOString();
             for (let iteration = 0; iteration <= state.draftOrder.length; iteration += 1) {
@@ -322,12 +326,12 @@
             }
             if (state === league) { setNote('Nothing to simulate.'); return; }
             setNote('');
-            onUpdate(stripDraftedFromQueues(state));
+            onUpdate(stripDraftedFromQueues(state), { type: 'ai-run' });
         }
 
         function toggleQueueFor(identity) {
             if (!humanTeam) return;
-            onUpdate({ ...league, teams: league.teams.map((t) => (t.teamId === humanTeam.teamId ? { ...t, queue: DraftRoom.toggleDraftQueue(t.queue, identity) } : t)) });
+            onUpdate({ ...league, teams: league.teams.map((t) => (t.teamId === humanTeam.teamId ? { ...t, queue: DraftRoom.toggleDraftQueue(t.queue, identity) } : t)) }, { type: 'queue', teamId: humanTeam.teamId, identity });
         }
 
         function autoFromQueue() {
@@ -337,8 +341,9 @@
         }
 
         const humanOnClock = onClockTeam?.manager === 'human';
+        const myTurn = humanOnClock && (!onlineMeta || seat?.teamId === onlineMeta.seatTeamId);
         const scoutBlock = selectedCard ? (onClockTeam && !humanOnClock ? `${onClockTeam.name} is on the clock — sim picks to advance.` : draftBlockReason(selectedCard)) : null;
-        const canDraftSelected = Boolean(selectedCard && humanOnClock && !draftBlockReason(selectedCard));
+        const canDraftSelected = Boolean(selectedCard && myTurn && !draftBlockReason(selectedCard));
         const selectedQueued = Boolean(selectedCard && humanTeam?.queue.includes(selectedCard.identity));
         const scoutSeasons = selectedCard ? EraRules.filterSeasonsForEra(selectedCard.seasons, eraRules, selectedCard.position) : [];
         const scoutHidden = selectedCard ? selectedCard.seasons.length - scoutSeasons.length : 0;
@@ -456,8 +461,8 @@
                 h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' } },
                     onClockTeam && (humanOnClock ? h('span', { className: 'tl-pill gold' }, 'Human') : h('span', { className: 'tl-pill info' }, `AI · ${persona ? persona.label : 'GM'}`)),
                     !humanOnClock && persona && h('p', { style: { fontStyle: 'italic', fontSize: 12, color: 'var(--text-faint, rgba(189,184,173,0.6))', margin: 0 } }, `"${persona.tell}"`),
-                    humanOnClock && h('p', { style: { fontSize: 12, color: 'var(--text-secondary)', margin: 0 } }, 'Your pick — draft from the big board or scout file.'),
-                    onClockTeam && !humanOnClock && h('div', { style: { display: 'flex', gap: 8, marginLeft: 'auto' } },
+                    humanOnClock && h('p', { style: { fontSize: 12, color: 'var(--text-secondary)', margin: 0 } }, myTurn ? 'Your pick — draft from the big board or scout file.' : `Waiting for ${onClockTeam.name} to pick.`),
+                    onClockTeam && !humanOnClock && canSim && h('div', { style: { display: 'flex', gap: 8, marginLeft: 'auto' } },
                         h('button', { className: 'tl-btn', onClick: simAiPick }, '▶ Sim pick'),
                         h('button', { className: 'tl-btn', onClick: simToMyPick }, '⏭ Sim to my pick'))),
                 note && h('p', { style: { fontSize: 12, color: 'var(--warn)', marginTop: 8 } }, note)),
@@ -525,7 +530,7 @@
                                 h('span', null, card.name),
                                 h('span', { className: `tl-pos-badge tl-pos-${card.position}` }, card.position),
                                 h('button', { className: 'tl-btn icon', style: { padding: '2px 5px' }, 'aria-label': `Remove ${card.name} from queue`, onClick: (e) => { e.stopPropagation(); toggleQueueFor(card.identity); } }, '✕')))),
-                        h('button', { className: 'tl-btn', disabled: !humanOnClock || queueCards.length === 0, onClick: autoFromQueue, style: { marginTop: 8 } }, 'Auto from queue')))));
+                        h('button', { className: 'tl-btn', disabled: !myTurn || queueCards.length === 0, onClick: autoFromQueue, style: { marginTop: 8 } }, 'Auto from queue')))));
     }
 
     window.WrTimeLeagueDraftPanel = WrTimeLeagueDraftPanel;

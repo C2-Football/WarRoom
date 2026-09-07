@@ -125,26 +125,8 @@
             option.id === 'position-roulette' && h('span', { className: 'tl-mode-badge' }, 'MOST FUN'));
     }
 
-    function InviteScreen({ founded, onOpenOnline }) {
-        const linkFor = (code) => `${window.location.origin}${window.location.pathname}?tl_invite=${code}`;
-        return h('section', { className: 'tl-builder tl-invite-screen' },
-            h('div', { className: 'tl-invite-lockup' }, h('span', null, '✓'), h('div', null,
-                h('span', { className: 'tl-eyebrow' }, 'LEAGUE CREATED'),
-                h('h2', null, 'Bring in your rivals'))),
-            h('p', null, 'Each seat has its own invite link. Send one to every friend, then enter the draft room whenever you are ready.'),
-            founded.members.length === 0
-                ? h('div', { className: 'tl-empty-state' }, 'No open friend seats—this league is ready to play across your own devices.')
-                : h('div', { className: 'tl-invite-list' }, founded.members.map((member, index) => h('div', { key: member.id, className: 'tl-invite-row' },
-                    h('span', { className: 'tl-invite-number' }, String(index + 1).padStart(2, '0')),
-                    h('div', null, h('b', null, `MANAGER ${index + 2}`), h('small', null, `SEAT ${member.seat_team_id.toUpperCase()}`)),
-                    h('input', { className: 'tl-input', readOnly: true, value: linkFor(member.invite_code), onFocus: (event) => event.target.select() }),
-                    h('button', { type: 'button', className: 'tl-btn', onClick: () => navigator.clipboard && navigator.clipboard.writeText(linkFor(member.invite_code)) }, 'COPY LINK')))),
-            h('button', { type: 'button', className: 'tl-btn primary tl-launch-btn', onClick: () => onOpenOnline(founded.rowId) }, 'ENTER THE DRAFT ROOM →'));
-    }
-
     function LeagueBuilder({ onCreate, onCreateOnline, onOpenOnline, onlineIndexState }) {
         const [playMode, setPlayMode] = useState('solo');
-        const [founded, setFounded] = useState(null);
         const [creating, setCreating] = useState(false);
         const [createError, setCreateError] = useState(null);
         const [name, setName] = useState('');
@@ -218,10 +200,9 @@
                 setCreateError(result.error || 'Could not create the league.');
                 return;
             }
-            setFounded({ rowId: result.rowId, members: result.members });
+            onOpenOnline(result.rowId);
         };
 
-        if (founded) return h(InviteScreen, { founded, onOpenOnline });
 
         const selectedEra = ERA_MODE_OPTIONS.find((option) => option.id === eraMode) ?? ERA_MODE_OPTIONS[2];
         const opponentSeats = seats.slice(1);
@@ -255,10 +236,10 @@
             h('div', { className: 'tl-builder-section', id: 'vault-setup-2' },
                 h('div', { className: 'tl-question' }, h('span', null, '3'), h('div', null, h('h3', null, 'Name your team. Build your helmet.'), h('p', null, 'Choose a retro identity, then take the ready-to-play defaults or tune every rule below.'))),
                 h('div', { className: 'tl-identity-grid' },
-                    h('label', null, h('span', { className: 'tl-label' }, 'League name'), h('input', { className: 'tl-input', value: name, placeholder: playMode === 'friends' ? 'Sunday Time Machine' : 'My Vault Season', onChange: (event) => setName(event.target.value) })),
+                    h('label', null, h('span', { className: 'tl-label' }, 'League name'), h('input', { className: 'tl-input', value: name, maxLength: 80, placeholder: playMode === 'friends' ? 'Sunday Time Machine' : 'My Vault Season', onChange: (event) => setName(event.target.value) })),
                     h('label', null, h('span', { className: 'tl-label' }, 'Your team & helmet'), h('span', { className: 'tl-team-input' },
                         h(window.TimeLeagueHelmetPicker, { helmet: seats[0].helmet, name: seats[0].name, letter: window.App.TimeLeagueHelmet.monogramFor(seats[0].name), onChange: (helmet) => updateSeat(0, { helmet }) }),
-                        h('input', { className: 'tl-input', value: seats[0].name, placeholder: 'Name your team', onChange: (event) => updateSeat(0, { name: event.target.value }) })))),
+                        h('input', { className: 'tl-input', value: seats[0].name, maxLength: 60, placeholder: 'Name your team', onChange: (event) => updateSeat(0, { name: event.target.value }) })))),
                 h('div', { className: 'tl-rival-preview' },
                     h('div', null, h('span', { className: 'tl-label' }, playMode === 'friends' ? 'Your league' : 'Your AI rivals'), h('b', null, `${seats.length} teams · ${capacity} roster spots each`)),
                     h('div', { className: 'tl-rival-stack' }, opponentSeats.slice(0, 7).map((seat, index) => h('span', { key: `${seat.name}:${index}`, title: seat.name },
@@ -276,14 +257,14 @@
                         seats.map((seat, index) => h('div', { key: index, className: 'tl-seat-row' },
                             h('span', { className: 'tl-label' }, index === 0 ? 'YOU' : `T${index + 1}`),
                             h(window.TimeLeagueHelmetPicker, { helmet: seat.helmet, name: seat.name, letter: window.App.TimeLeagueHelmet.monogramFor(seat.name), onChange: (helmet) => updateSeat(index, { helmet }) }),
-                            h('input', { className: 'tl-input', value: seat.name, placeholder: `Manager ${index + 1}`, onChange: (event) => updateSeat(index, { name: event.target.value }) }),
-                            h('select', { className: 'tl-select', value: seat.manager, onChange: (event) => updateSeat(index, { manager: event.target.value === 'ai' ? 'ai' : 'human' }) },
+                            h('input', { className: 'tl-input', value: seat.name, maxLength: 60, placeholder: `Manager ${index + 1}`, onChange: (event) => updateSeat(index, { name: event.target.value }) }),
+                            h('select', { className: 'tl-select', disabled: index === 0, value: seat.manager, onChange: (event) => updateSeat(index, { manager: event.target.value === 'ai' ? 'ai' : 'human' }) },
                                 h('option', { value: 'human' }, 'HUMAN'), h('option', { value: 'ai' }, 'AI')),
                             seat.manager === 'ai'
                                 ? h('select', { className: 'tl-select', value: seat.aiPersona, onChange: (event) => updateSeat(index, { aiPersona: window.TimeLeagueUtils.PERSONA_IDS.includes(event.target.value) ? event.target.value : 'steward' }) },
                                     window.TimeLeagueUtils.PERSONA_IDS.map((id) => h('option', { key: id, value: id }, AI.AI_PERSONAS[id].label)))
                                 : h('span', { className: 'tl-pill info' }, index === 0 ? 'COMMISSIONER' : 'INVITE'),
-                            h('button', { type: 'button', className: 'tl-btn icon', disabled: seats.length <= 2, 'aria-label': `Remove team ${index + 1}`, onClick: () => removeSeat(index) }, '✕')))),
+                            h('button', { type: 'button', className: 'tl-btn icon', disabled: seats.length <= 2 || index === 0, 'aria-label': `Remove team ${index + 1}`, onClick: () => removeSeat(index) }, '✕')))),
                     seats.some((seat) => seat.manager === 'ai') && h('div', { className: 'tl-field' },
                         h('span', { className: 'tl-label' }, 'AI difficulty'),
                         h('div', { className: 'tl-chip-row' }, Object.keys(AI.AI_DIFFICULTY_LABELS).map((id) => {

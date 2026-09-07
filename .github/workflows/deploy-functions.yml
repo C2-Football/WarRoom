@@ -6,6 +6,9 @@ on:
     paths:
       - "supabase/functions/**"
       - "supabase/migrations/**"
+      - "js/shared/time-league-*.js"
+      - "data/time-league/**"
+      - "scripts/build-time-league-server.cjs"
   workflow_dispatch:
 
 jobs:
@@ -35,6 +38,9 @@ jobs:
         with:
           deno-version: v2.x
 
+      - name: Build Vault server runtime
+        run: node scripts/build-time-league-server.cjs
+
       - name: Type check Edge Functions
         run: |
           for fn in supabase/functions/*/index.ts; do
@@ -57,6 +63,7 @@ jobs:
 
           pending = {
               '20260907010000': 'supabase/migrations/20260907010000_cup_honours.sql',
+              '20260907193000': 'supabase/migrations/20260907193000_time_league_multiplayer.sql',
               '20260907000000': 'supabase/migrations/20260907000000_league_cups.sql',
               '20260610000000': 'supabase/migrations/20260610000000_ai_response_cache.sql',
               '20260610010000': 'supabase/migrations/20260610010000_ai_feedback.sql',
@@ -235,3 +242,6 @@ jobs:
 
       - name: Deploy league-cup function
         run: supabase functions deploy league-cup --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
+
+      - name: Deploy Vault multiplayer
+        run: supabase functions deploy time-league --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt

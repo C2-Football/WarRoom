@@ -50,12 +50,12 @@
             h('span', { className: 'tl-home-action-go' }, action, ' →'));
     }
 
-    function WrTimeLeagueHomePanel({ league, onNavigate }) {
+    function WrTimeLeagueHomePanel({ league, onNavigate, seatTeamId }) {
         const standings = useMemo(() => Engine.computeStandings(league), [league]);
         const teamOf = (teamId) => league.teams.find((team) => team.teamId === teamId);
         const teamName = (teamId) => teamOf(teamId)?.name ?? teamId;
         const standingOf = (teamId) => standings.find((row) => row.teamId === teamId);
-        const myTeam = league.teams.find((team) => team.manager === 'human') ?? league.teams[0];
+        const myTeam = league.teams.find((team) => seatTeamId ? team.teamId === seatTeamId : team.manager === 'human') ?? league.teams[0];
         const myStanding = standingOf(myTeam.teamId);
         const currentSchedule = league.schedule.find((item) => item.week === league.currentWeek);
         const currentPair = currentSchedule?.pairs.find((pair) => pair.includes(myTeam.teamId)) ?? null;

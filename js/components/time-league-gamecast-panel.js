@@ -78,7 +78,7 @@
             h('div', { className: 'tl-score-bar' }, h('div', { className: 'tl-fill', style: { width: `${minePct}%` } }), h('div', { className: 'tl-fill against', style: { width: `${100 - minePct}%` } })));
     }
 
-    function WrTimeLeagueGamecastPanel({ league, cards, logIndex, logsMissing, eraFactors, onUpdate, onGoRoster }) {
+    function WrTimeLeagueGamecastPanel({ league, cards, logIndex, logsMissing, eraFactors, onUpdate, onGoRoster, onlineMeta }) {
         const [playback, setPlayback] = useState(null);
         const [clock, setClock] = useState(0);
         const [playing, setPlaying] = useState(false);
@@ -87,7 +87,7 @@
         const [boxWeek, setBoxWeek] = useState(null);
         const clockRef = useRef(0);
 
-        const myTeamId = (league.teams.find((t) => t.manager === 'human') ?? league.teams[0])?.teamId;
+        const myTeamId = (league.teams.find((t) => onlineMeta ? t.teamId === onlineMeta.seatTeamId : t.manager === 'human') ?? league.teams[0])?.teamId;
 
         const teamName = useMemo(() => {
             const names = new Map(league.teams.map((t) => [t.teamId, t.name]));
@@ -113,9 +113,9 @@
         }, [playing, speed, finishPlayback]);
 
         const skipToEnd = () => { clockRef.current = GAMECAST_END; setClock(GAMECAST_END); if (playing) finishPlayback(); };
-        const canRun = league.phase === 'season' && cards !== null && cards.size > 0 && logIndex !== null;
+        const canRun = (!onlineMeta || (onlineMeta.role === 'commissioner' && onlineMeta.members.every(m => m.ready_week === league.currentWeek))) && league.phase === 'season' && cards !== null && cards.size > 0 && logIndex !== null;
 
-        const runGameDay = (force) => {
+        const runGameDay = async (force) => {
             if (!canRun || !cards || !logIndex) return;
             const prepared = AI.aiPrepareWeek(league, cards);
             if (!force) {
@@ -131,8 +131,12 @@
             settled = Engine.processWaivers(settled, cards, stamp);
             settled = AI.aiGenerateTrades(settled, cards, stamp);
             settled = AI.aiRespondToTrades(settled, cards, stamp);
-            onUpdate(settled);
-            setPlayback({ timeline: Gamecast.buildGamecast({ week: weekData.week, results: weekData.results, matchups: weekData.matchups, seed: league.seed }), weekData, finalized: settled, live: true });
+            const saved = await onUpdate(settled, { type: 'week', force });
+            if (saved === false) return;
+            const canonical = saved && typeof saved === 'object' ? saved : settled;
+            const savedWeek = canonical.finalizedWeeks.find(item => item.week === weekData.week);
+            if (!savedWeek) return;
+            setPlayback({ timeline: Gamecast.buildGamecast({ week: savedWeek.week, results: savedWeek.results, matchups: savedWeek.matchups, seed: league.seed }), weekData: savedWeek, finalized: canonical, live: true });
             setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(1); setPlaying(true);
         };
 
@@ -219,7 +223,7 @@
                     h('div', { style: { display: 'flex', gap: 8, marginTop: 8 } },
                         h('button', { className: 'tl-btn', onClick: onGoRoster }, 'FIX LINEUPS'),
                         h('button', { className: 'tl-btn', onClick: () => runGameDay(true) }, 'RUN ANYWAY'))),
-                h('button', { className: 'tl-btn primary', disabled: !canRun, onClick: () => runGameDay(false), style: { width: '100%', justifyContent: 'center', padding: '10px', marginTop: 4 } }, '▶ RUN GAME DAY')),
+                h('button', { className: 'tl-btn primary', disabled: !canRun, onClick: () => runGameDay(false), style: { width: '100%', justifyContent: 'center', padding: '10px', marginTop: 4 } }, onlineMeta && onlineMeta.role !== 'commissioner' ? 'WAITING FOR COMMISSIONER' : '▶ RUN GAME DAY')),
             league.phase === 'complete' && h('div', { className: 'tl-card', style: { display: 'flex', alignItems: 'center', gap: 12 } },
                 h('span', { style: { fontSize: 24 } }, '🏆'),
                 h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Season Complete — Champion'), h('strong', { style: { fontFamily: 'var(--font-title)', fontSize: 18 } }, champion ?? 'Unknown'))),

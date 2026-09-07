@@ -76,7 +76,7 @@
                     revealed ? fmt1(cardSeasonPoints(cards, entry)) : '—', h('small', null, 'SZN PTS')),
                 h('select', {
                     className: 'tl-select', style: { fontSize: 10.5, padding: '5px 4px' }, 'aria-label': `Move ${entry.name}`, value: '',
-                    onChange: (e) => { const slot = e.target.value; if (slot) apply(Engine.setEntrySlot(league, team.teamId, entry.entryId, slot)); },
+                    onChange: (e) => { const slot = e.target.value; if (slot) apply(Engine.setEntrySlot(league, team.teamId, entry.entryId, slot), { type: 'lineup', teamId: team.teamId, entryId: entry.entryId, slot }); },
                 }, h('option', { value: '' }, 'MOVE'), moveTargets(entry).map((slot) => h('option', { key: slot, value: slot }, slot))));
         };
         const openRow = (slotLabel, key) => h('div', { key, className: 'tl-lineup-row open-slot', style: { gridTemplateColumns: LINEUP_GRID } },
@@ -104,7 +104,7 @@
                     h('div', { className: 'lh-sub' }, `${team.name} · ${team.roster.length}/${capacity} rostered${league.settings.eraAdjusted ? ' · era-adjusted scoring' : ''}`),
                     !optimal && problems.length > 0 && h('div', { style: { marginBottom: 12 } },
                         problems.map((p, i) => h('div', { key: i, className: 'tl-feedrow caution' }, h('time', null, 'FIX'), h('p', null, p)))),
-                    h('div', { className: 'lh-actions' }, h('button', { className: 'tl-btn primary', onClick: () => apply(Engine.autoFillLineup(league, team.teamId, cards)) }, '⚡ AUTO-SET LINEUP'))),
+                    h('div', { className: 'lh-actions' }, h('button', { className: 'tl-btn primary', onClick: () => apply(Engine.autoFillLineup(league, team.teamId, cards), { type: 'auto-lineup', teamId: team.teamId }) }, '⚡ AUTO-SET LINEUP'))),
 
                 h('div', { className: 'tl-lineup-table' },
                     h('div', { className: 'tl-lineup-table-title' }, 'Starting Lineup'),
@@ -167,7 +167,7 @@
             apply(Engine.submitWaiverClaim(league, {
                 teamId: team.teamId, addIdentity: target.identity, addName: target.name, addPosition: target.position,
                 dropEntryId: dropEntry ? dropEntry.entryId : '', ...(faab ? { bidAmount } : {}),
-            }, nowIso()));
+            }, nowIso()), { type: 'claim', teamId: team.teamId, identity: target.identity, dropEntryId: dropEntry?.entryId || '', bidAmount });
             setTargetIdentity(''); setDropEntryId(''); setBidAmount(0);
         };
 
@@ -237,7 +237,7 @@
                                 h('td', null, `${claim.addName} (${claim.addPosition})`), h('td', null, claim.dropEntryId ? drop?.name ?? claim.dropEntryId : '—'),
                                 faab && h('td', { className: 'num tabular' }, `$${claim.bidAmount ?? 0}`),
                                 h('td', { className: 'num' }, claim.week),
-                                h('td', { className: 'num' }, h('button', { className: 'tl-btn icon', onClick: () => apply(Engine.cancelWaiverClaim(league, claim.claimId)) }, '✕ CANCEL')));
+                                h('td', { className: 'num' }, h('button', { className: 'tl-btn icon', onClick: () => apply(Engine.cancelWaiverClaim(league, claim.claimId), { type: 'cancel-claim', claimId: claim.claimId }) }, '✕ CANCEL')));
                         })))
                         : h('p', { className: 'tl-empty' }, 'No claims on file from your desk.')),
                 team.manager === 'ai' && h(GmProfile, { team, title: 'GM profile' })));
@@ -290,7 +290,7 @@
             if (!counterparty) return;
             const next = Engine.proposeTrade(league, { fromTeamId: team.teamId, toTeamId: counterparty.teamId, giveEntryIds: give, receiveEntryIds: receive, note }, nowIso());
             if (next === league) return;
-            apply(next); setGiveIds([]); setReceiveIds([]); setNote('');
+            apply(next, { type: 'trade', teamId: team.teamId, toTeamId: counterparty.teamId, giveEntryIds: give, receiveEntryIds: receive, note }); setGiveIds([]); setReceiveIds([]); setNote('');
         };
 
         return h('div', null,
@@ -338,11 +338,11 @@
                             trade.note && h('p', { style: { fontSize: 11.5, fontStyle: 'italic', color: 'var(--text-faint, rgba(189,184,173,0.6))', margin: '0 0 6px' } }, `"${trade.note}"`),
                             h('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
                                 incoming && !toAi && h(React.Fragment, null,
-                                    h('button', { className: 'tl-btn', onClick: () => apply(Engine.respondToTrade(league, trade.tradeId, true, '', nowIso())) }, '✓ ACCEPT'),
-                                    h('button', { className: 'tl-btn', onClick: () => apply(Engine.respondToTrade(league, trade.tradeId, false, '', nowIso())) }, '✕ REJECT')),
+                                    h('button', { className: 'tl-btn', onClick: () => apply(Engine.respondToTrade(league, trade.tradeId, true, '', nowIso()), { type: 'respond-trade', tradeId: trade.tradeId, accept: true }) }, '✓ ACCEPT'),
+                                    h('button', { className: 'tl-btn', onClick: () => apply(Engine.respondToTrade(league, trade.tradeId, false, '', nowIso()), { type: 'respond-trade', tradeId: trade.tradeId, accept: false }) }, '✕ REJECT')),
                                 toAi && h(React.Fragment, null,
                                     h('span', { className: 'tl-pill info' }, 'THE GM IS CONSIDERING'),
-                                    h('button', { className: 'tl-btn', onClick: () => apply(AI.aiRespondToTrades(league, cards, nowIso())) }, '📡 PING THE GM')),
+                                    h('button', { className: 'tl-btn', onClick: () => apply(AI.aiRespondToTrades(league, cards, nowIso()), { type: 'ping-ai' }) }, '📡 PING THE GM')),
                                 !incoming && !toAi && h('span', { className: 'tl-pill info' }, 'AWAITING RESPONSE')));
                     }),
                     !pending.length && h('p', { className: 'tl-empty' }, 'No pending offers on the desk.')),
@@ -393,18 +393,18 @@
             }));
     }
 
-    function WrTimeLeagueTeamPanel({ league, cards, section, activeTeamId, onSelectTeam, onUpdate }) {
+    function WrTimeLeagueTeamPanel({ league, cards, section, activeTeamId, onSelectTeam, onUpdate, onlineMeta }) {
         const standings = useMemo(() => Engine.computeStandings(league), [league]);
         const recordByTeam = useMemo(() => new Map(standings.map((s) => [s.teamId, s])), [standings]);
         const team = league.teams.find((t) => t.teamId === activeTeamId);
-        const apply = (next) => { if (next !== league) onUpdate(next); };
+        const apply = (next, action) => { if (next !== league && (!onlineMeta || activeTeamId === onlineMeta.seatTeamId)) return onUpdate(next, action); };
         return h('div', null,
             h('nav', { style: { display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto' }, 'aria-label': 'Teams' },
                 league.teams.map((item) => {
                     const record = recordByTeam.get(item.teamId);
                     const persona = item.aiPersona ? AI.AI_PERSONAS[item.aiPersona] : undefined;
                     return h('button', {
-                        key: item.teamId, onClick: () => onSelectTeam(item.teamId),
+                        key: item.teamId, disabled: Boolean(onlineMeta && item.teamId !== onlineMeta.seatTeamId), onClick: () => onSelectTeam(item.teamId),
                         className: 'tl-card', style: {
                             flex: 'none', textAlign: 'left', cursor: 'pointer', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8,
                             borderColor: item.teamId === activeTeamId ? 'var(--gold)' : undefined,
