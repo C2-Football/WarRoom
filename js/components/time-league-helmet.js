@@ -27,6 +27,48 @@
         rivet: 'm451.24 705.15a19.485 15.896 0 1 1 -38.971 0 19.485 15.896 0 1 1 38.971 0z',
     };
 
+    // Both rails come from the native stripe outline above. Match them by arc
+    // length before subdividing the ribbon, so every treatment follows the
+    // same crown perspective. Gaps reveal the shell gradient, not flat paint.
+    const STRIPE_INNER = [
+        [[157.912,188.033],[208.382,154.8],[275.122,126.971],[354.722,126.971]],
+        [[354.722,126.971],[509.172,126.971],[603.452,223.578],[659.692,322.001]],
+        [[659.692,322.001],[702.262,396.491],[704.382,430.021],[700.002,444.691]],
+    ];
+    const STRIPE_OUTER = [
+        [[157.912,188.033],[169.818,178.908],[181.724,169.783],[193.631,160.658]],
+        [[193.631,160.658],[243.041,132.332],[309.746,104.72],[382.19,104.72]],
+        [[382.19,104.72],[530.999,104.72],[625.789,197.54],[660.959,246.09]],
+        [[660.959,246.09],[742.879,359.16],[746.989,406.99],[738.779,427]],
+    ];
+    function stripeRail(segments) {
+        const points = [segments[0][0]];
+        for (const [a,b,c,d] of segments) for (let step = 1; step <= 60; step++) {
+            const t = step / 60, u = 1 - t;
+            points.push([0,1].map(axis => u*u*u*a[axis] + 3*u*u*t*b[axis] + 3*u*t*t*c[axis] + t*t*t*d[axis]));
+        }
+        const distances = [0];
+        for (let i = 1; i < points.length; i++) distances.push(distances[i-1] + Math.hypot(points[i][0]-points[i-1][0], points[i][1]-points[i-1][1]));
+        return Array.from({length:49}, (_, step) => {
+            const target = distances.at(-1) * step / 48;
+            const found = distances.findIndex(distance => distance >= target);
+            const end = found < 0 ? points.length - 1 : Math.max(1, found);
+            const fraction = (target-distances[end-1]) / (distances[end]-distances[end-1]);
+            return [0,1].map(axis => points[end-1][axis] + fraction*(points[end][axis]-points[end-1][axis]));
+        });
+    }
+    const stripeInner = stripeRail(STRIPE_INNER);
+    const stripeOuter = stripeRail(STRIPE_OUTER);
+    function stripeBand(from, to) {
+        const edge = ratio => stripeInner.map((point, i) => point.map((value, axis) => value + ratio*(stripeOuter[i][axis]-value)));
+        return [...edge(from), ...edge(to).reverse()].map((point,i) => `${i ? 'L' : 'M'}${point.map(value=>value.toFixed(2)).join(' ')}`).join('') + 'Z';
+    }
+    const STRIPE_BANDS = {
+        single: [SOURCE_PATHS.stripe],
+        double: [stripeBand(0, .36), stripeBand(.64, 1)],
+        triple: [stripeBand(0, .2), stripeBand(.34, .66), stripeBand(.8, 1)],
+    };
+
     function rgb(hex) {
         const match = /^#([0-9a-f]{6})$/i.exec(String(hex || ''));
         const value = match ? match[1] : '000000';
@@ -115,6 +157,7 @@
         const shell = Helmet.colorById(spec.color).hex;
         const uid = React.useId().replace(/:/g, '');
         const shellClipId = `tl-helmet-clip-${uid}`;
+        const stripeClipId = `tl-helmet-stripe-${uid}`;
         const shellGradientId = `tl-helmet-shell-${uid}`;
         const upperMaskGradientId = `tl-helmet-upper-mask-${uid}`;
         const cageGradientId = `tl-helmet-cage-${uid}`;
@@ -127,6 +170,7 @@
         title && h('title', null, title),
         h('defs', null,
             h('clipPath', { id: shellClipId }, h('path', { d: SOURCE_PATHS.shell })),
+            h('clipPath', { id: stripeClipId }, h('path', { d: SOURCE_PATHS.stripe })),
             h('radialGradient', {
                 id: shellGradientId, gradientUnits: 'userSpaceOnUse', cy: 361.22, cx: 444.77,
                 gradientTransform: 'matrix(-1.3068 -1.0068e-7 8.8353e-8 -1.1468 1040.3 728.58)', r: 369.8,
@@ -147,10 +191,9 @@
             h('path', { d: SOURCE_PATHS.innerPanel, fill: '#08090B', stroke: '#08090B', strokeWidth: 1 }),
             h('path', { d: SOURCE_PATHS.shell, fill: `url(#${shellGradientId})`, stroke: darken(shell, .45), strokeWidth: 7 }),
             h('g', { clipPath: `url(#${shellClipId})` },
-                spec.stripeStyle !== 'none' && h('path', { d: SOURCE_PATHS.stripe, fill: spec.stripeColor }),
-                ['double', 'triple'].includes(spec.stripeStyle) && h('path', { d: 'M169 177C293 98 480 51 629 255C687 335 720 408 719 441', fill:'none', stroke: shell, strokeWidth: spec.stripeStyle === 'double' ? 17 : 32 }),
-                spec.stripeStyle === 'triple' && h('path', { d: 'M169 177C293 98 480 51 629 255C687 335 720 408 719 441', fill:'none', stroke: spec.stripeColor, strokeWidth: 15 }),
-                h('g', { transform: 'translate(184 255) rotate(-9 170 150) scale(3.3)' }, h(DecalArt, { decal: spec.decal, mark: spec.monogram || letter || '?', color: spec.accentColor, shell })),
+                h('g', { clipPath: `url(#${stripeClipId})` }, (STRIPE_BANDS[spec.stripeStyle] || []).map((d, index) => h('path', { key: index, d, fill: spec.stripeColor }))),
+                // Anchor the mark above the earhole, along the helmet's side plane.
+                h('g', { transform: 'translate(310 450) rotate(-22) scale(3.1) translate(-50 -50)' }, h(DecalArt, { decal: spec.decal, mark: spec.monogram || letter || '?', color: spec.accentColor, shell })),
                 h('path', { d: 'M84 323C124 192 278 93 405 123C237 128 155 211 112 333Z', fill:'#fff',opacity:.16 }),
                 h('path', { d: 'M80 547C106 658 150 726 165 768M188 787C291 846 423 903 505 804', fill:'none',stroke:darken(shell,.4),strokeWidth:9,opacity:.6 })),
             showCage && h(React.Fragment, null,
