@@ -84,6 +84,82 @@
     function lighten(hex, amount) { return mixColor(hex, '#ffffff', amount); }
     function darken(hex, amount) { return mixColor(hex, '#000000', amount); }
 
+    // Modern silhouettes are original artwork. The heritage shell and full cage
+    // retain the source paths above, so existing club designs keep their detail.
+    const EAR_HOLE = 'M313 641C327 641 339 647 349 656C367 673 369 698 353 712C337 727 309 724 291 707C273 690 271 665 287 651C294 645 304 641 313 641Z';
+    const SHELL_CONTOURS = {
+        'round-70': SOURCE_PATHS.shell,
+        'high-80': 'M385 65C233 65 112 178 67 289C26 391 23 487 56 586C85 678 120 721 135 760C148 797 159 794 179 788C201 781 224 792 256 810C322 848 382 868 425 863C481 858 521 838 548 791C567 754 545 707 530 668C511 622 510 580 536 539C557 506 600 482 641 468L747 425C779 410 780 391 769 372L720 281C655 133 544 65 385 65Z' + EAR_HOLE,
+        'low-90': 'M394 141C251 141 118 229 75 319C25 420 39 526 69 602C96 673 123 721 142 764C154 790 164 793 182 786C211 780 234 797 268 815C334 850 387 863 433 854C486 843 520 822 542 785C561 750 541 706 524 665C506 621 513 574 537 538C561 503 604 484 641 469L743 426C775 411 779 394 768 377L721 305C665 204 546 137 394 141Z' + EAR_HOLE,
+        speed: 'M358 111L433 99C565 108 675 188 724 286L782 381Q794 403 758 423L646 469C574 493 541 526 521 568Q505 605 524 651L558 722L549 778L518 823L452 856L397 860L325 836L213 785L171 792L133 777L109 726L75 665L49 572L34 476L42 384L69 304C111 208 229 124 358 111Z' + EAR_HOLE,
+        sculpted: 'M322 119L401 86L502 100L604 137L680 210L735 283L760 324L803 370L794 409L756 429L641 474L590 497L538 542L519 594L531 642L559 691L577 747L551 804L494 848L425 866L359 850L289 820L219 785L173 794L136 774L91 703L58 618L37 526L36 426L60 331L111 247L185 178L255 139Z' + EAR_HOLE,
+        impact: 'M342 94L434 83C558 90 659 153 718 259L751 312L781 354L794 390Q795 410 760 429L644 474L584 504L544 544L530 590L542 640L569 697L568 762L541 810L489 851L423 874L360 860L293 830L217 795L176 802L137 783L106 735L73 667L43 572L29 473L41 373L77 276C129 176 233 108 342 94Z' + EAR_HOLE,
+    };
+    const SHELL_VENTS = {
+        speed: ['M91 388L140 327L177 313L133 380Z', 'M69 465L112 413L144 398L113 454Z', 'M519 154L581 181L611 215L545 186Z'],
+        sculpted: ['M118 307L170 251L202 244L158 300Z', 'M74 398L115 352L135 350L108 397Z', 'M563 157L624 185L653 224L585 195Z', 'M594 230L647 257L674 286L614 260Z'],
+        impact: ['M87 335L126 288L159 277L137 315L110 341Z', 'M66 408L100 364L127 359L99 400Z', 'M76 499L94 466L115 455L104 491Z', 'M565 152L617 177L642 204L590 181Z'],
+    };
+    const MASK_RAILS = {
+        single: [
+            'M511 525L427 620Q402 650 379 733C470 795 744 763 916 686Q957 668 943 638L784 582L715 405',
+        ],
+        double: [
+            'M511 525L427 620Q402 650 379 733C470 795 744 763 916 686Q957 668 943 638L784 582L715 405',
+            'M428 619C516 691 756 677 910 623',
+            'M514 693L559 765',
+        ],
+        speed: [
+            'M512 522L440 589L379 731L438 763L570 771L755 745L886 703L952 656L933 604L790 560L722 406',
+            'M441 589L505 645L571 696L722 681L875 637L933 604',
+            'M515 523L571 696L596 767',
+            'M811 570L843 646L880 706',
+            'M603 767L636 830L764 850L914 817L952 775L952 656',
+        ],
+    };
+
+    function ShellPaint({ style, color, shell }) {
+        const path = (d, key) => h('path', { key, d, fill: color });
+        if (style === 'winged') return h('g', { 'data-helmet-paint': style },
+            path('M635 208Q715 265 785 380L774 430L673 474C627 438 618 386 584 346C491 327 332 329 163 390L53 464L59 387C201 305 392 271 563 292L501 249C366 216 212 217 108 277L146 214C253 162 392 180 467 201L393 150C307 127 226 134 169 159L236 114C389 103 526 157 635 208Z'));
+        if (style === 'tiger') return h('g', { 'data-helmet-paint': style }, [
+            'M130 160L195 136L233 299L316 396L188 316Z',
+            'M297 96L351 89L383 209L438 291L363 248Z',
+            'M467 88L538 111L546 247L590 331L506 271Z',
+            'M652 167L714 221L679 316L713 400L630 325Z',
+            'M38 354L64 283L150 398L271 462L134 435Z',
+            'M37 551L46 474L147 550L238 570L143 589Z',
+            'M101 721L77 659L183 688L270 762L164 727Z',
+            'M382 842L438 861L459 722L424 585L417 736Z',
+        ].map(path));
+        if (style === 'flames') return h('g', { 'data-helmet-paint': style },
+            path('M27 226C205 262 167 375 408 321C344 364 304 389 264 389C397 471 455 351 584 384C546 408 513 429 506 456C578 471 604 436 675 445C612 522 500 540 391 498C460 593 420 679 514 737C400 724 335 684 302 610C297 692 351 731 311 788C213 696 214 614 97 627L19 528Z'),
+            h('path', { d: 'M38 346C124 377 139 445 270 432C230 459 212 470 175 459C213 527 298 493 349 550C272 526 213 562 139 509L54 499Z', fill: shell, opacity: .8 }));
+        if (style === 'lightning') return h('g', { 'data-helmet-paint': style },
+            path('M28 288L424 175L352 330L688 230L465 466L554 481L244 753L350 521L234 543L362 385L41 455Z'));
+        if (style === 'two-tone') return h('g', { 'data-helmet-paint': style }, path('M13 98H811V341C611 377 342 496 18 620Z'));
+        return null;
+    }
+
+    function CustomMask({ style, color }) {
+        return h('g', { 'data-helmet-mask': style, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' },
+            (MASK_RAILS[style] || []).map((d, index) => h('g', { key: index },
+                h('path', { d, stroke: darken(color, .55), strokeWidth: 23 }),
+                h('path', { d, stroke: color, strokeWidth: 17 }),
+                h('path', { d, stroke: lighten(color, .4), strokeWidth: 4, transform: 'translate(-2 -3)', opacity: .8 }))));
+    }
+
+    function Visor({ style, uid }) {
+        if (style === 'none') return null;
+        const colors = { clear: ['#DCF4F8', '#95B8C8', .26], smoke: ['#303C50', '#0B1021', .9], amber: ['#F6C055', '#673629', .82], ice: ['#ADECEE', '#567DDA', .85] };
+        const [light, dark, opacity] = colors[style] || colors.clear;
+        const id = `tl-visor-${uid}`;
+        return h('g', { 'data-helmet-visor': style },
+            h('defs', null, h('linearGradient', { id, x1: '0', y1: '0', x2: '1', y2: '1' }, h('stop', { offset: '0', stopColor: light }), h('stop', { offset: '1', stopColor: dark }))),
+            h('path', { d: 'M527 508L739 408L788 551Q706 595 574 610L532 535Z', fill: `url(#${id})`, fillOpacity: opacity, stroke: light, strokeWidth: 5, strokeOpacity: .8 }),
+            h('path', { d: 'M563 512L723 435M582 526L716 464', fill: 'none', stroke: '#FFFFFF', strokeWidth: 9, opacity: .25, strokeLinecap: 'round' }));
+    }
+
     // Original vector marks. One set of artwork is used for the picker, helmet,
     // and small team badge so previews always match the saved identity.
     function logoTrim(shell, color) {
@@ -139,6 +215,21 @@
             cut('M51 50C57 62 72 64 67 78C64 88 46 91 39 81C32 71 45 64 51 50Z'));
         if (decal === 'trident') return h('g', null,
             path('M44 90V54H25L15 44V25H7L21 7L35 25H27V38L32 42H44V22H35L50 3L65 22H56V42H68L73 38V25H65L79 7L93 25H85V44L75 54H56V90L50 97Z'));
+        if (decal === 'serpent') return h('g', null,
+            path('M76 8L93 25L77 43L61 38L64 29C48 23 34 33 43 45L65 59C89 76 70 97 46 95C26 94 12 82 10 68L30 63C34 79 53 80 56 74C60 66 38 62 28 52C7 28 34 3 63 10Z'),
+            cut('M71 21L82 25L75 29Z'), h('path', { d: 'M82 37L96 43L92 50M96 43L99 39', fill: 'none', stroke: color, strokeWidth: 3 }));
+        if (decal === 'mountain') return h('g', null,
+            path('M3 85L36 21L49 41L67 9L98 85Z'),
+            cut('M24 59L36 35L47 58L36 50ZM50 52L66 24L81 57L66 47Z'),
+            h('path', { d: 'M5 92H96', stroke: color, strokeWidth: 5 }));
+        if (decal === 'comet') return h('g', null,
+            path('M91 5L66 53L95 30L77 74C72 96 31 104 16 82C1 59 19 36 41 32Z'),
+            cut('M88 10L44 48L74 37L51 62L84 37L59 77C50 91 26 90 21 72C17 58 31 44 44 48Z'),
+            h('circle', { cx: 37, cy: 69, r: 12, fill: color }));
+        if (decal === 'anchor') return h('g', null,
+            path('M43 28H57V45H73V56H57V82C69 79 78 70 78 61H69L86 42L98 67H89C85 84 70 94 50 98C30 94 15 84 11 67H2L14 42L31 61H22C22 70 31 79 43 82V56H27V45H43Z'),
+            h('circle', { cx: 50, cy: 17, r: 12, fill: 'none', stroke: trim, strokeWidth: 12 }),
+            h('circle', { cx: 50, cy: 17, r: 12, fill: 'none', stroke: color, strokeWidth: 6 }));
         // The shield doubles as a varsity crest, using the team's own initials.
         return h('g', null,
             path('M12 13H88V53C88 73 71 88 50 97C29 88 12 73 12 53Z'),
@@ -147,14 +238,15 @@
     }
 
     function LogoPreview({ spec, mark, size = 64 }) {
-        const shell = Helmet.colorById(spec.color).hex;
+        const shell = Helmet.shellColorFor(spec);
         return h('svg', { className: 'tl-team-logo', viewBox: '-5 -5 110 110', width:size, height:size, 'aria-hidden':'true' },
             h(DecalArt,{decal:spec.decal,mark:spec.monogram || mark,color:spec.accentColor,shell}));
     }
 
     function TimeLeagueHelmetIcon({ helmet, letter, size = 32, title }) {
         const spec = Helmet.normalizeHelmet(helmet, letter || 'fallback');
-        const shell = Helmet.colorById(spec.color).hex;
+        const shell = Helmet.shellColorFor(spec);
+        const contour = SHELL_CONTOURS[spec.shell] || SOURCE_PATHS.shell;
         const uid = React.useId().replace(/:/g, '');
         const shellClipId = `tl-helmet-clip-${uid}`;
         const stripeClipId = `tl-helmet-stripe-${uid}`;
@@ -163,13 +255,15 @@
         const cageGradientId = `tl-helmet-cage-${uid}`;
         const chromeGradientId = `tl-helmet-chrome-${uid}`;
         const showCage = spec.facemask !== 'none';
+        const heritageCage = ['cage', 'power'].includes(spec.facemask);
         return h('svg', {
             className: 'tl-helmet', viewBox: '0 0 1000 1000', width: size, height: size,
+            'data-shell': spec.shell, 'data-mask': spec.facemask,
             'aria-hidden': title ? undefined : 'true', role: title ? 'img' : undefined,
         },
         title && h('title', null, title),
         h('defs', null,
-            h('clipPath', { id: shellClipId }, h('path', { d: SOURCE_PATHS.shell })),
+            h('clipPath', { id: shellClipId }, h('path', { d: contour, clipRule: 'evenodd' })),
             h('clipPath', { id: stripeClipId }, h('path', { d: SOURCE_PATHS.stripe })),
             h('radialGradient', {
                 id: shellGradientId, gradientUnits: 'userSpaceOnUse', cy: 361.22, cx: 444.77,
@@ -186,20 +280,28 @@
             }, h('stop', { offset: '0', stopColor: '#FFFFFF' }), h('stop', { offset: '.76142', stopColor: '#C5C5C5' }), h('stop', { offset: '1', stopColor: '#5D5D5D' }))),
         h('g', null,
             h('g', null,
-            showCage && h('path', { d: SOURCE_PATHS.backPost, fill: darken(spec.facemaskColor, .2) }),
-            showCage && h('path', { d: SOURCE_PATHS.upperMask, fill: `url(#${upperMaskGradientId})` }),
+            heritageCage && h('path', { d: SOURCE_PATHS.backPost, fill: darken(spec.facemaskColor, .2) }),
+            heritageCage && h('path', { d: SOURCE_PATHS.upperMask, fill: `url(#${upperMaskGradientId})` }),
             h('path', { d: SOURCE_PATHS.innerPanel, fill: '#08090B', stroke: '#08090B', strokeWidth: 1 }),
-            h('path', { d: SOURCE_PATHS.shell, fill: `url(#${shellGradientId})`, stroke: darken(shell, .45), strokeWidth: 7 }),
+            h('path', { 'data-helmet-shell': spec.shell, d: contour, fill: `url(#${shellGradientId})`, stroke: darken(shell, .45), strokeWidth: 7, fillRule: 'evenodd' }),
             h('g', { clipPath: `url(#${shellClipId})` },
+                h(ShellPaint, { style: spec.paintStyle, color: spec.accentColor, shell }),
                 h('g', { clipPath: `url(#${stripeClipId})` }, (STRIPE_BANDS[spec.stripeStyle] || []).map((d, index) => h('path', { key: index, d, fill: spec.stripeColor }))),
                 // Anchor the mark above the earhole, along the helmet's side plane.
                 h('g', { transform: 'translate(310 450) rotate(-22) scale(3.1) translate(-50 -50)' }, h(DecalArt, { decal: spec.decal, mark: spec.monogram || letter || '?', color: spec.accentColor, shell })),
+                (SHELL_VENTS[spec.shell] || []).map((d, index) => h('path', { key: index, d, fill: '#111824', stroke: lighten(shell, .2), strokeWidth: 4 })),
+                spec.shell === 'sculpted' && h('path', { d: 'M411 113L471 231L553 288L587 379M82 568L158 620L217 627', fill: 'none', stroke: darken(shell, .4), strokeWidth: 12, opacity: .7 }),
+                spec.shell === 'impact' && h('path', { d: 'M372 105L431 169L536 203L614 310M80 568L163 621L208 741', fill: 'none', stroke: darken(shell, .5), strokeWidth: 16, strokeLinejoin: 'round', opacity: .65 }),
                 h('path', { d: 'M84 323C124 192 278 93 405 123C237 128 155 211 112 333Z', fill:'#fff',opacity:.16 }),
                 h('path', { d: 'M80 547C106 658 150 726 165 768M188 787C291 846 423 903 505 804', fill:'none',stroke:darken(shell,.4),strokeWidth:9,opacity:.6 })),
+            h(Visor, { style: spec.visor, uid }),
             showCage && h(React.Fragment, null,
                 h('path', { d: SOURCE_PATHS.hinge, fill: `url(#${chromeGradientId})`, stroke: '#CECECE', strokeWidth: 1 }),
-                h('path', { d: SOURCE_PATHS.cage, fill: `url(#${cageGradientId})`, stroke: lighten(spec.facemaskColor,.28), strokeWidth: 2 }),
-                h('path', { d: SOURCE_PATHS.frontPost, fill: lighten(spec.facemaskColor, .04) }),
+                heritageCage ? h(React.Fragment, null,
+                    h('path', { d: SOURCE_PATHS.cage, fill: `url(#${cageGradientId})`, stroke: lighten(spec.facemaskColor,.28), strokeWidth: 2 }),
+                    h('path', { d: SOURCE_PATHS.frontPost, fill: lighten(spec.facemaskColor, .04) }),
+                    spec.facemask === 'power' && h('g', { fill: 'none', stroke: spec.facemaskColor, strokeWidth: 18, strokeLinecap: 'round', strokeLinejoin: 'round' },
+                        h('path', { d: 'M605 460L676 660L726 877M679 424L756 641L810 873M425 618C501 659 567 668 627 666' }))) : h(CustomMask, { style: spec.facemask, color: spec.facemaskColor }),
                 h('path', { d: SOURCE_PATHS.hingeTop, fill: '#898989', fillOpacity: .52941, stroke: '#CECECE', strokeWidth: 2.2 }),
                 h('path', { d: SOURCE_PATHS.hingeFront, fill: '#898989', fillOpacity: .52941, stroke: '#CECECE', strokeWidth: 2.2 }),
                 h('path', { d: SOURCE_PATHS.lowerHardware, fill: '#4C4C4C', fillOpacity: .53107, stroke: '#CECECE', strokeWidth: 2.2 }),
@@ -278,27 +380,35 @@
             className:`tl-helmet-color${selected === color.hex || selected === color.id ? ' selected' : ''}`,
             style:{'--swatch':color.hex}, onClick:()=>action(color),
         }, selected === color.hex || selected === color.id ? h('span', { 'aria-hidden':'true' }, '✓') : null)));
-        const finishes = Helmet.FACEMASK_COLORS.map((hex,index)=>({id:hex,hex,label:['Silver','White','Black','Gold'][index]}));
-        const panels = [['looks','Team kits'],['logo','Logo'],['colors','Colors'],['details','Details']];
+        const customColor = (label, value, field) => h('label', { className: 'tl-studio-custom-color' },
+            h('span', null, `Custom ${label.toLowerCase()}`), h('code', null, value.toUpperCase()),
+            h('input', { type: 'color', value, 'aria-label': `Custom ${label.toLowerCase()} color`, onChange: event => set({ [field]: event.target.value }) }));
+        const visualChoices = (choices, field, previewPatch = {}) => h('div', { className: 'tl-studio-gear-grid' }, choices.map(choice => h('button', {
+            key: choice.id, type: 'button', 'aria-pressed': spec[field] === choice.id,
+            onClick: () => set({ [field]: choice.id }), className: 'tl-studio-gear-choice',
+        }, h(TimeLeagueHelmetIcon, { helmet: { ...spec, ...previewPatch, [field]: choice.id }, letter: mark, size: 112 }),
+        h('b', null, choice.label), h('small', null, choice.era || choice.hint))));
+        const panels = [['looks','Team kits'],['logo','Logo'],['paint','Paint'],['colors','Colors'],['details','Gear']];
         const editor = open && h('div', { className:'tl-helmet-workshop-backdrop tl-identity-studio', onMouseDown:close },
             h('div', { ref:dialogRef, className:'tl-helmet-workshop', role:'dialog', 'aria-modal':'true', 'aria-label':`Customize ${teamName} helmet`, onMouseDown:event=>event.stopPropagation() },
                 h('header', { className:'tl-helmet-workshop-head' },
                     h('div',null,h('span',{className:'tl-eyebrow'},'THE VAULT · TEAM LAB'),h('h2',null,'Make it yours.')),
                     h('button',{type:'button',className:'tl-helmet-close','aria-label':'Close helmet workshop',disabled:saving,onClick:close},'×')),
                 h('div',{className:'tl-studio-body'},
-                    h('div',{className:'tl-studio-preview',style:{'--kit-color':Helmet.colorById(spec.color).hex}},
+                    h('div',{className:'tl-studio-preview',style:{'--kit-color':Helmet.shellColorFor(spec)}},
                         h('div',{className:'tl-studio-team'},h('span',null,'EST. IN THE VAULT'),h('strong',null,teamName)),
                         h('div',{className:'tl-studio-helmet'},h(TimeLeagueHelmetIcon,{helmet:spec,letter:mark,size:320,title:`${teamName} helmet preview`})),
                         h('div',{className:'tl-studio-signature'},
                             h('span',{className:'tl-studio-crest'},h(LogoPreview,{spec,mark,size:62})),
-                            h('span',null,h('b',null,Helmet.decalById(spec.decal).label),h('small',null,`${Helmet.colorById(spec.color).label} · ${spec.stripeStyle === 'none' ? 'Clean shell' : spec.stripeStyle + ' stripe'}`))),
+                            h('span',null,h('b',null,Helmet.shellById(spec.shell).label),h('small',null,`${Helmet.paintById(spec.paintStyle).label} · ${Helmet.decalById(spec.decal).label}`))),
                         h('div',{className:'tl-studio-mini'},h('span',null,'ON THE SCOREBOARD'),h(TimeLeagueHelmetIcon,{helmet:spec,letter:mark,size:32}),h('b',null,teamName))),
                     h('div',{className:'tl-studio-edit'},
                         h('nav',{className:'tl-studio-tabs','aria-label':'Helmet design controls'},panels.map(([id,label])=>h('button',{key:id,type:'button','aria-pressed':panel === id,onClick:()=>setPanel(id)},label))),
                         h('fieldset',{className:'tl-studio-options',ref:optionsRef,disabled:saving},
                             panel === 'looks' && h(Section,{title:'Pick your starting lineup',hint:'Every kit is fully customizable'},
                                 h('div',{className:'tl-helmet-preset-grid'},Helmet.HELMET_PRESETS.map(preset=>{
-                                    const selected = ['color','decal','accentColor','stripeStyle','stripeColor','facemaskColor'].every(key=>spec[key]===preset.spec[key]);
+                                    const presetSpec = Helmet.normalizeHelmet(preset.spec, teamName);
+                                    const selected = Object.keys(presetSpec).filter(key => key !== 'monogram').every(key=>spec[key]===presetSpec[key]);
                                     return h('button',{key:preset.id,type:'button',className:'tl-helmet-preset','aria-pressed':selected,onClick:()=>setDraft(Helmet.normalizeHelmet(preset.spec,teamName))},
                                         h(TimeLeagueHelmetIcon,{helmet:preset.spec,letter:mark,size:105}),h('span',null,h('b',null,preset.label),h('small',null,preset.era)));
                                 }))),
@@ -307,16 +417,20 @@
                                     key:decal.id,type:'button','aria-label':`${decal.label} logo`,'aria-pressed':spec.decal===decal.id,onClick:()=>set({decal:decal.id}),
                                 },h(LogoPreview,{spec:{...spec,decal:decal.id},mark,size:70}),h('span',null,decal.label)))),
                                 ['monogram','shield'].includes(spec.decal) && h('label',{className:'tl-studio-lettering'},h('span',null,'Your letters'),h('input',{value:spec.monogram || '',placeholder:mark,maxLength:3,'aria-label':'Custom team initials',onChange:event=>set({monogram:event.target.value})}),h('small',null,'Up to 3 letters or numbers. Leave blank to use your team initials.'))),
-                            panel === 'colors' && h(React.Fragment,null,
-                                h(Section,{title:'Shell paint',hint:Helmet.colorById(spec.color).label},swatches(Helmet.HELMET_COLORS,spec.color,color=>set({color:color.id}),'Shell')),
-                                h(Section,{title:'Logo ink',hint:'The outline keeps your mark readable'},swatches(Helmet.ACCENT_COLORS,spec.accentColor,color=>set({accentColor:color.hex}),'Logo')),
-                                h(Section,{title:'Stripe color'},swatches(Helmet.ACCENT_COLORS,spec.stripeColor,color=>set({stripeColor:color.hex}),'Stripe')),
-                                h(Section,{title:'Facemask finish'},swatches(finishes,spec.facemaskColor,color=>set({facemaskColor:color.hex}),'Facemask'))),
-                            panel === 'details' && h(React.Fragment,null,
-                                h(Section,{title:'The finishing stripe',hint:'Four distinct treatments'},h('div',{className:'tl-studio-stripes'},Helmet.STRIPE_STYLES.map(stripe=>h('button',{
+                            panel === 'paint' && h(React.Fragment, null,
+                                h(Section, { title: 'Paint the whole shell', hint: 'Use your logo color for wings, stripes, flames or a split finish' }, visualChoices(Helmet.PAINT_STYLES, 'paintStyle', { decal: 'blank', stripeStyle: 'none' })),
+                                h(Section,{title:'The finishing stripe',hint:'Layer a crown stripe over your paint'},h('div',{className:'tl-studio-stripes'},Helmet.STRIPE_STYLES.map(stripe=>h('button',{
                                     key:stripe.id,type:'button','aria-pressed':spec.stripeStyle===stripe.id,onClick:()=>set({stripeStyle:stripe.id,stripe:stripe.id!=='none'}),
-                                },h('span',{className:`tl-stripe-sample ${stripe.id}`,'aria-hidden':'true',style:{'--stripe-color':spec.stripeColor,'--shell-color':Helmet.colorById(spec.color).hex}},h('i')),h('b',null,stripe.label))))),
-                                h(Section,{title:'Face protection'},h('div',{className:'tl-helmet-choice-grid two'},[['cage','Classic cage'],['none','Open shell']].map(([id,label])=>h(ChoiceButton,{key:id,label,selected:id==='none'?spec.facemask==='none':spec.facemask!=='none',onClick:()=>set({facemask:id})})))))))),
+                                },h('span',{className:`tl-stripe-sample ${stripe.id}`,'aria-hidden':'true',style:{'--stripe-color':spec.stripeColor,'--shell-color':Helmet.shellColorFor(spec)}},h('i')),h('b',null,stripe.label)))))),
+                            panel === 'colors' && h(React.Fragment,null,
+                                h(Section,{title:'Shell color',hint:spec.shellColor ? 'Your custom color' : Helmet.colorById(spec.color).label},swatches(Helmet.HELMET_COLORS,spec.shellColor || spec.color,color=>set({color:color.id,shellColor:''}),'Shell'), customColor('Shell', Helmet.shellColorFor(spec), 'shellColor')),
+                                h(Section,{title:'Logo & paint color',hint:'The outline keeps your mark readable'},swatches(Helmet.ACCENT_COLORS,spec.accentColor,color=>set({accentColor:color.hex}),'Logo'), customColor('Logo and paint', spec.accentColor, 'accentColor')),
+                                h(Section,{title:'Stripe color'},swatches(Helmet.ACCENT_COLORS,spec.stripeColor,color=>set({stripeColor:color.hex}),'Stripe'), customColor('Stripe', spec.stripeColor, 'stripeColor')),
+                                h(Section,{title:'Facemask finish'},swatches(Helmet.FACEMASK_FINISHES,spec.facemaskColor,color=>set({facemaskColor:color.hex}),'Facemask'), customColor('Facemask', spec.facemaskColor, 'facemaskColor'))),
+                            panel === 'details' && h(React.Fragment,null,
+                                h(Section, { title: 'Choose your shell', hint: 'Three heritage profiles and three modern silhouettes' }, visualChoices(Helmet.SHELL_STYLES, 'shell')),
+                                h(Section, { title: 'Face protection', hint: 'From a single bar to a full power cage' }, visualChoices(Helmet.FACEMASK_STYLES, 'facemask')),
+                                h(Section, { title: 'Visor', hint: 'An extra edge to your game-day look' }, h('div', { className: 'tl-studio-visor-grid' }, Helmet.VISOR_STYLES.map(visor=>h(ChoiceButton, { key:visor.id, label:visor.label, selected:spec.visor===visor.id, onClick:()=>set({visor:visor.id}) })))))))),
                 error && h('p',{className:'tl-studio-error',role:'alert'},error),
                 h('footer',{className:'tl-helmet-workshop-actions'},
                     h('button',{type:'button',className:'tl-btn',disabled:saving,onClick:surprise},'↻ Shuffle kit'),

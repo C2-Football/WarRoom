@@ -26,14 +26,14 @@
     const REGULAR_SEASON_WEEKS = 14;
     const MAX_QUARTERBACKS = 2;
 
-    const TAB_IDS = ['home', 'draft', 'gameday', 'roster', 'waivers', 'trades', 'achievements', 'messages', 'career', 'activity'];
+    const TAB_IDS = ['home', 'draft', 'gameday', 'roster', 'waivers', 'trades', 'achievements', 'messages', 'career', 'community', 'activity'];
     const TAB_LABELS = {
         home: 'HOME', draft: 'DRAFT', gameday: 'GAMEDAY', roster: 'ROSTER', waivers: 'WAIVERS',
-        trades: 'TRADES', achievements: 'ACHIEVEMENTS', messages: 'MESSAGES', career: 'MY CAREER', standings: 'COMMAND CENTRAL', activity: 'ACTIVITY',
+        trades: 'TRADES', achievements: 'ACHIEVEMENTS', messages: 'MESSAGES', career: 'MY PROFILE', community: 'COMMUNITY', standings: 'COMMAND CENTRAL', activity: 'ACTIVITY',
     };
     const TAB_ICONS = {
         home: '⌂', draft: '▤', gameday: '▶', roster: '♙', waivers: '+', trades: '⇄',
-        achievements: '♛', messages: '✉', career: '★', standings: '≡', activity: '◷',
+        achievements: '♛', messages: '✉', career: '★', community: '◎', standings: '≡', activity: '◷',
     };
 
     const PERSONA_IDS = ['warlord', 'archivist', 'gambler', 'steward'];
@@ -41,14 +41,17 @@
     // the same roster of default seats always looks the same, not reshuffled
     // on every "Found a League" mount.
     const seatWithHelmet = (seat) => ({ ...seat, helmet: window.App.TimeLeagueHelmet.defaultHelmet(seat.name) });
-    const defaultSeats = () => [
-        seatWithHelmet({ name: 'Commander', manager: 'human', aiPersona: 'warlord' }),
+    const defaultSeats = () => {
+        const identity = window.App.TimeLeagueProfile?.teamDefaults();
+        return [
+        { ...seatWithHelmet({ name: 'Commander', manager: 'human', aiPersona: 'warlord' }), ...(identity || {}) },
         seatWithHelmet({ name: 'Warlord Kade', manager: 'ai', aiPersona: 'warlord' }),
         seatWithHelmet({ name: 'The Archivist', manager: 'ai', aiPersona: 'archivist' }),
         seatWithHelmet({ name: 'Riverboat Sol', manager: 'ai', aiPersona: 'gambler' }),
         seatWithHelmet({ name: 'Steward Vance', manager: 'ai', aiPersona: 'steward' }),
         seatWithHelmet({ name: 'Iron Ledger', manager: 'ai', aiPersona: 'archivist' }),
-    ];
+        ];
+    };
 
     // ── storage (all reads guarded; wall-clock timestamps live only in this UI layer) ──
     function readIndexEntries() {
@@ -898,6 +901,7 @@
         const [showFriends, setShowFriends] = useState(false);
         const [connectionError, setConnectionError] = useState(null);
         const [showCareer, setShowCareer] = useState(false);
+        const [showCommunity, setShowCommunity] = useState(false);
         const onlineRef = useRef(null);
         const writeBusy = useRef(false);
         const openGeneration = useRef(0);
@@ -1143,6 +1147,7 @@
         const GamecastPanel = window.WrTimeLeagueGamecastPanel;
         const HomePanel = window.WrTimeLeagueHomePanel;
         const CareerView = window.WrTimeLeagueCareerView;
+        const CommunityPanel = window.WrTimeLeagueCommunityPanel;
         const RivalsPanel = window.WrTimeLeagueRivalsPanel;
 
         if (!league) {
@@ -1159,9 +1164,12 @@
                         h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 } },
                             h('span', { style: { fontSize: 12.5, color: 'var(--warn)' } }, `⚠ ${inviteError}`),
                             h('button', { type: 'button', className: 'tl-btn icon', onClick: () => setInviteError(null) }, '✕'))),
-                    CareerView && h('section', { className: 'tl-card', style: { marginBottom: 16 } },
-                        h('button', { className: 'tl-btn primary', 'aria-expanded': showCareer, onClick: () => setShowCareer(value => !value) }, showCareer ? 'Close career profile' : 'Your career & league history'),
-                        showCareer && h(CareerView, { index, onOpenLocal: openLeague, onOpenOnline: openOnlineLeague })),
+                    h('section', { className: 'tl-card', style: { marginBottom: 16 } },
+                        h('div', { className: 'tl-community-tabs' },
+                            CareerView && h('button', { className: 'tl-btn' + (showCareer ? ' primary' : ''), 'aria-expanded': showCareer, onClick: () => { setShowCareer(value => !value); setShowCommunity(false); } }, 'My profile & career'),
+                            CommunityPanel && h('button', { className: 'tl-btn' + (showCommunity ? ' primary' : ''), 'aria-expanded': showCommunity, onClick: () => { setShowCommunity(value => !value); setShowCareer(false); } }, 'Community & leaderboard')),
+                        showCareer && CareerView && h(CareerView, { index, onOpenLocal: openLeague, onOpenOnline: openOnlineLeague }),
+                        showCommunity && CommunityPanel && h(CommunityPanel, { onOpenOnline: openOnlineLeague, onProfile: () => { setShowCareer(true); setShowCommunity(false); } })),
                     SetupPanel ? h(SetupPanel, {
                         index, onOpen: openLeague, onDelete: deleteLeague, onCreate: createLeague,
                         onlineIndex, onlineIndexState, onOpenOnline: openOnlineLeague, onCreateOnline: createOnlineLeague,
@@ -1169,8 +1177,8 @@
         }
 
         const tabs = league.phase === 'draft'
-            ? ['draft', 'messages', 'career', 'activity']
-            : ['home', 'gameday', 'roster', 'waivers', 'trades', 'achievements', 'draft', 'messages', 'career', 'activity'];
+            ? ['draft', 'messages', 'career', 'community', 'activity']
+            : ['home', 'gameday', 'roster', 'waivers', 'trades', 'achievements', 'draft', 'messages', 'career', 'community', 'activity'];
         const activeTab = tabs.includes(tab) ? tab : tabs[0];
         const activeTeam = onlineMeta ? onlineMeta.seatTeamId : league.teams.some((team) => team.teamId === activeTeamId)
             ? activeTeamId
@@ -1223,6 +1231,8 @@
                     league, meta: onlineMeta, saving, onAction: action => handleUpdate(league, action),
 
                 }),
+                activeTab === 'career' && CareerView ? h(CareerView, { index, league, onlineMeta, onOpenLocal: openLeague, onOpenOnline: openOnlineLeague }) : null,
+                activeTab === 'community' && CommunityPanel ? h(CommunityPanel, { onOpenOnline: openOnlineLeague, onProfile: () => navigateTab('career') }) : null,
                 h('fieldset', { disabled: saving || Boolean(onlineMeta && !onlineMeta.draftStarted), style: { border: 0, padding: 0, margin: 0, minWidth: 0 } },
                 league.phase === 'complete' && !Engine.playoffCount(league) && league.settings.regularSeasonWeeks < 18 && h('section', { className: 'tl-card tl-week-gate' },
                     h('div', null, h('strong', null, 'Finish with a playoff?'), h('p', null, 'Keep regular-season results and reopen this season for a seeded championship. This replaces the standings-only title.')),
@@ -1245,7 +1255,6 @@
                 activeTab === 'home' && league.phase !== 'complete' && RivalsPanel ? h(RivalsPanel, { league, teamId: onlineMeta?.seatTeamId || league.teams.find(team => team.manager === 'human')?.teamId, compact: true, onNavigate: navigateTab }) : null,
                 activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: onlineMeta?.seatTeamId }) : null,
                 ((activeTab === 'home' && league.phase === 'complete') || activeTab === 'messages') && RivalsPanel ? h(RivalsPanel, { league, teamId: onlineMeta?.seatTeamId || league.teams.find(team => team.manager === 'human')?.teamId, compact: activeTab === 'home', onNavigate: navigateTab }) : null,
-                activeTab === 'career' && CareerView ? h(CareerView, { index, league, onlineMeta, onOpenLocal: openLeague, onOpenOnline: openOnlineLeague }) : null,
                 activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, { league, cards, onUpdate: handleUpdate, onlineMeta }) : loadingNotice) : null,
                 activeTab === 'gameday' && GamecastPanel ? h(GamecastPanel, {
                     league, cards, logIndex, logsMissing, eraFactors, onlineMeta, autoPlayWeek, onGoCeremony: () => navigateTab('home'), onUpdate: handleUpdate, onGoRoster: () => navigateTab('roster'),

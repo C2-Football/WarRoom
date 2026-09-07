@@ -53,6 +53,7 @@
             if (record) records.push(record);
         }
         return h('div', null,
+            window.WrTimeLeagueProfilePanel && h(window.WrTimeLeagueProfilePanel),
             h('div', { className: 'tl-card-title' }, h('span', null, 'YOUR VAULT CAREER'), h('button', { className: 'tl-btn', disabled: loading, onClick: () => setRefresh(value => value + 1) }, 'Refresh history')),
             h('p', { className: 'tl-hint' }, 'Solo records belong to saves on this device. Shared records follow your signed-in account. Archived local history stays here after a save is removed.'),
             !userId && h('p', { className: 'tl-hint' }, 'Sign in to include your multiplayer leagues.'),

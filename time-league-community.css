@@ -1,0 +1,23 @@
+.tl-community { display: grid; gap: 14px; }
+.tl-community-hero { padding: 28px; border-radius: 16px; background: linear-gradient(125deg,#172a49,#28443f); border: 1px solid #87eed050; }
+.tl-community-hero small { letter-spacing: .14em; color: #87eed0; font-size: 10px; }
+.tl-community-hero h1 { margin: 8px 0; font-size: clamp(26px,4vw,44px); }
+.tl-community-tabs,.tl-community-search,.tl-community-pages { display:flex;flex-wrap:wrap;gap:10px;align-items:center; }
+.tl-community-search .tl-input { flex: 1 1 200px; }
+.tl-community-search label { font-size:12px; }
+.tl-community-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:14px; }
+.tl-community-player { position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:22px;border:1px solid var(--club-primary);border-top:4px solid var(--club-secondary);border-radius:14px;background:linear-gradient(145deg,#1b2944,#111827); }
+.tl-community-player h2,.tl-community-player h3,.tl-community-player p { margin:0; }
+.tl-community-player h2 { font-size:20px; }.tl-community-player h3 { font-size:13px;color:#d2dced; }.tl-community-player small { color:#c0cce0; }
+.tl-community-rank { position:absolute;right:18px;top:16px;font-size:24px;font-weight:bold;color:#ffd86e; }
+.tl-community-compose { display:grid;gap:10px;border-color:#87eed0; }
+.tl-community-invites { display:grid;gap:10px; }
+.tl-community-invites button { margin:5px 5px 0 0; }
+.tl-community-player.tl-backdrop-stadium { background:radial-gradient(ellipse at top,#3c506d,#111827); }
+.tl-community-player.tl-backdrop-gridiron { background:repeating-linear-gradient(90deg,#152e28 0 38px,#365846 39px 40px); }
+.tl-community-player.tl-backdrop-heritage { background:linear-gradient(135deg,#443324,#211e1a); }
+.tl-community-player.tl-backdrop-aurora { background:linear-gradient(135deg,#153c3c,#32254f); }
+
+.tl-community-player { min-width:0;overflow-wrap:anywhere; }
+.tl-community-compose:focus-visible { outline:2px solid #87eed0;outline-offset:3px; }
+.tl-identity-actions { display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:12px 0; }

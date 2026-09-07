@@ -1,0 +1,23 @@
+/* Additional controls for the shared Vault helmet workshop. */
+.tl-identity-studio .tl-studio-gear-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.tl-identity-studio .tl-studio-gear-choice { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 8px 6px 13px; border: 2px solid #50617f; border-radius: 14px; color: #f2f5fc; background: #303f5b; cursor: pointer; min-width: 0; }
+.tl-identity-studio .tl-studio-gear-choice:hover { border-color: var(--lilac,#b8a1ff); }
+.tl-identity-studio .tl-studio-gear-choice[aria-pressed=true] { border-color: var(--mint,#89eed3); background: #345953; }
+.tl-identity-studio .tl-studio-gear-choice .tl-helmet { width: 100%; height: auto; max-width: 112px; filter: drop-shadow(0 4px 3px #08122566); }
+.tl-identity-studio .tl-studio-gear-choice b { font: 700 12px var(--font-body); text-align: center; }
+.tl-identity-studio .tl-studio-gear-choice small { margin-top: 5px; color: #bacce7; font: 10px/1.4 var(--font-body); text-align: center; }
+.tl-identity-studio .tl-studio-custom-color { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 10px 12px; border: 1px solid #536581; border-radius: 10px; background: #26344c; font-size: 12px; }
+.tl-identity-studio .tl-studio-custom-color span { margin-right: auto; }
+.tl-identity-studio .tl-studio-custom-color code { color: #bacce7; font-size: 10px; }
+.tl-identity-studio .tl-studio-custom-color input[type=color] { flex: none; width: 44px; height: 36px; padding: 2px; border: 1px solid #8294ae; border-radius: 6px; background: transparent; cursor: pointer; }
+.tl-identity-studio .tl-studio-visor-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.tl-identity-studio .tl-studio-visor-grid .tl-helmet-choice { text-align: center; padding: 12px 6px; }
+@media(max-width:700px) {
+  .tl-identity-studio .tl-studio-tabs { gap: 4px; }
+  .tl-identity-studio .tl-studio-tabs button { font-size: 11px; padding: 10px 3px; }
+  .tl-identity-studio .tl-studio-gear-grid { gap: 8px; }
+  .tl-identity-studio .tl-studio-custom-color { flex-wrap: wrap; }
+}
+@media(max-width:370px) {
+  .tl-identity-studio .tl-studio-gear-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}

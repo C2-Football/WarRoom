@@ -24,6 +24,10 @@
         { id: 'cream', label: 'Vintage Cream', hex: '#D8CBA9' },
         { id: 'white', label: 'Gridiron White', hex: '#F2F2F0' },
         { id: 'black', label: 'Black', hex: '#18191D' },
+        { id: 'teal', label: 'Coastal Teal', hex: '#087E87' },
+        { id: 'mint', label: 'Fresh Mint', hex: '#75DFC2' },
+        { id: 'pink', label: 'Electric Pink', hex: '#D74E96' },
+        { id: 'copper', label: 'Copper', hex: '#BA7047' },
     ];
     const ACCENT_COLORS = [
         { id: 'white', label: 'White', hex: '#F4F1E8' },
@@ -34,16 +38,27 @@
         { id: 'navy', label: 'Navy', hex: '#172A49' },
         { id: 'black', label: 'Black', hex: '#111216' },
         { id: 'silver', label: 'Silver', hex: '#C2C5C9' },
+        { id: 'kelly', label: 'Kelly Green', hex: '#238249' },
+        { id: 'teal', label: 'Teal', hex: '#12A9AD' },
+        { id: 'orange', label: 'Orange', hex: '#EF792B' },
+        { id: 'purple', label: 'Purple', hex: '#9866D7' },
+        { id: 'pink', label: 'Pink', hex: '#ED79B7' },
+        { id: 'mint', label: 'Mint', hex: '#89EED3' },
     ];
     const SHELL_STYLES = [
         { id: 'round-70', label: '70s Round', era: '1970s', path: 'M1 57V29h3v-9h5v-6h7V9h10V5h12V2h24v2h11v4h8v6h6v9h3v21h-6v5H74v10h-5v17h-7v9H39v-4H28v-6H16v-3H7v-7H1Z' },
         { id: 'high-80', label: '80s High Dome', era: '1980s', path: 'M1 57V27h3v-9h5v-6h7V7h10V3h12V1h24v2h11v4h8v6h6v9h3v22h-6v5H74v10h-5v17h-7v9H39v-4H28v-6H16v-3H7v-7H1Z' },
         { id: 'low-90', label: '90s Low Crown', era: '1990s', path: 'M1 57V32h3v-8h5v-6h7v-5h10V9h12V6h27v2h11v4h8v6h6v8h3v18h-7v5H74v10h-5v17h-7v9H39v-4H28v-6H16v-3H7v-7H1Z' },
+        { id: 'speed', label: 'Speed Shell', era: 'Swept crown · rear vents' },
+        { id: 'sculpted', label: 'Sculpted Shell', era: 'Angular brow · contoured panels' },
+        { id: 'impact', label: 'Impact Shell', era: 'Wide crown · split panels' },
     ];
     const FACEMASK_STYLES = [
         { id: 'single', label: 'Single-Bar', era: '70s Throwback' },
         { id: 'double', label: 'Two-Bar', era: '80s Classic' },
         { id: 'cage', label: 'Full Cage', era: '90s Power' },
+        { id: 'speed', label: 'Speed Grid', era: 'Angular · open sightline' },
+        { id: 'power', label: 'Power Cage', era: 'Extra center protection' },
         { id: 'none', label: 'No Mask', era: 'Leather' },
     ];
     const DECAL_STYLES = [
@@ -59,6 +74,10 @@
         { id: 'crown', label: 'Crown', mark: '' },
         { id: 'flame', label: 'Wildfire', mark: '' },
         { id: 'trident', label: 'Trident', mark: '' },
+        { id: 'serpent', label: 'Serpent', mark: '' },
+        { id: 'mountain', label: 'Summit', mark: '' },
+        { id: 'comet', label: 'Comet', mark: '' },
+        { id: 'anchor', label: 'Anchor', mark: '' },
         { id: 'blank', label: 'No Decal', mark: '—' },
     ];
     const STRIPE_STYLES = [
@@ -67,7 +86,31 @@
         { id: 'double', label: 'Double' },
         { id: 'triple', label: 'Triple' },
     ];
-    const FACEMASK_COLORS = ['#C5C7C9', '#F4F1E8', '#111216', '#D7B13B'];
+    const PAINT_STYLES = [
+        { id: 'solid', label: 'Solid', hint: 'Let your logo lead' },
+        { id: 'winged', label: 'Winged', hint: 'Painted brow and sweeping crown wings' },
+        { id: 'tiger', label: 'Tiger', hint: 'Claw stripes across the shell' },
+        { id: 'flames', label: 'Flames', hint: 'Fire sweeping from the rear' },
+        { id: 'lightning', label: 'Lightning', hint: 'Full-shell lightning flash' },
+        { id: 'two-tone', label: 'Two Tone', hint: 'Split shell in your two colors' },
+    ];
+    const VISOR_STYLES = [
+        { id: 'none', label: 'No Visor' },
+        { id: 'clear', label: 'Clear' },
+        { id: 'smoke', label: 'Smoke' },
+        { id: 'amber', label: 'Amber' },
+        { id: 'ice', label: 'Ice Mirror' },
+    ];
+    const FACEMASK_FINISHES = [
+        { id: 'silver', label: 'Silver', hex: '#C5C7C9' },
+        { id: 'white', label: 'White', hex: '#F4F1E8' },
+        { id: 'black', label: 'Black', hex: '#111216' },
+        { id: 'gold', label: 'Gold', hex: '#D7B13B' },
+        ...ACCENT_COLORS.filter(color => !['silver', 'white', 'black', 'gold'].includes(color.id)),
+        { id: 'copper', label: 'Copper', hex: '#CB8862' },
+        { id: 'powder', label: 'Powder Blue', hex: '#86BCE7' },
+    ];
+    const FACEMASK_COLORS = FACEMASK_FINISHES.map(color => color.hex);
     // Legacy consumers still read this list directly.
     const STRIPE_COLORS = ACCENT_COLORS.map((color) => color.hex);
 
@@ -84,6 +127,11 @@
         { id: 'purple-reign', label: 'Purple Reign', era: 'Royal treatment', spec: { shell: 'round-70', color: 'purple', accentColor: '#F0C43C', decal: 'crown', facemask: 'cage', facemaskColor: '#D7B13B', stripeStyle: 'triple', stripeColor: '#F0C43C' } },
         { id: 'wildfire', label: 'Wildfire', era: 'Bring the heat', spec: { shell: 'round-70', color: 'black', accentColor: '#F0C43C', decal: 'flame', facemask: 'cage', facemaskColor: '#C5C7C9', stripeStyle: 'single', stripeColor: '#B92E35' } },
         { id: 'tidal-force', label: 'Tidal Force', era: 'Coastal classics', spec: { shell: 'round-70', color: 'navy', accentColor: '#F4F1E8', decal: 'trident', facemask: 'cage', facemaskColor: '#F4F1E8', stripeStyle: 'double', stripeColor: '#F0C43C' } },
+        { id: 'winged-gold', label: 'Winged Gold', era: 'Painted tradition', spec: { shell: 'round-70', color: 'navy', accentColor: '#F0C43C', decal: 'blank', paintStyle: 'winged', facemask: 'double', facemaskColor: '#172A49', stripeStyle: 'none', stripeColor: '#F0C43C' } },
+        { id: 'jungle', label: 'Jungle', era: 'Earn your stripes', spec: { shell: 'speed', color: 'orange', accentColor: '#111216', decal: 'blank', paintStyle: 'tiger', facemask: 'speed', facemaskColor: '#111216', visor: 'smoke', stripeStyle: 'none', stripeColor: '#111216' } },
+        { id: 'ice-speed', label: 'Ice Speed', era: 'Future classics', spec: { shell: 'sculpted', color: 'white', accentColor: '#12A9AD', decal: 'comet', facemask: 'speed', facemaskColor: '#12A9AD', visor: 'ice', stripeStyle: 'double', stripeColor: '#12A9AD' } },
+        { id: 'copperhead', label: 'Copperhead', era: 'Built for impact', spec: { shell: 'impact', color: 'black', accentColor: '#CB8862', decal: 'serpent', facemask: 'power', facemaskColor: '#CB8862', visor: 'amber', paintStyle: 'two-tone', stripeStyle: 'none', stripeColor: '#CB8862' } },
+        { id: 'firestorm', label: 'Firestorm', era: 'No quiet entrances', spec: { shell: 'speed', color: 'crimson', accentColor: '#F0C43C', decal: 'blank', facemask: 'speed', facemaskColor: '#111216', visor: 'smoke', paintStyle: 'flames', stripeStyle: 'none', stripeColor: '#F0C43C' } },
     ];
 
     function colorById(id) { return HELMET_COLORS.find((color) => color.id === id) || HELMET_COLORS[0]; }
@@ -91,12 +139,15 @@
     function facemaskById(id) { return FACEMASK_STYLES.find((style) => style.id === id) || FACEMASK_STYLES[0]; }
     function decalById(id) { return DECAL_STYLES.find((style) => style.id === id) || DECAL_STYLES[0]; }
     function stripeById(id) { return STRIPE_STYLES.find((style) => style.id === id) || STRIPE_STYLES[1]; }
+    function paintById(id) { return PAINT_STYLES.find(style => style.id === id) || PAINT_STYLES[0]; }
+    function visorById(id) { return VISOR_STYLES.find(style => style.id === id) || VISOR_STYLES[0]; }
     function safeHex(value, fallback) { return /^#[0-9a-f]{6}$/i.test(String(value || '')) ? value : fallback; }
+    function shellColorFor(spec) { return safeHex(spec?.shellColor, colorById(spec?.color).hex); }
 
     function buildHelmet(seedKey) {
         const random = Roster.createSeededRandom(`helmet:${seedKey}`);
         const preset = HELMET_PRESETS[Math.floor(random() * HELMET_PRESETS.length)];
-        return { ...preset.spec, stripe: preset.spec.stripeStyle !== 'none', monogram: '' };
+        return { paintStyle: 'solid', visor: 'none', ...preset.spec, shellColor: '', stripe: preset.spec.stripeStyle !== 'none', monogram: '' };
     }
 
     function defaultHelmet(seedKey) { return buildHelmet(seedKey); }
@@ -108,6 +159,7 @@
         return {
             shell: shellById(value.shell || fallback.shell).id,
             color: colorById(value.color || fallback.color).id,
+            shellColor: safeHex(value.shellColor, ''),
             accentColor: safeHex(value.accentColor, fallback.accentColor),
             decal: decalById(value.decal || fallback.decal).id,
             monogram: String(value.monogram || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3),
@@ -116,12 +168,14 @@
             stripe: stripeStyle !== 'none',
             stripeStyle,
             stripeColor: safeHex(value.stripeColor, fallback.stripeColor),
+            paintStyle: paintById(value.paintStyle).id,
+            visor: visorById(value.visor).id,
         };
     }
 
     function presetHelmet(id) {
         const preset = HELMET_PRESETS.find((item) => item.id === id) || HELMET_PRESETS[0];
-        return { ...preset.spec, stripe: preset.spec.stripeStyle !== 'none' };
+        return { paintStyle: 'solid', visor: 'none', shellColor: '', ...preset.spec, stripe: preset.spec.stripeStyle !== 'none' };
     }
 
     function letterFor(name) {
@@ -137,9 +191,9 @@
     }
 
     const api = {
-        HELMET_COLORS, ACCENT_COLORS, SHELL_STYLES, FACEMASK_STYLES, FACEMASK_COLORS,
-        DECAL_STYLES, STRIPE_STYLES, STRIPE_COLORS, HELMET_PRESETS,
-        colorById, shellById, facemaskById, decalById, stripeById,
+        HELMET_COLORS, ACCENT_COLORS, SHELL_STYLES, FACEMASK_STYLES, FACEMASK_COLORS, FACEMASK_FINISHES,
+        DECAL_STYLES, STRIPE_STYLES, STRIPE_COLORS, HELMET_PRESETS, PAINT_STYLES, VISOR_STYLES,
+        colorById, shellById, facemaskById, decalById, stripeById, paintById, visorById, shellColorFor,
         defaultHelmet, normalizeHelmet, presetHelmet, letterFor, monogramFor,
     };
     App.TimeLeagueHelmet = api;

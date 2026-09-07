@@ -75,6 +75,80 @@ test('editing a complete legacy helmet preserves its chosen identity', () => {
     assert.strictEqual(normalized.monogram, '');
 });
 
+test('modern gear, full-shell paint and custom colors survive a saved-spec round trip', () => {
+    const source = { ...Helmet.presetHelmet('copperhead'), shellColor: '#21907a', facemaskColor: '#7E54C9', visor: 'ice', paintStyle: 'winged' };
+    const saved = Helmet.normalizeHelmet(source, 'modern-team');
+    assert.deepStrictEqual(Helmet.normalizeHelmet(JSON.parse(JSON.stringify(saved)), 'modern-team'), saved);
+    assert.strictEqual(saved.shell, 'impact');
+    assert.strictEqual(saved.facemask, 'power');
+    assert.strictEqual(saved.visor, 'ice');
+    assert.strictEqual(saved.paintStyle, 'winged');
+    assert.strictEqual(saved.facemaskColor, '#7E54C9');
+    assert.strictEqual(Helmet.shellColorFor(saved), '#21907a');
+    assert.strictEqual(Helmet.shellColorFor({ ...saved, shellColor: '' }), Helmet.colorById(saved.color).hex);
+});
+
+test('legacy designs acquire no surprise paint or visor and invalid custom values are discarded', () => {
+    const legacy = Helmet.normalizeHelmet({ color: 'navy', shell: 'round-70', decal: 'star', facemask: 'cage', stripe: false }, 'old-team');
+    assert.strictEqual(legacy.paintStyle, 'solid');
+    assert.strictEqual(legacy.visor, 'none');
+    assert.strictEqual(legacy.shellColor, '');
+    const invalid = Helmet.normalizeHelmet({ ...legacy, shellColor: 'url(https://example.com)', visor: 'unknown', paintStyle: 'unknown' });
+    assert.strictEqual(invalid.shellColor, '');
+    assert.strictEqual(invalid.visor, 'none');
+    assert.strictEqual(invalid.paintStyle, 'solid');
+});
+
+// Render the real component tree without a browser. This catches a previous
+// regression where the saved shell/mask controls had no effect on SVG geometry.
+let renderId = 0;
+global.React = {
+    createElement: (type, props, ...children) => ({ type, props: props || {}, children }),
+    useId: () => `helmet-test-${++renderId}`,
+    Fragment: 'fragment',
+};
+require('../js/components/time-league-helmet.js');
+function helmetNodes(helmet) {
+    const nodes = [];
+    function visit(node) {
+        if (!node || typeof node !== 'object') return;
+        if (Array.isArray(node)) return node.forEach(visit);
+        if (typeof node.type === 'function') return visit(node.type({ ...node.props, children: node.children }));
+        nodes.push(node);
+        (node.children || []).forEach(visit);
+    }
+    visit(window.TimeLeagueHelmetIcon({ helmet, letter: 'VC' }));
+    return nodes;
+}
+
+test('each shell and facemask choice changes real rendered geometry', () => {
+    const base = Helmet.presetHelmet('blue-horseshoe');
+    const contours = Helmet.SHELL_STYLES.map(({ id }) => {
+        const nodes = helmetNodes({ ...base, shell: id });
+        return nodes.find(node => node.props['data-helmet-shell'] === id)?.props.d;
+    });
+    assert.ok(contours.every(Boolean));
+    assert.strictEqual(new Set(contours).size, Helmet.SHELL_STYLES.length);
+    const masks = Helmet.FACEMASK_STYLES.map(({ id }) => helmetNodes({ ...base, facemask: id }).filter(node => node.type === 'path').map(node => node.props.d).join('|'));
+    assert.strictEqual(new Set(masks).size, Helmet.FACEMASK_STYLES.length);
+    const heritage = helmetNodes(base).filter(node => node.type === 'path');
+    assert.ok(heritage.some(node => node.props.d.startsWith('m771.53 369.88c-16.945')), 'native heritage cage geometry remains intact');
+    assert.ok(!helmetNodes({ ...base, facemask: 'none' }).some(node => node.props.d?.startsWith('m771.53 369.88c-16.945')), 'open shell removes the cage');
+});
+
+test('paint and visor choices add visible layers while legacy defaults remain clean', () => {
+    const base = Helmet.presetHelmet('blue-horseshoe');
+    assert.ok(!helmetNodes(base).some(node => node.props['data-helmet-paint'] || node.props['data-helmet-visor']));
+    for (const { id } of Helmet.PAINT_STYLES.filter(style => style.id !== 'solid')) {
+        const layer = helmetNodes({ ...base, paintStyle: id }).find(node => node.props['data-helmet-paint'] === id);
+        assert.ok(layer?.children.length, id + ' has actual painted artwork');
+    }
+    for (const { id } of Helmet.VISOR_STYLES.filter(style => style.id !== 'none')) {
+        const layer = helmetNodes({ ...base, visor: id }).find(node => node.props['data-helmet-visor'] === id);
+        assert.ok(layer?.children.length, id + ' has a lens');
+    }
+});
+
 console.log('');
 if (failed) {
     console.log('FAIL: ' + failed + ' of ' + (passed + failed) + ' tests failed');

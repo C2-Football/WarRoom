@@ -66,6 +66,12 @@
             try { return { ...result, row: await loadOnlineLeague(rowId) }; }
             catch { return { ...result, refreshPending: true }; }
         },
+        getProfile: () => request({ op: 'profile-get' }),
+        saveProfile: profile => request({ op: 'profile-save', profile }),
+        listCommunity: ({ view = 'leaderboard', q = '', page = 0, limit = 20, lookingOnly = false } = {}) => request({ op: 'community-list', view, q, page, limit, lookingOnly }),
+        listCommunityInvites: () => request({ op: 'community-invites' }),
+        sendCommunityInvite: ({ rowId, seatTeamId, profileId }) => request({ op: 'community-invite', rowId, seatTeamId, profileId }),
+        respondCommunityInvite: (inviteId, accept) => request({ op: 'community-respond', inviteId, accept }),
         setReady: (rowId, ready) => request({ op: 'ready', rowId, ready }),
     };
 })();

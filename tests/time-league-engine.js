@@ -421,6 +421,46 @@ test('normalizeTimeLeague round-trips a valid state exactly', () => {
     assert.deepStrictEqual(roundTripped, state);
 });
 
+test('profile team colors and backdrop survive creation and save reload', () => {
+    const profileSeat = {
+        name: 'Copperheads', manager: 'human', primaryColor: '#092e42', secondaryColor: '#efb870', backdrop: 'stadium',
+        helmet: { ...App.TimeLeagueHelmet.presetHelmet('copperhead'), shellColor: '#092E42', visor: 'amber', paintStyle: 'winged' },
+    };
+    const state = Engine.createTimeLeague({ name: 'Club Identity', seed: 'identity', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings(), seats: [profileSeat, ...seats(3)] });
+    const team = state.teams[0];
+    assert.strictEqual(team.primaryColor, '#092E42');
+    assert.strictEqual(team.secondaryColor, '#EFB870');
+    assert.strictEqual(team.backdrop, 'stadium');
+    assert.strictEqual(team.helmet.visor, 'amber');
+    assert.strictEqual(team.helmet.paintStyle, 'winged');
+    const restored = Engine.normalizeTimeLeague(JSON.parse(JSON.stringify(state)));
+    assert.deepStrictEqual(restored.teams, state.teams);
+    for (const backdrop of ['midnight', 'stadium', 'gridiron', 'heritage', 'aurora']) {
+        assert.strictEqual(Engine.normalizeTimeLeague({ ...state, teams: [{ ...team, backdrop }, ...state.teams.slice(1)] }).teams[0].backdrop, backdrop);
+    }
+});
+
+test('legacy and invalid team cosmetics fall back without losing the league', () => {
+    const state = Engine.createTimeLeague({ name: 'Legacy Identity', seed: 'legacy-identity', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings(), seats: seats() });
+    const legacy = JSON.parse(JSON.stringify(state));
+    for (const team of legacy.teams) {
+        delete team.primaryColor; delete team.secondaryColor; delete team.backdrop;
+    }
+    const restored = Engine.normalizeTimeLeague(legacy);
+    assert.ok(restored);
+    assert.deepStrictEqual(restored.teams, state.teams);
+    legacy.teams[0].primaryColor = 'url(https://example.com/image)';
+    legacy.teams[0].secondaryColor = '#123';
+    legacy.teams[0].backdrop = '../../external';
+    const sanitized = Engine.normalizeTimeLeague(legacy);
+    assert.deepStrictEqual(sanitized.teams[0], state.teams[0]);
+    const malformedSeat = { name: 'Unsafe Colors', manager: 'human', primaryColor: '#FFF;opacity:0', secondaryColor: {}, backdrop: '<script>' };
+    const created = Engine.createTimeLeague({ name: 'Safe Identity', seed: 'safe-identity', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings(), seats: [malformedSeat, ...seats(3)] });
+    assert.match(created.teams[0].primaryColor, /^#[0-9A-F]{6}$/);
+    assert.match(created.teams[0].secondaryColor, /^#[0-9A-F]{6}$/);
+    assert.strictEqual(created.teams[0].backdrop, 'midnight');
+});
+
 test('eight-team playoffs use weeks twelve through fourteen and re-seed each round', () => {
     let state = Engine.createTimeLeague({ name: 'Eight', seed: 'eight', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings({ regularSeasonWeeks: 11, playoffTeams: 8 }), seats: Array.from({ length: 8 }, (_, i) => ({ name: `Team ${i}`, manager: 'human' })) });
     state = { ...state, phase: 'season', currentWeek: 12 };

@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { handleOptions, json, requireActiveAppSession } from '../_shared/security.ts';
 import { App, loadData } from './runtime.js';
+import { handleCommunity } from './community.ts';
 
 Deno.serve(async (req: Request) => {
     const options = handleOptions(req);
@@ -11,6 +12,8 @@ Deno.serve(async (req: Request) => {
         const session = await requireActiveAppSession(admin, req);
         if (!session) return json(req, { ok: false, error: 'Sign in to play with friends.' }, 401);
         const body = await req.json();
+        const community = await handleCommunity(admin, session.userId, body, App.TimeLeagueHelmet.normalizeHelmet);
+        if (community) return json(req, community);
         const fail = (message: string, status = 400) => json(req, { ok: false, error: message }, status);
         if (body.op === 'create') {
             const input = body.input;

@@ -6,7 +6,7 @@
 // ══════════════════════════════════════════════════════════════════
 (function () {
     'use strict';
-    const { useState, useMemo } = React;
+    const { useState, useMemo, useEffect, useRef } = React;
     const h = React.createElement;
 
     const EraRules = window.App.TimeLeagueEraRules;
@@ -132,6 +132,33 @@
         const [createError, setCreateError] = useState(null);
         const [name, setName] = useState('');
         const [seats, setSeats] = useState(() => defaultSeatsFor('solo'));
+        const identityTouched = useRef(false);
+        const [identityStatus, setIdentityStatus] = useState('');
+        const identityUser = window.App.OD?.getCurrentUserId?.() || null;
+        useEffect(() => {
+            let cancelled = false;
+            const Profile = window.App.TimeLeagueProfile;
+            if (!Profile) return undefined;
+            // Cloud defaults may arrive after editing starts. Never replace an edited team.
+            Profile.get().then(result => {
+                if (cancelled || !result.ok || identityTouched.current || !Profile.hasSaved()) return;
+                const identity = Profile.teamDefaults();
+                if (identity) setSeats(previous => previous.map((seat, index) => index ? seat : { ...seat, ...identity }));
+            });
+            return () => { cancelled = true; };
+        }, [identityUser]);
+        const useSavedIdentity = async () => {
+            const Profile = window.App.TimeLeagueProfile;
+            const userAtStart = window.App.OD?.getCurrentUserId?.() || null;
+            setIdentityStatus('Loading your saved design…');
+            const result = await Profile.get();
+            if ((window.App.OD?.getCurrentUserId?.() || null) !== userAtStart) return;
+            const identity = result.ok && Profile.teamDefaults();
+            if (!identity) { setIdentityStatus(result.error || 'Save your team design in My profile first.'); return; }
+            identityTouched.current = true;
+            setSeats(previous => previous.map((seat, index) => index ? seat : { ...seat, ...identity }));
+            setIdentityStatus('Your saved team design is ready.');
+        };
         const [rosterPreset, setRosterPreset] = useState('standard');
         const [scoringPreset, setScoringPreset] = useState('half');
         const [eraAdjusted, setEraAdjusted] = useState(false);
@@ -175,9 +202,12 @@
             if (nextMode === playMode) return;
             setPlayMode(nextMode);
             setCreateError(null);
-            setSeats((previous) => defaultSeatsFor(nextMode).map((seat, index) => index === 0 ? { ...seat, name: previous[0].name, helmet: previous[0].helmet } : seat));
+            setSeats((previous) => defaultSeatsFor(nextMode).map((seat, index) => index === 0 ? { ...seat, ...previous[0], manager: 'human' } : seat));
         };
-        const updateSeat = (target, patch) => setSeats((previous) => previous.map((seat, index) => (index === target ? { ...seat, ...patch } : seat)));
+        const updateSeat = (target, patch) => {
+            if (target === 0) identityTouched.current = true;
+            setSeats((previous) => previous.map((seat, index) => (index === target ? { ...seat, ...patch } : seat)));
+        };
         const addSeat = () => setSeats((previous) => {
             if (previous.length >= 12) return previous;
             const seatName = playMode === 'friends' ? `Friend ${previous.length}` : `Rival ${previous.length}`;
@@ -197,6 +227,7 @@
                 manager: seat.manager,
                 ...(seat.manager === 'ai' ? { aiPersona: seat.aiPersona } : {}),
                 helmet: seat.helmet,
+                primaryColor: seat.primaryColor, secondaryColor: seat.secondaryColor, backdrop: seat.backdrop,
             }));
             const leagueName = name.trim() || (playMode === 'friends' ? 'Sunday Time Machine' : 'My Vault Season');
             if (origin === 'local') {
@@ -256,6 +287,7 @@
                     h('label', null, h('span', { className: 'tl-label' }, 'Your team & helmet'), h('span', { className: 'tl-team-input' },
                         h(window.TimeLeagueHelmetPicker, { helmet: seats[0].helmet, name: seats[0].name, letter: window.App.TimeLeagueHelmet.monogramFor(seats[0].name), onChange: (helmet) => updateSeat(0, { helmet }) }),
                         h('input', { className: 'tl-input', value: seats[0].name, maxLength: 60, placeholder: 'Name your team', onChange: (event) => updateSeat(0, { name: event.target.value }) })))),
+                window.App.TimeLeagueProfile && h('div', { className: 'tl-identity-actions' }, h('button', { type: 'button', className: 'tl-btn', onClick: useSavedIdentity }, 'Use saved team design'), identityStatus && h('span', { role: 'status', className: 'tl-hint' }, identityStatus)),
                 h('div', { className: 'tl-rival-preview' },
                     h('div', null, h('span', { className: 'tl-label' }, playMode === 'friends' ? 'Your league' : 'Your AI rivals'), h('b', null, `${seats.length} teams · ${capacity} roster spots each`)),
                     h('div', { className: 'tl-rival-stack' }, opponentSeats.slice(0, 7).map((seat, index) => h('span', { key: `${seat.name}:${index}`, title: seat.name },
@@ -344,7 +376,7 @@
         return h('div', { className: 'tl-vault-lobby' },
             h(VaultHero, null),
             h(LeagueShelf, { index, onlineIndex, onOpen, onDelete, onOpenOnline }),
-            h(LeagueBuilder, { onCreate, onCreateOnline, onOpenOnline, onlineIndexState }));
+            h(LeagueBuilder, { key: window.App.OD?.getCurrentUserId?.() || 'guest', onCreate, onCreateOnline, onOpenOnline, onlineIndexState }));
     }
 
     window.WrTimeLeagueSetupPanel = WrTimeLeagueSetupPanel;

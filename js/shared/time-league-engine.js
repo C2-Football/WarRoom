@@ -84,6 +84,21 @@
         return expandRosterSlots(settings.rosterSlots).length;
     }
 
+    // Cosmetic identity must survive the same round trips as roster state.
+    // Missing or malformed cosmetics never invalidate an older league save.
+    const TEAM_BACKDROPS = ['midnight', 'stadium', 'gridiron', 'heritage', 'aurora'];
+    function teamDesign(value, teamId) {
+        const Helmet = App.TimeLeagueHelmet;
+        const helmet = Helmet.normalizeHelmet(value.helmet, teamId);
+        const safeColor = (color, fallback) => typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color) ? color.toUpperCase() : fallback.toUpperCase();
+        return {
+            helmet,
+            primaryColor: safeColor(value.primaryColor, Helmet.shellColorFor(helmet)),
+            secondaryColor: safeColor(value.secondaryColor, helmet.accentColor),
+            backdrop: TEAM_BACKDROPS.includes(value.backdrop) ? value.backdrop : 'midnight',
+        };
+    }
+
     function createTimeLeague(input) {
         const teams = input.seats.map((seat, index) => {
             const teamId = `t${index + 1}`;
@@ -95,7 +110,7 @@
                 // Setup always hands one over (defaultSeats / addSeat both stamp
                 // one in), but a manually-built seats array (tests, deep links)
                 // still lands on a real, deterministic helmet instead of none.
-                helmet: seat.helmet || App.TimeLeagueHelmet.defaultHelmet(teamId),
+                ...teamDesign(seat, teamId),
                 roster: [],
                 queue: [],
                 ...(input.settings.waiverMode === "faab" ? { faabRemaining: input.settings.faabBudget } : {}),
@@ -758,17 +773,6 @@
         return { entryId, identity, name, position, drawnSeason, slot: readSlot(value.slot), acquiredVia, acquiredWeek };
     };
 
-    // Helmet is deliberately NOT a hard requirement here (unlike roster/queue
-    // above) — a league founded before this feature existed has no helmet on
-    // disk at all, and rejecting the whole team over a missing cosmetic field
-    // would corrupt real league data over a helmet. Falls back to the same
-    // deterministic default createTimeLeague uses, keyed on teamId so it's
-    // stable across reloads rather than reshuffling every load.
-    const readHelmet = (value, teamId) => {
-        const Helmet = App.TimeLeagueHelmet;
-        return Helmet.normalizeHelmet(isRecord(value) ? value : null, teamId);
-    };
-
     const readTeam = (value) => {
         if (!isRecord(value)) return null;
         const teamId = readString(value.teamId);
@@ -778,11 +782,11 @@
         const queue = readArray(value.queue, readString);
         if (!teamId || !name || !manager || !roster || !queue) return null;
         const aiPersona = AI_PERSONAS.includes(value.aiPersona) ? value.aiPersona : null;
-        const helmet = readHelmet(value.helmet, teamId);
+        const design = teamDesign(value, teamId);
         const hasFaab = "faabRemaining" in value;
         const faabRemaining = hasFaab ? readNumber(value.faabRemaining) : undefined;
         if (hasFaab && faabRemaining === null) return null;
-        return { teamId, name, manager, ...(aiPersona ? { aiPersona } : {}), helmet, roster, queue, ...(faabRemaining !== undefined ? { faabRemaining } : {}) };
+        return { teamId, name, manager, ...(aiPersona ? { aiPersona } : {}), ...design, roster, queue, ...(faabRemaining !== undefined ? { faabRemaining } : {}) };
     };
 
     const readSeat = (value) => {
