@@ -187,6 +187,10 @@
         const rounds = draft.settings?.rounds || 0;
         const variant = detectSleeperDraftVariant(draft, currentLeague);
         const patch = {
+            // The source selection is also the mode boundary. Keep this explicit
+            // so a pre-draft waiting room can never inherit Solo/CPU simulation
+            // state from an earlier mock session or an async setup render.
+            mode: 'live-sync',
             sleeperDraftId: draft.draft_id,
             variant,
             liveDraftMeta: {
