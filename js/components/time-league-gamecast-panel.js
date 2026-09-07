@@ -17,8 +17,8 @@
     const Gamecast = window.App.TimeLeagueGamecast;
 
     const GAMECAST_END = 200;
-    /** 1x plays the 200 simulated minutes in ~8 real seconds. */
-    const CAST_MINUTES_PER_SECOND = 25;
+    /** Playback durations are wall-clock seconds, excluding pauses. */
+    const CAST_DURATIONS = [300, 180, 60];
 
     function BoxScores({ week, teamName }) {
         const resultOf = new Map(week.results.map((r) => [r.teamId, r]));
@@ -53,7 +53,7 @@
         }));
     }
 
-    function HeroMatchup({ row, teams, week, statusLabel, clockLabel }) {
+    function HeroMatchup({ row, teams, week, statusLabel, clockLabel, progress = 0, records = [], spotlight }) {
         if (!row) return null;
         const homeTeam = teams.find((t) => t.teamId === row.home);
         const awayTeam = teams.find((t) => t.teamId === row.away);
@@ -62,27 +62,31 @@
         const minePts = row.mineIsHome ? row.homePoints : row.awayPoints;
         const oppPts = row.mineIsHome ? row.awayPoints : row.homePoints;
         const total = minePts + oppPts;
-        const minePct = total > 0 ? (minePts / total) * 100 : 50;
+        const minePct = statusLabel === 'FINAL' ? (minePts === oppPts ? 50 : minePts > oppPts ? 100 : 0)
+            : Math.max(1, Math.min(99, 100 / (1 + Math.exp(-(minePts - oppPts) / Math.max(3, 24 * Math.sqrt(1 - Math.min(1, progress)))))));
+        const record = team => { const row = records.find(r => r.teamId === team.teamId); return row ? `${row.wins}–${row.losses}${row.ties ? '–'+row.ties : ''}` : '0–0'; };
         return h('div', { className: 'tl-hero-matchup' },
             h('div', { className: 'tl-hero-top' },
                 h('div', { className: 'tl-hero-side' },
                     h(window.TimeLeagueHelmetIcon, { helmet: mine.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(mine.name), size: 52 }),
-                    h('div', { className: `tl-h-name${minePts >= oppPts ? ' leading' : ''}` }, mine.name),
+                    h('div', { className: `tl-h-name${minePts >= oppPts ? ' leading' : ''}` }, mine.name), h('small', { className: 'tl-live-record' }, record(mine)),
                     h('div', { className: `tl-h-pts tabular${minePts >= oppPts ? ' leading' : ''}` }, minePts.toFixed(1))),
                 h('div', { className: 'tl-hero-mid' }, h('div', { className: 'tl-h-vs' }, `WEEK ${week}`), h('div', { className: 'tl-h-clock' }, clockLabel)),
                 h('div', { className: 'tl-hero-side' },
                     h(window.TimeLeagueHelmetIcon, { helmet: opp.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(opp.name), size: 52 }),
-                    h('div', { className: `tl-h-name${oppPts > minePts ? ' leading' : ''}` }, opp.name),
+                    h('div', { className: `tl-h-name${oppPts > minePts ? ' leading' : ''}` }, opp.name), h('small', { className: 'tl-live-record' }, record(opp)),
                     h('div', { className: `tl-h-pts tabular${oppPts > minePts ? ' leading' : ''}` }, oppPts.toFixed(1)))),
-            total > 0 ? h('div', { className: 'tl-win-prob' }, h('span', null, statusLabel), h('span', null, `${minePct.toFixed(0)}% — ${(100 - minePct).toFixed(0)}%`)) : h('div', { className: 'tl-win-prob' }, h('span', null, statusLabel), h('span', null, '—')),
-            h('div', { className: 'tl-score-bar' }, h('div', { className: 'tl-fill', style: { width: `${minePct}%` } }), h('div', { className: 'tl-fill against', style: { width: `${100 - minePct}%` } })));
+            h('div', { className: 'tl-win-prob' }, h('span', null, statusLabel === 'FINAL' ? 'FINAL RESULT' : 'ESTIMATED WIN CHANCE'), h('strong', null, `${minePct.toFixed(0)}% — ${(100 - minePct).toFixed(0)}%`)),
+            h('div', { className: 'tl-score-bar' }, h('div', { className: 'tl-fill', style: { width: `${minePct}%` } }), h('div', { className: 'tl-fill against', style: { width: `${100 - minePct}%` } })),
+            h('small', { className: 'tl-live-model-note' }, 'Illustrative estimate from score gap and time remaining; not a calibrated prediction.'), spotlight);
+
     }
 
     function WrTimeLeagueGamecastPanel({ league, cards, logIndex, logsMissing, eraFactors, onUpdate, onGoRoster, onlineMeta }) {
         const [playback, setPlayback] = useState(null);
         const [clock, setClock] = useState(0);
         const [playing, setPlaying] = useState(false);
-        const [speed, setSpeed] = useState(1);
+        const [speed, setSpeed] = useState(300);
         const [followMine,setFollowMine]=useState(true);
         const [warnings, setWarnings] = useState(null);
         const [boxWeek, setBoxWeek] = useState(null);
@@ -104,7 +108,7 @@
             const step = (now) => {
                 const dt = Math.min(0.1, (now - last) / 1000);
                 last = now;
-                clockRef.current = Math.min(GAMECAST_END, clockRef.current + dt * CAST_MINUTES_PER_SECOND * speed);
+                clockRef.current = Math.min(GAMECAST_END, clockRef.current + dt * GAMECAST_END / speed);
                 setClock(clockRef.current);
                 if (clockRef.current >= GAMECAST_END) { finishPlayback(); return; }
                 raf = window.requestAnimationFrame(step);
@@ -135,12 +139,12 @@
             const savedWeek = canonical.finalizedWeeks.find(item => item.week === weekData.week);
             if (!savedWeek) return;
             setPlayback({ timeline: Gamecast.buildGamecast({ week: savedWeek.week, results: savedWeek.results, matchups: savedWeek.matchups, seed: league.seed }), weekData: savedWeek, finalized: canonical, live: true });
-            setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(1); setPlaying(true);
+            setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(300); setPlaying(true);
         };
 
         const replayWeek = (week) => {
             setPlayback({ timeline: Gamecast.buildGamecast({ week: week.week, results: week.results, matchups: week.matchups, seed: league.seed }), weekData: week, finalized: league, live: false });
-            setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(1); setPlaying(true);
+            setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(300); setPlaying(true);
         };
 
         const done = playback !== null && clock >= GAMECAST_END;
@@ -174,27 +178,28 @@
         const strip = league.phase !== 'draft' && matchupRows.length
             ? h(ScoreboardStrip, { rows: matchupRows, teams: league.teams, myTeamId, live: Boolean(playback) && !done, statusLabel: playback ? (done ? 'FINAL' : playing ? 'PLAYING' : 'PAUSED') : 'UPCOMING' })
             : null;
-        const hero = myRow
-            ? h(HeroMatchup, {
-                row: myRow, teams: league.teams, week: weekLabel,
-                statusLabel: playback ? (done ? 'FINAL' : playing ? 'SIMULATION' : 'PAUSED') : 'UPCOMING',
-                clockLabel: playback ? `T+${String(Math.floor(clock)).padStart(3, '0')}′` : `WK ${weekLabel}`,
-            })
-            : null;
-
         const visibleEvents=followMine&&myRow?landed.filter(e=>e.teamId===myRow.home||e.teamId===myRow.away):landed;
         const currentPlay=visibleEvents[visibleEvents.length-1];
         const nextPlay=()=>{setPlaying(false);const next=playback.timeline.events.find(e=>e.t>clockRef.current && (!followMine||!myRow||e.teamId===myRow.home||e.teamId===myRow.away));clockRef.current=next?next.t:GAMECAST_END;setClock(clockRef.current);};
-        const field=h('section',{className:'tl-play-field','aria-label':'Illustrated event spotlight'},
-            h('div',{className:'tl-field-label'},'EVENT SPOTLIGHT · ILLUSTRATED, NOT HISTORICAL FIELD POSITION'),
-            h('div',{className:'tl-field-turf'},h('span',{className:'tl-field-end'},'THE VAULT'),
-                h('div',{key:currentPlay?`${currentPlay.t}-${visibleEvents.length}`:'kickoff',className:`tl-field-ball${playing?' is-moving':''}${currentPlay?.isTouchdown?' is-td':''}`,'aria-hidden':true},'🏈'),
-                h('span',{className:'tl-field-end'},currentPlay?.isTouchdown?'TOUCHDOWN':'GAME DAY')),
-            h('div',{className:'tl-current-play'},h('span',{className:'tl-label'},currentPlay?`${teamName(currentPlay.teamId)} · T+${Math.round(currentPlay.t)}′`:'READY FOR KICKOFF'),h('h3',null,currentPlay?.description||'Follow your matchup, one moment at a time.'),currentPlay&&h('strong',null,`${currentPlay.points>=0?'+':''}${currentPlay.points.toFixed(2)} fantasy points`)));
+        const spotlight = h('div', { className: 'tl-current-play tl-live-spotlight' },
+            h('span', { className: 'tl-label' }, currentPlay ? `${teamName(currentPlay.teamId)} · T+${Math.round(currentPlay.t)}′` : 'READY FOR KICKOFF'),
+            h('h3', null, currentPlay?.description || 'The scores and win estimate update as scoring moments arrive.'),
+            currentPlay && h('strong', null, `${currentPlay.points >= 0 ? '+' : ''}${currentPlay.points.toFixed(2)} fantasy points`));
+        const records = Engine.computeStandings({ ...league, finalizedWeeks: league.finalizedWeeks.filter(week => week.week < weekLabel) });
+        const hero = myRow ? h(HeroMatchup, { row: myRow, teams: league.teams, week: weekLabel, records, spotlight,
+            progress: clock / GAMECAST_END, statusLabel: playback ? (done ? 'FINAL' : playing ? 'SIMULATION' : 'PAUSED') : 'UPCOMING',
+            clockLabel: playback ? `${Math.floor(clock / GAMECAST_END * 100)}% played` : `WK ${weekLabel}` }) : spotlight;
+        const leaders = new Map();
+        for (const event of landed) {
+            const key = `${event.teamId}:${event.entryId}`;
+            const row = leaders.get(key) || { name: event.playerName, teamId: event.teamId, points: 0, touchdowns: 0 };
+            row.points += event.points; row.touchdowns += event.isTouchdown ? 1 : 0; leaders.set(key, row);
+        }
+        const leagueLeaders = [...leaders.values()].sort((a,b) => b.points-a.points).slice(0, 3);
         if (playback) {
             return h('div', null,
-                strip, hero, field,
-                h('p',{className:'tl-hint'},'Playback controls pause the presentation, not the saved week result. Field movement is illustrative; events are reconstructed from historical stat totals.'),
+                strip, hero,
+                h('p',{className:'tl-hint'},'Playback controls pause the presentation, not the saved week result. Scoring moments are reconstructed from historical totals.'),
                 h('div', { className: 'tl-card' },
                     h('div', { className: 'tl-card-title' }, h('span', null, `Week ${playback.weekData.week} — ${done ? 'Final' : playing ? 'Playing' : 'Paused'}`), h('small', null, `${landed.length}/${playback.timeline.events.length} scoring moments`)),
                     h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap:'wrap' } },
@@ -206,9 +211,10 @@
                         h('button',{className:'tl-btn',disabled:done,onClick:nextPlay},'NEXT PLAY'),
                         done&&h('button',{className:'tl-btn',onClick:()=>{clockRef.current=0;setClock(0);setPlaying(false);}},'REPLAY FROM START'),
                         h('button',{className:'tl-btn','aria-pressed':followMine,onClick:()=>setFollowMine(v=>!v)},followMine?'MY MATCHUP':'ALL MATCHUPS'),
-                        h('button', { className: `tl-btn icon${speed === 1 ? ' primary' : ''}`, onClick: () => setSpeed(1) }, '1X'),
-                        h('button', { className: `tl-btn icon${speed === 4 ? ' primary' : ''}`, onClick: () => setSpeed(4) }, '4X'),
+                        CAST_DURATIONS.map(duration => h('button', { key: duration, className: `tl-btn${speed === duration ? ' primary' : ''}`, 'aria-pressed': speed === duration, onClick: () => setSpeed(duration) }, `${duration / 60} MIN`)),
                         h('button', { className: 'tl-btn icon', disabled: done, onClick: skipToEnd }, 'INSTANT')),
+                    speed === 300 && h('section', { className: 'tl-league-live' }, h('h3', null, 'Around the league · Live leaders'),
+                        leagueLeaders.length ? leagueLeaders.map(row => h('div', { key: row.teamId + row.name }, h('strong', null, row.name), h('span', null, `${teamName(row.teamId)} · ${row.points.toFixed(1)} pts${row.touchdowns ? ` · ${row.touchdowns} TD` : ''}`))) : h('p', null, 'League highlights arrive as the games unfold.')),
                     done && headlines.length > 0 && h('div', { style: { marginBottom: 14 } },
                         h('span', { className: 'tl-label' }, `Week ${playback.weekData.week} Wire`),
                         headlines.map((headline, i) => h('p', { key: i, style: { fontSize: 12.5, color: 'var(--text-secondary)', margin: '4px 0' } }, headline))),
