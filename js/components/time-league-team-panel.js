@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════════
 // js/components/time-league-team-panel.js — window.WrTimeLeagueTeamPanel
-// Team switcher + roster/lineup, waivers, and trades sections. Ported from
+// Personal roster/lineup, waivers, and trades sections. Ported from
 // The Duat's app/TimeLeagueTeamCenter.tsx.
 // ══════════════════════════════════════════════════════════════════
 (function () {
@@ -17,7 +17,6 @@
     const STARTER_SLOTS = Roster.ROSTER_SLOT_IDS.filter((slot) => Season.isStarterSlot(slot));
     const RESERVE_SLOTS = ['IR'];
     const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
-    const PERSONA_PILL = { warlord: 'bad', archivist: 'info', gambler: 'warn', steward: 'good' };
     const WIRE_ROW_CAP = 60;
 
     const fmt1 = (value) => value.toFixed(1);
@@ -55,30 +54,69 @@
     /** Slot | Player | Pts | Move — mirrors the column rhythm of War Room's real
      * Game Day Central lineup table (js/tabs/lineup.js), minus the projection/
      * matchup/form columns that don't apply to fixed historical stat lines. */
-    const LINEUP_GRID = '56px minmax(0,1fr) 78px 92px';
+    const LINEUP_GRID = '52px minmax(0,1fr) 74px 76px';
+    const slotName = slot => ({ BN: 'Bench', SUPER_FLEX: 'Super flex', FLEX: 'Flex', DEF: 'D/ST' }[slot] || slot);
 
-    function RosterSection({ league, cards, team, apply, logIndex, eraFactors }) {
+    function RosterSection({ league, cards, team, apply, logIndex, eraFactors, onBrowseWaivers }) {
         const [selectedId,setSelectedId]=useState(null);
         const [draggedId, setDraggedId] = useState(null);
         const [moveNotice, setMoveNotice] = useState('');
+        const [moveChoice, setMoveChoice] = useState(null);
+        const [moving, setMoving] = useState(false);
+        const moveRef = React.useRef(null);
+        const moveTrigger = React.useRef(null);
         const dossierRef=React.useRef(null);
         React.useEffect(()=>{if(selectedId)dossierRef.current?.focus();},[selectedId]);
         const revealed = league.seasonsRevealed;
-        const editable = league.phase === 'season' && ['claims', 'lineup'].includes(league.weekStage);
+        const editable = team.manager === 'human' && league.phase === 'season' && ['claims', 'lineup'].includes(league.weekStage);
+        React.useEffect(() => {
+            if (moveChoice?.entryId && !team.roster.some(entry => entry.entryId === moveChoice.entryId)) setMoveChoice(null);
+        }, [team.roster, moveChoice?.entryId]);
+        React.useEffect(() => {
+            if (!moveChoice || typeof document === 'undefined') return undefined;
+            const previous = document.activeElement;
+            const oldOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            moveRef.current?.focus();
+            return () => {
+                document.body.style.overflow = oldOverflow;
+                (moveTrigger.current?.isConnected ? moveTrigger.current : previous)?.focus?.();
+            };
+        }, [Boolean(moveChoice)]);
+        const openMove = (choice, event) => {
+            if (!editable || moving) return;
+            moveTrigger.current = event?.currentTarget || null;
+            setMoveNotice('');
+            setMoveChoice(choice);
+        };
+        const closeMove = () => { if (!moving) setMoveChoice(null); };
+        const onMoveKeys = event => {
+            if (event.key === 'Escape') { event.preventDefault(); closeMove(); }
+            if (event.key !== 'Tab') return;
+            const controls = [...(moveRef.current?.querySelectorAll('button:not(:disabled), a[href], [tabindex="0"]') || [])];
+            if (!controls.length) { event.preventDefault(); return; }
+            const first = controls[0], last = controls[controls.length - 1];
+            if (event.shiftKey && (document.activeElement === first || document.activeElement === moveRef.current)) { event.preventDefault(); last.focus(); }
+            else if (!event.shiftKey && (document.activeElement === last || document.activeElement === moveRef.current)) { event.preventDefault(); first.focus(); }
+        };
         const outlooks = useMemo(() => new Map(team.roster.map(entry => [entry.entryId,
             revealed ? Season.rosterOutlook(entry, league.currentWeek, Engine.seasonEndWeek(league), logIndex, league.settings.scoring, league.settings.eraAdjusted ? eraFactors : null) : null
         ])), [team.roster, revealed, league.currentWeek, league.settings, logIndex, eraFactors]);
         const capacity = Engine.rosterCapacity(league.settings);
         const problems = Engine.lineupProblems(league, team.teamId);
-        const moveTargets = (entry) => Roster.ROSTER_SLOT_IDS.filter((slot) => slot !== entry.slot && (league.settings.rosterSlots[slot] ?? 0) > 0 && Roster.SLOT_ELIGIBILITY[slot].includes(entry.position));
         const moveEntry = async (entryId, slot, targetEntryId) => {
-            if (!editable) { setMoveNotice('Lineups open during the waiver and roster gates.'); return; }
+            if (!editable || moving) { setMoveNotice('Lineups open during the waiver and roster gates.'); return; }
             const next = Engine.setEntrySlot(league, team.teamId, entryId, slot, targetEntryId);
             if (next === league) { setMoveNotice('That player cannot move into this slot. Choose a compatible position.'); return; }
+            setMoving(true);
             try {
                 const saved = await apply(next, { type: 'lineup', teamId: team.teamId, entryId, slot, targetEntryId });
-                setMoveNotice(saved === false ? 'Move was not saved. Review the current lineup and try again.' : 'Lineup updated.');
+                const player = team.roster.find(entry => entry.entryId === entryId);
+                const target = team.roster.find(entry => entry.entryId === targetEntryId);
+                setMoveNotice(saved === false ? 'Move was not saved. Review the current lineup and try again.' : target ? `${player.name} and ${target.name} swapped places.` : `${player.name} moved to ${slotName(slot)}.`);
+                if (saved !== false) setMoveChoice(null);
             } catch { setMoveNotice('Move could not be saved. Please try again.'); }
+            finally { setMoving(false); }
         };
         const dropProps = (slot, targetEntryId) => ({
             onDragOver: (event) => { if (editable && draggedId) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } },
@@ -89,7 +127,7 @@
             const rating = revealed && Season.weeklyStarOutlook ? Season.weeklyStarOutlook(entry, league.currentWeek, Engine.seasonEndWeek(league), logIndex, league.settings.scoring, league.settings.eraAdjusted ? eraFactors : null) : null;
             const eraColor = revealed ? UI.eraColorOf(entry.drawnSeason) : null;
             return h('div', { key: entry.entryId, className: 'tl-lineup-row' + (draggedId === entry.entryId ? ' is-dragging' : ''), draggable: editable, onDragStart: (event) => { setDraggedId(entry.entryId); event.dataTransfer.setData('text/plain', entry.entryId); event.dataTransfer.effectAllowed = 'move'; }, onDragEnd: () => setDraggedId(null), ...dropProps(entry.slot, entry.entryId), style: { gridTemplateColumns: LINEUP_GRID } },
-                h('span', { className: 'tl-lineup-slot' }, slotLabel),
+                h('span', { className: 'tl-lineup-slot', title: slotName(slotLabel) }, slotLabel === 'SUPER_FLEX' ? 'SFLX' : slotLabel),
                 h('button', { type:'button', className: 'tl-lineup-player tl-roster-player-link', onClick:()=>setSelectedId(entry.entryId), 'aria-label':`Explore ${entry.name}'s history`, 'aria-pressed':selectedId===entry.entryId },
                     h('span', { className: 'name' }, entry.name),
                     h('span', { className: `tl-pos-badge tl-pos-${entry.position}`, style: { marginLeft: 6 } }, entry.position),
@@ -99,13 +137,13 @@
                     rating && h('span', { className: 'tl-week-stars', title: rating.stars !== null ? `Week ${league.currentWeek}: ${rating.stars} of 5 stars. Highest remaining rating: ${rating.maxRemainingStars}.` : 'No archived game this week: zero points.', 'aria-label': rating.stars !== null ? `${rating.stars} of 5 stars this week` : 'No archived game this week' }, rating.stars !== null ? '★'.repeat(rating.stars) + '☆'.repeat(5-rating.stars) : '— No game log'), rating && rating.maxRemainingStars !== null && h('small', { className: 'tl-stars-ceiling' }, `Remaining ceiling: ${rating.maxRemainingStars}★`)),
                 h('span', { className: 'tl-lineup-pts tabular', style: eraColor ? { color: eraColor } : undefined },
                     revealed ? fmt1(cardSeasonPoints(cards, entry)) : '—', h('small', null, 'SZN PTS')),
-                h('select', {
-                    className: 'tl-select', style: { fontSize: 10.5, padding: '5px 4px' }, 'aria-label': `Move ${entry.name}`, value: '', disabled: !editable,
-                    onChange: (e) => { const slot = e.target.value; if (slot) moveEntry(entry.entryId, slot); },
-                }, h('option', { value: '' }, 'MOVE'), moveTargets(entry).map((slot) => h('option', { key: slot, value: slot }, slot))));
+                h('button', { type: 'button', className: 'tl-btn tl-roster-move', 'aria-label': `Move ${entry.name}`, disabled: !editable || moving,
+                    onClick: event => openMove({ entryId: entry.entryId }, event) }, 'Move'));
         };
         const openRow = (slotLabel, key) => h('div', { key, className: 'tl-lineup-row open-slot', ...dropProps(slotLabel), style: { gridTemplateColumns: LINEUP_GRID } },
-            h('span', { className: 'tl-lineup-slot' }, slotLabel), h('span', null, 'Open slot — start someone'), h('span', null), h('span', null));
+            h('span', { className: 'tl-lineup-slot', title: slotName(slotLabel) }, slotLabel === 'SUPER_FLEX' ? 'SFLX' : slotLabel),
+            h('button', { type: 'button', className: 'tl-roster-open-slot', disabled: !editable || moving, 'aria-label': `Fill open ${slotName(slotLabel)} slot`, onClick: event => openMove({ slot: slotLabel }, event) },
+                h('span', null, '+ Add player'), h('small', null, Roster.SLOT_ELIGIBILITY[slotLabel].join(' · '))), h('span', null), h('span', null));
 
         const starterRows = [];
         for (const slot of STARTER_SLOTS) {
@@ -126,8 +164,8 @@
         const card=selected?cards.get(selected.identity):null;
         const history=selected&&revealed?window.App.TimeLeaguePlayerCards.beforeSeason(card,selected.drawnSeason):null;
         const stat=(label,value)=>h('div',{className:'tl-archive-stat',key:label},h('small',null,label),h('strong',null,value));
-        const dossier=h('aside',{className:'tl-roster-dossier',ref:dossierRef,tabIndex:-1,'aria-label':'Historical player dossier'},
-            selected?h(React.Fragment,null,
+        const dossier=selected&&h('aside',{className:'tl-roster-dossier',ref:dossierRef,tabIndex:-1,'aria-label':'Historical player dossier'},
+            h(React.Fragment,null,
                 h('div',{className:'tl-dossier-kicker'},'THE VAULT · PLAYER ARCHIVE'),
                 h('div',{className:'tl-dossier-title'},h('span',{className:`tl-pos-badge tl-pos-${selected.position}`},selected.position),h('h2',null,selected.name),h('button',{type:'button',className:'tl-btn',onClick:()=>setSelectedId(null),'aria-label':'Close player history'},'Close')),
                 h('p',{className:'tl-hint'},revealed?`Your edition: ${selected.drawnSeason} · Looking back before this season`:'Your edition is sealed. Season-specific history unlocks at the reveal.'),
@@ -147,28 +185,63 @@
                     h('div',{className:'tl-archive-stats'},stat('Earlier seasons in archive',history.seasons.length),stat('Previous season',history.latest?`${history.latest.season} · ${history.latest.points.toFixed(1)} pts`:'Not available'),stat('Best earlier season',history.best?`${history.best.season} · ${history.best.points.toFixed(1)} pts`:'Not available')),
                     h('div',{className:'tl-archive-read'},h('h3',null,'The story coming in'),h('p',null,!history.latest?`No seasons before ${selected.drawnSeason} are in this archive. That does not establish that this was a rookie year.`:`In ${history.latest.season}, ${selected.name} recorded ${history.latest.games} games and ${history.latest.points.toFixed(1)} fantasy points.`),history.change!==null&&h('p',null,`Points per game ${history.change>=0?'rose':'fell'} by ${Math.abs(history.change).toFixed(1)} between the last two available seasons (${history.seasons[history.seasons.length-2].season}–${history.latest.season}).`)),
                     history.seasons.length>0&&h('div',{className:'tl-archive-history'},h('h3',null,'Before your edition'),h('p',{className:'tl-hint'},'Only seasons earlier than your drawn year. Points use the bundled archive scoring, not a weekly projection.'),h('div',{className:'tl-archive-scroll'},h('table',null,h('thead',null,h('tr',null,['Year','GP','Pass YD','Pass TD','Rush YD','Rush TD','REC','Rec YD','Rec TD','PTS'].map(x=>h('th',{key:x},x)))),h('tbody',null,history.seasons.slice().reverse().map(row=>h('tr',{key:row.season},['season','games','passYd','passTd','rushYd','rushTd','rec','recYd','recTd','points'].map(k=>h('td',{key:k},k==='points'?row[k].toFixed(1):row[k])))))))))
-            ):h('div',{className:'tl-archive-empty'},h('span',{className:'tl-dossier-kicker'},'YOUR COLLECTION, THROUGH TIME'),h('h2',null,'Every name has a backstory.'),h('p',null,'Select a player to open their biography, earlier seasons, and the form they carried into your drawn year.'),h('div',{className:'tl-archive-stats'},stat('Players',team.roster.length),stat('Positions',new Set(team.roster.map(e=>e.position)).size),stat('Editions',revealed?new Set(team.roster.map(e=>e.drawnSeason)).size:'Sealed'))),
-            team.manager==='ai'&&h(GmProfile,{team,title:'GM profile'}));
+            ));
+        const movingEntry = team.roster.find(entry => entry.entryId === moveChoice?.entryId);
+        const sortCandidates = (a, b) => (a.slot === 'BN' ? 0 : 1) - (b.slot === 'BN' ? 0 : 1) ||
+            (outlooks.get(b.entryId)?.remaining ?? 0) - (outlooks.get(a.entryId)?.remaining ?? 0) || a.name.localeCompare(b.name);
+        // Exact target IDs make swaps atomic even with a full bench or several occupants in one slot.
+        const replacements = movingEntry ? team.roster.filter(candidate => candidate.entryId !== movingEntry.entryId &&
+            Engine.setEntrySlot(league, team.teamId, movingEntry.entryId, candidate.slot, candidate.entryId) !== league).sort(sortCandidates) : [];
+        const openCandidates = moveChoice?.slot ? team.roster.filter(candidate =>
+            Roster.SLOT_ELIGIBILITY[moveChoice.slot]?.includes(candidate.position) &&
+            Engine.setEntrySlot(league, team.teamId, candidate.entryId, moveChoice.slot) !== league).sort(sortCandidates) : [];
+        const emptyTargets = movingEntry ? Roster.ROSTER_SLOT_IDS.filter(slot => slot !== movingEntry.slot &&
+            (league.settings.rosterSlots[slot] ?? 0) > team.roster.filter(entry => entry.slot === slot).length &&
+            Engine.setEntrySlot(league, team.teamId, movingEntry.entryId, slot) !== league) : [];
+        const candidateButton = (candidate, isSwap) => {
+            const rating = revealed && Season.weeklyStarOutlook ? Season.weeklyStarOutlook(candidate, league.currentWeek, Engine.seasonEndWeek(league), logIndex, league.settings.scoring, league.settings.eraAdjusted ? eraFactors : null) : null;
+            const destination = isSwap ? movingEntry.slot : moveChoice.slot;
+            return h('button', { type: 'button', key: candidate.entryId, className: 'tl-roster-candidate', disabled: !editable || moving,
+                'aria-label': isSwap ? `Swap ${movingEntry.name} with ${candidate.name}` : `Start ${candidate.name} at ${slotName(destination)}`,
+                onClick: () => isSwap ? moveEntry(movingEntry.entryId, candidate.slot, candidate.entryId) : moveEntry(candidate.entryId, destination) },
+                h('span', { className: `tl-pos-badge tl-pos-${candidate.position}` }, candidate.position),
+                h('span', { className: 'tl-roster-candidate-player' }, h('strong', null, candidate.name),
+                    h('small', null, `${revealed ? `${candidate.drawnSeason} · ` : 'Sealed edition · '}${slotName(candidate.slot)} → ${slotName(destination)}`),
+                    isSwap && h('small', null, `${movingEntry.name} → ${slotName(candidate.slot)}`)),
+                h('span', { className: 'tl-roster-candidate-rating' }, rating ? h(React.Fragment, null,
+                    h('strong', { 'aria-label': rating.stars === null ? 'No game this week' : `${rating.stars} of 5 stars this week` }, rating.stars === null ? '—' : '★'.repeat(rating.stars) + '☆'.repeat(5 - rating.stars)),
+                    h('small', null, rating.stars === null ? 'No game log' : `Week ${league.currentWeek}`)) : h('small', null, revealed ? 'No weekly clue' : 'Sealed'),
+                    h('span', { className: 'tl-roster-candidate-action' }, isSwap ? 'Swap ↔' : 'Start →')));
+        };
+        const moveSheet = moveChoice && (movingEntry || moveChoice.slot) && h('div', { className: 'tl-roster-move-backdrop', onClick: event => { if (event.target === event.currentTarget) closeMove(); } },
+            h('section', { className: 'tl-roster-move-sheet', role: 'dialog', 'aria-modal': true, 'aria-label': movingEntry ? `Move ${movingEntry.name}` : `Fill ${slotName(moveChoice.slot)}`, ref: moveRef, tabIndex: -1, onKeyDown: onMoveKeys },
+                h('header', null, h('div', null, h('small', { className: 'tl-label' }, 'YOUR LINEUP'), h('h2', null, movingEntry ? `Move ${movingEntry.name}` : `Fill ${slotName(moveChoice.slot)}`)),
+                    h('button', { type: 'button', className: 'tl-btn', onClick: closeMove, disabled: moving, 'aria-label': 'Close lineup choices' }, 'Close')),
+                !editable ? h('p', { className: 'tl-hint' }, 'Lineups are locked until the next roster gate.') :
+                    h(React.Fragment, null,
+                        h('p', { className: 'tl-hint' }, movingEntry ? `Choose a player to swap with ${movingEntry.name}. Both moves happen together.` : 'Choose an eligible player from your roster. Their current slot is shown below.'),
+                        h('div', { className: 'tl-roster-candidates' }, (movingEntry ? replacements : openCandidates).map(candidate => candidateButton(candidate, Boolean(movingEntry)))),
+                        (movingEntry ? !replacements.length : !openCandidates.length) && h('p', { className: 'tl-empty' }, movingEntry ? 'No compatible players to swap with.' : 'No eligible players on your roster for this slot.'),
+                        emptyTargets.length > 0 && h('div', { className: 'tl-roster-empty-targets' }, h('h3', null, 'Move into an open slot'), emptyTargets.map(slot => h('button', {
+                            type: 'button', key: slot, className: 'tl-btn', disabled: moving, onClick: () => moveEntry(movingEntry.entryId, slot),
+                        }, `${slotName(slot)}${Season.isStarterSlot(movingEntry.slot) && slot === 'BN' ? ` · leaves ${slotName(movingEntry.slot)} open` : ''}`))),
+                        onBrowseWaivers && league.settings.waiversEnabled && (moveChoice.slot || (movingEntry && Season.isStarterSlot(movingEntry.slot))) && h('button', { type: 'button', className: 'tl-btn tl-roster-find-player', disabled: moving, onClick: () => { setMoveChoice(null); onBrowseWaivers(moveChoice.slot || movingEntry.slot); } }, `Find eligible ${slotName(moveChoice.slot || movingEntry.slot)} free agents →`)),
+                moveNotice && h('p', { className: 'tl-hint', role: 'status' }, moveNotice)));
         return h('div', { className: 'tl-roster-layout'+(selected?' has-selection':'') },
-            h('div', null,
-                h('div', { className: 'tl-lineup-hero' },
-                    h('div', { className: 'lh-kicker' }, `WK ${Math.min(league.currentWeek, league.settings.regularSeasonWeeks)} · ROSTER CENTRAL`),
-                    h('div', { className: `lh-headline ${league.phase === 'draft' ? '' : optimal ? 'good' : 'warn'}` }, headline),
-                    h('div', { className: 'lh-sub' }, `${team.name} · ${team.roster.length}/${capacity} rostered${league.settings.eraAdjusted ? ' · era-adjusted scoring' : ''}`),
-                    !optimal && problems.length > 0 && h('div', { style: { marginBottom: 12 } },
-                        problems.map((p, i) => h('div', { key: i, className: 'tl-feedrow caution' }, h('time', null, 'FIX'), h('p', null, p)))),
-                    h('p', { className: 'tl-hint' }, 'Drag a player onto a compatible slot or player to swap; the Move menu works with touch and keyboard. Stars are historical game-strength clues, not forecasts. They compare this week with that player’s own season: best three games earn 5, worst three earn 1. No-game weeks are excluded.'),
-                    h('p', { className: 'tl-hint' }, 'A dash means no archived game log: a bye, missed game, or archive gap. That week scores zero.'),
-                    h('p', { className: 'tl-hint', role: 'status' }, moveNotice),
-                    h('div', { className: 'lh-actions' }, h('button', { className: 'tl-btn primary', disabled: !editable, onClick: () => apply(Engine.autoFillLineup(league, team.teamId, cards), { type: 'auto-lineup', teamId: team.teamId }) }, '⚡ AUTO-SET LINEUP'))),
-
+            h('div', { className: 'tl-roster-main' },
+                h('div', { className: 'tl-roster-toolbar' },
+                    h('div', null, h('h2', null, 'My Roster'), h('p', null, `${team.name} · Week ${league.currentWeek} · ${team.roster.length}/${capacity} players`)),
+                    h('div', { className: 'tl-roster-toolbar-actions' }, h('span', { className: `tl-roster-lineup-status ${optimal ? 'good' : 'warn'}` }, editable ? optimal ? 'Lineup ready' : `${problems.length} open slot${problems.length === 1 ? '' : 's'}` : league.phase === 'complete' ? 'Season complete' : 'Lineup locked'),
+                        h('button', { type: 'button', className: 'tl-btn', disabled: !editable || moving, onClick: () => apply(Engine.autoFillLineup(league, team.teamId, cards), { type: 'auto-lineup', teamId: team.teamId }) }, 'Auto-fill'))),
+                moveNotice && !moveChoice && h('p', { className: 'tl-roster-notice', role: 'status' }, moveNotice),
+                !optimal && problems.length > 0 && h('details', { className: 'tl-roster-help tl-roster-problems' }, h('summary', null, headline), problems.map((problem, i) => h('p', { key: i }, problem))),
                 h('div', { className: 'tl-lineup-table' },
                     h('div', { className: 'tl-lineup-table-title' }, 'Starting Lineup'),
                     h('div', { className: 'tl-lineup-head', style: { gridTemplateColumns: LINEUP_GRID } },
                         h('span', null, 'Slot'), h('span', null, 'Player'), h('span', { style: { textAlign: 'right' } }, 'Pts'), h('span', null)),
                     starterRows),
-                h('div', { className: 'tl-lineup-table' },
-                    h('div', { className: 'tl-lineup-table-title', ...dropProps('BN') }, 'Bench · drop here'),
+                league.settings.rosterSlots.BN > 0 && h('div', { className: 'tl-lineup-table' },
+                    h('div', { className: 'tl-lineup-table-title', ...dropProps('BN') }, editable ? 'Bench · drop here' : 'Bench'),
                     bench.length
                         ? bench.map((entry) => entryRow(entry, 'BN'))
                         : h('p', { className: 'tl-empty', style: { padding: '10px 14px' } }, 'Bench is empty.')),
@@ -178,12 +251,17 @@
                         h('div', { className: 'tl-lineup-table-title' }, slot === 'IR' ? 'Injured Reserve' : 'Taxi Squad'),
                         occupants.length ? occupants.map((entry) => entryRow(entry, slot)) : h('p', { className: 'tl-empty', style: { padding: '10px 14px' } }, `No entries stashed at ${slot}.`));
                 })),
-            dossier);
+            dossier,
+            h('details', { className: 'tl-roster-help' }, h('summary', null, 'Lineup tips & star ratings'),
+                h('p', null, 'Tap Move to see named replacements, or drag a player onto a compatible slot or teammate.'),
+                h('p', null, 'Stars compare this week with the player’s own historical season. Best three games earn 5 stars; worst three earn 1. No-game weeks are excluded.'),
+                h('p', null, 'A dash means no archived game log: a bye, missed game, or archive gap. That week scores zero.')),
+            moveSheet);
     }
 
-    function WaiversSection({ league, cards, team, standings, apply }) {
+    function WaiversSection({ league, cards, team, standings, apply, waiverSlot }) {
         const [query, setQuery] = useState('');
-        const [pos, setPos] = useState('ALL');
+        const [pos, setPos] = useState(waiverSlot && Roster.SLOT_ELIGIBILITY[waiverSlot] ? waiverSlot : 'ALL');
         const [visibleCount, setVisibleCount] = useState(WIRE_ROW_CAP);
         const [targetIdentity, setTargetIdentity] = useState('');
         const [dropEntryId, setDropEntryId] = useState('');
@@ -191,6 +269,9 @@
         const [filing, setFiling] = useState(false);
         const [claimMessage, setClaimMessage] = useState('');
         const pool = useMemo(() => Engine.freeAgents(league, cards), [league, cards]);
+        React.useEffect(() => {
+            if (waiverSlot && Roster.SLOT_ELIGIBILITY[waiverSlot]) { setPos(waiverSlot); setVisibleCount(WIRE_ROW_CAP); }
+        }, [waiverSlot]);
         const faab = league.settings.waiverMode === 'faab';
         const clearTarget = (identity) => { setTargetIdentity(identity); setBidAmount(0); };
 
@@ -201,8 +282,8 @@
                 h('p', { style: { marginTop: 8, fontSize: 12.5, color: 'var(--text-secondary)' } }, "Waivers are switched off in this league's settings. The wire stays dark all season."));
         }
         const wireOpen = league.phase === 'season' && league.weekStage === 'claims';
-        const positions = POSITION_ORDER.filter((p) => pool.some((c) => c.position === p));
-        const filtered = pool.filter((c) => (pos === 'ALL' || c.position === pos) && (!query.trim() || c.name.toLowerCase().includes(query.trim().toLowerCase())));
+        const positions = [...POSITION_ORDER.filter((p) => pool.some((c) => c.position === p)), ...['FLEX', 'SUPER_FLEX'].filter(slot => league.settings.rosterSlots[slot] > 0)];
+        const filtered = pool.filter((c) => (pos === 'ALL' || Roster.SLOT_ELIGIBILITY[pos]?.includes(c.position)) && (!query.trim() || c.name.toLowerCase().includes(query.trim().toLowerCase())));
         const shown = filtered.slice(0, visibleCount);
         const target = targetIdentity ? cards.get(targetIdentity) : undefined;
         const alreadyClaimed = Boolean(target) && league.pendingClaims.some((c) => c.teamId === team.teamId && c.addIdentity === targetIdentity);
@@ -248,7 +329,7 @@
                     h('input', { className: 'tl-input', placeholder: 'Search player name…', 'aria-label': 'Search free agents', value: query, onChange: e => { setQuery(e.target.value); setVisibleCount(WIRE_ROW_CAP); } }),
                     h('span', { className: 'tl-label' }, 'SORT · CAREER BEST ↓')),
                 h('nav', { className: 'tl-waiver-filters', 'aria-label': 'Free agent positions' },
-                    ['ALL', ...positions].map(position => h('button', { key: position, className: `tl-btn${pos === position ? ' primary' : ''}`, 'aria-pressed': pos === position, onClick: () => { setPos(position); setVisibleCount(WIRE_ROW_CAP); } }, position))),
+                    ['ALL', ...positions].map(position => h('button', { key: position, className: `tl-btn${pos === position ? ' primary' : ''}`, 'aria-pressed': pos === position, onClick: () => { setPos(position); setVisibleCount(WIRE_ROW_CAP); } }, slotName(position)))),
                 h('p', { className: 'tl-waiver-reference' }, 'Career best is a reference. Your season is drawn from eligible seasons when a claim succeeds.'),
                 shown.length === 0 ? h('p', { className: 'tl-empty' }, 'No players match these filters.') :
                     h('div', { className: 'tl-waiver-table-scroll' }, h('table', { className: 'tl-waiver-table' },
@@ -324,7 +405,8 @@
         const [giveIds, setGiveIds] = useState([]);
         const [receiveIds, setReceiveIds] = useState([]);
         const [note, setNote] = useState('');
-        const [deskView, setDeskView] = useState('builder');
+        const [deskView, setDeskView] = useState(() => league.phase === 'season' && league.trades.some(trade =>
+            trade.status === 'pending' && trade.toTeamId === team.teamId && !(trade.deferredUntilWeek > league.currentWeek)) ? 'inbox' : 'builder');
         const [search, setSearch] = useState('');
         const [position, setPosition] = useState('ALL');
         const [sending, setSending] = useState(false);
@@ -488,34 +570,25 @@
             }));
     }
 
-    function WrTimeLeagueTeamPanel({ league, cards, section, activeTeamId, onSelectTeam, onUpdate, onlineMeta, logIndex, eraFactors }) {
+    function WrTimeLeagueTeamPanel({ league, cards, section, activeTeamId, onSelectTeam, onUpdate, onlineMeta, logIndex, eraFactors, onBrowseWaivers, waiverSlot }) {
         const standings = useMemo(() => Engine.computeStandings(league), [league]);
-        const recordByTeam = useMemo(() => new Map(standings.map((s) => [s.teamId, s])), [standings]);
-        const team = league.teams.find((t) => t.teamId === activeTeamId);
-        const apply = (next, action) => { if (next !== league && (!onlineMeta || activeTeamId === onlineMeta.seatTeamId)) return onUpdate(next, action); };
-        return h('div', null,
-            h('nav', { style: { display: 'flex', gap: 6, marginBottom: 16, overflowX: 'auto' }, 'aria-label': 'Teams' },
-                league.teams.map((item) => {
-                    const record = recordByTeam.get(item.teamId);
-                    const persona = item.aiPersona ? AI.AI_PERSONAS[item.aiPersona] : undefined;
-                    return h('button', {
-                        key: item.teamId, disabled: Boolean(onlineMeta && item.teamId !== onlineMeta.seatTeamId), onClick: () => onSelectTeam(item.teamId),
-                        className: 'tl-card', style: {
-                            flex: 'none', textAlign: 'left', cursor: 'pointer', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8,
-                            borderColor: item.teamId === activeTeamId ? 'var(--gold)' : undefined,
-                        },
-                    }, h(window.TimeLeagueHelmetIcon, { helmet: item.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(item.name), size: 24 }),
-                        h('div', null, h('strong', { style: { display: 'block', fontSize: 12.5 } }, item.name),
-                            h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 } },
-                                item.manager === 'human' ? h('span', { className: 'tl-pill' }, 'HUMAN') : h('span', { className: `tl-pill ${PERSONA_PILL[item.aiPersona ?? 'steward']}` }, (persona?.label ?? 'AI').toUpperCase()),
-                                record && h('small', { className: 'tabular', style: { color: 'var(--text-muted)' } }, `${record.wins}-${record.losses}${record.ties ? `-${record.ties}` : ''}`))));
-                })),
+        const humanTeams = league.teams.filter(item => item.manager === 'human');
+        const requestedTeam = league.teams.find(item => item.teamId === (onlineMeta?.seatTeamId || activeTeamId));
+        const team = onlineMeta ? requestedTeam : requestedTeam?.manager === 'human' ? requestedTeam : humanTeams[0];
+        const apply = (next, action) => {
+            if (next === league || !team || team.manager !== 'human' || (onlineMeta && team.teamId !== onlineMeta.seatTeamId)) return false;
+            return onUpdate(next, action);
+        };
+        return h('div', { className: 'tl-team-workspace' },
+            !onlineMeta && humanTeams.length > 1 && h('label', { className: 'tl-hotseat-manager' }, 'Managing',
+                h('select', { className: 'tl-select', value: team?.teamId || '', 'aria-label': 'Hotseat manager', onChange: event => onSelectTeam(event.target.value) },
+                    humanTeams.map(item => h('option', { key: item.teamId, value: item.teamId }, item.name)))),
             !team
-                ? h('div', { className: 'tl-card' }, h('p', { className: 'tl-empty' }, 'Unknown team — pick a desk above.'))
-                : section === 'roster' ? h(RosterSection, { key: activeTeamId, league, cards, team, apply, logIndex, eraFactors })
-                    : section === 'waivers' ? h(WaiversSection, { key: activeTeamId, league, cards, team, standings, apply })
-                        : section === 'trades' ? h(TradesSection, { key: activeTeamId, league, cards, team, apply })
-                            : h(AchievementsSection, { key: activeTeamId, league, team }));
+                ? h('div', { className: 'tl-card' }, h('p', { className: 'tl-empty' }, 'Join a manager seat to open your roster.'))
+                : section === 'roster' ? h(RosterSection, { key: team.teamId, league, cards, team, apply, logIndex, eraFactors, onBrowseWaivers })
+                    : section === 'waivers' ? h(WaiversSection, { key: team.teamId, league, cards, team, standings, apply, waiverSlot })
+                        : section === 'trades' ? h(TradesSection, { key: team.teamId, league, cards, team, apply })
+                            : h(AchievementsSection, { key: team.teamId, league, team }));
     }
 
     window.WrTimeLeagueTeamPanel = WrTimeLeagueTeamPanel;

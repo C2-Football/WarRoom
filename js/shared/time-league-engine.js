@@ -291,6 +291,8 @@
             trades: [],
             waiverResults: [],
             activity: founding,
+            rivalMessages: [],
+            rivalRelationships: [],
         };
     }
 
@@ -1130,6 +1132,8 @@
             waiverResults: Array.isArray(raw.waiverResults) ? raw.waiverResults.filter(item => item && Number.isInteger(item.week) && item.week > 0 && item.week <= 19 && typeof item.identity === 'string' && typeof item.name === 'string' && teams.some(team => team.teamId === item.winnerTeamId) && Array.isArray(item.contenderTeamIds)).map(item => ({ week: item.week, identity: item.identity, name: item.name, winnerTeamId: item.winnerTeamId, contenderTeamIds: [...new Set(item.contenderTeamIds.filter(id => teams.some(team => team.teamId === id)))] })) : [],
             trades,
             activity,
+            rivalMessages: App.TimeLeagueRivals?.normalizeMessages(raw.rivalMessages, teams) || [],
+            rivalRelationships: App.TimeLeagueRivals?.normalizeRelationships(raw.rivalRelationships, teams) || [],
             ...(championTeamId ? { championTeamId } : {}),
         };
     }

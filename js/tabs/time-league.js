@@ -903,6 +903,7 @@
         const [showCareer, setShowCareer] = useState(false);
         const [showCommunity, setShowCommunity] = useState(false);
         const [draftReveal, setDraftReveal] = useState({ leagueId: null, ready: false });
+        const [waiverBrowse, setWaiverBrowse] = useState({ leagueId: null, slot: null });
         const draftRevealed = league?.settings.eraRules?.mode !== 'position-roulette' || league?.seasonsRevealed || (draftReveal.leagueId === league?.leagueId && draftReveal.ready);
         const revealRef = useRef(false);
         revealRef.current = Boolean(draftRevealed);
@@ -1071,6 +1072,18 @@
                 return saved;
             } catch (error) { setConflictNotice(error.message); return false; }
         }, [activeTeamId, cards, logIndex, eraFactors, handleUpdate]);
+
+        const sendRivalMessage = useCallback(async input => {
+            const current = leagueRef.current;
+            if (!current) return false;
+            const own = onlineRef.current?.seatTeamId || current.teams.find(team => team.teamId === activeTeamId && team.manager === 'human')?.teamId || current.teams.find(team => team.manager === 'human')?.teamId;
+            const action = { ...input, type: 'rival-message', teamId: own };
+            try {
+                const next = onlineRef.current ? current : window.App.TimeLeagueActions.applyOnlineAction(current, action,
+                    { role: 'commissioner', seat_team_id: own }, { cards }, new Date().toISOString());
+                return await handleUpdate(next, action);
+            } catch (error) { throw new Error(error.message || 'Your message could not be sent. Try again.'); }
+        }, [activeTeamId, cards, handleUpdate]);
 
         const dispatchDraft = useCallback(async (action, options = {}) => {
             const current = leagueRef.current;
@@ -1248,11 +1261,6 @@
             ? activeTeamId
             : (league.teams.find((team) => team.manager === 'human')?.teamId ?? league.teams[0]?.teamId ?? 't1');
         const responseTeam = onlineMeta?.seatTeamId || (league.teams.find(team => team.teamId === activeTeam && team.manager === 'human')?.teamId ?? league.teams.find(team => team.manager === 'human')?.teamId);
-        const incomingAi = league.trades.filter(trade => trade.status === 'pending' && (trade.deferredUntilWeek || 0) <= league.currentWeek && trade.toTeamId === responseTeam && league.teams.some(team => team.teamId === trade.fromTeamId && team.manager === 'ai'));
-        const tradePlayerNames = ids => ids.map(id => {
-            const entry = league.teams.flatMap(team => team.roster).find(player => player.entryId === id);
-            return entry ? `${entry.name} · ${entry.drawnSeason}` : 'Player no longer rostered';
-        }).join(', ');
         const phaseTone = league.phase === 'draft' ? 'warn' : league.phase === 'season' ? 'info' : 'gold';
         const cardsReady = cards !== null && cards.size > 0;
         const loadingNotice = cards === null
@@ -1272,20 +1280,22 @@
                 h('span', null, item === 'draft' && league.phase !== 'draft' ? 'DRAFT RECAP' : TAB_LABELS[item])))),
             h(MobileGameNav, { tabs, activeTab, onNavigate: navigateTab }),
             h('div', { className: 'tl-main' }, h('div', { className: 'tl-main-inner' },
-                h('div', { className: 'tl-card tl-header' },
-                    h('div', null,
-                        h('div', { className: 'tl-eyebrow', style: { marginBottom: 5 } }, `THE VAULT · ${onlineMeta ? 'FRIENDS LEAGUE' : 'SOLO SEASON'}`),
-                        h('div', { className: 'tl-header-title' },
-                            h('strong', null, league.name),
-                            h('span', { className: `tl-pill ${phaseTone}` }, league.phase.toUpperCase()),
-                            onlineMeta ? h('span', { className: 'tl-pill info', role: 'status' }, saving ? 'SAVING…' : connectionError ? 'RECONNECTING…' : '🌐 ONLINE') : null),
-                        h(EraChipRail, { label: league.phase === 'draft' ? 'Era of Play' : 'League format', chips: EraRules.eraRuleChips(league.settings.eraRules).filter(chip=>league.phase==='draft'||!chip.toLowerCase().includes('reveal in the draft')) })),
-                    h('div', { className: 'tl-header-tools' },
-                        league.phase !== 'draft' ? h('span', { className: 'tl-pill' }, `${league.phase === 'complete' ? 'FINISHED' : league.weekStage === 'postgame' ? 'FINAL WK' : 'WK'} ${Math.min(league.weekStage === 'postgame' ? league.currentWeek - 1 : league.currentWeek, Engine.seasonEndWeek(league))}/${Engine.seasonEndWeek(league)}`) : null,
-                        h('span', { className: 'tl-pill' }, `${league.teams.length} MGRS`),
-                        onlineMeta && h('button', { type: 'button', className: 'tl-btn', onClick: () => setShowFriends(value => !value) }, 'FRIENDS & INVITES'),
-                        h('button', { type: 'button', className: 'tl-btn', onClick: switchLeague }, 'SWITCH LEAGUE'),
-                        h('button', { type: 'button', className: 'tl-btn', onClick: onClose }, '← DASHBOARD'))),
+                h('header', { className: 'tl-league-bar' },
+                    h('div', { className: 'tl-league-heading' },
+                        h('span', { className: 'tl-league-name' }, league.name),
+                        h('strong', null, activeTab === 'draft' && league.phase !== 'draft' ? 'Draft recap' : TAB_LABELS[activeTab])),
+                    h('div', { className: 'tl-league-context' },
+                        h('span', { className: `tl-pill ${phaseTone}` }, league.phase === 'draft' ? 'DRAFT' : league.phase === 'complete' ? 'COMPLETE' : `${league.weekStage === 'postgame' ? 'FINAL · ' : ''}WEEK ${Math.min(league.weekStage === 'postgame' ? league.currentWeek - 1 : league.currentWeek, Engine.seasonEndWeek(league))}`),
+                        onlineMeta && h('span', { className: 'tl-connection-dot', role: 'status', title: saving ? 'Saving' : connectionError ? 'Reconnecting' : 'Online', 'aria-label': saving ? 'Saving' : connectionError ? 'Reconnecting' : 'Online' }, connectionError ? '○' : '●'),
+                        h('details', { key: `${league.leagueId}:${activeTab}`, className: 'tl-league-menu' },
+                            h('summary', { 'aria-label': 'League options' }, '•••'),
+                            h('div', { className: 'tl-league-menu-body' },
+                                h('strong', null, league.name),
+                                h('small', null, `${onlineMeta ? 'Friends league' : league.teams.filter(team => team.manager === 'human').length > 1 ? 'Local multiplayer' : 'Solo season'} · ${league.teams.length} managers`),
+                                h(EraChipRail, { label: 'League format', chips: EraRules.eraRuleChips(league.settings.eraRules).filter(chip => !chip.toLowerCase().includes('reveal in the draft')) }),
+                                onlineMeta && h('button', { type: 'button', className: 'tl-btn', onClick: () => setShowFriends(value => !value) }, 'Friends & invites'),
+                                h('button', { type: 'button', className: 'tl-btn', onClick: switchLeague }, 'Switch league'),
+                                h('button', { type: 'button', className: 'tl-btn', onClick: onClose }, 'Back to dashboard'))))),
                 conflictNotice && h('div', { className: 'tl-card', style: { borderColor: 'rgba(240,165,0,0.4)', marginBottom: 14 } },
                     h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 } },
                         h('span', { style: { fontSize: 12.5, color: 'var(--warn)' } }, `⚠ ${conflictNotice}`),
@@ -1297,28 +1307,15 @@
                 }),
                 activeTab === 'career' && CareerView ? h(CareerView, { index, league, onlineMeta, onOpenLocal: openLeague, onOpenOnline: openOnlineLeague }) : null,
                 activeTab === 'community' && CommunityPanel ? h(CommunityPanel, { onOpenOnline: openOnlineLeague, onProfile: () => navigateTab('career') }) : null,
+                activeTab === 'messages' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,
                 h('fieldset', { disabled: saving || Boolean(onlineMeta && !onlineMeta.draftStarted), style: { border: 0, padding: 0, margin: 0, minWidth: 0 } },
-                league.phase === 'complete' && !Engine.playoffCount(league) && league.settings.regularSeasonWeeks < 18 && h('section', { className: 'tl-card tl-week-gate' },
+                ['home', 'gameday'].includes(activeTab) && league.phase === 'complete' && !Engine.playoffCount(league) && league.settings.regularSeasonWeeks < 18 && h('section', { className: 'tl-card tl-week-gate' },
                     h('div', null, h('strong', null, 'Finish with a playoff?'), h('p', null, 'Keep regular-season results and reopen this season for a seeded championship. This replaces the standings-only title.')),
                     [2,4].filter(count => league.teams.length >= count && league.settings.regularSeasonWeeks + (count === 4 ? 2 : 1) <= 18).map(count => h('button', { key: count, className: 'tl-btn', disabled: saving || (onlineMeta && onlineMeta.role !== 'commissioner'), onClick: () => handleUpdate(Engine.startPlayoffs(league, count), { type: 'start-playoffs', count }) }, `Add ${count}-team playoffs`))),
-                incomingAi.length > 0 && h('section', { className: 'tl-ai-offers tl-card', 'aria-label': 'Incoming AI trade offers' },
-                    h('div', { className: 'tl-card-title' }, h('span', null, `Trade offers · ${incomingAi.length} awaiting your response`), h('small', null, 'YOUR DECISION')),
-                    incomingAi.map(trade => h('details', { key: trade.tradeId, open: true, className: 'tl-ai-offer' },
-                        h('summary', null, `${league.teams.find(team => team.teamId === trade.fromTeamId)?.name || 'An AI manager'} wants to make a deal`),
-                        h('div', { className: 'tl-ai-offer-sides' },
-                            h('p', null, h('small', null, 'YOU RECEIVE'), h('strong', null, tradePlayerNames(trade.giveEntryIds))),
-                            h('p', null, h('small', null, 'YOU SEND'), h('strong', null, tradePlayerNames(trade.receiveEntryIds)))),
-                        trade.note && h('blockquote', null, trade.note),
-                        h('div', { className: 'tl-ai-offer-actions' },
-                            h('button', { className: 'tl-btn primary', disabled: league.weekStage !== 'lineup', onClick: () => dispatchGate({ type: 'respond-trade', tradeId: trade.tradeId, accept: true }) }, 'Accept trade'),
-                            h('button', { className: 'tl-btn', disabled: league.weekStage !== 'lineup', onClick: () => dispatchGate({ type: 'respond-trade', tradeId: trade.tradeId, decision: 'delay' }) }, 'Delay to next week'),
-                            h('button', { className: 'tl-btn', disabled: league.weekStage !== 'lineup', onClick: () => dispatchGate({ type: 'respond-trade', tradeId: trade.tradeId, accept: false }) }, 'Reject'),
-                            h('button', { className: 'tl-btn', onClick: () => { setActiveTeamId(responseTeam); navigateTab('trades'); } }, 'Open trade desk'))))),
-                WeekGates && h(WeekGates, { league, onlineMeta, saving, dataReady: cardsReady && Boolean(logIndex), onAction: dispatchGate, onNavigate: navigateTab }),
+                ['home', 'roster', 'waivers', 'trades', 'gameday'].includes(activeTab) && WeekGates && h(WeekGates, { compact: activeTab !== 'home' && activeTab !== 'gameday', currentTab: activeTab, league, onlineMeta, saving, dataReady: cardsReady && Boolean(logIndex), onAction: dispatchGate, onNavigate: navigateTab }),
                 activeTab === 'draft' && draftModuleState === 'error' && h('p', { role: 'status' }, 'The draft grid could not load. ', h('button', { className: 'tl-btn', onClick: () => setDraftModuleState('idle') }, 'Retry draft module')),
-                activeTab === 'home' && league.phase !== 'complete' && RivalsPanel ? h(RivalsPanel, { league, teamId: onlineMeta?.seatTeamId || league.teams.find(team => team.manager === 'human')?.teamId, compact: true, onNavigate: navigateTab }) : null,
-                activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: onlineMeta?.seatTeamId }) : null,
-                ((activeTab === 'home' && league.phase === 'complete') || activeTab === 'messages') && RivalsPanel ? h(RivalsPanel, { league, teamId: onlineMeta?.seatTeamId || league.teams.find(team => team.manager === 'human')?.teamId, compact: activeTab === 'home', onNavigate: navigateTab }) : null,
+                activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: responseTeam }) : null,
+                activeTab === 'home' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, compact: true, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,
                 activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, {
                     key: league.leagueId, league, cards, onUpdate: handleUpdate, onlineMeta, onRevealReadyChange: onDraftRevealReady, onDraftAction: dispatchDraft,
                     draftControls: league.phase === 'draft' && h(React.Fragment, null,
@@ -1330,7 +1327,7 @@
                 }) : null,
                 (activeTab === 'roster' || activeTab === 'waivers' || activeTab === 'trades' || activeTab === 'achievements')
                     ? (cardsReady && TeamPanel
-                        ? h(TeamPanel, { league, cards, logIndex, eraFactors, section: activeTab, activeTeamId: activeTeam, onSelectTeam: setActiveTeamId, onUpdate: handleUpdate, onlineMeta })
+                        ? h(TeamPanel, { league, cards, logIndex, eraFactors, section: activeTab, activeTeamId: responseTeam, onSelectTeam: setActiveTeamId, onUpdate: handleUpdate, onlineMeta, waiverSlot: waiverBrowse.leagueId === league.leagueId ? waiverBrowse.slot : null, onBrowseWaivers: slot => { setWaiverBrowse({ leagueId: league.leagueId, slot }); navigateTab('waivers'); } })
                         : loadingNotice)
                     : null,
 

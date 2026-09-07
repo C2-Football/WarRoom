@@ -1,35 +1,115 @@
 (function () {
     'use strict';
     const h = React.createElement;
-    function WrTimeLeagueRivalsPanel({ league, teamId, throughWeek, onTrades, compact = false, onNavigate }) {
-        const [expanded, setExpanded] = React.useState(false);
+    function WrTimeLeagueRivalsPanel({ league, teamId, throughWeek, onTrades, compact = false, onNavigate, onSend, saving = false, isPrivate = false }) {
+        const R = window.App.TimeLeagueRivals;
         const storageKey = `tl-rival-read:${league.leagueId}:${teamId}`;
         const [readState, setReadState] = React.useState({});
+        const [selection, setSelection] = React.useState(null);
+        const [drafts, setDrafts] = React.useState({});
+        const [sending, setSending] = React.useState(false);
+        const [error, setError] = React.useState(null);
+        const endRef = React.useRef(null);
+        const sendingRef = React.useRef(false);
         React.useEffect(() => {
             try { setReadState({ key: storageKey, ids: JSON.parse(localStorage.getItem(storageKey) || '[]') }); }
             catch (_) { setReadState({ key: storageKey, ids: [] }); }
         }, [storageKey]);
         const read = readState.key === storageKey && Array.isArray(readState.ids) ? readState.ids : [];
-        const messages = window.App.TimeLeagueRivals.messagesFor(league, teamId, { throughWeek });
+        const threads = R.threadsFor(league, teamId, { throughWeek });
+        const messages = threads.flatMap(thread => thread.messages).filter(message => message.toTeamId === teamId);
         const unread = messages.filter(message => !read.includes(message.id)).length;
-        const markRead = () => {
-            const ids = messages.map(message => message.id);
-            setReadState({ key: storageKey, ids });
-            try { localStorage.setItem(storageKey, JSON.stringify(ids)); } catch (_) { /* Session still works without storage. */ }
+        const selectedId = selection?.key === storageKey ? selection.teamId : null;
+        const active = threads.find(thread => thread.team.teamId === selectedId) || threads[0];
+        const draftKey = `${storageKey}:${active?.team.teamId || ''}`;
+        const draft = drafts[draftKey] || { text: '', tone: 'neutral', messageId: '' };
+        const pending = saving || sending;
+        const markRead = ids => {
+            const next = [...new Set([...read, ...ids])];
+            setReadState({ key: storageKey, ids: next });
+            try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch (_) { /* Session still works without storage. */ }
         };
-        return h('section', { className: 'tl-card tl-rival-mail' + (compact ? ' is-compact' : ''), 'aria-label': 'Rival messages' },
-            h('div', { className: 'tl-card-title' }, h('span', null, 'Rival mail'), h('small', null, `${unread} unread · ${messages.length} messages`)),
-            h('p', { className: 'tl-rival-intro' }, 'The other desks have something to say.'),
-            !messages.length ? h('p', null, 'Quiet for now. Rival managers will react to your games, deals and contested pickups.') :
-                h('div', { className: 'tl-rival-messages' }, (compact ? messages.slice(0, 2) : !expanded ? messages.slice(0, 4) : messages).map(message =>
-                    h('article', { className: `tl-rival-message tl-rival-${message.kind}`, key: message.id },
-                        h('header', null, h('strong', null, !read.includes(message.id) ? '● ' : '', message.name), h('small', null, `${message.persona} · W${message.week}`)),
-                        h('p', null, message.text),
-                        h('footer', null, h('span', null, message.context, message.detail ? ` · ${message.detail}` : ''),
-                            message.tradeId && (onTrades || onNavigate) ? h('button', { className: 'tl-btn', onClick: () => onTrades ? onTrades(message.tradeId) : onNavigate('trades') }, 'View trade') : null)))),
-            unread ? h('button', { className: 'tl-btn', onClick: markRead }, 'Mark messages read') : null,
-            compact && onNavigate ? h('button', { className: 'tl-btn', onClick: () => onNavigate('messages') }, 'Open rival mail') : null,
-            !compact && messages.length > 4 ? h('button', { className: 'tl-btn', onClick: () => setExpanded(!expanded), 'aria-expanded': expanded }, expanded ? 'Show recent' : `Show all ${messages.length}`) : null);
+        const open = thread => {
+            setSelection({ key: storageKey, teamId: thread.team.teamId });
+            setError(null);
+            markRead(thread.messages.filter(message => message.toTeamId === teamId).map(message => message.id));
+        };
+        const newestId = active?.latest?.id;
+        React.useEffect(() => {
+            if (!compact && active && selectedId) {
+                endRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'auto' });
+                const unseen = active.messages.filter(message => message.toTeamId === teamId && !read.includes(message.id));
+                if (unseen.length) markRead(unseen.map(message => message.id));
+            }
+        }, [storageKey, selectedId, newestId]);
+        const avatar = team => window.TimeLeagueHelmetIcon && window.App.TimeLeagueHelmet
+            ? h(window.TimeLeagueHelmetIcon, { helmet: team.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team.name), size: 38 })
+            : h('span', { className: 'tl-chat-avatar', 'aria-hidden': true }, team.name.slice(0, 2));
+        const patchDraft = patch => {
+            // The desktop preview follows the latest owner until a conversation
+            // starts. Pin its recipient before typing so incoming mail cannot
+            // move the composer to another thread while a reply is in progress.
+            if (!selectedId && active) setSelection({ key: storageKey, teamId: active.team.teamId });
+            setDrafts(previous => ({ ...previous, [draftKey]: { ...draft, ...patch, messageId: '', replyToId: '' } }));
+        };
+        const send = async event => {
+            event?.preventDefault?.();
+            if (!onSend || pending || sendingRef.current || !active || !draft.text.trim()) return;
+            const messageId = draft.messageId || window.crypto?.randomUUID?.() || `mail_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+            const replyToId = draft.messageId ? draft.replyToId : active.messages.find(message => message.toTeamId === teamId)?.id;
+            const payload = { toTeamId: active.team.teamId, text: draft.text.trim(), tone: draft.tone, messageId, ...(replyToId ? { replyToId } : {}) };
+            setDrafts(previous => ({ ...previous, [draftKey]: { ...draft, messageId, replyToId } }));
+            sendingRef.current = true;
+            setSending(true); setError(null);
+            try {
+                const result = await onSend(payload);
+                if (result === false) throw new Error('Message could not be sent. Your draft is saved here.');
+                setDrafts(previous => ({ ...previous, [draftKey]: { text: '', tone: 'neutral', messageId: '' } }));
+            } catch (err) { setError({ key: draftKey, text: err.message || 'Message could not be sent. Try again.' }); }
+            finally { sendingRef.current = false; setSending(false); }
+        };
+        if (compact) return h('section', { className: 'tl-card tl-rival-mail is-compact', 'aria-label': 'Rival mail' },
+            h('div', { className: 'tl-card-title' }, h('span', null, 'Rival mail'), unread ? h('small', null, `${unread} unread`) : null),
+            h('div', { className: 'tl-rival-previews' }, threads.filter(thread => thread.latest).slice(0, 2).map(thread => h('button', {
+                type: 'button', className: 'tl-rival-preview', key: thread.team.teamId, onClick: () => onNavigate?.('messages'),
+            }, avatar(thread.team), h('span', null, h('strong', null, thread.team.name), h('span', null, thread.latest.fromTeamId === teamId ? 'You: ' : '', thread.latest.text))))),
+            !messages.length ? h('p', { className: 'tl-rival-intro' }, 'Send a good game, make a deal, or start a rivalry.') : null,
+            onNavigate ? h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate('messages') }, 'Open conversations') : null);
+        return h('section', { className: `tl-card tl-rival-mail tl-inbox${selectedId ? ' has-thread' : ''}`, 'aria-label': 'Rival conversations' },
+            h('aside', { className: 'tl-inbox-owners', 'aria-label': 'League managers' },
+                h('div', { className: 'tl-inbox-title' }, h('h2', null, 'Rival mail'), unread ? h('span', { className: 'tl-chat-unread' }, unread) : null),
+                h('nav', { className: 'tl-inbox-list', 'aria-label': 'Conversations' }, threads.map(thread => {
+                    const count = thread.messages.filter(message => message.toTeamId === teamId && !read.includes(message.id)).length;
+                    return h('button', { type: 'button', key: thread.team.teamId, className: `tl-inbox-owner${active === thread ? ' is-active' : ''}`, onClick: () => open(thread), 'aria-current': active === thread ? 'true' : undefined },
+                        avatar(thread.team), h('span', { className: 'tl-inbox-owner-copy' }, h('strong', null, thread.team.name), h('span', null, thread.latest ? `${thread.latest.fromTeamId === teamId ? 'You: ' : ''}${thread.latest.text}` : 'Start a conversation')),
+                        count ? h('span', { className: 'tl-chat-unread', 'aria-label': `${count} unread` }, count) : null);
+                }))),
+            active ? h('div', { className: 'tl-chat' },
+                h('header', { className: 'tl-chat-header' },
+                    h('button', { type: 'button', className: 'tl-chat-back', onClick: () => setSelection(null), 'aria-label': 'Back to conversations' }, '‹'),
+                    avatar(active.team), h('div', { className: 'tl-chat-heading' }, h('h3', null, active.team.name), h('small', null, active.team.manager === 'ai' ? (R.voices[active.team.aiPersona] || R.voices.steward).label : 'League manager')),
+                    active.relationship ? h('span', { className: `tl-chat-mood${active.relationship.heat > 2 ? ' is-heated' : ''}`, title: 'Your tone can change how this manager negotiates and competes for waivers.' }, active.relationship.label) : null),
+                h('div', { className: 'tl-chat-history', role: 'log', 'aria-label': `Conversation with ${active.team.name}`, 'aria-live': 'polite', 'aria-relevant': 'additions text' },
+                    !active.messages.length ? h('div', { className: 'tl-chat-empty' }, avatar(active.team), h('strong', null, `Say something to ${active.team.name}`), h('p', null, active.team.manager === 'ai' ? 'Keep it friendly or add a little fuel to the rivalry.' : 'Your conversation starts here.')) : null,
+                    [...active.messages].reverse().map((message, index, rows) => h(React.Fragment, { key: message.id },
+                        !index || rows[index - 1].week !== message.week ? h('div', { className: 'tl-chat-divider' }, `Week ${message.week}`) : null,
+                        h('article', { className: `tl-chat-message${message.fromTeamId === teamId ? ' is-own' : ''}`, 'aria-label': message.fromTeamId === teamId ? 'You' : active.team.name },
+                            h('div', { className: 'tl-chat-bubble' }, message.context ? h('small', { className: 'tl-chat-context' }, message.context) : null,
+                                h('p', null, message.text), message.detail ? h('small', { className: 'tl-chat-detail' }, message.detail) : null,
+                                message.tradeId && (onTrades || onNavigate) ? h('button', { type: 'button', className: 'tl-chat-trade', onClick: () => onTrades ? onTrades(message.tradeId) : onNavigate('trades') }, 'View trade →') : null),
+                            message.kind === 'chat' ? h('small', { className: 'tl-chat-time' }, new Date(message.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) : null))),
+                    h('div', { ref: endRef })),
+                onSend ? h('form', { className: 'tl-chat-compose', onSubmit: send },
+                    h('div', { className: 'tl-chat-quick', 'aria-label': 'Suggested replies' }, R.QUICK_REPLIES.map(reply => h('button', { type: 'button', key: reply.tone, disabled: pending, onClick: () => patchDraft({ text: reply.text, tone: reply.tone }) }, reply.label))),
+                    h('label', { className: 'tl-chat-tone' }, 'Tone', h('select', { 'aria-label': 'Message tone', value: draft.tone, disabled: pending, onChange: event => patchDraft({ tone: event.target.value }) },
+                        h('option', { value: 'neutral' }, 'Casual'), h('option', { value: 'friendly' }, 'Friendly'), h('option', { value: 'competitive' }, 'Competitive'), h('option', { value: 'dismissive' }, 'Dismissive'))),
+                    h('div', { className: 'tl-chat-input-row' }, h('textarea', { 'aria-label': `Message ${active.team.name}`, placeholder: 'Message…', value: draft.text, rows: 2, maxLength: 500, disabled: pending,
+                        onChange: event => patchDraft({ text: event.target.value }),
+                        onKeyDown: event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) send(event); } }),
+                        h('button', { className: 'tl-chat-send', type: 'submit', disabled: pending || !draft.text.trim(), 'aria-label': `Send message to ${active.team.name}` }, sending ? '…' : '↑')),
+                    h('div', { className: 'tl-chat-compose-note' }, h('small', null, active.team.manager === 'ai' ? 'Tone shapes the rivalry. Scores stay on the field.' : isPrivate ? 'Only you and this manager can see these messages.' : 'Send a message to the other desk.'), h('small', null, `${draft.text.length}/500`)),
+                    error?.key === draftKey ? h('p', { className: 'tl-chat-error', role: 'alert' }, error.text) : null) : h('p', { className: 'tl-chat-readonly' }, 'Open your own manager seat to send messages.'))
+                : h('p', { className: 'tl-chat-empty' }, 'No other managers have joined this league yet.'));
     }
     window.WrTimeLeagueRivalsPanel = WrTimeLeagueRivalsPanel;
 })();

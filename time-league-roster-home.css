@@ -16,3 +16,68 @@
 @media(max-width:640px) { .tl-hunt-field { grid-template-columns:1fr; } .tl-week-stars { font-size:11px; letter-spacing:1px; } }
 .tl-stars-ceiling { display:block; flex-basis:100%; color:var(--text-muted); font-size:10px; margin-top:2px; }
 .tl-hunt-team.cut-line { border-top:1px dashed var(--gold,#ffe189); }
+
+/* A roster is the primary surface; scouting opens only after selecting a player. */
+.tl-root .tl-roster-layout { grid-template-columns:minmax(0,1fr); gap:12px; }
+.tl-root .tl-roster-layout.has-selection { grid-template-columns:minmax(0,1.15fr) minmax(320px,1fr); }
+.tl-roster-main { min-width:0; }
+.tl-roster-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 14px; }
+.tl-roster-toolbar h2 { margin:0; font-size:22px; line-height:1.15; }
+.tl-roster-toolbar p { margin:5px 0 0; color:var(--text-muted); font-size:12px; }
+.tl-roster-toolbar-actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end; }
+.tl-roster-lineup-status { font-size:12px; }
+.tl-roster-notice { padding:10px 12px; margin:0 0 12px; background:rgba(133,237,213,.08); color:var(--tl-accent,#8af0cf); border-radius:8px; font-size:12px; }
+.tl-roster-help { grid-column:1 / -1; color:var(--text-muted); font-size:12px; }
+.tl-roster-help summary { cursor:pointer; padding:12px 0; }
+.tl-roster-help p { margin:0 0 10px; line-height:1.6; max-width:75ch; }
+.tl-roster-problems { margin-bottom:8px; color:var(--gold,#ffe189); }
+.tl-root .tl-roster-layout .tl-lineup-row,.tl-root .tl-roster-layout .tl-lineup-head { min-width:0; }
+.tl-root .tl-roster-move { min-height:44px; padding:6px 9px; justify-self:end; font-size:11px; }
+.tl-roster-open-slot { text-align:left; padding:10px 0; min-height:54px; border:0; background:none; color:var(--tl-accent,#8af0cf); font:inherit; cursor:pointer; }
+.tl-roster-open-slot span,.tl-roster-open-slot small { display:block; }
+.tl-roster-open-slot small { margin-top:4px; font-size:10px; color:var(--text-muted); }
+.tl-roster-open-slot:disabled { opacity:.5; cursor:default; }
+.tl-hotseat-manager { display:flex; align-items:center; gap:10px; font-size:12px; color:var(--text-muted); margin-bottom:12px; }
+.tl-hotseat-manager .tl-select { width:auto; max-width:240px; min-height:44px; }
+.tl-roster-move-backdrop { position:fixed; inset:0; z-index:10040; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(3,8,18,.74); backdrop-filter:blur(5px); }
+.tl-roster-move-sheet { width:min(100%,620px); max-height:min(84vh,820px); max-height:min(84dvh,820px); overflow:auto; overscroll-behavior:contain; padding:20px; border:1px solid rgba(138,240,207,.4); border-radius:20px; background:#172130; box-shadow:0 24px 90px rgba(0,0,0,.5); color:var(--text-primary,#fff); outline:none; }
+.tl-roster-move-sheet header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.tl-roster-move-sheet h2 { margin:5px 0 0; font-size:23px; line-height:1.2; overflow-wrap:anywhere; }
+.tl-roster-move-sheet header .tl-btn { min-height:44px; flex-shrink:0; }
+.tl-roster-candidates { display:grid; gap:8px; margin:16px 0; }
+.tl-roster-candidate { display:grid; grid-template-columns:32px minmax(0,1fr) auto; gap:10px; align-items:center; width:100%; min-height:80px; text-align:left; border:1px solid rgba(255,255,255,.13); border-radius:12px; padding:12px; background:rgba(255,255,255,.035); color:inherit; font:inherit; cursor:pointer; transition:background .15s,border-color .15s; }
+.tl-roster-candidate:hover:not(:disabled) { background:rgba(138,240,207,.1); border-color:#8af0cf; }
+.tl-roster-candidate:disabled { opacity:.55; cursor:wait; }
+.tl-roster-candidate-player { min-width:0; }
+.tl-roster-candidate-player strong { display:block; font-size:14px; overflow-wrap:anywhere; }
+.tl-roster-candidate-player small { display:block; font-size:11px; color:var(--text-muted,#a9b8cb); margin-top:4px; }
+.tl-roster-candidate-rating { text-align:right; }
+.tl-roster-candidate-rating strong { display:block; color:var(--gold,#ffe189); letter-spacing:1px; font-size:13px; white-space:nowrap; }
+.tl-roster-candidate-rating small { display:block; font-size:10px; color:var(--text-muted,#a9b8cb); margin-top:4px; }
+.tl-roster-candidate-action { display:block; font-size:11px; font-weight:700; color:#8af0cf; margin-top:8px; }
+.tl-roster-empty-targets { display:flex; flex-wrap:wrap; gap:8px; border-top:1px solid rgba(255,255,255,.1); padding-top:14px; }
+.tl-roster-empty-targets h3 { flex-basis:100%; margin:0 0 4px; font-size:12px; font-weight:500; color:var(--text-muted,#a9b8cb); }
+.tl-roster-empty-targets .tl-btn,.tl-roster-find-player { min-height:44px; }
+.tl-roster-find-player { margin-top:16px; width:100%; white-space:normal; }
+.tl-roster-candidate:focus-visible,.tl-roster-open-slot:focus-visible,.tl-roster-move-sheet button:focus-visible { outline:2px solid #8af0cf; outline-offset:3px; }
+@media(max-width:1050px) {
+  .tl-root .tl-roster-layout.has-selection { grid-template-columns:minmax(0,1fr); }
+}
+@media(max-width:600px) {
+  .tl-roster-toolbar { align-items:flex-start; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .tl-roster-toolbar h2 { font-size:20px; }
+  .tl-roster-toolbar-actions { gap:8px; }
+  .tl-roster-toolbar-actions .tl-btn { min-height:44px; padding:6px 10px; font-size:11px; }
+  .tl-root .tl-roster-layout .tl-lineup-row,.tl-root .tl-roster-layout .tl-lineup-head { grid-template-columns:32px minmax(0,1fr) 48px 46px!important; gap:5px; padding-left:8px; padding-right:8px; }
+  .tl-root .tl-roster-layout .tl-lineup-player .name { font-size:12px; overflow-wrap:anywhere; }
+  .tl-root .tl-roster-move { font-size:10px; padding:5px 6px; width:46px; }
+  .tl-roster-layout .tl-stars-ceiling { font-size:9px; }
+  .tl-roster-layout .tl-lineup-pts { font-size:13px; }
+  .tl-roster-layout .tl-lineup-pts small { font-size:8px; }
+  .tl-roster-move-backdrop { padding:0; align-items:flex-end; }
+  .tl-roster-move-sheet { border-radius:20px 20px 0 0; border-bottom:0; padding:18px 14px calc(18px + env(safe-area-inset-bottom,0px)); max-height:90vh; max-height:90dvh; }
+  .tl-roster-move-sheet h2 { font-size:20px; }
+  .tl-roster-candidate { gap:8px; padding:12px 9px; grid-template-columns:28px minmax(0,1fr) auto; }
+  .tl-roster-candidate-player strong { font-size:13px; }
+  .tl-roster-candidate-rating strong { letter-spacing:0; font-size:12px; }
+}

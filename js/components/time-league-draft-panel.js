@@ -15,6 +15,7 @@
     const Roster = window.App.TimeLeagueRoster;
 
     const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
+    const DRAFT_FILTER_ORDER = ['QB', 'RB', 'WR', 'TE', 'FLEX', 'SUPER_FLEX', 'K', 'DEF'];
     const DECADE_BY_ID = new Map(EraRules.ERA_DECADES.map((d) => [d.id, d]));
     const positionRank = (position) => { const i = POSITION_ORDER.indexOf(position); return i === -1 ? POSITION_ORDER.length : i; };
 
@@ -130,7 +131,7 @@
 
     function WrTimeLeagueDraftPanel({ league, cards, onUpdate, onlineMeta, onRevealReadyChange, draftControls, onDraftAction }) {
         const [query, setQuery] = useState('');
-        const [positionFilter, setPositionFilter] = useState('ALL');
+        const [positionSelection, setPositionSelection] = useState({ leagueId: league.leagueId, value: 'ALL' });
         const [selectedIdentity, setSelectedIdentity] = useState(null);
         const [showBoardGrid, setShowBoardGrid] = useState(true);
         const [pinnedRosterId, setPinnedRosterId] = useState(null);
@@ -140,7 +141,6 @@
         const [scoutOpen, setScoutOpen] = useState(false);
         const scoutDialogRef = useRef(null);
         const scoutTriggerRef = useRef(null);
-        useEffect(() => setBoardLimit(24), [query, positionFilter]);
 
         const seat = useMemo(() => Engine.currentDraftSeat(league), [league]);
         const drafted = useMemo(() => Engine.draftedIdentities(league), [league]);
@@ -157,10 +157,19 @@
         const available = useMemo(() => Engine.eraEligibleCards(league, cards).map((card, index) => ({
             card, rank: index + 1, draw: spanOf(EraRules.filterSeasonsForEra(card.seasons, eraRules, card.position)),
         })), [cards, eraRules, league]);
-        const positions = useMemo(() => {
+        const positionFilters = useMemo(() => {
             const present = new Set(available.map(({ card }) => card.position));
-            return POSITION_ORDER.filter((p) => present.has(p));
-        }, [available]);
+            return DRAFT_FILTER_ORDER.filter((position) => position === 'FLEX' || position === 'SUPER_FLEX'
+                ? Number(league.settings.rosterSlots[position]) > 0
+                : present.has(position));
+        }, [available, league.settings.rosterSlots]);
+        const positionFilter = positionSelection.leagueId === league.leagueId && positionFilters.includes(positionSelection.value) ? positionSelection.value : 'ALL';
+        useEffect(() => setBoardLimit(24), [query, positionFilter]);
+        useEffect(() => {
+            if (positionSelection.leagueId !== league.leagueId || positionSelection.value !== positionFilter) {
+                setPositionSelection({ leagueId: league.leagueId, value: positionFilter });
+            }
+        }, [league.leagueId, positionFilter, positionSelection]);
         const eraAssignments = useMemo(() => {
             if (eraRules.mode !== 'position-roulette') return [];
             const poolSize = new Map();
@@ -253,7 +262,7 @@
         const filtered = useMemo(() => {
             const term = query.trim().toLowerCase();
             if (!revealReady) return [];
-            return available.filter(({ card }) => (positionFilter === 'ALL' || card.position === positionFilter) && (!term || card.name.toLowerCase().includes(term)));
+            return available.filter(({ card }) => (positionFilter === 'ALL' || Roster.SLOT_ELIGIBILITY[positionFilter]?.includes(card.position)) && (!term || card.name.toLowerCase().includes(term)));
         }, [available, positionFilter, query, revealReady]);
         const visible = filtered.slice(0, boardLimit);
 
@@ -591,8 +600,8 @@
                         h('div', { className: 'tl-card-title' }, h('span', null, 'Find your next legend'), h('small', null, `${visible.length} of ${filtered.length} ${query.trim() || positionFilter !== 'ALL' ? 'matching' : eraRestricted ? 'era-eligible' : 'available'}`)),
                         h('div', { style: { display: 'flex', gap: 8, marginBottom: 10 } },
                             h('input', { className: 'tl-input', value: query, onChange: (e) => setQuery(e.target.value), placeholder: 'Search player', 'aria-label': 'Search players' }),
-                            h('select', { className: 'tl-select', style: { width: 130 }, value: positionFilter, onChange: (e) => setPositionFilter(e.target.value), 'aria-label': 'Filter position' },
-                                h('option', { value: 'ALL' }, 'ALL POS'), positions.map((p) => h('option', { key: p, value: p }, p)))),
+                            h('select', { className: 'tl-select', style: { width: 138, flexShrink: 0 }, value: positionFilter, onChange: (e) => setPositionSelection({ leagueId: league.leagueId, value: e.target.value }), 'aria-label': 'Filter position' },
+                                h('option', { value: 'ALL' }, 'ALL POS'), positionFilters.map((p) => h('option', { key: p, value: p }, p === 'SUPER_FLEX' ? 'SUPER FLEX' : p)))),
                         h('div', { className: 'tl-mobile-player-list' }, visible.map(({ card, rank, draw }) => h('div', { key: card.identity, className: `tl-mobile-player${selectedCard?.identity === card.identity ? ' selected' : ''}`, 'data-position': card.position },
                             h('button', { className: 'tl-mobile-player-pick', 'aria-pressed': selectedCard?.identity === card.identity, 'aria-label': `Scout ${card.name}`, onClick: (event) => openScout(card, event) },
                                 h('span', { className: 'tl-player-number' }, h('small', null, String(rank).padStart(2, '0')), h('b', null, card.position)),

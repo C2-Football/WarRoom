@@ -125,11 +125,6 @@
 
             league.phase !== 'complete' && !postgame && h('section', { className: 'tl-home-action-grid' },
                 h(ActionCard, {
-                    icon: ready ? '✓' : '!', kicker: 'LINEUP', tone: ready ? 'good' : 'warn',
-                    title: ready ? 'Ready for kickoff' : `${lineupProblems.length} move${lineupProblems.length === 1 ? '' : 's'} to make`,
-                    detail: ready ? 'Every starting slot is filled.' : lineupProblems[0], action: ready ? 'REVIEW' : 'FIX NOW', onClick: () => onNavigate('roster'),
-                }),
-                h(ActionCard, {
                     icon: '+', kicker: 'WAIVER WIRE', tone: pendingWaivers ? 'info' : '',
                     title: pendingWaivers ? `${pendingWaivers} claim${pendingWaivers === 1 ? '' : 's'} pending` : 'Find a difference-maker',
                     detail: league.settings.waiversEnabled ? 'Shop more than five decades of talent.' : 'Waivers are off in this league.',
@@ -143,14 +138,15 @@
                 })),
 
             playoffHunt,
-            h(window.WrTimeLeagueStandingsPanel, { league, onNavigate }),
+            showHunt ? h('details', { className: 'tl-home-secondary' }, h('summary', null, 'Full standings & team details'), h(window.WrTimeLeagueStandingsPanel, { league, onNavigate, embedded: true })) : h(window.WrTimeLeagueStandingsPanel, { league, onNavigate, embedded: true }),
             h('section', { className: 'tl-home-recap-grid' },
                 h('article', { className: 'tl-card tl-home-pulse' },
                     h('div', { className: 'tl-pulse-masthead' },
                         h('span', null, 'THE VAULT'), h('strong', null, 'LEAGUE PULSE'), h('small', null, lastFinalized ? `WEEK ${lastFinalized.week} RECAP` : 'PRESEASON EDITION')),
                     h('h2', null, pulse.headline),
                     h('p', null, pulse.lede),
-                    lastFinalized && h('div', { className: 'tl-weekly-report' },
+                    lastFinalized && h('details', { className: 'tl-weekly-report' },
+                        h('summary', null, 'Read the full weekly recap'),
                         h('h3', null, 'Around the league'),
                         lastFinalized.matchups.map((match, i) => h('div', { key: i, className: 'tl-recap-match' },
                             h('strong', null, `${teamName(match.home)} ${match.homePoints.toFixed(1)} — ${match.awayPoints.toFixed(1)} ${teamName(match.away)}`),

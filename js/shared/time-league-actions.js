@@ -39,6 +39,12 @@
             if (Date.parse(stamp) < start + (state.settings.draftAiSeconds || 2) * 1000) deny('The next AI decision is not due yet.');
         };
         switch (action.type) {
+        case 'rival-message':
+            ownTeam();
+            if (!App.TimeLeagueRivals) deny('Owner messages are still loading.');
+            // A retried send is successful without adding a second reply or
+            // changing the relationship twice.
+            return E.normalizeTimeLeague(App.TimeLeagueRivals.sendMessage(state, { ...action, teamId: own }, stamp));
         case 'draft-clock-start':
             commissioner(); next = E.startDraft(state, stamp); break;
         case 'draft-clock-pause':

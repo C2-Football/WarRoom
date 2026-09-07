@@ -1,0 +1,109 @@
+'use strict';
+const assert = require('node:assert/strict');
+global.window = globalThis; global.App = {};
+const R = require('../js/shared/time-league-rivals.js');
+let cursor = 0;
+const hooks = [], deps = [], effects = [];
+global.React = {
+    Fragment: 'fragment', createElement: (type, props, ...children) => ({ type, props: props || {}, children }),
+    useState: initial => { const index = cursor++; if (!(index in hooks)) hooks[index] = typeof initial === 'function' ? initial() : initial; return [hooks[index], value => { hooks[index] = typeof value === 'function' ? value(hooks[index]) : value; }]; },
+    useRef: initial => { const index = cursor++; return hooks[index] ||= { current: initial }; },
+    useEffect: (fn, values) => { const index = cursor++; if (!deps[index] || values.some((value, i) => value !== deps[index][i])) { deps[index] = values; effects.push(fn); } },
+};
+const storage = {};
+global.localStorage = { getItem: key => storage[key], setItem: (key, value) => { storage[key] = value; } };
+require('../js/components/time-league-rivals-panel.js');
+const all = (node, predicate) => Array.isArray(node) ? node.flatMap(item => all(item, predicate)) : node && typeof node === 'object' ? [...(predicate(node) ? [node] : []), ...all(node.children, predicate)] : [];
+const text = node => Array.isArray(node) ? node.map(text).join(' ') : node && typeof node === 'object' ? text(node.children) : String(node || '');
+const button = (tree, label) => all(tree, node => node.type === 'button' && text(node).trim() === label)[0];
+const owner = (tree, name) => all(tree, node => node.type === 'button' && node.props.className?.includes('tl-inbox-owner') && text(node).includes(name))[0];
+const area = tree => all(tree, node => node.type === 'textarea')[0];
+const form = tree => all(tree, node => node.type === 'form')[0];
+const stamp = '2026-09-01T12:00:00Z';
+let league = { leagueId: 'test-chat', seed: 'chat', currentWeek: 2, settings: { regularSeasonWeeks: 12 }, teams: [{ teamId: 'you', manager: 'human', name: 'You' }, { teamId: 'ai', manager: 'ai', name: 'Kade', aiPersona: 'warlord' }, { teamId: 'friend', manager: 'human', name: 'Friend' }],
+    finalizedWeeks: [{ week: 1, matchups: [{ home: 'you', away: 'ai', homePoints: 80, awayPoints: 90, winner: 'ai' }] }], trades: [], waiverResults: [] };
+const sent = [], navigated = [];
+let mode = 'fail', release;
+const onSend = async payload => {
+    sent.push(payload);
+    if (mode === 'fail') throw new Error('Connection lost. Try again.');
+    if (mode === 'wait') await new Promise(resolve => { release = resolve; });
+    league = R.sendMessage(league, { ...payload, teamId: 'you' }, stamp);
+    return true;
+};
+let extra = {};
+const render = () => { cursor = 0; const tree = WrTimeLeagueRivalsPanel({ league, teamId: 'you', onSend, onNavigate: destination => navigated.push(destination), ...extra }); while (effects.length) effects.shift()(); return tree; };
+(async () => {
+    let tree = render(); tree = render();
+    assert(!tree.props.className.includes('has-thread'), 'mobile opens on conversation list');
+    owner(tree, 'Kade').props.onClick(); tree = render();
+    assert(tree.props.className.includes('has-thread'), 'selecting an owner opens a single mobile thread');
+    assert(all(tree, node => node.props.role === 'log').length === 1);
+    assert.equal(area(tree).props.placeholder, 'Message…');
+    button(tree, 'Talk trash').props.onClick(); tree = render();
+    assert.equal(area(tree).props.value, R.QUICK_REPLIES[1].text);
+    assert.equal(sent.length, 0, 'quick replies are editable drafts until the user sends');
+    await form(tree).props.onSubmit({ preventDefault() {} }); tree = render();
+    assert(text(tree).includes('Connection lost. Try again.'));
+    assert.equal(area(tree).props.value, R.QUICK_REPLIES[1].text, 'failed send retains the composed message');
+    assert.equal(sent[0].tone, 'competitive');
+    assert.equal(sent[0].replyToId, 'game:1:you');
+    // A background event arrives after a failed send. Retrying still sends the
+    // original payload with the original ID, not a new reply to a different event.
+    league = { ...league, finalizedWeeks: [...league.finalizedWeeks, { week: 2, matchups: [{ home: 'you', away: 'ai', homePoints: 70, awayPoints: 80, winner: 'ai' }] }] };
+    mode = 'wait'; tree = render();
+    const first = form(tree).props.onSubmit({ preventDefault() {} });
+    const double = form(tree).props.onSubmit({ preventDefault() {} });
+    assert.equal(sent.length, 2, 'double click cannot submit a second in-flight message');
+    assert.deepEqual(sent[1], sent[0], 'retry preserves message ID, tone, text and original context');
+    tree = render(); assert.equal(area(tree).props.disabled, true);
+    release(); await first; await double; tree = render();
+    assert.equal(area(tree).props.value, '');
+    assert(!text(tree).includes('Connection lost. Try again.'));
+    assert.equal(league.rivalMessages.length, 2);
+    assert(text(tree).includes(R.QUICK_REPLIES[1].text));
+    assert.equal(all(tree, node => node.props.className === 'tl-chat-message is-own').length, 1, 'outgoing reply is a separate own bubble');
+    assert.equal(all(tree, node => node.props.role === 'log')[0].props['aria-live'], 'polite');
+    area(tree).props.onChange({ target: { value: 'My custom reply\nWith a second line' } }); tree = render();
+    button(tree, 'Friendly').props.onClick(); tree = render();
+    area(tree).props.onChange({ target: { value: 'Good game. Let us talk trades later.' } }); tree = render();
+    all(tree, node => node.props['aria-label'] === 'Back to conversations')[0].props.onClick(); tree = render();
+    assert(!tree.props.className.includes('has-thread'));
+    owner(tree, 'Friend').props.onClick(); tree = render();
+    assert.equal(area(tree).props.value, '', 'each conversation has an independent composer');
+    assert(!text(tree).includes('Only you and this manager'), 'shared-device league does not promise private inboxes');
+    extra = { isPrivate: true }; tree = render();
+    assert(text(tree).includes('Only you and this manager can see these messages.'));
+    area(tree).props.onChange({ target: { value: '<script>alert("hi")</script>' } }); tree = render();
+    mode = 'success'; await form(tree).props.onSubmit({ preventDefault() {} }); tree = render();
+    assert.equal(league.rivalMessages.filter(row => row.toTeamId === 'friend').length, 1);
+    assert(!all(tree, node => node.props.dangerouslySetInnerHTML).length, 'typed text stays escaped React content');
+    owner(tree, 'Kade').props.onClick(); tree = render();
+    assert.equal(area(tree).props.value, 'Good game. Let us talk trades later.', 'returning restores the draft');
+    assert.equal(all(tree, node => node.type === 'select')[0].props.value, 'friendly', 'chosen tone persists with its draft');
+    league = { ...league, leagueId: 'another-league' }; tree = render();
+    assert(!tree.props.className.includes('has-thread'), 'switching leagues cannot carry over thread navigation');
+    assert.equal(area(tree).props.value, '', 'switching leagues cannot carry over drafted text');
+    extra = { onSend: undefined }; tree = render(); assert(!form(tree), 'read-only seat has no composer');
+    extra = { compact: true }; tree = render(); button(tree, 'Open conversations').props.onClick();
+    assert.deepEqual(navigated, ['messages']);
+    assert(!form(tree), 'home preview avoids duplicating the messaging controls');
+    extra = {}; league = { ...league, leagueId: 'desktop-default-pin', rivalMessages: [] }; tree = render();
+    assert(!tree.props.className.includes('has-thread'));
+    assert.equal(area(tree).props['aria-label'], 'Message Kade', 'desktop initially previews the latest owner without an explicit selection');
+    area(tree).props.onChange({ target: { value: 'This reply is for Kade.' } }); tree = render();
+    league = R.sendMessage(league, { teamId: 'friend', toTeamId: 'you', text: 'Fresh message from another owner', tone: 'neutral', messageId: 'desktop_pin_incoming' }, stamp);
+    assert.equal(R.threadsFor(league, 'you')[0].team.teamId, 'friend', 'incoming message really reorders the default thread list');
+    tree = render();
+    assert.equal(area(tree).props['aria-label'], 'Message Kade');
+    assert.equal(area(tree).props.value, 'This reply is for Kade.');
+    await form(tree).props.onSubmit({ preventDefault() {} });
+    assert.equal(sent.at(-1).toTeamId, 'ai', 'typing pins the recipient before another owner becomes most recent');
+    league = { ...league, leagueId: 'desktop-quick-pin', rivalMessages: [] }; tree = render();
+    button(tree, 'Friendly').props.onClick(); tree = render();
+    league = R.sendMessage(league, { teamId: 'friend', toTeamId: 'you', text: 'Another fresh message', tone: 'neutral', messageId: 'desktop_quick_incoming' }, stamp);
+    tree = render();
+    assert.equal(area(tree).props['aria-label'], 'Message Kade', 'quick replies also pin the initially previewed owner');
+    assert.equal(area(tree).props.value, R.QUICK_REPLIES[0].text);
+    console.log('Rival chat UI: mobile thread navigation, custom/quick replies, drafts, retries, send lock, escaping and seat/league isolation passed.');
+})().catch(error => { console.error(error); process.exit(1); });

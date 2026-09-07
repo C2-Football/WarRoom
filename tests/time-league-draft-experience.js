@@ -171,4 +171,59 @@ const timedTree = timedRender();
 find(timedTree, node => node.type === 'button' && node.props['aria-label']?.startsWith('Draft '))[0].props.onClick();
 assert.equal(actions.at(-1).type, 'draft', 'A pick goes through the root deadline-checked action dispatcher');
 assert.equal(writes, 0, 'Timed pick never directly applies a local draft mutation');
-console.log('Vault draft experience: sealed reveals, top three, actual years, mobile career dialog, draft gates, auction nomination, shared grid and grades passed');
+
+// Composite position filters follow the league's actual lineup eligibility.
+const filterCards = new Map(['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].flatMap(position => [
+    [`${position}-current`, makeCard(`${position}-current`, position, [1984], 180)],
+    [`${position}-outside`, makeCard(`${position}-outside`, position, [2004], 250)],
+    [`${position}-second`, makeCard(`${position}-second`, position, [1987], 170)]
+]));
+const filterSelect = page => find(page, node => node.type === 'select' && node.props['aria-label'] === 'Filter position')[0];
+const filterOptions = page => filterSelect(page).children.map(option => option.props.value);
+const mobilePlayers = page => find(page, node => node.props.className?.split(' ').includes('tl-mobile-player'));
+const shownPositions = page => [...new Set(mobilePlayers(page).map(node => node.props['data-position']))].sort();
+for (const draftFormat of ['snake', 'linear', 'auction']) {
+    const filterLeague = Engine.createTimeLeague({ name: `Filter ${draftFormat}`, seed: `filters-${draftFormat}`, createdAt: '2026-01-01',
+        settings: { draftFormat, rosterSlots: { QB: 1, RB: 1, WR: 1, TE: 1, FLEX: 1, SUPER_FLEX: 1, K: 1, DEF: 1 },
+            eraRules: { mode: 'position-roulette', decades: [], positionDecades: Object.fromEntries(['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].map(position => [position, '1980s'])) } },
+        seats: [{ name: 'Human', manager: 'human' }, { name: 'Rival', manager: 'ai' }] });
+    // Already-drafted players must stay off the filtered board too.
+    const current = { ...filterLeague, draftPicks: [{ identity: 'RB-current', overall: 1, round: 1, teamId: filterLeague.teams[0].teamId }] };
+    const renderFilters = mount({ league: current, cards: filterCards, onUpdate() {} });
+    let page = renderFilters();
+    assert.equal(filterSelect(page), undefined, `${draftFormat}: filters cannot expose the pool before the reveal`);
+    button(page, 'Reveal all').props.onClick();
+    page = renderFilters();
+    assert.ok(filterOptions(page).includes('FLEX') && filterOptions(page).includes('SUPER_FLEX'), `${draftFormat}: configured composite slots appear`);
+    assert.equal(text(filterSelect(page).children.find(option => option.props.value === 'SUPER_FLEX')), 'SUPER FLEX');
+    filterSelect(page).props.onChange({ target: { value: 'FLEX' } });
+    page = renderFilters();
+    assert.deepEqual(shownPositions(page), ['RB', 'TE', 'WR'], `${draftFormat}: FLEX excludes quarterbacks, kickers and defenses`);
+    assert.ok(mobilePlayers(page).every(node => !text(node).includes('outside') && !text(node).includes('RB-current')), `${draftFormat}: era and drafted exclusions remain intact`);
+    const desktopBoard = find(page, node => node.props.className === 'tl-desktop-player-board')[0];
+    assert.equal(find(desktopBoard, node => node.type === 'tbody')[0].children.length, mobilePlayers(page).length, 'Mobile and desktop use the same filtered pool');
+    filterSelect(page).props.onChange({ target: { value: 'SUPER_FLEX' } });
+    page = renderFilters();
+    assert.deepEqual(shownPositions(page), ['QB', 'RB', 'TE', 'WR'], `${draftFormat}: SUPER FLEX includes all four offensive positions`);
+    const search = find(page, node => node.props['aria-label'] === 'Search players')[0];
+    search.props.onChange({ target: { value: 'QB Legend QB-second' } });
+    page = renderFilters();
+    assert.equal(mobilePlayers(page).length, 1, 'Name search composes with slot eligibility');
+    mobilePlayers(page)[0].children[0].props.onClick({ currentTarget: { focus() {} } });
+    page = renderFilters();
+    assert.ok(text(find(page, node => node.props.role === 'dialog')[0]).includes('QB Legend QB-second'), 'Filtered mobile rows still open career details');
+    button(page, '← Back to draft').props.onClick();
+    search.props.onChange({ target: { value: '' } });
+    const withoutFlex = { ...current, settings: { ...current.settings, rosterSlots: { ...current.settings.rosterSlots, FLEX: 0, SUPER_FLEX: 0 } } };
+    page = renderFilters({ league: withoutFlex });
+    assert.ok(!filterOptions(page).includes('FLEX') && !filterOptions(page).includes('SUPER_FLEX'), 'Unconfigured slots stay out of the dropdown');
+    assert.equal(filterSelect(page).props.value, 'ALL', 'Removed slot filter resets immediately without leaving an empty board');
+    page = renderFilters({ league: current });
+    assert.equal(filterSelect(page).props.value, 'ALL', 'Restoring the configuration does not restore a stale filter');
+    filterSelect(page).props.onChange({ target: { value: 'SUPER_FLEX' } });
+    page = renderFilters();
+    const nextLeague = { ...current, leagueId: `${current.leagueId}-other`, settings: { ...current.settings, eraRules: { mode: 'any-era', decades: [] } } };
+    page = renderFilters({ league: nextLeague });
+    assert.equal(filterSelect(page).props.value, 'ALL', 'Another league never inherits the previous slot filter');
+}
+console.log('Vault draft experience: sealed reveals, top three, actual years, mobile career dialog, draft gates, auction nomination, shared grid, grades and FLEX / SUPER FLEX filters passed');

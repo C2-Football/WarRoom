@@ -1,0 +1,43 @@
+/* Each workspace starts with its task; league administration lives in the menu. */
+.tl-league-bar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px; padding:4px 0 14px; border-bottom:1px solid var(--charcoal); position:relative; z-index:12; }
+.tl-league-heading { min-width:0; display:flex; flex-direction:column; gap:3px; }
+.tl-league-name { color:var(--text-muted); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tl-league-heading > strong { font-family:var(--font-title); font-size:23px; line-height:1.15; }
+.tl-league-context { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.tl-connection-dot { color:var(--good); font-size:12px; }
+.tl-league-menu { position:relative; }
+.tl-league-menu > summary { display:grid; place-items:center; width:44px; height:44px; border:1px solid var(--charcoal); border-radius:12px; cursor:pointer; list-style:none; font-size:19px; letter-spacing:2px; background:var(--black); }
+.tl-league-menu > summary::-webkit-details-marker { display:none; }
+.tl-league-menu[open] > summary { border-color:var(--mint); }
+.tl-league-menu-body { position:absolute; right:0; top:52px; width:min(320px,calc(100vw - 32px)); display:flex; flex-direction:column; align-items:stretch; gap:12px; padding:18px; border:1px solid var(--charcoal); border-radius:16px; background:var(--slate,#192237); box-shadow:0 16px 40px #0009; }
+.tl-league-menu-body > small { color:var(--text-muted); }
+.tl-league-menu-body .tl-btn { text-align:left; min-height:44px; }
+.tl-stage-compact { margin-bottom:12px; border:1px solid var(--charcoal); border-radius:10px; background:rgba(255,255,255,.018); }
+.tl-stage-compact > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:44px; padding:0 12px; cursor:pointer; list-style:none; font-size:12px; color:var(--text-muted); }
+.tl-stage-compact > summary::-webkit-details-marker { display:none; }
+.tl-stage-compact > summary small { color:var(--mint); white-space:nowrap; }
+.tl-stage-compact > summary small::after { content:' ⌄'; }
+.tl-stage-compact[open] > summary small::after { content:' ⌃'; }
+.tl-stage-compact .tl-stage-gates { margin:0; border:0; border-top:1px solid var(--charcoal); }
+.tl-play .tl-home-action-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.tl-play .tl-home-secondary { margin:12px 0 16px; border:1px solid var(--charcoal); border-radius:12px; }
+.tl-play .tl-home-secondary > summary { padding:14px; cursor:pointer; font-size:13px; font-weight:600; }
+.tl-play .tl-home-secondary .tl-command-center { padding:0 10px 10px; }
+.tl-play .tl-weekly-report > summary { padding:12px 0; font-weight:700; cursor:pointer; }
+@media(max-width:640px) {
+  .tl-league-bar { gap:8px; margin-bottom:10px; padding-bottom:10px; }
+  .tl-league-heading > strong { font-size:20px; }
+  .tl-league-context { gap:6px; }
+  .tl-league-name { max-width:calc(100vw - 165px); font-size:11px; }
+  .tl-league-context .tl-pill { font-size:9px; }
+  .tl-stage-compact { margin-bottom:10px; }
+  .tl-play .tl-home-action-grid { grid-template-columns:1fr 1fr; gap:8px; }
+  .tl-play .tl-home-action { padding:12px; gap:8px; }
+  .tl-play .tl-home-action-icon { display:none; }
+  .tl-play .tl-home-action-copy > span { display:none; }
+  .tl-play .tl-home-action-copy > strong { font-size:14px; }
+  .tl-play .tl-home-era-strip { display:none; }
+}
+@media(prefers-reduced-motion:reduce) { .tl-league-bar * { scroll-behavior:auto; } }
+
+.tl-play .tl-home-action:last-child { grid-column:auto; }

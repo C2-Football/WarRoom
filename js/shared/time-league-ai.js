@@ -27,6 +27,14 @@
     const NEED_ORDER = ["QB", "RB", "WR", "TE", "K", "DEF", "DL", "LB", "DB"];
 
     const personaFor = (team) => AI_PERSONAS[team?.aiPersona ?? "steward"];
+    const relationshipFor = (state, owner, other) => App.TimeLeagueRivals?.relationshipFor(state, owner, other) || { heat: 0, tradePremium: 0 };
+    const hottestRival = (state, owner) => App.TimeLeagueRivals?.hottestRelationship(state, owner) || { heat: 0, aggressionDelta: 0 };
+    // A provoked manager spends and negotiates more assertively. These bounded
+    // effects use past correspondence only, never hidden bids or future scores.
+    const waiverPersona = (state, team) => {
+        const base = personaFor(team), rivalry = hottestRival(state, team.teamId);
+        return { ...base, aggression: Math.min(100, base.aggression + rivalry.aggressionDelta), patience: Math.max(0, base.patience - rivalry.aggressionDelta) };
+    };
 
     /**
      * Difficulty tunes HOW SHARP the AI's decisions are, not its rosters or
@@ -171,7 +179,7 @@
                 const value = entryValue(cards, entry);
                 return value < low ? value : low;
             }, Number.POSITIVE_INFINITY);
-            const bar = (Number.isFinite(weakest) ? weakest : 0) * waiverMargin(personaFor(team), difficulty);
+            const bar = (Number.isFinite(weakest) ? weakest : 0) * waiverMargin(waiverPersona(next, team), difficulty);
             // Adds always land on the bench, so a full BENCH needs a drop even when
             // the roster itself is under capacity — otherwise the claim is doomed.
             const benchFull = team.roster.filter((entry) => entry.slot === "BN").length >= (next.settings.rosterSlots.BN ?? 0);
@@ -192,7 +200,7 @@
             if (!target) return next;
             let bidAmount;
             if (faab) {
-                const persona = personaFor(team);
+                const persona = waiverPersona(next, team);
                 const remaining = team.faabRemaining ?? 0;
                 const noise = createSeededRandom(`${state.seed}:aibid:${state.currentWeek}:${team.teamId}`)();
                 // Aggressive personas spend a bigger slice of what's left; a touch
@@ -219,7 +227,7 @@
         const incoming = trade.giveEntryIds.flatMap((id) => from.roster.find((entry) => entry.entryId === id) ?? []);
         const outgoing = trade.receiveEntryIds.flatMap((id) => to.roster.find((entry) => entry.entryId === id) ?? []);
         const complete = incoming.length === trade.giveEntryIds.length && outgoing.length === trade.receiveEntryIds.length;
-        const accept = complete && sumValue(cards, incoming) >= sumValue(cards, outgoing) * acceptThreshold(persona, difficultyFor(state));
+        const accept = complete && sumValue(cards, incoming) >= sumValue(cards, outgoing) * (acceptThreshold(persona, difficultyFor(state)) + relationshipFor(state, to.teamId, from.teamId).tradePremium);
         const inName = bestName(cards, incoming, "That package");
         const outName = bestName(cards, outgoing, "my starter");
         const note = accept
@@ -297,7 +305,7 @@
         const quota = random() < 0.6 ? 1 : 2;
         let next = state;
         let made = 0;
-        for (const seat of state.teams) {
+        for (const seat of [...state.teams].sort((a, b) => hottestRival(state, b.teamId).heat - hottestRival(state, a.teamId).heat)) {
             if (made >= quota) break;
             if (seat.manager !== "ai") continue;
             const proposer = next.teams.find((team) => team.teamId === seat.teamId);
@@ -307,7 +315,7 @@
             const locked = new Set(next.trades.filter((trade) => trade.status === "pending").flatMap((trade) => [...trade.giveEntryIds, ...trade.receiveEntryIds]));
             const myNeed = teamNeed(proposer, next.settings, cards);
             if (!myNeed) continue;
-            for (const partner of [...next.teams].sort((a, b) => Number(b.manager === "human") - Number(a.manager === "human"))) {
+            for (const partner of [...next.teams].sort((a, b) => Number(b.manager === "human") - Number(a.manager === "human") || relationshipFor(next, proposer.teamId, b.teamId).heat - relationshipFor(next, proposer.teamId, a.teamId).heat)) {
                 if (partner.teamId === proposer.teamId) continue;
                 const theirNeed = teamNeed(partner, next.settings, cards);
                 if (!theirNeed || theirNeed === myNeed) continue;
@@ -317,7 +325,7 @@
                 const two = givePool.length > 1 && receivePool.length > 1 && random() < 0.35;
                 const give = givePool.slice(0, two ? 2 : 1);
                 const receive = receivePool.slice(0, two ? 2 : 1);
-                if (sumValue(cards, receive) < sumValue(cards, give) * acceptThreshold(persona, difficulty)) continue;
+                if (sumValue(cards, receive) < sumValue(cards, give) * (acceptThreshold(persona, difficulty) + relationshipFor(next, proposer.teamId, partner.teamId).tradePremium)) continue;
                 const giveIds = give.map((entry) => entry.entryId);
                 const receiveIds = receive.map((entry) => entry.entryId);
                 if (isDuplicatePending(next.trades, proposer.teamId, partner.teamId, giveIds, receiveIds)) continue;
