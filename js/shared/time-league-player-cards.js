@@ -78,7 +78,15 @@
         }
     }
 
-    const api = { buildPlayerCardIndex, loadPlayerCards };
+    function beforeSeason(card, year) {
+        const seasons=(card?.seasons || []).filter(s=>s.season < year).sort((a,b)=>a.season-b.season);
+        const latest=seasons[seasons.length-1];
+        const best=seasons.reduce((peak,s)=>!peak||s.points>peak.points?s:peak,null);
+        const previous=seasons[seasons.length-2];
+        const change=latest&&previous&&latest.games>0&&previous.games>0 ? latest.points/latest.games-previous.points/previous.games : null;
+        return {seasons,latest,best,change};
+    }
+    const api = { buildPlayerCardIndex, loadPlayerCards, beforeSeason };
     App.TimeLeaguePlayerCards = api;
     /* global module */
     if (typeof module !== 'undefined' && module.exports) module.exports = api;

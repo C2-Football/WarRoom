@@ -58,6 +58,9 @@
     const LINEUP_GRID = '56px minmax(0,1fr) 78px 92px';
 
     function RosterSection({ league, cards, team, apply }) {
+        const [selectedId,setSelectedId]=useState(null);
+        const dossierRef=React.useRef(null);
+        React.useEffect(()=>{if(selectedId)dossierRef.current?.focus();},[selectedId]);
         const revealed = league.seasonsRevealed;
         const capacity = Engine.rosterCapacity(league.settings);
         const problems = Engine.lineupProblems(league, team.teamId);
@@ -66,7 +69,7 @@
             const eraColor = revealed ? UI.eraColorOf(entry.drawnSeason) : null;
             return h('div', { key: entry.entryId, className: 'tl-lineup-row', style: { gridTemplateColumns: LINEUP_GRID } },
                 h('span', { className: 'tl-lineup-slot' }, slotLabel),
-                h('span', { className: 'tl-lineup-player' },
+                h('button', { type:'button', className: 'tl-lineup-player tl-roster-player-link', onClick:()=>setSelectedId(entry.entryId), 'aria-label':`Explore ${entry.name}'s history`, 'aria-pressed':selectedId===entry.entryId },
                     h('span', { className: 'name' }, entry.name),
                     h('span', { className: `tl-pos-badge tl-pos-${entry.position}`, style: { marginLeft: 6 } }, entry.position),
                     revealed
@@ -94,9 +97,26 @@
         const reserves = RESERVE_SLOTS.filter((slot) => (league.settings.rosterSlots[slot] ?? 0) > 0);
 
         const optimal = league.phase !== 'draft' && problems.length === 0;
-        const headline = league.phase === 'draft' ? 'DRAFT IN PROGRESS' : optimal ? 'LINEUP IS OPTIMAL' : `${problems.length} ISSUE${problems.length === 1 ? '' : 'S'} TO FIX`;
+        const headline = league.phase === 'draft' ? 'DRAFT IN PROGRESS' : optimal ? 'LINEUP IS VALID' : `${problems.length} ISSUE${problems.length === 1 ? '' : 'S'} TO FIX`;
 
-        return h('div', { className: 'tl-grid-2' },
+        const selected=team.roster.find(e=>e.entryId===selectedId);
+        const card=selected?cards.get(selected.identity):null;
+        const history=selected&&revealed?window.App.TimeLeaguePlayerCards.beforeSeason(card,selected.drawnSeason):null;
+        const stat=(label,value)=>h('div',{className:'tl-archive-stat',key:label},h('small',null,label),h('strong',null,value));
+        const dossier=h('aside',{className:'tl-roster-dossier',ref:dossierRef,tabIndex:-1,'aria-label':'Historical player dossier'},
+            selected?h(React.Fragment,null,
+                h('div',{className:'tl-dossier-kicker'},'THE VAULT · PLAYER ARCHIVE'),
+                h('div',{className:'tl-dossier-title'},h('span',{className:`tl-pos-badge tl-pos-${selected.position}`},selected.position),h('h2',null,selected.name),h('button',{type:'button',className:'tl-btn',onClick:()=>setSelectedId(null),'aria-label':'Close player history'},'Close')),
+                h('p',{className:'tl-hint'},revealed?`Your edition: ${selected.drawnSeason} · Looking back before this season`:'Your edition is sealed. Season-specific history unlocks at the reveal.'),
+                h('div',{className:'tl-archive-bio'},[['College',card?.bio?.college],['Born',card?.bio?.birthDate],['Size',[card?.bio?.height,card?.bio?.weight].filter(Boolean).join(' · ')],['NFL draft',[card?.bio?.draftYear,card?.bio?.draftTeam].filter(Boolean).join(' · ')]].filter(([,value])=>value).map(([label,value])=>stat(label,value))),
+                !card?.bio&&h('p',{className:'tl-hint'},'Biography is not available in the historical archive for this player.'),
+                history&&h(React.Fragment,null,
+                    h('div',{className:'tl-archive-stats'},stat('Earlier seasons in archive',history.seasons.length),stat('Previous season',history.latest?`${history.latest.season} · ${history.latest.points.toFixed(1)} pts`:'Not available'),stat('Best earlier season',history.best?`${history.best.season} · ${history.best.points.toFixed(1)} pts`:'Not available')),
+                    h('div',{className:'tl-archive-read'},h('h3',null,'The story coming in'),h('p',null,!history.latest?`No seasons before ${selected.drawnSeason} are in this archive. That does not establish that this was a rookie year.`:`In ${history.latest.season}, ${selected.name} recorded ${history.latest.games} games and ${history.latest.points.toFixed(1)} fantasy points.`),history.change!==null&&h('p',null,`Points per game ${history.change>=0?'rose':'fell'} by ${Math.abs(history.change).toFixed(1)} between the last two available seasons (${history.seasons[history.seasons.length-2].season}–${history.latest.season}).`)),
+                    history.seasons.length>0&&h('div',{className:'tl-archive-history'},h('h3',null,'Before your edition'),h('p',{className:'tl-hint'},'Only seasons earlier than your drawn year. Points use the bundled archive scoring, not a weekly projection.'),h('div',{className:'tl-archive-scroll'},h('table',null,h('thead',null,h('tr',null,['Year','GP','Pass YD','Pass TD','Rush YD','Rush TD','REC','Rec YD','Rec TD','PTS'].map(x=>h('th',{key:x},x)))),h('tbody',null,history.seasons.slice().reverse().map(row=>h('tr',{key:row.season},['season','games','passYd','passTd','rushYd','rushTd','rec','recYd','recTd','points'].map(k=>h('td',{key:k},k==='points'?row[k].toFixed(1):row[k])))))))))
+            ):h('div',{className:'tl-archive-empty'},h('span',{className:'tl-dossier-kicker'},'YOUR COLLECTION, THROUGH TIME'),h('h2',null,'Every name has a backstory.'),h('p',null,'Select a player to open their biography, earlier seasons, and the form they carried into your drawn year.'),h('div',{className:'tl-archive-stats'},stat('Players',team.roster.length),stat('Positions',new Set(team.roster.map(e=>e.position)).size),stat('Editions',revealed?new Set(team.roster.map(e=>e.drawnSeason)).size:'Sealed'))),
+            team.manager==='ai'&&h(GmProfile,{team,title:'GM profile'}));
+        return h('div', { className: 'tl-roster-layout'+(selected?' has-selection':'') },
             h('div', null,
                 h('div', { className: 'tl-lineup-hero' },
                     h('div', { className: 'lh-kicker' }, `WK ${Math.min(league.currentWeek, league.settings.regularSeasonWeeks)} · ROSTER CENTRAL`),
@@ -122,7 +142,7 @@
                         h('div', { className: 'tl-lineup-table-title' }, slot === 'IR' ? 'Injured Reserve' : 'Taxi Squad'),
                         occupants.length ? occupants.map((entry) => entryRow(entry, slot)) : h('p', { className: 'tl-empty', style: { padding: '10px 14px' } }, `No entries stashed at ${slot}.`));
                 })),
-            h('div', null, team.manager === 'ai' && h(GmProfile, { team, title: 'GM profile' })));
+            dossier);
     }
 
     function WaiversSection({ league, cards, team, standings, apply }) {
