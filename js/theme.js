@@ -62,9 +62,8 @@
 
     const LS_KEY = 'wr_dashboard_theme';
     const DYNAMIC_STYLE_ID = 'wr-theme-dynamic';
-    // Light mode shipped to production (2026-06-04). Previously this was new Set(['light']),
-    // which hid light mode everywhere except sandbox hosts / ?dev. Kept as an empty set so
-    // future in-development themes can still be sandbox-gated by adding their id here.
+    // Disabled everywhere, including saved preferences and sandbox URLs.
+    const DISABLED_THEMES = new Set(['light']);
     const SANDBOX_ONLY_THEMES = new Set([]);
 
     function isSandboxThemeMode() {
@@ -74,7 +73,7 @@
     }
 
     function isThemeAllowed(id) {
-        return !!THEMES[id] && (!SANDBOX_ONLY_THEMES.has(id) || isSandboxThemeMode());
+        return !!THEMES[id] && !DISABLED_THEMES.has(id) && (!SANDBOX_ONLY_THEMES.has(id) || isSandboxThemeMode());
     }
 
     function normalizeThemeId(id) {

@@ -227,9 +227,9 @@ test('league format skin loads early and is published to every module surface', 
   ok(!indexHtml.includes('--black:#24114F;'), 'redraft shell should not replace black card surfaces with royal purple');
 });
 
-test('light mode ships in production while sandbox theme gating stays intact', () => {
-  // Light mode left sandbox-only on 2026-06-04 (3b0e54c); the gate machinery
-  // stays so future in-development themes can be sandbox-gated by id.
+test('light mode is disabled while saved preferences normalize safely', () => {
+  sourceHas(themeSrc, "const DISABLED_THEMES = new Set(['light']);", 'light must be disabled everywhere');
+  sourceHas(themeSrc, '!DISABLED_THEMES.has(id)', 'disabled themes cannot bypass the gate');
   sourceHas(themeSrc, 'const SANDBOX_ONLY_THEMES = new Set([]);', 'sandbox-only set must stay empty while no theme is under repair');
   sourceHas(themeSrc, "id: 'light',", 'light theme definition must remain available');
   sourceHas(themeSrc, 'function isSandboxThemeMode()', 'theme engine must know whether sandbox-only themes can show');
