@@ -475,7 +475,7 @@ function LeagueCentralTab({
                 </div>
             )}
 
-            {cupEnabled && innerTab === 'cup' ? React.createElement(window.WoeppelCupPanel, { key: leagueId + ':' + season, league: currentLeague, getOwnerName: _getOwnerName }) : homeMerged && innerTab === 'kpis' ? (
+            {cupEnabled && innerTab === 'cup' ? React.createElement(window.WoeppelCupPanel, { key: leagueId + ':' + season, league: currentLeague, getOwnerName: _getOwnerName, myRoster }) : homeMerged && innerTab === 'kpis' ? (
                 <div style={{ margin: isPhone ? '0 -14px' : '0 -24px' }}>{kpiSlot}</div>
             ) : (
             <React.Fragment>
