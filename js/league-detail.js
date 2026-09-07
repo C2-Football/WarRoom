@@ -3621,6 +3621,7 @@
                 bottom edge belongs to PhoneDock below. */}
             {typeof window.WrLeagueWire === 'function' && (
                 <window.WrLeagueWire
+                    sidebarWidth={sidebarWidth}
                     currentLeague={currentLeague}
                     standings={standings}
                     transactions={transactions}

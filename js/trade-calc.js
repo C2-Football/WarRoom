@@ -3820,11 +3820,9 @@
             const railItem = (liveDealOwnerId != null && railBoard.find(p => String(p.assessment.ownerId) === String(liveDealOwnerId)))
                 || railBoard.find(p => String(p.assessment.ownerId) === String(effPartnerId))
                 || railBoard[0] || null;
-            // Builder strip — extracted so it can render at the TOP of the desk the
-            // moment a trade is being built (owner ask 2026-07-12), and at the
-            // bottom (its historical entry-point slot) when idle.
+            // The builder is the first entry point on the desk, even before a deal starts.
             const builderEl = active === 'desk' && (
-                        <div style={{ margin: buildingLive ? '0 0 12px' : '12px 0 0', border: '1px solid rgba(53,208,214,0.28)', borderRadius: 'var(--card-radius-sm, 8px)', background: 'rgba(53,208,214,0.05)', overflow: 'hidden' }}>
+                        <div style={{ margin: '0 0 12px', border: '1px solid rgba(53,208,214,0.28)', borderRadius: 'var(--card-radius-sm, 8px)', background: 'rgba(53,208,214,0.05)', overflow: 'hidden' }}>
                             <button type="button" onClick={() => setBuilderExpanded(v => !v)} title="Build or tweak a deal without leaving this view" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', textAlign: 'left', background: 'transparent', border: 'none', padding: '9px 13px', cursor: 'pointer' }}>
                                 <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#35d0d6' }}>{_verdict.hasTrade ? 'Live deal' : 'Trade builder'}</span>
                                 {_verdict.hasTrade ? (
@@ -3880,7 +3878,7 @@
                     )}
                     <div className={'tc-adaptive-canvas' + (railOn ? ' has-rail' : '')}>
                     <div className="tc-adaptive-main">
-                    {buildingLive && builderEl}
+                    {builderEl}
                     {active === 'desk' && tradeContext && (
                         <div className="trade-context-banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '10px 12px', marginBottom: '12px' }}>
                             <div style={{ minWidth: 0 }}>
@@ -3892,7 +3890,6 @@
                         </div>
                     )}
                     {body}
-                    {!buildingLive && builderEl}
                     </div>
                     {railOn && renderContextRail(_verdict, railItem)}
                     </div>

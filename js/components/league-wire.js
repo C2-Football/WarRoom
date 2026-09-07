@@ -31,10 +31,7 @@
 //
 // Exposes: window.WrLeagueWire
 // ══════════════════════════════════════════════════════════════════
-function WrLeagueWire({ currentLeague, standings, transactions, playersData, getOwnerName, getPlayerName }) {
-    const GOLD = 'var(--gold, #d4af37)';
-    const SILVER = 'var(--silver, #bdb8ad)';
-    const MONO = 'var(--font-mono, "JetBrains Mono", monospace)';
+function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions, playersData, getOwnerName, getPlayerName }) {
 
     const vp = window.WR?.useViewport?.() || {};
     const isPhone = !!vp.isPhone;
@@ -59,11 +56,14 @@ function WrLeagueWire({ currentLeague, standings, transactions, playersData, get
         if (!WP) return undefined;
         const wk = Math.max(1, Math.min(18, WP.currentWeek()));
         let alive = true;
-        window.fetchMatchups(leagueId, wk)
+        setBoard({ week: null, rows: [] });
+        const refresh = () => window.fetchMatchups(leagueId, wk)
             .then(rows => { if (alive) setBoard({ week: wk, rows: rows || [] }); })
-            .catch(() => { /* wire just skips fantasy scores */ });
-        return () => { alive = false; };
-    }, [leagueId, isPhone]);
+            .catch(() => { if (alive) setBoard({ week: null, rows: [] }); });
+        refresh();
+        const timer = setInterval(refresh, 60000);
+        return () => { alive = false; clearInterval(timer); };
+    }, [leagueId, season, isPhone]);
 
     const weekHasScores = board.rows.filter(r => Number(r.points) > 0).length >= 2;
     const statWeek = board.week ? Math.max(1, weekHasScores ? board.week : board.week - 1) : null;
@@ -75,6 +75,7 @@ function WrLeagueWire({ currentLeague, standings, transactions, playersData, get
         const SOS = window.App?.SOS;
         if (!SOS?.getWeekStats || typeof window.calcFantasyPts !== 'function') return undefined;
         let alive = true;
+        setLeaders([]);
         Promise.resolve(SOS.getWeekStats(season, statWeek)).then(ws => {
             if (!alive) return;
             const scoring = currentLeague.scoring_settings || {};
@@ -248,7 +249,7 @@ function WrLeagueWire({ currentLeague, standings, transactions, playersData, get
                 if (!delta) return;
                 const rel = first !== 0 ? ((last - first) / Math.abs(first)) * 100 : (last - first) * 100;
                 rows.push({
-                    name: _getPlayerName(pid), statLabel: topStat.short, delta, unit,
+                    pid, name: _getPlayerName(pid), statLabel: topStat.short, delta, unit,
                     score: Math.max(-300, Math.min(300, rel)),
                 });
             });
@@ -270,7 +271,7 @@ function WrLeagueWire({ currentLeague, standings, transactions, playersData, get
         };
 
         // Real NFL leads, the way a sports ticker does.
-        (nflScores || []).slice(0, 10).forEach(g => {
+        (nflScores || []).forEach(g => {
             const pre = g.isPre ? 'PRE ' : '';
             if (g.state === 'in') {
                 out.push({ kind: 'nfllive', label: pre + (g.shortDetail || 'LIVE'), text: g.away + ' ' + g.awayScore + ' — ' + g.home + ' ' + g.homeScore });
@@ -299,10 +300,10 @@ function WrLeagueWire({ currentLeague, standings, transactions, playersData, get
         }).sort((x, y) => y.m - x.m);
         if (margins.length) {
             const big = margins[0], close = margins[margins.length - 1];
-            out.push({ kind: 'rec', label: 'BIGGEST WIN', text: nameFor(big.win.roster_id) + ' +' + big.m.toFixed(1) + ' over ' + nameFor(big.lose.roster_id) });
+            out.push({ kind: 'rec', label: 'LARGEST MARGIN', text: nameFor(big.win.roster_id) + ' +' + big.m.toFixed(1) + ' over ' + nameFor(big.lose.roster_id) });
             if (margins.length > 1) out.push({ kind: 'rec', label: 'CLOSEST', text: nameFor(close.win.roster_id) + ' +' + close.m.toFixed(1) + ' over ' + nameFor(close.lose.roster_id) });
             const ugly = margins.slice().sort((x, y) => Number(x.win.points) - Number(y.win.points))[0];
-            if (ugly) out.push({ kind: 'rec', label: 'UGLIEST WIN', text: nameFor(ugly.win.roster_id) + ' won on ' + Number(ugly.win.points).toFixed(1) });
+            if (ugly) out.push({ kind: 'rec', label: 'LOWEST LEADING SCORE', text: nameFor(ugly.win.roster_id) + ' leads with ' + Number(ugly.win.points).toFixed(1) });
             let hi = null;
             (board.rows || []).forEach(r => { const p = Number(r.points) || 0; if (!hi || p > hi.p) hi = { p, rid: r.roster_id }; });
             if (hi && hi.p > 0) out.push({ kind: 'top', label: 'HIGH SCORE', text: nameFor(hi.rid) + ' ' + hi.p.toFixed(1) });
@@ -311,23 +312,23 @@ function WrLeagueWire({ currentLeague, standings, transactions, playersData, get
         const positions = (window.getLeaguePositions ? window.getLeaguePositions({ league: currentLeague }) : ['QB', 'RB', 'WR', 'TE']) || [];
         positions.forEach(pos => {
             const top = leaders.find(r => r.pos === pos);
-            if (top) out.push({ kind: 'top', label: 'TOP ' + pos, text: top.name + ' ' + top.pts.toFixed(1) });
+            if (top) out.push({ kind: 'top', label: 'WK ' + statWeek + ' TOP ' + pos, pid: top.pid, text: top.name + ' ' + top.pts.toFixed(1) });
         });
 
         const cutoff = Date.now() - 7 * 86400000;
-        const recent = (transactions || []).filter(t => (t.created || 0) >= cutoff);
+        const recent = (transactions || []).filter(t => (t.created || 0) >= cutoff && (!t.status || t.status === 'complete'));
         const bids = recent.filter(t => Number(t.settings?.waiver_bid) > 0)
             .sort((a, b) => Number(b.settings.waiver_bid) - Number(a.settings.waiver_bid));
         if (bids.length) {
             const b = bids[0];
             const got = Object.keys(b.adds || {})[0];
-            out.push({ kind: 'faab', label: 'TOP FAAB', text: _getOwnerName(b.roster_ids?.[0]) + ' $' + b.settings.waiver_bid + (got ? ' → ' + _getPlayerName(got) : '') });
+            out.push({ kind: 'faab', label: 'TOP FAAB', pid: got, text: _getOwnerName(b.roster_ids?.[0]) + ' $' + b.settings.waiver_bid + (got ? ' → ' + _getPlayerName(got) : '') });
         }
 
-        (trending.risers || []).forEach(r => out.push({ kind: 'trend', label: 'RISER', text: r.name + ' ' + r.statLabel + ' +' + r.delta + r.unit }));
-        (trending.fallers || []).forEach(r => out.push({ kind: 'trend', label: 'FALLER', text: r.name + ' ' + r.statLabel + ' ' + r.delta + r.unit }));
+        (trending.risers || []).forEach(r => out.push({ kind: 'trend', label: (Number(season) - 2) + '–' + (Number(season) - 1) + ' RISER', pid: r.pid, text: r.name + ' ' + r.statLabel + ' +' + r.delta + r.unit }));
+        (trending.fallers || []).forEach(r => out.push({ kind: 'trend', label: (Number(season) - 2) + '–' + (Number(season) - 1) + ' FALLER', pid: r.pid, text: r.name + ' ' + r.statLabel + ' ' + r.delta + r.unit }));
 
-        if ((standings || []).length > playoffTeams) {
+        if ((standings || []).length > playoffTeams && standings.some(t => Number(t.wins) + Number(t.losses) > 0)) {
             const inT = standings[playoffTeams - 1], outT = standings[playoffTeams];
             if (inT && outT) {
                 const gb = ((inT.wins - outT.wins) + (outT.losses - inT.losses)) / 2;
@@ -343,60 +344,60 @@ function WrLeagueWire({ currentLeague, standings, transactions, playersData, get
             const trades = recent.filter(t => t.type === 'trade').length;
             out.push({
                 kind: 'faab', label: 'MOVES',
-                text: recent.length + ' this week · ' + trades + ' trade' + (trades === 1 ? '' : 's') + ' · ' + (recent.length - trades) + ' waiver claim' + ((recent.length - trades) === 1 ? '' : 's'),
+                text: recent.length + ' this week · ' + trades + ' trade' + (trades === 1 ? '' : 's') + ' · ' + (recent.length - trades) + ' other move' + ((recent.length - trades) === 1 ? '' : 's'),
             });
         }
-        return out;
+        const priority = { nfllive: 0, score: 1, faab: 2, rec: 3, top: 4, nfl: 5, nflstat: 6, trend: 7 };
+        return out.filter((item, i) => out.findIndex(x => x.kind === item.kind && x.text === item.text) === i).sort((a, b) => priority[a.kind] - priority[b.kind]);
     }, [nflScores, nflLeaders, board, leaders, transactions, trending, standings, currentLeague, playoffTeams, isPhone]);
 
+    const [topic, setTopic] = React.useState('all');
+    const [index, setIndex] = React.useState(0);
+    const [paused, setPaused] = React.useState(false);
+    const [hovered, setHovered] = React.useState(false);
+    const [focused, setFocused] = React.useState(false);
+    const [expanded, setExpanded] = React.useState(false);
+    const [reduced, setReduced] = React.useState(() => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+    const toggleRef = React.useRef(null);
     React.useEffect(() => {
-        if (document.getElementById('wr-league-wire-css')) return;
-        const st = document.createElement('style');
-        st.id = 'wr-league-wire-css';
-        st.textContent =
-            '@keyframes wrWire{from{transform:translateX(0)}to{transform:translateX(-50%)}}' +
-            '.wr-wire-track{animation:wrWire 90s linear infinite;display:flex;width:max-content}' +
-            '.wr-wire-track:hover{animation-play-state:paused}' +
-            '@media(prefers-reduced-motion:reduce){.wr-wire-track{animation:none}}';
-        document.head.appendChild(st);
+        const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+        if (!mq) return undefined;
+        const change = () => setReduced(mq.matches);
+        mq.addEventListener('change', change);
+        return () => mq.removeEventListener('change', change);
     }, []);
-
-    // Phones keep the bottom edge for PhoneDock, and a marquee is the wrong
-    // idiom on a small touch screen. Every hook above already ran.
+    React.useEffect(() => { setIndex(0); setExpanded(false); }, [leagueId, topic]);
+    const visible = items.filter(it => topic === 'all' || (topic === 'nfl' ? it.kind.startsWith('nfl') : topic === 'trends' ? it.kind === 'trend' : !it.kind.startsWith('nfl') && it.kind !== 'trend'));
+    const currentIndex = visible.length ? index % visible.length : 0;
+    React.useEffect(() => {
+        if (isPhone || paused || hovered || focused || expanded || reduced || visible.length < 2) return undefined;
+        const timer = setInterval(() => setIndex(i => (i + 1) % visible.length), 9000);
+        return () => clearInterval(timer);
+    }, [isPhone, paused, hovered, focused, expanded, reduced, visible.length]);
     if (isPhone || !items.length) return null;
-
-    const TONE = {
-        nfl: { bg: 'rgba(255,255,255,0.09)', fg: 'var(--white, #f5f2ea)' },
-        nfllive: { bg: 'rgba(46,204,113,0.2)', fg: 'var(--good, #2ecc71)' },
-        nflstat: { bg: 'rgba(78,205,196,0.18)', fg: '#4ECDC4' },
-        score: { bg: 'rgba(255,255,255,0.07)', fg: SILVER },
-        rec: { bg: 'rgba(93,173,226,0.18)', fg: 'var(--info, #5dade2)' },
-        top: { bg: 'rgba(212,175,55,0.18)', fg: GOLD },
-        faab: { bg: 'rgba(240,165,0,0.18)', fg: 'var(--warn, #f0a500)' },
-        trend: { bg: 'rgba(155,138,251,0.2)', fg: 'var(--purple, #9b8afb)' },
-    };
-    const row = (it, i) => {
-        const tone = TONE[it.kind] || TONE.score;
-        return (
-            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '0 17px', fontFamily: MONO, fontSize: '0.72rem', color: SILVER, borderRight: '1px solid rgba(255,255,255,0.05)', whiteSpace: 'nowrap' }}>
-                <span style={{ fontSize: '0.55rem', fontWeight: 800, letterSpacing: '0.09em', padding: '2px 6px', borderRadius: 'var(--card-radius-xs, 5px)', textTransform: 'uppercase', background: tone.bg, color: tone.fg }}>{it.label}</span>
-                {it.text}
-            </span>
-        );
-    };
-    return (
-        <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, height: '38px', background: '#0a0a0c', borderTop: '1px solid rgba(212,175,55,0.16)', display: 'flex', alignItems: 'center', zIndex: 80, overflow: 'hidden' }}>
-            <div style={{ flex: '0 0 auto', height: '100%', display: 'flex', alignItems: 'center', gap: '7px', padding: '0 14px', background: '#171206', color: GOLD, fontFamily: MONO, fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.11em', borderRight: '1px solid rgba(212,175,55,0.16)', zIndex: 2 }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--good, #2ecc71)', boxShadow: '0 0 7px var(--good, #2ecc71)' }} />
-                LEAGUE WIRE
-            </div>
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-                <div className="wr-wire-track">
-                    {items.map(row)}{items.map((it, i) => row(it, i + items.length))}
-                </div>
-            </div>
-        </div>
-    );
+    const current = visible[currentIndex];
+    const close = () => { setExpanded(false); toggleRef.current?.focus(); };
+    const playerLink = it => it.pid && typeof window.openPlayerModal === 'function';
+    const openItem = it => { if (playerLink(it)) { setExpanded(false); window.openPlayerModal(it.pid); } else setExpanded(true); };
+    return <section className="wr-wire" aria-label="League wire" style={{ '--wire-inset': sidebarWidth + 'px' }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onFocus={() => setFocused(true)} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false); }} onKeyDown={e => { if (e.key === 'Escape' && expanded) { e.stopPropagation(); close(); } }}>
+        <style>{`
+            .wr-wire{position:fixed;left:var(--wire-inset,0px);right:0;bottom:0;height:38px;background:#101116;border-top:1px solid var(--acc-line1,rgba(212,175,55,.2));display:flex;align-items:center;gap:6px;padding:0 10px;z-index:80;box-sizing:border-box;color:var(--silver);font-family:var(--font-body,sans-serif)}
+            .wr-wire button,.wr-wire select{font:inherit;font-size:.72rem;min-height:32px;color:inherit;border:1px solid transparent;border-radius:5px;background:transparent;cursor:pointer;padding:4px 8px}
+            .wr-wire button:hover,.wr-wire button:focus-visible,.wr-wire select:focus-visible{background:rgba(212,175,55,.1);outline:1px solid var(--gold)}
+            .wr-wire .wr-wire-brand{font-weight:800;color:var(--gold);letter-spacing:.06em;white-space:nowrap}.wr-wire select{max-width:108px;background:#101116;border-color:rgba(255,255,255,.12)}
+            .wr-wire .wr-wire-headline{flex:1;min-width:0;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem}.wr-wire-tag{font-size:.62rem;letter-spacing:.04em;font-weight:800;color:var(--gold);margin-right:10px}.wr-wire-tag.is-live{color:var(--good,#63d3b1)}
+            .wr-wire-count{font-size:.65rem;white-space:nowrap}.wr-wire-panel{position:absolute;bottom:45px;right:10px;width:min(680px,calc(100% - 20px));max-height:65vh;overflow:auto;overscroll-behavior:contain;border:1px solid var(--acc-line2,rgba(212,175,55,.35));border-radius:12px;background:#101116;box-shadow:0 12px 50px #0009;padding:16px;box-sizing:border-box}.wr-wire-panel header{display:flex;align-items:center;justify-content:space-between}.wr-wire-panel h3{margin:0;color:var(--white);font-size:1rem}.wr-wire-panel p{font-size:.73rem;line-height:1.5}.wr-wire-panel ul{list-style:none;margin:0;padding:0}.wr-wire-panel li{border-top:1px solid rgba(255,255,255,.08);padding:10px 0;font-size:.82rem;line-height:1.5}.wr-wire-panel li .wr-wire-tag{display:block}.wr-wire-panel li button{text-align:left;width:100%;font-size:.82rem;white-space:normal}
+            @media(max-width:1023px){.wr-wire{left:0}.wr-wire-count{display:none}.wr-wire{gap:2px}.wr-wire .wr-wire-brand{font-size:.65rem}}
+        `}</style>
+        <button ref={toggleRef} type="button" className="wr-wire-brand" aria-expanded={expanded} aria-controls="wr-wire-panel" onClick={() => setExpanded(v => !v)}>LEAGUE WIRE {expanded ? '▾' : '▴'}</button>
+        <select value={topic} aria-label="Wire topic" onChange={e => setTopic(e.target.value)}><option value="all">For the league</option><option value="league">League</option><option value="nfl">NFL</option><option value="trends">Trends</option></select>
+        <button type="button" className="wr-wire-headline" title={current ? current.label + ': ' + current.text : undefined} onClick={() => current && openItem(current)}>{current ? <><span className={'wr-wire-tag' + (current.kind === 'nfllive' ? ' is-live' : '')}>{current.label}</span>{current.text}</> : 'No updates in this topic yet.'}</button>
+        <span className="wr-wire-count">{visible.length ? currentIndex + 1 : 0}/{visible.length}</span>
+        <button type="button" aria-label="Previous update" disabled={visible.length < 2} onClick={() => setIndex((currentIndex - 1 + visible.length) % visible.length)}>‹</button>
+        <button type="button" aria-label={paused ? 'Resume automatic updates' : 'Pause automatic updates'} aria-pressed={paused || reduced} disabled={reduced} title={reduced ? 'Automatic rotation disabled by your reduced-motion preference' : undefined} onClick={() => setPaused(v => !v)}>{reduced ? 'Manual' : paused ? 'Play' : 'Pause'}</button>
+        <button type="button" aria-label="Next update" disabled={visible.length < 2} onClick={() => setIndex((currentIndex + 1) % visible.length)}>›</button>
+        {expanded && <aside id="wr-wire-panel" className="wr-wire-panel" aria-label="All wire updates"><header><h3>League wire · {visible.length} updates</h3><button type="button" onClick={close}>Close ×</button></header><p>League scores and NFL games refresh every minute. Scores may still be in progress. Trends compare the two seasons shown; they are not live news.</p><ul>{visible.map((it, i) => <li key={it.kind + ':' + i}><span className={'wr-wire-tag' + (it.kind === 'nfllive' ? ' is-live' : '')}>{it.label}</span>{playerLink(it) ? <button type="button" onClick={() => openItem(it)}>{it.text} · View player →</button> : it.text}</li>)}</ul>{!visible.length && <p>No updates in this topic yet.</p>}</aside>}
+    </section>;
 }
 
 window.WrLeagueWire = WrLeagueWire;
