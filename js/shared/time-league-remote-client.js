@@ -11,7 +11,7 @@
             const { data, error } = await db.functions.invoke('time-league', { body, headers: { Authorization: `Bearer ${token}` } });
             if (error) {
                 const details = await error.context?.json?.().catch(() => null);
-                return details || { ok: false, error: 'Could not reach your league. Check your connection and try again.' };
+                return { ok: false, conflict: details?.conflict === true, error: details?.error || details?.message || 'Could not reach your league. Check your connection and try again.' };
             }
             return data || { ok: false, error: 'No response from the league server.' };
         } catch {
