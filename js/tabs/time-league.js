@@ -1154,7 +1154,7 @@
                             onlineMeta ? h('span', { className: 'tl-pill info', role: 'status' }, saving ? 'SAVING…' : connectionError ? 'RECONNECTING…' : '🌐 ONLINE') : null),
                         h(EraChipRail, { label: league.phase === 'draft' ? 'Era of Play' : 'League format', chips: EraRules.eraRuleChips(league.settings.eraRules).filter(chip=>league.phase==='draft'||!chip.toLowerCase().includes('reveal in the draft')) })),
                     h('div', { className: 'tl-header-tools' },
-                        league.phase !== 'draft' ? h('span', { className: 'tl-pill' }, `${league.phase === 'complete' ? 'FINISHED' : 'NEXT WK'} ${Math.min(league.currentWeek, league.settings.regularSeasonWeeks)}/${league.settings.regularSeasonWeeks}`) : null,
+                        league.phase !== 'draft' ? h('span', { className: 'tl-pill' }, `${league.phase === 'complete' ? 'FINISHED' : 'NEXT WK'} ${Math.min(league.currentWeek, Engine.seasonEndWeek(league))}/${Engine.seasonEndWeek(league)}`) : null,
                         h('span', { className: 'tl-pill' }, `${league.teams.length} MGRS`),
                         onlineMeta && h('button', { type: 'button', className: 'tl-btn', onClick: () => setShowFriends(value => !value) }, 'FRIENDS & INVITES'),
                         h('button', { type: 'button', className: 'tl-btn', onClick: switchLeague }, 'SWITCH LEAGUE'),
@@ -1178,6 +1178,23 @@
                     },
                 }),
                 h('fieldset', { disabled: saving || Boolean(onlineMeta && !onlineMeta.draftStarted), style: { border: 0, padding: 0, margin: 0, minWidth: 0 } },
+                Engine.playoffCount(league) > 0 && league.phase !== 'draft' && h('section', { className: 'tl-card tl-playoff-bracket' },
+                    h('div', { className: 'tl-card-title' }, h('span', null, 'Road to the championship'), h('small', null, `TOP ${Engine.playoffCount(league)} · HIGHER SEED WINS TIES`)),
+                    Array.from({ length: Engine.seasonEndWeek(league) - league.settings.regularSeasonWeeks }, (_, i) => {
+                        const week = league.settings.regularSeasonWeeks + i + 1;
+                        const results = league.finalizedWeeks.find(row => row.week === week);
+                        const seeded = league.finalizedWeeks.some(row => row.week === league.settings.regularSeasonWeeks);
+                        const pairs = seeded ? Engine.playoffPairs(league, week) : [];
+                        const name = id => league.teams.find(team => team.teamId === id)?.name || 'TBD';
+                        return h('div', { key: week, className: 'tl-playoff-round' }, h('h3', null, `${week === Engine.seasonEndWeek(league) ? 'Championship' : 'Semifinals'} · Week ${week}`),
+                            pairs.length ? pairs.map(([home, away], n) => {
+                                const match = results?.matchups[n];
+                                return h('p', { key: n }, `${name(home)} ${match ? match.homePoints.toFixed(1) : ''} vs ${name(away)} ${match ? match.awayPoints.toFixed(1) : ''}`, match && h('strong', null, ` · ${name(match.winner)} advances`));
+                            }) : h('p', null, seeded ? 'Waiting for semifinal winners.' : 'Seeds lock after the regular season.'));
+                    })),
+                league.phase === 'complete' && !Engine.playoffCount(league) && league.settings.regularSeasonWeeks < 18 && h('section', { className: 'tl-card tl-week-gate' },
+                    h('div', null, h('strong', null, 'Finish with a playoff?'), h('p', null, 'Keep regular-season results and reopen this season for a seeded championship. This replaces the standings-only title.')),
+                    [2,4].filter(count => league.teams.length >= count && league.settings.regularSeasonWeeks + (count === 4 ? 2 : 1) <= 18).map(count => h('button', { key: count, className: 'tl-btn', disabled: saving || (onlineMeta && onlineMeta.role !== 'commissioner'), onClick: () => handleUpdate(Engine.startPlayoffs(league, count), { type: 'start-playoffs', count }) }, `Add ${count}-team playoffs`))),
                 incomingAi.length > 0 && h('section', { className: 'tl-ai-offers tl-card', 'aria-label': 'Incoming AI trade offers' },
                     h('div', { className: 'tl-card-title' }, h('span', null, `Trade offers · ${incomingAi.length} awaiting your response`), h('small', null, 'YOUR DECISION')),
                     incomingAi.map(trade => h('details', { key: trade.tradeId, open: true, className: 'tl-ai-offer' },

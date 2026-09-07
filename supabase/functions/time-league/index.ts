@@ -62,7 +62,7 @@ Deno.serve(async (req: Request) => {
             started = true;
         } else {
             if (!started && action.type !== 'team' && action.type !== 'queue') return fail('Wait for the commissioner to start the draft.');
-            if (action.type === 'week' && members!.some(m => m.ready_week !== row.current_week)) return fail('Wait for every manager to mark their lineup ready.');
+            if (action.type === 'week' && members!.some(m => (row.current_week <= row.state.settings.regularSeasonWeeks || App.TimeLeagueEngine.playoffPairs(row.state, row.current_week).some((pair: string[]) => pair.includes(m.seat_team_id))) && m.ready_week !== row.current_week)) return fail('Wait for every manager to mark their lineup ready.');
             if (member.ready_week === row.current_week && ['lineup', 'auto-lineup', 'respond-trade', 'ping-ai'].includes(action.type)) return fail('Unmark Ready before changing your lineup.');
             if (action.type === 'respond-trade' && action.accept === true) {
                 const trade = row.state.trades.find((t: any) => t.tradeId === action.tradeId);

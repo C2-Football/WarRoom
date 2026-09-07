@@ -63,7 +63,7 @@
         React.useEffect(()=>{if(selectedId)dossierRef.current?.focus();},[selectedId]);
         const revealed = league.seasonsRevealed;
         const outlooks = useMemo(() => new Map(team.roster.map(entry => [entry.entryId,
-            revealed ? Season.rosterOutlook(entry, league.currentWeek, league.settings.regularSeasonWeeks, logIndex, league.settings.scoring, league.settings.eraAdjusted ? eraFactors : null) : null
+            revealed ? Season.rosterOutlook(entry, league.currentWeek, Engine.seasonEndWeek(league), logIndex, league.settings.scoring, league.settings.eraAdjusted ? eraFactors : null) : null
         ])), [team.roster, revealed, league.currentWeek, league.settings, logIndex, eraFactors]);
         const capacity = Engine.rosterCapacity(league.settings);
         const problems = Engine.lineupProblems(league, team.teamId);

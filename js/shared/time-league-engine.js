@@ -112,6 +112,7 @@
         // board, the draws and the waiver wire all read the same assignment forever.
         const settings = {
             ...input.settings,
+            playoffTeams: input.settings.playoffTeams || 0,
             eraRules: openDraftEra(input.settings.eraRules, `${input.seed}:era`, POSITIONS),
         };
         const founding = [{
@@ -309,11 +310,31 @@
      * reference table is what keeps a drafted K or DEF from scoring a
      * permanent 0.00.
      */
+    const playoffCount = state => state.settings.playoffTeams === 4 && state.teams.length >= 4 ? 4 : state.settings.playoffTeams >= 2 && state.teams.length >= 2 ? 2 : 0;
+    const seasonEndWeek = state => state.settings.regularSeasonWeeks + (playoffCount(state) === 4 ? 2 : playoffCount(state) === 2 ? 1 : 0);
+    function playoffPairs(state, week) {
+        const count = playoffCount(state);
+        const regular = state.settings.regularSeasonWeeks;
+        if (!count || week <= regular || week > seasonEndWeek(state)) return [];
+        const seeds = computeStandings(state).slice(0, count).map(row => row.teamId);
+        if (week === regular + 1) return count === 4 ? [[seeds[0], seeds[3]], [seeds[1], seeds[2]]] : [[seeds[0], seeds[1]]];
+        const previous = state.finalizedWeeks.find(row => row.week === week - 1);
+        const winners = (previous?.matchups || []).map(match => match.winner || match.home).sort((a,b) => seeds.indexOf(a)-seeds.indexOf(b));
+        return winners.length === 2 ? [winners] : [];
+    }
+    function startPlayoffs(state, count) {
+        if (state.phase !== 'complete' || playoffCount(state) || ![2,4].includes(count) || count > state.teams.length || state.currentWeek !== state.settings.regularSeasonWeeks + 1 || state.settings.regularSeasonWeeks + (count === 4 ? 2 : 1) > 18) return state;
+        const { championTeamId: _champion, ...rest } = state;
+        return { ...rest, settings: { ...state.settings, playoffTeams: count }, phase: 'season', weekStage: 'postgame' };
+    }
+
     function finalizeCurrentWeek(state, logIndex, eraFactors, createdAt, extendedScoring = REFERENCE_EXTENDED_SCORING) {
         if (state.phase !== "season") return state;
         const week = state.currentWeek;
         const factors = state.settings.eraAdjusted ? eraFactors : null;
-        const results = state.teams.map((team) => {
+        const playoff = week > state.settings.regularSeasonWeeks;
+        const pairs = playoff ? playoffPairs(state, week) : (state.schedule.find(item => item.week === week)?.pairs ?? []);
+        const results = state.teams.filter(team => !playoff || pairs.some(pair => pair.includes(team.teamId))).map((team) => {
             const starters = team.roster.filter((entry) => isStarterSlot(entry.slot)).map((entry) => {
                 const log = logIndex.get(gameLogKey(entry.identity, entry.drawnSeason, week)) ?? null;
                 const raw = log ? scoreStatLine(log.stats, state.settings.scoring, extendedScoring) : 0;
@@ -333,10 +354,10 @@
             return { teamId: team.teamId, total: round2(starters.reduce((sum, line) => sum + line.points, 0)), starters };
         });
         const totals = new Map(results.map((result) => [result.teamId, result.total]));
-        const matchups = (state.schedule.find((item) => item.week === week)?.pairs ?? []).map(([home, away]) => {
+        const matchups = pairs.map(([home, away]) => {
             const homePoints = totals.get(home) ?? 0;
             const awayPoints = totals.get(away) ?? 0;
-            return { home, away, homePoints, awayPoints, winner: homePoints > awayPoints ? home : awayPoints > homePoints ? away : null };
+            return { home, away, homePoints, awayPoints, winner: homePoints > awayPoints ? home : awayPoints > homePoints ? away : playoff ? home : null };
         });
         const name = (teamId) => state.teams.find((team) => team.teamId === teamId)?.name ?? teamId;
         const line = (matchup) => {
@@ -368,8 +389,8 @@
             currentWeek: week + 1,
             activity: events.list(),
         };
-        if (week + 1 > state.settings.regularSeasonWeeks) {
-            const champion = computeStandings(next)[0];
+        if (week + 1 > seasonEndWeek(state)) {
+            const champion = playoff ? { teamId: matchups[0]?.winner } : computeStandings(next)[0];
             const finale = appendEvents(next.activity);
             if (champion) finale.push(week, "league", `Season complete — ${name(champion.teamId)} crowned champion`, createdAt);
             next = { ...next, phase: "complete", ...(champion ? { championTeamId: champion.teamId } : {}), activity: finale.list() };
@@ -381,7 +402,7 @@
         const table = new Map(state.teams.map((team) => [team.teamId, {
             teamId: team.teamId, wins: 0, losses: 0, ties: 0, allPlayWins: 0, allPlayLosses: 0, pointsFor: 0, pointsAgainst: 0,
         }]));
-        for (const week of state.finalizedWeeks) {
+        for (const week of state.finalizedWeeks.filter(row => row.week <= state.settings.regularSeasonWeeks)) {
             for (const result of week.results) {
                 const standing = table.get(result.teamId);
                 if (!standing) continue;
@@ -676,6 +697,7 @@
             rosterSlots,
             scoring,
             regularSeasonWeeks: clampInt(regularSeasonWeeks, 1, 18),
+            playoffTeams: [2,4].includes(value.playoffTeams) && regularSeasonWeeks + (value.playoffTeams === 4 ? 2 : 1) <= 18 ? value.playoffTeams : 0,
             maxQuarterbacks: clampInt(maxQuarterbacks, 0, 8),
             // Saves written before era drafting existed carry no rules at all; they
             // load as any-era instead of locking the league out of every player.
@@ -917,7 +939,7 @@
             draftOrder,
             draftPicks,
             seasonsRevealed: raw.seasonsRevealed === true,
-            currentWeek: clampInt(currentWeek, 1, settings.regularSeasonWeeks + 1),
+            currentWeek: clampInt(currentWeek, 1, seasonEndWeek({ settings, teams }) + 1),
             weekStage: ['postgame', 'claims', 'ready'].includes(raw.weekStage) ? raw.weekStage : 'ready',
             schedule,
             finalizedWeeks,
@@ -932,7 +954,7 @@
         rosterCapacity, createTimeLeague, currentDraftSeat, draftedIdentities, eraEligibleCards,
         positionIsStartable, applyDraftPick, setEntrySlot, autoFillLineup, lineupProblems,
         finalizeCurrentWeek, computeStandings, freeAgents, submitWaiverClaim, cancelWaiverClaim,
-        processWaivers, waiverLandingSlot, proposeTrade, respondToTrade, normalizeTimeLeague,
+        playoffCount, seasonEndWeek, playoffPairs, startPlayoffs, processWaivers, waiverLandingSlot, proposeTrade, respondToTrade, normalizeTimeLeague,
     };
     App.TimeLeagueEngine = api;
     /* global module */

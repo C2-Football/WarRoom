@@ -79,6 +79,10 @@
             if (!state.trades.some(t => t.fromTeamId === own && t.status === 'pending' && state.teams.some(team => team.teamId === t.toTeamId && team.manager === 'ai'))) deny('No pending offer to an AI manager.');
             next = AI.aiRespondToTrades(state, cards, stamp);
             break;
+        case 'start-playoffs':
+            commissioner();
+            next = E.startPlayoffs(state, Number(action.count));
+            break;
         case 'advance-week':
             commissioner();
             if (state.phase !== 'season' || state.weekStage !== 'postgame') deny('Review the current week first.');
@@ -97,7 +101,7 @@
             commissioner();
             if (state.phase !== 'season' || ['postgame', 'claims'].includes(state.weekStage)) deny('Complete the weekly planning steps first.');
             const prepared = AI.aiPrepareWeek(state, cards);
-            const problems = prepared.teams.filter(t => t.manager === 'human').flatMap(t => E.lineupProblems(prepared, t.teamId));
+            const problems = prepared.teams.filter(t => t.manager === 'human' && (state.currentWeek <= state.settings.regularSeasonWeeks || E.playoffPairs(state, state.currentWeek).some(pair => pair.includes(t.teamId)))).flatMap(t => E.lineupProblems(prepared, t.teamId));
             if (problems.length && !action.force) deny('Managers still need to set their lineups.');
             next = E.finalizeCurrentWeek(prepared, data.logIndex, data.eraFactors, stamp);
             next = { ...next, weekStage: 'postgame' };

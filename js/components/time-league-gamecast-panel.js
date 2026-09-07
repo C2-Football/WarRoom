@@ -114,13 +114,13 @@
         }, [playing, speed, finishPlayback]);
 
         const skipToEnd = () => { clockRef.current = GAMECAST_END; setClock(GAMECAST_END); if (playing) finishPlayback(); };
-        const canRun = !['postgame', 'claims'].includes(league.weekStage) && (!onlineMeta || (onlineMeta.role === 'commissioner' && onlineMeta.members.every(m => m.ready_week === league.currentWeek))) && league.phase === 'season' && cards !== null && cards.size > 0 && logIndex !== null;
+        const canRun = !['postgame', 'claims'].includes(league.weekStage) && (!onlineMeta || (onlineMeta.role === 'commissioner' && onlineMeta.members.every(m => (league.currentWeek > league.settings.regularSeasonWeeks && !Engine.playoffPairs(league, league.currentWeek).some(pair => pair.includes(m.seat_team_id))) || m.ready_week === league.currentWeek))) && league.phase === 'season' && cards !== null && cards.size > 0 && logIndex !== null;
 
         const runGameDay = async (force) => {
             if (!canRun || !cards || !logIndex) return;
             const prepared = AI.aiPrepareWeek(league, cards);
             if (!force) {
-                const problems = prepared.teams.filter((t) => t.manager === 'human').flatMap((t) => Engine.lineupProblems(prepared, t.teamId).map((p) => `${t.name} — ${p}`));
+                const problems = prepared.teams.filter((t) => t.manager === 'human' && (league.currentWeek <= league.settings.regularSeasonWeeks || Engine.playoffPairs(league, league.currentWeek).some(pair => pair.includes(t.teamId)))).flatMap((t) => Engine.lineupProblems(prepared, t.teamId).map((p) => `${t.name} — ${p}`));
                 if (problems.length) { setWarnings(problems); return; }
             }
             setWarnings(null);
@@ -156,7 +156,7 @@
         }, [playback, landed, done]);
         const headlines = useMemo(() => (playback && done ? Gamecast.weekHeadlines(playback.weekData.results, playback.weekData.matchups, teamName) : []), [playback, done, teamName]);
 
-        const pairs = league.schedule.find((item) => item.week === league.currentWeek)?.pairs ?? [];
+        const pairs = league.currentWeek > league.settings.regularSeasonWeeks ? Engine.playoffPairs(league, league.currentWeek) : league.schedule.find((item) => item.week === league.currentWeek)?.pairs ?? [];
         const boxWeekData = boxWeek === null ? null : league.finalizedWeeks.find((item) => item.week === boxWeek) ?? null;
         const champion = league.championTeamId ? teamName(league.championTeamId) : null;
 

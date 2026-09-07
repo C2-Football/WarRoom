@@ -265,6 +265,42 @@ test('waivers replace a compatible starter with a full bench or no bench', () =>
     }
 });
 
+test('optional playoffs seed correctly, survive reload, and crown only the final winner', () => {
+    for (const count of [2,4]) {
+        const cards = samplePool();
+        let state = draftFullRoster(Engine.createTimeLeague({ name: 'Playoffs', seed: 'playoffs', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings({ playoffTeams: count }), seats: seats() }), cards);
+        for (let week = 1; week <= 2; week++) state = Engine.finalizeCurrentWeek(state, new Map(), null, '2026-01-01T00:00:00Z');
+        assert.equal(state.phase, 'season');
+        assert.ok(!state.championTeamId);
+        const seeds = Engine.computeStandings(state).map(row => row.teamId);
+        assert.deepStrictEqual(Engine.playoffPairs(state, 3), count === 4 ? [[seeds[0], seeds[3]], [seeds[1], seeds[2]]] : [[seeds[0], seeds[1]]]);
+        const regular = Engine.computeStandings(state);
+        state = Engine.normalizeTimeLeague(JSON.parse(JSON.stringify(state)));
+        state = Engine.finalizeCurrentWeek(state, new Map(), null, '2026-01-01T00:00:00Z');
+        if (count === 4) {
+            assert.equal(state.phase, 'season');
+            assert.deepStrictEqual(Engine.playoffPairs(state, 4), [[seeds[0],seeds[1]]]);
+            state = Engine.normalizeTimeLeague(JSON.parse(JSON.stringify(state)));
+            state = Engine.finalizeCurrentWeek(state, new Map(), null, '2026-01-01T00:00:00Z');
+        }
+        assert.equal(state.phase, 'complete');
+        assert.equal(state.championTeamId, seeds[0], 'higher seed wins tied playoff game');
+        assert.deepStrictEqual(Engine.computeStandings(state), regular);
+        assert.equal(Engine.normalizeTimeLeague(state).currentWeek, Engine.seasonEndWeek(state) + 1);
+    }
+});
+
+test('completed standings-only season can explicitly reopen for playoffs once', () => {
+    let state = draftFullRoster(Engine.createTimeLeague({ name: 'Reopen', seed: 'reopen', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings(), seats: seats() }), samplePool());
+    while (state.phase === 'season') state = Engine.finalizeCurrentWeek(state, new Map(), null, '2026-01-01T00:00:00Z');
+    const reopened = Engine.startPlayoffs(state, 4);
+    assert.equal(reopened.phase, 'season');
+    assert.equal(reopened.weekStage, 'postgame');
+    assert.ok(!reopened.championTeamId);
+    assert.deepStrictEqual(reopened.finalizedWeeks, state.finalizedWeeks);
+    assert.strictEqual(Engine.startPlayoffs(reopened, 4), reopened);
+});
+
 test('FAAB: highest bid wins a contested free agent and pays its own bid', () => {
     const cards = samplePool();
     const settings = baseSettings({ waiverMode: 'faab', faabBudget: 100 });

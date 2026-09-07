@@ -137,6 +137,7 @@
         const [eraAdjusted, setEraAdjusted] = useState(false);
         const [eraMode, setEraMode] = useState('position-roulette');
         const [eraDecades, setEraDecades] = useState([]);
+        const [playoffTeams, setPlayoffTeams] = useState(0);
         const [waiversEnabled, setWaiversEnabled] = useState(true);
         const [waiverMode, setWaiverMode] = useState('priority');
         const [faabBudget, setFaabBudget] = useState(100);
@@ -154,9 +155,10 @@
             rosterSlots: rosterOption.slots,
             scoring: scoringOption.scoring,
             regularSeasonWeeks: window.TimeLeagueUtils.REGULAR_SEASON_WEEKS,
+            playoffTeams: seats.length >= playoffTeams ? playoffTeams : 2,
             maxQuarterbacks: window.TimeLeagueUtils.MAX_QUARTERBACKS,
             eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty,
-        }), [rosterOption, scoringOption, eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty]);
+        }), [playoffTeams, seats.length, rosterOption, scoringOption, eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty]);
         const capacity = Engine.rosterCapacity(settings);
         const humanSeats = seats.filter((seat) => seat.manager === 'human').length;
         const signedIn = onlineIndexState !== 'signed-out' && Boolean(window.App.OD && window.App.OD.getCurrentUserId && window.App.OD.getCurrentUserId());
@@ -224,6 +226,10 @@
                     h('a', { className: 'tl-btn', href: 'login.html' }, 'SIGN IN'))),
 
             h('div', { className: 'tl-builder-section', id: 'vault-setup-1' },
+                h('label', { className: 'tl-playoff-setting' }, h('span', { className: 'tl-label' }, 'SEASON FINISH'),
+                    h('select', { className: 'tl-select', value: playoffTeams, onChange: event => setPlayoffTeams(Number(event.target.value)) },
+                        h('option', { value: 0 }, 'Standings champion'), h('option', { value: 2 }, 'Top 2 · Championship final'), h('option', { value: 4, disabled: seats.length < 4 }, 'Top 4 · Semifinals + final')),
+                    h('p', { className: 'tl-hint' }, 'Playoffs follow the regular season using the next historical weeks. Higher seed wins a tie. Missing game logs score zero.')),
                 h('div', { className: 'tl-question' }, h('span', null, '2'), h('div', null, h('h3', null, 'Pick the time-travel twist'), h('p', null, 'You draft the player. The Vault reveals the season.'))),
                 h('div', { className: 'tl-era-mode-grid' }, ERA_MODE_OPTIONS.map((option) => h(EraModeCard, {
                     key: option.id, option, selected: eraMode === option.id, onClick: () => setEraMode(option.id),
