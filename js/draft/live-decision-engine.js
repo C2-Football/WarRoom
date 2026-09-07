@@ -35,6 +35,111 @@
             || state.draftContext?.leagueFormat?.draftType === 'redraft');
     }
 
+    const FLEX_ELIGIBILITY = {
+        FLEX: ['RB', 'WR', 'TE'], WRRBTE_FLEX: ['RB', 'WR', 'TE'],
+        WRRB_FLEX: ['RB', 'WR'], REC_FLEX: ['WR', 'TE'],
+        SUPER_FLEX: ['QB', 'RB', 'WR', 'TE'], OP: ['QB', 'RB', 'WR', 'TE'],
+        IDP_FLEX: ['DL', 'LB', 'DB'], IDP: ['DL', 'LB', 'DB'],
+    };
+
+    // Maximum matching handles overlapping FLEX / SFLEX slots without counting
+    // the same player twice or greedily spending a flexible slot too early.
+    function lineupFit(state, counts, addedPos) {
+        const slots = asArray(state.draftContext?.leagueFormat?.rosterSlots)
+            .map(s => String(s).toUpperCase()).filter(s => !['BN', 'BE', 'BENCH', 'IR', 'TAXI'].includes(s));
+        const players = Object.entries(counts).flatMap(([pos, count]) => Array(Math.min(slots.length, num(count))).fill(pos));
+        if (addedPos) players.push(addedPos);
+        const occupants = new Map();
+        const place = (pi, seen) => {
+            for (let si = 0; si < slots.length; si++) {
+                if (seen.has(si) || !(FLEX_ELIGIBILITY[slots[si]] || [slots[si]]).includes(players[pi])) continue;
+                seen.add(si);
+                if (!occupants.has(si) || place(occupants.get(si), seen)) { occupants.set(si, pi); return true; }
+            }
+            return false;
+        };
+        players.forEach((_, i) => place(i, new Set()));
+        return { filled: occupants.size, total: slots.length };
+    }
+
+    function historyLean(persona, pos) {
+        const dna = persona?.draftDna;
+        // Sparse or inferred history never becomes a confident owner tell.
+        if (!dna || dna.inferred || num(dna.picksAnalyzed) < 12) return 0;
+        const raw = num(dna.posPct?.[pos]);
+        const pct = raw <= 1 ? raw * 100 : raw;
+        return Math.min(5, pct / 10) * Math.min(1, num(dna.picksAnalyzed) / 36);
+    }
+
+    function lockRedraftForecast(state, now = Date.now()) {
+        if (!isRedraftLive(state) || state.phase !== 'drafting' || !state.liveSync?.lastPollAt
+            || !['mirroring', 'waiting'].includes(state.liveSync?.status) || state.draftMechanic === 'auction') return state;
+        const slot = asArray(state.pickOrder)[num(state.currentIdx)];
+        const key = idKey(slot?.overall);
+        const existing = state.redraftBroadcast?.forecasts || {};
+        if (!key || existing[key] || asArray(state.picks).some(p => num(p.overall) >= num(slot.overall))) return state;
+        const read = buildRedraftRoomRead(state);
+        const forecast = read?.forecasts[0];
+        if (!forecast || num(forecast.slot.overall) !== num(slot.overall)) return state;
+        const slim = p => p ? { pid: idKey(p.pid), name: p.name, pos: posOf(p) } : null;
+        return { ...state, redraftBroadcast: { ...state.redraftBroadcast, forecasts: { ...existing, [key]: {
+            overall: num(slot.overall), rosterId: idKey(slot.rosterId), player: slim(forecast.player),
+            alternative: slim(forecast.alternative), reason: forecast.reason, lockedAt: now,
+            observedPicks: asArray(state.picks).length, draftId: state.sleeperDraftId,
+        } } } };
+    }
+
+    function predictionScorecard(state) {
+        const records = Object.values(state.redraftBroadcast?.forecasts || {}).filter(f => idKey(f.draftId) === idKey(state.sleeperDraftId));
+        const rows = records.map(f => {
+            const actual = asArray(state.picks).find(p => num(p.overall) === f.overall && p.source === 'live-sync');
+            const outcome = !actual ? 'Pending' : idKey(actual.rosterId) !== f.rosterId ? 'Owner changed'
+                : idKey(actual.pid) === f.player.pid ? 'Hit' : idKey(actual.pid) === f.alternative?.pid ? 'Alternate hit' : 'Surprise';
+            return { ...f, actual, outcome };
+        }).sort((a, b) => b.overall - a.overall);
+        const scored = rows.filter(r => r.actual && r.outcome !== 'Owner changed');
+        return { rows, total: scored.length, hits: scored.filter(r => r.outcome === 'Hit').length,
+            alternates: scored.filter(r => r.outcome === 'Alternate hit').length,
+            surprises: scored.filter(r => r.outcome === 'Surprise').length };
+    }
+
+    function redraftBroadcastRead(state, read, counts, projectedTaken) {
+        const copies = Math.max(1, num(state.playerCopies, 1));
+        const available = asArray(state.pool).filter(p => num(state.draftedPids?.[p.pid]) < copies);
+        const tracked = asArray(state.redraftBroadcast?.watchPids);
+        const marked = asArray(state.originalPool).filter(p => isTarget(boardEntry(state.draftContext?.boardContext, p))).map(p => idKey(p.pid));
+        const watchIds = [...new Set([...tracked, ...marked])].slice(0, 8);
+        const watch = watchIds.map(pid => {
+            const p = asArray(state.originalPool).find(p => idKey(p.pid) === pid) || asArray(state.picks).find(p => idKey(p.pid) === pid);
+            if (!p) return null;
+            const picks = asArray(state.picks).filter(p => idKey(p.pid) === pid);
+            const taken = num(state.draftedPids?.[pid]) >= copies;
+            const yours = picks.some(p => idKey(p.rosterId) === idKey(state.userRosterId));
+            const threats = read.forecasts.filter(f => idKey(f.player.pid) === pid || idKey(f.alternative?.pid) === pid);
+            const projectedGone = num(projectedTaken[pid]) >= copies;
+            const risk = taken ? (yours ? 'Yours' : 'Taken') : read.next?.picksAway === 0 ? 'Available now'
+                : read.isAuction || !read.next ? 'Unknown' : projectedGone ? 'Unlikely'
+                    : !read.fullHorizon || threats.length ? 'Toss-up' : 'Likely';
+            const backup = available.filter(x => idKey(x.pid) !== pid && posOf(x) === posOf(p)).sort((a, b) => num(b.dhq) - num(a.dhq))[0]
+                || available.find(x => idKey(x.pid) !== pid);
+            return { player: p, risk, threats, backup, taken, yours,
+                owner: picks.length ? (state.personas?.[idKey(picks[picks.length - 1].rosterId)]?.teamName || 'Team ' + picks[picks.length - 1].rosterId) : null };
+        }).filter(Boolean);
+        const shortlist = [...watch.filter(w => !w.taken).map(w => w.player), ...candidates(state, 30).filter(c => !c.fade).sort((a, b) => b.score - a.score).map(c => c.player)]
+            .filter((p, i, all) => all.findIndex(x => idKey(x.pid) === idKey(p.pid)) === i).slice(0, 3);
+        const stories = Object.entries(counts).map(([rid, build]) => {
+            const actual = asArray(state.picks).filter(p => idKey(p.rosterId) === rid);
+            const fit = lineupFit(state, build);
+            const dominant = Object.entries(build).sort((a, b) => b[1] - a[1])[0];
+            if (actual.length < 2) return null;
+            return { rosterId: rid, team: state.personas?.[rid]?.teamName || 'Team ' + rid,
+                title: dominant?.[1] >= 3 ? dominant[0] + ' collector' : 'Building the starters',
+                text: actual.length + ' picks · ' + fit.filled + '/' + fit.total + ' starting slots covered'
+                    + (dominant?.[1] >= 3 ? ' · ' + dominant[1] + ' ' + dominant[0] + ' selected' : '') };
+        }).filter(Boolean).sort((a, b) => (a.rosterId === idKey(state.userRosterId) ? -1 : b.rosterId === idKey(state.userRosterId) ? 1 : 0)).slice(0, 4);
+        return { watch, shortlist, stories, scorecard: predictionScorecard(state) };
+    }
+
     // Conditional forecast: walk the real pick order, removing projected picks
     // and updating each manager's build. No random CPU picks or state mutations.
     function buildRedraftRoomRead(state) {
@@ -50,12 +155,17 @@
             counts[rid] = counts[rid] || {};
             counts[rid][posOf(p)] = num(counts[rid][posOf(p)]) + 1;
         });
+        const actualCounts = JSON.parse(JSON.stringify(counts));
         const maxValue = Math.max(1, ...pool.map(p => num(p.dhq)));
         const market = p => {
             const value = window.App?.getRedraftAdp?.(idKey(p.pid))?.adp;
             return num(value) > 0 ? num(value) : null;
         };
         const originalRanks = rankMap(asArray(state.originalPool).map(p => p.pid));
+        const playerInputs = new Map(pool.map((p, i) => {
+            const adp = market(p);
+            return [p, { pos: posOf(p), adp, rank: adp || originalRanks[idKey(p.pid)] || i + 1 }];
+        }));
         const forecasts = [];
         const horizon = Math.min(24, Math.max(6, next?.picksAway || 0));
         const order = state.draftMechanic === 'auction' ? [] : asArray(state.pickOrder).slice(num(state.currentIdx), num(state.currentIdx) + horizon);
@@ -63,27 +173,37 @@
             const rid = idKey(slot.rosterId);
             if (rid === idKey(state.userRosterId)) break;
             const build = counts[rid] || {};
+            const baseFit = lineupFit(state, build).filled;
+            const fitByPos = {};
+            const persona = state.personas?.[rid];
             const ranked = pool.filter(p => num(taken[p.pid]) < copies).map(p => {
-                const pos = posOf(p);
+                const { pos, adp, rank } = playerInputs.get(p);
                 const starters = rosterSlots.filter(s => s === pos).length;
-                const missing = Math.max(0, starters - num(build[pos]));
-                const adp = market(p);
-                const rank = adp || originalRanks[idKey(p.pid)] || pool.indexOf(p) + 1;
+                const fillsStarter = fitByPos[pos] ?? (fitByPos[pos] = lineupFit(state, build, pos).filled > baseFit);
+                const missing = Math.max(fillsStarter ? 1 : 0, starters - num(build[pos]));
                 // Market demand leads; actual missing starters and repeat-position
                 // selections adjust it. Missing ADP falls back to the DHQ board.
+                const history = historyLean(persona, pos);
+                const scoring = state.draftContext?.leagueFormat?.scoring || {};
+                const scoringLean = (pos === 'TE' && scoring.tePremium ? 3 : 0)
+                    + (pos === 'QB' && num(scoring.passTd, 4) >= 6 ? 2 : 0);
                 const score = 65 / (1 + Math.max(0, rank - num(slot.overall)) / 12)
                     + 20 * num(p.dhq) / maxValue + Math.min(2, missing) * 9
-                    - num(build[pos]) * (['QB', 'TE', 'K', 'DEF'].includes(pos) ? 9 : 3);
-                return { p, score, adp, missing, pos };
+                    + history + scoringLean
+                    - (fillsStarter ? 0 : num(build[pos]) * (['QB', 'TE', 'K', 'DEF'].includes(pos) ? 9 : 3));
+                return { p, score, adp, missing, pos, history, scoringLean, fillsStarter };
             }).sort((a, b) => b.score - a.score);
             if (!ranked.length) break;
-            const best = ranked[0];
-            const persona = state.personas?.[rid];
+            const locked = state.redraftBroadcast?.forecasts?.[idKey(slot.overall)];
+            const validLock = locked && idKey(locked.draftId) === idKey(state.sleeperDraftId) && locked.rosterId === rid;
+            const best = (validLock && ranked.find(r => idKey(r.p.pid) === locked.player.pid)) || ranked[0];
             forecasts.push({ slot, rosterId: rid, team: persona?.teamName || slot.ownerName || 'Team ' + rid,
-                player: best.p, alternative: ranked[1]?.p || null,
-                reason: (best.adp ? 'ADP ' + best.adp.toFixed(1) : 'DHQ board fallback')
-                    + (best.missing ? ' · ' + best.missing + ' open ' + best.pos + ' starting slot' + (best.missing === 1 ? '' : 's') : ' · roster balance'),
-                confidence: ranked[1] && best.score - ranked[1].score < 8 ? 'Close call' : 'Stronger lean' });
+                player: best.p, alternative: validLock ? locked.alternative : ranked[1]?.p || null,
+                reason: validLock ? locked.reason : (best.adp ? 'ADP ' + best.adp.toFixed(1) : 'DHQ board fallback')
+                    + (best.fillsStarter ? ' · fills a starting slot (including flex)' : ' · roster depth')
+                    + (best.history > 0 ? ' · history leans ' + best.pos + ' (' + persona.draftDna.picksAnalyzed + ' picks)' : '')
+                    + (best.scoringLean ? ' · scoring bonus' : ''),
+                confidence: validLock ? 'Locked call' : ranked[1] && best.score - ranked[1].score < 8 ? 'Close call' : 'Stronger lean' });
             taken[best.p.pid] = num(taken[best.p.pid]) + 1;
             counts[rid] = { ...build, [best.pos]: num(build[best.pos]) + 1 };
         }
@@ -103,9 +223,17 @@
         if (run && run[1] >= 3) commentary.push(run[1] + ' of the last ' + recent.length + ' picks were ' + run[0] + '. Compare the remaining options before following the run.');
         const targets = forecasts.filter(f => isTarget(boardEntry(state.draftContext?.boardContext, f.player))).slice(0, 3);
         const survivors = pool.filter(p => num(taken[p.pid]) < copies).sort((a, b) => num(b.dhq) - num(a.dhq)).slice(0, 3);
-        return { forecasts, commentary, targets, survivors, next, isAuction: state.draftMechanic === 'auction',
+        const read = { forecasts, commentary, targets, survivors, next, isAuction: state.draftMechanic === 'auction',
             fullHorizon: !!next && next.picksAway <= forecasts.length,
-            basis: 'Conditional estimates from ADP, current-season DHQ, starting slots and actual picks. Later selections depend on earlier projections; manager intentions are unknown.' };
+            basis: 'Estimates use market ADP, scoring-aware DHQ, lineup/flex needs and available draft history. Likely / toss-up / unlikely are uncalibrated judgments, not measured probabilities.' };
+        const broadcast = redraftBroadcastRead(state, read, actualCounts, taken);
+        if (next && next.picksAway > 0 && run && run[1] >= 3) {
+            const opponents = new Set(forecasts.map(f => f.rosterId));
+            const needing = [...opponents].filter(rid => lineupFit(state, actualCounts[rid] || {}, run[0]).filled > lineupFit(state, actualCounts[rid] || {}).filled).length;
+            commentary.push(needing + ' of ' + opponents.size + ' managers in this forecast can still use a ' + run[0] + ' in a starting slot. '
+                + (needing ? 'Keep a backup at that position on your shortlist.' : 'The run may leave value at another position; compare your shortlist.'));
+        }
+        return { ...read, ...broadcast };
     }
 
     function rankMap(order) {
@@ -191,11 +319,9 @@
             asArray(state.picks).filter(p => idKey(p.rosterId) === idKey(state.userRosterId)).forEach(p => {
                 counts[posOf(p)] = num(counts[posOf(p)]) + 1;
             });
-            const needs = {};
-            asArray(state.draftContext?.leagueFormat?.rosterSlots).forEach(pos => {
-                if (['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'].includes(pos)) needs[pos] = num(needs[pos]) + 1;
-            });
-            return Object.fromEntries(Object.entries(needs).map(([pos, slots]) => [pos, Math.min(22, Math.max(0, slots - num(counts[pos])) * 11)]));
+            const base = lineupFit(state, counts).filled;
+            return Object.fromEntries(['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'].map(pos => [pos,
+                lineupFit(state, counts, pos).filled > base ? 14 : 0]));
         }
         const userPersona = state?.personas?.[state?.userRosterId] || state?.personas?.[String(state?.userRosterId)] || null;
         const intel = userPersona?.ownerIntel || state?.draftContext?.ownerContext?.[String(state?.userRosterId)] || {};
@@ -647,6 +773,9 @@
     window.DraftCC = window.DraftCC || {};
     window.DraftCC.liveDecisionEngine = {
         isRedraftLive,
+        lineupFit,
+        predictionScorecard,
+        lockRedraftForecast: state => _ldePro() ? lockRedraftForecast(state) : state,
         buildRedraftRoomRead: _gateNull(buildRedraftRoomRead),
         buildDecisionDeck: _gateNull(buildDecisionDeck),
         buildLiveReadout: _gateNull(buildLiveReadout),

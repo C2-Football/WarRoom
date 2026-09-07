@@ -46,6 +46,9 @@
                            // Sleeper players map to name-join against
     let _year = null;      // year the current _map/_fetching promise is for
     let _fetching = null;  // in-flight promise, de-dupes concurrent callers
+    let _lastResolvePlayers = null;
+    let _lastResolvePending = null;
+    let _lastResolveAt = 0;
 
     // Same precedence the rest of the app uses to derive the active MFL
     // season (see league-skin.js buildLeagueProfile / draft-room.js /
@@ -227,6 +230,15 @@
     function _resolvePending() {
         if (!_pending || !_pending.length) return 0;
         const playersData = _sleeperPlayers();
+        const now = Date.now();
+        // Unmatchable names can remain indefinitely. A board render calls this
+        // getter hundreds of times; don't rebuild the entire Sleeper name index
+        // for every row. New data retries immediately; in-place hydration gets
+        // another opportunity after 15 seconds.
+        if (playersData === _lastResolvePlayers && _pending === _lastResolvePending && now - _lastResolveAt < 15000) return 0;
+        _lastResolvePlayers = playersData;
+        _lastResolvePending = _pending;
+        _lastResolveAt = now;
         if (!playersData || !Object.keys(playersData).length) return 0;
         const idx = _sleeperNameIndex(playersData);
         const still = [];
@@ -250,6 +262,7 @@
             added++;
         });
         _pending = still;
+        _lastResolvePending = _pending;
         if (added) {
             _writeCache(_year, _map, _pending);
             try { root.dispatchEvent(new CustomEvent('wr:adp-loaded', { detail: { year: _year, resolved: added } })); } catch (e) { /* headless */ }

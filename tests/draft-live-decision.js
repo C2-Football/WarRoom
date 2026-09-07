@@ -237,6 +237,31 @@ test('redraft predictions respond to market ADP and filled starting slots', () =
   delete ctx.App.getRedraftAdp;
 });
 
+test('overlapping flex slots use each player once and recognize a second QB', () => {
+  const state = { draftContext: { leagueFormat: { rosterSlots: ['QB', 'WR', 'FLEX', 'SUPER_FLEX', 'BN'] } } };
+  const fit = ctx.DraftCC.liveDecisionEngine.lineupFit;
+  eq(fit(state, { QB: 1, WR: 2 }).filled, 3, 'three players fill exactly three slots');
+  eq(fit(state, { QB: 1, WR: 2 }, 'QB').filled, 4, 'second QB fits superflex');
+  eq(fit(state, { QB: 2, WR: 2 }, 'QB').filled, 4, 'third QB adds no starter');
+  eq(fit(state, { WR: 2, QB: 2 }).filled, 4, 'assignment is independent of count key order');
+});
+
+test('target tracking names threats and offers an available replacement after a pick', () => {
+  const state = { ...baseState, variant: 'redraft', originalPool: pool, picks: [], redraftBroadcast: { watchPids: ['rb1'] } };
+  const read = ctx.DraftCC.liveDecisionEngine.buildRedraftRoomRead(state);
+  const watch = read.watch.find(w => w.player.pid === 'rb1');
+  ok(watch.threats.length, 'target has identified opposing managers');
+  const selected = { ...pool[0], rosterId: 1, overall: 1, source: 'live-sync' };
+  const updated = { ...state, currentIdx: 1, picks: [selected], draftedPids: { rb1: 1 }, pool: pool.slice(1) };
+  const next = ctx.DraftCC.liveDecisionEngine.buildRedraftRoomRead(updated);
+  const taken = next.watch.find(w => w.player.pid === 'rb1');
+  eq(taken.risk, 'Taken', 'taken target stays visible');
+  ok(taken.backup && taken.backup.pid !== 'rb1', 'replacement remains available');
+  ok(!next.shortlist.some(p => p.pid === 'rb1'), 'shortlist excludes lost target');
+  const own = ctx.DraftCC.liveDecisionEngine.buildRedraftRoomRead({ ...updated, picks: [{ ...selected, rosterId: 7 }] });
+  eq(own.watch.find(w => w.player.pid === 'rb1').risk, 'Yours', 'your pick is celebrated rather than warned');
+});
+
 console.log('\n');
 if (failures.length) {
   console.log(failures.join('\n'));

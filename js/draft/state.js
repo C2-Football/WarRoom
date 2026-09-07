@@ -379,6 +379,8 @@
             draftedPids: {}, // Object for easy JSON serialization (set-like)
             currentIdx: 0,
 
+            redraftBroadcast: { watchPids: [], forecasts: {}, quiet: false },
+
             // Team intelligence
             personas: {},
             draftContext: null,
@@ -1821,6 +1823,18 @@
     // ── Reducer ──────────────────────────────────────────────────────
     function reducer(state, action) {
         switch (action.type) {
+            case 'REDRAFT_WATCH_TOGGLE': {
+                if (state.mode !== 'live-sync' || action.pid == null) return state;
+                const pid = String(action.pid);
+                const current = state.redraftBroadcast || {};
+                const watch = current.watchPids || [];
+                if (!watch.includes(pid) && watch.length >= 5) return state;
+                return { ...state, redraftBroadcast: { ...current, watchPids: watch.includes(pid) ? watch.filter(id => id !== pid) : [...watch, pid] } };
+            }
+            case 'REDRAFT_QUIET_TOGGLE':
+                return { ...state, redraftBroadcast: { ...state.redraftBroadcast, quiet: !state.redraftBroadcast?.quiet } };
+            case 'REDRAFT_FORECAST_LOCK':
+                return window.DraftCC?.liveDecisionEngine?.lockRedraftForecast?.(state) || state;
             case 'SETUP_CHANGE':
                 return { ...state, ...action.payload };
 
@@ -1852,6 +1866,7 @@
                     pickedByIdx: derived.pickedByIdx,
                     draftedPids: derived.draftedPids,
                     currentIdx: prePicks.length,
+                    redraftBroadcast: { watchPids: [], forecasts: {}, quiet: !!state.redraftBroadcast?.quiet },
                     teamRosters: derived.teamRosters,
                     replay: action.replay || null,
                     scenarioNarrative: action.narrative || null,

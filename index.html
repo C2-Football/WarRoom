@@ -1741,14 +1741,54 @@ WRShared.preloadMany(WR_SHARED_FILES);
 	    .redraft-room-body { padding: 10px 12px; color: var(--silver); font-size: 0.78rem; line-height: 1.5; }
 	    .redraft-room-body p { margin: 0 0 10px; }
 	    .redraft-room-body h4 { color: var(--gold); margin: 12px 0 6px; }
-	    .redraft-forecast-list { max-height: 280px; overflow-y: auto; }
-	    .redraft-forecast-row { display: grid; grid-template-columns: 48px minmax(0,1fr) minmax(0,1.25fr); gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
+	    .redraft-forecast-list { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity; }
+	    .redraft-forecast-row { display: flex; flex-direction: column; flex: 0 0 180px; gap: 7px; padding: 12px; border: 1px solid rgba(93,173,226,0.26); border-top: 3px solid #5dade2; background: rgba(93,173,226,0.045); border-radius: 8px; scroll-snap-align: start; }
 	    .redraft-forecast-row > span { color: var(--gold); }
 	    .redraft-forecast-row small { display: block; font-size: 0.7rem; overflow-wrap: anywhere; }
 	    .redraft-forecast-row button { border: 0; background: transparent; color: var(--white); font: inherit; font-weight: 700; padding: 0; text-align: left; cursor: pointer; }
 	    .redraft-target-watch { color: var(--gold); margin-top: 10px !important; }
 	    .redraft-forecast-basis { display: block; opacity: 0.7; font-size: 0.7rem; }
-	    @media(max-width:600px) { .redraft-forecast-row { grid-template-columns: 42px minmax(0,1fr); gap: 6px; } .redraft-forecast-row > div:last-child { grid-column: 2; } }
+	    .redraft-broadcast-controls, .redraft-watch-picker { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+	    .redraft-room-body button, .redraft-room-body select { font: inherit; color: var(--white); border: 1px solid rgba(212,175,55,0.28); background: var(--surf-solid, #161b22); padding: 6px 9px; border-radius: 6px; cursor: pointer; }
+	    .redraft-room-body button:disabled { opacity: 0.45; cursor: default; }
+	    .redraft-watch-picker select { min-width: 0; flex: 1; max-width: 100%; }
+	    .redraft-on-deck { border: 1px solid var(--gold); border-left: 4px solid var(--gold); border-radius: 8px; padding: 12px; margin-bottom: 14px; background: rgba(212,175,55,0.07); }
+	    .redraft-shortlist, .redraft-watch-list, .redraft-stories { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); gap: 8px; margin: 10px 0; }
+	    .redraft-shortlist small, .redraft-stories small, .redraft-score-row span, .redraft-score-row small { display: block; }
+	    .redraft-watch-card, .redraft-stories > div { border: 1px solid rgba(255,255,255,0.12); padding: 10px; border-radius: 8px; min-width: 0; }
+	    .redraft-watch-card > div { display: flex; gap: 8px; justify-content: space-between; align-items: baseline; }
+	    .redraft-watch-card button { padding: 0; border: 0; background: none; text-align: left; }
+	    .redraft-watch-card strong { font-size: 0.72rem; flex-shrink: 0; }
+	    .redraft-watch-card p { margin: 7px 0; }
+	    .redraft-watch-card .redraft-untrack { opacity: 0.65; font-size: 0.7rem; }
+	    .redraft-watch-card [data-risk="Likely"], .redraft-watch-card [data-risk="Yours"] { color: var(--good, #3fb950); }
+	    .redraft-watch-card [data-risk="Toss-up"], .redraft-watch-card [data-risk="Unlikely"] { color: var(--gold); }
+	    .redraft-watch-card.is-taken { border-color: #de785d; animation: redraft-target-taken 0.5s ease-out; }
+	    .redraft-watch-card [data-risk="Taken"] { color: #de785d; }
+	    .redraft-scorecard { border-top: 1px solid rgba(255,255,255,0.15); padding: 12px 0; margin-top: 12px; }
+	    .redraft-scorecard summary { cursor: pointer; color: var(--gold); }
+	    .redraft-score-row { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
+	    @keyframes redraft-target-taken { from { background: rgba(222,120,93,0.22); } to { background: transparent; } }
+	    .redraft-room-read.is-quiet .redraft-watch-card { animation: none; }
+	    @media(prefers-reduced-motion:reduce) { .redraft-watch-card.is-taken { animation: none; } }
+	    @media(max-width:600px) { .redraft-room-body button, .redraft-room-body select { min-height: 36px; } .redraft-watch-list { max-height: 320px; overflow-y: auto; } }
+	    .redraft-focus-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.25fr); gap: 14px; align-items: start; }
+	    .redraft-focus-grid > section { min-width: 0; padding: 12px; background: rgba(255,255,255,0.025); border-radius: 9px; border: 1px solid rgba(255,255,255,0.08); }
+	    .redraft-focus-grid h4 { margin-top: 0; font-size: 0.8rem; }
+	    .redraft-pos-chip { display: inline-flex; align-items: center; justify-content: center; padding: 3px 5px; border-radius: 5px; background: rgba(212,175,55,0.13); color: var(--gold); font-weight: 800; font-size: 0.65rem; margin-right: 5px; }
+	    .redraft-pos-chip[data-pos="RB"] { color: #5dd9b4; background: rgba(93,217,180,0.12); }
+	    .redraft-pos-chip[data-pos="WR"] { color: #6bb9f0; background: rgba(107,185,240,0.12); }
+	    .redraft-pos-chip[data-pos="QB"] { color: #ed9292; background: rgba(237,146,146,0.12); }
+	    .redraft-pos-chip[data-pos="TE"] { color: #c7a2f1; background: rgba(199,162,241,0.12); }
+	    .redraft-room-body summary { cursor: pointer; font-size: 0.73rem; }
+	    .redraft-room-body details[open] > summary { margin-bottom: 8px; }
+	    .redraft-league-wire { margin-top: 12px; padding: 10px 12px; border-left: 3px solid #b79aec; background: rgba(183,154,236,0.045); border-radius: 6px; }
+	    .redraft-score-chip { display: inline-block; padding: 3px 7px; margin: 3px 0 3px 7px; background: rgba(212,175,55,0.07); border: 1px solid rgba(212,175,55,0.2); border-radius: 5px; font-variant-numeric: tabular-nums; }
+	    .redraft-method { opacity: 0.7; }
+	    .redraft-empty-radar { padding: 18px 5px; opacity: 0.6; }
+	    .redraft-target-section .redraft-watch-list { grid-template-columns: 1fr; max-height: 285px; overflow-y: auto; }
+	    .redraft-watch-card [data-risk] { padding: 2px 5px; border-radius: 4px; background: rgba(255,255,255,0.04); }
+	    @media(max-width:850px) { .redraft-focus-grid { grid-template-columns: 1fr; } .redraft-forecast-row { flex-basis: 170px; } .redraft-shortlist { grid-template-columns: repeat(auto-fit,minmax(min(100%,145px),1fr)); } }
 	    .mock-board-row.is-drafted { opacity: 0.42; background: rgba(255,255,255,0.012); border-color: transparent; box-shadow: none; }
 	    .mock-board-row.is-drafted strong { text-decoration: line-through; }
 	    .mock-board-row.is-drafted button { color: var(--silver); border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.035); cursor: default; }
@@ -2840,7 +2880,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
      id bridge) — "market says / DHQ says" companion column on redraft/chopped
      draft boards, display-only, never feeds DHQ/ROS/pricing. Eager: warms its
      localStorage cache before a draft screen ever mounts. -->
-<script src="js/shared/adp-market.js?v=20260906adp3"></script>
+<script src="js/shared/adp-market.js?v=20260906fastreads"></script>
 <!-- Commissioner's Office foundation — eager: the hub needs discoverCommissioned
      (is_owner) at boot to decide whether the office card exists at all. The six
      desk engines are eager too (small plain JS, no JSX) so the deferred group
@@ -2934,8 +2974,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/context.js?v=20260903leaguefix1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/persona.js?v=20260814dna1"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/cpu-engine.js?v=20260814auc1"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/state.js?v=20260906revalue2"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/big-board.js?v=20260906revalue1"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/state.js?v=20260906broadcast2"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/big-board.js?v=20260906broadcast2"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/draft-grid.js?v=20260418a"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/opponent-intel.js?v=20260601layout"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/alex-stream.js?v=20260906redraftreads"></script>
@@ -2952,9 +2992,9 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="draft" src="js/draft/scenarios.js?v=20260415cd8"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/ghost-replay.js?v=20260803rv2"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/live-sync.js?v=20260516p6redo"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/live-decision-engine.js?v=20260906redraftreads"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/live-decision-engine.js?v=20260906broadcast2"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft/analyst-mock.js?v=20260531voice1"></script>
-<script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260906redraftreads"></script>
+<script type="text/babel" data-wr-defer="draft" src="js/draft/command-center.js?v=20260906broadcast2"></script>
 <script type="text/babel" data-wr-defer="draft" src="js/draft-room.js?v=20260906hist1"></script>
 <!-- 5. League detail tab components (extracted from league-detail.js) -->
 <!-- v2 widget modules (load before dashboard.js which consumes them) -->

@@ -75,6 +75,7 @@ function load(ctx, relPath) {
 const ctx = buildCtx();
 load(ctx, 'js/draft/live-sync.js');
 load(ctx, 'js/draft/state.js');
+load(ctx, 'js/draft/live-decision-engine.js');
 
 const pickOrder = [
   { round: 1, slot: 1, overall: 1, teamIdx: 0, originalRosterId: 1, rosterId: 1 },
@@ -490,6 +491,35 @@ test('auto-resume persistence preserves original board baseline', () => {
   const loaded = ctx.DraftCC.state.loadFromLocal('L2');
   eq(loaded.originalPool.length, 2, 'original pool preserved');
   eq(loaded.originalPool[0].pid, 'p1', 'original first board slot preserved');
+});
+
+test('broadcast locks before a real pick, persists, and scores without hindsight', () => {
+  const reducer = ctx.DraftCC.state.reducer;
+  const pool = [{ pid: 'p1', name: 'One', pos: 'QB', dhq: 100 }, { pid: 'p2', name: 'Two', pos: 'RB', dhq: 90 }];
+  const initial = ctx.DraftCC.state.initialDraftState({ mode: 'live-sync', variant: 'redraft', leagueId: 'broadcast', userRosterId: 3, sleeperDraftId: 'D1' });
+  let state = reducer(initial, { type: 'START_DRAFT', pool, originalPool: pool, pickOrder, liveDraftStatus: 'drafting' });
+  eq(reducer(state, { type: 'REDRAFT_FORECAST_LOCK' }), state, 'no lock before first successful poll');
+  state = { ...state, liveSync: { ...state.liveSync, lastPollAt: Date.now(), status: 'mirroring' } };
+  state = reducer(state, { type: 'REDRAFT_WATCH_TOGGLE', pid: 'p1' });
+  state = reducer(state, { type: 'REDRAFT_FORECAST_LOCK' });
+  const locked = state.redraftBroadcast.forecasts['1'];
+  ok(locked, 'on-clock prediction locked');
+  eq(reducer({ ...state, pool: pool.slice().reverse() }, { type: 'REDRAFT_FORECAST_LOCK' }).redraftBroadcast.forecasts['1'], locked, 'cannot replace a locked prediction');
+  const picked = pool.find(p => p.pid === locked.player.pid);
+  state = reducer(state, { type: 'APPLY_LIVE_SYNC_PICKS', picks: [{ sleeperPick: { pick_no: 1, roster_id: 1, player_id: picked.pid }, player: picked }], status: { status: 'mirroring', lastPollAt: Date.now() } });
+  eq(ctx.DraftCC.liveDecisionEngine.predictionScorecard(state).hits, 1, 'real live pick scores exact hit');
+  ctx.DraftCC.state.saveToLocal(state);
+  const loaded = ctx.DraftCC.state.loadFromLocal('broadcast', 'live-sync');
+  eq(loaded.redraftBroadcast.forecasts['1'].player.pid, picked.pid, 'original forecast survives refresh');
+  eq(loaded.redraftBroadcast.watchPids[0], 'p1', 'tracked player survives refresh');
+  const joinedLate = { ...state, redraftBroadcast: { forecasts: {} } };
+  const nextLock = reducer(joinedLate, { type: 'REDRAFT_FORECAST_LOCK' });
+  ok(!nextLock.redraftBroadcast.forecasts['1'], 'no backfill of completed picks');
+  eq(ctx.DraftCC.liveDecisionEngine.predictionScorecard(nextLock).total, 0, 'late join receives no historical credit');
+  const changed = { ...state, picks: state.picks.map(p => ({ ...p, rosterId: 9 })) };
+  eq(ctx.DraftCC.liveDecisionEngine.predictionScorecard(changed).total, 0, 'changed pick owner excluded');
+  const manual = { ...state, picks: state.picks.map(p => ({ ...p, source: 'manual-live' })) };
+  eq(ctx.DraftCC.liveDecisionEngine.predictionScorecard(manual).total, 0, 'manual guesses cannot score');
 });
 
 console.log('\n');

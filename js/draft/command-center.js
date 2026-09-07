@@ -773,6 +773,12 @@
         // to teamIdx match for leagues where rosterId is null (e.g., unmapped slots).
         const currentSlot = state.pickOrder[state.currentIdx] || null;
         const liveStateRef = React.useRef(state);
+        // Record only the first on-clock forecast against the most recent sync.
+        // The reducer checks the CURRENT picks, so a late effect cannot backfill
+        // predictions for selections that have already arrived.
+        React.useEffect(() => {
+            if (isRedraftLive(state)) dispatch({ type: 'REDRAFT_FORECAST_LOCK' });
+        }, [state.currentIdx, state.phase, state.liveSync?.lastPollAt, state.personas, state.variant]);
         React.useEffect(() => {
             liveStateRef.current = state;
         }, [state]);
@@ -4599,7 +4605,10 @@
                                 })()}
                                 <span className={fitScore >= 70 ? 'is-good' : fitScore >= 45 ? 'is-ok' : ''}>{fitScore ? fitScore : '—'}</span>
                                 <span>{tier}</span>
-                                <button type="button" disabled={isDrafted} onClick={e => { e.stopPropagation(); if (!isDrafted) mockMakePick(dispatch, state, isUserTurn, player); }}>{isDrafted ? 'Drafted' : canPick ? 'Draft' : 'Open'}</button>
+                                <div>
+                                    <button type="button" disabled={isDrafted} onClick={e => { e.stopPropagation(); if (!isDrafted) mockMakePick(dispatch, state, isUserTurn, player); }}>{isDrafted ? 'Drafted' : canPick ? 'Draft' : 'Open'}</button>
+                                    {isRedraftLive(state) && !isDrafted && <button type="button" aria-label={'Track ' + player.name} aria-pressed={(state.redraftBroadcast?.watchPids || []).includes(String(player.pid))} onClick={e => { e.stopPropagation(); dispatch({ type: 'REDRAFT_WATCH_TOGGLE', pid: player.pid }); }}>{(state.redraftBroadcast?.watchPids || []).includes(String(player.pid)) ? '★' : 'Track'}</button>}
+                                </div>
                             </div>
                         );
                     })}
@@ -7051,7 +7060,7 @@
                             <button onClick={openTradeDesk} style={{ flexShrink: 0, padding: '4px 9px', borderRadius: 5, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', border: '1px solid rgba(155,138,251,0.4)', background: 'rgba(155,138,251,0.16)', color: '#d6d0ff' }}>Open Trade Desk</button>
                         )}
                     </div>}
-                    {isRedraftLive(state) && <RedraftRoomReadPanel state={state} />}
+                    {isRedraftLive(state) && <RedraftRoomReadPanel state={state} dispatch={dispatch} />}
                     </React.Fragment>
                     )}
                 </div>
@@ -7059,36 +7068,112 @@
         );
     }
 
-    function RedraftRoomReadPanel({ state }) {
-        const read = React.useMemo(() => window.DraftCC?.liveDecisionEngine?.buildRedraftRoomRead?.(state), [state]);
+    function RedraftRoomReadPanel({ state, dispatch }) {
+        const read = React.useMemo(() => window.DraftCC?.liveDecisionEngine?.buildRedraftRoomRead?.(state), [
+            state.pool, state.originalPool, state.picks, state.draftedPids, state.currentIdx,
+            state.pickOrder, state.personas, state.draftContext, state.userRosterId, state.userSlot,
+            state.redraftBroadcast?.watchPids, state.redraftBroadcast?.forecasts,
+            state.mode, state.variant, state.draftMechanic, state.auctionPoolSource, state.playerCopies, state.sleeperDraftId,
+        ]);
+        const [selectedPid, setSelectedPid] = React.useState('');
+        const [soundOn, setSoundOn] = React.useState(false);
+        const audioRef = React.useRef(null);
+        const takenRef = React.useRef(null);
+        const quiet = !!state.redraftBroadcast?.quiet;
+        React.useEffect(() => {
+            const taken = new Set((read?.watch || []).filter(w => w.taken && !w.yours).map(w => String(w.player.pid)));
+            const newlyTaken = takenRef.current && [...taken].some(pid => !takenRef.current.has(pid));
+            takenRef.current = taken;
+            if (!newlyTaken || quiet || !soundOn || audioRef.current?.state !== 'running') return;
+            const audio = audioRef.current;
+            const tone = audio.createOscillator(); const gain = audio.createGain();
+            tone.connect(gain); gain.connect(audio.destination);
+            tone.frequency.value = 440; gain.gain.setValueAtTime(0.035, audio.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.18);
+            tone.start(); tone.stop(audio.currentTime + 0.2);
+        }, [read, quiet, soundOn]);
+        React.useEffect(() => () => { audioRef.current?.close().catch(() => {}); }, []);
         if (!read) return null;
         const label = slot => mockPickLabel(slot, state.leagueSize);
+        const watchPids = state.redraftBroadcast?.watchPids || [];
+        const onDeck = !read.isAuction && read.next && read.next.picksAway <= 2;
+        const toggleSound = async () => {
+            if (soundOn) { setSoundOn(false); return; }
+            try {
+                const Audio = window.AudioContext || window.webkitAudioContext;
+                if (!Audio) return;
+                audioRef.current = audioRef.current || new Audio();
+                await audioRef.current.resume();
+                setSoundOn(true);
+            } catch (_) { setSoundOn(false); }
+        };
         return (
-            <section className="mock-panel redraft-room-read">
+            <section className={'mock-panel redraft-room-read' + (quiet ? ' is-quiet' : '')}>
                 <div className="mock-panel-head"><span>Alex · Redraft Room Read</span><em>{state.picks?.length || 0} picks synced</em></div>
                 <div className="redraft-room-body">
-                    {read.commentary.map(text => <p key={text}>{text}</p>)}
+                    <div className="redraft-broadcast-controls">
+                        <button type="button" aria-pressed={quiet} onClick={() => dispatch?.({ type: 'REDRAFT_QUIET_TOGGLE' })}>{quiet ? 'Quiet mode on' : 'Quiet mode off'}</button>
+                        <button type="button" aria-pressed={soundOn} disabled={quiet} onClick={toggleSound}>{soundOn ? 'Target sound on' : 'Target sound off'}</button>
+                    </div>
+                    {onDeck && <div className="redraft-on-deck" role="status">
+                        <strong>{read.next.picksAway === 0 ? "You're on the clock" : 'On deck · ' + read.next.picksAway + (read.next.picksAway === 1 ? ' pick away' : ' picks away')}</strong>
+                        <p>{label(read.next.slot)} · Your shortlist</p>
+                        <div className="redraft-shortlist">{read.shortlist.map(p => <button type="button" key={p.pid} onClick={() => mockOpenPlayer(p)}>{p.name}<small>{p.pos} · DHQ {mockFmt(p.dhq)}</small></button>)}</div>
+                    </div>}
+                    <div className="redraft-focus-grid"><section className="redraft-target-section">
+                    <h4>★ Target radar</h4>
+                    <details className="redraft-add-target"><summary>+ Track a player</summary>
+                    <div className="redraft-watch-picker">
+                        <select aria-label="Choose a player to track" value={selectedPid} onChange={e => setSelectedPid(e.target.value)}>
+                            <option value="">Choose a player…</option>
+                            {(state.pool || []).filter(p => !watchPids.includes(String(p.pid))).map(p => <option key={p.pid} value={p.pid}>{p.name} · {p.pos}</option>)}
+                        </select>
+                        <button type="button" disabled={!selectedPid || watchPids.length >= 5} onClick={() => { dispatch?.({ type: 'REDRAFT_WATCH_TOGGLE', pid: selectedPid }); setSelectedPid(''); }}>Track</button>
+                    </div>
+                    <small>Up to five tracked players, plus your board targets.</small></details>
+                    {!read.watch.length && <p className="redraft-empty-radar">Track a player to see who might take him before your turn.</p>}
+                    <div className="redraft-watch-list">
+                        {read.watch.map(w => <article key={w.player.pid} className={'redraft-watch-card' + (w.taken && !w.yours ? ' is-taken' : '')}>
+                            <div><span className="redraft-pos-chip" data-pos={w.player.pos}>{w.player.pos}</span><button type="button" onClick={() => mockOpenPlayer(w.player)}>{w.player.name}</button><strong data-risk={w.risk}>{w.risk}</strong></div>
+                            <details><summary>{w.taken ? (w.yours ? '✓ You got him' : 'Taken by ' + w.owner) : w.threats.length ? w.threats.length + ' potential snipers · why?' : 'Will he make it back? · why?'}</summary>
+                            <p>{w.taken ? (w.yours ? 'You landed your target.' : 'Selected by ' + w.owner + '.')
+                                : w.threats.length ? w.threats.map(f => f.team + ' at ' + label(f.slot) + (String(f.player.pid) === String(w.player.pid) ? ' is projected to take him' : ' has him as an alternative')).join('; ') + '.'
+                                    : w.risk === 'Available now' ? 'Still on the board for your selection.'
+                                        : w.risk === 'Unknown' ? 'No reliable next-turn forecast is available.'
+                                            : read.fullHorizon ? 'He survives this projected sequence. Another manager can still change the plan.' : 'The forecast does not cover every pick before your turn yet.'}</p></details>
+                            {!w.yours && w.backup && <p>Backup: <button type="button" onClick={() => mockOpenPlayer(w.backup)}>{w.backup.name}</button> · {w.backup.pos}</p>}
+                            {watchPids.includes(String(w.player.pid)) ? <button type="button" className="redraft-untrack" onClick={() => dispatch?.({ type: 'REDRAFT_WATCH_TOGGLE', pid: w.player.pid })}>Stop tracking</button> : <small>Board target</small>}
+                        </article>)}
+                    </div>
+                    </section><section className="redraft-next-section">
                     {!read.isAuction && <>
-                        <h4>{read.next?.picksAway === 0 ? "You're on the clock" : 'Who goes next'}</h4>
+                        <h4>{read.next?.picksAway === 0 ? 'Your pick is next' : '→ Next off the board'}</h4>
                         <div className="redraft-forecast-list">
                             {read.forecasts.map(f => <div className="redraft-forecast-row" key={f.slot.overall}>
                                 <span>{label(f.slot)}</span>
-                                <div><strong>{f.team}</strong><small>{f.reason}</small></div>
-                                <div><button type="button" onClick={() => mockOpenPlayer(f.player)}>{f.player.name}</button><small>{f.confidence}{f.alternative ? ' · Also watch ' + f.alternative.name : ''}</small></div>
+                                <div><strong>{f.team}</strong></div>
+                                <div><span className="redraft-pos-chip" data-pos={f.player.pos}>{f.player.pos}</span><button type="button" onClick={() => mockOpenPlayer(f.player)}>{f.player.name}</button><small>{f.confidence}</small><details><summary>Why this pick?</summary><small>{f.reason}{f.alternative ? ' · Alternative: ' + f.alternative.name : ''}</small></details></div>
                             </div>)}
                         </div>
-                        {!!read.targets.length && <p className="redraft-target-watch"><strong>Target watch: </strong>{read.targets.map(f => f.player.name + ' → ' + f.team + ' at ' + label(f.slot)).join('; ')}. Have a backup ready.</p>}
-                        {!!read.survivors.length && <p><strong>{read.fullHorizon ? 'Projected options at ' + label(read.next.slot) : read.next?.picksAway === 0 ? 'Available now' : 'Options after this forecast'}: </strong>{read.survivors.map(p => p.name + ' (' + p.pos + ')').join(' · ')}</p>}
+                        {!onDeck && !!read.survivors.length && <><h4>{read.fullHorizon ? 'Could reach you at ' + label(read.next.slot) : 'After this forecast'}</h4><div className="redraft-shortlist">{read.survivors.map(p => <button key={p.pid} type="button" onClick={() => mockOpenPlayer(p)}><span className="redraft-pos-chip" data-pos={p.pos}>{p.pos}</span>{p.name}</button>)}</div></>}
                     </>}
                     {read.isAuction && <p>Sales and roster builds update after each purchase. Auction nominations do not follow a predictable player order.</p>}
-                    <small className="redraft-forecast-basis">{read.basis}</small>
+                    </section></div>
+                    {!quiet && <details className="redraft-league-wire"><summary>◉ League wire · {read.commentary.length} reads{read.stories.length ? ' · ' + read.stories.length + ' storylines' : ''}</summary>{read.commentary.map(text => <p key={text}>{text}</p>)}<div className="redraft-stories">{read.stories.map(s => <div key={s.rosterId}><strong>{s.team} · {s.title}</strong><small>{s.text}</small></div>)}</div></details>}
+                    {!read.isAuction && <details className="redraft-scorecard">
+                        <summary><span>Prediction scorecard</span><span className="redraft-score-chip">{read.scorecard.hits}/{read.scorecard.total} exact hits</span><span className="redraft-score-chip">{read.scorecard.alternates} alternates</span><span className="redraft-score-chip">{read.scorecard.surprises} surprises</span></summary>
+                        <p>Only opponent predictions locked before a pick reaches this device count. Joining late never backfills predictions. Pending picks and changed owners are excluded.</p>
+                        {read.scorecard.rows.slice(0, 8).map(r => <div key={r.overall} className="redraft-score-row"><strong>#{r.overall} · {r.outcome}</strong><span>Called {r.player.name}{r.actual ? ' → selected ' + r.actual.name : ' · waiting for the real pick'}</span><small>Original read: {r.reason}</small></div>)}
+                        {!read.scorecard.rows.length && <p>The scorecard starts with the next opponent pick observed while this room is open.</p>}
+                    </details>}
+                    <details className="redraft-method"><summary>How these estimates work</summary><small className="redraft-forecast-basis">{read.basis}</small></details>
                 </div>
             </section>
         );
     }
 
     function LiveSyncCommandReadPanel({ state, liveSync, currentSlot, nextUserSlot, trendText, dispatch, inline = false }) {
-        if (isRedraftLive(state)) return <RedraftRoomReadPanel state={state} />;
+        if (isRedraftLive(state)) return <RedraftRoomReadPanel state={state} dispatch={dispatch} />;
         const status = liveSync?.status || 'idle';
         const color = status === 'mirroring' ? 'var(--k-2ecc71, #2ecc71)'
             : status === 'waiting' ? 'var(--k-f0a500, #f0a500)'
@@ -7939,7 +8024,7 @@
                         calc(60px + var(--wr-bottom-inset)) at ≤767 (index.html phone
                         tier) — do not double-pad here. */}
                     <MobileClockBar state={state} currentSlot={currentSlot} isUserTurn={isUserTurn} />
-                    {isRedraftLive(state) && <RedraftRoomReadPanel state={state} />}
+                    {isRedraftLive(state) && <RedraftRoomReadPanel state={state} dispatch={dispatch} />}
                     <div style={{ minHeight: 320, maxHeight: '56vh', marginBottom: 10 }}>
                         <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={true} />
                     </div>
@@ -8021,7 +8106,7 @@
                     DraftCast bar, tabs, and bottom chips all stay on screen. */}
                 {phTab === 'feed' && (
                     <div style={{ height: '56dvh', minHeight: 300, overflowY: 'auto' }}>
-                        {isRedraftLive(state) && <RedraftRoomReadPanel state={state} />}
+                        {isRedraftLive(state) && <RedraftRoomReadPanel state={state} dispatch={dispatch} />}
                         <DraftRoomFeed state={state} heightStyle={isRedraftLive(state) ? {} : { height: '56dvh', minHeight: 300 }}
                             emptyText="The feed starts when the first pick lands — picks and Alex's reads land here in order. Swipe left for the Big Board." />
                     </div>

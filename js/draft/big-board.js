@@ -670,6 +670,7 @@
                                                 {tag && <span style={{ color: tag.color, fontSize: MICRO, fontWeight: 800, fontFamily: FONT_UI, border: '1px solid ' + wrAlpha(tag.color, '55'), background: wrAlpha(tag.color, '18'), borderRadius: '3px', padding: '2px 5px', whiteSpace: 'nowrap' }}>{tag.label}</span>}
                                                 {p._copies > 1 && p._copiesTaken > 0 && remaining > 0 && <span style={{ color: remaining === 1 ? 'var(--k-f0a500, #f0a500)' : 'var(--k-2ecc71, #2ecc71)', fontSize: MICRO, fontWeight: 800, fontFamily: FONT_MONO, whiteSpace: 'nowrap' }}>{p._copiesTaken}/{p._copies}</span>}
                                                 {canPick && !p._drafted ? phDraftBtn(p) : null}
+                                                {window.DraftCC?.liveDecisionEngine?.isRedraftLive?.(state) && !p._drafted && <button type="button" aria-label={'Track ' + p.name} aria-pressed={(state.redraftBroadcast?.watchPids || []).includes(String(p.pid))} onClick={e => { e.stopPropagation(); dispatch({ type: 'REDRAFT_WATCH_TOGGLE', pid: p.pid }); }}>{(state.redraftBroadcast?.watchPids || []).includes(String(p.pid)) ? '★ Tracking' : 'Track'}</button>}
                                             </span>
                                         ),
                                         accent: b.tag === 'must' || b.tag === 'target' ? 'gold' : b.tag === 'avoid' ? 'risk' : undefined,
