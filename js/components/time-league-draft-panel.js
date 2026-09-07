@@ -15,7 +15,6 @@
     const Roster = window.App.TimeLeagueRoster;
 
     const POSITION_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
-    const BOARD_ROW_LIMIT = 150;
     const DECADE_BY_ID = new Map(EraRules.ERA_DECADES.map((d) => [d.id, d]));
     const positionRank = (position) => { const i = POSITION_ORDER.indexOf(position); return i === -1 ? POSITION_ORDER.length : i; };
 
@@ -147,6 +146,9 @@
         const [selectedIdentity, setSelectedIdentity] = useState(null);
         const [showBoardGrid, setShowBoardGrid] = useState(false);
         const [note, setNote] = useState('');
+        const [boardLimit, setBoardLimit] = useState(24);
+        const scoutRef = useRef(null);
+        useEffect(() => setBoardLimit(24), [query, positionFilter]);
 
         const seat = useMemo(() => Engine.currentDraftSeat(league), [league]);
         const drafted = useMemo(() => Engine.draftedIdentities(league), [league]);
@@ -242,9 +244,9 @@
             const term = query.trim().toLowerCase();
             return available.filter(({ card }) => (positionFilter === 'ALL' || card.position === positionFilter) && (!term || card.name.toLowerCase().includes(term)));
         }, [available, positionFilter, query]);
-        const visible = filtered.slice(0, BOARD_ROW_LIMIT);
+        const visible = filtered.slice(0, boardLimit);
 
-        const selectedCard = (selectedIdentity ? cards.get(selectedIdentity) : undefined) ?? visible[0]?.card ?? available[0]?.card ?? null;
+        const selectedCard = (selectedIdentity && !drafted.has(selectedIdentity) ? cards.get(selectedIdentity) : undefined) ?? visible[0]?.card ?? available[0]?.card ?? null;
         const queueCards = useMemo(() => (humanTeam
             ? humanTeam.queue.map((id) => cards.get(id)).filter((c) => c && !drafted.has(c.identity))
             : []), [cards, drafted, humanTeam]);
@@ -292,12 +294,13 @@
             return { ...state, teams: state.teams.map((t) => (t.queue.some((id) => taken.has(id)) ? { ...t, queue: t.queue.filter((id) => !taken.has(id)) } : t)) };
         };
 
-        function draftCard(card, madeBy) {
+        async function draftCard(card, madeBy) {
             if (onlineMeta && draftBlockReason(card)) return;
             const next = Engine.applyDraftPick(league, card, { madeBy, createdAt: new Date().toISOString() });
             if (next === league) { setNote(`${card.name} could not be drafted — ${draftBlockReason(card) ?? 'the engine rejected the pick'}.`); return; }
             setNote('');
-            onUpdate(stripDraftedFromQueues(next), { type: 'draft', identity: card.identity });
+            const saved = await onUpdate(stripDraftedFromQueues(next), { type: 'draft', identity: card.identity });
+            if (saved !== false) { setNote(`${card.name} — locked in!`); setSelectedIdentity(null); }
         }
 
         function simAiPick() {
@@ -451,7 +454,8 @@
 
         return h('div', null,
             eraBanner,
-            h('div', { className: 'tl-card' },
+            h('div', { className: `tl-card tl-on-clock${myTurn ? ' your-turn' : ''}` },
+                h('div', { className: 'tl-draft-progress', 'aria-label': `Draft ${Math.round(league.draftPicks.length / league.draftOrder.length * 100)} percent complete` }, h('span', { style: { width: `${league.draftPicks.length / league.draftOrder.length * 100}%` } })),
                 h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 } },
                     seat ? h('div', { className: 'tl-clock-ring' }) : null,
                     onClockTeam && h(window.TimeLeagueHelmetIcon, { helmet: onClockTeam.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(onClockTeam.name), size: 34, title: onClockTeam.name }),
@@ -459,25 +463,35 @@
                         h('div', { style: { fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: 15 } }, seat && onClockTeam ? `On the clock — ${onClockTeam.name}` : 'Draft complete'),
                         h('small', { style: { color: 'var(--text-muted)' } }, seat ? `Pick ${seat.overall}/${league.draftOrder.length} · ${pickLabel(league.draftOrder, seat.overall, seat.round)}` : `${league.draftPicks.length} picks recorded`))),
                 h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' } },
-                    onClockTeam && (humanOnClock ? h('span', { className: 'tl-pill gold' }, 'Human') : h('span', { className: 'tl-pill info' }, `AI · ${persona ? persona.label : 'GM'}`)),
+                    onClockTeam && (humanOnClock ? h('span', { className: 'tl-pill gold' }, myTurn ? '✦ YOU’RE UP' : 'ON THE CLOCK') : h('span', { className: 'tl-pill info' }, `AI · ${persona ? persona.label : 'GM'}`)),
                     !humanOnClock && persona && h('p', { style: { fontStyle: 'italic', fontSize: 12, color: 'var(--text-faint, rgba(189,184,173,0.6))', margin: 0 } }, `"${persona.tell}"`),
                     humanOnClock && h('p', { style: { fontSize: 12, color: 'var(--text-secondary)', margin: 0 } }, myTurn ? 'Your pick — draft from the big board or scout file.' : `Waiting for ${onClockTeam.name} to pick.`),
                     onClockTeam && !humanOnClock && canSim && h('div', { style: { display: 'flex', gap: 8, marginLeft: 'auto' } },
                         h('button', { className: 'tl-btn', onClick: simAiPick }, '▶ Sim pick'),
                         h('button', { className: 'tl-btn', onClick: simToMyPick }, '⏭ Sim to my pick'))),
-                note && h('p', { style: { fontSize: 12, color: 'var(--warn)', marginTop: 8 } }, note)),
+                note && h('p', { className: 'tl-pick-feedback', role: 'status', style: { fontSize: 12, color: 'var(--warn)', marginTop: 8 } }, note)),
 
-            h('div', { className: 'tl-grid-2' },
+            selectedCard && h('div', { className: 'tl-draft-dock' },
+                h('button', { className: 'tl-dock-player', onClick: () => scoutRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' }), 'aria-label': `Scout ${selectedCard.name}` },
+                    h('span', { className: `tl-pos-badge tl-pos-${selectedCard.position}` }, selectedCard.position), h('span', null, h('small', null, myTurn ? 'YOUR NEXT LEGEND?' : 'SCOUT WHILE YOU WAIT'), h('b', null, selectedCard.name))),
+                h('button', { className: 'tl-btn primary', 'aria-label': `Draft ${selectedCard.name}`, disabled: !canDraftSelected, onClick: () => draftCard(selectedCard, 'human') }, 'Draft', h('span', { 'aria-hidden': 'true' }, '↗'))),
+            h('div', { className: 'tl-grid-2 tl-draft-grid' },
                 h('div', null,
-                    h('div', { className: 'tl-card' },
-                        h('div', { className: 'tl-card-title' }, h('span', null, 'Big board'), h('small', null, `${visible.length} of ${available.length} ${eraRestricted ? 'era-eligible' : 'available'}`)),
+                    h('div', { className: 'tl-card tl-player-board' },
+                        h('div', { className: 'tl-card-title' }, h('span', null, 'Find your next legend'), h('small', null, `${visible.length} of ${filtered.length} ${query.trim() || positionFilter !== 'ALL' ? 'matching' : eraRestricted ? 'era-eligible' : 'available'}`)),
                         h('div', { style: { display: 'flex', gap: 8, marginBottom: 10 } },
                             h('input', { className: 'tl-input', value: query, onChange: (e) => setQuery(e.target.value), placeholder: 'Search player', 'aria-label': 'Search players' }),
                             h('select', { className: 'tl-select', style: { width: 130 }, value: positionFilter, onChange: (e) => setPositionFilter(e.target.value), 'aria-label': 'Filter position' },
                                 h('option', { value: 'ALL' }, 'ALL POS'), positions.map((p) => h('option', { key: p, value: p }, p)))),
+                        h('div', { className: 'tl-mobile-player-list' }, visible.map(({ card, rank, draw }) => h('div', { key: card.identity, className: `tl-mobile-player${selectedCard?.identity === card.identity ? ' selected' : ''}`, 'data-position': card.position },
+                            h('button', { className: 'tl-mobile-player-pick', 'aria-pressed': selectedCard?.identity === card.identity, onClick: () => setSelectedIdentity(card.identity) },
+                                h('span', { className: 'tl-player-number' }, h('small', null, String(rank).padStart(2, '0')), h('b', null, card.position)),
+                                h('span', { className: 'tl-player-name' }, h('b', null, card.name), h('small', null, `${eraRestricted ? draw : seasonSpan(card)} · Mystery season`)),
+                                h('span', { className: 'tl-player-peak' }, h('b', null, Math.round(card.peak)), h('small', null, 'PEAK'))),
+                            h('button', { className: 'tl-player-star', 'aria-label': `${humanTeam?.queue.includes(card.identity) ? 'Unqueue' : 'Queue'} ${card.name}`, 'aria-pressed': Boolean(humanTeam?.queue.includes(card.identity)), disabled: !humanTeam, onClick: () => toggleQueueFor(card.identity) }, humanTeam?.queue.includes(card.identity) ? '★' : '☆')))),
                         visible.length === 0
                             ? h('p', { className: 'tl-empty' }, cards.size === 0 ? 'No player cards loaded.' : eraRestricted && available.length === 0 ? "No player on file clears this league's era rule — the pool is empty." : 'No available players match the filters.')
-                            : h('div', { style: { maxHeight: 420, overflowY: 'auto' } }, h('table', { className: 'tl-tbl' },
+                            : h('div', { className: 'tl-desktop-player-board', style: { maxHeight: 520, overflowY: 'auto' } }, h('table', { className: 'tl-tbl' },
                                 h('thead', null, h('tr', null, h('th', { className: 'num' }, 'Rk'), h('th', null, 'Player'), h('th', null, 'Pos'), h('th', null, eraRestricted ? 'Draw' : 'Seasons'), h('th', { className: 'num' }, 'Peak'), h('th', { className: 'num' }, 'G'), h('th', null, 'Q'))),
                                 h('tbody', null, visible.map(({ card, rank, draw }) => {
                                     const queued = Boolean(humanTeam?.queue.includes(card.identity));
@@ -491,10 +505,11 @@
                                             onClick: (e) => { e.stopPropagation(); toggleQueueFor(card.identity); },
                                         }, '★')));
                                 }))))),
+                    filtered.length > visible.length && h('button', { className: 'tl-btn tl-show-more', onClick: () => setBoardLimit(value => value + 24) }, `Show more legends · ${filtered.length - visible.length} more`),
                     draftLog),
                 h('div', null,
                     h(OpponentIntel, { league, humanTeam, onClockTeamId: seat?.teamId }),
-                    h('div', { className: 'tl-card' },
+                    h('div', { className: 'tl-card tl-scout-file', ref: scoutRef },
                         h('div', { className: 'tl-card-title' }, h('span', null, 'Scout file'), h('small', null, selectedCard ? (scoutHidden > 0 ? `${scoutSeasons.length} of ${selectedCard.seasons.length} seasons draftable` : `${scoutSeasons.length} seasons on record`) : 'no selection')),
                         selectedCard ? h(React.Fragment, null,
                             h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10 } },

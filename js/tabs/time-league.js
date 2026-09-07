@@ -818,6 +818,28 @@
         `);
     }
 
+    function MobileGameNav({ tabs, activeTab, onNavigate }) {
+        const [expanded, setExpanded] = useState(false);
+        useEffect(() => {
+            if (!expanded) return undefined;
+            const close = event => { if (event.key === 'Escape') setExpanded(false); };
+            window.addEventListener('keydown', close);
+            return () => window.removeEventListener('keydown', close);
+        }, [expanded]);
+        const primary = tabs.includes('home') ? ['home', 'roster', 'gameday', 'waivers'] : ['draft', 'activity'];
+        const extra = tabs.filter(tab => !primary.includes(tab));
+        const labels = { home: 'Home', roster: 'My team', gameday: 'Game day', waivers: 'Players', draft: 'Draft', activity: 'Activity', trades: 'Trades', achievements: 'Trophies', standings: 'Standings' };
+        const choose = tab => { setExpanded(false); onNavigate(tab); };
+        return h(React.Fragment, null,
+            expanded && h('div', { className: 'tl-mobile-more', id: 'vault-more-navigation' },
+                h('div', { className: 'tl-card-title' }, 'More ways to play', h('button', { className: 'tl-btn icon', 'aria-label': 'Close more navigation', onClick: () => setExpanded(false) }, '×')),
+                h('div', null, extra.map(tab => h('button', { key: tab, onClick: () => choose(tab), 'aria-current': activeTab === tab ? 'page' : undefined }, h('span', { 'aria-hidden': 'true' }, TAB_ICONS[tab]), labels[tab])))),
+            h('nav', { className: 'tl-mobile-nav', 'aria-label': 'Vault game navigation' },
+                primary.map(tab => h('button', { key: tab, className: activeTab === tab ? 'active' : '', 'aria-current': activeTab === tab ? 'page' : undefined, onClick: () => choose(tab) },
+                    h('span', { 'aria-hidden': 'true' }, TAB_ICONS[tab]), h('b', null, labels[tab]))),
+                extra.length > 0 && h('button', { className: expanded || extra.includes(activeTab) ? 'active' : '', 'aria-expanded': expanded, 'aria-controls': 'vault-more-navigation', onClick: () => setExpanded(value => !value) }, h('span', { 'aria-hidden': 'true' }, '•••'), h('b', null, 'More'))));
+    }
+
     function FriendsRoom({ league, meta, saving, onAction, onReady }) {
         const [copied, setCopied] = useState('');
         const [teamName, setTeamName] = useState('');
@@ -826,7 +848,7 @@
         const allJoined = meta.members.length > 0 && meta.members.every(m => m.joined);
         const ready = member?.ready_week === league.currentWeek;
         const linkFor = code => `${window.location.origin}${window.location.pathname}?tl_invite=${encodeURIComponent(code)}`;
-        return h('section', { className: 'tl-card', style: { marginBottom: 16 } },
+        return h('section', { className: 'tl-card tl-friends-room', style: { marginBottom: 16 } },
             h('div', { className: 'tl-card-title' }, h('span', null, meta.draftStarted ? 'Friends league' : 'Draft waiting room'), h('small', null, `${meta.members.filter(m => m.joined).length}/${meta.members.length} joined`)),
             h(window.TimeLeagueHelmetPicker, { helmet: mine?.helmet, name: mine?.name, letter: window.App.TimeLeagueHelmet.monogramFor(mine?.name || ''), onChange: helmet => onAction({ type: 'team', teamId: meta.seatTeamId, name: mine.name, helmet }) }),
             h('p', null, `Your team: ${mine?.name || meta.seatTeamId}${meta.role === 'commissioner' ? ' · Commissioner' : ''}`),
@@ -835,8 +857,8 @@
                 h('button', { className: 'tl-btn', disabled: saving || !teamName.trim(), onClick: async () => { if (await onAction({ type: 'team', teamId: meta.seatTeamId, name: teamName })) setTeamName(''); } }, 'SAVE TEAM NAME')),
             meta.members.map(m => {
                 const team = league.teams.find(t => t.teamId === m.seat_team_id);
-                return h('div', { key: m.id, style: { padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.08)' } },
-                    h('b', null, team?.name || m.seat_team_id), ' · ', m.joined ? (league.phase === 'season' ? m.ready_week === league.currentWeek ? 'Lineup ready' : 'Setting lineup' : 'Joined') : 'Waiting for friend',
+                return h('div', { key: m.id, className: `tl-friend-seat${m.joined ? ' joined' : ''}`, style: { padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.08)' } },
+                    h(window.TimeLeagueHelmetIcon, { helmet: team?.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team?.name || ''), size: 36 }), h('b', null, team?.name || m.seat_team_id), ' · ', m.joined ? (league.phase === 'season' ? m.ready_week === league.currentWeek ? 'Lineup ready' : 'Setting lineup' : 'Joined') : 'Waiting for friend',
                     m.invite_code && h('div', { style: { display: 'flex', gap: 8, marginTop: 6, minWidth: 0 } },
                         h('input', { className: 'tl-input', readOnly: true, 'aria-label': `Invite ${team?.name}`, value: linkFor(m.invite_code), onFocus: e => e.target.select() }),
                         h('button', { className: 'tl-btn', onClick: async () => { try { await navigator.clipboard.writeText(linkFor(m.invite_code)); setCopied(m.id); } catch { setCopied('manual'); } } }, copied === m.id ? 'COPIED' : 'COPY LINK')));
@@ -854,6 +876,10 @@
         const [index, setIndex] = useState([]);
         const [league, setLeague] = useState(null);
         const [tab, setTab] = useState('home');
+        const navigateTab = nextTab => {
+            setTab(nextTab);
+            window.requestAnimationFrame(() => document.querySelector('.tl-root')?.scrollIntoView({ block: 'start', behavior: 'auto' }));
+        };
         const [activeTeamId, setActiveTeamId] = useState('');
         const [cards, setCards] = useState(null);
         const [logIndex, setLogIndex] = useState(null);
@@ -1068,7 +1094,7 @@
         const HomePanel = window.WrTimeLeagueHomePanel;
 
         if (!league) {
-            return h('div', { className: 'tl-root' },
+            return h('div', { className: 'tl-root tl-play' },
                 h(TimeLeagueStyles, null),
                 h('div', { className: 'tl-lobby-wrap' },
                     h('div', { className: 'tl-header tl-lobby-header' },
@@ -1100,7 +1126,7 @@
             ? h('div', { className: 'tl-card' }, h('p', { className: 'tl-empty' }, 'Loading player cards…'))
             : h('div', { className: 'tl-card' }, h('p', { className: 'tl-empty tl-pill bad' }, 'Player cards missing — check data/time-league/.'));
 
-        return h('div', { className: 'tl-root' },
+        return h('div', { className: 'tl-root tl-play' },
             h(TimeLeagueStyles, null),
             h('nav', { className: 'tl-sidenav' },
                 h('div', { className: 'tl-sidenav-brand' },
@@ -1108,9 +1134,10 @@
                         h('span', { className: 'tl-sidenav-crest' }, 'V'),
                         h('span', null, h('strong', null, 'THE VAULT'), h('small', null, 'Fantasy through time')))),
                 tabs.map((item) => h('button', {
-                    key: item, type: 'button', className: `tl-tabbtn${item === activeTab ? ' active' : ''}`, onClick: () => setTab(item),
+                    key: item, type: 'button', className: `tl-tabbtn${item === activeTab ? ' active' : ''}`, onClick: () => navigateTab(item),
                 }, h('span', { className: 'tl-tab-icon', 'aria-hidden': 'true' }, TAB_ICONS[item]),
                 h('span', null, item === 'draft' && league.phase !== 'draft' ? 'DRAFT RECAP' : TAB_LABELS[item])))),
+            h(MobileGameNav, { tabs, activeTab, onNavigate: navigateTab }),
             h('div', { className: 'tl-main' }, h('div', { className: 'tl-main-inner' },
                 h('div', { className: 'tl-card tl-header' },
                     h('div', null,
@@ -1145,10 +1172,10 @@
                     },
                 }),
                 h('fieldset', { disabled: saving || Boolean(onlineMeta && !onlineMeta.draftStarted), style: { border: 0, padding: 0, margin: 0, minWidth: 0 } },
-                activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: setTab, seatTeamId: onlineMeta?.seatTeamId }) : null,
+                activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: onlineMeta?.seatTeamId }) : null,
                 activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, { league, cards, onUpdate: handleUpdate, onlineMeta }) : loadingNotice) : null,
                 activeTab === 'gameday' && GamecastPanel ? h(GamecastPanel, {
-                    league, cards, logIndex, logsMissing, eraFactors, onlineMeta, onUpdate: handleUpdate, onGoRoster: () => setTab('roster'),
+                    league, cards, logIndex, logsMissing, eraFactors, onlineMeta, onUpdate: handleUpdate, onGoRoster: () => navigateTab('roster'),
                 }) : null,
                 (activeTab === 'roster' || activeTab === 'waivers' || activeTab === 'trades' || activeTab === 'achievements')
                     ? (cardsReady && TeamPanel
