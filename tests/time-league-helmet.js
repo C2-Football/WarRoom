@@ -57,6 +57,24 @@ test('monogramFor uses both ends of a team name', () => {
     assert.strictEqual(Helmet.monogramFor(''), '?');
 });
 
+test('club marks and custom initials survive a saved-spec round trip', () => {
+    for (const decal of Helmet.DECAL_STYLES) {
+        const spec = Helmet.normalizeHelmet({ ...Helmet.presetHelmet('ice-wolves'), decal: decal.id, monogram: 'n7!' }, 'saved-team');
+        const restored = Helmet.normalizeHelmet(JSON.parse(JSON.stringify(spec)), 'saved-team');
+        assert.strictEqual(restored.decal, decal.id);
+        assert.strictEqual(restored.monogram, 'N7');
+        assert.deepStrictEqual(restored, spec);
+    }
+    assert.strictEqual(Helmet.normalizeHelmet({ monogram: 'abcd' }).monogram, 'ABC');
+});
+
+test('editing a complete legacy helmet preserves its chosen identity', () => {
+    const legacy = { ...Helmet.presetHelmet('midnight'), accentColor: '#ABCDEF', stripeColor: '#123456', facemask: 'double', facemaskColor: '#F0C43C' };
+    const normalized = Helmet.normalizeHelmet(legacy, 'existing-team');
+    for (const [key, value] of Object.entries(legacy)) assert.strictEqual(normalized[key], value, key);
+    assert.strictEqual(normalized.monogram, '');
+});
+
 console.log('');
 if (failed) {
     console.log('FAIL: ' + failed + ' of ' + (passed + failed) + ' tests failed');

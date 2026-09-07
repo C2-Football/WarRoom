@@ -53,6 +53,12 @@
         { id: 'bolt', label: 'Bolt', mark: 'ϟ' },
         { id: 'wing', label: 'Wing', mark: '≋' },
         { id: 'shield', label: 'Shield', mark: '◇' },
+        { id: 'falcon', label: 'Falcon', mark: '' },
+        { id: 'wolf', label: 'Wolfpack', mark: '' },
+        { id: 'bull', label: 'Stampede', mark: '' },
+        { id: 'crown', label: 'Crown', mark: '' },
+        { id: 'flame', label: 'Wildfire', mark: '' },
+        { id: 'trident', label: 'Trident', mark: '' },
         { id: 'blank', label: 'No Decal', mark: '—' },
     ];
     const STRIPE_STYLES = [
@@ -66,12 +72,18 @@
     const STRIPE_COLORS = ACCENT_COLORS.map((color) => color.hex);
 
     const HELMET_PRESETS = [
-        { id: 'blue-horseshoe', label: 'Blue Horseshoe', era: 'Pixel Classic', spec: { shell: 'round-70', color: 'white', accentColor: '#285DA8', decal: 'horseshoe', facemask: 'cage', facemaskColor: '#C5C7C9', stripeStyle: 'none', stripeColor: '#285DA8' } },
+        { id: 'blue-horseshoe', label: 'Blue Horseshoe', era: 'Heritage collection', spec: { shell: 'round-70', color: 'white', accentColor: '#285DA8', decal: 'horseshoe', facemask: 'cage', facemaskColor: '#C5C7C9', stripeStyle: 'none', stripeColor: '#285DA8' } },
         { id: 'sunday-gold', label: 'Sunday Gold', era: '1970s', spec: { shell: 'round-70', color: 'gold', accentColor: '#172A49', decal: 'wing', facemask: 'single', facemaskColor: '#C5C7C9', stripeStyle: 'single', stripeColor: '#172A49' } },
         { id: 'kelly-classic', label: 'Kelly Classic', era: '1970s', spec: { shell: 'round-70', color: 'kelly', accentColor: '#F4F1E8', decal: 'monogram', facemask: 'double', facemaskColor: '#F4F1E8', stripeStyle: 'double', stripeColor: '#F4F1E8' } },
-        { id: 'midnight', label: 'Monday Night', era: '1980s', spec: { shell: 'high-80', color: 'navy', accentColor: '#F0C43C', decal: 'star', facemask: 'double', facemaskColor: '#F0C43C', stripeStyle: 'triple', stripeColor: '#F0C43C' } },
+        { id: 'midnight', label: 'Monday Night', era: '1980s', spec: { shell: 'high-80', color: 'navy', accentColor: '#F0C43C', decal: 'star', facemask: 'double', facemaskColor: '#D7B13B', stripeStyle: 'triple', stripeColor: '#F0C43C' } },
         { id: 'royal-bolt', label: 'Royal Bolt', era: '1980s', spec: { shell: 'high-80', color: 'royal', accentColor: '#F4F1E8', decal: 'bolt', facemask: 'double', facemaskColor: '#F4F1E8', stripeStyle: 'single', stripeColor: '#F4F1E8' } },
         { id: 'silver-shield', label: 'Silver Shield', era: '1990s', spec: { shell: 'low-90', color: 'silver', accentColor: '#111216', decal: 'shield', facemask: 'cage', facemaskColor: '#111216', stripeStyle: 'double', stripeColor: '#111216' } },
+        { id: 'desert-falcon', label: 'Desert Falcons', era: 'Flight club', spec: { shell: 'round-70', color: 'cream', accentColor: '#B92E35', decal: 'falcon', facemask: 'cage', facemaskColor: '#111216', stripeStyle: 'none', stripeColor: '#B92E35' } },
+        { id: 'ice-wolves', label: 'Ice Wolves', era: 'Northern division', spec: { shell: 'round-70', color: 'powder', accentColor: '#F4F1E8', decal: 'wolf', facemask: 'cage', facemaskColor: '#F4F1E8', stripeStyle: 'double', stripeColor: '#F4F1E8' } },
+        { id: 'red-stampede', label: 'Red Stampede', era: 'Built for contact', spec: { shell: 'round-70', color: 'crimson', accentColor: '#F4F1E8', decal: 'bull', facemask: 'cage', facemaskColor: '#111216', stripeStyle: 'single', stripeColor: '#F4F1E8' } },
+        { id: 'purple-reign', label: 'Purple Reign', era: 'Royal treatment', spec: { shell: 'round-70', color: 'purple', accentColor: '#F0C43C', decal: 'crown', facemask: 'cage', facemaskColor: '#D7B13B', stripeStyle: 'triple', stripeColor: '#F0C43C' } },
+        { id: 'wildfire', label: 'Wildfire', era: 'Bring the heat', spec: { shell: 'round-70', color: 'black', accentColor: '#F0C43C', decal: 'flame', facemask: 'cage', facemaskColor: '#C5C7C9', stripeStyle: 'single', stripeColor: '#B92E35' } },
+        { id: 'tidal-force', label: 'Tidal Force', era: 'Coastal classics', spec: { shell: 'round-70', color: 'navy', accentColor: '#F4F1E8', decal: 'trident', facemask: 'cage', facemaskColor: '#F4F1E8', stripeStyle: 'double', stripeColor: '#F0C43C' } },
     ];
 
     function colorById(id) { return HELMET_COLORS.find((color) => color.id === id) || HELMET_COLORS[0]; }
@@ -83,24 +95,8 @@
 
     function buildHelmet(seedKey) {
         const random = Roster.createSeededRandom(`helmet:${seedKey}`);
-        const color = HELMET_COLORS[Math.floor(random() * HELMET_COLORS.length)];
-        const accentPool = ACCENT_COLORS.filter((accent) => accent.hex.toLowerCase() !== color.hex.toLowerCase());
-        const accent = accentPool[Math.floor(random() * accentPool.length)];
-        const shell = SHELL_STYLES[Math.floor(random() * SHELL_STYLES.length)];
-        const facemask = FACEMASK_STYLES[Math.floor(random() * 3)];
-        const decal = DECAL_STYLES[Math.floor(random() * (DECAL_STYLES.length - 1))];
-        const stripeStyle = ['single', 'double', 'triple'][Math.floor(random() * 3)];
-        return {
-            shell: shell.id,
-            color: color.id,
-            accentColor: accent.hex,
-            decal: decal.id,
-            facemask: facemask.id,
-            facemaskColor: FACEMASK_COLORS[Math.floor(random() * FACEMASK_COLORS.length)],
-            stripe: true,
-            stripeStyle,
-            stripeColor: accent.hex,
-        };
+        const preset = HELMET_PRESETS[Math.floor(random() * HELMET_PRESETS.length)];
+        return { ...preset.spec, stripe: preset.spec.stripeStyle !== 'none', monogram: '' };
     }
 
     function defaultHelmet(seedKey) { return buildHelmet(seedKey); }
@@ -114,8 +110,9 @@
             color: colorById(value.color || fallback.color).id,
             accentColor: safeHex(value.accentColor, fallback.accentColor),
             decal: decalById(value.decal || fallback.decal).id,
+            monogram: String(value.monogram || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3),
             facemask: facemaskById(value.facemask || fallback.facemask).id,
-            facemaskColor: FACEMASK_COLORS.includes(value.facemaskColor) ? value.facemaskColor : fallback.facemaskColor,
+            facemaskColor: safeHex(value.facemaskColor, fallback.facemaskColor),
             stripe: stripeStyle !== 'none',
             stripeStyle,
             stripeColor: safeHex(value.stripeColor, fallback.stripeColor),

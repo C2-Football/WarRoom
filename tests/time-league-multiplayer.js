@@ -16,6 +16,15 @@ test('host cannot simulate a human seat', () => assert.throws(() => run({ type: 
 test('friend cannot advance AI or game weeks', () => { for (const type of ['ai-run', 'ai-pick', 'week']) assert.throws(() => run({ type }, friend), /commissioner/); });
 test('queue and team identity are limited to owned seat', () => { for (const type of ['queue', 'team', 'lineup', 'auto-lineup', 'claim', 'trade']) assert.throws(() => run({ type, teamId: 't1' }, friend), /own team/); });
 test('friend can rename their team', () => { state = run({ type: 'team', teamId: 't2', name: 'Second Player' }, friend); assert.equal(state.teams[1].name, 'Second Player'); assert.equal(state.teams[0].name, 'Host'); });
+test('friend can save a new club mark and initials without changing another team', () => {
+  const hostHelmet = JSON.stringify(state.teams[0].helmet);
+  const helmet = { ...App.TimeLeagueHelmet.presetHelmet('ice-wolves'), monogram: 'ICE' };
+  state = run({ type: 'team', teamId: 't2', name: 'Second Player', helmet }, friend);
+  const restored = E.normalizeTimeLeague(JSON.parse(JSON.stringify(state)));
+  assert.equal(restored.teams[1].helmet.decal, 'wolf');
+  assert.equal(restored.teams[1].helmet.monogram, 'ICE');
+  assert.equal(JSON.stringify(state.teams[0].helmet), hostHelmet);
+});
 test('draft across two humans and AI completes without stealing a turn', () => {
   while (state.phase === 'draft') {
     const seat = E.currentDraftSeat(state);
