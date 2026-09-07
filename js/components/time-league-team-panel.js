@@ -148,6 +148,7 @@
     function WaiversSection({ league, cards, team, standings, apply }) {
         const [query, setQuery] = useState('');
         const [pos, setPos] = useState('ALL');
+        const [visibleCount, setVisibleCount] = useState(WIRE_ROW_CAP);
         const [targetIdentity, setTargetIdentity] = useState('');
         const [dropEntryId, setDropEntryId] = useState('');
         const [bidAmount, setBidAmount] = useState(0);
@@ -166,7 +167,7 @@
         const wireOpen = league.phase === 'season';
         const positions = POSITION_ORDER.filter((p) => pool.some((c) => c.position === p));
         const filtered = pool.filter((c) => (pos === 'ALL' || c.position === pos) && (!query.trim() || c.name.toLowerCase().includes(query.trim().toLowerCase())));
-        const shown = filtered.slice(0, WIRE_ROW_CAP);
+        const shown = filtered.slice(0, visibleCount);
         const target = targetIdentity ? cards.get(targetIdentity) : undefined;
         const alreadyClaimed = Boolean(target) && league.pendingClaims.some((c) => c.teamId === team.teamId && c.addIdentity === targetIdentity);
         const benchCap = league.settings.rosterSlots.BN ?? 0;
@@ -200,38 +201,44 @@
             finally { setFiling(false); }
         };
 
-        return h('div', { className: 'tl-grid-2' },
-            h('div', { className: 'tl-card' },
-                h('div', { className: 'tl-card-title' }, h('span', null, 'Free agent wire'), h('small', null, wireOpen ? `W${league.currentWeek} OPEN` : league.phase === 'draft' ? 'OPENS AFTER THE DRAFT' : 'SEASON COMPLETE')),
-                h('div', { style: { display: 'flex', gap: 8, marginBottom: 10 } },
-                    h('input', { className: 'tl-input', placeholder: 'Search the pool', value: query, onChange: (e) => setQuery(e.target.value) }),
-                    h('select', { className: 'tl-select', style: { width: 130 }, 'aria-label': 'Filter position', value: pos, onChange: (e) => setPos(e.target.value) },
-                        h('option', { value: 'ALL' }, 'ALL POS'), positions.map((p) => h('option', { key: p, value: p }, p)))),
-                shown.length === 0
-                    ? h('p', { className: 'tl-empty' }, 'Nothing on the wire matches that filter.')
-                    : h('div', { className: 'tl-tile-grid', style: { maxHeight: 420, overflowY: 'auto', paddingRight: 2 } }, shown.map((card, index) => {
-                        const best = card.seasons.find((s) => s.points === card.peak);
-                        const selected = card.identity === targetIdentity;
-                        return h('div', { key: card.identity, className: 'tl-player-tile', style: { '--era-color': UI.eraColorOf(best?.season), border: selected ? '1px solid var(--gold)' : undefined } },
-                            h('div', { className: 'tl-era-badge' }, '🏈'),
-                            h('div', { className: 'tl-p-body' },
-                                h('div', { className: 'tl-p-name' }, card.name, index < 3 ? h('span', { className: 'tl-top-pick-badge' }, '★ TOP PICK') : null),
-                                h('div', { className: 'tl-p-meta' },
-                                    h('span', { className: `tl-pos-badge tl-pos-${card.position}` }, card.position),
-                                    h('span', { className: 'tl-p-era' }, card.seasons.length ? `${card.seasons[0].season}–${card.seasons[card.seasons.length - 1].season}` : '—'))),
-                            h('div', { className: 'tl-p-pts tabular' }, fmt1(card.peak), h('small', null, `CAREER BEST · ${best ? best.season : '—'}`)),
-                            h('button', { className: 'tl-btn icon', disabled: !wireOpen, onClick: () => clearTarget(selected ? '' : card.identity) }, selected ? 'PICKED' : 'CLAIM'));
-                    })),
-                filtered.length > shown.length && h('p', { className: 'tl-hint', style: { marginTop: 8 } }, `Showing ${WIRE_ROW_CAP} of ${filtered.length} — refine the search`)),
-            h('div', null,
+        return h('div', { className: 'tl-waiver-desk' },
+            h('header', { className: 'tl-waiver-heading' },
+                h('div', null, h('span', { className: 'tl-label' }, 'FREE AGENCY'), h('h2', null, 'Find your next difference-maker')),
+                h('span', { className: 'tl-pill' }, wireOpen ? `W${league.currentWeek} · CLAIMS OPEN` : league.phase === 'draft' ? 'OPENS AFTER DRAFT' : 'SEASON COMPLETE')),
+            h('div', { className: 'tl-waiver-layout' },
+            h('section', { className: 'tl-card tl-waiver-market' },
+                h('div', { className: 'tl-card-title' }, h('span', null, 'Market explorer'), h('small', null, `${filtered.length} available players`)),
+                h('div', { className: 'tl-waiver-search' },
+                    h('input', { className: 'tl-input', placeholder: 'Search player name…', 'aria-label': 'Search free agents', value: query, onChange: e => { setQuery(e.target.value); setVisibleCount(WIRE_ROW_CAP); } }),
+                    h('span', { className: 'tl-label' }, 'SORT · CAREER BEST ↓')),
+                h('nav', { className: 'tl-waiver-filters', 'aria-label': 'Free agent positions' },
+                    ['ALL', ...positions].map(position => h('button', { key: position, className: `tl-btn${pos === position ? ' primary' : ''}`, 'aria-pressed': pos === position, onClick: () => { setPos(position); setVisibleCount(WIRE_ROW_CAP); } }, position))),
+                h('p', { className: 'tl-waiver-reference' }, 'Career best is a reference. Your season is drawn from eligible seasons when a claim succeeds.'),
+                shown.length === 0 ? h('p', { className: 'tl-empty' }, 'No players match these filters.') :
+                    h('div', { className: 'tl-waiver-table-scroll' }, h('table', { className: 'tl-waiver-table' },
+                        h('thead', null, h('tr', null, ['#', 'PLAYER', 'POS', 'ARCHIVE', 'CAREER BEST', ''].map((label, index) => h('th', { key: index, scope: 'col' }, label)))),
+                        h('tbody', null, shown.map((card, index) => {
+                            const best = card.seasons.find(season => season.points === card.peak);
+                            const selected = card.identity === targetIdentity;
+                            return h('tr', { key: card.identity, className: selected ? 'is-selected' : '' },
+                                h('td', { className: 'tl-waiver-rank' }, index + 1),
+                                h('td', null, h('strong', null, card.name)),
+                                h('td', null, h('span', { className: `tl-pos-badge tl-pos-${card.position}` }, card.position)),
+                                h('td', { className: 'tl-waiver-years' }, card.seasons.length ? `${card.seasons[0].season}–${card.seasons[card.seasons.length - 1].season}` : '—'),
+                                h('td', { className: 'tl-waiver-score tabular' }, fmt1(card.peak), h('small', null, best?.season || '—')),
+                                h('td', null, h('button', { className: `tl-btn${selected ? ' primary' : ''}`, disabled: !wireOpen || filing, 'aria-label': `${selected ? 'Clear' : 'Claim'} ${card.name}`, 'aria-pressed': selected, onClick: () => clearTarget(selected ? '' : card.identity) }, selected ? 'Selected' : '+ Claim')));
+                        })))),
+                h('div', { className: 'tl-waiver-market-foot' }, h('span', null, `${shown.length} of ${filtered.length} shown`),
+                    filtered.length > shown.length && h('button', { className: 'tl-btn', onClick: () => setVisibleCount(count => count + WIRE_ROW_CAP) }, 'Show more'))),
+            h('aside', { className: 'tl-waiver-command' },
                 h('div', { style: { display: 'grid', gridTemplateColumns: faab ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)', gap: 10, marginBottom: 14 } },
                     h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Priority'), h('strong', { style: { fontSize: 18, fontFamily: 'var(--font-title)' } }, myPriority ? `#${myPriority}` : '—')),
                     h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Pool'), h('strong', { style: { fontSize: 18, fontFamily: 'var(--font-title)' } }, filtered.length)),
                     h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Claims'), h('strong', { style: { fontSize: 18, fontFamily: 'var(--font-title)' } }, mine.length)),
                     faab && h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Budget'), h('strong', { className: 'tabular', style: { fontSize: 18, fontFamily: 'var(--font-title)' } }, `$${budgetAvailable}`))),
-                h('div', { className: 'tl-card' },
+                h('div', { className: 'tl-card tl-waiver-claim' },
                     claimMessage ? h('p', { role: 'status' }, claimMessage) : null,
-                    h('div', { className: 'tl-card-title' }, h('span', null, 'File a claim'), h('small', null, 'processes at the next game day')),
+                    h('div', { className: 'tl-card-title' }, h('span', null, 'Claim builder'), h('small', null, 'processes at the next game day')),
                     h('p',{className:'tl-hint'},'Career-best points are a reference, not your awarded season. An eligible season is drawn when the claim succeeds.'),
                     !wireOpen && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'HOLD'), h('p', null, league.phase === 'draft' ? 'The wire opens when the draft completes.' : 'Season complete — no more claims.')),
                     benchCap <= 0 && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'WARN'), h('p', null, 'No bench configured — choose a drop that opens an eligible starting slot.')),
@@ -242,7 +249,7 @@
                             h('span', { className: 'tabular', style: { color: 'var(--gold)' } }, fmt1(target.peak)),
                             h('button', { className: 'tl-btn icon', 'aria-label': 'Clear claim target', onClick: () => clearTarget('') }, '✕')),
                         h('select', { className: 'tl-select', 'aria-label': 'Drop entry', value: dropEntryId, onChange: (e) => setDropEntryId(e.target.value) },
-                            h('option', { value: '' }, mustDrop ? 'SELECT A DROP — BENCH IS FULL' : 'NO DROP (BENCH HAS ROOM)'),
+                            h('option', { value: '' }, mustDrop ? 'SELECT A DROP — ROSTER IS FULL' : 'NO DROP (ELIGIBLE SLOT OPEN)'),
                             dropOptions.map((entry) => h('option', { key: entry.entryId, value: entry.entryId }, `DROP ${entry.name} (${entry.slot})`))),
                         faab && h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 } },
                             h('span', { className: 'tl-label' }, 'Bid'),
@@ -272,7 +279,7 @@
                                 h('td', { className: 'num' }, h('button', { className: 'tl-btn icon', onClick: () => apply(Engine.cancelWaiverClaim(league, claim.claimId), { type: 'cancel-claim', claimId: claim.claimId }) }, '✕ CANCEL')));
                         })))
                         : h('p', { className: 'tl-empty' }, 'No claims on file from your desk.')),
-                team.manager === 'ai' && h(GmProfile, { team, title: 'GM profile' })));
+                team.manager === 'ai' && h(GmProfile, { team, title: 'GM profile' }))));
     }
 
     function TradesSection({ league, cards, team, apply }) {
