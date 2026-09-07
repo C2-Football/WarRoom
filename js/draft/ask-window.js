@@ -29,6 +29,14 @@
     function buildAskContext(state) {
         if (!state) return '';
         const lines = [];
+        if (window.DraftCC?.liveDecisionEngine?.isRedraftLive?.(state)) {
+            lines.push('LIVE REDRAFT: prioritize this season, starting lineup needs, market ADP and actual draft selections. Do not suggest trading picks, moving up/down, buyer lines, or five-year dynasty value. Give concrete player alternatives and label forecasts as conditional estimates, never known manager intentions.');
+            const read = window.DraftCC.liveDecisionEngine.buildRedraftRoomRead?.(state);
+            if (read) {
+                lines.push('Room commentary: ' + read.commentary.join(' '));
+                lines.push('Conditional upcoming selections: ' + read.forecasts.map(f => '#' + f.slot.overall + ' ' + f.team + ': ' + f.player.name + ' (' + f.reason + '; ' + f.confidence + ')').join('; '));
+            }
+        }
 
         // League format
         const lf = state.draftContext?.leagueFormat || {};

@@ -188,6 +188,55 @@ test('liveTradeEvolutionSignal buckets trades by round and classifies the room',
   eq(typical.draftClass, 'typical', 'one deal over ~3 rounds reads typical');
 });
 
+test('redraft forecasts consume picks in real order without mutating live state', () => {
+  const state = { ...baseState, variant: 'redraft', leagueSize: 4, originalPool: pool, picks: [],
+    draftContext: { ...baseState.draftContext, leagueFormat: { rosterSlots: ['QB', 'RB', 'WR', 'TE'] } } };
+  const before = JSON.stringify(state);
+  const read = ctx.DraftCC.liveDecisionEngine.buildRedraftRoomRead(state);
+  eq(read.forecasts.length, 3, 'three opponents before our pick');
+  eq(new Set(read.forecasts.map(f => f.player.pid)).size, 3, 'no repeated single-copy players');
+  eq(read.forecasts[0].rosterId, '1', 'real owner sequence');
+  eq(read.survivors.length, 1, 'projected picks excluded from survivors');
+  eq(JSON.stringify(state), before, 'does not mutate actual picks or pool');
+  ok(read.fullHorizon, 'forecast reaches our turn');
+  const picked = read.forecasts[0].player;
+  const updated = { ...state, currentIdx: 1, picks: [{ ...picked, rosterId: 1, overall: 1 }], draftedPids: { [picked.pid]: 1 } };
+  const next = ctx.DraftCC.liveDecisionEngine.buildRedraftRoomRead(updated);
+  ok(!next.forecasts.some(f => f.player.pid === picked.pid), 'real drafted player cannot be forecast again');
+  ok(next.commentary[0].includes(picked.name), 'commentary follows real pick');
+});
+
+test('redraft decisions suppress dynasty projections and trade advice', () => {
+  const state = { ...baseState, variant: 'redraft', originalPool: pool, picks: [], leagueSize: 4 };
+  const deck = ctx.DraftCC.liveDecisionEngine.buildDecisionDeck(state, { tradeWindow: { rosterId: 2, likelihood: 90, acceptanceLine: 70 } });
+  ok(deck.seasonal, 'seasonal presentation');
+  ok(!deck.cards.some(c => c.action === 'trade'), 'no trade card');
+  ok(!deck.cards.some(c => /five-year/.test(c.detail)), 'no dynasty copy');
+  deck.cards.filter(c => c.player).forEach(c => eq(c.player.y5, c.player.dhq, 'no five-year growth weighting'));
+  eq(ctx.DraftCC.liveDecisionEngine.buildLiveReadout(state).outlier, null, 'no trade-up outlier');
+  eq(ctx.DraftCC.liveDecisionEngine.buildRedraftRoomRead({ ...state, mode: 'solo' }), null, 'mock unaffected');
+  eq(ctx.DraftCC.liveDecisionEngine.buildRedraftRoomRead({ ...state, draftMechanic: 'auction' }).forecasts.length, 0, 'no fabricated auction selection order');
+});
+
+test('redraft forecast respects copies and marks incomplete horizons', () => {
+  const state = { ...baseState, variant: 'redraft', playerCopies: 2, pool: [pool[0]], originalPool: [pool[0]], picks: [], draftedPids: {} };
+  const read = ctx.DraftCC.liveDecisionEngine.buildRedraftRoomRead(state);
+  eq(read.forecasts.length, 2, 'two available copies');
+  eq(read.fullHorizon, false, 'no unsupported next-turn survival claim');
+});
+
+test('redraft predictions respond to market ADP and filled starting slots', () => {
+  const players = [{ pid: 'q', name: 'Quarterback', pos: 'QB', dhq: 5000 }, { pid: 'r', name: 'Running Back', pos: 'RB', dhq: 5000 }];
+  const state = { ...baseState, variant: 'redraft', currentIdx: 0, pool: players, originalPool: players, picks: [],
+    draftContext: { leagueFormat: { rosterSlots: ['QB', 'RB'] } } };
+  ctx.App.getRedraftAdp = pid => ({ adp: pid === 'q' ? 1 : 100 });
+  eq(ctx.DraftCC.liveDecisionEngine.buildRedraftRoomRead(state).forecasts[0].player.pid, 'q', 'earlier ADP leads');
+  ctx.App.getRedraftAdp = () => ({ adp: 1 });
+  const built = { ...state, picks: [{ pid: 'other', name: 'Existing QB', pos: 'QB', rosterId: '1', overall: 0 }] };
+  eq(ctx.DraftCC.liveDecisionEngine.buildRedraftRoomRead(built).forecasts[0].player.pid, 'r', 'actual filled QB slot steers to RB');
+  delete ctx.App.getRedraftAdp;
+});
+
 console.log('\n');
 if (failures.length) {
   console.log(failures.join('\n'));

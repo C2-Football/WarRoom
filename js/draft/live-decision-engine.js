@@ -29,6 +29,85 @@
         return player?.pos || player?.position || player?.csv?.pos || '';
     }
 
+    function isRedraftLive(state) {
+        return state?.mode === 'live-sync' && (state.variant === 'redraft'
+            || state.auctionPoolSource === 'redraft'
+            || state.draftContext?.leagueFormat?.draftType === 'redraft');
+    }
+
+    // Conditional forecast: walk the real pick order, removing projected picks
+    // and updating each manager's build. No random CPU picks or state mutations.
+    function buildRedraftRoomRead(state) {
+        if (!isRedraftLive(state)) return null;
+        const copies = Math.max(1, num(state.playerCopies, 1));
+        const taken = { ...state.draftedPids };
+        const pool = asArray(state.pool).filter(p => p?.pid && num(taken[p.pid]) < copies);
+        const next = nextUserPick(state);
+        const rosterSlots = asArray(state.draftContext?.leagueFormat?.rosterSlots);
+        const counts = {};
+        asArray(state.picks).forEach(p => {
+            const rid = idKey(p.rosterId);
+            counts[rid] = counts[rid] || {};
+            counts[rid][posOf(p)] = num(counts[rid][posOf(p)]) + 1;
+        });
+        const maxValue = Math.max(1, ...pool.map(p => num(p.dhq)));
+        const market = p => {
+            const value = window.App?.getRedraftAdp?.(idKey(p.pid))?.adp;
+            return num(value) > 0 ? num(value) : null;
+        };
+        const originalRanks = rankMap(asArray(state.originalPool).map(p => p.pid));
+        const forecasts = [];
+        const horizon = Math.min(24, Math.max(6, next?.picksAway || 0));
+        const order = state.draftMechanic === 'auction' ? [] : asArray(state.pickOrder).slice(num(state.currentIdx), num(state.currentIdx) + horizon);
+        for (const slot of order) {
+            const rid = idKey(slot.rosterId);
+            if (rid === idKey(state.userRosterId)) break;
+            const build = counts[rid] || {};
+            const ranked = pool.filter(p => num(taken[p.pid]) < copies).map(p => {
+                const pos = posOf(p);
+                const starters = rosterSlots.filter(s => s === pos).length;
+                const missing = Math.max(0, starters - num(build[pos]));
+                const adp = market(p);
+                const rank = adp || originalRanks[idKey(p.pid)] || pool.indexOf(p) + 1;
+                // Market demand leads; actual missing starters and repeat-position
+                // selections adjust it. Missing ADP falls back to the DHQ board.
+                const score = 65 / (1 + Math.max(0, rank - num(slot.overall)) / 12)
+                    + 20 * num(p.dhq) / maxValue + Math.min(2, missing) * 9
+                    - num(build[pos]) * (['QB', 'TE', 'K', 'DEF'].includes(pos) ? 9 : 3);
+                return { p, score, adp, missing, pos };
+            }).sort((a, b) => b.score - a.score);
+            if (!ranked.length) break;
+            const best = ranked[0];
+            const persona = state.personas?.[rid];
+            forecasts.push({ slot, rosterId: rid, team: persona?.teamName || slot.ownerName || 'Team ' + rid,
+                player: best.p, alternative: ranked[1]?.p || null,
+                reason: (best.adp ? 'ADP ' + best.adp.toFixed(1) : 'DHQ board fallback')
+                    + (best.missing ? ' · ' + best.missing + ' open ' + best.pos + ' starting slot' + (best.missing === 1 ? '' : 's') : ' · roster balance'),
+                confidence: ranked[1] && best.score - ranked[1].score < 8 ? 'Close call' : 'Stronger lean' });
+            taken[best.p.pid] = num(taken[best.p.pid]) + 1;
+            counts[rid] = { ...build, [best.pos]: num(build[best.pos]) + 1 };
+        }
+        const recent = asArray(state.picks).slice(-8);
+        const positions = {};
+        recent.forEach(p => { positions[posOf(p)] = num(positions[posOf(p)]) + 1; });
+        const run = Object.entries(positions).sort((a, b) => b[1] - a[1])[0];
+        const last = recent[recent.length - 1];
+        const commentary = [];
+        if (!last) commentary.push('Waiting for the first pick. Forecasts are opening-board estimates; roster builds will sharpen the read as picks arrive.');
+        if (last) {
+            const adp = market(last);
+            const delta = adp ? num(last.overall) - adp : 0;
+            commentary.push((state.personas?.[idKey(last.rosterId)]?.teamName || 'Team ' + last.rosterId) + ' selected ' + last.name + ' at #' + last.overall
+                + (adp ? ' — ' + (Math.abs(delta) < 5 ? 'near market ADP.' : Math.round(Math.abs(delta)) + ' picks ' + (delta > 0 ? 'after' : 'before') + ' market ADP.') : '. No market ADP available for comparison.'));
+        }
+        if (run && run[1] >= 3) commentary.push(run[1] + ' of the last ' + recent.length + ' picks were ' + run[0] + '. Compare the remaining options before following the run.');
+        const targets = forecasts.filter(f => isTarget(boardEntry(state.draftContext?.boardContext, f.player))).slice(0, 3);
+        const survivors = pool.filter(p => num(taken[p.pid]) < copies).sort((a, b) => num(b.dhq) - num(a.dhq)).slice(0, 3);
+        return { forecasts, commentary, targets, survivors, next, isAuction: state.draftMechanic === 'auction',
+            fullHorizon: !!next && next.picksAway <= forecasts.length,
+            basis: 'Conditional estimates from ADP, current-season DHQ, starting slots and actual picks. Later selections depend on earlier projections; manager intentions are unknown.' };
+    }
+
     function rankMap(order) {
         const out = {};
         asArray(order).forEach((pid, idx) => {
@@ -107,6 +186,17 @@
     }
 
     function userNeedMap(state) {
+        if (isRedraftLive(state)) {
+            const counts = {};
+            asArray(state.picks).filter(p => idKey(p.rosterId) === idKey(state.userRosterId)).forEach(p => {
+                counts[posOf(p)] = num(counts[posOf(p)]) + 1;
+            });
+            const needs = {};
+            asArray(state.draftContext?.leagueFormat?.rosterSlots).forEach(pos => {
+                if (['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'].includes(pos)) needs[pos] = num(needs[pos]) + 1;
+            });
+            return Object.fromEntries(Object.entries(needs).map(([pos, slots]) => [pos, Math.min(22, Math.max(0, slots - num(counts[pos])) * 11)]));
+        }
         const userPersona = state?.personas?.[state?.userRosterId] || state?.personas?.[String(state?.userRosterId)] || null;
         const intel = userPersona?.ownerIntel || state?.draftContext?.ownerContext?.[String(state?.userRosterId)] || {};
         const needs = asArray(userPersona?.assessment?.needs || intel?.roster?.needs || state?.draftContext?.teamContext?.needs);
@@ -149,7 +239,7 @@
         const entry = boardEntry(boardContext, player);
         const rank = boardRank(boardContext, player, lane) || rankLookup[idKey(player?.pid)] || idx + 1;
         const dhq = num(player?.dhq || player?.val, 0);
-        const y5 = projectedValue(player, 5);
+        const y5 = isRedraftLive(state) ? dhq : projectedValue(player, 5);
         const growth = y5 - dhq;
         const tagTarget = isTarget(entry);
         const tagFade = isFade(entry);
@@ -163,7 +253,7 @@
         // players, win-now fades them (youthPremium 1.2 / 0.6 per preset).
         const age = ageOf(player);
         const gmPosBoost = gm ? (gm.targets.has(posOf(player)) ? 6 : 0) - (gm.fades.has(posOf(player)) ? 6 : 0) : 0;
-        const gmYouthBoost = (gm && age && age <= 24 && ['QB', 'RB', 'WR', 'TE'].includes(posOf(player)))
+        const gmYouthBoost = (!isRedraftLive(state) && gm && age && age <= 24 && ['QB', 'RB', 'WR', 'TE'].includes(posOf(player)))
             ? Math.max(-12, Math.min(12, (gm.youthPremium - 1) * 30))
             : 0;
         // Same archetype multiplier table the Big Board's AI lane uses (RB
@@ -235,6 +325,7 @@
     }
 
     function pickCards(state, tradeWindow) {
+        const redraft = isRedraftLive(state);
         const rows = candidates(state, 40);
         const clean = rows.filter(c => !c.fade);
         const recommended = clean.slice().sort((a, b) => b.score - a.score)[0] || rows[0];
@@ -244,18 +335,18 @@
             return stabilityB - stabilityA;
         })[0] || recommended;
         const upside = clean.slice().sort((a, b) => {
-            const upA = a.growth + (a.target ? 450 : 0) + (ageOf(a.player) && ageOf(a.player) <= 24 ? 200 : 0);
-            const upB = b.growth + (b.target ? 450 : 0) + (ageOf(b.player) && ageOf(b.player) <= 24 ? 200 : 0);
+            const upA = redraft ? a.score + (a.target ? 10 : 0) : a.growth + (a.target ? 450 : 0) + (ageOf(a.player) && ageOf(a.player) <= 24 ? 200 : 0);
+            const upB = redraft ? b.score + (b.target ? 10 : 0) : b.growth + (b.target ? 450 : 0) + (ageOf(b.player) && ageOf(b.player) <= 24 ? 200 : 0);
             return upB - upA;
         })[0] || recommended;
         const cards = [
-            card('recommended', 'Recommended', recommended, 'Best blend of board value, roster fit, and five-year value.', 'gold', {
+            card('recommended', 'Recommended', recommended, redraft ? 'Current-season value, roster fit and your board priorities.' : 'Best blend of board value, roster fit, and five-year value.', 'gold', {
                 drivers: ['board_rank', recommended?.needBoost ? 'roster_need' : 'value', recommended?.target ? 'user_target' : 'projection'],
             }),
             card('safe', 'Safe Pick', safe, 'High-floor value that keeps the room honest.', 'green', {
                 drivers: ['dhq_value', safe?.tier ? 'tier' : 'board_rank'],
             }),
-            card('upside', 'Upside Swing', upside, upside?.growth > 0 ? 'Best five-year value gain in the current pocket.' : 'Best ceiling profile in this pocket.', 'purple', {
+            card('upside', redraft ? 'Priority Target' : 'Upside Swing', upside, redraft ? 'A current-season fit weighted toward your marked targets.' : upside?.growth > 0 ? 'Best five-year value gain in the current pocket.' : 'Best ceiling profile in this pocket.', 'purple', {
                 drivers: ['y5_projection', upside?.target ? 'user_target' : 'age_curve'],
             }),
         ].filter(Boolean);
@@ -266,7 +357,7 @@
         const avoidCard = faded ? card('avoid', 'Avoid Warning', faded, 'User-board fade or do-not-draft flag is active.', 'red', { drivers: ['user_board'] }) : null;
         if (avoidCard) cards.push(avoidCard);
 
-        if (tradeWindow) {
+        if (tradeWindow && !redraft) {
             cards.push({
                 kind: 'trade_down',
                 label: 'Trade Window',
@@ -334,6 +425,7 @@
         return {
             schemaVersion: SCHEMA,
             mode: state?.mode || '',
+            seasonal: isRedraftLive(state),
             currentPick: currentSlot,
             nextUserPick: next,
             cards,
@@ -351,6 +443,14 @@
     function buildLiveReadout(state) {
         const next = nextUserPick(state);
         if (!next || !next.slot) return null;
+        if (isRedraftLive(state)) {
+            const read = buildRedraftRoomRead(state);
+            if (!read.fullHorizon || read.isAuction) return null;
+            const teams = Math.max(1, num(state.leagueSize, 1));
+            const pick = num(next.slot.pickInRound) || ((num(next.slot.overall, 1) - 1) % teams) + 1;
+            return { pickLabel: 'R' + next.slot.round + '.' + String(pick).padStart(2, '0'), picksAway: next.picksAway,
+                available: read.survivors.map(p => ({ name: p.name, pos: posOf(p), dhq: p.dhq })), outlier: null };
+        }
         const picksAway = num(next.picksAway, 0);
         const rows = candidates(state, 60).filter(c => !c.fade);
         if (!rows.length) return null;
@@ -546,6 +646,8 @@
 
     window.DraftCC = window.DraftCC || {};
     window.DraftCC.liveDecisionEngine = {
+        isRedraftLive,
+        buildRedraftRoomRead: _gateNull(buildRedraftRoomRead),
         buildDecisionDeck: _gateNull(buildDecisionDeck),
         buildLiveReadout: _gateNull(buildLiveReadout),
         liveStreamSignals: function () { return _ldePro() ? liveStreamSignals.apply(null, arguments) : {}; },

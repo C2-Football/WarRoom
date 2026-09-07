@@ -170,6 +170,10 @@
         return draftId ? 'https://sleeper.com/draft/nfl/' + draftId : '';
     }
 
+    function isRedraftLive(state) {
+        return !!window.DraftCC?.liveDecisionEngine?.isRedraftLive?.(state);
+    }
+
     function detectSleeperDraftVariant(draft, currentLeague, fallback = 'startup') {
         try {
             return window.DraftCC?.state?.detectDraftVariant?.({
@@ -1366,6 +1370,7 @@
                     ? window.DraftCC.context.summarizeOwnerIntel(persona?.ownerIntel || state.draftContext?.ownerContext?.[String(lastPick.rosterId)])
                     : '';
                 const contextLines = [
+                    isRedraftLive(state) ? 'Live redraft: focus on this season, actual roster builds, ADP and who may be picked next. No trade suggestions or dynasty/five-year value. Treat manager predictions as uncertain. ' + (window.DraftCC?.buildAskContext?.(state) || '') : '',
                     (window.WR?.AIContext?.buildFormatPreamble?.(window.S?.currentLeague) || '').trim(),
                     `Draft pick: ${lastPick.name} (${lastPick.pos}) at R${lastPick.round}.${String(pickInRoundOf(lastPick, state.leagueSize)).padStart(2, '0')}, overall #${lastPick.overall}.`,
                     `By: ${persona?.teamName || 'Team ' + lastPick.teamIdx}, DNA: ${persona?.draftDna?.label || '—'}, Trade DNA: ${persona?.tradeDna?.label || '—'}, Posture: ${persona?.posture?.label || '—'}.`,
@@ -1513,6 +1518,7 @@
         React.useEffect(() => {
             if (state.mode !== 'live-sync') return;
             if (state.phase !== 'drafting') return;
+            if (isRedraftLive(state)) return;
             const windows = window.DraftCC.tradeSimulator?.buildLiveTradeWindows?.(state, { lookahead: 5 }) || [];
             const best = windows[0];
             if (!best) return;
@@ -5368,7 +5374,7 @@
                                 <button type="button" onClick={() => dispatch({ type: 'SET_OVERRIDE', enabled: !state.overrideMode })} title={state.overrideMode ? 'Return to read-only Sleeper mirror' : 'Apply the next pick manually from the Big Board'}>
                                     {state.overrideMode ? 'Manual On' : 'Manual Pick'}
                                 </button>
-                                <button type="button" onClick={openTradeDesk} disabled={!tradeDeskTarget}>Trade Desk</button>
+                                {!isRedraftLive(state) && <button type="button" onClick={openTradeDesk} disabled={!tradeDeskTarget}>Trade Desk</button>}
                                 {canUndoManualPick && <button type="button" onClick={() => dispatch({ type: 'UNDO_LAST_PICK', manualOnly: true })}>Undo</button>}
                                 <button type="button" onClick={onExit}>Exit</button>
                             </>
@@ -5436,12 +5442,12 @@
                 {/* Occasional live-only strips — same conditional-strip precedent as
                     the scenario-narrative strip below, so they don't add permanent
                     structural rows most of the time. */}
-                {isLive && liveTradeWindow && (
+                {isLive && !isRedraftLive(state) && liveTradeWindow && (
                     <div style={{ marginBottom: 12 }}>
                         <LiveTradeWindowBanner tradeWindow={liveTradeWindow} ownerTell={ownerTell} onOpen={() => liveTradeWindow?.rosterId && onPropose(liveTradeWindow.rosterId)} leagueSize={state.leagueSize} layoutGap={0} />
                     </div>
                 )}
-                {isLive && (stagedLiveOffers || []).length > 0 && (
+                {isLive && !isRedraftLive(state) && (stagedLiveOffers || []).length > 0 && (
                     <StagedLiveOffersPanel offers={stagedLiveOffers} sleeperDraftId={state.sleeperDraftId} dispatch={dispatch} layoutGap={12} />
                 )}
                 {state.scenarioNarrative && (
@@ -6024,6 +6030,7 @@
         });
 
         const liveTradeWindow = React.useMemo(() => {
+            if (isRedraftLive(state)) return null;
             if (!ccIsPro()) return null; // sell-the-pick windows are likelihood reads → Pro
             if (state.mode !== 'live-sync' || state.phase !== 'drafting') return null;
             try {
@@ -6033,9 +6040,10 @@
                 if (window.wrLog) window.wrLog('cc.liveTradeWindow', e);
                 return null;
             }
-        }, [state.mode, state.phase, state.currentIdx, state.pickOrder, state.personas, state.tradedAssets, state.draftTuning, state.picks.length, state.userRosterId]);
+        }, [state.mode, state.phase, state.currentIdx, state.pickOrder, state.personas, state.tradedAssets, state.draftTuning, state.picks.length, state.userRosterId, state.variant, state.auctionPoolSource, state.draftContext]);
 
         const tradeDeskTarget = React.useMemo(() => {
+            if (isRedraftLive(state)) return null;
             if (liveTradeWindow?.rosterId) return liveTradeWindow.rosterId;
             const userRosterId = String(state.userRosterId || '');
             if (currentSlot?.rosterId && String(currentSlot.rosterId) !== userRosterId) {
@@ -6047,7 +6055,7 @@
             if (upcoming?.rosterId) return upcoming.rosterId;
             const personaId = Object.keys(state.personas || {}).find(rosterId => String(rosterId) !== userRosterId);
             return personaId || null;
-        }, [currentSlot, liveTradeWindow, state.currentIdx, state.personas, state.pickOrder, state.userRosterId]);
+        }, [currentSlot, liveTradeWindow, state.currentIdx, state.personas, state.pickOrder, state.userRosterId, state.mode, state.variant, state.auctionPoolSource, state.draftContext]);
 
         const liveDecisionDeck = React.useMemo(() => {
             if (state.mode !== 'live-sync' || state.phase !== 'drafting') return null;
@@ -6229,8 +6237,8 @@
                         stagedLiveOffers={isLive ? (state.stagedLiveOffers || []) : []}
                     />
                         )}
-                    {tradeIsPro && state.activeOffer && TradeModal && <TradeModal state={state} dispatch={dispatch} />}
-                    {state.proposerDrawer && TradeProposer && <TradeProposer state={state} dispatch={dispatch} />}
+                    {!isRedraftLive(state) && tradeIsPro && state.activeOffer && TradeModal && <TradeModal state={state} dispatch={dispatch} />}
+                    {!isRedraftLive(state) && state.proposerDrawer && TradeProposer && <TradeProposer state={state} dispatch={dispatch} />}
                 </>
             );
         }
@@ -6621,7 +6629,7 @@
                 </React.Fragment>
                 )}
 
-                {state.mode === 'live-sync' && (state.stagedLiveOffers || []).length > 0 && (
+                {state.mode === 'live-sync' && !isRedraftLive(state) && (state.stagedLiveOffers || []).length > 0 && (
                     <StagedLiveOffersPanel
                         offers={state.stagedLiveOffers || []}
                         sleeperDraftId={state.sleeperDraftId}
@@ -6755,10 +6763,10 @@
                 {AlexEdgeGlow && <AlexEdgeGlow state={state} isUserTurn={isUserTurn} />}
 
                 {/* Phase 3: CPU trade offer modal (fixed-position) */}
-                {tradeIsPro && state.activeOffer && TradeModal && <TradeModal state={state} dispatch={dispatch} />}
+                {!isRedraftLive(state) && tradeIsPro && state.activeOffer && TradeModal && <TradeModal state={state} dispatch={dispatch} />}
 
                 {/* Phase 3: User trade proposer drawer (fixed-position) */}
-                {state.proposerDrawer && TradeProposer && <TradeProposer state={state} dispatch={dispatch} />}
+                {!isRedraftLive(state) && state.proposerDrawer && TradeProposer && <TradeProposer state={state} dispatch={dispatch} />}
 
                 {/* Live league-wide draft grades overlay (toggled from header) */}
                 {showLeagueGrades && LeagueGradesPanel && ccIsPro() && (
@@ -7027,7 +7035,7 @@
                     )}
 
                     {/* Read 4 — trade window */}
-                    <div style={{ ...readRow, alignItems: 'center' }}>
+                    {!isRedraftLive(state) && <div style={{ ...readRow, alignItems: 'center' }}>
                         <span style={{ ...readIcon(ALEX), marginTop: 0 }}>{'🔄'}</span>
                         <div style={{ minWidth: 0, flex: 1, ...clamp2 }}>
                             <span style={readLabel(ALEX)}>Trade window</span>
@@ -7042,7 +7050,8 @@
                         {tradeDeskTarget && (
                             <button onClick={openTradeDesk} style={{ flexShrink: 0, padding: '4px 9px', borderRadius: 5, fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', border: '1px solid rgba(155,138,251,0.4)', background: 'rgba(155,138,251,0.16)', color: '#d6d0ff' }}>Open Trade Desk</button>
                         )}
-                    </div>
+                    </div>}
+                    {isRedraftLive(state) && <RedraftRoomReadPanel state={state} />}
                     </React.Fragment>
                     )}
                 </div>
@@ -7050,7 +7059,36 @@
         );
     }
 
+    function RedraftRoomReadPanel({ state }) {
+        const read = React.useMemo(() => window.DraftCC?.liveDecisionEngine?.buildRedraftRoomRead?.(state), [state]);
+        if (!read) return null;
+        const label = slot => mockPickLabel(slot, state.leagueSize);
+        return (
+            <section className="mock-panel redraft-room-read">
+                <div className="mock-panel-head"><span>Alex · Redraft Room Read</span><em>{state.picks?.length || 0} picks synced</em></div>
+                <div className="redraft-room-body">
+                    {read.commentary.map(text => <p key={text}>{text}</p>)}
+                    {!read.isAuction && <>
+                        <h4>{read.next?.picksAway === 0 ? "You're on the clock" : 'Who goes next'}</h4>
+                        <div className="redraft-forecast-list">
+                            {read.forecasts.map(f => <div className="redraft-forecast-row" key={f.slot.overall}>
+                                <span>{label(f.slot)}</span>
+                                <div><strong>{f.team}</strong><small>{f.reason}</small></div>
+                                <div><button type="button" onClick={() => mockOpenPlayer(f.player)}>{f.player.name}</button><small>{f.confidence}{f.alternative ? ' · Also watch ' + f.alternative.name : ''}</small></div>
+                            </div>)}
+                        </div>
+                        {!!read.targets.length && <p className="redraft-target-watch"><strong>Target watch: </strong>{read.targets.map(f => f.player.name + ' → ' + f.team + ' at ' + label(f.slot)).join('; ')}. Have a backup ready.</p>}
+                        {!!read.survivors.length && <p><strong>{read.fullHorizon ? 'Projected options at ' + label(read.next.slot) : read.next?.picksAway === 0 ? 'Available now' : 'Options after this forecast'}: </strong>{read.survivors.map(p => p.name + ' (' + p.pos + ')').join(' · ')}</p>}
+                    </>}
+                    {read.isAuction && <p>Sales and roster builds update after each purchase. Auction nominations do not follow a predictable player order.</p>}
+                    <small className="redraft-forecast-basis">{read.basis}</small>
+                </div>
+            </section>
+        );
+    }
+
     function LiveSyncCommandReadPanel({ state, liveSync, currentSlot, nextUserSlot, trendText, dispatch, inline = false }) {
+        if (isRedraftLive(state)) return <RedraftRoomReadPanel state={state} />;
         const status = liveSync?.status || 'idle';
         const color = status === 'mirroring' ? 'var(--k-2ecc71, #2ecc71)'
             : status === 'waiting' ? 'var(--k-f0a500, #f0a500)'
@@ -7382,7 +7420,7 @@
                                         </div>
                                         <div style={{ display: 'flex', gap: 7, color: 'var(--silver)', opacity: 0.78, fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: FONT_MONO }}>
                                             <span>DHQ {shortLiveValue(player.dhq)}</span>
-                                            <span>Y5 {shortLiveValue(player.y5)}</span>
+                                            {!deck.seasonal && <span>Y5 {shortLiveValue(player.y5)}</span>}
                                             {player.tier && <span>T{player.tier}</span>}
                                         </div>
                                     </>
@@ -7716,7 +7754,8 @@
         });
         const feedRows = (() => {
             const picks = state.picks || [];
-            const events = ((state.alex && state.alex.stream) || []).filter(ev => !foldedIds.has(ev.id));
+            const events = ((state.alex && state.alex.stream) || []).filter(ev => !foldedIds.has(ev.id)
+                && !(isRedraftLive(state) && /trade window|trade up|trade down|buyer line|sell.the.pick/i.test((ev.title || '') + ' ' + (ev.text || ''))));
             const used = new Set();
             const items = [];
             picks.forEach(pk => {
@@ -7900,6 +7939,7 @@
                         calc(60px + var(--wr-bottom-inset)) at ≤767 (index.html phone
                         tier) — do not double-pad here. */}
                     <MobileClockBar state={state} currentSlot={currentSlot} isUserTurn={isUserTurn} />
+                    {isRedraftLive(state) && <RedraftRoomReadPanel state={state} />}
                     <div style={{ minHeight: 320, maxHeight: '56vh', marginBottom: 10 }}>
                         <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={true} />
                     </div>
@@ -7980,8 +8020,11 @@
                 {/* Panes scroll IN PLACE (owner ask): fixed-height containers so the
                     DraftCast bar, tabs, and bottom chips all stay on screen. */}
                 {phTab === 'feed' && (
-                    <DraftRoomFeed state={state} heightStyle={{ height: '56dvh', minHeight: 300 }}
-                        emptyText="The feed starts when the first pick lands — picks and Alex's reads land here in order. Swipe left for the Big Board." />
+                    <div style={{ height: '56dvh', minHeight: 300, overflowY: 'auto' }}>
+                        {isRedraftLive(state) && <RedraftRoomReadPanel state={state} />}
+                        <DraftRoomFeed state={state} heightStyle={isRedraftLive(state) ? {} : { height: '56dvh', minHeight: 300 }}
+                            emptyText="The feed starts when the first pick lands — picks and Alex's reads land here in order. Swipe left for the Big Board." />
+                    </div>
                 )}
                 {phTab === 'board' && (<div style={{ height: '56dvh', minHeight: 320, overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', paddingRight: 2 }}>
                     {drafting && (pro ? (
@@ -8052,7 +8095,7 @@
                 </Sheet>
                 {/* Trade offer → the same popup desktop uses (room stays paused
                     behind it; Accept/Decline resume it). */}
-                {tradeIsPro && state.activeOffer && TradeModal && <TradeModal state={state} dispatch={dispatch} />}
+                {!isRedraftLive(state) && tradeIsPro && state.activeOffer && TradeModal && <TradeModal state={state} dispatch={dispatch} />}
                 {AskAnswerWindow && <AskAnswerWindow state={state} />}
                 {/* AlexCall overlay removed on phone (owner ask) — the red DraftCast
                     takeover + edge glow already carry the your-turn signal. */}

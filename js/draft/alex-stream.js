@@ -70,6 +70,8 @@
         const stream = React.useMemo(() => {
             const seen = new Set();
             return (state.alex?.stream || []).filter(item => {
+                if (window.DraftCC?.liveDecisionEngine?.isRedraftLive?.(state)
+                    && /trade window|trade up|trade down|buyer line|sell.the.pick/i.test((item.title || '') + ' ' + (item.text || ''))) return false;
                 const key = [
                     item.type || '',
                     String(item.title || '').toLowerCase(),
@@ -79,7 +81,7 @@
                 seen.add(key);
                 return true;
             });
-        }, [state.alex?.stream]);
+        }, [state.alex?.stream, state.mode, state.variant, state.auctionPoolSource]);
 
         // The Alex draft layer (live commentary, room reads, Ask Alex draft chat)
         // is Scout Pro. Free gets a locked panel shell — the input/chips never
