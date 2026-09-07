@@ -1,0 +1,13 @@
+.tl-rival-mail { border-top: 3px solid var(--tl-mint, #87eed0); }
+.tl-rival-intro { color: #b8c7dc; margin: 0 0 14px; font-size: 13px; }
+.tl-rival-messages { display: grid; gap: 10px; margin-bottom: 12px; }
+.tl-rival-message { border: 1px solid #ffffff18; border-left: 3px solid #bfaaff; border-radius: 10px; background: #111b2e; padding: 13px 15px; }
+.tl-rival-message header, .tl-rival-message footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.tl-rival-message header small, .tl-rival-message footer { color: #aebcd1; font-size: 11px; }
+.tl-rival-message p { margin: 9px 0 12px; line-height: 1.5; font-size: 14px; color: #f1f5ff; }
+.tl-rival-eliminated, .tl-rival-knockedOut { border-left-color: #ffd86e; }
+.tl-rival-offer, .tl-rival-accepted { border-left-color: #87eed0; }
+
+.tl-rival-mail.is-compact .tl-rival-messages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tl-rival-titleWon, .tl-rival-titleLost { border-left-color: #ffd86e; }
+@media (max-width: 650px) { .tl-rival-mail.is-compact .tl-rival-messages { grid-template-columns: 1fr; } }

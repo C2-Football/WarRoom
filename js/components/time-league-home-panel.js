@@ -96,7 +96,8 @@
             !remaining && league.currentWeek <= Engine.seasonEndWeek(league) && h('div', { className: 'tl-hunt-bracket' }, Engine.playoffPairs(league, league.currentWeek).map((pair, index) => h('div', { key: index }, h('small', null, `WEEK ${league.currentWeek}`), h('strong', null, pair.map(teamName).join(' vs. '))))));
 
         return h('div', { className: 'tl-home' },
-            h('section', { className: `tl-home-hero${league.phase === 'complete' ? ' champion' : ''}` },
+            league.phase === 'complete' && window.WrTimeLeagueCeremony && h(window.WrTimeLeagueCeremony, { key: league.leagueId || league.id || league.name, league, onNavigate }),
+            (league.phase !== 'complete' || !window.WrTimeLeagueCeremony) && h('section', { className: `tl-home-hero${league.phase === 'complete' ? ' champion' : ''}` },
                 h('div', { className: 'tl-home-hero-copy' },
                     h('span', { className: 'tl-eyebrow' }, heroStatus),
                     league.phase === 'complete'

@@ -1,0 +1,25 @@
+.tl-career { display:grid;gap:18px; }
+.tl-career-hero { padding:28px;border:1px solid #756f9e;border-top:3px solid #bba8ff;border-radius:16px;background:linear-gradient(115deg,#2b2945,#192839); }
+.tl-career-hero>small { color:#8fead6;letter-spacing:.15em; }
+.tl-career-hero h1 { margin:10px 0;font-size:clamp(24px,3vw,38px);line-height:1.15;color:#fff; }
+.tl-career-hero p { color:#c4c7d5; }
+.tl-career-hero nav { display:flex;gap:8px;flex-wrap:wrap;margin-top:20px; }
+.tl-career-metrics { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px; }
+.tl-career-metric { display:flex;flex-direction:column;gap:8px;padding:18px;background:#1d2940;border:1px solid #384863;border-radius:12px; }
+.tl-career-metric small { color:#c3bfd5;text-transform:uppercase;letter-spacing:.08em; }
+.tl-career-metric strong { font-size:28px;color:#8aecd3;font-variant-numeric:tabular-nums; }
+.tl-career-metric span,.tl-career-note { color:#aebbd1;font-size:12px; }
+.tl-career-note { margin:0;line-height:1.5; }
+.tl-career-columns { display:grid;grid-template-columns:1fr 1fr;gap:16px; }
+.tl-career-trophies { display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px; }
+.tl-career-trophies article { display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center;padding:20px 10px;border:1px solid #a58a4b;border-radius:12px;background:linear-gradient(145deg,#3d3642,#202637); }
+.tl-career-trophies article>span { font-size:40px; }
+.tl-career-trophies small { color:#d1c7a8; }
+.tl-career-favorite { display:grid;grid-template-columns:24px 1fr 35px 30px;gap:8px;align-items:center;padding:12px 0;border-bottom:1px solid #354158; }
+.tl-career-favorite small,.tl-career-favorite span { color:#aebbd1; }
+.tl-career-favorite b { color:#f4d87c;text-align:right; }
+.tl-career-league { display:flex;justify-content:space-between;align-items:center;gap:18px;padding:18px 0;border-bottom:1px solid #354158; }
+.tl-career-league h3 { margin:5px 0;font-size:17px; }
+.tl-career-league small { display:block;color:#aebbd1;font-size:11px;line-height:1.7; }
+.tl-career-league strong { font-size:20px;color:#8aecd3; }
+@media(max-width:700px) { .tl-career-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }.tl-career-columns { grid-template-columns:1fr; }.tl-career-league { flex-wrap:wrap; }.tl-career-hero { padding:20px; } }

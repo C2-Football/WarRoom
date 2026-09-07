@@ -90,7 +90,7 @@
         case 'respond-trade':
             if (state.weekStage !== 'lineup') deny('Final trade decisions open after waivers settle.');
             if (!state.trades.some(t => t.tradeId === action.tradeId && t.toTeamId === own && t.status === 'pending')) deny('Only the receiving manager can answer this offer.');
-            if (action.decision === 'delay') next = { ...state, trades: state.trades.map(t => t.tradeId === action.tradeId ? { ...t, deferredUntilWeek: state.currentWeek + 1 } : t) };
+            if (action.decision === 'delay') next = E.deferTrade(state, action.tradeId);
             else next = E.respondToTrade(state, action.tradeId, action.accept === true, '', stamp);
             break;
         case 'ping-ai':

@@ -146,6 +146,7 @@
             finalizedWeeks: [],
             pendingClaims: [],
             trades: [],
+            waiverResults: [],
             activity: founding,
         };
     }
@@ -520,6 +521,7 @@
 
         const events = appendEvents(state.activity);
         let teams = state.teams;
+        const awards = [];
         let entryNumber = nextEntryNumber(state);
         for (const claim of ordered) {
             const team = teams.find((item) => item.teamId === claim.teamId);
@@ -571,11 +573,12 @@
                 roster: [...afterDrop, entry],
                 ...(faab ? { faabRemaining: (item.faabRemaining ?? 0) - bidAmount } : {}),
             } : item));
+            awards.push({ week, identity: card.identity, name: card.name, winnerTeamId: team.teamId, contenderTeamIds: [...new Set(ordered.filter(item => item.addIdentity === card.identity).map(item => item.teamId))] });
             taken.add(card.identity);
             if (dropEntry) taken.delete(dropEntry.identity);
             events.push(week, "waiver", `Waivers W${week} — ${team.name} lands ${card.name}${faab ? ` ($${bidAmount})` : ""}${dropEntry ? `, drops ${dropEntry.name}` : ""}`, createdAt);
         }
-        return { ...state, teams, pendingClaims: [], activity: events.list() };
+        return { ...state, teams, pendingClaims: [], waiverResults: [...(state.waiverResults || []), ...awards], activity: events.list() };
     }
 
     function proposeTrade(state, offer, createdAt) {
@@ -604,6 +607,12 @@
         return { ...state, trades: [...state.trades, trade], activity: events.list() };
     }
 
+    function deferTrade(state, tradeId) {
+        const trade = state.trades.find(item => item.tradeId === tradeId);
+        if (!trade || trade.status !== 'pending' || trade.deferredUntilWeek > state.currentWeek) return state;
+        return { ...state, trades: state.trades.map(item => item.tradeId === tradeId ? { ...item, deferredUntilWeek: state.currentWeek + 1, delayedWeeks: [...new Set([...(item.delayedWeeks || []), state.currentWeek])] } : item) };
+    }
+
     function respondToTrade(state, tradeId, accept, note, createdAt) {
         const trade = state.trades.find((item) => item.tradeId === tradeId);
         if (!trade || trade.status !== "pending" || trade.deferredUntilWeek > state.currentWeek) return state;
@@ -616,7 +625,7 @@
             events.push(state.currentWeek, "trade", `Trade — ${to.name} rejects ${from.name} offer`, createdAt);
             return {
                 ...state,
-                trades: state.trades.map((item) => (item.tradeId === tradeId ? { ...item, status: "rejected", note: nextNote } : item)),
+                trades: state.trades.map((item) => (item.tradeId === tradeId ? { ...item, status: "rejected", respondedWeek: state.currentWeek, note: nextNote } : item)),
                 activity: events.list(),
             };
         }
@@ -631,7 +640,7 @@
             events.push(state.currentWeek, "trade", `Trade — ${from.name}/${to.name} deal voided (quarterback limit)`, createdAt);
             return {
                 ...state,
-                trades: state.trades.map((item) => (item.tradeId === tradeId ? { ...item, status: "rejected", note: "Voided — quarterback limit." } : item)),
+                trades: state.trades.map((item) => (item.tradeId === tradeId ? { ...item, status: "rejected", respondedWeek: state.currentWeek, note: "Voided — quarterback limit." } : item)),
                 activity: events.list(),
             };
         }
@@ -651,7 +660,7 @@
                     : item.teamId === to.teamId ? { ...item, roster: toRoster }
                         : item
             )),
-            trades: state.trades.map((item) => (item.tradeId === tradeId ? { ...item, status: "accepted", note: nextNote } : item)),
+            trades: state.trades.map((item) => (item.tradeId === tradeId ? { ...item, status: "accepted", respondedWeek: state.currentWeek, note: nextNote } : item)),
             activity: events.list(),
         };
     }
@@ -914,7 +923,10 @@
         const status = value.status === "pending" || value.status === "accepted" || value.status === "rejected" || value.status === "withdrawn" ? value.status : null;
         const createdAt = readString(value.createdAt);
         if (!tradeId || !fromTeamId || !toTeamId || !giveEntryIds || !receiveEntryIds || week === null || !status || !createdAt) return null;
-        return { tradeId, fromTeamId, toTeamId, giveEntryIds, receiveEntryIds, week, status, deferredUntilWeek: clampInt(readNumber(value.deferredUntilWeek) ?? 0, 0, 19), note: readString(value.note) ?? "", createdAt };
+        return { tradeId, fromTeamId, toTeamId, giveEntryIds, receiveEntryIds, week, status,
+            ...(Number.isInteger(value.respondedWeek) && value.respondedWeek >= week && value.respondedWeek <= 19 ? { respondedWeek: value.respondedWeek } : {}),
+            ...(Array.isArray(value.delayedWeeks) ? { delayedWeeks: [...new Set(value.delayedWeeks.filter(item => Number.isInteger(item) && item >= week && item <= 19))] } : {}),
+            deferredUntilWeek: clampInt(readNumber(value.deferredUntilWeek) ?? 0, 0, 19), note: readString(value.note) ?? "", createdAt };
     };
 
     const readActivityEvent = (value) => {
@@ -967,6 +979,7 @@
             schedule,
             finalizedWeeks,
             pendingClaims,
+            waiverResults: Array.isArray(raw.waiverResults) ? raw.waiverResults.filter(item => item && Number.isInteger(item.week) && item.week > 0 && item.week <= 19 && typeof item.identity === 'string' && typeof item.name === 'string' && teams.some(team => team.teamId === item.winnerTeamId) && Array.isArray(item.contenderTeamIds)).map(item => ({ week: item.week, identity: item.identity, name: item.name, winnerTeamId: item.winnerTeamId, contenderTeamIds: [...new Set(item.contenderTeamIds.filter(id => teams.some(team => team.teamId === id)))] })) : [],
             trades,
             activity,
             ...(championTeamId ? { championTeamId } : {}),
@@ -977,7 +990,7 @@
         rosterCapacity, createTimeLeague, currentDraftSeat, draftedIdentities, eraEligibleCards,
         positionIsStartable, applyDraftPick, setEntrySlot, autoFillLineup, lineupProblems,
         finalizeCurrentWeek, computeStandings, freeAgents, submitWaiverClaim, cancelWaiverClaim,
-        playoffCount, seasonEndWeek, playoffPairs, startPlayoffs, processWaivers, waiverLandingSlot, proposeTrade, respondToTrade, normalizeTimeLeague,
+        playoffCount, seasonEndWeek, playoffPairs, startPlayoffs, processWaivers, waiverLandingSlot, proposeTrade, respondToTrade, deferTrade, normalizeTimeLeague,
     };
     App.TimeLeagueEngine = api;
     /* global module */

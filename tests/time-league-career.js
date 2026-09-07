@@ -1,0 +1,27 @@
+'use strict';
+const assert = require('assert');
+const Career = require('../js/shared/time-league-career.js');
+const league = { leagueId:'one', name:'History', createdAt:'2026-01-01', phase:'complete', championTeamId:'me', settings:{regularSeasonWeeks:1}, teams:[{teamId:'me',name:'Mine',manager:'human'},{teamId:'friend',name:'Friend',manager:'human'},{teamId:'ai',manager:'ai'}], draftPicks:[{teamId:'me',overall:1,identity:'p1',name:'Walter Payton',position:'RB'},{teamId:'friend',overall:2,identity:'p2',name:'Not Mine',position:'WR'}], finalizedWeeks:[{week:1,results:[{teamId:'me',total:20},{teamId:'friend',total:10}],matchups:[{home:'me',away:'friend',homePoints:20,awayPoints:10,winner:'me'}]},{week:2,results:[{teamId:'me',total:30},{teamId:'friend',total:40}],matchups:[{home:'me',away:'friend',homePoints:30,awayPoints:40,winner:'friend'}]},{week:3,results:[{teamId:'me',total:99}],matchups:[]}] };
+const mine = Career.recordFor({league,mode:'solo',seatTeamId:'me'});
+assert.equal(mine.stats.points,50); assert.equal(mine.stats.games,2); assert.equal(mine.stats.wins,1); assert.equal(mine.stats.losses,1);
+assert.equal(mine.regular.wins,1); assert.equal(mine.playoffs.losses,1); assert.equal(mine.stats.high.points,30); assert.equal(mine.stats.trophies,1);
+assert.deepEqual(mine.drafted.map(item=>item.name),['Walter Payton']);
+assert.equal(Career.recordFor({league,mode:'solo'}),null);
+assert.equal(Career.recordFor({league,mode:'solo',seatTeamId:'ai'}),null);
+const remote = Career.recordFor({league:{...league,leagueId:'remote'},mode:'multiplayer',seatTeamId:'friend',rowId:'row'});
+assert.equal(remote.stats.points,50); assert.equal(remote.stats.trophies,0);
+const profile = Career.summarize([mine,{...mine,archived:true},remote]);
+assert.equal(profile.overall.games,4); assert.equal(profile.solo.games,2); assert.equal(profile.multiplayer.games,2); assert.equal(profile.leagues.length,2); assert.equal(profile.leagues.find(item=>item.mode==='solo').archived,false);
+assert.equal(profile.mostDrafted.length,2);
+assert.equal(Career.summarize([JSON.parse(JSON.stringify({...mine,archived:true}))]).overall.points,50);
+const inProgress = Career.recordFor({league:{...league,phase:'season'},mode:'solo',seatTeamId:'me'});
+assert.equal(inProgress.stats.trophies,0);
+assert.equal(Career.summarize([mine,inProgress]).overall.trophies,0); // Reopened playoffs revoke the premature title.
+assert.equal(Career.summarize([mine,inProgress]).overall.completed,0);
+const duplicateWeeks = Career.recordFor({league:{...league,finalizedWeeks:[...league.finalizedWeeks,league.finalizedWeeks[0]]},mode:'solo',seatTeamId:'me'});
+assert.equal(duplicateWeeks.stats.games,2);
+const stale = Career.recordFor({league:{...league,phase:'season',finalizedWeeks:league.finalizedWeeks.slice(0,1)},mode:'solo',seatTeamId:'me'});
+assert.equal(Career.summarize([mine,stale]).overall.points,50);
+const tie = Career.recordFor({league:{...league,finalizedWeeks:[{week:1,results:[{teamId:'me',total:0}],matchups:[{home:'me',away:'friend',winner:null,homePoints:0,awayPoints:0}]}]},mode:'solo',seatTeamId:'me'});
+assert.equal(tie.stats.ties,1); assert.equal(tie.stats.high.points,0);
+console.log('Career: identity, solo/friends splits, playoffs, points, trophies, drafts, archive roundtrip, dedup, byes and ties passed.');

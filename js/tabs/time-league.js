@@ -26,14 +26,14 @@
     const REGULAR_SEASON_WEEKS = 14;
     const MAX_QUARTERBACKS = 2;
 
-    const TAB_IDS = ['home', 'draft', 'gameday', 'roster', 'waivers', 'trades', 'achievements', 'activity'];
+    const TAB_IDS = ['home', 'draft', 'gameday', 'roster', 'waivers', 'trades', 'achievements', 'messages', 'career', 'activity'];
     const TAB_LABELS = {
         home: 'HOME', draft: 'DRAFT', gameday: 'GAMEDAY', roster: 'ROSTER', waivers: 'WAIVERS',
-        trades: 'TRADES', achievements: 'ACHIEVEMENTS', standings: 'COMMAND CENTRAL', activity: 'ACTIVITY',
+        trades: 'TRADES', achievements: 'ACHIEVEMENTS', messages: 'MESSAGES', career: 'MY CAREER', standings: 'COMMAND CENTRAL', activity: 'ACTIVITY',
     };
     const TAB_ICONS = {
         home: '⌂', draft: '▤', gameday: '▶', roster: '♙', waivers: '+', trades: '⇄',
-        achievements: '♛', standings: '≡', activity: '◷',
+        achievements: '♛', messages: '✉', career: '★', standings: '≡', activity: '◷',
     };
 
     const PERSONA_IDS = ['warlord', 'archivist', 'gambler', 'steward'];
@@ -828,7 +828,7 @@
         }, [expanded]);
         const primary = tabs.includes('home') ? ['home', 'roster', 'gameday', 'waivers'] : ['draft', 'activity'];
         const extra = tabs.filter(tab => !primary.includes(tab));
-        const labels = { home: 'Home', roster: 'My team', gameday: 'Game day', waivers: 'Players', draft: 'Draft', activity: 'Activity', trades: 'Trades', achievements: 'Trophies', standings: 'Command Central' };
+        const labels = { home: 'Home', roster: 'My team', gameday: 'Game day', waivers: 'Players', draft: 'Draft', activity: 'Activity', trades: 'Trades', achievements: 'Trophies', standings: 'Command Central', messages: 'Messages', career: 'My career' };
         const choose = tab => { setExpanded(false); onNavigate(tab); };
         return h(React.Fragment, null,
             expanded && h('div', { className: 'tl-mobile-more', id: 'vault-more-navigation' },
@@ -897,6 +897,7 @@
         const [saving, setSaving] = useState(false);
         const [showFriends, setShowFriends] = useState(false);
         const [connectionError, setConnectionError] = useState(null);
+        const [showCareer, setShowCareer] = useState(false);
         const onlineRef = useRef(null);
         const writeBusy = useRef(false);
         const openGeneration = useRef(0);
@@ -907,10 +908,11 @@
             if (!opening && leagueRef.current?.leagueId === safe.leagueId && safe.finalizedWeeks.length > leagueRef.current.finalizedWeeks.length) {
                 setAutoPlayWeek(safe.finalizedWeeks[safe.finalizedWeeks.length - 1]?.week);
             }
-            const meta = { rowId: row.id, version: row.version, role: row.role || onlineRef.current?.role,
+            const meta = { rowId: row.id, userId: window.App.OD?.getCurrentUserId?.(), version: row.version, role: row.role || onlineRef.current?.role,
                 seatTeamId: row.seatTeamId || onlineRef.current?.seatTeamId,
                 members: row.members || onlineRef.current?.members || [], draftStarted: row.draft_started };
             onlineRef.current = meta;
+            window.App.TimeLeagueCareerStore?.remember(safe, meta);
             setOnlineMeta(meta);
             setLeague(safe);
             setActiveTeamId(meta.seatTeamId);
@@ -994,6 +996,7 @@
 
         const persistLeague = useCallback((state) => {
             writeLeague(state);
+            window.App.TimeLeagueCareerStore?.remember(state, null);
             setIndex((prev) => {
                 const entry = indexEntryOf(state);
                 const next = prev.some((item) => item.leagueId === state.leagueId)
@@ -1125,6 +1128,8 @@
         }, [refreshOnlineIndex]);
 
         const deleteLeague = useCallback((leagueId) => {
+            const saved = readLeague(leagueId);
+            if (saved) window.App.TimeLeagueCareerStore?.remember(saved, null, true);
             removeLeagueRecord(leagueId);
             setIndex((prev) => { const next = prev.filter((item) => item.leagueId !== leagueId); writeIndexEntries(next); return next; });
             setLeague((prev) => (prev?.leagueId === leagueId ? null : prev));
@@ -1137,6 +1142,8 @@
         const ActivityPanel = window.WrTimeLeagueActivityPanel;
         const GamecastPanel = window.WrTimeLeagueGamecastPanel;
         const HomePanel = window.WrTimeLeagueHomePanel;
+        const CareerView = window.WrTimeLeagueCareerView;
+        const RivalsPanel = window.WrTimeLeagueRivalsPanel;
 
         if (!league) {
             return h('div', { className: 'tl-root tl-play' },
@@ -1152,6 +1159,9 @@
                         h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 } },
                             h('span', { style: { fontSize: 12.5, color: 'var(--warn)' } }, `⚠ ${inviteError}`),
                             h('button', { type: 'button', className: 'tl-btn icon', onClick: () => setInviteError(null) }, '✕'))),
+                    CareerView && h('section', { className: 'tl-card', style: { marginBottom: 16 } },
+                        h('button', { className: 'tl-btn primary', 'aria-expanded': showCareer, onClick: () => setShowCareer(value => !value) }, showCareer ? 'Close career profile' : 'Your career & league history'),
+                        showCareer && h(CareerView, { index, onOpenLocal: openLeague, onOpenOnline: openOnlineLeague })),
                     SetupPanel ? h(SetupPanel, {
                         index, onOpen: openLeague, onDelete: deleteLeague, onCreate: createLeague,
                         onlineIndex, onlineIndexState, onOpenOnline: openOnlineLeague, onCreateOnline: createOnlineLeague,
@@ -1159,8 +1169,8 @@
         }
 
         const tabs = league.phase === 'draft'
-            ? ['draft', 'activity']
-            : ['home', 'gameday', 'roster', 'waivers', 'trades', 'achievements', 'draft', 'activity'];
+            ? ['draft', 'messages', 'career', 'activity']
+            : ['home', 'gameday', 'roster', 'waivers', 'trades', 'achievements', 'draft', 'messages', 'career', 'activity'];
         const activeTab = tabs.includes(tab) ? tab : tabs[0];
         const activeTeam = onlineMeta ? onlineMeta.seatTeamId : league.teams.some((team) => team.teamId === activeTeamId)
             ? activeTeamId
@@ -1232,10 +1242,13 @@
                             h('button', { className: 'tl-btn', onClick: () => { setActiveTeamId(responseTeam); navigateTab('trades'); } }, 'Open trade desk'))))),
                 WeekGates && h(WeekGates, { league, onlineMeta, saving, dataReady: cardsReady && Boolean(logIndex), onAction: dispatchGate, onNavigate: navigateTab }),
                 activeTab === 'draft' && draftModuleState === 'error' && h('p', { role: 'status' }, 'The draft grid could not load. ', h('button', { className: 'tl-btn', onClick: () => setDraftModuleState('idle') }, 'Retry draft module')),
+                activeTab === 'home' && league.phase !== 'complete' && RivalsPanel ? h(RivalsPanel, { league, teamId: onlineMeta?.seatTeamId || league.teams.find(team => team.manager === 'human')?.teamId, compact: true, onNavigate: navigateTab }) : null,
                 activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: onlineMeta?.seatTeamId }) : null,
+                ((activeTab === 'home' && league.phase === 'complete') || activeTab === 'messages') && RivalsPanel ? h(RivalsPanel, { league, teamId: onlineMeta?.seatTeamId || league.teams.find(team => team.manager === 'human')?.teamId, compact: activeTab === 'home', onNavigate: navigateTab }) : null,
+                activeTab === 'career' && CareerView ? h(CareerView, { index, league, onlineMeta, onOpenLocal: openLeague, onOpenOnline: openOnlineLeague }) : null,
                 activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, { league, cards, onUpdate: handleUpdate, onlineMeta }) : loadingNotice) : null,
                 activeTab === 'gameday' && GamecastPanel ? h(GamecastPanel, {
-                    league, cards, logIndex, logsMissing, eraFactors, onlineMeta, autoPlayWeek, onUpdate: handleUpdate, onGoRoster: () => navigateTab('roster'),
+                    league, cards, logIndex, logsMissing, eraFactors, onlineMeta, autoPlayWeek, onGoCeremony: () => navigateTab('home'), onUpdate: handleUpdate, onGoRoster: () => navigateTab('roster'),
                 }) : null,
                 (activeTab === 'roster' || activeTab === 'waivers' || activeTab === 'trades' || activeTab === 'achievements')
                     ? (cardsReady && TeamPanel

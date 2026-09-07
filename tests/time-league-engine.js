@@ -326,6 +326,9 @@ test('FAAB: highest bid wins a contested free agent and pays its own bid', () =>
     state = Engine.submitWaiverClaim(state, { teamId: teamA.teamId, addIdentity: fa.identity, addName: fa.name, addPosition: fa.position, dropEntryId: dropA.entryId, bidAmount: 20 }, '2026-01-01T00:00:00Z');
     state = Engine.submitWaiverClaim(state, { teamId: teamB.teamId, addIdentity: fa.identity, addName: fa.name, addPosition: fa.position, dropEntryId: dropB.entryId, bidAmount: 45 }, '2026-01-01T00:00:00Z');
     state = Engine.processWaivers(state, cards, '2026-01-01T00:00:00Z');
+    assert.equal(state.waiverResults[0].winnerTeamId, teamB.teamId);
+    assert.deepEqual(new Set(state.waiverResults[0].contenderTeamIds), new Set([teamA.teamId, teamB.teamId]));
+    assert.deepEqual(Engine.normalizeTimeLeague(JSON.parse(JSON.stringify(state))).waiverResults, state.waiverResults);
     const winner = state.teams.find((t) => t.teamId === teamB.teamId);
     const loser = state.teams.find((t) => t.teamId === teamA.teamId);
     assert.ok(winner.roster.some((e) => e.identity === fa.identity), 'the $45 bid should win the player');
@@ -380,7 +383,14 @@ test('proposeTrade then respondToTrade(accept) swaps entries between rosters', (
     state = Engine.proposeTrade(state, { fromTeamId: teamA.teamId, toTeamId: teamB.teamId, giveEntryIds: [giveEntry.entryId], receiveEntryIds: [receiveEntry.entryId], note: 'test trade' }, '2026-01-01T00:00:00Z');
     assert.strictEqual(state.trades.length, 1);
     const tradeId = state.trades[0].tradeId;
+    state = Engine.deferTrade(state, tradeId);
+    assert.deepEqual(state.trades[0].delayedWeeks, [1]);
+    assert.strictEqual(Engine.deferTrade(state, tradeId), state);
+    assert.strictEqual(Engine.respondToTrade(state, tradeId, true, '', '2026-01-01T00:00:00Z'), state);
+    state = Engine.normalizeTimeLeague(JSON.parse(JSON.stringify({ ...state, currentWeek: 2 })));
+    assert.deepEqual(state.trades[0].delayedWeeks, [1]);
     state = Engine.respondToTrade(state, tradeId, true, '', '2026-01-01T00:00:00Z');
+    assert.equal(state.trades[0].respondedWeek, 2);
     const newA = state.teams.find((t) => t.teamId === teamA.teamId);
     const newB = state.teams.find((t) => t.teamId === teamB.teamId);
     assert.ok(newA.roster.some((e) => e.entryId === receiveEntry.entryId));

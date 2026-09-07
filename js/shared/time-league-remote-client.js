@@ -6,9 +6,11 @@
         const od = window.App.OD;
         const db = od?.getClient?.();
         const token = od?.getSessionToken?.();
+        const requestUserId = od?.getCurrentUserId?.();
         if (!db || !od?.getCurrentUserId?.() || !token) return { ok: false, error: 'Sign in to play with friends.' };
         try {
             const { data, error } = await db.functions.invoke('time-league', { body, headers: { Authorization: `Bearer ${token}` } });
+            if (od?.getCurrentUserId?.() !== requestUserId) return { ok: false, error: 'Your account changed. Reopen the league to continue.' };
             if (error) {
                 const details = await error.context?.json?.().catch(() => null);
                 return { ok: false, conflict: details?.conflict === true, error: details?.error || details?.message || 'Could not reach your league. Check your connection and try again.' };

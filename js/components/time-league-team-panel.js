@@ -434,7 +434,7 @@
                                 incoming && !toAi && h(React.Fragment, null,
                                     h('button', { className: 'tl-btn', disabled: !canRespond, onClick: () => apply(Engine.respondToTrade(league, trade.tradeId, true, '', nowIso()), { type: 'respond-trade', tradeId: trade.tradeId, accept: true }) }, '✓ ACCEPT'),
                                     h('button', { className: 'tl-btn', disabled: !canRespond, onClick: () => apply(Engine.respondToTrade(league, trade.tradeId, false, '', nowIso()), { type: 'respond-trade', tradeId: trade.tradeId, accept: false }) }, '✕ REJECT'),
-                                    h('button', { className: 'tl-btn', disabled: !canRespond, onClick: () => apply({ ...league, trades: league.trades.map(item => item.tradeId === trade.tradeId ? { ...item, deferredUntilWeek: league.currentWeek + 1 } : item) }, { type: 'respond-trade', tradeId: trade.tradeId, decision: 'delay' }) }, 'DELAY TO NEXT WEEK')),
+                                    h('button', { className: 'tl-btn', disabled: !canRespond, onClick: () => apply(Engine.deferTrade(league, trade.tradeId), { type: 'respond-trade', tradeId: trade.tradeId, decision: 'delay' }) }, 'DELAY TO NEXT WEEK')),
                                 toAi && h(React.Fragment, null,
                                     h('span', { className: 'tl-pill info' }, 'THE GM IS CONSIDERING'),
                                     h('button', { className: 'tl-btn', disabled: !canRespond, onClick: () => apply(AI.aiRespondToTrades(league, cards, nowIso()), { type: 'ping-ai' }) }, '📡 PING THE GM')),

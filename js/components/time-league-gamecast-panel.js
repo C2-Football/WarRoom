@@ -87,7 +87,7 @@
 
     }
 
-    function WrTimeLeagueGamecastPanel({ league, cards, logIndex, logsMissing, eraFactors, onUpdate, onGoRoster, onlineMeta, autoPlayWeek }) {
+    function WrTimeLeagueGamecastPanel({ league, cards, logIndex, logsMissing, eraFactors, onUpdate, onGoRoster, onlineMeta, autoPlayWeek, onGoCeremony }) {
         const [playback, setPlayback] = useState(null);
         const [clock, setClock] = useState(0);
         const [playing, setPlaying] = useState(false);
@@ -238,6 +238,7 @@
                                 h('time', null, `T+${String(Math.round(event.t)).padStart(3, '0')}′ · +${event.points.toFixed(2)}`),
                                 h('p', null, `${event.description} — ${teamName(event.teamId)}`)))),
                     done && h('div', { style: { marginTop: 14, textAlign: 'center' } },
+                        league.phase === 'complete' && onGoCeremony && h('button', { className: 'tl-btn primary', onClick: onGoCeremony }, 'CHAMPIONSHIP CEREMONY'),
                         h('button', { className: 'tl-btn', onClick: () => { setPlayback(null); clockRef.current = 0; setClock(0); } }, 'CLOSE GAMECAST'))));
         }
 
@@ -257,7 +258,7 @@
                 h('button', { className: 'tl-btn primary', disabled: !canRun, onClick: () => runGameDay(false), style: { width: '100%', justifyContent: 'center', padding: '10px', marginTop: 4 } }, onlineMeta && onlineMeta.role !== 'commissioner' ? 'WAITING FOR COMMISSIONER' : '▶ RUN GAME DAY')),
             league.phase === 'complete' && h('div', { className: 'tl-card', style: { display: 'flex', alignItems: 'center', gap: 12 } },
                 h('span', { style: { fontSize: 24 } }, '🏆'),
-                h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Season Complete — Champion'), h('strong', { style: { fontFamily: 'var(--font-title)', fontSize: 18 } }, champion ?? 'Unknown'))),
+                h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Season Complete — Champion'), h('strong', { style: { fontFamily: 'var(--font-title)', fontSize: 18 } }, champion ?? 'Unknown')), onGoCeremony && h('button', { className: 'tl-btn primary', onClick: onGoCeremony }, 'CHAMPIONSHIP CEREMONY')),
             league.finalizedWeeks.length > 0 && h('div', { className: 'tl-card', style: { marginTop: 14 } },
                 h('div', { className: 'tl-card-title' }, h('span', null, 'Week Archive'), h('small', null, 'replay any gamecast or audit the box scores')),
                 league.finalizedWeeks.map((week) => h('div', { key: week.week, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' } },
