@@ -251,6 +251,7 @@ function AnalyticsPanel({
     const [draftPosMix, setDraftPosMix] = React.useState({ status: 'loading', leagueId: null });
     // Ideal Draft Strategy — By Draft Slot (redraft/chopped only): which
     // third of the draft order the tab is reading.
+    const [draftDnaView, setDraftDnaView] = React.useState('mix');
     const [slotTierTab, setSlotTierTab] = React.useState(null);
     React.useEffect(() => setSlotTierTab(null), [historyLeagueId]);
     // Winner's Perch — the editor (WR.ManualSeasonsEditor) owns its own rows;
@@ -1135,8 +1136,7 @@ function AnalyticsPanel({
 
         {/* ═══ DRAFT INTELLIGENCE ═══ */}
         {analyticsViewTab === 'draft' && (() => {
-            const dr = d.draft;
-            if (!dr) return <div style={{ color: 'var(--silver)' }}>No draft data available.</div>;
+            const dr = d.draft || { winnerDraftProfile: {}, winnerHitRate: {}, winnerPosHitRate: {} };
             const rounds = Object.keys(dr.winnerDraftProfile || {}).map(Number).sort((a, b) => a - b);
             const S = _SS;
             const myRid = myRoster?.roster_id ?? S?.myRosterId;
@@ -1505,13 +1505,60 @@ function AnalyticsPanel({
                     repeated input; dynasty/keeper don't get the tabs since a
                     startup happens once and a rookie draft's slot is set by
                     standings, not a choice. */}
-                {(isSeasonalLeague || strategyRounds.length > 0 || hasSlotTiers) && (
+                {(
                     <div className="analytics-panel" style={{ marginBottom: 'var(--card-gap, 14px)' }}>
                         <div className="analytics-panel-head">
-                            <span>Draft strategy by starting slot</span>
-                            <em>{confirmedSlot ? 'Your slot: ' + confirmedSlot + ' · ' : 'Choose a draft-order group · '}Historical starter hit rates</em>
+                            <span>Draft DNA</span>
+                            <em>{draftDnaView === 'mix' ? 'Round-by-round position mix' : (confirmedSlot ? 'Your slot: ' + confirmedSlot + ' · ' : '') + 'Historical starter hit rates'}</em>
                         </div>
 
+                        <div className="analytics-dna-tabs" aria-label="Draft DNA views"><button type="button" aria-pressed={draftDnaView === 'mix'} onClick={() => setDraftDnaView('mix')}>Position Mix</button><button type="button" aria-pressed={draftDnaView === 'strategy'} onClick={() => setDraftDnaView('strategy')}>Strategy by Slot</button></div>
+                        {draftDnaView === 'mix' ? (() => {
+            const mix = draftPosMix.data;
+            const roundNums = Object.keys(mix?.roundTotals || {}).map(Number).sort((a, b) => a - b);
+            if (draftPosMix.status === 'loading') return <p className="analytics-draft-note">Loading draft position history…</p>;
+            if (!mix || !roundNums.length) return <p className="analytics-draft-note">No draft position history is available yet.</p>;
+            const seasonCount = mix.seasons.length;
+            const seasonSpan = seasonCount > 1 ? (mix.seasons[seasonCount - 1] + '–' + mix.seasons[0]) : String(mix.seasons[0]);
+            return (
+                <div className="analytics-dna-mix">
+                        <p style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.75, marginTop: '-4px', marginBottom: '12px', lineHeight: 1.5 }}>
+                            What every team drafted at each position, round by round, pooled across every season this league's Sleeper history reaches — <b style={{ color: 'var(--gold)' }}>{seasonCount} season{seasonCount === 1 ? '' : 's'}</b> ({seasonSpan}).
+                        </p>
+                        {roundNums.map(rd => {
+                            const total = mix.roundTotals[rd] || 0;
+                            const entries = Object.entries(mix.roundCounts[rd] || {}).sort((a, b) => b[1] - a[1]);
+                            return (
+                                <div key={rd} style={{ display: 'grid', gridTemplateColumns: _phone ? '54px minmax(0,1fr)' : '74px minmax(0,1fr)', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
+                                    <div>
+                                        <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.95rem', color: 'var(--gold)' }}>R{rd}</div>
+                                        <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>n={total}</div>
+                                    </div>
+                                    <div style={{ display: 'flex', height: '24px', borderRadius: 'var(--card-radius-sm, 8px)', overflow: 'hidden' }}>
+                                        {entries.map(([pos, cnt]) => {
+                                            const pct = total ? cnt / total : 0;
+                                            return (
+                                                <span
+                                                    key={pos}
+                                                    title={posLabel(pos) + ' ' + pctFmt(pct) + ' (' + cnt + ' picks)'}
+                                                    style={{ width: (pct * 100) + '%', background: POS_COLOR[pos] || POS_COLOR.UNK, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-micro)', color: '#0c0c0f', overflow: 'hidden', whiteSpace: 'nowrap' }}
+                                                >
+                                                    {pct >= 0.1 ? posLabel(pos) + ' ' + pctFmt(pct) : ''}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 14px', marginTop: '10px', fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>
+                            {Object.keys(POS_COLOR).filter(p => p !== 'UNK').map(p => (
+                                <span key={p}><i style={{ display: 'inline-block', width: '10px', height: '10px', background: POS_COLOR[p], borderRadius: '2px', marginRight: '4px', verticalAlign: 'middle' }} />{posLabel(p)}</span>
+                            ))}
+                        </div>
+                </div>
+            );
+                        })() : <React.Fragment>
                         {isSeasonalLeague && (
                             <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
                                 {[{ key: 'all', label: 'All Picks', sub: 'every draft slot' }, ...SLOT_TIERS].map(t => {
@@ -1593,6 +1640,7 @@ function AnalyticsPanel({
                         </div>
                         </React.Fragment>
                         )}
+                        </React.Fragment>}
                     </div>
                 )}
 
@@ -1779,71 +1827,6 @@ function AnalyticsPanel({
                     </div>
                 )}
             </React.Fragment>
-            );
-        })()}
-
-        {/* ═══ ROUND-BY-ROUND POSITION MIX (multi-season Sleeper history) ═══
-            Independent of the d.draft-backed panels above (own fetch, own cache —
-            see buildDraftPosMix at module scope), so it renders whenever the
-            league's Sleeper history reaches at least one completed draft, even
-            if the local per-user hit-rate math above has nothing to show yet. */}
-        {analyticsViewTab === 'draft' && (() => {
-            if (draftPosMix.status === 'empty') return null;
-            if (draftPosMix.status === 'loading') {
-                return (
-                    <div className="analytics-lab-grid" style={{ gridTemplateColumns: '1fr' }}>
-                        <div className="analytics-lab-card">
-                            <span>Draft DNA</span>
-                            <strong>Round-by-Round Position Mix</strong>
-                            <p style={{ color: 'var(--silver)', opacity: 0.6 }}>Loading this league's Sleeper draft history…</p>
-                        </div>
-                    </div>
-                );
-            }
-            const mix = draftPosMix.data;
-            const roundNums = Object.keys(mix?.roundTotals || {}).map(Number).sort((a, b) => a - b);
-            if (!mix || !roundNums.length) return null;
-            const seasonCount = mix.seasons.length;
-            const seasonSpan = seasonCount > 1 ? (mix.seasons[seasonCount - 1] + '–' + mix.seasons[0]) : String(mix.seasons[0]);
-            return (
-                <div className="analytics-lab-grid" style={{ gridTemplateColumns: '1fr' }}>
-                    <details className="analytics-lab-card analytics-position-mix"><summary><span>Draft DNA</span><strong>Round-by-Round Position Mix · all teams</strong></summary>
-                        <p style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.75, marginTop: '-4px', marginBottom: '12px', lineHeight: 1.5 }}>
-                            What every team drafted at each position, round by round, pooled across every season this league's Sleeper history reaches — <b style={{ color: 'var(--gold)' }}>{seasonCount} season{seasonCount === 1 ? '' : 's'}</b> ({seasonSpan}).
-                        </p>
-                        {roundNums.map(rd => {
-                            const total = mix.roundTotals[rd] || 0;
-                            const entries = Object.entries(mix.roundCounts[rd] || {}).sort((a, b) => b[1] - a[1]);
-                            return (
-                                <div key={rd} style={{ display: 'grid', gridTemplateColumns: _phone ? '54px minmax(0,1fr)' : '74px minmax(0,1fr)', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
-                                    <div>
-                                        <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.95rem', color: 'var(--gold)' }}>R{rd}</div>
-                                        <div style={{ fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>n={total}</div>
-                                    </div>
-                                    <div style={{ display: 'flex', height: '24px', borderRadius: 'var(--card-radius-sm, 8px)', overflow: 'hidden' }}>
-                                        {entries.map(([pos, cnt]) => {
-                                            const pct = total ? cnt / total : 0;
-                                            return (
-                                                <span
-                                                    key={pos}
-                                                    title={posLabel(pos) + ' ' + pctFmt(pct) + ' (' + cnt + ' picks)'}
-                                                    style={{ width: (pct * 100) + '%', background: POS_COLOR[pos] || POS_COLOR.UNK, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: 'var(--text-micro)', color: '#0c0c0f', overflow: 'hidden', whiteSpace: 'nowrap' }}
-                                                >
-                                                    {pct >= 0.1 ? posLabel(pos) + ' ' + pctFmt(pct) : ''}
-                                                </span>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 14px', marginTop: '10px', fontSize: 'var(--text-micro)', color: 'var(--silver)' }}>
-                            {Object.keys(POS_COLOR).filter(p => p !== 'UNK').map(p => (
-                                <span key={p}><i style={{ display: 'inline-block', width: '10px', height: '10px', background: POS_COLOR[p], borderRadius: '2px', marginRight: '4px', verticalAlign: 'middle' }} />{posLabel(p)}</span>
-                            ))}
-                        </div>
-                    </details>
-                </div>
             );
         })()}
 
