@@ -14,6 +14,8 @@
         const standings = useMemo(() => Engine.computeStandings(league), [league]);
         const teamOf = (teamId) => league.teams.find((t) => t.teamId === teamId);
         const [selectedId, setSelectedId] = React.useState('');
+        const detailsRef = React.useRef(null);
+        const selectedTrigger = React.useRef(null);
         const selected = teamOf(selectedId);
         const selectedRow = standings.find(row => row.teamId === selected?.teamId);
         const scored = league.finalizedWeeks.filter(week => week.week <= league.settings.regularSeasonWeeks).length;
@@ -26,6 +28,15 @@
         });
         const metric = (label, value, detail) => h('div', { className: 'tl-command-metric' }, h('small', null, label), h('strong', null, value), h('span', null, detail));
         const champion = league.phase === 'complete' && league.championTeamId ? teamOf(league.championTeamId) : null;
+        const selectTeam = (teamId, event) => {
+            selectedTrigger.current = event?.currentTarget || null;
+            setSelectedId(selectedId === teamId ? '' : teamId);
+        };
+        React.useEffect(() => {
+            if (!selectedId) return;
+            detailsRef.current?.focus?.({ preventScroll: true });
+            detailsRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'auto' });
+        }, [selectedId]);
         return h('div', { className: 'tl-command-center' },
             !embedded && h('div', { className: 'tl-command-metrics' },
                 metric('League leader', scored ? teamOf(leader?.teamId)?.name : 'Not yet decided', scored ? `${leader.wins} wins · ${leader.losses} losses` : 'Season opener ahead'),
@@ -36,7 +47,22 @@
             champion && h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', marginBottom: 10, borderBottom: '1px solid var(--charcoal)' } },
                 h('span', { style: { fontSize: 20 } }, '🏆'),
                 h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Champion'), h('strong', { style: { fontFamily: 'var(--font-title)', fontSize: 16 } }, champion.name))),
-            h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'tl-tbl' },
+            h('div', { className: 'tl-standings-mobile', 'aria-label': 'League standings' },
+                h('div', { className: 'tl-standings-mobile-head', 'aria-hidden': true }, h('span', null, '#'), h('span', null, 'Team'), h('span', null, 'Record'), h('span', null, 'Points')),
+                standings.map((row, position) => {
+                    const team = teamOf(row.teamId);
+                    const record = `${row.wins}–${row.losses}${row.ties ? `–${row.ties}` : ''}`;
+                    const streak = UI.streakFor(league, row.teamId);
+                    return h('button', { key: row.teamId, type: 'button', className: `tl-standings-mobile-row${selectedId === row.teamId ? ' is-selected' : ''}`,
+                        'aria-label': `${position + 1}. ${team?.name ?? row.teamId}, ${record}, ${row.pointsFor.toFixed(1)} points for. View team details`,
+                        'aria-expanded': selectedId === row.teamId, onClick: event => selectTeam(row.teamId, event) },
+                    h('span', { className: 'tl-standings-rank' }, position + 1),
+                    h('span', { className: 'tl-standings-team' },
+                        h(window.TimeLeagueHelmetIcon, { helmet: team?.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team?.name || row.teamId), size: 26 }),
+                        h('span', null, h('strong', null, team?.name ?? row.teamId), h('small', null, league.championTeamId === row.teamId ? 'Champion' : streak ? `${streak.kind}${streak.count} streak` : team?.manager === 'ai' ? 'AI manager' : 'Human manager'))),
+                    h('span', { className: 'tabular' }, record), h('strong', { className: 'tabular' }, row.pointsFor.toFixed(1)));
+                })),
+            h('div', { className: 'tl-standings-desktop', style: { overflowX: 'auto' } }, h('table', { className: 'tl-tbl' },
                 h('thead', null, h('tr', null,
                     h('th', { className: 'num' }, '#'), h('th', null, 'Team'), h('th', { className: 'num' }, 'W'), h('th', { className: 'num' }, 'L'), h('th', { className: 'num' }, 'T'),
                     h('th', { className: 'num' }, 'Streak'), h('th', { className: 'num' }, 'All-Play'), h('th', { className: 'num' }, 'PF'), h('th', { className: 'num' }, 'PA'))),
@@ -47,14 +73,14 @@
                         h('td', { className: 'num tabular' }, position + 1),
                         h('td', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
                             h(window.TimeLeagueHelmetIcon, { helmet: team?.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team?.name || row.teamId), size: 22 }),
-                            h('button', { className: 'tl-command-team', 'aria-pressed': selected?.teamId === row.teamId, onClick: () => setSelectedId(selectedId === row.teamId ? '' : row.teamId) }, team?.name ?? row.teamId), ' ', h('span', { className: `tl-pill${team?.manager === 'ai' ? ' info' : ''}` }, team?.manager === 'ai' ? 'AI' : 'HUM')),
+                            h('button', { className: 'tl-command-team', 'aria-pressed': selected?.teamId === row.teamId, onClick: event => selectTeam(row.teamId, event) }, team?.name ?? row.teamId), ' ', h('span', { className: `tl-pill${team?.manager === 'ai' ? ' info' : ''}` }, team?.manager === 'ai' ? 'AI' : 'HUM')),
                         h('td', { className: 'num tabular' }, row.wins), h('td', { className: 'num tabular' }, row.losses), h('td', { className: 'num tabular' }, row.ties),
                         h('td', { className: 'num' }, streak ? h('span', { className: `tl-streak ${streak.kind}` }, `${streak.kind}${streak.count}`) : '—'),
                         h('td', { className: 'num tabular' }, `${row.allPlayWins}-${row.allPlayLosses}`),
                         h('td', { className: 'num tabular' }, row.pointsFor.toFixed(1)), h('td', { className: 'num tabular' }, row.pointsAgainst.toFixed(1)));
                 }))))),
-            selected && h('section', { className: 'tl-command-intel tl-card' },
-                h('div', { className: 'tl-card-title' }, h('span', null, `${selected.name} · Team intelligence`), h('button', { className: 'tl-btn icon', 'aria-label': 'Close team details', onClick: () => setSelectedId('') }, '×')),
+            selected && h('section', { className: 'tl-command-intel tl-card', tabIndex: -1, ref: detailsRef, 'aria-label': `${selected.name} team details` },
+                h('div', { className: 'tl-card-title' }, h('span', null, `${selected.name} · Team details`), h('button', { className: 'tl-btn icon', 'aria-label': 'Close team details', onClick: () => { setSelectedId(''); selectedTrigger.current?.focus?.(); } }, '×')),
                 h('div', { className: 'tl-command-metrics' }, metric('Record', `${selectedRow.wins}–${selectedRow.losses}–${selectedRow.ties}`, 'Wins · losses · ties'), metric('Point differential', (selectedRow.pointsFor-selectedRow.pointsAgainst).toFixed(1), 'Points for minus points against'), metric('All-play', `${selectedRow.allPlayWins}–${selectedRow.allPlayLosses}`, 'Compared against every team each week')),
                 h('div', { className: 'tl-command-columns' },
                     h('div', null, h('h3', null, 'Recent form'),

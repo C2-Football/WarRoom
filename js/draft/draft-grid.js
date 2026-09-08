@@ -16,7 +16,7 @@
 (function() {
     const { DRAFT_CC_LAYOUT, FONT_UI, FONT_DISPL, FONT_MONO, panelCard } = window.DraftCC.styles;
 
-    function DraftGridPanel({ state, dispatch, isUserTurn, currentSlot, renderPick }) {
+    function DraftGridPanel({ state, dispatch, isUserTurn, currentSlot, renderPick, embedded = false }) {
         const posColors = window.App?.POS_COLORS || {
             QB: 'var(--k-ff6b6b, #ff6b6b)', RB: 'var(--k-4ecdc4, #4ecdc4)', WR: 'var(--k-45b7d1, #45b7d1)', TE: 'var(--k-f7dc6f, #f7dc6f)',
             DL: 'var(--k-e67e22, #e67e22)', LB: 'var(--k-f0a500, #f0a500)', DB: 'var(--k-5dade2, #5dade2)', K: 'var(--k-bb8fce, #bb8fce)',
@@ -69,8 +69,8 @@
             for (const s of state.pickOrder) {
                 if (s.teamIdx === teamIdx) {
                     const persona = state.personas?.[s.rosterId];
-                    if (persona && persona.teamName) return persona.teamName.substring(0, 8);
-                    return (s.ownerName || ('T' + (teamIdx + 1))).substring(0, 8);
+                    const name = persona?.teamName || s.ownerName || ('T' + (teamIdx + 1));
+                    return renderPick ? name : name.substring(0, 8);
                 }
             }
             return 'T' + (teamIdx + 1);
@@ -141,22 +141,24 @@
         const rounds = state.rounds || 5;
 
         // Table cell width — shrink if many teams
-        const cellWidth = leagueSize <= 10 ? 70 : leagueSize <= 12 ? 60 : 52;
+        // Rich player cards need room for the name and season. Keep those
+        // columns readable and let the surrounding region scroll on phones.
+        const cellWidth = renderPick ? 148 : leagueSize <= 10 ? 70 : leagueSize <= 12 ? 60 : 52;
 
         return (
-            <div style={containerCss}>
+            <div className="dcc-draft-grid" style={embedded ? { minWidth: 0 } : containerCss}>
                 {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                {!embedded && <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                     <div style={{ fontFamily: FONT_DISPL, fontSize: 'var(--text-title, 1.125rem)', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
                         Draft Grid
                     </div>
                     <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.6, fontFamily: FONT_UI }}>
                         Pick {state.currentIdx} / {state.pickOrder.length}
                     </div>
-                </div>
+                </div>}
 
                 {/* Grid */}
-                <div style={{
+                <div className="dcc-draft-grid-scroll" role="region" aria-label="Draft grid by round and team" tabIndex={0} style={{
                     flex: 1,
                     overflow: 'auto',
                     borderRadius: 'var(--card-radius-sm, 8px)',
@@ -173,7 +175,7 @@
                     }}>
                         <thead>
                             <tr style={{ background: 'var(--acc-fill2, rgba(212,175,55,0.08))', position: 'sticky', top: 0, zIndex: 1 }}>
-                                <th style={{
+                                <th scope="col" style={{
                                     width: 28,
                                     padding: '4px 2px',
                                     textAlign: 'center',
@@ -193,6 +195,7 @@
                                     return (
                                         <th
                                             key={i}
+                                            scope="col"
                                             onClick={isClickable ? () => onPinTeam(i) : undefined}
                                             title={isClickable ? (isPinned ? 'Unpin team' : 'Pin to Opponent Intel') : 'Your team'}
                                             style={{
@@ -249,14 +252,14 @@
                         <tbody>
                             {Array.from({ length: rounds }, (_, r) => (
                                 <tr key={r} style={{ borderBottom: '1px solid var(--ov-1, rgba(255,255,255,0.02))' }}>
-                                    <td style={{
+                                    <th scope="row" style={{
                                         padding: '2px 2px',
                                         textAlign: 'center',
                                         color: 'var(--gold)',
                                         fontWeight: 700,
                                         background: 'var(--acc-fill1, rgba(212,175,55,0.04))',
                                         fontSize: 'var(--text-label, 0.75rem)',
-                                    }}>{r + 1}</td>
+                                    }}>{r + 1}</th>
                                     {Array.from({ length: leagueSize }, (_, i) => {
                                         const key = (r + 1) + '-' + i;
                                         const pick = pickMap[key];
@@ -266,12 +269,12 @@
                                         const traded = slot?.traded;
                                         return (
                                             <td key={i} style={{
-                                                padding: '2px',
+                                                padding: renderPick ? '4px' : '2px',
                                                 textAlign: 'center',
                                                 height: 34,
                                                 background: isCurrent ? 'var(--acc-fill3, rgba(212,175,55,0.15))' : isMe ? 'var(--acc-fill1, rgba(212,175,55,0.03))' : 'transparent',
                                                 outline: isCurrent ? '1px solid var(--acc-line3, rgba(212,175,55,0.5))' : 'none',
-                                                verticalAlign: 'middle',
+                                                verticalAlign: renderPick ? 'top' : 'middle',
                                                 position: 'relative',
                                             }}>
                                                 {pick ? (renderPick ? renderPick(pick) : (

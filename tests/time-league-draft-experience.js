@@ -73,6 +73,25 @@ assert.equal(shared.props.state.leagueSize, 2);
 for (const pick of shared.props.state.picks) assert.equal(league.teams[pick.teamIdx].teamId, pick.teamId, 'Snake order retains stable team columns');
 assert.equal(find(tree, (node) => node.props.className === 'tl-card tl-draft-grade').length, 2, 'Every team has a letter grade');
 assert.ok(JSON.stringify(shared.props.renderPick(shared.props.state.picks[0])).includes('1980'), 'Completed cells include drawn season');
+assert(text(tree).includes('Your grade') && text(tree).includes('Your class'), 'Recap leads with the owner grade and drawn-season total');
+assert(!text(tree).includes('war room moves to week'), 'A completed recap does not pretend the current week is the end of the draft');
+assert.equal(shared.props.embedded, true, 'The shared grid does not repeat the recap panel heading');
+// Render the actual shared grid: its narrow standard cells previously let
+// Vault cards overlap their neighboring team columns on phones.
+const gridWindow = { App: {}, DraftCC: { styles: { panelCard: style => style } } };
+const gridSource = require('@babel/standalone').transform(require('fs').readFileSync(require('path').join(__dirname, '../js/draft/draft-grid.js'), 'utf8'), { presets: ['react'] }).code;
+require('vm').runInNewContext(gridSource, { window: gridWindow, React });
+for (const count of [8, 12]) {
+    const gridTree = gridWindow.DraftCC.DraftGridPanel({ ...shared.props, state: { ...shared.props.state, leagueSize: count } });
+    const table = find(gridTree, node => node.type === 'table')[0];
+    assert(parseInt(table.props.style.minWidth) >= count * 140, 'Rich cards keep readable team widths rather than shrinking to fit a phone');
+    assert(find(gridTree, node => node.props.role === 'region' && node.props.tabIndex === 0).length, 'Wide grids have a keyboard-accessible scroll region');
+    assert(find(gridTree, node => node.type === 'td').every(node => node.props.style.verticalAlign === 'top'), 'Player cards align to the top of each round');
+    assert(!text(gridTree).includes('Draft Grid'), 'Embedded grids avoid duplicate headings');
+}
+const standardGrid = gridWindow.DraftCC.DraftGridPanel({ ...shared.props, embedded: false, renderPick: undefined });
+assert(text(standardGrid).includes('Draft Grid'), 'The standard Dynasty HQ grid keeps its own heading');
+assert.equal(find(standardGrid, node => node.type === 'table')[0].props.style.minWidth, '170px', 'Standard compact columns remain unchanged');
 const auctionRecap = { ...league, settings: { ...league.settings, draftFormat: 'auction' }, draftPicks: league.draftPicks.map((pick, index) => ({
     ...pick, teamId: league.teams[index < 2 ? 0 : 1].teamId, round: index < 2 ? 1 : 2, auctionPrice: 15 + index
 })) };

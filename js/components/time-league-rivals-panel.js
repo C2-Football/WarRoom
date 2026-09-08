@@ -7,9 +7,11 @@
         const [readState, setReadState] = React.useState({});
         const [selection, setSelection] = React.useState(null);
         const [drafts, setDrafts] = React.useState({});
+        const [replyVariants, setReplyVariants] = React.useState({});
         const [sending, setSending] = React.useState(false);
         const [error, setError] = React.useState(null);
         const endRef = React.useRef(null);
+        const inboxRef = React.useRef(null);
         const sendingRef = React.useRef(false);
         React.useEffect(() => {
             try { setReadState({ key: storageKey, ids: JSON.parse(localStorage.getItem(storageKey) || '[]') }); }
@@ -23,6 +25,9 @@
         const active = threads.find(thread => thread.team.teamId === selectedId) || threads[0];
         const draftKey = `${storageKey}:${active?.team.teamId || ''}`;
         const draft = drafts[draftKey] || { text: '', tone: 'neutral', messageId: '' };
+        const suggestedReplies = active ? R.quickRepliesFor(league, teamId, active.team.teamId, { throughWeek, variant: replyVariants[draftKey] || 0 }) : [];
+        const relationship = active?.relationship;
+        const affinity = relationship ? 6 - relationship.heat : 6;
         const pending = saving || sending;
         const markRead = ids => {
             const next = [...new Set([...read, ...ids])];
@@ -42,6 +47,40 @@
                 if (unseen.length) markRead(unseen.map(message => message.id));
             }
         }, [storageKey, selectedId, newestId]);
+        React.useEffect(() => {
+            if (compact || !inboxRef.current || !window.document) return undefined;
+            const inbox = inboxRef.current;
+            let frame = null;
+            const measure = () => {
+                frame = null;
+                if (!window.matchMedia?.('(max-width: 900px)').matches) { inbox.style.removeProperty('--tl-chat-available-height'); return; }
+                const viewport = window.visualViewport;
+                const viewportHeight = viewport?.height || window.innerHeight;
+                const top = Math.max(0, inbox.getBoundingClientRect().top - (viewport?.offsetTop || 0));
+                const navHeight = document.querySelector('.tl-mobile-nav')?.getBoundingClientRect().height || 70;
+                // The measured nav includes its bottom safe-area padding. Actual
+                // inbox position includes the league header and top safe area.
+                const available = Math.max(96, Math.floor(viewportHeight - top - navHeight - 12));
+                const value = `${available}px`;
+                if (inbox.style.getPropertyValue('--tl-chat-available-height') !== value) inbox.style.setProperty('--tl-chat-available-height', value);
+            };
+            const schedule = () => { if (frame === null) frame = window.requestAnimationFrame(measure); };
+            schedule();
+            window.addEventListener('resize', schedule);
+            window.addEventListener('scroll', schedule, { passive: true });
+            window.visualViewport?.addEventListener('resize', schedule);
+            window.visualViewport?.addEventListener('scroll', schedule);
+            const observer = window.ResizeObserver ? new window.ResizeObserver(schedule) : null;
+            if (inbox.parentElement) observer?.observe(inbox.parentElement);
+            return () => {
+                if (frame !== null) window.cancelAnimationFrame(frame);
+                window.removeEventListener('resize', schedule);
+                window.removeEventListener('scroll', schedule);
+                window.visualViewport?.removeEventListener('resize', schedule);
+                window.visualViewport?.removeEventListener('scroll', schedule);
+                observer?.disconnect();
+            };
+        }, [compact, storageKey]);
         const avatar = team => window.TimeLeagueHelmetIcon && window.App.TimeLeagueHelmet
             ? h(window.TimeLeagueHelmetIcon, { helmet: team.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team.name), size: 38 })
             : h('span', { className: 'tl-chat-avatar', 'aria-hidden': true }, team.name.slice(0, 2));
@@ -75,7 +114,7 @@
             }, avatar(thread.team), h('span', null, h('strong', null, thread.team.name), h('span', null, thread.latest.fromTeamId === teamId ? 'You: ' : '', thread.latest.text))))),
             !messages.length ? h('p', { className: 'tl-rival-intro' }, 'Send a good game, make a deal, or start a rivalry.') : null,
             onNavigate ? h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate('messages') }, 'Open conversations') : null);
-        return h('section', { className: `tl-card tl-rival-mail tl-inbox${selectedId ? ' has-thread' : ''}`, 'aria-label': 'Rival conversations' },
+        return h('section', { ref: inboxRef, className: `tl-card tl-rival-mail tl-inbox${selectedId ? ' has-thread' : ''}`, 'aria-label': 'Rival conversations' },
             h('aside', { className: 'tl-inbox-owners', 'aria-label': 'League managers' },
                 h('div', { className: 'tl-inbox-title' }, h('h2', null, 'Rival mail'), unread ? h('span', { className: 'tl-chat-unread' }, unread) : null),
                 h('nav', { className: 'tl-inbox-list', 'aria-label': 'Conversations' }, threads.map(thread => {
@@ -89,6 +128,13 @@
                     h('button', { type: 'button', className: 'tl-chat-back', onClick: () => setSelection(null), 'aria-label': 'Back to conversations' }, '‹'),
                     avatar(active.team), h('div', { className: 'tl-chat-heading' }, h('h3', null, active.team.name), h('small', null, active.team.manager === 'ai' ? (R.voices[active.team.aiPersona] || R.voices.steward).label : 'League manager')),
                     active.relationship ? h('span', { className: `tl-chat-mood${active.relationship.heat > 2 ? ' is-heated' : ''}`, title: 'Your tone can change how this manager negotiates and competes for waivers.' }, active.relationship.label) : null),
+                relationship ? h('div', { className: 'tl-relationship', role: 'meter', 'aria-label': `Your relationship with ${active.team.name}`,
+                    'aria-valuemin': 0, 'aria-valuemax': 12, 'aria-valuenow': affinity,
+                    'aria-valuetext': relationship.heat === 0 ? 'Neutral. Halfway between Hot rival and Friend.' : `${relationship.label}. ${Math.abs(relationship.heat)} of 6 toward ${relationship.heat > 0 ? 'Hot rival' : 'Friend'}.`,
+                }, h('div', { className: 'tl-relationship-track', 'aria-hidden': true },
+                    h('span', { className: 'tl-relationship-midpoint' }),
+                    h('span', { className: 'tl-relationship-marker', style: { left: `${affinity / 12 * 100}%` } })),
+                h('div', { className: 'tl-relationship-labels', 'aria-hidden': true }, h('span', null, 'Hot rival'), h('span', null, 'Neutral'), h('span', null, 'Friend'))) : null,
                 h('div', { className: 'tl-chat-history', role: 'log', 'aria-label': `Conversation with ${active.team.name}`, 'aria-live': 'polite', 'aria-relevant': 'additions text' },
                     !active.messages.length ? h('div', { className: 'tl-chat-empty' }, avatar(active.team), h('strong', null, `Say something to ${active.team.name}`), h('p', null, active.team.manager === 'ai' ? 'Keep it friendly or add a little fuel to the rivalry.' : 'Your conversation starts here.')) : null,
                     [...active.messages].reverse().map((message, index, rows) => h(React.Fragment, { key: message.id },
@@ -100,7 +146,7 @@
                             message.kind === 'chat' ? h('small', { className: 'tl-chat-time' }, new Date(message.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) : null))),
                     h('div', { ref: endRef })),
                 onSend ? h('form', { className: 'tl-chat-compose', onSubmit: send },
-                    h('div', { className: 'tl-chat-quick', 'aria-label': 'Suggested replies' }, R.QUICK_REPLIES.map(reply => h('button', { type: 'button', key: reply.tone, disabled: pending, onClick: () => patchDraft({ text: reply.text, tone: reply.tone }) }, reply.label))),
+                    h('div', { className: 'tl-chat-quick', 'aria-label': 'Suggested replies' }, suggestedReplies.map(reply => h('button', { type: 'button', key: reply.tone, disabled: pending, title: reply.text, onClick: () => patchDraft({ text: reply.text, tone: reply.tone }) }, reply.label)), h('button', { type: 'button', className: 'tl-chat-new-replies', disabled: pending, onClick: () => { if (!selectedId) setSelection({ key: storageKey, teamId: active.team.teamId }); setReplyVariants(previous => ({ ...previous, [draftKey]: (previous[draftKey] || 0) + 1 })); } }, 'New replies')),
                     h('label', { className: 'tl-chat-tone' }, 'Tone', h('select', { 'aria-label': 'Message tone', value: draft.tone, disabled: pending, onChange: event => patchDraft({ tone: event.target.value }) },
                         h('option', { value: 'neutral' }, 'Casual'), h('option', { value: 'friendly' }, 'Friendly'), h('option', { value: 'competitive' }, 'Competitive'), h('option', { value: 'dismissive' }, 'Dismissive'))),
                     h('div', { className: 'tl-chat-input-row' }, h('textarea', { 'aria-label': `Message ${active.team.name}`, placeholder: 'Message…', value: draft.text, rows: 2, maxLength: 500, disabled: pending,

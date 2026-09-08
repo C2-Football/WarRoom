@@ -1,9 +1,42 @@
 /* Completed-draft cards over the shared Dynasty HQ grid. */
-.tl-draft-pick { --pick-color: #abc7ff; background: color-mix(in srgb,var(--pick-color) 20%,#162036); border-left: 3px solid var(--pick-color); border-radius: 5px; padding: 8px 6px; min-height: 64px; text-align: left; min-width: 100px; }
+.tl-draft-pick { --pick-color: #abc7ff; background: color-mix(in srgb,var(--pick-color) 20%,#162036); border-left: 3px solid var(--pick-color); border-radius: 6px; padding: 9px 8px; height: 98px; text-align: left; width:100%; min-width:0; overflow:hidden; }
 .tl-draft-pick-QB { --pick-color:#ff9fac; }.tl-draft-pick-RB { --pick-color:#82efd0; }.tl-draft-pick-WR { --pick-color:#aebdff; }.tl-draft-pick-TE { --pick-color:#ffdf83; }.tl-draft-pick-K { --pick-color:#dbb2ff; }.tl-draft-pick-DEF { --pick-color:#83d8ee; }
-.tl-draft-pick strong { display: block; color: #fff; font-size: 12px; line-height: 1.4; white-space: normal; margin: 4px 0; }
-.tl-draft-pick small,.tl-draft-pick span { display: block; font-size: 10px; color: var(--pick-color); }
+.tl-draft-pick strong { display: -webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; height:36px; color: #fff; font-size: 13px; line-height: 18px; white-space: normal; overflow-wrap:anywhere; margin: 5px 0; }
+.tl-draft-pick small,.tl-draft-pick span { display: block; font-size: 10px; line-height:14px; color: var(--pick-color); white-space:nowrap; }
+.tl-play .tl-draft-log { min-width:0; margin-top:14px; }
+.tl-draft-log .tl-card-title { margin-bottom:8px; }
+.tl-draft-log .tl-card-title .tl-btn { flex-shrink:0; font-size:11px; }
+.tl-draft-scroll-hint { margin:0 0 12px; font-size:11px; color:#aabbd5; }
+.tl-draft-log .dcc-draft-grid-scroll,.tl-draft-fallback-scroll { overflow:auto; overscroll-behavior-x:contain; scrollbar-color:#7185aa #172238; }
+.tl-draft-log .dcc-draft-grid-scroll:focus-visible,.tl-draft-fallback-scroll:focus-visible { outline:2px solid #87efcf; outline-offset:3px; }
+.tl-draft-log :is(.dcc-draft-grid-scroll,.tl-draft-fallback-scroll) :is(th,td):first-child { position:sticky; left:0; background:#202c42!important; z-index:2; }
+.tl-draft-log :is(.dcc-draft-grid-scroll,.tl-draft-fallback-scroll) thead { position:relative; z-index:3; }
+.tl-draft-fallback-grid { table-layout:fixed; width:100%; }
+.tl-draft-fallback-grid :is(th,td) { width:148px; padding:4px!important; vertical-align:top; }
+.tl-draft-fallback-grid :is(th,td):first-child { width:30px; text-align:center; }
+.tl-play .tl-recap-summary { padding:16px; }
+.tl-recap-heading { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:6px 16px; margin-bottom:16px; }
+.tl-recap-heading>strong { font:700 22px/1.15 var(--font-title); }
+.tl-recap-heading>small { color:#aabbd5; font-size:11px; }
+.tl-recap-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; }
+.tl-recap-stat { min-width:0; display:flex; flex-direction:column; gap:4px; padding:2px 16px; border-left:1px solid #53627a70; }
+.tl-recap-stat:first-child { padding-left:0; border-left:0; }
+.tl-recap-stat>span,.tl-recap-stat>small { color:#aabbd5; font-size:11px; line-height:1.4; }
+.tl-recap-stat>strong { color:#f2f5fb; font:700 27px/1.1 var(--font-title); }
+.tl-recap-stat.is-grade>strong { color:#87efcf; font-size:36px; }
+.tl-recap-best { margin:14px 0 0; padding-top:12px; border-top:1px solid #53627a70; color:#aabbd5; font-size:12px; line-height:1.5; }
+.tl-recap-best strong { color:#e1e9f5; }
 .tl-draft-grade-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(230px,1fr)); gap: 12px; margin: 14px 0; align-items: start; }
+.tl-play .tl-draft-grade-grid > .tl-card { margin-top:0; }
 .tl-draft-grade summary { cursor: pointer; flex-wrap: wrap; }
 .tl-draft-grade summary small { flex-basis: 100%; }
 .tl-draft-letter { font-size: 28px; line-height: 1; padding: 10px 14px; }
+@media(max-width:600px) {
+  .tl-play .tl-recap-summary,.tl-play .tl-draft-log { padding:14px 12px; }
+  .tl-recap-heading { margin-bottom:14px; }
+  .tl-recap-stat { padding:2px 8px; }
+  .tl-recap-stat>span,.tl-recap-stat>small { font-size:10px; }
+  .tl-recap-stat>strong { font-size:23px; }
+  .tl-recap-stat.is-grade>strong { font-size:30px; }
+  .tl-draft-grade-grid { grid-template-columns:minmax(0,1fr); }
+}

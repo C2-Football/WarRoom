@@ -34,9 +34,35 @@
   .tl-play .tl-home-action-grid { grid-template-columns:1fr 1fr; gap:8px; }
   .tl-play .tl-home-action { padding:12px; gap:8px; }
   .tl-play .tl-home-action-icon { display:none; }
-  .tl-play .tl-home-action-copy > span { display:none; }
+  .tl-play .tl-home-action-copy > span { display:block; }
   .tl-play .tl-home-action-copy > strong { font-size:14px; }
   .tl-play .tl-home-era-strip { display:none; }
+}
+
+/* The helmet artwork stays intact; only the left opponent lockup faces inward. */
+.tl-matchup-helmet { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+.tl-matchup-helmet.is-left { transform:scaleX(-1); }
+.tl-play .tl-hero-side > .tl-matchup-helmet { width:80px; height:80px; margin:0 auto; }
+.tl-play .tl-hero-side > .tl-matchup-helmet .tl-helmet { width:80px; height:80px; }
+.tl-play .tl-home-action { grid-template-columns:36px minmax(0,1fr) 18px; align-items:center; min-height:110px; }
+.tl-play .tl-home-action-copy > strong { white-space:normal; overflow:visible; text-overflow:clip; overflow-wrap:anywhere; font-size:20px; line-height:1.2; }
+.tl-play .tl-home-action-copy > span { display:block; overflow:visible; font-size:12px; line-height:1.4; margin-top:3px; }
+.tl-play .tl-home-action-go { grid-column:3; grid-row:1; align-self:center; font-size:19px; }
+@media(max-width:640px) {
+    .tl-play .tl-home-action { grid-template-columns:minmax(0,1fr) 16px; min-height:94px; padding:12px; gap:7px; }
+    .tl-play .tl-home-action-copy { grid-column:1; grid-row:1; }
+    .tl-play .tl-home-action-copy > small { display:none; }
+    .tl-play .tl-home-action-copy > strong { font-size:17px; }
+    .tl-play .tl-home-action-copy > span { font-size:11px; }
+    .tl-play .tl-home-action-go { grid-column:2; grid-row:1; }
+    .tl-play .tl-hero-side > .tl-matchup-helmet,.tl-play .tl-hero-side > .tl-matchup-helmet .tl-helmet { width:64px; height:64px; }
+    .tl-play .tl-home-team > strong { white-space:normal; overflow:visible; text-overflow:clip; line-height:1.25; overflow-wrap:anywhere; }
+    .tl-play .tl-home-team > span:not(.tl-matchup-helmet) { letter-spacing:0; line-height:1.5; font-size:10px; }
+}
+@media(max-width:900px) {
+    .tl-root.tl-play { --tl-mobile-top-inset:env(safe-area-inset-top,0px); --tl-mobile-nav-space:calc(70px + env(safe-area-inset-bottom,0px)); }
+    .tl-play .tl-main { padding-top:calc(16px + env(safe-area-inset-top,0px)); }
+    .tl-root.tl-play::before { content:''; position:fixed; left:0; right:0; top:0; height:env(safe-area-inset-top,0px); z-index:120; background:#151d32; pointer-events:none; }
 }
 @media(prefers-reduced-motion:reduce) { .tl-league-bar * { scroll-behavior:auto; } }
 

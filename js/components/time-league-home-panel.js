@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════════════════════════
 // js/components/time-league-home-panel.js — window.WrTimeLeagueHomePanel
 // Matchup-first league home. The most important player decisions lead the
-// page; the Vault Gazette survives as flavor in the League Pulse below.
+// page; recent results and league moves share the same compact visual language.
 // ══════════════════════════════════════════════════════════════════
 (function () {
     'use strict';
@@ -26,17 +26,18 @@
     function TeamLockup({ team, standing, side, score }) {
         if (!team) return h('div', { className: `tl-home-team ${side}` }, h('div', { className: 'tl-home-bye' }, 'BYE'));
         return h('div', { className: `tl-home-team ${side}` },
-            h(window.TimeLeagueHelmetIcon, { helmet: team.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team.name), size: 86 }),
+            h('span', { className: `tl-matchup-helmet${side === 'mine' ? ' is-left' : ''}` },
+                h(window.TimeLeagueHelmetIcon, { helmet: team.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team.name), size: 86 })),
             h('strong', null, team.name),
             Number.isFinite(score) && h('strong', { className: 'tabular', style: { fontSize: 28 } }, score.toFixed(1)),
             h('span', null, standing ? `${standing.wins}-${standing.losses}${standing.ties ? `-${standing.ties}` : ''} · ${standing.pointsFor.toFixed(1)} PF` : '0-0 · SEASON OPENER'));
     }
 
-    function ActionCard({ icon, kicker, title, detail, action, tone, onClick }) {
+    function ActionCard({ icon, kicker, title, detail, tone, onClick }) {
         return h('button', { type: 'button', className: `tl-home-action ${tone || ''}`, onClick },
             h('span', { className: 'tl-home-action-icon' }, icon),
             h('span', { className: 'tl-home-action-copy' }, h('small', null, kicker), h('strong', null, title), h('span', null, detail)),
-            h('span', { className: 'tl-home-action-go' }, action, ' →'));
+            h('span', { className: 'tl-home-action-go', 'aria-hidden': true }, '↗'));
     }
 
     function WrTimeLeagueHomePanel({ league, onNavigate, seatTeamId }) {
@@ -61,22 +62,16 @@
         const lastMatchup = lastFinalized?.matchups.find((matchup) => matchup.home === myTeam.teamId || matchup.away === myTeam.teamId) ?? null;
         const lastResult = lastMatchup ? (lastMatchup.winner === null ? 'T' : lastMatchup.winner === myTeam.teamId ? 'W' : 'L') : null;
         const eraSpread = useMemo(() => computeEraSpread(league), [league]);
-        const recentActivity = [...league.activity].reverse().slice(0, 5);
+        const recentActivity = [...league.activity].reverse().filter(event => event.week >= (lastFinalized?.week ?? league.currentWeek) && event.kind !== 'draft' && event.kind !== 'reveal').slice(0, 3);
         const champion = league.championTeamId ? teamOf(league.championTeamId) : null;
 
-        const pulse = useMemo(() => {
-            if (!lastFinalized) {
-                return {
-                    headline: 'THE TEAMS ARE SET. THE SEASONS ARE REVEALED. NOW IT COUNTS.',
-                    lede: `${league.teams.length} managers enter Week 1 with rosters pulled from across football history. Every lineup decision can change the timeline.`,
-                };
-            }
-            const top = [...lastFinalized.results].sort((left, right) => right.total - left.total)[0];
-            return {
-                headline: `${teamName(top.teamId).toUpperCase()} SETS THE PACE WITH ${top.total.toFixed(1)}`,
-                lede: `${lastFinalized.results.length} teams played. The league scored ${lastFinalized.results.reduce((sum, result) => sum + result.total, 0).toFixed(1)} points in Week ${lastFinalized.week}. Results and lineup leaders are below.`,
-            };
-        }, [league, lastFinalized]);
+        const weeklyLeaders = useMemo(() => {
+            if (!lastFinalized) return null;
+            const topTeam = [...lastFinalized.results].sort((left, right) => right.total - left.total)[0];
+            const topPlayer = lastFinalized.results.flatMap(result => result.starters.map(player => ({ ...player, teamId: result.teamId }))).sort((left, right) => right.points - left.points)[0];
+            const closest = [...lastFinalized.matchups].sort((left, right) => Math.abs(left.homePoints-left.awayPoints) - Math.abs(right.homePoints-right.awayPoints))[0];
+            return { topTeam, topPlayer, closest };
+        }, [lastFinalized]);
 
         const heroStatus = league.phase === 'complete'
             ? 'SEASON COMPLETE'
@@ -126,44 +121,38 @@
             league.phase !== 'complete' && !postgame && h('section', { className: 'tl-home-action-grid' },
                 h(ActionCard, {
                     icon: '+', kicker: 'WAIVER WIRE', tone: pendingWaivers ? 'info' : '',
-                    title: pendingWaivers ? `${pendingWaivers} claim${pendingWaivers === 1 ? '' : 's'} pending` : 'Find a difference-maker',
-                    detail: league.settings.waiversEnabled ? 'Shop more than five decades of talent.' : 'Waivers are off in this league.',
-                    action: 'BROWSE', onClick: () => onNavigate('waivers'),
+                    title: 'Players',
+                    detail: !league.settings.waiversEnabled ? 'Waivers are off' : pendingWaivers ? `${pendingWaivers} claim${pendingWaivers === 1 ? '' : 's'} pending` : 'Find your next addition',
+                    onClick: () => onNavigate('waivers'),
                 }),
                 h(ActionCard, {
                     icon: '⇄', kicker: 'TRADE BLOCK', tone: openTrades ? 'gold' : '',
-                    title: openTrades ? `${openTrades} offer${openTrades === 1 ? '' : 's'} waiting` : 'Shake up the timeline',
-                    detail: league.settings.tradesEnabled ? 'Deal with rivals before game day.' : 'Trades are off in this league.',
-                    action: 'OPEN', onClick: () => onNavigate('trades'),
+                    title: 'Trades',
+                    detail: !league.settings.tradesEnabled ? 'Trades are off' : openTrades ? `${openTrades} offer${openTrades === 1 ? '' : 's'} waiting` : 'Make your next deal',
+                    onClick: () => onNavigate('trades'),
                 })),
 
             playoffHunt,
             showHunt ? h('details', { className: 'tl-home-secondary' }, h('summary', null, 'Full standings & team details'), h(window.WrTimeLeagueStandingsPanel, { league, onNavigate, embedded: true })) : h(window.WrTimeLeagueStandingsPanel, { league, onNavigate, embedded: true }),
             h('section', { className: 'tl-home-recap-grid' },
-                h('article', { className: 'tl-card tl-home-pulse' },
-                    h('div', { className: 'tl-pulse-masthead' },
-                        h('span', null, 'THE VAULT'), h('strong', null, 'LEAGUE PULSE'), h('small', null, lastFinalized ? `WEEK ${lastFinalized.week} RECAP` : 'PRESEASON EDITION')),
-                    h('h2', null, pulse.headline),
-                    h('p', null, pulse.lede),
-                    lastFinalized && h('details', { className: 'tl-weekly-report' },
-                        h('summary', null, 'Read the full weekly recap'),
-                        h('h3', null, 'Around the league'),
-                        lastFinalized.matchups.map((match, i) => h('div', { key: i, className: 'tl-recap-match' },
-                            h('strong', null, `${teamName(match.home)} ${match.homePoints.toFixed(1)} — ${match.awayPoints.toFixed(1)} ${teamName(match.away)}`),
-                            h('small', null, match.homePoints === match.awayPoints ? 'A dead heat — both teams take a tie.' : `${teamName(match.homePoints > match.awayPoints ? match.home : match.away)} wins by ${Math.abs(match.homePoints - match.awayPoints).toFixed(1)} points.`))),
-                        h('h3', null, 'Team report cards'),
-                        [...lastFinalized.results].sort((a,b) => b.total-a.total).map((result, i) => {
-                            const star = [...result.starters].sort((a,b) => b.points-a.points)[0];
-                            const blanks = result.starters.filter(player => !player.stats).length;
-                            return h('div', { key: result.teamId, className: 'tl-recap-match' },
-                                h('strong', null, `#${i + 1} · ${teamName(result.teamId)} · ${result.total.toFixed(1)} pts`),
-                                h('small', null, star ? `${star.name} (${star.drawnSeason}) led the lineup with ${star.points.toFixed(1)}. ${blanks ? `${blanks} starter(s) had no game log.` : 'Every starter had a recorded game.'}` : 'No starters recorded.'));
-                        })),
-                    h('div', { className: 'tl-pulse-wire' },
-                        h('span', { className: 'tl-label' }, 'LATEST FROM THE WIRE'),
-                        recentActivity.length
-                            ? recentActivity.filter(event => !lastFinalized || event.week === lastFinalized.week).slice(0, 6).map((event) => h('div', { key: event.id }, h('time', null, `W${event.week}`), h('p', null, event.message)))
-                            : h('p', { className: 'tl-empty' }, 'The wire is quiet—for now.')))),
+                h('article', { className: 'tl-card tl-league-update' },
+                    h('header', { className: 'tl-league-update-heading' }, h('h2', null, 'League update'),
+                        h('span', { className: 'tl-pill info' }, lastFinalized ? `Week ${lastFinalized.week} final` : 'Season opener')),
+                    weeklyLeaders && h('div', { className: 'tl-update-highlights' },
+                        weeklyLeaders.topTeam && h('div', null, h('small', null, 'High score'), h('strong', null, `${weeklyLeaders.topTeam.total.toFixed(1)} pts`), h('span', null, teamName(weeklyLeaders.topTeam.teamId))),
+                        weeklyLeaders.topPlayer && h('div', null, h('small', null, 'Top performer'), h('strong', null, weeklyLeaders.topPlayer.name), h('span', null, `${weeklyLeaders.topPlayer.drawnSeason} · ${weeklyLeaders.topPlayer.points.toFixed(1)} pts · ${teamName(weeklyLeaders.topPlayer.teamId)}`)),
+                        weeklyLeaders.closest && h('div', null, h('small', null, 'Closest game'), h('strong', null, weeklyLeaders.closest.homePoints === weeklyLeaders.closest.awayPoints ? 'Tie game' : `${Math.abs(weeklyLeaders.closest.homePoints-weeklyLeaders.closest.awayPoints).toFixed(1)}-point margin`), h('span', null, `${teamName(weeklyLeaders.closest.home)} vs. ${teamName(weeklyLeaders.closest.away)}`))),
+                    lastFinalized ? h('div', { className: 'tl-update-results', 'aria-label': `Week ${lastFinalized.week} results` },
+                        lastFinalized.matchups.map(match => h('div', { key: `${match.home}:${match.away}`, className: 'tl-update-match' },
+                            h('small', null, 'FINAL'),
+                            [[match.home,match.homePoints],[match.away,match.awayPoints]].map(([id,points]) => h('div', { key: id, className: match.winner === id ? 'winner' : '' },
+                                h('span', null, teamName(id)), h('strong', null, points.toFixed(1)))))))
+                        : h('p', { className: 'tl-update-empty' }, 'Week 1 results and standout performances will appear here after game day.'),
+                    recentActivity.length > 0 && h('details', { className: 'tl-update-activity' }, h('summary', null, 'Recent league activity'),
+                        recentActivity.map(event => h('div', { key: event.id }, h('span', null, `W${event.week}`), h('p', null, event.message)))),
+                    h('footer', { className: 'tl-update-links' },
+                        lastFinalized && h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate('gameday') }, 'Replays & box scores →'),
+                        h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate('activity') }, 'All activity →')))),
 
             h('section', { className: 'tl-home-era-strip' },
                 h('div', null, h('span', { className: 'tl-eyebrow' }, 'YOUR LEAGUE DNA'), h('strong', null, 'Football history is the playing field')),

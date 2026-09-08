@@ -60,9 +60,9 @@ for (const tone of ['friendly', 'competitive', 'dismissive', 'neutral']) {
     const texts = new Set();
     for (const aiPersona of PERSONAS) {
         let sample = { ...state, teams: state.teams.map(t => t.teamId === 'a' ? { ...t, aiPersona } : t) };
-        for (let i = 0; i < 3; i++) sample = sendMessage(sample, { teamId: 'h', toTeamId: 'a', text: 'Here is my next message.', tone, messageId: `test_chat_${i}` }, '2026-09-07T12:00:00Z');
+        for (let i = 0; i < 6; i++) sample = sendMessage(sample, { teamId: 'h', toTeamId: 'a', text: 'Here is my next message.', tone, messageId: `test_chat_${i}` }, '2026-09-07T12:00:00Z');
         const replies = sample.rivalMessages.filter(m => m.fromTeamId === 'a');
-        assert.equal(new Set(replies.map(m => m.text)).size, 3, `${aiPersona} rotates its ${tone} replies`);
+        assert.equal(new Set(replies.map(m => m.text)).size, 6, `${aiPersona} rotates its ${tone} replies`);
         texts.add(replies[0].text);
     }
     assert.equal(texts.size, 12, `${tone} replies keep all twelve voices distinct`);

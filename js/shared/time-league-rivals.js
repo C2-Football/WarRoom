@@ -182,6 +182,133 @@
             neutral: ['Message received. Keeping watch on the wire.', 'I hear you. Anything my roster can help with?', 'Noted. I will keep the lineup ready.'],
         },
     });
+    // Extra authored lines keep every manager's voice recognizable over a full season.
+    const replyExtras = {
+        warlord: {
+            friendly: ['You compete hard. I can respect that without going easy on you.', 'Good rivals keep me sharp. Keep bringing it.', 'We can shake hands and still fight for every point.'],
+            competitive: ['You just gave my next roster move a little more urgency.', 'I hope you have a backup plan for all that confidence.', 'Save that message. One of us will enjoy reading it later.'],
+            dismissive: ['Dismiss the message. Do not dismiss the matchup.', 'Fine. I would rather take points than your time.', 'That attitude makes the next win worth a little more.'],
+            neutral: ['Give me a reason to move a player and I will listen.', 'The roster is never finished. I am looking for the next edge.', 'I have heard you. Time to turn the talk into a move.'],
+        },
+        archivist: {
+            friendly: ['A thoughtful opponent is worth keeping in the archive.', 'Thank you. We can disagree on value and still deal fairly.', 'Good faith makes the numbers easier to discuss.'],
+            competitive: ['A prediction without supporting evidence. I have kept a copy.', 'The ledger has room for your confidence and the eventual result.', 'I will be quite interested in the follow-up to that claim.'],
+            dismissive: ['No further notes, then. The result can supply the footnote.', 'A minimal response. I will not mistake it for an empty argument.', 'I have recorded the reply exactly as short as you intended.'],
+            neutral: ['There is usually more in the record than the headline suggests.', 'I will compare that with the rest of my notes.', 'If you want my attention, a concrete offer is a useful start.'],
+        },
+        gambler: {
+            friendly: ['A good table needs a rival who can take a joke.', 'Cheers. I can like you and still want your best player.', 'That is the spirit. Good company, questionable odds, great league.'],
+            competitive: ['I was trying to behave. You are making that difficult.', 'Careful. I have a bench full of bad ideas and plenty of confidence.', 'All that talk and no chips on the table yet?'],
+            dismissive: ['A fold by text? Interesting strategy.', 'Fine, keep the poker face. I will keep making moves.', 'The quiet players are always the ones I watch.'],
+            neutral: ['I am weighing a few wild options. Yours can join the pile.', 'Always another hand to play in this league.', 'Give me something interesting and I might take the swing.'],
+        },
+        steward: {
+            friendly: ['I would rather have a good rival than an easy week.', 'Thanks. A little respect goes a long way around the league.', 'Glad we can keep it competitive without closing the door.'],
+            competitive: ['You have made your point. Now I need my lineup to make mine.', 'Fair challenge. I will spend a little more time on this matchup.', 'I can be patient without being an easy opponent.'],
+            dismissive: ['We can leave the conversation there for now.', 'Alright. I will keep the next message useful.', 'No hard feelings. The competition can do the talking.'],
+            neutral: ['I am keeping the roster balanced and the options open.', 'A useful suggestion is always welcome at my desk.', 'Let me know what you have in mind. I can listen.'],
+        },
+        broker: {
+            friendly: ['You are the kind of manager I will take a call from.', 'Good rapport does not guarantee a deal, but it helps.', 'We might disagree on the price. I still like doing business with you.'],
+            competitive: ['You are negotiating with attitude now. I can do that too.', 'I would save some of that energy for the next bidding round.', 'Your confidence is free. My players are not.'],
+            dismissive: ['Straight to voicemail. I know that move.', 'I will keep the call sheet short next time.', 'No response needed. There is another desk on the line.'],
+            neutral: ['Everything has a price. I am interested in hearing yours.', 'I can work with specifics. What exactly are you offering?', 'We do not need a long meeting to make a useful move.'],
+        },
+        scout: {
+            friendly: ['You notice things other managers miss. I respect that.', 'Good rivals make me scout the whole roster, not just the starters.', 'I am happy to compare notes when the timing is right.'],
+            competitive: ['That confidence is going next to the film clips.', 'I will find the weak spot behind the big statement.', 'Now I have a little more reason to get the next pickup right.'],
+            dismissive: ['The report can wait. The search will not.', 'I will take the quiet time and keep scouting.', 'Fair enough. I prefer a useful find to a long argument.'],
+            neutral: ['I am looking a little deeper than the first page of names.', 'Somewhere in the archive is my next answer.', 'If you have spotted something, I am listening.'],
+        },
+        tactician: {
+            friendly: ['A good opponent deserves a proper plan. You have one.', 'Respect received. The next matchup still gets my best preparation.', 'We might find a move that makes both lineups more complete.'],
+            competitive: ['That changes the priority of our next meeting.', 'A strong claim. I will prepare for the version of you that can prove it.', 'The plan now includes a little extra motivation.'],
+            dismissive: ['No wasted words, then. Back to the lineup.', 'I can work with silence. The next move is what matters.', 'Understood. There is no need to argue before kickoff.'],
+            neutral: ['I am checking the fit before I commit to a move.', 'Every open slot is a problem with an answer somewhere.', 'Make the roster case and I will consider it.'],
+        },
+        grinder: {
+            friendly: ['Good to hear from a manager who keeps showing up.', 'A little respect. A lot of work. That suits me.', 'Same here. No need to make this harder than it is.'],
+            competitive: ['You can have the last word. I want the next win.', 'That is fine. I will be at work while you are talking.', 'No speech from me. Just another reason to get the lineup right.'],
+            dismissive: ['Alright. There is work waiting anyway.', 'I can keep it short too. See you out there.', 'Fair enough. I am not here to win the conversation.'],
+            neutral: ['Another small improvement is usually worth looking for.', 'I am keeping the dependable points and doing the next job.', 'Tell me the useful part. I will listen.'],
+        },
+        showman: {
+            friendly: ['That is a quote I would put on the league poster.', 'Good energy! We could make this rivalry a main event.', 'Respect from a worthy co-star. I will take it.'],
+            competitive: ['Someone get a camera. This matchup just found its trailer.', 'Big words. I hope the performance lives up to the promotion.', 'You are asking for an encore you might not enjoy.'],
+            dismissive: ['No review? I was hoping for at least one star.', 'The silent treatment is terrible for the ratings.', 'Alright, the next announcement will need to be impossible to miss.'],
+            neutral: ['I am listening. There is always room for a good plot twist.', 'A quiet message before a big move, perhaps?', 'Give me a reason to call the press desk.'],
+        },
+        contrarian: {
+            friendly: ['We agree on good competition, at least.', 'A reasonable message. I will resist the urge to disagree.', 'Respect does not require identical draft boards.'],
+            competitive: ['I enjoy a theory that is easy to test on Sunday.', 'The confidence is impressive. The evidence is still pending.', 'I am comfortable being the obstacle to your prediction.'],
+            dismissive: ['An interesting choice to say so little with so much attitude.', 'You can leave the argument there. I probably will not.', 'No consensus reached. I can live with that.'],
+            neutral: ['I am considering the angle nobody seems to mention.', 'An interesting point. I may reach a different conclusion.', 'Let us separate the useful idea from the popular one.'],
+        },
+        alchemist: {
+            friendly: ['Good chemistry between rivals. That can lead to useful trades.', 'Respect is a decent ingredient for this league.', 'We might find a combination that surprises both of us.'],
+            competitive: ['That added just enough heat to change the experiment.', 'I have a few volatile ideas for our next matchup.', 'You are going to make me try something interesting, are you not?'],
+            dismissive: ['A cool reaction. I will adjust the mix.', 'We can leave the conversation to settle for now.', 'Fine. The roster experiment gets the rest of my attention.'],
+            neutral: ['I am looking for pieces that work better together.', 'There is usually another combination worth trying.', 'That could be useful. Let me think about the fit.'],
+        },
+        sentinel: {
+            friendly: ['Dependable competition. That is worth a little respect.', 'Good to hear. The trade line remains open.', 'I appreciate a rival who takes the whole lineup seriously.'],
+            competitive: ['Then every position gets a second inspection before kickoff.', 'That is noted. I will not leave you an easy opening.', 'I do not need to get louder to make this difficult for you.'],
+            dismissive: ['Understood. I have a lineup to secure.', 'No need for more words. I will hold my position.', 'Fine. We can let the result settle the conversation.'],
+            neutral: ['I am covering the weak spots before I chase another luxury.', 'A secure lineup leaves room to consider a sensible offer.', 'I am watching the whole roster, right down to the last slot.'],
+        },
+    };
+    for (const [persona, tones] of Object.entries(replyExtras)) {
+        for (const [tone, lines] of Object.entries(tones)) replyVoices[persona][tone].push(...lines);
+    }
+    const contextOpeners = {
+        warlord: { game: 'That matchup is still on my mind.', trade: 'About that deal:', waiver: 'That claim was worth fighting for.', playoffs: 'A playoff result is one you remember.' },
+        archivist: { game: 'I have reviewed that result.', trade: 'On the trade terms:', waiver: 'The claim is settled in the ledger.', playoffs: 'That playoff chapter is part of the record now.' },
+        gambler: { game: 'That was quite a hand we played.', trade: 'Back to the trade table:', waiver: 'That waiver race had some stakes.', playoffs: 'That playoff hand had everything riding on it.' },
+        steward: { game: 'That was a worthwhile matchup.', trade: 'About our trade conversation:', waiver: 'That was a useful player to chase.', playoffs: 'It takes a good season to get to that stage.' },
+        broker: { game: 'We got a result out of that meeting.', trade: 'On the business between our desks:', waiver: 'That player came off the market quickly.', playoffs: 'The playoff result is a big one for the books.' },
+        scout: { game: 'There was plenty to learn from that matchup.', trade: 'About the players in that deal:', waiver: 'We clearly found the same name on the wire.', playoffs: 'That playoff result deserves another look at the film.' },
+        tactician: { game: 'I have been thinking through that matchup.', trade: 'Back to the roster fit in that offer:', waiver: 'That claim was part of the lineup plan.', playoffs: 'The bracket made that matchup count.' },
+        grinder: { game: 'That week took some work.', trade: 'About that swap:', waiver: 'That pickup was worth the effort.', playoffs: 'A lot of weeks of work went into that playoff game.' },
+        showman: { game: 'That matchup gave us a story.', trade: 'About our potential blockbuster:', waiver: 'That signing got my attention.', playoffs: 'That was a result on the big stage.' },
+        contrarian: { game: 'The scoreboard gave us something to debate.', trade: 'About the value on each side of that deal:', waiver: 'Apparently we agreed on that waiver target.', playoffs: 'That playoff result settles at least one argument.' },
+        alchemist: { game: 'That matchup tested the mix.', trade: 'About those roster ingredients:', waiver: 'That player would change a lineup’s chemistry.', playoffs: 'That playoff game was a proper test of the formula.' },
+        sentinel: { game: 'That matchup tested every position.', trade: 'About the cover in that trade:', waiver: 'That claim mattered to the depth chart.', playoffs: 'That playoff result came down to holding the lineup together.' },
+    };
+    const contextOf = message => !message || message.kind === 'chat' ? null
+        : ['titleWon', 'titleLost', 'eliminated', 'knockedOut'].includes(message.kind) ? 'playoffs'
+            : ['offer', 'accepted', 'rejected', 'delayed'].includes(message.kind) ? 'trade'
+                : ['waiverWin', 'waiverLoss'].includes(message.kind) ? 'waiver'
+                    : ['win', 'loss', 'tie'].includes(message.kind) ? 'game' : null;
+    const hashOf = key => {
+        let value = 0;
+        for (const char of key) value = ((value * 31) + char.charCodeAt(0)) >>> 0;
+        return value;
+    };
+    const quickPools = {
+        friendly: ['Respect. Always a good battle with you.', 'Good competition makes this league better. Keep bringing it.', 'I like a rivalry where we can still make a fair deal.', 'Good luck with your next move. See you at kickoff.', 'All respect from my side. Let’s keep the conversation open.', 'You keep me paying attention. That is a good thing.'],
+        competitive: ['Hope your lineup can back up all that talk.', 'Save this conversation. One of us is going to enjoy it later.', 'Your bench better have a backup plan for all that confidence.', 'Keep talking. I am giving our next matchup some extra attention.', 'I am coming for the win, the pickup, and the bragging rights.', 'Let’s settle this on the scoreboard. I like my chances.'],
+        dismissive: ['Cool story. I have a lineup to set.', 'Noted. Back to my roster.', 'I will save the conversation for after the next result.', 'You can have the last word. I have other moves to make.', 'I hear you. That is about all the attention this gets today.', 'Message received. I am moving on.'],
+    };
+    const quickContexts = {
+        game: { friendly: 'Good game. Always a battle when our teams meet.', competitive: 'I am keeping that scoreboard in mind for our next meeting.', dismissive: 'That game is in the books. I have moved on.' },
+        trade: { friendly: 'Let’s keep talking. I am interested in a deal that helps both rosters.', competitive: 'If you want my players, bring an offer that earns my attention.', dismissive: 'The trade desk can wait. I have a lineup to set.' },
+        waiver: { friendly: 'That was a good waiver race. Plenty of season left.', competitive: 'The next contested pickup is going to be even more interesting.', dismissive: 'One claim. I am already looking at the next option.' },
+        playoffs: { friendly: 'Respect for the season you put together. That was a big matchup.', competitive: 'That playoff result is going to make this rivalry interesting.', dismissive: 'The bracket has the result. I do not need the commentary.' },
+    };
+    function quickRepliesFor(state, teamId, otherTeamId, options = {}) {
+        const thread = messagesFor(state, teamId, options).filter(row => row.fromTeamId === otherTeamId || row.toTeamId === otherTeamId);
+        const latest = thread.find(row => row.toTeamId === teamId);
+        const context = contextOf(latest);
+        const sent = thread.filter(row => row.kind === 'chat' && row.fromTeamId === teamId);
+        return QUICK_REPLIES.map(reply => {
+            const pool = [...(quickContexts[context]?.[reply.tone] ? [quickContexts[context][reply.tone]] : []), ...quickPools[reply.tone]];
+            const recent = new Set(sent.filter(row => row.tone === reply.tone).slice(0, pool.length - 1).map(row => row.text));
+            const fresh = pool.filter(line => !recent.has(line));
+            const choices = fresh.length ? fresh : pool;
+            const offset = Math.max(0, Number.isInteger(options.variant) ? options.variant : 0);
+            return { ...reply, text: choices[(hashOf(`${state.seed}:${teamId}:${otherTeamId}:${reply.tone}:${latest?.id || ''}`) + offset) % choices.length] };
+        });
+    }
     const clampHeat = value => Math.max(-6, Math.min(6, value));
     function normalizeMessages(raw, teams) {
         if (!Array.isArray(raw)) return [];
@@ -215,12 +342,12 @@
         const old = saved?.heat || 0;
         const elapsed = Math.max(0, (state.currentWeek || 1) - (saved?.updatedWeek || 1));
         const heat = Math.sign(old) * Math.max(0, Math.abs(old) - elapsed);
-        return { heat, label: heat <= -2 ? 'Friendly' : heat < 0 ? 'Warming up' : heat === 0 ? 'Even' : heat < 3 ? 'Competitive' : heat < 5 ? 'Fired up' : 'Rivalry',
+        return { heat, label: heat <= -5 ? 'Friend' : heat <= -2 ? 'Friendly' : heat < 0 ? 'Warming up' : heat === 0 ? 'Neutral' : heat < 3 ? 'Competitive' : heat < 5 ? 'Fired up' : 'Hot rival',
             aggressionDelta: Math.max(0, heat) * 3, tradePremium: heat > 0 ? heat * 0.01 : heat / 300 };
     }
     function hottestRelationship(state, ownerTeamId) {
         return (state.teams || []).filter(team => team.manager === 'human').map(team => ({ ...relationshipFor(state, ownerTeamId, team.teamId), otherTeamId: team.teamId }))
-            .sort((a, b) => b.heat - a.heat)[0] || { heat: 0, aggressionDelta: 0, tradePremium: 0, label: 'Even' };
+            .sort((a, b) => b.heat - a.heat)[0] || { heat: 0, aggressionDelta: 0, tradePremium: 0, label: 'Neutral' };
     }
     function sendMessage(state, input, stamp) {
         const { teamId, toTeamId, tone = 'neutral', messageId, replyToId } = input;
@@ -251,13 +378,18 @@
         const relations = normalizeRelationships(state.rivalRelationships, state.teams).filter(row => row.ownerTeamId !== toTeamId || row.otherTeamId !== teamId);
         next = { ...next, rivalRelationships: [...relations, { ownerTeamId: toTeamId, otherTeamId: teamId, heat, updatedWeek: week }] };
         const voice = replyVoices[recipient.aiPersona] || replyVoices.steward;
+        const context = contextOf(prior);
+        const opener = context && (contextOpeners[recipient.aiPersona] || contextOpeners.steward)[context];
         const lines = voice[tone];
-        // Rotate within a persona/tone so rapid conversation does not repeat the
-        // same acknowledgement. The same saved send always gets the same reply.
-        let hash = 0;
-        for (const char of `${state.seed}:${toTeamId}:${tone}`) hash = ((hash * 31) + char.charCodeAt(0)) >>> 0;
-        const count = history.filter(row => row.fromTeamId === teamId && row.toTeamId === toTeamId && row.tone === tone).length;
-        const reply = { id: `reply:${messageId}`, fromTeamId: toTeamId, toTeamId: teamId, text: lines[(hash + count) % lines.length], tone: 'neutral', week, createdAt: stamp, sequence: history.length + 2, replyToId: message.id };
+        const pool = opener ? [...lines, ...lines.map(line => `${opener} ${line}`)] : lines;
+        // Only this pair's prior replies influence variety. Exhaust fresh lines
+        // before repeating; retries return above without advancing the selection.
+        const recent = history.filter(row => row.fromTeamId === toTeamId && row.toTeamId === teamId).slice(-(pool.length - 1));
+        const seen = new Set(recent.map(row => row.text));
+        const fresh = pool.filter(line => !seen.has(line));
+        const choices = fresh.length ? fresh : pool;
+        const index = hashOf(`${state.seed}:${teamId}:${toTeamId}:${tone}:${messageId}`) % choices.length;
+        const reply = { id: `reply:${messageId}`, fromTeamId: toTeamId, toTeamId: teamId, text: choices[index], tone: 'neutral', week, createdAt: stamp, sequence: history.length + 2, replyToId: message.id };
         return { ...next, rivalMessages: [...next.rivalMessages, reply] };
     }
     function threadsFor(state, teamId, options = {}) {
@@ -267,6 +399,6 @@
             return { team, messages: thread, latest: thread[0] || null, relationship: team.manager === 'ai' ? relationshipFor(state, team.teamId, teamId) : null };
         }).sort((a, b) => (b.latest?.week || 0) - (a.latest?.week || 0) || (b.latest?.sequence || 0) - (a.latest?.sequence || 0) || a.team.name.localeCompare(b.team.name));
     }
-    App.TimeLeagueRivals = { messagesFor, threadsFor, sendMessage, normalizeMessages, normalizeRelationships, relationshipFor, hottestRelationship, voices, QUICK_REPLIES, TONES };
+    App.TimeLeagueRivals = { messagesFor, threadsFor, sendMessage, normalizeMessages, normalizeRelationships, relationshipFor, hottestRelationship, voices, QUICK_REPLIES, quickRepliesFor, TONES };
     if (typeof module !== 'undefined') module.exports = App.TimeLeagueRivals;
 })(typeof window !== 'undefined' ? window : globalThis);

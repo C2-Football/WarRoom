@@ -524,7 +524,7 @@
         const drawnByOverall = new Map((reveal?.teams || []).flatMap((row) => row.picks.map((pick) => [pick.overall, pick])));
         const draftCell = (pick) => {
             const drawn = drawnByOverall.get(pick.overall);
-            return h('div', { className: `tl-draft-pick tl-draft-pick-${pick.pos || pick.position}` },
+            return h('div', { className: `tl-draft-pick tl-draft-pick-${pick.pos || pick.position}`, title: pick.name },
                 h('small', null, `#${pick.overall} · ${pick.pos || pick.position}${Number.isFinite(pick.auctionPrice) ? ` · $${pick.auctionPrice}` : ''}`),
                 h('strong', null, pick.name),
                 drawn && h('span', null, `${drawn.drawnSeason ?? '—'} · ${drawn.points.toFixed(1)} pts`));
@@ -539,14 +539,15 @@
         };
         const sharedGrid = window.DraftCC?.DraftGridPanel ? h(window.DraftCC.DraftGridPanel, {
             state: dhqState, currentSlot: seat && !isAuction ? dhqState.pickOrder.find((slot) => slot.overall === seat.overall) : null,
-            isUserTurn: myTurn, dispatch: (action) => { if (action.type === 'PIN_TEAM') setPinnedRosterId(action.rosterId); }, renderPick: draftCell
+            isUserTurn: myTurn, dispatch: (action) => { if (action.type === 'PIN_TEAM') setPinnedRosterId(action.rosterId); }, renderPick: draftCell, embedded: true
         }) : null;
-        const draftLog = h('div', { className: 'tl-card' },
-            h('div', { className: 'tl-card-title' }, h('span', null, isAuction ? 'Auction results · each row is one team acquisition' : 'Draft log'),
-                h('button', { className: 'tl-btn icon', onClick: () => setShowBoardGrid((c) => !c) }, showBoardGrid ? 'Pick list' : 'Board grid')),
+        const draftLog = h('div', { className: 'tl-card tl-draft-log' },
+            h('div', { className: 'tl-card-title' }, h('span', null, isAuction ? 'Auction results' : 'Draft board'),
+                h('button', { className: 'tl-btn', onClick: () => setShowBoardGrid((c) => !c) }, showBoardGrid ? 'Pick list' : 'Board grid')),
+            showBoardGrid && league.draftPicks.length > 0 && h('p', { className: 'tl-draft-scroll-hint' }, isAuction ? 'Swipe across teams · each row is an acquisition' : 'Swipe across to see every team'),
             league.draftPicks.length === 0 ? h('p', { className: 'tl-empty' }, 'No picks yet — the log fills as the room drafts.')
                 : showBoardGrid
-                    ? sharedGrid || h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'tl-tbl' },
+                    ? sharedGrid || h('div', { className: 'tl-draft-fallback-scroll', role: 'region', 'aria-label': 'Draft grid by round and team', tabIndex: 0 }, h('table', { className: 'tl-tbl tl-draft-fallback-grid', style: { minWidth: `${league.teams.length * 148 + 30}px` } },
                         h('thead', null, h('tr', null, h('th', null, isAuction ? 'Add' : 'Rd'), league.teams.map((team) => h('th', { key: team.teamId }, team.name)))),
                         h('tbody', null, boardRounds.map(([round, seats]) => h('tr', { key: round },
                             h('td', { className: 'num' }, round),
@@ -564,16 +565,15 @@
                             h('td', null, pick.madeBy === 'ai' ? 'AI' : 'HU')))))));
 
         if (league.seasonsRevealed && reveal) {
-            return h('div', null,
-                h('div', { className: 'tl-card' },
-                    h('div', { className: 'tl-card-title' }, h('span', null, 'Draft night report card'), h('small', null, `${league.draftPicks.length} picks · mystery seasons unsealed`)),
-                    h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 } },
-                        h('span', { className: 'tl-pill gold' }, 'Draft complete'),
-                        h('p', { style: { fontSize: 12.5, color: 'var(--text-secondary)', margin: 0 } }, `Every drawn season is on the record below — the war room moves to week ${league.currentWeek} lineups next.`)),
-                    h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 } },
-                        h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'League median haul'), h('strong', { style: { fontSize: 20, fontFamily: 'var(--font-title)' } }, reveal.median.toFixed(1))),
-                        h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, `Best haul — ${reveal.best ? reveal.best.team.name : '—'}`), h('strong', { style: { fontSize: 20, fontFamily: 'var(--font-title)' } }, reveal.best ? reveal.best.total.toFixed(1) : '0.0')),
-                        h('div', { className: 'tl-card', style: { padding: '10px 12px' } }, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Rounds drafted'), h('strong', { style: { fontSize: 20, fontFamily: 'var(--font-title)' } }, boardRounds.length)))),
+            const myClass = reveal.teams.find(({ team }) => team.teamId === humanTeam?.teamId);
+            return h('div', { className: 'tl-draft-recap' },
+                h('section', { className: 'tl-card tl-recap-summary', 'aria-label': 'Draft summary' },
+                    h('div', { className: 'tl-recap-heading' }, h('strong', null, 'Draft complete'), h('small', null, `${league.draftPicks.length} picks · ${league.teams.length} teams · ${boardRounds.length} rounds`)),
+                    h('div', { className: 'tl-recap-stats' },
+                        myClass && h('div', { className: 'tl-recap-stat is-grade' }, h('span', null, 'Your grade'), h('strong', null, gradeFor(myClass.total, reveal.median))),
+                        myClass && h('div', { className: 'tl-recap-stat' }, h('span', null, 'Your class'), h('strong', null, myClass.total.toFixed(1)), h('small', null, 'season points')),
+                        h('div', { className: 'tl-recap-stat' }, h('span', null, 'League median'), h('strong', null, reveal.median.toFixed(1)), h('small', null, 'season points'))),
+                    reveal.best && h('p', { className: 'tl-recap-best' }, 'Best class: ', h('strong', null, reveal.best.team.name), ` · ${reveal.best.total.toFixed(1)} pts`)),
                 draftLog,
                 h('p', { className: 'tl-hint' }, 'Grades compare each team’s drawn-season points with the league median. They describe the draw, not a prediction of wins.'),
                 h('div', { className: 'tl-draft-grade-grid' },

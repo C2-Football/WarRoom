@@ -2,10 +2,10 @@
 const assert = require('node:assert/strict');
 global.window = globalThis; global.App = {};
 const R = require('../js/shared/time-league-rivals.js');
-let cursor = 0;
+let cursor = 0, layoutNode = null;
 const hooks = [], deps = [], effects = [];
 global.React = {
-    Fragment: 'fragment', createElement: (type, props, ...children) => ({ type, props: props || {}, children }),
+    Fragment: 'fragment', createElement: (type, props, ...children) => { if (layoutNode && props?.ref && props.className?.includes('tl-inbox')) props.ref.current = layoutNode; return { type, props: props || {}, children }; },
     useState: initial => { const index = cursor++; if (!(index in hooks)) hooks[index] = typeof initial === 'function' ? initial() : initial; return [hooks[index], value => { hooks[index] = typeof value === 'function' ? value(hooks[index]) : value; }]; },
     useRef: initial => { const index = cursor++; return hooks[index] ||= { current: initial }; },
     useEffect: (fn, values) => { const index = cursor++; if (!deps[index] || values.some((value, i) => value !== deps[index][i])) { deps[index] = values; effects.push(fn); } },
@@ -40,12 +40,20 @@ const render = () => { cursor = 0; const tree = WrTimeLeagueRivalsPanel({ league
     assert(tree.props.className.includes('has-thread'), 'selecting an owner opens a single mobile thread');
     assert(all(tree, node => node.props.role === 'log').length === 1);
     assert.equal(area(tree).props.placeholder, 'Message…');
+    const initialMeter = all(tree, node => node.props.role === 'meter')[0];
+    assert.equal(initialMeter.props['aria-valuenow'], 6, 'neutral is the midpoint');
+    assert(initialMeter.props['aria-valuetext'].includes('Neutral'));
+    assert(!all(tree, node => node.type === 'input' && node.props.type === 'range').length, 'relationship is read-only');
+    const originalSuggestion = button(tree, 'Talk trash').props.title;
     button(tree, 'Talk trash').props.onClick(); tree = render();
-    assert.equal(area(tree).props.value, R.QUICK_REPLIES[1].text);
+    assert.equal(area(tree).props.value, originalSuggestion);
+    button(tree, 'New replies').props.onClick(); tree = render();
+    assert.notEqual(button(tree, 'Talk trash').props.title, originalSuggestion, 'new replies cycles the suggested wording');
+    assert.equal(area(tree).props.value, originalSuggestion, 'refreshing suggestions preserves an edited draft');
     assert.equal(sent.length, 0, 'quick replies are editable drafts until the user sends');
     await form(tree).props.onSubmit({ preventDefault() {} }); tree = render();
     assert(text(tree).includes('Connection lost. Try again.'));
-    assert.equal(area(tree).props.value, R.QUICK_REPLIES[1].text, 'failed send retains the composed message');
+    assert.equal(area(tree).props.value, originalSuggestion, 'failed send retains the composed message');
     assert.equal(sent[0].tone, 'competitive');
     assert.equal(sent[0].replyToId, 'game:1:you');
     // A background event arrives after a failed send. Retrying still sends the
@@ -61,7 +69,8 @@ const render = () => { cursor = 0; const tree = WrTimeLeagueRivalsPanel({ league
     assert.equal(area(tree).props.value, '');
     assert(!text(tree).includes('Connection lost. Try again.'));
     assert.equal(league.rivalMessages.length, 2);
-    assert(text(tree).includes(R.QUICK_REPLIES[1].text));
+    assert.equal(all(tree, node => node.props.role === 'meter')[0].props['aria-valuenow'], 4, 'trash talk shifts the saved gauge toward red');
+    assert(text(tree).includes(originalSuggestion));
     assert.equal(all(tree, node => node.props.className === 'tl-chat-message is-own').length, 1, 'outgoing reply is a separate own bubble');
     assert.equal(all(tree, node => node.props.role === 'log')[0].props['aria-live'], 'polite');
     area(tree).props.onChange({ target: { value: 'My custom reply\nWith a second line' } }); tree = render();
@@ -71,6 +80,7 @@ const render = () => { cursor = 0; const tree = WrTimeLeagueRivalsPanel({ league
     assert(!tree.props.className.includes('has-thread'));
     owner(tree, 'Friend').props.onClick(); tree = render();
     assert.equal(area(tree).props.value, '', 'each conversation has an independent composer');
+    assert.equal(all(tree, node => node.props.role === 'meter').length, 0, 'human relationships are not invented');
     assert(!text(tree).includes('Only you and this manager'), 'shared-device league does not promise private inboxes');
     extra = { isPrivate: true }; tree = render();
     assert(text(tree).includes('Only you and this manager can see these messages.'));
@@ -100,10 +110,33 @@ const render = () => { cursor = 0; const tree = WrTimeLeagueRivalsPanel({ league
     await form(tree).props.onSubmit({ preventDefault() {} });
     assert.equal(sent.at(-1).toTeamId, 'ai', 'typing pins the recipient before another owner becomes most recent');
     league = { ...league, leagueId: 'desktop-quick-pin', rivalMessages: [] }; tree = render();
+    const friendlySuggestion = button(tree, 'Friendly').props.title;
     button(tree, 'Friendly').props.onClick(); tree = render();
     league = R.sendMessage(league, { teamId: 'friend', toTeamId: 'you', text: 'Another fresh message', tone: 'neutral', messageId: 'desktop_quick_incoming' }, stamp);
     tree = render();
     assert.equal(area(tree).props['aria-label'], 'Message Kade', 'quick replies also pin the initially previewed owner');
-    assert.equal(area(tree).props.value, R.QUICK_REPLIES[0].text);
+    assert.equal(area(tree).props.value, friendlySuggestion);
+    league = { ...league, rivalRelationships: [{ ownerTeamId: 'ai', otherTeamId: 'you', heat: 6, updatedWeek: league.currentWeek }] }; tree = render();
+    assert.equal(all(tree, node => node.props.role === 'meter')[0].props['aria-valuenow'], 0, 'Hot rival sits at the red end');
+    assert(all(tree, node => node.props.role === 'meter')[0].props['aria-valuetext'].includes('Hot rival'));
+    league.rivalRelationships[0].heat = -6; tree = render();
+    assert.equal(all(tree, node => node.props.role === 'meter')[0].props['aria-valuenow'], 12, 'Friend sits at the green end');
+    league = { ...league, currentWeek: league.currentWeek + 6 }; tree = render();
+    assert.equal(all(tree, node => node.props.role === 'meter')[0].props['aria-valuenow'], 6, 'the gauge follows saved weekly relationship decay');
+    const frameQueue = [], viewportEvents = {}, styleValues = {};
+    layoutNode = { parentElement: null, getBoundingClientRect: () => ({ top: 120 }), style: { getPropertyValue: key => styleValues[key], setProperty: (key, value) => { styleValues[key] = value; }, removeProperty: key => { delete styleValues[key]; } } };
+    window.document = { querySelector: () => ({ getBoundingClientRect: () => ({ height: 104 }) }) };
+    window.matchMedia = () => ({ matches: true });
+    window.requestAnimationFrame = fn => { frameQueue.push(fn); return frameQueue.length; };
+    window.cancelAnimationFrame = () => {};
+    window.addEventListener = () => {}; window.removeEventListener = () => {};
+    window.visualViewport = { height: 812, offsetTop: 0, addEventListener: (name, fn) => { viewportEvents[name] = fn; }, removeEventListener: () => {} };
+    league = { ...league, leagueId: 'measured-mobile-chat' }; render(); while (frameQueue.length) frameQueue.shift()();
+    assert.equal(styleValues['--tl-chat-available-height'], '576px', 'chat subtracts the actual header position, nav and safe-area height');
+    window.visualViewport.height = 360; viewportEvents.resize(); while (frameQueue.length) frameQueue.shift()();
+    assert.equal(styleValues['--tl-chat-available-height'], '124px', 'opening a mobile keyboard reduces the chat budget');
+    const css = require('node:fs').readFileSync(require('node:path').join(__dirname, '../time-league-rivals.css'), 'utf8');
+    assert(!/min-height: (470|480)px/.test(css), 'fixed minimum heights cannot force the composer beneath navigation');
+    assert(css.includes('.tl-chat-tone select { font-size: 16px; }'), 'mobile tone selection avoids browser auto-zoom');
     console.log('Rival chat UI: mobile thread navigation, custom/quick replies, drafts, retries, send lock, escaping and seat/league isolation passed.');
 })().catch(error => { console.error(error); process.exit(1); });

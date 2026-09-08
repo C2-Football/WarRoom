@@ -80,3 +80,26 @@ assert.equal(provokedClaims.find(row => row.teamId === warlord.teamId).bidAmount
 const beforePrepare = AI.aiPrepareWeek(game, cards);
 assert.deepEqual(AI.aiPrepareWeek(provoked, cards).teams, beforePrepare.teams, 'no score or lineup cheating from messages');
 console.log('Rival conversations: authored history, persona replies, retries, explicit tone, boundaries, decay and actual AI trade/FAAB effects passed.');
+
+const contextInput = { ...input, tone: 'friendly', replyToId: event.id };
+let contextState = eventState;
+const contextual = new Set();
+for (let i = 0; i < 12; i++) {
+    contextState = R.sendMessage(contextState, { ...contextInput, messageId: `context_variety_${i}` }, stamp);
+    contextual.add(contextState.rivalMessages.at(-1).text);
+}
+assert.equal(contextual.size, 12, 'answered events have a larger contextual reply pool');
+assert([...contextual].some(line => line.includes('That matchup is still on my mind.')), 'replies acknowledge the event being answered');
+const withPrivateOther = R.sendMessage(eventState, { teamId: friend.teamId, toTeamId: warlord.teamId, text: 'Secret message in another thread.', tone: 'neutral', messageId: 'private_other_123' }, stamp);
+assert.equal(R.sendMessage(withPrivateOther, { ...contextInput, messageId: 'independent_reply' }, stamp).rivalMessages.at(-1).text,
+    R.sendMessage(eventState, { ...contextInput, messageId: 'independent_reply' }, stamp).rivalMessages.at(-1).text, 'another private thread cannot change this reply');
+assert.deepEqual(R.quickRepliesFor(withPrivateOther, human.teamId, warlord.teamId), R.quickRepliesFor(eventState, human.teamId, warlord.teamId), 'suggestions use this pair alone');
+const suggestions = R.quickRepliesFor(eventState, human.teamId, warlord.teamId);
+assert.notDeepEqual(suggestions, R.quickRepliesFor(eventState, human.teamId, warlord.teamId, { variant: 1 }), 'suggestion refresh offers different editable wording');
+assert.deepEqual(R.quickRepliesFor(sent, human.teamId, warlord.teamId), R.quickRepliesFor(E.normalizeTimeLeague(JSON.parse(JSON.stringify(sent))), human.teamId, warlord.teamId), 'suggestions are stable across a save reload');
+assert.equal(R.relationshipFor(heated, warlord.teamId, human.teamId).label, 'Hot rival');
+let friendly = league;
+for (let i = 0; i < 3; i++) friendly = R.sendMessage(friendly, { ...input, tone: 'friendly', messageId: `become_friend_${i}` }, stamp);
+assert.equal(R.relationshipFor(friendly, warlord.teamId, human.teamId).label, 'Friend');
+assert.equal(R.relationshipFor({ ...friendly, currentWeek: 7 }, warlord.teamId, human.teamId).label, 'Neutral');
+console.log('Expanded chat: six nonrepeating replies per tone, contextual variety, private-thread independence, refreshable suggestions and honest relationship endpoints passed.');
