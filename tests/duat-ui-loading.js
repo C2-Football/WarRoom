@@ -185,23 +185,69 @@ const text = value => value == null ? '' : Array.isArray(value) ? value.map(text
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && text(node).replace(/\s+/g,' ').trim() === label);
 const settle = () => new Promise(resolve => setImmediate(resolve));
 
-test('the production staged excavation requires discovery, ruler, player reveals and a record before travelling onward',()=>{
-    const states=[],deps=[];let cursor=0,effectCursor=0,effects=[],changed=false,actions=[];
-    const campaign={version:4,dynastySeason:1,phase:'reveal',dynasty:{journal:[]},archaeology:{order:['egypt','rome'],revealedFactionIds:[],latest:null},factions:[
-        {id:'egypt',activeArmyId:null,rulerRoll:null,armies:[{id:'egypt:2025',rulerName:'The Test Pharaoh',season:2025,players:[{id:'q:2025',name:'The Hidden Quarterback',position:'QB'},{id:'w:2025',name:'The Hidden Receiver',position:'WR'}]}]},
-        {id:'rome',activeArmyId:null,rulerRoll:null,armies:[]}
-    ]};
-    const browser={location:new URL('https://example.test/WarRoom/'),App:{DuatCampaign:require('../js/duat/dynasty.js'),DuatRules:require('../js/duat/rules.js'),DuatWorld:require('../js/duat/world.js'),DuatConquest:require('../js/duat/conquest.js'),DuatLore:require('../js/duat/lore.js')}};
-    const React={createElement:(type,props,...children)=>({type,props:props||{},children}),Fragment:'fragment',useMemo:fn=>fn(),useState(initial){const i=cursor++;if(!(i in states))states[i]=typeof initial==='function'?initial():initial;return[states[i],value=>{const next=typeof value==='function'?value(states[i]):value;if(next!==states[i]){states[i]=next;changed=true;}}];},useEffect(callback,dependencies){const i=effectCursor++;if(!deps[i]||dependencies.some((v,n)=>v!==deps[i][n]))effects.push(callback);deps[i]=dependencies;}};
+function storyHarness({version=4,host=true,canAdvance=true,autoReveal=true}={}) {
+    const states=[],deps=[],images=[],actions=[];let cursor=0,effectCursor=0,effects=[],changed=false,continued=0;
+    const campaign={id:'story-test',version,dynastySeason:1,phase:'reveal',dynasty:{journal:[]},archaeology:{order:['egypt','rome'],revealedFactionIds:[],latest:null},factions:['egypt','rome'].map(id=>({
+        id,activeArmyId:null,rulerRoll:null,armies:[{id:id+':2025',rulerName:id==='egypt'?'The Test Pharaoh':'The Test Consul',season:2025,players:[{id:id+'-q:2025',name:id+' Hidden Quarterback',position:'QB'},{id:id+'-w:2025',name:id+' Hidden Receiver',position:'WR'}]}]
+    }))};
+    const browser={location:new URL('https://example.test/WarRoom/'),Image:class{set src(value){images.push(value);}},App:{DuatCampaign:require('../js/duat/dynasty.js'),DuatRules:require('../js/duat/rules.js'),DuatWorld:require('../js/duat/world.js'),DuatConquest:require('../js/duat/conquest.js'),DuatLore:require('../js/duat/lore.js')}};
+    const React={createElement:(type,props,...children)=>({type,props:props||{},children}),Fragment:'fragment',useMemo:fn=>fn(),useRef(initial){const i=cursor++;if(!(i in states))states[i]={current:initial};return states[i];},useState(initial){const i=cursor++;if(!(i in states))states[i]=typeof initial==='function'?initial():initial;return[states[i],value=>{const next=typeof value==='function'?value(states[i]):value;if(next!==states[i]){states[i]=next;changed=true;}}];},useEffect(callback,dependencies){const i=effectCursor++;if(!deps[i]||dependencies.some((v,n)=>v!==deps[i][n]))effects.push(callback);deps[i]=dependencies;}};
     vm.runInNewContext(Babel.transform(fs.readFileSync(path.join(root,'js/components/duat-presentation.js'),'utf8'),{presets:['react']}).code,{window:browser,location:browser.location,React});
-    const props={campaign,host:true,canAdvance:true,busy:false,onContinue(){},onAction(action){actions.push(action);const f=campaign.factions[0];f.activeArmyId=f.armies[0].id;f.rulerRoll=7;campaign.archaeology.revealedFactionIds.push(f.id);campaign.archaeology.latest={factionId:f.id,armyId:f.activeArmyId};}};
-    const draw=()=>{let tree;for(let i=0;i<5;i++){cursor=effectCursor=0;effects=[];changed=false;tree=browser.App.DuatPresentation.DynastyArchaeology(props);effects.forEach(fn=>fn());if(!changed)return tree;}throw Error('Expedition render did not settle');};
-    let tree=draw();assert(!text(tree).includes('The Test Pharaoh'));assert(!text(tree).includes('The Hidden Quarterback'));
-    button(tree,'Lift the seal · awaken the ruler').props.onClick();tree=draw();assert.deepEqual(actions.map(action=>action.type),['reveal-next']);assert(text(tree).includes('The Test Pharaoh'));assert(!text(tree).includes('The Hidden Quarterback'));
-    button(tree,'Uncover the army').props.onClick();tree=draw();assert(!text(tree).includes('The Hidden Receiver'));assert(button(tree,'Write the record').props.disabled);
-    button(tree,'Uncover player 1').props.onClick();tree=draw();assert(text(tree).includes('The Hidden Quarterback'));assert(!text(tree).includes('The Hidden Receiver'));
-    button(tree,'Reveal the full army').props.onClick();tree=draw();assert(text(tree).includes('The Hidden Receiver'));button(tree,'Write the record').props.onClick();tree=draw();assert(text(tree).includes('Entered into the Royal Library'));
-    button(tree,'Travel to Rome').props.onClick();tree=draw();assert(!text(tree).includes('The Hidden Receiver'));assert.equal(actions.length,1,'Travelling to the next discovery does not silently reveal its ruler');
+    function reveal(id) {const f=campaign.factions.find(f=>f.id===id),army=f.armies[0];f.activeArmyId=army.id;f.rulerRoll=7;if(!campaign.archaeology.revealedFactionIds.includes(id))campaign.archaeology.revealedFactionIds.push(id);campaign.archaeology.latest={factionId:id,armyId:army.id,season:army.season,players:army.players};if(campaign.archaeology.revealedFactionIds.length===campaign.factions.length)campaign.phase='season';}
+    const props={campaign,host,canAdvance,busy:false,onContinue(){continued++;},onAction(action){actions.push(action);if(autoReveal)reveal(campaign.archaeology.order.find(id=>!campaign.archaeology.revealedFactionIds.includes(id)));}};
+    const draw=()=>{let tree;for(let i=0;i<6;i++){cursor=effectCursor=0;effects=[];changed=false;tree=browser.App.DuatPresentation.DynastyArchaeology(props);effects.forEach(fn=>fn());if(!changed)return tree;}throw Error('Expedition render did not settle');};
+    return {draw,props,campaign,reveal,images,actions,continued:()=>continued};
+}
+
+test('Chapter II awakens the ruler and full army together, then travels to a distinct illustrated culture',()=>{
+    const page=storyHarness();let tree=page.draw();
+    assert(!text(tree).includes('The Test Pharaoh'));assert(!text(tree).includes('egypt Hidden Quarterback'));
+    assert.equal(nodes(tree).find(n=>n.type==='img').props.src,'images/duat/expeditions/egypt.webp');
+    assert.deepEqual(page.images,['images/duat/expeditions/rome.webp'],'Only the next culture is preloaded');
+    button(tree,'Awaken the ruler').props.onClick();tree=page.draw();
+    assert.deepEqual(page.actions.map(a=>a.type),['reveal-next']);
+    for(const name of ['The Test Pharaoh','egypt Hidden Quarterback','egypt Hidden Receiver'])assert(text(tree).includes(name));
+    assert(!nodes(tree).some(n=>n.type==='button'&&/Uncover|Reveal the full army|Write the record/.test(text(n))));
+    button(tree,'Continue to Rome →').props.onClick();tree=page.draw();
+    assert.equal(nodes(tree).find(n=>n.type==='img').props.src,'images/duat/expeditions/rome.webp');
+    assert(!text(tree).includes('egypt Hidden Receiver'));assert(!text(tree).includes('rome Hidden Receiver'));assert.equal(page.actions.length,1);
+    button(tree,'Awaken the ruler').props.onClick();tree=page.draw();assert(text(tree).includes('rome Hidden Receiver'));
+    assert.equal(page.campaign.phase,'season');button(tree,'Enter the realm · Week 1').props.onClick();assert.equal(page.continued(),1);
+    const revisit=nodes(tree).find(n=>n.type==='button'&&n.children.some(child=>child?.type==='span'&&text(child)==='Egypt'));
+    revisit.props.onClick();tree=page.draw();assert(!text(tree).includes('egypt Hidden Receiver'));
+    button(tree,'Awaken the ruler').props.onClick();tree=page.draw();assert(text(tree).includes('egypt Hidden Receiver'));assert.equal(page.actions.length,2,'Revisiting a discovered army is local and does not roll again');
+});
+
+test('shared updates reveal the whole current army without skipping a reader past an earlier culture',()=>{
+    const page=storyHarness({host:false,canAdvance:false,autoReveal:false});let tree=page.draw();
+    assert.equal(button(tree,'Awaken the ruler').props.disabled,true);assert(text(tree).includes('The host is leading this discovery'));
+    page.reveal('egypt');tree=page.draw();assert(text(tree).includes('egypt Hidden Quarterback')&&text(tree).includes('egypt Hidden Receiver'));
+    page.reveal('rome');tree=page.draw();assert(text(tree).includes('egypt Hidden Receiver'));assert(!text(tree).includes('rome Hidden Receiver'));
+    button(tree,'Continue to Rome →').props.onClick();tree=page.draw();assert(!text(tree).includes('rome Hidden Receiver'));assert.equal(button(tree,'Awaken the ruler').props.disabled,false);
+    button(tree,'Awaken the ruler').props.onClick();tree=page.draw();assert(text(tree).includes('rome Hidden Receiver'));assert.equal(page.actions.length,0);
+    button(tree,'Enter the realm · Week 1').props.onClick();assert.equal(page.continued(),1);
+});
+
+test('readiness and an in-flight reveal keep secret roster content sealed until authoritative data arrives',()=>{
+    const page=storyHarness({canAdvance:false,autoReveal:false});let tree=page.draw();assert(button(tree,'Awaken the ruler').props.disabled);
+    page.props.canAdvance=true;tree=page.draw();button(tree,'Awaken the ruler').props.onClick();page.props.busy=true;tree=page.draw();
+    assert(button(tree,'The seal is opening…').props.disabled);assert(!text(tree).includes('egypt Hidden Receiver'));assert(!text(tree).includes('The Test Pharaoh'));
+    page.reveal('egypt');page.props.busy=false;tree=page.draw();assert(text(tree).includes('The Test Pharaoh')&&text(tree).includes('egypt Hidden Receiver'));
+});
+
+test('a reader who misses multiple shared updates can still awaken the known earlier army locally',()=>{
+    const page=storyHarness({host:false,canAdvance:false,autoReveal:false});page.draw();
+    page.reveal('egypt');page.reveal('rome');let tree=page.draw();
+    assert(!text(tree).includes('egypt Hidden Receiver'));assert.equal(button(tree,'Awaken the ruler').props.disabled,false);
+    button(tree,'Awaken the ruler').props.onClick();tree=page.draw();assert(text(tree).includes('egypt Hidden Receiver'));assert(!text(tree).includes('rome Hidden Receiver'));assert.equal(page.actions.length,0);
+});
+
+test('legacy revealed saves show every player without timers, preserve final completion and handle a missing illustration',()=>{
+    const page=storyHarness({version:3});page.reveal('egypt');page.reveal('rome');let tree=page.draw();
+    assert(text(tree).includes('rome Hidden Quarterback')&&text(tree).includes('rome Hidden Receiver'));assert(button(tree,'Enter the realm · Week 1'));
+    const illustration=nodes(tree).find(n=>n.type==='img');illustration.props.onError();tree=page.draw();
+    const fallback=nodes(tree).find(n=>n.type==='img');assert.equal(fallback.props.src,'images/duat/excavation.webp');assert.match(fallback.props.alt,/temporarily unavailable/);
+    button(tree,'Enter the realm · Week 1').props.onClick();assert.equal(page.continued(),1);assert.equal(page.actions.length,0);
 });
 
 test('a failed world dependency keeps the game unmounted even when presentation loaded; retry reloads', async () => {

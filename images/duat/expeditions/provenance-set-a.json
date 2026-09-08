@@ -1,0 +1,142 @@
+{
+  "set": "A — 12 illustrations; Maya and Gaul are included in set B",
+  "mode": "built-in image_gen",
+  "generatedOn": "2026-09-08",
+  "useCase": "illustration-story",
+  "sourceInspiration": "js/duat/lore.js DISCOVERIES — fictional historical adaptations of the user's source motifs",
+  "notes": "New illustrations, not documentary archaeological reconstructions. Original image generation outputs retained outside the repository. Web assets resized only, with no creative postprocessing.",
+  "items": [
+    {
+      "id": "mesopotamia",
+      "scene": "Ancient Mesopotamia: low evening sun over a vast mudbrick ziggurat and canals threading date palms into a reed marsh. In the close foreground of a ruined terracotta archive, three palm-sized clay cylinder seals lie on a worn brick ledge; one is mysteriously turning, its shallow incisions catching thin gold light. Tiny lone Archaeologist silhouette below the huge architecture. Burnt clay, lapis blue, amber gold; stepped mass and horizontal river plain.",
+      "prompt": "Use case: illustration-story. Asset type: full-bleed landscape scene for The Duat, a mythic strategy game's Archaeologist discovery chapter. Create ONE immersive landscape, 3:2 aspect ratio, approximately1536x1024. Hand-painted mature storybook / mythic strategy illustration with visible confident gouache and oil brush texture, rich faction colors, bronze, gold and fire, atmospheric light, monumental believable landscapes, cinematic depth. This is one continuous painting, never a collage, grid, card, cover or UI. Archaeological relic anchors the foreground and a culturally specific place fills the distance. Tiny anonymous explorer silhouette permitted, no identifiable ruler portrait, no modern clothes or equipment. No lettering, numbers, labels, watermarks, logos or interface. Artifact incisions may be abstract and illegible. \nScene: Ancient Mesopotamia: low evening sun over a vast mudbrick ziggurat and canals threading date palms into a reed marsh. In the close foreground of a ruined terracotta archive, three palm-sized clay cylinder seals lie on a worn brick ledge; one is mysteriously turning, its shallow incisions catching thin gold light. Tiny lone Archaeologist silhouette below the huge architecture. Burnt clay, lapis blue, amber gold; stepped mass and horizontal river plain.",
+      "target": "images/duat/expeditions/mesopotamia.webp",
+      "width": 1200,
+      "height": 800,
+      "bytes": 229500,
+      "sha256": "0dba14f253d782b70dc3eff408897a20b15c9b20f89f0cee241afba95d102edc",
+      "status": "visually reviewed; optimized"
+    },
+    {
+      "id": "egypt",
+      "scene": "Ancient Egypt: an immense black granite proclamation stela, with shallow unreadable carved cuts illuminated by fresh gold, anchored in the foreground of a sand-buried Nile temple court. Towering sandstone pylons and columns lead toward a luminous narrow strip of river and desert escarpment. Palm shadows, airborne fine sand, turquoise and gold dusk. No pyramid dominating the scene; this is an intimate monumental stela discovery.",
+      "prompt": "Use case: illustration-story. Asset type: full-bleed landscape scene for The Duat, a mythic strategy game's Archaeologist discovery chapter. Create ONE immersive landscape, 3:2 aspect ratio, approximately1536x1024. Hand-painted mature storybook / mythic strategy illustration with visible confident gouache and oil brush texture, rich faction colors, bronze, gold and fire, atmospheric light, monumental believable landscapes, cinematic depth. This is one continuous painting, never a collage, grid, card, cover or UI. Archaeological relic anchors the foreground and a culturally specific place fills the distance. Tiny anonymous explorer silhouette permitted, no identifiable ruler portrait, no modern clothes or equipment. No lettering, numbers, labels, watermarks, logos or interface. Artifact incisions may be abstract and illegible. \nScene: Ancient Egypt: an immense black granite proclamation stela, with shallow unreadable carved cuts illuminated by fresh gold, anchored in the foreground of a sand-buried Nile temple court. Towering sandstone pylons and columns lead toward a luminous narrow strip of river and desert escarpment. Palm shadows, airborne fine sand, turquoise and gold dusk. No pyramid dominating the scene; this is an intimate monumental stela discovery.",
+      "target": "images/duat/expeditions/egypt.webp",
+      "width": 1200,
+      "height": 800,
+      "bytes": 205342,
+      "sha256": "04ebf74a81f55911812cc68a40f7793fe608043f7c830f5ae6ba067f8f155b8a",
+      "status": "visually reviewed; optimized"
+    },
+    {
+      "id": "rome",
+      "scene": "Ancient Rome: a shadowed ruined Roman colonnaded hall opens into an expansive sunlit dusty mustering field lined with tall bronze eagle standards. A pale riderless horse stands small in the middle distance. A fallen bronze standard socket and weathered waxless bronze seal in the foreground anchor the archaeological discovery. Warm bronze, imperial red and deep aubergine, shafts of late light, marching dust without a visible army. No named ruler or famous modern monument.",
+      "prompt": "Use case: illustration-story. Asset type: full-bleed landscape scene for The Duat, a mythic strategy game's Archaeologist discovery chapter. Create ONE immersive landscape, 3:2 aspect ratio, approximately1536x1024. Hand-painted mature storybook / mythic strategy illustration with visible confident gouache and oil brush texture, rich faction colors, bronze, gold and fire, atmospheric light, monumental believable landscapes, cinematic depth. This is one continuous painting, never a collage, grid, card, cover or UI. Archaeological relic anchors the foreground and a culturally specific place fills the distance. Tiny anonymous explorer silhouette permitted, no identifiable ruler portrait, no modern clothes or equipment. No lettering, numbers, labels, watermarks, logos or interface. Artifact incisions may be abstract and illegible. \nScene: Ancient Rome: a shadowed ruined Roman colonnaded hall opens into an expansive sunlit dusty mustering field lined with tall bronze eagle standards. A pale riderless horse stands small in the middle distance. A fallen bronze standard socket and weathered waxless bronze seal in the foreground anchor the archaeological discovery. Warm bronze, imperial red and deep aubergine, shafts of late light, marching dust without a visible army. No named ruler or famous modern monument.",
+      "target": "images/duat/expeditions/rome.webp",
+      "width": 1200,
+      "height": 800,
+      "bytes": 211906,
+      "sha256": "b7ce673c470adbf6a15f1f96cb542abff2aaacbfab8f4e0d1c7bdcb0366084c4",
+      "status": "visually reviewed; optimized"
+    },
+    {
+      "id": "greece",
+      "scene": "Ancient Greece: view from a vast sea cave opening over a sapphire Aegean bay and white limestone headland. A weathered round bronze Greek shield leans against the cave rock in the foreground, catching the very last gold sea light. Inside the shadowy cave, an empty ancient banquet table with clay cups and warm braziers extends toward the water; its feast seems to be forming out of mist. Teal, sea blue, warm burnished bronze, luminous coral dusk.",
+      "prompt": "Use case: illustration-story. Asset type: full-bleed landscape scene for The Duat, a mythic strategy game's Archaeologist discovery chapter. Create ONE immersive landscape, 3:2 aspect ratio, approximately1536x1024. Hand-painted mature storybook / mythic strategy illustration with visible confident gouache and oil brush texture, rich faction colors, bronze, gold and fire, atmospheric light, monumental believable landscapes, cinematic depth. This is one continuous painting, never a collage, grid, card, cover or UI. Archaeological relic anchors the foreground and a culturally specific place fills the distance. Tiny anonymous explorer silhouette permitted, no identifiable ruler portrait, no modern clothes or equipment. No lettering, numbers, labels, watermarks, logos or interface. Artifact incisions may be abstract and illegible. \nScene: Ancient Greece: view from a vast sea cave opening over a sapphire Aegean bay and white limestone headland. A weathered round bronze Greek shield leans against the cave rock in the foreground, catching the very last gold sea light. Inside the shadowy cave, an empty ancient banquet table with clay cups and warm braziers extends toward the water; its feast seems to be forming out of mist. Teal, sea blue, warm burnished bronze, luminous coral dusk.",
+      "target": "images/duat/expeditions/greece.webp",
+      "width": 1200,
+      "height": 800,
+      "bytes": 244824,
+      "sha256": "4fa9ec1b5d144840dd53e6bd219adb13e6701dc14539a987ca879a750724ad0c",
+      "status": "visually reviewed; optimized"
+    },
+    {
+      "id": "vikings",
+      "scene": "Norse Viking lands: a rough moonlit runestone rises from a wet rocky fjord shore, its shallow unreadable rune-like cuts shining with faint blue light as heavy clouds part. A clinker-built wooden longboat pulls taut against its mooring rope behind it. Dark firs, vast snow-edged fjord walls, distant waterfalls and silver water; cold indigo and storm teal with one tiny amber lantern. Unnamed tiny Archaeologist beside the stone, no horned helmets.",
+      "prompt": "Use case: illustration-story. Asset type: full-bleed landscape scene for The Duat, a mythic strategy game's Archaeologist discovery chapter. Create ONE immersive landscape, 3:2 aspect ratio, approximately1536x1024. Hand-painted mature storybook / mythic strategy illustration with visible confident gouache and oil brush texture, rich faction colors, bronze, gold and fire, atmospheric light, monumental believable landscapes, cinematic depth. This is one continuous painting, never a collage, grid, card, cover or UI. Archaeological relic anchors the foreground and a culturally specific place fills the distance. Tiny anonymous explorer silhouette permitted, no identifiable ruler portrait, no modern clothes or equipment. No lettering, numbers, labels, watermarks, logos or interface. Artifact incisions may be abstract and illegible. \nScene: Norse Viking lands: a rough moonlit runestone rises from a wet rocky fjord shore, its shallow unreadable rune-like cuts shining with faint blue light as heavy clouds part. A clinker-built wooden longboat pulls taut against its mooring rope behind it. Dark firs, vast snow-edged fjord walls, distant waterfalls and silver water; cold indigo and storm teal with one tiny amber lantern. Unnamed tiny Archaeologist beside the stone, no horned helmets.",
+      "target": "images/duat/expeditions/vikings.webp",
+      "width": 1200,
+      "height": 800,
+      "bytes": 224522,
+      "sha256": "6c3746b6de0253e3d8a139b0df75a18e575b1ce77a781993f6737dbf95c4e468",
+      "status": "visually reviewed; optimized"
+    },
+    {
+      "id": "inis-fail",
+      "scene": "Ancient Inis Fáil, Ireland: rain sweeps an emerald hillside where a low mossy stone passage-tomb threshold opens beneath a broad earth mound. Four small closed bronze seals, arranged vertically on a weathered threshold slab, glimmer through wet moss as if names are about to emerge, without readable writing. Rolling green hills fade into pearl mist, old thorn trees bow in the wind. Verdigris green, peat brown, antique gold, rainlit stone. No castle, Scottish island fortress, tartan, Viking ship or pyramid.",
+      "prompt": "Use case: illustration-story. Asset type: full-bleed landscape scene for The Duat, a mythic strategy game's Archaeologist discovery chapter. Create ONE immersive landscape, 3:2 aspect ratio, approximately1536x1024. Hand-painted mature storybook / mythic strategy illustration with visible confident gouache and oil brush texture, rich faction colors, bronze, gold and fire, atmospheric light, monumental believable landscapes, cinematic depth. This is one continuous painting, never a collage, grid, card, cover or UI. Archaeological relic anchors the foreground and a culturally specific place fills the distance. Tiny anonymous explorer silhouette permitted, no identifiable ruler portrait, no modern clothes or equipment. No lettering, numbers, labels, watermarks, logos or interface. Artifact incisions may be abstract and illegible. \nScene: Ancient Inis Fáil, Ireland: rain sweeps an emerald hillside where a low mossy stone passage-tomb threshold opens beneath a broad earth mound. Four small closed bronze seals, arranged vertically on a weathered threshold slab, glimmer through wet moss as if names are about to emerge, without readable writing. Rolling green hills fade into pearl mist, old thorn trees bow in the wind. Verdigris green, peat brown, antique gold, rainlit stone. No castle, Scottish island fortress, tartan, Viking ship or pyramid.",
+      "target": "images/duat/expeditions/inis-fail.webp",
+      "width": 1200,
+      "height": 800,
+      "bytes": 268410,
+      "sha256": "7be106b5ac9d56b0582834fd7a97db2c2619499df3449017b9e8c096a3d8a664",
+      "status": "visually reviewed; optimized"
+    },
+    {
+      "id": "carthage",
+      "scene": "Ancient Punic Carthage: a broad circular sheltered harbor and outer Mediterranean anchorage at violet-gold dusk, terraced sandstone waterfront, low colonnades and sparse palms, a few distant ancient merchant hulls. Close foreground on the wet shore: a single worn bronze votive coin mysteriously rests against the incoming tide, surrounded by gold ripples and extraordinarily long shadows. Sea haze and quiet massive stone harbor walls. Tyrian purple, deep blue, burnished copper; no Roman amphitheatre.",
+      "prompt": "Use case: illustration-story. Asset type: full-bleed landscape scene for The Duat, a mythic strategy game's Archaeologist discovery chapter. Create ONE immersive landscape, 3:2 aspect ratio, approximately1536x1024. Hand-painted mature storybook / mythic strategy illustration with visible confident gouache and oil brush texture, rich faction colors, bronze, gold and fire, atmospheric light, monumental believable landscapes, cinematic depth. This is one continuous painting, never a collage, grid, card, cover or UI. Archaeological relic anchors the foreground and a culturally specific place fills the distance. Tiny anonymous explorer silhouette permitted, no identifiable ruler portrait, no modern clothes or equipment. No lettering, numbers, labels, watermarks, logos or interface. Artifact incisions may be abstract and illegible. \nScene: Ancient Punic Carthage: a broad circular sheltered harbor and outer Mediterranean anchorage at violet-gold dusk, terraced sandstone waterfront, low colonnades and sparse palms, a few distant ancient merchant hulls. Close foreground on the wet shore: a single worn bronze votive coin mysteriously rests against the incoming tide, surrounded by gold ripples and extraordinarily long shadows. Sea haze and quiet massive stone harbor walls. Tyrian purple, deep blue, burnished copper; no Roman amphitheatre.",
+      "target": "images/duat/expeditions/carthage.webp",
+      "width": 1200,
+      "height": 800,
+      "bytes": 222970,
+      "sha256": "463d7db327f3026236c7e027a8b1f1c8b6b89945d4af75c66904bfbd752f8e34",
+      "status": "visually reviewed; optimized"
+    },
+    {
+      "id": "nubia",
+      "scene": "Ancient Nubia, Kingdom of Kush: a low stone chamber beneath tawny sandstone hills, with a dark granite stela inside catching one narrow line of intense gold light. A hawk rests on the entrance lintel in the foreground. Beyond the chamber, distinct small steep-sided Kushite pyramids and desert ridges lie far away under a purple-red dawn sky. Ochre, obsidian, sun gold and violet shadows; wind-polished rock, not gigantic Egyptian pyramids or a Nile pylon courtyard.",
+      "prompt": "Use case: illustration-story. Asset type: full-bleed landscape scene for The Duat, a mythic strategy game's Archaeologist discovery chapter. Create ONE immersive landscape, 3:2 aspect ratio, approximately1536x1024. Hand-painted mature storybook / mythic strategy illustration with visible confident gouache and oil brush texture, rich faction colors, bronze, gold and fire, atmospheric light, monumental believable landscapes, cinematic depth. This is one continuous painting, never a collage, grid, card, cover or UI. Archaeological relic anchors the foreground and a culturally specific place fills the distance. Tiny anonymous explorer silhouette permitted, no identifiable ruler portrait, no modern clothes or equipment. No lettering, numbers, labels, watermarks, logos or interface. Artifact incisions may be abstract and illegible. \nScene: Ancient Nubia, Kingdom of Kush: a low stone chamber beneath tawny sandstone hills, with a dark granite stela inside catching one narrow line of intense gold light. A hawk rests on the entrance lintel in the foreground. Beyond the chamber, distinct small steep-sided Kushite pyramids and desert ridges lie far away under a purple-red dawn sky. Ochre, obsidian, sun gold and violet shadows; wind-polished rock, not gigantic Egyptian pyramids or a Nile pylon courtyard.",
+      "target": "images/duat/expeditions/nubia.webp",
+      "width": 1200,
+      "height": 800,
+      "bytes": 189240,
+      "sha256": "05906d1dfeb76f81fd7fd2e2863a9320d69ab76667bf4a203edffe2c029e2f56",
+      "status": "visually reviewed; optimized"
+    },
+    {
+      "id": "china",
+      "scene": "Ancient China: inside a limestone mountain cave a large weathered green jade bi disk is embedded in the foreground wall. Its round opening catches warm lantern light; beyond it an ancient lacquer banquet table and bronze ritual cups appear where rock should be. The cave mouth frames layered misty mountains and a few old tiled timber roofs clinging to a river gorge. Celadon jade, cinnabar, warm bronze and ink blue mist; no Great Wall panorama, no readable calligraphy.",
+      "prompt": "Use case: illustration-story. Asset type: full-bleed landscape scene for The Duat, a mythic strategy game's Archaeologist discovery chapter. Create ONE immersive landscape, 3:2 aspect ratio, approximately1536x1024. Hand-painted mature storybook / mythic strategy illustration with visible confident gouache and oil brush texture, rich faction colors, bronze, gold and fire, atmospheric light, monumental believable landscapes, cinematic depth. This is one continuous painting, never a collage, grid, card, cover or UI. Archaeological relic anchors the foreground and a culturally specific place fills the distance. Tiny anonymous explorer silhouette permitted, no identifiable ruler portrait, no modern clothes or equipment. No lettering, numbers, labels, watermarks, logos or interface. Artifact incisions may be abstract and illegible. \nScene: Ancient China: inside a limestone mountain cave a large weathered green jade bi disk is embedded in the foreground wall. Its round opening catches warm lantern light; beyond it an ancient lacquer banquet table and bronze ritual cups appear where rock should be. The cave mouth frames layered misty mountains and a few old tiled timber roofs clinging to a river gorge. Celadon jade, cinnabar, warm bronze and ink blue mist; no Great Wall panorama, no readable calligraphy.",
+      "target": "images/duat/expeditions/china.webp",
+      "width": 1200,
+      "height": 800,
+      "bytes": 231144,
+      "sha256": "5b14d78aabfd12411079af03d480e9af557fe04d7cc335a16d6958361401af2a",
+      "status": "visually reviewed; optimized"
+    },
+    {
+      "id": "japan",
+      "scene": "Ancient Japan: an earthen clay storage jar rests beneath the splintered vermilion seal and red cord of an old timber sanctuary, framed by immense cryptomeria cedars and moss-covered volcanic stone. A cold blue wisp seeps from the jar while warm ember light reaches the forest path. Layered mist, a broken small red wooden threshold deeper in the forest, and distant mountain slopes. Vermilion, charcoal blue, cedar green and antique gold; no modern buildings, no samurai portrait or text charms.",
+      "prompt": "Use case: illustration-story. Asset type: full-bleed landscape scene for The Duat, a mythic strategy game's Archaeologist discovery chapter. Create ONE immersive landscape, 3:2 aspect ratio, approximately1536x1024. Hand-painted mature storybook / mythic strategy illustration with visible confident gouache and oil brush texture, rich faction colors, bronze, gold and fire, atmospheric light, monumental believable landscapes, cinematic depth. This is one continuous painting, never a collage, grid, card, cover or UI. Archaeological relic anchors the foreground and a culturally specific place fills the distance. Tiny anonymous explorer silhouette permitted, no identifiable ruler portrait, no modern clothes or equipment. No lettering, numbers, labels, watermarks, logos or interface. Artifact incisions may be abstract and illegible. \nScene: Ancient Japan: an earthen clay storage jar rests beneath the splintered vermilion seal and red cord of an old timber sanctuary, framed by immense cryptomeria cedars and moss-covered volcanic stone. A cold blue wisp seeps from the jar while warm ember light reaches the forest path. Layered mist, a broken small red wooden threshold deeper in the forest, and distant mountain slopes. Vermilion, charcoal blue, cedar green and antique gold; no modern buildings, no samurai portrait or text charms.",
+      "target": "images/duat/expeditions/japan.webp",
+      "width": 1200,
+      "height": 800,
+      "bytes": 244452,
+      "sha256": "76d7dfe4ad2f0cc3d8a25b7a8513639a31157039666b292275df19efe457e848",
+      "status": "visually reviewed; optimized"
+    },
+    {
+      "id": "india",
+      "scene": "Ancient India: broad river stone steps and worn carved sandstone shrines emerge from deep evening mist; a low ceremonial wooden barge with carved prow and unmanned oars glides toward a lamplit landing without a wake. In the foreground river mud holds a small engraved ancient ovoid bronze relic half uncovered beside lotus leaves. Layered river temples, reflected oil-lamp flames, marigold amber, rich saffron, indigo and rose stone. No Taj Mahal, no modern football equipment, no readable writing.",
+      "prompt": "Use case: illustration-story. Asset type: full-bleed landscape scene for The Duat, a mythic strategy game's Archaeologist discovery chapter. Create ONE immersive landscape, 3:2 aspect ratio, approximately1536x1024. Hand-painted mature storybook / mythic strategy illustration with visible confident gouache and oil brush texture, rich faction colors, bronze, gold and fire, atmospheric light, monumental believable landscapes, cinematic depth. This is one continuous painting, never a collage, grid, card, cover or UI. Archaeological relic anchors the foreground and a culturally specific place fills the distance. Tiny anonymous explorer silhouette permitted, no identifiable ruler portrait, no modern clothes or equipment. No lettering, numbers, labels, watermarks, logos or interface. Artifact incisions may be abstract and illegible. \nScene: Ancient India: broad river stone steps and worn carved sandstone shrines emerge from deep evening mist; a low ceremonial wooden barge with carved prow and unmanned oars glides toward a lamplit landing without a wake. In the foreground river mud holds a small engraved ancient ovoid bronze relic half uncovered beside lotus leaves. Layered river temples, reflected oil-lamp flames, marigold amber, rich saffron, indigo and rose stone. No Taj Mahal, no modern football equipment, no readable writing.",
+      "target": "images/duat/expeditions/india.webp",
+      "width": 1200,
+      "height": 800,
+      "bytes": 230814,
+      "sha256": "1feab06332754f490c10995daecc0d2e32a6eb1a072e59a90a5e14766b4d8a13",
+      "status": "visually reviewed; optimized"
+    },
+    {
+      "id": "warhorsemen",
+      "scene": "The Warhorsemen, late-antique Hunnic frontier: a weathered low stone-and-earth wall cuts across the immense dry Danubian steppe. A stark black handprint is impressed on its rough plaster in the close foreground. Beyond a broken gate, an approaching company of tiny mounted silhouettes is barely suggested through a long amber dust cloud, with distant low grassland hills and a bronze horn lying near the wall. Charcoal, blood red, sunburnt gold; tense horizon, no yurts, no Mongol horsehair standard, no East Asian fortress, no identifiable ruler.",
+      "prompt": "Use case: illustration-story. Asset type: full-bleed landscape scene for The Duat, a mythic strategy game's Archaeologist discovery chapter. Create ONE immersive landscape, 3:2 aspect ratio, approximately1536x1024. Hand-painted mature storybook / mythic strategy illustration with visible confident gouache and oil brush texture, rich faction colors, bronze, gold and fire, atmospheric light, monumental believable landscapes, cinematic depth. This is one continuous painting, never a collage, grid, card, cover or UI. Archaeological relic anchors the foreground and a culturally specific place fills the distance. Tiny anonymous explorer silhouette permitted, no identifiable ruler portrait, no modern clothes or equipment. No lettering, numbers, labels, watermarks, logos or interface. Artifact incisions may be abstract and illegible. \nScene: The Warhorsemen, late-antique Hunnic frontier: a weathered low stone-and-earth wall cuts across the immense dry Danubian steppe. A stark black handprint is impressed on its rough plaster in the close foreground. Beyond a broken gate, an approaching company of tiny mounted silhouettes is barely suggested through a long amber dust cloud, with distant low grassland hills and a bronze horn lying near the wall. Charcoal, blood red, sunburnt gold; tense horizon, no yurts, no Mongol horsehair standard, no East Asian fortress, no identifiable ruler.",
+      "target": "images/duat/expeditions/warhorsemen.webp",
+      "width": 1200,
+      "height": 800,
+      "bytes": 250454,
+      "sha256": "b4c044016888ae59ce299a5313d87af07dca0bc584fc62bba88aad777fc8b1ca",
+      "status": "visually reviewed; optimized"
+    }
+  ]
+}

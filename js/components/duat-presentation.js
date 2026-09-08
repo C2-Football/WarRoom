@@ -105,50 +105,64 @@
         </section>;
     }
     function DynastyArchaeology({campaign, host, canAdvance, busy, onAction, onContinue}) {
-        const latest=campaign.archaeology.latest,revealed=campaign.archaeology.revealedFactionIds;
-        const nextId=campaign.archaeology.order.find(id=>!revealed.includes(id));
-        const [stage,setStage]=useState(0),[visible,setVisible]=useState(0),[selectedId,setSelectedId]=useState(''),[previewNext,setPreviewNext]=useState(!latest);
-        useEffect(()=>{if(latest){setPreviewNext(false);setSelectedId('');setStage(host?1:0);setVisible(0);}},[latest?.factionId,latest?.armyId,campaign.dynastySeason]);
-        const id=selectedId||(previewNext?nextId:latest?.factionId)||nextId;
-        const faction=campaign.factions.find(f=>f.id===id),army=revealed.includes(id)?Engine.activeArmy(faction):null;
-        const shownStage=army?stage:0,labels=['Discovery','The ruler','The army','The annals'];
-        const narration=App.DuatLore.expedition({factionId:id,stage:['discovery','ruler','roster','record'][shownStage],rulerName:army?.rulerName,playerCount:army?.players.length,season:army?.season});
-        const journal=campaign.dynasty.journal.filter(e=>e.cycle===campaign.dynastySeason&&e.factionId===id).at(-1);
-        const complete=revealed.length===campaign.factions.length;
-        const advance=()=>{if(!army){onAction({type:'reveal-next'});return;}setStage(value=>Math.min(3,value+1));};
-        return <section className="duat-excavation duat-staged-excavation">
-            <div className="duat-excavation-art" style={{backgroundImage:`linear-gradient(0deg,#101923 1%,rgba(16,25,35,.12) 80%),url(${art('excavation')})`}}><span className="duat-eyebrow">CHAPTER II · THE ARCHAEOLOGIST</span><h2>A name survives the dust.</h2><p>Follow each discovery, lift its seal, and meet the army that will write the next chapter.</p></div>
-            <div className="duat-excavation-body"><div className="duat-panel-heading"><div><span className="duat-eyebrow">DYNASTY SEASON {campaign.dynastySeason} · {revealed.length} OF {campaign.factions.length} TOMBS OPEN</span><h2>{nameOf(id)} · {narration.title}</h2></div><Sigil id={id}/></div>
-                <div className="duat-journey-stage" aria-label="Expedition stages">{labels.map((label,index)=><span key={label} className={shownStage===index?'active':shownStage>index?'complete':''} aria-current={shownStage===index?'step':undefined}>{index+1} · {label}</span>)}</div>
-                <div className="duat-artifact-clue" aria-live="polite">{narration.text}</div>
-                {shownStage===0&&<div className="duat-sealed-tomb duat-source-artifact"><Sigil id={id}/><p>{army?'Return to the moment this ruler was discovered.':'A banner, an artifact, and a sealed name. The Archaeologist waits for the council to lift the stone.'}</p><small>{narration.attribution}</small></div>}
-                {shownStage>=1&&army&&<div className="duat-ruler-arrival"><Sigil id={id}/><div><span className="duat-eyebrow">THE WALKING RULER</span><h3>{army.rulerName}</h3><div className="duat-reveal-name-plate"><span>{army.rulerRealm||nameOf(id)}</span><small>{army.season} NFL army · {army.players.length} players</small></div></div><div className="duat-die" aria-label={`d20 roll ${faction.rulerRoll}`}><span>d20</span><strong>{faction.rulerRoll}</strong></div></div>}
-                {shownStage===2&&army&&<><div className="duat-reveal-players">{army.players.map((p,index)=><article key={p.id} className={'duat-reveal-card '+(index<visible?'unsealed':'')}><span className="duat-reveal-seal" aria-hidden="true">◈</span><div><span className="duat-eyebrow">{index<visible?p.position:'SEALED'} · {index+1} / {army.players.length}</span><h3>{index<visible?p.name:'A figure waits in the dust…'}</h3><small>{index<visible?`${p.season||army.season} NFL season`:'Advance the expedition to discover this player.'}</small></div></article>)}</div>{visible<army.players.length&&<div className="duat-actions"><button className="duat-button primary" onClick={()=>setVisible(n=>n+1)}>Uncover player {visible+1}</button><button className="duat-button" onClick={()=>setVisible(army.players.length)}>Reveal the full army</button></div>}</>}
-                {shownStage===3&&<div className="duat-journal-seal"><span aria-hidden="true">✦</span><div><h3>Entered into the Royal Library</h3><p>{journal?.paragraphs?.at(-1)||narration.text}</p><small>{journal?.attribution||narration.attribution}. This discovery stays with your dynasty.</small></div></div>}
-                <div className="duat-actions">{shownStage<3?<button className="duat-button primary" disabled={busy||!army&&(!host||!canAdvance)||shownStage===2&&visible<army.players.length} onClick={advance}>{!army?(busy?'Lifting the seal…':'Lift the seal · awaken the ruler'):['Meet the ruler','Uncover the army','Write the record'][shownStage]}</button>:complete?<button className="duat-button primary" onClick={onContinue}>Enter the realm · Week 1</button>:<button className="duat-button primary" onClick={()=>{setPreviewNext(true);setSelectedId('');setStage(0);setVisible(0);}}>Travel to {nameOf(nextId)}</button>}{!army&&!host&&<span className="duat-muted">The host lifts each seal. You can explore every discovery at your own pace.</span>}{!army&&host&&!canAdvance&&<span className="duat-muted">Every human faction must mark ready before the first seal opens.</span>}</div>
-                {!!revealed.length&&<div className="duat-revealed-factions" aria-label="Revisit discovered factions">{revealed.map(factionId=><button key={factionId} className={id===factionId?'active':''} onClick={()=>{setSelectedId(factionId);setPreviewNext(false);setStage(0);setVisible(0);}}><Sigil id={factionId}/><span>{nameOf(factionId)}</span><small>{Engine.activeArmy(campaign.factions.find(f=>f.id===factionId))?.rulerName}</small></button>)}</div>}
-            </div>
+        const latest=campaign.archaeology?.latest, revealed=campaign.archaeology?.revealedFactionIds||[];
+        const order=campaign.archaeology?.order||campaign.factions.map(f=>f.id), cycle=campaign.dynastySeason||1;
+        const firstId=latest?.factionId||revealed.at(-1)||order[0], nextSealed=order.find(id=>!revealed.includes(id));
+        const latestKey=[campaign.id,cycle,latest?.factionId,latest?.armyId||latest?.season].join(':');
+        const [view,setView]=useState(()=>({campaignId:campaign.id,cycle,id:firstId,open:revealed.includes(firstId),replay:false}));
+        const [failedImage,setFailedImage]=useState(''), observed=useRef(latestKey), heading=useRef(null), moved=useRef(false), awakening=useRef(null), requested=useRef(false);
+        useEffect(()=>{
+            const changed=observed.current!==latestKey;observed.current=latestKey;
+            setView(previous=>{
+                if(previous.campaignId!==campaign.id||previous.cycle!==cycle)return {campaignId:campaign.id,cycle,id:firstId,open:revealed.includes(firstId),replay:false};
+                // A shared awakening opens the current page for everyone. Readers
+                // revisiting earlier discoveries keep their own place in the story.
+                if(changed&&latest?.factionId===previous.id&&!previous.replay)return {...previous,open:true};
+                return previous;
+            });
+        },[latestKey,campaign.id,cycle]);
+        const id=order.includes(view.id)?view.id:firstId, index=order.indexOf(id), nextId=order[index+1];
+        const faction=campaign.factions.find(f=>f.id===id);
+        const recordedArmy=revealed.includes(id)&&faction?Engine.activeArmy(faction):null;
+        const army=recordedArmy?.players?.length?recordedArmy:revealed.includes(id)&&latest?.factionId===id&&latest.players?.length?latest:null;
+        const awake=Boolean(view.open&&army), rulerName=army?.rulerName||`The ${army?.season} ruler`;
+        const scene=id?App.DuatLore.journey({factionId:id,awakened:awake,rulerName,playerCount:army?.players.length,season:army?.season}):null;
+        const journal=campaign.dynasty?.journal?.filter(e=>e.cycle===cycle&&e.factionId===id).at(-1);
+        const complete=revealed.length===order.length;
+        useEffect(()=>{
+            if(!nextId||!window.Image)return;
+            const nextImage=new window.Image();nextImage.decoding='async';nextImage.fetchPriority='low';
+            nextImage.src=base+App.DuatLore.journey({factionId:nextId}).image;
+            return()=>{nextImage.onload=null;nextImage.onerror=null;};
+        },[nextId]);
+        useEffect(()=>{if(moved.current){moved.current=false;heading.current?.focus({preventScroll:true});heading.current?.scrollIntoView({block:'start',behavior:'auto'});}},[id]);
+        useEffect(()=>{if(awake&&requested.current){requested.current=false;awakening.current?.focus({preventScroll:true});awakening.current?.scrollIntoView({block:'start',behavior:'auto'});}},[awake,id]);
+        const travel=(factionId,replay=false)=>{moved.current=true;setView({campaignId:campaign.id,cycle,id:factionId,open:false,replay});};
+        const awaken=()=>{requested.current=true;if(army){setView(previous=>({...previous,open:true}));return;}onAction({type:'reveal-next'});};
+        if(!scene)return <section className="duat-panel"><h2>The expedition is complete.</h2><button className="duat-button primary" onClick={onContinue}>Enter the realm · Week 1</button></section>;
+        const arrival=App.DuatLore.journey({factionId:id});
+        const recordParagraphs=journal?.paragraphs||[...arrival.paragraphs,...(awake?scene.paragraphs:[])];
+        return <section className="duat-excavation duat-story-expedition" style={{'--expedition-color':identity(id)?.color||'#cfa960'}}>
+            <header className="duat-story-heading"><div><span className="duat-eyebrow">CHAPTER II · THE ARCHAEOLOGIST</span><h2 ref={heading} tabIndex="-1">A journey through the buried kingdoms.</h2></div><span className="duat-story-progress">{index+1} / {order.length}<small>{revealed.length} awakened</small></span></header>
+            <article className="duat-story-page" key={id}>
+                <div className="duat-story-scene">
+                    <figure className="duat-story-illustration"><img src={failedImage===id?art('excavation'):base+scene.image} alt={failedImage===id?'The Archaeologist’s lantern-lit excavation. The illustration for '+nameOf(id)+' is temporarily unavailable.':scene.alt} width="1200" height="800" loading="eager" decoding="async" fetchPriority="high" onError={()=>setFailedImage(id)}/><figcaption><span>{nameOf(id)}</span><span>{scene.title}</span></figcaption></figure>
+                    <div className="duat-story-prose"><span className="duat-eyebrow">FROM THE EXPEDITION JOURNAL</span><h3>{scene.title}</h3>{arrival.paragraphs.map((paragraph,i)=><p key={i}>{paragraph}</p>)}<span className="duat-story-signature">— The Archaeologist</span>
+                        {!awake&&<div className="duat-story-invitation"><button className="duat-button primary" disabled={busy||!army&&(!host||!canAdvance||id!==nextSealed)} onClick={awaken}>{busy&&!army?'The seal is opening…':'Awaken the ruler'}</button>{!army&&!host?<p>The host is leading this discovery. The ruler and army will appear here when the seal opens.</p>:!army&&!canAdvance?<p>Every human faction must mark ready before the first seal opens.</p>:<p>{army?'Open this page of the expedition again.':'One seal. One returning ruler and the army at their side.'}</p>}</div>}
+                    </div>
+                </div>
+                {awake&&<div className="duat-story-awakening" ref={awakening} tabIndex="-1" role="region" aria-label={rulerName+' and the returning army'}><div className="duat-ruler-arrival"><Sigil id={id}/><div><span className="duat-eyebrow">{nameOf(id)} · THE RETURNING RULER</span><h3 aria-live="polite">{rulerName}</h3><div className="duat-reveal-name-plate"><span>{army.rulerRealm||nameOf(id)}</span><small>{army.season} NFL army · {army.players.length} players</small></div></div><div className="duat-die" aria-label={`d20 roll ${faction?.rulerRoll||army.rulerRoll}`}><span>d20</span><strong>{faction?.rulerRoll||army.rulerRoll}</strong></div></div>
+                    <p className="duat-story-appearance">{scene.paragraphs[0]}</p>
+                    <div className="duat-story-roster" aria-label={rulerName+' — full returning army'}>{army.players.map(p=><article key={p.id}><span className="duat-story-position">{p.position}</span><div><h4>{p.name}</h4><small>{p.season||army.season} NFL season</small></div></article>)}</div>
+                    <p className="duat-story-closing">{scene.paragraphs[1]}</p>
+                    <details className="duat-story-record"><summary>{campaign.version===4?'Recorded in the Royal Library':'The Archaeologist’s record'} · {nameOf(id)}</summary>{recordParagraphs.map((paragraph,i)=><p key={i}>{paragraph}</p>)}<small>{journal?.attribution||scene.attribution}. The arrival passage is new writing for this illustrated expedition.</small></details>
+                    <div className="duat-story-onward">{nextId?<><p>I close this page. The next mark in my notebook is <strong>{nameOf(nextId)}</strong>.</p><button className="duat-button primary" onClick={()=>travel(nextId)}>Continue to {nameOf(nextId)} <span aria-hidden="true">→</span></button></>:complete?<><p>The last seal is open. I have written every name. What happens next belongs to the rulers.</p><button className="duat-button primary" onClick={onContinue}>Enter the realm · Week 1</button></>:<p>The expedition is waiting for its final record.</p>}</div>
+                </div>}
+            </article>
+            {!!revealed.length&&<details className="duat-story-revisit"><summary>Revisit the journey · {revealed.length} discovered {revealed.length===1?'culture':'cultures'}</summary><div className="duat-revealed-factions" aria-label="Revisit discovered factions">{order.filter(factionId=>revealed.includes(factionId)).map(factionId=><button key={factionId} className={id===factionId?'active':''} aria-pressed={id===factionId} onClick={()=>travel(factionId,true)}><Sigil id={factionId}/><span>{nameOf(factionId)}</span><small>{Engine.activeArmy(campaign.factions.find(f=>f.id===factionId))?.rulerName||'Discovered'}</small></button>)}</div></details>}
         </section>;
     }
-    function Archaeology(props) {return props.campaign.version===4?<DynastyArchaeology {...props}/>:<LegacyArchaeology {...props}/>;}
-    function LegacyArchaeology({campaign, host, canAdvance, busy, onAction, onContinue}) {
-        const progress = Engine.revealProgress(campaign), latest = campaign.archaeology?.latest;
-        const [visible, setVisible] = useState(0), [selectedId, setSelectedId] = useState('');
-        const revealed = campaign.archaeology?.revealedFactionIds || [];
-        const selectedFaction = campaign.factions.find(f => f.id === selectedId);
-        const selectedArmy = selectedFaction && Engine.activeArmy(selectedFaction);
-        const display = selectedArmy ? {...latest, factionId: selectedId, season: selectedArmy.season, rulerRoll: selectedFaction.rulerRoll, players: selectedArmy.players} : latest;
-        useEffect(() => {setSelectedId('');setVisible(0);if (!latest) return; if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {setVisible(latest?.players.length || 0);return;}let count = 0;const timer = setInterval(() => {count++;setVisible(count);if (count >= latest.players.length) clearInterval(timer);}, 380);return () => clearInterval(timer);}, [latest?.factionId]);
-        const complete = revealed.length === campaign.factions.length;
-        return <section className="duat-excavation">
-            <div className="duat-excavation-art" style={{backgroundImage: `linear-gradient(0deg,#101923 1%,rgba(16,25,35,.05) 80%),url(${art('excavation')})`}}><span className="duat-eyebrow">CHAPTER II · THE ARCHAEOLOGIST</span><h2>The buried rulers stir.</h2><p>“{campaign.seasons.length} seals. A dynasty waiting to return. Let us see whose banner the dust has kept.”</p></div>
-            <div className="duat-excavation-body"><div className="duat-panel-heading"><div><span className="duat-eyebrow">EXCAVATION {revealed.length} OF {campaign.factions.length}</span><h2>{display ? `${nameOf(display.factionId)} returns.` : 'The first tomb is still sealed.'}</h2></div>{display && <div className="duat-die" aria-label={`d20 roll ${display.rulerRoll}`}><span>d20</span><strong>{display.rulerRoll}</strong></div>}</div>
-                {display ? <><p className="duat-archaeologist-voice">{selectedId ? `The expedition uncovered the ${display.season} army of ${nameOf(display.factionId)}.` : (latest.narration?.lines || [`The seal breaks. The ${display.season} army rises from the sand.`]).join(' ')}</p><div className="duat-reveal-players">{display.players.map((p, i) => <article key={`${display.factionId}-${p.id}`} className={'duat-reveal-card ' + (selectedId || i < visible ? 'unsealed' : '')}><span className="duat-reveal-seal" aria-hidden="true">◈</span><div><span className="duat-eyebrow">{p.position} · {display.season}</span><h3>{selectedId || i < visible ? p.name : 'The dust settles…'}</h3><small>{i + 1} / {display.players.length} · Recovered from the tomb</small></div></article>)}</div></> : <div className="duat-sealed-tomb"><span>◈</span><p>{campaign.factions.length} factions wait beneath the sand.<br/>One ruler from each will walk into the coming season.</p></div>}
-                <div className="duat-actions">{latest && visible < latest.players.length && !selectedId && <button className="duat-button" onClick={() => setVisible(latest?.players.length || 0)}>Reveal the full army</button>}{complete ? <button className="duat-button primary" onClick={onContinue}>Enter the realm · Week 1</button> : <button className="duat-button primary" disabled={busy || !host || !canAdvance || Boolean(latest && visible < latest.players.length && !selectedId)} onClick={() => onAction({type: 'reveal-next'})}>{busy ? 'Breaking the seal…' : `Excavate ${nameOf(progress.nextFactionId || campaign.factions.find(f => !revealed.includes(f.id))?.id)}`}</button>}<span className="duat-muted">{!host ? 'The host leads the expedition. Each discovery appears here.' : !canAdvance && !complete ? 'Every human faction must mark ready to begin the expedition.' : 'The d20 chooses the ruler. Each player is uncovered in turn.'}</span></div>
-                {!!revealed.length && <div className="duat-revealed-factions" aria-label="Excavated factions">{revealed.map(id => <button key={id} onClick={() => {setSelectedId(id);setVisible(latest?.players.length || 0);}} className={display?.factionId === id ? 'active' : ''}><Sigil id={id}/><span>{nameOf(id)}</span><small>{Engine.activeArmy(campaign.factions.find(f => f.id === id))?.season}</small></button>)}</div>}
-            </div>
-        </section>;
-    }
+    function Archaeology(props) {return <DynastyArchaeology {...props}/>;}
     function Pantheon({campaign, faction, army, favorId, setFavorId, target, setTarget, sourceWeek, setSourceWeek, run, busy, ready, dirty}) {
         const gods = [{id: 'horus', name: 'Horus', epithet: 'Lord of the sky'}, {id: 'kratos', name: 'Kratos', epithet: 'Strength made divine'}, {id: 'janus', name: 'Janus', epithet: 'Keeper of time'}];
         const god = favorId.split('-')[0], open = Rules.SACRED_WEEKS.includes(campaign.week) && campaign.phase === 'season';

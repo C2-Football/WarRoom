@@ -107,8 +107,24 @@ test('journal entries are deterministic, persist all reveal stages and distingui
     assert.deepEqual(entry,Lore.journalEntry(input));
     assert.equal(entry.paragraphs.length,4);assert.equal(entry.cycle,3);assert.equal(entry.scoringSeason,2019);
     assert.equal(entry.origin,'adapted-original');assert.match(entry.paragraphs.at(-1),/T\.A\./);
+    assert(entry.paragraphs[0].startsWith(Lore.journey({factionId:'japan'}).paragraphs[0]),'New journal records retain the full first-person arrival');
     assert.equal(Lore.journalEntry({...input,factionId:'portugal'}).origin,'new-expedition');
     assert.throws(()=>Lore.journalEntry({...input,createdAt:'bad'}),{code:'INVALID_JOURNAL'});
+});
+
+test('all cultures have distinct illustrated first-person journeys with an explicit pre-reveal boundary',()=>{
+    const paths=new Set(),arrivals=new Set();
+    for(const faction of Lore.FACTIONS){
+        const scene=Lore.journey({factionId:faction.id});paths.add(scene.image);arrivals.add(scene.paragraphs[0]);
+        assert.equal(scene.image,`images/duat/expeditions/${faction.id}.webp`);assert(scene.alt.length>50);
+        assert(scene.paragraphs.every(p=>p.length>50));assert.match(scene.paragraphs[0],/\bI\b/);
+        assert.deepEqual(Lore.journey({factionId:faction.id,rulerName:'SECRET RULER',playerCount:59,season:2099}),scene);
+        const known=Lore.journey({factionId:faction.id,awakened:true,rulerName:'The Returned Captain',playerCount:8,season:2024});
+        assert(known.paragraphs[0].includes('The Returned Captain'));assert(known.paragraphs[0].includes('8'));assert.equal(known.scoringSeason,2024);
+        assert.equal(known.image,scene.image);assert.equal(known.origin,scene.origin);
+    }
+    assert.equal(paths.size,28);assert.equal(arrivals.size,28);
+    assert.throws(()=>Lore.journey({factionId:'egypt',awakened:true}),{code:'INVALID_RULER_NAME'});
 });
 
 function season(cycle,championId='japan') {

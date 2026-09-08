@@ -68,7 +68,7 @@
     // These are new short adaptations. Source-specific motifs remain separate:
     // Mixtec is not Maya, Dål Riata is not Inis Fáil, and Huns are not Mongols.
     const DISCOVERIES = {
-        japan: [1, 'The sealed vessel', 'A clay jar waits beneath a broken vermilion seal. It is colder than the earth around it. Somewhere below, studs scrape against stone.', 'Smoke parts around {rulerName}. Behind the ruler, {playerCount} figures wait for their names to be called.', 'The excavation team has requested a different assignment. I have, however, recorded every name.'],
+        japan: [1, 'The sealed vessel', 'A clay jar waits beneath a broken vermilion seal. It is colder than the earth around it. Somewhere below, studs scrape against stone.', 'Smoke parts around {rulerName}. Behind the ruler, {playerCount} companions stand together. I write their names before the smoke can take them back.', 'The excavation team has requested a different assignment. I have, however, recorded every name.'],
         china: [2, 'The jade disk', 'Lantern light catches a jade disk in the cave wall. Beyond it, a table stands where there was only stone a moment ago.', '{rulerName} lifts a cup to {playerCount} returning companions. The banquet has become a mustering ground.', 'The feast is gone. The disk remains warm in my hand.'],
         mali: [3, 'The moving manuscript', 'The manuscript is dry, but the ink moves. Each time I look away, another symbol appears. I stop looking away.', 'The symbols settle into a name: {rulerName}. Then {playerCount} names follow, written by a hand I cannot see.', 'No ruler appeared. No tomb collapsed. On balance, an excellent afternoon of archaeology.'],
         india: [4, 'The river procession', 'An engraved football emerges from the river mud. From the mist comes the sound of oars, though the water has been still all evening.', '{rulerName} stands at the prow. As the vessel draws alongside, {playerCount} companions step into the lamplight.', 'The boat left no wake. The mud on my notes is disappointingly ordinary.'],
@@ -97,6 +97,46 @@
         poland: [null, 'The river watch', 'An eagle-shaped clasp rests on the old river wall. Its shadow lifts from the stone and circles a sealed archway.', '{rulerName} answers from the arch. {playerCount} companions return beneath the shadow of the watch.', 'The clasp has resumed being an object. I am grateful for the opportunity to label it.'],
         portugal: [null, 'The ocean chart', 'An unfinished chart lies in a locked coastal chamber. A new line of ink reaches the shore as a bell sounds out at sea.', '{rulerName} is written at the end of the line. {playerCount} companions step from the sea mist into the chamber.', 'The chart is complete. I have left room in the report for any further coastline.']
     };
+    // New connective writing; artifact motifs retain their discovery attribution.
+    const ARRIVALS = {
+        japan: ['I reach the cedar grove as the last daylight slips behind the hills. A thread of red lacquer leads me from the ruined gate to a hollow in the roots. I set down my lantern.', 'A sealed clay vessel beneath cedar roots and a vermilion gate in Japan, lit by an expedition lantern.'],
+        china: ['I follow a chain of lanterns into the mountain. The air smells of rain and old stone, though the lamps are newly lit. At the end of the passage, something green answers my light.', 'Lanterns illuminate a jade disk and a mysterious banquet chamber inside a Chinese mountain cave.'],
+        mali: ['I have crossed enough dry country to welcome the shade of the manuscript room. A single book lies open beside an empty chair. Its pages turn against the breeze, inviting me to sit.', 'An open manuscript with moving ink in a sunlit earthen library in Mali.'],
+        india: ['I reach the river landing after the boats have gone home. The steps disappear into evening mist. While searching for a safe place to put my notebook, I notice an unfamiliar shape in the mud.', 'An engraved artifact at an Indian river landing, with a mysterious procession approaching through golden mist.'],
+        gaul: ['I nearly pass the doorway. The forest has drawn its branches across the path, and only a patch of worked stone distinguishes the entrance from the hill. Above me, a falcon gives a single cry.', 'A vine-covered stone tomb in a Gaulish forest, watched by a falcon beneath silent lightning.'],
+        egypt: ['I arrive while the desert is still holding the heat of the day. Beyond the last fallen column stands a slab of black stone. Every other surface is weathered. This one looks freshly polished.', 'A black granite stela with glowing gold cuts among Egyptian columns at the edge of the desert.'],
+        carthage: ['I make for the harbor, following the smell of salt and the clink of mooring lines. The last trading boats are already silhouettes. Near the steps, I find a coin that refuses to lie still.', 'A votive coin on the steps of Carthage’s harbor, with approaching riders and long shadows beside the sea.'],
+        vikings: ['I have tied the boat twice. The inlet is calm, but the rope keeps drawing tight. On the shore above it stands a runestone that my guide insists was blank when we landed.', 'A moonlit Norse runestone glowing blue beside a tethered longboat in a northern inlet.'],
+        mesopotamia: ['I enter the ruined court with the sun low behind me. Among the broken bricks, several clay cylinders lie in a careful row. Whoever arranged them has neglected to leave a date, or footprints.', 'Clay cylinders catching golden light in a ruined Mesopotamian brick court.'],
+        warhorsemen: ['I follow the road until the houses give way to open country. An old wall stands across the wind, marked by a single dark print. My guide has stopped speaking. I decide to listen.', 'A black handprint on an old steppe settlement wall, with a mounted company approaching through dust.'],
+        nubia: ['I climb from the river toward the low stone chamber. A hawk follows my progress from above, circling each time I pause. At the entrance it lands, as though the appointment has finally begun.', 'A hawk guards a low Nubian chamber containing a granite stela with a line of gold light.'],
+        rome: ['I enter the abandoned hall expecting broken tiles and the usual pigeons. Instead, the floor is swept clean. From somewhere beyond the far doorway comes the unmistakable sound of a horse being held in check.', 'A Roman hall opening onto bronze military standards and a pale horse in sunlit dust.'],
+        greece: ['I reach the cave from the shore as the water turns bronze. A shield hangs just inside the entrance. When I raise my lantern, there is the sound of a chair being drawn back in welcome.', 'A bronze shield at a Greek sea cave, with warm banquet light shining from within.'],
+        'inis-fail': ['I follow the narrow path into the rain. The hillside looks empty until a line of water reveals a worked stone edge beneath the grass. I kneel, sacrificing the last dry corner of my coat.', 'A mossy sealed stone threshold beneath an Irish hillside in silver rain.'],
+        mayans: ['I reach the chamber with the forest still dripping behind me. The carved marks continue around the wall and into the dark. One space near the doorway has been left unfinished. I take out my notebook.', 'A Maya chamber in the rainforest with a carved calendar count and a newly glowing mark.'],
+        persia: ['I arrive at the meeting of the old roads with no sign of the caravan I was promised. In the dust between them lies a bronze seal. Its surface is warm, though the sun has gone.', 'A bronze seal at the meeting of abandoned Persian roads in the evening light.'],
+        mongols: ['I have been following the dark standard since morning. It has not moved against the horizon, even as the land has risen around it. When I finally reach the ridge, the wind falls silent.', 'An upright steppe standard within a ring of dust beneath a vast Mongolian sky.'],
+        korea: ['I climb the mountain path to a gate that has been sealed for longer than anyone will admit. There is no rope beside the bell. I have just written this down when it begins to sound.', 'A bronze bell beside a sealed Korean mountain gate, with mist drifting between the roofs.'],
+        khmer: ['I come upon the stair where the forest opens onto still water. The carved stone is warm beneath my hand. In the pool below, my reflection has acquired company. I remain where I am.', 'A reflected figure climbing a water-covered stair at a Khmer temple in the forest.'],
+        siam: ['I wait at the empty landing until the lamps across the river begin to disappear into dusk. Then a line of lanterns turns toward me. I check the current twice before opening my notebook.', 'Lanterns floating upstream toward a bronze casket at a Siamese river landing.'],
+        majapahit: ['I reach the harbor as the water withdraws from the red stone steps. The exposed marks look too deliberate to be cracks. Before I can finish copying them, the sea begins to approach from both sides.', 'Opposing tides meeting over an inscription on the steps of a Majapahit harbor.'],
+        aztecs: ['I follow the lake wall to the last stone step. An obsidian seal rests there, reflecting more buildings than I can see across the water. I turn slowly, hoping to find a simple explanation.', 'An obsidian seal beside an Aztec lake, reflecting a city and causeway across open water.'],
+        inca: ['I stop on the mountain path to let the clouds pass below us. A bundle of cords hangs from the stonework, sheltered from the wind. I am still deciding how to catalogue it when a knot moves.', 'Knotted record cords above an Inca mountain path, with clouds below the stone terraces.'],
+        aksum: ['I reach the highland stones at sunrise. The survey gives me one monument and no doorway. The light gives me a different answer. I place the notebook beside my compass and begin the count again.', 'An Aksumite carved stele casting two shadows, one revealing an unexpected highland doorway.'],
+        zulu: ['I follow the ridge path toward a covered drum. There is no musician waiting beside it. The first beat comes when I begin to write, so I keep the pen moving and watch the horizon.', 'A covered drum beneath a Zulu ridge, with figures returning across the distant skyline.'],
+        england: ['I reach the tower after the road has vanished into fog. Its windows are dark, yet a narrow gold line shines beneath the door. The seal against the wood is soft enough to hold a thumbprint.', 'A warm wax seal on an English tower door, with golden light beneath it and mist around the walls.'],
+        poland: ['I take the river path to the old watch wall. Among the loose stones lies an eagle-shaped clasp. Its metal is perfectly still. Its shadow is not. I move my notebook into the light.', 'An eagle clasp casting a moving shadow toward a sealed arch in a Polish river watch wall.'],
+        portugal: ['I find the coastal chamber with its lock unbroken and its windows facing the mist. A chart waits on the desk. The unfinished line ends where the sea outside has begun to ring like a bell.', 'An unfinished ocean chart in a Portuguese coastal chamber, with sea mist and golden lamplight.']
+    };
+    function journey({factionId, awakened = false, rulerName, playerCount, season} = {}) {
+        const discovery=expedition({factionId}), [arrival,alt]=ARRIVALS[factionId];
+        const scene={...discovery,image:`images/duat/expeditions/${factionId}.webp`,alt,awakened:Boolean(awakened),paragraphs:[arrival,discovery.text]};
+        // Arrival is identical even when a solo save contains hidden identities.
+        if(!awakened)return scene;
+        const appearance=expedition({factionId,stage:'ruler',rulerName,playerCount,season});
+        const record=expedition({factionId,stage:'record',rulerName,playerCount,season});
+        return {...scene,paragraphs:[appearance.text,record.text.replace(/ — T\.A\.$/,'')],rulerName:appearance.rulerName,scoringSeason:appearance.scoringSeason};
+    }
     function expedition({factionId, stage = 'discovery', rulerName, playerCount, season} = {}) {
         requiredFaction(factionId);
         if (!['discovery','ruler','roster','record'].includes(stage)) fail('INVALID_REVEAL_STAGE', 'Choose a reveal stage.');
@@ -119,7 +159,7 @@
         const stages = ['discovery','ruler','roster','record'].map(stage => expedition({factionId,stage,rulerName,playerCount,season}));
         return {id:`excavation:${cycle}:${factionId}:${rulerId || hash(key(rulerName))}`,kind:'excavation',factionId,
             rulerId:rulerId || null,rulerName:stages[1].rulerName,playerCount,cycle,scoringSeason:Number.isInteger(season) ? season : null,
-            createdAt,title:stages[0].title,paragraphs:stages.map(item=>item.text),origin:stages[0].origin,
+            createdAt,title:stages[0].title,paragraphs:[ARRIVALS[factionId][0]+' '+stages[0].text,...stages.slice(1).map(item=>item.text)],origin:stages[0].origin,
             attribution:stages[0].attribution,source:stages[0].source};
     }
     function seasonsOf(input) {
@@ -174,5 +214,5 @@
     }
     const CRESTS = Object.fromEntries(DATA.factions.filter(item=>item.crest).map(item=>[item.id,item.crest]));
     return freeze({version:1,FACTIONS:DATA.factions,CHAPTERS:DATA.chapters,CRESTS,ORIGINAL_HISTORY:DATA.originalHistory,
-        faction,sourceName,validateName,chooseRuler,nameArmies,expedition,journalEntry,honors,championshipOf,dynastySummary});
+        faction,sourceName,validateName,chooseRuler,nameArmies,expedition,journey,journalEntry,honors,championshipOf,dynastySummary});
 });
