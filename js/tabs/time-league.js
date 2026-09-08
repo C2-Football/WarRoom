@@ -1568,9 +1568,8 @@
                 activeTab === 'home' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, compact: true, throughWeek: mailThroughWeek, onOpenThread: openMail, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,
                 activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, {
                     key: league.leagueId, league, cards, onUpdate: handleUpdate, onlineMeta, onRevealReadyChange: onDraftRevealReady, onDraftAction: dispatchDraft, onRevealEra: onlineMeta ? revealOnlineEra : undefined,
-                    draftControls: league.phase === 'draft' && h(React.Fragment, null,
-                        DraftClock && h(DraftClock, { league, onlineMeta, saving, onAction: dispatchDraft }),
-                        league.settings.draftFormat === 'auction' && AuctionPanel && h(AuctionPanel, { league, cards, currentTeamId: responseTeam, onlineMeta, saving, onAction: dispatchDraft })),
+                    draftControls: league.phase === 'draft' && DraftClock && h(DraftClock, { league, onlineMeta, saving, onAction: dispatchDraft }),
+                    auctionControls: league.phase === 'draft' && league.settings.draftFormat === 'auction' && AuctionPanel && h(AuctionPanel, { league, cards, currentTeamId: responseTeam, onlineMeta, saving, onAction: dispatchDraft }),
                 }) : loadingNotice) : null,
                 league.phase !== 'draft' && GamecastPanel ? h('div', { key: league.leagueId, hidden: activeTab !== 'gameday', className: 'tl-gamecast-workspace' }, h(GamecastPanel, {
                     league, cards, logIndex, logsMissing, eraFactors, onlineMeta, autoPlayWeek, active: activeTab === 'gameday', seatTeamId: responseTeam, mailNotice, onPlaybackChange: reportPlayback, onGoCeremony: () => navigateTab('home'), onUpdate: handleUpdate, onGoRoster: () => navigateTab('roster'),

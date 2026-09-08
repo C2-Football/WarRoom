@@ -1,6 +1,6 @@
 (function () {
     'use strict';
-    const { useState, useEffect, useMemo } = React;
+    const { useState, useEffect, useMemo, useRef } = React;
     const h = React.createElement;
     const Engine = window.App.TimeLeagueEngine;
     const SECONDS = [0, 15, 30, 60, 90, 120, 180, 300];
@@ -52,6 +52,9 @@
 
     function WrTimeLeagueDraftClock({ league, onlineMeta = null, saving = false, remainingSeconds = null, onAction }) {
         const [now, setNow] = useState(() => Date.now());
+        const [menu, setMenu] = useState(null);
+        const controlsRef = useRef(null);
+        const triggerRef = useRef(null);
         const clock = league.draftClock || { status: 'waiting' };
         const duration = league.settings.draftPickSeconds ?? 60;
         const pace = league.settings.draftAiSeconds ?? 2;
@@ -67,36 +70,64 @@
             const timer = window.setInterval(() => setNow(Date.now()), 250);
             return () => window.clearInterval(timer);
         }, [clock.status, clock.deadlineAt, duration, remainingSeconds]);
+        useEffect(() => {
+            if (!menu || typeof document === 'undefined') return undefined;
+            const dismiss = event => {
+                if (event.type === 'keydown') {
+                    if (event.key !== 'Escape') return;
+                    event.stopPropagation();
+                    triggerRef.current?.focus();
+                } else if (controlsRef.current?.contains(event.target)) return;
+                setMenu(null);
+            };
+            document.addEventListener('pointerdown', dismiss);
+            document.addEventListener('keydown', dismiss);
+            return () => {
+                document.removeEventListener('pointerdown', dismiss);
+                document.removeEventListener('keydown', dismiss);
+            };
+        }, [menu]);
+        const toggle = (name, event) => { triggerRef.current = event.currentTarget; setMenu(menu === name ? null : name); };
         const deadline = Date.parse(clock.deadlineAt);
         const millis = clock.status === 'running' && Number.isFinite(deadline)
             ? deadline - now : clock.remainingMs ?? duration * 1000;
         const seconds = Math.max(0, Math.ceil(remainingSeconds !== null ? remainingSeconds : millis / 1000));
-        const status = clock.status === 'paused' ? 'Paused' : clock.status === 'waiting' ? 'Ready when you are' : duration ? seconds ? 'On the clock' : 'Time expired' : 'Untimed draft';
-        return h(React.Fragment, null, h('section', { className: `tl-draft-clock${duration && seconds <= 10 && clock.status === 'running' ? ' is-urgent' : ''}${clock.status === 'paused' ? ' is-paused' : ''}`, 'aria-label': 'Draft clock' },
-            h('div', { className: 'tl-draft-clock-face' },
-                h('span', { className: 'tl-label' }, isAuction ? league.draftAuction?.nomination ? 'BID CLOCK' : 'NOMINATION CLOCK' : 'PICK CLOCK'),
-                h('strong', { className: 'tabular', role: 'timer', 'aria-live': 'off', 'aria-label': duration ? `${seconds} seconds remaining` : 'Clock off' }, duration ? clockLabel(seconds) : 'OFF'),
-                h('span', { className: 'tl-draft-clock-status', role: 'status' }, status)),
-            h('div', { className: 'tl-draft-clock-tools' },
-                editable && h('div', { className: 'tl-draft-clock-actions' },
-                    clock.status === 'waiting'
-                        ? h('button', { type: 'button', className: 'tl-btn primary', disabled: !enabled || !roomReady, onClick: () => onAction({ type: 'draft-clock-start' }) }, 'Start draft clock')
-                        : h('button', { type: 'button', className: 'tl-btn', disabled: !enabled, onClick: () => onAction({ type: clock.status === 'paused' ? 'draft-clock-resume' : 'draft-clock-pause' }) }, clock.status === 'paused' ? 'Resume draft' : 'Pause draft')),
-                h('div', { className: 'tl-draft-clock-settings' },
-                    editable
-                        ? h('label', null, h('span', null, isAuction ? 'Clock per bid' : 'Clock per pick'),
-                            h('select', { className: 'tl-select', 'aria-label': 'Change draft clock duration', value: duration, disabled: !enabled, onChange: event => onAction({ type: 'draft-clock-settings', draftPickSeconds: Number(event.target.value) }) },
-                                SECONDS.map(value => h('option', { key: value, value }, value ? `${value} seconds` : 'Off'))))
-                        : h('p', { className: 'tl-hint' }, duration ? `${duration}s per ${isAuction ? 'bid' : 'pick'} · commissioner controls the clock` : 'No pick timer · commissioner controls the draft'),
-                    !onlineMeta && h('label', null, h('span', null, 'AI pace'),
-                        h('select', { className: 'tl-select', 'aria-label': 'Change AI draft pace', value: pace, disabled: !enabled, onChange: event => onAction({ type: 'draft-clock-settings', draftAiSeconds: Number(event.target.value) }) },
-                            PACES.map(([value, label]) => h('option', { key: value, value }, `${label} · ${value}s`))))),
-                h('p', { className: 'tl-hint' }, clock.status === 'waiting' && !roomReady
-                    ? !onlineMeta?.draftStarted ? 'Waiting for the commissioner to open the draft.'
-                        : waitingFor ? `Waiting for ${waitingFor} ${waitingFor === 1 ? 'manager' : 'managers'} to finish the reveal.` : 'Waiting for managers to finish the reveal.'
-                    : clock.status === 'paused' ? 'The room is paused. Resume when everyone is ready.'
-                    : isAuction ? 'Each new bid restarts the countdown.' : 'Your queue leads the auto-pick when time expires.'))),
-            h(WrTimeLeagueDraftOrder, { league, onlineMeta, saving, onAction }));
+        const status = clock.status === 'paused' ? 'Paused' : clock.status === 'waiting' ? 'Ready' : duration ? seconds ? 'Live' : 'Time expired' : 'Untimed';
+        const waiting = clock.status === 'waiting' && !roomReady
+            ? !onlineMeta?.draftStarted ? 'Waiting for the commissioner to open the draft.'
+                : waitingFor ? `Waiting for ${waitingFor} ${waitingFor === 1 ? 'manager' : 'managers'} to finish the reveal.` : 'Waiting for managers to finish the reveal.'
+            : null;
+        return h('section', { ref: controlsRef, className: `tl-draft-clock${duration && seconds <= 10 && clock.status === 'running' ? ' is-urgent' : ''}${clock.status === 'paused' ? ' is-paused' : ''}`, 'aria-label': 'Draft clock' },
+            h('div', { className: 'tl-draft-clock-bar' },
+                h('div', { className: 'tl-draft-clock-face' },
+                    h('span', { className: 'tl-label' }, isAuction ? league.draftAuction?.nomination ? 'BID CLOCK' : 'NOMINATE' : 'PICK CLOCK'),
+                    h('strong', { className: 'tabular', role: 'timer', 'aria-live': 'off', 'aria-label': duration ? `${seconds} seconds remaining` : 'Clock off' }, duration ? clockLabel(seconds) : 'OFF'),
+                    h('span', { className: 'tl-draft-clock-status', role: 'status' }, status)),
+                h('div', { className: 'tl-draft-clock-tools' },
+                    editable && h('button', { type: 'button', className: `tl-btn tl-clock-toggle${clock.status === 'waiting' ? ' primary' : ''}`, disabled: !enabled || (clock.status === 'waiting' && !roomReady),
+                        'aria-label': clock.status === 'waiting' ? 'Start draft clock' : clock.status === 'paused' ? 'Resume draft' : 'Pause draft',
+                        title: clock.status === 'waiting' ? 'Start draft clock' : clock.status === 'paused' ? 'Resume draft' : 'Pause draft',
+                        onClick: () => onAction({ type: clock.status === 'waiting' ? 'draft-clock-start' : clock.status === 'paused' ? 'draft-clock-resume' : 'draft-clock-pause' }) },
+                        clock.status === 'waiting' ? 'Start' : h('span', { 'aria-hidden': true }, clock.status === 'paused' ? '▶' : 'Ⅱ')),
+                    !onlineMeta && h('button', { type: 'button', className: 'tl-btn tl-clock-speed', 'aria-label': 'Solo draft speed', 'aria-expanded': menu === 'speed', title: `Solo speed: ${2 / pace}×`, disabled: !enabled, onClick: event => toggle('speed', event) }, `${2 / pace}×`, h('span', { 'aria-hidden': true }, '⌄')),
+                    h('button', { type: 'button', className: 'tl-btn tl-clock-settings-toggle', 'aria-label': 'Draft settings', 'aria-expanded': menu === 'settings', title: 'Draft settings', onClick: event => toggle('settings', event) }, h('span', { 'aria-hidden': true }, '⚙')))),
+            waiting && h('p', { className: 'tl-draft-waiting-note', role: 'status' }, waiting),
+            menu === 'speed' && !onlineMeta && h('div', { className: 'tl-clock-popover tl-clock-speed-menu', role: 'group', 'aria-label': 'Solo draft speed options' },
+                h('strong', { className: 'tl-clock-menu-title' }, 'Solo speed'),
+                h('p', { className: 'tl-hint' }, 'How quickly AI managers pick.'),
+                h('div', { className: 'tl-clock-speed-options' }, [...PACES].reverse().map(([value, label]) => h('button', {
+                    key: value, type: 'button', className: 'tl-btn', 'aria-label': `${label} AI pace, ${value} seconds`, 'aria-pressed': value === pace, disabled: !enabled,
+                    onClick: () => { onAction({ type: 'draft-clock-settings', draftAiSeconds: value }); setMenu(null); },
+                }, h('strong', null, `${2 / value}×`), h('span', null, label === 'Take your time' ? 'Slowest' : label)))),
+                h('small', { className: 'tl-hint' }, 'Your pick timer stays the same.')),
+            menu === 'settings' && h('div', { className: 'tl-clock-popover', role: 'group', 'aria-label': 'Draft settings options' },
+                h('strong', { className: 'tl-clock-menu-title' }, 'Draft settings'),
+                editable ? h('label', { className: 'tl-draft-duration-setting' }, h('span', null, isAuction ? 'Time per bid' : 'Time per pick'),
+                    h('select', { className: 'tl-select', 'aria-label': 'Change draft clock duration', value: duration, disabled: !enabled, onChange: event => onAction({ type: 'draft-clock-settings', draftPickSeconds: Number(event.target.value) }) },
+                        SECONDS.map(value => h('option', { key: value, value }, value ? `${value} seconds` : 'Off'))))
+                    : h('p', { className: 'tl-hint' }, duration ? `${duration}s per ${isAuction ? 'bid' : 'pick'} · commissioner controls the clock` : 'No pick timer · commissioner controls the draft'),
+                h('p', { className: 'tl-hint' }, isAuction ? 'Each new bid restarts the countdown.' : 'Your queue leads the auto-pick when time expires.'),
+                h(WrTimeLeagueDraftOrder, { league, onlineMeta, saving, onAction })));
     }
 
     function WrTimeLeagueAuctionPanel({ league, cards, currentTeamId, onlineMeta = null, saving = false, onAction }) {

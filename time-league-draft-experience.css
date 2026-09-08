@@ -1,3 +1,20 @@
+/* One draft header keeps controls, the current manager and your next turn together. */
+.tl-play .tl-on-clock { padding:12px 16px 14px; overflow:visible; border-color:#526b87; background:#1b2b40; }
+.tl-play .tl-on-clock.your-turn { background:#1d3935; border-color:#87efcf; }
+.tl-play .tl-on-clock .tl-draft-progress { height:3px; border-radius:16px 16px 0 0; overflow:hidden; }
+.tl-draft-turn { display:flex; flex-direction:column; gap:4px; margin:14px 0 12px; }
+.tl-draft-turn-label { color:#e3edfc; font:800 clamp(19px,3vw,24px)/1.2 var(--font-title); letter-spacing:.015em; overflow-wrap:anywhere; }
+.your-turn .tl-draft-turn-label { color:#87efcf; font-size:28px; }
+.tl-draft-turn-detail { color:#aabbd5; font-size:11px; line-height:1.45; }
+.tl-draft-turn-footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px 12px; }
+.tl-draft-current-manager { display:flex; align-items:center; gap:8px; min-width:0; flex:1; }
+.tl-draft-current-manager .tl-helmet { flex-shrink:0; }
+.tl-draft-current-manager > div { min-width:0; }
+.tl-draft-current-manager strong { display:block; color:#e3edfc; font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
+.tl-draft-current-manager small { display:block; color:#9aafca; font:10px/1.4 var(--font-mono); margin-top:2px; }
+.tl-draft-sim-actions { display:flex; gap:6px; }
+.tl-draft-sim-actions .tl-btn { font-size:10px; padding:7px 9px; }
+
 /* Completed-draft cards over the shared Dynasty HQ grid. */
 .tl-draft-pick { --pick-color: #abc7ff; background: color-mix(in srgb,var(--pick-color) 20%,#162036); border-left: 3px solid var(--pick-color); border-radius: 6px; padding: 9px 8px; height: 98px; text-align: left; width:100%; min-width:0; overflow:hidden; }
 .tl-draft-pick-QB { --pick-color:#ff9fac; }.tl-draft-pick-RB { --pick-color:#82efd0; }.tl-draft-pick-WR { --pick-color:#aebdff; }.tl-draft-pick-TE { --pick-color:#ffdf83; }.tl-draft-pick-K { --pick-color:#dbb2ff; }.tl-draft-pick-DEF { --pick-color:#83d8ee; }
@@ -101,6 +118,11 @@
 .tl-draft-class-points { color:#dce7f7; text-align:right; font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; }
 .tl-draft-class-empty { color:#aabbd5; font-size:12px; }
 @media(max-width:600px) {
+  .tl-play .tl-on-clock { padding:10px 12px 12px; }
+  .tl-draft-turn { margin:12px 0 10px; }
+  .tl-draft-sim-actions { width:100%; }
+  .tl-draft-sim-actions .tl-btn { flex:1; }
+  .tl-play .tl-dock-player small { display:block; font-size:9px; line-height:1.25; }
   .tl-draft-live-room { padding:11px 10px; gap:8px; }
   .tl-draft-room-run { padding-left:9px; }
   .tl-draft-live-selection { gap:6px; }
