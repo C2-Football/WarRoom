@@ -48,7 +48,7 @@ const SUITE_ORDER = [
   'test:draft-strategy-studio', 'test:ai', 'test:ai-scale', 'test:billing',
   'test:security', 'test:bug-capture', 'test:analytics', 'test:tutorial',
   'test:rookies', 'test:rookie-capital', 'test:rookie-fields', 'test:redraft', 'test:forecast-ledger',
-  'test:chopped', 'test:first-class', 'test:empire', 'test:commish', 'test:timeleague',
+  'test:chopped', 'test:first-class', 'test:empire', 'test:commish', 'test:timeleague', 'test:duat',
 ];
 
 const missing = SUITE_ORDER.filter(s => !pkg.scripts[s]);
