@@ -16,12 +16,7 @@
         submitWaiverClaim, respondToTrade, proposeTrade,
     } = App.TimeLeagueEngine;
 
-    const AI_PERSONAS = {
-        warlord: { label: "The Warlord", aggression: 92, patience: 18, riskTolerance: 70, tell: "Pays up for proven week-winners. Hates waiting." },
-        archivist: { label: "The Archivist", aggression: 28, patience: 88, riskTolerance: 22, tell: "Moves only when the ledger says value. Never chases." },
-        gambler: { label: "The Gambler", aggression: 64, patience: 12, riskTolerance: 96, tell: "Swings at ceilings and thin odds. Variance is the plan." },
-        steward: { label: "The Steward", aggression: 45, patience: 78, riskTolerance: 40, tell: "Balanced builds, measured trades. Protects the floor." },
-    };
+    const AI_PERSONAS = App.TimeLeagueEngine.AI_PERSONAS;
 
     const STARTER_SLOTS = ROSTER_SLOT_IDS.filter((slot) => slot !== "BN" && slot !== "IR" && slot !== "TAXI");
     const NEED_ORDER = ["QB", "RB", "WR", "TE", "K", "DEF", "DL", "LB", "DB"];
@@ -39,8 +34,8 @@
     /**
      * Difficulty tunes HOW SHARP the AI's decisions are, not its rosters or
      * scoring — persona flavor (aggression/patience/risk) stays the same at
-     * every difficulty. "veteran" reproduces today's untuned behavior exactly,
-     * so old saves and every persona-level test keep working unchanged.
+     * every difficulty. "veteran" is the baseline, and older saves retain it
+     * unless their manager explicitly chooses another difficulty.
      */
     const DIFFICULTY_TUNING = {
         rookie: { noiseMult: 1.8, marginBonus: 0.12, thresholdDelta: -0.06, bidMult: 0.7 },
@@ -67,8 +62,6 @@
         return Math.max(1.0, base + (difficulty ? difficulty.marginBonus : 0));
     };
 
-    const pickPhrase = (seedKey, pool) => pool[Math.floor(createSeededRandom(seedKey)() * pool.length)];
-
     const pushActivity = (state, kind, message, createdAt) => {
         const last = state.activity.reduce((max, event) => {
             const value = Number(event.id.slice(1));
@@ -87,12 +80,21 @@
     }
 
     const entryValue = (cards, entry) => entryValueFromCard(cards.get(entry.identity), entry.drawnSeason);
-    const sumValue = (cards, entries) => entries.reduce((sum, entry) => sum + entryValue(cards, entry), 0);
     const bestName = (cards, entries, fallback) =>
         [...entries].sort((left, right) => entryValue(cards, right) - entryValue(cards, left))[0]?.name ?? fallback;
 
     const starterEligible = (settings, position) =>
         STARTER_SLOTS.some((slot) => (settings.rosterSlots[slot] ?? 0) > 0 && SLOT_ELIGIBILITY[slot].includes(position));
+
+    function draftValue(state, card, persona) {
+        const seasons = App.TimeLeagueEraRules.filterSeasonsForEra(card.seasons, state.settings.eraRules, card.position);
+        if (!seasons.length) return 0;
+        const mean = seasons.reduce((sum, season) => sum + season.points, 0) / seasons.length;
+        const peak = Math.max(...seasons.map(season => season.points));
+        return (mean * (1 - persona.peakWeight) + peak * persona.peakWeight) * (persona.positionBias[card.position] || 1);
+    }
+    const tradeValue = (cards, entries, persona) => entries.reduce((sum, entry) =>
+        sum + entryValue(cards, entry) * (1 + ((persona.positionBias[entry.position] || 1) - 1) * 0.5), 0);
 
     function aiDraftChoice(state, cards) {
         const seat = state.phase === "draft" ? currentDraftSeat(state) : null;
@@ -106,7 +108,8 @@
             if (room > 0) openBySlot.set(slot, room);
         }
         const noise = createSeededRandom(`${state.seed}:aidraft:${seat.overall}`);
-        const amp = (0.2 + (personaFor(team).riskTolerance / 100) * 0.3) * difficultyFor(state).noiseMult;
+        const persona = personaFor(team);
+        const amp = (0.2 + (persona.riskTolerance / 100) * 0.3) * difficultyFor(state).noiseMult;
         let best = null;
         // The era-eligible board is the whole world for an AI GM: undrafted cards
         // that the league's decades can actually field.
@@ -116,7 +119,7 @@
             for (const [slot, room] of openBySlot) {
                 if (SLOT_ELIGIBILITY[slot].includes(card.position)) openStarters += room;
             }
-            const score = card.peak * (openStarters > 0 ? 1 + 0.5 * openStarters : 0.4) + noise() * amp;
+            const score = draftValue(state, card, persona) * (openStarters > 0 ? 1 + persona.needWeight * openStarters : 0.4) * (1 + (noise() - 0.5) * amp * 0.18);
             if (!best || score > best.score) best = { card, score };
         }
         return best?.card ?? null;
@@ -148,7 +151,8 @@
             const persona = personaFor(team);
             const max = E.auctionMaxBid(state, team.teamId);
             const average = (state.settings.draftAuctionBudget || 200) / Math.max(1, rosterCapacity(state.settings));
-            const factor = 0.55 + (value / peak) * 2.25 + persona.aggression / 200;
+            const preference = draftValue(state, card, persona) / Math.max(1, value);
+            const factor = 0.55 + (value / peak) * preference * 2.25 + persona.aggression / 200;
             const limit = Math.min(max, Math.max(1, Math.round(average * factor * difficultyFor(state).bidMult)));
             return { team, limit, order: random() };
         }).filter(item => item.limit > n.highBid).sort((a, b) => a.order - b.order);
@@ -191,12 +195,12 @@
                 : undefined;
             if (needsDrop && !drop) return next;
             const quarterbacks = team.roster.filter((entry) => entry.position === "QB").length;
-            const target = pool.find((card) => (
+            const target = pool.filter((card) => (
                 card.seasons.length > 0
                 && starterEligible(next.settings, card.position)
                 && !(card.position === "QB" && quarterbacks >= next.settings.maxQuarterbacks)
                 && card.peak >= bar
-            ));
+            )).sort((left, right) => draftValue(next, right, personaFor(team)) - draftValue(next, left, personaFor(team)) || left.identity.localeCompare(right.identity))[0];
             if (!target) return next;
             let bidAmount;
             if (faab) {
@@ -227,20 +231,10 @@
         const incoming = trade.giveEntryIds.flatMap((id) => from.roster.find((entry) => entry.entryId === id) ?? []);
         const outgoing = trade.receiveEntryIds.flatMap((id) => to.roster.find((entry) => entry.entryId === id) ?? []);
         const complete = incoming.length === trade.giveEntryIds.length && outgoing.length === trade.receiveEntryIds.length;
-        const accept = complete && sumValue(cards, incoming) >= sumValue(cards, outgoing) * (acceptThreshold(persona, difficultyFor(state)) + relationshipFor(state, to.teamId, from.teamId).tradePremium);
+        const accept = complete && tradeValue(cards, incoming, persona) >= tradeValue(cards, outgoing, persona) * (acceptThreshold(persona, difficultyFor(state)) + relationshipFor(state, to.teamId, from.teamId).tradePremium);
         const inName = bestName(cards, incoming, "That package");
         const outName = bestName(cards, outgoing, "my starter");
-        const note = accept
-            ? pickPhrase(`${state.seed}:ainote:${trade.tradeId}`, [
-                `${inName}'s ceiling beats ${outName}. Done.`,
-                `${inName} starts for me. Send it.`,
-                `Ledger clears — ${inName} over ${outName}. Accepted.`,
-            ])
-            : pickPhrase(`${state.seed}:ainote:${trade.tradeId}`, [
-                "You're selling the floor I need. Pass.",
-                `${outName} beats ${inName} straight up. Pass.`,
-                "Light package. Bring real value or walk.",
-            ]);
+        const note = accept ? `${persona.accept} ${inName} for ${outName}.` : `${persona.reject} ${outName} stays for now.`;
         const resolved = respondToTrade(state, trade.tradeId, accept, note, createdAt);
         return resolved === state ? state : pushActivity(resolved, "trade", `${to.name} — ${persona.label}: "${note}"`, createdAt);
     }
@@ -305,7 +299,12 @@
         const quota = random() < 0.6 ? 1 : 2;
         let next = state;
         let made = 0;
-        for (const seat of [...state.teams].sort((a, b) => hottestRival(state, b.teamId).heat - hottestRival(state, a.teamId).heat)) {
+        const initiative = team => {
+            const persona = personaFor(team);
+            return hottestRival(state, team.teamId).heat * 20 + persona.aggression * 0.3 + (100 - persona.patience) * 0.15
+                + (team.aiPersona === 'broker' ? 18 : 0) + createSeededRandom(`${state.seed}:trade-desk:${state.currentWeek}:${team.teamId}`)() * 100;
+        };
+        for (const seat of [...state.teams].sort((a, b) => initiative(b) - initiative(a))) {
             if (made >= quota) break;
             if (seat.manager !== "ai") continue;
             const proposer = next.teams.find((team) => team.teamId === seat.teamId);
@@ -325,17 +324,13 @@
                 const two = givePool.length > 1 && receivePool.length > 1 && random() < 0.35;
                 const give = givePool.slice(0, two ? 2 : 1);
                 const receive = receivePool.slice(0, two ? 2 : 1);
-                if (sumValue(cards, receive) < sumValue(cards, give) * (acceptThreshold(persona, difficulty) + relationshipFor(next, proposer.teamId, partner.teamId).tradePremium)) continue;
+                if (tradeValue(cards, receive, persona) < tradeValue(cards, give, persona) * (acceptThreshold(persona, difficulty) + relationshipFor(next, proposer.teamId, partner.teamId).tradePremium)) continue;
                 const giveIds = give.map((entry) => entry.entryId);
                 const receiveIds = receive.map((entry) => entry.entryId);
                 if (isDuplicatePending(next.trades, proposer.teamId, partner.teamId, giveIds, receiveIds)) continue;
                 const giveNames = give.map((entry) => entry.name).join(" + ");
                 const receiveNames = receive.map((entry) => entry.name).join(" + ");
-                const note = pickPhrase(`${state.seed}:aipitch:${state.currentWeek}:${proposer.teamId}:${partner.teamId}`, [
-                    `${giveNames} for ${receiveNames}. You need ${theirNeed}, I need ${myNeed}. Clean swap.`,
-                    `${giveNames} fixes your ${theirNeed}. ${receiveNames} fixes mine at ${myNeed}. Do it.`,
-                    `Surplus for surplus — ${giveNames} out, ${receiveNames} back. Quick yes.`,
-                ]);
+                const note = `${persona.pitch} ${giveNames} for ${receiveNames}. You get ${theirNeed}; I get ${myNeed}.`;
                 const before = next.trades.length;
                 next = proposeTrade(next, { fromTeamId: proposer.teamId, toTeamId: partner.teamId, giveEntryIds: giveIds, receiveEntryIds: receiveIds, note }, createdAt);
                 if (next.trades.length === before) continue;

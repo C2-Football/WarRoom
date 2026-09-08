@@ -6,8 +6,12 @@ for (const name of ['roster', 'rules', 'draft-room', 'era-rules', 'season', 'hel
 
 // A stateful component harness tests the reveal-to-scout path without a browser.
 let hooks; let cursor; let effects;
+const focused = [];
 global.React = {
-    createElement: (type, props, ...children) => ({ type, props: props || {}, children: children.flat(Infinity) }),
+    createElement: (type, props, ...children) => {
+        if (typeof type === 'string' && props?.ref) props.ref.current = { focus: () => focused.push(props['aria-label'] || children.join('')) };
+        return { type, props: props || {}, children: children.flat(Infinity) };
+    },
     useMemo: (fn) => fn(),
     useState(initial) {
         const index = cursor++;
@@ -102,19 +106,12 @@ for (const hidden of ['QB Legend', 'RB Legend', '1980s', '1990s', 'draftable', '
     assert.ok(!text(tree).includes(hidden), `${hidden} stays out of the sealed view`);
 }
 assert.equal(find(tree, node => node.props.className === 'tl-draft-dock').length, 0, 'Mobile selected-player fallback cannot leak the pool');
-const originalTimeout = global.setTimeout; const originalClearTimeout = global.clearTimeout;
-let completeReveal;
-global.setTimeout = callback => { completeReveal = callback; return 1; };
-global.clearTimeout = () => {};
-button(tree, '✦ Open  QB  archive').props.onClick();
+button(tree, 'Reveal QB era').props.onClick();
 tree = render();
-assert.ok(!text(tree).includes('QB Legend'), 'Rolling animation does not expose the result early');
-completeReveal();
-global.setTimeout = originalTimeout; global.clearTimeout = originalClearTimeout;
-tree = render();
+assert.equal(find(tree, node => node.props.className === 'tl-era-die').length, 0, 'Reveal has no fake spinning years or timer');
 assert.equal(readiness.at(-1), false, 'Opening one position does not start the draft');
 assert.ok(text(tree).includes('1980s'));
-assert.ok(text(tree).includes('Available years: 1980, 1982'), 'Actual years are shown, including gaps');
+assert.ok(text(tree).includes('1980, 1982'), 'Actual years are shown, including gaps');
 assert.ok(!text(tree).includes('1981'), 'Missing seasons are not implied by a decade-wide range');
 assert.ok(!text(tree).includes('RB Legend') && !text(tree).includes('1990s'), 'Unopened position remains hidden after a partial reveal');
 assert.equal(find(tree, node => node.props.className === 'tl-era-headliner').length, 3, 'Each revealed position shows only three clickable leaders');
@@ -141,9 +138,23 @@ assert.equal(find(tree, node => node.props.role === 'dialog').length, 0);
 assert.equal(restoredFocus, true, 'Back returns focus to the headliner');
 button(tree, 'Reveal all').props.onClick();
 tree = render();
-assert.equal(readiness.at(-1), true, 'Final reveal unlocks the clock');
+assert.equal(readiness.at(-1), false, 'Scouting the final reveal does not start the clock');
+assert.ok(!text(tree).includes('Visible clock') && !text(tree).includes('Find your next legend'));
+assert.equal(find(tree, node => node.props.className === 'tl-era-headliner').length, 3, 'Only the selected position has a shortlist');
+assert.equal(focused.at(-1), 'Enter draft →', 'Final reveal hands keyboard focus to the next step');
+const awaitingEntry = mount({ league: roulette, cards: rouletteCards, onUpdate() {} })();
+assert.ok(button(awaitingEntry, 'Enter draft →'), 'Reload before entering preserves the scouting break');
+assert.ok(!text(awaitingEntry).includes('Visible clock'));
+tree = render();
+button(tree, 'View RB era · 1990s · 5 players').props.onClick(); tree = render();
+assert.ok(text(tree).includes('RB Legend r0') && !text(tree).includes('QB Legend q0'), 'Switching tiles replaces the shortlist');
+button(tree, 'Enter draft →').props.onClick(); tree = render();
+assert.equal(readiness.at(-1), true, 'Explicit entry unlocks the clock');
+assert.equal(focused.at(-1), 'Draft room', 'Entering moves focus to the board without opening a search keyboard');
 assert.ok(text(tree).includes('Visible clock') && text(tree).includes('Find your next legend'));
-assert.equal(find(tree, node => node.props.className === 'tl-era-headliner').length, 6);
+const eraReview = find(tree, node => node.type === 'details' && node.props.className === 'tl-era-review')[0];
+assert.ok(eraReview && !eraReview.props.open, 'After entry the scouting room collapses above the board');
+assert.equal(find(tree, node => node.props.className === 'tl-era-headliner').length, 3);
 const mobileTarget = find(tree, node => node.props.className === 'tl-mobile-player-pick')[0];
 mobileTarget.props.onClick({ currentTarget: { focus() {} } });
 tree = render();
@@ -154,6 +165,7 @@ assert.ok(find(tree, node => node.props.className === 'tl-btn primary').every(no
 const reload = mount({ league: roulette, cards: rouletteCards, onUpdate() {} })();
 assert.ok(text(reload).includes('Find your next legend'), 'Completed reveals survive reload');
 local.set(`wr-tl-era-reveal:${roulette.leagueId}`, '1');
+local.delete(`wr-tl-era-entered:${roulette.leagueId}`);
 assert.ok(text(mount({ league: roulette, cards: rouletteCards, onUpdate() {} })()).includes('Find your next legend'), 'Legacy complete reveal remains compatible');
 
 // Auction player selection must nominate, never use the normal pick pathway.

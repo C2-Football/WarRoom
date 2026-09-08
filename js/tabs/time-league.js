@@ -36,7 +36,7 @@
         achievements: '♛', messages: '✉', career: '★', community: '◎', standings: '≡', activity: '◷',
     };
 
-    const PERSONA_IDS = ['warlord', 'archivist', 'gambler', 'steward'];
+    const PERSONA_IDS = Engine.AI_PERSONA_IDS;
     // Helmet defaults are deterministic per name (see time-league-helmet.js) so
     // the same roster of default seats always looks the same, not reshuffled
     // on every "Found a League" mount.
@@ -74,7 +74,22 @@
         catch { return null; }
     }
     function writeLeague(state) {
-        try { window.localStorage.setItem(Types.timeLeagueStorageKey(state.leagueId), JSON.stringify(state)); } catch { /* in-memory only */ }
+        window.localStorage.setItem(Types.timeLeagueStorageKey(state.leagueId), JSON.stringify(state));
+    }
+    function writeLeagueSnapshot(state, entries) {
+        // Save the discoverable shelf first and the authoritative game last.
+        // A failed game write leaves the previous game untouched; roll back
+        // the shelf so a failed creation cannot leave a phantom league.
+        const previousIndex = window.localStorage.getItem(Types.TIME_LEAGUE_INDEX_KEY);
+        window.localStorage.setItem(Types.TIME_LEAGUE_INDEX_KEY, JSON.stringify(entries));
+        try { writeLeague(state); }
+        catch (error) {
+            try {
+                if (previousIndex === null) window.localStorage.removeItem(Types.TIME_LEAGUE_INDEX_KEY);
+                else window.localStorage.setItem(Types.TIME_LEAGUE_INDEX_KEY, previousIndex);
+            } catch { /* The saved game itself is still intact. */ }
+            throw error;
+        }
     }
     function removeLeagueRecord(leagueId) {
         try { window.localStorage.removeItem(Types.timeLeagueStorageKey(leagueId)); } catch { /* nothing to clean up */ }
@@ -107,7 +122,8 @@
                 const { logs } = Season.parseGameLogCsv(await response.text());
                 return logs.length ? Season.buildGameLogIndex(logs) : null;
             })
-            .catch(() => null);
+            .catch(() => null)
+            .then(result => { if (!result?.size) logIndexPromise = null; return result; });
         return logIndexPromise;
     };
     let eraFactorsPromise = null;
@@ -120,11 +136,16 @@
                 return new Map(Object.entries(payload.factors).flatMap(([key, value]) =>
                     (typeof value === 'number' && Number.isFinite(value) ? [[key, value]] : [])));
             })
-            .catch(() => null);
+            .catch(() => null)
+            .then(result => { if (!result?.size) eraFactorsPromise = null; return result; });
         return eraFactorsPromise;
     };
     let cardsPromise = null;
-    const fetchCards = () => { cardsPromise ??= PlayerCards.loadPlayerCards(); return cardsPromise; };
+    const fetchCards = () => {
+        cardsPromise ??= PlayerCards.loadPlayerCards().catch(() => new Map())
+            .then(result => { if (!result?.size) cardsPromise = null; return result || new Map(); });
+        return cardsPromise;
+    };
 
     // ── shared bits ──
     function EraChipRail({ label, chips }) {
@@ -900,6 +921,13 @@
         const [showCommunity, setShowCommunity] = useState(false);
         const [draftReveal, setDraftReveal] = useState({ leagueId: null, ready: false });
         const [waiverBrowse, setWaiverBrowse] = useState({ leagueId: null, slot: null });
+        const [storageError, setStorageError] = useState(null);
+        const [dataAttempt, setDataAttempt] = useState(0);
+        const [dataLoading, setDataLoading] = useState(true);
+        const [eraFactorsMissing, setEraFactorsMissing] = useState(false);
+        const pendingLocalSave = useRef(null);
+        const pendingSaveTime = useRef(null);
+        const previousLocalSave = useRef(null);
         const draftRevealed = league?.settings.eraRules?.mode !== 'position-roulette' || league?.seasonsRevealed || (draftReveal.leagueId === league?.leagueId && draftReveal.ready);
         const revealRef = useRef(false);
         revealRef.current = Boolean(draftRevealed);
@@ -985,10 +1013,20 @@
 
         useEffect(() => {
             let cancelled = false;
-            fetchLogIndex().then((result) => { if (!cancelled) { if (result) setLogIndex(result); else setLogsMissing(true); } });
-            fetchEraFactors().then((result) => { if (!cancelled) setEraFactors(result); });
-            fetchCards().then((result) => { if (!cancelled) setCards(result); });
+            setDataLoading(true);
+            Promise.all([fetchLogIndex(), fetchEraFactors(), fetchCards()]).then(([logs, factors, playerCards]) => {
+                if (cancelled) return;
+                setLogIndex(logs); setLogsMissing(!logs?.size);
+                setEraFactors(factors); setEraFactorsMissing(!factors?.size);
+                setCards(playerCards); setDataLoading(false);
+            });
             return () => { cancelled = true; };
+        }, [dataAttempt]);
+
+        useEffect(() => {
+            const retry = () => setDataAttempt(attempt => attempt + 1);
+            window.addEventListener?.('online', retry);
+            return () => window.removeEventListener?.('online', retry);
         }, []);
 
         useEffect(() => {
@@ -1006,16 +1044,15 @@
         }, [onlineMeta?.rowId]);
 
         const persistLeague = useCallback((state) => {
-            writeLeague(state);
-            window.App.TimeLeagueCareerStore?.remember(state, null);
-            setIndex((prev) => {
-                const entry = indexEntryOf(state);
-                const next = prev.some((item) => item.leagueId === state.leagueId)
-                    ? prev.map((item) => (item.leagueId === state.leagueId ? entry : item))
-                    : [...prev, entry];
-                writeIndexEntries(next);
-                return next;
-            });
+            const previous = readIndexEntries();
+            const entry = indexEntryOf(state);
+            const next = previous.some(item => item.leagueId === state.leagueId)
+                ? previous.map(item => item.leagueId === state.leagueId ? entry : item)
+                : [...previous, entry];
+            writeLeagueSnapshot(state, next);
+            // Career summaries and React state change only after durable storage.
+            try { window.App.TimeLeagueCareerStore?.remember(state, null); } catch { /* Derived career summaries can be rebuilt from the saved game. */ }
+            setIndex(next);
         }, []);
 
         const handleUpdate = useCallback(async (next, action, options = {}) => {
@@ -1038,18 +1075,69 @@
                     return false;
                 } finally { writeBusy.current = false; setSaving(false); }
             }
+            const retryingLocalSave = pendingLocalSave.current === next;
+            if (pendingLocalSave.current && !retryingLocalSave) return false;
             const previous = leagueRef.current;
             const stamp = new Date().toISOString();
-            if (previous?.phase === 'draft' && next.phase === 'season' && cards) next = window.App.TimeLeagueAI.aiGenerateTrades(next, cards, stamp);
+            if (!retryingLocalSave && previous?.phase === 'draft' && next.phase === 'season' && cards) next = window.App.TimeLeagueAI.aiGenerateTrades(next, cards, stamp);
             if (previous && (previous.weekStage !== next.weekStage || previous.phase !== next.phase)) next = { ...next, gateStartedAt: stamp, gateVotes: [] };
             const safe = Engine.normalizeTimeLeague(next);
             if (!safe) return false;
+            try { persistLeague(safe); }
+            catch {
+                if (!previousLocalSave.current && previous) {
+                    // Capture the previous seat's clock at the first storage
+                    // failure, before a later retry can consume its remaining time.
+                    previousLocalSave.current = previous.phase === 'draft' && previous.draftClock?.status === 'running'
+                        ? Engine.pauseDraft(previous, stamp) : previous;
+                }
+                pendingLocalSave.current = safe;
+                pendingSaveTime.current = stamp;
+                setStorageError('This move could not be saved on this device. Your previous save is intact. Allow site storage or free some space, then retry.');
+                return false;
+            }
+            pendingLocalSave.current = null;
+            pendingSaveTime.current = null;
+            previousLocalSave.current = null;
+            setStorageError(null);
             if (previous?.leagueId === safe.leagueId && safe.finalizedWeeks.length > previous.finalizedWeeks.length) setAutoPlayWeek(safe.finalizedWeeks[safe.finalizedWeeks.length - 1]?.week);
             leagueRef.current = safe;
-            persistLeague(safe);
             setLeague(safe);
             return true;
         }, [persistLeague, acceptRow, cards]);
+
+        const retryLocalSave = useCallback(() => {
+            let pending = pendingLocalSave.current;
+            if (!pending) return false;
+            // Time spent fixing device storage must not consume the next
+            // manager's draft clock before their pick has even appeared.
+            if (pending.phase === 'draft' && pending.draftClock?.status === 'running' && pendingSaveTime.current) {
+                pending = Engine.resumeDraft(Engine.pauseDraft(pending, pendingSaveTime.current), new Date().toISOString());
+                pendingLocalSave.current = pending;
+            }
+            return handleUpdate(pending);
+        }, [handleUpdate]);
+
+        const keepPreviousSave = useCallback(() => {
+            const previous = previousLocalSave.current;
+            if (!pendingLocalSave.current || !previous) return false;
+            // A running draft must durably return in a paused state. Do not
+            // discard its pending move while storage still cannot save that pause.
+            if (previous !== leagueRef.current) {
+                try { persistLeague(previous); }
+                catch {
+                    setStorageError('The previous draft could not be restored and paused. Your move is still waiting here. Allow site storage or free some space, then try again.');
+                    return false;
+                }
+                leagueRef.current = previous;
+                setLeague(previous);
+            }
+            pendingLocalSave.current = null;
+            pendingSaveTime.current = null;
+            previousLocalSave.current = null;
+            setStorageError(null);
+            return true;
+        }, [persistLeague]);
 
         const dispatchGate = useCallback(async action => {
             const current = leagueRef.current;
@@ -1118,7 +1206,7 @@
             const checkDraft = async () => {
                 const current = leagueRef.current;
                 const meta = onlineRef.current;
-                if (!current || writeBusy.current || draftActionBusy.current || Date.now() < draftRetryAt.current || (meta && !meta.draftStarted)) return;
+                if (!current || pendingLocalSave.current || writeBusy.current || draftActionBusy.current || Date.now() < draftRetryAt.current || (meta && !meta.draftStarted)) return;
                 const action = window.App.TimeLeagueDraftClock.nextAction(current, cards, Date.now(), revealRef.current);
                 if (!action) return;
                 // A rejected stale-version request gets time to fetch the latest
@@ -1135,14 +1223,14 @@
             if (!onlineMeta || league?.phase !== 'season' || league.settings.advancementMode !== 'timed') return undefined;
             const checkDeadline = () => {
                 const current = leagueRef.current;
-                if (!current || writeBusy.current || !cards?.size || !logIndex) return;
+                if (!current || writeBusy.current || !cards?.size || !logIndex || (current.settings.eraAdjusted && !eraFactors?.size)) return;
                 const due = Date.parse(current.gateStartedAt || current.createdAt) + (current.settings.gateHours || 24) * 3600000;
                 if (Date.now() >= due) dispatchGate({ type: 'timed-advance' });
             };
             const timer = window.setInterval(checkDeadline, 10000);
             checkDeadline();
             return () => window.clearInterval(timer);
-        }, [onlineMeta?.rowId, league?.weekStage, league?.gateStartedAt, league?.settings.advancementMode, cards, logIndex, dispatchGate]);
+        }, [onlineMeta?.rowId, league?.weekStage, league?.gateStartedAt, league?.settings.advancementMode, cards, logIndex, eraFactors, dispatchGate]);
 
         useEffect(() => {
             if (!league || (tab !== 'draft' && league.phase !== 'draft') || draftModuleState !== 'idle') return;
@@ -1155,7 +1243,8 @@
             const createdAt = new Date().toISOString();
             const slug = input.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'time-league';
             const state = Engine.createTimeLeague({ name: input.name, seed: `${slug}:${createdAt}`, createdAt, settings: input.settings, seats: input.seats });
-            persistLeague(state);
+            try { persistLeague(state); }
+            catch { throw new Error('This device could not save your league. Allow site storage or free some space, then try again. Your setup is still here.'); }
             setLeague(state);
             onlineRef.current = null;
             openGeneration.current += 1;
@@ -1173,6 +1262,7 @@
         }, [refreshOnlineIndex]);
 
         const openLeague = useCallback((leagueId) => {
+            if (pendingLocalSave.current) return;
             const stored = readLeague(leagueId);
             if (!stored) return;
             onlineRef.current = null;
@@ -1183,7 +1273,7 @@
         }, []);
 
         const openOnlineLeague = useCallback((rowId) => {
-            if (!Remote) return;
+            if (!Remote || pendingLocalSave.current) return;
             const generation = ++openGeneration.current;
             setInviteError(null);
             Remote.loadOnlineLeague(rowId).then((row) => {
@@ -1194,6 +1284,10 @@
         }, []);
 
         const switchLeague = useCallback(() => {
+            pendingLocalSave.current = null;
+            pendingSaveTime.current = null;
+            previousLocalSave.current = null;
+            setStorageError(null);
             setLeague(null);
             onlineRef.current = null;
             openGeneration.current += 1;
@@ -1222,6 +1316,10 @@
         const CareerView = window.WrTimeLeagueCareerView;
         const CommunityPanel = window.WrTimeLeagueCommunityPanel;
         const RivalsPanel = window.WrTimeLeagueRivalsPanel;
+        const failedData = [cards !== null && !cards?.size && 'player archive', logsMissing && 'weekly game data', eraFactorsMissing && league?.settings.eraAdjusted && 'era scoring'].filter(Boolean);
+        const dataNotice = failedData.length > 0 && h('div', { className: 'tl-card', role: 'alert' },
+            h('p', null, `Couldn’t load ${failedData.join(' and ')}. Check your connection and try again.`),
+            h('button', { type: 'button', className: 'tl-btn', disabled: dataLoading, onClick: () => setDataAttempt(attempt => attempt + 1) }, dataLoading ? 'Retrying…' : 'Retry loading'));
 
         if (!league) {
             return h('div', { className: 'tl-root tl-play' },
@@ -1233,6 +1331,7 @@
                             h('span', null, h('strong', null, 'The Vault'), h('small', null, 'Fantasy football through time'))),
                         h('button', { type: 'button', className: 'tl-btn', onClick: onClose }, '← BACK')),
                     claimingInvite && h('div', { className: 'tl-card', style: { marginBottom: 14 } }, h('p', { className: 'tl-empty' }, 'Claiming your invite…')),
+                    dataNotice,
                     inviteError && h('div', { className: 'tl-card', style: { borderColor: 'rgba(240,165,0,0.4)', marginBottom: 14 } },
                         h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 } },
                             h('span', { style: { fontSize: 12.5, color: 'var(--warn)' } }, `⚠ ${inviteError}`),
@@ -1261,7 +1360,7 @@
         const cardsReady = cards !== null && cards.size > 0;
         const loadingNotice = cards === null
             ? h('div', { className: 'tl-card' }, h('p', { className: 'tl-empty' }, 'Loading player cards…'))
-            : h('div', { className: 'tl-card' }, h('p', { className: 'tl-empty tl-pill bad' }, 'Player cards missing — check data/time-league/.'));
+            : null;
 
         return h('div', { className: 'tl-root tl-play' },
             h(TimeLeagueStyles, null),
@@ -1290,13 +1389,19 @@
                                 h('small', null, `${onlineMeta ? 'Friends league' : league.teams.filter(team => team.manager === 'human').length > 1 ? 'Local multiplayer' : 'Solo season'} · ${league.teams.length} managers`),
                                 h(EraChipRail, { label: 'League format', chips: EraRules.eraRuleChips(league.settings.eraRules).filter(chip => !chip.toLowerCase().includes('reveal in the draft')) }),
                                 onlineMeta && h('button', { type: 'button', className: 'tl-btn', onClick: () => setShowFriends(value => !value) }, 'Friends & invites'),
-                                h('button', { type: 'button', className: 'tl-btn', onClick: switchLeague }, 'Switch league'),
-                                h('button', { type: 'button', className: 'tl-btn', onClick: onClose }, 'Back to dashboard'))))),
+                                h('button', { type: 'button', className: 'tl-btn', disabled: Boolean(storageError), onClick: switchLeague }, 'Switch league'),
+                                h('button', { type: 'button', className: 'tl-btn', disabled: Boolean(storageError), onClick: onClose }, 'Back to dashboard'))))),
                 conflictNotice && h('div', { className: 'tl-card', style: { borderColor: 'rgba(240,165,0,0.4)', marginBottom: 14 } },
                     h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 } },
                         h('span', { style: { fontSize: 12.5, color: 'var(--warn)' } }, `⚠ ${conflictNotice}`),
                         h('button', { type: 'button', className: 'tl-btn icon', onClick: () => setConflictNotice(null) }, '✕'))),
                 connectionError && h('p', { className: 'tl-card', role: 'status' }, 'Connection interrupted. Reconnecting automatically; your last saved game is shown.'),
+                storageError && h('div', { className: 'tl-card', role: 'alert' },
+                    h('p', null, storageError),
+                    h('div', { className: 'tl-stage-actions' },
+                        h('button', { type: 'button', className: 'tl-btn primary', onClick: retryLocalSave }, 'Retry save'),
+                        h('button', { type: 'button', className: 'tl-btn', onClick: keepPreviousSave }, 'Keep previous save'))),
+                dataNotice,
                 onlineMeta && (showFriends || !onlineMeta.draftStarted) && h(FriendsRoom, {
                     league, meta: onlineMeta, saving, onAction: action => handleUpdate(league, action),
 
@@ -1304,11 +1409,11 @@
                 activeTab === 'career' && CareerView ? h(CareerView, { index, league, onlineMeta, onOpenLocal: openLeague, onOpenOnline: openOnlineLeague }) : null,
                 activeTab === 'community' && CommunityPanel ? h(CommunityPanel, { onOpenOnline: openOnlineLeague, onProfile: () => navigateTab('career') }) : null,
                 activeTab === 'messages' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,
-                h('fieldset', { disabled: saving || Boolean(onlineMeta && !onlineMeta.draftStarted), style: { border: 0, padding: 0, margin: 0, minWidth: 0 } },
+                h('fieldset', { disabled: saving || Boolean(storageError) || Boolean(onlineMeta && !onlineMeta.draftStarted), style: { border: 0, padding: 0, margin: 0, minWidth: 0 } },
                 ['home', 'gameday'].includes(activeTab) && league.phase === 'complete' && !Engine.playoffCount(league) && league.settings.regularSeasonWeeks < 18 && h('section', { className: 'tl-card tl-week-gate' },
                     h('div', null, h('strong', null, 'Finish with a playoff?'), h('p', null, 'Keep regular-season results and reopen this season for a seeded championship. This replaces the standings-only title.')),
                     [2,4].filter(count => league.teams.length >= count && league.settings.regularSeasonWeeks + (count === 4 ? 2 : 1) <= 18).map(count => h('button', { key: count, className: 'tl-btn', disabled: saving || (onlineMeta && onlineMeta.role !== 'commissioner'), onClick: () => handleUpdate(Engine.startPlayoffs(league, count), { type: 'start-playoffs', count }) }, `Add ${count}-team playoffs`))),
-                ['home', 'roster', 'waivers', 'trades', 'gameday'].includes(activeTab) && WeekGates && h(WeekGates, { compact: activeTab !== 'home' && activeTab !== 'gameday', currentTab: activeTab, league, onlineMeta, saving, dataReady: cardsReady && Boolean(logIndex), onAction: dispatchGate, onNavigate: navigateTab }),
+                ['home', 'roster', 'waivers', 'trades', 'gameday'].includes(activeTab) && WeekGates && h(WeekGates, { compact: activeTab !== 'home' && activeTab !== 'gameday', currentTab: activeTab, league, onlineMeta, saving, dataReady: cardsReady && Boolean(logIndex) && (!league.settings.eraAdjusted || Boolean(eraFactors?.size)), onAction: dispatchGate, onNavigate: navigateTab }),
                 activeTab === 'draft' && draftModuleState === 'error' && h('p', { role: 'status' }, 'The draft grid could not load. ', h('button', { className: 'tl-btn', onClick: () => setDraftModuleState('idle') }, 'Retry draft module')),
                 activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: responseTeam }) : null,
                 activeTab === 'home' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, compact: true, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,

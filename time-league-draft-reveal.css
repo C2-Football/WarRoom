@@ -1,15 +1,71 @@
-/* The reveal keeps the draft class sealed; scouting opens in the same view on every screen. */
-.tl-era-years { display: block; color: #c7d4e8; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; margin: 8px 0; }
-.tl-era-shortlist { display: grid; gap: 6px; margin-top: 6px; }
-.tl-era-headliner { display: grid; grid-template-columns: 20px minmax(0,1fr) 14px; align-items: center; gap: 7px; min-height: 58px; width: 100%; padding: 9px 8px; border: 1px solid #7184a35c; border-radius: 10px; background: #142237b0; color: #f1f5fc; text-align: left; cursor: pointer; }
-.tl-era-headliner:hover { border-color: #87efcf; background: #293d53; }
-.tl-era-headliner:focus-visible,.tl-scout-player-name:focus-visible { outline: 3px solid #87efcf; outline-offset: 2px; }
-.tl-era-headliner strong { display: block; font-size: 12px; line-height: 1.35; }
-.tl-era-headliner small { display: block; font-size: 10px; color: #b6c8e0; line-height: 1.5; margin-top: 3px; }
-.tl-era-headliner-rank { color: #ffe08a; font-family: var(--font-mono,monospace); }
-.tl-draft-sealed-note { margin-top: 14px; padding: 18px; text-align: center; color: #f1f5fc; }
-.tl-draft-sealed-note strong { color: #87efcf; font-size: 17px; }
-.tl-draft-sealed-note p { margin: 8px 0 0; color: #b6c8e0; font-size: 13px; line-height: 1.6; }
+/* Compact era tiles, one scout shortlist, then a deliberate handoff to the draft. */
+.tl-era-show { padding:22px; border:1px solid #65759670; border-top:3px solid #9b8fd8; background:radial-gradient(ellipse at 85% 0%,#62508c28,transparent 65%),#19263b; overflow:hidden; }
+.tl-era-room-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; }
+.tl-era-room-heading .tl-label { color:#9ee9d4; font-size:10px; letter-spacing:.12em; }
+.tl-era-room-heading h2 { font:700 clamp(22px,3vw,30px)/1.15 var(--font-title,sans-serif); margin:5px 0 0; color:#f1f3fb; }
+.tl-era-open-count { flex-shrink:0; color:#b0bed5; font:11px var(--font-mono,monospace); }
+.tl-era-stage { display:grid; grid-template-columns:repeat(auto-fit,minmax(96px,1fr)); gap:8px; margin-bottom:18px; }
+.tl-era-tile { min-height:110px; min-width:0; padding:12px 8px; display:flex; align-items:center; flex-direction:column; gap:8px; background:#152033; border:1px solid #53637f75; border-radius:12px; color:#f1f3fb; text-align:center; cursor:pointer; }
+.tl-era-tile strong { font:700 25px/1.1 var(--font-title,sans-serif); color:#ffe18b; }
+.tl-era-tile small { font-size:10px; color:#acbcd3; }
+.tl-era-tile .tl-pos-badge { font-size:10px; padding:3px 7px; }
+.tl-era-tile.is-sealed strong { color:#8290ae; }
+.tl-era-tile.is-active { border-color:#8af0cf; box-shadow:inset 0 -3px #8af0cf; background:#244039; }
+.tl-era-tile:hover { border-color:#b9aaff; }
+.tl-era-tile:focus-visible,.tl-era-headliner:focus-visible { outline:3px solid #8af0cf; outline-offset:3px; }
+.tl-era-feature { border-top:1px solid #ffffff13; padding-top:16px; }
+.tl-era-feature.is-fresh { animation:tlEraArrive 220ms ease-out; }
+@keyframes tlEraArrive { from { opacity:.35; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+.tl-era-feature-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.tl-era-feature-heading .tl-label { font-size:10px; color:#b8c7df; }
+.tl-era-feature-heading h3 { font:700 34px/1.1 var(--font-title,sans-serif); color:#ffe18b; margin:4px 0 0; }
+.tl-era-coverage { color:#aebed5; font:11px/1.5 var(--font-mono,monospace); text-align:right; max-width:50%; }
+.tl-era-shortlist { display:grid; gap:0; border:1px solid #62739155; border-radius:12px; overflow:hidden; }
+.tl-era-headliner { display:grid; grid-template-columns:26px minmax(0,1fr) auto; align-items:center; gap:12px; min-height:64px; width:100%; padding:10px 14px; background:#152236; border:0; border-top:1px solid #62739140; color:#f1f5fc; text-align:left; cursor:pointer; }
+.tl-era-headliner:first-child { border-top:0; }
+.tl-era-headliner:hover { background:#293d53; }
+.tl-era-headliner strong { display:block; font-size:14px; line-height:1.3; }
+.tl-era-headliner small { display:block; font-size:11px; color:#aabed8; line-height:1.45; margin-top:3px; }
+.tl-era-headliner-rank { color:#8394b0; font:11px var(--font-mono,monospace); }
+.tl-era-scout-link { color:#9debd4; font-size:11px; white-space:nowrap; }
+.tl-era-invitation { display:flex; align-items:center; flex-direction:column; justify-content:center; min-height:176px; gap:14px; }
+.tl-era-invitation-mark { font-size:32px; color:#baa6f0; }
+.tl-era-invitation h3 { font:600 21px var(--font-title,sans-serif); color:#e1deef; margin:0; }
+.tl-era-room-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; padding-top:16px; }
+.tl-era-room-actions .tl-btn { min-height:44px; }
+.tl-era-room-actions>.tl-btn:only-child { margin-left:auto; min-width:170px; }
+.tl-era-room-actions small { color:#98aac4; font-size:11px; }
+.tl-draft-sealed-note { color:#aabbd1; margin:10px 0 16px; text-align:center; font-size:12px; }
+.tl-era-years { display:block; color:#b6c8e0; font-size:11px; line-height:1.6; margin:8px 0; }
+.tl-era-review { margin-bottom:12px; border:1px solid #68789750; background:#172237; border-radius:10px; }
+.tl-era-review>summary { display:flex; align-items:center; flex-wrap:wrap; gap:10px; list-style:none; cursor:pointer; padding:11px 14px; min-height:48px; }
+.tl-era-review>summary::-webkit-details-marker { display:none; }
+.tl-era-review>summary>strong { font-size:12px; color:#e0e7f4; }
+.tl-era-review-chips { display:flex; gap:8px 12px; flex-wrap:wrap; flex:1; font-size:11px; color:#a6b7d1; }
+.tl-era-review-chips>span { display:flex; gap:4px; white-space:nowrap; }
+.tl-era-review-chips b { color:#ddcff6; font-size:10px; }
+.tl-era-review-toggle { font-size:11px; color:#8af0cf; margin-left:auto; }
+.tl-era-review-toggle::after { content:' ⌄'; }
+.tl-era-review[open] .tl-era-review-toggle::after { content:' ⌃'; }
+.tl-era-review .tl-era-show { margin:0; border-width:1px 0 0; border-radius:0 0 10px 10px; }
+@media(max-width:600px) {
+    .tl-era-show { padding:16px 12px; }
+    .tl-era-room-heading { align-items:flex-start; gap:8px; margin-bottom:16px; }
+    .tl-era-room-heading h2 { font-size:23px; }
+    .tl-era-open-count { font-size:10px; padding-top:3px; }
+    .tl-era-stage { grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; margin-bottom:16px; }
+    .tl-era-tile { min-height:94px; padding:9px 5px; gap:6px; }
+    .tl-era-tile strong { font-size:23px; }
+    .tl-era-tile small { font-size:10px; }
+    .tl-era-headliner { grid-template-columns:20px minmax(0,1fr) auto; gap:8px; padding:10px; min-height:62px; }
+    .tl-era-headliner strong { font-size:13px; }
+    .tl-era-headliner small { font-size:11px; }
+    .tl-era-feature-heading h3 { font-size:30px; }
+    .tl-era-review-chips { flex-basis:100%; order:3; gap:6px 10px; }
+    .tl-era-coverage { font-size:10px; }
+}
+@media(prefers-reduced-motion:reduce) { .tl-era-feature.is-fresh { animation:none; } }
+.tl-scout-player-name:focus-visible { outline: 3px solid #87efcf; outline-offset: 2px; }
 .tl-scout-player-name { border: 0; background: none; color: inherit; padding: 8px 0; font: inherit; min-height: 44px; text-align: left; cursor: pointer; }
 .tl-scout-overlay { position: fixed; inset: 0; z-index: 1500; display: flex; align-items: center; justify-content: center; padding: 24px; background: #060e1bdd; overscroll-behavior: contain; }
 .tl-scout-dialog { width: min(780px,100%); max-height: min(90dvh,920px); overflow-y: auto; border: 1px solid #8397b6; border-radius: 18px; background: #172338; color: #edf3fd; box-shadow: 0 24px 80px #0008; overscroll-behavior: contain; }
@@ -22,12 +78,6 @@
 .tl-scout-dialog .tl-scout-seasons .tl-tbl { min-width: 470px; }
 .tl-scout-dialog .tl-scout-seasons td:first-child,.tl-scout-dialog .tl-scout-seasons th:first-child { position: sticky; left: 0; z-index: 1; background: #1b2b42; font-weight: 700; }
 @media (max-width:600px) {
-    .tl-era-stage { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
-    .tl-era-stage .tl-era-card { padding: 10px 8px !important; }
-    .tl-era-headliner { grid-template-columns: minmax(0,1fr) 12px; gap: 4px; padding: 9px 7px; }
-    .tl-era-headliner-rank { display: none; }
-    .tl-era-headliner strong { font-size: 11px; }
-    .tl-era-years { font-size: 10px; }
     .tl-scout-overlay { padding: 0; align-items: stretch; }
     .tl-scout-dialog { width: 100%; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; padding-bottom: env(safe-area-inset-bottom); }
     .tl-scout-dialog-header { padding-top: max(12px,env(safe-area-inset-top)); }
@@ -35,4 +85,3 @@
     .tl-scout-dialog .tl-scout-file { padding: 16px 12px 28px; }
     .tl-scout-dialog .tl-scout-file .tl-btn { min-height: 48px; white-space: normal; }
 }
-@media (max-width:350px) { .tl-era-stage { grid-template-columns: 1fr; } }

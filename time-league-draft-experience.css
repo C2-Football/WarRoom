@@ -1,20 +1,4 @@
-/* Vault presentation over the shared Dynasty HQ draft grid. */
-.tl-era-show { overflow: hidden; background: radial-gradient(ellipse at 80% 0%, #57467680, transparent 65%), #172236; border-top: 3px solid #bba5ff; }
-.tl-era-show-title { padding: 16px 4px 20px; }
-.tl-era-show-title h2 { margin: 6px 0; font-family: var(--font-title); font-size: clamp(24px, 3vw, 38px); color: #f3edff; }
-.tl-era-show-title p { margin: 0; color: #b8c8da; }
-.tl-era-stage { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 12px; perspective: 900px; }
-.tl-era-stage .tl-era-card { position: relative; min-height: 165px; margin: 0; border: 1px solid #bba5ff60; background: linear-gradient(145deg,#344365,#192437); }
-.tl-era-stage .tl-era-card.pending { background: repeating-linear-gradient(135deg,#232a44 0 12px,#28304b 12px 24px); border-style: dashed; }
-.tl-era-stage .tl-era-card.pending .tl-btn { min-height: 96px; background: #111b2bb0; font-weight: 700; }
-.tl-era-lock { display: block; color: #ffe08a; font-size: 30px; margin-right: 12px; }
-.tl-era-decade { display: block; font-family: var(--font-title); font-size: 38px; line-height: 1.1; color: #ffe08a; margin-top: 10px; }
-.tl-era-headliners { color: #e6edf8; font-size: 12px; line-height: 1.6; min-height: 38px; }
-.tl-era-die { display: block; overflow: hidden; white-space: nowrap; font-family: var(--font-mono); font-size: 26px; color: #ffe08a; margin-top: 20px; animation: tlArchiveScan .6s ease-in-out infinite; }
-.tl-era-rolling-label { display: block; margin-top: 8px; color: #c0b4e8; font-size: 11px; }
-.tl-era-card.landed { animation: tlArchiveOpen .65s cubic-bezier(.2,.8,.2,1) both; }
-@keyframes tlArchiveScan { 50% { opacity: .25; transform: translateY(-8px); } }
-@keyframes tlArchiveOpen { from { transform: rotateY(-65deg) translateY(8px); opacity: .1; } to { transform: rotateY(0); opacity: 1; } }
+/* Completed-draft cards over the shared Dynasty HQ grid. */
 .tl-draft-pick { --pick-color: #abc7ff; background: color-mix(in srgb,var(--pick-color) 20%,#162036); border-left: 3px solid var(--pick-color); border-radius: 5px; padding: 8px 6px; min-height: 64px; text-align: left; min-width: 100px; }
 .tl-draft-pick-QB { --pick-color:#ff9fac; }.tl-draft-pick-RB { --pick-color:#82efd0; }.tl-draft-pick-WR { --pick-color:#aebdff; }.tl-draft-pick-TE { --pick-color:#ffdf83; }.tl-draft-pick-K { --pick-color:#dbb2ff; }.tl-draft-pick-DEF { --pick-color:#83d8ee; }
 .tl-draft-pick strong { display: block; color: #fff; font-size: 12px; line-height: 1.4; white-space: normal; margin: 4px 0; }
@@ -23,5 +7,3 @@
 .tl-draft-grade summary { cursor: pointer; flex-wrap: wrap; }
 .tl-draft-grade summary small { flex-basis: 100%; }
 .tl-draft-letter { font-size: 28px; line-height: 1; padding: 10px 14px; }
-@media (prefers-reduced-motion:reduce) { .tl-era-card.landed,.tl-era-die { animation: none; } }
-@media(max-width:600px) { .tl-era-stage { grid-template-columns: repeat(2,minmax(0,1fr)); }.tl-era-decade { font-size: 28px; }.tl-era-headliners { font-size: 11px; } }

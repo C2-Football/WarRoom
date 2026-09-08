@@ -30,7 +30,16 @@
         return first.season === last.season ? String(first.season) : `${first.season}-${last.season}`;
     };
     const seasonSpan = (card) => spanOf(card.seasons);
-    const availableYears = (seasons) => [...new Set(seasons.map((season) => season.season))].sort((a, b) => a - b).join(', ') || 'None';
+    const availableYears = (seasons) => {
+        const years = [...new Set(seasons.map(row => row.season))].sort((a, b) => a - b);
+        const ranges = [];
+        for (const year of years) {
+            const last = ranges[ranges.length - 1];
+            if (last && year === last[1] + 1) last[1] = year;
+            else ranges.push([year, year]);
+        }
+        return ranges.map(([first, last]) => first === last ? String(first) : `${first}–${last}`).join(', ') || 'None';
+    };
     const peakOf = (seasons) => seasons.reduce((max, s) => Math.max(max, s.points), 0);
     const careerGames = (card) => card.seasons.reduce((sum, s) => sum + s.games, 0);
     const pickLabel = (order, overall, round) => {
@@ -63,7 +72,7 @@
     // every position would show pending again. localStorage sidesteps that
     // without touching the league schema.
     const ERA_REVEAL_STORAGE_PREFIX = 'wr-tl-era-reveal:';
-    const ERA_REVEAL_ROLL_MS = 650; // how long a single position's die spins before it lands
+    const ERA_ENTRY_STORAGE_PREFIX = 'wr-tl-era-entered:';
     // Stored as the list of position codes the human has actually turned
     // over — a single boolean can't distinguish "QB revealed, RB still
     // pending" from "nothing revealed yet". The legacy '1' value (from the
@@ -196,40 +205,58 @@
 
         const allEraPositions = useMemo(() => eraAssignments.map((row) => row.position), [eraAssignments]);
         const [revealedPositions, setRevealedPositions] = useState(() => loadRevealedPositions(league.leagueId, allEraPositions));
-        const [rollingPosition, setRollingPosition] = useState(null); // the one position currently mid-spin, or null
-        // Positions turned over THIS mount get the flip/land animation; ones
-        // already revealed in a prior session render as plain flat cards
-        // (same distinction the old ceremony drew between "playing" and
-        // "already played").
+        const [activeEraPosition, setActiveEraPosition] = useState(() => allEraPositions[0] || null);
+        const [enteredDraft, setEnteredDraft] = useState(() => {
+            if (league.seasonsRevealed || league.draftPicks.length > 0) return true;
+            try {
+                const saved = window.localStorage.getItem(ERA_ENTRY_STORAGE_PREFIX + league.leagueId);
+                if (saved !== null) return saved === '1';
+            } catch { /* Device storage may be unavailable. */ }
+            // Existing completed reveals resume at their board after this upgrade.
+            return allEraPositions.length > 0 && allEraPositions.every(position => revealedPositions.has(position));
+        });
         const freshlyRevealedRef = useRef(new Set());
-        const rollTimerRef = useRef(null);
-        useEffect(() => () => { if (rollTimerRef.current) clearTimeout(rollTimerRef.current); }, []);
-
+        const entryButtonRef = useRef(null);
+        const draftRoomRef = useRef(null);
+        const revealFocusRef = useRef(null);
+        function rememberEntry(entered) {
+            try { window.localStorage.setItem(ERA_ENTRY_STORAGE_PREFIX + league.leagueId, entered ? '1' : '0'); } catch { /* Keep this session usable. */ }
+        }
         function revealPosition(position) {
-            if (rollingPosition || revealedPositions.has(position)) return;
-            setRollingPosition(position);
-            rollTimerRef.current = setTimeout(() => {
-                freshlyRevealedRef.current.add(position);
-                setRevealedPositions((prev) => {
-                    const next = new Set(prev);
-                    next.add(position);
-                    saveRevealedPositions(league.leagueId, next);
-                    return next;
-                });
-                setRollingPosition(null);
-                rollTimerRef.current = null;
-            }, ERA_REVEAL_ROLL_MS);
+            setActiveEraPosition(position);
+            if (revealedPositions.has(position)) return;
+            freshlyRevealedRef.current.add(position);
+            if (allEraPositions.every(item => item === position || revealedPositions.has(item))) revealFocusRef.current = 'entry';
+            if (!enteredDraft) rememberEntry(false);
+            setRevealedPositions(previous => {
+                const next = new Set(previous); next.add(position);
+                saveRevealedPositions(league.leagueId, next);
+                return next;
+            });
         }
         function revealAllPositions() {
-            if (rollingPosition) return;
-            allEraPositions.forEach((p) => freshlyRevealedRef.current.add(p));
+            revealFocusRef.current = 'entry';
+            allEraPositions.forEach(position => freshlyRevealedRef.current.add(position));
             const next = new Set([...revealedPositions, ...allEraPositions]);
+            if (!enteredDraft) rememberEntry(false);
             saveRevealedPositions(league.leagueId, next);
             setRevealedPositions(next);
         }
-        const anyPending = eraRules.mode === 'position-roulette' && allEraPositions.some((position) => !revealedPositions.has(position));
-        const revealReady = league.seasonsRevealed || !anyPending;
+        const anyPending = eraRules.mode === 'position-roulette' && allEraPositions.some(position => !revealedPositions.has(position));
+        const revealReady = league.seasonsRevealed || eraRules.mode !== 'position-roulette' || (!anyPending && enteredDraft);
+        function enterDraft() {
+            if (anyPending) return;
+            revealFocusRef.current = 'board';
+            rememberEntry(true); setEnteredDraft(true);
+        }
         useEffect(() => { onRevealReadyChange?.(revealReady); }, [onRevealReadyChange, revealReady]);
+        useEffect(() => {
+            if (revealFocusRef.current === 'entry' && !anyPending && !enteredDraft) {
+                entryButtonRef.current?.focus(); revealFocusRef.current = null;
+            } else if (revealFocusRef.current === 'board' && revealReady) {
+                draftRoomRef.current?.focus(); revealFocusRef.current = null;
+            }
+        }, [anyPending, enteredDraft, revealReady]);
         const canScoutCard = (card) => Boolean(card && (eraRules.mode !== 'position-roulette' || revealedPositions.has(card.position)));
         function openScout(card, event) {
             if (!canScoutCard(card)) return;
@@ -414,7 +441,7 @@
                                 h('span', { className: 'tl-pos-badge tl-pos-' + selectedCard.position }, selectedCard.position),
                                 selectedCard.bio?.hofYear && h('span', { className: 'tl-pill gold' }, `HOF ${selectedCard.bio.hofYear}`),
                                 h('span', { className: 'tl-label' }, `${spanOf(scoutSeasons)} · draw peak ${peakOf(scoutSeasons).toFixed(1)}`),
-                                scoutHidden > 0 && scoutSeasons.length > 0 && h('span', { className: 'tl-pill warn' }, `Draw ${spanOf(scoutSeasons)} · ${peakOf(scoutSeasons).toFixed(1)}`)),
+                                scoutHidden > 0 && scoutSeasons.length > 0 && h('span', { className: 'tl-pill warn' }, `${scoutHidden} seasons outside this draw`)),
                             selectedCard.bio ? h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10, fontSize: 12 } },
                                 selectedCard.bio.college && h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'College'), h('strong', null, selectedCard.bio.college)),
                                 (selectedCard.bio.height || selectedCard.bio.weight) && h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Size'), h('strong', null, [selectedCard.bio.height, selectedCard.bio.weight].filter(Boolean).join(' · '))),
@@ -439,55 +466,59 @@
             h('section', { className: 'tl-scout-dialog', role: 'dialog', 'aria-modal': true, 'aria-label': `${selectedCard.name} career scout`, ref: scoutDialogRef },
                 h('div', { className: 'tl-scout-dialog-header' }, h('strong', null, 'Career in this draw'), h('button', { type: 'button', className: 'tl-btn', onClick: closeScout }, '← Back to draft')), scoutFile)) : null;
 
-        const eraBanner = eraRules.mode === 'position-roulette' ? h('div', { className: 'tl-card tl-era-show' },
-            h('div', { className: 'tl-card-title' },
-                h('span', null, 'Your era draw'),
-                anyPending
-                    ? h('button', { className: 'tl-btn icon', onClick: revealAllPositions, disabled: Boolean(rollingPosition) }, 'Reveal all')
-                    : h('small', null, 'dealt at founding · frozen for the life of the league')),
-            eraAssignments.length === 0
-                ? h('p', { className: 'tl-empty' }, 'The wheel has not been spun — decades are dealt the moment the league is founded.')
-                : h(React.Fragment, null,
-                    h('div', { className: 'tl-era-show-title' }, h('span', { className: 'tl-label' }, 'THE VAULT OPENS'), h('h2', null, `${eraAssignments.length} positions. Decades of possibility.`), h('p', null, 'Open each position to discover your draft class.')),
-                    h('p', { className: 'tl-hint', style: { marginBottom: 10 } }, 'Every position group draws from one decade, and one decade only — turn one over to see who was actually available at it. This is the hand the league was dealt; there is no re-roll.'),
-                    h('div', { className: 'tl-era-stage' },
-                        eraAssignments.map((row, eraIndex) => {
-                            const landed = revealedPositions.has(row.position);
-                            const rolling = rollingPosition === row.position;
-                            const fresh = freshlyRevealedRef.current.has(row.position);
-                            const topThree = topThreeByPosition[row.position] || [];
-                            const yearList = availableYears(available.filter(({ card }) => card.position === row.position).flatMap(({ card }) => EraRules.filterSeasonsForEra(card.seasons, eraRules, card.position)));
-                            const cls = rolling || !landed
-                                ? `tl-card tl-era-card ${rolling ? 'landed' : 'pending'}`.trim()
-                                : fresh ? 'tl-card tl-era-card landed' : 'tl-card tl-era-card revealed';
-                            return h('div', { key: row.position, className: cls, style: { padding: '10px 12px', animationDelay: `${eraIndex * 65}ms` } },
-                                h('span', { className: 'tl-pill gold' }, row.position),
-                                rolling
-                                    ? h(React.Fragment, null,
-                                        h('span', { className: 'tl-era-die', 'aria-hidden': 'true' }, '70 / 80 / 90 / 00 / 10'),
-                                        h('span', { className: 'tl-era-rolling-label' }, 'Opening the archive…'))
-                                    : landed
-                                        ? h(React.Fragment, null,
-                                            h('strong', { className: 'tl-era-decade' }, row.detail?.label ?? row.decade),
-                                            h('span', { className: 'tl-era-years' }, `Available years: ${yearList}`),
-                                            h('span', { className: `tl-pill ${row.pool === 0 ? 'bad' : 'good'}`, style: { display: 'inline-block', marginTop: 6, marginBottom: 8 } }, row.pool === 0 ? 'None left' : `${row.pool} draftable`),
-                                            topThree.length > 0 && h('div', { className: 'tl-era-shortlist', 'aria-label': `${row.position} top three` },
-                                                h('span', { className: 'tl-label' }, 'Top three · Tap to scout'),
-                                                topThree.map(({ card }, index) => h('button', {
-                                                    key: card.identity, type: 'button', className: 'tl-era-headliner',
-                                                    'aria-label': `Scout ${card.name} in the ${row.detail?.label ?? row.decade}`,
-                                                    onClick: (event) => openScout(card, event),
-                                                }, h('span', { className: 'tl-era-headliner-rank' }, index + 1),
-                                                h('span', null, h('strong', null, card.name), h('small', null, availableYears(EraRules.filterSeasonsForEra(card.seasons, eraRules, card.position)))),
-                                                h('span', { 'aria-hidden': 'true' }, '↗')))))
-                                        : h('button', {
-                                            className: 'tl-btn', style: { display: 'block', width: '100%', marginTop: 8 },
-                                            onClick: () => revealPosition(row.position), disabled: Boolean(rollingPosition),
-                                        }, h('span', { className: 'tl-era-lock', 'aria-hidden': 'true' }, '✦'), 'Open ', row.position, ' archive'));
-                        }))))
+        const activeEra = eraAssignments.find(row => row.position === activeEraPosition) || eraAssignments[0];
+        const activeLanded = activeEra && revealedPositions.has(activeEra.position);
+        const nextEra = eraAssignments.find(row => !revealedPositions.has(row.position));
+        const openedCount = allEraPositions.filter(position => revealedPositions.has(position)).length;
+        const eraRoom = eraAssignments.length > 0 ? h('section', { className: 'tl-card tl-era-show', 'aria-label': 'Position Roulette reveal' },
+            h('header', { className: 'tl-era-room-heading' },
+                h('div', null, h('span', { className: 'tl-label' }, 'POSITION ROULETTE'), h('h2', null, 'Meet your draft class')),
+                h('span', { className: 'tl-era-open-count', role: 'status' }, `${openedCount}/${allEraPositions.length} revealed`)),
+            h('div', { className: 'tl-era-stage', role: 'group', 'aria-label': 'Position eras' },
+                eraAssignments.map(row => {
+                    const landed = revealedPositions.has(row.position);
+                    return h('button', { key: row.position, type: 'button',
+                        className: `tl-era-tile${landed ? ' is-revealed' : ' is-sealed'}${activeEra?.position === row.position ? ' is-active' : ''}`,
+                        'aria-pressed': activeEra?.position === row.position,
+                        'aria-label': landed ? `View ${row.position} era · ${row.detail?.label ?? row.decade} · ${row.pool} players` : `Reveal ${row.position} era`,
+                        onClick: () => revealPosition(row.position),
+                    }, h('span', { className: `tl-pos-badge tl-pos-${row.position}` }, row.position),
+                    h('strong', null, landed ? row.detail?.label ?? row.decade : '?'),
+                    h('small', null, landed ? `${row.pool} players` : 'Reveal'));
+                })),
+            activeEra && h('div', { key: `${activeEra.position}:${activeLanded}`, className: `tl-era-feature${activeLanded && freshlyRevealedRef.current.has(activeEra.position) ? ' is-fresh' : ''}` },
+                activeLanded ? h(React.Fragment, null,
+                    h('div', { className: 'tl-era-feature-heading' },
+                        h('div', null, h('span', { className: 'tl-label' }, `${activeEra.position} · TOP THREE`), h('h3', null, activeEra.detail?.label ?? activeEra.decade)),
+                        h('span', { className: 'tl-era-coverage' }, availableYears(available.filter(({ card }) => card.position === activeEra.position).flatMap(({ card }) => EraRules.filterSeasonsForEra(card.seasons, eraRules, card.position))))),
+                    h('div', { className: 'tl-era-shortlist', 'aria-label': `${activeEra.position} top three` },
+                        (topThreeByPosition[activeEra.position] || []).map(({ card }, index) => h('button', {
+                            key: card.identity, type: 'button', className: 'tl-era-headliner',
+                            'aria-label': `Scout ${card.name} in the ${activeEra.detail?.label ?? activeEra.decade}`,
+                            onClick: event => openScout(card, event),
+                        }, h('span', { className: 'tl-era-headliner-rank' }, String(index + 1).padStart(2, '0')),
+                        h('span', null, h('strong', null, card.name), h('small', null, availableYears(EraRules.filterSeasonsForEra(card.seasons, eraRules, card.position)))),
+                        h('span', { className: 'tl-era-scout-link', 'aria-hidden': true }, 'Scout ›')))),
+                    activeEra.pool === 0 && h('p', { className: 'tl-empty' }, 'No players remain at this position.'))
+                : h('div', { className: 'tl-era-invitation' },
+                    h('span', { className: 'tl-era-invitation-mark', 'aria-hidden': true }, '✦'),
+                    h('h3', null, 'Decades of possibility'),
+                    h('button', { type: 'button', className: 'tl-btn primary', onClick: () => revealPosition(activeEra.position) }, `Reveal ${activeEra.position}`))),
+            h('footer', { className: 'tl-era-room-actions' },
+                nextEra ? h(React.Fragment, null,
+                    h('button', { type: 'button', className: 'tl-btn', onClick: revealAllPositions }, 'Reveal all'),
+                    activeLanded && h('button', { type: 'button', className: 'tl-btn primary', onClick: () => revealPosition(nextEra.position) }, `Reveal ${nextEra.position} →`))
+                    : !enteredDraft ? h('button', { ref: entryButtonRef, type: 'button', className: 'tl-btn primary', onClick: enterDraft }, 'Enter draft →')
+                        : h('small', null, 'Your eras stay fixed for this league.')))
+            : null;
+        const eraBanner = eraRules.mode === 'position-roulette'
+            ? revealReady ? h('details', { className: 'tl-era-review' },
+                h('summary', null, h('strong', null, 'Your eras'), h('span', { className: 'tl-era-review-chips' }, eraAssignments.map(row =>
+                    h('span', { key: row.position }, h('b', null, row.position), row.detail?.label ?? row.decade))), h('span', { className: 'tl-era-review-toggle' }, 'Scout eras')), eraRoom)
+                : eraRoom
             : eraRestricted ? h('div', { className: 'tl-card' },
                 h('div', { className: 'tl-card-title' }, h('span', null, 'Era of play'), h('small', null, `${eraRules.decades.length} decade${eraRules.decades.length === 1 ? '' : 's'} in play · ${available.length} draftable`)),
-                h('div', { className: 'tl-chip-row' }, eraRules.decades.map((id) => h('span', { key: id, className: 'tl-pill info' }, DECADE_BY_ID.get(id)?.label ?? id))))
+                h('div', { className: 'tl-chip-row' }, eraRules.decades.map(id => h('span', { key: id, className: 'tl-pill info' }, DECADE_BY_ID.get(id)?.label ?? id))))
             : null;
 
         const drawnByOverall = new Map((reveal?.teams || []).flatMap((row) => row.picks.map((pick) => [pick.overall, pick])));
@@ -562,18 +593,14 @@
                     })));
         }
 
-        if (!revealReady) return h('div', { className: 'tl-draft-sealed' },
-            eraBanner,
-            h('div', { className: 'tl-card tl-draft-sealed-note', role: 'status' },
-                h('strong', null, 'Open your archives to begin'),
-                h('p', null, `${allEraPositions.filter((position) => revealedPositions.has(position)).length} of ${allEraPositions.length} positions revealed. Your player board and draft clock open after the final reveal.`)),
-            scoutDialog);
+        if (!revealReady) return h('div', { className: 'tl-draft-sealed' }, eraBanner,
+            h('p', { className: 'tl-draft-sealed-note' }, anyPending ? 'Reveal every position, then enter the draft.' : 'Scout your class. Enter the draft when you’re ready.'), scoutDialog);
 
         return h('div', null,
             eraBanner,
             draftControls,
             scoutDialog,
-            h('div', { className: `tl-card tl-on-clock${myTurn ? ' your-turn' : ''}` },
+            h('div', { ref: draftRoomRef, role: 'region', 'aria-label': 'Draft room', tabIndex: -1, className: `tl-card tl-on-clock${myTurn ? ' your-turn' : ''}` },
                 h('div', { className: 'tl-draft-progress', 'aria-label': `Draft ${Math.round(league.draftPicks.length / league.draftOrder.length * 100)} percent complete` }, h('span', { style: { width: `${league.draftPicks.length / league.draftOrder.length * 100}%` } })),
                 h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 } },
                     seat ? h('div', { className: 'tl-clock-ring' }) : null,

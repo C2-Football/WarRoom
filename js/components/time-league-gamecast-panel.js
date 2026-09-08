@@ -165,7 +165,7 @@
         }, [playing, speed, finishPlayback]);
 
         const skipToEnd = () => { clockRef.current = GAMECAST_END; setClock(GAMECAST_END); if (playing) finishPlayback(); };
-        const canRun = league.weekStage === 'ready' && (!onlineMeta || onlineMeta.role === 'commissioner') && league.phase === 'season' && cards !== null && cards.size > 0 && logIndex !== null;
+        const canRun = league.weekStage === 'ready' && (!onlineMeta || onlineMeta.role === 'commissioner') && league.phase === 'season' && cards !== null && cards.size > 0 && logIndex !== null && (!league.settings.eraAdjusted || Boolean(eraFactors?.size));
 
         const runGameDay = async (force) => {
             if (!canRun || !cards || !logIndex) return;
@@ -284,10 +284,10 @@
             strip, hero,
             league.phase === 'season' && league.weekStage === 'ready' && h('div', { className: 'tl-card' },
                 h('div', { className: 'tl-card-title' }, h('span', null, `Week ${league.currentWeek} Command`), h('small', null, `${pairs.length} matchups · ${league.settings.eraAdjusted ? 'era-adjusted' : 'raw scoring'}`)),
-                logsMissing && h('div', { className: 'tl-feedrow urgent' }, h('time', null, 'DATA'), h('p', null, 'Bundled game logs missing — check data/time-league/.')),
-                !logsMissing && !logIndex && h('div', { className: 'tl-feedrow' }, h('time', null, 'DATA'), h('p', null, 'Parsing bundled game logs (170k weekly lines)…')),
-                cards !== null && cards.size === 0 && h('div', { className: 'tl-feedrow urgent' }, h('time', null, 'DATA'), h('p', null, 'Player cards missing — check data/time-league/.')),
-                league.settings.eraAdjusted && eraFactors === null && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'DATA'), h('p', null, 'Era factors unavailable — this week would score raw until the bundle is rebuilt.')),
+                logsMissing && h('div', { className: 'tl-feedrow urgent' }, h('time', null, 'DATA'), h('p', null, 'Weekly game data has not loaded. Use Retry loading above.')),
+                !logsMissing && !logIndex && h('div', { className: 'tl-feedrow' }, h('time', null, 'DATA'), h('p', null, 'Loading historical games…')),
+                cards !== null && cards.size === 0 && h('div', { className: 'tl-feedrow urgent' }, h('time', null, 'DATA'), h('p', null, 'The player archive has not loaded. Use Retry loading above.')),
+                league.settings.eraAdjusted && !eraFactors?.size && h('div', { className: 'tl-feedrow caution' }, h('time', null, 'DATA'), h('p', null, 'Era scoring must load before game day. If loading fails, use Retry loading above.')),
                 warnings && h('div', { style: { marginBottom: 10 } },
                     warnings.map((problem, i) => h('div', { key: i, className: 'tl-feedrow caution' }, h('time', null, 'LINEUP'), h('p', null, problem))),
                     h('div', { style: { display: 'flex', gap: 8, marginTop: 8 } },

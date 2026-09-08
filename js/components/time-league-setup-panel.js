@@ -52,6 +52,23 @@
             h('span', { className: 'tabular' }, clamped));
     }
 
+    function PersonalityGuide() {
+        const personas = Object.entries(AI.AI_PERSONAS);
+        const [selected, setSelected] = useState(personas[0][0]);
+        const persona = AI.AI_PERSONAS[selected] || personas[0][1];
+        return h('details', { className: 'tl-personality-guide' },
+            h('summary', null, 'Meet the personalities', h('span', null, `${personas.length} styles`)),
+            h('div', { className: 'tl-personality-guide-body' },
+                h('label', { className: 'tl-field' }, h('span', { className: 'tl-label' }, 'Explore a personality'),
+                    h('select', { className: 'tl-select', value: selected, onChange: event => setSelected(event.target.value) },
+                        personas.map(([id, item]) => h('option', { key: id, value: id }, item.label)))),
+                h('p', null, persona.tell),
+                h('div', { className: 'tl-personality-guide-meters' },
+                    h(PersonaMeterRow, { label: 'AGGRESSION', value: persona.aggression }),
+                    h(PersonaMeterRow, { label: 'PATIENCE', value: persona.patience }),
+                    h(PersonaMeterRow, { label: 'RISK', value: persona.riskTolerance }))));
+    }
+
     function VaultHero() {
         const [revealed, setRevealed] = useState(false);
         const years = ['1970', '1985', '1999', '2012', '2025'];
@@ -138,6 +155,7 @@
         const [playMode, setPlayMode] = useState('solo');
         const [creating, setCreating] = useState(false);
         const [createError, setCreateError] = useState(null);
+        const createInFlight = useRef(false);
         const [name, setName] = useState('');
         const [seats, setSeats] = useState(() => defaultSeatsFor('solo'));
         const identityTouched = useRef(false);
@@ -152,14 +170,16 @@
                 if (cancelled || !result.ok || identityTouched.current || !Profile.hasSaved()) return;
                 const identity = Profile.teamDefaults();
                 if (identity) setSeats(previous => previous.map((seat, index) => index ? seat : { ...seat, ...identity }));
-            });
+            }).catch(() => { if (!cancelled) setIdentityStatus('Your saved design is unavailable. You can still create your team here.'); });
             return () => { cancelled = true; };
         }, [identityUser]);
         const useSavedIdentity = async () => {
             const Profile = window.App.TimeLeagueProfile;
             const userAtStart = window.App.OD?.getCurrentUserId?.() || null;
             setIdentityStatus('Loading your saved design…');
-            const result = await Profile.get();
+            let result;
+            try { result = await Profile.get(); }
+            catch { result = { ok: false, error: 'Could not load your saved design. Try again.' }; }
             if ((window.App.OD?.getCurrentUserId?.() || null) !== userAtStart) return;
             const identity = result.ok && Profile.teamDefaults();
             if (!identity) { setIdentityStatus(result.error || 'Save your team design in My profile first.'); return; }
@@ -241,33 +261,42 @@
         const toggleDecade = (id) => setEraDecades((previous) => (previous.includes(id) ? previous.filter((item) => item !== id) : [...previous, id]));
 
         const startLeague = async () => {
-            const built = seats.map((seat, index) => ({
-                name: seat.name.trim() || (seat.manager === 'ai' ? Engine.defaultAiSeat(index).name : index === 0 ? 'My Team' : `Manager ${index + 1}`),
-                manager: seat.manager,
-                ...(seat.manager === 'ai' ? { aiPersona: seat.aiPersona } : {}),
-                helmet: seat.helmet,
-                primaryColor: seat.primaryColor, secondaryColor: seat.secondaryColor, backdrop: seat.backdrop,
-            }));
-            const leagueName = name.trim() || (playMode === 'friends' ? 'Sunday Time Machine' : 'My Vault Season');
-            if (origin === 'local') {
-                onCreate({ name: leagueName, seats: built, settings });
-                return;
-            }
+            if (createInFlight.current) return;
+            createInFlight.current = true;
             setCreating(true);
             setCreateError(null);
-            const result = await onCreateOnline({ name: leagueName, seats: built, settings });
-            setCreating(false);
-            if (!result.ok) {
-                setCreateError(result.error || 'Could not create the league.');
-                return;
+            try {
+                const built = seats.map((seat, index) => ({
+                    name: seat.name.trim() || (seat.manager === 'ai' ? Engine.defaultAiSeat(index).name : index === 0 ? 'My Team' : `Manager ${index + 1}`),
+                    manager: seat.manager,
+                    ...(seat.manager === 'ai' ? { aiPersona: seat.aiPersona } : {}),
+                    helmet: seat.helmet,
+                    primaryColor: seat.primaryColor, secondaryColor: seat.secondaryColor, backdrop: seat.backdrop,
+                }));
+                const leagueName = name.trim() || (playMode === 'friends' ? 'Sunday Time Machine' : 'My Vault Season');
+                if (origin === 'local') {
+                    await onCreate({ name: leagueName, seats: built, settings });
+                    return;
+                }
+                const result = await onCreateOnline({ name: leagueName, seats: built, settings });
+                if (!result?.ok) {
+                    const message = result?.error;
+                    setCreateError(message && !/^[a-z_]+$/.test(message) ? message : 'Could not create your friends league. Check your connection and try again.');
+                    return;
+                }
+                onOpenOnline(result.rowId);
+            } catch (error) {
+                setCreateError(error?.message || 'Could not create your league. Your settings are still here; try again.');
+            } finally {
+                createInFlight.current = false;
+                setCreating(false);
             }
-            onOpenOnline(result.rowId);
         };
 
 
         const selectedEra = ERA_MODE_OPTIONS.find((option) => option.id === eraMode) ?? ERA_MODE_OPTIONS[0];
         const opponentSeats = seats.slice(1);
-        return h('section', { className: 'tl-builder' },
+        return h('section', { className: 'tl-builder', 'aria-busy': creating },
             h('div', { className: 'tl-builder-head' },
                 h('div', null, h('span', { className: 'tl-eyebrow' }, 'YOUR NEXT GREAT RIVALRY'), h('h2', null, 'Make it your game')),
                 h('div', { className: 'tl-flow-steps', 'aria-label': 'League setup progress' },
@@ -344,11 +373,11 @@
                         seats.map((seat, index) => h('div', { key: index, className: 'tl-seat-row' },
                             h('span', { className: 'tl-label' }, index === 0 ? 'YOU' : `T${index + 1}`),
                             h(window.TimeLeagueHelmetPicker, { helmet: seat.helmet, name: seat.name, letter: window.App.TimeLeagueHelmet.monogramFor(seat.name), onChange: (helmet) => updateSeat(index, { helmet }) }),
-                            h('input', { className: 'tl-input', value: seat.name, maxLength: 60, placeholder: `Manager ${index + 1}`, onChange: (event) => updateSeat(index, { name: event.target.value }) }),
-                            h('select', { className: 'tl-select', disabled: index === 0, value: seat.manager, onChange: (event) => updateSeat(index, { manager: event.target.value === 'ai' ? 'ai' : 'human' }) },
+                            h('input', { className: 'tl-input', 'aria-label': `Team ${index + 1} name`, value: seat.name, maxLength: 60, placeholder: `Manager ${index + 1}`, onChange: (event) => updateSeat(index, { name: event.target.value }) }),
+                            h('select', { className: 'tl-select tl-seat-manager', 'aria-label': `Team ${index + 1} manager type`, disabled: index === 0, value: seat.manager, onChange: (event) => updateSeat(index, { manager: event.target.value === 'ai' ? 'ai' : 'human' }) },
                                 h('option', { value: 'human' }, 'HUMAN'), h('option', { value: 'ai' }, 'AI')),
                             seat.manager === 'ai'
-                                ? h('select', { className: 'tl-select', value: seat.aiPersona, onChange: (event) => updateSeat(index, { aiPersona: window.TimeLeagueUtils.PERSONA_IDS.includes(event.target.value) ? event.target.value : 'steward' }) },
+                                ? h('select', { className: 'tl-select tl-seat-personality', 'aria-label': `Team ${index + 1} personality`, value: seat.aiPersona, onChange: (event) => updateSeat(index, { aiPersona: window.TimeLeagueUtils.PERSONA_IDS.includes(event.target.value) ? event.target.value : 'steward' }) },
                                     window.TimeLeagueUtils.PERSONA_IDS.map((id) => h('option', { key: id, value: id }, AI.AI_PERSONAS[id].label)))
                                 : h('span', { className: 'tl-pill info' }, index === 0 ? 'COMMISSIONER' : 'INVITE'),
                             h('button', { type: 'button', className: 'tl-btn icon', disabled: seats.length <= 2 || index === 0, 'aria-label': `Remove team ${index + 1}`, onClick: () => removeSeat(index) }, '✕')))),
@@ -359,15 +388,7 @@
                             return h('button', { key: id, type: 'button', className: `tl-opt-chip${aiDifficulty === id ? ' selected' : ''}`, onClick: () => setAiDifficulty(id) },
                                 h('strong', null, tier.label), h('span', { className: 'tl-opt-detail' }, tier.blurb));
                         })),
-                        h('div', { className: 'tl-persona-grid' }, window.TimeLeagueUtils.PERSONA_IDS.map((id) => {
-                            const persona = AI.AI_PERSONAS[id];
-                            return h('div', { key: id, className: 'tl-persona-card' },
-                                h('div', null, h('strong', null, persona.label), h('span', { className: 'tl-pill' }, id.toUpperCase())),
-                                h(PersonaMeterRow, { label: 'AGGR', value: persona.aggression }),
-                                h(PersonaMeterRow, { label: 'PATIENCE', value: persona.patience }),
-                                h(PersonaMeterRow, { label: 'RISK', value: persona.riskTolerance }),
-                                h('p', null, persona.tell));
-                        }))),
+                        h(PersonalityGuide)),
                     h('div', { className: 'tl-rules-grid' },
                         h('label', { className: 'tl-field' }, h('span', { className: 'tl-label' }, 'Roster size'),
                             h('select', { className: 'tl-select', value: rosterPreset, onChange: (event) => { setRosterPreset(event.target.value); setCustomSlots(null); } }, ROSTER_PRESET_OPTIONS.map((option) => h('option', { key: option.id, value: option.id }, option.label))),
@@ -376,10 +397,10 @@
                             h('select', { className: 'tl-select', value: scoringPreset, onChange: (event) => { setScoringPreset(event.target.value); setCustomStats({}); setCustomExtended(null); } }, SCORING_PRESET_OPTIONS.map((option) => h('option', { key: option.id, value: option.id }, option.label))),
                             h('small', null, scoringOption.detail))),
                     h('details', { className: 'tl-custom-rules' }, h('summary', null, `Customize roster · ${capacity} slots`),
-                        h('div', { className: 'tl-custom-grid' }, window.App.TimeLeagueRoster.ROSTER_SLOT_IDS.filter(slot => !['DL', 'LB', 'DB', 'IDP_FLEX', 'TAXI', 'REC_FLEX'].includes(slot)).map(slot => h('label', { key: slot }, h('span', null, slot),
+                        h('div', { className: 'tl-custom-grid' }, window.App.TimeLeagueRoster.ROSTER_SLOT_IDS.filter(slot => !['DL', 'LB', 'DB', 'IDP_FLEX', 'IR', 'TAXI', 'REC_FLEX'].includes(slot)).map(slot => h('label', { key: slot }, h('span', null, slot),
                             h('input', { className: 'tl-input', type: 'number', min: 0, max: 12, step: 1, value: settings.rosterSlots[slot] || 0, onChange: event => setCustomSlots({ ...settings.rosterSlots, [slot]: Math.max(0, Math.min(12, Math.floor(Number(event.target.value) || 0))) }) })))),
                         h('label', null, 'Maximum quarterbacks on a roster', h('input', { className: 'tl-input', type: 'number', min: Math.max(0, settings.rosterSlots.QB || 0), max: 12, value: settings.maxQuarterbacks, onChange: event => setQbLimit(Math.max(0, Math.min(12, Number(event.target.value) || 0))) })),
-                        h('p', { className: 'tl-hint' }, 'Start with a preset, then set each slot count. IR is a reserve slot. Kickers and team defenses use historical weekly game logs, with roulette draws from 2000 onward. Set K or DEF to zero to leave them out.')),
+                        h('p', { className: 'tl-hint' }, 'Set any slot to zero to leave it out. Kicker and team defense eras start in 2000.')),
                     h('details', { className: 'tl-custom-rules' }, h('summary', null, 'Customize scoring · points per stat'),
                         h('div', { className: 'tl-custom-grid' }, [
                             ['passYd','Passing yard',scoringOption.scoring.passingYd], ['passTd','Passing TD',scoringOption.scoring.passTd], ['passInt','Interception thrown',scoringOption.scoring.turnover],
@@ -402,7 +423,7 @@
                         h('button', { type: 'button', className: waiverMode === 'faab' ? 'selected' : '', onClick: () => setWaiverMode('faab') }, 'FAAB'),
                         waiverMode === 'faab' && h('label', null, 'BUDGET $', h('input', { className: 'tl-input', type: 'number', min: 0, max: 1000, value: faabBudget, onChange: (event) => setFaabBudget(Math.max(0, Math.min(1000, Math.round(Number(event.target.value)) || 0))) }))))),
 
-            createError && h('div', { className: 'tl-feedrow caution tl-create-error' }, h('time', null, 'ERROR'), h('p', null, createError)),
+            createError && h('div', { role: 'alert', className: 'tl-feedrow caution tl-create-error' }, h('time', null, 'TRY AGAIN'), h('p', null, createError)),
             h('div', { className: 'tl-launch-bar' },
                 h('div', null,
                     h('span', { className: `tl-era-icon ${selectedEra.tone}` }, selectedEra.icon),

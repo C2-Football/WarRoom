@@ -55,7 +55,11 @@ test('twelve-team leagues fill every AI identity and repair legacy placeholders 
     const teamSeats = Array.from({ length: 12 }, (_, index) => index === 0 ? { name: 'My Club', manager: 'human' } : { name: '', manager: 'ai' });
     const created = Engine.createTimeLeague({ name: 'Full field', seed: 'twelve', createdAt: '2026-09-07', settings: baseSettings(), seats: teamSeats });
     assert.equal(new Set(created.teams.map(team => team.name)).size, 12);
-    assert(created.teams.slice(1).every(team => ['warlord', 'archivist', 'gambler', 'steward'].includes(team.aiPersona)));
+    assert(created.teams.slice(1).every(team => Engine.AI_PERSONA_IDS.includes(team.aiPersona)));
+    assert.equal(new Set(created.teams.slice(1).map(team => team.aiPersona)).size, 11, 'Full solo fields use eleven different rivals');
+    const allAi = Engine.createTimeLeague({ name: 'All AI', seed: 'catalog', createdAt: '2026-09-07', settings: baseSettings(), seats: Array.from({ length: 12 }, () => ({ name: '', manager: 'ai' })) });
+    assert.equal(new Set(allAi.teams.map(team => team.aiPersona)).size, 12, 'API-created AI fields cover the full persona catalog');
+    assert.deepEqual(Engine.normalizeTimeLeague(JSON.parse(JSON.stringify(allAi))).teams.map(team => team.aiPersona), allAi.teams.map(team => team.aiPersona), 'All twelve personas survive the multiplayer normalizer');
     const legacy = JSON.parse(JSON.stringify(created));
     legacy.teams.forEach((team, index) => { if (index > 0) { delete team.aiPersona; if (index >= 6) team.name = `Rival ${index}`; } });
     legacy.teams[3].name = 'My Custom Rival'; legacy.teams[3].aiPersona = 'steward';

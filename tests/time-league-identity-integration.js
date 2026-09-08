@@ -40,6 +40,7 @@ const render=()=>{stateIndex=0;refIndex=0;effects=[];return Builder(props);};
     tree = render(); await button(tree, 'START SOLO DRAFT').props.onClick();
     assert.equal(solo.seats.length, 12);
     assert.equal(new Set(solo.seats.map(seat => seat.name)).size, 12);
+    assert.equal(new Set(solo.seats.slice(1).map(seat => seat.aiPersona)).size, 11);
     assert(solo.seats.slice(1).every(seat => App.TimeLeagueAI.AI_PERSONAS[seat.aiPersona] && !/^Rival \d+$/.test(seat.name)));
     effects[0]();
     const nameField=walk(tree).find(node=>node.type==='input'&&node.props.placeholder==='Name your team');

@@ -22,14 +22,29 @@
     const round2 = (value) => Math.round(value * 100) / 100;
     const fixed1 = (value) => value.toFixed(1);
 
-    const AI_PERSONAS = ["warlord", "archivist", "gambler", "steward"];
+    // Shared by setup, local saves and the multiplayer runtime. IDs are stable save data.
+    const AI_PERSONAS = {
+        warlord: { label: 'The Warlord', aggression: 92, patience: 18, riskTolerance: 70, peakWeight: 0.78, needWeight: 0.5, positionBias: {}, tell: 'Pays up for stars. Attacks the wire and pushes for quick deals.', pitch: 'Here is my opening shot.', accept: 'That gives me more firepower. Done.', reject: 'That does not make me stronger. Bring more.' },
+        archivist: { label: 'The Archivist', aggression: 28, patience: 88, riskTolerance: 22, peakWeight: 0.2, needWeight: 0.55, positionBias: {}, tell: 'Trusts the full decade. Saves waiver money and demands a trade premium.', pitch: 'I have checked the numbers on this exchange.', accept: 'The value clears my threshold. Agreed.', reject: 'The return does not justify the cost. I will pass.' },
+        gambler: { label: 'The Gambler', aggression: 64, patience: 12, riskTolerance: 96, peakWeight: 0.95, needWeight: 0.35, positionBias: {}, tell: 'Chases huge seasons. Takes thin trades and keeps rolling on waivers.', pitch: 'I have a hand worth playing.', accept: 'I like those odds. Deal me in.', reject: 'Those odds are not worth the bet. Try another hand.' },
+        steward: { label: 'The Steward', aggression: 45, patience: 78, riskTolerance: 40, peakWeight: 0.4, needWeight: 0.7, positionBias: {}, tell: 'Builds a balanced lineup. Protects depth and spends carefully.', pitch: 'This should fill a need for both of us.', accept: 'That is a sound fit for my roster. Agreed.', reject: 'I would be leaving my roster too thin. Let us try something else.' },
+        broker: { label: 'The Broker', aggression: 76, patience: 46, riskTolerance: 54, peakWeight: 0.55, needWeight: 0.45, positionBias: { WR: 1.06 }, tell: 'Keeps the trade desk busy. Collects receivers and negotiates close deals.', pitch: 'Let us make something happen.', accept: 'The price works. We have a deal.', reject: 'We are apart on price. Improve the offer and call me back.' },
+        scout: { label: 'The Scout', aggression: 51, patience: 38, riskTolerance: 82, peakWeight: 0.84, needWeight: 0.6, positionBias: { TE: 1.09, WR: 1.04 }, tell: 'Hunts breakout seasons and scarce tight ends. Works the wire early.', pitch: 'There is upside here that I do not think you are using.', accept: 'That is a player I want to bet on. Agreed.', reject: 'I see more upside in the player I already have.' },
+        tactician: { label: 'The Tactician', aggression: 58, patience: 66, riskTolerance: 31, peakWeight: 0.32, needWeight: 0.9, positionBias: { QB: 1.08, TE: 1.07 }, tell: 'Fills scarce starting roles first. Trades to fix specific lineup holes.', pitch: 'Our roster needs line up. Here is the move.', accept: 'That solves the lineup problem. Make the move.', reject: 'That leaves a hole in my starting lineup. It is a no.' },
+        grinder: { label: 'The Grinder', aggression: 39, patience: 93, riskTolerance: 12, peakWeight: 0.08, needWeight: 0.75, positionBias: { RB: 1.06 }, tell: 'Chooses steady production. Waits for clear upgrades and avoids bidding wars.', pitch: 'Nothing fancy. A useful player each way.', accept: 'Reliable production. That works for me.', reject: 'I would rather keep the dependable points.' },
+        showman: { label: 'The Showman', aggression: 98, patience: 8, riskTolerance: 86, peakWeight: 0.9, needWeight: 0.3, positionBias: { QB: 1.08, WR: 1.08 }, tell: 'Wants a headline roster. Bids big for quarterbacks and receivers.', pitch: 'Picture the headlines when we announce this.', accept: 'Now that is a blockbuster. Let us do it.', reject: 'That offer needs a bigger marquee name.' },
+        contrarian: { label: 'The Contrarian', aggression: 34, patience: 57, riskTolerance: 63, peakWeight: 0.26, needWeight: 0.48, positionBias: { RB: 1.12, TE: 1.09 }, tell: 'Favors deep production over one famous peak. Buys backs and tight ends.', pitch: 'The obvious move is not always the useful one.', accept: 'I see value where you do not. Accepted.', reject: 'You are charging me for the hype. Pass.' },
+        alchemist: { label: 'The Alchemist', aggression: 69, patience: 27, riskTolerance: 91, peakWeight: 0.88, needWeight: 0.65, positionBias: { RB: 1.04, TE: 1.12 }, tell: 'Builds around explosive combinations. Churns the bench for another spark.', pitch: 'These pieces could work better in different lineups.', accept: 'That changes the mix in exactly the right way. Done.', reject: 'That combination does not improve the experiment.' },
+        sentinel: { label: 'The Sentinel', aggression: 24, patience: 84, riskTolerance: 18, peakWeight: 0.14, needWeight: 0.85, positionBias: { K: 1.15, DEF: 1.2 }, tell: 'Secures every starting spot, including special teams. Guards budget and depth.', pitch: 'I can strengthen both our weak spots with this.', accept: 'That shores up my lineup. Agreed.', reject: 'I am not giving up that security for this return.' },
+    };
+    const AI_PERSONA_IDS = Object.keys(AI_PERSONAS);
     const AI_MANAGERS = [
         ['Warlord Kade', 'warlord'], ['The Archivist', 'archivist'],
         ['Riverboat Sol', 'gambler'], ['Steward Vance', 'steward'],
-        ['Iron Ledger', 'archivist'], ['Maverick Jules', 'gambler'],
-        ['Blitz Monroe', 'warlord'], ['Professor Vale', 'archivist'],
-        ['Wildcard Remy', 'gambler'], ['Coach Hollis', 'steward'],
-        ['Steel Sutton', 'warlord'], ['Sunday Sloane', 'steward'],
+        ['Frankie Deals', 'broker'], ['Scout Ellis', 'scout'],
+        ['Coach Hollis', 'tactician'], ['Iron Ledger', 'grinder'],
+        ['Blitz Monroe', 'showman'], ['Professor Vale', 'contrarian'],
+        ['Maverick Jules', 'alchemist'], ['Steel Sutton', 'sentinel'],
     ];
 
     /** One catalog for setup, API-created leagues and older unnamed AI seats. */
@@ -48,7 +63,7 @@
         const legacyName = index >= 6 && name === `Rival ${index}`;
         return {
             name: name && !legacyName ? name : fallback.name,
-            aiPersona: AI_PERSONAS.includes(value.aiPersona) ? value.aiPersona : fallback.aiPersona,
+            aiPersona: AI_PERSONA_IDS.includes(value.aiPersona) ? value.aiPersona : fallback.aiPersona,
         };
     }
 
@@ -262,7 +277,7 @@
                 name: seat.name,
                 manager: seat.manager,
                 ...(seat.aiPersona ? { aiPersona: seat.aiPersona } : {}),
-                ...(seat.manager === 'ai' ? managerIdentity(seat, index) : {}),
+                ...(seat.manager === 'ai' ? managerIdentity(seat, index + (input.seats[0]?.manager === 'ai' ? 1 : 0)) : {}),
                 // Setup always hands one over (defaultSeats / addSeat both stamp
                 // one in), but a manually-built seats array (tests, deep links)
                 // still lands on a real, deterministic helmet instead of none.
@@ -955,7 +970,7 @@
         const roster = readArray(value.roster, readEntry);
         const queue = readArray(value.queue, readString);
         if (!teamId || !name || !manager || !roster || !queue) return null;
-        const aiPersona = AI_PERSONAS.includes(value.aiPersona) ? value.aiPersona : manager === 'ai' ? defaultAiSeat(Math.max(0, idNumber(teamId, 't') - 1)).aiPersona : null;
+        const aiPersona = AI_PERSONA_IDS.includes(value.aiPersona) ? value.aiPersona : manager === 'ai' ? defaultAiSeat(Math.max(0, idNumber(teamId, 't') - 1)).aiPersona : null;
         const design = teamDesign(value, teamId);
         const hasFaab = "faabRemaining" in value;
         const faabRemaining = hasFaab ? readNumber(value.faabRemaining) : undefined;
@@ -1169,7 +1184,7 @@
     }
 
     const api = {
-        rosterCapacity, defaultAiSeat, createTimeLeague, currentDraftSeat, draftedIdentities, eraEligibleCards,
+        AI_PERSONAS, AI_PERSONA_IDS, rosterCapacity, defaultAiSeat, createTimeLeague, currentDraftSeat, draftedIdentities, eraEligibleCards,
         DRAFT_PICK_SECONDS, DRAFT_AI_SECONDS, draftSettings, startDraft, pauseDraft, resumeDraft, configureDraft, expireDraftClock,
         auctionMaxBid, auctionCanBid, auctionCanClose, nominateAuctionPlayer, bidAuctionPlayer, closeAuction,
         positionIsStartable, applyDraftPick, setEntrySlot, autoFillLineup, lineupProblems,

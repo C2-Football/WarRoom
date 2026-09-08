@@ -75,8 +75,11 @@ function draftFullRoster(state, cards) {
     return next;
 }
 
-test('AI_PERSONAS has all four personas with a full trait profile', () => {
-    for (const id of ['warlord', 'archivist', 'gambler', 'steward']) {
+test('AI_PERSONAS shares twelve distinct profiles with the engine', () => {
+    assert.strictEqual(AI.AI_PERSONAS, Engine.AI_PERSONAS);
+    assert.equal(Engine.AI_PERSONA_IDS.length, 12);
+    assert.equal(new Set(Object.values(AI.AI_PERSONAS).map(p => [p.aggression, p.patience, p.riskTolerance].join(':'))).size, 12);
+    for (const id of Engine.AI_PERSONA_IDS) {
         const persona = AI.AI_PERSONAS[id];
         assert.ok(persona && persona.label && typeof persona.aggression === 'number');
     }
@@ -104,6 +107,48 @@ test('aiDraftChoice only returns cards with an open legal roster slot', () => {
         assert.ok(choice, 'AI should always find a legal pick against an oversized pool');
         state = Engine.applyDraftPick(state, choice, { madeBy: 'ai', createdAt: '2026-01-01T00:00:00Z' });
     }
+});
+
+test('risk profiles select distinct visible decade distributions without using out-of-era peaks', () => {
+    const steady = card('steady', 'Steady Producer', 'RB', [{ season: 1980, points: 170 }, { season: 1981, points: 175 }, { season: 1982, points: 180 }]);
+    const spike = card('spike', 'Big Swing', 'RB', [{ season: 1980, points: 30 }, { season: 1981, points: 70 }, { season: 1982, points: 250 }]);
+    const outside = card('outside', 'Outside Star', 'RB', [{ season: 1980, points: 60 }, { season: 2000, points: 900 }]);
+    const pool = new Map([steady, spike, outside].map(c => [c.identity, c]));
+    const choose = aiPersona => {
+        const state = Engine.createTimeLeague({ name: 'Visible draft', seed: 'distribution', createdAt: '2026-09-07', settings: baseSettings({ rosterSlots: { RB: 1 }, eraRules: { mode: 'selected-decades', decades: ['1980s'] } }), seats: [{ name: 'Rival', manager: 'ai', aiPersona }, { name: 'You', manager: 'human' }] });
+        // Force the test owner onto the current draft seat without depending on lottery order.
+        state.teams.forEach(t => { t.manager = 'ai'; t.aiPersona = aiPersona; });
+        return AI.aiDraftChoice(state, pool)?.identity;
+    };
+    assert.equal(choose('grinder'), 'steady');
+    assert.equal(choose('gambler'), 'spike');
+    assert.equal(choose('sentinel'), 'steady');
+    assert.equal(choose('showman'), 'spike');
+});
+
+test('all twelve managers make legal deterministic draft choices, claims and trade decisions', () => {
+    const pool = samplePool();
+    const bids = new Set(), notes = new Set();
+    for (const aiPersona of Engine.AI_PERSONA_IDS) {
+        let state = Engine.createTimeLeague({ name: 'Personality checks', seed: 'personality', createdAt: '2026-09-07', settings: baseSettings({ rosterSlots: { RB: 1, BN: 1 }, waiverMode: 'faab', faabBudget: 100 }), seats: [{ name: 'You', manager: 'human' }, { name: 'Rival', manager: 'ai', aiPersona }] });
+        state.teams.forEach(t => { t.manager = 'ai'; });
+        assert(AI.aiDraftChoice(state, pool));
+        assert.deepEqual(AI.aiDraftChoice(state, pool), AI.aiDraftChoice(state, pool));
+        state = { ...state, phase: 'season', weekStage: 'claims' };
+        const claimed = AI.aiSubmitWaiverClaims(state, pool, '2026-09-07T12:00:00Z');
+        const rivalClaim = claimed.pendingClaims.find(c => c.teamId === 't2');
+        assert(rivalClaim, aiPersona + ' should claim into an empty legal roster');
+        assert(rivalClaim.bidAmount > 0 && rivalClaim.bidAmount <= 100);
+        bids.add(rivalClaim.bidAmount);
+        const tradeCards = new Map([card('give', 'Incoming', 'RB', [{ season: 1980, points: 150 }]), card('take', 'Outgoing', 'RB', [{ season: 1980, points: 100 }])].map(c => [c.identity, c]));
+        state.teams = state.teams.map((t, i) => ({ ...t, manager: i ? 'ai' : 'human', roster: [{ entryId: 'e' + (i + 1), identity: i ? 'take' : 'give', name: i ? 'Outgoing' : 'Incoming', position: 'RB', slot: 'RB', drawnSeason: 1980, acquiredWeek: 0, acquiredVia: 'draft' }] }));
+        state = Engine.proposeTrade(state, { fromTeamId: 't1', toTeamId: 't2', giveEntryIds: ['e1'], receiveEntryIds: ['e2'], note: '' }, '2026-09-07T12:00:00Z');
+        const response = AI.aiRespondToTrades(state, tradeCards, '2026-09-07T12:01:00Z');
+        assert.equal(response.trades[0].status, 'accepted', aiPersona + ' accepts a clear legal upgrade');
+        notes.add(response.trades[0].note);
+    }
+    assert(bids.size >= 8, 'FAAB behavior should differ materially across the field');
+    assert.equal(notes.size, 12, 'Every persona has its own actual trade response');
 });
 
 test('aiPrepareWeek fills every AI team’s empty starter slots from the bench', () => {
