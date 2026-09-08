@@ -105,6 +105,41 @@ const fallbackAuction = mount({ league: auctionRecap, cards, onUpdate() {} })();
 assert.equal(find(fallbackAuction, node => node.props.className?.startsWith('tl-draft-pick tl-draft-pick-')).length, 4, 'Fallback auction grid also retains every award');
 assert.ok(mount({ league, cards, onUpdate: () => {} })(), 'Fallback renders while DHQ loads');
 
+// A live room leads with incoming picks, and runs expire as other positions land.
+const liveCards = new Map(['RB', 'RB', 'RB', 'WR', 'RB', 'TE', 'QB', ...Array(13).fill('WR')].map((position, index) =>
+    [`live${index}`, makeCard(`live${index}`, position, [2000], 200 - index)]));
+let liveLeague = Engine.createTimeLeague({ name: 'Room watch', seed: 'room-watch', createdAt: '2026-01-01',
+    settings: { rosterSlots: { QB: 1, RB: 2, WR: 2, TE: 1, BN: 4 }, eraRules: { mode: 'any-era', decades: [] } },
+    seats: [{ name: 'Alpha', manager: 'human' }, { name: 'Beta', manager: 'ai' }] });
+const liveRender = mount({ league: liveLeague, cards: liveCards, onUpdate() {} });
+const roomActivity = page => find(page, node => node.props['aria-label'] === 'Draft room activity')[0];
+assert(text(roomActivity(liveRender())).includes('Waiting for the first pick'));
+for (let i = 0; i < 3; i++) liveLeague = Engine.applyDraftPick(liveLeague, liveCards.get(`live${i}`), { madeBy: 'human' });
+let livePage = liveRender({ league: liveLeague });
+assert(text(roomActivity(livePage)).includes('RB run') && text(roomActivity(livePage)).includes('3 straight picks'));
+assert(text(roomActivity(livePage)).includes('RB Legend live2'), 'Latest selection names the actual most recent pick');
+assert.equal(find(livePage, node => node.props.className === 'tl-draft-pick-feed').length, 1, 'Live draft defaults to the incoming pick feed');
+button(livePage, 'Board grid').props.onClick(); livePage = liveRender();
+assert.equal(find(livePage, node => node.props.className?.endsWith(' is-latest') && node.props.className.startsWith('tl-draft-pick ')).length, 1, 'Only the newest grid cell is highlighted');
+button(livePage, 'Recent picks').props.onClick();
+liveLeague = Engine.applyDraftPick(liveLeague, liveCards.get('live3'), { madeBy: 'human' });
+assert(text(roomActivity(liveRender({ league: liveLeague }))).includes('No position run'), 'A WR ends the consecutive RB run');
+liveLeague = Engine.applyDraftPick(liveLeague, liveCards.get('live4'), { madeBy: 'human' });
+assert(text(roomActivity(liveRender({ league: liveLeague }))).includes('4 of the last 5'), 'Heavy recent demand is identified even with an intervening position');
+for (let i = 5; i < 7; i++) liveLeague = Engine.applyDraftPick(liveLeague, liveCards.get(`live${i}`), { madeBy: 'human' });
+livePage = liveRender({ league: { ...liveLeague, draftPicks: [...liveLeague.draftPicks].reverse() } });
+assert(text(roomActivity(livePage)).includes('No position run'), 'Runs disappear when they fall out of the last-six window');
+const feedRows = page => find(page, node => node.type === 'li' && node.props.className?.startsWith('tl-draft-feed-pick'));
+assert.equal(feedRows(livePage).length, 6);
+assert(text(feedRows(livePage)[0]).includes('QB Legend live6'), 'Feed sorts by pick number rather than storage order');
+button(livePage, 'Show earlier picks (1)').props.onClick(); livePage = liveRender();
+assert.equal(feedRows(livePage).length, 7, 'Earlier picks remain accessible');
+window.DraftCC = { DraftGridPanel: SharedGrid };
+const completedFromLive = liveRender({ league });
+assert(find(completedFromLive, node => node.type === SharedGrid).length, 'Completing a draft restores the colorful recap grid by default');
+assert.equal(roomActivity(completedFromLive), undefined, 'Completed recaps do not show a stale live-run banner');
+delete window.DraftCC;
+
 const rouletteCards = new Map([
     ...Array.from({ length: 5 }, (_, i) => [`q${i}`, makeCard(`q${i}`, 'QB', [1977, 1980, 1982], 200 - i)]),
     ...Array.from({ length: 5 }, (_, i) => [`r${i}`, makeCard(`r${i}`, 'RB', [1993, 1995, 2001], 300 - i)])
@@ -146,6 +181,12 @@ assert.ok(text(dialog).includes('Archive College'));
 const seasonTable = find(dialog, node => node.props.className === 'tl-scout-seasons')[0];
 assert.ok(text(seasonTable).includes('1980') && text(seasonTable).includes('1982'));
 assert.ok(!text(seasonTable).includes('1977'), 'Scouting only shows seasons that can be drawn');
+const scoutHeaders = find(seasonTable, node => node.type === 'th');
+assert.deepEqual(scoutHeaders.slice(0, 2).map(text), ['FPTS', 'Year'], 'Fantasy points lead the scouting table, beside the year');
+const scoutRows = find(seasonTable, node => node.type === 'tbody')[0].children;
+assert.deepEqual(scoutRows.map(row => Number(text(row.children[1]))), [1982, 1980], 'Scouting seasons run newest first');
+assert.deepEqual(scoutRows.map(row => text(row.children[0])), ['192.0', '196.0'], 'Points stay paired with the correct season');
+assert.deepEqual(rouletteCards.get('q0').seasons.map(row => row.season), [1977, 1980, 1982], 'Descending display never mutates the source career order');
 const draftButton = button(dialog, 'DRAFT QB LEGEND Q0');
 assert.ok(draftButton.props.disabled, 'Cannot draft from a partial-reveal scout dialog');
 draftButton.props.onClick();
