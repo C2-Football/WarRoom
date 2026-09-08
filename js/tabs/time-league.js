@@ -838,7 +838,7 @@
         `);
     }
 
-    function MobileGameNav({ tabs, activeTab, onNavigate }) {
+    function MobileGameNav({ tabs, activeTab, onNavigate, unread = 0 }) {
         const [expanded, setExpanded] = useState(false);
         useEffect(() => {
             if (!expanded) return undefined;
@@ -853,11 +853,11 @@
         return h(React.Fragment, null,
             expanded && h('div', { className: 'tl-mobile-more', id: 'vault-more-navigation' },
                 h('div', { className: 'tl-card-title' }, 'More ways to play', h('button', { className: 'tl-btn icon', 'aria-label': 'Close more navigation', onClick: () => setExpanded(false) }, '×')),
-                h('div', null, extra.map(tab => h('button', { key: tab, onClick: () => choose(tab), 'aria-current': activeTab === tab ? 'page' : undefined }, h('span', { 'aria-hidden': 'true' }, TAB_ICONS[tab]), labels[tab])))),
+                h('div', null, extra.map(tab => h('button', { key: tab, onClick: () => choose(tab), 'aria-current': activeTab === tab ? 'page' : undefined }, h('span', { 'aria-hidden': 'true' }, TAB_ICONS[tab]), labels[tab], tab === 'messages' && unread > 0 ? h('em', { className: 'tl-mail-badge' }, unread) : null)))),
             h('nav', { className: 'tl-mobile-nav', 'aria-label': 'Vault game navigation' },
                 primary.map(tab => h('button', { key: tab, className: activeTab === tab ? 'active' : '', 'aria-current': activeTab === tab ? 'page' : undefined, onClick: () => choose(tab) },
                     h('span', { 'aria-hidden': 'true' }, TAB_ICONS[tab]), h('b', null, labels[tab]))),
-                extra.length > 0 && h('button', { className: expanded || extra.includes(activeTab) ? 'active' : '', 'aria-expanded': expanded, 'aria-controls': 'vault-more-navigation', onClick: () => setExpanded(value => !value) }, h('span', { 'aria-hidden': 'true' }, '•••'), h('b', null, 'More'))));
+                extra.length > 0 && h('button', { className: expanded || extra.includes(activeTab) ? 'active' : '', 'aria-expanded': expanded, 'aria-controls': 'vault-more-navigation', onClick: () => setExpanded(value => !value) }, h('span', { 'aria-hidden': 'true' }, '•••'), h('b', null, 'More'), unread > 0 ? h('em', { className: 'tl-mail-badge', 'aria-label': `${unread} unread messages` }, unread) : null)));
     }
 
     function FriendsRoom({ league, meta, saving, onAction, onClose }) {
@@ -983,6 +983,17 @@
         const [dataLoading, setDataLoading] = useState(true);
         const [eraFactorsMissing, setEraFactorsMissing] = useState(false);
         const [gamecastStatus, setGamecastStatus] = useState(null);
+        const [mailReads, setMailReads] = useState({});
+        const [mailThread, setMailThread] = useState(null);
+        const onMailRead = useCallback((key, ids) => setMailReads(previous => ({ ...previous, [key]: ids })), []);
+        useEffect(() => {
+            const refresh = event => {
+                if (event.key && !event.key.startsWith('tl-rival-read:')) return;
+                setMailReads({});
+            };
+            window.addEventListener?.('storage', refresh);
+            return () => window.removeEventListener?.('storage', refresh);
+        }, []);
         const gamecastRef = useRef(null);
         gamecastRef.current = gamecastStatus;
         const gateBusy = useRef(false);
@@ -1446,6 +1457,22 @@
         const playback = pendingPlayback ? { week: autoPlayWeek, done: false, quarter: 1, playing: false }
             : gamecastStatus?.leagueId === league.leagueId ? gamecastStatus : null;
         const watching = playback && !playback.done;
+        const Mail = window.TimeLeagueMail;
+        const mailKey = Mail?.readKey(league.leagueId, responseTeam);
+        const mailThroughWeek = watching ? playback.week - 1 : undefined;
+        const unreadMail = Mail ? Mail.unreadMessages(league, responseTeam, mailReads[mailKey] || Mail.readIds(league.leagueId, responseTeam), mailThroughWeek) : [];
+        const openMail = teamId => {
+            setMailThread(teamId ? { key: mailKey, teamId } : null);
+            navigateTab('messages');
+        };
+        const latestFinalWeek = league.finalizedWeeks.at(-1)?.week;
+        const postgameMail = unreadMail.find(message => message.id === `game:${latestFinalWeek}:${responseTeam}`) || unreadMail[0];
+        const mailSender = league.teams.find(team => team.teamId === postgameMail?.fromTeamId);
+        const mailAction = !watching && mailSender ? h('button', { type: 'button', className: 'tl-btn tl-mail-action', onClick: () => openMail(mailSender.teamId), 'aria-label': `New message from ${mailSender.name}. Read and reply` },
+            window.TimeLeagueHelmetIcon ? h(window.TimeLeagueHelmetIcon, { helmet: mailSender.helmet, letter: window.App.TimeLeagueHelmet?.monogramFor(mailSender.name), size: 26 }) : h('span', { 'aria-hidden': true }, '✉'),
+            h('span', null, h('small', null, 'New message'), h('strong', null, mailSender.name))) : null;
+        const mailNotice = !watching && postgameMail && window.WrTimeLeagueMailNotice
+            ? h(window.WrTimeLeagueMailNotice, { league, message: postgameMail, count: unreadMail.length, onOpen: openMail }) : null;
         const showWeekActions = Boolean(WeekGates && league.phase !== 'draft' && ['home', 'roster', 'waivers', 'trades', 'gameday'].includes(activeTab));
         const loadingNotice = cards === null
             ? h('div', { className: 'tl-card' }, h('p', { className: 'tl-empty' }, 'Loading player cards…'))
@@ -1461,8 +1488,8 @@
                 tabs.map((item) => h('button', {
                     key: item, type: 'button', className: `tl-tabbtn${item === activeTab ? ' active' : ''}`, onClick: () => navigateTab(item),
                 }, h('span', { className: 'tl-tab-icon', 'aria-hidden': 'true' }, TAB_ICONS[item]),
-                h('span', null, item === 'draft' && league.phase !== 'draft' ? 'DRAFT RECAP' : TAB_LABELS[item])))),
-            h(MobileGameNav, { tabs, activeTab, onNavigate: navigateTab }),
+                h('span', null, item === 'draft' && league.phase !== 'draft' ? 'DRAFT RECAP' : TAB_LABELS[item]), item === 'messages' && unreadMail.length > 0 ? h('em', { className: 'tl-mail-badge', 'aria-label': `${unreadMail.length} unread messages` }, unreadMail.length) : null))),
+            h(MobileGameNav, { tabs, activeTab, onNavigate: navigateTab, unread: unreadMail.length }),
             h('div', { className: 'tl-main' }, h('div', { className: 'tl-main-inner' },
                 h('header', { className: `tl-league-bar${onlineMeta ? ' has-invite' : ''}` },
                     h('div', { className: 'tl-league-heading' },
@@ -1472,6 +1499,7 @@
                         h('span', { className: `tl-pill ${phaseTone}` }, watching ? `${playback.replay ? 'REPLAY' : playback.playing ? 'PLAYING' : 'PAUSED'} · WEEK ${playback.week}` : league.phase === 'draft' ? 'DRAFT' : league.phase === 'complete' ? 'COMPLETE' : `${league.weekStage === 'postgame' ? 'FINAL · ' : ''}WEEK ${Math.min(league.weekStage === 'postgame' ? league.currentWeek - 1 : league.currentWeek, Engine.seasonEndWeek(league))}`),
                         onlineMeta && h('span', { className: 'tl-connection-dot', role: 'status', title: saving ? 'Saving' : connectionError ? 'Reconnecting' : 'Online', 'aria-label': saving ? 'Saving' : connectionError ? 'Reconnecting' : 'Online' }, connectionError ? '○' : '●'),
                         onlineMeta && h('button', { type: 'button', className: 'tl-btn tl-invite-trigger', onClick: openFriends, 'aria-controls': 'vault-friends-room', 'aria-expanded': showFriends || !onlineMeta.draftStarted }, onlineMeta.role === 'commissioner' ? 'Invite' : 'Managers'),
+                        activeTab !== 'messages' && unreadMail.length > 0 && h('button', { type: 'button', className: 'tl-mail-trigger', onClick: () => openMail(unreadMail[0].fromTeamId), 'aria-label': `${unreadMail.length} unread messages. Open message from ${unreadMail[0].name}`, title: 'Unread messages' }, h('span', { 'aria-hidden': true }, '✉'), h('em', { className: 'tl-mail-badge' }, unreadMail.length)),
                         h('details', { key: `${league.leagueId}:${activeTab}`, className: 'tl-league-menu' },
                             h('summary', { 'aria-label': 'League options' }, '•••'),
                             h('div', { className: 'tl-league-menu-body' },
@@ -1498,14 +1526,14 @@
                 }),
                 activeTab === 'career' && CareerView ? h(CareerView, { index, league, onlineMeta, onOpenLocal: openLeague, onOpenOnline: openOnlineLeague }) : null,
                 activeTab === 'community' && CommunityPanel ? h(CommunityPanel, { onOpenOnline: openOnlineLeague, onProfile: () => navigateTab('career') }) : null,
-                activeTab === 'messages' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,
+                activeTab === 'messages' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, throughWeek: mailThroughWeek, threadRequest: mailThread, onRead: onMailRead, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,
                 h('fieldset', { disabled: saving || Boolean(storageError) || Boolean(onlineMeta && !onlineMeta.draftStarted), style: { border: 0, padding: 0, margin: 0, minWidth: 0 } },
                 ['home', 'gameday'].includes(activeTab) && league.phase === 'complete' && !Engine.playoffCount(league) && league.settings.regularSeasonWeeks < 18 && h('section', { className: 'tl-card tl-week-gate' },
                     h('div', null, h('strong', null, 'Finish with a playoff?'), h('p', null, 'Keep regular-season results and reopen this season for a seeded championship. This replaces the standings-only title.')),
                     [2,4].filter(count => league.teams.length >= count && league.settings.regularSeasonWeeks + (count === 4 ? 2 : 1) <= 18).map(count => h('button', { key: count, className: 'tl-btn', disabled: saving || (onlineMeta && onlineMeta.role !== 'commissioner'), onClick: () => handleUpdate(Engine.startPlayoffs(league, count), { type: 'start-playoffs', count }) }, `Add ${count}-team playoffs`))),
                 activeTab === 'draft' && draftModuleState === 'error' && h('p', { role: 'status' }, 'The draft grid could not load. ', h('button', { className: 'tl-btn', onClick: () => setDraftModuleState('idle') }, 'Retry draft module')),
                 activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: responseTeam }) : null,
-                activeTab === 'home' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, compact: true, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,
+                activeTab === 'home' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, compact: true, throughWeek: mailThroughWeek, onOpenThread: openMail, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,
                 activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, {
                     key: league.leagueId, league, cards, onUpdate: handleUpdate, onlineMeta, onRevealReadyChange: onDraftRevealReady, onDraftAction: dispatchDraft,
                     draftControls: league.phase === 'draft' && h(React.Fragment, null,
@@ -1513,7 +1541,7 @@
                         league.settings.draftFormat === 'auction' && AuctionPanel && h(AuctionPanel, { league, cards, currentTeamId: responseTeam, onlineMeta, saving, onAction: dispatchDraft })),
                 }) : loadingNotice) : null,
                 league.phase !== 'draft' && GamecastPanel ? h('div', { key: league.leagueId, hidden: activeTab !== 'gameday', className: 'tl-gamecast-workspace' }, h(GamecastPanel, {
-                    league, cards, logIndex, logsMissing, eraFactors, onlineMeta, autoPlayWeek, active: activeTab === 'gameday', seatTeamId: responseTeam, onPlaybackChange: reportPlayback, onGoCeremony: () => navigateTab('home'), onUpdate: handleUpdate, onGoRoster: () => navigateTab('roster'),
+                    league, cards, logIndex, logsMissing, eraFactors, onlineMeta, autoPlayWeek, active: activeTab === 'gameday', seatTeamId: responseTeam, mailNotice, onPlaybackChange: reportPlayback, onGoCeremony: () => navigateTab('home'), onUpdate: handleUpdate, onGoRoster: () => navigateTab('roster'),
                 })) : null,
                 (activeTab === 'roster' || activeTab === 'waivers' || activeTab === 'trades' || activeTab === 'achievements')
                     ? (cardsReady && TeamPanel
@@ -1524,7 +1552,7 @@
                 activeTab === 'activity' && ActivityPanel ? (league.phase === 'draft' && !draftRevealed
                     ? h('section', { className: 'tl-card' }, h('h3', null, 'The draft archives are sealed'), h('p', null, 'Finish the position reveal to open your league wire.'), h('button', { className: 'tl-btn primary', onClick: () => navigateTab('draft') }, 'Open the reveal'))
                     : h(ActivityPanel, { league })) : null,
-                showWeekActions && h(WeekGates, { key: `${league.leagueId}:${league.weekStage}:${activeTab}`, currentTab: activeTab, league, onlineMeta, saving: saving || Boolean(storageError), playback,
+                showWeekActions && h(WeekGates, { key: `${league.leagueId}:${league.weekStage}:${activeTab}`, currentTab: activeTab, league, onlineMeta, saving: saving || Boolean(storageError), playback, messageAction: mailAction,
                     dataReady: cardsReady && Boolean(logIndex) && (!league.settings.eraAdjusted || Boolean(eraFactors?.size)), onAction: dispatchGate, onNavigate: navigateTab })))));
     }
 

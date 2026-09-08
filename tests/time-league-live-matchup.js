@@ -22,6 +22,7 @@ global.React = {
 };
 require('../js/components/time-league-week-gates.js');
 require('../js/components/time-league-gamecast-panel.js');
+require('../js/components/time-league-rivals-panel.js');
 for(const name of ['Home','Team','Draft','Setup']) window['WrTimeLeague'+name+'Panel']=function Panel(){};
 require('../js/tabs/time-league.js');
 const all = value => !value || typeof value !== 'object' ? [] : Array.isArray(value) ? value.flatMap(all) : [value,...all(value.children)];
@@ -66,6 +67,9 @@ const gateButton=label=>button(dock(dockProps()),label);
     assert.equal(root.states[1].value.finalizedWeeks.length,1);
     assert.equal(gateButton('Advance week'),undefined,'The saved final cannot expose advance before playback mounts');
 
+    root.states[1].value = { ...root.states[1].value, teams: root.states[1].value.teams.map((team, i) => i ? { ...team, manager: 'ai', aiPersona: 'warlord' } : team) };
+    assert.equal(component(rootTree(), WrTimeLeagueGamecastPanel).props.mailNotice, null, 'Saved results cannot announce an owner message before playback starts');
+    assert(!all(rootTree()).some(node => node.props.className === 'tl-mail-trigger'), 'Unread badges cannot spoil the saved game either');
     const cast=harness();
     const play=()=>{const props=component(rootTree(),WrTimeLeagueGamecastPanel).props;return cast.render(()=>WrTimeLeagueGamecastPanel(props),true);};
     play(); tree=play();
@@ -85,6 +89,7 @@ const gateButton=label=>button(dock(dockProps()),label);
             const visible=all(player).find(node=>node.props.className?.includes('tl-live-player-points'));
             assert.equal(Number(words(visible)),cents/100,'Each starter follows the same scoring moments as the team score');
         }
+        if (quarter < 4) assert.equal(component(rootTree(), WrTimeLeagueGamecastPanel).props.mailNotice, null, 'Postgame correspondence stays hidden during every unfinished quarter');
         if(quarter===1){
             const oldClock=cast.states[1].value;
             dockProps().onNavigate('roster');tree=play();assert.equal(cast.states[2].value,false);
@@ -98,7 +103,27 @@ const gateButton=label=>button(dock(dockProps()),label);
     const finals=root.states[1].value.finalizedWeeks[0];
     assert.equal(players().length,12,'Both complete starting lineups include zero-score players and superflex');
 
+    tree = play();
+    const notice = component(tree, WrTimeLeagueMailNotice);
+    assert(notice, 'The final scoreboard surfaces its opponent message');
+    assert(all(dock(dockProps())).some(node => node.props['aria-label'] === 'New message from Opponent. Read and reply'), 'The fixed bottom action row announces the sender even when the scoreboard is offscreen');
+    const noticeTree = WrTimeLeagueMailNotice(notice.props);
+    assert(words(noticeTree).includes('Opponent sent you a message'));
+    assert(all(rootTree()).some(node => node.props.className === 'tl-mail-trigger'), 'The header shows unread mail outside the inbox');
     button(tree,'CLOSE GAMECAST').props.onClick();tree=play();tree=play();
+    assert(component(tree, WrTimeLeagueMailNotice), 'The saved final also keeps unread correspondence visible');
+    all(noticeTree).find(node => node.props['aria-label'] === 'Read message from Opponent').props.onClick();
+    assert.equal(root.states[4].value, 'messages');
+    const chat = harness();
+    const renderChat = () => { const props = component(rootTree(), WrTimeLeagueRivalsPanel).props; return chat.render(() => WrTimeLeagueRivalsPanel(props), true); };
+    renderChat(); const conversation = renderChat();
+    assert(conversation.props.className.includes('has-thread'), 'A notification opens the sender conversation directly on mobile');
+    assert(all(conversation).some(node => node.props['aria-label'] === 'Conversation with Opponent'));
+    const read = TimeLeagueMail.readIds(league.leagueId, teams[0].teamId);
+    assert(read.includes(`game:1:${teams[0].teamId}`), 'Opening the conversation persists its read receipt');
+    component(rootTree(), WrTimeLeagueRivalsPanel).props.onNavigate('gameday');tree=play();
+    assert.equal(component(rootTree(), WrTimeLeagueGamecastPanel).props.mailNotice, null, 'Read messages disappear from the final card');
+    assert(!all(rootTree()).some(node => node.props.className === 'tl-mail-trigger'), 'Reading updates the global unread badge immediately');
     button(tree,'REPLAY').props.onClick();tree=play();
     root.states[1].value={...root.states[1].value,teams:teams.map(team=>({...team,roster:[]}))};
     tree=play();assert(words(getLineups()).includes('Your QB'),'Replays use saved starters even when current rosters changed');

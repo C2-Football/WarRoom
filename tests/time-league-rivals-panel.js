@@ -34,6 +34,18 @@ const onSend = async payload => {
 let extra = {};
 const render = () => { cursor = 0; const tree = WrTimeLeagueRivalsPanel({ league, teamId: 'you', onSend, onNavigate: destination => navigated.push(destination), ...extra }); while (effects.length) effects.shift()(); return tree; };
 (async () => {
+    const Mail = window.TimeLeagueMail;
+    const key = Mail.readKey(league.leagueId, 'you');
+    storage[key] = '{broken'; assert.deepEqual(Mail.readIds(league.leagueId, 'you'), []);
+    storage[key] = '{}'; assert.deepEqual(Mail.readIds(league.leagueId, 'you'), []);
+    delete storage[key];
+    assert.equal(Mail.unreadMessages(league, 'you', [], 0).length, 0, 'Future game results stay hidden');
+    assert.equal(Mail.unreadMessages(league, 'you', []).length, 1);
+    assert.equal(Mail.unreadMessages(league, 'friend', []).length, 0, 'Notifications belong only to the receiving seat');
+    assert.equal(Mail.unreadMessages(league, 'you', ['game:1:you']).length, 0);
+    storage[key] = JSON.stringify(['game:1:you']);
+    assert.deepEqual(Mail.readIds('other-league', 'you'), [], 'Read receipts do not leak across leagues');
+    delete storage[key];
     let tree = render(); tree = render();
     assert(!tree.props.className.includes('has-thread'), 'mobile opens on conversation list');
     owner(tree, 'Kade').props.onClick(); tree = render();

@@ -1,7 +1,30 @@
 (function () {
     'use strict';
     const h = React.createElement;
-    function WrTimeLeagueRivalsPanel({ league, teamId, throughWeek, onTrades, compact = false, onNavigate, onSend, saving = false, isPrivate = false }) {
+    const readKey = (leagueId, teamId) => `tl-rival-read:${leagueId}:${teamId}`;
+    function readIds(leagueId, teamId) {
+        try {
+            const ids = JSON.parse(localStorage.getItem(readKey(leagueId, teamId)) || '[]');
+            return Array.isArray(ids) ? ids.filter(id => typeof id === 'string') : [];
+        } catch (_) { return []; }
+    }
+    function unreadMessages(league, teamId, ids, throughWeek) {
+        return (window.App.TimeLeagueRivals?.messagesFor(league, teamId, { throughWeek }) || [])
+            .filter(message => message.toTeamId === teamId && !ids.includes(message.id));
+    }
+    function WrTimeLeagueMailNotice({ league, message, count, onOpen }) {
+        const sender = league.teams.find(team => team.teamId === message?.fromTeamId);
+        if (!sender) return null;
+        return h('section', { className: 'tl-mail-notice', role: 'status', 'aria-live': 'polite', 'aria-atomic': true },
+            h('button', { type: 'button', className: 'tl-mail-notice-open', onClick: () => onOpen(sender.teamId), 'aria-label': `Read message from ${sender.name}` },
+                window.TimeLeagueHelmetIcon ? h(window.TimeLeagueHelmetIcon, { helmet: sender.helmet, letter: window.App.TimeLeagueHelmet?.monogramFor(sender.name), size: 44 }) : h('span', { className: 'tl-mail-notice-icon', 'aria-hidden': true }, '✉'),
+                h('span', { className: 'tl-mail-notice-copy' }, h('small', null, 'NEW MESSAGE'), h('strong', null, `${sender.name} sent you a message`), h('span', null, message.text)),
+                h('span', { className: 'tl-mail-notice-link', 'aria-hidden': true }, 'Read & reply →')),
+            count > 1 ? h('button', { type: 'button', className: 'tl-mail-notice-all', onClick: () => onOpen() }, `${count} unread · Open inbox`) : null);
+    }
+    window.TimeLeagueMail = { readKey, readIds, unreadMessages };
+    window.WrTimeLeagueMailNotice = WrTimeLeagueMailNotice;
+    function WrTimeLeagueRivalsPanel({ league, teamId, throughWeek, onTrades, compact = false, onNavigate, onSend, saving = false, isPrivate = false, threadRequest, onOpenThread, onRead }) {
         const R = window.App.TimeLeagueRivals;
         const storageKey = `tl-rival-read:${league.leagueId}:${teamId}`;
         const [readState, setReadState] = React.useState({});
@@ -30,15 +53,21 @@
         const affinity = relationship ? 6 - relationship.heat : 6;
         const pending = saving || sending;
         const markRead = ids => {
-            const next = [...new Set([...read, ...ids])];
+            const next = [...new Set([...readIds(league.leagueId, teamId), ...read, ...ids])];
             setReadState({ key: storageKey, ids: next });
             try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch (_) { /* Session still works without storage. */ }
+            onRead?.(storageKey, next);
         };
         const open = thread => {
             setSelection({ key: storageKey, teamId: thread.team.teamId });
             setError(null);
             markRead(thread.messages.filter(message => message.toTeamId === teamId).map(message => message.id));
         };
+        React.useEffect(() => {
+            if (compact || threadRequest?.key !== storageKey) return;
+            const thread = threads.find(item => item.team.teamId === threadRequest.teamId);
+            if (thread) open(thread);
+        }, [storageKey, compact, threadRequest]);
         const newestId = active?.latest?.id;
         React.useEffect(() => {
             if (!compact && active && selectedId) {
@@ -110,7 +139,7 @@
         if (compact) return h('section', { className: 'tl-card tl-rival-mail is-compact', 'aria-label': 'Rival mail' },
             h('div', { className: 'tl-card-title' }, h('span', null, 'Rival mail'), unread ? h('small', null, `${unread} unread`) : null),
             h('div', { className: 'tl-rival-previews' }, threads.filter(thread => thread.latest).slice(0, 2).map(thread => h('button', {
-                type: 'button', className: 'tl-rival-preview', key: thread.team.teamId, onClick: () => onNavigate?.('messages'),
+                type: 'button', className: 'tl-rival-preview', key: thread.team.teamId, onClick: () => onOpenThread ? onOpenThread(thread.team.teamId) : onNavigate?.('messages'),
             }, avatar(thread.team), h('span', null, h('strong', null, thread.team.name), h('span', null, thread.latest.fromTeamId === teamId ? 'You: ' : '', thread.latest.text))))),
             !messages.length ? h('p', { className: 'tl-rival-intro' }, 'Send a good game, make a deal, or start a rivalry.') : null,
             onNavigate ? h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate('messages') }, 'Open conversations') : null);

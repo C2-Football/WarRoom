@@ -8,7 +8,7 @@
         { id: 'postgame', title: 'Final · Next week ready', action: 'advance-week', button: 'Advance week', tab: 'home' },
     ];
 
-    function WeekGates({ league, onlineMeta, saving, dataReady, onAction, onNavigate, currentTab, playback }) {
+    function WeekGates({ league, onlineMeta, saving, dataReady, onAction, onNavigate, currentTab, playback, messageAction }) {
         const [showSettings, setShowSettings] = React.useState(false);
         if (!['season', 'complete'].includes(league.phase)) return null;
         const stage = STAGES.find(row => row.id === league.weekStage) || STAGES[2];
@@ -42,6 +42,7 @@
                 : stage.id === 'claims' ? go(currentTab === 'trades' ? 'waivers' : 'trades', currentTab === 'trades' ? 'Waiver bids' : 'Trades')
                     : stage.id === 'lineup' ? go('trades', 'Trade decisions') : null;
         }
+        if (!live && currentTab === 'gameday' && messageAction) secondary = messageAction;
         const title = live ? `Q${playback.quarter || 1} · ${playback.playing ? 'Playing' : 'Paused'}${playback.replay ? ' · Replay' : ''}` : complete ? 'Season complete' : stage.title;
         const status = !live && !complete && onlineMeta ? mode === 'majority' ? `${votes.length}/${majority} votes` : mode === 'timed' ? `Deadline: ${deadline.toLocaleString()}` : host ? 'Commissioner' : 'Commissioner advances' : '';
 
