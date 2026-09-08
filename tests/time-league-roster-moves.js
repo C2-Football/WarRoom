@@ -165,10 +165,21 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     assert(!walk(tree).some(node => node.props['aria-label'] === 'Hotseat manager'));
 
     league = { ...league, weekStage: 'claims' };
+    logs.set(S.gameLogKey('free:WR', 1994, 1), { stats: { ...S.emptyStatLine(), rushYd: 1000 } });
+    for (const [pos, stats] of [['WR', { rushYd: 200 }], ['RB', { rushYd: 50 }], ['TE', { passInt: 1 }]]) {
+        logs.set(S.gameLogKey('free:' + pos, 1994, 3), { stats: { ...S.emptyStatLine(), ...stats } });
+    }
     reset(); tree = render({ section: 'waivers', waiverSlot: 'FLEX' });
     let wire = byClass(tree, 'tl-waiver-table')[0];
     assert(text(wire).includes('Free RB') && text(wire).includes('Free WR') && text(wire).includes('Free TE'));
     assert(!text(wire).includes('Free QB') && !text(wire).includes('Free K') && !text(wire).includes('Free DEF'));
+    assert(text(wire).includes('1994 season') && !text(wire).includes('CAREER BEST'), 'The wire names the actual weekly edition');
+    assert.deepEqual(byClass(wire, 'tl-waiver-score').map(node => node.children[0]), ['20.0', '5.0', '-2.0'], 'Free agents rank by points still playable, including negative scores');
+    assert(text(byClass(wire, 'tl-waiver-score')[0]).includes('120.0 total'), 'Already-played points only appear in the season total');
+    button(tree, 'Claim Free WR').props.onClick(); tree = render({ section: 'waivers' });
+    assert(text(byClass(tree, 'tl-waiver-preview')).includes('20.0') && text(byClass(tree, 'tl-waiver-preview')).includes('120.0'), 'Claim builder carries the same remaining and total points');
+    tree = render({ section: 'waivers', logIndex: null });
+    assert(byClass(tree, 'tl-waiver-score').every(node => node.children[0] === '—'), 'Missing scoring data stays unknown rather than showing career-best points');
     reset(); tree = render({ section: 'waivers', waiverSlot: 'SUPER_FLEX' });
     wire = byClass(tree, 'tl-waiver-table')[0];
     assert(text(wire).includes('Free QB'));

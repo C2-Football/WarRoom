@@ -103,6 +103,29 @@
     /** Seasons this card may still be drawn from under the league's era rules. */
     const eraSeasons = (state, card) => filterSeasonsForEra(card.seasons, state.settings.eraRules, card.position);
 
+    // The wire and the award use the same weekly draw, independent of claimant.
+    const waiverSeason = (state, card, week = state.currentWeek) => card
+        ? drawSeasonFrom(eraSeasons(state, card), `${state.seed}:waiver:${card.identity}:${week}`) : null;
+
+    function waiverPreview(state, card, logIndex, eraFactors, week = state.currentWeek) {
+        const drawnSeason = waiverSeason(state, card, week);
+        if (drawnSeason === null) return null;
+        const endWeek = seasonEndWeek(state);
+        const preview = { drawnSeason, startWeek: week, endWeek, totalPoints: null, remainingPoints: null, remainingGames: null };
+        if (!logIndex || (state.settings.eraAdjusted && !eraFactors?.size)) return preview;
+        const factor = eraFactorFor(state.settings.eraAdjusted ? eraFactors : null, drawnSeason, card.position);
+        let totalCents = 0, remainingCents = 0, remainingGames = 0;
+        for (let gameWeek = 1; gameWeek <= endWeek; gameWeek++) {
+            const log = logIndex.get(gameLogKey(card.identity, drawnSeason, gameWeek));
+            if (!log) continue;
+            // Match the per-game rounding used by finalizeCurrentWeek.
+            const cents = Math.round(scoreStatLine(log.stats, state.settings.scoring, REFERENCE_EXTENDED_SCORING) * factor * 100);
+            totalCents += cents;
+            if (gameWeek >= week) { remainingCents += cents; remainingGames++; }
+        }
+        return { ...preview, totalPoints: totalCents / 100, remainingPoints: remainingCents / 100, remainingGames };
+    }
+
     /** One line for the founding log; null unless a roulette actually dealt decades. */
     function rouletteLine(rules) {
         if (rules.mode !== "position-roulette") return null;
@@ -732,7 +755,7 @@
             const card = cards.get(claim.addIdentity);
             // No era-allowed season left for this position means no add: the claim
             // dies here rather than smuggling an out-of-era player onto a roster.
-            const drawnSeason = card ? drawSeasonFrom(eraSeasons(state, card), `${state.seed}:waiver:${card.identity}:${claim.week}`) : null;
+            const drawnSeason = waiverSeason(state, card, claim.week);
             if (!team || !card || drawnSeason === null) {
                 events.push(week, "waiver", `Waivers W${week} — claim on ${claim.addName} voided`, createdAt);
                 continue;
@@ -1189,7 +1212,7 @@
         auctionMaxBid, auctionCanBid, auctionCanClose, nominateAuctionPlayer, bidAuctionPlayer, closeAuction,
         positionIsStartable, applyDraftPick, setEntrySlot, autoFillLineup, lineupProblems,
         finalizeCurrentWeek, computeStandings, freeAgents, submitWaiverClaim, cancelWaiverClaim,
-        playoffCount, seasonEndWeek, playoffPairs, startPlayoffs, processWaivers, waiverLandingSlot, proposeTrade, respondToTrade, deferTrade, normalizeTimeLeague,
+        playoffCount, seasonEndWeek, playoffPairs, startPlayoffs, processWaivers, waiverLandingSlot, waiverSeason, waiverPreview, proposeTrade, respondToTrade, deferTrade, normalizeTimeLeague,
     };
     App.TimeLeagueEngine = api;
     /* global module */

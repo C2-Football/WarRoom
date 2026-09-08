@@ -287,6 +287,39 @@ test('waivers replace a compatible starter with a full bench or no bench', () =>
     }
 });
 
+test('waiver preview matches the awarded edition and remaining league-scored games', () => {
+    const Season = App.TimeLeagueSeason;
+    let state = Engine.createTimeLeague({ name: 'Visible wire', seed: 'visible-wire', createdAt: '2026-01-01', seats: seats(),
+        settings: baseSettings({ rosterSlots: { WR: 1, BN: 1 }, regularSeasonWeeks: 12, playoffTeams: 4, eraAdjusted: true,
+            scoring: { ...SCORING, reception: 2, turnover: -4 },
+            eraRules: { mode: 'position-roulette', decades: [], positionDecades: { WR: '1980s' } } }) });
+    state = { ...state, phase: 'season', currentWeek: 2, weekStage: 'claims' };
+    const card = { identity: 'wire-wr', name: 'Wire receiver', position: 'WR', peak: 999,
+        seasons: [1980, 1981, 2000].map(season => ({ season, games: 16, points: 999 })) };
+    const allowed = App.TimeLeagueEraRules.filterSeasonsForEra(card.seasons, state.settings.eraRules, card.position);
+    const legacyYear = allowed[Math.floor(Roster.createSeededRandom(`${state.seed}:waiver:${card.identity}:2`)() * allowed.length)].season;
+    assert.equal(Engine.waiverSeason(state, card), legacyYear, 'Revealing the draw does not change existing waiver outcomes');
+    const factors = new Map([[`${legacyYear}:WR`, 1.25]]), logs = new Map();
+    for (const [week, rec, fumblesLost] of [[1,10,0],[2,3,0],[3,0,1],[12,1,0],[13,2,0],[14,4,0],[15,100,0]]) {
+        logs.set(Season.gameLogKey(card.identity, legacyYear, week), { stats: { ...Season.emptyStatLine(), rec, fumblesLost } });
+    }
+    const preview = Engine.waiverPreview(state, card, logs, factors);
+    assert.deepEqual(preview, { drawnSeason: legacyYear, startWeek: 2, endWeek: 14, totalPoints: 45, remainingPoints: 20, remainingGames: 5 });
+    assert.equal(Engine.waiverPreview(state, card, null, factors).remainingPoints, null, 'Unloaded logs do not become a false zero');
+    assert.equal(Engine.waiverPreview(state, card, logs, null).totalPoints, null, 'Era-adjusted previews wait for factors');
+    assert.equal(Engine.waiverPreview(state, { ...card, seasons: [{ season: 2000 }] }, logs, factors), null, 'Out-of-era editions cannot be offered');
+    const roundTrip = JSON.parse(JSON.stringify(state));
+    assert.deepEqual(Engine.waiverPreview(roundTrip, card, logs, factors), preview, 'Reloading preserves the same edition and totals');
+    const claim = { teamId: state.teams[0].teamId, addIdentity: card.identity, addName: card.name, addPosition: card.position, dropEntryId: '' };
+    const claimed = Engine.submitWaiverClaim(state, claim, '2026-01-01');
+    const awarded = Engine.processWaivers(claimed, new Map([[card.identity, card]]), '2026-01-01');
+    assert.equal(awarded.teams[0].roster[0].drawnSeason, preview.drawnSeason);
+    const starting = Engine.setEntrySlot(awarded, claim.teamId, awarded.teams[0].roster[0].entryId, 'WR');
+    const scored = Engine.finalizeCurrentWeek(starting, logs, factors, '2026-01-01');
+    assert.equal(scored.finalizedWeeks[0].results.find(row => row.teamId === claim.teamId).total, 7.5, 'The preview uses the same scoring as game day');
+    assert.equal(Engine.waiverSeason(state, card, 2), legacyYear, 'Changing the viewing week cannot alter an existing claim week');
+});
+
 test('optional playoffs seed correctly, survive reload, and crown only the final winner', () => {
     for (const count of [2,4]) {
         const cards = samplePool();
