@@ -56,6 +56,27 @@ const draft = () => nodes(render()).find(node => node.type === WrTimeLeagueDraft
     assert.equal(await panel.onDraftAction({ type: 'draft', identity: 'qb1' }), true, 'Local hotseat actions use the current human seat');
     assert.equal(states[1].draftPicks[1].teamId, 't2');
     assert.equal(states[1].phase, 'season');
+    assert.equal(states[4], 'home', 'The saved final pick hands off to Home instead of leaving the recap open');
+    for (const tab of ['home', 'roster', 'waivers', 'trades', 'gameday', 'messages', 'career', 'activity']) {
+        states[4] = tab;
+        tree = render();
+        assert.equal(tree.props['data-vault-phase'], 'season');
+        assert.equal(tree.props['data-vault-tab'], tab);
+        assert(!nodes(tree).some(node => node.type === WrTimeLeagueDraftPanel), `${tab} cannot retain the completed draft panel`);
+        assert(!nodes(tree).some(node => node.type === WrTimeLeagueDraftClock), `${tab} cannot retain the draft clock`);
+    }
+    const mobile = nodes(tree).find(node => node.type?.name === 'MobileGameNav');
+    const rootStates = states, rootRefs = refs;
+    states = []; refs = []; let destination;
+    const menu = () => { cursor = 0; refCursor = 0; return mobile.type({ ...mobile.props, onNavigate: tab => { destination = tab; } }); };
+    const label = node => JSON.stringify(node.children);
+    const more = nodes(menu()).find(node => node.type === 'button' && label(node).includes('More'));
+    more.props.onClick();
+    const recapLink = nodes(menu()).find(node => node.type === 'button' && label(node).includes('Draft recap'));
+    assert(recapLink, 'Completed drafts are named Draft recap inside More');
+    recapLink.props.onClick(); assert.equal(destination, 'draft');
+    states = rootStates; refs = rootRefs; states[4] = 'draft';
+    assert(nodes(render()).some(node => node.type === WrTimeLeagueDraftPanel), 'More can still open the completed draft on demand');
     states[1] = create('second');
     panel = draft();
     assert.equal(await panel.onDraftAction({ type: 'draft-clock-start' }), false, 'A prior league reveal cannot unlock a new league');

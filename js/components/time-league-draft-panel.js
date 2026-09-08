@@ -664,8 +664,8 @@
                         h('button', { className: 'tl-btn', disabled: !clockReady, onClick: simToMyPick }, '⏭ Sim to my pick'))),
                 note && h('p', { className: 'tl-pick-feedback', role: 'status', style: { fontSize: 12, color: 'var(--warn)', marginTop: 8 } }, note)),
 
-            draftPulse,
-            selectedCard && h('div', { className: 'tl-draft-dock' },
+            league.phase === 'draft' && draftPulse,
+            league.phase === 'draft' && selectedCard && h('div', { className: 'tl-draft-dock' },
                 h('button', { className: 'tl-dock-player', onClick: (event) => openScout(selectedCard, event), 'aria-label': `Scout ${selectedCard.name}` },
                     h('span', { className: `tl-pos-badge tl-pos-${selectedCard.position}` }, selectedCard.position), h('span', null, h('small', null, myTurn ? 'YOUR NEXT LEGEND?' : 'SCOUT WHILE YOU WAIT'), h('b', null, selectedCard.name))),
                 h('button', { className: 'tl-btn primary', 'aria-label': `${isAuction ? 'Nominate' : 'Draft'} ${selectedCard.name}`, disabled: !canDraftSelected, onClick: () => draftCard(selectedCard, 'human') }, isAuction ? 'Nominate' : 'Draft', h('span', { 'aria-hidden': 'true' }, '↗'))),

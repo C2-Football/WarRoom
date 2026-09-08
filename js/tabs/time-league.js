@@ -848,7 +848,7 @@
         }, [expanded]);
         const primary = tabs.includes('home') ? ['home', 'roster', 'gameday', 'waivers'] : ['draft', 'activity'];
         const extra = tabs.filter(tab => !primary.includes(tab));
-        const labels = { home: 'Home', roster: 'My team', gameday: 'Game day', waivers: 'Players', draft: 'Draft', activity: 'Activity', trades: 'Trades', achievements: 'Trophies', standings: 'Command Central', messages: 'Messages', career: 'My career' };
+        const labels = { home: 'Home', roster: 'My team', gameday: 'Game day', waivers: 'Players', draft: tabs.includes('home') ? 'Draft recap' : 'Draft', activity: 'Activity', trades: 'Trades', achievements: 'Trophies', standings: 'Command Central', messages: 'Messages', career: 'My career' };
         const choose = tab => { setExpanded(false); onNavigate(tab); };
         return h(React.Fragment, null,
             expanded && h('div', { className: 'tl-mobile-more', id: 'vault-more-navigation' },
@@ -1012,6 +1012,9 @@
             if (!opening && leagueRef.current?.leagueId === safe.leagueId && safe.finalizedWeeks.length > leagueRef.current.finalizedWeeks.length) {
                 setAutoPlayWeek(safe.finalizedWeeks[safe.finalizedWeeks.length - 1]?.week);
             }
+            if (!opening && leagueRef.current?.leagueId === safe.leagueId && leagueRef.current.phase === 'draft' && safe.phase !== 'draft') {
+                setTab(current => current === 'draft' ? 'home' : current);
+            }
             const meta = { rowId: row.id, userId: window.App.OD?.getCurrentUserId?.(), version: row.version, role: row.role || onlineRef.current?.role,
                 seatTeamId: row.seatTeamId || onlineRef.current?.seatTeamId,
                 members: row.members || onlineRef.current?.members || [], draftStarted: row.draft_started };
@@ -1042,7 +1045,7 @@
                 Remote.loadOnlineLeague(prefs.onlineRowId).then((row) => {
                     if (generation !== openGeneration.current) return;
                     acceptRow(row, true);
-                    setTab(prefs.tab);
+                    setTab(row.state.phase !== 'draft' && prefs.tab === 'draft' ? 'home' : prefs.tab);
                 }).catch(error => setInviteError(error.message)).finally(() => setBooted(true));
                 return;
             }
@@ -1050,7 +1053,7 @@
                 const stored = readLeague(prefs.leagueId);
                 if (stored) {
                     setLeague(stored);
-                    setTab(prefs.tab);
+                    setTab(stored.phase !== 'draft' && prefs.tab === 'draft' ? 'home' : prefs.tab);
                     if (prefs.teamId) setActiveTeamId(prefs.teamId);
                 }
             }
@@ -1167,6 +1170,9 @@
             previousLocalSave.current = null;
             setStorageError(null);
             if (previous?.leagueId === safe.leagueId && safe.finalizedWeeks.length > previous.finalizedWeeks.length) setAutoPlayWeek(safe.finalizedWeeks[safe.finalizedWeeks.length - 1]?.week);
+            if (previous?.leagueId === safe.leagueId && previous.phase === 'draft' && safe.phase !== 'draft') {
+                setTab(current => current === 'draft' ? 'home' : current);
+            }
             leagueRef.current = safe;
             setLeague(safe);
             return true;
@@ -1445,7 +1451,7 @@
             ? h('div', { className: 'tl-card' }, h('p', { className: 'tl-empty' }, 'Loading player cards…'))
             : null;
 
-        return h('div', { className: `tl-root tl-play${showWeekActions ? ' tl-has-week-actions' : ''}` },
+        return h('div', { className: `tl-root tl-play${showWeekActions ? ' tl-has-week-actions' : ''}`, 'data-vault-phase': league.phase, 'data-vault-tab': activeTab },
             h(TimeLeagueStyles, null),
             h('nav', { className: 'tl-sidenav' },
                 h('div', { className: 'tl-sidenav-brand' },

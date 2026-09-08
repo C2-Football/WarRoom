@@ -4,7 +4,10 @@
 .tl-draft-pick strong { display: -webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; height:36px; color: #fff; font-size: 13px; line-height: 18px; white-space: normal; overflow-wrap:anywhere; margin: 5px 0; }
 .tl-draft-pick small,.tl-draft-pick span { display: block; font-size: 10px; line-height:14px; color: var(--pick-color); white-space:nowrap; }
 .tl-draft-pick.is-latest { outline:2px solid #ffe083; outline-offset:-2px; }
-.tl-draft-live-room { position:sticky; top:max(8px,env(safe-area-inset-top)); z-index:20; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 16px; margin:14px 0; border:1px solid #57718b; border-radius:12px; background:#17263a; box-shadow:0 6px 18px #080f2455; }
+.tl-draft-live-room { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 16px; margin:14px 0; border:1px solid #57718b; border-radius:12px; background:#17263a; box-shadow:0 6px 18px #080f2455; }
+.tl-play[data-vault-phase="draft"][data-vault-tab="draft"] .tl-draft-live-room { position:sticky; top:max(8px,env(safe-area-inset-top)); z-index:20; }
+.tl-play[data-vault-phase]:not([data-vault-phase="draft"]) :is(.tl-draft-live-room,.tl-draft-dock,.tl-draft-clock,.tl-on-clock),
+.tl-play[data-vault-tab]:not([data-vault-tab="draft"]) :is(.tl-draft-recap,.tl-draft-live-room,.tl-draft-dock,.tl-draft-clock,.tl-on-clock) { display:none!important; }
 .tl-draft-live-selection { display:flex; align-items:center; gap:9px; min-width:0; }
 .tl-draft-live-selection .tl-helmet { flex-shrink:0; }
 .tl-draft-live-selection > div { min-width:0; }
