@@ -20,6 +20,50 @@
     /** Playback durations are wall-clock seconds, excluding pauses. */
     const CAST_DURATIONS = [300, 180, 60];
 
+    // Use the lineup that played this week, including during archived replays.
+    // Saved results are deliberately hidden until their scoring moments arrive.
+    function LiveLineups({ row, teams, rosterSlots, weekData, landed, final, currentPlay }) {
+        if (!row) return null;
+        const ids = row.mineIsHome ? [row.home, row.away] : [row.away, row.home];
+        const sides = ids.map(teamId => {
+            const team = teams.find(item => item.teamId === teamId);
+            const starters = weekData ? weekData.results.find(result => result.teamId === teamId)?.starters || []
+                : (team?.roster || []).filter(entry => !['BN', 'IR', 'TAXI'].includes(entry.slot));
+            const moments = new Map();
+            for (const event of landed) {
+                if (event.teamId !== teamId) continue;
+                const value = moments.get(event.entryId) || { cents: 0, stats: {} };
+                value.cents += Math.round(event.points * 100);
+                Gamecast.addStats(value.stats, event.stats || {});
+                moments.set(event.entryId, value);
+            }
+            return { team, starters: starters.map(entry => ({ ...entry,
+                points: final ? entry.points || 0 : (moments.get(entry.entryId)?.cents || 0) / 100,
+                stats: final ? entry.stats : moments.get(entry.entryId)?.stats,
+                scoring: !final && currentPlay?.teamId === teamId && currentPlay.entryId === entry.entryId,
+            })) };
+        });
+        const slots = window.App.TimeLeagueRoster.ROSTER_SLOT_IDS.filter(slot => !['BN', 'IR', 'TAXI'].includes(slot));
+        const rows = slots.flatMap(slot => {
+            const entries = sides.map(side => side.starters.filter(entry => entry.slot === slot));
+            const count = Math.max(rosterSlots[slot] || 0, ...entries.map(list => list.length));
+            return Array.from({ length: count }, (_, index) => ({ slot, index, entries: entries.map(list => list[index]) }));
+        });
+        const player = (entry, side) => h('div', { className: `tl-live-player is-${side}${entry?.scoring ? ' is-scoring' : ''}`, 'data-entry-id': entry?.entryId },
+            h('div', { className: 'tl-live-player-name' },
+                h('strong', null, entry?.name || 'Empty slot'),
+                entry && h('small', null, `${entry.drawnSeason} · ${entry.position}`)),
+            h('strong', { className: 'tl-live-player-points tabular' }, entry ? entry.points.toFixed(2) : '—'),
+            entry && h('span', { className: 'tl-live-player-stats' }, Gamecast.describeStats(entry.stats || {}, 2) || (final ? entry.stats ? 'No scoring stats' : 'No game recorded' : weekData ? 'No scoring yet' : 'Awaiting kickoff')));
+        return h('section', { className: 'tl-live-lineups', 'aria-label': 'Head-to-head starting lineups' },
+            h('div', { className: 'tl-live-lineups-title' }, h('h3', null, 'Lineup matchup'), h('small', null, final ? 'FINAL POINTS' : weekData ? 'LIVE POINTS' : 'STARTERS')),
+            h('div', { className: 'tl-live-lineups-head' }, h('strong', null, sides[0].team?.name || ids[0]), h('span', null, 'VS'), h('strong', null, sides[1].team?.name || ids[1])),
+            rows.map(item => h('div', { key: `${item.slot}:${item.index}`, className: 'tl-live-lineup-row' },
+                player(item.entries[0], 'left'),
+                h('span', { className: 'tl-live-lineup-slot', title: item.slot.replaceAll('_', ' ') }, item.slot === 'SUPER_FLEX' ? 'SFLEX' : item.slot),
+                player(item.entries[1], 'right'))));
+    }
+
     function BoxScores({ week, teamName }) {
         const resultOf = new Map(week.results.map((r) => [r.teamId, r]));
         return h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginTop: 12 } },
@@ -120,7 +164,7 @@
 
     }
 
-    function WrTimeLeagueGamecastPanel({ league, cards, logIndex, logsMissing, eraFactors, onUpdate, onGoRoster, onlineMeta, autoPlayWeek, onGoCeremony }) {
+    function WrTimeLeagueGamecastPanel({ league, cards, logIndex, logsMissing, eraFactors, onUpdate, onGoRoster, onlineMeta, autoPlayWeek, onGoCeremony, active = true, onPlaybackChange, seatTeamId }) {
         const [playback, setPlayback] = useState(null);
         const [clock, setClock] = useState(0);
         const [playing, setPlaying] = useState(false);
@@ -130,16 +174,17 @@
         const [boxWeek, setBoxWeek] = useState(null);
         const clockRef = useRef(0);
         const autoPlayed = useRef(null);
+        const previousStage = useRef(league.weekStage);
         useEffect(() => {
             if (!autoPlayWeek || autoPlayed.current === autoPlayWeek) return;
             const weekData = league.finalizedWeeks.find(week => week.week === autoPlayWeek);
             if (!weekData) return;
             autoPlayed.current = autoPlayWeek;
             setPlayback({ timeline: Gamecast.buildGamecast({ week: weekData.week, results: weekData.results, matchups: weekData.matchups, seed: league.seed, scoring: league.settings.scoring }), weekData, finalized: league, live: true });
-            setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(300); setPlaying(true);
+            setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(300); setPlaying(active);
         }, [autoPlayWeek, league.finalizedWeeks, league.seed, league.settings.scoring]);
 
-        const myTeamId = (league.teams.find((t) => onlineMeta ? t.teamId === onlineMeta.seatTeamId : t.manager === 'human') ?? league.teams[0])?.teamId;
+        const myTeamId = (league.teams.find((t) => onlineMeta || seatTeamId ? t.teamId === (onlineMeta?.seatTeamId || seatTeamId) : t.manager === 'human') ?? league.teams[0])?.teamId;
 
         const teamName = useMemo(() => {
             const names = new Map(league.teams.map((t) => [t.teamId, t.name]));
@@ -149,7 +194,7 @@
         const finishPlayback = useCallback(() => { setPlaying(false); }, []);
 
         useEffect(() => {
-            if (!playing) return;
+            if (!playing || !active) return;
             let raf = 0;
             let last = performance.now();
             const step = (now) => {
@@ -162,7 +207,17 @@
             };
             raf = window.requestAnimationFrame(step);
             return () => window.cancelAnimationFrame(raf);
-        }, [playing, speed, finishPlayback]);
+        }, [playing, speed, finishPlayback, active]);
+
+        // Keep this panel mounted across tabs, but pause its clock while away.
+        useEffect(() => { if (!active) setPlaying(false); }, [active]);
+        useEffect(() => {
+            const advanced = previousStage.current === 'postgame' && league.weekStage !== 'postgame';
+            previousStage.current = league.weekStage;
+            if (playback && (advanced || (playback.live && league.weekStage !== 'postgame' && league.currentWeek > playback.weekData.week))) {
+                setPlayback(null); setPlaying(false); clockRef.current = 0; setClock(0);
+            }
+        }, [league.weekStage, league.currentWeek, playback]);
 
         const skipToEnd = () => { clockRef.current = GAMECAST_END; setClock(GAMECAST_END); if (playing) finishPlayback(); };
         const canRun = league.weekStage === 'ready' && (!onlineMeta || onlineMeta.role === 'commissioner') && league.phase === 'season' && cards !== null && cards.size > 0 && logIndex !== null && (!league.settings.eraAdjusted || Boolean(eraFactors?.size));
@@ -195,6 +250,12 @@
         };
 
         const done = playback !== null && clock >= GAMECAST_END;
+        const quarter = Gamecast.quarterAt(clock);
+        const togglePlayback = useCallback(() => setPlaying(value => !value), []);
+        const nextQuarter = useCallback(() => { setPlaying(false); clockRef.current = Gamecast.nextQuarterEnd(clockRef.current); setClock(clockRef.current); }, []);
+        useEffect(() => {
+            onPlaybackChange?.(playback ? { leagueId: league.leagueId, week: playback.weekData.week, done, playing: playing && active, quarter, replay: !playback.live, toggle: togglePlayback, nextQuarter } : null);
+        }, [onPlaybackChange, league.leagueId, playback, done, playing, active, quarter, togglePlayback, nextQuarter]);
         const landed = useMemo(() => (playback ? playback.timeline.events.filter((e) => e.t <= clock) : []), [playback, clock]);
         const liveTotals = useMemo(() => {
             const totals = new Map();
@@ -236,7 +297,6 @@
         const visibleEvents=followMine&&myRow?landed.filter(e=>e.teamId===myRow.home||e.teamId===myRow.away):landed;
         const currentPlay=visibleEvents[visibleEvents.length-1];
         const nextPlay=()=>{setPlaying(false);const next=playback.timeline.events.find(e=>e.t>clockRef.current && (!followMine||!myRow||e.teamId===myRow.home||e.teamId===myRow.away));clockRef.current=next?next.t:GAMECAST_END;setClock(clockRef.current);};
-        const nextQuarter = () => { setPlaying(false); clockRef.current = Gamecast.nextQuarterEnd(clockRef.current); setClock(clockRef.current); };
         const spotlight = h('div', { className: 'tl-current-play tl-live-spotlight' },
             h('span', { className: 'tl-label' }, currentPlay ? `${teamName(currentPlay.teamId)} · ${Gamecast.clockLabel(currentPlay.t)}` : 'READY FOR KICKOFF'),
             h('h3', null, currentPlay?.description || 'The scores and win estimate update as scoring moments arrive.'),
@@ -246,9 +306,11 @@
             quarterScore: playback ? h(QuarterScore, { row: myRow, teams: league.teams, timeline: playback.timeline, landed, clock }) : null,
             progress: clock / GAMECAST_END, statusLabel: playback ? (done ? 'FINAL' : playing ? 'SIMULATION' : 'PAUSED') : savedFinal ? 'FINAL' : 'UPCOMING',
             clockLabel: playback ? Gamecast.clockLabel(clock) : `WK ${weekLabel}` }) : spotlight;
+        const lineups = h(LiveLineups, { row: myRow, teams: league.teams, rosterSlots: league.settings.rosterSlots,
+            weekData: playback?.weekData || savedFinal, landed, final: done || Boolean(savedFinal), currentPlay });
         if (playback) {
             return h('div', null,
-                strip, hero,
+                strip, hero, lineups,
                 h('p',{className:'tl-hint'},'Historical totals, reconstructed across four quarters. Quarter timing is simulated. Playback controls do not change the saved result.'),
                 h('div', { className: 'tl-card' },
                     h('div', { className: 'tl-card-title' }, h('span', null, `Week ${playback.weekData.week} — ${done ? 'Final' : playing ? 'Playing' : 'Paused'}`), h('small', null, `${landed.length}/${playback.timeline.events.length} scoring moments`)),
@@ -257,8 +319,8 @@
                         h('span', { className: 'tabular tl-cast-clock' }, Gamecast.clockLabel(clock)),
                         h('span', { className: 'tl-cast-progress', role: 'progressbar', 'aria-label': 'Game playback', 'aria-valuenow': Math.round(clock / GAMECAST_END * 100), 'aria-valuemin': 0, 'aria-valuemax': 100 },
                             h('span', { style: { display: 'block', height: '100%', width: `${(clock / GAMECAST_END) * 100}%`, background: 'var(--gold)' } })),
-                        h('button',{className:'tl-btn primary',disabled:done,onClick:()=>setPlaying(v=>!v)},playing?'PAUSE':'RESUME'),
-                        h('button',{className:'tl-btn primary',disabled:done,onClick:nextQuarter},'NEXT QUARTER'),
+                        !onPlaybackChange && h('button',{className:'tl-btn primary',disabled:done,onClick:togglePlayback},playing?'PAUSE':'RESUME'),
+                        !onPlaybackChange && h('button',{className:'tl-btn primary',disabled:done,onClick:nextQuarter},'NEXT QUARTER'),
                         h('button',{className:'tl-btn',disabled:done,onClick:nextPlay},'NEXT PLAY'),
                         done&&h('button',{className:'tl-btn',onClick:()=>{clockRef.current=0;setClock(0);setPlaying(false);}},'REPLAY FROM START'),
                         h('button',{className:'tl-btn','aria-pressed':followMine,onClick:()=>setFollowMine(v=>!v)},followMine?'MY MATCHUP':'ALL MATCHUPS'),
@@ -281,8 +343,8 @@
         }
 
         return h('div', null,
-            strip, hero,
-            league.phase === 'season' && league.weekStage === 'ready' && h('div', { className: 'tl-card' },
+            strip, hero, lineups,
+            league.phase === 'season' && league.weekStage === 'ready' && (!onPlaybackChange || warnings || logsMissing || !logIndex || !cards?.size || (league.settings.eraAdjusted && !eraFactors?.size)) && h('div', { className: 'tl-card' },
                 h('div', { className: 'tl-card-title' }, h('span', null, `Week ${league.currentWeek} Command`), h('small', null, `${pairs.length} matchups · ${league.settings.eraAdjusted ? 'era-adjusted' : 'raw scoring'}`)),
                 logsMissing && h('div', { className: 'tl-feedrow urgent' }, h('time', null, 'DATA'), h('p', null, 'Weekly game data has not loaded. Use Retry loading above.')),
                 !logsMissing && !logIndex && h('div', { className: 'tl-feedrow' }, h('time', null, 'DATA'), h('p', null, 'Loading historical games…')),
@@ -293,7 +355,7 @@
                     h('div', { style: { display: 'flex', gap: 8, marginTop: 8 } },
                         h('button', { className: 'tl-btn', onClick: onGoRoster }, 'FIX LINEUPS'),
                         h('button', { className: 'tl-btn', onClick: () => runGameDay(true) }, 'RUN ANYWAY'))),
-                h('button', { className: 'tl-btn primary', disabled: !canRun, onClick: () => runGameDay(false), style: { width: '100%', justifyContent: 'center', padding: '10px', marginTop: 4 } }, onlineMeta && onlineMeta.role !== 'commissioner' ? 'WAITING FOR COMMISSIONER' : '▶ RUN GAME DAY')),
+                !onPlaybackChange && h('button', { className: 'tl-btn primary', disabled: !canRun, onClick: () => runGameDay(false), style: { width: '100%', justifyContent: 'center', padding: '10px', marginTop: 4 } }, onlineMeta && onlineMeta.role !== 'commissioner' ? 'WAITING FOR COMMISSIONER' : '▶ RUN GAME DAY')),
             league.phase === 'complete' && h('div', { className: 'tl-card', style: { display: 'flex', alignItems: 'center', gap: 12 } },
                 h('span', { style: { fontSize: 24 } }, '🏆'),
                 h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'Season Complete — Champion'), h('strong', { style: { fontFamily: 'var(--font-title)', fontSize: 18 } }, champion ?? 'Unknown')), onGoCeremony && h('button', { className: 'tl-btn primary', onClick: onGoCeremony }, 'CHAMPIONSHIP CEREMONY')),

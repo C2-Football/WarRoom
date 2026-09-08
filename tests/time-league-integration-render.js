@@ -27,8 +27,9 @@ let called;
 function gates(meta){return render(()=>WrTimeLeagueWeekGates({league,onlineMeta:meta,saving:false,dataReady:true,onAction:a=>{called=a;},onNavigate:()=>{}}));}
 reset();let tree=gates({role:'member',seatTeamId:league.teams[0].teamId});
 button(tree,'Vote to advance').props.onClick();assert.equal(called.type,'vote-advance');assert(!button(tree,'Commissioner override'));
-reset();tree=gates({role:'commissioner',seatTeamId:league.teams[0].teamId});assert(button(tree,'Commissioner override'));
-league={...league,settings:{...league.settings,advancementMode:'timed'}};reset();tree=gates({role:'commissioner'});assert(text(tree).includes('Deadline:'));button(tree,'Advancement settings').props.onClick();tree=gates({role:'commissioner'});assert(text(tree).includes('Time per stage'));
+reset();tree=gates({role:'commissioner',seatTeamId:league.teams[0].teamId});
+walk(tree).find(node=>node.props?.['aria-label']==='Week options').props.onClick();tree=gates({role:'commissioner'});assert(button(tree,'Commissioner override'));
+league={...league,settings:{...league.settings,advancementMode:'timed'}};reset();tree=gates({role:'commissioner'});assert(text(tree).includes('Deadline:'));walk(tree).find(node=>node.props?.['aria-label']==='Week options').props.onClick();tree=gates({role:'commissioner'});assert(text(tree).includes('Time per stage'));
 const week={week:1,headlines:[],results:league.teams.map(team=>({teamId:team.teamId,total:0,starters:[],bench:[]})),matchups:[{home:league.teams[0].teamId,away:league.teams[1].teamId,homePoints:0,awayPoints:0,winner:null}]};
 league={...league,currentWeek:2,weekStage:'postgame',finalizedWeeks:[week]};
 reset();const cast=()=>render(()=>WrTimeLeagueGamecastPanel({league,cards,logIndex:new Map(),onUpdate:()=>{},autoPlayWeek:1}));cast();effects[0]();tree=cast();assert.equal(state[2],true);assert.equal(state[3],300);assert(state[0].live);assert.equal(state[0].weekData.week,1);

@@ -132,3 +132,77 @@
     .tl-play .tl-mobile-more { max-height:calc(100dvh - 112px - env(safe-area-inset-bottom)); overflow-y:auto; overscroll-behavior:contain; }
     .tl-league-menu-body { max-height:calc(100dvh - 180px - env(safe-area-inset-bottom)); overflow-y:auto; overscroll-behavior:contain; }
 }
+
+/* The week follows the user, in a single action row above mobile navigation. */
+.tl-play.tl-has-week-actions .tl-main { padding-bottom:150px; }
+.tl-week-action-row { position:fixed; z-index:105; bottom:0; left:0; right:0; padding:12px 20px; border-top:1px solid #66758b; background:#1b263cf5; backdrop-filter:blur(18px); box-shadow:0 -8px 28px #0b132d45; }
+.tl-week-action-inner { display:flex; align-items:center; gap:12px; max-width:1180px; margin:0 auto; }
+.tl-week-action-status { min-width:0; flex:1; display:grid; gap:3px; }
+.tl-week-action-status small { font:10px var(--font-mono); color:#a8b8ce; letter-spacing:.06em; }
+.tl-week-action-status strong { font-size:14px; line-height:1.3; color:#edf5fd; }
+.tl-week-action-status > span { font-size:11px; color:#b3c6d9; }
+.tl-week-action-buttons { display:flex; align-items:stretch; gap:8px; }
+.tl-play .tl-week-action-buttons .tl-btn { min-height:44px; justify-content:center; white-space:normal; font-size:12px; line-height:1.2; }
+.tl-play .tl-week-action-buttons .tl-btn:last-child { background:var(--mint); color:var(--ink); border-color:var(--mint); font-weight:750; }
+.tl-week-action-more { position:relative; }
+.tl-play .tl-week-action-more > .tl-btn { min-height:44px; min-width:40px; justify-content:center; }
+.tl-week-action-menu { position:absolute; bottom:calc(100% + 16px); right:0; width:min(420px,calc(100vw - 24px)); max-height:65dvh; overflow-y:auto; padding:16px; border:1px solid #6b7d99; border-radius:16px; background:#202c43; box-shadow:0 16px 48px #0008; }
+.tl-week-action-menu .tl-stage-track { grid-template-columns:1fr 1fr; }
+.tl-week-action-menu .tl-stage-settings { display:grid; gap:12px; }
+.tl-week-action-menu .tl-card-title { margin-bottom:12px; }
+.tl-play .tl-week-action-row button:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+@media(min-width:1024px) { .tl-week-action-row { left:176px; } }
+@media(max-width:900px) {
+    .tl-play.tl-has-week-actions .tl-main { padding-bottom:calc(200px + env(safe-area-inset-bottom,0px)); }
+    .tl-week-action-row { bottom:var(--tl-mobile-nav-space,calc(70px + env(safe-area-inset-bottom,0px))); padding:8px 12px 10px; }
+    .tl-week-action-inner { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:7px; }
+    .tl-week-action-status { grid-column:1/-1; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .tl-week-action-status small { font-size:9px; flex:none; }
+    .tl-week-action-status strong { font-size:12px; }
+    .tl-week-action-status > span { margin-left:auto; font-size:10px; }
+    .tl-week-action-buttons { grid-column:1; min-width:0; }
+    .tl-week-action-buttons:only-child { grid-column:1/-1; }
+    .tl-week-action-buttons .tl-btn { flex:1; min-width:0; padding:8px 10px; }
+    .tl-week-action-more { grid-column:2; }
+    .tl-week-action-inner:not(:has(.tl-week-action-more)) .tl-week-action-buttons { grid-column:1/-1; }
+    .tl-week-action-menu { position:fixed; bottom:calc(var(--tl-mobile-nav-space) + 96px); right:12px; max-height:calc(100dvh - var(--tl-mobile-nav-space) - 170px - env(safe-area-inset-top,0px)); }
+}
+
+/* Both starting lineups share the same event clock as the score above. */
+.tl-live-lineups { margin:16px 0; border:1px solid #536984; border-radius:18px; overflow:hidden; background:#172238; }
+.tl-live-lineups-title { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; }
+.tl-live-lineups-title h3 { margin:0; font:700 19px var(--font-title); }
+.tl-live-lineups-title small { font:10px var(--font-mono); color:#98b7cc; }
+.tl-live-lineups-head,.tl-live-lineup-row { display:grid; grid-template-columns:minmax(0,1fr) 48px minmax(0,1fr); }
+.tl-live-lineups-head { align-items:center; padding:10px 16px; background:#293850; font-size:13px; }
+.tl-live-lineups-head > strong { min-width:0; overflow-wrap:anywhere; }
+.tl-live-lineups-head > strong:first-child { color:#8af0cf; }
+.tl-live-lineups-head > strong:last-child { color:#ffa28e; text-align:right; }
+.tl-live-lineups-head > span { text-align:center; font:10px var(--font-mono); color:#a7b8cc; }
+.tl-live-lineup-row { align-items:stretch; border-top:1px solid #ffffff10; }
+.tl-live-lineup-slot { display:flex; align-items:center; justify-content:center; padding:8px 2px; font:10px var(--font-mono); color:#e5cf89; background:#101b2b66; overflow-wrap:anywhere; }
+.tl-live-player { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:5px 12px; padding:14px 16px; min-width:0; transition:background-color .3s ease; }
+.tl-live-player-name { min-width:0; }
+.tl-live-player-name strong { display:block; font-size:14px; font-weight:650; line-height:1.35; overflow-wrap:anywhere; }
+.tl-live-player-name small { display:block; margin-top:4px; color:#a3b4cd; font-size:10px; }
+.tl-live-player-points { align-self:center; color:#8af0cf; font-size:20px; font-weight:750; }
+.tl-live-player-stats { grid-column:1/-1; color:#a9bdd4; font-size:11px; line-height:1.4; overflow-wrap:anywhere; }
+.tl-live-player.is-right { grid-template-columns:auto minmax(0,1fr); text-align:right; }
+.tl-live-player.is-right .tl-live-player-name { grid-column:2; grid-row:1; }
+.tl-live-player.is-right .tl-live-player-points { grid-column:1; grid-row:1; color:#ffa28e; }
+.tl-live-player.is-scoring { background:#8af0cf12; box-shadow:inset 3px 0 #8af0cf; }
+.tl-live-player.is-right.is-scoring { background:#ffa28e12; box-shadow:inset -3px 0 #ffa28e; }
+@media(max-width:600px) {
+    .tl-live-lineups { border-radius:14px; }
+    .tl-live-lineups-title { padding:12px; }
+    .tl-live-lineups-title h3 { font-size:17px; }
+    .tl-live-lineups-title small { font-size:9px; }
+    .tl-live-lineups-head,.tl-live-lineup-row { grid-template-columns:minmax(0,1fr) 36px minmax(0,1fr); }
+    .tl-live-lineups-head { padding:10px; font-size:11px; }
+    .tl-live-player { gap:5px; padding:12px 8px; }
+    .tl-live-player-name strong { font-size:12px; }
+    .tl-live-player-points { font-size:15px; }
+    .tl-live-player-stats { font-size:10px; }
+    .tl-live-lineup-slot { font-size:8px; }
+}
+@media(prefers-reduced-motion:reduce) { .tl-live-player { transition:none; } }

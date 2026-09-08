@@ -24,7 +24,8 @@ const fixture=seed=>({...E.createTimeLeague({seed,name:seed,createdAt:'2026-09-0
     states[1]=fixture('Owner workspaces');states[4]='roster';states[5]='t2';states[6]=new Map([['x',{}]]);
     let tree=render();
     assert.equal(component(tree,'TeamPanel').props.activeTeamId,'t1','Old rival selection cannot replace My Roster');
-    assert.equal(component(tree,'WeekGates').props.compact,true);
+    assert.equal(component(tree,'WeekGates').props.currentTab,'roster');
+    assert(tree.props.className.includes('tl-has-week-actions'),'Focused workspaces reserve space for the bottom action row');
     assert.equal(component(tree,'RivalsPanel'),undefined,'Full owner mail does not repeat above the roster');
     component(tree,'TeamPanel').props.onBrowseWaivers('SUPER_FLEX');
     tree=render();
