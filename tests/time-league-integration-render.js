@@ -33,4 +33,23 @@ const week={week:1,headlines:[],results:league.teams.map(team=>({teamId:team.tea
 league={...league,currentWeek:2,weekStage:'postgame',finalizedWeeks:[week]};
 reset();const cast=()=>render(()=>WrTimeLeagueGamecastPanel({league,cards,logIndex:new Map(),onUpdate:()=>{},autoPlayWeek:1}));cast();effects[0]();tree=cast();assert.equal(state[2],true);assert.equal(state[3],300);assert(state[0].live);assert.equal(state[0].weekData.week,1);
 state[1]=35;effects[0]();assert.equal(state[1],35,'Autoplay must not rewind same week on rerender');
+reset(); cast(); effects[0](); tree=cast();
+const savedLeague=JSON.stringify(league);
+button(tree,'1 MIN').props.onClick(); tree=cast(); assert.equal(state[3],60);
+for (const boundary of [15,30,45,60]) {
+    button(tree,'NEXT QUARTER').props.onClick(); tree=cast();
+    assert.equal(state[1],boundary); assert.equal(state[2],false,'Quarter stepping pauses at the break');
+    const recap=walk(tree).find(node=>typeof node.type==='function' && node.type.name==='QuarterRecap');
+    assert.equal(recap.props.clock,boundary);
+}
+assert(button(tree,'NEXT QUARTER').props.disabled);
+assert.equal(JSON.stringify(league),savedLeague,'Playback controls never mutate the saved result');
+button(tree,'REPLAY FROM START').props.onClick(); tree=cast(); assert.equal(state[1],0);
+button(tree,'RESUME').props.onClick(); tree=cast();
+let callback,stamp=performance.now();
+window.requestAnimationFrame=fn=>{callback=fn;return 1;}; window.cancelAnimationFrame=()=>{};
+effects[1]();
+for(let i=0;i<151;i++){stamp+=100;callback(stamp);}
+assert(state[1]>=14.9&&state[1]<=15.2,'One-minute mode spends about 15 seconds on each quarter');
+tree=cast(); button(tree,'PAUSE').props.onClick(); tree=cast(); assert.equal(state[2],false);
 console.log('PASS: root draft/home renders, weekly gate role/mode controls, postgame autoplay and replay deduplication');

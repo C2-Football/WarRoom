@@ -45,11 +45,7 @@
         const identity = window.App.TimeLeagueProfile?.teamDefaults();
         return [
         { ...seatWithHelmet({ name: 'Commander', manager: 'human', aiPersona: 'warlord' }), ...(identity || {}) },
-        seatWithHelmet({ name: 'Warlord Kade', manager: 'ai', aiPersona: 'warlord' }),
-        seatWithHelmet({ name: 'The Archivist', manager: 'ai', aiPersona: 'archivist' }),
-        seatWithHelmet({ name: 'Riverboat Sol', manager: 'ai', aiPersona: 'gambler' }),
-        seatWithHelmet({ name: 'Steward Vance', manager: 'ai', aiPersona: 'steward' }),
-        seatWithHelmet({ name: 'Iron Ledger', manager: 'ai', aiPersona: 'archivist' }),
+        ...Array.from({ length: 5 }, (_, index) => Engine.defaultAiSeat(index + 1)),
         ];
     };
 

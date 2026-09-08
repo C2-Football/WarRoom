@@ -219,15 +219,21 @@
         };
         const updateSeat = (target, patch) => {
             if (target === 0) identityTouched.current = true;
-            setSeats((previous) => previous.map((seat, index) => (index === target ? { ...seat, ...patch } : seat)));
+            setSeats((previous) => previous.map((seat, index) => {
+                if (index !== target) return seat;
+                const aiSeat = patch.manager === 'ai' && seat.manager !== 'ai'
+                    ? Engine.defaultAiSeat(index, previous.filter((_, i) => i !== index).map(item => item.name)) : null;
+                return { ...seat, ...(aiSeat ? { aiPersona: aiSeat.aiPersona, ...(/^Friend \d+$/.test(seat.name) ? { name: aiSeat.name, helmet: aiSeat.helmet } : {}) } : {}), ...patch };
+            }));
         };
         const addSeat = () => setSeats((previous) => {
             if (previous.length >= 12) return previous;
-            const seatName = playMode === 'friends' ? `Friend ${previous.length}` : `Rival ${previous.length}`;
+            const aiSeat = Engine.defaultAiSeat(previous.length, previous.map(seat => seat.name));
+            const seatName = playMode === 'friends' ? `Friend ${previous.length}` : aiSeat.name;
             return [...previous, {
                 name: seatName,
                 manager: playMode === 'friends' ? 'human' : 'ai',
-                aiPersona: window.TimeLeagueUtils.PERSONA_IDS[previous.length % 4],
+                aiPersona: aiSeat.aiPersona,
                 helmet: window.App.TimeLeagueHelmet.defaultHelmet(seatName),
             }];
         });
@@ -236,7 +242,7 @@
 
         const startLeague = async () => {
             const built = seats.map((seat, index) => ({
-                name: seat.name.trim() || (index === 0 ? 'My Team' : `Manager ${index + 1}`),
+                name: seat.name.trim() || (seat.manager === 'ai' ? Engine.defaultAiSeat(index).name : index === 0 ? 'My Team' : `Manager ${index + 1}`),
                 manager: seat.manager,
                 ...(seat.manager === 'ai' ? { aiPersona: seat.aiPersona } : {}),
                 helmet: seat.helmet,

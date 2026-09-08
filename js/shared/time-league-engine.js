@@ -22,6 +22,36 @@
     const round2 = (value) => Math.round(value * 100) / 100;
     const fixed1 = (value) => value.toFixed(1);
 
+    const AI_PERSONAS = ["warlord", "archivist", "gambler", "steward"];
+    const AI_MANAGERS = [
+        ['Warlord Kade', 'warlord'], ['The Archivist', 'archivist'],
+        ['Riverboat Sol', 'gambler'], ['Steward Vance', 'steward'],
+        ['Iron Ledger', 'archivist'], ['Maverick Jules', 'gambler'],
+        ['Blitz Monroe', 'warlord'], ['Professor Vale', 'archivist'],
+        ['Wildcard Remy', 'gambler'], ['Coach Hollis', 'steward'],
+        ['Steel Sutton', 'warlord'], ['Sunday Sloane', 'steward'],
+    ];
+
+    /** One catalog for setup, API-created leagues and older unnamed AI seats. */
+    function defaultAiSeat(index = 1, occupiedNames = []) {
+        const start = Math.max(0, index - 1) % AI_MANAGERS.length;
+        const taken = new Set(occupiedNames.map(name => name.trim().toLowerCase()));
+        const choices = [...AI_MANAGERS.slice(start), ...AI_MANAGERS.slice(0, start)];
+        const [name, aiPersona] = choices.find(([candidate]) => !taken.has(candidate.toLowerCase())) || choices[0];
+        return { name, manager: 'ai', aiPersona, helmet: App.TimeLeagueHelmet.defaultHelmet(name) };
+    }
+
+    function managerIdentity(value, index) {
+        const fallback = defaultAiSeat(index);
+        const name = typeof value.name === 'string' ? value.name.trim() : '';
+        // Only replace the exact placeholder emitted by the old Add team flow.
+        const legacyName = index >= 6 && name === `Rival ${index}`;
+        return {
+            name: name && !legacyName ? name : fallback.name,
+            aiPersona: AI_PERSONAS.includes(value.aiPersona) ? value.aiPersona : fallback.aiPersona,
+        };
+    }
+
     const idNumber = (id, prefix) => {
         const value = Number(id.slice(prefix.length));
         return Number.isFinite(value) ? value : 0;
@@ -232,6 +262,7 @@
                 name: seat.name,
                 manager: seat.manager,
                 ...(seat.aiPersona ? { aiPersona: seat.aiPersona } : {}),
+                ...(seat.manager === 'ai' ? managerIdentity(seat, index) : {}),
                 // Setup always hands one over (defaultSeats / addSeat both stamp
                 // one in), but a manually-built seats array (tests, deep links)
                 // still lands on a real, deterministic helmet instead of none.
@@ -843,7 +874,6 @@
 
     const SCORING_KEYS = ["passTd", "reception", "rushRecYd", "passingYd", "turnover"];
     const STAT_KEYS = ["passYd", "passTd", "passInt", "rushYd", "rushTd", "rec", "recYd", "recTd", "fumblesLost", "twoPointConversions"];
-    const AI_PERSONAS = ["warlord", "archivist", "gambler", "steward"];
     const AI_DIFFICULTIES = ["rookie", "veteran", "allpro"];
 
     const clampInt = (value, min, max) => Math.min(max, Math.max(min, Math.floor(value)));
@@ -920,12 +950,12 @@
     const readTeam = (value) => {
         if (!isRecord(value)) return null;
         const teamId = readString(value.teamId);
-        const name = readString(value.name);
+        const name = value.manager === 'ai' ? managerIdentity(value, teamId ? Math.max(0, idNumber(teamId, 't') - 1) : 0).name : readString(value.name);
         const manager = value.manager === "human" || value.manager === "ai" ? value.manager : null;
         const roster = readArray(value.roster, readEntry);
         const queue = readArray(value.queue, readString);
         if (!teamId || !name || !manager || !roster || !queue) return null;
-        const aiPersona = AI_PERSONAS.includes(value.aiPersona) ? value.aiPersona : null;
+        const aiPersona = AI_PERSONAS.includes(value.aiPersona) ? value.aiPersona : manager === 'ai' ? defaultAiSeat(Math.max(0, idNumber(teamId, 't') - 1)).aiPersona : null;
         const design = teamDesign(value, teamId);
         const hasFaab = "faabRemaining" in value;
         const faabRemaining = hasFaab ? readNumber(value.faabRemaining) : undefined;
@@ -1139,7 +1169,7 @@
     }
 
     const api = {
-        rosterCapacity, createTimeLeague, currentDraftSeat, draftedIdentities, eraEligibleCards,
+        rosterCapacity, defaultAiSeat, createTimeLeague, currentDraftSeat, draftedIdentities, eraEligibleCards,
         DRAFT_PICK_SECONDS, DRAFT_AI_SECONDS, draftSettings, startDraft, pauseDraft, resumeDraft, configureDraft, expireDraftClock,
         auctionMaxBid, auctionCanBid, auctionCanClose, nominateAuctionPlayer, bidAuctionPlayer, closeAuction,
         positionIsStartable, applyDraftPick, setEntrySlot, autoFillLineup, lineupProblems,

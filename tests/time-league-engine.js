@@ -51,6 +51,24 @@ function seats(count = 4) {
     return Array.from({ length: count }, (_, i) => ({ name: `Team ${i + 1}`, manager: i === 0 ? 'human' : 'ai' }));
 }
 
+test('twelve-team leagues fill every AI identity and repair legacy placeholders without changing custom owners', () => {
+    const teamSeats = Array.from({ length: 12 }, (_, index) => index === 0 ? { name: 'My Club', manager: 'human' } : { name: '', manager: 'ai' });
+    const created = Engine.createTimeLeague({ name: 'Full field', seed: 'twelve', createdAt: '2026-09-07', settings: baseSettings(), seats: teamSeats });
+    assert.equal(new Set(created.teams.map(team => team.name)).size, 12);
+    assert(created.teams.slice(1).every(team => ['warlord', 'archivist', 'gambler', 'steward'].includes(team.aiPersona)));
+    const legacy = JSON.parse(JSON.stringify(created));
+    legacy.teams.forEach((team, index) => { if (index > 0) { delete team.aiPersona; if (index >= 6) team.name = `Rival ${index}`; } });
+    legacy.teams[3].name = 'My Custom Rival'; legacy.teams[3].aiPersona = 'steward';
+    const loaded = Engine.normalizeTimeLeague(legacy);
+    assert(loaded.teams.slice(1).every(team => team.aiPersona && !/^Rival \d+$/.test(team.name)));
+    assert.equal(loaded.teams[3].name, 'My Custom Rival');
+    assert.equal(loaded.teams[3].aiPersona, 'steward');
+    assert.deepStrictEqual(loaded.teams[7].helmet, created.teams[7].helmet, 'Loading cannot replace saved team designs');
+    assert.deepStrictEqual(Engine.normalizeTimeLeague(JSON.parse(JSON.stringify(loaded))), loaded, 'Repairs must survive repeated reloads');
+    const occupied = created.teams.filter((_, i) => i !== 2).map(team => team.name);
+    assert(!occupied.includes(Engine.defaultAiSeat(11, occupied).name), 'Remove then add must choose an unused manager');
+});
+
 function card(identity, name, position, seasons) {
     return { identity, name, position, seasons: seasons.map((s) => ({ ...s, games: 16, passYd: 0, passTd: 0, passInt: 0, rushYd: 0, rushTd: 0, rec: 0, recYd: 0, recTd: 0 })), peak: Math.max(...seasons.map((s) => s.points)) };
 }

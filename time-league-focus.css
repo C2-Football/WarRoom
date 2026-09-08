@@ -41,3 +41,36 @@
 @media(prefers-reduced-motion:reduce) { .tl-league-bar * { scroll-behavior:auto; } }
 
 .tl-play .tl-home-action:last-child { grid-column:auto; }
+
+/* A shared quarter clock keeps the scoreboard, recap and league wire in sync. */
+.tl-quarter-score { margin-top:16px; overflow-x:auto; }
+.tl-quarter-score table { width:100%; border-collapse:collapse; font-size:12px; font-variant-numeric:tabular-nums; }
+.tl-quarter-score th,.tl-quarter-score td { padding:7px 10px; border-bottom:1px solid #ffffff12; text-align:right; }
+.tl-quarter-score th:first-child { text-align:left; max-width:160px; overflow:hidden; text-overflow:ellipsis; }
+.tl-quarter-score thead th { font:10px var(--font-mono); color:#b7cecf; }
+.tl-quarter-score .current { background:#8af0cf12; color:#8af0cf; }
+.tl-quarter-recap { border:1px solid #a4badd30; border-radius:12px; margin:0 0 18px; overflow:hidden; }
+.tl-quarter-recap-title { display:flex; justify-content:space-between; gap:12px; padding:10px 14px; background:#8af0cf0c; font:11px var(--font-mono); color:#8af0cf; }
+.tl-quarter-recap-title span { color:#a9bbce; font-size:10px; }
+.tl-quarter-teams { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.tl-quarter-teams>div { padding:12px 14px; min-width:0; }
+.tl-quarter-teams>div+div { border-left:1px solid #a4badd20; }
+.tl-quarter-teams strong { display:flex; justify-content:space-between; gap:12px; font-size:13px; color:#eff5fc; }
+.tl-quarter-teams strong span { flex-shrink:0; color:#8af0cf; font-variant-numeric:tabular-nums; }
+.tl-quarter-teams p { display:flex; flex-direction:column; gap:3px; font-size:12px; line-height:1.5; margin:10px 0 0; }
+.tl-quarter-teams p b { color:#c8d6e4; }
+.tl-quarter-teams p span { color:#9fb2c8; }
+.tl-cast-controls { display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+.tl-cast-controls .tl-btn { min-height:40px; }
+.tl-cast-clock { font:12px var(--font-mono); color:var(--gold); min-width:88px; }
+.tl-cast-progress { flex:1; min-width:64px; height:5px; background:#ffffff14; border-radius:100px; overflow:hidden; }
+.tl-cast-pace { margin:0 0 14px; font-size:11px; color:var(--text-muted); }
+.tl-sc-leader small { display:block; max-width:240px; margin-top:3px; line-height:1.45; }
+@media(max-width:600px) {
+    .tl-quarter-teams { grid-template-columns:minmax(0,1fr); }
+    .tl-quarter-teams>div+div { border-left:0; border-top:1px solid #a4badd20; }
+    .tl-quarter-score th,.tl-quarter-score td { padding:6px; }
+    .tl-quarter-score th:first-child { max-width:105px; font-size:11px; }
+    .tl-cast-controls>.tl-btn { flex:1 0 auto; }
+    .tl-cast-progress { flex-basis:calc(100% - 140px); }
+}

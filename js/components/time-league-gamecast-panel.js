@@ -16,7 +16,7 @@
     const AI = window.App.TimeLeagueAI;
     const Gamecast = window.App.TimeLeagueGamecast;
 
-    const GAMECAST_END = 200;
+    const GAMECAST_END = Gamecast.GAMECAST_END;
     /** Playback durations are wall-clock seconds, excluding pauses. */
     const CAST_DURATIONS = [300, 180, 60];
 
@@ -53,12 +53,46 @@
                     h('span', { className: 'tl-sc-pts tabular' }, row.awayPoints.toFixed(1))),
                 showLeaders && h('div', { className: 'tl-sc-leader' },
                     h('small', null, 'AROUND THE LEAGUE'),
-                    leader ? h('span', null, h('b', null, leader.name), ` · ${leader.points.toFixed(1)} pts${leader.touchdowns ? ` · ${leader.touchdowns} TD` : ''}`)
+                    leader ? h('span', null, h('b', null, leader.name), ` · ${leader.points.toFixed(1)} pts`, h('small', null, Gamecast.describeStats(leader.stats, 2)))
                         : h('span', null, 'Waiting for the first scoring moment')));
         }));
     }
 
-    function HeroMatchup({ row, teams, week, statusLabel, clockLabel, progress = 0, records = [], spotlight }) {
+    function QuarterScore({ row, teams, timeline, landed, clock }) {
+        const ids = row.mineIsHome ? [row.home, row.away] : [row.away, row.home];
+        const totals = new Map(ids.map(id => [id, [0, 0, 0, 0]]));
+        for (const event of landed) if (totals.has(event.teamId)) totals.get(event.teamId)[event.quarter - 1] += Math.round(event.points * 100);
+        return h('div', { className: 'tl-quarter-score' }, h('table', { 'aria-label': 'Score by simulated quarter' },
+            h('thead', null, h('tr', null, h('th', null, 'BY QUARTER'), timeline.quarters.map(q => h('th', { key: q.quarter, className: Gamecast.quarterAt(clock) === q.quarter ? 'current' : '' }, `Q${q.quarter}`)))),
+            h('tbody', null, ids.map(id => h('tr', { key: id }, h('th', { scope: 'row' }, teams.find(team => team.teamId === id)?.name || id),
+                timeline.quarters.map(q => h('td', { key: q.quarter, className: Gamecast.quarterAt(clock) === q.quarter ? 'current' : '' }, clock > q.start ? (totals.get(id)[q.quarter - 1] / 100).toFixed(1) : '—')))))));
+    }
+
+    function QuarterRecap({ row, landed, clock, teamName }) {
+        const quarter = Gamecast.quarterAt(clock);
+        const ids = row ? [row.mineIsHome ? row.home : row.away, row.mineIsHome ? row.away : row.home] : [];
+        const moments = landed.filter(event => event.quarter === quarter);
+        if (!moments.length || !ids.length) return null;
+        const complete = clock >= quarter * Gamecast.QUARTER_LENGTH;
+        return h('div', { className: 'tl-quarter-recap' },
+            h('div', { className: 'tl-quarter-recap-title' }, `Q${quarter} ${complete ? 'RECAP' : 'SO FAR'}`, h('span', null, complete && quarter === 2 ? 'HALFTIME' : 'YOUR MATCHUP')),
+            h('div', { className: 'tl-quarter-teams' }, ids.map(id => {
+                const players = new Map();
+                let cents = 0;
+                for (const event of moments.filter(item => item.teamId === id)) {
+                    const player = players.get(event.entryId) || { name: event.playerName, stats: {}, points: 0 };
+                    Gamecast.addStats(player.stats, event.stats); player.points += event.points;
+                    players.set(event.entryId, player); cents += Math.round(event.points * 100);
+                }
+                const ranked = [...players.values()].sort((a, b) => Math.abs(b.points) - Math.abs(a.points));
+                const kicker = ranked.find(player => player.stats.extra?.xpm || player.stats.extra?.xpmiss);
+                const featured = [...ranked.filter(player => player !== kicker).slice(0, kicker ? 2 : 3), ...(kicker ? [kicker] : [])];
+                return h('div', { key: id }, h('strong', null, teamName(id), h('span', null, `${(cents / 100).toFixed(1)} pts`)),
+                    featured.length ? featured.map(player => h('p', { key: player.name }, h('b', null, player.name), h('span', null, Gamecast.describeStats(player.stats)))) : h('p', null, 'No production this quarter yet.'));
+            })));
+    }
+
+    function HeroMatchup({ row, teams, week, statusLabel, clockLabel, progress = 0, records = [], spotlight, quarterScore }) {
         if (!row) return null;
         const homeTeam = teams.find((t) => t.teamId === row.home);
         const awayTeam = teams.find((t) => t.teamId === row.away);
@@ -66,7 +100,6 @@
         const opp = row.mineIsHome ? awayTeam : homeTeam;
         const minePts = row.mineIsHome ? row.homePoints : row.awayPoints;
         const oppPts = row.mineIsHome ? row.awayPoints : row.homePoints;
-        const total = minePts + oppPts;
         const minePct = statusLabel === 'FINAL' ? (minePts === oppPts ? 50 : minePts > oppPts ? 100 : 0)
             : Math.max(1, Math.min(99, 100 / (1 + Math.exp(-(minePts - oppPts) / Math.max(3, 24 * Math.sqrt(1 - Math.min(1, progress)))))));
         const record = team => { const row = records.find(r => r.teamId === team.teamId); return row ? `${row.wins}–${row.losses}${row.ties ? '–'+row.ties : ''}` : '0–0'; };
@@ -83,7 +116,7 @@
                     h('div', { className: `tl-h-pts tabular${oppPts > minePts ? ' leading' : ''}` }, oppPts.toFixed(1)))),
             h('div', { className: 'tl-win-prob' }, h('span', null, statusLabel === 'FINAL' ? 'FINAL RESULT' : 'ESTIMATED WIN CHANCE'), h('strong', null, `${minePct.toFixed(0)}% — ${(100 - minePct).toFixed(0)}%`)),
             h('div', { className: 'tl-score-bar' }, h('div', { className: 'tl-fill', style: { width: `${minePct}%` } }), h('div', { className: 'tl-fill against', style: { width: `${100 - minePct}%` } })),
-            h('small', { className: 'tl-live-model-note' }, 'Illustrative estimate from score gap and time remaining; not a calibrated prediction.'), spotlight);
+            h('small', { className: 'tl-live-model-note' }, 'Illustrative estimate from score gap and time remaining; not a calibrated prediction.'), quarterScore, spotlight);
 
     }
 
@@ -102,9 +135,9 @@
             const weekData = league.finalizedWeeks.find(week => week.week === autoPlayWeek);
             if (!weekData) return;
             autoPlayed.current = autoPlayWeek;
-            setPlayback({ timeline: Gamecast.buildGamecast({ week: weekData.week, results: weekData.results, matchups: weekData.matchups, seed: league.seed }), weekData, finalized: league, live: true });
+            setPlayback({ timeline: Gamecast.buildGamecast({ week: weekData.week, results: weekData.results, matchups: weekData.matchups, seed: league.seed, scoring: league.settings.scoring }), weekData, finalized: league, live: true });
             setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(300); setPlaying(true);
-        }, [autoPlayWeek, league.finalizedWeeks, league.seed]);
+        }, [autoPlayWeek, league.finalizedWeeks, league.seed, league.settings.scoring]);
 
         const myTeamId = (league.teams.find((t) => onlineMeta ? t.teamId === onlineMeta.seatTeamId : t.manager === 'human') ?? league.teams[0])?.teamId;
 
@@ -152,12 +185,12 @@
             const canonical = saved && typeof saved === 'object' ? saved : settled;
             const savedWeek = canonical.finalizedWeeks.find(item => item.week === weekData.week);
             if (!savedWeek) return;
-            setPlayback({ timeline: Gamecast.buildGamecast({ week: savedWeek.week, results: savedWeek.results, matchups: savedWeek.matchups, seed: league.seed }), weekData: savedWeek, finalized: canonical, live: true });
+            setPlayback({ timeline: Gamecast.buildGamecast({ week: savedWeek.week, results: savedWeek.results, matchups: savedWeek.matchups, seed: canonical.seed, scoring: canonical.settings.scoring }), weekData: savedWeek, finalized: canonical, live: true });
             setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(300); setPlaying(true);
         };
 
         const replayWeek = (week) => {
-            setPlayback({ timeline: Gamecast.buildGamecast({ week: week.week, results: week.results, matchups: week.matchups, seed: league.seed }), weekData: week, finalized: league, live: false });
+            setPlayback({ timeline: Gamecast.buildGamecast({ week: week.week, results: week.results, matchups: week.matchups, seed: league.seed, scoring: league.settings.scoring }), weekData: week, finalized: league, live: false });
             setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(300); setPlaying(true);
         };
 
@@ -193,49 +226,54 @@
         const leaders = new Map();
         for (const event of landed) {
             const key = `${event.teamId}:${event.entryId}`;
-            const row = leaders.get(key) || { name: event.playerName, teamId: event.teamId, points: 0, touchdowns: 0 };
-            row.points += event.points; row.touchdowns += event.isTouchdown ? 1 : 0; leaders.set(key, row);
+            const row = leaders.get(key) || { name: event.playerName, teamId: event.teamId, points: 0, stats: {} };
+            row.points += event.points; Gamecast.addStats(row.stats, event.stats); leaders.set(key, row);
         }
         const leagueLeaders = [...leaders.values()].sort((a,b) => b.points-a.points);
         const strip = league.phase !== 'draft' && matchupRows.length
-            ? h(ScoreboardStrip, { rows: matchupRows, teams: league.teams, myTeamId, leaders: leagueLeaders, showLeaders: Boolean(playback) && speed === 300, live: Boolean(playback) && !done, statusLabel: playback ? (done ? 'FINAL' : playing ? 'PLAYING' : 'PAUSED') : savedFinal ? 'FINAL' : 'UPCOMING' })
+            ? h(ScoreboardStrip, { rows: matchupRows, teams: league.teams, myTeamId, leaders: leagueLeaders, showLeaders: Boolean(playback) && speed === 300, live: Boolean(playback) && !done, statusLabel: playback ? (done ? 'FINAL' : `Q${Gamecast.quarterAt(clock)} · ${playing ? 'PLAYING' : 'PAUSED'}`) : savedFinal ? 'FINAL' : 'UPCOMING' })
             : null;
         const visibleEvents=followMine&&myRow?landed.filter(e=>e.teamId===myRow.home||e.teamId===myRow.away):landed;
         const currentPlay=visibleEvents[visibleEvents.length-1];
         const nextPlay=()=>{setPlaying(false);const next=playback.timeline.events.find(e=>e.t>clockRef.current && (!followMine||!myRow||e.teamId===myRow.home||e.teamId===myRow.away));clockRef.current=next?next.t:GAMECAST_END;setClock(clockRef.current);};
+        const nextQuarter = () => { setPlaying(false); clockRef.current = Gamecast.nextQuarterEnd(clockRef.current); setClock(clockRef.current); };
         const spotlight = h('div', { className: 'tl-current-play tl-live-spotlight' },
-            h('span', { className: 'tl-label' }, currentPlay ? `${teamName(currentPlay.teamId)} · T+${Math.round(currentPlay.t)}′` : 'READY FOR KICKOFF'),
+            h('span', { className: 'tl-label' }, currentPlay ? `${teamName(currentPlay.teamId)} · ${Gamecast.clockLabel(currentPlay.t)}` : 'READY FOR KICKOFF'),
             h('h3', null, currentPlay?.description || 'The scores and win estimate update as scoring moments arrive.'),
             currentPlay && h('strong', null, `${currentPlay.points >= 0 ? '+' : ''}${currentPlay.points.toFixed(2)} fantasy points`));
         const records = Engine.computeStandings({ ...league, finalizedWeeks: league.finalizedWeeks.filter(week => week.week < weekLabel) });
         const hero = myRow ? h(HeroMatchup, { row: myRow, teams: league.teams, week: weekLabel, records, spotlight,
+            quarterScore: playback ? h(QuarterScore, { row: myRow, teams: league.teams, timeline: playback.timeline, landed, clock }) : null,
             progress: clock / GAMECAST_END, statusLabel: playback ? (done ? 'FINAL' : playing ? 'SIMULATION' : 'PAUSED') : savedFinal ? 'FINAL' : 'UPCOMING',
-            clockLabel: playback ? `${Math.floor(clock / GAMECAST_END * 100)}% played` : `WK ${weekLabel}` }) : spotlight;
+            clockLabel: playback ? Gamecast.clockLabel(clock) : `WK ${weekLabel}` }) : spotlight;
         if (playback) {
             return h('div', null,
                 strip, hero,
-                h('p',{className:'tl-hint'},'Playback controls pause the presentation, not the saved week result. Scoring moments are reconstructed from historical totals.'),
+                h('p',{className:'tl-hint'},'Historical totals, reconstructed across four quarters. Quarter timing is simulated. Playback controls do not change the saved result.'),
                 h('div', { className: 'tl-card' },
                     h('div', { className: 'tl-card-title' }, h('span', null, `Week ${playback.weekData.week} — ${done ? 'Final' : playing ? 'Playing' : 'Paused'}`), h('small', null, `${landed.length}/${playback.timeline.events.length} scoring moments`)),
-                    h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap:'wrap' } },
+                    h('div', { className: 'tl-cast-controls' },
                         h('span', { style: { color: playing ? 'var(--gold)' : 'var(--text-muted)' } }, '📡'),
-                        h('span', { className: 'tabular', style: { fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--gold)' } }, `T+${String(Math.floor(clock)).padStart(3, '0')}′`),
-                        h('span', { style: { flex: 1, height: 5, background: 'rgba(255,255,255,0.08)', borderRadius: 100, overflow: 'hidden' } },
+                        h('span', { className: 'tabular tl-cast-clock' }, Gamecast.clockLabel(clock)),
+                        h('span', { className: 'tl-cast-progress', role: 'progressbar', 'aria-label': 'Game playback', 'aria-valuenow': Math.round(clock / GAMECAST_END * 100), 'aria-valuemin': 0, 'aria-valuemax': 100 },
                             h('span', { style: { display: 'block', height: '100%', width: `${(clock / GAMECAST_END) * 100}%`, background: 'var(--gold)' } })),
                         h('button',{className:'tl-btn primary',disabled:done,onClick:()=>setPlaying(v=>!v)},playing?'PAUSE':'RESUME'),
+                        h('button',{className:'tl-btn primary',disabled:done,onClick:nextQuarter},'NEXT QUARTER'),
                         h('button',{className:'tl-btn',disabled:done,onClick:nextPlay},'NEXT PLAY'),
                         done&&h('button',{className:'tl-btn',onClick:()=>{clockRef.current=0;setClock(0);setPlaying(false);}},'REPLAY FROM START'),
                         h('button',{className:'tl-btn','aria-pressed':followMine,onClick:()=>setFollowMine(v=>!v)},followMine?'MY MATCHUP':'ALL MATCHUPS'),
                         CAST_DURATIONS.map(duration => h('button', { key: duration, className: `tl-btn${speed === duration ? ' primary' : ''}`, 'aria-pressed': speed === duration, onClick: () => setSpeed(duration) }, `${duration / 60} MIN`)),
                         h('button', { className: 'tl-btn icon', disabled: done, onClick: skipToEnd }, 'INSTANT')),
+                    h('p', { className: 'tl-cast-pace' }, `${speed / 60}-minute game · ${speed / 4} seconds per quarter. Next quarter skips to the break and pauses.`),
+                    h(QuarterRecap, { row: myRow, landed, clock, teamName }),
                     done && headlines.length > 0 && h('div', { style: { marginBottom: 14 } },
                         h('span', { className: 'tl-label' }, `Week ${playback.weekData.week} Wire`),
                         headlines.map((headline, i) => h('p', { key: i, style: { fontSize: 12.5, color: 'var(--text-secondary)', margin: '4px 0' } }, headline))),
                     h('div', { style: { maxHeight: 320, overflowY: 'auto' } },
                         visibleEvents.length === 0
-                            ? h('div', { className: 'tl-feedrow' }, h('time', null, 'T+000′'), h('p', null, 'Crews are in the booth — kickoff momentarily.'))
+                            ? h('div', { className: 'tl-feedrow' }, h('time', null, 'Q1 · 15:00'), h('p', null, 'Crews are in the booth — kickoff momentarily.'))
                             : visibleEvents.slice().reverse().map((event, i) => h('div', { key: i, className: `tl-feedrow${event.isTouchdown ? ' urgent' : ''}` },
-                                h('time', null, `T+${String(Math.round(event.t)).padStart(3, '0')}′ · +${event.points.toFixed(2)}`),
+                                h('time', null, `${Gamecast.clockLabel(event.t)} · ${event.points >= 0 ? '+' : ''}${event.points.toFixed(2)}`),
                                 h('p', null, `${event.description} — ${teamName(event.teamId)}`)))),
                     done && h('div', { style: { marginTop: 14, textAlign: 'center' } },
                         league.phase === 'complete' && onGoCeremony && h('button', { className: 'tl-btn primary', onClick: onGoCeremony }, 'CHAMPIONSHIP CEREMONY'),

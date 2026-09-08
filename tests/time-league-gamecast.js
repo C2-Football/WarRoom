@@ -8,6 +8,8 @@ const assert = require('assert');
 global.window = globalThis;
 window.App = {};
 require('../js/shared/time-league-roster.js');
+require('../js/shared/time-league-draft-room.js');
+const Season = require('../js/shared/time-league-season.js');
 const Gamecast = require('../js/shared/time-league-gamecast.js');
 const PlayerCards = require('../js/shared/time-league-player-cards.js');
 
@@ -45,14 +47,91 @@ test('buildGamecast is deterministic for the same seed', () => {
     assert.deepStrictEqual(a.events.map((e) => e.description), b.events.map((e) => e.description));
 });
 
-test('buildGamecast skips entries with no stats or zero points', () => {
+test('buildGamecast skips missing and empty lines, but preserves zero-net production', () => {
     const result = Gamecast.buildGamecast({
         week: 1,
-        results: [{ teamId: 't1', total: 0, starters: [entry({ stats: null, points: 0 }), entry({ entryId: 'e2', points: 0 })] }],
+        results: [{ teamId: 't1', total: 0, starters: [entry({ stats: null, points: 0 }), entry({ entryId: 'e2', points: 0, stats: { rushYd: 0 } })] }],
         matchups: [],
         seed: 'zero-seed',
     });
     assert.strictEqual(result.events.length, 0);
+    const tied = Gamecast.buildGamecast({ week: 1, seed: 'zero-net', results: [{ teamId: 't1', total: 0, starters: [entry({ points: 0, stats: { passYd: 50, passInt: 1 } })] }] });
+    assert(tied.events.some(event => event.points < 0));
+    assert(tied.events.some(event => event.points > 0));
+    assert.equal(tied.events.reduce((sum, event) => sum + Math.round(event.points * 100), 0), 0);
+});
+
+const scoring = { passTd: 4, reception: 0.5, rushRecYd: 0.1, passingYd: 0.04, turnover: -2 };
+const castEntries = (entries, settings = scoring) => Gamecast.buildGamecast({ week: 1, seed: 'quarter-proof', scoring: settings, results: [{ teamId: 't1', total: entries.reduce((sum, entry) => sum + entry.points, 0), starters: entries }] });
+function sameStats(actual, expected) {
+    for (const key of new Set([...Object.keys(actual), ...Object.keys(expected)])) {
+        if (key === 'extra') sameStats(actual.extra || {}, expected.extra || {});
+        else assert.equal(actual[key] || 0, expected[key] || 0, `Conserve ${key}`);
+    }
+}
+
+test('four extra points land as one kick in each quarter after the quarterback production', () => {
+    const qb = entry({ position: 'QB', stats: { passYd: 320, passTd: 4 }, points: 28.8 });
+    const kicker = entry({ entryId: 'k1', name: 'Test Kicker', position: 'K', stats: { extra: { xpm: 4 } }, points: 4 });
+    const timeline = castEntries([qb, kicker]);
+    assert.equal(timeline.duration, 60);
+    assert.equal(timeline.quarters.length, 4);
+    for (let quarter = 1; quarter <= 4; quarter++) {
+        const kicks = timeline.events.filter(event => event.quarter === quarter && event.entryId === 'k1');
+        assert.equal(kicks.length, 1);
+        assert.equal(kicks[0].stats.extra.xpm, 1);
+        assert.equal(kicks[0].points, 1);
+        assert(kicks[0].t > timeline.events.find(event => event.quarter === quarter && event.stats.passTd === 1).t);
+    }
+    assert(!timeline.events.some(event => event.description.includes('extra points missed')));
+    sameStats(timeline.events.filter(event => event.entryId === qb.entryId).reduce((sum, event) => Gamecast.addStats(sum, event.stats), {}), qb.stats);
+    assert.deepStrictEqual(timeline, castEntries([qb, kicker]), 'Full timeline must replay deterministically');
+});
+
+test('custom scoring, bonuses and era factors land on accumulated stats and preserve exact cents', () => {
+    const settings = { ...scoring, stats: { passTd: 6 }, bonuses: [{ stat: 'passYd', threshold: 300, points: 3 }], extended: { fgm: 0, fgm_40_49: 7, xpm: 2, xpmiss: -3, sack: 2.5 } };
+    const stats = { passYd: 321, passTd: 3, passInt: 2, rushYd: -3, rec: 5, recYd: 77, recTd: 1, extra: { fgm: 2, fgm_40_49: 2, xpm: 4, xpmiss: 1, sack: 2.5 } };
+    const factor = 1.17;
+    const points = Math.round(Season.scoreStatLine(stats, settings) * factor * 100) / 100;
+    const timeline = castEntries([entry({ stats, points, factor })], settings);
+    const accumulated = {}; let cents = 0;
+    for (const event of timeline.events) {
+        Gamecast.addStats(accumulated, event.stats); cents += Math.round(event.points * 100);
+        assert.equal(cents, Math.round(Season.scoreStatLine(accumulated, settings) * factor * 100));
+        assert(event.t > (event.quarter - 1) * 15 && event.t < event.quarter * 15);
+    }
+    sameStats(accumulated, stats);
+    assert.equal(cents, Math.round(points * 100));
+    assert.equal(timeline.events.filter(event => event.stats.extra?.xpmiss).length, 1);
+});
+
+test('field goal bands and totals describe the same kicks without doubling commentary', () => {
+    const stats = { extra: { fgm: 3, fgm_20_29: 1, fgm_50p: 2, fgmiss: 1, fgmiss_40_49: 1 } };
+    const timeline = castEntries([entry({ position: 'K', stats, points: Season.scoreStatLine(stats, scoring) })]);
+    assert.equal(timeline.events.length, 4);
+    sameStats(timeline.events.reduce((sum, event) => Gamecast.addStats(sum, event.stats), {}), stats);
+    assert(!timeline.events.some(event => event.description.includes('field goals made')));
+});
+
+test('a single receiving touchdown keeps its reception and yards together', () => {
+    const stats = { rec: 1, recYd: 81, recTd: 1 };
+    const timeline = castEntries([entry({ stats, points: Season.scoreStatLine(stats, scoring) })]);
+    assert.equal(timeline.events.length, 1);
+    sameStats(timeline.events[0].stats, stats);
+});
+
+test('quarter boundaries support pause-and-step without skipping or fabricating overtime', () => {
+    assert.equal(Gamecast.nextQuarterEnd(0), 15);
+    assert.equal(Gamecast.nextQuarterEnd(14.99), 15);
+    assert.equal(Gamecast.nextQuarterEnd(15), 30);
+    assert.equal(Gamecast.nextQuarterEnd(30), 45);
+    assert.equal(Gamecast.nextQuarterEnd(45), 60);
+    assert.equal(Gamecast.nextQuarterEnd(60), 60);
+    assert.equal(Gamecast.clockLabel(0), 'Q1 · 15:00');
+    assert.equal(Gamecast.clockLabel(15), 'END Q1');
+    assert.equal(Gamecast.clockLabel(30), 'HALFTIME');
+    assert.equal(Gamecast.clockLabel(60), 'FINAL');
+    assert.equal(Gamecast.quarterAt(15.01), 2);
 });
 
 test('buildGamecast prices special-teams-only lines (K/DEF/IDP) from the extra bag', () => {

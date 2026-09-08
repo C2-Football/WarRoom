@@ -34,6 +34,13 @@ const render=()=>{stateIndex=0;refIndex=0;effects=[];return Builder(props);};
     const created=App.TimeLeagueEngine.createTimeLeague({...solo,seed:'identity',createdAt:'2026-09-07'});
     assert.equal(created.teams[0].primaryColor,'#113355');
     assert.equal(App.TimeLeagueEngine.normalizeTimeLeague(JSON.parse(JSON.stringify(created))).teams[0].backdrop,'aurora');
+    for (let i = 6; i < 12; i++) {
+        tree = render(); walk(tree).find(node => node.type === 'button' && node.props['aria-label'] === 'Add team').props.onClick();
+    }
+    tree = render(); await button(tree, 'START SOLO DRAFT').props.onClick();
+    assert.equal(solo.seats.length, 12);
+    assert.equal(new Set(solo.seats.map(seat => seat.name)).size, 12);
+    assert(solo.seats.slice(1).every(seat => App.TimeLeagueAI.AI_PERSONAS[seat.aiPersona] && !/^Rival \d+$/.test(seat.name)));
     effects[0]();
     const nameField=walk(tree).find(node=>node.type==='input'&&node.props.placeholder==='Name your team');
     nameField.props.onChange({target:{value:'In-progress team'}});

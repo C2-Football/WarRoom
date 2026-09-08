@@ -26,7 +26,7 @@
     const STARTER_SLOTS = ROSTER_SLOT_IDS.filter((slot) => slot !== "BN" && slot !== "IR" && slot !== "TAXI");
     const NEED_ORDER = ["QB", "RB", "WR", "TE", "K", "DEF", "DL", "LB", "DB"];
 
-    const personaFor = (team) => AI_PERSONAS[team?.aiPersona ?? "steward"];
+    const personaFor = (team) => AI_PERSONAS[team?.aiPersona] || AI_PERSONAS.steward;
     const relationshipFor = (state, owner, other) => App.TimeLeagueRivals?.relationshipFor(state, owner, other) || { heat: 0, tradePremium: 0 };
     const hottestRival = (state, owner) => App.TimeLeagueRivals?.hottestRelationship(state, owner) || { heat: 0, aggressionDelta: 0 };
     // A provoked manager spends and negotiates more assertively. These bounded
