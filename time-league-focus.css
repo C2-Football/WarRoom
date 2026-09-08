@@ -206,3 +206,40 @@
     .tl-live-lineup-slot { font-size:8px; }
 }
 @media(prefers-reduced-motion:reduce) { .tl-live-player { transition:none; } }
+
+/* Inviting friends is a first-class league action, ahead of team customization. */
+.tl-play .tl-invite-trigger { min-height:44px; padding:8px 12px; background:var(--mint); border-color:var(--mint); color:var(--ink); }
+.tl-friends-room { margin-bottom:16px; scroll-margin-top:calc(12px + env(safe-area-inset-top,0px)); }
+.tl-friends-room:focus { outline:2px solid var(--mint); outline-offset:3px; }
+.tl-invite-intro { margin:0 0 16px; font-size:13px; line-height:1.5; color:#bfcee2; }
+.tl-open-seats { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:10px; }
+.tl-open-seat { padding:14px; border:1px solid #61708b; border-radius:14px; background:#19263b; min-width:0; }
+.tl-open-seat-team { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.tl-open-seat-team > div { min-width:0; }
+.tl-open-seat-team strong { display:block; font-size:15px; overflow-wrap:anywhere; }
+.tl-open-seat-team small { display:block; margin-top:3px; color:#a1b4cb; font-size:11px; }
+.tl-invite-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.tl-invite-actions .tl-btn { flex:1; min-height:44px; }
+.tl-seat-invite-link { margin-top:8px; }
+.tl-seat-invite-link > summary { display:flex; align-items:center; min-height:44px; cursor:pointer; font-size:12px; color:#adc8df; }
+.tl-seat-invite-link .tl-input { width:100%; min-width:0; font-size:12px; }
+.tl-invite-notice { color:var(--mint); font-size:12px; line-height:1.5; margin:12px 0; }
+.tl-joined-managers,.tl-friends-team-editor { border-top:1px solid #ffffff18; margin-top:12px; }
+.tl-joined-managers > summary,.tl-friends-team-editor > summary { padding:14px 0; min-height:44px; cursor:pointer; font-size:13px; }
+.tl-joined-manager { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 0; font-size:12px; }
+.tl-joined-manager small { color:var(--mint); }
+.tl-play .tl-open-draft { min-height:44px; margin-top:14px; }
+.tl-friends-team-name { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.tl-friends-team-name .tl-input { flex:1 1 180px; min-width:0; }
+@media(max-width:640px) {
+    .tl-play .tl-invite-trigger { padding:8px 10px; font-size:11px; }
+    .has-invite .tl-league-heading > strong { overflow-wrap:anywhere; }
+    .tl-open-seats { grid-template-columns:minmax(0,1fr); }
+    .tl-play .tl-friends-room { padding:16px; }
+}
+@media(max-width:380px) {
+    .tl-league-bar.has-invite { flex-wrap:wrap; }
+    .has-invite .tl-league-heading { flex-basis:100%; }
+    .has-invite .tl-league-context { width:100%; justify-content:flex-end; }
+    .has-invite .tl-league-context > .tl-pill { margin-right:auto; }
+}

@@ -860,30 +860,79 @@
                 extra.length > 0 && h('button', { className: expanded || extra.includes(activeTab) ? 'active' : '', 'aria-expanded': expanded, 'aria-controls': 'vault-more-navigation', onClick: () => setExpanded(value => !value) }, h('span', { 'aria-hidden': 'true' }, '•••'), h('b', null, 'More'))));
     }
 
-    function FriendsRoom({ league, meta, saving, onAction }) {
+    function FriendsRoom({ league, meta, saving, onAction, onClose }) {
         const [copied, setCopied] = useState('');
+        const [notice, setNotice] = useState('');
+        const [manualLink, setManualLink] = useState('');
         const [teamName, setTeamName] = useState('');
+        const members = meta.members || [];
         const mine = league.teams.find(t => t.teamId === meta.seatTeamId);
-        const allJoined = meta.members.length > 0 && meta.members.every(m => m.joined);
-        const linkFor = code => `${window.location.origin}${window.location.pathname}?tl_invite=${encodeURIComponent(code)}`;
-        return h('section', { className: 'tl-card tl-friends-room', style: { marginBottom: 16 } },
-            h('div', { className: 'tl-card-title' }, h('span', null, meta.draftStarted ? 'Friends league' : 'Draft waiting room'), h('small', null, `${meta.members.filter(m => m.joined).length}/${meta.members.length} joined`)),
-            h(window.TimeLeagueHelmetPicker, { helmet: mine?.helmet, name: mine?.name, letter: window.App.TimeLeagueHelmet.monogramFor(mine?.name || ''), onChange: helmet => onAction({ type: 'team', teamId: meta.seatTeamId, name: mine.name, helmet }) }),
-            h('p', null, `Your team: ${mine?.name || meta.seatTeamId}${meta.role === 'commissioner' ? ' · Commissioner' : ''}`),
-            h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 } },
-                h('input', { className: 'tl-input', 'aria-label': 'Your team name', placeholder: mine?.name, maxLength: 60, value: teamName, style: { flex: '1 1 180px' }, onChange: e => setTeamName(e.target.value) }),
-                h('button', { className: 'tl-btn', disabled: saving || !teamName.trim(), onClick: async () => { if (await onAction({ type: 'team', teamId: meta.seatTeamId, name: teamName })) setTeamName(''); } }, 'SAVE TEAM NAME')),
-            meta.members.map(m => {
-                const team = league.teams.find(t => t.teamId === m.seat_team_id);
-                return h('div', { key: m.id, className: `tl-friend-seat${m.joined ? ' joined' : ''}`, style: { padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.08)' } },
-                    h(window.TimeLeagueHelmetIcon, { helmet: team?.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team?.name || ''), size: 36 }), h('b', null, team?.name || m.seat_team_id), ' · ', m.joined ? 'Joined' : 'Waiting for friend',
-                    m.invite_code && h('div', { style: { display: 'flex', gap: 8, marginTop: 6, minWidth: 0 } },
-                        h('input', { className: 'tl-input', readOnly: true, 'aria-label': `Invite ${team?.name}`, value: linkFor(m.invite_code), onFocus: e => e.target.select() }),
-                        h('button', { className: 'tl-btn', onClick: async () => { try { await navigator.clipboard.writeText(linkFor(m.invite_code)); setCopied(m.id); } catch { setCopied('manual'); } } }, copied === m.id ? 'COPIED' : 'COPY LINK')));
-            }),
-            copied === 'manual' && h('p', { role: 'status' }, 'Select the invite link above and copy it to share.'),
-            !meta.draftStarted && h('p', null, meta.role === 'commissioner' ? 'Share one seat link with each friend. Open the room after everyone has joined; the clock waits until all managers finish the reveal.' : 'The commissioner will open the room once everyone has joined. Finish your reveal before the clock starts.'),
-            !meta.draftStarted && meta.role === 'commissioner' && h('button', { className: 'tl-btn primary', disabled: saving || !allJoined, onClick: () => onAction({ type: 'start' }) }, 'OPEN DRAFT ROOM'));
+        const host = meta.role === 'commissioner';
+        const openSeats = members.filter(member => !member.joined);
+        const joined = members.filter(member => member.joined);
+        const allJoined = members.length > 0 && !openSeats.length;
+        const invitesOpen = !meta.draftStarted && league.phase === 'draft';
+        const linkFor = code => {
+            const publicPage = 'https://c2-football.github.io/WarRoom/index.html';
+            const page = new URL(window.location.href || `${window.location.origin}${window.location.pathname}`, publicPage);
+            const local = /^(localhost|127\.|0\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?)/i.test(page.hostname);
+            const link = new URL(/^https?:$/.test(page.protocol) && !local ? page.href : publicPage);
+            link.search = ''; link.hash = '';
+            link.searchParams.set('tl_invite', code);
+            return link.href;
+        };
+        const canInvite = member => host && invitesOpen && !member.joined && Boolean(member.invite_code);
+        const copyInvite = async member => {
+            if (!canInvite(member)) return;
+            setNotice('');
+            try {
+                await navigator.clipboard.writeText(linkFor(member.invite_code));
+                setCopied(member.id); setManualLink(''); setNotice('Invite copied. Send it to the friend taking this team.');
+            } catch { setManualLink(member.id); setNotice('Select the link below and copy it to share.'); }
+        };
+        const shareInvite = async member => {
+            if (!canInvite(member)) return;
+            if (!navigator.share) return copyInvite(member);
+            const team = league.teams.find(item => item.teamId === member.seat_team_id);
+            setNotice('');
+            try { await navigator.share({ title: `Join ${league.name}`, text: `Take ${team?.name || 'an open team'} in my Vault league.`, url: linkFor(member.invite_code) }); }
+            catch (error) { if (error?.name !== 'AbortError') await copyInvite(member); }
+        };
+        const seatName = member => league.teams.find(team => team.teamId === member.seat_team_id)?.name || member.seat_team_id;
+        return h('section', { id: 'vault-friends-room', tabIndex: -1, className: 'tl-card tl-friends-room', 'aria-label': host ? 'Invite friends' : 'League managers' },
+            h('div', { className: 'tl-card-title' },
+                h('span', null, host && invitesOpen ? 'Invite friends' : 'League managers'),
+                h('small', null, `${joined.length}/${members.length} joined`),
+                meta.draftStarted && onClose && h('button', { type: 'button', className: 'tl-btn icon', onClick: onClose, 'aria-label': 'Close league managers' }, '×')),
+            h('p', { className: 'tl-invite-intro' }, !invitesOpen ? 'The draft has started and this league’s seats are locked.'
+                : allJoined ? 'Everyone is here. Your league is ready to open the draft room.'
+                    : host ? 'Send a different seat link to each friend. They’ll sign in and join your league.' : 'Your commissioner can share invitations for the open seats below.'),
+            openSeats.length > 0 && h('div', { className: 'tl-open-seats' }, openSeats.map(member => {
+                const team = league.teams.find(item => item.teamId === member.seat_team_id);
+                return h('article', { key: member.id, className: 'tl-open-seat', 'aria-label': `Open seat: ${seatName(member)}` },
+                    h('div', { className: 'tl-open-seat-team' },
+                        h(window.TimeLeagueHelmetIcon, { helmet: team?.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(seatName(member)), size: 36 }),
+                        h('div', null, h('strong', null, seatName(member)), h('small', null, 'Waiting for a friend'))),
+                    canInvite(member) && h('div', { className: 'tl-invite-actions' },
+                        typeof navigator.share === 'function' && h('button', { type: 'button', className: 'tl-btn primary', 'aria-label': `Share invite for ${seatName(member)}`, onClick: () => shareInvite(member) }, 'Share invite'),
+                        h('button', { type: 'button', className: 'tl-btn', 'aria-label': `Copy invite for ${seatName(member)}`, onClick: () => copyInvite(member) }, copied === member.id ? 'Copied' : 'Copy invite')),
+                    canInvite(member) && h('details', { className: 'tl-seat-invite-link', open: manualLink === member.id || undefined },
+                        h('summary', null, 'Show invite link'),
+                        h('input', { className: 'tl-input', readOnly: true, 'aria-label': `Invite link for ${seatName(member)}`, value: linkFor(member.invite_code), onFocus: event => event.target.select() })),
+                    host && invitesOpen && !member.invite_code && h('p', { className: 'tl-hint', role: 'status' }, 'Waiting for this seat’s invite link. Reconnecting will refresh it.'));
+            })),
+            notice && h('p', { className: 'tl-invite-notice', role: 'status' }, notice),
+            joined.length > 0 && h('details', { className: 'tl-joined-managers' },
+                h('summary', null, `${joined.length} ${joined.length === 1 ? 'manager has' : 'managers have'} joined`),
+                joined.map(member => h('div', { key: member.id, className: 'tl-joined-manager' }, h('strong', null, seatName(member)), h('small', null, member.role === 'commissioner' ? 'Commissioner' : 'Joined')))),
+            invitesOpen && host && h('button', { type: 'button', className: 'tl-btn primary tl-open-draft', disabled: saving || !allJoined, onClick: () => onAction({ type: 'start' }) }, 'Open draft room'),
+            invitesOpen && !host && h('p', { className: 'tl-hint' }, 'The commissioner will open the draft once everyone has joined.'),
+            h('details', { className: 'tl-friends-team-editor' },
+                h('summary', null, `Your team · ${mine?.name || meta.seatTeamId}`),
+                h(window.TimeLeagueHelmetPicker, { helmet: mine?.helmet, name: mine?.name, letter: window.App.TimeLeagueHelmet.monogramFor(mine?.name || ''), onChange: helmet => onAction({ type: 'team', teamId: meta.seatTeamId, name: mine.name, helmet }) }),
+                h('div', { className: 'tl-friends-team-name' },
+                    h('input', { className: 'tl-input', 'aria-label': 'Your team name', placeholder: mine?.name, maxLength: 60, value: teamName, onChange: event => setTeamName(event.target.value) }),
+                    h('button', { type: 'button', className: 'tl-btn', disabled: saving || !teamName.trim(), onClick: async () => { if (await onAction({ type: 'team', teamId: meta.seatTeamId, name: teamName })) setTeamName(''); } }, 'Save team name'))));
     }
 
     // ── shell ──
@@ -916,6 +965,14 @@
         const [inviteError, setInviteError] = useState(null);
         const [saving, setSaving] = useState(false);
         const [showFriends, setShowFriends] = useState(false);
+        const openFriends = useCallback(() => {
+            setShowFriends(true);
+            window.requestAnimationFrame(() => {
+                const room = document.getElementById('vault-friends-room');
+                room?.scrollIntoView({ block: 'start', behavior: 'auto' });
+                room?.focus({ preventScroll: true });
+            });
+        }, []);
         const [connectionError, setConnectionError] = useState(null);
         const [showCareer, setShowCareer] = useState(false);
         const [showCommunity, setShowCommunity] = useState(false);
@@ -951,7 +1008,7 @@
             if (!opening && (!onlineRef.current || onlineRef.current.rowId !== row.id || row.version < onlineRef.current.version)) return;
             const safe = Engine.normalizeTimeLeague(row.state);
             if (!safe) return;
-            if (opening) { setAutoPlayWeek(null); setGamecastStatus(null); }
+            if (opening) { setAutoPlayWeek(null); setGamecastStatus(null); setShowFriends(false); }
             if (!opening && leagueRef.current?.leagueId === safe.leagueId && safe.finalizedWeeks.length > leagueRef.current.finalizedWeeks.length) {
                 setAutoPlayWeek(safe.finalizedWeeks[safe.finalizedWeeks.length - 1]?.week);
             }
@@ -1401,20 +1458,21 @@
                 h('span', null, item === 'draft' && league.phase !== 'draft' ? 'DRAFT RECAP' : TAB_LABELS[item])))),
             h(MobileGameNav, { tabs, activeTab, onNavigate: navigateTab }),
             h('div', { className: 'tl-main' }, h('div', { className: 'tl-main-inner' },
-                h('header', { className: 'tl-league-bar' },
+                h('header', { className: `tl-league-bar${onlineMeta ? ' has-invite' : ''}` },
                     h('div', { className: 'tl-league-heading' },
                         h('span', { className: 'tl-league-name' }, league.name),
                         h('strong', null, activeTab === 'draft' && league.phase !== 'draft' ? 'Draft recap' : TAB_LABELS[activeTab])),
                     h('div', { className: 'tl-league-context' },
                         h('span', { className: `tl-pill ${phaseTone}` }, watching ? `${playback.replay ? 'REPLAY' : playback.playing ? 'PLAYING' : 'PAUSED'} · WEEK ${playback.week}` : league.phase === 'draft' ? 'DRAFT' : league.phase === 'complete' ? 'COMPLETE' : `${league.weekStage === 'postgame' ? 'FINAL · ' : ''}WEEK ${Math.min(league.weekStage === 'postgame' ? league.currentWeek - 1 : league.currentWeek, Engine.seasonEndWeek(league))}`),
                         onlineMeta && h('span', { className: 'tl-connection-dot', role: 'status', title: saving ? 'Saving' : connectionError ? 'Reconnecting' : 'Online', 'aria-label': saving ? 'Saving' : connectionError ? 'Reconnecting' : 'Online' }, connectionError ? '○' : '●'),
+                        onlineMeta && h('button', { type: 'button', className: 'tl-btn tl-invite-trigger', onClick: openFriends, 'aria-controls': 'vault-friends-room', 'aria-expanded': showFriends || !onlineMeta.draftStarted }, onlineMeta.role === 'commissioner' ? 'Invite' : 'Managers'),
                         h('details', { key: `${league.leagueId}:${activeTab}`, className: 'tl-league-menu' },
                             h('summary', { 'aria-label': 'League options' }, '•••'),
                             h('div', { className: 'tl-league-menu-body' },
                                 h('strong', null, league.name),
                                 h('small', null, `${onlineMeta ? 'Friends league' : league.teams.filter(team => team.manager === 'human').length > 1 ? 'Local multiplayer' : 'Solo season'} · ${league.teams.length} managers`),
                                 h(EraChipRail, { label: 'League format', chips: EraRules.eraRuleChips(league.settings.eraRules).filter(chip => !chip.toLowerCase().includes('reveal in the draft')) }),
-                                onlineMeta && h('button', { type: 'button', className: 'tl-btn', onClick: () => setShowFriends(value => !value) }, 'Friends & invites'),
+                                onlineMeta && h('button', { type: 'button', className: 'tl-btn', onClick: openFriends }, 'Friends & invites'),
                                 h('button', { type: 'button', className: 'tl-btn', disabled: Boolean(storageError), onClick: switchLeague }, 'Switch league'),
                                 h('button', { type: 'button', className: 'tl-btn', disabled: Boolean(storageError), onClick: onClose }, 'Back to dashboard'))))),
                 conflictNotice && h('div', { className: 'tl-card', style: { borderColor: 'rgba(240,165,0,0.4)', marginBottom: 14 } },
@@ -1429,7 +1487,7 @@
                         h('button', { type: 'button', className: 'tl-btn', onClick: keepPreviousSave }, 'Keep previous save'))),
                 dataNotice,
                 onlineMeta && (showFriends || !onlineMeta.draftStarted) && h(FriendsRoom, {
-                    league, meta: onlineMeta, saving, onAction: action => handleUpdate(league, action),
+                    key: `${onlineMeta.rowId}:${onlineMeta.seatTeamId}`, league, meta: onlineMeta, saving, onAction: action => handleUpdate(league, action), onClose: () => setShowFriends(false),
 
                 }),
                 activeTab === 'career' && CareerView ? h(CareerView, { index, league, onlineMeta, onOpenLocal: openLeague, onOpenOnline: openOnlineLeague }) : null,
