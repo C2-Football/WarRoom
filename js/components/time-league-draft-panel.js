@@ -41,7 +41,6 @@
         return ranges.map(([first, last]) => first === last ? String(first) : `${first}–${last}`).join(', ') || 'None';
     };
     const peakOf = (seasons) => seasons.reduce((max, s) => Math.max(max, s.points), 0);
-    const careerGames = (card) => card.seasons.reduce((sum, s) => sum + s.games, 0);
     const pickLabel = (order, overall, round) => {
         const inRound = order.filter((seat) => seat.round === round).findIndex((seat) => seat.overall === overall) + 1;
         return `R${round}.${String(inRound).padStart(2, '0')}`;
@@ -165,9 +164,11 @@
         const eraRules = useMemo(() => EraRules.normalizeEraDraftRules(league.settings.eraRules), [league.settings.eraRules]);
         const eraRestricted = eraRules.mode !== 'any-era' && (eraRules.decades.length > 0 || Boolean(eraRules.positionDecades));
 
-        const available = useMemo(() => Engine.eraEligibleCards(league, cards).map((card, index) => ({
-            card, rank: index + 1, draw: spanOf(EraRules.filterSeasonsForEra(card.seasons, eraRules, card.position)),
-        })), [cards, eraRules, league]);
+        const available = useMemo(() => Engine.eraEligibleCards(league, cards).map((card) => {
+            const seasons = EraRules.filterSeasonsForEra(card.seasons, eraRules, card.position);
+            return { card, peak: peakOf(seasons), draw: spanOf(seasons), games: seasons.reduce((sum, season) => sum + season.games, 0) };
+        }).sort((left, right) => right.peak - left.peak || left.card.identity.localeCompare(right.card.identity))
+            .map((entry, index) => ({ ...entry, rank: index + 1 })), [cards, eraRules, league]);
         const positionFilters = useMemo(() => {
             const present = new Set(available.map(({ card }) => card.position));
             return DRAFT_FILTER_ORDER.filter((position) => position === 'FLEX' || position === 'SUPER_FLEX'
@@ -200,10 +201,9 @@
                 const bucket = map[pos] || (map[pos] = []);
                 bucket.push(entry);
             }
-            for (const position of Object.keys(map)) map[position] = map[position].sort((left, right) =>
-                peakOf(EraRules.filterSeasonsForEra(right.card.seasons, eraRules, position)) - peakOf(EraRules.filterSeasonsForEra(left.card.seasons, eraRules, position)) || left.card.identity.localeCompare(right.card.identity)).slice(0, 3);
+            for (const position of Object.keys(map)) map[position] = map[position].slice(0, 3);
             return map;
-        }, [available, eraRules]);
+        }, [available]);
 
         const allEraPositions = useMemo(() => eraAssignments.map((row) => row.position), [eraAssignments]);
         const [revealedPositions, setRevealedPositions] = useState(() => loadRevealedPositions(league.leagueId, allEraPositions));
@@ -452,6 +452,7 @@
                                 : h('p', { className: 'tl-empty' }, 'Biography is not available for this player yet.'),
                             h('p', { style: { fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 10 } }, scoutSeasons.length === 0 ? "No season on this file clears the league's era rule — nothing here can be drawn." : 'One of these seasons comes out of the vault — the draw is sealed until the draft ends.'),
                             scoutSeasons.length > 0 && h('p', { className: 'tl-era-years' }, `Available years: ${availableYears(scoutSeasons)}`),
+                            scoutSeasons.length > 0 && h('p', { className: 'tl-hint' }, 'Archive totals · Weeks 1–14 · reference scoring'),
                             scoutSeasons.length > 0 && h('div', { className: 'tl-scout-seasons', role: 'region', 'aria-label': 'Season statistics, newest first', tabIndex: 0, style: { overflowX: 'auto', marginBottom: 10 } }, h('table', { className: 'tl-tbl tl-scout-season-table', style: { minWidth: `${126 + (statColumnsFor(selectedCard.position).length + 1) * 64}px` } },
                                 h('colgroup', null, h('col', { style: { width: 66 } }), h('col', { style: { width: 60 } }), h('col'), statColumnsFor(selectedCard.position).map(c => h('col', { key: c.key }))),
                                 h('thead', null, h('tr', null, h('th', { scope: 'col', className: 'num', title: 'Fantasy points' }, 'FPTS'), h('th', { scope: 'col' }, 'Year'), h('th', { scope: 'col', className: 'num' }, 'G'), statColumnsFor(selectedCard.position).map((c) => h('th', { scope: 'col', className: 'num', key: c.key }, c.label)))),
@@ -677,23 +678,23 @@
                             h('input', { className: 'tl-input', value: query, onChange: (e) => setQuery(e.target.value), placeholder: 'Search player', 'aria-label': 'Search players' }),
                             h('select', { className: 'tl-select', style: { width: 138, flexShrink: 0 }, value: positionFilter, onChange: (e) => setPositionSelection({ leagueId: league.leagueId, value: e.target.value }), 'aria-label': 'Filter position' },
                                 h('option', { value: 'ALL' }, 'ALL POS'), positionFilters.map((p) => h('option', { key: p, value: p }, p === 'SUPER_FLEX' ? 'SUPER FLEX' : p)))),
-                        h('div', { className: 'tl-mobile-player-list' }, visible.map(({ card, rank, draw }) => h('div', { key: card.identity, className: `tl-mobile-player${selectedCard?.identity === card.identity ? ' selected' : ''}`, 'data-position': card.position },
+                        h('div', { className: 'tl-mobile-player-list' }, visible.map(({ card, rank, draw, peak }) => h('div', { key: card.identity, className: `tl-mobile-player${selectedCard?.identity === card.identity ? ' selected' : ''}`, 'data-position': card.position },
                             h('button', { className: 'tl-mobile-player-pick', 'aria-pressed': selectedCard?.identity === card.identity, 'aria-label': `Scout ${card.name}`, onClick: (event) => openScout(card, event) },
                                 h('span', { className: 'tl-player-number' }, h('small', null, String(rank).padStart(2, '0')), h('b', null, card.position)),
                                 h('span', { className: 'tl-player-name' }, h('b', null, card.name), h('small', null, `${eraRestricted ? draw : seasonSpan(card)} · Mystery season`)),
-                                h('span', { className: 'tl-player-peak' }, h('b', null, Math.round(card.peak)), h('small', null, 'PEAK'))),
+                                h('span', { className: 'tl-player-peak', title: 'Best eligible season · archive weeks 1–14 · reference scoring' }, h('b', null, Math.round(peak)), h('small', null, eraRestricted ? 'DRAW PEAK' : 'PEAK'))),
                             h('button', { className: 'tl-player-star', 'aria-label': `${humanTeam?.queue.includes(card.identity) ? 'Unqueue' : 'Queue'} ${card.name}`, 'aria-pressed': Boolean(humanTeam?.queue.includes(card.identity)), disabled: !humanTeam, onClick: () => toggleQueueFor(card.identity) }, humanTeam?.queue.includes(card.identity) ? '★' : '☆')))),
                         visible.length === 0
                             ? h('p', { className: 'tl-empty' }, cards.size === 0 ? 'No player cards loaded.' : eraRestricted && available.length === 0 ? "No player on file clears this league's era rule — the pool is empty." : 'No available players match the filters.')
                             : h('div', { className: 'tl-desktop-player-board', style: { maxHeight: 520, overflowY: 'auto' } }, h('table', { className: 'tl-tbl' },
-                                h('thead', null, h('tr', null, h('th', { className: 'num' }, 'Rk'), h('th', null, 'Player'), h('th', null, 'Pos'), h('th', null, eraRestricted ? 'Draw' : 'Seasons'), h('th', { className: 'num' }, 'Peak'), h('th', { className: 'num' }, 'G'), h('th', null, 'Q'))),
-                                h('tbody', null, visible.map(({ card, rank, draw }) => {
+                                h('thead', null, h('tr', null, h('th', { className: 'num' }, 'Rk'), h('th', null, 'Player'), h('th', null, 'Pos'), h('th', null, eraRestricted ? 'Draw' : 'Seasons'), h('th', { className: 'num', title: 'Best eligible season · archive weeks 1–14 · reference scoring' }, eraRestricted ? 'Draw peak' : 'Peak'), h('th', { className: 'num', title: 'Games across eligible seasons' }, 'G'), h('th', null, 'Q'))),
+                                h('tbody', null, visible.map(({ card, rank, draw, peak, games }) => {
                                     const queued = Boolean(humanTeam?.queue.includes(card.identity));
                                     return h('tr', { key: card.identity, className: `clickable${selectedCard?.identity === card.identity ? ' selected' : ''}`, onClick: (event) => openScout(card, event) },
                                         h('td', { className: 'num tabular' }, rank), h('td', null, h('button', { className: 'tl-scout-player-name', type: 'button', onClick: (event) => { event.stopPropagation(); openScout(card, event); } }, card.name)),
                                         h('td', null, h('span', { className: `tl-pos-badge tl-pos-${card.position}` }, card.position)),
                                         h('td', null, eraRestricted ? draw : seasonSpan(card)),
-                                        h('td', { className: 'num tabular' }, card.peak.toFixed(1)), h('td', { className: 'num tabular' }, careerGames(card)),
+                                        h('td', { className: 'num tabular' }, peak.toFixed(1)), h('td', { className: 'num tabular' }, games),
                                         h('td', null, h('button', {
                                             className: `tl-btn icon${queued ? ' primary' : ''}`, 'aria-pressed': queued, disabled: !humanTeam,
                                             onClick: (e) => { e.stopPropagation(); toggleQueueFor(card.identity); },

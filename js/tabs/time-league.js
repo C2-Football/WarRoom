@@ -838,7 +838,7 @@
         `);
     }
 
-    function MobileGameNav({ tabs, activeTab, onNavigate, unread = 0 }) {
+    function MobileGameNav({ tabs, activeTab, onNavigate, unread = 0, onReportBug }) {
         const [expanded, setExpanded] = useState(false);
         useEffect(() => {
             if (!expanded) return undefined;
@@ -848,12 +848,13 @@
         }, [expanded]);
         const primary = tabs.includes('home') ? ['home', 'roster', 'gameday', 'waivers'] : ['draft', 'activity'];
         const extra = tabs.filter(tab => !primary.includes(tab));
-        const labels = { home: 'Home', roster: 'My team', gameday: 'Game day', waivers: 'Players', stats: 'Player stats', draft: tabs.includes('home') ? 'Draft recap' : 'Draft', activity: 'Activity', trades: 'Trades', achievements: 'Trophies', standings: 'Command Central', messages: 'Messages', career: 'My career' };
+        const labels = { home: 'Home', roster: 'My team', gameday: 'Game day', waivers: 'Players', stats: 'Player stats', draft: tabs.includes('home') ? 'Draft recap' : 'Draft', activity: 'Activity', trades: 'Trades', achievements: 'Trophies', standings: 'Command Central', messages: 'Messages', career: 'My career', community: 'Community' };
         const choose = tab => { setExpanded(false); onNavigate(tab); };
         return h(React.Fragment, null,
             expanded && h('div', { className: 'tl-mobile-more', id: 'vault-more-navigation' },
                 h('div', { className: 'tl-card-title' }, 'More ways to play', h('button', { className: 'tl-btn icon', 'aria-label': 'Close more navigation', onClick: () => setExpanded(false) }, '×')),
-                h('div', null, extra.map(tab => h('button', { key: tab, onClick: () => choose(tab), 'aria-current': activeTab === tab ? 'page' : undefined }, h('span', { 'aria-hidden': 'true' }, TAB_ICONS[tab]), labels[tab], tab === 'messages' && unread > 0 ? h('em', { className: 'tl-mail-badge' }, unread) : null)))),
+                h('div', null, extra.map(tab => h('button', { key: tab, onClick: () => choose(tab), 'aria-current': activeTab === tab ? 'page' : undefined }, h('span', { 'aria-hidden': 'true' }, TAB_ICONS[tab]), labels[tab], tab === 'messages' && unread > 0 ? h('em', { className: 'tl-mail-badge' }, unread) : null)),
+                    onReportBug && h('button', { type: 'button', onClick: () => { setExpanded(false); onReportBug(); } }, h('span', { 'aria-hidden': true }, '⚑'), 'Report a bug'))),
             h('nav', { className: 'tl-mobile-nav', 'aria-label': 'Vault game navigation' },
                 primary.map(tab => h('button', { key: tab, className: activeTab === tab ? 'active' : '', 'aria-current': activeTab === tab ? 'page' : undefined, onClick: () => choose(tab) },
                     h('span', { 'aria-hidden': 'true' }, TAB_ICONS[tab]), h('b', null, labels[tab]))),
@@ -1417,6 +1418,14 @@
         const CareerView = window.WrTimeLeagueCareerView;
         const CommunityPanel = window.WrTimeLeagueCommunityPanel;
         const RivalsPanel = window.WrTimeLeagueRivalsPanel;
+        const reportBug = window.WR?.Feedback?.reportBug ? () => {
+            // Give support the current screen and game stage, never a snapshot,
+            // invitation token, private conversation or account details.
+            const context = league
+                ? `${onlineMeta ? 'Friends' : 'Solo/local'} · ${TAB_LABELS[tab] || 'Home'} · ${league.phase} · week ${league.weekStage === 'postgame' ? league.currentWeek - 1 : league.currentWeek} · ${league.weekStage}`
+                : 'League setup';
+            window.WR.Feedback.reportBug({ message: `The Vault · ${context}\n\nWhat happened:\n\nSteps to reproduce:\n` });
+        } : null;
         const failedData = [cards !== null && !cards?.size && 'player archive', logsMissing && 'weekly game data', eraFactorsMissing && league?.settings.eraAdjusted && 'era scoring'].filter(Boolean);
         const dataNotice = failedData.length > 0 && h('div', { className: 'tl-card', role: 'alert' },
             h('p', null, `Couldn’t load ${failedData.join(' and ')}. Check your connection and try again.`),
@@ -1430,7 +1439,9 @@
                         h('div', { className: 'tl-lobby-brand' },
                             h('span', { className: 'tl-lobby-crest' }, 'V'),
                             h('span', null, h('strong', null, 'The Vault'), h('small', null, 'Fantasy football through time'))),
-                        h('button', { type: 'button', className: 'tl-btn', onClick: onClose }, '← BACK')),
+                        h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+                            reportBug && h('button', { type: 'button', className: 'tl-btn', onClick: reportBug }, 'Report a bug'),
+                            h('button', { type: 'button', className: 'tl-btn', onClick: onClose }, '← BACK'))),
                     claimingInvite && h('div', { className: 'tl-card', style: { marginBottom: 14 } }, h('p', { className: 'tl-empty' }, 'Claiming your invite…')),
                     dataNotice,
                     inviteError && h('div', { className: 'tl-card', style: { borderColor: 'rgba(240,165,0,0.4)', marginBottom: 14 } },
@@ -1453,6 +1464,8 @@
             ? ['draft', 'messages', 'career', 'community', 'activity']
             : ['home', 'gameday', 'roster', 'waivers', 'stats', 'trades', 'achievements', 'draft', 'messages', 'career', 'community', 'activity'];
         const activeTab = tabs.includes(tab) ? tab : tabs[0];
+        const addPlayoffCounts = league.phase === 'complete' && !Engine.playoffCount(league)
+            ? [2, 4].filter(count => league.teams.length >= count && league.settings.regularSeasonWeeks + (count === 4 ? 2 : 1) <= 14) : [];
         const activeTeam = onlineMeta ? onlineMeta.seatTeamId : league.teams.some((team) => team.teamId === activeTeamId)
             ? activeTeamId
             : (league.teams.find((team) => team.manager === 'human')?.teamId ?? league.teams[0]?.teamId ?? 't1');
@@ -1466,7 +1479,9 @@
         const watching = playback && !playback.done;
         const Mail = window.TimeLeagueMail;
         const mailKey = Mail?.readKey(league.leagueId, responseTeam);
-        const mailThroughWeek = watching ? playback.week - 1 : undefined;
+        // Replaying a finished week must not roll the live season's stats or
+        // conversations backwards. Only first-time playback needs a spoiler cap.
+        const mailThroughWeek = watching && !playback.replay ? playback.week - 1 : undefined;
         const unreadMail = Mail ? Mail.unreadMessages(presentedMail.league, responseTeam, mailReads[mailKey] || Mail.readIds(league.leagueId, responseTeam), mailThroughWeek) : [];
         const openMail = teamId => {
             setMailThread(teamId ? { key: mailKey, teamId } : null);
@@ -1496,7 +1511,7 @@
                     key: item, type: 'button', className: `tl-tabbtn${item === activeTab ? ' active' : ''}`, onClick: () => navigateTab(item),
                 }, h('span', { className: 'tl-tab-icon', 'aria-hidden': 'true' }, TAB_ICONS[item]),
                 h('span', null, item === 'draft' && league.phase !== 'draft' ? 'DRAFT RECAP' : TAB_LABELS[item]), item === 'messages' && unreadMail.length > 0 ? h('em', { className: 'tl-mail-badge', 'aria-label': `${unreadMail.length} unread messages` }, unreadMail.length) : null))),
-            h(MobileGameNav, { tabs, activeTab, onNavigate: navigateTab, unread: unreadMail.length }),
+            h(MobileGameNav, { tabs, activeTab, onNavigate: navigateTab, unread: unreadMail.length, onReportBug: reportBug }),
             h('div', { className: 'tl-main' }, h('div', { className: 'tl-main-inner' },
                 h('header', { className: `tl-league-bar${onlineMeta ? ' has-invite' : ''}` },
                     h('div', { className: 'tl-league-heading' },
@@ -1514,6 +1529,7 @@
                                 h('small', null, `${onlineMeta ? 'Friends league' : league.teams.filter(team => team.manager === 'human').length > 1 ? 'Local multiplayer' : 'Solo season'} · ${league.teams.length} managers`),
                                 h(EraChipRail, { label: 'League format', chips: EraRules.eraRuleChips(league.settings.eraRules).filter(chip => !chip.toLowerCase().includes('reveal in the draft')) }),
                                 onlineMeta && h('button', { type: 'button', className: 'tl-btn', onClick: openFriends }, 'Friends & invites'),
+                                reportBug && h('button', { type: 'button', className: 'tl-btn', onClick: event => { event.currentTarget.closest('details')?.removeAttribute('open'); reportBug(); } }, 'Report a bug'),
                                 h('button', { type: 'button', className: 'tl-btn', disabled: Boolean(storageError), onClick: switchLeague }, 'Switch league'),
                                 h('button', { type: 'button', className: 'tl-btn', disabled: Boolean(storageError), onClick: onClose }, 'Back to dashboard'))))),
                 conflictNotice && h('div', { className: 'tl-card', style: { borderColor: 'rgba(240,165,0,0.4)', marginBottom: 14 } },
@@ -1535,9 +1551,9 @@
                 activeTab === 'community' && CommunityPanel ? h(CommunityPanel, { onOpenOnline: openOnlineLeague, onProfile: () => navigateTab('career') }) : null,
                 activeTab === 'messages' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, throughWeek: mailThroughWeek, threadRequest: mailThread, onRead: onMailRead, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,
                 h('fieldset', { disabled: saving || Boolean(storageError) || Boolean(onlineMeta && !onlineMeta.draftStarted), style: { border: 0, padding: 0, margin: 0, minWidth: 0 } },
-                ['home', 'gameday'].includes(activeTab) && league.phase === 'complete' && !Engine.playoffCount(league) && league.settings.regularSeasonWeeks < 18 && h('section', { className: 'tl-card tl-week-gate' },
+                ['home', 'gameday'].includes(activeTab) && addPlayoffCounts.length > 0 && h('section', { className: 'tl-card tl-week-gate' },
                     h('div', null, h('strong', null, 'Finish with a playoff?'), h('p', null, 'Keep regular-season results and reopen this season for a seeded championship. This replaces the standings-only title.')),
-                    [2,4].filter(count => league.teams.length >= count && league.settings.regularSeasonWeeks + (count === 4 ? 2 : 1) <= 18).map(count => h('button', { key: count, className: 'tl-btn', disabled: saving || (onlineMeta && onlineMeta.role !== 'commissioner'), onClick: () => handleUpdate(Engine.startPlayoffs(league, count), { type: 'start-playoffs', count }) }, `Add ${count}-team playoffs`))),
+                    addPlayoffCounts.map(count => h('button', { key: count, className: 'tl-btn', disabled: saving || (onlineMeta && onlineMeta.role !== 'commissioner'), onClick: () => handleUpdate(Engine.startPlayoffs(league, count), { type: 'start-playoffs', count }) }, `Add ${count}-team playoffs`))),
                 activeTab === 'draft' && draftModuleState === 'error' && h('p', { role: 'status' }, 'The draft grid could not load. ', h('button', { className: 'tl-btn', onClick: () => setDraftModuleState('idle') }, 'Retry draft module')),
                 activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: responseTeam }) : null,
                 activeTab === 'home' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, compact: true, throughWeek: mailThroughWeek, onOpenThread: openMail, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,

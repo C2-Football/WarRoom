@@ -729,7 +729,7 @@
         // Not tied to a real Sleeper/ESPN/MFL league, so unlike Commish there's
         // no per-user discovery step — the hub card just shows whenever the
         // sandbox lever is on.
-        const [timeLeagueMode, setTimeLeagueMode] = useState(false);
+        const [timeLeagueMode, setTimeLeagueMode] = useState(() => new URLSearchParams(window.location.search).get('vault') === '1');
         const [timeLeagueModuleState, setTimeLeagueModuleState] = useState(
             typeof window.TimeLeague === 'function' ? 'ready' : 'idle'
         );
@@ -741,6 +741,17 @@
             window.wrLoadModuleGroup('timeleague')
                 .then(() => setTimeLeagueModuleState(typeof window.TimeLeague === 'function' ? 'ready' : 'error'))
                 .catch(() => setTimeLeagueModuleState('error'));
+        };
+        // A shareable beta entry opens the same Vault workspace as the hub card.
+        // Solo play does not require the Dynasty setup or a connected NFL league.
+        useEffect(() => {
+            if (timeLeagueMode && timeLeagueModuleState === 'idle') openTimeLeague();
+        }, [timeLeagueMode, timeLeagueModuleState]);
+        const closeTimeLeague = () => {
+            setTimeLeagueMode(false);
+            const url = new URL(window.location.href);
+            url.searchParams.delete('vault');
+            window.history.replaceState(window.history.state, '', url);
         };
 
         // ── Time League invite links ────────────────────────────────
@@ -1028,7 +1039,7 @@
             }
             return (
                 <ErrorBoundary>
-                    <_TimeLeague onClose={() => setTimeLeagueMode(false)} pendingInvite={pendingInvite} onInviteConsumed={clearPendingInvite} />
+                    <_TimeLeague onClose={closeTimeLeague} pendingInvite={pendingInvite} onInviteConsumed={clearPendingInvite} />
                 </ErrorBoundary>
             );
         }
@@ -1285,7 +1296,7 @@
                                 <div style={{ fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: '0.95rem', color: 'var(--gold)' }}>You have a pending Vault invite</div>
                                 <div style={{ fontSize: 'var(--text-label, 0.8rem)', color: 'var(--silver)', marginTop: '2px' }}>Sign in with the account you want to play from, then come back to claim your seat.</div>
                             </div>
-                            <a href="login.html" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--black)', background: 'var(--gold)', borderRadius: 'var(--card-radius-sm, 8px)', padding: '7px 14px', textDecoration: 'none' }}>Sign In</a>
+                            <a href="login.html?vault=1" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--black)', background: 'var(--gold)', borderRadius: 'var(--card-radius-sm, 8px)', padding: '7px 14px', textDecoration: 'none' }}>Sign In</a>
                         </div>
                     )}
 

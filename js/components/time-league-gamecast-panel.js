@@ -160,7 +160,7 @@
                     h('div', { className: `tl-h-pts tabular${oppPts > minePts ? ' leading' : ''}` }, oppPts.toFixed(1)))),
             h('div', { className: 'tl-win-prob' }, h('span', null, statusLabel === 'FINAL' ? 'FINAL RESULT' : 'ESTIMATED WIN CHANCE'), h('strong', null, `${minePct.toFixed(0)}% — ${(100 - minePct).toFixed(0)}%`)),
             h('div', { className: 'tl-score-bar' }, h('div', { className: 'tl-fill', style: { width: `${minePct}%` } }), h('div', { className: 'tl-fill against', style: { width: `${100 - minePct}%` } })),
-            h('small', { className: 'tl-live-model-note' }, 'Illustrative estimate from score gap and time remaining; not a calibrated prediction.'), quarterScore, spotlight);
+            statusLabel !== 'FINAL' && h('small', { className: 'tl-live-model-note' }, 'Illustrative estimate from score gap and time remaining; not a calibrated prediction.'), quarterScore, spotlight);
 
     }
 
@@ -224,7 +224,7 @@
 
         const runGameDay = async (force) => {
             if (!canRun || !cards || !logIndex) return;
-            const prepared = AI.aiPrepareWeek(league, cards);
+            const prepared = AI.aiPrepareWeek(league, cards, logIndex);
             if (!force) {
                 const problems = prepared.teams.filter((t) => t.manager === 'human' && (league.currentWeek <= league.settings.regularSeasonWeeks || Engine.playoffPairs(league, league.currentWeek).some(pair => pair.includes(t.teamId)))).flatMap((t) => Engine.lineupProblems(prepared, t.teamId).map((p) => `${t.name} — ${p}`));
                 if (problems.length) { setWarnings(problems); return; }
@@ -298,14 +298,14 @@
         const currentPlay=visibleEvents[visibleEvents.length-1];
         const nextPlay=()=>{setPlaying(false);const next=playback.timeline.events.find(e=>e.t>clockRef.current && (!followMine||!myRow||e.teamId===myRow.home||e.teamId===myRow.away));clockRef.current=next?next.t:GAMECAST_END;setClock(clockRef.current);};
         const spotlight = h('div', { className: 'tl-current-play tl-live-spotlight' },
-            h('span', { className: 'tl-label' }, currentPlay ? `${teamName(currentPlay.teamId)} · ${Gamecast.clockLabel(currentPlay.t)}` : 'READY FOR KICKOFF'),
-            h('h3', null, currentPlay?.description || 'The scores and win estimate update as scoring moments arrive.'),
+            h('span', { className: 'tl-label' }, currentPlay ? `${teamName(currentPlay.teamId)} · ${Gamecast.clockLabel(currentPlay.t)}` : savedFinal ? `FINAL · WEEK ${weekLabel}` : 'READY FOR KICKOFF'),
+            h('h3', null, currentPlay?.description || (savedFinal ? 'The final is in. View the lineup results below or replay the game from the Week Archive.' : 'The scores and win estimate update as scoring moments arrive.')),
             currentPlay && h('strong', null, `${currentPlay.points >= 0 ? '+' : ''}${currentPlay.points.toFixed(2)} fantasy points`));
         const records = Engine.computeStandings({ ...league, finalizedWeeks: league.finalizedWeeks.filter(week => week.week < weekLabel) });
         const hero = myRow ? h(HeroMatchup, { row: myRow, teams: league.teams, week: weekLabel, records, spotlight,
             quarterScore: playback ? h(QuarterScore, { row: myRow, teams: league.teams, timeline: playback.timeline, landed, clock }) : null,
             progress: clock / GAMECAST_END, statusLabel: playback ? (done ? 'FINAL' : playing ? 'SIMULATION' : 'PAUSED') : savedFinal ? 'FINAL' : 'UPCOMING',
-            clockLabel: playback ? Gamecast.clockLabel(clock) : `WK ${weekLabel}` }) : spotlight;
+            clockLabel: playback ? Gamecast.clockLabel(clock) : savedFinal ? 'FINAL' : `WK ${weekLabel}` }) : spotlight;
         const lineups = h(LiveLineups, { row: myRow, teams: league.teams, rosterSlots: league.settings.rosterSlots,
             weekData: playback?.weekData || savedFinal, landed, final: done || Boolean(savedFinal), currentPlay });
         if (playback) {

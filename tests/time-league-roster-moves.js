@@ -195,5 +195,17 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     league = { ...league, trades: league.trades.map(trade => ({ ...trade, deferredUntilWeek: league.currentWeek + 1 })) };
     reset(); tree = render({ section: 'trades' });
     assert(tradeTab(tree, 'Trade builder').props['aria-pressed'], 'A delayed offer does not take over the next visit');
+    league = { ...league, weekStage: 'claims', trades: [{ tradeId: 'outgoing-ai', status: 'pending', fromTeamId: league.teams[0].teamId,
+        toTeamId: league.teams[2].teamId, giveEntryIds: ['young'], receiveEntryIds: ['foreign'], week: league.currentWeek }] };
+    reset(); tree = render({ section: 'trades' });
+    const ping = page => walk(page).find(node => node.type === 'button' && text(node.children).includes('PING THE GM'));
+    assert(text(tree).includes('The GM will respond after the waiver batch runs, during Decisions & lineup.'), 'An outgoing AI offer explains when its response will arrive');
+    assert(!text(tree).includes('THE GM IS CONSIDERING') && !ping(tree), 'Claims do not imply active review or show a disabled ping');
+    league = { ...league, weekStage: 'lineup' };
+    tree = render({ section: 'trades' });
+    assert(ping(tree) && !ping(tree).props.disabled, 'The existing ping action remains available during the response gate');
+    league = { ...league, trades: league.trades.map(trade => ({ ...trade, deferredUntilWeek: league.currentWeek + 1 })) };
+    tree = render({ section: 'trades' });
+    assert(!ping(tree) && text(tree).includes(`Delayed until Week ${league.currentWeek + 1}`), 'Deferred AI offers keep their actual review week and cannot be pinged early');
     console.log('PASS: own-roster focus, named atomic full-bench swaps, all eligible open-slot choices, mobile sheet, stars, sealed archive, locks, hotseat/online seat ownership, filtered free agents and failed-save recovery');
 })().catch(error => { console.error(error); process.exitCode = 1; });

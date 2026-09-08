@@ -193,6 +193,7 @@
     .auth-tab.active { color: var(--black); background: var(--gold); }
 
     .auth-panel[hidden] { display: none; }
+    .oauth-btn[hidden], .auth-or[hidden] { display: none; }
     .form-group { margin-bottom: 14px; }
     .form-label {
       display: block;
@@ -323,11 +324,29 @@
     const SESSION_KEY = 'fw_session_v1';
     const LEGACY_SESSION_KEY = 'od_session_v1';
     const LEGACY_AUTH_KEY = 'od_auth_v1';
-    const WARROOM_URL = 'index.html';
+    let VAULT_LOGIN = new URLSearchParams(window.location.search).get('vault') === '1';
+    try { VAULT_LOGIN = VAULT_LOGIN || Boolean(sessionStorage.getItem('tl-pending-invite-v1')); } catch {}
+    const WARROOM_URL = VAULT_LOGIN ? 'index.html?vault=1' : 'index.html';
     const messageEl = document.getElementById('message');
     const signinForm = document.getElementById('panelSignin');
     const signupForm = document.getElementById('panelSignup');
     let sbClient = null;
+
+    if (VAULT_LOGIN) {
+      document.title = 'The Vault · Sign in';
+      document.getElementById('loginTitle').textContent = 'The Vault';
+      document.querySelector('.login-subtitle').textContent = 'Use email and password for the Vault beta. No Sleeper account or subscription required.';
+      document.querySelector('.back-link').href = 'index.html?vault=1';
+      document.querySelector('.back-link').textContent = '← Back to The Vault';
+      document.querySelector('label[for="identifier"]').textContent = 'Email';
+      document.getElementById('identifier').type = 'email';
+      document.getElementById('identifier').placeholder = 'you@example.com';
+      // The current OAuth flow does not issue the app-account session used by
+      // Vault multiplayer. Keep that choice out of this scoped beta entry.
+      document.getElementById('btnGoogle').hidden = true;
+      document.getElementById('btnApple').hidden = true;
+      document.querySelector('.auth-or').hidden = true;
+    }
 
     function getSbClient() {
       if (!sbClient && window.supabase) sbClient = window.supabase.createClient(SUPABASE_URL, FW_ANON_KEY);
@@ -335,6 +354,7 @@
     }
 
     function destination() {
+      if (VAULT_LOGIN) return WARROOM_URL;
       try {
         const profile = JSON.parse(localStorage.getItem('od_profile_v1') || 'null');
         return (!profile || !profile.onboardingComplete) ? 'onboarding.html' : WARROOM_URL;
@@ -389,6 +409,7 @@
       if (!identifier || !password) { showMessage('Email or username and password are required.'); return; }
 
       const isEmail = identifier.includes('@');
+      if (VAULT_LOGIN && !isEmail) { showMessage('Use your email account to play in The Vault.'); return; }
       const endpoint = isEmail ? 'fw-signin' : 'get-session-token';
       const body = isEmail ? { email: identifier, password } : { username: identifier, password };
       const data = await authenticate(endpoint, body, document.getElementById('btnSignin'), 'Signing in…');
@@ -414,7 +435,7 @@
       const data = await authenticate('fw-signup', { email, password, displayName, productSlug: 'war_room' }, document.getElementById('btnSignup'), 'Creating account…');
       if (!data) return;
       showMessage('Account created. Setting up Dynasty HQ…', 'success');
-      setTimeout(() => { window.location.href = 'onboarding.html'; }, 500);
+      setTimeout(() => { window.location.href = VAULT_LOGIN ? WARROOM_URL : 'onboarding.html'; }, 500);
     });
 
     async function startOAuth(provider, button) {
@@ -450,7 +471,7 @@
     (async function restoreSession() {
       try {
         const db = getSbClient();
-        if (db) {
+        if (db && !VAULT_LOGIN) {
           const { data } = await db.auth.getSession();
           if (data?.session) {
             const user = data.session.user;
@@ -463,13 +484,13 @@
           }
         }
         const session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
-        if (session?.token && session?.user) {
+        if (session?.token && session?.user && (!VAULT_LOGIN || session.user.id)) {
           window.location.href = destination();
           return;
         }
         const legacySession = JSON.parse(localStorage.getItem(LEGACY_SESSION_KEY) || 'null');
         const legacyAuth = JSON.parse(localStorage.getItem(LEGACY_AUTH_KEY) || 'null');
-        if (legacySession?.token && legacyAuth?.username) window.location.href = WARROOM_URL;
+        if (!VAULT_LOGIN && legacySession?.token && legacyAuth?.username) window.location.href = WARROOM_URL;
       } catch {}
     })();
   </script>

@@ -139,7 +139,7 @@
                         ? h('span', { className: 'meta' }, `${entry.drawnSeason} · ${outlook ? `${outlook.remaining} games left` : UI.decadeLabelOf(entry.drawnSeason)}`)
                         : h('span', { className: 'tl-pill warn', style: { marginLeft: 6 } }, 'SEALED'),
                     rating && h('span', { className: 'tl-week-stars', title: rating.stars !== null ? `Week ${league.currentWeek}: ${rating.stars} of 5 stars. Highest remaining rating: ${rating.maxRemainingStars}.` : 'No archived game this week: zero points.', 'aria-label': rating.stars !== null ? `${rating.stars} of 5 stars this week` : 'No archived game this week' }, rating.stars !== null ? '★'.repeat(rating.stars) + '☆'.repeat(5-rating.stars) : '— No game log'), rating && rating.maxRemainingStars !== null && h('small', { className: 'tl-stars-ceiling' }, `Remaining ceiling: ${rating.maxRemainingStars}★`)),
-                h('span', { className: 'tl-lineup-pts tabular', style: eraColor ? { color: eraColor } : undefined },
+                h('span', { className: 'tl-lineup-pts tabular', title: 'Weeks 1–14 archive total, using reference scoring', style: eraColor ? { color: eraColor } : undefined },
                     revealed ? fmt1(cardSeasonPoints(cards, entry)) : '—', h('small', null, 'SZN PTS')),
                 h('span', { className: 'tl-lineup-pts tl-lineup-ytd tabular', title: 'Player points through completed Vault weeks, including bench games' }, ytd.get(entry.entryId) == null ? '—' : fmt1(ytd.get(entry.entryId)), h('small', null, 'YTD PTS')),
                 h('button', { type: 'button', className: 'tl-btn tl-roster-move', 'aria-label': `Move ${entry.name}`, disabled: !editable || moving,
@@ -517,7 +517,8 @@
                         const from = teamById(trade.fromTeamId); const to = teamById(trade.toTeamId);
                         const incoming = trade.toTeamId === team.teamId;
                         const toAi = to?.manager === 'ai';
-                        const canRespond = responseOpen && !(trade.deferredUntilWeek > league.currentWeek);
+                        const deferred = trade.deferredUntilWeek > league.currentWeek;
+                        const canRespond = responseOpen && !deferred;
                         return h('div', { key: trade.tradeId, style: { padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' } },
                             h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 } },
                                 h('span', { className: `tl-pill ${incoming ? 'gold' : 'info'}` }, incoming ? 'INCOMING' : 'OUTGOING'),
@@ -526,14 +527,17 @@
                             h('p', { style: { fontSize: 12, margin: '2px 0 6px', color: 'var(--text-secondary)' } }, h('b', { style: { color: 'var(--white)' } }, to?.name ?? trade.toTeamId), ` sends ${names(trade.receiveEntryIds)}`),
                             trade.deferredUntilWeek > league.currentWeek && h('p', { className: 'tl-hint' }, `Delayed until Week ${trade.deferredUntilWeek}`),
                             trade.note && h('p', { style: { fontSize: 11.5, fontStyle: 'italic', color: 'var(--text-faint, rgba(189,184,173,0.6))', margin: '0 0 6px' } }, `"${trade.note}"`),
-                            h('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+                            toAi && !canRespond && !deferred && h('p', { className: 'tl-hint' }, deskOpen
+                                ? 'The GM will respond after the waiver batch runs, during Decisions & lineup.'
+                                : 'Trade responses are closed at this stage.'),
+                            h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
                                 incoming && !toAi && h(React.Fragment, null,
                                     h('button', { className: 'tl-btn', disabled: !canRespond, onClick: () => apply(Engine.respondToTrade(league, trade.tradeId, true, '', nowIso()), { type: 'respond-trade', tradeId: trade.tradeId, accept: true }) }, '✓ ACCEPT'),
                                     h('button', { className: 'tl-btn', disabled: !canRespond, onClick: () => apply(Engine.respondToTrade(league, trade.tradeId, false, '', nowIso()), { type: 'respond-trade', tradeId: trade.tradeId, accept: false }) }, '✕ REJECT'),
                                     h('button', { className: 'tl-btn', disabled: !canRespond, onClick: () => apply(Engine.deferTrade(league, trade.tradeId), { type: 'respond-trade', tradeId: trade.tradeId, decision: 'delay' }) }, 'DELAY TO NEXT WEEK')),
                                 toAi && h(React.Fragment, null,
-                                    h('span', { className: 'tl-pill info' }, 'THE GM IS CONSIDERING'),
-                                    h('button', { className: 'tl-btn', disabled: !canRespond, onClick: () => apply(AI.aiRespondToTrades(league, cards, nowIso()), { type: 'ping-ai' }) }, '📡 PING THE GM')),
+                                    h('span', { className: 'tl-pill info' }, canRespond ? 'THE GM IS CONSIDERING' : deferred ? 'DELAYED' : 'QUEUED FOR REVIEW'),
+                                    canRespond && h('button', { className: 'tl-btn', onClick: () => apply(AI.aiRespondToTrades(league, cards, nowIso()), { type: 'ping-ai' }) }, '📡 PING THE GM')),
                                 !incoming && !toAi && h('span', { className: 'tl-pill info' }, 'AWAITING RESPONSE')));
                     }),
                     !pending.length && h('p', { className: 'tl-empty' }, 'No pending offers on the desk.')),

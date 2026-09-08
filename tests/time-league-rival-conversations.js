@@ -56,6 +56,18 @@ const eventState = { ...league, currentWeek: 2, finalizedWeeks: [{ week: 1, matc
 const event = R.messagesFor(eventState, human.teamId)[0];
 assert(event.id.startsWith('game:'));
 assert.equal(R.sendMessage(eventState, { ...input, replyToId: event.id }, stamp).rivalMessages[0].replyToId, event.id);
+const postgame = { ...eventState, phase: 'season', weekStage: 'postgame' };
+const postgameInput = { ...input, tone: 'friendly', messageId: 'postgame_0001', replyToId: event.id };
+const postgameReply = R.sendMessage(postgame, postgameInput, stamp);
+assert(postgameReply.rivalMessages.every(message => message.week === 1), 'The owner and AI reply stay in Week 1 until the postgame gate advances');
+assert.equal(R.relationshipFor(postgameReply, warlord.teamId, human.teamId).heat, -2, 'Correcting chat labels cannot immediately decay the new relationship reaction');
+const advanced = { ...postgameReply, weekStage: 'claims' };
+assert.strictEqual(R.sendMessage(advanced, postgameInput, stamp), advanced, 'Retrying after advance preserves the original message week');
+const nextWeekReply = R.sendMessage(advanced, { ...postgameInput, messageId: 'postgame_0002' }, stamp);
+assert(nextWeekReply.rivalMessages.slice(-2).every(message => message.week === 2), 'Messages move to Week 2 only after Advance Week');
+const finalReply = R.sendMessage({ ...postgame, phase: 'complete', currentWeek: 15 }, { ...input, messageId: 'postgame_final' }, stamp);
+assert(finalReply.rivalMessages.every(message => message.week === 14), 'Championship conversation cannot invent a Week 15');
+assert.deepEqual(postgame.rivalMessages, [], 'Message chronology does not mutate the prior save');
 assert.equal(R.normalizeMessages([{ ...sent.rivalMessages[0], fromTeamId: warlord.teamId }, null, sent.rivalMessages[1]], league.teams).length, 1, 'normalization rejects spoofed chat authors and malformed rows');
 
 const cards = new Map();

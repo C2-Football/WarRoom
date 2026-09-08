@@ -40,6 +40,12 @@ for (const name of ['roster', 'rules', 'draft-room', 'era-rules', 'season', 'hel
     assert.equal(ai.p_messages[1].toTeamId, ownId);
     assert.equal(ai.p_messages[0].createdAt, stamp, 'client-provided timestamps are ignored');
     assert.deepEqual(ai.p_relationship, { ownerTeamId: aiId, otherTeamId: ownId, heat: 2, updatedWeek: 14 });
+    const postgameRow = { ...row, state: { ...row.state, phase: 'season', weekStage: 'postgame', currentWeek: 2 } };
+    await send({ toTeamId: aiId, messageId: 'postgame_00001' }, { row: postgameRow });
+    assert(calls.at(-1).params.p_messages.every(message => message.week === 1), 'Private online postgame replies use the same visible week as solo');
+    assert.equal(calls.at(-1).params.p_relationship.updatedWeek, 2, 'The server retains the internal relationship decay clock');
+    await send({ toTeamId: aiId, messageId: 'postgame_00002' }, { row: { ...postgameRow, state: { ...postgameRow.state, weekStage: 'claims' } } });
+    assert(calls.at(-1).params.p_messages.every(message => message.week === 2), 'Online replies advance with the weekly gate');
     console.log('ok messages use verified ownership, server time and private RPCs, with AI-only reactions');
     for (const patch of [{ teamId: friendId }, { toTeamId: ownId }, { toTeamId: 'missing' }, { text: '' }, { text: 'a'.repeat(501) }, { tone: 'threat' }, { messageId: 'tiny' }, { messageId: 'bad:id-12345' }, { replyToId: 44 }]) {
         const count = calls.length;

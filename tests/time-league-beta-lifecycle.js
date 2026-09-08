@@ -2,7 +2,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 global.window = globalThis; window.App = {};
-for (const name of ['roster', 'helmet', 'rules', 'draft-room', 'era-rules', 'season', 'player-cards', 'engine', 'rivals', 'ai', 'actions', 'gamecast']) require(`../js/shared/time-league-${name}.js`);
+for (const name of ['roster', 'helmet', 'rules', 'draft-room', 'era-rules', 'season', 'player-cards', 'engine', 'rivals', 'ai', 'actions', 'gamecast', 'player-stats']) require(`../js/shared/time-league-${name}.js`);
 const { TimeLeagueEngine: E, TimeLeagueActions: A, TimeLeagueAI: AI, TimeLeaguePlayerCards: P, TimeLeagueSeason: S, TimeLeagueGamecast: G } = App;
 const data = {
     cards: P.buildPlayerCardIndex(JSON.parse(fs.readFileSync('data/time-league/player-cards.json'))),
@@ -45,6 +45,7 @@ while (state.phase === 'draft' && draftPasses++ < 157) {
 assert.equal(state.phase, 'season'); assert.equal(state.draftPicks.length, 156);
 assert(state.teams.every(team => team.roster.length === 13 && E.lineupProblems(state, team.teamId).length === 0));
 assert(state.teams.every(team => team.roster.some(entry => entry.position === 'K') && team.roster.some(entry => entry.position === 'DEF')));
+const originalDraws = new Map(state.teams.flatMap(team => team.roster.map(entry => [entry.entryId, entry.drawnSeason])));
 const human = state.teams[0], drop = human.roster.find(entry => entry.slot === 'BN');
 const target = E.freeAgents(state, data.cards).find(card => card.position === drop.position);
 act({ type: 'claim', teamId: 't1', identity: target.identity, dropEntryId: drop.entryId, bidAmount: 7 });
@@ -73,10 +74,20 @@ while (state.phase === 'season' && gates++ < 60) {
         act({ type: 'week' }); assert.equal(state.weekStage, 'postgame');
         const result = state.finalizedWeeks.at(-1);
         assert.equal(result.week, week); assert.equal(state.currentWeek, week + 1);
+        for (const team of state.teams) for (const entry of team.roster) {
+            if (originalDraws.has(entry.entryId)) assert.equal(entry.drawnSeason, originalDraws.get(entry.entryId), 'Draft editions survive trades, moves and weekly saves');
+        }
         const timeline = G.buildGamecast({ ...result, seed: state.seed, scoring: state.settings.scoring });
         for (const team of result.results) {
             const cents = timeline.events.filter(event => event.teamId === team.teamId).reduce((sum, event) => sum + Math.round(event.points * 100), 0);
             assert.equal(cents, Math.round(team.total * 100), 'Quarter playback must reproduce the saved game score');
+            const statCents = team.starters.reduce((sum, entry) => sum + Math.round(App.TimeLeaguePlayerStats.totals(state, entry, data.logIndex, data.eraFactors, [week]).points * 100), 0);
+            assert.equal(statCents, Math.round(team.total * 100), 'The stats page and gamecast agree on every scored player');
+            const owner = state.teams.find(item => item.teamId === team.teamId);
+            if (owner.manager === 'ai') for (const starter of team.starters.filter(entry => !entry.stats)) {
+                assert(!owner.roster.some(entry => entry.slot === 'BN' && App.TimeLeagueRoster.SLOT_ELIGIBILITY[starter.slot].includes(entry.position)
+                    && data.logIndex.has(S.gameLogKey(entry.identity, entry.drawnSeason, week))), `${owner.name} cannot start a no-game player with an available legal bench replacement in Week ${week}`);
+            }
         }
         if (week === 12) {
             regularStandings = E.computeStandings(state);

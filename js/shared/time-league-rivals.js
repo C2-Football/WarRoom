@@ -369,14 +369,17 @@
         const prior = replyToId ? messagesFor(state, teamId).find(message => message.id === replyToId
             && [message.fromTeamId, message.toTeamId].includes(toTeamId)) : null;
         if (replyToId && !prior) throw new Error('That message is not part of this conversation.');
-        const week = Math.max(1, Math.min(20, state.currentWeek || 1));
+        const progressionWeek = Math.max(1, Math.min(20, state.currentWeek || 1));
+        // Scoring saves advance the internal week before the owner advances the
+        // postgame gate. Keep the conversation with the final being discussed.
+        const week = Math.max(1, progressionWeek - (state.weekStage === 'postgame' ? 1 : 0));
         const message = { id: `chat:${messageId}`, fromTeamId: teamId, toTeamId, text, tone, week, createdAt: stamp, sequence: history.length + 1, ...(replyToId ? { replyToId } : {}) };
         let next = { ...state, rivalMessages: [...history, message] };
         if (recipient.manager !== 'ai') return next;
         const previous = relationshipFor(state, toTeamId, teamId);
         const heat = clampHeat(previous.heat + ({ friendly: -2, competitive: 2, dismissive: 1, neutral: 0 })[tone]);
         const relations = normalizeRelationships(state.rivalRelationships, state.teams).filter(row => row.ownerTeamId !== toTeamId || row.otherTeamId !== teamId);
-        next = { ...next, rivalRelationships: [...relations, { ownerTeamId: toTeamId, otherTeamId: teamId, heat, updatedWeek: week }] };
+        next = { ...next, rivalRelationships: [...relations, { ownerTeamId: toTeamId, otherTeamId: teamId, heat, updatedWeek: progressionWeek }] };
         const voice = replyVoices[recipient.aiPersona] || replyVoices.steward;
         const context = contextOf(prior);
         const opener = context && (contextOpeners[recipient.aiPersona] || contextOpeners.steward)[context];

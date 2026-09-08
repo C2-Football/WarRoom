@@ -310,7 +310,7 @@
                 playMode === 'friends' && !signedIn && h('div', { className: 'tl-signin-callout' },
                     h('span', null, '◆'),
                     h('p', null, h('b', null, 'Sign in to host a friends league.'), ' Your league and every move will sync live across devices.'),
-                    h('a', { className: 'tl-btn', href: 'login.html' }, 'SIGN IN'))),
+                    h('a', { className: 'tl-btn', href: 'login.html?vault=1' }, 'SIGN IN'))),
 
             h('div', { className: 'tl-builder-section', id: 'vault-setup-1' },
                 h('div', { className: 'tl-question' }, h('span', null, '2'), h('div', null, h('h3', null, 'Pick the time-travel twist'), h('p', null, 'You draft the player. The Vault reveals the season.'))),

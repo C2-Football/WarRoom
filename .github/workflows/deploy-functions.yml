@@ -11,6 +11,10 @@ on:
       - "scripts/build-time-league-server.cjs"
   workflow_dispatch:
 
+concurrency:
+  group: supabase-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     # Edge functions live in the shared production Supabase project — only the
@@ -37,6 +41,17 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install test dependencies
+        run: npm ci
+
+      - name: Verify Vault contracts before backend deployment
+        run: npm run test:timeleague
 
       - name: Build Vault server runtime
         run: node scripts/build-time-league-server.cjs
@@ -67,6 +82,7 @@ jobs:
               '20260908010000': 'supabase/migrations/20260908010000_time_league_community.sql',
               '20260908020000': 'supabase/migrations/20260908020000_time_league_draft_readiness.sql',
               '20260908030000': 'supabase/migrations/20260908030000_time_league_messages.sql',
+              '20260908040000': 'supabase/migrations/20260908040000_time_league_message_week.sql',
               '20260907000000': 'supabase/migrations/20260907000000_league_cups.sql',
               '20260610000000': 'supabase/migrations/20260610000000_ai_response_cache.sql',
               '20260610010000': 'supabase/migrations/20260610010000_ai_feedback.sql',
@@ -134,6 +150,7 @@ jobs:
               '20260908010000': 'supabase/migrations/20260908010000_time_league_community.sql',
               '20260908020000': 'supabase/migrations/20260908020000_time_league_draft_readiness.sql',
               '20260908030000': 'supabase/migrations/20260908030000_time_league_messages.sql',
+              '20260908040000': 'supabase/migrations/20260908040000_time_league_message_week.sql',
               '20260317000000': 'supabase/migrations/20260317000000_app_users_and_subscriptions.sql',
               '20260503000000': 'supabase/migrations/20260503000000_ai_usage_controls.sql',
               '20260503010000': 'supabase/migrations/20260503010000_tutorial_state.sql',

@@ -23,6 +23,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const crypto = require('crypto');
 const Babel = require('@babel/standalone');
 const { minify } = require('terser');
@@ -202,6 +203,12 @@ async function build() {
   }
 
   for (const [entry, html] of Object.entries(htmlByEntry)) processEntry(entry, html);
+
+  const revision = process.env.GITHUB_SHA || execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  fs.writeFileSync(path.join(OUT_DIR, 'release.json'), JSON.stringify({
+    revision, builtAt: new Date().toISOString(), environment: process.env.GITHUB_REPOSITORY || 'local-preview',
+    assets: Object.fromEntries([...assetHash].filter(([name]) => name.includes('time-league') || name === 'js/tabs/time-league.js')),
+  }, null, 2) + '\n');
 
   const pct = rawBytes ? Math.round((1 - outBytes / rawBytes) * 100) : 0;
   console.log(

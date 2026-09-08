@@ -36,6 +36,8 @@ jobs:
         with:
           repository: C2-Football/dhq-shared
           path: shared-src
+          # Explicit dependency revision: releases do not change under the same app commit.
+          ref: 7ae2d372810f6bfecac6ec3a608f4623bc4678a6
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -44,10 +46,13 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --omit=dev
+        run: npm ci
 
       - name: Sync shared engine modules
         run: SHARED_SOURCE="$GITHUB_WORKSPACE/shared-src" npm run sync:shared
+
+      - name: Verify beta release contracts
+        run: npm run test:core && npm run test:login-auth && npm run test:timeleague
 
       # Precompile every type="text/babel" entry (index + free-agency + draft-warroom
       # + trade-calculator) to plain JS so production no longer downloads ~3.1MB of
@@ -86,7 +91,10 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: "pages-artifact"
+          name: github-pages-${{ github.run_attempt }}
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}

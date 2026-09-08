@@ -557,7 +557,7 @@
         return winners.length >= 2 ? winners.slice(0, winners.length / 2).map((seed, index) => [seed, winners[winners.length - 1 - index]]) : [];
     }
     function startPlayoffs(state, count) {
-        if (state.phase !== 'complete' || playoffCount(state) || ![2,4,8].includes(count) || count > state.teams.length || state.currentWeek !== state.settings.regularSeasonWeeks + 1 || state.settings.regularSeasonWeeks + Math.log2(count) > 18) return state;
+        if (state.phase !== 'complete' || playoffCount(state) || ![2,4,8].includes(count) || count > state.teams.length || state.currentWeek !== state.settings.regularSeasonWeeks + 1 || state.settings.regularSeasonWeeks + Math.log2(count) > 14) return state;
         const { championTeamId: _champion, ...rest } = state;
         return { ...rest, settings: { ...state.settings, playoffTeams: count }, phase: 'season', weekStage: 'postgame' };
     }

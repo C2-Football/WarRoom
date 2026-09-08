@@ -356,6 +356,29 @@ test('completed standings-only season can explicitly reopen for playoffs once', 
     assert.strictEqual(Engine.startPlayoffs(reopened, 4), reopened);
 });
 
+test('playoff reopening stops at the archive boundary without rewriting old season results', () => {
+    const cards = samplePool();
+    for (const regularSeasonWeeks of [12, 13, 14]) {
+        let state = draftFullRoster(Engine.createTimeLeague({ name: 'Archive boundary', seed: 'archive-boundary', createdAt: '2026-01-01T00:00:00Z',
+            settings: baseSettings({ regularSeasonWeeks }), seats: seats() }), cards);
+        while (state.phase === 'season') state = Engine.finalizeCurrentWeek(state, new Map(), null, '2026-01-01T00:00:00Z');
+        const before = JSON.stringify(state);
+        for (const count of [2, 4]) {
+            const reopened = Engine.startPlayoffs(state, count);
+            if (regularSeasonWeeks + Math.log2(count) > 14) {
+                assert.strictEqual(reopened, state, 'A playoff round without archived games must be unavailable');
+                assert.equal(reopened.championTeamId, state.championTeamId, 'Rejected extension preserves the champion');
+            } else {
+                assert.equal(reopened.phase, 'season');
+                assert(Engine.seasonEndWeek(reopened) <= 14);
+                assert.deepStrictEqual(reopened.finalizedWeeks, state.finalizedWeeks, 'Existing scores and seeding stay intact');
+            }
+        }
+        assert.equal(JSON.stringify(state), before, 'Reopening cannot mutate a saved completed season');
+        assert.deepStrictEqual(Engine.normalizeTimeLeague(state).finalizedWeeks, state.finalizedWeeks, 'Legacy results still load unchanged');
+    }
+});
+
 test('custom roster and scoring survive storage and price full stat lines', () => {
     const scoring = { ...SCORING, stats: { rushTd: 9, recTd: 8, passInt: -4, rec: 2 }, extended: { idp_sack: 5, fgm_50p: 7 } };
     const state = Engine.createTimeLeague({ name: 'Custom', seed: 'custom', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings({ rosterSlots: { QB: 2, RB: 3, WR: 4, TE: 2, FLEX: 2, BN: 5 }, scoring, maxQuarterbacks: 4 }), seats: seats() });

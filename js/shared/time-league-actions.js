@@ -191,7 +191,7 @@
         case 'week': {
             commissioner();
             if (state.phase !== 'season' || state.weekStage !== 'ready') deny('Complete the weekly planning steps first.');
-            const prepared = AI.aiPrepareWeek(state, cards);
+            const prepared = AI.aiPrepareWeek(state, cards, data.logIndex);
             const problems = prepared.teams.filter(t => t.manager === 'human' && (state.currentWeek <= state.settings.regularSeasonWeeks || E.playoffPairs(state, state.currentWeek).some(pair => pair.includes(t.teamId)))).flatMap(t => E.lineupProblems(prepared, t.teamId));
             if (problems.length && !action.force) deny('Managers still need to set their lineups.');
             next = E.finalizeCurrentWeek(prepared, data.logIndex, data.eraFactors, stamp);

@@ -169,6 +169,38 @@ test('aiPrepareWeek fills every AI team’s empty starter slots from the bench',
     assert.ok(!problems.some((p) => p.includes('QB slot is empty')));
 });
 
+test('AI replaces no-game starters without inspecting future stats or changing human choices', () => {
+    const cards = new Map();
+    const make = (id, position, slot, points) => {
+        cards.set(id, card(id, id, position, [{ season: 2000, points }]));
+        return { entryId: id, identity: id, name: id, position, drawnSeason: 2000, slot };
+    };
+    let state = Engine.createTimeLeague({ name: 'Availability', seed: 'availability', createdAt: '2026-01-01T00:00:00Z',
+        settings: baseSettings({ rosterSlots: { RB: 1, FLEX: 1, SUPER_FLEX: 1, K: 1, DEF: 1, BN: 5 } }),
+        seats: [{ name: 'Human', manager: 'human' }, { name: 'Rival', manager: 'ai' }] });
+    const roster = [make('no-rb', 'RB', 'RB', 400), make('no-wr', 'WR', 'FLEX', 350), make('no-qb', 'QB', 'SUPER_FLEX', 300),
+        make('no-k', 'K', 'K', 200), make('no-def', 'DEF', 'DEF', 180),
+        make('yes-rb', 'RB', 'BN', 100), make('yes-wr', 'WR', 'BN', 90), make('yes-qb', 'QB', 'BN', 80),
+        make('yes-k', 'K', 'BN', 70), make('spare-wr', 'WR', 'BN', 1000)];
+    state = { ...state, phase: 'season', currentWeek: 2, teams: state.teams.map(team => ({ ...team, roster })) };
+    const logs = new Map(['yes-rb', 'yes-wr', 'yes-qb', 'yes-k'].map(id => [App.TimeLeagueSeason.gameLogKey(id, 2000, 2),
+        { get stats() { throw new Error('Future statistics must stay private'); } }]));
+    // A high-value reserve with a game in a different week is unavailable now.
+    logs.set(App.TimeLeagueSeason.gameLogKey('spare-wr', 2000, 1), {});
+    const before = JSON.stringify(state);
+    const next = AI.aiPrepareWeek(state, cards, logs);
+    assert.equal(JSON.stringify(state), before, 'Preparation cannot mutate the saved league');
+    assert.deepStrictEqual(next.teams[0], state.teams[0], 'AI preparation preserves every human lineup decision');
+    const slots = Object.fromEntries(next.teams[1].roster.map(entry => [entry.entryId, entry.slot]));
+    assert.equal(slots['yes-rb'], 'RB'); assert.equal(slots['yes-wr'], 'FLEX');
+    assert.equal(slots['yes-qb'], 'SUPER_FLEX'); assert.equal(slots['yes-k'], 'K');
+    assert.equal(slots['no-def'], 'DEF', 'A wrong-position bench player cannot replace a defense');
+    assert(['no-rb', 'no-wr', 'no-qb', 'no-k'].every(id => slots[id] === 'BN'));
+    assert.deepStrictEqual(AI.aiPrepareWeek(next, cards, logs), next, 'A prepared lineup is stable on retry');
+    assert.deepStrictEqual(AI.aiPrepareWeek(state, cards), state, 'Loading data cannot imply that every player is unavailable');
+    assert.equal(Engine.lineupProblems(next, 't2').length, 0);
+});
+
 test('aiSubmitWaiverClaims never proposes a QB when the team is already at cap', () => {
     const cards = samplePool();
     let state = Engine.createTimeLeague({ name: 'Waiver AI', seed: 'waiver-ai-seed', createdAt: '2026-01-01T00:00:00Z', settings: baseSettings(), seats: seats() });

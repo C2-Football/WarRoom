@@ -15,6 +15,8 @@ for (const name of ['roster', 'rules', 'draft-room', 'era-rules', 'season', 'hel
         await db.exec(fs.readFileSync('supabase/migrations/20260907193000_time_league_multiplayer.sql', 'utf8'));
         const migration = fs.readFileSync('supabase/migrations/20260908030000_time_league_messages.sql', 'utf8');
         await db.exec(migration); await db.exec(migration);
+        const messageWeekMigration = fs.readFileSync('supabase/migrations/20260908040000_time_league_message_week.sql', 'utf8');
+        await db.exec(messageWeekMigration); await db.exec(messageWeekMigration);
         const q = async (sql, values = []) => (await db.query(sql, values)).rows;
         const users = (await q('insert into app_users select gen_random_uuid() from generate_series(1,5) returning id')).map(row => row.id);
         const initial = { leagueId: 'private-qa', name: 'Private messaging QA', seed: 'private-qa', phase: 'complete', currentWeek: 14,
@@ -151,6 +153,43 @@ for (const name of ['roster', 'rules', 'draft-room', 'era-rules', 'season', 'hel
         assert.ok(!unauthorizedReplyPin.some(m => m.id === human.messages[0].id), 'reply pins cannot disclose another pair of owners');
         console.log('ok quiet-thread replies remain sendable after more than 1,000 messages elsewhere');
         console.log('ok RLS and grants block direct reads; bounded private history returns the newest messages in order');
+
+        const postgameState = { ...initial, leagueId: 'postgame-chat-qa', phase: 'season', currentWeek: 2, weekStage: 'postgame', rivalRelationships: [] };
+        const postgameLeague = (await q('select create_time_league($1,$2) as id', [users[0], postgameState]))[0].id;
+        const buildPostgame = async id => {
+            const saved = (await q('select state,version from time_leagues where id=$1', [postgameLeague]))[0];
+            const history = (await q('select load_time_league_messages($1,$2) as messages', [users[0], postgameLeague]))[0].messages;
+            const next = App.TimeLeagueRivals.sendMessage({ ...saved.state, rivalMessages: history }, {
+                teamId: 't1', toTeamId: 't5', text: 'Good game.', tone: 'friendly', messageId: id,
+            }, new Date().toISOString());
+            return { version: saved.version, messages: next.rivalMessages.filter(m => m.id === `chat:${id}` || m.id === `reply:${id}`),
+                relationship: next.rivalRelationships.find(r => r.ownerTeamId === 't5' && r.otherTeamId === 't1') };
+        };
+        const sendPostgame = async p => (await q('select send_time_league_message($1,$2,$3,$4,$5) as result',
+            [users[0], postgameLeague, p.version, p.messages, p.relationship]))[0].result;
+        const finalChat = await buildPostgame('postgame_first_01');
+        assert(finalChat.messages.every(m => m.week === 1));
+        assert.equal((await sendPostgame(finalChat)).ok, true, 'Postgame owner and AI messages pass actual SQL validation');
+        assert.equal(finalChat.relationship.updatedWeek, 2, 'Relationship decay retains its internal clock');
+        const oldRuntime = await buildPostgame('postgame_legacy_01');
+        const oldEnvelope = { ...oldRuntime, messages: oldRuntime.messages.map(m => ({ ...m, week: 2 })) };
+        assert.equal((await sendPostgame(oldEnvelope)).ok, true, 'The additive migration accepts the old Edge envelope during rollout');
+        assert.equal((await sendPostgame(oldEnvelope)).deduplicated, true, 'Normalization cannot break an old-runtime retry');
+        const invalidWeek = await buildPostgame('postgame_wrong_01');
+        await assert.rejects(() => sendPostgame({ ...invalidWeek, messages: invalidWeek.messages.map(m => ({ ...m, week: 3 })) }), /message fields/, 'A caller cannot choose an arbitrary message week');
+        await q("update time_leagues set state=jsonb_set(state,'{weekStage}','\"claims\"'),version=version+1 where id=$1", [postgameLeague]);
+        assert.equal((await sendPostgame(finalChat)).deduplicated, true, 'An exact retry after advance keeps its saved Week 1');
+        assert.equal((await sendPostgame(oldEnvelope)).deduplicated, true, 'An old-runtime retry remains idempotent after the gate advances');
+        const nextWeekChat = await buildPostgame('postgame_next_01');
+        assert(nextWeekChat.messages.every(m => m.week === 2));
+        assert.equal((await sendPostgame(nextWeekChat)).ok, true);
+        await q("update time_leagues set state=state || '{\"phase\":\"complete\",\"weekStage\":\"postgame\",\"currentWeek\":15}'::jsonb,version=version+1 where id=$1", [postgameLeague]);
+        const titleChat = await buildPostgame('postgame_title_01');
+        assert(titleChat.messages.every(m => m.week === 14));
+        assert.equal((await sendPostgame(titleChat)).ok, true, 'Championship correspondence remains Week 14');
+        const chronology = (await q('select load_time_league_messages($1,$2) as messages', [users[0], postgameLeague]))[0].messages;
+        assert.deepEqual(chronology.map(m => m.week), [1, 1, 1, 1, 2, 2, 14, 14], 'The DB normalizes both old and new postgame envelopes to its visible week');
+        console.log('ok actual SQL keeps postgame chat with the visible final, advances at the gate, and preserves retry and rivalry semantics');
         console.log('PASS: private Vault messaging database integration');
     } finally { await db.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

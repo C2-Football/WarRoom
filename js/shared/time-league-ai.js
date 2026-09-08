@@ -162,8 +162,25 @@
         return next === state ? state : { ...next, draftAuction: { ...next.draftAuction, lastAiAt: stamp } };
     }
 
-    function aiPrepareWeek(state, cards) {
-        return state.teams.reduce((next, team) => (team.manager === "ai" ? autoFillLineup(next, team.teamId, cards) : next), state);
+    function aiPrepareWeek(state, cards, logIndex) {
+        return state.teams.reduce((next, team) => {
+            if (team.manager !== "ai") return next;
+            let prepared = autoFillLineup(next, team.teamId, cards);
+            if (!logIndex || state.phase !== 'season') return prepared;
+            // Availability is already visible to managers. A rival should not
+            // leave a guaranteed no-game zero in while a legal substitute plays.
+            // Inspect keys only: knowing the future score would give AI an edge.
+            const available = entry => logIndex.has(App.TimeLeagueSeason.gameLogKey(entry.identity, entry.drawnSeason, state.currentWeek));
+            const starters = prepared.teams.find(item => item.teamId === team.teamId).roster
+                .filter(entry => STARTER_SLOTS.includes(entry.slot) && !available(entry));
+            for (const starter of starters) {
+                const roster = prepared.teams.find(item => item.teamId === team.teamId).roster;
+                const replacement = roster.filter(entry => entry.slot === 'BN' && available(entry) && SLOT_ELIGIBILITY[starter.slot].includes(entry.position))
+                    .sort((left, right) => entryValue(cards, right) - entryValue(cards, left) || left.entryId.localeCompare(right.entryId))[0];
+                if (replacement) prepared = App.TimeLeagueEngine.setEntrySlot(prepared, team.teamId, replacement.entryId, starter.slot, starter.entryId);
+            }
+            return prepared;
+        }, state);
     }
 
     function aiSubmitWaiverClaims(state, cards, createdAt) {

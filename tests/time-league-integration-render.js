@@ -53,4 +53,23 @@ effects[1]();
 for(let i=0;i<151;i++){stamp+=100;callback(stamp);}
 assert(state[1]>=14.9&&state[1]<=15.2,'One-minute mode spends about 15 seconds on each quarter');
 tree=cast(); button(tree,'PAUSE').props.onClick(); tree=cast(); assert.equal(state[2],false);
+// A saved final reopened without playback must not look ready for kickoff.
+const finalWeek={...week,week:14,matchups:week.matchups.map(match=>({...match,homePoints:42,awayPoints:36,winner:match.home}))};
+const completedLeague={...league,phase:'complete',currentWeek:14,finalizedWeeks:[finalWeek],championTeamId:league.teams[0].teamId};
+const staticCast=current=>render(()=>WrTimeLeagueGamecastPanel({league:current,cards,logIndex:new Map(),onUpdate(){}}));
+const heroOf=page=>walk(page).find(node=>node.type?.name==='HeroMatchup');
+for (const phase of ['season','complete']) {
+    reset();const page=staticCast({...completedLeague,phase});const hero=heroOf(page);
+    assert.equal(hero.props.clockLabel,'FINAL');assert.equal(hero.props.statusLabel,'FINAL');
+    assert(text(hero.props.spotlight).includes('FINAL · WEEK 14') && text(hero.props.spotlight).includes('Week Archive'));
+    assert(!text(page).includes('READY FOR KICKOFF') && !text(page).includes('scores and win estimate update'));
+    assert(!text(hero.type(hero.props)).includes('Illustrative estimate'), 'Final results do not carry a live prediction disclaimer');
+}
+button(staticCast(completedLeague),'REPLAY').props.onClick();
+tree=staticCast(completedLeague);
+assert.equal(heroOf(tree).props.statusLabel,'SIMULATION');
+assert.equal(heroOf(tree).props.clockLabel,'Q1 · 15:00');
+assert(text(heroOf(tree).props.spotlight).includes('READY FOR KICKOFF'), 'Explicit replay still begins with the kickoff presentation');
+reset();tree=staticCast({...league,phase:'season',weekStage:'ready',currentWeek:1,finalizedWeeks:[]});
+assert(text(heroOf(tree).props.spotlight).includes('READY FOR KICKOFF'), 'An unplayed matchup keeps its pregame copy');
 console.log('PASS: root draft/home renders, weekly gate role/mode controls, postgame autoplay and replay deduplication');

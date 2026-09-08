@@ -45,6 +45,9 @@ const all = node => !node || typeof node !== 'object' ? [] : Array.isArray(node)
 const text = node => node == null ? '' : typeof node !== 'object' ? String(node) : Array.isArray(node) ? node.map(text).join(' ') : text(node.children);
 const render = () => { cursor = 0; return WrTimeLeagueStatsPanel({ league, cards, logIndex: logs, throughWeek: 2 }); };
 let tree = render();
+const alphaRow = all(tree).find(node => node.type === 'tr' && text(node).includes('Alpha'));
+assert(text(alphaRow).includes('Pass yd 100'), 'All-position leaders show quarterbacks passing production');
+assert(!text(alphaRow).includes('Rec yd'), 'Quarterback detail uses the player position, not the active filter');
 const find = label => all(tree).find(node => node.props['aria-label'] === label);
 assert(!all(find('Stats period')).some(node => node.props.value === 3), 'Future weeks cannot be selected');
 find('Filter stats by team').props.onChange({ target: { value: 'fa' } }); tree = render();
