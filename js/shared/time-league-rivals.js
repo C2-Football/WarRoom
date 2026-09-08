@@ -60,7 +60,7 @@
             const voice = voices[ai.aiPersona] || voices.steward;
             const lines = voice[kind];
             let hash = 0;
-            for (const char of `${state.seed}:${id}`) hash = ((hash * 31) + char.charCodeAt(0)) >>> 0;
+            for (const char of `${state.seed || state.leagueId}:${id}`) hash = ((hash * 31) + char.charCodeAt(0)) >>> 0;
             messages.push({ id, fromTeamId: ai.teamId, toTeamId: human.teamId, name: ai.name, persona: voice.label, kind, week, context, detail, tradeId, text: lines[hash % lines.length].replace('{player}', detail || 'that player') });
         };
         for (const week of state.finalizedWeeks || []) {
@@ -306,7 +306,7 @@
             const fresh = pool.filter(line => !recent.has(line));
             const choices = fresh.length ? fresh : pool;
             const offset = Math.max(0, Number.isInteger(options.variant) ? options.variant : 0);
-            return { ...reply, text: choices[(hashOf(`${state.seed}:${teamId}:${otherTeamId}:${reply.tone}:${latest?.id || ''}`) + offset) % choices.length] };
+            return { ...reply, text: choices[(hashOf(`${state.seed || state.leagueId}:${teamId}:${otherTeamId}:${reply.tone}:${latest?.id || ''}`) + offset) % choices.length] };
         });
     }
     const clampHeat = value => Math.max(-6, Math.min(6, value));
@@ -391,7 +391,7 @@
         const seen = new Set(recent.map(row => row.text));
         const fresh = pool.filter(line => !seen.has(line));
         const choices = fresh.length ? fresh : pool;
-        const index = hashOf(`${state.seed}:${teamId}:${toTeamId}:${tone}:${messageId}`) % choices.length;
+        const index = hashOf(`${state.seed || state.leagueId}:${teamId}:${toTeamId}:${tone}:${messageId}`) % choices.length;
         const reply = { id: `reply:${messageId}`, fromTeamId: toTeamId, toTeamId: teamId, text: choices[index], tone: 'neutral', week, createdAt: stamp, sequence: history.length + 2, replyToId: message.id };
         return { ...next, rivalMessages: [...next.rivalMessages, reply] };
     }

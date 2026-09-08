@@ -6,7 +6,7 @@ September 8, 2026. Scope: onboarding, accounts, saved progress, online league in
 
 Start with **5–10 invited, trusted testers** after the integrated release is verified. Keep the static app, shared game engine, and server-authoritative multiplayer actions. They are a reasonable foundation for this size of beta; a framework or backend rewrite would add risk without solving the immediate issues.
 
-Solo can be distributed without an account. Friends leagues should use the new Vault email sign-in route and commissioner or majority-vote advancement. Do not market public, ranked, or prize-bearing multiplayer yet: the online draft snapshot exposes information that the interface treats as sealed.
+Solo can be distributed without an account. Friends leagues should use the new Vault email sign-in route and commissioner or majority-vote advancement. Keep the initial cohort small while live account and concurrent-manager sessions are verified. The sealed-draft exposure identified in the initial review is addressed by the follow-up below; this does not establish broad public-platform readiness.
 
 ## Entry points and tester setup
 
@@ -47,7 +47,7 @@ The new `tests/time-league-beta-entry.cjs` additionally executes scoped/global l
 
 | Priority / release boundary | Finding and minimum next step | Evidence |
 | --- | --- | --- |
-| **P0 before competitive/public multiplayer** | The load endpoint returns the full engine seed and roster `drawnSeason` values during a sealed draft. A technical player can inspect the hidden season and derive future draws. Create an explicit public snapshot model, retain private randomness on the server, and test every draft/load/reconnect path. Do not patch this with a fake year or null field that breaks normalization. | `supabase/functions/time-league/index.ts:57`; `js/shared/time-league-engine.js:343,422–429,981–985,1163–1183`. |
+| **P0 addressed in sealed-draft follow-up** | Online loads now use an allowlisted public snapshot. Assigned editions stay absent throughout the draft, and the private draw key stays in a server-only database column. Reconnects use an explicit public normalizer. See verification and release status below. | `supabase/functions/time-league/index.ts`; `supabase/functions/time-league/sealed-draws.ts`; `js/shared/time-league-public-state.js`; `tests/time-league-public-draft.js`; `tests/time-league-sealed-state-db.cjs`. |
 | **P1 before widening account access** | Complete live email signup/sign-in/recovery with two owned test accounts. Keep Vault email-only until OAuth identities are exchanged into the app account/session contract. The general OAuth route currently does not establish the app-user ID that Vault requires. | `login.html:327–493`; `reconai-shared/supabase-client.js` account helpers; `supabase/functions/_shared/security.ts:96–107`; `js/shared/time-league-remote-client.js:5–10`. |
 | **P1 before treating previews as disposable** | Separate test backend and browser-storage namespaces from production, or explicitly operate a single shared environment. Current repository separation does not isolate accounts, leagues, or browser saves. | `reconai-shared/supabase-client.js:13`; `.github/workflows/deploy-functions.yml`; Vault local storage keys. |
 | **P1 before public discovery** | Exercise room creation limits, abuse controls, and load budgets with the intended signup volume. Invitations protect league seats; they are not a platform-wide beta allowlist. If access must be invite-only, enforce that on the server. | Email signup and `supabase/functions/time-league/index.ts` create/join paths. |
@@ -75,3 +75,15 @@ Useful integrity foundations are already present: server-computed actions rather
 | Release operations | B−, provisional | Targeted test gates and revision manifests improve the path; exact release and restore proof must still be recorded. |
 
 **Decision:** invited, trusted beta with explicit boundaries; public competitive launch after the sealed-state and operational gates are closed.
+
+## Sealed-draft follow-up
+
+The online API now has an explicit public snapshot contract. Before an era is opened, its assigned decade is absent from that manager's response. During the draft, roster entries contain player identity and slot occupancy, with no assigned season, season-derived score, or draft grade. Completed drafts disclose the actual stored editions. No placeholder year or substitute private seed is introduced in the browser.
+
+Era reveals are server-recorded per manager, so clearing browser data or reconnecting cannot undo or fabricate a disclosure. Draft clocks, queue actions, roster capacity, and snake/linear/auction progression operate on the public view while sending action intent to the server.
+
+Online edition selection uses HMAC-SHA256 with a private database key, separate from the old engine seed and public league ID. Current-week waiver editions are intentionally published and match the edition awarded. Future-week allocations and draft allocations stay private. The additive migration closes direct table/RPC access and invalidates previously distributed random inputs while preserving already awarded player editions and saved results. Previously downloaded assigned seasons cannot be made secret retroactively; use a new room when testing the full secrecy boundary.
+
+Solo remains a browser-local game. Its reveal UI stays intact, but data needed to run an offline season is inspectable by the device owner. This change hardens shared leagues; it does not claim offline saves are tamper-proof.
+
+Automated coverage uses source-real public snapshots, server cryptographic allocation, authenticated endpoint fixtures, and an actual PostgreSQL-compatible role test. A real two-person, two-account session remains a separate beta acceptance check. Deployment proof is recorded separately from source/test completion.

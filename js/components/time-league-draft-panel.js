@@ -52,23 +52,9 @@
     };
 
     // ── Position Roulette reveal ────────────────────────────────────────
-    // The decades are actually rolled once, at league founding, by
-    // createTimeLeague -> openDraftEra (time-league-engine.js / time-league-era-rules.js);
-    // by the time this panel first mounts, league.settings.eraRules.positionDecades
-    // already holds the frozen result. This section only decides how that
-    // already-computed result gets *revealed* to the human — one position at
-    // a time, on demand, rather than an auto-staggered deal-them-all cascade
-    // the moment the draft room mounts. Turning a position over also opens
-    // that position's three leading draftable players for the decade it landed on —
-    // a bare decade label doesn't tell you whether you got a stacked pool or
-    // an empty one.
-    //
-    // Revealed state lives in localStorage rather than on the league object:
-    // normalizeTimeLeague (time-league-engine.js) is a strict field whitelist
-    // run on every load-from-storage, so an extra field bolted onto the
-    // league via onUpdate would be silently dropped on the next reload and
-    // every position would show pending again. localStorage sidesteps that
-    // without touching the league schema.
+    // Decades roll once at founding. Local leagues remember their presentation
+    // in device storage. Online leagues disclose each archive through a server
+    // request; undisclosed assignments and player editions are never received.
     const ERA_REVEAL_STORAGE_PREFIX = 'wr-tl-era-reveal:';
     const ERA_ENTRY_STORAGE_PREFIX = 'wr-tl-era-entered:';
     // Stored as the list of position codes the human has actually turned
@@ -136,7 +122,7 @@
             }));
     }
 
-    function WrTimeLeagueDraftPanel({ league, cards, onUpdate, onlineMeta, onRevealReadyChange, draftControls, onDraftAction }) {
+    function WrTimeLeagueDraftPanel({ league, cards, onUpdate, onlineMeta, onRevealReadyChange, draftControls, onDraftAction, onRevealEra }) {
         const [query, setQuery] = useState('');
         const [positionSelection, setPositionSelection] = useState({ leagueId: league.leagueId, value: 'ALL' });
         const [selectedIdentity, setSelectedIdentity] = useState(null);
@@ -162,6 +148,7 @@
         const persona = onClockTeam?.aiPersona ? AI.AI_PERSONAS[onClockTeam.aiPersona] : null;
 
         const eraRules = useMemo(() => EraRules.normalizeEraDraftRules(league.settings.eraRules), [league.settings.eraRules]);
+        const publicSnapshot = league.publicSnapshotVersion === 1;
         const eraRestricted = eraRules.mode !== 'any-era' && (eraRules.decades.length > 0 || Boolean(eraRules.positionDecades));
 
         const available = useMemo(() => Engine.eraEligibleCards(league, cards).map((card) => {
@@ -186,11 +173,16 @@
             if (eraRules.mode !== 'position-roulette') return [];
             const poolSize = new Map();
             for (const { card } of available) poolSize.set(card.position, (poolSize.get(card.position) ?? 0) + 1);
-            return Object.entries(eraRules.positionDecades ?? {})
-                .flatMap(([position, decade]) => (decade && POSITION_ORDER.includes(position) && positionDemand(league.settings, position) > 0 ? [{ position, decade }] : []))
+            // Sealed online assignments are absent, but their position buttons
+            // still exist. Only the server decides which archives are open.
+            const assignments = publicSnapshot
+                ? (league.draftVisibility?.allPositions || []).map(position => [position, eraRules.positionDecades?.[position] ?? null])
+                : Object.entries(eraRules.positionDecades ?? {});
+            return assignments
+                .flatMap(([position, decade]) => ((publicSnapshot || decade) && POSITION_ORDER.includes(position) && positionDemand(league.settings, position) > 0 ? [{ position, decade }] : []))
                 .sort((l, r) => positionRank(l.position) - positionRank(r.position) || l.position.localeCompare(r.position))
                 .map((row) => ({ ...row, detail: DECADE_BY_ID.get(row.decade) ?? null, pool: poolSize.get(row.position) ?? 0 }));
-        }, [available, eraRules, league.settings]);
+        }, [available, eraRules, league.settings, league.draftVisibility, publicSnapshot]);
 
         // Rank the reveal leaders by seasons inside their assigned decade.
         // A career peak outside that decade must not move a player up this list.
@@ -206,10 +198,14 @@
         }, [available]);
 
         const allEraPositions = useMemo(() => eraAssignments.map((row) => row.position), [eraAssignments]);
-        const [revealedPositions, setRevealedPositions] = useState(() => loadRevealedPositions(league.leagueId, allEraPositions));
+        const [localRevealedPositions, setLocalRevealedPositions] = useState(() => publicSnapshot ? new Set() : loadRevealedPositions(league.leagueId, allEraPositions));
+        const revealedPositions = useMemo(() => publicSnapshot
+            ? new Set((league.draftVisibility?.revealedPositions || []).filter(position => allEraPositions.includes(position) && eraRules.positionDecades?.[position]))
+            : localRevealedPositions, [publicSnapshot, league.draftVisibility, allEraPositions, eraRules, localRevealedPositions]);
         const [activeEraPosition, setActiveEraPosition] = useState(() => allEraPositions[0] || null);
         const [enteredDraft, setEnteredDraft] = useState(() => {
             if (league.seasonsRevealed || league.draftPicks.length > 0) return true;
+            if (publicSnapshot) return false;
             try {
                 const saved = window.localStorage.getItem(ERA_ENTRY_STORAGE_PREFIX + league.leagueId);
                 if (saved !== null) return saved === '1';
@@ -221,33 +217,56 @@
         const entryButtonRef = useRef(null);
         const draftRoomRef = useRef(null);
         const revealFocusRef = useRef(null);
+        const revealBusyRef = useRef(false);
+        const [revealPending, setRevealPending] = useState(false);
+        const [revealError, setRevealError] = useState('');
         function rememberEntry(entered) {
+            if (publicSnapshot) return;
             try { window.localStorage.setItem(ERA_ENTRY_STORAGE_PREFIX + league.leagueId, entered ? '1' : '0'); } catch { /* Keep this session usable. */ }
+        }
+        async function requestPublicReveal(position) {
+            if (revealBusyRef.current) return false;
+            if (!onRevealEra) { setRevealError('Reconnect to reveal this archive.'); return false; }
+            revealBusyRef.current = true; setRevealPending(true); setRevealError('');
+            try {
+                const saved = await onRevealEra(position);
+                if (saved === false) { setRevealError('The reveal was not saved. Try again.'); return false; }
+                const opened = position === 'all' ? allEraPositions : [position];
+                opened.forEach(item => freshlyRevealedRef.current.add(item));
+                if (allEraPositions.every(item => opened.includes(item) || revealedPositions.has(item))) revealFocusRef.current = 'entry';
+                // The confirmed snapshot supplies revealedPositions; never open
+                // an archive optimistically while its request is in flight.
+                return true;
+            } catch {
+                setRevealError('The reveal was not saved. Try again.'); return false;
+            } finally { revealBusyRef.current = false; setRevealPending(false); }
         }
         function revealPosition(position) {
             setActiveEraPosition(position);
             if (revealedPositions.has(position)) return;
+            if (publicSnapshot) return requestPublicReveal(position);
             freshlyRevealedRef.current.add(position);
             if (allEraPositions.every(item => item === position || revealedPositions.has(item))) revealFocusRef.current = 'entry';
             if (!enteredDraft) rememberEntry(false);
-            setRevealedPositions(previous => {
+            setLocalRevealedPositions(previous => {
                 const next = new Set(previous); next.add(position);
                 saveRevealedPositions(league.leagueId, next);
                 return next;
             });
         }
         function revealAllPositions() {
+            if (publicSnapshot) return requestPublicReveal('all');
             revealFocusRef.current = 'entry';
             allEraPositions.forEach(position => freshlyRevealedRef.current.add(position));
             const next = new Set([...revealedPositions, ...allEraPositions]);
             if (!enteredDraft) rememberEntry(false);
             saveRevealedPositions(league.leagueId, next);
-            setRevealedPositions(next);
+            setLocalRevealedPositions(next);
         }
         const anyPending = eraRules.mode === 'position-roulette' && allEraPositions.some(position => !revealedPositions.has(position));
         const revealReady = league.seasonsRevealed || eraRules.mode !== 'position-roulette' || (!anyPending && enteredDraft);
         function enterDraft() {
-            if (anyPending) return;
+            if (anyPending || revealPending) return;
             revealFocusRef.current = 'board';
             rememberEntry(true); setEnteredDraft(true);
         }
@@ -258,7 +277,7 @@
             } else if (revealFocusRef.current === 'board' && revealReady) {
                 draftRoomRef.current?.focus(); revealFocusRef.current = null;
             }
-        }, [anyPending, enteredDraft, revealReady]);
+        }, [anyPending, enteredDraft, revealReady, revealPending]);
         const canScoutCard = (card) => Boolean(card && (eraRules.mode !== 'position-roulette' || revealedPositions.has(card.position)));
         function openScout(card, event) {
             if (!canScoutCard(card)) return;
@@ -476,7 +495,8 @@
         const eraRoom = eraAssignments.length > 0 ? h('section', { className: 'tl-card tl-era-show', 'aria-label': 'Position Roulette reveal' },
             h('header', { className: 'tl-era-room-heading' },
                 h('div', null, h('span', { className: 'tl-label' }, 'POSITION ROULETTE'), h('h2', null, 'Meet your draft class')),
-                h('span', { className: 'tl-era-open-count', role: 'status' }, `${openedCount}/${allEraPositions.length} revealed`)),
+                h('span', { className: 'tl-era-open-count', role: 'status' }, revealPending ? 'Opening archive…' : `${openedCount}/${allEraPositions.length} revealed`)),
+            revealError && h('p', { className: 'tl-hint', role: 'alert' }, revealError),
             h('div', { className: 'tl-era-stage', role: 'group', 'aria-label': 'Position eras' },
                 eraAssignments.map(row => {
                     const landed = revealedPositions.has(row.position);
@@ -484,7 +504,7 @@
                         className: `tl-era-tile${landed ? ' is-revealed' : ' is-sealed'}${activeEra?.position === row.position ? ' is-active' : ''}`,
                         'aria-pressed': activeEra?.position === row.position,
                         'aria-label': landed ? `View ${row.position} era · ${row.detail?.label ?? row.decade} · ${row.pool} players` : `Reveal ${row.position} era`,
-                        onClick: () => revealPosition(row.position),
+                        disabled: revealPending, onClick: () => revealPosition(row.position),
                     }, h('span', { className: `tl-pos-badge tl-pos-${row.position}` }, row.position),
                     h('strong', null, landed ? row.detail?.label ?? row.decade : '?'),
                     h('small', null, landed ? `${row.pool} players` : 'Reveal'));
@@ -506,12 +526,12 @@
                 : h('div', { className: 'tl-era-invitation' },
                     h('span', { className: 'tl-era-invitation-mark', 'aria-hidden': true }, '✦'),
                     h('h3', null, 'Decades of possibility'),
-                    h('button', { type: 'button', className: 'tl-btn primary', onClick: () => revealPosition(activeEra.position) }, `Reveal ${activeEra.position}`))),
+                    h('button', { type: 'button', className: 'tl-btn primary', disabled: revealPending, onClick: () => revealPosition(activeEra.position) }, `Reveal ${activeEra.position}`))),
             h('footer', { className: 'tl-era-room-actions' },
                 nextEra ? h(React.Fragment, null,
-                    h('button', { type: 'button', className: 'tl-btn', onClick: revealAllPositions }, 'Reveal all'),
-                    activeLanded && h('button', { type: 'button', className: 'tl-btn primary', onClick: () => revealPosition(nextEra.position) }, `Reveal ${nextEra.position} →`))
-                    : !enteredDraft ? h('button', { ref: entryButtonRef, type: 'button', className: 'tl-btn primary', onClick: enterDraft }, 'Enter draft →')
+                    h('button', { type: 'button', className: 'tl-btn', disabled: revealPending, onClick: revealAllPositions }, 'Reveal all'),
+                    activeLanded && h('button', { type: 'button', className: 'tl-btn primary', disabled: revealPending, onClick: () => revealPosition(nextEra.position) }, `Reveal ${nextEra.position} →`))
+                    : !enteredDraft ? h('button', { ref: entryButtonRef, type: 'button', className: 'tl-btn primary', disabled: revealPending, onClick: enterDraft }, 'Enter draft →')
                         : h('small', null, 'Your eras stay fixed for this league.')))
             : null;
         const eraBanner = eraRules.mode === 'position-roulette'

@@ -180,9 +180,9 @@
             const weekData = league.finalizedWeeks.find(week => week.week === autoPlayWeek);
             if (!weekData) return;
             autoPlayed.current = autoPlayWeek;
-            setPlayback({ timeline: Gamecast.buildGamecast({ week: weekData.week, results: weekData.results, matchups: weekData.matchups, seed: league.seed, scoring: league.settings.scoring }), weekData, finalized: league, live: true });
+            setPlayback({ timeline: Gamecast.buildGamecast({ week: weekData.week, results: weekData.results, matchups: weekData.matchups, seed: league.seed || league.leagueId, scoring: league.settings.scoring }), weekData, finalized: league, live: true });
             setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(300); setPlaying(active);
-        }, [autoPlayWeek, league.finalizedWeeks, league.seed, league.settings.scoring]);
+        }, [autoPlayWeek, league.finalizedWeeks, league.seed, league.leagueId, league.settings.scoring]);
 
         const myTeamId = (league.teams.find((t) => onlineMeta || seatTeamId ? t.teamId === (onlineMeta?.seatTeamId || seatTeamId) : t.manager === 'human') ?? league.teams[0])?.teamId;
 
@@ -240,12 +240,12 @@
             const canonical = saved && typeof saved === 'object' ? saved : settled;
             const savedWeek = canonical.finalizedWeeks.find(item => item.week === weekData.week);
             if (!savedWeek) return;
-            setPlayback({ timeline: Gamecast.buildGamecast({ week: savedWeek.week, results: savedWeek.results, matchups: savedWeek.matchups, seed: canonical.seed, scoring: canonical.settings.scoring }), weekData: savedWeek, finalized: canonical, live: true });
+            setPlayback({ timeline: Gamecast.buildGamecast({ week: savedWeek.week, results: savedWeek.results, matchups: savedWeek.matchups, seed: canonical.seed || canonical.leagueId, scoring: canonical.settings.scoring }), weekData: savedWeek, finalized: canonical, live: true });
             setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(300); setPlaying(true);
         };
 
         const replayWeek = (week) => {
-            setPlayback({ timeline: Gamecast.buildGamecast({ week: week.week, results: week.results, matchups: week.matchups, seed: league.seed, scoring: league.settings.scoring }), weekData: week, finalized: league, live: false });
+            setPlayback({ timeline: Gamecast.buildGamecast({ week: week.week, results: week.results, matchups: week.matchups, seed: league.seed || league.leagueId, scoring: league.settings.scoring }), weekData: week, finalized: league, live: false });
             setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(300); setPlaying(true);
         };
 

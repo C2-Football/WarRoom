@@ -23,7 +23,7 @@ Grades describe the reviewed implementation after targeted corrections, not a cl
 | Mobile layout and accessibility | B | Tested at 320–390px, plus a short 390×520 viewport. No page-wide horizontal overflow in reviewed screens; tables intentionally scroll. This is not a complete assistive-technology audit. |
 | Scoring and save continuity | A− | Browser totals reconciled with the followed player; independent real-data tests exercised custom scoring, save/reload, quarters, transactions, and playoffs. Source totals are internally consistent, not independently certified against every historical NFL game. |
 | Friends-league onboarding | B−, provisional | Guest and email-entry screens work; invitations and authority have automated coverage. Fresh live signup and two distinct human accounts still need a real session. |
-| Competitive integrity | D, public-launch blocker | Multiplayer snapshots still expose the random seed and sealed drawn-season information to a technically capable client. Trusted testing only until server snapshot projection is hardened. |
+| Competitive integrity | B−, provisional after follow-up | Server snapshots now omit sealed editions and private draw inputs; explicit per-manager reveals and database access tests close the identified blocker. Real concurrent-account acceptance remains pending. |
 | Operations and scale | C+ | Regression gates, pinned shared code, serialized backend releases, and release metadata improve repeatability. Staging isolation, unattended advancement, save portability, and real load evidence remain missing. |
 
 **Overall product experience: B+ for a closed beta. Public-platform readiness: C.**
@@ -81,7 +81,7 @@ Team scores are rounded to one decimal for display. I intentionally did not opti
 
 Keep the static frontend, shared deterministic game engine, and Supabase authoritative actions. The current server validates seat ownership, computes supported changes, and uses version checks to prevent conflicting writes. Those are good foundations. A rewrite is not justified by the observed experience.
 
-Before **public or competitive multiplayer**, implement a private/public server snapshot contract that withholds sealed editions and predictive random state. Test its interaction with invites, reconnects, drafts, and all formats. UI concealment is insufficient.
+The sealed-draft follow-up implements a private/public server snapshot contract, server-only cryptographic edition allocation, per-manager era reveals, and database access tests. See `reports/vault-beta-access-review-2026-09-08.md` for its scope and limitations. Real invite/reconnect/concurrent-account acceptance remains required before widening multiplayer access.
 
 Before increasing the beta cohort:
 

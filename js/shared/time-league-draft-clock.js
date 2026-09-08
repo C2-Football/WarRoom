@@ -15,6 +15,15 @@
         const due = Math.max(Number.isFinite(started) ? started : stamp, Number.isFinite(lastAi) ? lastAi : 0) + (league.settings.draftAiSeconds ?? 2) * 1000;
         if (stamp < due) return null;
         if (league.settings.draftFormat === 'auction') {
+            // Public snapshots intentionally omit private randomness and drawn
+            // editions. Let the server evaluate bids against canonical state.
+            if (league.publicSnapshotVersion === 1) {
+                if (!league.draftAuction?.nomination) {
+                    const seat = App.TimeLeagueEngine.currentDraftSeat(league);
+                    if (league.teams.find(team => team.teamId === seat?.teamId)?.manager !== 'ai') return null;
+                }
+                return league.draftAutomation?.auctionPending === true ? { type: 'auction-ai-step' } : null;
+            }
             if (settledAuction.get(league) === cards) return null;
             const next = App.TimeLeagueAI.aiAuctionStep(league, cards, new Date(stamp).toISOString());
             if (next === league) settledAuction.set(league, cards);

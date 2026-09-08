@@ -2,6 +2,8 @@
 // RPC checks membership again under the game lock before committing a send.
 export function withoutPrivateMessages(state: any): any {
     const shared = { ...state };
+    // Per-action cryptographic edition maps are transient and never persisted.
+    delete shared.privateDraws;
     delete shared.rivalMessages;
     return shared;
 }

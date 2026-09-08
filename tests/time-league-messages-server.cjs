@@ -76,7 +76,7 @@ for (const name of ['roster', 'rules', 'draft-room', 'era-rules', 'season', 'hel
     assert(edge.indexOf("action.type === 'rival-message'") < edge.indexOf('if (row.version !== body.version)'));
     assert(edge.includes('state: withoutPrivateMessages(next)'));
     assert(edge.includes('p_state: withoutPrivateMessages(state)'));
-    assert(edge.includes('...withoutPrivateMessages(row.state), rivalMessages'));
+    assert(edge.includes('projectPublicState(prepared, member.seat_team_id, rivalMessages, data.cards)'));
     assert(edge.includes('!member.joined_at'));
     console.log('PASS: private Vault messaging endpoint boundaries');
 })().catch(error => { console.error(error); process.exitCode = 1; });

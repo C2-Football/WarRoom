@@ -104,8 +104,17 @@
     const eraSeasons = (state, card) => filterSeasonsForEra(card.seasons, state.settings.eraRules, card.position);
 
     // The wire and the award use the same weekly draw, independent of claimant.
-    const waiverSeason = (state, card, week = state.currentWeek) => card
-        ? drawSeasonFrom(eraSeasons(state, card), `${state.seed}:waiver:${card.identity}:${week}`) : null;
+    const waiverSeason = (state, card, week = state.currentWeek) => {
+        if (!card) return null;
+        // Online editions are allocated by the server. A public snapshot must
+        // never invent an edition by running the solo RNG with an absent seed.
+        const allocation = state.publicSnapshotVersion === 1 ? state.waiverEditions : state.privateDraws?.waiver;
+        if (state.publicSnapshotVersion === 1 || state.privateDraws) {
+            const season = allocation?.week === week ? allocation.seasons?.[card.identity] : null;
+            return Number.isInteger(season) && eraSeasons(state, card).some(row => row.season === season) ? season : null;
+        }
+        return drawSeasonFrom(eraSeasons(state, card), `${state.seed}:waiver:${card.identity}:${week}`);
+    };
 
     function waiverPreview(state, card, logIndex, eraFactors, week = state.currentWeek) {
         const drawnSeason = waiverSeason(state, card, week);
@@ -248,6 +257,7 @@
         if (!state.draftAuction?.nomination || !draftOpen(state) || !validStamp(stamp)) return false;
         if (state.draftClock?.deadlineAt) return Date.parse(stamp) >= Date.parse(state.draftClock.deadlineAt);
         const due = Math.max(Date.parse(state.draftClock?.startedAt) || 0, Date.parse(state.draftAuction?.lastAiAt) || 0) + (state.settings.draftAiSeconds || 2) * 1000;
+        if (state.publicSnapshotVersion === 1) return Date.parse(stamp) >= due && state.draftAutomation?.auctionPending === false;
         return Date.parse(stamp) >= due && (!App.TimeLeagueAI || App.TimeLeagueAI.aiAuctionStep(state, cards, stamp) === state);
     }
     function closeAuction(state, cards, stamp) {
@@ -390,6 +400,8 @@
         return [...cards.values()]
             .filter((card) => !taken.has(card.identity)
                 && positionIsStartable(state.settings, card.position)
+                && (!(state.publicSnapshotVersion === 1 && state.phase === 'draft' && state.settings.eraRules.mode === 'position-roulette')
+                    || state.draftVisibility?.revealedPositions.includes(card.position))
                 && eraEligibleCard(card, state.settings.eraRules))
             .sort((left, right) => right.peak - left.peak || left.identity.localeCompare(right.identity));
     }
@@ -404,6 +416,7 @@
     }
 
     function applyDraftPick(state, card, opts) {
+        if (state.publicSnapshotVersion === 1) throw new Error('Online draft selections must be confirmed by the server.');
         let seat = state.phase === "draft" ? currentDraftSeat(state) : null;
         if (state.settings.draftFormat === 'auction') {
             if (!opts.auctionAward || !state.draftAuction?.nomination) return state;
@@ -419,7 +432,10 @@
             state.settings.maxQuarterbacks,
             team.roster.map((entry) => entry.position),
         );
-        const drawnSeason = drawSeasonFrom(eraSeasons(state, card), `${state.seed}:draw:${card.identity}:${seat.overall}`);
+        const allocated = state.privateDraws?.draft;
+        const drawnSeason = state.privateDraws
+            ? (allocated?.overall === seat.overall && eraSeasons(state, card).some(row => row.season === allocated.seasons?.[card.identity]) ? allocated.seasons[card.identity] : null)
+            : drawSeasonFrom(eraSeasons(state, card), `${state.seed}:draw:${card.identity}:${seat.overall}`);
         if (!open || drawnSeason === null) return state;
         const entry = {
             entryId: `e${seat.overall}`,
@@ -672,6 +688,8 @@
         return [...cards.values()]
             .filter((card) => !rostered.has(card.identity)
                 && positionIsStartable(state.settings, card.position)
+                && (!(state.publicSnapshotVersion === 1 && state.phase === 'draft' && state.settings.eraRules.mode === 'position-roulette')
+                    || state.draftVisibility?.revealedPositions.includes(card.position))
                 && eraEligibleCard(card, state.settings.eraRules))
             .sort((left, right) => right.peak - left.peak || left.identity.localeCompare(right.identity));
     }
@@ -972,7 +990,7 @@
         };
     };
 
-    const readEntry = (value) => {
+    const readEntry = (value, sealed = false) => {
         if (!isRecord(value)) return null;
         const entryId = readString(value.entryId);
         const identity = readString(value.identity);
@@ -980,17 +998,17 @@
         const position = normalizePlayerPosition(value.position);
         const drawnSeason = readNumber(value.drawnSeason);
         const acquiredWeek = readNumber(value.acquiredWeek);
-        if (!entryId || !identity || !name || !position || drawnSeason === null || acquiredWeek === null) return null;
+        if (!entryId || !identity || !name || !position || (!sealed && drawnSeason === null) || acquiredWeek === null) return null;
         const acquiredVia = value.acquiredVia === "waiver" || value.acquiredVia === "trade" ? value.acquiredVia : "draft";
-        return { entryId, identity, name, position, drawnSeason, slot: readSlot(value.slot), acquiredVia, acquiredWeek };
+        return { entryId, identity, name, position, ...(!sealed ? { drawnSeason } : {}), slot: readSlot(value.slot), acquiredVia, acquiredWeek };
     };
 
-    const readTeam = (value) => {
+    const readTeam = (value, sealed = false) => {
         if (!isRecord(value)) return null;
         const teamId = readString(value.teamId);
         const name = value.manager === 'ai' ? managerIdentity(value, teamId ? Math.max(0, idNumber(teamId, 't') - 1) : 0).name : readString(value.name);
         const manager = value.manager === "human" || value.manager === "ai" ? value.manager : null;
-        const roster = readArray(value.roster, readEntry);
+        const roster = readArray(value.roster, entry => readEntry(entry, sealed));
         const queue = readArray(value.queue, readString);
         if (!teamId || !name || !manager || !roster || !queue) return null;
         const aiPersona = AI_PERSONA_IDS.includes(value.aiPersona) ? value.aiPersona : manager === 'ai' ? defaultAiSeat(Math.max(0, idNumber(teamId, 't') - 1)).aiPersona : null;
@@ -1156,15 +1174,16 @@
         return { id, week, kind, message, createdAt };
     };
 
-    function normalizeTimeLeague(raw) {
-        if (!isRecord(raw) || raw.version !== 1) return null;
+    function normalizeLeagueShape(raw, publicView = false) {
+        if (!isRecord(raw) || raw.version !== 1 || (publicView ? raw.publicSnapshotVersion !== 1 : raw.publicSnapshotVersion !== undefined)) return null;
+        const sealed = publicView && raw.phase === 'draft';
         const leagueId = readString(raw.leagueId);
         const name = readString(raw.name);
         const seed = readString(raw.seed);
         const createdAt = readString(raw.createdAt);
         const phase = raw.phase === "draft" || raw.phase === "season" || raw.phase === "complete" ? raw.phase : null;
         const settings = readSettings(raw.settings);
-        const teams = readArray(raw.teams, readTeam);
+        const teams = readArray(raw.teams, team => readTeam(team, sealed));
         const draftOrder = readArray(raw.draftOrder, readSeat);
         const draftPicks = readArray(raw.draftPicks, readPick);
         const schedule = readArray(raw.schedule, readScheduleWeek);
@@ -1173,14 +1192,14 @@
         const trades = readArray(raw.trades, readTrade);
         const activity = readArray(raw.activity, readActivityEvent);
         const currentWeek = readNumber(raw.currentWeek);
-        if (!leagueId || !name || !seed || !createdAt || !phase || !settings || !teams || !teams.length
+        if (!leagueId || !name || (!publicView && !seed) || !createdAt || !phase || !settings || !teams || !teams.length
             || !draftOrder || !draftPicks || !schedule || !finalizedWeeks || !pendingClaims || !trades || !activity || currentWeek === null) return null;
         const championTeamId = readString(raw.championTeamId);
         return {
             version: 1,
             leagueId,
             name,
-            seed,
+            ...(!publicView ? { seed } : {}),
             createdAt,
             phase,
             settings,
@@ -1189,7 +1208,7 @@
             draftPicks,
             draftClock: normalizeDraftClock(raw.draftClock, settings),
             draftAuction: normalizeAuction(raw.draftAuction, teams, draftPicks),
-            seasonsRevealed: raw.seasonsRevealed === true,
+            seasonsRevealed: !sealed && raw.seasonsRevealed === true,
             currentWeek: clampInt(currentWeek, 1, seasonEndWeek({ settings, teams }) + 1),
             weekStage: ['postgame', 'claims', 'lineup', 'ready'].includes(raw.weekStage) ? raw.weekStage : 'ready',
             gateStartedAt: typeof raw.gateStartedAt === 'string' && Number.isFinite(Date.parse(raw.gateStartedAt)) ? raw.gateStartedAt : createdAt,
@@ -1202,7 +1221,31 @@
             activity,
             rivalMessages: App.TimeLeagueRivals?.normalizeMessages(raw.rivalMessages, teams) || [],
             rivalRelationships: App.TimeLeagueRivals?.normalizeRelationships(raw.rivalRelationships, teams) || [],
+            ...(!publicView && isRecord(raw.draftEraReveals) ? {
+                draftEraReveals: Object.fromEntries(teams.filter(team => Array.isArray(raw.draftEraReveals[team.teamId])).map(team => [team.teamId,
+                    [...new Set(raw.draftEraReveals[team.teamId].filter(position => POSITIONS.includes(position) && positionIsStartable(settings, position)))]])),
+            } : {}),
             ...(championTeamId ? { championTeamId } : {}),
+        };
+    }
+
+    function normalizeTimeLeague(raw) {
+        return normalizeLeagueShape(raw);
+    }
+
+    // This is a read-only network shape, never an authoritative save. Keep the
+    // discriminator and sealed roster entries intact across refresh/reconnect.
+    function normalizePublicTimeLeague(raw) {
+        const safe = normalizeLeagueShape(raw, true);
+        if (!safe || !isRecord(raw.draftVisibility) || !Array.isArray(raw.draftVisibility.allPositions)
+            || !Array.isArray(raw.draftVisibility.revealedPositions)) return null;
+        const allPositions = [...new Set(raw.draftVisibility.allPositions.filter(position => POSITIONS.includes(position) && positionIsStartable(safe.settings, position)))];
+        const revealedPositions = [...new Set(raw.draftVisibility.revealedPositions.filter(position => allPositions.includes(position)))];
+        const editions = raw.waiverEditions;
+        const seasons = isRecord(editions?.seasons) ? Object.fromEntries(Object.entries(editions.seasons).filter(([identity, season]) => identity && Number.isInteger(season) && season >= 1970 && season <= 2100)) : {};
+        return { ...safe, publicSnapshotVersion: 1, draftVisibility: { allPositions, revealedPositions },
+            ...(typeof raw.draftAutomation?.auctionPending === 'boolean' ? { draftAutomation: { auctionPending: raw.draftAutomation.auctionPending } } : {}),
+            ...(safe.seasonsRevealed && editions?.week === safe.currentWeek ? { waiverEditions: { week: editions.week, seasons } } : {}),
         };
     }
 
@@ -1212,7 +1255,7 @@
         auctionMaxBid, auctionCanBid, auctionCanClose, nominateAuctionPlayer, bidAuctionPlayer, closeAuction,
         positionIsStartable, applyDraftPick, setEntrySlot, autoFillLineup, lineupProblems,
         finalizeCurrentWeek, computeStandings, freeAgents, submitWaiverClaim, cancelWaiverClaim,
-        playoffCount, seasonEndWeek, playoffPairs, startPlayoffs, processWaivers, waiverLandingSlot, waiverSeason, waiverPreview, proposeTrade, respondToTrade, deferTrade, normalizeTimeLeague,
+        playoffCount, seasonEndWeek, playoffPairs, startPlayoffs, processWaivers, waiverLandingSlot, waiverSeason, waiverPreview, proposeTrade, respondToTrade, deferTrade, normalizeTimeLeague, normalizePublicTimeLeague,
     };
     App.TimeLeagueEngine = api;
     /* global module */

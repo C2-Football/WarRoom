@@ -1025,8 +1025,11 @@
         const openGeneration = useRef(0);
         const acceptRow = useCallback((row, opening = false) => {
             if (!opening && (!onlineRef.current || onlineRef.current.rowId !== row.id || row.version < onlineRef.current.version)) return;
-            const safe = Engine.normalizeTimeLeague(row.state);
-            if (!safe) return;
+            const safe = Engine.normalizePublicTimeLeague(row.state);
+            if (!safe) {
+                setConnectionError('This league needs the latest secure draft view. Refresh the app and try again.');
+                return;
+            }
             if (opening) { setAutoPlayWeek(null); setGamecastStatus(null); setShowFriends(false); }
             if (!opening && leagueRef.current?.leagueId === safe.leagueId && safe.finalizedWeeks.length > leagueRef.current.finalizedWeeks.length) {
                 setAutoPlayWeek(safe.finalizedWeeks[safe.finalizedWeeks.length - 1]?.week);
@@ -1266,6 +1269,12 @@
                 return await handleUpdate(next, action);
             } catch (error) { throw new Error(error.message || 'Your message could not be sent. Try again.'); }
         }, [activeTeamId, cards, handleUpdate]);
+
+        const revealOnlineEra = useCallback(async position => {
+            const current = leagueRef.current;
+            if (!onlineRef.current || current?.phase !== 'draft') return false;
+            return handleUpdate(current, { type: 'reveal-era', position });
+        }, [handleUpdate]);
 
         const dispatchDraft = useCallback(async (action, options = {}) => {
             const current = leagueRef.current;
@@ -1558,7 +1567,7 @@
                 activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: responseTeam }) : null,
                 activeTab === 'home' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, compact: true, throughWeek: mailThroughWeek, onOpenThread: openMail, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,
                 activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, {
-                    key: league.leagueId, league, cards, onUpdate: handleUpdate, onlineMeta, onRevealReadyChange: onDraftRevealReady, onDraftAction: dispatchDraft,
+                    key: league.leagueId, league, cards, onUpdate: handleUpdate, onlineMeta, onRevealReadyChange: onDraftRevealReady, onDraftAction: dispatchDraft, onRevealEra: onlineMeta ? revealOnlineEra : undefined,
                     draftControls: league.phase === 'draft' && h(React.Fragment, null,
                         DraftClock && h(DraftClock, { league, onlineMeta, saving, onAction: dispatchDraft }),
                         league.settings.draftFormat === 'auction' && AuctionPanel && h(AuctionPanel, { league, cards, currentTeamId: responseTeam, onlineMeta, saving, onAction: dispatchDraft })),

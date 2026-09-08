@@ -16,6 +16,15 @@ test('friend cannot draft the host seat', () => assert.throws(() => run({ type: 
 test('host cannot simulate a human seat', () => assert.throws(() => run({ type: 'ai-run' }), /legal/));
 test('friend cannot advance AI or game weeks', () => { for (const type of ['ai-run', 'ai-pick', 'week']) assert.throws(() => run({ type }, friend), /commissioner/); });
 test('queue and team identity are limited to owned seat', () => { for (const type of ['queue', 'team', 'lineup', 'auto-lineup', 'claim', 'trade']) assert.throws(() => run({ type, teamId: 't1' }, friend), /own team/); });
+test('draft waiver probes cannot disclose hidden era eligibility', () => {
+  const blockedPool = new Map();
+  blockedPool.values = () => { throw new Error('Hidden era pool was consulted'); };
+  for (const identity of ['eligible-player', 'outside-era-player', 'missing-player']) {
+    assert.throws(() => A.applyOnlineAction({ ...state, weekStage: 'claims' },
+      { type: 'claim', teamId: 't1', identity }, host, { ...data, cards: blockedPool }, state.createdAt),
+    /^Error: Waiver claims open during the season\.$/);
+  }
+});
 test('friend can rename their team', () => { state = run({ type: 'team', teamId: 't2', name: 'Second Player' }, friend); assert.equal(state.teams[1].name, 'Second Player'); assert.equal(state.teams[0].name, 'Host'); });
 test('friend can save a new club mark and initials without changing another team', () => {
   const hostHelmet = JSON.stringify(state.teams[0].helmet);

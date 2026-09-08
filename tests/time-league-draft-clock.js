@@ -2,7 +2,7 @@
 const assert = require('node:assert/strict');
 global.window = globalThis;
 global.App = {};
-for (const name of ['roster','rules','draft-room','era-rules','season','helmet','engine','ai','actions','draft-clock']) require('../js/shared/time-league-' + name + '.js');
+for (const name of ['roster','rules','draft-room','era-rules','season','helmet','engine','ai','actions','draft-clock','public-state']) require('../js/shared/time-league-' + name + '.js');
 const { TimeLeagueEngine: E, TimeLeagueActions: A, TimeLeagueDraftClock: Clock } = App;
 const origin = Date.parse('2026-09-07T12:00:00Z');
 const stamp = seconds => new Date(origin + seconds * 1000).toISOString();
@@ -47,4 +47,41 @@ const savedAi = App.TimeLeagueAI.aiAuctionStep;
 App.TimeLeagueAI.aiAuctionStep = () => { throw Error('No-change auction should be cached until room changes'); };
 assert.equal(Clock.nextAction(state, cards, origin + 7000), null);
 App.TimeLeagueAI.aiAuctionStep = savedAi;
-console.log('PASS: draft driver honors reveal, human deadline, AI pace, pause/reload, auction competition, completion and no-op caching.');
+
+// Source-real online snapshots carry only whether canonical AI has another
+// action. An idle human nomination and a settled lot must not poll illegal bids.
+const publicView = canonical => {
+    const readyAt = Math.max(Date.parse(canonical.draftClock?.startedAt) || 0, Date.parse(canonical.draftAuction?.lastAiAt) || 0) + (canonical.settings.draftAiSeconds ?? 2) * 1000;
+    return E.normalizePublicTimeLeague(App.TimeLeaguePublicState.projectPublicState(canonical, 't1', [], cards, new Date(readyAt).toISOString()));
+};
+state = apply(create({ draftFormat: 'auction', draftPickSeconds: 15, draftAuctionBudget: 20 }), { type: 'draft-clock-start' }, 0);
+let view = publicView(state);
+assert.equal(view.draftAutomation.auctionPending, false);
+assert.equal(Clock.nextAction(view, cards, origin + 3000), null, 'A human nominator retains control even when AI opponents exist');
+assert.deepEqual(Clock.nextAction(view, cards, origin + 15000), { type: 'draft-timeout' });
+state = apply(state, { type: 'auction-nominate', teamId: 't1', identity: 'qb0', amount: 1 }, 1);
+view = publicView(state);
+assert.equal(view.draftAutomation.auctionPending, true, 'Canonical server valuation exposes an available bid without its private inputs');
+App.TimeLeagueAI.aiAuctionStep = () => { throw Error('A public client must never evaluate canonical auction AI'); };
+assert.deepEqual(Clock.nextAction(view, cards, origin + 3000), { type: 'auction-ai-step' });
+assert.equal(Clock.nextAction({ ...view, draftAutomation: undefined }, cards, origin + 3000), null, 'An older or incomplete snapshot cannot guess auction automation');
+App.TimeLeagueAI.aiAuctionStep = savedAi;
+state = apply(state, { type: 'auction-ai-step' }, 3);
+view = publicView(state);
+assert.equal(view.draftAutomation.auctionPending, false, 'The sole leading AI has no further bid');
+App.TimeLeagueAI.aiAuctionStep = () => { throw Error('Settled public auctions must remain idle without local AI'); };
+for (const seconds of [5, 7, 9, 11, 13, 15, 17]) assert.equal(Clock.nextAction(view, cards, origin + seconds * 1000), null);
+assert.deepEqual(Clock.nextAction(view, cards, origin + 18000), { type: 'draft-timeout' }, 'The settled lot still closes at its deadline');
+assert.equal(E.auctionCanClose(view, cards, stamp(17)), false);
+assert.equal(E.auctionCanClose(view, cards, stamp(18)), true, 'Public timed close respects its authoritative deadline without local AI');
+const untimed = { ...view, draftClock: { ...view.draftClock, deadlineAt: null } };
+assert.equal(E.auctionCanClose(untimed, cards, stamp(4)), false, 'Untimed close still waits through the configured AI response delay');
+assert.equal(E.auctionCanClose(untimed, cards, stamp(5)), true, 'Untimed public close uses the settled server flag without local AI');
+assert.equal(E.auctionCanClose({ ...untimed, draftAutomation: { auctionPending: true } }, cards, stamp(5)), false);
+assert.equal(E.auctionCanClose({ ...untimed, draftAutomation: undefined }, cards, stamp(5)), false);
+App.TimeLeagueAI.aiAuctionStep = savedAi;
+const humansOnly = { ...state, teams: state.teams.map(team => ({ ...team, manager: 'human' })), draftAuction: { ...state.draftAuction, nomination: null } };
+view = publicView(humansOnly);
+assert.equal(view.draftAutomation.auctionPending, false);
+assert.equal(Clock.nextAction(view, cards, origin + 10000), null, 'A room without active AI never requests an automated nomination');
+console.log('PASS: draft driver honors reveal, human deadline, AI pace, pause/reload, auction competition, completion, no-op caching and authoritative public auction availability.');

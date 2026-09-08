@@ -128,6 +128,9 @@
             break;
         case 'claim': {
             ownTeam();
+            // Reject before consulting the hidden era-filtered pool. Otherwise
+            // different availability errors can disclose an unopened archive.
+            if (state.phase !== 'season' || !state.settings.waiversEnabled) deny('Waiver claims open during the season.');
             if (state.weekStage !== 'claims') deny('Waiver planning is not open.');
             const card = E.freeAgents(state, cards).find(c => c.identity === action.identity);
             if (!card) deny('That free agent is no longer available.');
