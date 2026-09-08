@@ -1,0 +1,27 @@
+.tl-draft-roster { min-width:0;margin:0 0 16px;padding:15px 16px 0;border:1px solid #40536b;border-radius:15px;background:#1b2a40;color:#edf2fb; }
+.tl-draft-roster-heading { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px; }
+.tl-draft-roster-heading>div { min-width:0; }.tl-draft-roster-heading h3 { margin:0 0 4px;font-size:16px;line-height:1.2; }.tl-draft-roster-team { display:block;font-size:12px;color:#aebfd4;overflow-wrap:anywhere; }
+.tl-draft-roster-progress { display:flex;flex:none;align-items:baseline;gap:6px; }.tl-draft-roster-progress strong { font-size:18px;color:#87efcf; }.tl-draft-roster-progress small { font-size:11px;color:#aebfd4; }
+.tl-draft-roster-counts { display:grid;grid-template-columns:repeat(auto-fit,minmax(55px,1fr));gap:6px;margin:0 0 11px; }
+.tl-draft-roster [data-position="QB"] { --draft-roster-color:#ffb7c7; }.tl-draft-roster [data-position="RB"] { --draft-roster-color:#87efcf; }.tl-draft-roster [data-position="WR"] { --draft-roster-color:#b7c6ff; }.tl-draft-roster [data-position="TE"] { --draft-roster-color:#ffe083; }.tl-draft-roster [data-position="K"] { --draft-roster-color:#c3cdda; }.tl-draft-roster [data-position="DEF"] { --draft-roster-color:#91d7f0; }
+.tl-draft-roster-counts>div { display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;padding:8px 5px;border-radius:7px;background:color-mix(in srgb,var(--draft-roster-color) 12%,transparent);color:var(--draft-roster-color); }
+.tl-draft-roster-counts dt { font-size:10px;font-weight:700; }.tl-draft-roster-counts dd { margin:0;font-size:17px;line-height:1;font-weight:700; }
+.tl-draft-roster-empty { margin:0 0 11px;color:#b3c3d8;font-size:12px; }
+.tl-draft-roster-recent { margin:0 0 11px;font-size:11px;line-height:1.6;overflow-wrap:anywhere; }.tl-draft-roster-recent>span { display:block;color:#aebfd4;font-size:10px; }.tl-draft-roster-recent strong { font-weight:600; }
+.tl-draft-roster-details { border-top:1px solid #394c63; }.tl-draft-roster-details>summary { display:flex;align-items:center;justify-content:space-between;min-height:44px;gap:10px;list-style:none;cursor:pointer;color:#91efd5;font-size:12px;font-weight:700; }
+.tl-draft-roster-details>summary::-webkit-details-marker { display:none; }.tl-draft-roster-details[open] .tl-draft-roster-chevron { transform:rotate(180deg); }.tl-draft-roster-chevron { font-size:20px;line-height:1; }
+.tl-draft-roster-slots { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px;padding:0 0 8px;margin:0;list-style:none; }
+.tl-draft-roster-slots>li { display:flex;align-items:center;gap:10px;min-width:0;min-height:48px;border-top:1px solid #ffffff0d; }
+.tl-draft-roster-slot { flex:0 0 60px;color:#adbed3;font-size:10px;line-height:1.25; }
+.tl-draft-roster-player { display:block;flex:1;min-width:0;margin:0;padding:8px 0;border:0;border-radius:4px;background:none;color:inherit;text-align:left;font:inherit; }
+button.tl-draft-roster-player { cursor:pointer; }.tl-draft-roster-player strong { display:block;font-size:12px;line-height:1.4;overflow-wrap:anywhere; }.tl-draft-roster-player small { display:block;margin-top:3px;color:var(--draft-roster-color,#adbed3);font-size:10px; }
+.tl-draft-roster-open { color:#a4b3c8;font-size:12px; }.tl-draft-roster :focus-visible { outline:2px solid #91efd5;outline-offset:3px; }
+.tl-draft-sidebar { display:grid;gap:16px;min-width:0;align-content:start; }.tl-draft-my-roster { min-width:0; }.tl-draft-my-roster>.tl-draft-roster { margin-bottom:0; }.tl-draft-sidebar .tl-draft-roster-slots { grid-template-columns:minmax(0,1fr); }
+@media(max-width:900px) { .tl-grid-2.tl-draft-grid { display:flex;flex-direction:column;align-items:stretch;gap:16px; }.tl-draft-sidebar { display:contents; }.tl-draft-my-roster { order:-1; }.tl-draft-main-board,.tl-draft-my-roster { width:100%;min-width:0; } }
+@media(max-width:600px) { .tl-draft-roster { padding:12px 12px 0; }.tl-draft-roster-slots { grid-template-columns:minmax(0,1fr); }.tl-draft-roster-counts { grid-template-columns:repeat(auto-fit,minmax(44px,1fr)); }.tl-draft-roster-heading { margin-bottom:10px; }.tl-draft-roster-progress { flex-direction:column;align-items:flex-end;gap:2px; } }
+
+.tl-draft-my-roster { scroll-margin-top:110px; }
+.tl-play .tl-draft-dock .tl-dock-roster { display:flex;flex:0 0 52px;flex-direction:column;align-items:center;justify-content:center;gap:4px;align-self:stretch;min-height:44px;padding:5px 3px;border:1px solid #9a88bc70;border-radius:10px;background:#cec0eb70;color:#283145;cursor:pointer; }
+.tl-play .tl-dock-roster small { font:700 8px/1.2 var(--font-body);text-transform:uppercase;white-space:nowrap; }.tl-play .tl-dock-roster strong { font-size:14px;line-height:1.1; }
+.tl-play .tl-dock-roster:focus-visible { outline:2px solid #214b49;outline-offset:2px; }
+@media(max-width:600px) { .tl-play .tl-draft-dock { gap:8px; }.tl-draft-roster-counts>div { gap:5px;padding:8px 3px; }.tl-play .tl-dock-player { gap:5px; } }

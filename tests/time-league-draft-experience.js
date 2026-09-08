@@ -33,6 +33,7 @@ global.React = {
 };
 const local = new Map();
 window.localStorage = { getItem: key => local.get(key) ?? null, setItem: (key, value) => local.set(key, value) };
+require('../js/components/time-league-draft-roster.js');
 require('../js/components/time-league-draft-panel.js');
 const Engine = App.TimeLeagueEngine;
 function mount(props) {
@@ -316,4 +317,103 @@ for (const draftFormat of ['snake', 'linear', 'auction']) {
     page = renderFilters({ league: nextLeague });
     assert.equal(filterSelect(page).props.value, 'ALL', 'Another league never inherits the previous slot filter');
 }
-console.log('Vault draft experience: sealed reveals, top three, actual years, mobile career dialog, draft gates, auction nomination, shared grid, grades and FLEX / SUPER FLEX filters passed');
+// Your next turn follows remaining scheduled picks, including the snake wrap,
+// and belongs to the online viewer rather than the league's first human.
+const turnCards = new Map(Array.from({ length: 12 }, (_, index) => [`turn-${index}`, makeCard(`turn-${index}`, 'RB', [1984], 200 - index)]));
+const turnLeague = Engine.createTimeLeague({ name: 'Your next turn', seed: 'turn-countdown', createdAt: '2026-09-08T12:00:00Z',
+    seats: [{ name: 'First Human', manager: 'human' }, { name: 'Second Human', manager: 'human' }, { name: 'Rival', manager: 'ai' }],
+    settings: { rosterSlots: { RB: 1, BN: 2 }, regularSeasonWeeks: 12, draftOrderMode: 'manual', draftTeamOrder: ['t3', 't2', 't1'],
+        eraRules: { mode: 'any-era', decades: [] }, draftFormat: 'snake' } });
+const turnLabel = page => text(find(page, node => node.props.className === 'tl-draft-turn-label')[0]);
+const turnDetail = page => text(find(page, node => node.props.className === 'tl-draft-turn-detail')[0]);
+const hero = page => find(page, node => node.props['aria-label'] === 'Draft room')[0];
+const dock = page => find(page, node => node.props.className === 'tl-dock-player')[0];
+const clockTools = React.createElement('div', { className: 'fixture-clock-tools' }, 'Clock tools');
+const turnRender = mount({ league: turnLeague, cards: turnCards, onUpdate() {}, draftControls: clockTools });
+let turnPage = turnRender();
+assert.equal(turnLabel(turnPage), 'WAITING TO START');
+assert(turnDetail(turnPage).includes('2 picks until your turn'));
+assert(!hero(turnPage).props.className.includes('your-turn'));
+assert(text(dock(turnPage)).includes('WAITING TO START'));
+assert.equal(find(hero(turnPage), node => node.props.className === 'fixture-clock-tools').length, 1, 'Clock controls live inside the draft hero');
+assert(hero(turnPage).children.indexOf(clockTools) < hero(turnPage).children.findIndex(node => node?.props?.className === 'tl-draft-turn'), 'Controls lead the unified hero');
+assert.equal(find(turnPage, node => node.props.className === 'tl-clock-ring').length, 0, 'The decorative spinning clock is gone');
+let picking = Engine.startDraft(turnLeague, '2026-09-08T12:00:00Z');
+assert.equal(turnLabel(turnRender({ league: picking })), '2 PICKS UNTIL YOUR TURN');
+assert.equal(turnLabel(turnRender({ onlineMeta: { seatTeamId: 't2', role: 'member' } })), 'YOU’RE NEXT');
+turnRender({ onlineMeta: null });
+for (let index = 0; index < 9; index++) {
+    picking = Engine.applyDraftPick(picking, turnCards.get(`turn-${index}`), { madeBy: 'human', createdAt: '2026-09-08T12:00:01Z' });
+    if (index === 0) {
+        turnPage = turnRender({ league: picking });
+        assert.equal(turnLabel(turnPage), 'YOU’RE NEXT', 'The current opposing human counts as a pick before yours');
+        assert(!hero(turnPage).props.className.includes('your-turn'), 'Local hotseat access does not pretend another human is your team');
+    }
+    if (index === 1 || index === 2) {
+        turnPage = turnRender({ league: picking });
+        assert.equal(turnLabel(turnPage), 'YOUR PICK', 'Both consecutive snake turnaround picks belong to the owner');
+        assert(text(dock(turnPage)).includes('YOUR PICK'));
+        assert(hero(turnPage).props.className.includes('your-turn'));
+        const paused = Engine.pauseDraft(picking, '2026-09-08T12:00:02Z');
+        turnPage = turnRender({ league: paused });
+        assert.equal(turnLabel(turnPage), 'DRAFT PAUSED');
+        assert(turnDetail(turnPage).includes('Your pick when the draft resumes'));
+        assert(!hero(turnPage).props.className.includes('your-turn'));
+    }
+    if (index === 3) assert.equal(turnLabel(turnRender({ league: picking })), '4 PICKS UNTIL YOUR TURN', 'Snake return counts both intervening rounds');
+    if (index === 7) assert.equal(turnLabel(turnRender({ league: picking, onlineMeta: { seatTeamId: 't2', role: 'member' } })), 'YOUR DRAFT IS COMPLETE');
+}
+assert.equal(hero(turnRender({ league: picking })), undefined, 'The completed recap never retains a turn countdown');
+
+const linearTurn = Engine.startDraft({ ...turnLeague, settings: { ...turnLeague.settings, draftFormat: 'linear' },
+    draftOrder: App.TimeLeagueDraftRoom.createDraftOrder(['t3', 't2', 't1'], 3, 'linear') }, '2026-09-08T12:00:00Z');
+const linearAfterRound = [...turnCards.values()].slice(0, 3).reduce((current, card) => Engine.applyDraftPick(current, card, { madeBy: 'human', createdAt: '2026-09-08T12:00:01Z' }), linearTurn);
+assert.equal(turnLabel(mount({ league: linearAfterRound, cards: turnCards, onUpdate() {} })()), '2 PICKS UNTIL YOUR TURN', 'Linear rounds do not inherit snake turnaround logic');
+
+const auctionTurn = Engine.startDraft({ ...turnLeague, settings: { ...turnLeague.settings, draftFormat: 'auction' } }, '2026-09-08T12:00:00Z');
+const bidTools = React.createElement('div', { className: 'fixture-auction-tools' }, 'Bid tools');
+const auctionTurnRender = mount({ league: auctionTurn, cards: turnCards, onUpdate() {}, draftControls: clockTools, auctionControls: bidTools });
+turnPage = auctionTurnRender();
+assert.equal(turnLabel(turnPage), '2 NOMINATIONS UNTIL YOURS');
+assert(!find(hero(turnPage), node => node.props.className === 'fixture-auction-tools').length, 'The bidding desk stays outside the compact header');
+assert(find(turnPage, node => node.props.className === 'fixture-auction-tools').length);
+const fullMiddle = { ...auctionTurn, teams: auctionTurn.teams.map(team => team.teamId === 't2' ? { ...team, roster: [{}, {}, {}] } : team) };
+assert.equal(turnLabel(auctionTurnRender({ league: fullMiddle })), 'YOU NOMINATE NEXT', 'Full teams are skipped in nomination counts');
+const ownNomination = { ...auctionTurn, draftAuction: { ...auctionTurn.draftAuction, nominationIndex: 2 } };
+assert.equal(turnLabel(auctionTurnRender({ league: ownNomination })), 'YOUR NOMINATION');
+const activeLot = Engine.nominateAuctionPlayer(ownNomination, 't1', turnCards.get('turn-0'), 1, '2026-09-08T12:00:01Z');
+turnPage = auctionTurnRender({ league: activeLot });
+assert.equal(turnLabel(turnPage), 'BIDDING OPEN');
+assert(turnDetail(turnPage).includes('Eligible teams can bid'));
+assert(!hero(turnPage).props.className.includes('your-turn'), 'Nominating a player never implies an exclusive bidding turn');
+assert.equal(turnLabel(auctionTurnRender({ league: Engine.pauseDraft(activeLot, '2026-09-08T12:00:02Z') })), 'DRAFT PAUSED');
+for (const spectatorSeat of [null, 'missing-seat', 't3']) {
+    const watch = mount({ league: { ...linearTurn, publicSnapshotVersion: 1 }, cards: turnCards, onUpdate() {}, onlineMeta: { seatTeamId: spectatorSeat, role: 'viewer' } });
+    let page = watch();
+    assert.equal(turnLabel(page), 'DRAFT IN PROGRESS', 'A viewer without a human team is not told their draft is complete');
+    assert.equal(turnDetail(page), 'Watching the draft.');
+    assert(!hero(page).props.className.includes('your-turn'));
+    assert(text(dock(page)).includes('DRAFT IN PROGRESS'));
+    page = watch({ league: { ...turnLeague, publicSnapshotVersion: 1 } });
+    assert.equal(turnLabel(page), 'WAITING TO START');
+    assert.equal(turnDetail(page), 'The draft has not started.');
+    page = watch({ league: { ...Engine.pauseDraft(linearTurn, '2026-09-08T12:00:02Z'), publicSnapshotVersion: 1 } });
+    assert.equal(turnLabel(page), 'DRAFT PAUSED');
+    assert(!turnDetail(page).includes('Your'));
+    page = watch({ league: { ...activeLot, publicSnapshotVersion: 1 } });
+    assert.equal(turnLabel(page), 'DRAFT IN PROGRESS');
+    assert.equal(turnDetail(page), 'Watching the current auction.');
+}
+const rosterOwnerPage = mount({ league: linearAfterRound, cards: turnCards, onUpdate() {}, onlineMeta: { seatTeamId: 't2', role: 'member' } })();
+const myRosterNode = find(rosterOwnerPage, node => node.type === WrTimeLeagueDraftRoster)[0];
+assert.equal(myRosterNode.props.team.teamId, 't2', 'My draft belongs to the signed-in seat, not the first human');
+const myRosterWrapper = find(rosterOwnerPage, node => node.props.className === 'tl-draft-my-roster')[0];
+let rosterScrolled = false, rosterFocused = false;
+const rosterDetails = { open: false, querySelector: () => ({ focus: () => { rosterFocused = true; } }) };
+myRosterWrapper.props.ref.current = { querySelector: () => rosterDetails, scrollIntoView: () => { rosterScrolled = true; } };
+button(rosterOwnerPage, 'View my drafted team').props.onClick();
+assert(rosterDetails.open && rosterScrolled && rosterFocused, 'Mobile shortcut opens your roster and brings it into view');
+const rosterSpectatorPage = mount({ league: linearAfterRound, cards: turnCards, onUpdate() {}, onlineMeta: { seatTeamId: null, role: 'viewer' } })();
+assert.equal(find(rosterSpectatorPage, node => node.type === WrTimeLeagueDraftRoster).length, 0, 'Spectators do not inherit another team');
+assert.equal(find(mount({ league: picking, cards: turnCards, onUpdate() {} })(), node => node.type === WrTimeLeagueDraftRoster).length, 0, 'Completed recap does not retain the live draft roster');
+console.log('Vault draft experience: sealed reveals, mobile scouting, recap grids, filters, unified clock header and accurate snake/linear/auction turn countdowns passed');

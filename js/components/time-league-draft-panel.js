@@ -122,7 +122,7 @@
             }));
     }
 
-    function WrTimeLeagueDraftPanel({ league, cards, onUpdate, onlineMeta, onRevealReadyChange, draftControls, onDraftAction, onRevealEra }) {
+    function WrTimeLeagueDraftPanel({ league, cards, onUpdate, onlineMeta, onRevealReadyChange, draftControls, auctionControls, onDraftAction, onRevealEra }) {
         const [query, setQuery] = useState('');
         const [positionSelection, setPositionSelection] = useState({ leagueId: league.leagueId, value: 'ALL' });
         const [selectedIdentity, setSelectedIdentity] = useState(null);
@@ -137,18 +137,26 @@
         const [scoutOpen, setScoutOpen] = useState(false);
         const scoutDialogRef = useRef(null);
         const scoutTriggerRef = useRef(null);
+        const myDraftRef = useRef(null);
+        const DraftRoster = window.WrTimeLeagueDraftRoster;
+        function viewMyDraft() {
+            const panel = myDraftRef.current;
+            const details = panel?.querySelector?.('details');
+            if (details) details.open = true;
+            panel?.scrollIntoView?.({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+            details?.querySelector('summary')?.focus({ preventScroll: true });
+        }
 
         const seat = useMemo(() => Engine.currentDraftSeat(league), [league]);
         const drafted = useMemo(() => Engine.draftedIdentities(league), [league]);
         const onClockTeam = seat ? league.teams.find((t) => t.teamId === seat.teamId) ?? null : null;
-        const humanTeam = league.teams.find((t) => onlineMeta ? t.teamId === onlineMeta.seatTeamId : t.manager === 'human') ?? null;
+        const humanTeam = league.teams.find((t) => t.manager === 'human' && (!onlineMeta || t.teamId === onlineMeta.seatTeamId)) ?? null;
         const orderedTeams = useMemo(() => Engine.draftTeamOrder(league)
             .map(teamId => league.teams.find(team => team.teamId === teamId)).filter(Boolean), [league]);
         const gridTeamIndex = teamId => orderedTeams.findIndex(team => team.teamId === teamId);
         const isAuction = league.settings.draftFormat === 'auction';
         const clockReady = !league.draftClock || league.draftClock.status === 'running';
         const canSim = !onlineMeta || onlineMeta.role === 'commissioner';
-        const persona = onClockTeam?.aiPersona ? AI.AI_PERSONAS[onClockTeam.aiPersona] : null;
 
         const eraRules = useMemo(() => EraRules.normalizeEraDraftRules(league.settings.eraRules), [league.settings.eraRules]);
         const publicSnapshot = league.publicSnapshotVersion === 1;
@@ -451,6 +459,53 @@
 
         const humanOnClock = onClockTeam?.manager === 'human';
         const myTurn = humanOnClock && (!onlineMeta || seat?.teamId === onlineMeta.seatTeamId);
+        const turn = useMemo(() => {
+            const paused = league.draftClock?.status === 'paused';
+            const waiting = league.draftClock?.status === 'waiting';
+            const nomination = isAuction && league.draftAuction?.nomination;
+            let distance = -1, nextPick = null;
+            if (isAuction) {
+                // A lot can fill its winner's roster and change the next
+                // rotation. Only count nominations between settled auctions.
+                if (!nomination && seat) {
+                    const open = orderedTeams.filter(team => team.roster.length < Engine.rosterCapacity(league.settings));
+                    const start = open.findIndex(team => team.teamId === seat.teamId);
+                    distance = open.slice(start).concat(open.slice(0, start)).findIndex(team => team.teamId === humanTeam?.teamId);
+                }
+            } else {
+                const taken = new Set(league.draftPicks.map(pick => pick.overall));
+                const remaining = league.draftOrder.filter(pick => !taken.has(pick.overall)).sort((left, right) => left.overall - right.overall);
+                distance = remaining.findIndex(pick => pick.teamId === humanTeam?.teamId);
+                nextPick = distance >= 0 ? remaining[distance] : null;
+            }
+            const full = humanTeam && humanTeam.roster.length >= Engine.rosterCapacity(league.settings);
+            const yours = distance === 0 && !nomination;
+            let label, detail;
+            if (!humanTeam) {
+                label = 'DRAFT IN PROGRESS';
+                detail = nomination ? 'Watching the current auction.' : 'Watching the draft.';
+            } else if (nomination) {
+                label = full ? 'YOUR ROSTER IS FULL' : 'BIDDING OPEN';
+                detail = full ? 'Follow the remaining auctions.' : 'Eligible teams can bid on this player.';
+            } else if (distance < 0) {
+                label = 'YOUR DRAFT IS COMPLETE';
+                detail = 'Follow the remaining selections.';
+            } else if (isAuction) {
+                label = yours ? 'YOUR NOMINATION' : distance === 1 ? 'YOU NOMINATE NEXT' : `${distance} NOMINATIONS UNTIL YOURS`;
+                detail = yours ? 'Choose a player to open bidding.' : `${onClockTeam?.name || 'The current manager'} is choosing a player.`;
+            } else {
+                label = yours ? 'YOUR PICK' : distance === 1 ? 'YOU’RE NEXT' : `${distance} PICKS UNTIL YOUR TURN`;
+                detail = yours ? 'Choose a player to lock in your pick.' : nextPick ? `Next pick: ${pickLabel(league.draftOrder, nextPick.overall, nextPick.round)} · #${nextPick.overall}` : '';
+            }
+            if (paused || waiting) {
+                detail = !humanTeam ? paused ? 'The draft will continue when the room resumes.' : 'The draft has not started.'
+                    : nomination ? 'Bidding resumes with the current player.'
+                    : yours ? `Your ${isAuction ? 'nomination' : 'pick'} when the draft ${paused ? 'resumes' : 'starts'}.`
+                        : distance > 0 ? `${distance} ${isAuction ? 'nomination' : 'pick'}${distance === 1 ? '' : 's'} until your turn.` : 'Your draft is complete.';
+                label = paused ? 'DRAFT PAUSED' : 'WAITING TO START';
+            }
+            return { label, detail, yours: yours && !paused && !waiting, distance };
+        }, [league, isAuction, seat, orderedTeams, humanTeam, onClockTeam]);
         const scoutBlock = selectedCard ? (onClockTeam && !humanOnClock ? `${onClockTeam.name} is on the clock — sim picks to advance.` : draftBlockReason(selectedCard)) : null;
         const canDraftSelected = Boolean(selectedCard && myTurn && !draftBlockReason(selectedCard));
         const selectedQueued = Boolean(selectedCard && humanTeam?.queue.includes(selectedCard.identity));
@@ -594,7 +649,7 @@
         };
         const sharedGrid = window.DraftCC?.DraftGridPanel ? h(window.DraftCC.DraftGridPanel, {
             state: dhqState, currentSlot: seat && !isAuction ? dhqState.pickOrder.find((slot) => slot.overall === seat.overall) : null,
-            isUserTurn: myTurn, dispatch: (action) => { if (action.type === 'PIN_TEAM') setPinnedRosterId(action.rosterId); }, renderPick: draftCell, embedded: true
+            isUserTurn: turn.yours, dispatch: (action) => { if (action.type === 'PIN_TEAM') setPinnedRosterId(action.rosterId); }, renderPick: draftCell, embedded: true
         }) : null;
         const draftLog = h('div', { className: 'tl-card tl-draft-log' },
             h('div', { className: 'tl-card-title' }, h('span', null, !recap && !showBoardGrid ? 'Recent picks' : isAuction ? 'Auction results' : 'Draft board'),
@@ -669,32 +724,33 @@
 
         return h('div', null,
             eraBanner,
-            draftControls,
             scoutDialog,
-            h('div', { ref: draftRoomRef, role: 'region', 'aria-label': 'Draft room', tabIndex: -1, className: `tl-card tl-on-clock${myTurn ? ' your-turn' : ''}` },
+            h('div', { ref: draftRoomRef, role: 'region', 'aria-label': 'Draft room', tabIndex: -1, className: `tl-card tl-on-clock${turn.yours ? ' your-turn' : ''}` },
                 h('div', { className: 'tl-draft-progress', 'aria-label': `Draft ${Math.round(league.draftPicks.length / league.draftOrder.length * 100)} percent complete` }, h('span', { style: { width: `${league.draftPicks.length / league.draftOrder.length * 100}%` } })),
-                h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 } },
-                    seat ? h('div', { className: 'tl-clock-ring' }) : null,
-                    onClockTeam && h(window.TimeLeagueHelmetIcon, { helmet: onClockTeam.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(onClockTeam.name), size: 34, title: onClockTeam.name }),
-                    h('div', { style: { flex: 1 } },
-                        h('div', { style: { fontFamily: 'var(--font-title)', fontWeight: 700, fontSize: 15 } }, seat && onClockTeam ? `On the clock — ${onClockTeam.name}` : 'Draft complete'),
-                        h('small', { style: { color: 'var(--text-muted)' } }, seat ? `Pick ${seat.overall}/${league.draftOrder.length} · ${pickLabel(league.draftOrder, seat.overall, seat.round)}` : `${league.draftPicks.length} picks recorded`))),
-                h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' } },
-                    onClockTeam && (humanOnClock ? h('span', { className: 'tl-pill gold' }, myTurn ? '✦ YOU’RE UP' : 'ON THE CLOCK') : h('span', { className: 'tl-pill info' }, `AI · ${persona ? persona.label : 'GM'}`)),
-                    !humanOnClock && persona && h('p', { style: { fontStyle: 'italic', fontSize: 12, color: 'var(--text-faint, rgba(189,184,173,0.6))', margin: 0 } }, `"${persona.tell}"`),
-                    humanOnClock && h('p', { style: { fontSize: 12, color: 'var(--text-secondary)', margin: 0 } }, myTurn ? (isAuction ? 'Your nomination — choose a player to open bidding.' : 'Your pick — draft from the big board or scout file.') : `Waiting for ${onClockTeam.name} to pick.`),
-                    onClockTeam && !humanOnClock && canSim && !isAuction && h('div', { style: { display: 'flex', gap: 8, marginLeft: 'auto' } },
+                draftControls,
+                h('div', { className: 'tl-draft-turn', role: 'status', 'aria-live': 'polite', 'aria-atomic': true },
+                    h('strong', { className: 'tl-draft-turn-label' }, turn.label),
+                    h('span', { className: 'tl-draft-turn-detail' }, turn.detail)),
+                h('div', { className: 'tl-draft-turn-footer' },
+                    h('div', { className: 'tl-draft-current-manager' },
+                        onClockTeam && h(window.TimeLeagueHelmetIcon, { helmet: onClockTeam.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(onClockTeam.name), size: 32, title: onClockTeam.name }),
+                        h('div', null,
+                            h('strong', null, isAuction && league.draftAuction?.nomination ? league.draftAuction.nomination.name : onClockTeam?.name || 'Draft complete'),
+                            h('small', null, isAuction && league.draftAuction?.nomination ? `Nominated by ${teamName(league.draftAuction.nomination.nominatedBy)}`
+                                : seat ? `${isAuction ? 'Nomination' : 'Pick'} ${seat.overall} of ${league.draftOrder.length}${isAuction ? '' : ` · ${pickLabel(league.draftOrder, seat.overall, seat.round)}`}` : `${league.draftPicks.length} picks recorded`))),
+                    onClockTeam && !humanOnClock && canSim && !isAuction && h('div', { className: 'tl-draft-sim-actions' },
                         h('button', { className: 'tl-btn', disabled: !clockReady, onClick: simAiPick }, '▶ Sim pick'),
                         h('button', { className: 'tl-btn', disabled: !clockReady, onClick: simToMyPick }, '⏭ Sim to my pick'))),
                 note && h('p', { className: 'tl-pick-feedback', role: 'status', style: { fontSize: 12, color: 'var(--warn)', marginTop: 8 } }, note)),
-
+            auctionControls,
             league.phase === 'draft' && draftPulse,
             league.phase === 'draft' && selectedCard && h('div', { className: 'tl-draft-dock' },
+                humanTeam && DraftRoster && h('button', { type: 'button', className: 'tl-dock-roster', 'aria-label': 'View my drafted team', onClick: viewMyDraft }, h('small', null, 'My team'), h('strong', { className: 'tabular' }, `${humanTeam.roster.length}/${Engine.rosterCapacity(league.settings)}`)),
                 h('button', { className: 'tl-dock-player', onClick: (event) => openScout(selectedCard, event), 'aria-label': `Scout ${selectedCard.name}` },
-                    h('span', { className: `tl-pos-badge tl-pos-${selectedCard.position}` }, selectedCard.position), h('span', null, h('small', null, myTurn ? 'YOUR NEXT LEGEND?' : 'SCOUT WHILE YOU WAIT'), h('b', null, selectedCard.name))),
+                    h('span', { className: `tl-pos-badge tl-pos-${selectedCard.position}` }, selectedCard.position), h('span', null, h('small', null, turn.label), h('b', null, selectedCard.name))),
                 h('button', { className: 'tl-btn primary', 'aria-label': `${isAuction ? 'Nominate' : 'Draft'} ${selectedCard.name}`, disabled: !canDraftSelected, onClick: () => draftCard(selectedCard, 'human') }, isAuction ? 'Nominate' : 'Draft', h('span', { 'aria-hidden': 'true' }, '↗'))),
             h('div', { className: 'tl-grid-2 tl-draft-grid' },
-                h('div', null,
+                h('div', { className: 'tl-draft-main-board' },
                     h('div', { className: 'tl-card tl-player-board' },
                         h('div', { className: 'tl-card-title' }, h('span', null, 'Find your next legend'), h('small', null, `${visible.length} of ${filtered.length} ${query.trim() || positionFilter !== 'ALL' ? 'matching' : eraRestricted ? 'era-eligible' : 'available'}`)),
                         h('div', { style: { display: 'flex', gap: 8, marginBottom: 10 } },
@@ -725,7 +781,8 @@
                                 }))))),
                     filtered.length > visible.length && h('button', { className: 'tl-btn tl-show-more', onClick: () => setBoardLimit(value => value + 24) }, `Show more legends · ${filtered.length - visible.length} more`),
                     draftLog),
-                h('div', null,
+                h('div', { className: 'tl-draft-sidebar' },
+                    league.phase === 'draft' && humanTeam && DraftRoster && h('div', { ref: myDraftRef, className: 'tl-draft-my-roster' }, h(DraftRoster, { league, team: humanTeam })),
                     h(OpponentIntel, { league, humanTeam, onClockTeamId: seat?.teamId }),
                     scoutFile,
                     h('div', { className: 'tl-card' },
