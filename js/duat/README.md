@@ -49,6 +49,8 @@ weekly result is authoritative; the replay is illustrative, not NFL play-by-play
 The creation screen explicitly requests `version: 3`. Missing endpoint versions
 remain v1 for cached clients; existing v1/v2 saves retain their original rules.
 Settings are chosen before creation and remain immutable for the campaign.
+New payloads opt into the extended regular season with `calendarVersion: 2`;
+initial v3 saves without this marker retain their fourteen-week regular season.
 The rules summary remains available in the draft, reveal and season views.
 
 | Setting | Supported choices |
@@ -57,7 +59,7 @@ The rules summary remains available in the draft, reveal and season views.
 | `mummyCount` | 1, 2, 4 or 5 distinct historical armies, with equal d20 odds |
 | `roster` | `duat`: QB + 4 FLEX; `classic`: QB + 2 RB + 2 WR + TE + FLEX; `superflex`: classic plus SUPER_FLEX |
 | `bench` | 1–6 players per army |
-| `playoffTeams` | 2, 4, 6, 7 or 8; championship always in Week 17 |
+| `playoffTeams` | 2, 4, 6, 7 or 8; regular season lasts 16 weeks for 2 seeds, 15 for 4, and 14 for 6–8; championship always in Week 17 |
 | `favors` / `conquest` | Independent booleans, both default true |
 | `favorBudget` | Integer 0–500 per faction for the whole season; default 100 |
 

@@ -46,6 +46,7 @@
     }
     function settingsOf(state) { return state?.version === 3 ? normalizeSettings(state.settings) : normalizeSettings(); }
     function slotsOf(faction) { return ROSTERS[faction?.roster || 'duat'].slots; }
+    function regularSeasonWeeks(state) { return state?.calendarVersion === 2 ? 17 - Math.ceil(Math.log2(settingsOf(state).playoffTeams)) : 14; }
     function rosterSize(state) { const settings = settingsOf(state); return ROSTERS[settings.roster].slots.length + settings.bench; }
     function pickCount(state) { return settingsOf(state).leagueSize * settingsOf(state).mummyCount * rosterSize(state); }
     function rulerBands(count) { return Array.from({length:count}, (_,i) => ({ min: i*20/count+1, max:(i+1)*20/count, label: (i*20/count+1)+'–'+((i+1)*20/count) })); }
@@ -282,7 +283,7 @@
             armies: seasons.map((season, index) => ({ id: id + ':' + season, season, rulerNumber: index + 1,
                 rulerName: season + ' Ruler', rollBand: copy(rulerBands(settings.mummyCount)[index]), players: [] })),
             activeArmyId: null, rulerRoll: null, lineup: [], favorBalance: settings.favors ? settings.favorBudget : 0, declaredFavor: null }));
-        return { version, ...(version === 3 ? {settings} : {}), id: string(input.id, 'campaign ID'), name: string(input.name || 'The Duat', 'campaign name'),
+        return { version, ...(version === 3 ? {settings, calendarVersion:2} : {}), id: string(input.id, 'campaign ID'), name: string(input.name || 'The Duat', 'campaign name'),
             seed, createdAt, updatedAt: createdAt, phase: 'draft', week: 1, seasons: [...seasons],
             hostFactionId, humanFactionIds, scoring, factions,
             draft: { status: 'waiting', order: Armies.seededShuffle(requested, seed + ':draft-order'), cursor: 0,
@@ -349,7 +350,7 @@
     function computeStandings(state) {
         const rows = state.factions.map(faction => ({ factionId: faction.id, name: faction.name, wins: 0, losses: 0, ties: 0, points: 0 }));
         const byId = new Map(rows.map(row => [row.factionId, row]));
-        for (const week of state.completedWeeks.filter(item => item.week <= 14)) {
+        for (const week of state.completedWeeks.filter(item => item.week <= regularSeasonWeeks(state))) {
             for (const result of week.factions) {
                 const row = byId.get(result.factionId);
                 row.points = round(row.points + result.total);
@@ -467,7 +468,7 @@
         }
         const allianceTotal = (id, week) => state.completedWeeks.find(item => item.week === week)?.allianceScores.find(item => item.allianceId === id)?.total ?? null;
         state.heptad = Rules.runHeptadGauntlet(state.alliances, allianceTotal, 2);
-        if (state.week === 14) state.playoffField = completed.standings.slice(0, settingsOf(state).playoffTeams).map(row => row.factionId);
+        if (state.week === regularSeasonWeeks(state)) state.playoffField = completed.standings.slice(0, settingsOf(state).playoffTeams).map(row => row.factionId);
         const factionTotal = (id, week) => state.completedWeeks.find(item => item.week === week)?.factions.find(item => item.factionId === id)?.total ?? null;
         state.heavenly = state.playoffField.length ? Rules.runHeavenlyBattle(state.playoffField, factionTotal, 18 - Math.ceil(Math.log2(settingsOf(state).playoffTeams))) : null;
         completed.heptad = copy(state.heptad);
@@ -589,6 +590,7 @@
         const invalid = message => fail('INVALID_CAMPAIGN', message);
         const settings = settingsOf(state), size = rosterSize(state), totalPicks = pickCount(state), budget = settings.favors ? settings.favorBudget : 0;
         if (state?.version === 3 && (!state.settings || Object.keys(settings).some(key=>state.settings[key] !== settings[key]) || !state.scoring || Object.keys(normalizeScoring(state.scoring)).some(key=>state.scoring[key] !== normalizeScoring(state.scoring)[key]))) invalid('Invalid campaign rules.');
+        if (state?.calendarVersion !== undefined && (state.version !== 3 || state.calendarVersion !== 2)) invalid('Invalid campaign calendar.');
         const finite = value => typeof value === 'number' && Number.isFinite(value);
         if (!state || ![1, 2, 3].includes(state.version) || !(state.version === 1 ? ['preseason', 'season', 'complete'] : ['draft', 'reveal', 'season', 'complete']).includes(state.phase)) invalid('Unsupported Duat campaign.');
         if (!Number.isInteger(state.week) || state.week < 1 || state.week > 18
@@ -723,12 +725,12 @@
                 || !Number.isInteger(level) || level < 0 || level > 3) invalid('Invalid territorial fortification.');
         }
         if (!Array.isArray(state.playoffField) || !Array.isArray(state.activity)) invalid('Missing campaign progress.');
-        if (state.week <= 14 && state.playoffField.length) invalid('Playoff seeds must wait for Week 14.');
-        if (state.week >= 15 && (state.playoffField.length !== settings.playoffTeams || new Set(state.playoffField).size !== settings.playoffTeams || state.playoffField.some(id => !ids.includes(id)))) invalid('Invalid playoff field.');
+        if (state.week <= regularSeasonWeeks(state) && state.playoffField.length) invalid('Playoff seeds must wait for the regular season to finish.');
+        if (state.week > regularSeasonWeeks(state) && (state.playoffField.length !== settings.playoffTeams || new Set(state.playoffField).size !== settings.playoffTeams || state.playoffField.some(id => !ids.includes(id)))) invalid('Invalid playoff field.');
         if (state.phase === 'complete' ? !state.heavenly?.complete || state.championId !== state.heavenly.championId || !ids.includes(state.championId)
             : state.championId !== null) invalid('Invalid champion.');
         return true;
     }
-    return { SCORING, ROSTERS, normalizeSettings, normalizeScoring, settingsOf, rosterSize, slotsOf, bestLineup, availableSeasons, createCampaign, applyAction, computeStandings, legalLineup,
+    return { SCORING, ROSTERS, normalizeSettings, normalizeScoring, settingsOf, regularSeasonWeeks, rosterSize, slotsOf, bestLineup, availableSeasons, createCampaign, applyAction, computeStandings, legalLineup,
         activeArmy, estimatePlayer, recommendedLineup, projectCampaign, validateCampaign, draftTurn, draftCandidates, revealProgress };
 });

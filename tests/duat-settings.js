@@ -20,7 +20,8 @@ for(const [index,leagueSize] of [8,10,12,14,16].entries())for(const roster of ['
 });
 for(const playoffTeams of [2,4,6,7,8])test(`${playoffTeams} playoff seeds resolve a complete 17-week season with both optional systems disabled`,()=>{
     let state=reveal(draft(create({leagueSize:8,mummyCount:1,roster:'superflex',bench:1,favors:false,conquest:false,playoffTeams})));
-    const map=clone(state.conquest);while(state.phase==='season'){state=act(state,{type:'advance-week'});assert.equal(C.validateCampaign(state),true);}
+    const map=clone(state.conquest);while(state.phase==='season'){state=act(state,{type:'advance-week'});assert.equal(C.validateCampaign(state),true);assert.equal(state.playoffField.length,state.week>C.regularSeasonWeeks(state)?playoffTeams:0);}
+    assert.equal(C.computeStandings(state)[0].wins+C.computeStandings(state)[0].losses,C.regularSeasonWeeks(state)*7);
     assert.equal(state.playoffField.length,playoffTeams);assert(state.heavenly.complete);assert.equal(state.heavenly.matches.find(m=>m.round==='championship').week,17);assert.deepEqual(state.conquest,map);assert(state.completedWeeks.every(w=>w.factions.every(f=>f.favorCost===0&&f.total===f.baseTotal)));
 });
 test('favor budgets fund humans and AI equally, spend exactly, and never regenerate',()=>{
@@ -44,4 +45,11 @@ test('custom scoring changes only prior-year draft estimates and respects flex e
     const a=C.draftCandidates(standard,data), b=C.draftCandidates(ppr,data);assert(a.some(p=>{const q=b.find(x=>x.id===p.id);return q&&q.referencePoints>p.referencePoints;}));assert(b.every(p=>p.referenceSeason===null||p.referenceSeason<2025));
     const players=[{id:'q1',position:'QB',points:30},{id:'q2',position:'QB',points:29},{id:'r1',position:'RB',points:5},{id:'r2',position:'RB',points:4},{id:'w1',position:'WR',points:8},{id:'w2',position:'WR',points:7},{id:'t',position:'TE',points:6},{id:'w3',position:'WR',points:9},{id:'w4',position:'WR',points:3}];
     assert.deepEqual(new Set(C.bestLineup(players,C.ROSTERS.superflex.slots,p=>p.points).map(p=>p.id)),new Set(['q1','q2','r1','r2','w1','w2','t','w3']));
+});
+
+test('initial v3 saves retain their original fourteen-week regular season',()=>{
+    let state=create({leagueSize:8,mummyCount:1,playoffTeams:2,favors:false,conquest:false});delete state.calendarVersion;
+    state=reveal(draft(state));assert.equal(C.regularSeasonWeeks(state),14);
+    while(state.phase==='season'){state=act(state,{type:'advance-week'});assert.equal(C.validateCampaign(state),true);assert.equal(state.playoffField.length,state.week>14?2:0);}
+    assert.equal(C.computeStandings(state)[0].wins+C.computeStandings(state)[0].losses,14*7);
 });
