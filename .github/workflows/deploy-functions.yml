@@ -7,6 +7,7 @@ on:
       - "supabase/functions/**"
       - "supabase/migrations/**"
       - "js/shared/time-league-*.js"
+      - "js/shared/woeppel-cup.js"
       - "data/time-league/**"
       - "scripts/build-time-league-server.cjs"
       - "js/duat/**"
@@ -56,6 +57,9 @@ jobs:
 
       - name: Install test dependencies
         run: npm ci
+
+      - name: Verify Cup contracts before backend deployment
+        run: npm run test:cup
 
       - name: Verify Vault contracts before backend deployment
         run: npm run test:timeleague

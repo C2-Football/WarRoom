@@ -18,7 +18,7 @@ function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleep
     const [importStatus, setImportStatus] = useState(''); // '' | 'parsing' | 'done' | 'error'
     const [recapStatus, setRecapStatus] = useState(''); // '' | 'generating' | 'done'
     const [recapText, setRecapText] = useState('');
-    const cupEnabled = /ctb.*the one/i.test(currentLeague?.name||'') || String(currentLeague?.league_id||currentLeague?.id)==='1356311207652360192';
+    const cupEnabled = true;
     const leagueId = currentLeague?.id || currentLeague?.league_id || '';
 
     // ── Phone tier (<768, iPhone program Phase 4) ──
@@ -1185,7 +1185,7 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
                 segBtn('League', 'league'),
                 segBtn('Me', 'personal', () => { setView('personal'); if (!selectedOwner) setSelectedOwner(myRoster?.roster_id); }),
                 segBtn('All-Time', 'alltime'),
-                cupEnabled && segBtn('Woeppel Cup', 'cup'),
+                cupEnabled && segBtn('Cup history', 'cup'),
                 segBtn('Calendar', 'calendar'),
                 chronicles && segBtn('Chronicles', 'chronicles'),
                 segBtn('Import', 'import'),
@@ -1370,7 +1370,7 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
             tabBtn('League', 'league'),
             tabBtn('My Trophies', 'personal', () => { setView('personal'); if (!selectedOwner) setSelectedOwner(myRoster?.roster_id); }),
             tabBtn('All-Time', 'alltime'),
-            cupEnabled && tabBtn('Woeppel Cup', 'cup'),
+            cupEnabled && tabBtn('Cup history', 'cup'),
             tabBtn('Calendar', 'calendar'),
             chronicles && tabBtn('Chronicles', 'chronicles'),
             tabBtn('Import', 'import'),

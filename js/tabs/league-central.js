@@ -279,7 +279,7 @@ function LeagueCentralTab({
     // page load. Chopped leagues lead with KPIs (weekly scoring is the whole
     // game — standings/W-L barely mean anything with the field shrinking
     // every week), matching Chopped's survival framing elsewhere in the app.
-    const cupEnabled = /ctb.*the one/i.test(currentLeague?.name || '') || String(leagueId) === '1356311207652360192';
+    const cupEnabled = true;
     const [innerTab, setInnerTab] = React.useState(() => isChopped ? 'kpis' : 'league'); // 'league' | 'kpis'
     const BRIEF_KEY = 'wr_cc_brief_collapsed';
     const [briefCollapsed, setBriefCollapsed] = React.useState(
@@ -464,7 +464,7 @@ function LeagueCentralTab({
             {/* League / KPIs */}
             {(homeMerged || cupEnabled) && (
                 <div style={{ display: 'flex', gap: '22px', borderBottom: '1px solid rgba(255,255,255,0.07)', marginBottom: '14px' }}>
-                    {[...(homeMerged ? (isChopped ? [['kpis', 'KPIs'], ['league', 'League']] : [['league', 'League'], ['kpis', 'KPIs']]) : [['league', 'League']]), ...(cupEnabled ? [['cup', 'Woeppel Cup']] : [])].map(([k, label]) => (
+                    {[...(homeMerged ? (isChopped ? [['kpis', 'KPIs'], ['league', 'League']] : [['league', 'League'], ['kpis', 'KPIs']]) : [['league', 'League']]), ...(cupEnabled ? [['cup', 'In-season Cup']] : [])].map(([k, label]) => (
                         <button key={k} type="button" onClick={() => setInnerTab(k)} style={{
                             fontFamily: RAJ, fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.04em',
                             textTransform: 'uppercase', padding: '10px 2px', background: 'transparent',

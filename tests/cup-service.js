@@ -1,0 +1,23 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),Babel=require('@babel/standalone');
+const Cup=require('../js/shared/woeppel-cup.js');
+const source=fs.readFileSync('supabase/functions/league-cup/index.ts','utf8').replace(/^import .*;\n/gm,'');
+const code=Babel.transform(source,{presets:['typescript'],filename:'cup.ts'}).code;
+let handler,owner=true,conflict=false,record;
+const query={insert(value){record=value;return this;},update(value){record=value;return this;},eq(){return this;},select(){return this;},async maybeSingle(){return conflict?{data:null,error:null}:{data:{...record},error:null};}};
+const context={WoeppelCup:Cup,Response,console,fetch:async url=>({ok:true,json:async()=>url.endsWith('/users')?[{user_id:'1',is_owner:owner}]:url.endsWith('/rosters')?Array.from({length:5},(_,i)=>({roster_id:i+1})):{user_id:'1'}}),createClient:()=>({from:()=>query}),verifyJwtPayload:async()=>({app_metadata:{sleeper_username:'tester'}}),requireActiveAppSession:async()=>null,hasAdminRole:async()=>false,Deno:{env:{get:()=>''},serve:fn=>{handler=fn;}}};
+vm.runInNewContext(code,context);
+const state=Cup.tournament.defaults({rosters:Array.from({length:5},(_,i)=>({roster_id:i+1})),settings:{playoff_week_start:15}});
+const call=async(s=state,revision=0)=>{const r=await handler(new Request('http://localhost',{method:'POST',body:JSON.stringify({leagueId:'1234567890123',season:'2026',action:'save',state:s,revision})}));return {status:r.status,body:await r.json()};};
+(async()=>{
+ assert.equal((await call()).status,200);assert.equal(record.state.name,'League Cup');
+ owner=false;assert.equal((await call()).status,403);owner=true;
+ assert.equal((await call({...state,teams:['1','1']})).status,400);
+ assert.equal((await call({...state,teams:['1','90']})).status,400);
+ assert.equal((await call({...state,knockoutStart:18})).status,400);
+ assert.equal((await call({...state,weeks:{1:{scores:{},final:true}}})).status,400);
+ assert.equal((await call({...state,weeks:{[state.startWeek]:{scores:{'1':10},final:true}}})).status,400);
+ assert.equal((await call({...state,seedRuling:{reason:'',ids:['1','2','3','4']}})).status,400);
+ assert.equal((await call(state,-1)).status,400);
+ conflict=true;assert.equal((await call(state,1)).status,409);
+ console.log('Cup service: commissioner permissions, state validation, roster membership, scores and revision conflicts passed');
+})().catch(e=>{console.error(e);process.exitCode=1;});
