@@ -18,7 +18,7 @@ for(const [position,count] of [['QB',30],['RB',80],['WR',90],['TE',40]]){
 }
 const logIndex=new Map(seasons.flatMap(season=>Array.from({length:17},(_,i)=>[season+':'+i,{season,week:i+1,position:'QB'}])));
 const data={cards,logIndex},stamp='2026-09-08T18:00:00.000Z';
-const initial=Campaign.createCampaign({id:'saved-a',name:'Núbia · "Duat" <West> & East',seed:'storage-fixture',createdAt:stamp,seasons,hostFactionId:'nubia'},data);
+const initial=Campaign.createCampaign({version:1,id:'saved-a',name:'Núbia · "Duat" <West> & East',seed:'storage-fixture',createdAt:stamp,seasons,hostFactionId:'nubia'},data);
 const firstWeek=Campaign.applyAction(Campaign.applyAction(initial,{type:'reveal-rulers'},data),{type:'advance-week'},data);
 const metadata=state=>({id:state.id,name:state.name,week:state.week,phase:state.phase,factionId:state.hostFactionId,createdAt:state.createdAt});
 

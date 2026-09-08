@@ -13,7 +13,7 @@ const cards = JSON.parse(fs.readFileSync(path.join(root, 'data/duat/player-cards
 const logs = Season.parseGameLogCsv(fs.readFileSync(path.join(root, 'data/duat/nflverse-game-logs.csv'), 'utf8')).logs;
 const data = { cards, logIndex: Season.buildGameLogIndex(logs) };
 const now = '2026-09-08T16:00:00.000Z';
-const input = { id: 'duat-test', name: 'The first historical Duat', seed: 'historical-duat-test', createdAt: now,
+const input = { version: 1, id: 'duat-test', name: 'The first historical Duat', seed: 'historical-duat-test', createdAt: now,
     seasons: [2025, 2024, 2023, 2022], hostFactionId: 'mesopotamia' };
 const create = overrides => Campaign.createCampaign({ ...input, ...overrides }, data);
 const reveal = state => Campaign.applyAction(state, { type: 'reveal-rulers', createdAt: now }, data);

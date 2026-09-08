@@ -11,14 +11,14 @@
         require('../shared/time-league-draft-room.js');
         require('../shared/time-league-season.js');
         const api = factory(require('./rules.js'), require('./army-generation.js'), require('./conquest.js'),
-            require('./favors.js'), root.App.TimeLeagueSeason, root.App.TimeLeagueDraftRoom);
+            require('./favors.js'), root.App.TimeLeagueSeason, root.App.TimeLeagueDraftRoom, require('./world.js'));
         (root.App = root.App || {}).DuatCampaign = api;
         module.exports = api;
     } else {
         root.App.DuatCampaign = factory(root.App.DuatRules, root.App.DuatArmies, root.App.DuatConquest,
-            root.App.DuatFavors, root.App.TimeLeagueSeason, root.App.TimeLeagueDraftRoom);
+            root.App.DuatFavors, root.App.TimeLeagueSeason, root.App.TimeLeagueDraftRoom, root.App.DuatWorld);
     }
-})(typeof window !== 'undefined' ? window : globalThis, function (Rules, Armies, Conquest, Favors, Season, DraftRoom) {
+})(typeof window !== 'undefined' ? window : globalThis, function (Rules, Armies, Conquest, Favors, Season, DraftRoom, World) {
     'use strict';
     const SCORING = Object.freeze({ passTd: 4, reception: 0.5, rushRecYd: 0.1, passingYd: 0.04, turnover: -1 });
     const SKILL_POSITIONS = new Set(['QB', 'RB', 'WR', 'TE']);
@@ -104,7 +104,147 @@
         return [...ranked.filter(player => player.position === 'QB').slice(0, 1),
             ...ranked.filter(player => player.position !== 'QB').slice(0, 4)].map(player => player.id);
     }
+    const DRAFT_ROUNDS = 8;
+    const DRAFT_PICK_COUNT = 14 * DRAFT_ROUNDS * 4;
+    const draftPoolCache = new WeakMap();
+    function draftPool(data, season) {
+        const source = data?.cards;
+        if (!source || typeof source !== 'object') fail('DATA_UNAVAILABLE', 'Historical player cards have not loaded.');
+        let cache = draftPoolCache.get(source);
+        if (!cache) { cache = new Map(); draftPoolCache.set(source, cache); }
+        if (!cache.has(season)) cache.set(season, cardsOf(data)
+            .filter(card => SKILL_POSITIONS.has(card.position) && card.seasons?.some(item => item.season === season))
+            .map(card => {
+                const identity = card.identity || DraftRoom.canonicalPlayerIdentity(card);
+                return { id: identity + ':' + season, identity, name: card.name, position: card.position,
+                    season, ...priorReference(card, season) };
+            }).sort((a, b) => b.referencePoints - a.referencePoints || a.id.localeCompare(b.id)));
+        return cache.get(season);
+    }
+    function turnAt(state, cursor) {
+        if (!state.draft || cursor < 0 || cursor >= DRAFT_PICK_COUNT) return null;
+        const armyIndex = Math.floor(cursor / (14 * DRAFT_ROUNDS));
+        const within = cursor % (14 * DRAFT_ROUNDS), round = Math.floor(within / 14) + 1;
+        const position = within % 14;
+        return { number: cursor + 1, factionId: state.draft.order[round % 2 ? position : 13 - position],
+            armyNumber: armyIndex + 1, round, pickInRound: position + 1, season: state.seasons[armyIndex] };
+    }
+    function draftTurn(state) {
+        return state.phase === 'draft' && state.draft?.status === 'active' ? turnAt(state, state.draft.cursor) : null;
+    }
+    function draftCandidates(state, data, options = {}) {
+        const turn = draftTurn(state);
+        if (!turn) return [];
+        const faction = factionOf(state, turn.factionId), army = faction.armies.find(item => item.season === turn.season);
+        const used = new Set(state.factions.flatMap(item => item.armies.flatMap(team => team.players.map(player => player.id))));
+        const pool = draftPool(data, turn.season).filter(player => !used.has(player.id));
+        const counts = team => ({ qb: team.players.filter(player => player.position === 'QB').length,
+            skill: team.players.filter(player => player.position !== 'QB').length });
+        const current = counts(army), slotsLeft = 7 - army.players.length;
+        const needs = state.factions.map(item => counts(item.armies.find(team => team.season === turn.season)));
+        const reserveQB = needs.filter(item => item.qb === 0).length;
+        const reserveSkill = needs.reduce((sum, item) => sum + Math.max(0, 4 - item.skill), 0);
+        const availableQB = pool.filter(player => player.position === 'QB').length;
+        const availableSkill = pool.length - availableQB;
+        const query = String(options.query || '').trim().toLowerCase();
+        return pool.filter(player => {
+            const qb = player.position === 'QB', nextQB = current.qb + Number(qb), nextSkill = current.skill + Number(!qb);
+            if (Math.max(0, 1 - nextQB) + Math.max(0, 4 - nextSkill) > slotsLeft) return false;
+            if (qb && current.qb > 0 && availableQB <= reserveQB) return false;
+            if (!qb && current.skill >= 4 && availableSkill <= reserveSkill) return false;
+            return (!options.position || player.position === options.position)
+                && (!query || player.name.toLowerCase().includes(query));
+        }).map(player => ({ ...player }));
+    }
+    function saveDraftPick(state, player, createdAt) {
+        const turn = turnAt(state, state.draft.cursor), faction = factionOf(state, turn.factionId);
+        const army = faction.armies.find(item => item.season === turn.season);
+        const { season: _season, ...card } = player;
+        army.players.push(card);
+        state.draft.picks.push({ ...turn, playerId: player.id, playerName: player.name, position: player.position });
+        state.draft.cursor++;
+        if (state.draft.cursor === DRAFT_PICK_COUNT) {
+            state.draft.status = 'complete'; state.phase = 'reveal';
+            state.activity.push({ week: 0, type: 'draft-complete', message: 'The armies are complete. The archaeologist can begin opening the tombs.', createdAt });
+        }
+    }
+    function advanceAIDraft(state, data, createdAt) {
+        while (state.phase === 'draft') {
+            const turn = draftTurn(state);
+            if (!turn || state.humanFactionIds.includes(turn.factionId)) break;
+            const faction = factionOf(state, turn.factionId), army = faction.armies.find(item => item.season === turn.season);
+            const qb = army.players.filter(player => player.position === 'QB').length;
+            const skill = army.players.length - qb;
+            const candidates = draftCandidates(state, data);
+            if (!candidates.length) fail('INSUFFICIENT_PLAYERS', 'This draft cannot fill every legal army.');
+            const random = Rules.createSeededRandom(state.seed + ':draft-ai:' + state.draft.cursor);
+            const ranked = candidates.map(player => ({ player, value: player.referencePoints
+                * (player.position === 'QB' ? (qb ? 0.25 : 1.2) : (skill < 4 ? 1 : 0.55)) + random() * 0.2 }))
+                .sort((a, b) => b.value - a.value || a.player.id.localeCompare(b.player.id));
+            saveDraftPick(state, ranked[0].player, createdAt);
+        }
+        return state;
+    }
+    function revealProgress(state) {
+        const order = state.archaeology?.order || [];
+        const revealedCount = state.archaeology?.revealedFactionIds?.length || 0;
+        return { revealedCount, total: order.length, nextFactionId: order[revealedCount] || null,
+            complete: order.length > 0 && revealedCount === order.length, latest: state.archaeology?.latest ? copy(state.archaeology.latest) : null };
+    }
+    function revealFaction(state, factionId, createdAt) {
+        const faction = factionOf(state, factionId), random = Rules.createSeededRandom(state.seed + ':ruler:' + faction.id);
+        faction.rulerRoll = 1 + Math.floor(random() * 20);
+        const army = faction.armies.find(item => faction.rulerRoll >= item.rollBand.min && faction.rulerRoll <= item.rollBand.max);
+        faction.activeArmyId = army.id;
+        faction.lineup = recommendedLineup(state, faction.id);
+        state.archaeology.revealedFactionIds.push(faction.id);
+        state.archaeology.latest = { factionId: faction.id, factionName: faction.name, armyId: army.id,
+            rulerRoll: faction.rulerRoll, season: army.season, players: copy(army.players),
+            narration: { title: 'The tomb of ' + faction.name,
+                lines: ['The archaeologist brushes the dust from four royal seals.',
+                    'The die falls on ' + faction.rulerRoll + '. The ' + army.season + ' ruler answers.',
+                    'Eight names emerge from the stone. ' + faction.name + ' has its walking army.'] } };
+        state.activity.push({ week: 0, type: 'archaeology', factionId: faction.id,
+            message: faction.name + ' awakens its ' + army.season + ' ruler.', createdAt });
+        if (state.archaeology.revealedFactionIds.length === 14) {
+            state.phase = 'season';
+            state.activity.push({ week: 0, type: 'reveal', message: 'Fourteen rulers walk again. Week 1 is open.', createdAt });
+        }
+    }
+    function createDraftCampaign(input, data) {
+        const seasons = input.seasons || availableSeasons(data).slice(0, 4);
+        if (!Array.isArray(seasons) || seasons.length !== 4 || new Set(seasons).size !== 4 || seasons.some(season => !Number.isInteger(season))) fail('INVALID_SEASONS', 'Choose four different complete historical seasons.');
+        requireCoverage(seasons, data);
+        const hostFactionId = input.hostFactionId || World.FACTIONS[0].id;
+        const requested = input.factionIds || [...new Set([hostFactionId, ...(input.humanFactionIds || []), ...World.FACTIONS.map(faction => faction.id)])].slice(0, 14);
+        if (!Array.isArray(requested) || requested.length !== 14 || new Set(requested).size !== 14 || requested.some(id => !World.factionById(id))) fail('INVALID_FACTIONS', 'Choose fourteen different factions for the campaign.');
+        const humanFactionIds = [...new Set([hostFactionId, ...(input.humanFactionIds || [])])];
+        if (humanFactionIds.some(id => !requested.includes(id))) fail('INVALID_FACTIONS', 'Every human faction must be part of the fourteen active factions.');
+        for (const season of seasons) {
+            const pool = draftPool(data, season);
+            if (pool.length < 112 || pool.filter(player => player.position === 'QB').length < 14 || pool.filter(player => player.position !== 'QB').length < 56) fail('INSUFFICIENT_PLAYERS', 'These years cannot supply fourteen legal armies.');
+        }
+        const seed = string(input.seed, 'campaign seed'), createdAt = timestamp(input.createdAt);
+        const factions = requested.map(id => ({ ...copy(World.factionById(id)), controller: humanFactionIds.includes(id) ? 'human' : 'ai',
+            armies: seasons.map((season, index) => ({ id: id + ':' + season, season, rulerNumber: index + 1,
+                rulerName: season + ' Ruler', rollBand: copy(Rules.DUAT_ORIGINAL_D20_BANDS[index]), players: [] })),
+            activeArmyId: null, rulerRoll: null, lineup: [], favorBalance: Favors.STARTING_FAVOR_BALANCE, declaredFavor: null }));
+        return { version: 2, id: string(input.id, 'campaign ID'), name: string(input.name || 'The Duat', 'campaign name'),
+            seed, createdAt, updatedAt: createdAt, phase: 'draft', week: 1, seasons: [...seasons],
+            hostFactionId, humanFactionIds, scoring: { ...SCORING }, factions,
+            draft: { status: 'waiting', order: Armies.seededShuffle(requested, seed + ':draft-order'), cursor: 0,
+                totalPicks: DRAFT_PICK_COUNT, picks: [] },
+            archaeology: { order: Armies.seededShuffle(requested, seed + ':archaeology'), revealedFactionIds: [], latest: null },
+            alliances: Rules.buildHeptadAlliances(requested, Rules.defaultHeptadSettings(14), seed,
+                id => factions.find(faction => faction.id === id).name),
+            conquest: Conquest.createConquest({ season: 1, factionIds: requested, worldId: World.WORLD_ID, seed: seed + ':world' }),
+            completedWeeks: [], playoffField: [], championId: null, heptad: null, heavenly: null,
+            activity: [{ week: 0, type: 'founded', message: 'Four royal armies must be drafted before the tombs can open.', createdAt }] };
+    }
+
     function createCampaign(input, data) {
+        if (input.version !== undefined && ![1, 2].includes(input.version)) fail('INVALID_VERSION', 'Choose a supported campaign version.');
+        if (input.version !== 1) return createDraftCampaign(input, data);
         const complete = availableSeasons(data);
         const seasons = input.seasons || complete.slice(0, 4);
         if (!Array.isArray(seasons) || seasons.length !== 4 || new Set(seasons).size !== 4 || seasons.some(season => !Number.isInteger(season))) {
@@ -181,6 +321,27 @@
     function unresolvedClaims(state) {
         return state.humanFactionIds.filter(id => state.conquest.pendingClaims[id] > 0 && Conquest.eligibleTerritories(state.conquest, id).length > 0);
     }
+    function settleAIWorldActions(state, createdAt) {
+        if (state.version !== 2 || state.phase !== 'season') return state;
+        for (const faction of state.factions.filter(item => item.controller === 'ai')) {
+            while (state.conquest.campaignActions[faction.id] > 0) {
+                const previews = Conquest.attackableTerritories(state.conquest, faction.id)
+                    .map(territoryId => ({ territoryId, ...Conquest.previewAttack(state.conquest, { factionId: faction.id, territoryId }) }))
+                    .filter(item => item.canAttack).sort((a, b) => b.winChance - a.winChance || a.territoryId.localeCompare(b.territoryId));
+                const random = Rules.createSeededRandom(state.seed + ':world-ai:' + state.week + ':' + faction.id + ':' + state.conquest.events.length);
+                const threshold = 0.45 + random() * 0.15;
+                if (previews.length && previews[0].winChance >= threshold) {
+                    state.conquest = Conquest.attackTerritory(state.conquest, { factionId: faction.id, territoryId: previews[0].territoryId, createdAt });
+                    continue;
+                }
+                const defenses = Conquest.fortifiableTerritories(state.conquest, faction.id)
+                    .sort((a, b) => (state.conquest.fortifications[a] || 0) - (state.conquest.fortifications[b] || 0) || a.localeCompare(b));
+                if (!defenses.length) break;
+                state.conquest = Conquest.fortifyTerritory(state.conquest, { factionId: faction.id, territoryId: defenses[0], createdAt });
+            }
+        }
+        return state;
+    }
     function settleAIClaims(state, createdAt) {
         if (unresolvedClaims(state).length) return state;
         for (const faction of state.factions.filter(item => item.controller === 'ai')) {
@@ -192,7 +353,7 @@
                 state.conquest = Conquest.claimTerritory(state.conquest, { factionId: faction.id, territoryId, createdAt });
             }
         }
-        return state;
+        return settleAIWorldActions(state, createdAt);
     }
     function chooseAIFavor(state, faction) {
         if (!Rules.SACRED_WEEKS.includes(state.week) || faction.favorBalance < 10) return null;
@@ -243,7 +404,7 @@
         const completed = { week: state.week, factions: results, allianceScores, standings: [], heptad: null, heavenly: null };
         state.completedWeeks.push(completed);
         completed.standings = computeStandings(state);
-        if (state.week <= 14) {
+        if (state.week <= 14 || state.version === 2) {
             const ranks = [...results].sort((a, b) => b.total - a.total || a.factionId.localeCompare(b.factionId));
             state.conquest = Conquest.recordWeek(state.conquest, { week: state.week, createdAt,
                 results: ranks.map((result, index) => ({ factionId: result.factionId, place: index + 1, score: result.total })) });
@@ -271,7 +432,28 @@
         if (!action || typeof action.type !== 'string') fail('INVALID_ACTION', 'Choose a campaign action.');
         const next = copy(state);
         const createdAt = timestamp(action.createdAt || state.updatedAt);
-        if (action.type === 'reveal-rulers') {
+        if (['start-draft', 'draft-pick', 'reveal-next'].includes(action.type)) {
+            if (state.version !== 2) fail('INVALID_ACTION', 'This campaign uses the original preseason flow.');
+            if (action.type !== 'draft-pick' && action.factionId && action.factionId !== state.hostFactionId) fail('HOST_REQUIRED', 'Only the host can advance the draft or archaeology.');
+            if (action.type === 'start-draft') {
+                if (state.phase !== 'draft' || state.draft.status !== 'waiting') fail('INVALID_PHASE', 'This draft has already started.');
+                requireCoverage(state.seasons, data);
+                next.draft.status = 'active';
+                next.activity.push({ week: 0, type: 'draft-started', message: 'The four-army draft is open. Every human controls their own picks.', createdAt });
+                advanceAIDraft(next, data, createdAt);
+            } else if (action.type === 'draft-pick') {
+                const turn = draftTurn(state);
+                if (!turn) fail('INVALID_PHASE', 'The draft is not accepting picks.');
+                if (turn.factionId !== action.factionId || !state.humanFactionIds.includes(action.factionId)) fail('DRAFT_TURN', 'Wait for your faction’s turn to draft.');
+                const player = draftCandidates(state, data).find(item => item.id === action.playerId);
+                if (!player) fail('INVALID_PICK', 'Choose an available player who leaves room for a legal army.');
+                saveDraftPick(next, player, createdAt);
+                advanceAIDraft(next, data, createdAt);
+            } else {
+                if (state.phase !== 'reveal') fail('INVALID_PHASE', 'Finish the draft before opening the tombs.');
+                revealFaction(next, revealProgress(state).nextFactionId, createdAt);
+            }
+        } else if (action.type === 'reveal-rulers') {
             if (state.phase !== 'preseason') fail('INVALID_PHASE', 'The rulers have already been revealed.');
             requireCoverage(state.seasons, data);
             for (const faction of next.factions) {
@@ -299,24 +481,39 @@
                 else if (action.type === 'claim') {
                     next.conquest = Conquest.claimTerritory(next.conquest, { factionId: faction.id, territoryId: action.territoryId, createdAt });
                     settleAIClaims(next, createdAt);
+                } else if (action.type === 'attack' || action.type === 'fortify') {
+                    if (next.version !== 2) fail('INVALID_ACTION', 'This map does not use country battles.');
+                    const operation = action.type === 'attack' ? Conquest.attackTerritory : Conquest.fortifyTerritory;
+                    next.conquest = operation(next.conquest, { factionId: faction.id, territoryId: action.territoryId, createdAt });
                 } else fail('INVALID_ACTION', 'Unknown campaign action.');
             }
         }
         next.updatedAt = createdAt;
         return next;
     }
-    function projectCampaign(state, viewerFactionId) {
+    function projectCampaign(state, viewerFactionId, data) {
         factionOf(state, viewerFactionId);
         const projected = copy(state);
         delete projected.seed;
+        if (projected.conquest) delete projected.conquest.seed;
         projected.factions = projected.factions.map(faction => {
             if (faction.id !== viewerFactionId) {
                 faction.lineup = [];
                 faction.declaredFavor = null;
-                if (state.phase === 'preseason') { faction.armies = []; faction.activeArmyId = null; faction.rulerRoll = null; }
+                const sealed = state.version === 1 ? state.phase === 'preseason'
+                    : !state.archaeology.revealedFactionIds.includes(faction.id);
+                if (sealed) { faction.armies = []; faction.activeArmyId = null; faction.rulerRoll = null; }
             }
             return faction;
         });
+        if (state.version === 2) {
+            projected.draft.picks = state.draft.picks.map(pick => pick.factionId === viewerFactionId ? copy(pick)
+                : { number: pick.number, factionId: pick.factionId, armyNumber: pick.armyNumber, round: pick.round,
+                    season: pick.season, sealed: true });
+            projected.draft.turn = draftTurn(state);
+            projected.draft.candidates = projected.draft.turn?.factionId === viewerFactionId && data ? draftCandidates(state, data) : [];
+            projected.archaeology.progress = revealProgress(state);
+        }
         return projected;
     }
     /** Validate a full saved campaign, not a redacted online projection.
@@ -333,20 +530,58 @@
     function assertCampaign(state) {
         const invalid = message => fail('INVALID_CAMPAIGN', message);
         const finite = value => typeof value === 'number' && Number.isFinite(value);
-        if (!state || state.version !== 1 || !['preseason', 'season', 'complete'].includes(state.phase)) invalid('Unsupported Duat campaign.');
+        if (!state || ![1, 2].includes(state.version) || !(state.version === 1 ? ['preseason', 'season', 'complete'] : ['draft', 'reveal', 'season', 'complete']).includes(state.phase)) invalid('Unsupported Duat campaign.');
         if (!Number.isInteger(state.week) || state.week < 1 || state.week > 18
-            || (state.phase === 'preseason' && state.week !== 1)
+            || (['preseason', 'draft', 'reveal'].includes(state.phase) && state.week !== 1)
             || (state.phase === 'season' && state.week > 17)
             || (state.phase === 'complete' && state.week !== 18)) invalid('Invalid campaign week.');
         for (const key of ['id', 'name', 'seed', 'createdAt', 'updatedAt']) if (typeof state[key] !== 'string' || !state[key] || state[key].length > 160) invalid('Missing campaign identity.');
         if (!Number.isFinite(Date.parse(state.createdAt)) || !Number.isFinite(Date.parse(state.updatedAt))) invalid('Invalid campaign timestamp.');
         if (!Array.isArray(state.seasons) || state.seasons.length !== 4 || new Set(state.seasons).size !== 4
             || state.seasons.some(year => !Number.isInteger(year) || year < 1920 || year > 2100)) invalid('Invalid ruler years.');
-        const ids = Rules.FACTIONS.map(faction => faction.id);
+        const catalog = state.version === 2 ? World.FACTIONS : Rules.FACTIONS;
+        const knownIds = catalog.map(faction => faction.id);
+        if (!Array.isArray(state.factions) || state.factions.length !== 14 || new Set(state.factions.map(f => f?.id)).size !== 14 || state.factions.some(f => !knownIds.includes(f?.id))) invalid('Choose fourteen known factions.');
+        const ids = state.factions.map(faction => faction.id);
+        const drafting = state.version === 2 && state.phase === 'draft';
         const exactIds = values => Array.isArray(values) && values.length === 14 && new Set(values).size === 14 && values.every(id => ids.includes(id));
         if (!Array.isArray(state.factions) || !exactIds(state.factions.map(faction => faction?.id))) invalid('A Duat campaign needs fourteen original factions.');
         if (!Array.isArray(state.humanFactionIds) || !state.humanFactionIds.length || new Set(state.humanFactionIds).size !== state.humanFactionIds.length
             || state.humanFactionIds.some(id => !ids.includes(id)) || !state.humanFactionIds.includes(state.hostFactionId)) invalid('Invalid human faction seats.');
+        if (state.version === 2) {
+            const draft = state.draft, archaeology = state.archaeology;
+            if (!draft || !exactIds(draft.order) || !Number.isInteger(draft.cursor) || draft.cursor < 0 || draft.cursor > DRAFT_PICK_COUNT
+                || draft.totalPicks !== DRAFT_PICK_COUNT || !Array.isArray(draft.picks) || draft.picks.length !== draft.cursor) invalid('Invalid army draft progress.');
+            if (drafting ? !['waiting', 'active'].includes(draft.status) || draft.cursor === DRAFT_PICK_COUNT
+                || (draft.status === 'waiting' && draft.cursor !== 0)
+                : draft.status !== 'complete' || draft.cursor !== DRAFT_PICK_COUNT) invalid('The draft stage does not match its picks.');
+            for (const [index, pick] of draft.picks.entries()) {
+                const turn = turnAt(state, index);
+                if (!pick || Object.keys(turn).some(key => pick[key] !== turn[key])) invalid('Draft picks must follow the snake order.');
+                const army = state.factions.find(f => f.id === pick.factionId).armies?.find(a => a.season === pick.season);
+                const player = army?.players?.find(p => p.id === pick.playerId);
+                if (!player || pick.playerName !== player.name || pick.position !== player.position) invalid('A draft receipt does not match its army.');
+            }
+            for (const faction of state.factions) for (const army of faction.armies || []) {
+                const picks = draft.picks.filter(p => p.factionId === faction.id && p.season === army.season);
+                if (!Array.isArray(army.players) || picks.length !== army.players.length
+                    || new Set(picks.map(p => p.playerId)).size !== picks.length) invalid('The draft cannot duplicate or invent players.');
+            }
+            if (!archaeology || !exactIds(archaeology.order) || !Array.isArray(archaeology.revealedFactionIds)
+                || archaeology.revealedFactionIds.length > 14 || archaeology.revealedFactionIds.some((id, index) => id !== archaeology.order[index])) invalid('Invalid archaeology order.');
+            const revealed = archaeology.revealedFactionIds.length;
+            if (drafting ? revealed !== 0 : state.phase === 'reveal' ? revealed >= 14 : revealed !== 14) invalid('The archaeology stage does not match revealed teams.');
+            if (revealed === 0 ? archaeology.latest !== null : !archaeology.latest || archaeology.latest.factionId !== archaeology.revealedFactionIds.at(-1)) invalid('Invalid latest tomb reveal.');
+            if (revealed) {
+                const latest = archaeology.latest, faction = state.factions.find(f => f.id === latest.factionId), army = activeArmy(faction);
+                if (!army || latest.armyId !== army.id || latest.season !== army.season || latest.rulerRoll !== faction.rulerRoll
+                    || !Array.isArray(latest.players) || latest.players.length !== 8
+                    || latest.players.some((player, index) => player.id !== army.players[index]?.id || player.name !== army.players[index]?.name)
+                    || typeof latest.narration?.title !== 'string' || !Array.isArray(latest.narration?.lines)
+                    || latest.narration.lines.length < 1 || latest.narration.lines.some(line => typeof line !== 'string')) invalid('Invalid archaeological player reveal.');
+            }
+
+        }
         const usedPlayers = new Set();
         for (const faction of state.factions) {
             if (faction.controller !== (state.humanFactionIds.includes(faction.id) ? 'human' : 'ai')) invalid('Invalid faction controller.');
@@ -356,7 +591,7 @@
                 const band = Rules.DUAT_ORIGINAL_D20_BANDS[army.rulerNumber - 1];
                 if (!state.seasons.includes(army.season) || army.id !== faction.id + ':' + army.season || !band
                     || army.rollBand?.min !== band.min || army.rollBand?.max !== band.max) invalid('Invalid ruler identity or d20 band.');
-                if (!Array.isArray(army.players) || army.players.length !== 8 || new Set(army.players.map(player => player?.id)).size !== 8) invalid('A ruler needs eight distinct players.');
+                if (!Array.isArray(army.players) || (drafting ? army.players.length > 8 : army.players.length !== 8) || new Set(army.players.map(player => player?.id)).size !== army.players.length) invalid('A ruler needs eight distinct players.');
                 for (const player of army.players) {
                     if (!player || typeof player.name !== 'string' || !player.name || !SKILL_POSITIONS.has(player.position)
                         || typeof player.identity !== 'string' || player.id !== player.identity + ':' + army.season
@@ -365,10 +600,10 @@
                         && (!Number.isInteger(player.referenceSeason) || player.referenceSeason >= army.season))) invalid('Invalid preseason reference.');
                     usedPlayers.add(player.id);
                 }
-                if (!army.players.some(player => player.position === 'QB') || army.players.filter(player => player.position !== 'QB').length < 4) invalid('A ruler cannot field the original lineup.');
+                if ((!drafting || army.players.length === 8) && (!army.players.some(player => player.position === 'QB') || army.players.filter(player => player.position !== 'QB').length < 4)) invalid('A ruler cannot field the original lineup.');
             }
             if (!finite(faction.favorBalance) || faction.favorBalance < 0 || faction.favorBalance > Favors.STARTING_FAVOR_BALANCE) invalid('Invalid favor treasury.');
-            if (state.phase === 'preseason') {
+            if (state.phase === 'preseason' || drafting || (state.phase === 'reveal' && !state.archaeology?.revealedFactionIds?.includes(faction.id))) {
                 if (faction.activeArmyId !== null || faction.rulerRoll !== null || !Array.isArray(faction.lineup) || faction.lineup.length) invalid('A sealed ruler cannot have a lineup.');
             } else {
                 const army = activeArmy(faction);
@@ -408,16 +643,23 @@
             || new Set(state.alliances.map(alliance => alliance.id)).size !== 7
             || state.alliances.some(alliance => alliance.teamIds.length !== 2)) invalid('Invalid Heptad alliances.');
         const conquest = state.conquest;
-        if (!conquest || conquest.version !== 1 || !exactIds(conquest.factionIds) || !conquest.owners || !conquest.homes
+        if (!conquest || conquest.version !== (state.version === 2 ? 2 : 1) || !exactIds(conquest.factionIds) || !conquest.owners || !conquest.homes
             || !conquest.claimOrder || !conquest.pendingClaims || !Array.isArray(conquest.events)) invalid('Invalid conquest map.');
-        const territoryIds = new Set(Rules.TERRITORIES.map(territory => territory.id));
+        const territoryIds = new Set((state.version === 2 ? World.TERRITORIES : Rules.TERRITORIES).map(territory => territory.id));
         for (const [territoryId, owner] of Object.entries(conquest.owners)) if (!territoryIds.has(territoryId) || !ids.includes(owner)) invalid('Invalid territory owner.');
-        for (const faction of Rules.FACTIONS) {
+        for (const faction of catalog.filter(faction => ids.includes(faction.id))) {
             if (conquest.homes[faction.id] !== faction.homeTerritoryId || conquest.owners[faction.homeTerritoryId] !== faction.id
                 || !Array.isArray(conquest.claimOrder[faction.id]) || conquest.claimOrder[faction.id][0] !== faction.homeTerritoryId
                 || new Set(conquest.claimOrder[faction.id]).size !== conquest.claimOrder[faction.id].length
                 || conquest.claimOrder[faction.id].some(id => conquest.owners[id] !== faction.id)
                 || !Number.isInteger(conquest.pendingClaims[faction.id]) || conquest.pendingClaims[faction.id] < 0 || conquest.pendingClaims[faction.id] > 28) invalid('Invalid faction territory state.');
+        }
+        if (state.version === 2) {
+            if (conquest.worldId !== World.WORLD_ID || typeof conquest.seed !== 'string' || !conquest.seed
+                || !conquest.campaignActions || !conquest.fortifications) invalid('Invalid country conquest state.');
+            for (const id of ids) if (!Number.isInteger(conquest.campaignActions[id]) || conquest.campaignActions[id] < 0 || conquest.campaignActions[id] > 3) invalid('Invalid campaign action reserve.');
+            for (const [id, level] of Object.entries(conquest.fortifications)) if (!territoryIds.has(id) || !conquest.owners[id]
+                || !Number.isInteger(level) || level < 0 || level > 3) invalid('Invalid territorial fortification.');
         }
         if (!Array.isArray(state.playoffField) || !Array.isArray(state.activity)) invalid('Missing campaign progress.');
         if (state.week <= 14 && state.playoffField.length) invalid('Playoff seeds must wait for Week 14.');
@@ -427,5 +669,5 @@
         return true;
     }
     return { SCORING, availableSeasons, createCampaign, applyAction, computeStandings, legalLineup,
-        activeArmy, estimatePlayer, recommendedLineup, projectCampaign, validateCampaign };
+        activeArmy, estimatePlayer, recommendedLineup, projectCampaign, validateCampaign, draftTurn, draftCandidates, revealProgress };
 });

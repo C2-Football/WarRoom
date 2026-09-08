@@ -84,6 +84,10 @@ jobs:
           # Complete helmet originals are loaded directly in artist-color mode.
           mkdir -p pages-artifact/images/time-league
           cp -R images/time-league/helmets pages-artifact/images/time-league/
+          cp -R images/duat pages-artifact/images/
+          for asset in hero.webp horus.webp kratos.webp janus.webp excavation.webp manifest.json; do
+            test -s "pages-artifact/images/duat/$asset"
+          done
           rm -rf pages-artifact/**/.git pages-artifact/**/node_modules pages-artifact/**/supabase pages-artifact/**/tests
 
       - name: Setup Pages

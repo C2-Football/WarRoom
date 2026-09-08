@@ -25,6 +25,8 @@ const fixture = input => ({ version: 1, id: input.id || 'fixture', name: input.n
             create function gen_random_bytes(n integer) returns bytea language sql as $$select substring(decode(repeat(md5(random()::text),n),'hex') from 1 for n)$$;`);
         const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260908160000_duat_campaigns.sql'), 'utf8');
         await db.exec(migration); await db.exec(migration);
+        const draftMigration=fs.readFileSync(path.join(root,'supabase/migrations/20260908180000_duat_draft_campaigns.sql'),'utf8');
+        await db.exec(draftMigration); await db.exec(draftMigration);
         const users = (await query('insert into app_users select gen_random_uuid() from generate_series(1,6) returning id')).map(row => row.id);
         const create = async () => (await query('select create_duat_campaign($1,$2) as id', [users[0], fixture({})]))[0].id;
         const row = async id => (await query('select * from duat_campaigns where id=$1', [id]))[0];
@@ -135,7 +137,7 @@ const fixture = input => ({ version: 1, id: input.id || 'fixture', name: input.n
             handleOptions:()=>null,json:(_req,body,status=200)=>new Response(JSON.stringify(body),{status}),
             requireActiveAppSession:async(_db,req)=>req.headers.get('x-test-user')?{userId:req.headers.get('x-test-user')}:null,
             availableSeasons:[2021,2022,2023,2024],loadData:async()=>({}),
-            App:{DuatRules:{FACTIONS:factionIds.map(id=>({id}))},DuatCampaign:{
+            App:{DuatRules:{FACTIONS:factionIds.map(id=>({id}))},DuatWorld:{FACTIONS:factionIds.map(id=>({id}))},DuatCampaign:{
                 createCampaign:fixture,
                 projectCampaign:(state,viewer)=>({id:state.id,name:state.name,phase:state.phase,week:state.week,viewer}),
                 applyAction:(state,action)=>{engineCalls++;return {...state,...(action.type==='reveal-rulers'?{phase:'season'}:{}),...(action.type==='advance-week'?{week:state.week+1}:{})};},
@@ -186,7 +188,7 @@ const fixture = input => ({ version: 1, id: input.id || 'fixture', name: input.n
             const data=await runtime.loadData([2021,2022,2023,2024]);
             assert.deepEqual(runtime.App.DuatCampaign.availableSeasons(data),[2024,2023,2022,2021]);
             assert(data.cards.size>1000);assert(data.logIndex.size>15000);
-            const campaign=runtime.App.DuatCampaign.createCampaign({id:'edge-runtime-qa',name:'Edge runtime QA',seed:'edge-private-seed',createdAt:'2026-09-08T18:00:00Z',
+            const campaign=runtime.App.DuatCampaign.createCampaign({version:1,id:'edge-runtime-qa',name:'Edge runtime QA',seed:'edge-private-seed',createdAt:'2026-09-08T18:00:00Z',
                 seasons:[2021,2022,2023,2024],hostFactionId:factionIds[0],humanFactionIds:factionIds.slice(0,2)},data);
             const view=runtime.App.DuatCampaign.projectCampaign(campaign,factionIds[0]);
             assert.equal(view.seed,undefined);assert.equal(view.factions[1].armies.length,0);assert.equal(view.factions[0].armies.length,4);
@@ -195,6 +197,80 @@ const fixture = input => ({ version: 1, id: input.id || 'fixture', name: input.n
             assert.equal(scored.completedWeeks.length,1);assert.equal(scored.completedWeeks[0].factions.length,14);
             assert.equal(runtime.App.DuatCampaign.projectCampaign(scored,factionIds[1]).factions[0].lineup.length,0);
             await assert.rejects(()=>runtime.loadData([2021,2022,2023,2023]),/four complete/);
+            sandbox.App=runtime.App;sandbox.loadData=runtime.loadData;sandbox.availableSeasons=runtime.availableSeasons;
+        });
+        await test('cached clients without a version retain the complete original preseason API and unsupported versions fail',async()=>{
+            const input={name:'Cached original client',seasons:[2021,2022,2023,2024],hostFactionId:factionIds[0],humanFactionIds:[factionIds[0]]};
+            for(const version of [0,3,'2',null])assert.equal((await call(users[0],{op:'create',input:{...input,version}})).ok,false);
+            const made=await call(users[0],{op:'create',input});assert.equal(made.ok,true,made.error);
+            assert.equal(made.room.campaign.version,1);assert.equal(made.room.campaign.phase,'preseason');
+            assert.equal(made.room.campaign.factions.find(f=>f.id===factionIds[0]).armies.length,4);
+            const roomId=made.room.id;
+            const ready=await call(users[0],{op:'action',roomId,expectedRevision:made.room.revision,actionId:'legacy-ready',action:{type:'set-ready',ready:true}});
+            assert.equal(ready.ok,true,ready.error);
+            const revealed=await call(users[0],{op:'action',roomId,expectedRevision:ready.room.revision,actionId:'legacy-reveal',action:{type:'reveal-rulers'}});
+            assert.equal(revealed.ok,true,revealed.error);assert.equal(revealed.room.campaign.phase,'season');
+        });
+        await test('real v2 endpoint drafts both owned factions, enforces readiness and handles a simultaneous pick race',async()=>{
+            const selected=['persia',...sandbox.App.DuatWorld.FACTIONS.filter(f=>f.id!=='persia').slice(0,13).map(f=>f.id)];
+            const hostFaction='persia',friendFaction=selected[1];
+            const made=await call(users[0],{op:'create',input:{version:2,name:'Real v2 online draft',seasons:[2021,2022,2023,2024],hostFactionId:hostFaction,humanFactionIds:[friendFaction],factionIds:selected}});
+            assert.equal(made.ok,true,made.error);let room=made.room;const roomId=room.id;
+            assert.equal(room.campaign.version,2);assert.equal(room.campaign.phase,'draft');assert.equal(room.campaign.factions.length,14);
+            assert.equal(room.campaign.conquest.seed,undefined);
+            const invitation=room.seats.find(seat=>seat.factionId===friendFaction).inviteCode;assert(invitation);
+            const load=async user=>(await call(user,{op:'load',roomId})).room;
+            let dataLoads=0;const actualLoad=sandbox.loadData;sandbox.loadData=async(...args)=>{dataLoads++;return actualLoad(...args);};
+            let serial=0;
+            const action=async(user,intent)=>{const fresh=await load(user);return call(user,{op:'action',roomId,expectedRevision:fresh.revision,actionId:'v2-'+serial++,action:intent});};
+            const must=async(user,intent)=>{const result=await action(user,intent);assert.equal(result.ok,true,result.error);return result.room;};
+            assert.equal((await action(users[0],{type:'start-draft'})).ok,false);
+            assert.equal((await call(users[1],{op:'claim',code:invitation})).ok,true);
+            await must(users[0],{type:'set-ready',ready:true});await must(users[1],{type:'set-ready',ready:true});
+            assert.equal((await action(users[1],{type:'start-draft'})).status,403);
+            room=await must(users[0],{type:'start-draft'});assert.equal(room.campaign.draft.status,'active');
+            assert(room.seats.filter(s=>s.controller==='human').every(s=>!s.ready));
+            assert.equal((await action(users[0],{type:'set-ready',ready:true})).ok,false);
+            let humanPicks=0;
+            while(room.campaign.phase==='draft'){
+                const turn=room.campaign.draft.turn;assert([hostFaction,friendFaction].includes(turn.factionId));
+                const actor=turn.factionId===hostFaction?users[0]:users[1],other=actor===users[0]?users[1]:users[0];
+                const beforeOwn=dataLoads,own=await load(actor);assert.equal(dataLoads,beforeOwn+1);
+                const beforeOther=dataLoads,rival=await load(other);assert.equal(dataLoads,beforeOther);
+                const candidates=own.campaign.draft.candidates;
+                assert(candidates.length);assert.equal(rival.campaign.draft.candidates.length,0);
+                assert.equal(own.campaign.seed,undefined);assert.equal(own.campaign.conquest.seed,undefined);
+                for(const pick of rival.campaign.draft.picks)if(pick.factionId===turn.factionId)assert.equal(pick.playerId,undefined);
+                if(humanPicks===0){
+                    assert.equal((await action(other,{type:'draft-pick',playerId:candidates[0].id})).ok,false);
+                    const requests=candidates.slice(0,2).map((player,index)=>({op:'action',roomId,expectedRevision:own.revision,actionId:'v2-raced-pick-'+index,action:{type:'draft-pick',playerId:player.id}}));
+                    const race=await Promise.all(requests.map(body=>call(actor,body)));
+                    assert.equal(race.filter(r=>r.ok).length,1);assert.equal(race.filter(r=>r.status===409&&r.conflict).length,1);
+                    const winner=race.findIndex(r=>r.ok),retry=await call(actor,requests[winner]);assert.equal(retry.deduplicated,true);
+                    assert.equal((await call(actor,{...requests[winner],action:{type:'draft-pick',playerId:candidates[2].id}})).ok,false);
+                    room=retry.room;
+                }else room=await must(actor,{type:'draft-pick',playerId:candidates[0].id});
+                humanPicks++;
+            }
+            assert.equal(humanPicks,64);assert.equal(room.campaign.draft.cursor,448);assert.equal(room.campaign.phase,'reveal');
+            assert.equal((await action(users[0],{type:'reveal-next'})).ok,false);
+            await must(users[0],{type:'set-ready',ready:true});await must(users[1],{type:'set-ready',ready:true});
+            assert.equal((await action(users[1],{type:'reveal-next'})).status,403);
+            for(let count=1;count<=14;count++){
+                room=await must(users[0],{type:'reveal-next'});
+                assert.equal(room.campaign.archaeology.revealedFactionIds.length,count);assert.equal(room.campaign.archaeology.latest.players.length,8);
+                if(count===1)assert.equal((await action(users[1],{type:'set-ready',ready:false})).ok,false);
+                const friend=await load(users[1]);
+                for(const faction of friend.campaign.factions)if(faction.id!==friendFaction)assert.equal(faction.armies.length,friend.campaign.archaeology.revealedFactionIds.includes(faction.id)?4:0);
+                assert.equal(room.campaign.phase,count===14?'season':'reveal');
+            }
+            assert(room.seats.filter(s=>s.controller==='human').every(s=>!s.ready));
+            await must(users[0],{type:'set-ready',ready:true});await must(users[1],{type:'set-ready',ready:true});
+            room=await must(users[0],{type:'advance-week'});assert.equal(room.campaign.week,2);assert.equal(room.campaign.completedWeeks[0].factions.length,14);
+            const rejoined=await load(users[1]);assert.deepEqual(rejoined.campaign.completedWeeks,room.campaign.completedWeeks);
+            const protectedHome=room.campaign.conquest.homes[hostFaction];
+            const fortify=await action(users[0],{type:'fortify',territoryId:protectedHome});assert.equal(fortify.ok,false);assert.doesNotMatch(fortify.error,/Unknown campaign action|supported Duat action/);
+            assert.equal((await action(users[1],{type:'attack',factionId:hostFaction,territoryId:protectedHome})).status,403);
         });
         console.log('\n'+passed+' Duat online transaction and endpoint scenarios passed.');
     } finally { await db.close(); }

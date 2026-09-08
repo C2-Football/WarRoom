@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "generatedDate": "2026-09-08",
+  "generationTool": "OpenAI built-in image_gen",
+  "generationMode": "Built-in tool; no API key or CLI",
+  "useCase": "stylized-concept",
+  "direction": "Painterly mythic strategy: ancient temples, bronze, fire, obsidian, lapis lazuli and turquoise.",
+  "provenance": "Original images generated for The Duat. No external reference images or copied artwork were used. The original Duat og.png was inspected for inventory only and was not an image input.",
+  "generationDirectoryId": "01a081cc-5e7b-7992-8166-b445a0202234",
+  "processing": "Format conversion only: RGB WebP quality 86, method 6. Original pixel dimensions and composition preserved; no crop, resize, retouch or paint-over. Source PNGs remain in Codex generated_images.",
+  "notes": [
+    "These are fictional mythological illustrations, not historical source material or geographic maps.",
+    "Actual geography, interface text, god names and game rules are rendered separately in code.",
+    "Kratos depicts the ancient Greek personification of strength; the prompt excludes the modern video-game character design."
+  ],
+  "assets": [
+    {
+      "id": "hero",
+      "file": "images/duat/hero.webp",
+      "sourceFile": "exec-7f793f02-ba9b-45f0-ac2c-7d77fe0b8c3b.png",
+      "width": 1672,
+      "height": 941,
+      "sourceBytes": 2429625,
+      "bytes": 249132,
+      "sha256": "b00bb96b43758455600f83f361063d828dbadf22c9e183ef5d7ccf805746250f",
+      "sourceSha256": "40edabdd1e0bc0d4b9f317c0c9c4be8643a9affbbb692c88d8820190b9b4cc94",
+      "intendedUse": "Campaign setup hero and atmospheric command-room backdrop",
+      "alt": "A bronze-lit ancient temple council room overlooking a luminous river and distant mountain temples.",
+      "prompt": "Use case: stylized-concept. Asset type: wide landscape hero background for The Duat historical mythology strategy game. Primary request: an ancient archaeological temple war room opening onto a vast mythic world, the feeling of a discovered civilization returning to life. Scene: monumental weathered stone columns and bronze braziers frame a terrace; a worn bronze council table and a sealed stone ruler tomb sit in the near foreground; beyond, a luminous turquoise river winds through distant mountains and ancient temple silhouettes under an immense sunlit, smoky sky. A cohesive original painterly mythic strategy game art collection: richly textured digital oil painting, strong confident brushwork, restrained gilded details, warm bronze and aged gold, deep obsidian shadows, lapis lazuli and turquoise accents, firelight, volumetric dust, rich colors, premium illustrated strategy-card finish. Evocative and beautiful, dramatic readable silhouettes, painterly rather than photorealistic or plastic 3D. No text, captions, lettering, logos, signatures, watermarks, UI, frames or card borders. Composition: panoramic widescreen 16:9, visually compelling center and right, the left third has a calm darker atmospheric region usable behind interface text; environmental depth, no close-up people. Landscape is atmospheric and impressionistic, not a geographic map. Avoid detailed or invented map boundaries, political borders, cartographic labels, modern objects, football equipment, visual clutter."
+    },
+    {
+      "id": "horus",
+      "file": "images/duat/horus.webp",
+      "sourceFile": "exec-6113ebde-7e1d-4bee-8536-7d13a8af3f33.png",
+      "width": 1122,
+      "height": 1402,
+      "sourceBytes": 2682874,
+      "bytes": 291924,
+      "sha256": "5808fbb3f8a585e448226290c89bad0a674c91330455342cb0868dedee4cb860",
+      "sourceSha256": "1b0180687681b9ec08fd8db7d95ae32c6fc0aa9b3ccb6d919e17eb126b7ecb6a",
+      "intendedUse": "Horus Defense favor cards",
+      "alt": "Horus with a falcon head, turquoise and lapis collar, and weathered bronze armor.",
+      "prompt": "Use case: stylized-concept. Asset type: individual god portrait for a strategy game's favor-selection card. Subject: Horus, the ancient Egyptian falcon-headed god, a regal anthropomorphic figure with a convincingly shaped dark falcon head, sharp curved beak, alert luminous eye, broad lapis-lazuli and turquoise collar, layered ancient bronze and gold armor. He conveys steadfast protection and watchful intelligence. A subtle warm solar halo and atmospheric temple stone behind him, firelight touching worn metal. A cohesive original painterly mythic strategy game art collection: richly textured digital oil painting, strong confident brushwork, restrained gilded details, warm bronze and aged gold, deep obsidian shadows, lapis lazuli and turquoise accents, firelight, volumetric dust, rich colors, premium illustrated strategy-card finish. Evocative and beautiful, dramatic readable silhouettes, painterly rather than photorealistic or plastic 3D. No text, captions, lettering, logos, signatures, watermarks, UI, frames or card borders. Composition: vertical portrait 4:5, chest-up to waist, head centered in upper half, complete falcon head fully inside the image with generous clearance, large clear silhouette readable as a thumbnail. No text, no multi-panel sheet, no other figures, no eagle-shaped human helmet: his head itself is a falcon. Respectful mythological character design."
+    },
+    {
+      "id": "kratos",
+      "file": "images/duat/kratos.webp",
+      "sourceFile": "exec-df1f22cb-0adc-4fbe-b228-f9683ecbed13.png",
+      "width": 1122,
+      "height": 1402,
+      "sourceBytes": 2519443,
+      "bytes": 258906,
+      "sha256": "f434e24bfcb7758b0069fe17cc8bcb2c07be018b2789601a8f23e18fad0587a1",
+      "sourceSha256": "73c09eb2a74313440e3a7c40371f1f3273957f4de355e77f471e6ab87735e994",
+      "intendedUse": "Kratos Wrath favor cards",
+      "alt": "The ancient Greek personification of strength, with dark curls, a bronze shoulder guard and broken chain.",
+      "prompt": "Use case: stylized-concept. Asset type: individual god portrait for a strategy game's favor-selection card. Subject: Kratos, the ancient Greek personification of strength, designed originally from classical mythology rather than any video-game depiction. A powerful adult Mediterranean man with bronze-brown skin, thick dark curly hair, a short full curly beard, an ancient bronze shoulder guard and a weathered ochre-red cloak, his forearm and hand gripping a heavy broken bronze chain as a symbol of strength. Calm commanding expression, immense physical power, classical Greek bearing. Hazy stone pillars and sparks of warm firelight behind him. A cohesive original painterly mythic strategy game art collection: richly textured digital oil painting, strong confident brushwork, restrained gilded details, warm bronze and aged gold, deep obsidian shadows, lapis lazuli and turquoise accents, firelight, volumetric dust, rich colors, premium illustrated strategy-card finish. Evocative and beautiful, dramatic readable silhouettes, painterly rather than photorealistic or plastic 3D. No text, captions, lettering, logos, signatures, watermarks, UI, frames or card borders. Composition: vertical portrait 4:5, waist-up, face in upper half and complete head within the image, strong readable silhouette. No bald head, no red skin tattoo, no pale ash-white skin, no modern fantasy video-game weapon, no blood, no combat scene, no multi-panel sheet, no other figures."
+    },
+    {
+      "id": "janus",
+      "file": "images/duat/janus.webp",
+      "sourceFile": "exec-2acef89a-e6f6-46d3-a8aa-c057055392e2.png",
+      "width": 1122,
+      "height": 1402,
+      "sourceBytes": 2568853,
+      "bytes": 256306,
+      "sha256": "f2e7a2b2403662688a735c385426b4d8bee4304daf4c4c5adb17a1fa118eb61a",
+      "sourceSha256": "687f215a825f2d6c66625b079b90b7f81213425b104166bfa397e9da7ca36f73",
+      "intendedUse": "Janus Recollection favor cards",
+      "alt": "Janus as one two-faced Roman figure, with older and younger profiles looking in opposite directions.",
+      "prompt": "Use case: stylized-concept. Asset type: individual god portrait for a strategy game's favor-selection card. Subject: Janus, the ancient Roman two-faced god of beginnings, passages and memory, represented clearly as a single solemn divine figure with two distinct human faces looking in opposite directions from one head, a dignified mature profile looking left and a younger profile looking right. They meet as a coherent classical double-faced sculptural form, not a melted face or extra disembodied heads. Ancient bronze laurel crown, rich lapis-blue drapery and warm bronze clasp, oxidized turquoise architectural details around an open stone doorway behind him. The two profiles are lit by contrasting warm firelight and cool dawn light. A cohesive original painterly mythic strategy game art collection: richly textured digital oil painting, strong confident brushwork, restrained gilded details, warm bronze and aged gold, deep obsidian shadows, lapis lazuli and turquoise accents, firelight, volumetric dust, rich colors, premium illustrated strategy-card finish. Evocative and beautiful, dramatic readable silhouettes, painterly rather than photorealistic or plastic 3D. No text, captions, lettering, logos, signatures, watermarks, UI, frames or card borders. Composition: vertical portrait 4:5, chest-up, both complete profiles comfortably within the image, clear iconic silhouette, central balanced bust with painterly organic human faces. No text, no modern clock, no numbers, no multiframe sheet, no other figures."
+    },
+    {
+      "id": "excavation",
+      "file": "images/duat/excavation.webp",
+      "sourceFile": "exec-a4787c0b-9c9d-4d87-8fa5-1a1ad6d833a0.png",
+      "width": 1672,
+      "height": 941,
+      "sourceBytes": 2543640,
+      "bytes": 283806,
+      "sha256": "c6a49f88e1cd29f6d75b921de276c28da276a8f165ff40a0950e6ac0047f1f65",
+      "sourceSha256": "2a64cbd601c60273f9e8b855de64621245f52215e7d5e5f68d89ce171c4c35b4",
+      "intendedUse": "Archaeological expedition and ruler-reveal scene",
+      "alt": "An archaeologist carefully brushes sand from an ancient bronze funerary mask inside a sunlit temple.",
+      "prompt": "Use case: stylized-concept. Asset type: wide archaeological expedition illustration for a strategy game's ruler-unearthing reveal. Primary request: the awe of archaeologists carefully opening an ancient ruler's chamber. Scene: an adult woman archaeologist in practical linen field clothes kneels at an excavated stone sarcophagus, gently brushing sand from an ornate weathered bronze funerary mask; a second expedition member with a warm lantern stands farther back among monumental stone columns. Gold dust rises through a shaft of sun; turquoise and lapis inlays emerge from the sand; respectful study and discovery rather than plunder. The ancient ruler's sealed chamber feels poised to awaken, without showing a corpse, skeleton or horror. A cohesive original painterly mythic strategy game art collection: richly textured digital oil painting, strong confident brushwork, restrained gilded details, warm bronze and aged gold, deep obsidian shadows, lapis lazuli and turquoise accents, firelight, volumetric dust, rich colors, premium illustrated strategy-card finish. Evocative and beautiful, dramatic readable silhouettes, painterly rather than photorealistic or plastic 3D. No text, captions, lettering, logos, signatures, watermarks, UI, frames or card borders. Composition: cinematic landscape 16:9, the bronze mask and archaeologist's careful hands form the clear central focal point, spacious atmospheric background and corners so the image can crop well in a game panel. No geographic maps or invented borders, no legible hieroglyphic words, no text, no licensed adventure-movie character, no guns, no blood."
+    }
+  ]
+}

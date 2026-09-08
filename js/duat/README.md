@@ -1,124 +1,186 @@
 # The Duat historical game
 
 The Duat is a separate Dynasty HQ game, entered from the hub or
-`index.html?duat=1`. This implementation supports a complete historical season:
-solo against thirteen AI factions, or private campaigns with friends and AI.
-Solo play uses browser saves; friends use the authenticated Duat Edge endpoint.
-The backend and deployment wiring are included, but this document does not
-establish that any production deployment has occurred.
+`index.html?duat=1`. New campaigns use the v2 historical draft, archaeology reveal
+and country-conquest format: solo against thirteen AI factions, or private
+campaigns with friends and AI. Solo uses browser saves; friends use the
+authenticated Duat endpoint. Release wiring is included; production availability
+must be verified separately.
 
 Original rules were ported from The Duat at `ada801d`. Runtime code has no
 dependency on that checkout or its Sites hosting. The game reuses the Vault's
-pure identity, roster, player-card and stat-scoring helpers; Duat campaign state,
-browser storage and database tables are separate from Vault leagues.
+pure identity, roster, player-card and stat-scoring helpers. Duat state, browser
+storage and database tables remain separate from Vault leagues.
 
-## Modules and entry
+## Campaign versions and play
 
-| Module | Responsibility |
+| Contract | Existing v1 campaigns | New v2 campaigns |
+| --- | --- | --- |
+| Factions | Original fourteen | Choose from 28; fourteen active per campaign |
+| Armies | Four automatically allocated armies | Four eight-round snake drafts, one per selected historical year |
+| Opening | Original ruler reveal | Draft, then fourteen individual archaeology reveals |
+| World | Original 47 territories | 175 geographic country regions |
+| Conquest | Original neutral territory claims | Neutral claims plus separate attack/fortify actions |
+
+Versioned validation preserves existing saves and rooms; it does not silently
+convert their geography, army allocation or warfare rules. The original
+implementation report is retained at
+[`reports/duat-game-foundation-2026-09-08.md`](../../reports/duat-game-foundation-2026-09-08.md).
+The expansion and its verification are recorded separately in
+[`reports/duat-mythic-expansion-2026-09-08.md`](../../reports/duat-mythic-expansion-2026-09-08.md).
+
+A v2 campaign selects four distinct years from 2002–2025. Each of fourteen
+factions drafts eight players for each year: 448 total picks, including 32 for a
+single human faction. Seeded snake order alternates by round. Army validation
+preserves enough players to start one QB and four RB/WR/TE, with three on the
+bench. Draft estimates use prior seasons and position baselines; they do not
+read the selected year's scoring results.
+
+The host reveals one faction at a time. A seeded d20 chooses its walking ruler
+using the original bands 1–5, 6–10, 11–15 and 16–20. Opponent armies remain sealed
+until their reveal. Fourteen reveals open Week 1. All-play runs through Week 14;
+seven paired alliances play Heptad; the top seven enter the Heavenly Battle in
+Weeks 15–17, including reseeding and the Camel. Completed results can replay at
+one-, three- or five-minute pace with pause and quarter controls. The saved
+weekly result is authoritative; the replay is illustrative, not NFL play-by-play.
+
+## Modules and loading
+
+| Module / browser export | Responsibility |
 | --- | --- |
-| `rules.js` / `App.DuatRules` | Original faction, world and nineteen-favor catalogs; Heptad and Heavenly Battle |
-| `army-generation.js` / `App.DuatArmies` | Four-army allocation, archived/provider imports, reveal order and d20 bands |
-| `conquest.js` / `App.DuatConquest` | Homelands, weekly rewards/losses and connected territory claims |
-| `favors.js` / `App.DuatFavors` | Seven executable historical scoring favors, declaration validation and treasury costs |
-| `campaign.js` / `App.DuatCampaign` | Historical scoring, AI decisions, all-play standings, tournaments and complete-season actions |
-| `storage.js` / `App.DuatStorage` | Validated solo saves, save-index recovery and storage failure handling |
-| `remote.js` / `App.DuatRemote` | Account-authenticated requests and rejection of responses after an account switch |
-| `session.js` / `App.DuatSession` | Reusable pure seat, readiness, revision and receipt contracts; the server transport implements transactions in SQL |
+| `rules.js` / `App.DuatRules` | Original factions, 47-territory board, nineteen-favor catalog, Heptad and Heavenly Battle |
+| `world.js` / `App.DuatWorld` | Generated country paths, land/sea routes, 28 faction choices and geographic provenance |
+| `army-generation.js` / `App.DuatArmies` | Original allocation/imports, reveal order and d20 bands |
+| `conquest.js` / `App.DuatConquest` | Versioned claims, homelands, war actions, battle previews and fortification |
+| `favors.js` / `App.DuatFavors` | Seven historical scoring favors, declarations and treasury costs |
+| `campaign.js` / `App.DuatCampaign` | Draft, scoring, AI, standings, tournaments and campaign actions |
+| `session.js` / `App.DuatSession` | Pure seat, readiness, revision and receipt contracts |
+| `storage.js` / `App.DuatStorage` | Validated solo saves, index recovery and storage failure handling |
+| `remote.js` / `App.DuatRemote` | Authenticated requests and account-switch response protection |
+| `js/components/duat-presentation.js` | Country map, draft, excavation, pantheon and result presentation |
+| `js/tabs/duat.js` | Setup, gameplay orchestration, saves and friend invitations |
 
-`js/tabs/duat.js` renders setup, ruler reveal, lineups, favors, game results,
-conquest, tournaments, campaign saves and friend invitations. `duat.css` styles
-the game. `index.html` declares the deferred `duat` module group; the app loader
-loads its shared historical helpers before campaign code. Individual domain
-modules also support Node `require` for tests and server packaging.
+`duat.css` provides the painterly bronze, obsidian and turquoise presentation.
+`images/duat/` contains the temple hero, excavation scene and Horus, Kratos and
+Janus portraits. Its manifest records generation prompts, hashes and intended
+uses. These illustrations are decorative; the playable map uses source geometry.
 
-## Rules and historical data
+`index.html` loads the deferred Duat group in this exact order: rules, world,
+army-generation, conquest, favors, campaign, session, storage, remote,
+presentation, tab. Shared historical roster, draft-room, season and player-card
+helpers load first. Domain modules also support Node `require` for tests and
+server packaging. Loader tests execute the actual browser modules and cover a
+failed world dependency followed by a full retry.
 
-The original format is fourteen factions, four eight-player ruler armies per
-faction, and a starting five of QB1/FLEX4 with three bench players. Each campaign
-selects four historical years. A seeded d20 chooses the walking ruler using
-bands 1–5, 6–10, 11–15 and 16–20. All-play runs through Week 14; seven paired
-alliances play Heptad; the top seven enter the Heavenly Battle in Weeks 15–17,
-including reseeding and the Camel. New campaigns begin with equal homelands
-and no imported league records or example scores.
+## Historical data and favors
 
 `data/duat/` vendors nflverse regular-season statistics for **2002–2025,
-calendar Weeks 1–17**: `nflverse-game-logs.csv`, `player-cards.json` and
-`manifest.json`. The manifest records source URLs, hashes, attribution, weekly
-coverage and identity aliases. The data builder checks canonical identities
-against nflverse player IDs across all years, including same-name players and
-father/son collisions. It uses total fumbles lost and all three conversion types.
-Week 18 and NFL postseason are excluded; no NFL playoff points enter Duat's
-championship. Buffalo–Cincinnati's canceled 2022 Week 17 game remains absent.
+calendar Weeks 1–17**: 127,055 weekly records and 3,271 distinct player cards in
+`nflverse-game-logs.csv`, `player-cards.json` and `manifest.json`. The manifest
+records source URLs, hashes, attribution, coverage and identity aliases.
+The builder checks canonical identities against nflverse IDs across all years,
+including same-name and father/son collisions. Total fumbles lost and all three
+conversion types are included. Week 18 and NFL postseason are excluded;
+Buffalo–Cincinnati's canceled 2022 Week 17 game remains absent.
 
-Each player scores from the walking army's historical year and the current
-calendar week. Original scoring is half-PPR, 4 passing-TD points, 6 rushing or
-receiving-TD points, 0.04 passing-yard points, 0.1 rushing/receiving-yard points,
-2 conversion points and −1 per interception or lost fumble. A missing player
-record in a covered week scores zero; this does not diagnose an injury or bye.
-Missing season/week coverage blocks campaign creation. AI estimates and lineup
-choices use earlier seasons and completed campaign weeks, never unrevealed
-current-week or future scoring results.
+Players score from their walking army's year and the current calendar week:
+half-PPR, 4 per passing TD, 6 per rushing/receiving TD, 0.04 per passing yard,
+0.1 per rushing/receiving yard, 2 per conversion and −1 per interception or lost
+fumble. A missing player row in a covered week scores zero without diagnosing an
+injury or bye. Missing season/week coverage blocks creation. AI decisions use
+earlier seasons and completed weeks, never hidden current or future results.
 
-Sacred weeks are 5, 7, 10, 14, 15, 16 and 17. The documented original seasonal
-treasury is $100. Seven of the nineteen catalog favors are executable: Kratos
-I–III, Horus I–II and Janus II–III, at their original $10/$20/$30 prices. Horus
-requires a recorded game at resolution; an unavailable declaration spends
-nothing. Janus imports an earlier finalized base score, without its old favor.
-Favor effects apply to all-play and Heavenly Battle; Heptad uses unchanged base
-scores. Other catalog favors are unavailable rather than presented as working.
+The pantheon offers seven executable favors from the original nineteen:
+Kratos I–III, Horus I–II and Janus II–III. Sacred weeks are 5, 7, 10, 14, 15,
+16 and 17; the documented original seasonal treasury is $100 and costs are
+$10/$20/$30. Kratos multiplies points, Horus supplies a floor only for a recorded
+game, and Janus imports an eligible earlier finalized base score. An unavailable
+Horus declaration spends nothing. Favors affect all-play and Heavenly Battle;
+Heptad uses the best legal five from both allies' starting lineups at unchanged
+base scores. The other twelve catalog favors are not offered as active effects.
 
-Conquest settles last-place losses before awards and protects active homelands.
-Claims spend earned currency on connected, unowned territory. Human factions
-must resolve available claims before the next week; AI claims resolve through
-the campaign adapter. All-play ties award half results, with points and faction
-ID breaking equal records. Weekly conquest ranking breaks score ties by faction ID.
+## Geographic conquest and war
 
-## Saves and friends
+The v2 board uses 175 regions generated from Natural Earth's generalized
+country geometry via `world-atlas@2.0.2`. Countries are playing regions, not
+historical empire boundaries. Source land boundaries determine land routes;
+sea routes are game connections. The map supports inspection, search, ownership
+filters, zoom/pan and returning to the player's realm. Land area and world
+share are approximate spherical measurements of generalized polygons.
 
-Solo saves use `dhq-duat-campaigns-v1` and `dhq-duat-campaign-v1:<id>`. The UI
-exports JSON backups and restores validated backups under 5 MB to this browser.
-Save-index recovery is read-only; failed writes attempt to restore the previous
-save and index. Backup validation checks structure, not authenticity, and local
-backups cannot replace authoritative multiplayer state.
+Neutral claims and war actions are separate resources:
 
-Friends require a Dynasty HQ email-account session. `supabase/functions/duat`
-validates that session internally, generates private campaign seeds, accepts
-intent rather than replacement state, and returns `projectCampaign` views.
-Opponents' pending lineups/favors and unrevealed ruler decks stay hidden.
-The host receives invitation codes for reserved seats; each friend claims one
-faction. Every human must join and mark ready before host advancement.
+- Through Week 14, the weekly winner earns two neutral claims and the other
+  top-half factions earn one. Last place loses its latest non-homeland territory;
+  losses settle before awards. Claims buy connected, unowned land. Human claims
+  that can be spent settle before advancing; AI claims resolve automatically.
+- After each completed Week 1–16, every faction earns one war action and the
+  winner earns two, with a bank cap of three. One action attacks an enemy frontier
+  or fortifies owned land. Protected homelands cannot be captured; fortifications
+  have three levels. Week 17 ends warfare.
 
-`20260908160000_duat_campaigns.sql` creates separate campaign, membership and
-action-receipt tables. Browser roles cannot access private rows or mutation
-functions. Service-role transactions recheck membership, readiness and expected
-revision while committing, and deduplicate action IDs by actor and intent.
-`verify_jwt = false` preserves the app's custom-token authentication; it does
-not make the endpoint anonymous. There is no background season scheduler.
+Attack strength is 10 + nonnegative latest weekly points / 10 + 0.5 per finishing
+place above last. Adjacent friendly territories add up to three support points.
+Defense adds two, plus four per fortification level. Both sides roll a seeded
+d20; ties hold for the defender. The preview explains strength and the result
+records both rolls, the outcome and ownership change. Result recording is
+idempotent, so retries cannot award the same week's resources twice.
 
-## Build and verify
+## Saves and authenticated friends
+
+Solo saves retain the namespaces `dhq-duat-campaigns-v1` and
+`dhq-duat-campaign-v1:<id>`, with versioned campaign payloads. JSON backups under
+5 MB are validated before import. Save-index recovery is read-only; failed
+writes attempt to restore the previous save and index. Validation checks
+structure, not authenticity. Local backups cannot replace authoritative rooms.
+
+Friends require a Dynasty HQ email-account session. The Duat endpoint validates
+the app token internally, creates private seeds and accepts action intents,
+not client replacement state. Projections hide pending opponent lineups/favors
+and unrevealed armies. Friends claim reserved factions with invitation codes
+before the draft starts. Human seats must join and ready at gated transitions;
+only the current faction drafts its pick. The host starts the draft, reveals
+factions and advances weeks.
+
+`20260908160000_duat_campaigns.sql` creates private campaign, membership and
+receipt tables; `20260908180000_duat_draft_campaigns.sql` extends the transactional
+contracts for v2 while retaining v1. Service-role transactions recheck membership,
+readiness, ownership and expected revision, then deduplicate by actor and intent.
+Browser roles cannot read private rows or call mutation functions.
+`verify_jwt = false` permits custom app-token validation; it does not make the
+endpoint anonymous. There is no background season scheduler.
+
+## Build, test and release
 
 ```sh
 npm run test:duat
 npm run test:login-auth
+npm run test:core
+npm run test:timeleague
 node scripts/build-duat-server.cjs
 npm run build:preview
 ```
 
-The Duat suite includes domain, data, storage and offline multiplayer acceptance
-tests, including the actual Edge request handler and PostgreSQL-compatible
-transactions. These tests do not establish production availability or independent
-connection load behavior. The main `npm test` runner also includes the suite.
+The Duat suite includes draft, world, combat, source-data, favors, save recovery,
+browser module initialization and offline multiplayer tests with the actual
+Edge handler and PostgreSQL-compatible transactions. Offline tests do not prove
+live multi-account availability.
 
-To refresh source data explicitly, run
-`python3 scripts/build-duat-data.py --cache-dir work/duat-cache`; this reuses
-cached nflverse releases or downloads missing years and rewrites the three data
-artifacts. Review provenance changes and fixed-source regression fixtures.
+To refresh statistics explicitly, run
+`python3 scripts/build-duat-data.py --cache-dir work/duat-cache`.
+To regenerate world geometry, run `node scripts/build-duat-world.cjs`; it needs
+`world-atlas`, `topojson-client` and `d3-geo`, optionally supplied through
+`--source-dir=/path/to/node_modules`. Generated `world.js` is vendored, so
+normal preview/server builds need no external source checkout.
+
 The server builder produces ignored `supabase/functions/duat/runtime.js`,
-bundling the same engine and compressed data. Each room loads its four years.
+bundling the same engine, world and compressed historical data; each room loads
+its four years. The frontend workflow packages the data, country-map resource
+and five WebP assets, verifies their presence, and includes Duat assets in
+release hashes. The function workflow builds both game runtimes before Deno
+checks, applies and verifies both allowlisted Duat migrations, and deploys the
+endpoint only from canonical `C2-Football/WarRoom`.
 
-`deploy-functions.yml` runs contracts, builds both game runtimes before Deno
-checks, applies and verifies the allowlisted Duat migration, then deploys the
-function. Its repository guard limits backend deployment to the canonical
-`C2-Football/WarRoom` repository. A local preview or successful offline test
-does not publish frontend assets, apply production SQL or deploy the endpoint;
-release verification must check those separately.
+Frontend publication, migration application, endpoint deployment and live
+account testing are separate release checks. A successful local preview or
+offline test establishes none of those by itself.

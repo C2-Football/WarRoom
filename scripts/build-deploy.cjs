@@ -204,10 +204,13 @@ async function build() {
 
   for (const [entry, html] of Object.entries(htmlByEntry)) processEntry(entry, html);
 
+  for (const name of ['duat.css', ...fs.readdirSync(path.join(ROOT, 'images/duat')).map(file => 'images/duat/' + file)]) {
+    assetHash.set(name, contentHash(fs.readFileSync(path.join(ROOT, name))));
+  }
   const revision = process.env.GITHUB_SHA || execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
   fs.writeFileSync(path.join(OUT_DIR, 'release.json'), JSON.stringify({
     revision, builtAt: new Date().toISOString(), environment: process.env.GITHUB_REPOSITORY || 'local-preview',
-    assets: Object.fromEntries([...assetHash].filter(([name]) => name.includes('time-league') || name === 'js/tabs/time-league.js')),
+    assets: Object.fromEntries([...assetHash].filter(([name]) => name.includes('time-league') || name.includes('duat'))),
   }, null, 2) + '\n');
 
   const pct = rawBytes ? Math.round((1 - outBytes / rawBytes) * 100) : 0;

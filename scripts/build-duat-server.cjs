@@ -9,7 +9,7 @@ const read = name => fs.readFileSync(path.join(root, 'data/duat', name), 'utf8')
 const modules = [
     'js/shared/time-league-roster.js', 'js/shared/time-league-draft-room.js',
     'js/shared/time-league-season.js', 'js/shared/time-league-player-cards.js',
-    'js/duat/rules.js', 'js/duat/army-generation.js', 'js/duat/conquest.js',
+    'js/duat/rules.js', 'js/duat/world.js', 'js/duat/army-generation.js', 'js/duat/conquest.js',
     'js/duat/favors.js', 'js/duat/campaign.js',
 ];
 const source = modules.map(name => fs.readFileSync(path.join(root, name), 'utf8')).join('\n');

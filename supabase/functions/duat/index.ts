@@ -3,9 +3,10 @@ import { handleOptions, json, requireActiveAppSession } from '../_shared/securit
 import { App, loadData, availableSeasons } from './runtime.js';
 
 const ACTION_FIELDS: Record<string, string[]> = {
-    'set-ready': ['ready'], 'reveal-rulers': [], 'set-lineup': ['playerIds'],
+    'set-ready': ['ready'], 'start-draft': [], 'draft-pick': ['playerId'], 'reveal-next': [],
+    'reveal-rulers': [], 'set-lineup': ['playerIds'],
     'declare-favor': ['favorId', 'playerId', 'sourceWeek'], 'clear-favor': [],
-    'claim': ['territoryId'], 'advance-week': [],
+    'claim': ['territoryId'], 'attack': ['territoryId'], 'fortify': ['territoryId'], 'advance-week': [],
 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function reject(message: string, status = 400): never { throw Object.assign(new Error(message), { status }); }
@@ -39,19 +40,21 @@ async function authorizedRoom(admin: any, roomId: string, userId: string): Promi
     if (seatsError) throw seatsError;
     return { row, members, member };
 }
-function projectRoom({ row, members, member }: any): any {
+async function projectRoom({ row, members, member }: any): Promise<any> {
     const allReady = members.every((seat: any) => seat.user_id && seat.joined_at && seat.ready);
+    const needsDraftPool = row.state.phase === 'draft' && row.state.draft?.status === 'active'
+        && App.DuatCampaign.draftTurn(row.state)?.factionId === member.faction_id;
     return {
         id: row.id, revision: row.revision,
-        campaign: App.DuatCampaign.projectCampaign(row.state, member.faction_id),
+        campaign: App.DuatCampaign.projectCampaign(row.state, member.faction_id, needsDraftPool ? await loadData(row.state.seasons) : undefined),
         seats: row.state.factions.map((faction: any) => {
             const seat = members.find((item: any) => item.faction_id === faction.id);
             return { factionId: faction.id, controller: seat ? 'human' : 'ai', role: seat?.role || 'ai',
                 joined: seat ? Boolean(seat.user_id && seat.joined_at) : true, ready: seat ? seat.ready : true,
-                ...(member.role === 'host' && seat && !seat.user_id && row.state.phase === 'preseason' ? { inviteCode: seat.invite_code } : {}) };
+                ...(member.role === 'host' && seat && !seat.user_id && (row.state.phase === 'preseason' || (row.state.phase === 'draft' && row.state.draft?.status === 'waiting')) ? { inviteCode: seat.invite_code } : {}) };
         }),
         self: { factionId: member.faction_id, role: member.role, ready: member.ready }, ready: member.ready,
-        canAdvance: member.role === 'host' && allReady && ['preseason', 'season'].includes(row.state.phase),
+        canAdvance: member.role === 'host' && allReady && (['preseason', 'reveal', 'season'].includes(row.state.phase) || (row.state.phase === 'draft' && row.state.draft?.status === 'waiting')),
     };
 }
 
@@ -72,17 +75,22 @@ export async function handleDuatRequest(req: Request): Promise<Response> {
             const input = body.input;
             if (!input || typeof input.name !== 'string' || !input.name.trim() || input.name.length > 80) reject('Choose a campaign name of up to 80 characters.');
             if (!Array.isArray(input.seasons) || input.seasons.length !== 4 || new Set(input.seasons).size !== 4 || input.seasons.some((year: any) => !Number.isInteger(year) || !availableSeasons.includes(year))) reject('Choose four seasons with complete historical coverage.');
-            const factions = App.DuatRules.FACTIONS.map((faction: any) => faction.id);
+            if (input.version !== undefined && ![1, 2].includes(input.version)) reject('Choose a supported campaign version.');
+            const version = input.version === 2 ? 2 : 1;
+            const factions = (version === 2 ? App.DuatWorld.FACTIONS : App.DuatRules.FACTIONS).map((faction: any) => faction.id);
             if (!factions.includes(input.hostFactionId)) reject('Choose your faction.');
             const invited = input.humanFactionIds || [];
             if (!Array.isArray(invited) || invited.length > 14 || new Set(invited).size !== invited.length || invited.some((id: any) => !factions.includes(id))) reject('Choose unique human factions.');
+            const selected = input.factionIds || [...new Set([input.hostFactionId, ...invited, ...factions])].slice(0, 14);
+            if (!Array.isArray(selected) || selected.length !== 14 || new Set(selected).size !== 14 || selected.some((id: any) => !factions.includes(id))
+                || !selected.includes(input.hostFactionId) || invited.some((id: any) => !selected.includes(id))) reject('Choose fourteen active factions including every human seat.');
             const humanFactionIds = [...new Set([input.hostFactionId, ...invited])];
-            const campaign = App.DuatCampaign.createCampaign({ id: crypto.randomUUID(), name: input.name.trim(),
+            const campaign = App.DuatCampaign.createCampaign({ version, id: crypto.randomUUID(), name: input.name.trim(),
                 seed: crypto.randomUUID(), createdAt: new Date().toISOString(), seasons: input.seasons,
-                hostFactionId: input.hostFactionId, humanFactionIds }, await loadData(input.seasons));
+                hostFactionId: input.hostFactionId, humanFactionIds, factionIds: selected }, await loadData(input.seasons));
             const { data: roomId, error } = await admin.rpc('create_duat_campaign', { p_user_id: session.userId, p_state: campaign });
             if (error) throw error;
-            return json(req, { ok: true, room: projectRoom(await authorizedRoom(admin, roomId, session.userId)) });
+            return json(req, { ok: true, room: await projectRoom(await authorizedRoom(admin, roomId, session.userId)) });
         }
         if (body.op === 'claim') {
             if (typeof body.code !== 'string' || !/^[0-9a-f]{48}$/i.test(body.code)) reject('This invitation is invalid.');
@@ -103,7 +111,7 @@ export async function handleDuatRequest(req: Request): Promise<Response> {
         }
         if (!['load', 'action'].includes(body.op)) reject('Unknown campaign request.');
         const loaded = await authorizedRoom(admin, body.roomId, session.userId);
-        if (body.op === 'load') return json(req, { ok: true, room: projectRoom(loaded) });
+        if (body.op === 'load') return json(req, { ok: true, room: await projectRoom(loaded) });
         const { row, member, members } = loaded;
         const action = canonicalAction(body.action, member.faction_id);
         if (typeof body.actionId !== 'string' || !body.actionId.trim() || body.actionId.length > 120) reject('Supply an action ID.');
@@ -111,14 +119,16 @@ export async function handleDuatRequest(req: Request): Promise<Response> {
         if (receiptError) throw receiptError;
         if (receipt) {
             if (!sameIntent(receipt.request, action)) reject('This action ID was already used for another intent.');
-            return json(req, { ok: true, deduplicated: true, room: projectRoom(await authorizedRoom(admin, row.id, session.userId)) });
+            return json(req, { ok: true, deduplicated: true, room: await projectRoom(await authorizedRoom(admin, row.id, session.userId)) });
         }
         if (!Number.isSafeInteger(body.expectedRevision) || body.expectedRevision !== row.revision) return json(req, { ok: false, conflict: true, revision: row.revision, error: 'The campaign changed. Reload before retrying.' }, 409);
         if (row.state.phase === 'complete') reject('This campaign is complete.');
-        if (['reveal-rulers', 'advance-week'].includes(action.type)) {
+        if (['start-draft', 'reveal-next', 'reveal-rulers', 'advance-week'].includes(action.type)) {
             if (member.role !== 'host') reject('Only the host can advance the campaign.', 403);
             if (members.some((seat: any) => !seat.user_id || !seat.joined_at || !seat.ready)) reject('Every human faction must join and be ready.');
         }
+        if (action.type === 'set-ready' && row.state.phase === 'draft' && row.state.draft?.status !== 'waiting') reject('Readiness is not used during draft turns.');
+        if (action.type === 'set-ready' && row.state.phase === 'reveal' && row.state.archaeology?.revealedFactionIds?.length > 0) reject('The expedition has begun. Readiness returns in Week 1.');
         if (member.ready && ['set-lineup', 'declare-favor', 'clear-favor'].includes(action.type)) reject('Mark yourself unready before changing your lineup or favor.');
         const next = action.type === 'set-ready' ? null : App.DuatCampaign.applyAction(row.state,
             { ...action, createdAt: new Date().toISOString() }, await loadData(row.state.seasons));
@@ -129,7 +139,7 @@ export async function handleDuatRequest(req: Request): Promise<Response> {
         if (saveError) throw saveError;
         if (!saved?.ok) return json(req, { ok: false, conflict: true, revision: saved?.revision, error: 'Someone else acted first. Reload the campaign.' }, 409);
         return json(req, { ok: true, deduplicated: saved.deduplicated === true,
-            room: projectRoom(await authorizedRoom(admin, row.id, session.userId)) });
+            room: await projectRoom(await authorizedRoom(admin, row.id, session.userId)) });
     } catch (error: any) {
         return json(req, { ok: false, error: error?.message || 'The campaign could not be saved.' }, error?.status || 400);
     }
