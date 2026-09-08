@@ -2,6 +2,9 @@
 // The browser receives the real server projection, never a manufactured local
 // league with a placeholder seed or guessed player editions.
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
 global.window = globalThis;
 global.App = {};
 for (const name of ['roster', 'rules', 'draft-room', 'era-rules', 'season', 'helmet', 'engine', 'ai', 'draft-clock', 'public-state']) {
@@ -87,6 +90,36 @@ function mount(getProps) {
 }
 
 (async () => {
+    // Use the shipped asset list in a fresh browser realm: manually requiring
+    // the sanitizer in this test must not hide a missing production script.
+    const root = path.resolve(__dirname, '..');
+    const scripts = [...fs.readFileSync(path.join(root, 'index.html'), 'utf8').matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["']/g)]
+        .map(match => match[1].split('?')[0]);
+    const publicAsset = 'js/shared/time-league-public-state.js';
+    const remoteAsset = 'js/shared/time-league-remote-client.js';
+    assert(scripts.indexOf(publicAsset) >= 0 && scripts.indexOf(publicAsset) < scripts.indexOf(remoteAsset),
+        'The shipped page must load public-report sanitization before the multiplayer client');
+    const needed = new Set(['roster', 'rules', 'draft-room', 'era-rules', 'season', 'helmet', 'engine', 'ai', 'public-state']
+        .map(name => `js/shared/time-league-${name}.js`));
+    const browser = vm.createContext({ console }); browser.window = browser;
+    for (const script of scripts.filter(src => needed.has(src))) vm.runInContext(fs.readFileSync(path.join(root, script), 'utf8'), browser, { filename: script });
+    const raw = projection({ ...create('snake'), phase: 'season', seasonsRevealed: true, currentWeek: 2 });
+    raw.playerReports = { 'QB0:1981': { week: 2, remaining: 11, currentAvailable: true, currentStars: 4, maxRemainingStars: 5,
+        completed: [{ week: 1, sourceWeek: 18, points: 20, stars: 3 }, { week: 3, sourceWeek: 7, points: 99, stars: 5 }],
+        futurePlan: [7, 10, 14], privateSeed: 'must-not-survive' } };
+    const restored = browser.App.TimeLeagueEngine.normalizePublicTimeLeague(JSON.parse(JSON.stringify(raw)));
+    const report = restored.playerReports['QB0:1981'];
+    assert.equal(report.currentStars, 4, 'Actual browser assets retain the current report on reconnect');
+    assert.equal(report.currentAvailable, true);
+    assert.equal(report.completed.length, 1, 'Unfinished source references and points remain sealed');
+    assert.equal(report.privateSeed, undefined); assert.equal(report.futurePlan, undefined);
+    const scoutEntry = { identity: 'QB0', drawnSeason: 1981, position: 'QB' };
+    const outlook = browser.App.TimeLeagueSeason.rosterOutlook(scoutEntry, 2, 12, null, raw.settings.scoring, null, restored);
+    const stars = browser.App.TimeLeagueSeason.weeklyStarOutlook(scoutEntry, 2, 12, null, raw.settings.scoring, null, restored);
+    assert.equal(outlook.schedule[1].available, true); assert.equal(stars.stars, 4);
+    assert(outlook.schedule.slice(2).every(row => row.available === null && row.points === null));
+    assert(stars.schedule.slice(2).every(row => row.available === null && row.stars === null));
+    console.log('ok shipped browser asset order: current reports survive reconnect while future plans stay sealed');
     // A slow or failed response cannot open an archive, start the clock, or
     // duplicate a reveal. Even success waits for the authoritative row update.
     let waitingState = create('snake'), waitingView = decoded(waitingState), settle;
