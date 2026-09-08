@@ -51,7 +51,6 @@
         const ratio = total / median;
         return ratio >= 1.15 ? 'A' : ratio >= 1.05 ? 'B' : ratio >= 0.95 ? 'C' : ratio >= 0.85 ? 'D' : 'F';
     };
-    const GRADE_PILL = { A: 'good', B: 'good', C: 'info', D: 'warn', F: 'bad' };
 
     // ── Position Roulette reveal ────────────────────────────────────────
     // The decades are actually rolled once, at league founding, by
@@ -575,21 +574,37 @@
                         h('div', { className: 'tl-recap-stat' }, h('span', null, 'League median'), h('strong', null, reveal.median.toFixed(1)), h('small', null, 'season points'))),
                     reveal.best && h('p', { className: 'tl-recap-best' }, 'Best class: ', h('strong', null, reveal.best.team.name), ` · ${reveal.best.total.toFixed(1)} pts`)),
                 draftLog,
-                h('p', { className: 'tl-hint' }, 'Grades compare each team’s drawn-season points with the league median. They describe the draw, not a prediction of wins.'),
+                h('div', { className: 'tl-draft-grade-heading' },
+                    h('h2', null, 'Team report cards'),
+                    h('p', null, 'Grades compare drawn-season points with the league median.')),
                 h('div', { className: 'tl-draft-grade-grid' },
                     reveal.teams.map(({ team, picks, total }) => {
                         const grade = gradeFor(total, reveal.median);
-                        const best = [...picks].sort((l, r) => r.points - l.points).slice(0, 2);
-                        return h('details', { key: team.teamId, className: 'tl-card tl-draft-grade' },
-                            h('summary', { className: 'tl-card-title' }, h('span', null, team.name), h('span', { className: `tl-pill tl-draft-letter ${GRADE_PILL[grade]}` }, grade), h('small', null, `${total.toFixed(1)} pts · View class`)),
-                            h('p', { style: { fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 10 } }, `${grade} — ${best.length ? `left with ${best.map((p) => `${p.drawnSeason ?? '?'} ${p.name}`).join(' and ')}` : 'left with an empty vault'}`),
-                            h('div', { style: { overflowX: 'auto' } }, h('table', { className: 'tl-tbl' },
-                                h('thead', null, h('tr', null, h('th', null, 'Pick'), h('th', null, 'Player'), h('th', null, 'Pos'), h('th', { className: 'num' }, 'Season'), h('th', { className: 'num' }, 'Pts'))),
-                                h('tbody', null, picks.map((pick) => h('tr', { key: pick.overall },
-                                    h('td', null, draftPickLabel(pick)), h('td', null, pick.name),
-                                    h('td', null, h('span', { className: `tl-pos-badge tl-pos-${pick.position}` }, pick.position)),
-                                    h('td', { className: 'num tl-pill gold', style: { display: 'table-cell' } }, pick.drawnSeason ?? '—'),
-                                    h('td', { className: 'num' }, pick.points.toFixed(1))))))));
+                        const best = [...picks].sort((l, r) => r.points - l.points)[0];
+                        const isMine = team.teamId === humanTeam?.teamId;
+                        return h('details', { key: team.teamId, className: 'tl-card tl-draft-grade', 'data-grade': grade },
+                            h('summary', { className: 'tl-draft-class-summary' },
+                                h('span', { className: 'tl-draft-class-team' },
+                                    h(window.TimeLeagueHelmetIcon, { helmet: team.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(team.name), size: 46 }),
+                                    h('span', null, h('strong', null, team.name), h('small', null, `${isMine ? 'Your team · ' : ''}${picks.length} picks`))),
+                                h('span', { className: 'tl-draft-grade-mark', 'aria-label': `Grade ${grade}` }, h('small', null, 'Grade'), h('b', null, grade)),
+                                h('span', { className: 'tl-draft-class-total' }, h('strong', null, total.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })), ' season pts'),
+                                h('span', { className: 'tl-draft-class-toggle' },
+                                    h('span', { className: 'tl-draft-class-expand' }, 'View picks'),
+                                    h('span', { className: 'tl-draft-class-collapse' }, 'Hide picks'),
+                                    h('span', { className: 'tl-draft-class-chevron', 'aria-hidden': true }, '⌄'))),
+                            h('div', { className: 'tl-draft-class-body' },
+                                best && h('div', { className: 'tl-draft-class-standout' },
+                                    h('div', null, h('small', null, 'Best draw'), h('strong', null, best.name), h('span', null, `${best.position} · ${best.drawnSeason ?? '—'}`)),
+                                    h('div', { className: 'tl-draft-class-standout-points' }, h('strong', null, best.points.toFixed(1)), h('small', null, 'season pts'))),
+                                h('table', { className: 'tl-draft-class-table', 'aria-label': `${team.name} draft picks` },
+                                    h('colgroup', null, h('col', { className: 'tl-draft-class-pick-col' }), h('col'), h('col', { className: 'tl-draft-class-points-col' })),
+                                    h('thead', null, h('tr', null, h('th', { scope: 'col' }, 'Pick'), h('th', { scope: 'col' }, 'Player / season'), h('th', { scope: 'col' }, 'Pts'))),
+                                    h('tbody', null, picks.length ? picks.map((pick) => h('tr', { key: pick.overall, className: `tl-draft-class-row tl-draft-pick-${pick.position}` },
+                                        h('td', { className: 'tl-draft-class-pick' }, draftPickLabel(pick)),
+                                        h('td', { className: 'tl-draft-class-player' }, h('strong', null, pick.name),
+                                            h('span', { className: 'tl-draft-class-season' }, h('span', { className: 'tl-draft-class-position' }, pick.position), pick.drawnSeason ?? '—')),
+                                        h('td', { className: 'tl-draft-class-points' }, pick.points.toFixed(1)))) : h('tr', null, h('td', { colSpan: 3, className: 'tl-draft-class-empty' }, 'No picks recorded.'))))));
                     })));
         }
 

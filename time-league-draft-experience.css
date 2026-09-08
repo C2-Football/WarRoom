@@ -26,11 +26,56 @@
 .tl-recap-stat.is-grade>strong { color:#87efcf; font-size:36px; }
 .tl-recap-best { margin:14px 0 0; padding-top:12px; border-top:1px solid #53627a70; color:#aabbd5; font-size:12px; line-height:1.5; }
 .tl-recap-best strong { color:#e1e9f5; }
-.tl-draft-grade-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(230px,1fr)); gap: 12px; margin: 14px 0; align-items: start; }
-.tl-play .tl-draft-grade-grid > .tl-card { margin-top:0; }
-.tl-draft-grade summary { cursor: pointer; flex-wrap: wrap; }
-.tl-draft-grade summary small { flex-basis: 100%; }
-.tl-draft-letter { font-size: 28px; line-height: 1; padding: 10px 14px; }
+.tl-draft-grade-heading { margin:24px 0 14px; }
+.tl-draft-grade-heading h2 { margin:0; color:#f2f5fb; font:700 21px/1.2 var(--font-title); }
+.tl-draft-grade-heading p { margin:6px 0 0; color:#aabbd5; font-size:11px; line-height:1.5; }
+.tl-draft-grade-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr)); gap:16px; margin:14px 0; align-items:start; }
+.tl-play .tl-draft-grade-grid > .tl-card { --grade-color:#b5d6ff; margin-top:0; padding:0; min-width:0; border-top:2px solid var(--grade-color); background:linear-gradient(135deg,color-mix(in srgb,var(--grade-color) 6%,#1b253a),#1b253a 65%); }
+.tl-play .tl-draft-grade[data-grade="A"] { --grade-color:#87efcf; }
+.tl-play .tl-draft-grade[data-grade="B"] { --grade-color:#b6dfc6; }
+.tl-play .tl-draft-grade[data-grade="D"] { --grade-color:#ffbb93; }
+.tl-play .tl-draft-grade[data-grade="F"] { --grade-color:#ffb7c7; }
+.tl-draft-class-summary { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px; padding:18px; border-radius:16px; cursor:pointer; list-style:none; }
+.tl-draft-class-summary::-webkit-details-marker { display:none; }
+.tl-draft-class-summary:focus-visible { outline:2px solid #87efcf; outline-offset:3px; }
+.tl-draft-class-team { display:flex; align-items:center; gap:10px; min-width:0; }
+.tl-draft-class-team .tl-helmet { flex-shrink:0; }
+.tl-draft-class-team > span { min-width:0; }
+.tl-draft-class-team strong { display:block; color:#f2f5fb; font:700 20px/1.2 var(--font-title); overflow-wrap:anywhere; }
+.tl-draft-class-team small { display:block; margin-top:5px; color:#aabbd5; font-size:11px; }
+.tl-draft-grade-mark { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; width:50px; min-height:56px; border:1px solid color-mix(in srgb,var(--grade-color) 30%,transparent); border-radius:12px; background:color-mix(in srgb,var(--grade-color) 10%,transparent); color:var(--grade-color); }
+.tl-draft-grade-mark small { font:700 8px/1 var(--font-body); letter-spacing:.1em; text-transform:uppercase; }
+.tl-draft-grade-mark b { font:700 34px/1 var(--font-title); }
+.tl-draft-class-total { color:#aabbd5; font-size:10px; }
+.tl-draft-class-total strong { margin-right:3px; color:#e7edf7; font:700 22px/1.2 var(--font-title); font-variant-numeric:tabular-nums; }
+.tl-draft-class-toggle { display:flex; align-items:center; gap:6px; justify-content:flex-end; color:var(--grade-color); font-size:11px; white-space:nowrap; }
+.tl-draft-class-chevron { font-size:19px; line-height:1; }
+.tl-draft-class-collapse,.tl-draft-grade[open] .tl-draft-class-expand { display:none; }
+.tl-draft-grade[open] .tl-draft-class-collapse { display:inline; }
+.tl-draft-grade[open] .tl-draft-class-chevron { transform:rotate(180deg); }
+.tl-draft-grade[open] .tl-draft-class-summary { border-radius:16px 16px 0 0; }
+.tl-draft-class-body { padding:0 18px 6px; }
+.tl-draft-class-standout { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 14px; margin-bottom:12px; border-radius:10px; background:#111c2f99; border-left:2px solid var(--grade-color); }
+.tl-draft-class-standout > div { min-width:0; }
+.tl-draft-class-standout small { display:block; color:var(--grade-color); font:600 9px/1.4 var(--font-body); text-transform:uppercase; letter-spacing:.07em; }
+.tl-draft-class-standout strong { display:block; color:#e7edf7; font-size:13px; line-height:1.4; margin:4px 0; overflow-wrap:anywhere; }
+.tl-draft-class-standout span { color:#aabbd5; font-size:10px; }
+.tl-draft-class-standout-points { flex-shrink:0; text-align:right; font-variant-numeric:tabular-nums; }
+.tl-draft-class-standout-points strong { color:var(--grade-color); font:700 23px/1.1 var(--font-title); }
+.tl-draft-class-standout-points small { color:#aabbd5; text-transform:none; letter-spacing:0; }
+.tl-draft-class-table { width:100%; table-layout:fixed; border-collapse:collapse; }
+.tl-draft-class-pick-col { width:52px; }
+.tl-draft-class-points-col { width:54px; }
+.tl-draft-class-table thead th { padding:7px 0 9px; text-align:left; color:#9caec7; font:500 9px/1.4 var(--font-mono); letter-spacing:.04em; text-transform:uppercase; }
+.tl-draft-class-table thead th:last-child { text-align:right; }
+.tl-draft-class-table td { padding:9px 0; border-top:1px solid #8094b51f; vertical-align:middle; }
+.tl-draft-class-pick { color:#96a8c3; font:10px/1.5 var(--font-mono); overflow-wrap:anywhere; }
+.tl-draft-class-table .tl-draft-class-player { padding-right:8px; }
+.tl-draft-class-player strong { display:block; color:#e7edf7; font-size:13px; font-weight:600; line-height:1.4; overflow-wrap:anywhere; }
+.tl-draft-class-season { display:flex; align-items:center; gap:7px; margin-top:3px; color:#aabbd5; font:10px/1.3 var(--font-mono); }
+.tl-draft-class-position { padding:2px 5px; border-radius:4px; background:color-mix(in srgb,var(--pick-color,#abc7ff) 12%,transparent); color:var(--pick-color,#abc7ff); font-size:9px; font-weight:700; }
+.tl-draft-class-points { color:#dce7f7; text-align:right; font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; }
+.tl-draft-class-empty { color:#aabbd5; font-size:12px; }
 @media(max-width:600px) {
   .tl-play .tl-recap-summary,.tl-play .tl-draft-log { padding:14px 12px; }
   .tl-recap-heading { margin-bottom:14px; }
@@ -39,4 +84,7 @@
   .tl-recap-stat>strong { font-size:23px; }
   .tl-recap-stat.is-grade>strong { font-size:30px; }
   .tl-draft-grade-grid { grid-template-columns:minmax(0,1fr); }
+  .tl-draft-class-summary { padding:15px 14px; }
+  .tl-draft-class-body { padding:0 14px 4px; }
+  .tl-draft-class-team strong { font-size:19px; }
 }
