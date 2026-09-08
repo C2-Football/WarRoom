@@ -985,6 +985,13 @@
         const [gamecastStatus, setGamecastStatus] = useState(null);
         const [mailReads, setMailReads] = useState({});
         const [mailThread, setMailThread] = useState(null);
+        const [, refreshMail] = useState(0);
+        const presentedMail = window.TimeLeagueMail?.presentation(league);
+        useEffect(() => {
+            if (!presentedMail?.nextAt) return undefined;
+            const timer = window.setTimeout(() => refreshMail(value => value + 1), Math.max(0, presentedMail.nextAt - Date.now()));
+            return () => window.clearTimeout(timer);
+        }, [league?.leagueId, presentedMail?.nextAt]);
         const onMailRead = useCallback((key, ids) => setMailReads(previous => ({ ...previous, [key]: ids })), []);
         useEffect(() => {
             const refresh = event => {
@@ -1460,7 +1467,7 @@
         const Mail = window.TimeLeagueMail;
         const mailKey = Mail?.readKey(league.leagueId, responseTeam);
         const mailThroughWeek = watching ? playback.week - 1 : undefined;
-        const unreadMail = Mail ? Mail.unreadMessages(league, responseTeam, mailReads[mailKey] || Mail.readIds(league.leagueId, responseTeam), mailThroughWeek) : [];
+        const unreadMail = Mail ? Mail.unreadMessages(presentedMail.league, responseTeam, mailReads[mailKey] || Mail.readIds(league.leagueId, responseTeam), mailThroughWeek) : [];
         const openMail = teamId => {
             setMailThread(teamId ? { key: mailKey, teamId } : null);
             navigateTab('messages');

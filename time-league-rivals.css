@@ -131,3 +131,10 @@
 .tl-play .tl-mail-action small { font-size: 10px; font-weight: 500; }
 .tl-play .tl-mail-action strong { font-size: 12px; line-height: 1.25; overflow-wrap: anywhere; }
 .tl-play .tl-mail-action > svg { flex: none; }
+
+.tl-play .tl-chat-typing { display: flex; align-items: center; gap: 10px; align-self: flex-start; padding: 12px 0; color: #aabdd2; }
+.tl-play .tl-chat-typing small { font-size: 11px; }
+.tl-play .tl-typing-dots { display: inline-flex; align-items: center; gap: 5px; padding: 14px 17px; border-radius: 18px 18px 18px 4px; background: #293750; }
+.tl-play .tl-typing-dots i { width: 6px; height: 6px; border-radius: 50%; background: #bdd0e3; animation: tl-typing-dot 1s ease-in-out infinite; }
+@keyframes tl-typing-dot { 0%, 60%, 100% { opacity: .45; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .tl-play .tl-typing-dots i { animation: none; opacity: .8; } }

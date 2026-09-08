@@ -8,6 +8,22 @@
             return Array.isArray(ids) ? ids.filter(id => typeof id === 'string') : [];
         } catch (_) { return []; }
     }
+    // Replies are saved immediately; only their presentation waits. Leaving a
+    // conversation or refreshing cannot lose a reply or restart an old one.
+    function presentation(league, now = Date.now()) {
+        const typing = [];
+        const rivalMessages = (league?.rivalMessages || []).filter(message => {
+            const sentAt = Date.parse(message.createdAt);
+            const readyAt = sentAt + Math.min(2800, 1400 + (message.text?.length || 0) * 15);
+            if (message.id?.startsWith('reply:') && league.teams.some(team => team.teamId === message.fromTeamId && team.manager === 'ai')
+                && Number.isFinite(sentAt) && sentAt <= now + 10000 && readyAt > now) {
+                typing.push({ ...message, readyAt });
+                return false;
+            }
+            return true;
+        });
+        return { league: typing.length ? { ...league, rivalMessages } : league, typing, nextAt: typing.length ? Math.min(...typing.map(message => message.readyAt)) : null };
+    }
     function unreadMessages(league, teamId, ids, throughWeek) {
         return (window.App.TimeLeagueRivals?.messagesFor(league, teamId, { throughWeek }) || [])
             .filter(message => message.toTeamId === teamId && !ids.includes(message.id));
@@ -22,7 +38,7 @@
                 h('span', { className: 'tl-mail-notice-link', 'aria-hidden': true }, 'Read & reply →')),
             count > 1 ? h('button', { type: 'button', className: 'tl-mail-notice-all', onClick: () => onOpen() }, `${count} unread · Open inbox`) : null);
     }
-    window.TimeLeagueMail = { readKey, readIds, unreadMessages };
+    window.TimeLeagueMail = { readKey, readIds, unreadMessages, presentation };
     window.WrTimeLeagueMailNotice = WrTimeLeagueMailNotice;
     function WrTimeLeagueRivalsPanel({ league, teamId, throughWeek, onTrades, compact = false, onNavigate, onSend, saving = false, isPrivate = false, threadRequest, onOpenThread, onRead }) {
         const R = window.App.TimeLeagueRivals;
@@ -33,6 +49,13 @@
         const [replyVariants, setReplyVariants] = React.useState({});
         const [sending, setSending] = React.useState(false);
         const [error, setError] = React.useState(null);
+        const [, refreshMail] = React.useState(0);
+        const mail = presentation(league);
+        React.useEffect(() => {
+            if (!mail.nextAt) return undefined;
+            const timer = window.setTimeout(() => refreshMail(value => value + 1), Math.max(0, mail.nextAt - Date.now()));
+            return () => window.clearTimeout(timer);
+        }, [storageKey, mail.nextAt]);
         const endRef = React.useRef(null);
         const inboxRef = React.useRef(null);
         const sendingRef = React.useRef(false);
@@ -41,14 +64,15 @@
             catch (_) { setReadState({ key: storageKey, ids: [] }); }
         }, [storageKey]);
         const read = readState.key === storageKey && Array.isArray(readState.ids) ? readState.ids : [];
-        const threads = R.threadsFor(league, teamId, { throughWeek });
+        const threads = R.threadsFor(mail.league, teamId, { throughWeek });
         const messages = threads.flatMap(thread => thread.messages).filter(message => message.toTeamId === teamId);
         const unread = messages.filter(message => !read.includes(message.id)).length;
         const selectedId = selection?.key === storageKey ? selection.teamId : null;
         const active = threads.find(thread => thread.team.teamId === selectedId) || threads[0];
+        const isTyping = mail.typing.some(message => message.fromTeamId === active?.team.teamId && message.toTeamId === teamId);
         const draftKey = `${storageKey}:${active?.team.teamId || ''}`;
         const draft = drafts[draftKey] || { text: '', tone: 'neutral', messageId: '' };
-        const suggestedReplies = active ? R.quickRepliesFor(league, teamId, active.team.teamId, { throughWeek, variant: replyVariants[draftKey] || 0 }) : [];
+        const suggestedReplies = active ? R.quickRepliesFor(mail.league, teamId, active.team.teamId, { throughWeek, variant: replyVariants[draftKey] || 0 }) : [];
         const relationship = active?.relationship;
         const affinity = relationship ? 6 - relationship.heat : 6;
         const pending = saving || sending;
@@ -75,7 +99,7 @@
                 const unseen = active.messages.filter(message => message.toTeamId === teamId && !read.includes(message.id));
                 if (unseen.length) markRead(unseen.map(message => message.id));
             }
-        }, [storageKey, selectedId, newestId]);
+        }, [storageKey, selectedId, newestId, isTyping]);
         React.useEffect(() => {
             if (compact || !inboxRef.current || !window.document) return undefined;
             const inbox = inboxRef.current;
@@ -173,6 +197,9 @@
                                 h('p', null, message.text), message.detail ? h('small', { className: 'tl-chat-detail' }, message.detail) : null,
                                 message.tradeId && (onTrades || onNavigate) ? h('button', { type: 'button', className: 'tl-chat-trade', onClick: () => onTrades ? onTrades(message.tradeId) : onNavigate('trades') }, 'View trade →') : null),
                             message.kind === 'chat' ? h('small', { className: 'tl-chat-time' }, new Date(message.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) : null))),
+                    isTyping ? h('div', { className: 'tl-chat-typing', role: 'status', 'aria-label': `${active.team.name} is typing` },
+                        h('span', { className: 'tl-typing-dots', 'aria-hidden': true }, [0, 1, 2].map(dot => h('i', { key: dot, style: { animationDelay: `${dot * 160}ms` } }))),
+                        h('small', null, `${active.team.name} is typing…`)) : null,
                     h('div', { ref: endRef })),
                 onSend ? h('form', { className: 'tl-chat-compose', onSubmit: send },
                     h('div', { className: 'tl-chat-quick', 'aria-label': 'Suggested replies' }, suggestedReplies.map(reply => h('button', { type: 'button', key: reply.tone, disabled: pending, title: reply.text, onClick: () => patchDraft({ text: reply.text, tone: reply.tone }) }, reply.label)), h('button', { type: 'button', className: 'tl-chat-new-replies', disabled: pending, onClick: () => { if (!selectedId) setSelection({ key: storageKey, teamId: active.team.teamId }); setReplyVariants(previous => ({ ...previous, [draftKey]: (previous[draftKey] || 0) + 1 })); } }, 'New replies')),
