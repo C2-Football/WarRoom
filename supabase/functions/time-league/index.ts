@@ -5,6 +5,20 @@ import { handleCommunity } from './community.ts';
 import { loadPrivateMessages, sendPrivateMessage, withoutPrivateMessages } from './messages.ts';
 import { prepareSealedDraws, applySealedOnlineAction } from './sealed-draws.ts';
 
+// Public draft order gets its own cryptographic shuffle, independent from
+// sealed editions and eras. Reject out-of-range values to avoid modulo bias.
+function randomDraftOrder(teamIds: string[]): string[] {
+    const order = [...teamIds];
+    for (let index = order.length - 1; index > 0; index--) {
+        const size = index + 1, limit = Math.floor(0x100000000 / size) * size;
+        let value: number;
+        do { value = crypto.getRandomValues(new Uint32Array(1))[0]; } while (value >= limit);
+        const swap = value % size;
+        [order[index], order[swap]] = [order[swap], order[index]];
+    }
+    return order;
+}
+
 Deno.serve(async (req: Request) => {
     const options = handleOptions(req);
     if (options) return options;
@@ -29,12 +43,16 @@ Deno.serve(async (req: Request) => {
             if (settings.draftPickSeconds !== undefined && !App.TimeLeagueEngine.DRAFT_PICK_SECONDS.includes(settings.draftPickSeconds)) return fail('Choose a supported draft clock.');
             if (settings.draftAiSeconds !== undefined && !App.TimeLeagueEngine.DRAFT_AI_SECONDS.includes(settings.draftAiSeconds)) return fail('Choose a supported AI pace.');
             if (settings.draftAuctionBudget !== undefined && (!Number.isInteger(settings.draftAuctionBudget) || settings.draftAuctionBudget < 50 || settings.draftAuctionBudget > 1000)) return fail('Auction budgets must be between 50 and 1,000.');
+            const teamIds = input.seats.map((_seat: any, index: number) => `t${index + 1}`);
+            const draftOrderMode = settings.draftOrderMode ?? 'random';
+            if (!['random', 'manual'].includes(draftOrderMode)) return fail('Choose random or manual draft order.');
+            if (draftOrderMode === 'manual' && !App.TimeLeagueEngine.validDraftTeamOrder(settings.draftTeamOrder, teamIds)) return fail('Draft order must include every team exactly once.');
             const capacity = App.TimeLeagueEngine.rosterCapacity(settings);
             if (capacity < 1 || capacity > 30) return fail('Choose between 1 and 30 roster spots.');
             const state = App.TimeLeagueEngine.normalizeTimeLeague({
                 ...App.TimeLeagueEngine.createTimeLeague({ ...input,
-                    settings: { ...settings, eraRules: { mode: settings.eraRules?.mode, decades: settings.eraRules?.decades || [] } },
-                    seed: crypto.randomUUID(), createdAt: new Date().toISOString() }),
+                    settings: { ...settings, draftOrderMode, eraRules: { mode: settings.eraRules?.mode, decades: settings.eraRules?.decades || [] } },
+                    seed: crypto.randomUUID(), createdAt: new Date().toISOString() }, { randomTeamOrder: randomDraftOrder(teamIds) }),
                 // Never encode outputs of the private engine RNG into public IDs.
                 leagueId: `tl-${crypto.randomUUID()}`, draftEraReveals: {},
             });
@@ -88,6 +106,11 @@ Deno.serve(async (req: Request) => {
             if (member.role !== 'commissioner' || started) return fail('Only the commissioner can start the draft.');
             if (members!.some(m => !m.user_id)) return fail('Wait for every friend to claim their seat.');
             started = true;
+        } else if (action.type === 'draft-order-settings') {
+            // This action is allowed in the lobby and while viewing the reveal,
+            // but the engine locks it permanently once the clock has started.
+            next = App.TimeLeagueActions.applyOnlineAction(row.state, action, member, { cards: new Map() }, new Date().toISOString(),
+                { randomTeamOrder: randomDraftOrder(row.state.teams.map((team: any) => team.teamId)) });
         } else if (action.type === 'reveal-era') {
             if (!started) return fail('Wait for the commissioner to open the draft room.');
             if (action.teamId !== undefined && action.teamId !== member.seat_team_id) return fail('You can only reveal your own position archives.');

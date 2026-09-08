@@ -142,6 +142,9 @@
         const drafted = useMemo(() => Engine.draftedIdentities(league), [league]);
         const onClockTeam = seat ? league.teams.find((t) => t.teamId === seat.teamId) ?? null : null;
         const humanTeam = league.teams.find((t) => onlineMeta ? t.teamId === onlineMeta.seatTeamId : t.manager === 'human') ?? null;
+        const orderedTeams = useMemo(() => Engine.draftTeamOrder(league)
+            .map(teamId => league.teams.find(team => team.teamId === teamId)).filter(Boolean), [league]);
+        const gridTeamIndex = teamId => orderedTeams.findIndex(team => team.teamId === teamId);
         const isAuction = league.settings.draftFormat === 'auction';
         const clockReady = !league.draftClock || league.draftClock.status === 'running';
         const canSim = !onlineMeta || onlineMeta.role === 'commissioner';
@@ -332,11 +335,11 @@
         const gridOrder = useMemo(() => {
             if (!isAuction) return league.draftOrder;
             const rowCount = Math.max(1, ...league.draftOrder.map((slot) => slot.round), ...gridPicks.map((pick) => pick.round));
-            return Array.from({ length: rowCount }, (_, index) => league.teams.map((team) => {
+            return Array.from({ length: rowCount }, (_, index) => orderedTeams.map((team) => {
                 const pick = gridPicks.find((entry) => entry.round === index + 1 && entry.teamId === team.teamId);
                 return { round: index + 1, teamId: team.teamId, overall: pick?.overall ?? null };
             })).flat();
-        }, [isAuction, league.draftOrder, league.teams, gridPicks]);
+        }, [isAuction, league.draftOrder, orderedTeams, gridPicks]);
         const draftPickLabel = (pick) => isAuction ? `Award #${pick.overall}` : pickLabel(league.draftOrder, pick.overall, pick.round);
         const pickByOverall = useMemo(() => new Map(league.draftPicks.map((p) => [p.overall, p])), [league.draftPicks]);
         const boardRounds = useMemo(() => {
@@ -582,9 +585,9 @@
                 drawn && h('span', null, `${drawn.drawnSeason ?? '—'} · ${drawn.points.toFixed(1)} pts`));
         };
         const dhqState = {
-            picks: gridPicks.map((pick) => ({ ...pick, pos: pick.position, teamIdx: league.teams.findIndex((team) => team.teamId === pick.teamId), isUser: pick.teamId === humanTeam?.teamId })),
-            pickOrder: gridOrder.map((slot) => ({ ...slot, teamIdx: league.teams.findIndex((team) => team.teamId === slot.teamId), rosterId: slot.teamId, ownerName: teamName(slot.teamId) })),
-            userSlot: league.teams.findIndex((team) => team.teamId === humanTeam?.teamId) + 1,
+            picks: gridPicks.map((pick) => ({ ...pick, pos: pick.position, teamIdx: gridTeamIndex(pick.teamId), isUser: pick.teamId === humanTeam?.teamId })),
+            pickOrder: gridOrder.map((slot) => ({ ...slot, teamIdx: gridTeamIndex(slot.teamId), rosterId: slot.teamId, ownerName: teamName(slot.teamId) })),
+            userSlot: gridTeamIndex(humanTeam?.teamId) + 1,
             userRosterId: humanTeam?.teamId, leagueSize: league.teams.length, rounds: boardRounds.length,
             currentIdx: league.draftPicks.length, phase: 'vault', mode: 'ghost', pinnedRosterId,
             personas: Object.fromEntries(league.teams.map((team) => [team.teamId, { teamName: team.name }]))
@@ -600,10 +603,10 @@
             league.draftPicks.length === 0 ? h('p', { className: 'tl-empty' }, 'No picks yet — the log fills as the room drafts.')
                 : showBoardGrid
                     ? sharedGrid || h('div', { className: 'tl-draft-fallback-scroll', role: 'region', 'aria-label': 'Draft grid by round and team', tabIndex: 0 }, h('table', { className: 'tl-tbl tl-draft-fallback-grid', style: { minWidth: `${league.teams.length * 148 + 30}px` } },
-                        h('thead', null, h('tr', null, h('th', null, isAuction ? 'Add' : 'Rd'), league.teams.map((team) => h('th', { key: team.teamId }, team.name)))),
+                        h('thead', null, h('tr', null, h('th', null, isAuction ? 'Add' : 'Rd'), orderedTeams.map((team) => h('th', { key: team.teamId }, team.name)))),
                         h('tbody', null, boardRounds.map(([round, seats]) => h('tr', { key: round },
                             h('td', { className: 'num' }, round),
-                            league.teams.map((team) => {
+                            orderedTeams.map((team) => {
                                 const cell = seats.find((slot) => slot.teamId === team.teamId);
                                 if (!cell) return h('td', { key: team.teamId }, '—');
                                 const pick = pickByOverall.get(cell.overall);

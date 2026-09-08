@@ -46,7 +46,7 @@ const finalHome = JSON.stringify(render(() => WrTimeLeagueHomePanel({ league: { 
 assert(finalHome.includes('FINAL')); assert(finalHome.includes('WK 6')); assert(!finalHome.includes('UPCOMING')); assert(finalHome.includes('The final is in.'));
 assert(finalHome.includes('League update')); assert(!finalHome.includes('tl-home-pulse')); assert(!finalHome.includes('PRESEASON EDITION'));
 
-const leagueTwelve = E.createTimeLeague({ name: 'Phone league', seed: 'phone-ui', createdAt: '2026-01-01', settings: league.settings,
+const leagueTwelve = E.createTimeLeague({ name: 'Phone league', seed: 'phone-ui', createdAt: '2026-01-01', settings: { ...league.settings, draftOrderMode: undefined, draftTeamOrder: undefined },
     seats: Array.from({ length: 12 }, (_, i) => ({ name: i === 0 ? 'The Very Long Named Phone Test Champions' : `Manager ${i + 1}`, manager: i ? 'ai' : 'human' })) });
 const resultRows = leagueTwelve.teams.map((team, i) => ({ teamId: team.teamId, total: 100-i, starters: [{ entryId: `star-${i}`, name: `Standout ${i + 1}`, drawnSeason: 2000+i, points: 20+i, stats: S.emptyStatLine() }], bench: [] }));
 const matchRows = leagueTwelve.schedule[0].pairs.map(([home, away]) => {

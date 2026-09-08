@@ -14,7 +14,7 @@
     const PICK = fields('overall round teamId entryId identity name position madeBy auctionPrice');
     const TEAM = fields('teamId name manager aiPersona primaryColor secondaryColor backdrop faabRemaining draftBudgetRemaining');
     const HELMET = fields('assetId artworkMode shell color shellColor accentColor decal monogram facemask facemaskColor stripe stripeStyle stripeColor paintStyle visor');
-    const SETTINGS = fields('regularSeasonWeeks playoffTeams advancementMode gateHours maxQuarterbacks eraAdjusted waiversEnabled tradesEnabled waiverMode faabBudget aiDifficulty draftFormat draftPickSeconds draftAiSeconds draftAuctionBudget');
+    const SETTINGS = fields('regularSeasonWeeks playoffTeams advancementMode gateHours maxQuarterbacks eraAdjusted waiversEnabled tradesEnabled waiverMode faabBudget aiDifficulty draftFormat draftPickSeconds draftAiSeconds draftAuctionBudget draftOrderMode');
     const STATS = fields('passYd passTd passInt rushYd rushTd rec recYd recTd fumblesLost twoPointConversions');
 
     function draftVisibility(state, seatTeamId) {
@@ -48,6 +48,7 @@
     function publicSettings(state, visibility) {
         const settings = state.settings || {}, scoring = settings.scoring || {}, eras = settings.eraRules || {};
         const result = { ...pick(settings, SETTINGS), rosterSlots: pick(settings.rosterSlots, App.TimeLeagueRoster.ROSTER_SLOT_IDS),
+            draftTeamOrder: App.TimeLeagueEngine.draftTeamOrder(state),
             scoring: { ...pick(scoring, fields('passTd reception rushRecYd passingYd turnover')) },
             eraRules: { mode: eras.mode, decades: strings(eras.decades) } };
         if (scoring.stats) result.scoring.stats = pick(scoring.stats, STATS);

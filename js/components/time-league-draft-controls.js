@@ -8,6 +8,48 @@
     const canControl = onlineMeta => !onlineMeta || onlineMeta.role === 'commissioner';
     const clockLabel = seconds => seconds > 0 ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '0:00';
 
+    function WrTimeLeagueDraftOrder({ league, onlineMeta = null, saving = false, onAction }) {
+        const canonical = Engine.draftTeamOrder?.(league) || (league.draftOrder || []).filter(seat => seat.round === 1).map(seat => seat.teamId);
+        const key = `${league.leagueId}:${league.settings.draftOrderMode}:${canonical.join(',')}`;
+        const [edit, setEdit] = useState(null);
+        if (!canonical.length || !league.teams?.length || league.phase !== 'draft') return null;
+        const ownerId = onlineMeta?.seatTeamId || league.teams.find(team => team.manager === 'human')?.teamId;
+        const yourIndex = canonical.indexOf(ownerId);
+        const canEdit = canControl(onlineMeta) && Engine.canConfigureDraftOrder?.(league);
+        const draft = canEdit && edit?.key === key ? edit : { key, mode: league.settings.draftOrderMode || 'manual', teamOrder: canonical };
+        const auction = league.settings.draftFormat === 'auction';
+        const pending = draft.mode !== league.settings.draftOrderMode || draft.teamOrder.join(',') !== canonical.join(',');
+        const move = (index, delta) => {
+            if (!canEdit || saving || index + delta < 0 || index + delta >= draft.teamOrder.length) return;
+            const teamOrder = [...draft.teamOrder];
+            [teamOrder[index], teamOrder[index + delta]] = [teamOrder[index + delta], teamOrder[index]];
+            setEdit({ key, mode: 'manual', teamOrder });
+        };
+        return h('details', { className: 'tl-room-order' },
+            h('summary', null, h('span', null, auction ? 'Nomination order' : 'Draft order'),
+                h('strong', null, yourIndex >= 0 ? `You ${auction ? 'nominate' : 'pick'} ${yourIndex + 1} of ${canonical.length}` : `${canonical.length} teams`)),
+            h('div', { className: 'tl-room-order-body' },
+                canEdit ? h('label', { className: 'tl-field' }, h('span', { className: 'tl-label' }, 'Set draft order'),
+                    h('select', { className: 'tl-select', 'aria-label': 'Room draft order mode', value: draft.mode, disabled: saving,
+                        onChange: event => setEdit({ ...draft, key, mode: event.target.value }) },
+                        h('option', { value: 'random' }, 'Random'), h('option', { value: 'manual' }, 'Manual')))
+                    : h('p', { className: 'tl-hint' }, Engine.canConfigureDraftOrder?.(league) ? 'The commissioner sets the order before the clock starts.' : 'Order locked when the draft started.'),
+                h('ol', { className: 'tl-room-order-list', 'aria-label': auction ? 'Team nomination order' : 'First-round draft order' }, draft.teamOrder.map((teamId, index) => {
+                    const team = league.teams.find(item => item.teamId === teamId);
+                    return h('li', { key: teamId, className: teamId === ownerId ? 'is-you' : '' },
+                        h('span', { className: 'tl-room-order-rank', 'aria-hidden': true }, index + 1),
+                        h('strong', null, team?.name || teamId, teamId === ownerId && h('small', null, 'YOU')),
+                        canEdit && draft.mode === 'manual' && h('div', { className: 'tl-room-order-moves' },
+                            h('button', { type: 'button', className: 'tl-btn', 'aria-label': `Move ${team?.name || teamId} earlier`, disabled: saving || index === 0, onClick: () => move(index, -1) }, '↑'),
+                            h('button', { type: 'button', className: 'tl-btn', 'aria-label': `Move ${team?.name || teamId} later`, disabled: saving || index === draft.teamOrder.length - 1, onClick: () => move(index, 1) }, '↓')));
+                })),
+                canEdit && h('div', { className: 'tl-room-order-save' },
+                    h('p', { className: 'tl-hint', role: 'status' }, pending ? 'Changes are not saved yet.' : draft.mode === 'random' ? 'Shuffle to draw a new order before the clock starts.' : 'Move teams, then save the order.'),
+                    h('button', { type: 'button', className: 'tl-btn primary', disabled: saving || (draft.mode === 'manual' && !pending),
+                        onClick: () => onAction({ type: 'draft-order-settings', draftOrderMode: draft.mode, ...(draft.mode === 'manual' ? { draftTeamOrder: draft.teamOrder } : {}) }) },
+                        draft.mode === 'random' ? 'Shuffle & save' : 'Save order'))));
+    }
+
     function WrTimeLeagueDraftClock({ league, onlineMeta = null, saving = false, remainingSeconds = null, onAction }) {
         const [now, setNow] = useState(() => Date.now());
         const clock = league.draftClock || { status: 'waiting' };
@@ -30,7 +72,7 @@
             ? deadline - now : clock.remainingMs ?? duration * 1000;
         const seconds = Math.max(0, Math.ceil(remainingSeconds !== null ? remainingSeconds : millis / 1000));
         const status = clock.status === 'paused' ? 'Paused' : clock.status === 'waiting' ? 'Ready when you are' : duration ? seconds ? 'On the clock' : 'Time expired' : 'Untimed draft';
-        return h('section', { className: `tl-draft-clock${duration && seconds <= 10 && clock.status === 'running' ? ' is-urgent' : ''}${clock.status === 'paused' ? ' is-paused' : ''}`, 'aria-label': 'Draft clock' },
+        return h(React.Fragment, null, h('section', { className: `tl-draft-clock${duration && seconds <= 10 && clock.status === 'running' ? ' is-urgent' : ''}${clock.status === 'paused' ? ' is-paused' : ''}`, 'aria-label': 'Draft clock' },
             h('div', { className: 'tl-draft-clock-face' },
                 h('span', { className: 'tl-label' }, isAuction ? league.draftAuction?.nomination ? 'BID CLOCK' : 'NOMINATION CLOCK' : 'PICK CLOCK'),
                 h('strong', { className: 'tabular', role: 'timer', 'aria-live': 'off', 'aria-label': duration ? `${seconds} seconds remaining` : 'Clock off' }, duration ? clockLabel(seconds) : 'OFF'),
@@ -53,7 +95,8 @@
                     ? !onlineMeta?.draftStarted ? 'Waiting for the commissioner to open the draft.'
                         : waitingFor ? `Waiting for ${waitingFor} ${waitingFor === 1 ? 'manager' : 'managers'} to finish the reveal.` : 'Waiting for managers to finish the reveal.'
                     : clock.status === 'paused' ? 'The room is paused. Resume when everyone is ready.'
-                    : isAuction ? 'Each new bid restarts the countdown.' : 'Your queue leads the auto-pick when time expires.')));
+                    : isAuction ? 'Each new bid restarts the countdown.' : 'Your queue leads the auto-pick when time expires.'))),
+            h(WrTimeLeagueDraftOrder, { league, onlineMeta, saving, onAction }));
     }
 
     function WrTimeLeagueAuctionPanel({ league, cards, currentTeamId, onlineMeta = null, saving = false, onAction }) {
@@ -143,6 +186,7 @@
                 }))));
     }
 
+    window.WrTimeLeagueDraftOrder = WrTimeLeagueDraftOrder;
     window.WrTimeLeagueDraftClock = WrTimeLeagueDraftClock;
     window.WrTimeLeagueAuctionPanel = WrTimeLeagueAuctionPanel;
 })();

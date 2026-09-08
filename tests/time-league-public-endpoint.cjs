@@ -83,7 +83,8 @@ async function loadTs(file) {
     const source = fs.readFileSync('supabase/functions/time-league/index.ts', 'utf8').replace(/^import .*;\r?\n/gm, '');
     const compiled = Babel.transform(source, { filename: 'index.ts', presets: ['typescript'] }).code;
     vm.runInNewContext(compiled, {
-        Deno: { env: { get: () => 'test-only' }, serve: fn => { handler = fn; } }, crypto: webcrypto, App,
+        Deno: { env: { get: () => 'test-only' }, serve: fn => { handler = fn; } },
+        crypto: { randomUUID: () => webcrypto.randomUUID(), getRandomValues: array => array.fill(0) }, App,
         createClient: () => admin, handleOptions: () => null, json: (_req, body, status = 200) => ({ body: JSON.parse(JSON.stringify(body)), status }),
         requireActiveAppSession: async () => loggedIn ? { userId } : null, handleCommunity: async () => null,
         loadData: async () => data, loadPrivateMessages: async () => privateMessages,
@@ -101,6 +102,41 @@ async function loadTs(file) {
     assert.notEqual(lastCreate.seed, 'attacker-seed');
     assert(Object.values(lastCreate.settings.eraRules.positionDecades).every(decade => decade === '2000s'), 'Caller-provided roulette assignments are ignored');
     assert.deepEqual(lastCreate.draftEraReveals, {});
+    assert.equal(lastCreate.settings.draftOrderMode, 'random', 'New online rooms default to random even for an older caller');
+    assert.deepEqual(lastCreate.settings.draftTeamOrder, ['t2', 't3', 't4', 't1'], 'The server shuffle controls the published first round');
+    const manualOrder = ['t4', 't2', 't1', 't3'];
+    const createOrder = patch => request({ op: 'create', input: { name: 'Order settings', settings: { ...settings, ...patch }, seats } });
+    success(await createOrder({ draftOrderMode: 'manual', draftTeamOrder: manualOrder }));
+    assert.deepEqual(lastCreate.settings.draftTeamOrder, manualOrder);
+    assert.equal(lastCreate.teams[0].teamId, 't1'); assert.equal(lastCreate.teams[0].name, 'Host', 'Draft position never changes account ownership');
+    success(await createOrder({ draftOrderMode: 'random', draftTeamOrder: ['forged'], randomTeamOrder: manualOrder }));
+    assert.deepEqual(lastCreate.settings.draftTeamOrder, ['t2', 't3', 't4', 't1'], 'Client random-order lists cannot choose the server shuffle');
+    for (const invalid of [undefined, [], ['t1', 't2', 't3', 't3'], ['t1', 't2', 't3', 'outsider'], ['t1', 't2', 't3'], 't1,t2,t3,t4']) {
+        assert.equal((await createOrder({ draftOrderMode: 'manual', draftTeamOrder: invalid })).status, 400, 'Manual online creation requires an exact permutation');
+    }
+    assert.equal((await createOrder({ draftOrderMode: 'rigged' })).status, 400);
+
+    const beforeOrderChanges = structuredClone(row);
+    const orderAction = { type: 'draft-order-settings', draftOrderMode: 'manual', draftTeamOrder: manualOrder };
+    userId = 'u2'; assert.equal((await act(orderAction)).status, 400, 'Only the commissioner may change the order'); userId = 'u1';
+    assert.equal((await act(orderAction, { version: row.version - 1 })).status, 409);
+    for (const invalid of [undefined, ['t1', 't2', 't3'], ['t1', 't2', 't3', 't3'], ['t1', 't2', 't3', 'outsider']]) {
+        assert.equal((await act({ ...orderAction, draftTeamOrder: invalid })).status, 400);
+    }
+    success(await act(orderAction));
+    assert.deepEqual(row.state.settings.draftTeamOrder, manualOrder, 'The commissioner can set order in the unopened lobby');
+    assert.deepEqual(row.state.teams, beforeOrderChanges.state.teams, 'Order changes do not move member identities or edit teams');
+    assert.deepEqual(row.state.settings.eraRules, beforeOrderChanges.state.settings.eraRules, 'Order changes never reroll the era assignment');
+    const reconnectOrder = E.normalizePublicTimeLeague(success(await request({ op: 'load' })).row.state);
+    assert.deepEqual(E.draftTeamOrder(reconnectOrder), manualOrder, 'Sealed reconnects retain the exact public order');
+    success(await act({ type: 'draft-order-settings', draftOrderMode: 'random', draftTeamOrder: ['forged'], randomTeamOrder: manualOrder }));
+    assert.deepEqual(row.state.settings.draftTeamOrder, ['t2', 't3', 't4', 't1'], 'Order rerolls use server entropy instead of caller preferences');
+    for (const clockStatus of ['running', 'paused']) {
+        row.state.draftClock.status = clockStatus;
+        assert.equal((await act(orderAction)).status, 400, 'Starting or pausing never reopens order editing');
+    }
+    row = beforeOrderChanges;
+
 
     row.state.teams[0].queue = [choice.identity]; row.state.teams[1].queue = ['private-other-queue'];
     let loaded = success(await request({ op: 'load' })).row;
@@ -129,6 +165,7 @@ async function loadTs(file) {
     assert.equal((await act({ type: 'draft-clock-start' })).status, 400, 'An old ready bit does not bypass the other manager’s server reveal');
     userId = 'u2'; success(await act({ type: 'reveal-era', position: 'all' })); success(await request({ op: 'ready', ready: true }));
     userId = 'u1'; success(await act({ type: 'draft-clock-start' }));
+    assert.equal((await act(orderAction)).status, 400, 'A live draft rejects order changes');
 
     let iterations = 0;
     while (row.state.phase === 'draft' && iterations++ < 30) {

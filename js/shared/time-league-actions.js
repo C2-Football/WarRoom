@@ -3,7 +3,7 @@
 (function (root) {
     'use strict';
     const App = root.App = root.App || {};
-    function applyOnlineAction(state, action, member, data, stamp) {
+    function applyOnlineAction(state, action, member, data, stamp, options = {}) {
         const E = App.TimeLeagueEngine, AI = App.TimeLeagueAI;
         const cards = data.cards;
         const own = member.seat_team_id;
@@ -51,6 +51,8 @@
             commissioner(); next = E.pauseDraft(state, stamp); break;
         case 'draft-clock-resume':
             commissioner(); next = E.resumeDraft(state, stamp); break;
+        case 'draft-order-settings':
+            commissioner(); next = E.configureDraftOrder(state, action, stamp, options); break;
         case 'draft-clock-settings':
             commissioner(); next = E.configureDraft(state, action, stamp); break;
         case 'draft-timeout':

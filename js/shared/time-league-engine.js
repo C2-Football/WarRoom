@@ -171,6 +171,40 @@
             draftAuctionBudget: Number.isInteger(value.draftAuctionBudget) ? Math.max(50, Math.min(1000, value.draftAuctionBudget)) : 200,
         };
     }
+    function validDraftTeamOrder(order, teamIds) {
+        return Array.isArray(order) && order.length === teamIds.length && new Set(order).size === teamIds.length
+            && order.every(id => typeof id === 'string' && teamIds.includes(id));
+    }
+    function shuffledDraftTeamOrder(teamIds, seed) {
+        const order = [...teamIds], random = createSeededRandom(seed);
+        for (let index = order.length - 1; index > 0; index--) {
+            const swap = Math.floor(random() * (index + 1));
+            [order[index], order[swap]] = [order[swap], order[index]];
+        }
+        return order;
+    }
+    function draftTeamOrder(state) {
+        const teamIds = state.teams.map(team => team.teamId);
+        if (validDraftTeamOrder(state.settings.draftTeamOrder, teamIds)) return [...state.settings.draftTeamOrder];
+        const firstRound = state.draftOrder.filter(seat => seat.round === 1).sort((a, b) => a.overall - b.overall).map(seat => seat.teamId);
+        return validDraftTeamOrder(firstRound, teamIds) ? firstRound : teamIds;
+    }
+    const canConfigureDraftOrder = state => state.phase === 'draft' && state.draftClock?.status === 'waiting'
+        && state.draftPicks.length === 0 && !state.draftAuction?.nomination;
+    function configureDraftOrder(state, patch, stamp, options = {}) {
+        if (!canConfigureDraftOrder(state)) throw new Error('Draft order is locked once the draft starts.');
+        if (!validStamp(stamp) || !['random', 'manual'].includes(patch?.draftOrderMode)) throw new Error('Choose random or manual draft order.');
+        const teamIds = state.teams.map(team => team.teamId);
+        if (patch.draftOrderMode === 'manual' && !validDraftTeamOrder(patch.draftTeamOrder, teamIds)) throw new Error('Draft order must include every team exactly once.');
+        const order = patch.draftOrderMode === 'manual' ? [...patch.draftTeamOrder]
+            : validDraftTeamOrder(options.randomTeamOrder, teamIds) ? [...options.randomTeamOrder]
+                : shuffledDraftTeamOrder(teamIds, `${state.seed}:draft-order:${stamp}`);
+        return { ...state, settings: { ...state.settings, draftOrderMode: patch.draftOrderMode, draftTeamOrder: order },
+            draftOrder: createDraftOrder(order, rosterCapacity(state.settings), state.settings.draftFormat === 'linear' ? 'linear' : 'snake')
+                .map(({ overall, round, teamId }) => ({ overall, round, teamId })),
+            draftAuction: { ...state.draftAuction, nominationIndex: 0 },
+        };
+    }
     const validStamp = stamp => typeof stamp === 'string' && Number.isFinite(Date.parse(stamp));
     function normalizeDraftClock(clock, settings) {
         // Existing saves never acquire a ticking deadline simply by being opened.
@@ -185,7 +219,7 @@
     function restartedClock(state, stamp, durationMs = (state.settings.draftPickSeconds || 0) * 1000) {
         const clock = normalizeDraftClock(state.draftClock, state.settings);
         const running = clock.status === 'running';
-        return { status: clock.status, startedAt: validStamp(stamp) ? stamp : clock.startedAt, deadlineAt: running && durationMs > 0 && validStamp(stamp) ? new Date(Date.parse(stamp) + durationMs).toISOString() : null, remainingMs: durationMs };
+        return { status: clock.status, startedAt: clock.status === 'waiting' ? null : validStamp(stamp) ? stamp : clock.startedAt, deadlineAt: running && durationMs > 0 && validStamp(stamp) ? new Date(Date.parse(stamp) + durationMs).toISOString() : null, remainingMs: durationMs };
     }
     function startDraft(state, stamp) {
         if (state.phase !== 'draft' || !validStamp(stamp) || state.draftClock?.status !== 'waiting') return state;
@@ -269,7 +303,7 @@
         if (next === state) return state;
         return { ...next,
             teams: next.teams.map(team => team.teamId === winner.teamId ? { ...team, draftBudgetRemaining: (winner.draftBudgetRemaining ?? state.settings.draftAuctionBudget ?? 200) - n.highBid } : team),
-            draftAuction: { nomination: null, nominationIndex: (state.teams.findIndex(t => t.teamId === n.nominatedBy) + 1) % state.teams.length, lastAiAt: stamp },
+            draftAuction: { nomination: null, nominationIndex: (draftTeamOrder(state).indexOf(n.nominatedBy) + 1) % state.teams.length, lastAiAt: stamp },
         };
     }
     function expireDraftClock(state, cards, stamp) {
@@ -302,7 +336,7 @@
         };
     }
 
-    function createTimeLeague(input) {
+    function createTimeLeague(input, options = {}) {
         const teams = input.seats.map((seat, index) => {
             const teamId = `t${index + 1}`;
             return {
@@ -321,7 +355,16 @@
             };
         });
         const teamIds = teams.map((team) => team.teamId);
-        const draftOrder = createDraftOrder(teamIds, rosterCapacity(input.settings), input.settings.draftFormat === "linear" ? "linear" : "snake")
+        // The low-level omitted setting preserves legacy fixtures/imports. New
+        // setup flows explicitly choose random; online creation enforces it too.
+        const draftOrderMode = input.settings.draftOrderMode === undefined ? 'manual' : input.settings.draftOrderMode;
+        if (!['manual', 'random'].includes(draftOrderMode)) throw new Error('Choose random or manual draft order.');
+        const manualOrder = input.settings.draftTeamOrder === undefined && input.settings.draftOrderMode === undefined ? teamIds : input.settings.draftTeamOrder;
+        if (draftOrderMode === 'manual' && !validDraftTeamOrder(manualOrder, teamIds)) throw new Error('Draft order must include every team exactly once.');
+        const teamOrder = draftOrderMode === 'manual' ? [...manualOrder]
+            : validDraftTeamOrder(options.randomTeamOrder, teamIds) ? [...options.randomTeamOrder]
+                : shuffledDraftTeamOrder(teamIds, `${input.seed}:draft-order:${input.createdAt}`);
+        const draftOrder = createDraftOrder(teamOrder, rosterCapacity(input.settings), input.settings.draftFormat === "linear" ? "linear" : "snake")
             .map(({ overall, round, teamId }) => ({ overall, round, teamId }));
         const schedule = buildRoundRobinSchedule(teamIds, input.settings.regularSeasonWeeks)
             .map(({ week, pairs }) => ({ week, pairs }));
@@ -332,6 +375,7 @@
         const settings = {
             ...input.settings,
             ...draftSettings(input.settings, true),
+            draftOrderMode, draftTeamOrder: teamOrder,
             playoffTeams: input.settings.playoffTeams || 0,
             advancementMode: input.settings.advancementMode || 'commissioner',
             gateHours: input.settings.gateHours || 24,
@@ -380,8 +424,9 @@
             const eligible = state.teams.filter(team => team.roster.length < rosterCapacity(state.settings));
             if (!eligible.length) return null;
             const start = (state.draftAuction?.nominationIndex || 0) % state.teams.length;
-            const team = state.teams.slice(start).concat(state.teams.slice(0, start)).find(item => eligible.includes(item));
-            return { overall: state.draftPicks.length + 1, round: Math.floor(state.draftPicks.length / state.teams.length) + 1, teamId: team.teamId };
+            const order = draftTeamOrder(state);
+            const teamId = order.slice(start).concat(order.slice(0, start)).find(id => eligible.some(team => team.teamId === id));
+            return { overall: state.draftPicks.length + 1, round: Math.floor(state.draftPicks.length / state.teams.length) + 1, teamId };
         }
         const taken = new Set(state.draftPicks.map((pick) => pick.overall));
         return state.draftOrder.find((seat) => !taken.has(seat.overall)) ?? null;
@@ -1194,6 +1239,15 @@
         const currentWeek = readNumber(raw.currentWeek);
         if (!leagueId || !name || (!publicView && !seed) || !createdAt || !phase || !settings || !teams || !teams.length
             || !draftOrder || !draftPicks || !schedule || !finalizedWeeks || !pendingClaims || !trades || !activity || currentWeek === null) return null;
+        // Saves load their existing first round verbatim. Never roll an order
+        // while normalizing, including legacy rooms without this setting.
+        const teamIds = teams.map(team => team.teamId);
+        const firstRound = draftOrder.filter(seat => seat.round === 1).sort((a, b) => a.overall - b.overall).map(seat => seat.teamId);
+        const savedOrder = raw.settings.draftTeamOrder;
+        if (savedOrder !== undefined && !validDraftTeamOrder(savedOrder, teamIds)) return null;
+        if (savedOrder !== undefined && validDraftTeamOrder(firstRound, teamIds) && savedOrder.some((id, index) => id !== firstRound[index])) return null;
+        settings.draftOrderMode = raw.settings.draftOrderMode === 'random' ? 'random' : 'manual';
+        settings.draftTeamOrder = savedOrder !== undefined ? [...savedOrder] : validDraftTeamOrder(firstRound, teamIds) ? firstRound : teamIds;
         const championTeamId = readString(raw.championTeamId);
         return {
             version: 1,
@@ -1250,6 +1304,7 @@
     }
 
     const api = {
+        validDraftTeamOrder, draftTeamOrder, canConfigureDraftOrder, configureDraftOrder,
         AI_PERSONAS, AI_PERSONA_IDS, rosterCapacity, defaultAiSeat, createTimeLeague, currentDraftSeat, draftedIdentities, eraEligibleCards,
         DRAFT_PICK_SECONDS, DRAFT_AI_SECONDS, draftSettings, startDraft, pauseDraft, resumeDraft, configureDraft, expireDraftClock,
         auctionMaxBid, auctionCanBid, auctionCanClose, nominateAuctionPlayer, bidAuctionPlayer, closeAuction,

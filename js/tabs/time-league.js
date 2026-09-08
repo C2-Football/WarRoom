@@ -1278,7 +1278,7 @@
 
         const dispatchDraft = useCallback(async (action, options = {}) => {
             const current = leagueRef.current;
-            if (!current || current.phase !== 'draft' || !revealRef.current || draftActionBusy.current) return false;
+            if (!current || current.phase !== 'draft' || (!revealRef.current && action.type !== 'draft-order-settings') || draftActionBusy.current) return false;
             draftActionBusy.current = true;
             try {
                 const nominatedTeam = action.teamId || Engine.currentDraftSeat(current)?.teamId;

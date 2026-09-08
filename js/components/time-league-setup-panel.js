@@ -201,6 +201,9 @@
         const [tradesEnabled, setTradesEnabled] = useState(true);
         const [aiDifficulty, setAiDifficulty] = useState('veteran');
         const [draftFormat, setDraftFormat] = useState('snake');
+        const [draftOrderMode, setDraftOrderMode] = useState('random');
+        // Seat identity stays tied to its manager even when draft positions change.
+        const [draftSeatOrder, setDraftSeatOrder] = useState([]);
         const [draftPickSeconds, setDraftPickSeconds] = useState(60);
         const [draftAiSeconds, setDraftAiSeconds] = useState(2);
         const [draftAuctionBudget, setDraftAuctionBudget] = useState(200);
@@ -217,8 +220,13 @@
             mode: eraMode,
             decades: eraMode === 'any-era' ? [] : EraRules.ERA_DECADES.filter((decade) => eraDecades.includes(decade.id)).map((decade) => decade.id),
         }), [eraMode, eraDecades]);
+        const orderedSeats = useMemo(() => {
+            const previous = [...new Set(draftSeatOrder)].filter(index => Number.isInteger(index) && index >= 0 && index < seats.length);
+            return [...previous, ...seats.map((_, index) => index).filter(index => !previous.includes(index))];
+        }, [draftSeatOrder, seats.length]);
         const settings = useMemo(() => ({
             draftFormat, draftPickSeconds, draftAiSeconds, draftAuctionBudget,
+            draftOrderMode, draftTeamOrder: draftOrderMode === 'manual' ? orderedSeats.map(index => `t${index + 1}`) : [],
             rosterSlots: customSlots || rosterOption.slots,
             scoring: { ...scoringOption.scoring, stats: customStats, bonuses, ...(customExtended ? { extended: customExtended } : {}) },
             regularSeasonWeeks: 14 - Math.log2((seats.length >= playoffTeams ? playoffTeams : 2) || 1),
@@ -226,7 +234,7 @@
             playoffTeams: seats.length >= playoffTeams ? playoffTeams : 2,
             maxQuarterbacks: Math.max(qbLimit, (customSlots || rosterOption.slots).QB || 0),
             eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty,
-        }), [draftFormat, draftPickSeconds, draftAiSeconds, draftAuctionBudget, playMode, bonuses, advancementMode, gateHours, customSlots, customStats, customExtended, qbLimit, playoffTeams, seats.length, rosterOption, scoringOption, eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty]);
+        }), [draftFormat, draftOrderMode, orderedSeats, draftPickSeconds, draftAiSeconds, draftAuctionBudget, playMode, bonuses, advancementMode, gateHours, customSlots, customStats, customExtended, qbLimit, playoffTeams, seats.length, rosterOption, scoringOption, eraAdjusted, eraRules, waiversEnabled, waiverMode, faabBudget, tradesEnabled, aiDifficulty]);
         const capacity = Engine.rosterCapacity(settings);
         const humanSeats = seats.filter((seat) => seat.manager === 'human').length;
         const signedIn = onlineIndexState !== 'signed-out' && Boolean(window.App.OD && window.App.OD.getCurrentUserId && window.App.OD.getCurrentUserId());
@@ -235,6 +243,7 @@
             if (nextMode === playMode) return;
             setPlayMode(nextMode);
             setCreateError(null);
+            setDraftSeatOrder([]);
             setSeats((previous) => defaultSeatsFor(nextMode).map((seat, index) => index === 0 ? { ...seat, ...previous[0], manager: 'human' } : seat));
         };
         const updateSeat = (target, patch) => {
@@ -257,7 +266,16 @@
                 helmet: window.App.TimeLeagueHelmet.defaultHelmet(seatName),
             }];
         });
-        const removeSeat = (target) => setSeats((previous) => (previous.length <= 2 ? previous : previous.filter((seat, index) => index !== target)));
+        const removeSeat = (target) => {
+            if (seats.length <= 2 || target === 0) return;
+            setDraftSeatOrder(orderedSeats.filter(index => index !== target).map(index => index > target ? index - 1 : index));
+            setSeats(previous => previous.filter((_, index) => index !== target));
+        };
+        const moveDraftSeat = (seatIndex, position) => {
+            const next = orderedSeats.filter(index => index !== seatIndex);
+            next.splice(Math.max(0, Math.min(next.length, position)), 0, seatIndex);
+            setDraftSeatOrder(next);
+        };
         const toggleDecade = (id) => setEraDecades((previous) => (previous.includes(id) ? previous.filter((item) => item !== id) : [...previous, id]));
 
         const startLeague = async () => {
@@ -328,6 +346,22 @@
                         key: option.id, type: 'button', className: `tl-draft-format${draftFormat === option.id ? ' selected' : ''}`,
                         'aria-pressed': draftFormat === option.id, onClick: () => setDraftFormat(option.id),
                     }, h('strong', null, option.label), h('span', null, option.detail)))),
+                    h('div', { className: 'tl-draft-order-setup' },
+                        h('label', { className: 'tl-field' }, h('span', { className: 'tl-label' }, draftFormat === 'auction' ? 'Nomination order' : 'Draft order'),
+                            h('select', { className: 'tl-select', 'aria-label': 'Draft order mode', value: draftOrderMode, onChange: event => setDraftOrderMode(event.target.value) },
+                                h('option', { value: 'random' }, 'Randomize all teams'), h('option', { value: 'manual' }, 'Set the order'))),
+                        h('p', { className: 'tl-hint' }, draftOrderMode === 'random'
+                            ? 'Every team has the same chance at each position. The order is drawn when you create the league.'
+                            : draftFormat === 'auction' ? 'Choose who nominates first. Every manager can still bid.'
+                                : draftFormat === 'snake' ? 'Set round one below. The order reverses each round.' : 'Set the order used in every round.'),
+                        draftOrderMode === 'manual' && h('ol', { className: 'tl-draft-order-list', 'aria-label': draftFormat === 'auction' ? 'Nomination order' : 'Round one draft order' }, orderedSeats.map((seatIndex, position) => {
+                            const seat = seats[seatIndex];
+                            const seatName = seat.name.trim() || (seatIndex === 0 ? 'My Team' : `Team ${seatIndex + 1}`);
+                            return h('li', { key: seatIndex },
+                                h('span', { className: 'tl-draft-order-number tabular', 'aria-hidden': 'true' }, position + 1),
+                                h('span', { className: 'tl-draft-order-team' }, h('strong', null, seatName), h('small', null, seatIndex === 0 ? 'YOUR TEAM' : seat.manager === 'ai' ? 'AI MANAGER' : 'HUMAN MANAGER')),
+                                h('select', { className: 'tl-select', 'aria-label': `Draft position for ${seatName}`, value: position, onChange: event => moveDraftSeat(seatIndex, Number(event.target.value)) }, orderedSeats.map((_, rank) => h('option', { key: rank, value: rank }, `#${rank + 1}`))));
+                        }))),
                     h('div', { className: 'tl-draft-setup-fields' },
                         h('label', { className: 'tl-field' }, h('span', { className: 'tl-label' }, draftFormat === 'auction' ? 'Nomination & bid clock' : 'Pick clock'),
                             h('select', { className: 'tl-select', 'aria-label': 'Draft clock duration', value: draftPickSeconds, onChange: event => setDraftPickSeconds(Number(event.target.value)) },
