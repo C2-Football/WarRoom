@@ -98,8 +98,8 @@ test('invalid declarations reject unsupported favors, inadequate funds, wrong we
     assert.throws(() => declare({ favorId: 'ebisu' }), /not supported/);
     assert.throws(() => declare({ balance: 9 }), /requires 10/);
     assert.throws(() => declare({ balance: -1 }), /balance/);
-    assert.throws(() => declare({ playerId: 'missing' }), /starting five/);
-    assert.throws(() => declare({ playerId: 'bench' }), /starting five/);
+    assert.throws(() => declare({ playerId: 'missing' }), /starting lineup/);
+    assert.throws(() => declare({ playerId: 'bench' }), /starting lineup/);
     assert.throws(() => declare({ players: [...players(), players()[0]] }), /unique player/);
     assert.throws(() => declare({ declaration: { favorId: 'kratos-1', playerId: 'qb', week: 7 } }), /different week/);
     const normalized = declare({ declaration: { favorId: 'kratos-3', playerId: 'qb', cost: -100 } });

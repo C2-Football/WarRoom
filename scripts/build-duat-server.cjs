@@ -1,6 +1,6 @@
 'use strict';
 // The same Duat rules run in the browser and Edge. Pack logs by season so each
-// room loads only its four historical years, including sacred Weeks 15–17.
+// room loads only its chosen historical years, including sacred Weeks 15–17.
 const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
@@ -44,7 +44,7 @@ async function unpack(base64) {
 }
 let cardsPromise;
 export async function loadData(seasons) {
- if (!Array.isArray(seasons) || seasons.length !== 4 || new Set(seasons).size !== 4 || seasons.some(year => !availableSeasons.includes(year))) throw new Error('Choose four complete historical seasons.');
+ if (!Array.isArray(seasons) || ![1,2,4,5].includes(seasons.length) || new Set(seasons).size !== seasons.length || seasons.some(year => !availableSeasons.includes(year))) throw new Error('Choose unique complete historical seasons.');
  const cards = await (cardsPromise ||= unpack('${pack(cards)}').then(data => App.TimeLeaguePlayerCards.buildPlayerCardIndex(data)));
  const chunks = await Promise.all(seasons.map(year => unpack(seasonData[year])));
  const logs = chunks.flatMap(csv => App.TimeLeagueSeason.parseGameLogCsv(csv).logs);
@@ -54,4 +54,4 @@ export async function loadData(seasons) {
 const target = path.join(root, 'supabase/functions/duat/runtime.js');
 fs.mkdirSync(path.dirname(target), { recursive: true });
 fs.writeFileSync(target, runtime);
-console.log('Duat Edge runtime built with ' + availableSeasons.length + ' complete historical seasons; each room loads four.');
+console.log('Duat Edge runtime built with ' + availableSeasons.length + ' complete historical seasons; each room loads its chosen years.');

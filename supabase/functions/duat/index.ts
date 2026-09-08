@@ -21,7 +21,7 @@ function canonicalAction(value: any, factionId: string): any {
     if (value.factionId !== undefined && value.factionId !== factionId) reject('You can only control your own faction.', 403);
     const action = { ...value, factionId };
     if (action.type === 'set-ready' && typeof action.ready !== 'boolean') reject('Choose ready or unready.');
-    if (action.type === 'set-lineup' && (!Array.isArray(action.playerIds) || action.playerIds.length !== 5 || action.playerIds.some((id: any) => typeof id !== 'string' || id.length > 240))) reject('Choose five valid players.');
+    if (action.type === 'set-lineup' && (!Array.isArray(action.playerIds) || action.playerIds.length < 1 || action.playerIds.length > 8 || action.playerIds.some((id: any) => typeof id !== 'string' || id.length > 240))) reject('Choose valid starting players.');
     return action;
 }
 function sameIntent(left: any, right: any): boolean {
@@ -74,18 +74,21 @@ export async function handleDuatRequest(req: Request): Promise<Response> {
         if (body.op === 'create') {
             const input = body.input;
             if (!input || typeof input.name !== 'string' || !input.name.trim() || input.name.length > 80) reject('Choose a campaign name of up to 80 characters.');
-            if (!Array.isArray(input.seasons) || input.seasons.length !== 4 || new Set(input.seasons).size !== 4 || input.seasons.some((year: any) => !Number.isInteger(year) || !availableSeasons.includes(year))) reject('Choose four seasons with complete historical coverage.');
-            if (input.version !== undefined && ![1, 2].includes(input.version)) reject('Choose a supported campaign version.');
-            const version = input.version === 2 ? 2 : 1;
-            const factions = (version === 2 ? App.DuatWorld.FACTIONS : App.DuatRules.FACTIONS).map((faction: any) => faction.id);
+            if (input.version !== undefined && ![1, 2, 3].includes(input.version)) reject('Choose a supported campaign version.');
+            const version = input.version === 3 ? 3 : input.version === 2 ? 2 : 1;
+            const settings = version === 3 ? App.DuatCampaign.normalizeSettings(input.settings) : App.DuatCampaign.normalizeSettings();
+            if (version !== 3 && (input.settings !== undefined || input.scoring !== undefined)) reject('Custom rules require the current campaign format.');
+            const scoring = version === 3 ? App.DuatCampaign.normalizeScoring(input.scoring) : App.DuatCampaign.SCORING;
+            if (!Array.isArray(input.seasons) || input.seasons.length !== settings.mummyCount || new Set(input.seasons).size !== settings.mummyCount || input.seasons.some((year: any) => !Number.isInteger(year) || !availableSeasons.includes(year))) reject('Choose one complete historical season per mummy roster.');
+            const factions = (version >= 2 ? App.DuatWorld.FACTIONS : App.DuatRules.FACTIONS).map((faction: any) => faction.id);
             if (!factions.includes(input.hostFactionId)) reject('Choose your faction.');
             const invited = input.humanFactionIds || [];
-            if (!Array.isArray(invited) || invited.length > 14 || new Set(invited).size !== invited.length || invited.some((id: any) => !factions.includes(id))) reject('Choose unique human factions.');
-            const selected = input.factionIds || [...new Set([input.hostFactionId, ...invited, ...factions])].slice(0, 14);
-            if (!Array.isArray(selected) || selected.length !== 14 || new Set(selected).size !== 14 || selected.some((id: any) => !factions.includes(id))
-                || !selected.includes(input.hostFactionId) || invited.some((id: any) => !selected.includes(id))) reject('Choose fourteen active factions including every human seat.');
+            if (!Array.isArray(invited) || invited.length > settings.leagueSize || new Set(invited).size !== invited.length || invited.some((id: any) => !factions.includes(id))) reject('Choose unique human factions.');
+            const selected = input.factionIds || [...new Set([input.hostFactionId, ...invited, ...factions])].slice(0, settings.leagueSize);
+            if (!Array.isArray(selected) || selected.length !== settings.leagueSize || new Set(selected).size !== settings.leagueSize || selected.some((id: any) => !factions.includes(id))
+                || !selected.includes(input.hostFactionId) || invited.some((id: any) => !selected.includes(id))) reject('Choose the configured number of active factions including every human seat.');
             const humanFactionIds = [...new Set([input.hostFactionId, ...invited])];
-            const campaign = App.DuatCampaign.createCampaign({ version, id: crypto.randomUUID(), name: input.name.trim(),
+            const campaign = App.DuatCampaign.createCampaign({ version, settings, scoring, id: crypto.randomUUID(), name: input.name.trim(),
                 seed: crypto.randomUUID(), createdAt: new Date().toISOString(), seasons: input.seasons,
                 hostFactionId: input.hostFactionId, humanFactionIds, factionIds: selected }, await loadData(input.seasons));
             const { data: roomId, error } = await admin.rpc('create_duat_campaign', { p_user_id: session.userId, p_state: campaign });

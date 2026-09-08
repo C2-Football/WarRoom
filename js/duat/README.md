@@ -1,8 +1,8 @@
 # The Duat historical game
 
 The Duat is a separate Dynasty HQ game, entered from the hub or
-`index.html?duat=1`. New campaigns use the v2 historical draft, archaeology reveal
-and country-conquest format: solo against thirteen AI factions, or private
+`index.html?duat=1`. New campaigns use the v3 configurable historical draft, archaeology reveal
+and optional country-conquest format: solo against AI factions, or private
 campaigns with friends and AI. Solo uses browser saves; friends use the
 authenticated Duat endpoint. Release wiring is included; production availability
 must be verified separately.
@@ -14,7 +14,7 @@ storage and database tables remain separate from Vault leagues.
 
 ## Campaign versions and play
 
-| Contract | Existing v1 campaigns | New v2 campaigns |
+| Contract | Existing v1 campaigns | Existing v2 campaigns |
 | --- | --- | --- |
 | Factions | Original fourteen | Choose from 28; fourteen active per campaign |
 | Armies | Four automatically allocated armies | Four eight-round snake drafts, one per selected historical year |
@@ -44,6 +44,39 @@ Weeks 15–17, including reseeding and the Camel. Completed results can replay a
 one-, three- or five-minute pace with pause and quarter controls. The saved
 weekly result is authoritative; the replay is illustrative, not NFL play-by-play.
 
+## Configurable v3 campaigns
+
+The creation screen explicitly requests `version: 3`. Missing endpoint versions
+remain v1 for cached clients; existing v1/v2 saves retain their original rules.
+Settings are chosen before creation and remain immutable for the campaign.
+The rules summary remains available in the draft, reveal and season views.
+
+| Setting | Supported choices |
+| --- | --- |
+| `leagueSize` | 8, 10, 12, 14 or 16 factions |
+| `mummyCount` | 1, 2, 4 or 5 distinct historical armies, with equal d20 odds |
+| `roster` | `duat`: QB + 4 FLEX; `classic`: QB + 2 RB + 2 WR + TE + FLEX; `superflex`: classic plus SUPER_FLEX |
+| `bench` | 1–6 players per army |
+| `playoffTeams` | 2, 4, 6, 7 or 8; championship always in Week 17 |
+| `favors` / `conquest` | Independent booleans, both default true |
+| `favorBudget` | Integer 0–500 per faction for the whole season; default 100 |
+
+Scoring presets offer standard, half-PPR and PPR. Custom `scoring` accepts
+`passTd` (0–10), `reception` (0–2), `passingYd` and `rushRecYd` (0–1 each), and
+`turnover` (−10–0). Rushing/receiving TDs remain 6 and conversions 2. The same
+configuration drives weekly scores, gamecast and prior-year draft estimates.
+No K/DST positions or extended scoring categories are exposed.
+
+Drafts reset the snake at the beginning of each mummy army, including when the
+roster creates an odd number of rounds. Picks reserve enough positions to fill
+every faction's starting slots. A dynamic program assigns the strongest legal
+lineup to positional, FLEX and SUPER_FLEX slots; Heptad uses the same assignment
+on both allies' starters before favors. All league sizes use two-faction alliances.
+
+Disabled conquest awards no land or war actions, runs no AI conquest, and rejects
+claim/attack/fortify requests. Disabled favors start every treasury at zero and
+reject declarations; enabled budgets apply equally to human and AI managers.
+
 ## Modules and loading
 
 | Module / browser export | Responsibility |
@@ -54,7 +87,7 @@ weekly result is authoritative; the replay is illustrative, not NFL play-by-play
 | `conquest.js` / `App.DuatConquest` | Versioned claims, homelands, war actions, battle previews and fortification |
 | `favors.js` / `App.DuatFavors` | Seven historical scoring favors, declarations and treasury costs |
 | `campaign.js` / `App.DuatCampaign` | Draft, scoring, AI, standings, tournaments and campaign actions |
-| `session.js` / `App.DuatSession` | Pure seat, readiness, revision and receipt contracts |
+| `session.js` / `App.DuatSession` | Legacy v1 pure seat/readiness fixture; current rooms use the endpoint and SQL contracts |
 | `storage.js` / `App.DuatStorage` | Validated solo saves, index recovery and storage failure handling |
 | `remote.js` / `App.DuatRemote` | Authenticated requests and account-switch response protection |
 | `js/components/duat-presentation.js` | Country map, draft, excavation, pantheon and result presentation |
@@ -96,7 +129,7 @@ Kratos I–III, Horus I–II and Janus II–III. Sacred weeks are 5, 7, 10, 14, 
 $10/$20/$30. Kratos multiplies points, Horus supplies a floor only for a recorded
 game, and Janus imports an eligible earlier finalized base score. An unavailable
 Horus declaration spends nothing. Favors affect all-play and Heavenly Battle;
-Heptad uses the best legal five from both allies' starting lineups at unchanged
+Heptad uses the best legal starting roster from both allies' starting lineups at unchanged
 base scores. The other twelve catalog favors are not offered as active effects.
 
 ## Geographic conquest and war
@@ -144,7 +177,9 @@ factions and advances weeks.
 
 `20260908160000_duat_campaigns.sql` creates private campaign, membership and
 receipt tables; `20260908180000_duat_draft_campaigns.sql` extends the transactional
-contracts for v2 while retaining v1. Service-role transactions recheck membership,
+contracts for v2 while retaining v1. `20260908210000_duat_campaign_settings.sql`
+extends these contracts for variable league sizes and protects settings, scoring
+and seasons from replacement. Service-role transactions recheck membership,
 readiness, ownership and expected revision, then deduplicate by actor and intent.
 Browser roles cannot read private rows or call mutation functions.
 `verify_jwt = false` permits custom app-token validation; it does not make the
@@ -175,7 +210,7 @@ normal preview/server builds need no external source checkout.
 
 The server builder produces ignored `supabase/functions/duat/runtime.js`,
 bundling the same engine, world and compressed historical data; each room loads
-its four years. The frontend workflow packages the data, country-map resource
+its selected years. The frontend workflow packages the data, country-map resource
 and five WebP assets, verifies their presence, and includes Duat assets in
 release hashes. The function workflow builds both game runtimes before Deno
 checks, applies and verifies both allowlisted Duat migrations, and deploys the

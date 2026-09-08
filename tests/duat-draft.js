@@ -44,7 +44,7 @@ test('new campaigns start with empty draftable armies and fourteen selected worl
     assert.equal(state.conquest.worldId,World.WORLD_ID);assert.equal(Campaign.validateCampaign(state),true);
     assert.throws(()=>create({factionIds:World.FACTIONS.slice(0,13).map(f=>f.id)}),{code:'INVALID_FACTIONS'});
     assert.throws(()=>create({factionIds:Array(14).fill('persia')}),{code:'INVALID_FACTIONS'});
-    assert.throws(()=>create({version:3}),{code:'INVALID_VERSION'});
+    assert.throws(()=>create({version:4}),{code:'INVALID_VERSION'});
     assert.throws(()=>create({factionIds:World.FACTIONS.slice(0,14).map(f=>f.id)}),{code:'INVALID_FACTIONS'});
     assert.throws(()=>act(state,{type:'start-draft',factionId:state.factions[1].id}),{code:'HOST_REQUIRED'});
     assert.throws(()=>act(state,{type:'reveal-next'}),{code:'INVALID_PHASE'});

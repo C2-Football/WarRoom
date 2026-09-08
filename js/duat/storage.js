@@ -5,7 +5,7 @@
     const storage=()=>root.localStorage;
     const entry=state=>({id:state.id,name:state.name,week:state.week,phase:state.phase,factionId:state.hostFactionId,createdAt:state.createdAt});
     const validEntry=row=>row&&typeof row.id==='string'&&row.id.length>0&&typeof row.name==='string'&&row.name.length>0
-        &&Number.isInteger(row.week)&&row.week>=1&&row.week<=18&&['preseason','season','complete'].includes(row.phase)
+        &&Number.isInteger(row.week)&&row.week>=1&&row.week<=18&&['preseason','draft','reveal','season','complete'].includes(row.phase)
         &&typeof row.factionId==='string'&&typeof row.createdAt==='string';
     function recoverShelf(db){
         const recovered=[];

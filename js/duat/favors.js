@@ -88,7 +88,7 @@
         const playerId = idOf(declaration.playerId);
         const players = requirePlayers(options.playerResults || options.players);
         const player = players.find(entry => idOf(entry.id) === playerId);
-        if (!player || player.starter !== true) error('Choose a player in the current starting five.');
+        if (!player || player.starter !== true) error('Choose a player in the current starting lineup.');
         if (favor.kind === 'floor' && player.hasRecordedGame === false) error('Horus is unavailable for a player without a recorded game (injury or bye).');
         const normalized = { favorId, playerId, week, cost: favor.cost };
         if (favor.kind === 'recall') {
