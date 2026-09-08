@@ -137,6 +137,15 @@
         const [scoutOpen, setScoutOpen] = useState(false);
         const scoutDialogRef = useRef(null);
         const scoutTriggerRef = useRef(null);
+        const myDraftRef = useRef(null);
+        const DraftRoster = window.WrTimeLeagueDraftRoster;
+        function viewMyDraft() {
+            const panel = myDraftRef.current;
+            const details = panel?.querySelector?.('details');
+            if (details) details.open = true;
+            panel?.scrollIntoView?.({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+            details?.querySelector('summary')?.focus({ preventScroll: true });
+        }
 
         const seat = useMemo(() => Engine.currentDraftSeat(league), [league]);
         const drafted = useMemo(() => Engine.draftedIdentities(league), [league]);
@@ -736,11 +745,12 @@
             auctionControls,
             league.phase === 'draft' && draftPulse,
             league.phase === 'draft' && selectedCard && h('div', { className: 'tl-draft-dock' },
+                humanTeam && DraftRoster && h('button', { type: 'button', className: 'tl-dock-roster', 'aria-label': 'View my drafted team', onClick: viewMyDraft }, h('small', null, 'My team'), h('strong', { className: 'tabular' }, `${humanTeam.roster.length}/${Engine.rosterCapacity(league.settings)}`)),
                 h('button', { className: 'tl-dock-player', onClick: (event) => openScout(selectedCard, event), 'aria-label': `Scout ${selectedCard.name}` },
                     h('span', { className: `tl-pos-badge tl-pos-${selectedCard.position}` }, selectedCard.position), h('span', null, h('small', null, turn.label), h('b', null, selectedCard.name))),
                 h('button', { className: 'tl-btn primary', 'aria-label': `${isAuction ? 'Nominate' : 'Draft'} ${selectedCard.name}`, disabled: !canDraftSelected, onClick: () => draftCard(selectedCard, 'human') }, isAuction ? 'Nominate' : 'Draft', h('span', { 'aria-hidden': 'true' }, '↗'))),
             h('div', { className: 'tl-grid-2 tl-draft-grid' },
-                h('div', null,
+                h('div', { className: 'tl-draft-main-board' },
                     h('div', { className: 'tl-card tl-player-board' },
                         h('div', { className: 'tl-card-title' }, h('span', null, 'Find your next legend'), h('small', null, `${visible.length} of ${filtered.length} ${query.trim() || positionFilter !== 'ALL' ? 'matching' : eraRestricted ? 'era-eligible' : 'available'}`)),
                         h('div', { style: { display: 'flex', gap: 8, marginBottom: 10 } },
@@ -771,7 +781,8 @@
                                 }))))),
                     filtered.length > visible.length && h('button', { className: 'tl-btn tl-show-more', onClick: () => setBoardLimit(value => value + 24) }, `Show more legends · ${filtered.length - visible.length} more`),
                     draftLog),
-                h('div', null,
+                h('div', { className: 'tl-draft-sidebar' },
+                    league.phase === 'draft' && humanTeam && DraftRoster && h('div', { ref: myDraftRef, className: 'tl-draft-my-roster' }, h(DraftRoster, { league, team: humanTeam })),
                     h(OpponentIntel, { league, humanTeam, onClockTeamId: seat?.teamId }),
                     scoutFile,
                     h('div', { className: 'tl-card' },
