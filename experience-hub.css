@@ -1,0 +1,97 @@
+/* The signed-in home: shared navigation, distinct product identities. */
+.hub-shell { background: radial-gradient(ellipse at 12% 0, rgba(212,175,55,.055), transparent 48%), var(--page-bg, #08080b); min-height: 100dvh; }
+.hub-shell .header { border-bottom: 1px solid var(--ov-6, #ffffff18); box-shadow: none; background: transparent; gap: 18px; }
+.hub-account-controls { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+.hub-account-controls a, .hub-footer a, .hub-footer button { color: var(--silver); font: 500 13px var(--font-body, 'DM Sans', sans-serif); text-decoration: none; }
+.hub-account-controls button { display: flex; align-items: center; gap: 9px; min-height: 44px; border: 1px solid var(--ov-6, #ffffff18); border-radius: 30px; padding: 5px 15px 5px 6px; background: var(--ov-2, #ffffff08); color: var(--white); font: 500 13px var(--font-body); cursor: pointer; }
+.hub-account-avatar { width: 30px; height: 30px; display: grid; place-items: center; background: var(--gold); color: #18160f; border-radius: 50%; font-size: 11px; font-weight: 700; }
+.experience-hub { max-width: 1320px; margin: auto; padding: 38px 32px 20px; }
+.hub-welcome { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 26px; }
+.hub-eyebrow { font: 600 10px var(--font-mono); letter-spacing: .14em; color: var(--silver); }
+.hub-welcome h1 { color: var(--white); font: 600 clamp(30px, 3.6vw, 46px)/1.1 var(--font-body, 'DM Sans', sans-serif); letter-spacing: -.045em; margin: 10px 0 12px; }
+.hub-welcome p, .hub-section-heading p, .hub-empty p { color: var(--silver); font-size: 13px; line-height: 1.6; margin: 5px 0 0; }
+.hub-sync-status { color: var(--silver); font-size: 12px; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.hub-sync-status::before { content: ''; width: 6px; height: 6px; background: var(--gold); border-radius: 50%; }
+.hub-jump-nav { display: flex; gap: 8px; padding: 6px; background: var(--ov-1, #ffffff04); border: 1px solid var(--ov-6, #ffffff18); border-radius: 12px; margin-bottom: 32px; }
+.hub-jump-nav a { flex: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 10px; border-radius: 8px; color: var(--white); text-decoration: none; font-size: 13px; font-weight: 600; }
+.hub-jump-nav a:hover { background: var(--ov-4, #ffffff0c); }
+.hub-jump-nav a > span { color: var(--gold); font: 10px var(--font-mono); }
+.hub-jump-nav small, .hub-count { color: var(--silver); background: var(--ov-4, #ffffff0c); padding: 2px 7px; border-radius: 6px; font: 12px var(--font-body); }
+.hub-experience-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 26px; }
+.experience-hub section { min-width: 0; scroll-margin-top: 20px; }
+.hub-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 17px; }
+.hub-section-heading h2 { color: var(--white); font: 600 21px/1.25 var(--font-body); letter-spacing: -.025em; margin: 6px 0 0; }
+.hub-section-note { font-size: 11px; color: var(--silver); }
+.hub-management-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.hub-experience-card { width: 100%; min-width: 0; min-height: 245px; padding: 23px; display: flex; flex-direction: column; text-align: left; border: 1px solid; border-radius: 17px; cursor: pointer; font-family: var(--font-body); transition: transform .18s, box-shadow .18s; }
+.hub-experience-card:hover:not(:disabled), .hub-league-card:hover { transform: translateY(-3px); box-shadow: 0 12px 26px #00000025; }
+.hub-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 25px; }
+.hub-product-tag { font-size: 9px; font-weight: 700; letter-spacing: .09em; }
+.hub-experience-card strong { display: block; font: 700 23px/1.05 var(--font-title); }
+.hub-card-description { display: block; font-size: 12px; line-height: 1.65; margin: 10px 0 20px; }
+.hub-card-action { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: auto; font-size: 12px; font-weight: 700; }
+.hub-card-action > span { font-size: 18px; }
+.hub-experience-card.empire-hero { background: radial-gradient(ellipse at 0 0, #3d3220, transparent 85%), #191813; border-color: #61512d; color: #f1d58a; }
+.empire-hero .hub-card-description { color: #cec3a6; }
+.hub-experience-card.commish-hero { background: radial-gradient(ellipse at 0 0, #20394a, transparent 85%), #121e29; border-color: #335168; color: #a9d7f6; }
+.commish-hero .hub-card-description { color: #b7cad9; }
+.hub-experience-card:disabled { cursor: default; }
+.hub-experience-card:disabled .hub-card-action { color: #b7cad9; font-size: 11px; }
+.hub-experience-card.time-league-hero { position: relative; overflow: hidden; flex-direction: row; gap: 16px; align-items: center; background: radial-gradient(#decbb0 1px, transparent 1px), #fff0d5; background-size: 14px 14px; color: #172238; border-color: #ffe5b6; box-shadow: 0 5px 0 #282d45; }
+.hub-vault-copy { position: relative; width: 60%; display: flex; flex-direction: column; align-self: stretch; padding: 5px 0; z-index: 1; }
+.time-league-hero strong { font-size: 42px; letter-spacing: -.025em; margin-top: 16px; }
+.time-league-hero .hub-product-tag { color: #465269; font-size: 8px; }
+.time-league-hero .hub-card-description { color: #465269; }
+.time-league-hero .hub-card-action { align-self: flex-start; gap: 22px; padding: 9px 13px; border-radius: 9px; background: #87efcf; box-shadow: 0 3px 0 #368f7f; color: #172238; }
+.hub-vault-art { position: absolute; right: 17px; top: 50%; width: 34%; height: 150px; transform: translateY(-50%); }
+.hub-era-card { position: absolute; inset: 20px 0 0 5px; height: 120px; width: 86px; border: 3px solid #172238; border-radius: 12px; background: #ffa591; display: flex; flex-direction: column; align-items: center; justify-content: center; font: 700 25px var(--font-title); box-shadow: 3px 4px 0 #172238; transform: rotate(-18deg); }
+.hub-era-card span { font: 700 7px var(--font-body); margin-top: 8px; }
+.hub-era-card:nth-child(2) { background: #c4b0ff; left: 25px; top: 6px; transform: rotate(4deg); z-index: 2; font-size: 48px; }
+.hub-era-card:nth-child(3) { background: #87efcf; left: 46px; top: 28px; transform: rotate(19deg); }
+.hub-leagues { margin-top: 36px; padding-top: 27px; border-top: 1px solid var(--ov-6, #ffffff18); }
+.hub-add-button { border: 1px solid var(--acc-line2, #d4af3755); border-radius: 9px; padding: 10px 15px; min-height: 44px; color: var(--gold); background: var(--ov-1, #ffffff04); font: 600 12px var(--font-body); cursor: pointer; }
+.hub-league-tools { display: flex; align-items: center; gap: 12px; margin: 19px 0; color: var(--silver); font-size: 12px; }
+.hub-league-tools label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.hub-league-tools input { width: min(390px, 80%); min-height: 44px; border: 1px solid var(--ov-6, #ffffff18); border-radius: 9px; background: var(--ov-1, #ffffff04); color: var(--white); padding: 11px 14px; font: 13px var(--font-body); }
+.hub-league-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.hub-league-card { min-width: 0; padding: 17px; border-radius: 12px; text-align: left; border: 1px solid var(--ov-6, #ffffff18); background: var(--ov-1, #ffffff04); color: var(--white); cursor: pointer; transition: transform .18s, box-shadow .18s; font-family: var(--font-body); }
+.hub-league-card.is-last { border-color: var(--acc-line2, #d4af3755); background: linear-gradient(120deg, #d4af3709, transparent); }
+.hub-league-card-top { display: flex; align-items: center; gap: 10px; min-height: 44px; flex-wrap: wrap; }
+.hub-team-avatar { width: 38px; height: 38px; flex: none; border-radius: 11px; display: grid; place-items: center; background: var(--ov-4, #ffffff0c); color: var(--gold); font-weight: 600; }
+.hub-league-identity { min-width: 0; flex: 1; }
+.hub-league-identity strong, .hub-league-identity > span { display: block; overflow-wrap: anywhere; }
+.hub-league-identity strong { font-size: 13px; line-height: 1.4; }
+.hub-league-identity > span { font-size: 11px; color: var(--silver); margin-top: 3px; }
+.hub-last-badge { font-size: 9px; color: var(--gold); }
+.hub-league-card-bottom { display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid var(--ov-6, #ffffff18); margin-top: 15px; padding-top: 12px; color: var(--silver); font-size: 10px; line-height: 1.5; }
+.hub-league-card-bottom > span:last-child { white-space: nowrap; }
+.hub-empty { padding: 30px 20px; border: 1px dashed var(--ov-6, #ffffff18); border-radius: 12px; text-align: center; }
+.hub-empty .hub-add-button { margin-top: 16px; }
+.hub-invite { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; padding: 20px; margin-top: 24px; border: 1px solid var(--gold); border-radius: 12px; font-size: 13px; }
+.hub-invite p { color: var(--silver); margin: 6px 0 0; }
+.hub-invite a { color: var(--gold); }
+.hub-footer { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; margin-top: 30px; padding: 20px 0; border-top: 1px solid var(--ov-6, #ffffff18); }
+.hub-footer > span { margin-right: auto; color: var(--silver); font-size: 12px; }
+.hub-footer button { border: 0; background: none; padding: 0; cursor: pointer; min-height: 44px; }
+.hub-shell button:focus-visible, .hub-shell a:focus-visible, .hub-shell input:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
+@media (max-width: 1050px) { .hub-experience-grid { grid-template-columns: 1fr; } .hub-experience-card { min-height: 220px; } .hub-vault-copy { width: 65%; } .hub-vault-art { right: 10%; width: 140px; } .hub-league-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) {
+ .hub-shell .header { flex-wrap: wrap; padding: 14px 16px; }
+ .hub-account-controls { width: 100%; justify-content: space-between; gap: 10px; }
+ .experience-hub { padding: 25px 16px 12px; }
+ .hub-welcome { display: block; } .hub-sync-status { margin-top: 16px; }
+ .hub-jump-nav { gap: 0; margin-bottom: 25px; } .hub-jump-nav a { font-size: 11px; gap: 5px; } .hub-jump-nav a > span { display: none; }
+ .hub-management-cards { grid-template-columns: 1fr; } .hub-experience-card { min-height: 195px; padding: 20px; }
+ .hub-card-top { margin-bottom: 16px; } .hub-experience-card strong { font-size: 25px; }
+ .hub-section-heading { gap: 10px; flex-wrap: wrap; } .hub-section-heading h2 { font-size: 20px; }
+ .hub-section-note { font-size: 10px; } .hub-vault-art { right: 20px; width: 110px; opacity: .95; }
+ .hub-vault-copy { width: 62%; } .time-league-hero strong { font-size: 38px; } .time-league-hero .hub-product-tag { max-width: 150px; line-height: 1.7; }
+ .hub-league-grid { grid-template-columns: 1fr; } .hub-leagues { margin-top: 28px; }
+ .hub-footer { gap: 16px; } .hub-footer > span { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .hub-experience-card, .hub-league-card { transition: none; } .hub-experience-card:hover:not(:disabled), .hub-league-card:hover { transform: none; } }
+.hub-shell .header-brand { justify-content: flex-start; }
+.hub-shell .header-text { text-align: left; }
+.hub-shell .header-subtitle { font-style: normal; }
+.hub-shell .header { padding-left: max(24px, calc((100vw - 1256px) / 2)); padding-right: max(24px, calc((100vw - 1256px) / 2)); }
+@media (max-width: 600px) { .hub-shell .header { padding-left: calc(16px + var(--sal, 0px)); padding-right: calc(16px + var(--sar, 0px)); padding-top: calc(14px + var(--sat, 0px)); } }
