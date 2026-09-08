@@ -18,8 +18,9 @@
     function Land({campaign, factionId, compact = false}) {
         const source = atlas(campaign), owned = source.TERRITORIES.filter(t => campaign.conquest.owners[t.id] === factionId);
         const size = owned.reduce((sum, t) => sum + (t.areaKm2 || 0), 0), total = source.TERRITORIES.reduce((sum, t) => sum + (t.areaKm2 || 0), 0);
+        const share=total>0?size/total*100:0,shareLabel=share===0?'0%':share<0.05?'<0.1%':number(share)+'%';
         if (compact) return <span><strong>{owned.length}</strong> territories{total > 0 && <> · {area(size)}</>}</span>;
-        return <div className="duat-land-stats"><div><strong>{owned.length}<small> / {source.TERRITORIES.length}</small></strong><span>Territories held</span></div>{total > 0 && <><div><strong>{area(size)}</strong><span>Your dominion</span></div><div><strong>{number(size / total * 100)}%</strong><span>Of the playable land</span></div></>}</div>;
+        return <div className="duat-land-stats"><div><strong>{owned.length}<small> / {source.TERRITORIES.length}</small></strong><span>Territories held</span></div>{total > 0 && <><div><strong>{area(size)}</strong><span>Your dominion</span></div><div><strong>{shareLabel}</strong><span>Of the playable land</span></div></>}</div>;
     }
     function World({campaign, factionId, onAction, busy}) {
         const source = atlas(campaign), modern = Boolean(source.WORLD_ID), conquest = campaign.conquest;
