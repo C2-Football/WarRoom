@@ -33,6 +33,7 @@ global.React = {
 };
 const local = new Map();
 window.localStorage = { getItem: key => local.get(key) ?? null, setItem: (key, value) => local.set(key, value) };
+require('../js/components/time-league-draft-roster.js');
 require('../js/components/time-league-draft-panel.js');
 const Engine = App.TimeLeagueEngine;
 function mount(props) {
@@ -403,4 +404,16 @@ for (const spectatorSeat of [null, 'missing-seat', 't3']) {
     assert.equal(turnLabel(page), 'DRAFT IN PROGRESS');
     assert.equal(turnDetail(page), 'Watching the current auction.');
 }
+const rosterOwnerPage = mount({ league: linearAfterRound, cards: turnCards, onUpdate() {}, onlineMeta: { seatTeamId: 't2', role: 'member' } })();
+const myRosterNode = find(rosterOwnerPage, node => node.type === WrTimeLeagueDraftRoster)[0];
+assert.equal(myRosterNode.props.team.teamId, 't2', 'My draft belongs to the signed-in seat, not the first human');
+const myRosterWrapper = find(rosterOwnerPage, node => node.props.className === 'tl-draft-my-roster')[0];
+let rosterScrolled = false, rosterFocused = false;
+const rosterDetails = { open: false, querySelector: () => ({ focus: () => { rosterFocused = true; } }) };
+myRosterWrapper.props.ref.current = { querySelector: () => rosterDetails, scrollIntoView: () => { rosterScrolled = true; } };
+button(rosterOwnerPage, 'View my drafted team').props.onClick();
+assert(rosterDetails.open && rosterScrolled && rosterFocused, 'Mobile shortcut opens your roster and brings it into view');
+const rosterSpectatorPage = mount({ league: linearAfterRound, cards: turnCards, onUpdate() {}, onlineMeta: { seatTeamId: null, role: 'viewer' } })();
+assert.equal(find(rosterSpectatorPage, node => node.type === WrTimeLeagueDraftRoster).length, 0, 'Spectators do not inherit another team');
+assert.equal(find(mount({ league: picking, cards: turnCards, onUpdate() {} })(), node => node.type === WrTimeLeagueDraftRoster).length, 0, 'Completed recap does not retain the live draft roster');
 console.log('Vault draft experience: sealed reveals, mobile scouting, recap grids, filters, unified clock header and accurate snake/linear/auction turn countdowns passed');
