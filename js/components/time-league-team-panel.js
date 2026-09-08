@@ -54,10 +54,10 @@
     /** Slot | Player | Pts | Move — mirrors the column rhythm of War Room's real
      * Game Day Central lineup table (js/tabs/lineup.js), minus the projection/
      * matchup/form columns that don't apply to fixed historical stat lines. */
-    const LINEUP_GRID = '52px minmax(0,1fr) 74px 76px';
+    const LINEUP_GRID = '42px minmax(0,1fr) 62px 62px 66px';
     const slotName = slot => ({ BN: 'Bench', SUPER_FLEX: 'Super flex', FLEX: 'Flex', DEF: 'D/ST' }[slot] || slot);
 
-    function RosterSection({ league, cards, team, apply, logIndex, eraFactors, onBrowseWaivers }) {
+    function RosterSection({ league, cards, team, apply, logIndex, eraFactors, onBrowseWaivers, throughWeek, onStats }) {
         const [selectedId,setSelectedId]=useState(null);
         const [draggedId, setDraggedId] = useState(null);
         const [moveNotice, setMoveNotice] = useState('');
@@ -102,6 +102,10 @@
         const outlooks = useMemo(() => new Map(team.roster.map(entry => [entry.entryId,
             revealed ? Season.rosterOutlook(entry, league.currentWeek, Engine.seasonEndWeek(league), logIndex, league.settings.scoring, league.settings.eraAdjusted ? eraFactors : null) : null
         ])), [team.roster, revealed, league.currentWeek, league.settings, logIndex, eraFactors]);
+        const ytd = useMemo(() => {
+            const Stats = window.App.TimeLeaguePlayerStats;
+            return new Map(team.roster.map(entry => [entry.entryId, revealed && Stats ? Stats.totals(league, entry, logIndex, eraFactors, Stats.completedWeeks(league, throughWeek)).points : null]));
+        }, [team.roster, revealed, league, throughWeek, logIndex, eraFactors]);
         const capacity = Engine.rosterCapacity(league.settings);
         const problems = Engine.lineupProblems(league, team.teamId);
         const moveEntry = async (entryId, slot, targetEntryId) => {
@@ -137,13 +141,14 @@
                     rating && h('span', { className: 'tl-week-stars', title: rating.stars !== null ? `Week ${league.currentWeek}: ${rating.stars} of 5 stars. Highest remaining rating: ${rating.maxRemainingStars}.` : 'No archived game this week: zero points.', 'aria-label': rating.stars !== null ? `${rating.stars} of 5 stars this week` : 'No archived game this week' }, rating.stars !== null ? '★'.repeat(rating.stars) + '☆'.repeat(5-rating.stars) : '— No game log'), rating && rating.maxRemainingStars !== null && h('small', { className: 'tl-stars-ceiling' }, `Remaining ceiling: ${rating.maxRemainingStars}★`)),
                 h('span', { className: 'tl-lineup-pts tabular', style: eraColor ? { color: eraColor } : undefined },
                     revealed ? fmt1(cardSeasonPoints(cards, entry)) : '—', h('small', null, 'SZN PTS')),
+                h('span', { className: 'tl-lineup-pts tl-lineup-ytd tabular', title: 'Player points through completed Vault weeks, including bench games' }, ytd.get(entry.entryId) == null ? '—' : fmt1(ytd.get(entry.entryId)), h('small', null, 'YTD PTS')),
                 h('button', { type: 'button', className: 'tl-btn tl-roster-move', 'aria-label': `Move ${entry.name}`, disabled: !editable || moving,
                     onClick: event => openMove({ entryId: entry.entryId }, event) }, 'Move'));
         };
         const openRow = (slotLabel, key) => h('div', { key, className: 'tl-lineup-row open-slot', ...dropProps(slotLabel), style: { gridTemplateColumns: LINEUP_GRID } },
             h('span', { className: 'tl-lineup-slot', title: slotName(slotLabel) }, slotLabel === 'SUPER_FLEX' ? 'SFLX' : slotLabel),
             h('button', { type: 'button', className: 'tl-roster-open-slot', disabled: !editable || moving, 'aria-label': `Fill open ${slotName(slotLabel)} slot`, onClick: event => openMove({ slot: slotLabel }, event) },
-                h('span', null, '+ Add player'), h('small', null, Roster.SLOT_ELIGIBILITY[slotLabel].join(' · '))), h('span', null), h('span', null));
+                h('span', null, '+ Add player'), h('small', null, Roster.SLOT_ELIGIBILITY[slotLabel].join(' · '))), h('span', null), h('span', null), h('span', null));
 
         const starterRows = [];
         for (const slot of STARTER_SLOTS) {
@@ -232,13 +237,14 @@
                 h('div', { className: 'tl-roster-toolbar' },
                     h('div', null, h('h2', null, 'My Roster'), h('p', null, `${team.name} · Week ${league.currentWeek} · ${team.roster.length}/${capacity} players`)),
                     h('div', { className: 'tl-roster-toolbar-actions' }, h('span', { className: `tl-roster-lineup-status ${optimal ? 'good' : 'warn'}` }, editable ? optimal ? 'Lineup ready' : `${problems.length} open slot${problems.length === 1 ? '' : 's'}` : league.phase === 'complete' ? 'Season complete' : 'Lineup locked'),
+                        onStats && h('button', { type: 'button', className: 'tl-btn', onClick: onStats }, 'Player stats'),
                         h('button', { type: 'button', className: 'tl-btn', disabled: !editable || moving, onClick: () => apply(Engine.autoFillLineup(league, team.teamId, cards), { type: 'auto-lineup', teamId: team.teamId }) }, 'Auto-fill'))),
                 moveNotice && !moveChoice && h('p', { className: 'tl-roster-notice', role: 'status' }, moveNotice),
                 !optimal && problems.length > 0 && h('details', { className: 'tl-roster-help tl-roster-problems' }, h('summary', null, headline), problems.map((problem, i) => h('p', { key: i }, problem))),
                 h('div', { className: 'tl-lineup-table' },
                     h('div', { className: 'tl-lineup-table-title' }, 'Starting Lineup'),
                     h('div', { className: 'tl-lineup-head', style: { gridTemplateColumns: LINEUP_GRID } },
-                        h('span', null, 'Slot'), h('span', null, 'Player'), h('span', { style: { textAlign: 'right' } }, 'Pts'), h('span', null)),
+                        h('span', null, 'Slot'), h('span', null, 'Player'), h('span', { style: { textAlign: 'right' } }, 'SZN'), h('span', { style: { textAlign: 'right' } }, 'YTD'), h('span', null)),
                     starterRows),
                 league.settings.rosterSlots.BN > 0 && h('div', { className: 'tl-lineup-table' },
                     h('div', { className: 'tl-lineup-table-title', ...dropProps('BN') }, editable ? 'Bench · drop here' : 'Bench'),
@@ -578,7 +584,7 @@
             }));
     }
 
-    function WrTimeLeagueTeamPanel({ league, cards, section, activeTeamId, onSelectTeam, onUpdate, onlineMeta, logIndex, eraFactors, onBrowseWaivers, waiverSlot }) {
+    function WrTimeLeagueTeamPanel({ league, cards, section, activeTeamId, onSelectTeam, onUpdate, onlineMeta, logIndex, eraFactors, onBrowseWaivers, waiverSlot, throughWeek, onStats }) {
         const standings = useMemo(() => Engine.computeStandings(league), [league]);
         const humanTeams = league.teams.filter(item => item.manager === 'human');
         const requestedTeam = league.teams.find(item => item.teamId === (onlineMeta?.seatTeamId || activeTeamId));
@@ -593,7 +599,7 @@
                     humanTeams.map(item => h('option', { key: item.teamId, value: item.teamId }, item.name)))),
             !team
                 ? h('div', { className: 'tl-card' }, h('p', { className: 'tl-empty' }, 'Join a manager seat to open your roster.'))
-                : section === 'roster' ? h(RosterSection, { key: team.teamId, league, cards, team, apply, logIndex, eraFactors, onBrowseWaivers })
+                : section === 'roster' ? h(RosterSection, { key: team.teamId, league, cards, team, apply, logIndex, eraFactors, onBrowseWaivers, throughWeek, onStats })
                     : section === 'waivers' ? h(WaiversSection, { key: team.teamId, league, cards, team, standings, apply, waiverSlot, logIndex, eraFactors })
                         : section === 'trades' ? h(TradesSection, { key: team.teamId, league, cards, team, apply })
                             : h(AchievementsSection, { key: team.teamId, league, team }));

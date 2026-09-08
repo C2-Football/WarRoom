@@ -3,7 +3,7 @@
 const assert = require('assert');
 global.window = globalThis;
 global.App = {};
-for (const module of ['roster', 'rules', 'draft-room', 'era-rules', 'season', 'helmet', 'engine', 'ai', 'ui', 'player-cards']) require('../js/shared/time-league-' + module + '.js');
+for (const module of ['roster', 'rules', 'draft-room', 'era-rules', 'season', 'helmet', 'engine', 'ai', 'ui', 'player-cards', 'player-stats']) require('../js/shared/time-league-' + module + '.js');
 let state = [], refs = [], effects = [], cursor = 0, refCursor = 0;
 global.React = {
     Fragment: 'fragment',
@@ -48,6 +48,7 @@ const render = (extra = {}) => {
 const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.props['aria-label']);
 
 (async () => {
+    assert(byClass(render(), 'tl-lineup-ytd').length === entries.length, 'Starters and bench each show a YTD points column');
     let tree = render({ activeTeamId: league.teams[1].teamId });
     assert(text(tree).includes('Steve Young'));
     assert(!text(tree).includes('Not Your Player'));

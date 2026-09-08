@@ -26,13 +26,13 @@
     const REGULAR_SEASON_WEEKS = 14;
     const MAX_QUARTERBACKS = 2;
 
-    const TAB_IDS = ['home', 'draft', 'gameday', 'roster', 'waivers', 'trades', 'achievements', 'messages', 'career', 'community', 'activity'];
+    const TAB_IDS = ['home', 'draft', 'gameday', 'roster', 'waivers', 'stats', 'trades', 'achievements', 'messages', 'career', 'community', 'activity'];
     const TAB_LABELS = {
-        home: 'HOME', draft: 'DRAFT', gameday: 'GAMEDAY', roster: 'ROSTER', waivers: 'WAIVERS',
+        home: 'HOME', draft: 'DRAFT', gameday: 'GAMEDAY', roster: 'ROSTER', waivers: 'WAIVERS', stats: 'PLAYER STATS',
         trades: 'TRADES', achievements: 'ACHIEVEMENTS', messages: 'MESSAGES', career: 'MY PROFILE', community: 'COMMUNITY', standings: 'COMMAND CENTRAL', activity: 'ACTIVITY',
     };
     const TAB_ICONS = {
-        home: '⌂', draft: '▤', gameday: '▶', roster: '♙', waivers: '+', trades: '⇄',
+        home: '⌂', draft: '▤', gameday: '▶', roster: '♙', waivers: '+', stats: '▥', trades: '⇄',
         achievements: '♛', messages: '✉', career: '★', community: '◎', standings: '≡', activity: '◷',
     };
 
@@ -848,7 +848,7 @@
         }, [expanded]);
         const primary = tabs.includes('home') ? ['home', 'roster', 'gameday', 'waivers'] : ['draft', 'activity'];
         const extra = tabs.filter(tab => !primary.includes(tab));
-        const labels = { home: 'Home', roster: 'My team', gameday: 'Game day', waivers: 'Players', draft: tabs.includes('home') ? 'Draft recap' : 'Draft', activity: 'Activity', trades: 'Trades', achievements: 'Trophies', standings: 'Command Central', messages: 'Messages', career: 'My career' };
+        const labels = { home: 'Home', roster: 'My team', gameday: 'Game day', waivers: 'Players', stats: 'Player stats', draft: tabs.includes('home') ? 'Draft recap' : 'Draft', activity: 'Activity', trades: 'Trades', achievements: 'Trophies', standings: 'Command Central', messages: 'Messages', career: 'My career' };
         const choose = tab => { setExpanded(false); onNavigate(tab); };
         return h(React.Fragment, null,
             expanded && h('div', { className: 'tl-mobile-more', id: 'vault-more-navigation' },
@@ -1451,7 +1451,7 @@
 
         const tabs = league.phase === 'draft'
             ? ['draft', 'messages', 'career', 'community', 'activity']
-            : ['home', 'gameday', 'roster', 'waivers', 'trades', 'achievements', 'draft', 'messages', 'career', 'community', 'activity'];
+            : ['home', 'gameday', 'roster', 'waivers', 'stats', 'trades', 'achievements', 'draft', 'messages', 'career', 'community', 'activity'];
         const activeTab = tabs.includes(tab) ? tab : tabs[0];
         const activeTeam = onlineMeta ? onlineMeta.seatTeamId : league.teams.some((team) => team.teamId === activeTeamId)
             ? activeTeamId
@@ -1550,9 +1550,10 @@
                 league.phase !== 'draft' && GamecastPanel ? h('div', { key: league.leagueId, hidden: activeTab !== 'gameday', className: 'tl-gamecast-workspace' }, h(GamecastPanel, {
                     league, cards, logIndex, logsMissing, eraFactors, onlineMeta, autoPlayWeek, active: activeTab === 'gameday', seatTeamId: responseTeam, mailNotice, onPlaybackChange: reportPlayback, onGoCeremony: () => navigateTab('home'), onUpdate: handleUpdate, onGoRoster: () => navigateTab('roster'),
                 })) : null,
+                activeTab === 'stats' ? (window.WrTimeLeagueStatsPanel && cardsReady ? h(window.WrTimeLeagueStatsPanel, { key: league.leagueId, league, cards, logIndex, eraFactors, throughWeek: mailThroughWeek, onNavigate: navigateTab }) : loadingNotice) : null,
                 (activeTab === 'roster' || activeTab === 'waivers' || activeTab === 'trades' || activeTab === 'achievements')
                     ? (cardsReady && TeamPanel
-                        ? h(TeamPanel, { league, cards, logIndex, eraFactors, section: activeTab, activeTeamId: responseTeam, onSelectTeam: setActiveTeamId, onUpdate: handleUpdate, onlineMeta, waiverSlot: waiverBrowse.leagueId === league.leagueId ? waiverBrowse.slot : null, onBrowseWaivers: slot => { setWaiverBrowse({ leagueId: league.leagueId, slot }); navigateTab('waivers'); } })
+                        ? h(TeamPanel, { league, cards, logIndex, eraFactors, section: activeTab, throughWeek: mailThroughWeek, onStats: () => navigateTab('stats'), activeTeamId: responseTeam, onSelectTeam: setActiveTeamId, onUpdate: handleUpdate, onlineMeta, waiverSlot: waiverBrowse.leagueId === league.leagueId ? waiverBrowse.slot : null, onBrowseWaivers: slot => { setWaiverBrowse({ leagueId: league.leagueId, slot }); navigateTab('waivers'); } })
                         : loadingNotice)
                     : null,
 
