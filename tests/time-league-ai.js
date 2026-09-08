@@ -29,6 +29,7 @@ const ROSTER_SLOTS = { QB: 1, RB: 1, WR: 1, FLEX: 1, BN: 3 };
 
 function baseSettings(overrides = {}) {
     return {
+        gameDeckVersion: 0, // Preserve historical-week regression fixtures.
         rosterSlots: ROSTER_SLOTS, scoring: SCORING, regularSeasonWeeks: 2, maxQuarterbacks: 1,
         eraRules: { mode: 'any-era', decades: [] }, eraAdjusted: false, waiversEnabled: true, tradesEnabled: true,
         ...overrides,

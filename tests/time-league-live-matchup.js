@@ -29,7 +29,7 @@ const all = value => !value || typeof value !== 'object' ? [] : Array.isArray(va
 const words = node => !node ? '' : Array.isArray(node) ? node.map(words).join(' ') : typeof node === 'object' ? words(node.children) : String(node);
 const button = (tree,label) => all(tree).find(node=>node.type==='button' && words(node)===label);
 const component = (tree,type) => all(tree).find(node=>node.type===type);
-const seed = E.createTimeLeague({ name:'Live matchup', seed:'head-to-head', createdAt:'2026-09-07T00:00:00Z', seats:[{name:'You',manager:'human'},{name:'Opponent',manager:'human'}], settings:{rosterSlots:{QB:1,RB:2,SUPER_FLEX:1,K:1,DEF:1,BN:1}, maxQuarterbacks:2, regularSeasonWeeks:12, playoffTeams:0, scoring:{passTd:4,reception:.5,rushRecYd:.1,passingYd:.04,turnover:-2}, eraRules:{mode:'any-era',decades:[]}} });
+const seed = E.createTimeLeague({ name:'Live matchup', seed:'head-to-head', createdAt:'2026-09-07T00:00:00Z', seats:[{name:'You',manager:'human'},{name:'Opponent',manager:'human'}], settings:{gameDeckVersion:0,rosterSlots:{QB:1,RB:2,SUPER_FLEX:1,K:1,DEF:1,BN:1}, maxQuarterbacks:2, regularSeasonWeeks:12, playoffTeams:0, scoring:{passTd:4,reception:.5,rushRecYd:.1,passingYd:.04,turnover:-2}, eraRules:{mode:'any-era',decades:[]}} });
 const slots=['QB','RB','RB','SUPER_FLEX','K','DEF','BN'];
 const statLines=[{passYd:320,passTd:4},{rushYd:80,rushTd:1},null,{passInt:2},{extra:{xpm:4}},{extra:{sack:3}}, {rushYd:200,rushTd:4}];
 const cards=new Map(), logs=new Map();
@@ -141,5 +141,22 @@ const gateButton=label=>button(dock(dockProps()),label);
     props.league={...props.league,gateVotes:['t1']};assert(button(dock(props),'Vote recorded').props.disabled);
     props.league={...props.league,settings:{...props.league.settings,advancementMode:'commissioner'}};
     assert(button(dock(props),'Waiting for commissioner').props.disabled,'Members cannot gain commissioner actions through the dock');
+    const online = harness();
+    const publicLeague = { ...league, publicSnapshotVersion: 1, settings: { ...league.settings, gameDeckVersion: 1 }, weekStage: 'ready' };
+    delete publicLeague.seed;
+    const authoritative = { ...publicLeague, weekStage: 'postgame', currentWeek: 2, finalizedWeeks: [finals] };
+    let sent;
+    const onlineProps = { league: publicLeague, cards, logIndex: logs, eraFactors: null, onlineMeta: { role: 'commissioner', seatTeamId: 't1' },
+        onUpdate: async (unusedSnapshot, action) => { sent = action; return authoritative; } };
+    const onlineTree = () => online.render(() => WrTimeLeagueGamecastPanel(onlineProps));
+    const localScorer = E.finalizeCurrentWeek;
+    E.finalizeCurrentWeek = () => { throw new Error('A public client cannot score a private game deck'); };
+    try {
+        const start = all(onlineTree()).find(node => node.type === 'button' && words(node).includes('RUN GAME DAY'));
+        assert(start, 'Commissioner can request a server-scored game');
+        await start.props.onClick();
+        assert.equal(sent.type, 'week');
+        assert.deepEqual(online.states[0].value.weekData, finals, 'Only the server box score starts online playback');
+    } finally { E.finalizeCurrentWeek = localScorer; }
     console.log('PASS: live starter scoring, no final leaks, negative/missing games, saved replay lineups, tab continuity, routed gates, invalid/save failure recovery and multiplayer permissions.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

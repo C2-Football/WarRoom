@@ -123,6 +123,8 @@
     }
 
     function WrTimeLeagueDraftPanel({ league, cards, onUpdate, onlineMeta, onRevealReadyChange, draftControls, auctionControls, onDraftAction, onRevealEra }) {
+        const archiveCards = cards;
+        cards = Engine.cardsFor(league, cards);
         const [query, setQuery] = useState('');
         const [positionSelection, setPositionSelection] = useState({ leagueId: league.leagueId, value: 'ALL' });
         const [selectedIdentity, setSelectedIdentity] = useState(null);
@@ -164,7 +166,7 @@
 
         const available = useMemo(() => Engine.eraEligibleCards(league, cards).map((card) => {
             const seasons = EraRules.filterSeasonsForEra(card.seasons, eraRules, card.position);
-            return { card, peak: peakOf(seasons), draw: spanOf(seasons), games: seasons.reduce((sum, season) => sum + season.games, 0) };
+            return { card, peak: peakOf(seasons), draw: spanOf(seasons) };
         }).sort((left, right) => right.peak - left.peak || left.card.identity.localeCompare(right.card.identity))
             .map((entry, index) => ({ ...entry, rank: index + 1 })), [cards, eraRules, league]);
         const positionFilters = useMemo(() => {
@@ -509,8 +511,17 @@
         const scoutBlock = selectedCard ? (onClockTeam && !humanOnClock ? `${onClockTeam.name} is on the clock — sim picks to advance.` : draftBlockReason(selectedCard)) : null;
         const canDraftSelected = Boolean(selectedCard && myTurn && !draftBlockReason(selectedCard));
         const selectedQueued = Boolean(selectedCard && humanTeam?.queue.includes(selectedCard.identity));
-        const scoutSeasons = selectedCard ? EraRules.filterSeasonsForEra(selectedCard.seasons, eraRules, selectedCard.position) : [];
+        const scoutCard = selectedCard ? archiveCards.get(selectedCard.identity) || selectedCard : null;
+        const eligibleScoutSeasons = selectedCard ? EraRules.filterSeasonsForEra(selectedCard.seasons, eraRules, selectedCard.position) : [];
+        const fullScoutByYear = new Map((scoutCard?.seasons || []).map(season => [season.season, season]));
+        // New-archive exclusions must not hide editions that remain draftable
+        // in an existing league. Preserve those rows with their legacy scope.
+        const scoutLegacyFallbackYears = new Set(eligibleScoutSeasons.filter(season => !fullScoutByYear.has(season.season)).map(season => season.season));
+        const scoutSeasons = eligibleScoutSeasons.map(season => fullScoutByYear.get(season.season) || season);
         const scoutHidden = selectedCard ? selectedCard.seasons.length - scoutSeasons.length : 0;
+        const fullSeasonScout = scoutSeasons.length > 0 && scoutSeasons.every(season => season.sourceWeekKind);
+        const mixedSeasonScout = scoutLegacyFallbackYears.size > 0 && scoutSeasons.some(season => season.sourceWeekKind);
+        const legacyScout = (fullSeasonScout || mixedSeasonScout) && league.settings.gameDeckVersion !== 1;
 
         const scoutFile = h('div', { className: 'tl-card tl-scout-file', ref: scoutRef },
                         h('div', { className: 'tl-card-title' }, h('span', null, 'Scout file'), h('small', null, selectedCard ? (scoutHidden > 0 ? `${scoutSeasons.length} of ${selectedCard.seasons.length} seasons draftable` : `${scoutSeasons.length} seasons on record`) : 'no selection')),
@@ -519,7 +530,7 @@
                                 h('strong', { style: { fontSize: 15 } }, selectedCard.name),
                                 h('span', { className: 'tl-pos-badge tl-pos-' + selectedCard.position }, selectedCard.position),
                                 selectedCard.bio?.hofYear && h('span', { className: 'tl-pill gold' }, `HOF ${selectedCard.bio.hofYear}`),
-                                h('span', { className: 'tl-label' }, `${spanOf(scoutSeasons)} · draw peak ${peakOf(scoutSeasons).toFixed(1)}`),
+                                h('span', { className: 'tl-label' }, `${spanOf(scoutSeasons)} · ${fullSeasonScout ? 'NFL archive peak' : mixedSeasonScout ? 'archive peak' : 'draw peak'} ${peakOf(scoutSeasons).toFixed(1)}`),
                                 scoutHidden > 0 && scoutSeasons.length > 0 && h('span', { className: 'tl-pill warn' }, `${scoutHidden} seasons outside this draw`)),
                             selectedCard.bio ? h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10, fontSize: 12 } },
                                 selectedCard.bio.college && h('div', null, h('span', { className: 'tl-label', style: { display: 'block' } }, 'College'), h('strong', null, selectedCard.bio.college)),
@@ -529,12 +540,15 @@
                                 : h('p', { className: 'tl-empty' }, 'Biography is not available for this player yet.'),
                             h('p', { style: { fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 10 } }, scoutSeasons.length === 0 ? "No season on this file clears the league's era rule — nothing here can be drawn." : 'One of these seasons comes out of the vault — the draw is sealed until the draft ends.'),
                             scoutSeasons.length > 0 && h('p', { className: 'tl-era-years' }, `Available years: ${availableYears(scoutSeasons)}`),
-                            scoutSeasons.length > 0 && h('p', { className: 'tl-hint' }, 'Archive totals · Weeks 1–14 · reference scoring'),
-                            scoutSeasons.length > 0 && h('div', { className: 'tl-scout-seasons', role: 'region', 'aria-label': 'Season statistics, newest first', tabIndex: 0, style: { overflowX: 'auto', marginBottom: 10 } }, h('table', { className: 'tl-tbl tl-scout-season-table', style: { minWidth: `${126 + (statColumnsFor(selectedCard.position).length + 1) * 64}px` } },
-                                h('colgroup', null, h('col', { style: { width: 66 } }), h('col', { style: { width: 60 } }), h('col'), statColumnsFor(selectedCard.position).map(c => h('col', { key: c.key }))),
-                                h('thead', null, h('tr', null, h('th', { scope: 'col', className: 'num', title: 'Fantasy points' }, 'FPTS'), h('th', { scope: 'col' }, 'Year'), h('th', { scope: 'col', className: 'num' }, 'G'), statColumnsFor(selectedCard.position).map((c) => h('th', { scope: 'col', className: 'num', key: c.key }, c.label)))),
+                            scoutSeasons.length > 0 && h('p', { className: 'tl-hint' }, mixedSeasonScout ? 'NFL regular-season records where available. Rows marked Legacy W1–14 retain this saved league’s original archive.' : fullSeasonScout ? `NFL regular-season records · reference scoring · The Vault plays ${Engine.seasonEndWeek(league)} weeks` : 'Archive totals · Weeks 1–14 · reference scoring'),
+                            (fullSeasonScout || mixedSeasonScout) && h('p', { className: 'tl-hint' }, 'Recorded GP counts games in the archive, not verified official appearances. Missing stats do not establish an injury or bye.'),
+                            legacyScout && h('p', { className: 'tl-hint' }, `${mixedSeasonScout ? 'Available full NFL season stats are shown for scouting.' : 'Full NFL season stats are shown for scouting.'} This saved league keeps Legacy Vault W1–14 totals for draft values and scoring.`),
+                            scoutSeasons.length > 0 && h('div', { className: 'tl-scout-seasons', role: 'region', 'aria-label': 'Season statistics, newest first', tabIndex: 0, style: { overflowX: 'auto', marginBottom: 10 } }, h('table', { className: 'tl-tbl tl-scout-season-table', style: { minWidth: `${126 + (statColumnsFor(selectedCard.position).length + 1 + Number(legacyScout)) * 64}px` } },
+                                h('colgroup', null, h('col', { style: { width: 66 } }), h('col', { style: { width: 60 } }), h('col'), legacyScout && h('col'), statColumnsFor(selectedCard.position).map(c => h('col', { key: c.key }))),
+                                h('thead', null, h('tr', null, h('th', { scope: 'col', className: 'num', title: mixedSeasonScout ? 'Fantasy points for each row’s labelled archive scope' : fullSeasonScout ? 'Recorded NFL regular-season fantasy points' : 'Weeks 1–14 archive fantasy points' }, 'FPTS'), h('th', { scope: 'col' }, 'Year'), h('th', { scope: 'col', className: 'num', title: mixedSeasonScout ? 'Legacy rows count only archive weeks 1–14; other rows count recorded NFL regular-season games' : fullSeasonScout ? 'Distinct regular-season games with archived records' : 'Games in archive weeks 1–14' }, mixedSeasonScout ? 'GP' : scoutLegacyFallbackYears.size ? 'Vault GP' : 'Recorded GP'), legacyScout && h('th', { scope: 'col', className: 'num', title: 'Preserved Weeks 1–14 points used by this saved league' }, 'Vault W1–14'), statColumnsFor(selectedCard.position).map((c) => h('th', { scope: 'col', className: 'num', key: c.key }, c.label)))),
                                 h('tbody', null, [...scoutSeasons].sort((a, b) => b.season - a.season).map((season) => h('tr', { key: season.season },
-                                    h('td', { className: 'num' }, season.points.toFixed(1)), h('td', null, season.season), h('td', { className: 'num' }, season.games),
+                                    h('td', { className: 'num' }, season.points.toFixed(1), ...(scoutLegacyFallbackYears.has(season.season) ? [h('small', { style: { display: 'block' } }, 'Legacy W1–14')] : [])), h('td', null, season.season), h('td', { className: 'num' }, season.games, ...(mixedSeasonScout && scoutLegacyFallbackYears.has(season.season) ? [h('small', { style: { display: 'block' } }, 'Vault GP')] : [])),
+                                    legacyScout && h('td', { className: 'num' }, selectedCard.seasons.find(row => row.season === season.season)?.points.toFixed(1) ?? '—'),
                                     statColumnsFor(selectedCard.position).map((c) => h('td', { className: 'num', key: c.key }, season[c.key]))))))),
                             scoutHidden > 0 && h('p', { className: 'tl-hint', style: { marginBottom: 10 } }, `${scoutHidden} season${scoutHidden === 1 ? '' : 's'} hidden — outside the league's era rule for ${selectedCard.position}, so they cannot be drawn.`),
                             h('div', { style: { display: 'flex', gap: 8 } },
@@ -761,19 +775,19 @@
                             h('button', { className: 'tl-mobile-player-pick', 'aria-pressed': selectedCard?.identity === card.identity, 'aria-label': `Scout ${card.name}`, onClick: (event) => openScout(card, event) },
                                 h('span', { className: 'tl-player-number' }, h('small', null, String(rank).padStart(2, '0')), h('b', null, card.position)),
                                 h('span', { className: 'tl-player-name' }, h('b', null, card.name), h('small', null, `${eraRestricted ? draw : seasonSpan(card)} · Mystery season`)),
-                                h('span', { className: 'tl-player-peak', title: 'Best eligible season · archive weeks 1–14 · reference scoring' }, h('b', null, Math.round(peak)), h('small', null, eraRestricted ? 'DRAW PEAK' : 'PEAK'))),
+                                h('span', { className: 'tl-player-peak', title: 'Best eligible archived season · reference scoring' }, h('b', null, Math.round(peak)), h('small', null, eraRestricted ? 'DRAW PEAK' : 'PEAK'))),
                             h('button', { className: 'tl-player-star', 'aria-label': `${humanTeam?.queue.includes(card.identity) ? 'Unqueue' : 'Queue'} ${card.name}`, 'aria-pressed': Boolean(humanTeam?.queue.includes(card.identity)), disabled: !humanTeam, onClick: () => toggleQueueFor(card.identity) }, humanTeam?.queue.includes(card.identity) ? '★' : '☆')))),
                         visible.length === 0
                             ? h('p', { className: 'tl-empty' }, cards.size === 0 ? 'No player cards loaded.' : eraRestricted && available.length === 0 ? "No player on file clears this league's era rule — the pool is empty." : 'No available players match the filters.')
                             : h('div', { className: 'tl-desktop-player-board', style: { maxHeight: 520, overflowY: 'auto' } }, h('table', { className: 'tl-tbl' },
-                                h('thead', null, h('tr', null, h('th', { className: 'num' }, 'Rk'), h('th', null, 'Player'), h('th', null, 'Pos'), h('th', null, eraRestricted ? 'Draw' : 'Seasons'), h('th', { className: 'num', title: 'Best eligible season · archive weeks 1–14 · reference scoring' }, eraRestricted ? 'Draw peak' : 'Peak'), h('th', { className: 'num', title: 'Games across eligible seasons' }, 'G'), h('th', null, 'Q'))),
-                                h('tbody', null, visible.map(({ card, rank, draw, peak, games }) => {
+                                h('thead', null, h('tr', null, h('th', { className: 'num' }, 'Rk'), h('th', null, 'Player'), h('th', null, 'Pos'), h('th', null, eraRestricted ? 'Draw' : 'Seasons'), h('th', { className: 'num', title: 'Best eligible archived season · reference scoring' }, eraRestricted ? 'Draw peak' : 'Peak'), h('th', null, 'Q'))),
+                                h('tbody', null, visible.map(({ card, rank, draw, peak }) => {
                                     const queued = Boolean(humanTeam?.queue.includes(card.identity));
                                     return h('tr', { key: card.identity, className: `clickable${selectedCard?.identity === card.identity ? ' selected' : ''}`, onClick: (event) => openScout(card, event) },
                                         h('td', { className: 'num tabular' }, rank), h('td', null, h('button', { className: 'tl-scout-player-name', type: 'button', onClick: (event) => { event.stopPropagation(); openScout(card, event); } }, card.name)),
                                         h('td', null, h('span', { className: `tl-pos-badge tl-pos-${card.position}` }, card.position)),
                                         h('td', null, eraRestricted ? draw : seasonSpan(card)),
-                                        h('td', { className: 'num tabular' }, peak.toFixed(1)), h('td', { className: 'num tabular' }, games),
+                                        h('td', { className: 'num tabular' }, peak.toFixed(1)),
                                         h('td', null, h('button', {
                                             className: `tl-btn icon${queued ? ' primary' : ''}`, 'aria-pressed': queued, disabled: !humanTeam,
                                             onClick: (e) => { e.stopPropagation(); toggleQueueFor(card.identity); },

@@ -17,6 +17,7 @@
     } = App.TimeLeagueRoster;
     const {
         buildRoundRobinSchedule, eraFactorFor, gameLogKey, isStarterSlot, scoreStatLine, REFERENCE_EXTENDED_SCORING,
+        resolveGameLog, factorsFor, sourceGames, editionKey,
     } = App.TimeLeagueSeason;
 
     const round2 = (value) => Math.round(value * 100) / 100;
@@ -101,7 +102,9 @@
     const POSITIONS = ["QB", "RB", "WR", "TE", "K", "DEF"];
 
     /** Seasons this card may still be drawn from under the league's era rules. */
-    const eraSeasons = (state, card) => filterSeasonsForEra(card.seasons, state.settings.eraRules, card.position);
+    const cardsFor = (state, cards) => state.settings.gameDeckVersion !== 1 && cards?.legacyCards ? cards.legacyCards : cards;
+    const cardFor = (state, card) => state.settings.gameDeckVersion !== 1 && card?.legacyCard ? card.legacyCard : card;
+    const eraSeasons = (state, card) => filterSeasonsForEra(cardFor(state, card).seasons, state.settings.eraRules, card.position);
 
     // The wire and the award use the same weekly draw, independent of claimant.
     const waiverSeason = (state, card, week = state.currentWeek) => {
@@ -121,6 +124,18 @@
         if (drawnSeason === null) return null;
         const endWeek = seasonEndWeek(state);
         const preview = { drawnSeason, startWeek: week, endWeek, totalPoints: null, remainingPoints: null, remainingGames: null };
+        if (state.settings.gameDeckVersion === 1) {
+            if (state.publicSnapshotVersion === 1) return state.playerReports?.[editionKey({ identity: card.identity, drawnSeason })]?.waiver || { ...preview, remainingWeeks: Math.max(0, endWeek - week + 1), estimated: true };
+            if (!logIndex || (state.settings.eraAdjusted && !eraFactors?.size)) return { ...preview, estimated: true };
+            const pool = sourceGames({ identity: card.identity, drawnSeason }, logIndex);
+            const factor = eraFactorFor(state.settings.eraAdjusted ? factorsFor(state, eraFactors) : null, drawnSeason, card.position);
+            const total = pool.reduce((sum, log) => sum + Math.round(scoreStatLine(log.stats, state.settings.scoring) * factor * 100), 0) / 100;
+            const scheduled = Math.max(14, endWeek, pool.length, ...pool.map(log => Number(log.scheduledGames) || 0));
+            const remainingWeeks = Math.max(0, endWeek - week + 1);
+            return { ...preview, totalPoints: total, remainingPoints: round2(total / scheduled * remainingWeeks), remainingWeeks, estimated: true };
+        }
+        logIndex = App.TimeLeagueSeason.dataIndexFor(state, logIndex);
+        eraFactors = factorsFor(state, eraFactors);
         if (!logIndex || (state.settings.eraAdjusted && !eraFactors?.size)) return preview;
         const factor = eraFactorFor(state.settings.eraAdjusted ? eraFactors : null, drawnSeason, card.position);
         let totalCents = 0, remainingCents = 0, remainingGames = 0;
@@ -262,6 +277,7 @@
         return spots > 0 ? Math.max(0, (team.draftBudgetRemaining ?? state.settings.draftAuctionBudget ?? 200) - (spots - 1)) : 0;
     }
     function auctionCanBid(state, teamId, card) {
+        card = cardFor(state, card);
         const team = state.teams.find(item => item.teamId === teamId);
         return Boolean(team && card && auctionMaxBid(state, teamId) > 0 && !draftedIdentities(state).has(card.identity)
             && positionIsStartable(state.settings, card.position) && eraEligibleCard(card, state.settings.eraRules)
@@ -270,12 +286,14 @@
     const draftOpen = state => state.phase === 'draft' && (!state.draftClock || state.draftClock.status === 'running');
     const beforeDeadline = (state, stamp) => !state.draftClock?.deadlineAt || Date.parse(stamp) < Date.parse(state.draftClock.deadlineAt);
     function nominateAuctionPlayer(state, teamId, card, amount = 1, stamp) {
+        card = cardFor(state, card);
         if (state.settings.draftFormat !== 'auction' || !draftOpen(state) || !validStamp(stamp) || !beforeDeadline(state, stamp)
             || state.draftAuction?.nomination || currentDraftSeat(state)?.teamId !== teamId || !auctionCanBid(state, teamId, card)
             || !Number.isInteger(amount) || amount < 1 || amount > auctionMaxBid(state, teamId)) return state;
         return { ...state, draftAuction: { ...state.draftAuction, nomination: { identity: card.identity, name: card.name, position: card.position, nominatedBy: teamId, highTeamId: teamId, highBid: amount }, lastAiAt: stamp }, draftClock: restartedClock(state, stamp) };
     }
     function bidAuctionPlayer(state, teamId, amount, stamp, cards) {
+        cards = cardsFor(state, cards);
         const n = state.draftAuction?.nomination;
         const card = cards?.get(n?.identity);
         // With no card index, roster legality still uses the nominated position;
@@ -288,6 +306,7 @@
         return { ...state, draftAuction: { ...state.draftAuction, nomination: { ...n, highTeamId: teamId, highBid: amount } }, draftClock: restartedClock(state, stamp) };
     }
     function auctionCanClose(state, cards, stamp) {
+        cards = cardsFor(state, cards);
         if (!state.draftAuction?.nomination || !draftOpen(state) || !validStamp(stamp)) return false;
         if (state.draftClock?.deadlineAt) return Date.parse(stamp) >= Date.parse(state.draftClock.deadlineAt);
         const due = Math.max(Date.parse(state.draftClock?.startedAt) || 0, Date.parse(state.draftAuction?.lastAiAt) || 0) + (state.settings.draftAiSeconds || 2) * 1000;
@@ -295,6 +314,7 @@
         return Date.parse(stamp) >= due && (!App.TimeLeagueAI || App.TimeLeagueAI.aiAuctionStep(state, cards, stamp) === state);
     }
     function closeAuction(state, cards, stamp) {
+        cards = cardsFor(state, cards);
         const n = state.draftAuction?.nomination;
         if (state.settings.draftFormat !== 'auction' || !draftOpen(state) || !validStamp(stamp) || !n || !cards.has(n.identity)) return state;
         if (state.draftClock?.deadlineAt && Date.parse(stamp) < Date.parse(state.draftClock.deadlineAt)) return state;
@@ -307,6 +327,7 @@
         };
     }
     function expireDraftClock(state, cards, stamp) {
+        cards = cardsFor(state, cards);
         if (!draftOpen(state) || !validStamp(stamp) || !state.draftClock?.deadlineAt || Date.parse(stamp) < Date.parse(state.draftClock.deadlineAt)) return state;
         if (state.settings.draftFormat === 'auction' && state.draftAuction?.nomination) return closeAuction(state, cards, stamp);
         const seat = currentDraftSeat(state), team = state.teams.find(t => t.teamId === seat?.teamId);
@@ -376,6 +397,7 @@
             ...input.settings,
             ...draftSettings(input.settings, true),
             draftOrderMode, draftTeamOrder: teamOrder,
+            gameDeckVersion: input.settings.gameDeckVersion === 0 ? 0 : 1,
             playoffTeams: input.settings.playoffTeams || 0,
             advancementMode: input.settings.advancementMode || 'commissioner',
             gateHours: input.settings.gateHours || 24,
@@ -441,6 +463,7 @@
      * minus the identities already off the board. Best peaks first.
      */
     function eraEligibleCards(state, cards) {
+        cards = cardsFor(state, cards);
         const taken = draftedIdentities(state);
         return [...cards.values()]
             .filter((card) => !taken.has(card.identity)
@@ -461,6 +484,7 @@
     }
 
     function applyDraftPick(state, card, opts) {
+        card = cardFor(state, card);
         if (state.publicSnapshotVersion === 1) throw new Error('Online draft selections must be confirmed by the server.');
         let seat = state.phase === "draft" ? currentDraftSeat(state) : null;
         if (state.settings.draftFormat === 'auction') {
@@ -550,6 +574,7 @@
     }
 
     function autoFillLineup(state, teamId, cards) {
+        cards = cardsFor(state, cards);
         const team = state.teams.find((item) => item.teamId === teamId);
         if (!team) return state;
         const open = new Map();
@@ -625,13 +650,14 @@
 
     function finalizeCurrentWeek(state, logIndex, eraFactors, createdAt, extendedScoring = REFERENCE_EXTENDED_SCORING) {
         if (state.phase !== "season") return state;
+        if (state.settings.gameDeckVersion === 1 && (!logIndex?.size || logIndex.dataset === "legacy-week-calendar")) throw new Error("The full game archive is still loading. Try game day again shortly.");
         const week = state.currentWeek;
-        const factors = state.settings.eraAdjusted ? eraFactors : null;
+        const factors = state.settings.eraAdjusted ? factorsFor(state, eraFactors) : null;
         const playoff = week > state.settings.regularSeasonWeeks;
         const pairs = playoff ? playoffPairs(state, week) : (state.schedule.find(item => item.week === week)?.pairs ?? []);
         const results = state.teams.filter(team => !playoff || pairs.some(pair => pair.includes(team.teamId))).map((team) => {
             const starters = team.roster.filter((entry) => isStarterSlot(entry.slot)).map((entry) => {
-                const log = logIndex.get(gameLogKey(entry.identity, entry.drawnSeason, week)) ?? null;
+                const log = resolveGameLog(state, entry, week, logIndex, seasonEndWeek(state));
                 const raw = log ? scoreStatLine(log.stats, state.settings.scoring, extendedScoring) : 0;
                 const factor = eraFactorFor(factors, entry.drawnSeason, entry.position);
                 return {
@@ -644,6 +670,7 @@
                     points: round2(raw * factor),
                     factor,
                     stats: log ? log.stats : null,
+                    ...(state.settings.gameDeckVersion === 1 ? { availability: log ? "recorded" : "no-record", ...(log ? { sourceWeek: log.week, source: log.source || "", sourceGameId: log.sourceGameId || "", coverage: log.coverage || "" } : {}) } : {}),
                 };
             });
             return { teamId: team.teamId, total: round2(starters.reduce((sum, line) => sum + line.points, 0)), starters };
@@ -680,7 +707,13 @@
         for (const matchup of matchups) events.push(week, "week", `W${week} final — ${line(matchup)}`, createdAt);
         let next = {
             ...state,
-            finalizedWeeks: [...state.finalizedWeeks, { week, results, matchups, headlines }],
+            finalizedWeeks: [...state.finalizedWeeks, { week, results, matchups, headlines,
+                ...(state.settings.gameDeckVersion === 1 ? { playerProduction: state.teams.flatMap(team => team.roster.map(entry => {
+                    const log = resolveGameLog(state, entry, week, logIndex, seasonEndWeek(state));
+                    const factor = eraFactorFor(factors, entry.drawnSeason, entry.position);
+                    return { ...entry, points: log ? round2(scoreStatLine(log.stats, state.settings.scoring, extendedScoring) * factor) : 0,
+                        factor, stats: log?.stats || null, availability: log ? 'recorded' : 'no-record' };
+                })) } : {}) }],
             currentWeek: week + 1,
             activity: events.list(),
         };
@@ -729,6 +762,7 @@
     }
 
     function freeAgents(state, cards) {
+        cards = cardsFor(state, cards);
         const rostered = new Set(state.teams.flatMap((team) => team.roster.map((entry) => entry.identity)));
         return [...cards.values()]
             .filter((card) => !rostered.has(card.identity)
@@ -794,6 +828,7 @@
     }
 
     function processWaivers(state, cards, createdAt) {
+        cards = cardsFor(state, cards);
         if (!state.pendingClaims.length) return state;
         const faab = state.settings.waiverMode === "faab";
         const priority = computeStandings(state).map((standing) => standing.teamId).reverse();
@@ -1014,6 +1049,7 @@
             rosterSlots,
             scoring,
             ...draftSettings(value, false),
+            gameDeckVersion: value.gameDeckVersion === 1 ? 1 : 0,
             regularSeasonWeeks: clampInt(regularSeasonWeeks, 1, 18),
             playoffTeams: [2,4,8].includes(value.playoffTeams) && regularSeasonWeeks + Math.log2(value.playoffTeams) <= 18 ? value.playoffTeams : 0,
             advancementMode: ['majority', 'timed'].includes(value.advancementMode) ? value.advancementMode : 'commissioner',
@@ -1145,7 +1181,10 @@
         const stats = value.stats == null ? null : readStats(value.stats);
         if (!entryId || !identity || !name || !position || drawnSeason === null || points === null || factor === null) return null;
         if (value.stats != null && stats === null) return null;
-        return { entryId, identity, name, position, drawnSeason, slot: readSlot(value.slot), points, factor, stats };
+        return { entryId, identity, name, position, drawnSeason, slot: readSlot(value.slot), points, factor, stats,
+            ...(['recorded', 'no-record'].includes(value.availability) ? { availability: value.availability } : {}),
+            ...(Number.isInteger(value.sourceWeek) ? { sourceWeek: value.sourceWeek } : {}),
+            ...Object.fromEntries(['source', 'sourceGameId', 'coverage'].filter(key => typeof value[key] === 'string').map(key => [key, value[key]])) };
     };
 
     const readTeamResult = (value) => {
@@ -1173,7 +1212,9 @@
         const results = readArray(value.results, readTeamResult);
         const matchups = readArray(value.matchups, readMatchup);
         const headlines = readArray(value.headlines, readString);
-        return week !== null && results && matchups && headlines ? { week, results, matchups, headlines } : null;
+        const production = value.playerProduction === undefined ? undefined : readArray(value.playerProduction, readSnapshot);
+        if (value.playerProduction !== undefined && !production) return null;
+        return week !== null && results && matchups && headlines ? { week, results, matchups, headlines, ...(production ? { playerProduction: production } : {}) } : null;
     };
 
     const readClaim = (value) => {
@@ -1298,13 +1339,14 @@
         const editions = raw.waiverEditions;
         const seasons = isRecord(editions?.seasons) ? Object.fromEntries(Object.entries(editions.seasons).filter(([identity, season]) => identity && Number.isInteger(season) && season >= 1970 && season <= 2100)) : {};
         return { ...safe, publicSnapshotVersion: 1, draftVisibility: { allPositions, revealedPositions },
+            ...(safe.seasonsRevealed && raw.playerReports ? { playerReports: App.TimeLeaguePublicState?.sanitizePlayerReports(raw.playerReports, safe.currentWeek) || {} } : {}),
             ...(typeof raw.draftAutomation?.auctionPending === 'boolean' ? { draftAutomation: { auctionPending: raw.draftAutomation.auctionPending } } : {}),
             ...(safe.seasonsRevealed && editions?.week === safe.currentWeek ? { waiverEditions: { week: editions.week, seasons } } : {}),
         };
     }
 
     const api = {
-        validDraftTeamOrder, draftTeamOrder, canConfigureDraftOrder, configureDraftOrder,
+        validDraftTeamOrder, draftTeamOrder, canConfigureDraftOrder, configureDraftOrder, cardsFor,
         AI_PERSONAS, AI_PERSONA_IDS, rosterCapacity, defaultAiSeat, createTimeLeague, currentDraftSeat, draftedIdentities, eraEligibleCards,
         DRAFT_PICK_SECONDS, DRAFT_AI_SECONDS, draftSettings, startDraft, pauseDraft, resumeDraft, configureDraft, expireDraftClock,
         auctionMaxBid, auctionCanBid, auctionCanClose, nominateAuctionPlayer, bidAuctionPlayer, closeAuction,

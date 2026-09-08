@@ -58,7 +58,7 @@ const input = { name: 'Recovery league', seats: [{ name: 'Human', manager: 'huma
     online = true; button(tree, 'Retry loading').props.onClick(); render(); tree = await flush();
     draft = panel(tree, WrTimeLeagueDraftPanel); assert(draft);
     assert.equal(calls.get('data/time-league/player-cards.json'), 2, 'Failed card cache is retried');
-    assert.equal(calls.get('data/time-league/nflverse-game-logs.csv'), 2, 'Failed game-log cache is retried');
+    assert.equal(calls.get('data/time-league/regular-season-game-logs.csv'), 2, 'Failed game-log cache is retried');
     const saved = draft.league, key = App.TimeLeagueTypes.timeLeagueStorageKey(saved.leagueId);
     const previousGame = disk.get(key), previousIndex = disk.get(App.TimeLeagueTypes.TIME_LEAGUE_INDEX_KEY);
     failKey = key;
@@ -105,8 +105,16 @@ const input = { name: 'Recovery league', seats: [{ name: 'Human', manager: 'huma
     factorsOnline = true; events.get('online')(); render(); tree = await flush();
     assert.equal(panel(tree, WrTimeLeagueWeekGates).dataReady, true);
     assert.equal(calls.get('data/time-league/player-cards.json'), 2, 'Successful heavy archives remain cached');
-    assert.equal(calls.get('data/time-league/nflverse-game-logs.csv'), 2);
-    assert.equal(calls.get('data/time-league/era-factors.json'), 3, 'Reconnection retries only failed datasets');
+    assert.equal(calls.get('data/time-league/regular-season-game-logs.csv'), 2);
+    assert.equal(calls.get('data/time-league/regular-season-era-factors.json'), 3, 'Reconnection retries only failed datasets');
     assert(!button(tree, 'Retry loading'));
+    assert.equal(calls.get('data/time-league/nflverse-game-logs.csv'), undefined, 'New leagues do not download the heavy legacy archive');
+    const legacy = { ...panel(tree, WrTimeLeagueGamecastPanel).league, settings: { ...adjusted.settings, gameDeckVersion: 0 } };
+    await panel(tree, WrTimeLeagueGamecastPanel).onUpdate(legacy); tree = render();
+    assert.equal(panel(tree, WrTimeLeagueWeekGates).dataReady, false, 'Switching archive versions cannot score with the previous dataset');
+    tree = await flush();
+    assert.equal(panel(tree, WrTimeLeagueWeekGates).dataReady, true);
+    assert.equal(calls.get('data/time-league/nflverse-game-logs.csv'), 1, 'Legacy data is loaded only when a legacy league needs it');
+    assert.equal(calls.get('data/time-league/regular-season-game-logs.csv'), 2, 'Switching leagues does not redownload the successful full archive');
     console.log('PASS: offline startup, retry/reconnection, successful cache reuse, failed creation, quota rollback, pending-save isolation, retry/discard and preserved draft time.');
 })().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => { global.Date = RealDate; });

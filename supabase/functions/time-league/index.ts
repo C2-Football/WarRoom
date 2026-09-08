@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { handleOptions, json, requireActiveAppSession } from '../_shared/security.ts';
-import { App, loadData } from './runtime.js';
+import { App, loadData, loadGamePools } from './runtime.js';
 import { handleCommunity } from './community.ts';
 import { loadPrivateMessages, sendPrivateMessage, withoutPrivateMessages } from './messages.ts';
 import { prepareSealedDraws, applySealedOnlineAction } from './sealed-draws.ts';
@@ -51,7 +51,7 @@ Deno.serve(async (req: Request) => {
             if (capacity < 1 || capacity > 30) return fail('Choose between 1 and 30 roster spots.');
             const state = App.TimeLeagueEngine.normalizeTimeLeague({
                 ...App.TimeLeagueEngine.createTimeLeague({ ...input,
-                    settings: { ...settings, draftOrderMode, eraRules: { mode: settings.eraRules?.mode, decades: settings.eraRules?.decades || [] } },
+                    settings: { ...settings, gameDeckVersion: 1, draftOrderMode, eraRules: { mode: settings.eraRules?.mode, decades: settings.eraRules?.decades || [] } },
                     seed: crypto.randomUUID(), createdAt: new Date().toISOString() }, { randomTeamOrder: randomDraftOrder(teamIds) }),
                 // Never encode outputs of the private engine RNG into public IDs.
                 leagueId: `tl-${crypto.randomUUID()}`, draftEraReveals: {},
@@ -80,9 +80,10 @@ Deno.serve(async (req: Request) => {
         if (body.op === 'load') {
             const rivalMessages = await loadPrivateMessages(admin, session.userId, row.id);
             const needsCards = (row.state.phase !== 'draft' && row.state.seasonsRevealed) || row.state.settings.draftFormat === 'auction';
-            const data = needsCards ? await loadData(0) : { cards: new Map() };
+            let data = needsCards ? await loadData(0, row.state.settings.gameDeckVersion || 0) : { cards: new Map() };
             const prepared = row.state.phase !== 'draft' && row.state.seasonsRevealed ? await prepareSealedDraws(row.state, data.cards, row.sealed_draw_secret) : row.state;
-            return json(req, { ok: true, row: { id: row.id, state: App.TimeLeaguePublicState.projectPublicState(prepared, member.seat_team_id, rivalMessages, data.cards), version: row.version, draft_started: row.draft_started, seatTeamId: member.seat_team_id, role: member.role, members: members!.map(m => ({ id: m.id, seat_team_id: m.seat_team_id, role: m.role, joined: Boolean(m.user_id), ready_week: m.ready_week, ...(member.role === 'commissioner' && !m.user_id ? { invite_code: m.invite_code } : {}) })) } });
+            data = await loadGamePools(data, prepared);
+            return json(req, { ok: true, row: { id: row.id, state: App.TimeLeaguePublicState.projectPublicState(prepared, member.seat_team_id, rivalMessages, data.cards, new Date().toISOString(), data), version: row.version, draft_started: row.draft_started, seatTeamId: member.seat_team_id, role: member.role, members: members!.map(m => ({ id: m.id, seat_team_id: m.seat_team_id, role: m.role, joined: Boolean(m.user_id), ready_week: m.ready_week, ...(member.role === 'commissioner' && !m.user_id ? { invite_code: m.invite_code } : {}) })) } });
         }
         if (body.op === 'ready') {
             if (body.ready === true && row.state.phase === 'draft' && !App.TimeLeaguePublicState.allErasRevealed(row.state, member.seat_team_id)) return fail('Reveal every position archive before entering the draft.');
@@ -118,7 +119,9 @@ Deno.serve(async (req: Request) => {
         } else {
             if (!started && action.type !== 'team' && action.type !== 'queue') return fail('Wait for the commissioner to start the draft.');
             if (row.state.phase === 'draft' && ['draft', 'auction-nominate', 'auction-bid'].includes(action.type) && !App.TimeLeaguePublicState.allErasRevealed(row.state, member.seat_team_id)) return fail('Reveal every position archive before making a draft choice.');
-            next = await applySealedOnlineAction(row.state, action, member, await loadData((action.type === 'week' || (['vote-advance', 'timed-advance'].includes(action.type) && row.state.weekStage === 'ready')) ? row.current_week : 0), new Date().toISOString(), row.sealed_draw_secret);
+            const data = await loadData((action.type === 'week' || (['vote-advance', 'timed-advance'].includes(action.type) && row.state.weekStage === 'ready')) ? row.current_week : 0, row.state.settings.gameDeckVersion || 0);
+            const prepared = await prepareSealedDraws(row.state, data.cards, row.sealed_draw_secret);
+            next = await applySealedOnlineAction(prepared, action, member, await loadGamePools(data, prepared), new Date().toISOString(), row.sealed_draw_secret);
         }
         const { data: saved, error: saveError } = await admin.from('time_leagues').update({ state: withoutPrivateMessages(next), version: row.version + 1, draft_started: started }).eq('id', row.id).eq('version', row.version).select('id, state, version, draft_started').maybeSingle();
         if (saveError) throw saveError;

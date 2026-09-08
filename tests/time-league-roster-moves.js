@@ -25,7 +25,7 @@ const text = node => JSON.stringify(node);
 const button = (tree, label) => walk(tree).find(node => node.type === 'button' && node.props['aria-label'] === label);
 const byClass = (tree, cls) => walk(tree).filter(node => node.props.className?.split(' ').includes(cls));
 let league = E.createTimeLeague({ name: 'Named roster swaps', seed: 'roster-ui', createdAt: '2026-01-01',
-    settings: { waiversEnabled: true, rosterSlots: { QB: 1, WR: 1, TE: 1, FLEX: 1, SUPER_FLEX: 1, DEF: 1, BN: 4 }, regularSeasonWeeks: 12, playoffTeams: 4, scoring: { passingYd: .04, passTd: 4, turnover: -2, rushRecYd: .1, reception: .5 }, eraRules: { mode: 'any' } },
+    settings: { gameDeckVersion: 0, waiversEnabled: true, rosterSlots: { QB: 1, WR: 1, TE: 1, FLEX: 1, SUPER_FLEX: 1, DEF: 1, BN: 4 }, regularSeasonWeeks: 12, playoffTeams: 4, scoring: { passingYd: .04, passTd: 4, turnover: -2, rushRecYd: .1, reception: .5 }, eraRules: { mode: 'any' } },
     seats: Array.from({ length: 4 }, (_, index) => ({ name: index ? `Rival ${index}` : 'Commander', manager: index ? 'ai' : 'human' })),
 });
 const entry = (entryId, name, position, slot) => ({ entryId, identity: position.toLowerCase() + ':' + entryId, name, position, slot, drawnSeason: 1994 });
@@ -142,6 +142,41 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     tree = render();
     assert(text(byClass(tree, 'tl-roster-dossier')).includes('1993'));
     assert(!text(byClass(tree, 'tl-roster-dossier')).includes('1995'), 'Player archive still stops before the drawn season');
+    const removedLogs = [];
+    for (let week = 4; week <= 11; week++) {
+        const key = S.gameLogKey(entries[0].identity, 1994, week);
+        removedLogs.push([key, logs.get(key)]); logs.delete(key);
+    }
+    tree = render();
+    const futureWeeks = byClass(tree, 'tl-outlook-week').filter(node => node.props['aria-label'].endsWith(': sealed'));
+    assert.equal(futureWeeks.length, 11, 'Every future week stays sealed, including an eight-week missing stretch');
+    assert(futureWeeks.every(node => !node.props.className.includes('missing') && text(node).includes('Sealed') && !text(node).includes('★')));
+    assert(text(byClass(tree, 'tl-roster-dossier')).includes('Vault weeks left'));
+    assert(!text(tree).includes('games left'), 'Roster rows must not disclose exact remaining participation');
+    assert(text(byClass(tree, 'tl-archive-season-scope')).includes('Archive GP · W1–14'), 'Legacy counts are never presented as full-season NFL appearances');
+    const youngCard = cards.get(entries[0].identity);
+    cards.legacyCards = new Map(cards);
+    cards.set(entries[0].identity, { ...youngCard, seasons: youngCard.seasons.map(season => season.season === 1994 ? { ...season, games: 16, recordedGames: 16, points: 320, scheduledGames: 16, sourceWeekKind: 'nfl-week' } : season) });
+    tree = render();
+    const scope = text(byClass(tree, 'tl-archive-season-scope'));
+    assert(scope.includes('Recorded GP') && scope.includes('NFL schedule') && scope.includes('16 games') && scope.includes('14 weeks'), 'NFL schedule, logged appearances and Vault length remain distinct');
+    assert(scope.includes('Full NFL season') && scope.includes('320.0 pts') && scope.includes('Legacy Vault · W1–14') && scope.includes('200.0 pts'), 'Old saves show full historical totals separately from preserved league pricing');
+    const youngRow = byClass(tree, 'tl-lineup-row').find(row => text(row).includes('Steve Young'));
+    assert(text(byClass(youngRow, 'tl-lineup-pts')[0]).includes('200.0'), 'Old roster SZN points keep legacy league values');
+    assert(!scope.includes('NFL GP'), 'Recorded games are not claimed to be verified official participation');
+    const currentKey = S.gameLogKey(entries[0].identity, 1994, 3), currentLog = logs.get(currentKey);
+    logs.delete(currentKey); tree = render();
+    assert(text(byClass(tree, 'tl-lineup-player')).includes('No recorded game'));
+    assert(byClass(tree, 'tl-outlook-week').filter(node => node.props['aria-label'].endsWith(': sealed')).every(node => !node.props.className.includes('missing')), 'A missing current game never reveals future absences');
+    logs.set(currentKey, currentLog);
+    cards.set(entries[0].identity, youngCard);
+    delete cards.legacyCards;
+    for (const [key, log] of removedLogs) logs.set(key, log);
+
+    league = { ...league, weekStage: 'postgame' };
+    tree = render();
+    assert(byClass(tree, 'tl-week-stars').every(node => text(node).includes('Awaiting next week') && !text(node).includes('No recorded game')));
+    assert.equal(byClass(tree, 'tl-outlook-week').filter(node => node.props['aria-label'].endsWith(': sealed')).length, 12, 'Postgame keeps the upcoming currentWeek sealed until Advance week');
 
     league = { ...league, weekStage: 'ready' };
     const before = applied.length;
@@ -175,10 +210,20 @@ const choices = tree => byClass(tree, 'tl-roster-candidate').map(node => node.pr
     assert(text(wire).includes('Free RB') && text(wire).includes('Free WR') && text(wire).includes('Free TE'));
     assert(!text(wire).includes('Free QB') && !text(wire).includes('Free K') && !text(wire).includes('Free DEF'));
     assert(text(wire).includes('1994 season') && !text(wire).includes('CAREER BEST'), 'The wire names the actual weekly edition');
+    assert(!text(wire).includes('G LEFT'), 'Free agency does not disclose future game counts');
     assert.deepEqual(byClass(wire, 'tl-waiver-score').map(node => node.children[0]), ['20.0', '5.0', '-2.0'], 'Free agents rank by points still playable, including negative scores');
     assert(text(byClass(wire, 'tl-waiver-score')[0]).includes('120.0 total'), 'Already-played points only appear in the season total');
     button(tree, 'Claim Free WR').props.onClick(); tree = render({ section: 'waivers' });
     assert(text(byClass(tree, 'tl-waiver-preview')).includes('20.0') && text(byClass(tree, 'tl-waiver-preview')).includes('120.0'), 'Claim builder carries the same remaining and total points');
+    assert(text(byClass(tree, 'tl-waiver-preview')).includes('Vault weeks left') && !text(byClass(tree, 'tl-waiver-preview')).includes('Games left'));
+    const legacyLeague = league;
+    const legacyPreview = E.waiverPreview;
+    E.waiverPreview = (state, ...args) => ({ ...legacyPreview({ ...state, settings: { ...state.settings, gameDeckVersion: 0 } }, ...args), estimated: true });
+    league = { ...league, settings: { ...league.settings, gameDeckVersion: 1 } };
+    tree = render({ section: 'waivers' });
+    assert(text(byClass(tree, 'tl-waiver-table')).includes('EST. PTS LEFT'));
+    assert(text(byClass(tree, 'tl-waiver-preview')).includes('Estimated points left') && text(byClass(tree, 'tl-waiver-preview')).includes('Recorded season total'), 'New deck estimates are not represented as guaranteed future points');
+    league = legacyLeague; E.waiverPreview = legacyPreview;
     tree = render({ section: 'waivers', logIndex: null });
     assert(byClass(tree, 'tl-waiver-score').every(node => node.children[0] === '—'), 'Missing scoring data stays unknown rather than showing career-best points');
     reset(); tree = render({ section: 'waivers', waiverSlot: 'SUPER_FLEX' });

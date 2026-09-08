@@ -14,9 +14,9 @@ for (let week = 1; week <= 7; week++) {
     index.set(S.gameLogKey(entry.identity, 2000, week), log);
 }
 const outlook = S.rosterOutlook(entry, 6, 7, index, scoring, null);
-assert.strictEqual(outlook.remaining, 1);
-assert.strictEqual(outlook.estimatedRemaining, 3);
-assert.strictEqual(outlook.signal, 'No game log');
+assert.strictEqual(outlook.remaining, 2);
+assert.strictEqual(outlook.estimatedRemaining, 6);
+assert.strictEqual(outlook.signal, 'No recorded game');
 assert.strictEqual(outlook.schedule[6].points, null);
 assert.strictEqual(S.rosterOutlook(entry, 8, 7, new Map(), scoring, null).remaining, 0);
 assert.strictEqual(S.rosterOutlook(entry, 1, 7, null, scoring, null), null);
@@ -31,9 +31,13 @@ for (let week = 1; week <= 14; week++) {
 }
 const stars = S.weeklyStarOutlook(entry, 1, 14, starIndex, scoring, null);
 assert.strictEqual(stars.stars, 5);
-assert.strictEqual(stars.schedule.filter(row => row.stars === 5).length, 3);
-assert.strictEqual(stars.schedule.filter(row => row.stars === 1).length, 3);
+assert.strictEqual(stars.schedule.filter(row => row.stars === 5).length, 1);
+assert.strictEqual(stars.schedule.filter(row => row.stars === 1).length, 0);
 assert.strictEqual(stars.schedule[3].stars, null);
+assert(stars.schedule.slice(1).every(row => row.available === null && row.stars === null), 'All future dates stay sealed');
+const historical = S.weeklyStarOutlook(entry, 15, 14, starIndex, scoring, null);
+assert.equal(historical.schedule.filter(row => row.stars === 5).length, 3);
+assert.equal(historical.schedule.filter(row => row.stars === 1).length, 3);
 assert.strictEqual(S.weeklyStarOutlook(entry, 4, 14, starIndex, scoring, null).maxRemainingStars, 4);
 assert.strictEqual(S.weeklyStarOutlook(entry, 15, 14, starIndex, scoring, null).maxRemainingStars, null);
 assert.strictEqual(S.weeklyStarOutlook(entry, 1, 14, null, scoring, null), null);

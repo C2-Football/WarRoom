@@ -26,6 +26,28 @@
             if (parsed === null) return null;
             season[key] = parsed;
         }
+        // Full-season archives keep their coverage explicit. A recorded scoring
+        // line is not an independently verified NFL games-played count.
+        for (const key of ['recordedGames', 'scheduledGames']) {
+            if (Number.isInteger(row[key]) && row[key] >= 0 && row[key] <= 25) season[key] = row[key];
+        }
+        for (const key of ['source', 'coverage', 'sourceWeekKind', 'sourcePlayerId']) {
+            const text = nonEmptyString(row[key]);
+            if (text && text.length <= 100) season[key] = text;
+        }
+        if (Array.isArray(row.sourceWeeks) && row.sourceWeeks.every(week => Number.isInteger(week) && week >= 1 && week <= 25)) {
+            season.sourceWeeks = [...new Set(row.sourceWeeks)].sort((left, right) => left - right);
+        }
+        if (Array.isArray(row.teams)) season.teams = [...new Set(row.teams.filter(team => typeof team === 'string' && /^[A-Z0-9]{2,5}$/.test(team)))];
+        for (const key of ['fumblesLost', 'twoPointConversions']) {
+            const parsed = finiteNumber(row[key]);
+            if (parsed !== null) season[key] = parsed;
+        }
+        if (row.extra && typeof row.extra === 'object' && !Array.isArray(row.extra)) {
+            const allowed = new Set(App.TimeLeagueSeason?.EXTENDED_STAT_IDS || []);
+            const extra = Object.fromEntries(Object.entries(row.extra).filter(([key, number]) => allowed.has(key) && finiteNumber(number) !== null));
+            if (Object.keys(extra).length) season.extra = extra;
+        }
         return season;
     }
 

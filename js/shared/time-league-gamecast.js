@@ -97,8 +97,16 @@
         return quarters;
     }
 
-    function buildEntryEvents(seed, week, teamId, entry, scoring) {
-        if (!entry.stats || (!hasStats(entry.stats) && toCents(entry.points) === 0)) return [];
+    function availabilityEvent(entry, teamId, t, status, description) {
+        return { t, quarter: Math.floor(t / QUARTER_LENGTH) + 1, teamId, entryId: entry.entryId,
+            playerName: entry.name, kind: 'availability', status, points: 0, stats: {},
+            touchdowns: 0, isTouchdown: false, description };
+    }
+
+    function buildEntryEvents(seed, week, teamId, entry, scoring, simulatedAvailability) {
+        if (!entry.stats) return simulatedAvailability ? [availabilityEvent(entry, teamId, 0,
+            'no-record', `${entry.name}: no recorded appearance in this week's draw. The archive does not confirm an injury.`)] : [];
+        if (!hasStats(entry.stats) && toCents(entry.points) === 0) return [];
         const random = createSeededRandom(`${seed}:quarters:${week}:${teamId}:${entry.entryId}`);
         const events = [];
         const emit = (stats, quarter, minute) => {
@@ -144,6 +152,24 @@
             event.points = (cents - previousCents) / 100;
             previousCents = cents;
         });
+        // This is fictional presentation, not inferred NFL injury history. A
+        // small share of quieter skill-position games end with an early exit.
+        // Move all original production before that moment; never remove stats,
+        // add lost points, or invent future recovery dates. Old replays opt out.
+        const quietGame = { QB: 12, RB: 8, WR: 8, TE: 6 }[entry.position];
+        if (simulatedAvailability && entry.points > 0 && entry.points <= quietGame) {
+            const availabilityRandom = createSeededRandom(`${seed}:availability:${week}:${entry.identity || entry.entryId}:${entry.drawnSeason}`);
+            if (availabilityRandom() < 0.12) {
+                const exitAt = 20 + availabilityRandom() * 20;
+                const last = events[events.length - 1].t;
+                for (const event of events) {
+                    event.t = event.t / last * (exitAt - 1);
+                    event.quarter = Math.floor(event.t / QUARTER_LENGTH) + 1;
+                }
+                events.push({ ...availabilityEvent(entry, teamId, exitAt, 'out',
+                    `${entry.name} leaves the game and will not return. Vault simulation — the historical game total is unchanged.`), simulated: true });
+            }
+        }
         return events;
     }
 
@@ -160,7 +186,7 @@
 
     function buildGamecast(input) {
         const events = input.results.flatMap(result => result.starters.flatMap(entry =>
-            buildEntryEvents(input.seed, input.week, result.teamId, entry, input.scoring || DEFAULT_SCORING)));
+            buildEntryEvents(input.seed, input.week, result.teamId, entry, input.scoring || DEFAULT_SCORING, input.simulatedAvailability === true)));
         events.sort((a, b) => a.t - b.t || a.teamId.localeCompare(b.teamId) || a.entryId.localeCompare(b.entryId));
         return { week: input.week, events, quarters: QUARTERS.map(quarter => ({ ...quarter })), duration: GAMECAST_END,
             finals: Object.fromEntries(input.results.map(result => [result.teamId, toCents(result.total) / 100])) };

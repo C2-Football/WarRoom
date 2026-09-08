@@ -114,35 +114,52 @@
     }
 
     // ── bundled dataset caches (module scope so remounts reuse the heavy parse) ──
-    let logIndexPromise = null;
-    const fetchLogIndex = () => {
-        logIndexPromise ??= fetch('data/time-league/nflverse-game-logs.csv')
-            .then(async (response) => {
-                if (!response.ok) return null;
-                const { logs } = Season.parseGameLogCsv(await response.text());
-                return logs.length ? Season.buildGameLogIndex(logs) : null;
-            })
-            .catch(() => null)
-            .then(result => { if (!result?.size) logIndexPromise = null; return result; });
-        return logIndexPromise;
-    };
-    let eraFactorsPromise = null;
-    const fetchEraFactors = () => {
-        eraFactorsPromise ??= fetch('data/time-league/era-factors.json')
-            .then(async (response) => {
-                if (!response.ok) return null;
-                const payload = await response.json();
-                if (!payload?.factors) return null;
-                return new Map(Object.entries(payload.factors).flatMap(([key, value]) =>
-                    (typeof value === 'number' && Number.isFinite(value) ? [[key, value]] : [])));
-            })
-            .catch(() => null)
-            .then(result => { if (!result?.size) eraFactorsPromise = null; return result; });
-        return eraFactorsPromise;
-    };
+    // Cache each archive separately so a failed download can be retried without
+    // downloading the successful half again. Legacy saves retain their original
+    // source rows; the full archive is used by versioned game decks.
+    const archiveRequests = new Map();
+    function fetchArchive(file, read) {
+        if (!archiveRequests.has(file)) archiveRequests.set(file,
+            fetch(`data/time-league/${file}`).then(response => response.ok ? read(response) : null)
+                .catch(() => null).then(value => {
+                    if (!value?.size) archiveRequests.delete(file);
+                    return value;
+                }));
+        return archiveRequests.get(file);
+    }
+    const fetchLogIndex = (version = 1) => fetchArchive(
+        version === 1 ? 'regular-season-game-logs.csv' : 'nflverse-game-logs.csv',
+        async response => {
+            const { logs } = Season.parseGameLogCsv(await response.text());
+            if (!logs.length) return null;
+            const index = Season.buildGameLogIndex(logs);
+            index.dataset = version === 1 ? 'full-regular-season-v1' : 'legacy-week-calendar';
+            return index;
+        });
+    const fetchEraFactors = (version = 1) => fetchArchive(
+        version === 1 ? 'regular-season-era-factors.json' : 'era-factors.json',
+        async response => {
+            const payload = await response.json();
+            if (!payload?.factors) return null;
+            const factors = new Map(Object.entries(payload.factors).flatMap(([key, value]) =>
+                (typeof value === 'number' && Number.isFinite(value) ? [[key, value]] : [])));
+            factors.dataset = version === 1 ? 'full-regular-season-v1' : 'legacy-week-calendar';
+            return factors;
+        });
     let cardsPromise = null;
     const fetchCards = () => {
-        cardsPromise ??= PlayerCards.loadPlayerCards().catch(() => new Map())
+        const read = async response => PlayerCards.buildPlayerCardIndex(await response.json());
+        cardsPromise ??= Promise.all([
+            fetchArchive('player-cards.json', read),
+            fetchArchive('legacy-player-cards.json', read),
+        ]).then(([full, legacy]) => {
+            if (!full?.size || !legacy?.size) return new Map();
+            full.legacyCards = legacy;
+            for (const [identity, card] of full) {
+                if (legacy.has(identity)) Object.defineProperty(card, 'legacyCard', { value: legacy.get(identity) });
+            }
+            return full;
+        })
             .then(result => { if (!result?.size) cardsPromise = null; return result || new Map(); });
         return cardsPromise;
     };
@@ -951,10 +968,20 @@
         }, []);
         const [activeTeamId, setActiveTeamId] = useState('');
         const [cards, setCards] = useState(null);
-        const [logIndex, setLogIndex] = useState(null);
+        const [loadedLogIndex, setLogIndex] = useState(null);
         const [logsMissing, setLogsMissing] = useState(false);
-        const [eraFactors, setEraFactors] = useState(null);
+        const [loadedEraFactors, setEraFactors] = useState(null);
         const [booted, setBooted] = useState(false);
+        const bootArchiveVersion = useMemo(() => {
+            const savedId = readUiPrefs().leagueId;
+            const saved = savedId ? readLeague(savedId) : null;
+            return saved ? (saved.settings.gameDeckVersion === 1 ? 1 : 0) : 1;
+        }, []);
+        const archiveVersion = league ? (league.settings.gameDeckVersion === 1 ? 1 : 0) : bootArchiveVersion;
+        const archiveDataset = archiveVersion === 1 ? 'full-regular-season-v1' : 'legacy-week-calendar';
+        const logIndex = loadedLogIndex?.dataset && loadedLogIndex.dataset !== archiveDataset ? null : loadedLogIndex;
+        const eraFactors = loadedEraFactors?.dataset && loadedEraFactors.dataset !== archiveDataset ? null : loadedEraFactors;
+
         // Online bookkeeping deliberately lives OUTSIDE `league` — Engine.normalizeTimeLeague()
         // rebuilds `league` from an explicit key allowlist on every handleUpdate, so anything
         // attached to the league object itself would be silently stripped on the very next update.
@@ -1105,14 +1132,14 @@
         useEffect(() => {
             let cancelled = false;
             setDataLoading(true);
-            Promise.all([fetchLogIndex(), fetchEraFactors(), fetchCards()]).then(([logs, factors, playerCards]) => {
+            Promise.all([fetchLogIndex(archiveVersion), fetchEraFactors(archiveVersion), fetchCards()]).then(([logs, factors, playerCards]) => {
                 if (cancelled) return;
                 setLogIndex(logs); setLogsMissing(!logs?.size);
                 setEraFactors(factors); setEraFactorsMissing(!factors?.size);
                 setCards(playerCards); setDataLoading(false);
             });
             return () => { cancelled = true; };
-        }, [dataAttempt]);
+        }, [dataAttempt, archiveVersion]);
 
         useEffect(() => {
             const retry = () => setDataAttempt(attempt => attempt + 1);

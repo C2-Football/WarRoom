@@ -110,12 +110,12 @@
         return `${identity}:${season}:${week}`;
     }
 
-    /** Minimal CSV tokenizer (handles quoted cells + embedded commas/newlines). */
-    function parseCsv(text) {
-        const rows = [];
+    /** Yield one row at a time so the large archive never retains every cell. */
+    function* parseCsv(text) {
         let row = [];
         let cell = "";
         let quoted = false;
+        let rowCount = 0;
         for (let index = 0; index < text.length; index += 1) {
             const char = text[index];
             if (char === '"' && quoted && text[index + 1] === '"') { cell += '"'; index += 1; }
@@ -123,11 +123,19 @@
             else if (char === "," && !quoted) { row.push(cell); cell = ""; }
             else if ((char === "\n" || char === "\r") && !quoted) {
                 if (char === "\r" && text[index + 1] === "\n") index += 1;
-                row.push(cell); if (row.some(Boolean)) rows.push(row); row = []; cell = "";
+                row.push(cell);
+                if (row.some(Boolean)) {
+                    if (++rowCount > 1000001) throw new Error("The game archive exceeds the supported one-million-row limit.");
+                    yield row;
+                }
+                row = []; cell = "";
             } else cell += char;
         }
-        row.push(cell); if (row.some(Boolean)) rows.push(row);
-        return rows;
+        row.push(cell);
+        if (row.some(Boolean)) {
+            if (++rowCount > 1000001) throw new Error("The game archive exceeds the supported one-million-row limit.");
+            yield row;
+        }
     }
 
     /**
@@ -136,15 +144,21 @@
      * still resolve to one line.
      */
     function parseGameLogCsv(text) {
-        const rows = parseCsv(text).slice(0, 250001);
-        if (rows.length < 2) return { logs: [], skippedRows: 0 };
-        const headers = rows[0].map((header) => header.trim().toLowerCase().replace(/[^a-z0-9]/g, ""));
+        const rows = parseCsv(text);
+        const first = rows.next();
+        if (first.done) return { logs: [], skippedRows: 0 };
+        const headers = first.value.map((header) => header.trim().toLowerCase().replace(/[^a-z0-9]/g, ""));
         const find = (...names) => headers.findIndex((header) => names.includes(header));
         const playerIndex = find("player", "playername", "name", "playerdisplayname");
         const seasonIndex = find("season", "year", "seasonyear");
         const weekIndex = find("week", "wk", "gameweek");
         const positionIndex = find("pos", "position");
-        if (playerIndex < 0 || seasonIndex < 0 || weekIndex < 0 || positionIndex < 0) return { logs: [], skippedRows: rows.length - 1 };
+        const metadataIndexes = Object.fromEntries(Object.entries({ sourceGameId: "sourcegameid", team: "team", opponent: "opponent", gameDate: "gamedate", source: "source", coverage: "coverage", sourceWeekKind: "sourceweekkind", historicalWeek: "historicalweek", scheduledGames: "scheduledgames" }).map(([key, header]) => [key, find(header)]));
+        if (playerIndex < 0 || seasonIndex < 0 || weekIndex < 0 || positionIndex < 0) {
+            let skippedRows = 0;
+            while (!rows.next().done) skippedRows += 1;
+            return { logs: [], skippedRows };
+        }
         const statIndexes = Object.fromEntries(
             Object.keys(STAT_HEADER_ALIASES).map((stat) => [stat, find(...STAT_HEADER_ALIASES[stat])]),
         );
@@ -167,7 +181,7 @@
 
         const byKey = new Map();
         let skippedRows = 0;
-        for (const row of rows.slice(1)) {
+        for (const row of rows) {
             const name = row[playerIndex]?.replace(/[*+]/g, "").trim();
             const season = Number(row[seasonIndex]);
             const week = Number(row[weekIndex]);
@@ -200,6 +214,9 @@
                 if (extra) addExtended(current, extra);
             } else {
                 const log = { identity, name, position, season, week, stats };
+                for (const [field, index] of Object.entries(metadataIndexes)) {
+                    if (index >= 0 && row[index]) log[field] = ["scheduledGames", "historicalWeek"].includes(field) ? Number(row[index]) : row[index];
+                }
                 if (extra) {
                     stats.extra = extra;
                     log.extra = extra;
@@ -211,7 +228,9 @@
     }
 
     function buildGameLogIndex(logs) {
-        return new Map(logs.map((log) => [gameLogKey(log.identity, log.season, log.week), log]));
+        const index = new Map();
+        for (const log of logs) index.set(gameLogKey(log.identity, log.season, log.week), log);
+        return index;
     }
 
     /**
@@ -266,57 +285,163 @@
         return schedule;
     }
 
-    // Future rows supply availability only; never inspect their scoring stats.
-    function rosterOutlook(entry, currentWeek, weeks, index, scoring, factors) {
+    const poolCaches = new WeakMap();
+    const deckCaches = new WeakMap();
+    const editionKey = entry => `${entry.identity}:${entry.drawnSeason}`;
+    const usesGameDeck = league => league?.settings?.gameDeckVersion === 1;
+    const dataIndexFor = (league, index) => !usesGameDeck(league) && index?.legacyIndex ? index.legacyIndex : index;
+    const factorsFor = (league, factors) => !usesGameDeck(league) && factors?.legacyFactors ? factors.legacyFactors : factors;
+
+    function sourceGames(entry, index) {
+        if (!index) return [];
+        let pools = poolCaches.get(index);
+        if (!pools) {
+            pools = new Map();
+            for (const [key, value] of index) {
+                const match = /^(.*):(\d+):(\d+)$/.exec(key);
+                if (!match) continue;
+                const identity = value.identity || match[1], season = value.season || Number(match[2]);
+                const poolKey = `${identity}:${season}`;
+                if (!pools.has(poolKey)) pools.set(poolKey, []);
+                pools.get(poolKey).push(value.identity && value.season && value.week ? value : Object.assign(Object.create(value), { identity, season, week: value.week || Number(match[3]) }));
+            }
+            for (const pool of pools.values()) pool.sort((a, b) => a.week - b.week);
+            poolCaches.set(index, pools);
+        }
+        return pools.get(editionKey(entry)) || [];
+    }
+
+    // The private deck is stable for an edition across ownership changes. A
+    // source game is used at most once; the calendar never truncates its pool.
+    function gameDeck(league, entry, index, weeks = 14) {
+        if (!usesGameDeck(league) || !index || league.publicSnapshotVersion === 1) return null;
+        const seed = league.privateGameSeed || league.seed;
+        if (!seed) throw new Error('The private game deck is unavailable. Reload the league.');
+        let cache = deckCaches.get(index);
+        if (!cache) { cache = new Map(); deckCaches.set(index, cache); }
+        const cacheKey = JSON.stringify([seed, league.leagueId, editionKey(entry), weeks]);
+        if (cache.has(cacheKey)) return cache.get(cacheKey);
+        if (league.privateGameDecks) {
+            const order = league.privateGameDecks[editionKey(entry)];
+            if (!order) throw new Error('The private game deck is unavailable. Reload the league.');
+            const deck = order.map(sourceWeek => {
+                if (sourceWeek === null) return null;
+                const log = index.get(gameLogKey(entry.identity, entry.drawnSeason, sourceWeek));
+                if (!log) throw new Error('A source game is missing from the full archive. Reload the league.');
+                return log;
+            });
+            cache.set(cacheKey, deck);
+            return deck;
+        }
+        if (league.privateDraws) throw new Error('The private game deck could not be prepared. Reload the league.');
+        const games = sourceGames(entry, index);
+        // scheduledGames is emitted only from a verified team REG schedule.
+        // A missing record carries no asserted injury, bye, or inactive reason.
+        const scheduled = Math.max(0, ...games.map(log => Number(log.scheduledGames) || 0));
+        const size = Math.max(14, weeks, games.length, Math.min(25, scheduled));
+        const deck = [...games, ...Array.from({ length: size - games.length }, () => null)];
+        const random = App.TimeLeagueRoster.createSeededRandom(`vault-games-v1:${seed}:${league.leagueId}:${editionKey(entry)}`);
+        for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+        cache.set(cacheKey, deck);
+        if (cache.size > 10000) cache.delete(cache.keys().next().value);
+        return deck;
+    }
+
+    function completedProduction(league, entry, week) {
+        const archived = league.finalizedWeeks?.find(row => row.week === week);
+        return archived?.playerProduction?.find(row => row.identity === entry.identity && row.drawnSeason === entry.drawnSeason)
+            || archived?.results?.flatMap(row => row.starters || []).find(row => row.identity === entry.identity && row.drawnSeason === entry.drawnSeason)
+            || league.playerReports?.[editionKey(entry)]?.completed?.find(row => row.week === week) || null;
+    }
+
+    function resolveGameLog(league, entry, week, index, weeks = 14) {
+        if (!usesGameDeck(league)) {
+            const log = dataIndexFor(league, index)?.get(gameLogKey(entry.identity, entry.drawnSeason, week)) || null;
+            return log && !Number.isInteger(log.week) ? Object.assign(Object.create(log), { week, identity: entry.identity, season: entry.drawnSeason }) : log;
+        }
+        if (league.publicSnapshotVersion === 1) {
+            const saved = completedProduction(league, entry, week);
+            return saved?.stats ? { stats: saved.stats, week } : Number.isInteger(saved?.sourceWeek) ? index?.get(gameLogKey(entry.identity, entry.drawnSeason, saved.sourceWeek)) : null;
+        }
+        if (!index) return undefined;
+        return gameDeck(league, entry, index, weeks)?.[week - 1] || null;
+    }
+
+    function gamePoints(league, entry, log, scoring, factors) {
+        return log ? Math.round(scoreStatLine(log.stats, scoring) * eraFactorFor(factorsFor(league, factors), entry.drawnSeason, entry.position) * 100) / 100 : 0;
+    }
+
+    // Only the current report is actionable. Later dates are deliberately
+    // indistinguishable, even when a historical archive has missing records.
+    function rosterOutlook(entry, currentWeek, weeks, index, scoring, factors, league) {
+        if (usesGameDeck(league) && league.publicSnapshotVersion === 1) {
+            const report = league.playerReports?.[editionKey(entry)];
+            if (!report || report.week !== currentWeek) return null;
+            const schedule = Array.from({ length: weeks }, (_, i) => {
+                const week = i + 1, saved = report.completed?.find(row => row.week === week);
+                return { week, played: week < currentWeek, available: saved ? Number.isInteger(saved.sourceWeek) : week === currentWeek ? report.currentAvailable : null,
+                    points: saved ? saved.points : null };
+            });
+            return { schedule, remaining: report.remaining, average: report.average, estimatedRemaining: report.estimatedRemaining, signal: report.signal };
+        }
         if (!index) return null;
-        const factor = eraFactorFor(factors, entry.drawnSeason, entry.position);
         const schedule = Array.from({ length: weeks }, (_, i) => {
-            const week = i + 1;
-            const log = index.get(gameLogKey(entry.identity, entry.drawnSeason, week));
-            return { week, available: Boolean(log), played: week < currentWeek,
-                points: week < currentWeek ? (log ? scoreStatLine(log.stats, scoring) * factor : 0) : null };
+            const week = i + 1, played = week < currentWeek;
+            if (week > currentWeek || (week === currentWeek && league?.weekStage === "postgame")) return { week, available: null, played: false, points: null };
+            const log = resolveGameLog(league, entry, week, index, weeks);
+            const saved = played && league ? completedProduction(league, entry, week) : null;
+            return { week, available: saved ? Boolean(saved.stats) : Boolean(log), played,
+                points: played ? saved ? saved.points : gamePoints(league, entry, log, scoring, factors) : null };
         });
         const played = schedule.filter(row => row.played && row.available);
-        const remaining = schedule.filter(row => !row.played && row.available).length;
+        const remaining = Math.max(0, weeks - currentWeek + 1);
         const average = played.length ? played.reduce((sum, row) => sum + row.points, 0) / played.length : null;
-        const recent = played.slice(-3);
-        const prior = played.slice(0, -3);
+        const recent = played.slice(-3), prior = played.slice(0, -3);
         const mean = rows => rows.reduce((sum, row) => sum + row.points, 0) / rows.length;
         const change = prior.length >= 2 ? mean(recent) - mean(prior) : null;
         const current = schedule.find(row => row.week === currentWeek);
         return { schedule, remaining, average, estimatedRemaining: average === null ? null : average * remaining,
-            signal: !current ? 'Season complete' : !current.available ? 'No game log' : change === null ? 'Building form' : change > 3 ? 'Trending up' : change < -3 ? 'Cooling off' : 'Steady form' };
+            signal: !current ? 'Season complete' : current.available === null ? 'Awaiting next week' : !current.available ? 'No recorded game' : change === null ? 'Building form' : change > 3 ? 'Trending up' : change < -3 ? 'Cooling off' : 'Steady form' };
     }
 
-    // Intentional game mechanic: reveal ordinal historical strength, never the
-    // future point total. Fixed season ranks ensure spent elite games stay spent.
-    function weeklyStarOutlook(entry, currentWeek, weeks, index, scoring, factors) {
+    function weeklyStarOutlook(entry, currentWeek, weeks, index, scoring, factors, league) {
+        if (usesGameDeck(league) && league.publicSnapshotVersion === 1) {
+            const report = league.playerReports?.[editionKey(entry)];
+            if (!report || report.week !== currentWeek) return null;
+            const schedule = Array.from({ length: weeks }, (_, i) => {
+                const week = i + 1, saved = report.completed?.find(row => row.week === week);
+                return { week, played: week < currentWeek, available: saved ? Number.isInteger(saved.sourceWeek) : week === currentWeek ? report.currentAvailable : null,
+                    stars: saved ? saved.stars : week === currentWeek ? report.currentStars : null };
+            });
+            return { schedule, stars: report.currentStars, maxRemainingStars: report.maxRemainingStars, remainingGames: report.remaining };
+        }
         if (!index) return null;
-        const factor = eraFactorFor(factors, entry.drawnSeason, entry.position);
-        const schedule = Array.from({ length: weeks }, (_, i) => ({
-            week: i + 1, available: index.has(gameLogKey(entry.identity, entry.drawnSeason, i + 1)),
-            played: i + 1 < currentWeek, stars: null,
-        }));
-        const ranked = schedule.filter(row => row.available).map(row => ({
-            week: row.week, points: scoreStatLine(index.get(gameLogKey(entry.identity, entry.drawnSeason, row.week)).stats, scoring) * factor,
-        })).sort((a, b) => b.points - a.points || a.week - b.week);
-        const edge = Math.min(3, Math.floor(ranked.length / 2));
-        const middle = ranked.length - edge * 2;
-        ranked.forEach((row, rank) => {
-            const stars = ranked.length === 1 ? 5 : rank < edge ? 5 : rank >= ranked.length - edge ? 1
-                : 4 - Math.min(2, Math.floor((rank - edge) * 3 / Math.max(1, middle)));
-            schedule[row.week - 1].stars = stars;
+        const logs = usesGameDeck(league) ? sourceGames(entry, index) : Array.from({ length: weeks }, (_, i) => resolveGameLog(league, entry, i + 1, index, weeks)).filter(Boolean);
+        const ranked = logs.map(log => ({ log, points: gamePoints(league, entry, log, scoring, factors) })).sort((a, b) => b.points - a.points || a.log.week - b.log.week);
+        const edge = Math.min(3, Math.floor(ranked.length / 2)), middle = ranked.length - edge * 2;
+        const starsByWeek = new Map(ranked.map((row, rank) => [row.log.week, ranked.length === 1 ? 5 : rank < edge ? 5 : rank >= ranked.length - edge ? 1 : 4 - Math.min(2, Math.floor((rank - edge) * 3 / Math.max(1, middle)))]));
+        const schedule = Array.from({ length: weeks }, (_, i) => {
+            const week = i + 1;
+            if (week > currentWeek || (week === currentWeek && league?.weekStage === "postgame")) return { week, played: false, available: null, stars: null };
+            const log = resolveGameLog(league, entry, week, index, weeks);
+            return { week, played: week < currentWeek, available: Boolean(log), stars: log ? starsByWeek.get(log.week) ?? null : null };
         });
-        const remaining = schedule.filter(row => !row.played && row.available);
+        // The remaining ceiling uses the entire unused source pool, not a
+        // future calendar. It cannot disclose where a missing game was dealt.
+        const used = new Set(Array.from({ length: Math.max(0, currentWeek - 1) }, (_, i) => resolveGameLog(league, entry, i + 1, index, weeks)?.week));
+        const ceiling = ranked.filter(row => !used.has(row.log.week)).map(row => starsByWeek.get(row.log.week));
         return { stars: schedule.find(row => row.week === currentWeek)?.stars ?? null,
-            maxRemainingStars: remaining.length ? Math.max(...remaining.map(row => row.stars)) : null,
-            remainingGames: remaining.length, schedule };
+            maxRemainingStars: currentWeek <= weeks && ceiling.length ? Math.max(...ceiling) : null,
+            remainingGames: Math.max(0, weeks - currentWeek + 1), schedule };
     }
 
     const api = {
         isStarterSlot, emptyStatLine, EXTENDED_STAT_IDS, REFERENCE_EXTENDED_SCORING, scoreExtendedStats,
         gameLogKey, parseGameLogCsv, buildGameLogIndex, scoreStatLine, eraFactorFor,
-        buildRoundRobinSchedule, rosterOutlook, weeklyStarOutlook,
+        buildRoundRobinSchedule, rosterOutlook, weeklyStarOutlook, usesGameDeck, dataIndexFor, factorsFor, sourceGames, gameDeck, resolveGameLog, completedProduction, editionKey, gamePoints,
     };
     App.TimeLeagueSeason = api;
     /* global module */

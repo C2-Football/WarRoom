@@ -12,6 +12,7 @@ const stamp = '2026-09-08T00:00:00.000Z';
 const cards = App.TimeLeaguePlayerCards.buildPlayerCardIndex(JSON.parse(fs.readFileSync('data/time-league/player-cards.json')));
 const data = { cards, logIndex: new Map(), eraFactors: new Map() };
 const settings = {
+    gameDeckVersion: 0, // Existing-league endpoint fixtures retain legacy source weeks.
     rosterSlots: { QB: 1, RB: 1, K: 1, DEF: 1, BN: 1 }, maxQuarterbacks: 2,
     scoring: { passTd: 6, reception: 1, rushRecYd: .1, passingYd: .04, turnover: -2, extended: { xpm: 2, sack: 3 } },
     regularSeasonWeeks: 12, playoffTeams: 4, draftPickSeconds: 0, eraRules: { mode: 'position-roulette', decades: ['2000s'] },
@@ -44,6 +45,37 @@ async function loadTs(file) {
     assert.notDeepEqual(otherSecret.privateDraws, prepared.privateDraws, 'The private database secret controls the edition allocation');
     await assert.rejects(() => sealed.prepareSealedDraws(state, cards, ''), /service update/);
     assert(!Object.hasOwn(messages.withoutPrivateMessages(prepared), 'privateDraws'), 'Transient allocation maps are never persisted');
+    const modernState = { ...state, settings: { ...state.settings, gameDeckVersion: 1 } };
+    const modernPrepared = await sealed.prepareSealedDraws(modernState, cards, secret);
+    const modernChangedSeed = await sealed.prepareSealedDraws({ ...modernState, seed: 'exposed-other-seed' }, cards, secret);
+    assert.equal(modernPrepared.privateGameSeed, modernChangedSeed.privateGameSeed, 'Game decks use the private service secret, not legacy engine seeds');
+    const expectedGameSeed = createHmac('sha256', secret).update(JSON.stringify(['vault-games-secret-v1', state.leagueId])).digest('hex');
+    assert.equal(modernPrepared.privateGameSeed, expectedGameSeed);
+    assert(!Object.hasOwn(messages.withoutPrivateMessages(modernPrepared), 'privateGameSeed'), 'Private deck seed is never persisted');
+    assert(!JSON.stringify(P.projectPublicState(modernPrepared, 't1', [], cards)).includes(expectedGameSeed), 'Private deck seed never enters a public snapshot');
+    const gameCard = { identity: 'player:QB:decktest', name: 'Deck Test', position: 'QB', peak: 17,
+        seasons: [{ season: 2003, games: 17, points: 17, scheduledGames: 17, sourceWeeks: Array.from({ length: 18 }, (_, i) => i + 1).filter(week => week !== 13) }] };
+    const gameCards = new Map([[gameCard.identity, gameCard]]);
+    const gameEntry = { identity: gameCard.identity, name: gameCard.name, position: gameCard.position, drawnSeason: 2003,
+        entryId: 'p1', slot: 'QB', acquiredVia: 'draft', acquiredWeek: 1 };
+    const gameState = { ...modernState, phase: 'season', seasonsRevealed: true,
+        settings: { ...modernState.settings, eraRules: { mode: 'any-era', decades: [] } },
+        teams: modernState.teams.map((team, index) => ({ ...team, roster: index === 0 ? [gameEntry] : [] })) };
+    const cryptoPrepared = await sealed.prepareSealedDraws(gameState, gameCards, secret);
+    const deckKey = S.editionKey(gameEntry), gameOrder = cryptoPrepared.privateGameDecks[deckKey];
+    assert.equal(new Set(gameOrder).size, 17); assert(gameOrder.includes(18));
+    const firstGameDigest = createHmac('sha256', secret).update(JSON.stringify(['vault-game-order-v1', state.leagueId, gameCard.identity, 2003, 0])).digest();
+    assert.equal(gameOrder[16], gameCard.seasons[0].sourceWeeks[firstGameDigest.readUInt16BE(0) % 17], 'The first Fisher-Yates selection consumes the domain-separated HMAC stream');
+    const moved = { ...gameState, seed: 'known-engine-seed', teams: gameState.teams.map((team, index) => ({ ...team, roster: index === 1 ? [{ ...gameEntry, entryId: 'reacquired' }] : [] })) };
+    assert.deepEqual((await sealed.prepareSealedDraws(moved, gameCards, secret)).privateGameDecks[deckKey], gameOrder, 'Trade/reacquisition and engine-seed changes cannot reroll a private edition deck');
+    assert.deepEqual((await sealed.prepareSealedDraws(E.normalizeTimeLeague(gameState), gameCards, secret)).privateGameDecks[deckKey], gameOrder, 'Reconnect reproduces the private order');
+    const unowned = { ...gameState, teams: gameState.teams.map(team => ({ ...team, roster: [] })) };
+    assert.deepEqual((await sealed.prepareSealedDraws(unowned, gameCards, secret)).privateGameDecks[deckKey], gameOrder, 'The available waiver edition uses the same game order before acquisition');
+    assert.notDeepEqual((await sealed.prepareSealedDraws(gameState, gameCards, 'ba58c3d2-dd37-4d2d-a92b-4b5e9cce73bb')).privateGameDecks[deckKey], gameOrder);
+    assert(!Object.hasOwn(messages.withoutPrivateMessages(cryptoPrepared), 'privateGameDecks'));
+    assert(!Object.hasOwn(P.projectPublicState(cryptoPrepared, 't1', [], gameCards), 'privateGameDecks'));
+
+
 
     let row = { id: 'db-room', state, version: 1, current_week: 1, draft_started: false, sealed_draw_secret: secret };
     let members = state.teams.filter(team => team.manager === 'human').map((team, index) => ({ id: `member-${index}`, league_id: row.id,
@@ -87,7 +119,7 @@ async function loadTs(file) {
         crypto: { randomUUID: () => webcrypto.randomUUID(), getRandomValues: array => array.fill(0) }, App,
         createClient: () => admin, handleOptions: () => null, json: (_req, body, status = 200) => ({ body: JSON.parse(JSON.stringify(body)), status }),
         requireActiveAppSession: async () => loggedIn ? { userId } : null, handleCommunity: async () => null,
-        loadData: async () => data, loadPrivateMessages: async () => privateMessages,
+        loadData: async () => data, loadGamePools: async value => value, loadPrivateMessages: async () => privateMessages,
         sendPrivateMessage: async () => ({ ok: true }), withoutPrivateMessages: messages.withoutPrivateMessages,
         prepareSealedDraws: sealed.prepareSealedDraws, applySealedOnlineAction: sealed.applySealedOnlineAction,
     });

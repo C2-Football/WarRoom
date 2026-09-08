@@ -1,0 +1,1635 @@
+{
+  "version": 1,
+  "dataset": "full-regular-season",
+  "generatedBy": "scripts/build-vault-regular-season-data.cjs",
+  "seasons": {
+    "from": 1970,
+    "to": 2025
+  },
+  "players": 3586,
+  "playerSeasons": 22906,
+  "logRows": 272461,
+  "positions": {
+    "QB": {
+      "players": 446,
+      "rows": 33096
+    },
+    "RB": {
+      "players": 1164,
+      "rows": 78911
+    },
+    "WR": {
+      "players": 1230,
+      "rows": 89130
+    },
+    "TE": {
+      "players": 541,
+      "rows": 43565
+    },
+    "K": {
+      "players": 170,
+      "rows": 13985
+    },
+    "DEF": {
+      "players": 35,
+      "rows": 13774
+    }
+  },
+  "historical": {
+    "source": "Existing zynicide/nfl-football-player-stats corpus",
+    "profiles": "profiles_1512362725.022629.json",
+    "games": "games_1512362753.8735218.json.zip",
+    "records": 1024164,
+    "profilesSha256": "6b16d920f68875b565c37e644c4502097f4d88e7eb41a184b22190df2f1134e9",
+    "gamesJsonSha256": "bc1abd9b0fd02a458a4cf746226082fdc5529f50d8f40bb00ac9e31a1e8bfb6b",
+    "teamSeasons": 808,
+    "playoffRowsExcluded": 5629,
+    "regularSeasonMethod": "First scheduled team dates for the actual season length; never the first N player appearances.",
+    "coverage": "REG dates validated against complete team schedules in the corpus; fumbles and two-point conversions unavailable; source week is player-game ordinal with team-game ordinal retained separately."
+  },
+  "modern": {
+    "source": "https://github.com/nflverse/nflverse-data/releases/tag/stats_player",
+    "license": "CC-BY-4.0",
+    "files": [
+      {
+        "file": "stats_player_week_1999.csv",
+        "sha256": "aa21f7858fda3d417a6a28c8b34679547324ca2e13aeb97391595abae895e5d4"
+      },
+      {
+        "file": "stats_player_week_2000.csv",
+        "sha256": "d190905f78dff53d1f3a4cdb76ab722c20954d439ec40b7e3ebc963df107f303"
+      },
+      {
+        "file": "stats_player_week_2001.csv",
+        "sha256": "a780609757fe7844110775c325f5018ef2b558a247f797e9fd6aeaf7cdab2041"
+      },
+      {
+        "file": "stats_player_week_2002.csv",
+        "sha256": "1ddf9b0b4357f494e42a65f5e2d2512e69b522d32bf0b60fd62e25df311b5d9a"
+      },
+      {
+        "file": "stats_player_week_2003.csv",
+        "sha256": "217e5774f1de31a2bf4c963339e6484c821dbf709d1f59644a905a1f88d6d1ae"
+      },
+      {
+        "file": "stats_player_week_2004.csv",
+        "sha256": "4b1fed47481464a6a11cf0b59f53191f7e6b28858b8a4358f377f64694781008"
+      },
+      {
+        "file": "stats_player_week_2005.csv",
+        "sha256": "c0535ebf74f82c9d4668037fc24ec02376c9e61730307e44891a282abafa7fe8"
+      },
+      {
+        "file": "stats_player_week_2006.csv",
+        "sha256": "5d1c0d28e50cde695fa808d53e773890bfdaf9fa43448c9944a50a2b57e25026"
+      },
+      {
+        "file": "stats_player_week_2007.csv",
+        "sha256": "2d0e704d58f75817d5c9995881afb17370e98a8c1dcbe5d16dde56adad3e2ceb"
+      },
+      {
+        "file": "stats_player_week_2008.csv",
+        "sha256": "575204f1818c832495979e2806e7478fbbfc7a230369767c59dc7d55a78da9c5"
+      },
+      {
+        "file": "stats_player_week_2009.csv",
+        "sha256": "f14bc3707ee09872c19a20f52313b681b53c2335f94b7102e79dd5416ec6b5e1"
+      },
+      {
+        "file": "stats_player_week_2010.csv",
+        "sha256": "57faf093bc81f755449a1c1aa0e04f87a515a58c988fa7aa258e0c2108435558"
+      },
+      {
+        "file": "stats_player_week_2011.csv",
+        "sha256": "870bdaa7e08c060ea6bc60fa037cefe7acfccca1496ea31956cab7ed1f83be74"
+      },
+      {
+        "file": "stats_player_week_2012.csv",
+        "sha256": "3808fb710b30d0c8ff497de70182e143f238b5e7cb6225c3f737bd42924546fc"
+      },
+      {
+        "file": "stats_player_week_2013.csv",
+        "sha256": "76513314bcbd18ad1bc007ecfb886b2c7bf42f74613342d4fc232a820c2021c7"
+      },
+      {
+        "file": "stats_player_week_2014.csv",
+        "sha256": "1d434cd2805b008b7b23db41bb149def95e6a9ace3856dc1a9dacfe8e787b620"
+      },
+      {
+        "file": "stats_player_week_2015.csv",
+        "sha256": "6f59050eb9f815b72433e2fedf4794f53d7c155d331ffddddbe074ad7ff2dca1"
+      },
+      {
+        "file": "stats_player_week_2016.csv",
+        "sha256": "029ce30742617e0ef4ee0fddee138118d96a21b2bcb829b21ad122fc28bac739"
+      },
+      {
+        "file": "stats_player_week_2017.csv",
+        "sha256": "064208e4b10398775ee7a2359b124c146b83816ee3bec5c18a1e320d987d7d85"
+      },
+      {
+        "file": "stats_player_week_2018.csv",
+        "sha256": "016a488cd7c187f0d0ba58ad1b8fad11b633d2050964fbb3009bd26ff9c82f95"
+      },
+      {
+        "file": "stats_player_week_2019.csv",
+        "sha256": "7e956affe5cdf93ea57261c90b8a4c77b9f8e6fe8e04a82459a295d45878a31d"
+      },
+      {
+        "file": "stats_player_week_2020.csv",
+        "sha256": "54d9274dfda5637daf5675b41f682959b442ae94e9ea95bc0a779c2024e52d81"
+      },
+      {
+        "file": "stats_player_week_2021.csv",
+        "sha256": "63cc3e2400307ee8c1fc5c6283c6c4223471111c0f4aedecd60c8db75c96a06d"
+      },
+      {
+        "file": "stats_player_week_2022.csv",
+        "sha256": "9ee25c230db72c8b9cffc3ad3d218482c3ef53c8a06eadaee85f9e8163552f28"
+      },
+      {
+        "file": "stats_player_week_2023.csv",
+        "sha256": "ee65341b2f28cfbf48df85571bf512ec62b281043623e7ffed2926e5569126b3"
+      },
+      {
+        "file": "stats_player_week_2024.csv",
+        "sha256": "db6379707a8d520f7fb9a90eeacd8a98ec3d5cdca8b98e0943cab5a250d91a97"
+      },
+      {
+        "file": "stats_player_week_2025.csv",
+        "sha256": "40b67b296fda02c7f628741d4aa471208352dd42fb670d4854e7ba95295af1a6"
+      }
+    ],
+    "correctedOpponentRows": 3475,
+    "opponentMethod": "Other team in source game_id; avoids renamed-franchise errors in cached opponent_team.",
+    "correctedTeamRows": 508,
+    "teamCorrectionMethod": "2001/2002 JAX game attribution corroborated by unique historical player/team/game matchup; unresolved affected team-seasons excluded.",
+    "coverage": "All available REG box-score rows for included source careers. Games means recorded games, not an independent NFL participation count."
+  },
+  "limitations": [
+    "The archive retains the existing draftable identity pool; it is not every NFL player.",
+    "Historical skill-position fumbles and two-point conversions were absent from the original corpus.",
+    "K and DEF coverage begins in 1999. DEF omits points/yards allowed and blocked kicks, which this source cannot attribute.",
+    "No-game slots mean no recorded scoring line. They are not a claim of a bye or an official DNP.",
+    "Known incomplete team-seasons and unresolved source attribution are excluded from the new draw pool; exact exclusions appear below.",
+    "Same-name identities use one dominant source career across seasons; excluded namesakes are listed below."
+  ],
+  "identityResolution": [
+    {
+      "identity": "player:WR:charliebrown",
+      "selectedSourceCareer": "pfr:2570",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:2569",
+          "referencePoints": 4.8
+        }
+      ]
+    },
+    {
+      "identity": "player:RB:marionbarber",
+      "selectedSourceCareer": "pfr:1035",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:1034",
+          "referencePoints": 89.1
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:freddiescott",
+      "selectedSourceCareer": "pfr:19796",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:19797",
+          "referencePoints": 11.5
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:paulrichardson",
+      "selectedSourceCareer": "pfr:18621",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:18620",
+          "referencePoints": 0
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:ronbrown",
+      "selectedSourceCareer": "pfr:2720",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:2721",
+          "referencePoints": 3.5
+        }
+      ]
+    },
+    {
+      "identity": "player:TE:mickeyshuler",
+      "selectedSourceCareer": "pfr:20194",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "nflverse:00-0027809",
+          "referencePoints": 5.4
+        }
+      ]
+    },
+    {
+      "identity": "player:RB:gregjones",
+      "selectedSourceCareer": "pfr:11591",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:11589",
+          "referencePoints": 60.8
+        }
+      ]
+    },
+    {
+      "identity": "player:RB:melfarr",
+      "selectedSourceCareer": "pfr:6700",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:6701",
+          "referencePoints": 0
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:marvinharrison",
+      "selectedSourceCareer": "pfr:9267",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "nflverse:00-0039849",
+          "referencePoints": 272.8
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:scottmiller",
+      "selectedSourceCareer": "nflverse:00-0035298",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:15363",
+          "referencePoints": 43.9
+        }
+      ]
+    },
+    {
+      "identity": "player:RB:tonybaker",
+      "selectedSourceCareer": "pfr:920",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:921",
+          "referencePoints": 8.1
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:mikewilliams",
+      "selectedSourceCareer": "pfr:24190",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:24189",
+          "referencePoints": 569.82
+        },
+        {
+          "sourcePlayerId": "pfr:24188",
+          "referencePoints": 240.1
+        },
+        {
+          "sourcePlayerId": "pfr:24186",
+          "referencePoints": 39.7
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:charliejones",
+      "selectedSourceCareer": "pfr:11529",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "nflverse:00-0038576",
+          "referencePoints": 10.2
+        }
+      ]
+    },
+    {
+      "identity": "player:RB:ericlane",
+      "selectedSourceCareer": "pfr:12835",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:12836",
+          "referencePoints": 1.3
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:reggiebrown",
+      "selectedSourceCareer": "pfr:2711",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:2708",
+          "referencePoints": 9.4
+        }
+      ]
+    },
+    {
+      "identity": "player:RB:johnwilliams",
+      "selectedSourceCareer": "pfr:24131",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:24130",
+          "referencePoints": 5.2
+        }
+      ]
+    },
+    {
+      "identity": "player:RB:joewashington",
+      "selectedSourceCareer": "pfr:23340",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:23339",
+          "referencePoints": 3.6
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:alfredjackson",
+      "selectedSourceCareer": "pfr:10719",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:10720",
+          "referencePoints": 0
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:kevinwilliams",
+      "selectedSourceCareer": "pfr:24152",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:24149",
+          "referencePoints": 0
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:ronjohnson",
+      "selectedSourceCareer": "pfr:11407",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:11408",
+          "referencePoints": 24.1
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:robertwoods",
+      "selectedSourceCareer": "pfr:24649",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:24648",
+          "referencePoints": 25
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:georgefarmer",
+      "selectedSourceCareer": "pfr:6688",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:6689",
+          "referencePoints": 171.6
+        }
+      ]
+    },
+    {
+      "identity": "player:TE:irvsmith",
+      "selectedSourceCareer": "pfr:20636",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "nflverse:00-0034970",
+          "referencePoints": 211.8
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:stanleymorgan",
+      "selectedSourceCareer": "pfr:15804",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "nflverse:00-0035399",
+          "referencePoints": 5.7
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:markclayton",
+      "selectedSourceCareer": "pfr:4050",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:4051",
+          "referencePoints": 585.88
+        }
+      ]
+    },
+    {
+      "identity": "player:RB:davewilliams",
+      "selectedSourceCareer": "pfr:24039",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "nflverse:00-0034427",
+          "referencePoints": 3.6
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:anthonymiller",
+      "selectedSourceCareer": "pfr:15276",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "nflverse:00-0034353",
+          "referencePoints": 303.02
+        }
+      ]
+    },
+    {
+      "identity": "player:TE:kellenwinslow",
+      "selectedSourceCareer": "pfr:24489",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:24490",
+          "referencePoints": 908.8
+        }
+      ]
+    },
+    {
+      "identity": "player:RB:keithjones",
+      "selectedSourceCareer": "pfr:11639",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:11638",
+          "referencePoints": 42.1
+        }
+      ]
+    },
+    {
+      "identity": "player:QB:markmiller",
+      "selectedSourceCareer": "pfr:15344",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:15345",
+          "referencePoints": -1.64
+        }
+      ]
+    },
+    {
+      "identity": "player:RB:clarencewilliams",
+      "selectedSourceCareer": "pfr:24021",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "nflverse:00-0018568",
+          "referencePoints": 1
+        }
+      ]
+    },
+    {
+      "identity": "player:RB:rickywilliams",
+      "selectedSourceCareer": "pfr:24219",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:24220",
+          "referencePoints": 68.2
+        },
+        {
+          "sourcePlayerId": "pfr:24218",
+          "referencePoints": 0
+        }
+      ]
+    },
+    {
+      "identity": "player:RB:jamesstewart",
+      "selectedSourceCareer": "pfr:21286",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:21285",
+          "referencePoints": 15.2
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:stevesmith",
+      "selectedSourceCareer": "pfr:20783",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:20785",
+          "referencePoints": 458.6
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:cedrickwilson",
+      "selectedSourceCareer": "pfr:24352",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "nflverse:00-0034418",
+          "referencePoints": 301.38
+        }
+      ]
+    },
+    {
+      "identity": "player:RB:adrianpeterson",
+      "selectedSourceCareer": "pfr:17463",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:17462",
+          "referencePoints": 282.16
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:antoniobrown",
+      "selectedSourceCareer": "pfr:2544",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:2543",
+          "referencePoints": -1.6
+        }
+      ]
+    },
+    {
+      "identity": "player:TE:zachmiller",
+      "selectedSourceCareer": "pfr:15372",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:15373",
+          "referencePoints": 327.3
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:jacobyjones",
+      "selectedSourceCareer": "pfr:11606",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "nflverse:00-0040317",
+          "referencePoints": 3
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:mikethomas",
+      "selectedSourceCareer": "pfr:22097",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "pfr:22098",
+          "referencePoints": 55.7
+        }
+      ]
+    },
+    {
+      "identity": "player:WR:kylewilliams",
+      "selectedSourceCareer": "pfr:24157",
+      "excludedSourceCareers": [
+        {
+          "sourcePlayerId": "nflverse:00-0040131",
+          "referencePoints": 44.2
+        }
+      ]
+    }
+  ],
+  "sparseCareerLinks": [
+    {
+      "identity": "player:TE:derekbrown",
+      "sourcePlayerId": "nflverse:00-0001919",
+      "profileId": "pfr:2600",
+      "matchedSeason": 1999,
+      "matchedTeam": "ARI"
+    },
+    {
+      "identity": "player:RB:scottgreene",
+      "sourcePlayerId": "nflverse:00-0006380",
+      "profileId": "pfr:8435",
+      "matchedSeason": 1999,
+      "matchedTeam": "IND"
+    },
+    {
+      "identity": "player:TE:jamesjenkins",
+      "sourcePlayerId": "nflverse:00-0008346",
+      "profileId": "pfr:11046",
+      "matchedSeason": 1999,
+      "matchedTeam": "WAS"
+    },
+    {
+      "identity": "player:RB:daryljohnston",
+      "sourcePlayerId": "nflverse:00-0008660",
+      "profileId": "pfr:11463",
+      "matchedSeason": 1999,
+      "matchedTeam": "DAL"
+    },
+    {
+      "identity": "player:TE:deemsmay",
+      "sourcePlayerId": "nflverse:00-0010589",
+      "profileId": "pfr:14363",
+      "matchedSeason": 1999,
+      "matchedTeam": "SEA"
+    },
+    {
+      "identity": "player:TE:edperry",
+      "sourcePlayerId": "nflverse:00-0012809",
+      "profileId": "pfr:17407",
+      "matchedSeason": 1999,
+      "matchedTeam": "MIA"
+    },
+    {
+      "identity": "player:WR:tamarickvanover",
+      "sourcePlayerId": "nflverse:00-0016837",
+      "profileId": "pfr:22851",
+      "matchedSeason": 1999,
+      "matchedTeam": "KC"
+    },
+    {
+      "identity": "player:WR:roellpreston",
+      "sourcePlayerId": "nflverse:00-0013214",
+      "profileId": "pfr:17923",
+      "matchedSeason": 1999,
+      "matchedTeam": "TEN"
+    },
+    {
+      "identity": "player:TE:lovettpurnell",
+      "sourcePlayerId": "nflverse:00-0013308",
+      "profileId": "pfr:18047",
+      "matchedSeason": 1999,
+      "matchedTeam": "BAL"
+    },
+    {
+      "identity": "player:TE:richgriffith",
+      "sourcePlayerId": "nflverse:00-0006458",
+      "profileId": "pfr:8533",
+      "matchedSeason": 1999,
+      "matchedTeam": "JAX"
+    },
+    {
+      "identity": "player:TE:frankwainright",
+      "sourcePlayerId": "nflverse:00-0016993",
+      "profileId": "pfr:23046",
+      "matchedSeason": 1999,
+      "matchedTeam": "BAL"
+    },
+    {
+      "identity": "player:RB:rashaansalaam",
+      "sourcePlayerId": "nflverse:00-0014256",
+      "profileId": "pfr:19376",
+      "matchedSeason": 1999,
+      "matchedTeam": "CLE"
+    },
+    {
+      "identity": "player:WR:alvinharper",
+      "sourcePlayerId": "nflverse:00-0006877",
+      "profileId": "pfr:9085",
+      "matchedSeason": 1999,
+      "matchedTeam": "DAL"
+    },
+    {
+      "identity": "player:RB:darickholmes",
+      "sourcePlayerId": "nflverse:00-0007647",
+      "profileId": "pfr:10118",
+      "matchedSeason": 1999,
+      "matchedTeam": "IND"
+    },
+    {
+      "identity": "player:RB:larrybowie",
+      "sourcePlayerId": "nflverse:00-0001573",
+      "profileId": "pfr:2115",
+      "matchedSeason": 1999,
+      "matchedTeam": "WAS"
+    },
+    {
+      "identity": "player:WR:jameshundon",
+      "sourcePlayerId": "nflverse:00-0007924",
+      "profileId": "pfr:10473",
+      "matchedSeason": 1999,
+      "matchedTeam": "CIN"
+    },
+    {
+      "identity": "player:QB:markrypien",
+      "sourcePlayerId": "nflverse:00-0014234",
+      "profileId": "pfr:19338",
+      "matchedSeason": 2001,
+      "matchedTeam": "IND"
+    },
+    {
+      "identity": "player:TE:mattlacosse",
+      "sourcePlayerId": "nflverse:00-0031744",
+      "profileId": "pfr:12747",
+      "matchedSeason": 2015,
+      "matchedTeam": "NYG"
+    },
+    {
+      "identity": "player:WR:kalifraymond",
+      "sourcePlayerId": "nflverse:00-0032464",
+      "profileId": "pfr:18268",
+      "matchedSeason": 2016,
+      "matchedTeam": "DEN"
+    },
+    {
+      "identity": "player:WR:johnross",
+      "sourcePlayerId": "nflverse:00-0033460",
+      "profileId": "pfr:19120",
+      "matchedSeason": 2017,
+      "matchedTeam": "CIN"
+    },
+    {
+      "identity": "player:QB:cooperrush",
+      "sourcePlayerId": "nflverse:00-0033662",
+      "profileId": "pfr:19252",
+      "matchedSeason": 2017,
+      "matchedTeam": "DAL"
+    },
+    {
+      "identity": "player:RB:brianhill",
+      "sourcePlayerId": "nflverse:00-0033567",
+      "profileId": "pfr:9824",
+      "matchedSeason": 2017,
+      "matchedTeam": "CIN"
+    }
+  ],
+  "incompleteTeamSeasons": [
+    {
+      "teamSeason": "1999:BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "teamSeason": "1999:STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "teamSeason": "2000:BUF",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "teamSeason": "2000:KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "teamSeason": "2000:MIA",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "teamSeason": "2000:SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    }
+  ],
+  "excludedPlayerSeasons": [
+    {
+      "identity": "player:RB:benjamingay",
+      "season": 2001,
+      "team": "CLE",
+      "reason": "Source player/team attribution could not be verified in a known affected JAX game."
+    },
+    {
+      "identity": "player:DEF:bufdefense",
+      "season": 2001,
+      "team": "BUF",
+      "reason": "A defensive contribution has unresolved team attribution in a known affected JAX game."
+    },
+    {
+      "identity": "player:DEF:jaxdefense",
+      "season": 2001,
+      "team": "JAX",
+      "reason": "A defensive contribution has unresolved team attribution in a known affected JAX game."
+    },
+    {
+      "identity": "player:RB:nicolasluchey",
+      "season": 2001,
+      "team": "CIN",
+      "reason": "Source player/team attribution could not be verified in a known affected JAX game."
+    },
+    {
+      "identity": "player:K:jaretholmes",
+      "season": 2001,
+      "team": "KC",
+      "reason": "Source player/team attribution could not be verified in a known affected JAX game."
+    },
+    {
+      "identity": "player:TE:jimmykleinsasser",
+      "season": 2001,
+      "team": "MIN",
+      "reason": "Source player/team attribution could not be verified in a known affected JAX game."
+    },
+    {
+      "identity": "player:WR:dwaynebates",
+      "season": 2001,
+      "team": "CHI",
+      "reason": "Source player/team attribution could not be verified in a known affected JAX game."
+    },
+    {
+      "identity": "player:WR:patjohnson",
+      "season": 2002,
+      "team": "CLE",
+      "reason": "Source player/team attribution could not be verified in a known affected JAX game."
+    },
+    {
+      "identity": "player:DEF:inddefense",
+      "season": 2002,
+      "team": "IND",
+      "reason": "A defensive contribution has unresolved team attribution in a known affected JAX game."
+    },
+    {
+      "identity": "player:DEF:jaxdefense",
+      "season": 2002,
+      "team": "JAX",
+      "reason": "A defensive contribution has unresolved team attribution in a known affected JAX game."
+    },
+    {
+      "identity": "player:K:haydenepstein",
+      "season": 2002,
+      "team": "JAX",
+      "reason": "Source player/team attribution could not be verified in a known affected JAX game."
+    },
+    {
+      "identity": "player:RB:nicolasluchey",
+      "season": 2002,
+      "team": "CIN",
+      "reason": "Source player/team attribution could not be verified in a known affected JAX game."
+    },
+    {
+      "identity": "player:WR:justinarmour",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:QB:stoneycase",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:billydavis",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:chuckevans",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:priestholmes",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:qadryismail",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:patjohnson",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:jermainelewis",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:QB:scottmitchell",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:TE:aaronpierce",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:TE:lovettpurnell",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:errictrhett",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:K:mattstover",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:isaacbruce",
+      "season": 1999,
+      "team": "STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:marshallfaulk",
+      "season": 1999,
+      "team": "STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:azzahirhakim",
+      "season": 1999,
+      "team": "STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:robertholcombe",
+      "season": 1999,
+      "team": "STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:torryholt",
+      "season": 1999,
+      "team": "STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:rickyproehl",
+      "season": 1999,
+      "team": "STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:TE:frankwainright",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:QB:kurtwarner",
+      "season": 1999,
+      "team": "STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:justinwatson",
+      "season": 1999,
+      "team": "STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:K:jeffwilkins",
+      "season": 1999,
+      "team": "STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:TE:rolandwilliams",
+      "season": 1999,
+      "team": "STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:obafemiayanbadejo",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:QB:pauljustin",
+      "season": 1999,
+      "team": "STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:TE:chadlewis",
+      "season": 1999,
+      "team": "STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:amplee",
+      "season": 1999,
+      "team": "STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:QB:tonybanks",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:brandonstokley",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:christhomas",
+      "season": 1999,
+      "team": "STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:TE:ernieconwell",
+      "season": 1999,
+      "team": "STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:DEF:baldefense",
+      "season": 1999,
+      "team": "BAL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:DEF:stldefense",
+      "season": 1999,
+      "team": "STL",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:derrickalexander",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:kimbleanders",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:donnellbennett",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:shawnbryson",
+      "season": 2000,
+      "team": "BUF",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:K:johncarney",
+      "season": 2000,
+      "team": "SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:robertchancey",
+      "season": 2000,
+      "team": "SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:K:stevechristie",
+      "season": 2000,
+      "team": "BUF",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:mikecloud",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:TE:bobbycollins",
+      "season": 2000,
+      "team": "BUF",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:curtisconway",
+      "season": 2000,
+      "team": "SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:TE:troydrayton",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:bertemanuel",
+      "season": 2000,
+      "team": "MIA",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:QB:jayfiedler",
+      "season": 2000,
+      "team": "MIA",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:terrellfletcher",
+      "season": 2000,
+      "team": "SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:orondegadsden",
+      "season": 2000,
+      "team": "MIA",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:TE:tonygonzalez",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:jeffgraham",
+      "season": 2000,
+      "team": "SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:QB:elvisgrbac",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:TE:steveheiden",
+      "season": 2000,
+      "team": "SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:QB:robjohnson",
+      "season": 2000,
+      "team": "BUF",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:TE:freddiejones",
+      "season": 2000,
+      "team": "SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:QB:ryanleaf",
+      "season": 2000,
+      "team": "SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:kevinlockett",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:K:olindomare",
+      "season": 2000,
+      "team": "MIA",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:tonymartin",
+      "season": 2000,
+      "team": "MIA",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:fredmccrary",
+      "season": 2000,
+      "team": "SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:jeremymcdaniel",
+      "season": 2000,
+      "team": "BUF",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:ericmoulds",
+      "season": 2000,
+      "team": "BUF",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:larryparker",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:peerlessprice",
+      "season": 2000,
+      "team": "BUF",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:TE:mikhaelricks",
+      "season": 2000,
+      "team": "SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:TE:jayriemersma",
+      "season": 2000,
+      "team": "BUF",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:leslieshepherd",
+      "season": 2000,
+      "team": "MIA",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:antowainsmith",
+      "season": 2000,
+      "team": "BUF",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:lamarsmith",
+      "season": 2000,
+      "team": "MIA",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:K:petestoyanovich",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:thurmanthomas",
+      "season": 2000,
+      "team": "MIA",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:QB:alexvanpelt",
+      "season": 2000,
+      "team": "BUF",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:frankmoreau",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:sammymorris",
+      "season": 2000,
+      "team": "BUF",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:trevorgaylor",
+      "season": 2000,
+      "team": "SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:sylvestermorris",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:kennybynum",
+      "season": 2000,
+      "team": "SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:TE:jedweaver",
+      "season": 2000,
+      "team": "MIA",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:jjjohnson",
+      "season": 2000,
+      "team": "MIA",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:jermainefazande",
+      "season": 2000,
+      "team": "SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:QB:jimharbaugh",
+      "season": 2000,
+      "team": "SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:reggiejones",
+      "season": 2000,
+      "team": "SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:TE:edperry",
+      "season": 2000,
+      "team": "MIA",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:dantehall",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:RB:autrydenson",
+      "season": 2000,
+      "team": "MIA",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:QB:dougflutie",
+      "season": 2000,
+      "team": "BUF",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:K:toddpeterson",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:WR:ojmcduffie",
+      "season": 2000,
+      "team": "MIA",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:QB:warrenmoon",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:TE:jasondunn",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:QB:damonhuard",
+      "season": 2000,
+      "team": "MIA",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:DEF:bufdefense",
+      "season": 2000,
+      "team": "BUF",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:DEF:kcdefense",
+      "season": 2000,
+      "team": "KC",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:DEF:miadefense",
+      "season": 2000,
+      "team": "MIA",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    },
+    {
+      "identity": "player:DEF:sddefense",
+      "season": 2000,
+      "team": "SD",
+      "reason": "Source records cover 15 of 16 regular-season team games."
+    }
+  ],
+  "unresolvedTeamRows": [
+    {
+      "season": 2001,
+      "sourceGameId": "2001_03_CLE_JAX",
+      "name": "Benjamin Gay",
+      "sourcePlayerId": "00-0020417"
+    },
+    {
+      "season": 2001,
+      "sourceGameId": "2001_06_BUF_JAX",
+      "name": "Team",
+      "sourcePlayerId": ""
+    },
+    {
+      "season": 2001,
+      "sourceGameId": "2001_10_JAX_PIT",
+      "name": "Mike A. Jones",
+      "sourcePlayerId": "00-0008823"
+    },
+    {
+      "season": 2001,
+      "sourceGameId": "2001_13_JAX_CIN",
+      "name": "Nicolas Luchey",
+      "sourcePlayerId": "00-0017896"
+    },
+    {
+      "season": 2001,
+      "sourceGameId": "2001_14_JAX_CLE",
+      "name": "Jaret Holmes",
+      "sourcePlayerId": "00-0007655"
+    },
+    {
+      "season": 2001,
+      "sourceGameId": "2001_14_JAX_CLE",
+      "name": "Rod Monroe",
+      "sourcePlayerId": "00-0011488"
+    },
+    {
+      "season": 2001,
+      "sourceGameId": "2001_14_JAX_CLE",
+      "name": "Benjamin Gay",
+      "sourcePlayerId": "00-0020417"
+    },
+    {
+      "season": 2001,
+      "sourceGameId": "2001_15_JAX_MIN",
+      "name": "Jaret Holmes",
+      "sourcePlayerId": "00-0007655"
+    },
+    {
+      "season": 2001,
+      "sourceGameId": "2001_15_JAX_MIN",
+      "name": "Jimmy Kleinsasser",
+      "sourcePlayerId": "00-0009323"
+    },
+    {
+      "season": 2001,
+      "sourceGameId": "2001_16_KC_JAX",
+      "name": "Jaret Holmes",
+      "sourcePlayerId": "00-0007655"
+    },
+    {
+      "season": 2001,
+      "sourceGameId": "2001_16_KC_JAX",
+      "name": "Tyrone M. Williams",
+      "sourcePlayerId": "00-0017947"
+    },
+    {
+      "season": 2001,
+      "sourceGameId": "2001_16_KC_JAX",
+      "name": "Shaunard Harts",
+      "sourcePlayerId": "00-0020358"
+    },
+    {
+      "season": 2001,
+      "sourceGameId": "2001_17_JAX_CHI",
+      "name": "D'Wayne Bates",
+      "sourcePlayerId": "00-0000869"
+    },
+    {
+      "season": 2001,
+      "sourceGameId": "2001_17_JAX_CHI",
+      "name": "James O. Williams",
+      "sourcePlayerId": "00-0017821"
+    },
+    {
+      "season": 2002,
+      "sourceGameId": "2002_01_IND_JAX",
+      "name": "Pat Johnson",
+      "sourcePlayerId": "00-0008598"
+    },
+    {
+      "season": 2002,
+      "sourceGameId": "2002_02_JAX_KC",
+      "name": "Pat Johnson",
+      "sourcePlayerId": "00-0008598"
+    },
+    {
+      "season": 2002,
+      "sourceGameId": "2002_02_JAX_KC",
+      "name": "Shaunard Harts",
+      "sourcePlayerId": "00-0020358"
+    },
+    {
+      "season": 2002,
+      "sourceGameId": "2002_02_JAX_KC",
+      "name": "Hayden Epstein",
+      "sourcePlayerId": "00-0021347"
+    },
+    {
+      "season": 2002,
+      "sourceGameId": "2002_04_NYJ_JAX",
+      "name": "Pat Johnson",
+      "sourcePlayerId": "00-0008598"
+    },
+    {
+      "season": 2002,
+      "sourceGameId": "2002_05_PHI_JAX",
+      "name": "Pat Johnson",
+      "sourcePlayerId": "00-0008598"
+    },
+    {
+      "season": 2002,
+      "sourceGameId": "2002_06_JAX_TEN",
+      "name": "Pat Johnson",
+      "sourcePlayerId": "00-0008598"
+    },
+    {
+      "season": 2002,
+      "sourceGameId": "2002_07_JAX_BAL",
+      "name": "Pat Johnson",
+      "sourcePlayerId": "00-0008598"
+    },
+    {
+      "season": 2002,
+      "sourceGameId": "2002_07_JAX_BAL",
+      "name": "Edgerton Hartwell",
+      "sourcePlayerId": "00-0020304"
+    },
+    {
+      "season": 2002,
+      "sourceGameId": "2002_09_JAX_NYG",
+      "name": "Pat Johnson",
+      "sourcePlayerId": "00-0008598"
+    },
+    {
+      "season": 2002,
+      "sourceGameId": "2002_09_JAX_NYG",
+      "name": "William James",
+      "sourcePlayerId": "00-0020384"
+    },
+    {
+      "season": 2002,
+      "sourceGameId": "2002_13_PIT_JAX",
+      "name": "Mike A. Jones",
+      "sourcePlayerId": "00-0008823"
+    },
+    {
+      "season": 2002,
+      "sourceGameId": "2002_14_CLE_JAX",
+      "name": "Pat Johnson",
+      "sourcePlayerId": "00-0008598"
+    },
+    {
+      "season": 2002,
+      "sourceGameId": "2002_15_JAX_CIN",
+      "name": "Nicolas Luchey",
+      "sourcePlayerId": "00-0017896"
+    },
+    {
+      "season": 2002,
+      "sourceGameId": "2002_17_JAX_IND",
+      "name": "Joe Dean Davenport",
+      "sourcePlayerId": "00-0019065"
+    }
+  ],
+  "quarantinedCareers": [
+    {
+      "identity": "player:TE:derekbrown",
+      "reason": "Conflicting source records assign one player to both teams or incompatible box scores in the same game.",
+      "conflicts": [
+        {
+          "season": 1993,
+          "sourceGameId": "1993_1993-12-20_NOR_NYG",
+          "sourcePlayerId": "pfr:2600",
+          "teams": [
+            "NOR",
+            "NYG"
+          ]
+        }
+      ]
+    }
+  ],
+  "missingLegacyIdentities": [
+    "player:WR:sylvestermorris",
+    "player:RB:chuckevans",
+    "player:K:haydenepstein",
+    "player:TE:derekbrown",
+    "player:RB:benjamingay"
+  ],
+  "legacy": {
+    "playerCardsSha256": "e085e014140cd98ad6ed89cef991b27f289bbeb205349cedb7a7ba956852c537",
+    "logsSha256": "ef44cb85bde16f72a53f4d7c979b981048e912996bcc4c5c08511a95f8142be5",
+    "eraFactorsSha256": "f970630eea9fe943f59a181309bff335e8361ca4290807ffac8b7e1ca3adb7c7"
+  },
+  "outputs": {
+    "gameLogsSha256": "ae01a348bb1d1cc696b83edd964368b4b9fec68b6c0b77a0882ba6bcda762cca"
+  }
+}

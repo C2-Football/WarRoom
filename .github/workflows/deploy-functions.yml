@@ -53,6 +53,12 @@ jobs:
       - name: Verify Vault contracts before backend deployment
         run: npm run test:timeleague
 
+      # The full historical runtime exceeds the 5 MB server-side bundler limit.
+      # Check Docker before any migrations or deployments; local bundling has
+      # a 20 MB limit and must not silently fall back to the API bundler.
+      - name: Verify Docker for Vault local bundling
+        run: docker info > /dev/null
+
       - name: Build Vault server runtime
         run: node scripts/build-time-league-server.cjs
 
@@ -269,4 +275,4 @@ jobs:
         run: supabase functions deploy league-cup --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
 
       - name: Deploy Vault multiplayer
-        run: supabase functions deploy time-league --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
+        run: supabase functions deploy time-league --project-ref sxshiqyxhhifvtfqawbq --use-docker --no-verify-jwt

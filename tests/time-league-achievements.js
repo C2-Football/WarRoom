@@ -30,6 +30,7 @@ const ROSTER_SLOTS = { QB: 1, RB: 1, WR: 1, FLEX: 1, BN: 3 };
 
 function baseSettings(overrides = {}) {
     return {
+        gameDeckVersion: 0, // Archive-independent achievement fixtures use legacy scoring.
         rosterSlots: ROSTER_SLOTS, scoring: SCORING, regularSeasonWeeks: 1, maxQuarterbacks: 1,
         eraRules: { mode: 'any-era', decades: [] }, eraAdjusted: false,
         waiversEnabled: true, waiverMode: 'priority', faabBudget: 100, tradesEnabled: true,
