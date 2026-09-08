@@ -32,10 +32,10 @@ const scriptSources = [...html.matchAll(/<script\b[^>]*data-wr-defer="duat"[^>]*
 assert.ok(scriptSources.length > 1, 'The production Duat group must contain its dependent scripts.');
 const scriptPaths = scriptSources.map(src => src.split('?')[0]);
 const requiredDuatSources = [
-    'js/duat/rules.js', 'js/duat/world.js', 'js/duat/army-generation.js',
-    'js/duat/conquest.js', 'js/duat/favors.js', 'js/duat/campaign.js',
-    'js/duat/session.js', 'js/duat/storage.js', 'js/duat/remote.js',
-    'js/components/duat-presentation.js', 'js/tabs/duat.js',
+    'js/duat/rules.js', 'js/duat/world.js', 'js/duat/provinces.js', 'js/duat/army-generation.js',
+    'js/duat/conquest.js', 'js/duat/favors.js', 'js/duat/lore.js', 'js/duat/rituals.js', 'js/duat/heptad.js', 'js/duat/campaign.js', 'js/duat/dynasty.js',
+    'js/duat/session.js', 'js/duat/vendor/lz-string-1.5.0.js', 'js/duat/storage.js', 'js/duat/remote.js',
+    'js/components/duat-presentation.js', 'js/components/duat-library.js', 'js/components/duat-rituals.js', 'js/components/duat-heptad.js', 'js/tabs/duat.js',
 ];
 const sharedHelpers = [
     'js/shared/time-league-roster.js', 'js/shared/time-league-draft-room.js',
@@ -78,7 +78,7 @@ test('actual browser modules initialize the country campaign and presentation wi
     assert.equal(context.require, undefined);
     for (const source of [...sharedHelpers, ...scriptPaths]) {
         const raw = fs.readFileSync(path.join(root, source), 'utf8');
-        const code = source === 'js/components/duat-presentation.js' || source === 'js/tabs/duat.js'
+        const code = source.startsWith('js/components/') || source === 'js/tabs/duat.js'
             ? Babel.transform(raw, { filename: source, presets: ['react'], sourceType: 'script' }).code : raw;
         vm.runInContext(code, context, { filename: source, timeout: 2000 });
     }
@@ -87,6 +87,12 @@ test('actual browser modules initialize the country campaign and presentation wi
     assert.equal(App.DuatPresentation.identity('persia'), App.DuatWorld.factionById('persia'));
     assert.equal(App.DuatPresentation.art('horus'), '../images/duat/horus.webp');
     assert.equal(typeof context.DuatGame, 'function');
+    assert.equal(typeof App.DuatLibrary,'function');
+    assert.equal(typeof App.DuatRitualsView,'function');
+    assert.equal(typeof App.DuatHeptadUI.Games,'function');
+    assert.equal(App.DuatLore.FACTIONS.length,28);
+    assert.equal(App.DuatRituals.DEITIES.length,12);
+    assert.ok(App.DuatProvinces.TERRITORIES.length>4000);
     for (const component of ['World', 'Draft', 'Archaeology', 'Pantheon', 'Tournaments']) {
         assert.equal(typeof App.DuatPresentation[component], 'function', `${component} must be ready before the game tab mounts.`);
     }
@@ -176,8 +182,27 @@ function nodes(value) {
     return [value, ...nodes(value.children)];
 }
 const text = value => value == null ? '' : Array.isArray(value) ? value.map(text).join(' ') : typeof value === 'object' ? text(value.children) : String(value);
-const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && text(node) === label);
+const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && text(node).replace(/\s+/g,' ').trim() === label);
 const settle = () => new Promise(resolve => setImmediate(resolve));
+
+test('the production staged excavation requires discovery, ruler, player reveals and a record before travelling onward',()=>{
+    const states=[],deps=[];let cursor=0,effectCursor=0,effects=[],changed=false,actions=[];
+    const campaign={version:4,dynastySeason:1,phase:'reveal',dynasty:{journal:[]},archaeology:{order:['egypt','rome'],revealedFactionIds:[],latest:null},factions:[
+        {id:'egypt',activeArmyId:null,rulerRoll:null,armies:[{id:'egypt:2025',rulerName:'The Test Pharaoh',season:2025,players:[{id:'q:2025',name:'The Hidden Quarterback',position:'QB'},{id:'w:2025',name:'The Hidden Receiver',position:'WR'}]}]},
+        {id:'rome',activeArmyId:null,rulerRoll:null,armies:[]}
+    ]};
+    const browser={location:new URL('https://example.test/WarRoom/'),App:{DuatCampaign:require('../js/duat/dynasty.js'),DuatRules:require('../js/duat/rules.js'),DuatWorld:require('../js/duat/world.js'),DuatConquest:require('../js/duat/conquest.js'),DuatLore:require('../js/duat/lore.js')}};
+    const React={createElement:(type,props,...children)=>({type,props:props||{},children}),Fragment:'fragment',useMemo:fn=>fn(),useState(initial){const i=cursor++;if(!(i in states))states[i]=typeof initial==='function'?initial():initial;return[states[i],value=>{const next=typeof value==='function'?value(states[i]):value;if(next!==states[i]){states[i]=next;changed=true;}}];},useEffect(callback,dependencies){const i=effectCursor++;if(!deps[i]||dependencies.some((v,n)=>v!==deps[i][n]))effects.push(callback);deps[i]=dependencies;}};
+    vm.runInNewContext(Babel.transform(fs.readFileSync(path.join(root,'js/components/duat-presentation.js'),'utf8'),{presets:['react']}).code,{window:browser,location:browser.location,React});
+    const props={campaign,host:true,canAdvance:true,busy:false,onContinue(){},onAction(action){actions.push(action);const f=campaign.factions[0];f.activeArmyId=f.armies[0].id;f.rulerRoll=7;campaign.archaeology.revealedFactionIds.push(f.id);campaign.archaeology.latest={factionId:f.id,armyId:f.activeArmyId};}};
+    const draw=()=>{let tree;for(let i=0;i<5;i++){cursor=effectCursor=0;effects=[];changed=false;tree=browser.App.DuatPresentation.DynastyArchaeology(props);effects.forEach(fn=>fn());if(!changed)return tree;}throw Error('Expedition render did not settle');};
+    let tree=draw();assert(!text(tree).includes('The Test Pharaoh'));assert(!text(tree).includes('The Hidden Quarterback'));
+    button(tree,'Lift the seal · awaken the ruler').props.onClick();tree=draw();assert.deepEqual(actions.map(action=>action.type),['reveal-next']);assert(text(tree).includes('The Test Pharaoh'));assert(!text(tree).includes('The Hidden Quarterback'));
+    button(tree,'Uncover the army').props.onClick();tree=draw();assert(!text(tree).includes('The Hidden Receiver'));assert(button(tree,'Write the record').props.disabled);
+    button(tree,'Uncover player 1').props.onClick();tree=draw();assert(text(tree).includes('The Hidden Quarterback'));assert(!text(tree).includes('The Hidden Receiver'));
+    button(tree,'Reveal the full army').props.onClick();tree=draw();assert(text(tree).includes('The Hidden Receiver'));button(tree,'Write the record').props.onClick();tree=draw();assert(text(tree).includes('Entered into the Royal Library'));
+    button(tree,'Travel to Rome').props.onClick();tree=draw();assert(!text(tree).includes('The Hidden Receiver'));assert.equal(actions.length,1,'Travelling to the next discovery does not silently reveal its ruler');
+});
 
 test('a failed world dependency keeps the game unmounted even when presentation loaded; retry reloads', async () => {
     const page = harness();

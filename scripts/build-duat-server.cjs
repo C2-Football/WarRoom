@@ -9,8 +9,8 @@ const read = name => fs.readFileSync(path.join(root, 'data/duat', name), 'utf8')
 const modules = [
     'js/shared/time-league-roster.js', 'js/shared/time-league-draft-room.js',
     'js/shared/time-league-season.js', 'js/shared/time-league-player-cards.js',
-    'js/duat/rules.js', 'js/duat/world.js', 'js/duat/army-generation.js', 'js/duat/conquest.js',
-    'js/duat/favors.js', 'js/duat/campaign.js',
+    'js/duat/rules.js', 'js/duat/world.js', 'js/duat/provinces.js', 'js/duat/army-generation.js', 'js/duat/conquest.js',
+    'js/duat/favors.js', 'js/duat/lore.js', 'js/duat/rituals.js', 'js/duat/heptad.js', 'js/duat/campaign.js', 'js/duat/dynasty.js',
 ];
 const source = modules.map(name => fs.readFileSync(path.join(root, name), 'utf8')).join('\n');
 const pack = value => zlib.gzipSync(Buffer.from(JSON.stringify(value))).toString('base64');
@@ -43,15 +43,23 @@ async function unpack(base64) {
  return JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
 }
 let cardsPromise;
+const seasonPromises = new Map();
 export async function loadData(seasons) {
- if (!Array.isArray(seasons) || ![1,2,4,5].includes(seasons.length) || new Set(seasons).size !== seasons.length || seasons.some(year => !availableSeasons.includes(year))) throw new Error('Choose unique complete historical seasons.');
+ if (!Array.isArray(seasons) || seasons.length < 1 || seasons.length > 24 || new Set(seasons).size !== seasons.length || seasons.some(year => !availableSeasons.includes(year))) throw new Error('Choose unique complete historical seasons (up to 24).');
  const cards = await (cardsPromise ||= unpack('${pack(cards)}').then(data => App.TimeLeaguePlayerCards.buildPlayerCardIndex(data)));
- const chunks = await Promise.all(seasons.map(year => unpack(seasonData[year])));
- const logs = chunks.flatMap(csv => App.TimeLeagueSeason.parseGameLogCsv(csv).logs);
+ const chunks = await Promise.all(seasons.map(year => {
+  if (!seasonPromises.has(year)) seasonPromises.set(year, unpack(seasonData[year]).then(csv => App.TimeLeagueSeason.parseGameLogCsv(csv).logs));
+  return seasonPromises.get(year);
+ }));
+ const logs = chunks.flat();
  return { cards, logIndex: App.TimeLeagueSeason.buildGameLogIndex(logs), manifest, availableSeasons };
 }
 `;
 const target = path.join(root, 'supabase/functions/duat/runtime.js');
 fs.mkdirSync(path.dirname(target), { recursive: true });
-fs.writeFileSync(target, runtime);
+// Both online suites build the shared bundle concurrently. Readers must never
+// observe a truncated module while another process publishes the same output.
+const temporaryTarget = target + '.' + process.pid + '.tmp';
+fs.writeFileSync(temporaryTarget, runtime);
+fs.renameSync(temporaryTarget, target);
 console.log('Duat Edge runtime built with ' + availableSeasons.length + ' complete historical seasons; each room loads its chosen years.');

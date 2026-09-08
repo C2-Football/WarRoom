@@ -1,0 +1,37 @@
+/* Sourcebook additions share the Duat's bronze, ink and faction palette. */
+.duat-sigil-crest{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:32px;height:32px;background:transparent!important;border:0!important;padding:0!important}
+.duat-campaign-identity>.duat-sigil{width:80px;height:80px}
+.duat-revealed-factions .duat-sigil{width:46px;height:46px}
+.duat-revealed-factions>button{grid-template-columns:46px minmax(85px,1fr);text-align:left;align-items:center;gap:8px;max-width:240px;min-height:65px}
+.duat-revealed-factions>button .duat-sigil{grid-row:span 2}.duat-revealed-factions>button small{grid-column:2;max-width:165px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.duat-faction-banner>.duat-sigil{width:110px;height:110px}
+.duat-sigil-crest img{display:block;width:100%;height:100%;max-height:100%;object-fit:contain}
+.duat-expansion-settings{margin:20px 0;padding:16px;border:1px solid #465059;border-radius:12px;background:#111d27}
+.duat-expansion-settings>summary,.duat-preseason-library>summary{cursor:pointer;font-weight:700;color:#e9c77e}
+.duat-expansion-settings[open]>summary{margin-bottom:18px}
+.duat-succession{display:flex;flex-wrap:wrap;align-items:end;gap:14px;justify-content:center;margin-top:22px;text-align:left}
+.duat-succession .duat-field{min-width:210px;margin:0}
+.duat-succession>p{flex-basis:100%;text-align:center}
+.duat-temple-invitation{background:linear-gradient(120deg,#27202a,#172735);border-color:#7c6041}
+.duat-temple-invitation h2{font-family:Georgia,serif;font-size:1.55rem}
+.duat-preseason-library{margin-top:18px}.duat-preseason-library[open]>summary{margin-bottom:20px}
+.duat-draft-years>div{min-width:130px}.duat-draft-years>div>span{white-space:normal;line-height:1.35;min-height:2.7em}
+.duat-draft-years>div>strong{font-size:1.15rem}
+.duat-journey-stage{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 18px}
+.duat-journey-stage span{padding:7px 10px;border:1px solid #55606a;border-radius:20px;color:#9caeb8;font-size:.76rem}
+.duat-journey-stage .active{background:#735a30;color:#fff1ca;border-color:#cfa960}
+.duat-artifact-clue{padding:22px;border-left:3px solid #cfa960;background:linear-gradient(100deg,#26323b,#14212d);border-radius:0 12px 12px 0;font:1.12rem/1.6 Georgia,serif;color:#eedec0;margin:20px 0}
+.duat-ruler-arrival{display:flex;align-items:center;gap:16px;margin:20px 0}.duat-ruler-arrival .duat-sigil{width:72px;height:72px}.duat-ruler-arrival h3{font:1.8rem/1.2 Georgia,serif;color:#f1d19a;margin:5px 0}
+.duat-reveal-name-plate{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.duat-reveal-name-plate small{color:#a0b6c6}
+.duat-country{vector-effect:non-scaling-stroke}
+.duat-staged-excavation .duat-excavation-body>.duat-panel-heading>.duat-sigil{width:72px;height:72px;font-size:2rem}
+.duat-journey-stage .complete{border-color:#637f77;color:#aed2bf}
+.duat-source-artifact>.duat-sigil{width:120px;height:120px;margin:0 auto 14px;font-size:4rem;filter:drop-shadow(0 8px 18px #0008)}
+.duat-source-artifact small{max-width:700px;color:#bba984;display:block;margin:auto;line-height:1.5}
+.duat-journal-seal{display:flex;gap:18px;padding:22px;border:1px solid #786643;border-radius:12px;background:#1c272c;margin:18px 0}.duat-journal-seal>span{color:#edcf86;font-size:3rem}.duat-journal-seal h3{font:1.3rem Georgia,serif;color:#ecd099;margin:0 0 8px}.duat-journal-seal p{line-height:1.65}.duat-journal-seal small{color:#9fb4bc}
+.duat-ruler-arrival>.duat-die{margin-left:auto;flex-shrink:0}.duat-ruler-arrival>div{min-width:0}.duat-ruler-arrival h3{overflow-wrap:anywhere}
+.duat-territory-country{display:flex;flex-direction:column;gap:7px;margin-top:12px;color:#b6c6cc;font-size:.8rem}.duat-territory-country select{width:100%}.duat-territory-list+button{margin-top:12px}
+.duat-score-receipts{border-top:1px solid #50606a;margin-top:24px;padding-top:20px}.duat-score-equation{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:14px 0 18px}.duat-score-equation>span{display:grid;gap:5px;font-size:.72rem;color:#9cb1bc}.duat-score-equation strong{font:1.45rem Georgia,serif;color:#ecd296}.duat-score-equation>b{color:#7c939d}.duat-score-receipts article{padding:12px 0;border-top:1px solid #334854}.duat-score-receipts article>div{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between}.duat-score-receipts article>div>span,.duat-score-receipts article>small{color:#aec2cc;font-size:.8rem}.duat-score-receipts article p{margin:8px 0;line-height:1.5}
+@media(max-width:700px){.duat-succession{align-items:stretch}.duat-succession>*{width:100%}.duat-tabs{gap:5px}.duat-tabs>button{padding:10px 12px}.duat-expansion-settings{padding:12px}.duat-artifact-clue{padding:17px}.duat-ruler-arrival h3{font-size:1.4rem}.duat-draft-years{overflow-x:auto}}
+@media(prefers-reduced-motion:reduce){.duat-journey-stage *,.duat-ruler-arrival *{animation:none!important;transition:none!important}}
+@media(max-width:700px){.duat-campaign-identity>.duat-sigil{width:56px;height:56px}.duat-revealed-factions>button{max-width:210px}.duat-staged-excavation .duat-excavation-body>.duat-panel-heading>.duat-sigil{width:52px;height:52px}.duat-journal-seal{padding:16px}.duat-score-equation{gap:8px}.duat-score-equation strong{font-size:1.2rem}}

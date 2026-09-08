@@ -44,7 +44,7 @@
         for (const [key,[min,max]] of Object.entries(ranges)) if (typeof value[key] !== 'number' || !Number.isFinite(value[key]) || value[key] < min || value[key] > max) fail('INVALID_SCORING', 'Scoring values are outside the supported range.');
         return value;
     }
-    function settingsOf(state) { return state?.version === 3 ? normalizeSettings(state.settings) : normalizeSettings(); }
+    function settingsOf(state) { return state?.version >= 3 ? normalizeSettings(state.settings) : normalizeSettings(); }
     function slotsOf(faction) { return ROSTERS[faction?.roster || 'duat'].slots; }
     function regularSeasonWeeks(state) { return state?.calendarVersion === 2 ? 17 - Math.ceil(Math.log2(settingsOf(state).playoffTeams)) : 14; }
     function rosterSize(state) { const settings = settingsOf(state); return ROSTERS[settings.roster].slots.length + settings.bench; }
@@ -732,5 +732,6 @@
         return true;
     }
     return { SCORING, ROSTERS, normalizeSettings, normalizeScoring, settingsOf, regularSeasonWeeks, rosterSize, slotsOf, bestLineup, availableSeasons, createCampaign, applyAction, computeStandings, legalLineup,
-        activeArmy, estimatePlayer, recommendedLineup, projectCampaign, validateCampaign, draftTurn, draftCandidates, revealProgress };
+        activeArmy, estimatePlayer, recommendedLineup, projectCampaign, validateCampaign, draftTurn, draftCandidates, revealProgress,
+        draftPool, shortages, rulerBands, historyFor, planningPlayers };
 });

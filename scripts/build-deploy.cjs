@@ -204,7 +204,10 @@ async function build() {
 
   for (const [entry, html] of Object.entries(htmlByEntry)) processEntry(entry, html);
 
-  for (const name of ['duat.css', ...fs.readdirSync(path.join(ROOT, 'images/duat')).map(file => 'images/duat/' + file)]) {
+  const duatFiles = directory => fs.readdirSync(path.join(ROOT, directory), { withFileTypes: true })
+    .flatMap(entry => entry.isDirectory() ? duatFiles(directory + '/' + entry.name) : entry.isFile() ? [directory + '/' + entry.name] : []);
+  const duatStyles = fs.readdirSync(ROOT).filter(name => /^duat(?:-[a-z-]+)?\.css$/.test(name));
+  for (const name of [...duatStyles, ...duatFiles('images/duat'), 'data/duat/lore-catalog.json']) {
     assetHash.set(name, contentHash(fs.readFileSync(path.join(ROOT, name))));
   }
   const revision = process.env.GITHUB_SHA || execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();

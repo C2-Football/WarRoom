@@ -31,8 +31,8 @@ class LocalStorage {
     setItem(key,value){this.guard('set');this.writes++;if(this.writes===this.failWriteAt)throw Object.assign(new Error('No storage space'),{name:'QuotaExceededError'});this.values.set(String(key),String(value));}
     removeItem(key){this.guard('remove');this.removals++;this.values.delete(String(key));}
 }
-function open(db){
-    const browser={localStorage:db,App:{DuatCampaign:Campaign}};
+function open(db,engine=Campaign){
+    const browser={localStorage:db,LZString:require('../js/duat/vendor/lz-string-1.5.0.js'),App:{DuatCampaign:engine}};
     vm.runInNewContext(source,{window:browser});
     return browser.App.DuatStorage;
 }
@@ -110,4 +110,26 @@ test('invalid imported campaigns cannot replace a valid saved campaign',()=>{
     const db=savedDb(),store=open(db),before=snapshot(db);
     assert.throws(()=>store.write({...copy(initial),factions:[]}),{code:'INVALID_CAMPAIGN'});
     assert.deepEqual(snapshot(db),before);assert.equal(db.writes,0);
+});
+test('v4 compression losslessly preserves Unicode, real draft snapshots, legacy reads and plain JSON backup data',()=>{
+    const Dynasty=require('../js/duat/dynasty.js');
+    const state=Dynasty.createCampaign({version:4,id:'compressed-dynasty',name:'Inis Fáil · 龍 · 𓂀',seed:'compressed',createdAt:stamp,hostFactionId:'egypt',seasons:[2025,2024],settings:Dynasty.normalizeSettings({leagueSize:8,mummyCount:2,bench:3})},data);
+    const db=savedDb(),store=open(db,Dynasty);
+    store.write(state);const encoded=db.getItem(PREFIX+state.id);
+    assert(encoded.startsWith('DUAT4:LZ16:'));assert(encoded.length<JSON.stringify(state).length/2);
+    assert.deepEqual(copy(store.read(state.id)),state);assert.deepEqual(copy(store.read(initial.id)),initial);
+    assert.equal(store.list()[0].dynastySeason,1);
+    const plainBackup=JSON.stringify(store.read(state.id));assert.deepEqual(JSON.parse(plainBackup),state);
+    db.values.set(PREFIX+state.id,plainBackup);assert.deepEqual(copy(store.read(state.id)),state);
+    store.write(state);db.values.set(KEY,'damaged shelf');const before=snapshot(db);
+    assert.deepEqual(copy(store.list()).map(row=>row.id),[state.id,initial.id]);assert.deepEqual(snapshot(db),before);
+});
+test('compressed v4 writes roll back exact bytes and corrupted compressed payloads remain recoverable from backup',()=>{
+    const Dynasty=require('../js/duat/dynasty.js');
+    const state=Dynasty.createCampaign({version:4,id:'rollback-dynasty',name:'A persistent dynasty',seed:'compressed',createdAt:stamp,hostFactionId:'egypt',seasons:[2025],settings:Dynasty.normalizeSettings({leagueSize:8,mummyCount:1,bench:3})},data);
+    const db=new LocalStorage(),store=open(db,Dynasty);store.write(state);const before=snapshot(db);
+    db.failWriteAt=db.writes+2;assert.throws(()=>store.write({...state,name:'A later dynasty move'}),/could not be saved/);assert.deepEqual(snapshot(db),before);
+    const encoded=db.getItem(PREFIX+state.id),broken=encoded.replace('DUAT4:LZ16:','DUAT4:LZ16:00');db.values.set(PREFIX+state.id,broken);
+    assert.throws(()=>store.read(state.id),/damaged/);assert.equal(db.getItem(PREFIX+state.id),broken);
+    db.failWriteAt=0;store.write(JSON.parse(JSON.stringify(state)));assert.deepEqual(copy(store.read(state.id)),state);
 });

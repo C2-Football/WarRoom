@@ -6,7 +6,7 @@
   "scripts": {
     "test": "node scripts/run-tests.cjs",
     "test:core": "node tests/run.js",
-    "test:duat": "node --test tests/duat-*.js tests/duat-online.cjs",
+    "test:duat": "node --test tests/duat-*.js tests/duat-online.cjs tests/duat-dynasty-online.cjs",
     "test:landing-content": "node tests/landing-content-contract.js",
     "test:login-auth": "node tests/login-auth-contract.js",
     "test:regression": "npm run build:preview && node tests/regression.js",

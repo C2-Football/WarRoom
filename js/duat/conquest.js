@@ -7,10 +7,12 @@
         ? require('./rules.js') : root.App.DuatRules;
     const world = typeof module !== 'undefined' && module.exports
         ? require('./world.js') : root.App.DuatWorld;
-    const api = factory(rules, world);
+    const provinces = typeof module !== 'undefined' && module.exports
+        ? require('./provinces.js') : root.App.DuatProvinces;
+    const api = factory(rules, world, provinces);
     (root.App = root.App || {}).DuatConquest = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
-})(typeof window !== 'undefined' ? window : globalThis, function (rules, world) {
+})(typeof window !== 'undefined' ? window : globalThis, function (rules, world, provinces) {
     'use strict';
 
     // Explicit rules for the expanded board. Original v1 saves retain their
@@ -23,10 +25,47 @@
         description: 'Strength is 10 + nonnegative weekly fantasy points / 10 + 0.5 per finishing place above last. Nearby friendly territories add up to 3 support. Defense adds 2 and 4 per fortification level. Each side rolls a d20; ties hold for the defender.',
     });
     const round = value => Math.round(value * 100) / 100;
-    const expanded = state => state.version === 2 && state.worldId === world?.WORLD_ID;
+    const dynasty = state => state.expansionVersion === 1;
+    const original = state => dynasty(state) && state.conquestMode === 'original';
+    const expanded = state => state.version === 2 && (state.worldId === world?.WORLD_ID
+        || (dynasty(state) && state.worldId === provinces?.WORLD_ID));
+    const currentSeason = (state, event) => !dynasty(state) || event.season === state.season
+        || (!event.season && event.id?.startsWith(`result-${state.season}-`));
+    const seasonField = state => dynasty(state) ? { season: state.season } : {};
+    const ORIGINAL_RULES = Object.freeze({
+        description: 'The top half earn a claim; first place earns two and may use sea passages. When unclaimed connected land is exhausted, a higher completed weekly score can take a neighboring rival region. Last place loses its newest region, with its final region protected. Playoff survivors earn one claim. A war between top-half factions also consumes one unspent opposing claim.',
+        source: 'The World Map workbook, Title Page A4:A16',
+        adaptation: 'The source leaves crossing interactions incomplete. Here first place may use a declared sea route from owned land for one earned claim. Tied scores hold for the defender. A weekly claim opportunity expires at the next result; the same opportunity funds peaceful expansion or a score-driven war.',
+        homelandPolicy: 'final-territory-protected', ties: 'defender-holds', seaPolicy: 'weekly-first-place',
+    });
+    // Cache static catalog indexes, not state-dependent legality or results.
+    const catalogIndexes = new WeakMap(), campaignCatalogs = new WeakMap();
+    function indexFor(catalog) {
+        if (!catalogIndexes.has(catalog)) {
+            const adjacency = new Map(catalog.TERRITORIES.map(t => [t.id, []]));
+            catalog.ROUTES.forEach(route => {
+                adjacency.get(route.from)?.push({ id: route.to, route });
+                adjacency.get(route.to)?.push({ id: route.from, route });
+            });
+            catalogIndexes.set(catalog, { adjacency, territoryOrder: new Map(catalog.TERRITORIES.map((t, i) => [t.id, i])) });
+        }
+        return catalogIndexes.get(catalog);
+    }
+    function routeAllowed(state, factionId, route) {
+        return !original(state) || route.type !== 'sea' || latestResult(state, factionId)?.place === 1;
+    }
     function catalogFor(state) {
         if (state.version === 1 && !state.worldId) return rules;
-        if (expanded(state)) return world;
+        if (expanded(state)) {
+            if (state.worldId !== provinces?.WORLD_ID) return world;
+            if (!state.routes?.length) return provinces;
+            if (!campaignCatalogs.has(state.routes)) campaignCatalogs.set(state.routes, { ...provinces,
+                ROUTES: [...provinces.ROUTES, ...state.routes], SOURCE: { ...provinces.SOURCE,
+                    routeNote: provinces.SOURCE.routeNote + ' Province combat adds clearly named campaign passages between selected rival fronts.',
+                    startingDomainNote: 'Province combat starts each faction with three contiguous administrative regions. Capitals are protected; frontier provinces can fall.',
+                } });
+            return campaignCatalogs.get(state.routes);
+        }
         fail('UNKNOWN_WORLD', 'This campaign uses an unavailable world.');
     }
 
@@ -36,12 +75,12 @@
         throw error;
     }
 
-    function createConquest({ season, factionIds = rules.FACTIONS.map(faction => faction.id), worldId, seed }) {
+    function createConquest({ season, factionIds = rules.FACTIONS.map(faction => faction.id), worldId, seed, expansionVersion }) {
         if (!Number.isInteger(season) || season < 1) fail('INVALID_SEASON', 'A campaign season is required.');
         if (!Array.isArray(factionIds) || factionIds.length < 2 || new Set(factionIds).size !== factionIds.length) {
             fail('INVALID_FACTIONS', 'Choose distinct factions for the campaign.');
         }
-        const catalog = worldId ? catalogFor({ version: 2, worldId }) : rules;
+        const catalog = worldId ? catalogFor({ version: 2, worldId, expansionVersion }) : rules;
         if (worldId && (typeof seed !== 'string' || !seed.trim())) fail('INVALID_SEED', 'The expanded campaign needs a battle seed.');
         const owners = {}, claimOrder = {}, pendingClaims = {}, homes = {};
         for (const factionId of factionIds) {
@@ -57,7 +96,63 @@
             pendingClaims[factionId] = 0;
         }
         return { version: worldId ? 2 : 1, season, factionIds: [...factionIds], homes, owners, claimOrder, pendingClaims, events: [],
+            ...(expansionVersion === 1 ? { expansionVersion } : {}),
             ...(worldId ? { worldId, seed, campaignActions: Object.fromEntries(factionIds.map(id => [id, 0])), fortifications: {} } : {}) };
+    }
+
+    function createDynastyConquest({ season, factionIds = world.FACTIONS.map(f => f.id), seed,
+        conquestMode = 'combat', worldScale = 'countries' }) {
+        if (!['combat', 'original'].includes(conquestMode) || !['countries', 'provinces'].includes(worldScale)) {
+            fail('INVALID_SETTINGS', 'Choose a supported conquest format and geography.');
+        }
+        if (worldScale === 'provinces' && !provinces) fail('UNKNOWN_WORLD', 'The province geography has not loaded.');
+        const state = { ...createConquest({ season, factionIds, seed, expansionVersion: 1,
+            worldId: worldScale === 'provinces' ? provinces.WORLD_ID : world.WORLD_ID }), conquestMode, worldScale };
+        return worldScale === 'provinces' && conquestMode === 'combat' ? establishProvinceFronts(state) : state;
+    }
+
+    function establishProvinceFronts(state) {
+        const { adjacency } = indexFor(provinces), owners = { ...state.owners }, claimOrder = { ...state.claimOrder };
+        const radians = value => value * Math.PI / 180;
+        const distance = (left, right) => {
+            const a = provinces.territoryById(left), b = provinces.territoryById(right);
+            const latitude = radians(b.latitude - a.latitude), longitude = radians(b.longitude - a.longitude);
+            return Math.sin(latitude / 2) ** 2 + Math.cos(radians(a.latitude)) * Math.cos(radians(b.latitude)) * Math.sin(longitude / 2) ** 2;
+        };
+        for (const id of state.factionIds) {
+            const domain = [...claimOrder[id]];
+            while (domain.length < 3) {
+                const candidates = [...new Set(domain.flatMap(t => adjacency.get(t).filter(n => n.route.type === 'land' && !owners[n.id]).map(n => n.id)))];
+                candidates.sort((a, b) => distance(state.homes[id], a) - distance(state.homes[id], b) || a.localeCompare(b));
+                if (!candidates.length) break;
+                owners[candidates[0]] = id; domain.push(candidates[0]);
+            }
+            claimOrder[id] = domain;
+        }
+        const keys = new Set(provinces.ROUTES.map(r => [r.from, r.to].sort().join(':'))), routes = [];
+        for (const id of state.factionIds) {
+            const rivals = state.factionIds.filter(r => r !== id).sort((a, b) => distance(state.homes[id], state.homes[a]) - distance(state.homes[id], state.homes[b]) || a.localeCompare(b)).slice(0, 2);
+            for (const rival of rivals) {
+                const candidates = claimOrder[id].filter(t => t !== state.homes[id]).flatMap(from => claimOrder[rival].filter(t => t !== state.homes[rival]).map(to => ({ from, to, distance: distance(from, to) })));
+                candidates.sort((a, b) => a.distance - b.distance || a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
+                const pair = candidates[0]; if (!pair) continue;
+                const [from, to] = [pair.from, pair.to].sort(), key = from + ':' + to;
+                if (keys.has(key)) continue; keys.add(key);
+                routes.push({ from, to, type: 'sea', origin: 'declared-campaign-passage',
+                    name: `${provinces.factionById(id).name} / ${provinces.factionById(rival).name} campaign passage` });
+            }
+        }
+        return { ...state, owners, claimOrder, routes,
+            startingDomains: Object.fromEntries(state.factionIds.map(id => [id, [...claimOrder[id]]])) };
+    }
+
+    function continueSeason(state, { season, createdAt }) {
+        if (!dynasty(state)) fail('DYNASTY_UNAVAILABLE', 'This saved campaign does not use continuing conquest.');
+        if (!Number.isInteger(season) || season !== state.season + 1) fail('INVALID_SEASON', 'Continue to the next dynasty season in order.');
+        if (typeof createdAt !== 'string' || !createdAt) fail('INVALID_TIME', 'The next season needs a timestamp.');
+        const empty = Object.fromEntries(state.factionIds.map(id => [id, 0]));
+        return { ...state, season, pendingClaims: { ...empty }, campaignActions: { ...empty },
+            events: [...state.events, { id: `season-${season}`, type: 'season-start', season, createdAt }] };
     }
 
     function checkFaction(state, factionId) {
@@ -67,8 +162,14 @@
     function eligibleTerritories(state, factionId) {
         checkFaction(state, factionId);
         const owned = new Set(Object.keys(state.owners).filter(id => state.owners[id] === factionId));
-        const eligible = new Set();
-        for (const route of catalogFor(state).ROUTES) {
+        const eligible = new Set(), catalog = catalogFor(state);
+        if (state.worldScale === 'provinces') {
+            const { adjacency } = indexFor(catalog);
+            for (const id of owned) for (const neighbor of adjacency.get(id) || []) {
+                if (!state.owners[neighbor.id] && routeAllowed(state, factionId, neighbor.route)) eligible.add(neighbor.id);
+            }
+        } else for (const route of catalog.ROUTES) {
+            if (!routeAllowed(state, factionId, route)) continue;
             if (owned.has(route.from) && !state.owners[route.to]) eligible.add(route.to);
             if (owned.has(route.to) && !state.owners[route.from]) eligible.add(route.from);
         }
@@ -90,7 +191,7 @@
             if (previous.place !== place || previous.score !== score) fail('RESULT_CONFLICT', 'This week already has a different result.');
             return state;
         }
-        const lastWeek = state.events.filter(event => event.factionId === factionId && event.type === 'result')
+        const lastWeek = state.events.filter(event => event.factionId === factionId && event.type === 'result' && currentSeason(state, event))
             .reduce((last, event) => Math.max(last, event.week), 0);
         if (week !== lastWeek + 1) fail('WEEK_ORDER', 'Record campaign weeks in order.');
         const result = { id, factionId, week, place, score, type: 'result', claimsAwarded: 0, createdAt };
@@ -128,7 +229,8 @@
         };
     }
 
-    function recordWeek(state, { week, results, createdAt }) {
+    function recordWeek(state, { week, results, createdAt, regularSeasonWeeks = 14, advancingFactionIds = [] }) {
+        if (dynasty(state)) return recordDynastyWeek(state, { week, results, createdAt, regularSeasonWeeks, advancingFactionIds });
         if (!Array.isArray(results) || results.length !== state.factionIds.length
             || new Set(results.map(result => result?.factionId)).size !== state.factionIds.length
             || results.some(result => !result || !state.factionIds.includes(result.factionId))) {
@@ -161,6 +263,66 @@
         return { ...next, campaignActions, events: [...next.events, ...awardEvents] };
     }
 
+    function recordDynastyWeek(state, { week, results, createdAt, regularSeasonWeeks, advancingFactionIds }) {
+        if (!Number.isInteger(week) || week < 1 || week > 17) fail('INVALID_WEEK', 'Record results within the seventeen-week football season.');
+        if (!Number.isInteger(regularSeasonWeeks) || regularSeasonWeeks < 1 || regularSeasonWeeks > 16) fail('INVALID_CALENDAR', 'Choose a regular season ending before the championship.');
+        if (typeof createdAt !== 'string' || !createdAt) fail('INVALID_TIME', 'The result needs a timestamp.');
+        if (!Array.isArray(results) || results.length !== state.factionIds.length
+            || new Set(results.map(r => r?.factionId)).size !== state.factionIds.length
+            || results.some(r => !r || !state.factionIds.includes(r.factionId))) fail('INCOMPLETE_WEEK', 'Verified results for every faction are required.');
+        if (new Set(results.map(r => r.place)).size !== results.length || results.some(r => !Number.isInteger(r.place)
+            || r.place < 1 || r.place > results.length || !Number.isFinite(r.score))) fail('INVALID_RESULT', 'Every faction needs a verified score and distinct finishing place.');
+        if (!Array.isArray(advancingFactionIds) || new Set(advancingFactionIds).size !== advancingFactionIds.length
+            || advancingFactionIds.some(id => !state.factionIds.includes(id))) fail('INVALID_PLAYOFF', 'Playoff advances must name distinct factions in this campaign.');
+        const prior = state.events.filter(e => e.type === 'result' && currentSeason(state, e) && e.week === week);
+        if (prior.length) {
+            if (prior.length !== results.length || prior.some(e => { const r = results.find(r => r.factionId === e.factionId);
+                return !r || e.place !== r.place || e.score !== r.score || e.regularSeasonWeeks !== regularSeasonWeeks
+                    || e.playoffAdvanced !== (week > regularSeasonWeeks && advancingFactionIds.includes(e.factionId)); })) fail('RESULT_CONFLICT', 'This week already has different verified results.');
+            return state;
+        }
+        const latest = state.events.filter(e => e.type === 'result' && currentSeason(state, e)).reduce((n, e) => Math.max(n, e.week), 0);
+        if (week !== latest + 1) fail('WEEK_ORDER', 'Record campaign weeks in order.');
+        const owners = { ...state.owners }, claimOrder = Object.fromEntries(state.factionIds.map(id => [id, [...state.claimOrder[id]]])), fortifications = { ...state.fortifications };
+        const homes = new Set(Object.values(state.homes)), regular = week <= regularSeasonWeeks;
+        const last = results.find(r => r.place === results.length);
+        let lost = null;
+        if (regular) {
+            const owned = claimOrder[last.factionId].filter(id => owners[id] === last.factionId);
+            lost = owned.length > 1 ? [...owned].reverse().find(id => original(state) || !homes.has(id)) : null;
+            if (lost) { delete owners[lost]; delete fortifications[lost]; claimOrder[last.factionId] = owned.filter(id => id !== lost); }
+        }
+        const resultEvents = state.factionIds.map(factionId => {
+            const r = results.find(r => r.factionId === factionId);
+            return { ...r, id: `result-${state.season}-${week}-${factionId}`, type: 'result', season: state.season,
+                week, regularSeasonWeeks, playoffAdvanced: !regular && advancingFactionIds.includes(factionId), claimsAwarded: 0,
+                outcome: regular && r.place === results.length ? (lost ? 'loss' : original(state) ? 'final-territory-held' : 'homeland-held') : 'held', createdAt };
+        });
+        let next = { ...state, owners, claimOrder, fortifications, events: [...state.events, ...resultEvents] };
+        const pendingClaims = { ...state.pendingClaims }, campaignActions = { ...state.campaignActions };
+        for (const event of resultEvents) {
+            const id = event.factionId;
+            const requested = regular ? event.place === 1 ? 2 : event.place <= Math.ceil(results.length / 2) ? 1 : 0 : event.playoffAdvanced ? 1 : 0;
+            const hasFrontier = eligibleTerritories(next, id).length > 0;
+            const canWar = original(next) && attackableTerritories(next, id).some(territoryId => {
+                const defender = latestResult(next, next.owners[territoryId]);
+                return defender && event.score > defender.score;
+            });
+            const possible = hasFrontier || canWar;
+            const remaining = catalogFor(state).TERRITORIES.length - Object.keys(owners).length;
+            event.claimsAwarded = possible ? original(state) ? requested : Math.min(requested, Math.max(0, remaining - pendingClaims[id])) : 0;
+            pendingClaims[id] = original(state) ? event.claimsAwarded : possible ? pendingClaims[id] + event.claimsAwarded : 0;
+            if (event.claimsAwarded) event.outcome = 'claims';
+            else if (requested && !possible) event.outcome = 'frontier-blocked';
+            if (original(state)) campaignActions[id] = pendingClaims[id];
+            else if (week < 17) campaignActions[id] = Math.min(COMBAT_RULES.actionCap, campaignActions[id] + (event.place === 1 ? COMBAT_RULES.winnerActions : COMBAT_RULES.weeklyActions));
+        }
+        next = { ...next, pendingClaims, campaignActions };
+        if (lost) next.events = [...next.events, { id: `loss-${state.season}-${week}-${last.factionId}`, type: 'loss', season: state.season,
+            factionId: last.factionId, week, territoryId: lost, createdAt }];
+        return next;
+    }
+
     function claimTerritory(state, { factionId, territoryId, createdAt }) {
         checkFaction(state, factionId);
         if (typeof createdAt !== 'string' || !createdAt) fail('INVALID_TIME', 'The claim needs a timestamp.');
@@ -168,15 +330,16 @@
         if (!eligibleTerritories(state, factionId).includes(territoryId)) {
             fail('NOT_CONNECTED', 'Choose an unclaimed territory connected to your realm.');
         }
-        const week = state.events.filter(event => event.factionId === factionId && event.type === 'result')
+        const week = state.events.filter(event => event.factionId === factionId && event.type === 'result' && currentSeason(state, event))
             .reduce((latest, event) => Math.max(latest, event.week), 0);
         return {
             ...state,
             owners: { ...state.owners, [territoryId]: factionId },
             claimOrder: { ...state.claimOrder, [factionId]: [...state.claimOrder[factionId], territoryId] },
             pendingClaims: { ...state.pendingClaims, [factionId]: state.pendingClaims[factionId] - 1 },
+            ...(original(state) ? { campaignActions: { ...state.campaignActions, [factionId]: state.pendingClaims[factionId] - 1 } } : {}),
             events: [...state.events, {
-                id: `claim-${state.season}-${state.events.length + 1}-${factionId}`, factionId, week, type: 'claim', territoryId, createdAt,
+                ...seasonField(state), id: `claim-${state.season}-${state.events.length + 1}-${factionId}`, factionId, week, type: 'claim', territoryId, createdAt,
             }],
         };
     }
@@ -199,34 +362,39 @@
         };
     }
 
-    function neighborsOf(state, territoryId) {
-        const neighbors = new Set();
-        for (const route of catalogFor(state).ROUTES) {
-            if (route.from === territoryId) neighbors.add(route.to);
-            if (route.to === territoryId) neighbors.add(route.from);
-        }
-        return [...neighbors];
+    function neighborsOf(state, territoryId, factionId) {
+        const neighbors = indexFor(catalogFor(state)).adjacency.get(territoryId) || [];
+        return neighbors.filter(n => !factionId || routeAllowed(state, factionId, n.route)).map(n => n.id);
     }
 
     function attackableTerritories(state, factionId) {
         checkFaction(state, factionId);
         if (!expanded(state)) return [];
-        const homes = new Set(Object.values(state.homes));
-        return world.TERRITORIES.filter(territory => state.owners[territory.id]
-            && state.owners[territory.id] !== factionId && !homes.has(territory.id)
-            && neighborsOf(state, territory.id).some(id => state.owners[id] === factionId)).map(item => item.id);
+        if (original(state) && eligibleTerritories(state, factionId).length) return [];
+        const catalog = catalogFor(state), homes = new Set(Object.values(state.homes)), targets = new Set();
+        const ownedCounts = {};
+        if (original(state)) Object.values(state.owners).forEach(owner => { ownedCounts[owner] = (ownedCounts[owner] || 0) + 1; });
+        for (const [id, owner] of Object.entries(state.owners)) {
+            if (owner !== factionId) continue;
+            for (const neighbor of neighborsOf(state, id, factionId)) {
+                const rival = state.owners[neighbor];
+                if (rival && rival !== factionId && (original(state) ? ownedCounts[rival] > 1 : !homes.has(neighbor))) targets.add(neighbor);
+            }
+        }
+        const { territoryOrder } = indexFor(catalog);
+        return [...targets].sort((a, b) => territoryOrder.get(a) - territoryOrder.get(b));
     }
 
     function fortifiableTerritories(state, factionId) {
         checkFaction(state, factionId);
-        if (!expanded(state)) return [];
+        if (!expanded(state) || original(state)) return [];
         const homes = new Set(Object.values(state.homes));
         return ownedTerritories(state, factionId).filter(territory => !homes.has(territory.id)
             && (state.fortifications[territory.id] || 0) < COMBAT_RULES.maxFortification).map(item => item.id);
     }
 
     function latestResult(state, factionId) {
-        return state.events.filter(event => event.type === 'result' && event.factionId === factionId)
+        return state.events.filter(event => event.type === 'result' && event.factionId === factionId && currentSeason(state, event))
             .reduce((latest, event) => !latest || event.week > latest.week ? event : latest, null);
     }
 
@@ -235,10 +403,22 @@
         const base = { factionId, attackerId: factionId, defenderId: state.owners[territoryId] || null,
             territoryId, cost: COMBAT_RULES.actionCost, fortificationCost: COMBAT_RULES.actionCost, canAttack: false };
         if (!expanded(state)) return { ...base, code: 'COMBAT_UNAVAILABLE', reason: 'This original campaign uses peaceful conquest rules.' };
-        if (Object.values(state.homes).includes(territoryId)) return { ...base, code: 'HOMELAND_PROTECTED', reason: 'A faction’s homeland is protected.' };
+        if (!original(state) && Object.values(state.homes).includes(territoryId)) return { ...base, code: 'HOMELAND_PROTECTED', reason: 'A faction’s homeland is protected.' };
         if (!attackableTerritories(state, factionId).includes(territoryId)) return { ...base, code: 'NOT_CONNECTED', reason: 'Attack rival land connected to your realm.' };
         const attacker = latestResult(state, factionId), defender = latestResult(state, base.defenderId);
         if (!attacker || !defender || attacker.week !== defender.week) return { ...base, code: 'NO_BATTLE_RESULTS', reason: 'Both armies need results from the same completed week.' };
+        if (original(state)) {
+            const enough = (state.pendingClaims[factionId] || 0) >= 1, wins = attacker.score > defender.score;
+            return { ...base, mode: 'original', canAttack: enough && wins,
+                ...(!enough ? { code: 'NO_CLAIMS', reason: 'Earn a claim through football results before going to war.' }
+                    : !wins ? { code: 'SCORE_TOO_LOW', reason: 'Your completed weekly score must exceed the defender’s; ties hold.' } : {}),
+                week: attacker.week, attackerScore: attacker.score, defenderScore: defender.score,
+                attackerPlace: attacker.place, defenderPlace: defender.place, offense: attacker.score, defense: defender.score,
+                attackSupport: 0, defenseSupport: 0, fortification: 0, fortificationBonus: 0,
+                winChance: wins ? 1 : 0, winChancePercent: wins ? 100 : 0,
+                requiredRollLabel: 'The higher completed weekly score wins; no dice are rolled.',
+            };
+        }
         const strength = result => 10 + Math.max(0, result.score) / COMBAT_RULES.scoreDivisor
             + (state.factionIds.length - result.place) * COMBAT_RULES.rankBonus;
         const neighbors = neighborsOf(state, territoryId);
@@ -277,22 +457,30 @@
     function attackTerritory(state, { factionId, territoryId, createdAt }) {
         const preview = previewAttack(state, { factionId, territoryId });
         if (!preview.canAttack) fail(preview.code, preview.reason);
-        if (typeof state.seed !== 'string' || !state.seed) fail('INVALID_SEED', 'Only the authoritative campaign can resolve a battle.');
+        if (!original(state) && (typeof state.seed !== 'string' || !state.seed)) fail('INVALID_SEED', 'Only the authoritative campaign can resolve a battle.');
         if (typeof createdAt !== 'string' || !createdAt) fail('INVALID_TIME', 'The battle needs a timestamp.');
         const id = `battle-${state.season}-${preview.week}-${factionId}-${state.events.length + 1}`;
-        const attackerRoll = seededRoll(state.seed, id + '|' + territoryId + '|attack');
-        const defenderRoll = seededRoll(state.seed, id + '|' + territoryId + '|defense');
+        const attackerRoll = original(state) ? 0 : seededRoll(state.seed, id + '|' + territoryId + '|attack');
+        const defenderRoll = original(state) ? 0 : seededRoll(state.seed, id + '|' + territoryId + '|defense');
         const attackerTotal = round(preview.offense + attackerRoll), defenderTotal = round(preview.defense + defenderRoll);
         const captured = attackerTotal > defenderTotal;
-        const attackerName = world.factionById(factionId).name, defenderName = world.factionById(preview.defenderId).name;
-        const territoryName = world.territoryById(territoryId).name;
-        const event = { ...preview, id, type: 'battle', factionId, attackerRoll, defenderRoll, attackerTotal, defenderTotal,
+        const catalog = catalogFor(state);
+        const attackerName = catalog.factionById(factionId).name, defenderName = catalog.factionById(preview.defenderId).name;
+        const territoryName = catalog.territoryById(territoryId).name;
+        const event = { ...preview, ...seasonField(state), id, type: 'battle', factionId, attackerRoll, defenderRoll, attackerTotal, defenderTotal,
             captured, outcome: captured ? 'captured' : 'defended', createdAt,
             narrative: captured ? `${attackerName} captured ${territoryName} from ${defenderName}, ${attackerTotal} to ${defenderTotal}.`
                 : `${defenderName} held ${territoryName} against ${attackerName}, ${defenderTotal} to ${attackerTotal}.`,
         };
+        const opposingClaim = original(state) && preview.attackerPlace <= Math.ceil(state.factionIds.length / 2)
+            && preview.defenderPlace <= Math.ceil(state.factionIds.length / 2) && captured
+            ? Math.min(1, state.pendingClaims[preview.defenderId] || 0) : 0;
+        if (original(state)) event.opposingClaimCancelled = opposingClaim;
         const next = { ...state,
-            campaignActions: { ...state.campaignActions, [factionId]: state.campaignActions[factionId] - COMBAT_RULES.actionCost },
+            ...(original(state) ? { pendingClaims: { ...state.pendingClaims, [factionId]: state.pendingClaims[factionId] - 1,
+                [preview.defenderId]: state.pendingClaims[preview.defenderId] - opposingClaim } } : {}),
+            campaignActions: { ...state.campaignActions, [factionId]: state.campaignActions[factionId] - COMBAT_RULES.actionCost,
+                ...(original(state) ? { [preview.defenderId]: state.campaignActions[preview.defenderId] - opposingClaim } : {}) },
             events: [...state.events, event],
         };
         if (!captured) return next;
@@ -305,7 +493,7 @@
 
     function fortifyTerritory(state, { factionId, territoryId, createdAt }) {
         checkFaction(state, factionId);
-        if (!expanded(state)) fail('COMBAT_UNAVAILABLE', 'This original campaign uses peaceful conquest rules.');
+        if (!expanded(state) || original(state)) fail('COMBAT_UNAVAILABLE', 'This original campaign uses peaceful conquest rules.');
         const latest = latestResult(state, factionId);
         if (!latest || latest.week >= 17) fail('NO_BATTLE_RESULTS', 'Fortify between completed football weeks.');
         if ((state.campaignActions[factionId] || 0) < COMBAT_RULES.actionCost) fail('NO_ACTIONS', 'Play another football week to earn campaign actions.');
@@ -315,14 +503,14 @@
         return { ...state,
             campaignActions: { ...state.campaignActions, [factionId]: state.campaignActions[factionId] - COMBAT_RULES.actionCost },
             fortifications: { ...state.fortifications, [territoryId]: level },
-            events: [...state.events, { id: `fortify-${state.season}-${state.events.length + 1}-${factionId}`,
+            events: [...state.events, { ...seasonField(state), id: `fortify-${state.season}-${state.events.length + 1}-${factionId}`,
                 type: 'fortify', factionId, territoryId, week: latest.week, level, cost: COMBAT_RULES.actionCost,
                 defenseBonus: level * COMBAT_RULES.fortificationBonus, createdAt,
-                narrative: `${world.factionById(factionId).name} fortified ${world.territoryById(territoryId).name} to level ${level}.`,
+                narrative: `${catalogFor(state).factionById(factionId).name} fortified ${catalogFor(state).territoryById(territoryId).name} to level ${level}.`,
             }],
         };
     }
 
-    return { createConquest, eligibleTerritories, recordWeek, claimTerritory, COMBAT_RULES,
+    return { createConquest, createDynastyConquest, continueSeason, ORIGINAL_RULES, catalogFor, eligibleTerritories, recordWeek, claimTerritory, COMBAT_RULES,
         ownedTerritories, landTotals, attackableTerritories, fortifiableTerritories, previewAttack, attackTerritory, fortifyTerritory };
 });

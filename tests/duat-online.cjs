@@ -29,6 +29,8 @@ const fixture = input => ({ version: 1, id: input.id || 'fixture', name: input.n
         await db.exec(draftMigration); await db.exec(draftMigration);
         const settingsMigration=fs.readFileSync(path.join(root,'supabase/migrations/20260908210000_duat_campaign_settings.sql'),'utf8');
         await db.exec(settingsMigration); await db.exec(settingsMigration);
+        const dynastyMigration=fs.readFileSync(path.join(root,'supabase/migrations/20260908230000_duat_dynasties.sql'),'utf8');
+        await db.exec(dynastyMigration); await db.exec(dynastyMigration);
         const users = (await query('insert into app_users select gen_random_uuid() from generate_series(1,6) returning id')).map(row => row.id);
         const create = async () => (await query('select create_duat_campaign($1,$2) as id', [users[0], fixture({})]))[0].id;
         const row = async id => (await query('select * from duat_campaigns where id=$1', [id]))[0];
@@ -205,7 +207,7 @@ const fixture = input => ({ version: 1, id: input.id || 'fixture', name: input.n
         });
         await test('cached clients without a version retain the complete original preseason API and unsupported versions fail',async()=>{
             const input={name:'Cached original client',seasons:[2021,2022,2023,2024],hostFactionId:factionIds[0],humanFactionIds:[factionIds[0]]};
-            for(const version of [0,4,'2',null])assert.equal((await call(users[0],{op:'create',input:{...input,version}})).ok,false);
+            for(const version of [0,5,'2',null])assert.equal((await call(users[0],{op:'create',input:{...input,version}})).ok,false);
             const made=await call(users[0],{op:'create',input});assert.equal(made.ok,true,made.error);
             assert.equal(made.room.campaign.version,1);assert.equal(made.room.campaign.phase,'preseason');
             assert.equal(made.room.campaign.factions.find(f=>f.id===factionIds[0]).armies.length,4);
