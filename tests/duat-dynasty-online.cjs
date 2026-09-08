@@ -126,6 +126,10 @@ function fixture(input={}){
   await check('generated runtime supports every archive year and actual v4 multiplayer play through annual succession',async()=>{
    require('node:child_process').execFileSync(process.execPath,[path.join(root,'scripts/build-duat-server.cjs')],{cwd:root,stdio:'pipe'});
    const runtime=await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync(path.join(root,'supabase/functions/duat/runtime.js'),'utf8')).toString('base64'));
+   assert(fs.statSync(path.join(root,'supabase/functions/duat/runtime.js')).size<4000000,'Keep the Duat deployment upload below four megabytes');
+   const browserAtlas=require('../js/duat/provinces.js');
+   assert.deepEqual(runtime.App.DuatProvinces.TERRITORIES,browserAtlas.TERRITORIES.map(({geometry,path,...territory})=>territory),'Server regions preserve every gameplay field while omitting drawing geometry');
+   assert.deepEqual(runtime.App.DuatProvinces.ROUTES,browserAtlas.ROUTES);assert.deepEqual(runtime.App.DuatProvinces.FACTIONS,browserAtlas.FACTIONS);
    assert.equal(runtime.availableSeasons.length,24);
    const archive=await runtime.loadData(runtime.availableSeasons);assert(archive.cards.size>1000);assert(archive.logIndex.size>90000);
    await assert.rejects(()=>runtime.loadData([2025,2025]),/unique complete/);await assert.rejects(()=>runtime.loadData([]),/unique complete/);

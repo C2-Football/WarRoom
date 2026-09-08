@@ -6,14 +6,25 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const root = path.resolve(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, 'data/duat', name), 'utf8');
+const pack = value => zlib.gzipSync(Buffer.from(JSON.stringify(value))).toString('base64');
 const modules = [
     'js/shared/time-league-roster.js', 'js/shared/time-league-draft-room.js',
     'js/shared/time-league-season.js', 'js/shared/time-league-player-cards.js',
     'js/duat/rules.js', 'js/duat/world.js', 'js/duat/provinces.js', 'js/duat/army-generation.js', 'js/duat/conquest.js',
     'js/duat/favors.js', 'js/duat/lore.js', 'js/duat/rituals.js', 'js/duat/heptad.js', 'js/duat/campaign.js', 'js/duat/dynasty.js',
 ];
-const source = modules.map(name => fs.readFileSync(path.join(root, name), 'utf8')).join('\n');
-const pack = value => zlib.gzipSync(Buffer.from(JSON.stringify(value))).toString('base64');
+const source = modules.map(name => {
+    const code = fs.readFileSync(path.join(root, name), 'utf8');
+    if (name !== 'js/duat/provinces.js') return code;
+    // The Edge reducer needs the exact region metadata and routes, not drawing
+    // paths. Packing this data keeps the deployment request below the API cap.
+    // Await initialization before conquest captures the same lookup API.
+    const start = code.indexOf('const data=') + 'const data='.length, end = code.indexOf(';const territories=', start);
+    if (start < 'const data='.length || end < start || !code.includes('(function(root)')) throw new Error('Unknown generated province module format.');
+    const data = JSON.parse(code.slice(start, end));
+    data.TERRITORIES = data.TERRITORIES.map(({ geometry, path: drawingPath, ...territory }) => territory);
+    return (code.slice(0, start) + "await unpack('" + pack(data) + "')" + code.slice(end)).replace('(function(root)', 'await (async function(root)');
+}).join('\n');
 const csv = read('nflverse-game-logs.csv');
 const [header, ...lines] = csv.trim().split(/\r?\n/);
 if (lines.some(line => line.includes('"'))) throw new Error('Duat game logs now require a quoted CSV parser.');
