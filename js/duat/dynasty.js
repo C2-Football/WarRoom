@@ -179,7 +179,9 @@
         const faction=factionOf(state,factionId), army=activeArmy(faction);
         const targets=season?[season]:state.phase==='complete'?[nextSeasonYears(state,data)[0]]:[army?.season,Math.max(...state.seasons),faction.rituals?.pendingMahdi?.season];
         const banished=new Set(faction.rituals?.banishedPlayerIds||[]),identities=new Set(faction.rituals?.banishedPlayerIdentities||[]);
-        const reserved=new Set(state.factions.flatMap(f=>[f.rituals?.pendingMahdi?.player?.id,f.rituals?.amunClaim?.id]).filter(Boolean));
+        // A pending draw belongs to its manager until accepted or declined. It
+        // must remain available to that manager for acceptance and the reroll.
+        const reserved=new Set(state.factions.flatMap(f=>[f.id===factionId?null:f.rituals?.pendingMahdi?.player?.id,f.rituals?.amunClaim?.id]).filter(Boolean));
         return [...new Set(targets.filter(Boolean))].flatMap(target=>unusedPool(state,data,target)).filter(p=>!banished.has(p.id)&&!identities.has(p.identity)&&!reserved.has(p.id));
     }
     function unresolvedClaims(state) {

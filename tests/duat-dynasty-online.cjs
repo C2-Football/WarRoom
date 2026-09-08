@@ -157,7 +157,17 @@ function fixture(input={}){
    assert(room.campaign.factions.find(f=>f.id===ids[0]).rituals.pendingMahdi);
    assert.equal((await load(id,users[1])).campaign.factions.find(f=>f.id===ids[0]).rituals,null);
    assert.equal((await action(id,users[0],{type:'set-ready',ready:true})).ok,false);
-   room=await must(users[0],{type:'ritual',ritualId:'mahdi-decline'});
+   room=await must(users[0],{type:'ritual',ritualId:'mahdi-reroll'});
+   const mahdiFaction=room.campaign.factions.find(f=>f.id===ids[0]),recruitId=mahdiFaction.rituals.pendingMahdi.player.id;
+   assert.equal(mahdiFaction.rituals.pendingMahdi.rerolls,1);assert(room.campaign.ritualCandidates.some(p=>p.id===recruitId));
+   assert(!(await load(id,users[1])).campaign.ritualCandidates.some(p=>p.id===recruitId),'A pending draw remains unavailable to another manager');
+   const replaced=mahdiFaction.armies.find(a=>a.id===mahdiFaction.activeArmyId).players.find(p=>!mahdiFaction.lineup.includes(p.id));assert(replaced);
+   const acceptance={op:'action',roomId:id,expectedRevision:(await load(id)).revision,actionId:'accept-'+serial++,action:{type:'ritual',ritualId:'mahdi-accept',replacementId:replaced.id,confirmed:true}};
+   const accepted=await api(users[0],acceptance);assert.equal(accepted.ok,true,accepted.error);room=accepted.room;
+   const recruited=room.campaign.factions.find(f=>f.id===ids[0]),acceptedArmy=runtime.App.DuatCampaign.activeArmy(recruited);
+   assert.equal(recruited.rituals.pendingMahdi,null);assert(acceptedArmy.players.some(p=>p.id===recruitId));assert(!acceptedArmy.players.some(p=>p.id===replaced.id));
+   assert.equal(recruited.favorBalance,mahdiFaction.favorBalance,'Acceptance does not charge the paid reroll again');assert(runtime.App.DuatCampaign.legalLineup(recruited,recruited.lineup));
+   const retried=await api(users[0],acceptance);assert.equal(retried.ok,true,retried.error);assert.equal(retried.deduplicated,true);assert.equal(retried.room.revision,room.revision);assert.deepEqual(retried.room.campaign,room.campaign);
    while(room.campaign.phase==='season'){
     if(room.campaign.week===5){
      const own=await load(id),starter=own.campaign.factions.find(f=>f.id===ids[0]).lineup[0];

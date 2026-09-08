@@ -128,6 +128,34 @@ test('sealed multiplayer projections disclose no rival tomb names, player picks 
     assert(!rival.activity.some(e=>e.type==='ritual'&&e.factionId==='egypt'));
 });
 
+test('simultaneous Mahdi draws reserve rival cards while the owner can accept the exact paid reroll once',()=>{
+    let state=ready({mummyCount:2,favors:true,bench:3},{humanFactionIds:['egypt','rome']});
+    const own=()=>state.factions.find(f=>f.id==='egypt'),rival=()=>state.factions.find(f=>f.id==='rome');
+    state=act(state,{type:'ritual',ritualId:'summon-mahdi',factionId:'egypt',position:'WR'});
+    state=act(state,{type:'ritual',ritualId:'summon-mahdi',factionId:'rome',position:'WR'});
+    const rivalDraw=clone(rival().rituals.pendingMahdi),balance=own().favorBalance;
+    state=act(state,{type:'ritual',ritualId:'mahdi-reroll',factionId:'egypt'});
+    const finalDraw=clone(own().rituals.pendingMahdi),before=clone(state),ledgerLength=state.treasuryLedger.length;
+    assert.equal(own().favorBalance,balance-20);assert.equal(finalDraw.rerolls,1);
+    assert.notEqual(finalDraw.player.id,rivalDraw.player.id,'Simultaneous reservations cannot draw the same season card');
+    assert(D.ritualCandidates(state,data,'egypt').some(p=>p.id===finalDraw.player.id),'The owner must retain access to the stored final draw');
+    assert(!D.ritualCandidates(state,data,'rome').some(p=>p.id===finalDraw.player.id),'Rivals must not see or recruit the reserved card');
+    assert(!D.ritualCandidates(state,data,'egypt').some(p=>p.id===rivalDraw.player.id));
+    assert.throws(()=>act(state,{type:'ritual',ritualId:'mahdi-accept',factionId:'egypt',replacementId:walk(state,'rome').players[0].id,confirmed:true}),{code:'RITUAL_REPLACE'});
+    assert.deepEqual(state,before,'An invalid release must leave both draws and treasuries untouched');
+    const release=walk(state).players.find(p=>!own().lineup.includes(p.id));assert(release);
+    const acceptance={type:'ritual',ritualId:'mahdi-accept',factionId:'egypt',replacementId:release.id,confirmed:true};
+    state=act(state,acceptance);
+    assert.equal(own().rituals.pendingMahdi,null);assert.deepEqual(rival().rituals.pendingMahdi,rivalDraw);
+    assert(walk(state).players.some(p=>p.id===finalDraw.player.id&&p.season===finalDraw.season));
+    assert(!walk(state).players.some(p=>p.id===release.id));assert(D.legalLineup(own(),own().lineup));
+    assert.equal(own().favorBalance,balance-20);assert.equal(state.treasuryLedger.length,ledgerLength,'Acceptance must not debit the reroll again');
+    assert.equal(state.factions.flatMap(f=>f.armies.flatMap(a=>a.players)).filter(p=>p.id===finalDraw.player.id).length,1);
+    assert(!D.ritualCandidates(state,data,'rome').some(p=>p.id===finalDraw.player.id),'After acceptance, global roster ownership still excludes the card');
+    assert.throws(()=>act(state,acceptance),{code:'MAHDI_PENDING'},'A second logical acceptance cannot add a second card');
+    assert(D.validateCampaign(state));
+});
+
 test('malformed imports cannot rewrite future draft authority, reuse retired rulers or forge reveal dice',()=>{
     const waiting=create(),active=ready(),next=act(ended(),{type:'next-season'});
     const cases=[
