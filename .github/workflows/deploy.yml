@@ -52,7 +52,7 @@ jobs:
         run: SHARED_SOURCE="$GITHUB_WORKSPACE/shared-src" npm run sync:shared
 
       - name: Verify beta release contracts
-        run: npm run test:core && npm run test:login-auth && npm run test:timeleague
+        run: npm run test:core && npm run test:login-auth && npm run test:timeleague && npm run test:duat
 
       # Precompile every type="text/babel" entry (index + free-agency + draft-warroom
       # + trade-calculator) to plain JS so production no longer downloads ~3.1MB of
@@ -74,9 +74,13 @@ jobs:
           # Overlay the precompiled entries + plain-JS modules on top of the raw
           # sources, replacing the JSX files and the index.html that loaded Babel.
           cp -R dist-deploy/. pages-artifact/
-          # The Vault loads its historical player cards and game logs on demand.
+          # Both games load their own historical archives on demand.
           mkdir -p pages-artifact/data
-          cp -R data/time-league pages-artifact/data/
+          cp -R data/time-league data/duat pages-artifact/data/
+          # A missing archive must fail the release, not ship an unplayable card.
+          for asset in player-cards.json nflverse-game-logs.csv manifest.json land.svg; do
+            test -s "pages-artifact/data/duat/$asset"
+          done
           # Complete helmet originals are loaded directly in artist-color mode.
           mkdir -p pages-artifact/images/time-league
           cp -R images/time-league/helmets pages-artifact/images/time-league/

@@ -755,6 +755,28 @@
             window.history.replaceState(window.history.state, '', url);
         };
 
+        // The Duat is a sibling game, independent of connected leagues.
+        const [duatMode, setDuatMode] = useState(() => new URLSearchParams(window.location.search).get('duat') === '1');
+        const [duatModuleState, setDuatModuleState] = useState(typeof window.DuatGame === 'function' ? 'ready' : 'idle');
+        const openDuat = () => {
+            setDuatMode(true);
+            setTimeLeagueMode(false);
+            const url = new URL(window.location.href);
+            url.searchParams.set('duat', '1'); url.searchParams.delete('vault');
+            window.history.replaceState(window.history.state, '', url);
+            if (duatModuleState === 'error') { window.location.reload(); return; }
+            if (duatModuleState === 'ready' && typeof window.DuatGame === 'function') return;
+            if (!window.wrLoadModuleGroup) { setDuatModuleState('error'); return; }
+            setDuatModuleState('loading');
+            window.wrLoadModuleGroup('duat').then(() => setDuatModuleState(typeof window.DuatGame === 'function' ? 'ready' : 'error')).catch(() => setDuatModuleState('error'));
+        };
+        useEffect(() => { if (duatMode && duatModuleState === 'idle') openDuat(); }, [duatMode, duatModuleState]);
+        const closeDuat = () => {
+            setDuatMode(false);
+            const url = new URL(window.location.href); url.searchParams.delete('duat'); url.searchParams.delete('duat_invite');
+            window.history.replaceState(window.history.state, '', url);
+        };
+
         // ── Time League invite links ────────────────────────────────
         // The Vault has no URL router of its own (opened via the hub button
         // above, not a route), so a ?tl_invite=<code> link is caught here once
@@ -1018,6 +1040,15 @@
             );
         }
 
+        if (duatMode && !selectedLeague) {
+            const _DuatGame = window.DuatGame;
+            if (duatModuleState !== 'ready' || !_DuatGame) return <main style={{ padding: '80px 24px', textAlign: 'center', color: 'var(--silver)' }}>
+                <h2>{duatModuleState === 'error' ? 'The Duat could not load.' : 'Opening The Duat…'}</h2>
+                <button onClick={duatModuleState === 'error' ? openDuat : closeDuat}>{duatModuleState === 'error' ? 'Try again' : 'Back to Dynasty HQ'}</button>
+            </main>;
+            return <ErrorBoundary><_DuatGame onClose={closeDuat} /></ErrorBoundary>;
+        }
+
         // ── Time League surface ───────────────────────────────────────
         if (timeLeagueMode && !TIME_LEAGUE_ENABLED) {
             setTimeLeagueMode(false);
@@ -1246,6 +1277,9 @@
                             <button type="button" className="hub-experience-card time-league-hero" onClick={openTimeLeague}>
                                 <span className="hub-vault-art" aria-hidden="true"><span className="hub-era-card">1970<span>CLASSIC</span></span><span className="hub-era-card">?<span>YOUR SEASON</span></span><span className="hub-era-card">2025<span>MODERN</span></span></span>
                                 <span className="hub-vault-copy"><span className="hub-product-tag">FANTASY THROUGH TIME · BETA</span><strong>The Vault</strong><span className="hub-card-description">Draft legends. Discover their seasons. Rewrite football history.</span><span className="hub-card-action">Enter The Vault <span aria-hidden="true">↗</span></span></span>
+                            </button>
+                            <button type="button" className="hub-experience-card hub-duat-card" onClick={openDuat}>
+                                <span className="hub-duat-symbol" aria-hidden="true">𓂀</span><span className="hub-duat-copy"><span className="hub-product-tag">FACTIONS & CONQUEST · HISTORICAL BETA</span><strong>The Duat</strong><span>Resurrect a ruler. Command a historical army. Claim the realm.</span><span className="hub-card-action">Enter The Duat ↗</span></span>
                             </button>
                         </section>}
                     </div>

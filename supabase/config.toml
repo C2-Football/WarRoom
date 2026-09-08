@@ -76,3 +76,8 @@ verify_jwt = false
 
 [functions.set-password]
 verify_jwt = false
+
+# Duat validates the signed-in DHQ account inside the function before reading
+# private campaigns or accepting any multiplayer intent.
+[functions.duat]
+verify_jwt = false

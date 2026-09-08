@@ -1,116 +1,71 @@
-# Bringing the Duat into Dynasty HQ
+# The Duat historical beta in Dynasty HQ
 
 September 8, 2026
 
-The Duat should become a second game alongside the Vault, with solo campaigns
-against AI and private campaigns with friends. Keep the Duat's factions, rulers,
-favors, alliances and conquest. Use the Vault's work to make those systems easier
-to enter, play, save and share.
+The Duat is implemented as a second Dynasty HQ game beside the Vault. Historical
+scoring follows the user's choice: each resurrected ruler plays the actual NFL
+weeks from that army's own season. The game has solo campaigns against thirteen
+AI factions and private campaigns with friends.
 
-The relationship is closer than it first appeared: the Vault's historical
-football engine was originally ported from the Duat's Time League code. The Vault
-has since gained a much stronger game flow and online infrastructure. Bringing
-those improvements back into the Duat is a sound direction.
+## Playable loop
 
-## The proposed experience
+Choose a faction and four consecutive ruler years from 2002–2025. Inspect the
+four eight-player armies; a d20 selects the ruler for the campaign. Set one QB
+and four flex starters, declare an eligible favor, and play the week. Results
+resolve all-play standings, alliance best ball and territorial conquest. Weeks
+15–17 settle the seven-seed Heavenly Battle and the Camel, crowning the Lord of
+the Duat. Completed weeks can replay at one-, three- or five-minute pace.
 
-**Dynasty HQ → Games → The Duat → Play Solo / Play with Friends**
+The original fourteen factions, 47 territories, 79 routes, four-army allocation,
+d20 bands, sacred weeks, Heptad and Heavenly Battle are preserved. The map uses
+real Natural Earth geography. Seven scoring favors are executable: Kratos I–III,
+Horus I–II and Janus II–III. The other twelve descriptions remain in the catalog
+and are not offered as working effects. Each faction starts with $100 in favors.
 
-Choose a faction, uncover its four buried rulers, reveal the active army, and
-enter a campaign. Your home screen should show the current ruler, starting five,
-next decision, favor balance and frontier. Set your lineup, make any eligible
-favor declaration, and play the week. Football results advance the all-play
-standings, Heptad alliances and conquest together. The Heavenly Battle crowns
-the Lord of the Duat.
+## Reuse and separation
 
-Solo uses one human faction and thirteen AI factions. Friends control their own
-factions, with AI filling the remaining seats. The first online version should
-let everyone take their turn at their own pace; the host resolves play when all
-human factions are ready.
+The game reuses Dynasty HQ accounts and Games entry, the Vault's historical
+player/statistic primitives and gamecast, and its tested online patterns. Duat
+campaign rules, saves, database tables and endpoint are separate. No historical
+league records or invented rival scores enter a new campaign.
 
-## What belongs to each game
+The Duat has its own verified archive because the Vault's bundled file stops at
+Week 14. It contains 127,055 weekly records across 24 complete seasons, with
+3,271 distinct player identities. Every season covers NFL regular-season weeks
+1–17. Week 18 and NFL postseason games are excluded. Same-name players are
+separated, and missing player records score zero without claiming a bye/injury.
+Source hashes and attribution are recorded in the manifest. All rows were
+reconciled against the source releases. AI estimates and lineup decisions use
+only earlier seasons and completed campaign weeks.
 
-| Reuse from Dynasty HQ / the Vault | Keep specific to the Duat |
-| --- | --- |
-| Existing account and game entry | Factions and ruler armies |
-| Play Solo / Play with Friends flow | Four-ruler d20 resurrection |
-| Save recovery and reconnect patterns | All-play standings and conquest |
-| Private invitations and seat ownership | Heptad alliance tournament |
-| Ready checks and protected turns | Heavenly Battle and the Camel |
-| Historical scoring and replay primitives, where compatible | Favor costs, timing and effects |
-| Shared server validation approach | Campaign history and future seasons |
+Solo saves persist after every move, recover from a damaged shelf, and support
+backup export/import. Friends use private invitation links and individual email
+accounts. The host advances only after all humans join and mark ready. The server
+validates actions, hides pending opponent choices, rejects stale changes, and
+atomically saves results. Human territory choices settle before AI claims.
 
-The Duat should have its own saved campaign and online room records. Putting its
-state into a Vault league would force mythology, turn phases and conquest into a
-football-specific save format. Small shared account and transport helpers can be
-reused without rewriting the whole Vault first.
+## Validation and release
 
-## What the audit found
+The Duat rules, campaign, archive, favors, saves, account restoration, module-load
+recovery, transaction and endpoint tests pass. Actual browser play completed all
+17 weeks, changed starters, spent a favor, replayed results, resumed after reload,
+and displayed the final tournaments on a 390-pixel screen without page overflow.
+Independent replay verification matched all 238 faction totals across 17 weeks.
+The existing core and Vault suites passed before the final release integration.
 
-The original Duat already contains tested ruler allocation, d20 reveal logic,
-Heptad, Heavenly Battle, faction identities and geographic routes. Its separate
-Time League mode also has drafts, AI, roster moves and gamecast.
+The new migration and Duat function have deployment wiring with explicit archive
+packaging checks. Release evidence, including the final frontend revision and
+live two-account campaign verification, is recorded separately after publishing.
 
-Those pieces do not yet form one playable Original Duat campaign. The existing
-season screen accepts a manually entered score and finishing place, and its
-sandbox constructs rival totals around that input. Favor declarations are
-pending requests rather than executable game effects. Original Duat progress
-is stored in the browser, with no shared multiplayer database.
+A pre-existing security-contract check reports missing declarative JWT pins for
+league-cup and time-league; their deployment commands already disable gateway JWT
+verification. Duat has the correct pin. This beta does not change those unrelated
+functions or claim that the old configuration check passes.
 
-The Vault's online code supplies useful precedents for authenticated seats,
-invitations, private information, readiness and conflicting updates. Its current
-beta reports still call for fresh multi-account acceptance checks and stronger
-operational validation. Duat multiplayer needs its own proof through actual play.
+## First beta limits
 
-## Work completed in this pass
-
-An isolated Dynasty HQ development branch now contains:
-
-- Standalone ruler generation and reveal logic, including archived/provider armies.
-- The original Heptad and Heavenly Battle engines and canonical faction/world catalogs.
-- A pure conquest engine that resolves a complete week's losses before awarding claims.
-- A transport-independent room contract for solo or friends: seats, ownership,
-  readiness, private plans, conflicting updates and safe retries.
-- A Duat test suite registered with Dynasty HQ's normal test runner.
-
-The world catalog contains fourteen faction identities, 47 territories and 79
-routes. Historic league records are excluded from new campaigns. The nineteen
-favor descriptions are preserved as a catalog; their effects are not yet implemented.
-
-Validation passed: **69 rule and room scenarios**, plus **3,040 comparisons** of
-ported tournament results against the original engines. Source lint passed.
-Review caught and fixed both an inactive-faction homeland issue and a weekly
-conquest processing-order issue.
-
-This is local foundation code. A playable Duat screen, score adapter, executable
-favors, multiplayer endpoint, persistence and deployment remain to be built.
-
-## The next build sequence
-
-1. **One complete solo campaign.** Connect ruler armies to real player scoring,
-   legal lineup decisions, AI factions, enabled favors, all-play, Heptad,
-   conquest and Heavenly Battle. Save and resume the same campaign reliably.
-2. **The game inside Dynasty HQ.** Add the Duat to Games, build its faction-first
-   start screen and campaign home, and reuse suitable Vault roster/replay controls.
-   Preserve real geography and clear territory borders.
-3. **The same campaign with friends.** Add authenticated rooms, invitation claims,
-   server-validated actions, private state and atomic updates. The server runs
-   the same Duat rules as solo.
-4. **Playable beta verification.** Complete a solo campaign and a real campaign
-   across separate accounts, including reloads, reconnects, concurrent moves,
-   favor use, territory claims and the championship. Check phone and desktop.
-
-## The decision needed before connecting scoring
-
-**When a ruler resurrects an old roster, which season supplies its points?**
-
-- **The roster's historical season:** an on-demand game that can be played any
-  time; this is the closest fit to the Vault's simulation foundation.
-- **The current NFL season:** a live, season-long game using old roster ownership
-  with current results.
-- **A creator-selected mode:** supports both, with separate scoring adapters and
-  explicit rules for each campaign.
-
-My proposed starting point is the historical option with the existing
-football-driven Duat rules. The historical/live decision remains open; it has
-not been silently built into the new rules or room contract.
+Historical campaigns only; seven supported scoring favors; one 17-week campaign
+per save; original eight-player armies without the Vault's draft/waiver/trade
+systems. Private friends campaigns use ready checks and host advancement. Local
+solo games need an exported backup to move devices. Historical results are public
+source data, so knowing past NFL results is part of the historical format.

@@ -9,6 +9,13 @@ on:
       - "js/shared/time-league-*.js"
       - "data/time-league/**"
       - "scripts/build-time-league-server.cjs"
+      - "js/duat/**"
+      - "data/duat/**"
+      - "scripts/build-duat-server.cjs"
+      - "scripts/build-duat-data.py"
+      - "tests/duat-*"
+      - "supabase/config.toml"
+      - ".github/workflows/deploy-functions.yml"
   workflow_dispatch:
 
 concurrency:
@@ -53,8 +60,14 @@ jobs:
       - name: Verify Vault contracts before backend deployment
         run: npm run test:timeleague
 
+      - name: Verify Duat contracts before backend deployment
+        run: npm run test:duat
+
       - name: Build Vault server runtime
         run: node scripts/build-time-league-server.cjs
+
+      - name: Build Duat server runtime
+        run: node scripts/build-duat-server.cjs
 
       - name: Type check Edge Functions
         run: |
@@ -84,6 +97,7 @@ jobs:
               '20260908030000': 'supabase/migrations/20260908030000_time_league_messages.sql',
               '20260908040000': 'supabase/migrations/20260908040000_time_league_message_week.sql',
               '20260908050000': 'supabase/migrations/20260908050000_time_league_sealed_state.sql',
+              '20260908160000': 'supabase/migrations/20260908160000_duat_campaigns.sql',
               '20260907000000': 'supabase/migrations/20260907000000_league_cups.sql',
               '20260610000000': 'supabase/migrations/20260610000000_ai_response_cache.sql',
               '20260610010000': 'supabase/migrations/20260610010000_ai_feedback.sql',
@@ -153,6 +167,7 @@ jobs:
               '20260908030000': 'supabase/migrations/20260908030000_time_league_messages.sql',
               '20260908040000': 'supabase/migrations/20260908040000_time_league_message_week.sql',
               '20260908050000': 'supabase/migrations/20260908050000_time_league_sealed_state.sql',
+              '20260908160000': 'supabase/migrations/20260908160000_duat_campaigns.sql',
               '20260317000000': 'supabase/migrations/20260317000000_app_users_and_subscriptions.sql',
               '20260503000000': 'supabase/migrations/20260503000000_ai_usage_controls.sql',
               '20260503010000': 'supabase/migrations/20260503010000_tutorial_state.sql',
@@ -270,3 +285,6 @@ jobs:
 
       - name: Deploy Vault multiplayer
         run: supabase functions deploy time-league --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
+
+      - name: Deploy Duat multiplayer
+        run: supabase functions deploy duat --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
