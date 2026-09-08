@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 global.window = globalThis; window.App = {};
 for (const name of ['roster', 'rules', 'draft-room', 'era-rules', 'season', 'helmet', 'engine', 'player-stats']) require('../js/shared/time-league-' + name + '.js');
 const { TimeLeaguePlayerStats: P, TimeLeagueEngine: E, TimeLeagueSeason: S } = App;
-let league = E.createTimeLeague({ name: 'Stats test', seed: 'stats', seats: [{ name: 'Home', manager: 'human' }, { name: 'Away', manager: 'ai' }], settings: { regularSeasonWeeks: 12, scoring: { passingYd: .04, passTd: 4, rushRecYd: .1, rushRecTd: 6, reception: .5, turnover: -2 }, rosterSlots: { QB: 1, RB: 1, BN: 1 }, eraRules: { mode: 'any-era', decades: [] } } });
+let league = E.createTimeLeague({ name: 'Stats test', seed: 'stats', seats: [{ name: 'Home', manager: 'human' }, { name: 'Away', manager: 'ai' }], settings: { gameDeckVersion: 0, regularSeasonWeeks: 12, scoring: { passingYd: .04, passTd: 4, rushRecYd: .1, rushRecTd: 6, reception: .5, turnover: -2 }, rosterSlots: { QB: 1, RB: 1, BN: 1 }, eraRules: { mode: 'any-era', decades: [] } } });
 const entry = (identity, name, position = 'QB') => ({ entryId: identity, identity, name, position, drawnSeason: 2000, acquiredWeek: 2, slot: 'BN' });
 const a = entry('a', 'Alpha'), b = entry('b', 'Beta'), free = entry('free', 'Free runner', 'RB');
 const cards = new Map([a, b, free].map(row => [row.identity, { ...row, peak: 100, seasons: [{ season: 2000, games: 16, points: 100 }] }]));
@@ -45,6 +45,7 @@ const all = node => !node || typeof node !== 'object' ? [] : Array.isArray(node)
 const text = node => node == null ? '' : typeof node !== 'object' ? String(node) : Array.isArray(node) ? node.map(text).join(' ') : text(node.children);
 const render = () => { cursor = 0; return WrTimeLeagueStatsPanel({ league, cards, logIndex: logs, throughWeek: 2 }); };
 let tree = render();
+assert(text(tree).includes('Vault GP') && text(tree).includes('completed Vault weeks'), 'Stats game counts are scoped to the played Vault period');
 const alphaRow = all(tree).find(node => node.type === 'tr' && text(node).includes('Alpha'));
 assert(text(alphaRow).includes('Pass yd 100'), 'All-position leaders show quarterbacks passing production');
 assert(!text(alphaRow).includes('Rec yd'), 'Quarterback detail uses the player position, not the active filter');

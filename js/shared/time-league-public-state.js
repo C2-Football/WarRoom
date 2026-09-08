@@ -14,7 +14,7 @@
     const PICK = fields('overall round teamId entryId identity name position madeBy auctionPrice');
     const TEAM = fields('teamId name manager aiPersona primaryColor secondaryColor backdrop faabRemaining draftBudgetRemaining');
     const HELMET = fields('assetId artworkMode shell color shellColor accentColor decal monogram facemask facemaskColor stripe stripeStyle stripeColor paintStyle visor');
-    const SETTINGS = fields('regularSeasonWeeks playoffTeams advancementMode gateHours maxQuarterbacks eraAdjusted waiversEnabled tradesEnabled waiverMode faabBudget aiDifficulty draftFormat draftPickSeconds draftAiSeconds draftAuctionBudget draftOrderMode');
+    const SETTINGS = fields('regularSeasonWeeks playoffTeams advancementMode gateHours maxQuarterbacks eraAdjusted waiversEnabled tradesEnabled waiverMode faabBudget aiDifficulty draftFormat draftPickSeconds draftAiSeconds draftAuctionBudget draftOrderMode gameDeckVersion');
     const STATS = fields('passYd passTd passInt rushYd rushTd rec recYd recTd fumblesLost twoPointConversions');
 
     function draftVisibility(state, seatTeamId) {
@@ -86,12 +86,62 @@
     function publicWeeks(state) {
         return list(state.finalizedWeeks).map(week => ({ week: week.week,
             results: list(week.results).map(result => ({ teamId: result.teamId, total: result.total,
-                starters: list(result.starters).map(entry => ({ ...pick(entry, fields('entryId identity name position drawnSeason slot points factor')),
+                starters: list(result.starters).map(entry => ({ ...pick(entry, fields('entryId identity name position drawnSeason slot points factor availability sourceWeek source sourceGameId coverage')),
                     stats: entry.stats ? { ...pick(entry.stats, STATS), ...(entry.stats.extra ? { extra: numbers(entry.stats.extra) } : {}) } : null })) })),
-            matchups: list(week.matchups).map(match => pick(match, fields('home away homePoints awayPoints winner'))), headlines: strings(week.headlines) }));
+            matchups: list(week.matchups).map(match => pick(match, fields('home away homePoints awayPoints winner'))), headlines: strings(week.headlines),
+            ...(week.playerProduction ? { playerProduction: list(week.playerProduction).map(entry => ({ ...pick(entry, fields('entryId identity name position drawnSeason slot points factor availability')), stats: entry.stats ? { ...pick(entry.stats, STATS), ...(entry.stats.extra ? { extra: numbers(entry.stats.extra) } : {}) } : null })) } : {}) }));
     }
 
-    function projectPublicState(state, seatTeamId, privateMessages = [], cards = new Map(), stamp = new Date().toISOString()) {
+    function sanitizePlayerReports(reports, currentWeek) {
+        const result = {};
+        for (const [key, report] of Object.entries(reports || {}).slice(0, 5000)) {
+            if (!report || typeof report !== 'object') continue;
+            result[key] = {
+                ...pick(report, fields('week remaining average estimatedRemaining signal currentAvailable currentStars maxRemainingStars')),
+                completed: list(report.completed).filter(row => Number.isInteger(row.week) && row.week < currentWeek).map(row => ({
+                    ...pick(row, fields('week points stars')), sourceWeek: Number.isInteger(row.sourceWeek) && row.sourceWeek >= 1 && row.sourceWeek <= 25 ? row.sourceWeek : null,
+                })),
+                ...(report.waiver ? { waiver: pick(report.waiver, fields('drawnSeason startWeek endWeek totalPoints remainingPoints remainingWeeks estimated')) } : {}),
+            };
+        }
+        return result;
+    }
+
+    function playerReports(state, cards, logIndex, factors) {
+        if (!logIndex?.size) return {};
+        const S = App.TimeLeagueSeason, E = App.TimeLeagueEngine;
+        const end = E.seasonEndWeek(state);
+        const entries = new Map(state.teams.flatMap(team => team.roster).map(entry => [S.editionKey(entry), entry]));
+        const free = new Map();
+        for (const card of E.freeAgents(state, cards)) {
+            const drawnSeason = E.waiverSeason(state, card);
+            if (drawnSeason == null) continue;
+            const entry = { identity: card.identity, position: card.position, drawnSeason };
+            entries.set(S.editionKey(entry), entry); free.set(S.editionKey(entry), card);
+        }
+        const selectedFactors = state.settings.eraAdjusted ? factors : null;
+        return Object.fromEntries([...entries].map(([key, entry]) => {
+            const outlook = S.rosterOutlook(entry, state.currentWeek, end, logIndex, state.settings.scoring, selectedFactors, state);
+            const stars = S.weeklyStarOutlook(entry, state.currentWeek, end, logIndex, state.settings.scoring, selectedFactors, state);
+            return [key, {
+                week: state.currentWeek, remaining: outlook.remaining, average: outlook.average, estimatedRemaining: outlook.estimatedRemaining,
+                signal: outlook.signal, currentAvailable: outlook.schedule.find(row => row.week === state.currentWeek)?.available ?? null,
+                currentStars: stars.stars, maxRemainingStars: stars.maxRemainingStars,
+                completed: state.finalizedWeeks.map(row => {
+                    const saved = S.completedProduction(state, entry, row.week);
+                    const log = S.resolveGameLog(state, entry, row.week, logIndex, end);
+                    // A completed source reference is sufficient: clients have
+                    // the public NFL archive. Never duplicate every stat line
+                    // across thousands of free agents in each network reply.
+                    return { week: row.week, sourceWeek: log?.week ?? null, points: saved ? saved.points : S.gamePoints(state, entry, log, state.settings.scoring, selectedFactors),
+                        stars: stars.schedule.find(item => item.week === row.week)?.stars ?? null };
+                }),
+                ...(free.has(key) ? { waiver: E.waiverPreview(state, free.get(key), logIndex, factors) } : {}),
+            }];
+        }));
+    }
+
+    function projectPublicState(state, seatTeamId, privateMessages = [], cards = new Map(), stamp = new Date().toISOString(), data = {}) {
         if (!state.teams.some(team => team.teamId === seatTeamId && team.manager === 'human')) throw new Error('You do not have a manager seat in this league.');
         const sealed = state.phase === 'draft' || state.seasonsRevealed !== true;
         const visibility = draftVisibility(state, seatTeamId);
@@ -123,6 +173,7 @@
             rivalRelationships: list(state.rivalRelationships).filter(item => item.otherTeamId === seatTeamId)
                 .map(item => pick(item, fields('ownerTeamId otherTeamId heat updatedWeek'))),
         };
+        if (!sealed && state.settings.gameDeckVersion === 1) result.playerReports = sanitizePlayerReports(playerReports(state, cards, data.logIndex, data.eraFactors), state.currentWeek);
         if (!sealed) result.waiverEditions = { week: state.currentWeek, seasons: Object.fromEntries(App.TimeLeagueEngine.freeAgents(state, cards)
             .map(card => [card.identity, App.TimeLeagueEngine.waiverSeason(state, card, state.currentWeek)])
             .filter(([, season]) => Number.isInteger(season))) };
@@ -132,7 +183,7 @@
         return result;
     }
 
-    const api = { projectPublicState, draftVisibility, revealPositions, allErasRevealed };
+    const api = { projectPublicState, draftVisibility, revealPositions, allErasRevealed, sanitizePlayerReports };
     App.TimeLeaguePublicState = api;
     /* global module */
     if (typeof module !== 'undefined' && module.exports) module.exports = api;

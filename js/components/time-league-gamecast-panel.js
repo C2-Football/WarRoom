@@ -35,11 +35,13 @@
                 const value = moments.get(event.entryId) || { cents: 0, stats: {} };
                 value.cents += Math.round(event.points * 100);
                 Gamecast.addStats(value.stats, event.stats || {});
+                if (event.kind === 'availability') value.availability = event;
                 moments.set(event.entryId, value);
             }
             return { team, starters: starters.map(entry => ({ ...entry,
                 points: final ? entry.points || 0 : (moments.get(entry.entryId)?.cents || 0) / 100,
                 stats: final ? entry.stats : moments.get(entry.entryId)?.stats,
+                availabilityUpdate: moments.get(entry.entryId)?.availability,
                 scoring: !final && currentPlay?.teamId === teamId && currentPlay.entryId === entry.entryId,
             })) };
         });
@@ -52,7 +54,9 @@
         const player = (entry, side) => h('div', { className: `tl-live-player is-${side}${entry?.scoring ? ' is-scoring' : ''}`, 'data-entry-id': entry?.entryId },
             h('div', { className: 'tl-live-player-name' },
                 h('strong', null, entry?.name || 'Empty slot'),
-                entry && h('small', null, `${entry.drawnSeason} · ${entry.position}`)),
+                entry && h('small', null, `${entry.drawnSeason} · ${entry.position}`),
+                entry?.availabilityUpdate && h('small', { className: 'tl-live-availability', role: 'status' },
+                    entry.availabilityUpdate.status === 'out' ? 'OUT · VAULT SIMULATION' : 'NO RECORDED APPEARANCE')),
             h('strong', { className: 'tl-live-player-points tabular' }, entry ? entry.points.toFixed(2) : '—'),
             entry && h('span', { className: 'tl-live-player-stats' }, Gamecast.describeStats(entry.stats || {}, 2) || (final ? entry.stats ? 'No scoring stats' : 'No game recorded' : weekData ? 'No scoring yet' : 'Awaiting kickoff')));
         return h('section', { className: 'tl-live-lineups', 'aria-label': 'Head-to-head starting lineups' },
@@ -180,7 +184,7 @@
             const weekData = league.finalizedWeeks.find(week => week.week === autoPlayWeek);
             if (!weekData) return;
             autoPlayed.current = autoPlayWeek;
-            setPlayback({ timeline: Gamecast.buildGamecast({ week: weekData.week, results: weekData.results, matchups: weekData.matchups, seed: league.seed || league.leagueId, scoring: league.settings.scoring }), weekData, finalized: league, live: true });
+            setPlayback({ timeline: Gamecast.buildGamecast({ week: weekData.week, results: weekData.results, matchups: weekData.matchups, seed: league.seed || league.leagueId, scoring: league.settings.scoring, simulatedAvailability: league.settings.gameDeckVersion === 1 }), weekData, finalized: league, live: true });
             setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(300); setPlaying(active);
         }, [autoPlayWeek, league.finalizedWeeks, league.seed, league.leagueId, league.settings.scoring]);
 
@@ -224,28 +228,31 @@
 
         const runGameDay = async (force) => {
             if (!canRun || !cards || !logIndex) return;
-            const prepared = AI.aiPrepareWeek(league, cards, logIndex);
+            const prepared = onlineMeta ? league : AI.aiPrepareWeek(league, cards, logIndex);
             if (!force) {
                 const problems = prepared.teams.filter((t) => t.manager === 'human' && (league.currentWeek <= league.settings.regularSeasonWeeks || Engine.playoffPairs(league, league.currentWeek).some(pair => pair.includes(t.teamId)))).flatMap((t) => Engine.lineupProblems(prepared, t.teamId).map((p) => `${t.name} — ${p}`));
                 if (problems.length) { setWarnings(problems); return; }
             }
             setWarnings(null);
-            const stamp = new Date().toISOString();
-            const finalized = Engine.finalizeCurrentWeek(prepared, logIndex, eraFactors, stamp);
-            const weekData = finalized.finalizedWeeks.find((item) => item.week === league.currentWeek);
-            if (!weekData) return;
-            const settled = { ...finalized, weekStage: 'postgame' };
+            // An online client has current-week hints, not the private draw.
+            // Let the server score it; only saved results may start playback.
+            let settled = league;
+            if (!onlineMeta) {
+                const finalized = Engine.finalizeCurrentWeek(prepared, logIndex, eraFactors, new Date().toISOString());
+                if (!finalized.finalizedWeeks.some(item => item.week === league.currentWeek)) return;
+                settled = { ...finalized, weekStage: 'postgame' };
+            }
             const saved = await onUpdate(settled, { type: 'week', force });
             if (saved === false) return;
             const canonical = saved && typeof saved === 'object' ? saved : settled;
-            const savedWeek = canonical.finalizedWeeks.find(item => item.week === weekData.week);
+            const savedWeek = canonical.finalizedWeeks.find(item => item.week === league.currentWeek);
             if (!savedWeek) return;
-            setPlayback({ timeline: Gamecast.buildGamecast({ week: savedWeek.week, results: savedWeek.results, matchups: savedWeek.matchups, seed: canonical.seed || canonical.leagueId, scoring: canonical.settings.scoring }), weekData: savedWeek, finalized: canonical, live: true });
+            setPlayback({ timeline: Gamecast.buildGamecast({ week: savedWeek.week, results: savedWeek.results, matchups: savedWeek.matchups, seed: canonical.seed || canonical.leagueId, scoring: canonical.settings.scoring, simulatedAvailability: canonical.settings.gameDeckVersion === 1 }), weekData: savedWeek, finalized: canonical, live: true });
             setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(300); setPlaying(true);
         };
 
         const replayWeek = (week) => {
-            setPlayback({ timeline: Gamecast.buildGamecast({ week: week.week, results: week.results, matchups: week.matchups, seed: league.seed || league.leagueId, scoring: league.settings.scoring }), weekData: week, finalized: league, live: false });
+            setPlayback({ timeline: Gamecast.buildGamecast({ week: week.week, results: week.results, matchups: week.matchups, seed: league.seed || league.leagueId, scoring: league.settings.scoring, simulatedAvailability: league.settings.gameDeckVersion === 1 }), weekData: week, finalized: league, live: false });
             setBoxWeek(null); clockRef.current = 0; setClock(0); setSpeed(300); setPlaying(true);
         };
 
@@ -300,7 +307,7 @@
         const spotlight = h('div', { className: 'tl-current-play tl-live-spotlight' },
             h('span', { className: 'tl-label' }, currentPlay ? `${teamName(currentPlay.teamId)} · ${Gamecast.clockLabel(currentPlay.t)}` : savedFinal ? `FINAL · WEEK ${weekLabel}` : 'READY FOR KICKOFF'),
             h('h3', null, currentPlay?.description || (savedFinal ? 'The final is in. View the lineup results below or replay the game from the Week Archive.' : 'The scores and win estimate update as scoring moments arrive.')),
-            currentPlay && h('strong', null, `${currentPlay.points >= 0 ? '+' : ''}${currentPlay.points.toFixed(2)} fantasy points`));
+            currentPlay && h('strong', null, currentPlay.kind === 'availability' ? 'AVAILABILITY UPDATE' : `${currentPlay.points >= 0 ? '+' : ''}${currentPlay.points.toFixed(2)} fantasy points`));
         const records = Engine.computeStandings({ ...league, finalizedWeeks: league.finalizedWeeks.filter(week => week.week < weekLabel) });
         const hero = myRow ? h(HeroMatchup, { row: myRow, teams: league.teams, week: weekLabel, records, spotlight,
             quarterScore: playback ? h(QuarterScore, { row: myRow, teams: league.teams, timeline: playback.timeline, landed, clock }) : null,
@@ -313,7 +320,7 @@
                 strip, hero, done && mailNotice, lineups,
                 h('p',{className:'tl-hint'},'Historical totals, reconstructed across four quarters. Quarter timing is simulated. Playback controls do not change the saved result.'),
                 h('div', { className: 'tl-card' },
-                    h('div', { className: 'tl-card-title' }, h('span', null, `Week ${playback.weekData.week} — ${done ? 'Final' : playing ? 'Playing' : 'Paused'}`), h('small', null, `${landed.length}/${playback.timeline.events.length} scoring moments`)),
+                    h('div', { className: 'tl-card-title' }, h('span', null, `Week ${playback.weekData.week} — ${done ? 'Final' : playing ? 'Playing' : 'Paused'}`), h('small', null, `${landed.length}/${playback.timeline.events.length} game moments`)),
                     h('div', { className: 'tl-cast-controls' },
                         h('span', { style: { color: playing ? 'var(--gold)' : 'var(--text-muted)' } }, '📡'),
                         h('span', { className: 'tabular tl-cast-clock' }, Gamecast.clockLabel(clock)),
@@ -335,7 +342,7 @@
                         visibleEvents.length === 0
                             ? h('div', { className: 'tl-feedrow' }, h('time', null, 'Q1 · 15:00'), h('p', null, 'Crews are in the booth — kickoff momentarily.'))
                             : visibleEvents.slice().reverse().map((event, i) => h('div', { key: i, className: `tl-feedrow${event.isTouchdown ? ' urgent' : ''}` },
-                                h('time', null, `${Gamecast.clockLabel(event.t)} · ${event.points >= 0 ? '+' : ''}${event.points.toFixed(2)}`),
+                                h('time', null, `${Gamecast.clockLabel(event.t)} · ${event.kind === 'availability' ? 'STATUS' : `${event.points >= 0 ? '+' : ''}${event.points.toFixed(2)}`}`),
                                 h('p', null, `${event.description} — ${teamName(event.teamId)}`)))),
                     done && h('div', { style: { marginTop: 14, textAlign: 'center' } },
                         league.phase === 'complete' && onGoCeremony && h('button', { className: 'tl-btn primary', onClick: onGoCeremony }, 'CHAMPIONSHIP CEREMONY'),

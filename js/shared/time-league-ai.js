@@ -97,6 +97,7 @@
         sum + entryValue(cards, entry) * (1 + ((persona.positionBias[entry.position] || 1) - 1) * 0.5), 0);
 
     function aiDraftChoice(state, cards) {
+        cards = App.TimeLeagueEngine.cardsFor(state, cards);
         const seat = state.phase === "draft" ? currentDraftSeat(state) : null;
         const team = seat ? state.teams.find((item) => item.teamId === seat.teamId) : undefined;
         if (!seat || !team) return null;
@@ -127,6 +128,7 @@
 
     /** Auction rivals price only the visible, era-eligible board, never the mystery draw. */
     function aiAuctionStep(state, cards, stamp) {
+        cards = App.TimeLeagueEngine.cardsFor(state, cards);
         const E = App.TimeLeagueEngine;
         if (state.phase !== 'draft' || state.settings.draftFormat !== 'auction' || state.draftClock?.status !== 'running') return state;
         const n = state.draftAuction?.nomination;
@@ -163,6 +165,7 @@
     }
 
     function aiPrepareWeek(state, cards, logIndex) {
+        cards = App.TimeLeagueEngine.cardsFor(state, cards);
         return state.teams.reduce((next, team) => {
             if (team.manager !== "ai") return next;
             let prepared = autoFillLineup(next, team.teamId, cards);
@@ -170,7 +173,9 @@
             // Availability is already visible to managers. A rival should not
             // leave a guaranteed no-game zero in while a legal substitute plays.
             // Inspect keys only: knowing the future score would give AI an edge.
-            const available = entry => logIndex.has(App.TimeLeagueSeason.gameLogKey(entry.identity, entry.drawnSeason, state.currentWeek));
+            const available = entry => state.publicSnapshotVersion === 1 && state.settings.gameDeckVersion === 1
+                ? state.playerReports?.[App.TimeLeagueSeason.editionKey(entry)]?.currentAvailable === true
+                : Boolean(App.TimeLeagueSeason.resolveGameLog(state, entry, state.currentWeek, logIndex, App.TimeLeagueEngine.seasonEndWeek(state)));
             const starters = prepared.teams.find(item => item.teamId === team.teamId).roster
                 .filter(entry => STARTER_SLOTS.includes(entry.slot) && !available(entry));
             for (const starter of starters) {
@@ -184,6 +189,7 @@
     }
 
     function aiSubmitWaiverClaims(state, cards, createdAt) {
+        cards = App.TimeLeagueEngine.cardsFor(state, cards);
         if (state.phase !== "season" || !state.settings.waiversEnabled) return state;
         const capacity = rosterCapacity(state.settings);
         const faab = state.settings.waiverMode === "faab";
@@ -241,6 +247,7 @@
     }
 
     function resolveAiTrade(state, trade, cards, createdAt) {
+        cards = App.TimeLeagueEngine.cardsFor(state, cards);
         const from = state.teams.find((team) => team.teamId === trade.fromTeamId);
         const to = state.teams.find((team) => team.teamId === trade.toTeamId);
         if (!from || !to || trade.status !== "pending") return state;
@@ -257,6 +264,7 @@
     }
 
     function aiRespondToTrades(state, cards, createdAt) {
+        cards = App.TimeLeagueEngine.cardsFor(state, cards);
         return state.trades.reduce((next, trade) => {
             if (trade.status !== "pending" || trade.deferredUntilWeek > state.currentWeek) return next;
             const to = next.teams.find((team) => team.teamId === trade.toTeamId);
@@ -310,6 +318,7 @@
         ));
 
     function aiGenerateTrades(state, cards, createdAt) {
+        cards = App.TimeLeagueEngine.cardsFor(state, cards);
         if (state.phase !== "season" || !state.settings.tradesEnabled) return state;
         const random = createSeededRandom(`${state.seed}:aitrade:${state.currentWeek}`);
         const difficulty = difficultyFor(state);

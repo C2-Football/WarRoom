@@ -4,6 +4,7 @@
 const encoder = new TextEncoder();
 type Cards = Map<string, any>;
 const cache = new Map<string, Record<string, number>>();
+const gameDeckCache = new Map<string, Array<number | null>>();
 
 function app(): any { return (globalThis as any).App; }
 
@@ -38,6 +39,49 @@ async function editionMap(state: any, cards: Cards, secret: string, kind: 'draft
     return { ...seasons };
 }
 
+// A cryptographic stream protects each game order even after several source
+// games have been revealed. Compressing a secret into the solo32-bit PRNG
+// would make the remaining order susceptible to exhaustive state searches.
+async function gameDecks(state: any, cards: Cards, secret: string, privateDraws: any): Promise<Record<string, Array<number | null>>> {
+    if (state.phase === 'draft') return {};
+    const selections = new Map<string, any>();
+    for (const team of state.teams) for (const entry of team.roster) selections.set(`${entry.identity}:${entry.drawnSeason}`, entry);
+    for (const [identity, drawnSeason] of Object.entries(privateDraws.waiver?.seasons || {})) selections.set(`${identity}:${drawnSeason}`, { identity, drawnSeason });
+    const cryptoKey = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const entries = [...selections.entries()], result: Record<string, Array<number | null>> = {};
+    for (let offset = 0; offset < entries.length; offset += 20) {
+        await Promise.all(entries.slice(offset, offset + 20).map(async ([id, entry]) => {
+            const season = cards.get(entry.identity)?.seasons.find((row: any) => row.season === entry.drawnSeason);
+            const sourceWeeks = [...new Set<number>(season?.sourceWeeks || [])].sort((a, b) => a - b);
+            if (!sourceWeeks.length) throw new Error('This player edition is missing its full game archive. Please reload.');
+            const size = Math.max(14, app().TimeLeagueEngine.seasonEndWeek(state), sourceWeeks.length, Number(season.scheduledGames) || 0);
+            const cacheKey = JSON.stringify([secret, state.leagueId, id, sourceWeeks, size]);
+            const cached = gameDeckCache.get(cacheKey);
+            if (cached) { result[id] = [...cached]; return; }
+            const order: Array<number | null> = [...sourceWeeks, ...Array.from({ length: size - sourceWeeks.length }, () => null)];
+            let words: number[] = [], block = 0;
+            const word = async () => {
+                if (!words.length) {
+                    const message = JSON.stringify(['vault-game-order-v1', state.leagueId, entry.identity, entry.drawnSeason, block++]);
+                    const bytes = new DataView(await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(message)));
+                    words = Array.from({ length: bytes.byteLength / 2 }, (_, i) => bytes.getUint16(i * 2, false));
+                }
+                return words.shift()!;
+            };
+            for (let i = order.length - 1; i > 0; i--) {
+                const count = i + 1, limit = Math.floor(0x10000 / count) * count;
+                let value = await word();
+                while (value >= limit) value = await word();
+                const j = value % count;
+                [order[i], order[j]] = [order[j], order[i]];
+            }
+            gameDeckCache.set(cacheKey, order); result[id] = [...order];
+        }));
+    }
+    while (gameDeckCache.size > 5000) gameDeckCache.delete(gameDeckCache.keys().next().value!);
+    return result;
+}
+
 export async function prepareSealedDraws(state: any, cards: Cards, drawSecret: string): Promise<any> {
     if (typeof drawSecret !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(drawSecret)) {
         throw new Error('This league needs the sealed-draft service update. Please try again shortly.');
@@ -49,7 +93,13 @@ export async function prepareSealedDraws(state: any, cards: Cards, drawSecret: s
     } else {
         privateDraws.waiver = { week: state.currentWeek, seasons: await editionMap(state, cards, drawSecret, 'waiver', state.currentWeek) };
     }
-    return { ...state, privateDraws };
+    let privateGameSeed;
+    if (state.settings.gameDeckVersion === 1) {
+        const key = await crypto.subtle.importKey('raw', encoder.encode(drawSecret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+        const bytes = new Uint8Array(await crypto.subtle.sign('HMAC', key, encoder.encode(JSON.stringify(['vault-games-secret-v1', state.leagueId]))));
+        privateGameSeed = [...bytes].map(byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+    return { ...state, privateDraws, ...(privateGameSeed ? { privateGameSeed, privateGameDecks: await gameDecks(state, cards, drawSecret, privateDraws) } : {}) };
 }
 
 // Each iteration needs its own overall context. Reusing one prepared map for

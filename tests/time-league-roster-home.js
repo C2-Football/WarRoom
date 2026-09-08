@@ -29,7 +29,7 @@ states = [];
 const roster = () => render(() => WrTimeLeagueTeamPanel({ league, cards, section: 'roster', activeTeamId: league.teams[0].teamId, onSelectTeam: () => {}, onUpdate: (next, action) => { applied = { next, action }; }, logIndex: index }));
 const walk = node => !node || typeof node !== 'object' ? [] : Array.isArray(node) ? node.flatMap(walk) : [node, ...walk(node.children)];
 let tree = roster();
-assert(JSON.stringify(tree).includes('Remaining ceiling:')); assert(JSON.stringify(tree).includes('A dash means no archived game log'));
+assert(JSON.stringify(tree).includes('Archive ceiling:')); assert(JSON.stringify(tree).includes('No recorded game means zero points this Vault week.')); assert(JSON.stringify(tree).includes('Future weeks stay sealed.'));
 let rows = walk(tree).filter(node => node.props?.draggable);
 assert.equal(rows.length, 2);
 rows[1].props.onDragStart({ dataTransfer: { setData: () => {} } });

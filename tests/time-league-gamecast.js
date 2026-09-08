@@ -134,6 +134,38 @@ test('quarter boundaries support pause-and-step without skipping or fabricating 
     assert.equal(Gamecast.quarterAt(15.01), 2);
 });
 
+test('simulated early exits reveal during playback and conserve the complete historical stat line', () => {
+    const stats = { rushYd: 27, rec: 2, recYd: 9 };
+    const player = entry({ stats, points: Season.scoreStatLine(stats, scoring) });
+    let timeline, input;
+    for (let n = 0; n < 100; n++) {
+        input = { week: 3, seed: `availability-${n}`, scoring, simulatedAvailability: true,
+            results: [{ teamId: 't1', total: player.points, starters: [player] }] };
+        timeline = Gamecast.buildGamecast(input);
+        if (timeline.events.some(event => event.status === 'out')) break;
+    }
+    const exit = timeline.events.find(event => event.status === 'out');
+    assert(exit, 'An eligible low-output game can produce a simulated exit');
+    assert(exit.simulated && exit.description.includes('Vault simulation'));
+    assert(exit.t >= 20 && exit.t < 40 && exit.points === 0);
+    assert(timeline.events.filter(event => event.kind !== 'availability').every(event => event.t < exit.t));
+    assert(!timeline.events.filter(event => event.t < exit.t).some(event => event.status === 'out'), 'No out status before the exit moment');
+    sameStats(timeline.events.reduce((sum, event) => Gamecast.addStats(sum, event.stats), {}), stats);
+    assert.equal(timeline.events.reduce((sum, event) => sum + Math.round(event.points * 100), 0), Math.round(player.points * 100));
+    assert.deepEqual(Gamecast.buildGamecast(input), timeline, 'Replay preserves the same exit and production');
+    assert(!Gamecast.buildGamecast({ ...input, simulatedAvailability: false }).events.some(event => event.kind === 'availability'), 'Legacy replays stay unchanged');
+});
+
+test('a missing draw gets an explicit neutral availability notice, never a historical injury claim', () => {
+    const timeline = Gamecast.buildGamecast({ week: 2, seed: 'missing', scoring, simulatedAvailability: true,
+        results: [{ teamId: 't1', total: 0, starters: [entry({ stats: null, points: 0 })] }] });
+    assert.equal(timeline.events.length, 1);
+    assert.equal(timeline.events[0].status, 'no-record');
+    assert.equal(timeline.events[0].points, 0);
+    assert(timeline.events[0].description.includes('does not confirm an injury'));
+    assert.equal(timeline.finals.t1, 0);
+});
+
 test('buildGamecast prices special-teams-only lines (K/DEF/IDP) from the extra bag', () => {
     const kicker = entry({
         entryId: 'e3', position: 'K', points: 9,

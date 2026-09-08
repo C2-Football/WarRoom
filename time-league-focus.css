@@ -185,6 +185,7 @@
 .tl-live-player-name { min-width:0; }
 .tl-live-player-name strong { display:block; font-size:14px; font-weight:650; line-height:1.35; overflow-wrap:anywhere; }
 .tl-live-player-name small { display:block; margin-top:4px; color:#a3b4cd; font-size:10px; }
+.tl-live-player-name .tl-live-availability { color:#ffb29f; font-size:9px; font-weight:700; letter-spacing:.04em; }
 .tl-live-player-points { align-self:center; color:#8af0cf; font-size:20px; font-weight:750; }
 .tl-live-player-stats { grid-column:1/-1; color:#a9bdd4; font-size:11px; line-height:1.4; overflow-wrap:anywhere; }
 .tl-live-player.is-right { grid-template-columns:auto minmax(0,1fr); text-align:right; }
@@ -242,4 +243,13 @@
     .has-invite .tl-league-heading { flex-basis:100%; }
     .has-invite .tl-league-context { width:100%; justify-content:flex-end; }
     .has-invite .tl-league-context > .tl-pill { margin-right:auto; }
+}
+
+/* Future availability stays visually sealed; wire points remain visible on phones. */
+.tl-season-outlook .tl-outlook-week.sealed { background:#1c2a3e;border-color:#34465c; }
+.tl-season-outlook .tl-outlook-week.sealed strong { color:#9bacc4;font-size:10px; }
+.tl-waiver-market .tl-waiver-table th:nth-child(4) { text-align:right; }
+@media(max-width:650px) {
+    .tl-waiver-market .tl-waiver-table th:nth-child(4),.tl-waiver-market .tl-waiver-table td:nth-child(4) { display:table-cell; }
+    .tl-waiver-market .tl-waiver-table th:first-child,.tl-waiver-market .tl-waiver-table td:first-child { display:none; }
 }

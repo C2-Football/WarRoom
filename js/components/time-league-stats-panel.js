@@ -3,6 +3,7 @@
     const h = React.createElement;
     const fmt = value => value == null ? '—' : value.toFixed(1);
     function WrTimeLeagueStatsPanel({ league, cards, logIndex, eraFactors, throughWeek, onNavigate }) {
+        cards = window.App.TimeLeagueEngine.cardsFor(league, cards);
         const Stats = window.App.TimeLeaguePlayerStats;
         const [search, setSearch] = React.useState('');
         const [position, setPosition] = React.useState('ALL');
@@ -17,7 +18,7 @@
         const filtered = Stats.filterAndSort(rows, { search, position, team, sort, ascending });
         const change = setter => event => { setter(event.target.value); setLimit(50); };
         const sortBy = key => { setAscending(sort === key ? !ascending : ['name', 'position', 'teamName'].includes(key)); setSort(key); };
-        const columns = [['name', 'Player'], ['points', 'FPTS'], ['games', 'GP'], ['average', 'PPG'], ['teamName', 'Team'], ['position', 'Pos'], ['seasonPoints', 'SZN']];
+        const columns = [['name', 'Player'], ['points', 'FPTS'], ['games', 'Vault GP'], ['average', 'PPG'], ['teamName', 'Team'], ['position', 'Pos'], ['seasonPoints', 'SZN']];
         const statFields = playerPosition => playerPosition === 'K' ? [['fgm', 'FG'], ['xpm', 'XP']] : playerPosition === 'DEF' ? [['sack', 'Sacks'], ['int', 'INT']]
             : playerPosition === 'QB' ? [['passYd', 'Pass yd'], ['passTd', 'Pass TD'], ['passInt', 'INT'], ['rushYd', 'Rush yd']]
                 : [['rushYd', 'Rush yd'], ['rushTd', 'Rush TD'], ['rec', 'Rec'], ['recYd', 'Rec yd'], ['recTd', 'Rec TD']];
@@ -28,7 +29,7 @@
                 h('input', { className: 'tl-input', type: 'search', placeholder: 'Search players…', value: search, onChange: change(setSearch), 'aria-label': 'Search player stats' }),
                 h('select', { className: 'tl-select', value: team, onChange: change(setTeam), 'aria-label': 'Filter stats by team' }, h('option', { value: 'ALL' }, 'All teams'), h('option', { value: 'fa' }, 'Free agents'), league.teams.map(item => h('option', { key: item.teamId, value: item.teamId }, item.name)))),
             h('div', { className: 'tl-stats-positions', 'aria-label': 'Filter stats by position' }, ['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DEF', ...(league.settings.rosterSlots.FLEX ? ['FLEX'] : []), ...(league.settings.rosterSlots.SUPER_FLEX ? ['SUPER_FLEX'] : [])].map(value => h('button', { key: value, type: 'button', className: `tl-btn${position === value ? ' primary' : ''}`, 'aria-pressed': position === value, onClick: () => { setPosition(value); setLimit(50); } }, value === 'DEF' ? 'D/ST' : value === 'SUPER_FLEX' ? 'Super flex' : value === 'ALL' ? 'All' : value))),
-            h('p', { className: 'tl-hint' }, `${effectivePeriod === 'ytd' ? `Through ${weeks.length ? `Week ${weeks.at(-1)}` : 'preseason'}` : `Week ${effectivePeriod}`} · FPTS uses your league scoring, including bench production. SZN is the Weeks 1–14 archive total with reference scoring. Free-agent editions match this week’s waiver wire.`),
+            h('p', { className: 'tl-hint' }, `${effectivePeriod === 'ytd' ? `Through ${weeks.length ? `Week ${weeks.at(-1)}` : 'preseason'}` : `Week ${effectivePeriod}`} · FPTS and Vault GP cover completed Vault weeks, including bench production. SZN is ${league.settings.gameDeckVersion === 1 ? 'the recorded NFL regular-season total' : 'the Weeks 1–14 archive total'} with reference scoring. Free-agent editions match this week’s waiver wire.`),
             !logIndex || (league.settings.eraAdjusted && !eraFactors?.size) ? h('p', { role: 'status', className: 'tl-hint' }, 'Some historical data is still loading. Unavailable totals show —.') : null,
             h('div', { className: 'tl-stats-scroll', tabIndex: 0, 'aria-label': 'Player statistics table. Scroll for additional columns.' }, h('table', { className: 'tl-stats-table' },
                 h('thead', null, h('tr', null, columns.map(([key, label]) => h('th', { key, scope: 'col', 'aria-sort': sort === key ? ascending ? 'ascending' : 'descending' : 'none' }, h('button', { type: 'button', onClick: () => sortBy(key) }, label, sort === key ? ascending ? ' ↑' : ' ↓' : ''))))),

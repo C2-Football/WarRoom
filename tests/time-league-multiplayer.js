@@ -5,9 +5,9 @@ global.window = globalThis;
 window.App = {};
 for (const name of ['roster', 'helmet', 'rules', 'draft-room', 'era-rules', 'season', 'player-cards', 'engine', 'ai', 'actions']) require(`../js/shared/time-league-${name}.js`);
 const { TimeLeagueEngine: E, TimeLeagueActions: A, TimeLeaguePlayerCards: P, TimeLeagueSeason: S } = App;
-const data = { cards: P.buildPlayerCardIndex(JSON.parse(fs.readFileSync('data/time-league/player-cards.json'))), logIndex: S.buildGameLogIndex(S.parseGameLogCsv(fs.readFileSync('data/time-league/nflverse-game-logs.csv', 'utf8')).logs), eraFactors: new Map() };
+const data = { cards: P.buildPlayerCardIndex(JSON.parse(fs.readFileSync('data/time-league/legacy-player-cards.json'))), logIndex: S.buildGameLogIndex(S.parseGameLogCsv(fs.readFileSync('data/time-league/nflverse-game-logs.csv', 'utf8')).logs), eraFactors: new Map() };
 const host = { seat_team_id: 't1', role: 'commissioner' }, friend = { seat_team_id: 't2', role: 'member' };
-let state = E.createTimeLeague({ name: 'Multiplayer QA', seed: 'friends-test', createdAt: '2026-09-07T00:00:00Z', seats: [{ name: 'Host', manager: 'human' }, { name: 'Friend', manager: 'human' }, { name: 'AI', manager: 'ai', aiPersona: 'steward' }], settings: { rosterSlots: { QB: 1, RB: 1, WR: 1, BN: 1 }, scoring: { passTd: 4, reception: 0.5, rushRecYd: 0.1, passingYd: 0.04, turnover: -2 }, maxQuarterbacks: 1, regularSeasonWeeks: 2, eraRules: { mode: 'any-era', decades: [] }, waiversEnabled: true, waiverMode: 'faab', faabBudget: 100, tradesEnabled: true, aiDifficulty: 'veteran' } });
+let state = E.createTimeLeague({ name: 'Multiplayer QA', seed: 'friends-test', createdAt: '2026-09-07T00:00:00Z', seats: [{ name: 'Host', manager: 'human' }, { name: 'Friend', manager: 'human' }, { name: 'AI', manager: 'ai', aiPersona: 'steward' }], settings: { gameDeckVersion: 0, rosterSlots: { QB: 1, RB: 1, WR: 1, BN: 1 }, scoring: { passTd: 4, reception: 0.5, rushRecYd: 0.1, passingYd: 0.04, turnover: -2 }, maxQuarterbacks: 1, regularSeasonWeeks: 2, eraRules: { mode: 'any-era', decades: [] }, waiversEnabled: true, waiverMode: 'faab', faabBudget: 100, tradesEnabled: true, aiDifficulty: 'veteran' } });
 state = E.startDraft(state, state.createdAt);
 let passed = 0;
 function test(name, fn) { fn(); console.log(`ok ${name}`); passed++; }
@@ -48,7 +48,12 @@ test('draft across two humans and AI completes without stealing a turn', () => {
 });
 test('both managers can set their own lineups', () => { state = run({ type: 'auto-lineup', teamId: 't1' }); state = run({ type: 'auto-lineup', teamId: 't2' }, friend); });
 test('trade recipient alone can accept', () => {
-  state = run({ type: 'trade', teamId: 't1', toTeamId: 't2', giveEntryIds: [state.teams[0].roster[0].entryId], receiveEntryIds: [state.teams[1].roster[0].entryId], note: 'Trade QA' });
+  // This checks ownership and gate authorization. A same-position exchange
+  // stays roster-legal regardless of changing player rankings or draft order.
+  const give = state.teams[0].roster.find(entry => entry.position === 'QB');
+  const receive = state.teams[1].roster.find(entry => entry.position === 'QB');
+  assert(give && receive, 'Both teams drafted a starting quarterback');
+  state = run({ type: 'trade', teamId: 't1', toTeamId: 't2', giveEntryIds: [give.entryId], receiveEntryIds: [receive.entryId], note: 'Trade QA' });
   const tradeId = state.trades.at(-1).tradeId;
   assert.throws(() => run({ type: 'respond-trade', tradeId, accept: true }, friend), /after waivers/);
   assert.throws(() => run({ type: 'ping-ai' }), /after waivers/);

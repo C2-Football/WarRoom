@@ -63,6 +63,10 @@ jobs:
       - name: Verify Duat contracts before backend deployment
         run: npm run test:duat
 
+      # The full Vault runtime requires local bundling above the API limit.
+      - name: Verify Docker for Vault local bundling
+        run: docker info > /dev/null
+
       - name: Build Vault server runtime
         run: node scripts/build-time-league-server.cjs
 
@@ -290,7 +294,7 @@ jobs:
         run: supabase functions deploy league-cup --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
 
       - name: Deploy Vault multiplayer
-        run: supabase functions deploy time-league --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
+        run: supabase functions deploy time-league --project-ref sxshiqyxhhifvtfqawbq --use-docker --no-verify-jwt
 
       - name: Deploy Duat multiplayer
         run: supabase functions deploy duat --project-ref sxshiqyxhhifvtfqawbq --use-api --no-verify-jwt
