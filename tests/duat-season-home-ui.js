@@ -65,3 +65,8 @@ test('sealed Home tournament reveals counts only and unsealed path uses actual r
     const path=nodes(revealed).find(node=>node.props['aria-label']==='Your path to the crown');assert.match(text(nodes(path).find(node=>node.props['aria-current']==='step')),/Redemption.*one life/);
     button(revealed,'Open the full tournament →').props.onClick();assert.deepEqual(open.calls,['tournaments']);
 });
+
+test('Home puts its single current Resume action before calendar inspection while retaining all seventeen weeks',()=>{
+    const h=harness(fixture()),tree=h.render(),all=nodes(tree),resume=all.findIndex(node=>node.props.className==='duat-home-resume'),schedule=all.findIndex(node=>node.props.className==='duat-home-schedule');
+    assert(resume>0&&resume<schedule);assert.equal(all.filter(node=>node.type==='button'&&/^Resume Week/.test(text(node))).length,1);assert.equal(all.filter(node=>node.type==='button'&&/^Week \d/.test(node.props['aria-label']||'')).length,17);assert.deepEqual(h.calls,[]);
+});

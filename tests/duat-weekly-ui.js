@@ -190,3 +190,14 @@ test('the mounted library receives explicit local alliance acknowledgement and k
     }
     const state=Engine.createCampaign({version:4,id:'library-sealed',name:'Guided Fixture',seed:'names-draft',createdAt:'2026-09-08T12:00:00Z',hostFactionId:'egypt',seasons:[2025],settings:{leagueSize:8,mummyCount:1,conquest:false,favors:false}},data),draft=await harness({initial:state});await draft.open(false);assert.equal(draft.component(draft.App.DuatLibrary).allianceVisible,false);assert.equal(draft.actions.length,0);
 });
+
+test('failed guided actions stay beside the current move, can be dismissed, and recover without advancing a week',async()=>{
+    const page=await harness({initial:ready({favors:true,bench:3})});await page.open();await page.primary();await page.primary();assert.equal(page.frame().stage,'favors');const before=JSON.stringify(page.saved());
+    const result=await page.component(page.App.DuatRitualsView).onAction({type:'ritual',ritualId:'not-a-god'});assert.equal(result,false);assert(page.frame().actionError);assert.equal(nodes(page.draw()).filter(node=>node.props.role==='alert').length,0,'The main alert must not duplicate the dock alert.');assert.equal(JSON.stringify(page.saved()),before);
+    page.frame().onDismissError();assert.equal(page.frame().actionError,'');await page.primary();assert.equal(page.frame().stage,'kickoff');assert.equal(JSON.stringify(page.saved()),before);assert.equal(page.actions.filter(action=>action.type==='advance-week').length,0);
+});
+
+
+test('returning campaigns precede setup in DOM and focus order without opening or changing the saved game',async()=>{
+    const page=await harness(),tree=page.draw(),all=nodes(tree),shelf=all.findIndex(node=>node.props.className==='duat-panel duat-campaign-shelf'),form=all.findIndex(node=>node.type==='form');assert(shelf>0&&shelf<form);assert.equal(page.actions.length,0);assert.equal(page.frame(),undefined);assert.equal(page.component(page.App.DuatSeasonHomeView),undefined);
+});
