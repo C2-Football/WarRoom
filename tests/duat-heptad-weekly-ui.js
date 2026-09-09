@@ -25,6 +25,6 @@ test('simultaneous paths, own-match highlighting and tied winner remain readable
     const tree=render(c,'f2',4),content=text(tree);assert.equal(nodes(tree).filter(n=>n.props.className?.startsWith('duat-heptad-week-match')).length,2);assert.equal(nodes(tree).filter(n=>n.props.className==='duat-heptad-week-match is-mine').length,1);
     assert.match(content,/Your match/);assert.match(content,/Redemption path/);assert.match(content,/100\.00/);assert.match(content,/80\.00/);assert.match(content,/60\.25/);assert.match(content,/Winner.*tiebreak/);assert.match(content,/Alliance 1 holds the arena/);
 });
-test('a week with no Heptad fixtures says so explicitly without fabricating a match',()=>{
-    const tree=render(fixture(1),'f4',1);assert.match(text(tree),/No Heptad matches were played in Week/);assert.equal(nodes(tree).filter(n=>n.props.className?.startsWith('duat-heptad-week-match')).length,0);
+test('a week with no alliance fixtures uses the actual Tetrad name without fabricating a match',()=>{
+    const tree=render(fixture(1),'f4',1);assert.match(text(tree),/No\s+Tetrad\s+matches were played in Week/);assert.equal(nodes(tree).filter(n=>n.props.className?.startsWith('duat-heptad-week-match')).length,0);
 });

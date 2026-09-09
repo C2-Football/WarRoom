@@ -186,7 +186,12 @@
         if (!context.heptad?.complete) fail('Finish the Heptad before archiving its records.');
         return [...history.filter(record => record.seasonId !== context.seasonId).map(copy), ...recordsForSeason(context)];
     }
+    // The original Heptad is seven alliance teams, not seven scheduled matches.
+    function tournamentName(alliancesOrCount) {
+        const count=Array.isArray(alliancesOrCount)?alliancesOrCount.length:alliancesOrCount;
+        return ({2:'Dyad',3:'Triad',4:'Tetrad',5:'Pentad',6:'Hexad',7:'Heptad',8:'Octad'})[count] || 'Alliance';
+    }
     function championGallery(history) { return history.filter(record => record.champion).map(copy); }
-    return { DEFAULT_OPTIONS, normalizeOptions, describeOptions, validateName, renameAlliance, scoreAlliance, scoreWeek, matchMVP,
+    return { DEFAULT_OPTIONS, tournamentName, normalizeOptions, describeOptions, validateName, renameAlliance, scoreAlliance, scoreWeek, matchMVP,
         progress, createPinnacle, proposePinnacle, approvePinnacle, declinePinnacle, resolvePinnacle, recordsForSeason, archiveSeason, championGallery };
 });

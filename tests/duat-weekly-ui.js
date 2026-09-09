@@ -1,6 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),Babel=require('@babel/standalone');
 const Engine=require('../js/duat/dynasty.js'),Weekly=require('../js/duat/weekly-flow.js'),Progress=require('../js/duat/weekly-progress.js');
+const Home=require('../js/duat/season-home.js');
 const World=require('../js/duat/world.js'),Season=globalThis.App.TimeLeagueSeason;
 const clone=value=>JSON.parse(JSON.stringify(value));
 const cards=JSON.parse(fs.readFileSync('data/duat/player-cards.json','utf8')),csv=fs.readFileSync('data/duat/nflverse-game-logs.csv','utf8'),manifest=JSON.parse(fs.readFileSync('data/duat/manifest.json','utf8'));
@@ -29,7 +30,7 @@ async function harness({initial=ready(),online=false,host=true,storage=new Map()
     const location=new URL('https://example.test/WarRoom/index.html?duat=1'+(online?'&duat_invite=test':''));
     const store={getItem:key=>storage.get(key)||null,setItem(key,value){if(storageFails)throw Error('Quota exceeded');storage.set(key,value);},removeItem:key=>storage.delete(key)};
     const Empty=()=>null;
-    const App={...globalThis.App,DuatCampaign:{...Engine,applyAction(state,action,archive){actions.push(clone(action));return Engine.applyAction(state,action,archive);}},DuatWeeklyProgress:Progress,DuatWeeklyFlow:Weekly,DuatWorld:World,
+    const App={...globalThis.App,DuatCampaign:{...Engine,applyAction(state,action,archive){actions.push(clone(action));return Engine.applyAction(state,action,archive);}},DuatWeeklyProgress:Progress,DuatWeeklyFlow:Weekly,DuatSeasonHome:Home,DuatSeasonHomeView:function HomeView(){},DuatWorld:World,
         DuatStorage:{list:()=>[{id:saved.id,name:saved.name,factionId:'egypt',week:saved.week,phase:saved.phase}],read:()=>clone(saved),write:value=>{saved=clone(value);}},
         DuatPresentation:{nameOf:id=>World.factionById(id)?.name||id,identity:id=>World.factionById(id),art:id=>id+'.webp',Sigil(){},World(){},Tournaments(){},Land(){},Pantheon(){},Draft(){},Archaeology(){}},
         DuatHeptadUI:{RulesControls:Empty,AllianceIntro:Empty,WeeklyRecap:Empty,Games:Empty},DuatRitualsView(){},DuatLibrary(){},
@@ -54,7 +55,7 @@ async function harness({initial=ready(),online=false,host=true,storage=new Map()
     vm.runInNewContext(uiSource,sandbox);vm.runInNewContext(source,sandbox);
     function draw(){for(let pass=0;pass<10;pass++){cursor=effectCursor=0;effects=[];changed=false;tree=browser.DuatGame({onClose(){}});effects.forEach(fn=>fn());if(!changed)return tree;}throw Error('The tab did not settle');}
     draw();await settle();await settle();draw();
-    async function open(){await button(draw(),online?'Online Fixture':'Guided Fixture').props.onClick();draw();}
+    async function open(resume=true){await button(draw(),online?'Online Fixture':'Guided Fixture').props.onClick();draw();if(resume){const home=nodes(draw()).find(node=>node.type===App.DuatSeasonHomeView);assert(home,'A campaign opens its Season Home first');home.props.onResume();draw();}}
     function frame(){return nodes(draw()).find(node=>node.type===App.DuatWeeklyUI.Frame)?.props;}
     async function primary(){const control=frame().primary;assert(!control.disabled,control.label+' is disabled');await control.onClick();return draw();}
     return {App,draw,open,frame,primary,actions,storage,room,saved:()=>saved,async poll(){for(const fn of intervals)await fn();return draw();},component(type){return nodes(draw()).find(node=>node.type===type)?.props;}};
@@ -161,4 +162,23 @@ test('existing v1, v2 and v3 saves enter the guided week and preserve their orig
         assert.deepEqual(page.saved().completedWeeks,baseline.completedWeeks,'The presentation must not modify legacy scoring or outcomes.');
         await page.primary();assert.equal(page.frame().stage,'recap');assert.equal(page.component(page.App.DuatWeeklyUI.Recap).result.week,1);
     }
+});
+
+
+test('Season Home opens without advancing and Resume returns to the exact paused Game Day',async()=>{
+    const page=await harness();await page.open(false);let home=page.component(page.App.DuatSeasonHomeView);assert(home.model.tournament.locked);assert.equal(home.model.visibleThroughWeek,0);assert.equal(page.frame(),undefined);assert.equal(page.actions.length,0);
+    home.onResume();assert.equal(page.frame().stage,'alliance');await page.primary();await page.primary();await page.primary();assert.equal(page.frame().stage,'games');
+    const game=nodes(page.draw()).find(node=>node.type?.name==='GameDay');game.props.onProgress(27);
+    button(page.draw(),'Season Home').props.onClick();home=page.component(page.App.DuatSeasonHomeView);const saved=JSON.stringify(page.saved()),presentation=JSON.stringify([...page.storage]);assert.equal(home.model.visibleThroughWeek,0);assert.equal(home.model.currentWeek,1);assert.equal(home.model.resume.stage,'games');assert(!nodes(page.draw()).some(node=>node.type?.name==='GameDay'));assert.equal(page.frame(),undefined);
+    await page.poll();assert(page.component(page.App.DuatSeasonHomeView));assert.equal(JSON.stringify(page.saved()),saved);assert.equal(JSON.stringify([...page.storage]),presentation);home.onResume();assert.equal(page.frame().stage,'games');assert.equal(nodes(page.draw()).find(node=>node.type?.name==='GameDay').props.initialClock,27);assert.equal(page.actions.filter(a=>a.type==='advance-week').length,1);
+});
+
+test('shared polling keeps Home selected, conceals a newly scored week and preserves readiness when resumed',async()=>{
+    const page=await harness({online:true,host:false});await page.open();await page.primary();await page.primary();await page.primary();button(page.draw(),'Season Home').props.onClick();let home=page.component(page.App.DuatSeasonHomeView);assert.equal(home.model.resume.stage,'kickoff');
+    page.room.campaign=Engine.applyAction(page.room.campaign,{type:'advance-week'},data);page.room.seats.forEach(s=>s.ready=false);page.room.revision++;await page.poll();home=page.component(page.App.DuatSeasonHomeView);assert(home);assert.equal(home.model.visibleThroughWeek,0);assert.equal(home.model.resume.stage,'games');assert.equal(home.model.resume.week,1);assert.equal(page.frame(),undefined);assert(!home.onExplore);assert(home.model.standings.every(s=>s.points===0));home.onResume();assert.equal(page.frame().week,1);assert.equal(page.frame().stage,'games');assert.equal(page.actions.filter(a=>a.type==='advance-week').length,0);
+});
+
+test('Home Resume cannot skip a pending Mahdi draw or an unresolved war council',async()=>{
+    const page=await harness({initial:ready({favors:true,bench:3})});await page.open();await page.primary();await page.primary();await page.component(page.App.DuatRitualsView).onAction({type:'ritual',ritualId:'summon-mahdi',position:'WR'});assert(page.frame().primary.disabled);button(page.draw(),'Season Home').props.onClick();const home=page.component(page.App.DuatSeasonHomeView);assert.equal(home.model.resume.stage,'favors');const before=JSON.stringify(page.saved());home.onResume();assert.equal(page.frame().stage,'favors');assert(page.frame().primary.disabled);assert.equal(JSON.stringify(page.saved()),before);
+    let state=ready({conquest:true});for(let n=0;n<5&&!Engine.unresolvedClaims(state).includes('egypt');n++)state=Engine.applyAction(state,{type:'advance-week'},data);const war=await harness({initial:state});await war.open();await war.primary();await war.primary();assert.equal(war.frame().stage,'conquest');assert(war.frame().primary.disabled);button(war.draw(),'Season Home').props.onClick();const warHome=war.component(war.App.DuatSeasonHomeView);assert.equal(warHome.model.resume.stage,'conquest');warHome.onResume();assert(war.frame().primary.disabled);assert.equal(war.actions.filter(a=>a.type==='advance-week').length,0);
 });

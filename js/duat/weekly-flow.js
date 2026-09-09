@@ -19,6 +19,7 @@
     const alliancesOf = campaign => campaign.alliances || [];
     const allianceOf = (campaign, factionId) => alliancesOf(campaign).find(a => a.teamIds.includes(factionId));
     const allianceName = (campaign, id) => alliancesOf(campaign).find(a => a.id === id)?.name || id;
+    const tournamentName = campaign => Heptad.tournamentName(alliancesOf(campaign));
     const completed = (campaign, week) => Number.isInteger(week) && week >= 1 && week <= 17
         ? (campaign.completedWeeks || []).find(w => w.week === week && w.finalized !== false) : null;
     const through = (campaign, week) => (campaign.completedWeeks || []).filter(w => w.week <= week && w.finalized !== false);
@@ -35,7 +36,7 @@
             const f = factionOf(campaign,id); return {id,name:f?.name || id,color:f?.color,sigil:f?.sigil};
         }),startWeek:2,entranceWeek,entry:alliance.entry,
         label:alliance.name,entryLabel:alliance.entry <= 2 ? 'Your alliance opens the Games in Week 2.' : 'Your alliance enters in Week '+entranceWeek+'.',
-        explanation:'The Heptad Games begin in Week 2. Your partners combine their best eligible players into one lineup. One loss sends an alliance to redemption; a second ends its run.',
+        explanation:`The ${tournamentName(campaign)} Games begin in Week 2. Your partners combine their best eligible players into one lineup. One loss sends an alliance to redemption; a second ends its run.`,
         options:copy(Heptad.normalizeOptions(campaign.expansionSettings?.heptad || campaign.heptadOptions || {}))};
     }
 
@@ -56,7 +57,7 @@
             const tied=match.homeScore===match.awayScore,winnerName=allianceName(campaign,match.winnerId);
             return {...copy(match),homeName:allianceName(campaign,match.homeId),awayName:allianceName(campaign,match.awayId),winnerName,
                 pathLabel:roundName(match.bracket),isMine:[match.homeId,match.awayId].includes(ownId),tied,
-                tieReason:tied?winnerName+' holds the arena under the Heptad tiebreak.':null};
+                tieReason:tied?winnerName+' holds the arena under the '+tournamentName(campaign)+' tiebreak.':null};
         });
     }
 
@@ -91,12 +92,12 @@
         if (['champion','eliminated'].includes(progress.status)) return null;
         const fixture=knownHeptadFixtures(campaign,heptad,week).find(m=>[m.homeId,m.awayId].includes(alliance.id));
         if(fixture){const opponentId=fixture.homeId===alliance.id?fixture.awayId:fixture.homeId;return {...copy(fixture),opponentId,opponentName:allianceName(campaign,opponentId),label:'Week '+fixture.week+' · '+roundName(fixture.bracket)+' vs '+allianceName(campaign,opponentId)};}
-        if(progress.status==='waiting') {const entranceWeek=2+Math.max(0,alliance.entry-2);return {week:entranceWeek,opponentId:null,label:'Enter the Heptad in Week '+entranceWeek+'; the surviving opponent is still to be decided.'};}
+        if(progress.status==='waiting') {const entranceWeek=2+Math.max(0,alliance.entry-2);return {week:entranceWeek,opponentId:null,label:'Enter the '+tournamentName(campaign)+' in Week '+entranceWeek+'; the surviving opponent is still to be decided.'};}
         return null;
     }
 
     function heptadOutcome(campaign,factionId,week) {
-        const intro=allianceIntro(campaign,factionId);if(!intro)return {status:'not-entered',label:'Your faction is not entered in the Heptad Games.',matches:heptadMatches(campaign,factionId,week)};
+        const intro=allianceIntro(campaign,factionId),name=tournamentName(campaign);if(!intro)return {status:'not-entered',label:`Your faction is not entered in the ${name} Games.`,matches:heptadMatches(campaign,factionId,week)};
         const snapshot=completed(campaign,week);if(!snapshot)return null;
         const heptad=heptadAt(campaign,week),alliance=intro.alliance;
         const progress=Heptad.progress(alliancesOf(campaign),heptad,2).find(a=>a.id===alliance.id);
@@ -106,8 +107,8 @@
         const status=match?(match.winnerId===alliance.id?'won':'lost'):'idle';
         const opponentId=match?(match.homeId===alliance.id?match.awayId:match.homeId):null;
         const tied=Boolean(match&&match.homeScore===match.awayScore);
-        const label=match?(tied?'Heptad scores tied · '+(status==='won'?'your alliance holds the arena':'the reigning alliance holds the arena'):'Heptad '+(status==='won'?'win':'loss')+' vs '+allianceName(campaign,opponentId))
-            :progress.status==='waiting'?'No Heptad match this week · waiting to enter':progress.status==='eliminated'?'No Heptad match · your alliance’s run is complete':progress.status==='champion'?'No Heptad match · your alliance holds the crown':'No Heptad match this week · your alliance rests';
+        const label=match?(tied?name+' scores tied · '+(status==='won'?'your alliance holds the arena':'the reigning alliance holds the arena'):name+' '+(status==='won'?'win':'loss')+' vs '+allianceName(campaign,opponentId))
+            :progress.status==='waiting'?`No ${name} match this week · waiting to enter`:progress.status==='eliminated'?`No ${name} match · your alliance’s run is complete`:progress.status==='champion'?`No ${name} match · your alliance holds the crown`:`No ${name} match this week · your alliance rests`;
         return {...intro,status,entryStatus:progress.status,lives:progress.lives,wins:progress.wins,losses:progress.losses,match:copy(match),matches:heptadMatches(campaign,factionId,week),tied,opponentId,opponentName:opponentId?allianceName(campaign,opponentId):null,
             points:match?(match.homeId===alliance.id?match.homeScore:match.awayScore):null,opponentPoints:match?(match.homeId===alliance.id?match.awayScore:match.homeScore):null,
             score:score?copy(score):null,contributors:copy(score?.contributors || []),mvp:copy(score?.mvp),matchMvp:match?copy(match.mvp || Heptad.matchMVP(match,through(campaign,week))):null,
@@ -216,5 +217,5 @@
     function describe({campaign,factionId,preparationWeek,resultWeek,ritualCandidates}={}) {
         return {preparationWeek,resultWeek,result:outcome(campaign,factionId,resultWeek),preparation:preparation(campaign,factionId,preparationWeek,{ritualCandidates}),allianceIntro:allianceIntro(campaign,factionId)};
     }
-    return Object.freeze({describe,outcome,preparation,allianceIntro,heptadOutcome,weeklyStandings,heptadMatches});
+    return Object.freeze({describe,outcome,preparation,allianceIntro,heptadOutcome,weeklyStandings,heptadMatches,knownHeptadFixtures});
 });
