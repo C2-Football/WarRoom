@@ -1,0 +1,35 @@
+/* A compact country overview and touch gestures for both saved world formats. */
+.duat-simple-conquest .duat-world{padding:24px}
+.duat-simple-conquest .duat-panel-heading{align-items:flex-start}
+.duat-simple-conquest .duat-panel-heading h2{font-size:clamp(25px,3vw,35px)}
+.duat-simple-conquest .duat-land-stats{padding-bottom:20px}
+.duat-map-next{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px;background:#294139;border:1px solid #76977d66;border-radius:8px;margin:0 0 20px}
+.duat-map-next h3{font-size:21px;margin:0 0 8px}.duat-map-next p{font-size:13px;line-height:1.6;color:#bbcebe;margin:0;max-width:460px}
+.duat-map-next>div:last-child{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.duat-map-next button{min-height:48px}.duat-map-next button small{display:block;font-size:11px;margin-top:4px;opacity:.82}
+.duat-map-status{color:#b7cbbb;font-size:14px;line-height:1.55;margin-bottom:20px}
+.duat-map-level{display:flex;align-items:center;gap:14px;margin:8px 0 14px}.duat-map-level p{font-size:13px;color:#b8c9c5;line-height:1.65;margin:0}.duat-map-level strong{color:#e5d1a6}.duat-map-level>span{font-size:13px;color:#d5c79d}
+.duat-simple-conquest .duat-atlas-frame{overflow:hidden;border:1px solid #44616b;border-radius:8px}
+.duat-simple-conquest .duat-map{display:block;width:100%;height:auto;min-height:0;aspect-ratio:2;background:#102b38;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;overscroll-behavior:contain}
+.duat-simple-conquest .duat-map:active{cursor:grabbing}.duat-simple-conquest .duat-country{cursor:inherit;transition:none}
+.duat-simple-conquest .duat-compass{top:12px;right:15px;pointer-events:none;font-size:17px;line-height:1.25}
+.duat-map-controls{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:12px 0 18px}.duat-map-controls>div{display:flex;gap:7px;flex-wrap:wrap}.duat-map-controls button{min-height:44px;min-width:46px}.duat-map-controls>span{color:#a8bdc2;font-size:12px;white-space:nowrap}
+.duat-map-key{margin-bottom:20px}
+.duat-country-summary,.duat-simple-conquest .duat-territory-detail{padding:20px;border:1px solid #6a705b;background:#1b3033;border-radius:8px;margin:18px 0}
+.duat-country-summary h3{font-size:29px;margin:0 0 12px}.duat-country-summary p{font-size:14px;color:#c6d3cc;line-height:1.6}.duat-country-summary p strong{color:#f0d39a;font-weight:600}
+.duat-holding-counts{display:flex;gap:9px 20px;flex-wrap:wrap;margin-bottom:20px}.duat-holding-counts>span{display:flex;align-items:center;gap:8px;color:#c7d3ca;font-size:12px}.duat-holding-counts i{display:inline-block;width:10px;height:10px;border-radius:50%}
+.duat-map-explorer,.duat-map-rules{margin-top:18px;border-top:1px solid #56645966;padding-top:16px}.duat-map-explorer>summary,.duat-map-rules>summary,.duat-map-chronicle>summary{min-height:44px;cursor:pointer;font-size:14px;color:#d9c391;line-height:1.5;padding:10px 0}
+.duat-map-explorer .duat-filter-row{margin:12px 0}.duat-map-explorer .duat-filter-row button{min-height:44px;padding:10px 18px}.duat-map-explorer input{width:min(100%,460px)}
+.duat-simple-conquest .duat-territory-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-height:none;gap:8px;padding:0;margin-bottom:15px}
+.duat-simple-conquest .duat-territory-list>button{display:grid;gap:6px;text-align:left;min-height:62px;padding:13px 15px;align-items:start}.duat-simple-conquest .duat-territory-list small{white-space:normal;line-height:1.5}
+.duat-map-rules p{font-size:13px;color:#adc2c1;line-height:1.7}.duat-map-chronicle{padding:14px 24px}.duat-map-chronicle .duat-war-log{margin-top:14px}
+@media(max-width:760px){
+    .duat-simple-conquest .duat-world{padding:17px 14px}.duat-simple-conquest .duat-panel-heading{display:block;margin-bottom:10px}.duat-simple-conquest .duat-panel-heading .duat-pill{margin-top:12px;font-size:12px;white-space:normal}
+    .duat-simple-conquest .duat-land-stats{gap:10px;padding:14px 0 20px}.duat-simple-conquest .duat-land-stats strong{font-size:23px}.duat-simple-conquest .duat-land-stats span{font-size:10px}
+    .duat-map-next{display:block;padding:16px}.duat-map-next>div:last-child{justify-content:flex-start;margin-top:15px;display:grid;grid-template-columns:1fr;width:100%}.duat-map-next button{width:100%}.duat-map-next h3{font-size:21px}
+    .duat-map-level{align-items:flex-start;flex-wrap:wrap}.duat-map-level>span{padding:8px 0}
+    .duat-simple-conquest .duat-map{min-height:210px;aspect-ratio:1.65}.duat-simple-conquest .duat-atlas-frame{margin-inline:-5px}
+    .duat-map-controls{display:block;margin-top:10px}.duat-map-controls>div{display:grid;grid-template-columns:44px 44px 1fr 1fr;gap:6px}.duat-map-controls button{font-size:12px!important;padding:10px 7px;min-width:44px;min-height:46px}.duat-map-controls>span{display:block;margin-top:9px;font-size:11px}
+    .duat-country-summary,.duat-simple-conquest .duat-territory-detail{padding:17px}.duat-country-summary h3,.duat-simple-conquest .duat-territory-detail h3{font-size:27px}
+    .duat-simple-conquest .duat-territory-list{grid-template-columns:1fr;max-height:none}.duat-map-explorer .duat-filter-row{display:flex;gap:6px}.duat-map-explorer .duat-filter-row button{flex:1;min-width:0;padding:10px 8px}
+    .duat-map-chronicle{padding:12px 18px}.duat-map-chronicle .duat-war-log{grid-template-columns:1fr}
+}

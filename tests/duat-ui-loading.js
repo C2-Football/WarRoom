@@ -34,8 +34,9 @@ const scriptPaths = scriptSources.map(src => src.split('?')[0]);
 const requiredDuatSources = [
     'js/duat/rules.js', 'js/duat/world.js', 'js/duat/provinces.js', 'js/duat/army-generation.js',
     'js/duat/conquest.js', 'js/duat/favors.js', 'js/duat/lore.js', 'js/duat/rituals.js', 'js/duat/heptad.js', 'js/duat/campaign.js', 'js/duat/dynasty.js',
+    'js/duat/weekly-flow.js', 'js/duat/weekly-progress.js',
     'js/duat/session.js', 'js/duat/vendor/lz-string-1.5.0.js', 'js/duat/storage.js', 'js/duat/remote.js',
-    'js/components/duat-presentation.js', 'js/components/duat-library.js', 'js/components/duat-rituals.js', 'js/components/duat-heptad.js', 'js/tabs/duat.js',
+    'js/components/duat-presentation.js', 'js/components/duat-library.js', 'js/components/duat-rituals.js', 'js/components/duat-heptad.js', 'js/components/duat-weekly-flow.js', 'js/tabs/duat.js',
 ];
 const sharedHelpers = [
     'js/shared/time-league-roster.js', 'js/shared/time-league-draft-room.js',
@@ -90,6 +91,11 @@ test('actual browser modules initialize the country campaign and presentation wi
     assert.equal(typeof App.DuatLibrary,'function');
     assert.equal(typeof App.DuatRitualsView,'function');
     assert.equal(typeof App.DuatHeptadUI.Games,'function');
+    assert.equal(typeof App.DuatWeeklyFlow.outcome,'function');
+    assert.equal(typeof App.DuatWeeklyProgress.describe,'function');
+    assert.equal(typeof App.DuatWeeklyUI.Frame,'function');
+    assert.equal(typeof App.DuatHeptadUI.AllianceIntro,'function');
+    assert.equal(typeof App.DuatHeptadUI.WeeklyRecap,'function');
     assert.equal(App.DuatLore.FACTIONS.length,28);
     assert.equal(App.DuatRituals.DEITIES.length,12);
     assert.ok(App.DuatProvinces.TERRITORIES.length>4000);

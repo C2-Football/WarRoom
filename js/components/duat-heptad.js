@@ -80,5 +80,32 @@
             {pinnacle && <Pinnacle pinnacle={pinnacle} campaign={campaign} factionId={factionId} nameOf={nameOf} factionOf={factionOf} onAction={canManage?onAction:null} busy={busy} completedWeeks={completedWeeks}/>}
         </>}</div>;
     }
-    App.DuatHeptadUI = { Games, RulesControls, Draw, Annals };
+    function AllianceIntro({campaign,factionId}) {
+        const intro=App.DuatWeeklyFlow.allianceIntro(campaign,factionId);
+        if(!intro)return <p className="duat-notice">This faction is not entered in the Heptad Games.</p>;
+        const factionOf=id=>campaign.factions.find(f=>f.id===id)||{id,name:id};
+        return <section className="duat-panel duat-heptad-context duat-heptad-first-alliance">
+            <span className="duat-eyebrow">YOUR ALLIANCE · THE HEPTAD GAMES</span><h2>{intro.alliance.name}</h2>
+            <div className="duat-heptad-partners">{intro.alliance.teamIds.map(id=><div key={id}><FactionMark faction={factionOf(id)}/><strong>{factionOf(id).name}</strong><small>{id===factionId?'Your faction':'Your partner'}</small></div>)}</div>
+            <p><strong>The Games begin in Week {intro.startWeek}.</strong> {intro.entryLabel} You were drawn as entrance {intro.entry} of {campaign.alliances.length}.</p>
+            <p>Your alliance combines its best eligible players into one lineup. One loss sends you to redemption; a second ends your run. The unbeaten finalist must be beaten twice.</p>
+            <p className="duat-muted">{Heptad.describeOptions(intro.options)}</p>
+        </section>;
+    }
+    function WeeklyRecap({campaign,factionId,week}) {
+        const result=App.DuatWeeklyFlow.outcome(campaign,factionId,week),recap=result?.heptad;
+        if(!recap)return <p className="duat-notice">Heptad results appear after this week is played.</p>;
+        if(!recap.alliance)return <p className="duat-notice">{recap.label}</p>;
+        const factionOf=id=>campaign.factions.find(f=>f.id===id)||{id,name:id};
+        return <section className={'duat-panel duat-heptad-context duat-heptad-weekly '+recap.status}>
+            <span className="duat-eyebrow">WEEK {week} · YOUR ALLIANCE</span><h2>{recap.label}</h2><p className="duat-heptad-context-name">{recap.alliance.name}</p>
+            {recap.match?<div className="duat-heptad-context-score"><div><span>Your alliance</span><strong>{num(recap.points)}</strong></div><span>–</span><div><span>{recap.opponentName}</span><strong>{num(recap.opponentPoints)}</strong></div></div>:<p>Your faction’s all-play result still counts. This week was not a Heptad defeat.</p>}
+            <p className="duat-heptad-context-lives"><strong>{statusLabels[recap.entryStatus]}</strong><span>{recap.lives} {recap.lives===1?'life':'lives'} remaining · {recap.wins}–{recap.losses} in the Games</span></p>
+            {recap.next&&<p className="duat-heptad-context-next"><span>Next in the Heptad</span><strong>{recap.next.label}</strong></p>}
+            {recap.mvp&&<p className="duat-heptad-context-mvp"><span>Alliance MVP</span><strong>{recap.mvp.name}</strong> · {num(recap.mvp.points)} points · {factionOf(recap.mvp.factionId).name}</p>}
+            {!!recap.contributors?.length&&<details className="duat-heptad-context-lineup"><summary>{num(recap.score.total)} best-ball points · {recap.contributors.length} contributors</summary><ol>{recap.contributors.map(p=><li key={p.factionId+':'+p.playerId}><span>{p.slot==='SUPER_FLEX'?'SFLEX':p.slot}</span><div><strong>{p.name}</strong><small>{factionOf(p.factionId).name}</small></div><strong>{num(p.points)}</strong></li>)}</ol><p className="duat-muted">{Heptad.describeOptions(recap.score.options || recap.options)}</p></details>}
+            {result.pinnacle&&<div className="duat-heptad-context-pinnacle"><strong>Pinnacle {result.pinnacle.winnerId===recap.alliance.id?'victory':'defeat'}</strong><p>{result.pinnacle.tied?'The scores tied; the reigning alliance keeps the title.':result.pinnacle.defended?'The reigning alliance defended its title.':'The challenger won the optional title defense.'} Your original Heptad result remains in the Annals.</p></div>}
+        </section>;
+    }
+    App.DuatHeptadUI = { Games, RulesControls, Draw, Annals, AllianceIntro, WeeklyRecap };
 })();
