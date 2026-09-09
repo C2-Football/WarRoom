@@ -89,3 +89,36 @@ test('pending Mahdi is mandatory, reroll budget-aware, and champion rewards stay
     p=Weekly.preparation(c,'f0',18,{ritualCandidates:[{id:'new',season:2023}]});assert.deepEqual(p.eligibleRitualIds,['plutus','amun']);assert.deepEqual(Weekly.preparation(c,'f1',18,{ritualCandidates:[{id:'new'}]}).eligibleRitualIds,[]);
     f.rituals.ledger=[{ritualId:'plutus',cycle:1},{ritualId:'amun',cycle:1}];f.favorBalance=10;assert(!Weekly.preparation(c,'f0',18,{ritualCandidates:[{id:'new'}]}).hasUsableOptions);
 });
+
+test('the full weekly table uses each faction’s actual result, shared tied rank and all-play record',()=>{
+    const c=fixture();record(c,1,[80.73,90.25,90.25,70.1,60,50,0,-2]);
+    const before=copy(c),table=Weekly.outcome(c,'f0',1).weeklyStandings;
+    assert.equal(table.length,8);assert.deepEqual(table.map(row=>row.points),[90.25,90.25,80.73,70.1,60,50,0,-2]);
+    assert.deepEqual(table.map(row=>row.rank),[1,1,3,4,5,6,7,8]);assert(table[0].tiedForRank&&table[1].tiedForRank);
+    assert.deepEqual(table.find(row=>row.factionId==='f0'),{factionId:'f0',name:'Faction 0',points:80.73,rank:3,tiedForRank:false,wins:5,losses:2,ties:0});
+    assert.deepEqual([table[0].wins,table[0].losses,table[0].ties],[6,0,1]);assert.equal(table.at(-1).points,-2);assert.deepEqual(c,before);
+    record(c,2,[900,100,99,98,97,96,95,94]);assert.deepEqual(Weekly.weeklyStandings(c,1),table);
+    for(const week of [undefined,0,3,18,'1'])assert.deepEqual(Weekly.weeklyStandings(c,week),[]);
+    c.completedWeeks[0].finalized=false;assert.deepEqual(Weekly.weeklyStandings(c,1),[]);
+});
+
+test('waiting alliances see the actual opening Heptad scores, while later top and redemption matches stay sealed',()=>{
+    const c=fixture();record(c,1);record(c,2,undefined,[123.45,87.65,200,300]);
+    const first=Weekly.heptadOutcome(c,'f4',2);assert.equal(first.status,'idle');assert.equal(first.next.week,3);
+    assert.equal(first.matches.length,1);assert.deepEqual(first.matches.map(m=>[m.homeName,m.homeScore,m.awayName,m.awayScore,m.winnerName,m.isMine]),[['Alliance 0',123.45,'Alliance 1',87.65,'Alliance 0',false]]);
+    assert(!first.matches[0].tied);assert.equal(first.matches[0].tieReason,null);
+    record(c,3,undefined,[100,80,60,40]);record(c,4,undefined,[100,80,60,40]);
+    c.heptad={matches:[{week:17,homeId:'a2',awayId:'a3',homeScore:9999,awayScore:0,winnerId:'a2'}],complete:true,championId:'a2'};
+    assert.deepEqual(Weekly.heptadOutcome(c,'f4',2),first);assert.equal(Weekly.heptadMatches(c,'f4',4).length,2);
+    assert.deepEqual(Weekly.heptadMatches(c,'f4',4).map(m=>m.bracket),['top','bottom']);assert.equal(Weekly.heptadMatches(c,'f4',4).filter(m=>m.isMine).length,1);
+    for(const week of [undefined,1,5,18])assert.deepEqual(Weekly.heptadMatches(c,'f4',week),[]);
+});
+
+test('weekly Heptad scoreboards retain the actual tie winner, championship and reset results',()=>{
+    const c=fixture();record(c,1);record(c,2,undefined,[80.25,80.25,60,40]);
+    const tied=Weekly.heptadMatches(c,'f0',2)[0];assert(tied.tied);assert.equal(tied.winnerId,'a0');assert.match(tied.tieReason,/Alliance 0 holds the arena/);
+    for(let w=3;w<=5;w++)record(c,w,undefined,[100,80,60,40]);
+    record(c,6,undefined,[10,80,60,40]);const final=Weekly.heptadMatches(c,'f0',6);assert.equal(final.length,1);assert.equal(final[0].bracket,'championship');assert.equal(final[0].awayScore,80);assert.equal(final[0].winnerId,'a1');
+    record(c,7,undefined,[100,50,60,40]);const reset=Weekly.heptadMatches(c,'f0',7);assert.equal(reset.length,1);assert.equal(reset[0].bracket,'rematch');assert.equal(reset[0].winnerId,'a0');
+    assert.deepEqual(Weekly.heptadMatches(c,'f0',6),final);final[0].homeScore=123456;assert.equal(c.completedWeeks[5].heptad.matches.find(m=>m.week===6).homeScore,10);
+});

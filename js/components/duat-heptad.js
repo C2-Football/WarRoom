@@ -92,14 +92,24 @@
             <p className="duat-muted">{Heptad.describeOptions(intro.options)}</p>
         </section>;
     }
+    function WeeklyMatches({matches,week}) {
+        return <div className="duat-heptad-week-scoreboards" aria-label={`Heptad matches played in Week ${week}`}>
+            {matches.length?matches.map(match=><article className={'duat-heptad-week-match'+(match.isMine?' is-mine':'')} key={match.bracket+':'+match.round+':'+match.homeId+':'+match.awayId}>
+                <header><span className="duat-eyebrow">{match.pathLabel}</span>{match.isMine&&<span className="duat-heptad-your-match">Your match</span>}</header>
+                {[[match.homeId,match.homeName,match.homeScore],[match.awayId,match.awayName,match.awayScore]].map(([id,name,points])=><div className={'duat-heptad-week-side'+(id===match.winnerId?' winner':'')} key={id}><span><strong>{name}</strong>{id===match.winnerId&&<small>Winner{match.tied?' · tiebreak':''}</small>}</span><strong className="duat-heptad-week-points">{num(points)}</strong></div>)}
+                {match.tied&&<p className="duat-heptad-week-tie">Tied scores: {match.tieReason}</p>}
+            </article>):<p className="duat-muted">No Heptad matches were played in Week {week}.</p>}
+        </div>;
+    }
     function WeeklyRecap({campaign,factionId,week}) {
         const result=App.DuatWeeklyFlow.outcome(campaign,factionId,week),recap=result?.heptad;
         if(!recap)return <p className="duat-notice">Heptad results appear after this week is played.</p>;
-        if(!recap.alliance)return <p className="duat-notice">{recap.label}</p>;
+        if(!recap.alliance)return <section className="duat-panel duat-heptad-context"><span className="duat-eyebrow">WEEK {week} · THE HEPTAD GAMES</span><h2>This week in the arena</h2><WeeklyMatches matches={recap.matches||[]} week={week}/><p className="duat-notice">{recap.label}</p></section>;
         const factionOf=id=>campaign.factions.find(f=>f.id===id)||{id,name:id};
         return <section className={'duat-panel duat-heptad-context duat-heptad-weekly '+recap.status}>
-            <span className="duat-eyebrow">WEEK {week} · YOUR ALLIANCE</span><h2>{recap.label}</h2><p className="duat-heptad-context-name">{recap.alliance.name}</p>
-            {recap.match?<div className="duat-heptad-context-score"><div><span>Your alliance</span><strong>{num(recap.points)}</strong></div><span>–</span><div><span>{recap.opponentName}</span><strong>{num(recap.opponentPoints)}</strong></div></div>:<p>Your faction’s all-play result still counts. This week was not a Heptad defeat.</p>}
+            <span className="duat-eyebrow">WEEK {week} · THE HEPTAD GAMES</span><h2>This week in the arena</h2>
+            <WeeklyMatches matches={recap.matches||[]} week={week}/>
+            <div className="duat-heptad-own-week"><span className="duat-eyebrow">YOUR ALLIANCE</span><h3>{recap.label}</h3><p className="duat-heptad-context-name">{recap.alliance.name}</p></div>
             <p className="duat-heptad-context-lives"><strong>{statusLabels[recap.entryStatus]}</strong><span>{recap.lives} {recap.lives===1?'life':'lives'} remaining · {recap.wins}–{recap.losses} in the Games</span></p>
             {recap.next&&<p className="duat-heptad-context-next"><span>Next in the Heptad</span><strong>{recap.next.label}</strong></p>}
             {recap.mvp&&<p className="duat-heptad-context-mvp"><span>Alliance MVP</span><strong>{recap.mvp.name}</strong> · {num(recap.mvp.points)} points · {factionOf(recap.mvp.factionId).name}</p>}
@@ -107,5 +117,5 @@
             {result.pinnacle&&<div className="duat-heptad-context-pinnacle"><strong>Pinnacle {result.pinnacle.winnerId===recap.alliance.id?'victory':'defeat'}</strong><p>{result.pinnacle.tied?'The scores tied; the reigning alliance keeps the title.':result.pinnacle.defended?'The reigning alliance defended its title.':'The challenger won the optional title defense.'} Your original Heptad result remains in the Annals.</p></div>}
         </section>;
     }
-    App.DuatHeptadUI = { Games, RulesControls, Draw, Annals, AllianceIntro, WeeklyRecap };
+    App.DuatHeptadUI = { Games, RulesControls, Draw, Annals, AllianceIntro, WeeklyRecap, WeeklyMatches };
 })();

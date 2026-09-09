@@ -49,6 +49,17 @@
         },2);
     }
 
+    function heptadMatches(campaign,factionId,week) {
+        if(!completed(campaign,week)||alliancesOf(campaign).length<2)return [];
+        const ownId=allianceOf(campaign,factionId)?.id;
+        return (heptadAt(campaign,week).matches || []).filter(m=>m.week===week&&finite(m.homeScore)&&finite(m.awayScore)).map(match=>{
+            const tied=match.homeScore===match.awayScore,winnerName=allianceName(campaign,match.winnerId);
+            return {...copy(match),homeName:allianceName(campaign,match.homeId),awayName:allianceName(campaign,match.awayId),winnerName,
+                pathLabel:roundName(match.bracket),isMine:[match.homeId,match.awayId].includes(ownId),tied,
+                tieReason:tied?winnerName+' holds the arena under the Heptad tiebreak.':null};
+        });
+    }
+
     // Both paths can play in the same week. The runner's single `next` stops at
     // the first missing score, so also expose already-known redemption fixtures.
     // No future winner or future football score is used to construct these pairs.
@@ -85,7 +96,7 @@
     }
 
     function heptadOutcome(campaign,factionId,week) {
-        const intro=allianceIntro(campaign,factionId);if(!intro)return {status:'not-entered',label:'Your faction is not entered in the Heptad Games.'};
+        const intro=allianceIntro(campaign,factionId);if(!intro)return {status:'not-entered',label:'Your faction is not entered in the Heptad Games.',matches:heptadMatches(campaign,factionId,week)};
         const snapshot=completed(campaign,week);if(!snapshot)return null;
         const heptad=heptadAt(campaign,week),alliance=intro.alliance;
         const progress=Heptad.progress(alliancesOf(campaign),heptad,2).find(a=>a.id===alliance.id);
@@ -97,7 +108,7 @@
         const tied=Boolean(match&&match.homeScore===match.awayScore);
         const label=match?(tied?'Heptad scores tied · '+(status==='won'?'your alliance holds the arena':'the reigning alliance holds the arena'):'Heptad '+(status==='won'?'win':'loss')+' vs '+allianceName(campaign,opponentId))
             :progress.status==='waiting'?'No Heptad match this week · waiting to enter':progress.status==='eliminated'?'No Heptad match · your alliance’s run is complete':progress.status==='champion'?'No Heptad match · your alliance holds the crown':'No Heptad match this week · your alliance rests';
-        return {...intro,status,entryStatus:progress.status,lives:progress.lives,wins:progress.wins,losses:progress.losses,match:copy(match),tied,opponentId,opponentName:opponentId?allianceName(campaign,opponentId):null,
+        return {...intro,status,entryStatus:progress.status,lives:progress.lives,wins:progress.wins,losses:progress.losses,match:copy(match),matches:heptadMatches(campaign,factionId,week),tied,opponentId,opponentName:opponentId?allianceName(campaign,opponentId):null,
             points:match?(match.homeId===alliance.id?match.homeScore:match.awayScore):null,opponentPoints:match?(match.homeId===alliance.id?match.awayScore:match.homeScore):null,
             score:score?copy(score):null,contributors:copy(score?.contributors || []),mvp:copy(score?.mvp),matchMvp:match?copy(match.mvp || Heptad.matchMVP(match,through(campaign,week))):null,
             next:nextHeptad(campaign,alliance,heptad,progress,week),label};
@@ -118,6 +129,15 @@
         return {status:won?'won':'lost',match:copy(match),opponentId,opponentName:nameOf(campaign,opponentId),points:match.homeId===factionId?match.homeScore:match.awayScore,opponentPoints:match.homeId===factionId?match.awayScore:match.homeScore,tied,advanced,eliminated,champion,label};
     }
 
+    function weeklyStandings(campaign,week) {
+        const scores=(completed(campaign,week)?.factions || []).filter(f=>f.finalized!==false&&finite(f.total));
+        return scores.map(f=>{
+            const rivals=scores.filter(other=>other.factionId!==f.factionId),wins=rivals.filter(other=>other.total<f.total).length,
+                losses=rivals.filter(other=>other.total>f.total).length,ties=rivals.length-wins-losses;
+            return {factionId:f.factionId,name:nameOf(campaign,f.factionId),points:f.total,rank:losses+1,tiedForRank:ties>0,wins,losses,ties};
+        }).sort((a,b)=>b.points-a.points||a.factionId.localeCompare(b.factionId));
+    }
+
     function outcome(campaign,factionId,resultWeek) {
         const snapshot=completed(campaign,resultWeek),own=snapshot?.factions?.find(f=>f.factionId===factionId);
         if(!own||!finite(own.total))return null;
@@ -129,7 +149,7 @@
         const baseTotal=finite(own.baseTotal)?own.baseTotal:players.filter(p=>p.starter&&finite(p.basePoints)).reduce((n,p)=>n+p.basePoints,0);
         const events=own.favors || (own.favor?[own.favor]:[]),teamAdjustment=finite(own.teamAdjustment)?own.teamAdjustment:round(own.total-baseTotal-playerDelta);
         const pinnacle=campaign.pinnacle?.result?.week===resultWeek?copy(campaign.pinnacle.result):null;
-        return {week:resultWeek,allPlay:{wins,losses,ties,place:losses+1,fieldSize:rivals.length+1,tiedForPlace:ties>0,record,points:own.total,performance,label,headline:label},
+        return {week:resultWeek,weeklyStandings:weeklyStandings(campaign,resultWeek),allPlay:{wins,losses,ties,place:losses+1,fieldSize:rivals.length+1,tiedForPlace:ties>0,record,points:own.total,performance,label,headline:label},
             playoff:playoffOutcome(campaign,factionId,resultWeek),favors:{events:copy(events),playerDelta,teamAdjustment,totalDelta:round(own.total-baseTotal),spent:finite(own.favorCost)?own.favorCost:round(events.reduce((n,e)=>n+(e.cost || 0),0))},
             heptad:heptadOutcome(campaign,factionId,resultWeek),pinnacle:pinnacle&&allianceOf(campaign,factionId)&&[pinnacle.homeId,pinnacle.awayId].includes(allianceOf(campaign,factionId).id)?pinnacle:null};
     }
@@ -196,5 +216,5 @@
     function describe({campaign,factionId,preparationWeek,resultWeek,ritualCandidates}={}) {
         return {preparationWeek,resultWeek,result:outcome(campaign,factionId,resultWeek),preparation:preparation(campaign,factionId,preparationWeek,{ritualCandidates}),allianceIntro:allianceIntro(campaign,factionId)};
     }
-    return Object.freeze({describe,outcome,preparation,allianceIntro,heptadOutcome});
+    return Object.freeze({describe,outcome,preparation,allianceIntro,heptadOutcome,weeklyStandings,heptadMatches});
 });
