@@ -84,7 +84,8 @@ test('distinct source cultures remain distinct when applying names and expeditio
     assert.equal(Lore.expedition({factionId:'warhorsemen'}).source.sourceFaction,'The Huns');
     assert.equal(Lore.expedition({factionId:'mali'}).source.chapter,3);
     assert.equal(Lore.chooseRuler({factionId:'mali'}).name,'Sundiata Keita');
-    assert.equal(Lore.chooseRuler({factionId:'persia'}).origin,'new-game-title');
+    assert.equal(Lore.chooseRuler({factionId:'persia'}).origin,'historical-reference');
+    assert(Lore.chooseRuler({factionId:'persia'}).source.url,'Expanded cultures now draw from a sourced personal-name pool');
 });
 
 test('discovery stages disclose no hidden ruler, count, year or player data', () => {

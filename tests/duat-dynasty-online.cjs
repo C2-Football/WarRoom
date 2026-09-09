@@ -133,7 +133,17 @@ function fixture(input={}){
    assert.equal(runtime.availableSeasons.length,24);
    const archive=await runtime.loadData(runtime.availableSeasons);assert(archive.cards.size>1000);assert(archive.logIndex.size>90000);
    await assert.rejects(()=>runtime.loadData([2025,2025]),/unique complete/);await assert.rejects(()=>runtime.loadData([]),/unique complete/);
-   for(const name of ['DuatProvinces','DuatLore','DuatRituals','DuatHeptad'])assert(runtime.App[name],name+' must be bundled');
+   for(const name of ['DuatProvinces','DuatIdentityLibrary','DuatLore','DuatRituals','DuatHeptad'])assert(runtime.App[name],name+' must be bundled');
+   const browserLore=require('../js/duat/lore.js');
+   assert.deepEqual(runtime.App.DuatIdentityLibrary,require('../js/duat/identity-library.js'));
+   for(const faction of browserLore.FACTIONS){
+    assert.deepEqual(runtime.App.DuatLore.nameLibrary(faction.id),browserLore.nameLibrary(faction.id));
+    for(let cycle=1;cycle<=3;cycle++){
+     const scene={campaignId:'runtime-public-parity',factionId:faction.id,cycle,rulerName:'The $& Crown',playerCount:8,sealed:false};
+     assert.deepEqual(runtime.App.DuatLore.journey(scene),browserLore.journey(scene));
+     assert.deepEqual(runtime.App.DuatLore.chooseRuler({factionId:faction.id,index:cycle-1}),browserLore.chooseRuler({factionId:faction.id,index:cycle-1}));
+    }
+   }
    sandbox.App=runtime.App;sandbox.loadData=runtime.loadData;sandbox.availableSeasons=runtime.availableSeasons;
    const made=await api(users[0],{op:'create',input:{version:4,name:'Real sourcebook dynasty',seasons:[2025],settings:{leagueSize:8,mummyCount:1,bench:1,conquest:false,favors:true,favorBudget:500},hostFactionId:ids[0],humanFactionIds:ids.slice(0,2),factionIds:ids,expansionSettings:{conquestMode:'original',worldScale:'provinces'}}});
    assert.equal(made.ok,true,made.error);const id=made.room.id;let room=made.room;

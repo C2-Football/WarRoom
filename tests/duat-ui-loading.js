@@ -33,10 +33,10 @@ assert.ok(scriptSources.length > 1, 'The production Duat group must contain its 
 const scriptPaths = scriptSources.map(src => src.split('?')[0]);
 const requiredDuatSources = [
     'js/duat/rules.js', 'js/duat/world.js', 'js/duat/provinces.js', 'js/duat/army-generation.js',
-    'js/duat/conquest.js', 'js/duat/favors.js', 'js/duat/lore.js', 'js/duat/rituals.js', 'js/duat/heptad.js', 'js/duat/campaign.js', 'js/duat/dynasty.js',
+    'js/duat/conquest.js', 'js/duat/favors.js', 'js/duat/identity-library.js', 'js/duat/lore.js', 'js/duat/rituals.js', 'js/duat/heptad.js', 'js/duat/campaign.js', 'js/duat/dynasty.js',
     'js/duat/favor-availability.js', 'js/duat/weekly-flow.js', 'js/duat/weekly-progress.js', 'js/duat/season-home.js',
     'js/duat/session.js', 'js/duat/vendor/lz-string-1.5.0.js', 'js/duat/storage.js', 'js/duat/remote.js',
-    'js/components/duat-presentation.js', 'js/components/duat-library.js', 'js/components/duat-rituals.js', 'js/components/duat-heptad.js', 'js/components/duat-weekly-flow.js', 'js/components/duat-season-home.js', 'js/tabs/duat.js',
+    'js/components/duat-faction-marks.js', 'js/components/duat-identity-library.js', 'js/components/duat-presentation.js', 'js/components/duat-library.js', 'js/components/duat-rituals.js', 'js/components/duat-heptad.js', 'js/components/duat-weekly-flow.js', 'js/components/duat-season-home.js', 'js/tabs/duat.js',
 ];
 const sharedHelpers = [
     'js/shared/time-league-roster.js', 'js/shared/time-league-draft-room.js',
@@ -254,6 +254,23 @@ test('legacy revealed saves show every player without timers, preserve final com
     const illustration=nodes(tree).find(n=>n.type==='img');illustration.props.onError();tree=page.draw();
     const fallback=nodes(tree).find(n=>n.type==='img');assert.equal(fallback.props.src,'images/duat/excavation.webp');assert.match(fallback.props.alt,/temporarily unavailable/);
     button(tree,'Enter the realm · Week 1').props.onClick();assert.equal(page.continued(),1);assert.equal(page.actions.length,0);
+});
+
+test('permitted live ruler rename keeps the reveal consistent while preserving original and added journal prose through reload',()=>{
+    const Lore=require('../js/duat/lore.js'),name='New $& Crown {playerCount}';
+    for(const script of Lore.nameLibrary('egypt').scripts){
+        const page=storyHarness();page.draw();page.reveal('egypt');
+        const oldName=page.campaign.factions[0].armies[0].rulerName;
+        const entry=Lore.journalEntry({factionId:'egypt',variantId:script.id,rulerName:oldName,playerCount:2,season:2025,cycle:1,createdAt:'2026-09-09T03:00:00Z'});
+        page.campaign.dynasty.journal.push(entry);const original=JSON.stringify(entry);let tree=page.draw();
+        assert.equal(text(nodes(tree).find(node=>node.props.className==='duat-story-appearance')),entry.paragraphs[1]);
+        page.campaign.factions[0].armies[0].rulerName=name;
+        for(const current of [page,(()=>{const restored=storyHarness();Object.assign(restored.campaign,JSON.parse(JSON.stringify(page.campaign)));return restored;})()]){
+            tree=current.draw();const appearance=text(nodes(tree).find(node=>node.props.className==='duat-story-appearance'));
+            assert(appearance.includes(name));assert(!appearance.includes(oldName));assert.equal(appearance,Lore.journey({factionId:'egypt',variantId:script.id,awakened:true,rulerName:name,playerCount:2,season:2025}).paragraphs[0]);
+            const record=nodes(tree).find(node=>node.props.className==='duat-story-record');assert(text(record).includes(oldName));assert.match(text(record),/original field record keeps/);assert.equal(JSON.stringify(current.campaign.dynasty.journal[0]),original);assert.equal(current.actions.length,0);
+        }
+    }
 });
 
 test('a failed world dependency keeps the game unmounted even when presentation loaded; retry reloads', async () => {

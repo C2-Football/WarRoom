@@ -11,7 +11,7 @@ const modules = [
     'js/shared/time-league-roster.js', 'js/shared/time-league-draft-room.js',
     'js/shared/time-league-season.js', 'js/shared/time-league-player-cards.js',
     'js/duat/rules.js', 'js/duat/world.js', 'js/duat/provinces.js', 'js/duat/army-generation.js', 'js/duat/conquest.js',
-    'js/duat/favors.js', 'js/duat/lore.js', 'js/duat/rituals.js', 'js/duat/heptad.js', 'js/duat/campaign.js', 'js/duat/dynasty.js',
+    'js/duat/favors.js', 'js/duat/identity-library.js', 'js/duat/lore.js', 'js/duat/rituals.js', 'js/duat/heptad.js', 'js/duat/campaign.js', 'js/duat/dynasty.js',
 ];
 const source = modules.map(name => {
     const code = fs.readFileSync(path.join(root, name), 'utf8');

@@ -11,9 +11,7 @@
     const area = value => value >= 1000000 ? `${(value / 1000000).toFixed(2)}M km²` : `${Math.round(value).toLocaleString()} km²`;
     const atlas = campaign => Conquest.catalogFor(campaign.conquest);
     function Sigil({id}) {
-        const faction = identity(id);
-        const crest=App.DuatLore?.CRESTS?.[id];
-        return crest?<span className="duat-sigil duat-sigil-crest" aria-hidden="true"><img src={base+crest} alt=""/></span>:<span className="duat-sigil" style={{color:faction?.color}} aria-hidden="true">{faction?.sigil||'◈'}</span>;
+        return <App.DuatFactionMark id={id} className="duat-sigil"/>;
     }
     function Land({campaign, factionId, compact = false}) {
         const source = atlas(campaign), owned = source.TERRITORIES.filter(t => campaign.conquest.owners[t.id] === factionId);
@@ -160,8 +158,12 @@
         const recordedArmy=revealed.includes(id)&&faction?Engine.activeArmy(faction):null;
         const army=recordedArmy?.players?.length?recordedArmy:revealed.includes(id)&&latest?.factionId===id&&latest.players?.length?latest:null;
         const awake=Boolean(view.open&&army), rulerName=army?.rulerName||`The ${army?.season} ruler`;
-        const scene=id?App.DuatLore.journey({factionId:id,awakened:awake,rulerName,playerCount:army?.players.length,season:army?.season}):null;
         const journal=campaign.dynasty?.journal?.filter(e=>e.cycle===cycle&&e.factionId===id).at(-1);
+        const savedVariant=journal&&App.DuatLore.nameLibrary(id).scripts.some(script=>script.id===journal.variantId)?journal.variantId:'original';
+        const story={campaignId:campaign.id,cycle,variantId:journal?savedVariant:undefined};
+        const generated=id?App.DuatLore.journey({...story,factionId:id,awakened:awake,rulerName,playerCount:army?.players.length,season:army?.season}):null;
+        const renamed=Boolean(journal?.rulerName&&army?.rulerName&&journal.rulerName!==army.rulerName);
+        const scene=generated&&journal?.paragraphs?.length>=4&&!renamed?{...generated,title:journal.title||generated.title,...(awake?{paragraphs:[journal.paragraphs[1],journal.paragraphs.at(-1).replace(/ — T\.A\.$/,'')]}:{})}:generated;
         const complete=revealed.length===order.length;
         useEffect(()=>{
             if(!nextId||!window.Image)return;
@@ -174,7 +176,8 @@
         const travel=(factionId,replay=false)=>{moved.current=true;setView({campaignId:campaign.id,cycle,id:factionId,open:false,replay});};
         const awaken=()=>{requested.current=true;if(army){setView(previous=>({...previous,open:true}));return;}onAction({type:'reveal-next'});};
         if(!scene)return <section className="duat-panel"><h2>The expedition is complete.</h2><button className="duat-button primary" onClick={onContinue}>Enter the realm · Week 1</button></section>;
-        const arrival=App.DuatLore.journey({factionId:id});
+        const generatedArrival=App.DuatLore.journey({...story,factionId:id});
+        const arrival=journal?.paragraphs?.length?{...generatedArrival,paragraphs:journal.arrivalParagraphs||[journal.paragraphs[0]]}:generatedArrival;
         const recordParagraphs=journal?.paragraphs||[...arrival.paragraphs,...(awake?scene.paragraphs:[])];
         return <section className="duat-excavation duat-story-expedition" style={{'--expedition-color':identity(id)?.color||'#cfa960'}}>
             <header className="duat-story-heading"><div><span className="duat-eyebrow">CHAPTER II · THE ARCHAEOLOGIST</span><h2 ref={heading} tabIndex="-1">A journey through the buried kingdoms.</h2></div><span className="duat-story-progress">{index+1} / {order.length}<small>{revealed.length} awakened</small></span></header>
@@ -189,7 +192,7 @@
                     <p className="duat-story-appearance">{scene.paragraphs[0]}</p>
                     <div className="duat-story-roster" aria-label={rulerName+' — full returning army'}>{army.players.map(p=><article key={p.id}><span className="duat-story-position">{p.position}</span><div><h4>{p.name}</h4><small>{p.season||army.season} NFL season</small></div></article>)}</div>
                     <p className="duat-story-closing">{scene.paragraphs[1]}</p>
-                    <details className="duat-story-record"><summary>{campaign.version===4?'Recorded in the Royal Library':'The Archaeologist’s record'} · {nameOf(id)}</summary>{recordParagraphs.map((paragraph,i)=><p key={i}>{paragraph}</p>)}<small>{journal?.attribution||scene.attribution}. The arrival passage is new writing for this illustrated expedition.</small></details>
+                    <details className="duat-story-record"><summary>{campaign.version===4?'Recorded in the Royal Library':'The Archaeologist’s record'} · {nameOf(id)}</summary>{renamed&&<p className="duat-muted">This original field record keeps the ruler’s name at the time of discovery.</p>}{recordParagraphs.map((paragraph,i)=><p key={i}>{paragraph}</p>)}<small>{journal?.attribution||scene.attribution}. The arrival passage is new writing for this illustrated expedition.</small></details>
                     <div className="duat-story-onward">{nextId?<><p>I close this page. The next mark in my notebook is <strong>{nameOf(nextId)}</strong>.</p><button className="duat-button primary" onClick={()=>travel(nextId)}>Continue to {nameOf(nextId)} <span aria-hidden="true">→</span></button></>:complete?<><p>The last seal is open. I have written every name. What happens next belongs to the rulers.</p><button className="duat-button primary" onClick={onContinue}>Enter the realm · Week 1</button></>:<p>The expedition is waiting for its final record.</p>}</div>
                 </div>}
             </article>

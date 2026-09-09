@@ -182,3 +182,11 @@ test('Home Resume cannot skip a pending Mahdi draw or an unresolved war council'
     const page=await harness({initial:ready({favors:true,bench:3})});await page.open();await page.primary();await page.primary();await page.component(page.App.DuatRitualsView).onAction({type:'ritual',ritualId:'summon-mahdi',position:'WR'});assert(page.frame().primary.disabled);button(page.draw(),'Season Home').props.onClick();const home=page.component(page.App.DuatSeasonHomeView);assert.equal(home.model.resume.stage,'favors');const before=JSON.stringify(page.saved());home.onResume();assert.equal(page.frame().stage,'favors');assert(page.frame().primary.disabled);assert.equal(JSON.stringify(page.saved()),before);
     let state=ready({conquest:true});for(let n=0;n<5&&!Engine.unresolvedClaims(state).includes('egypt');n++)state=Engine.applyAction(state,{type:'advance-week'},data);const war=await harness({initial:state});await war.open();await war.primary();await war.primary();assert.equal(war.frame().stage,'conquest');assert(war.frame().primary.disabled);button(war.draw(),'Season Home').props.onClick();const warHome=war.component(war.App.DuatSeasonHomeView);assert.equal(warHome.model.resume.stage,'conquest');warHome.onResume();assert(war.frame().primary.disabled);assert.equal(war.actions.filter(a=>a.type==='advance-week').length,0);
 });
+
+
+test('the mounted library receives explicit local alliance acknowledgement and keeps draft pairings sealed',async()=>{
+    for(const online of [false,true]){
+        const page=await harness({online});await page.open();assert.equal(page.frame().stage,'alliance');assert.equal(page.component(page.App.DuatLibrary),undefined);await page.primary();button(page.draw(),'Royal Library').props.onClick();assert.equal(page.component(page.App.DuatLibrary).allianceVisible,true);assert.equal(page.actions.length,0);
+    }
+    const state=Engine.createCampaign({version:4,id:'library-sealed',name:'Guided Fixture',seed:'names-draft',createdAt:'2026-09-08T12:00:00Z',hostFactionId:'egypt',seasons:[2025],settings:{leagueSize:8,mummyCount:1,conquest:false,favors:false}},data),draft=await harness({initial:state});await draft.open(false);assert.equal(draft.component(draft.App.DuatLibrary).allianceVisible,false);assert.equal(draft.actions.length,0);
+});

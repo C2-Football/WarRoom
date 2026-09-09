@@ -9,19 +9,17 @@
     const points = value => Number.isFinite(value) ? value.toFixed(2).replace(/\.00$/, '') : '—';
     function Source({source}) {
         if (!source) return null;
-        return <small className="duat-library-source">{source.file}{source.chapter ? ` · Chapter ${source.chapter}` : ''}{source.pages ? ` · pp. ${source.pages.join('–')}` : ''}{source.sheet ? ` · ${source.sheet}` : ''}{source.cell || source.range ? ` · ${source.cell || source.range}` : ''}</small>;
+        return <small className="duat-library-source">{source.url&&/^https:\/\//.test(source.url)?<a href={source.url} target="_blank" rel="noreferrer">{source.title||'Name source'} ↗</a>:source.file}{source.chapter ? ` · Chapter ${source.chapter}` : ''}{source.pages ? ` · pp. ${source.pages.join('–')}` : ''}{source.sheet ? ` · ${source.sheet}` : ''}{source.cell || source.range ? ` · ${source.cell || source.range}` : ''}</small>;
     }
     function Crest({id,decorative = false,className = ''}) {
-        const faction = Lore.faction(id), path = faction?.crest;
-        return path ? <img className={`duat-crest ${className}`} src={imagePath(path)} alt={decorative ? '' : `${label(id)} crest`} loading="lazy"/>
-            : <span className={`duat-crest duat-crest-new ${className}`} role={decorative ? undefined : 'img'} aria-label={decorative ? undefined : `${label(id)} banner`} aria-hidden={decorative || undefined}>{App.DuatWorld?.factionById(id)?.sigil || label(id).slice(0,2)}</span>;
+        return <App.DuatFactionMark id={id} className={`duat-crest ${className}`} decorative={decorative} label={`${label(id)} crest`}/>;
     }
     function Army({army,campaign,onAction,busy,active,retired = false}) {
         const [editing,setEditing] = useState(false), [name,setName] = useState(army.rulerName || ''), [error,setError] = useState('');
         const mayName = !retired && !army.destroyed && onAction && (['draft','reveal'].includes(campaign.phase) || campaign.phase === 'season' && campaign.week === 1);
         const save = async event => {
             event.preventDefault();setError('');
-            try {const value=Lore.validateName(name);await onAction({type:'name-ruler',armyId:army.id,name:value});setEditing(false);}
+            try {const value=Lore.validateName(name);const saved=await onAction({type:'name-ruler',armyId:army.id,name:value});if(saved===false)throw new Error('The name was not saved. Your current name is unchanged.');setEditing(false);}
             catch (problem) {setError(problem?.message || 'This ruler could not be renamed.');}
         };
         return <article className={'duat-library-army ' + (active ? 'walking' : retired || army.destroyed ? 'retired' : '')}>
@@ -31,7 +29,8 @@
             {army.rollBand && !retired && <span className="duat-library-d20">d20 · {army.rollBand.min}–{army.rollBand.max}</span>}
             {retired && <p className="duat-library-retirement">{army.reason === 'destroyed' || army.reason === 'shiva' ? 'The tomb was destroyed. This ruler will not return.' : 'This ruler has completed the journey and will not be awakened again.'}</p>}
             {army.players?.length > 0 && <details><summary>{army.players.length} companions</summary><ul className="duat-library-roster">{army.players.map((p,i)=><li key={p.id || i}><span>{p.position}</span>{p.name}</li>)}</ul></details>}
-            {army.rulerSource && <details className="duat-library-provenance"><summary>From the original archives</summary><Source source={army.rulerSource}/><p>Preserved as a Duat game identity. Names need not follow a historical succession.</p></details>}
+            {army.rulerSource && <details className="duat-library-provenance"><summary>{army.rulerOrigin?.startsWith('supplied')?'From the original archives':'About this name'}</summary><Source source={army.rulerSource}/><p>Preserved as a Duat game identity. Names need not follow a historical succession.</p></details>}
+            {army.rulerOrigin === 'new-game-name'&&<small className="duat-library-source">An authored Duat identity.</small>}
             {army.rulerOrigin === 'new-game-title' && <small className="duat-library-source">A new, customizable game title.</small>}
             {army.rulerOrigin === 'player-named' && <small className="duat-library-source">Named by this faction’s manager.</small>}
             {mayName && !editing && <button className="duat-link" disabled={busy} onClick={()=>{setName(army.rulerName || '');setEditing(true);}}>Name this ruler</button>}
@@ -60,20 +59,21 @@
         const Portrait=App.DuatDeityPortrait;
         return <section><div className="duat-panel-heading"><div><span className="duat-eyebrow">FAVORS OF THE GODS</span><h2>The divine codex</h2></div><span className="duat-pill">{deities.length} deities</span></div><p className="duat-muted">The gods’ roles in the Duat. The offering screen shows eligibility, costs and consequences under this campaign’s rules.</p><div className="duat-library-deities">{deities.map(deity=><article className="duat-library-deity" key={deity.id}>{Portrait ? <Portrait god={deity} className="duat-library-deity-portrait"/> : deity.art && <div className="duat-library-deity-portrait" role="img" aria-label={deity.name} style={{backgroundImage:`url(${imagePath(deity.art)})`,...(Number.isInteger(deity.atlasIndex)?{backgroundSize:'300% 300%',backgroundPosition:`${deity.atlasIndex%3*50}% ${Math.floor(deity.atlasIndex/3)*50}%`}:{backgroundSize:'cover'})}}/>}<div><span className="duat-eyebrow">{deity.title || 'THE PANTHEON'}</span><h3>{deity.name}</h3><p>{deity.description}</p>{ritualsFor(deity).length>0 && <details><summary>Offerings in the Duat</summary><ul>{ritualsFor(deity).map(ritual=><li key={ritual.id}><strong>{ritual.name}</strong><small>{ritual.timing}</small></li>)}</ul></details>}</div></article>)}</div></section>;
     }
-    function Library({campaign,factionId,archive,journal,deities,onAction,busy = false}) {
+    function Library({campaign,factionId,archive,journal,deities,onAction,busy = false,ready=false,actionError='',allianceVisible=false}) {
         const [section,setSection] = useState('dynasty');
         const faction=campaign?.factions?.find(item=>item.id===factionId), identity=Lore.faction(factionId);
         if (!faction || !identity) return <div className="duat-notice">Choose a faction to open its Royal Library.</div>;
         const summary=Lore.dynastySummary(campaign,factionId,archive), entries=journal ? journal.filter(item=>item.factionId===factionId) : summary.journal;
         const gods=deities || App.DuatRituals?.DEITIES || [], active=faction.armies?.find(army=>army.id===faction.activeArmyId);
-        const tabs=[['dynasty','Your dynasty'],['journal','The Archaeologist'],['original','Original chronicles'],...(gods.length ? [['gods','The divine codex']] : [])];
+        const tabs=[['dynasty','Your dynasty'],['names','Names & banners'],['journal','The Archaeologist'],['original','Original chronicles'],...(gods.length ? [['gods','The divine codex']] : [])];
         return <div className="duat-library"><header className="duat-library-hero" style={{backgroundImage:`linear-gradient(90deg,rgba(12,23,30,.98),rgba(12,23,30,.5)),url(${imagePath('images/duat/excavation.webp')})`}}><Crest id={factionId}/><div><span className="duat-eyebrow">THE ROYAL LIBRARY · {identity.name.toUpperCase()}</span><h2>{active?.rulerName || 'A dynasty waiting to return'}</h2><p>{active ? `${active.rulerRealm || identity.realm} · ${active.season} scoring season` : 'Names, tombs and the story your faction leaves behind.'}</p><span className="duat-library-cycle">Dynasty {campaign.dynasty?.cycle || 1}</span></div></header>
             <nav className="duat-library-tabs" aria-label="Royal Library sections">{tabs.map(([id,name])=><button key={id} className={section===id?'selected':''} aria-pressed={section===id} onClick={()=>setSection(id)}>{name}</button>)}</nav>
             {section==='dynasty' && <><div className="duat-library-record"><div><strong>{summary.record.titles}</strong><span>Lord of the Duat</span></div><div><strong>{summary.record.heptadTitles}</strong><span>Alliance titles</span></div><div><strong>{summary.record.camel}</strong><span>Camels</span></div><div><strong>{summary.record.wins}–{summary.record.losses}</strong><span>All-play record · {summary.record.seasons} completed seasons</span></div></div>
-                <section><div className="duat-panel-heading"><div><span className="duat-eyebrow">THE KEEPERS OF YOUR FUTURE</span><h2>The royal tombs</h2></div><span className="duat-pill">{(faction.armies || []).filter(army=>!army.destroyed).length} armies</span></div><div className="duat-library-armies">{(faction.armies || []).map(army=><Army key={army.id} army={army} campaign={campaign} active={army.id===faction.activeArmyId} onAction={onAction} busy={busy}/>)}</div></section>
+                <section><div className="duat-panel-heading"><div><span className="duat-eyebrow">THE KEEPERS OF YOUR FUTURE</span><h2>The royal tombs</h2></div><span className="duat-pill">{(faction.armies || []).filter(army=>!army.destroyed).length} armies</span></div><div className="duat-library-armies">{(faction.armies || []).map(army=><Army key={army.id} army={army} campaign={campaign} active={army.id===faction.activeArmyId} onAction={onAction} busy={busy||ready}/>)}</div></section>
                 {summary.retired.length>0 && <section><span className="duat-eyebrow">THE DYNASTY REMEMBERS</span><h2>Lineage of rulers</h2><div className="duat-library-armies">{[...summary.retired].reverse().map((army,index)=><Army key={`${army.id}-${army.retiredCycle}-${index}`} army={army} campaign={campaign} retired/>)}</div></section>}
                 <Honors chosenFive={summary.chosenFive} allTimeTeam={summary.allTimeTeam}/>
                 {summary.seasons.length>0 && <section className="duat-panel"><span className="duat-eyebrow">YOUR CAMPAIGN ANNALS</span><h3>Seasons remembered</h3><div className="duat-library-roll">{[...summary.seasons].reverse().map(season=><article key={season.id || season.cycle}><span>Dynasty {season.cycle}</span><Crest id={season.championId}/><div><strong>{season.rulers?.find(army=>army.factionId===season.championId)?.rulerName || label(season.championId)}</strong><small>{label(season.championId)} · Lord of the Duat</small></div></article>)}</div></section>}</>}
+            {section==='names'&&<App.DuatIdentityLibraryView campaign={campaign} factionId={factionId} onAction={onAction} busy={busy} ready={ready} actionError={actionError} allianceVisible={allianceVisible}/>}
             {section==='journal' && <Journals entries={entries} factionId={factionId}/>}
             {section==='original' && <OriginalHistory/>}
             {section==='gods' && <Pantheon deities={gods}/>}

@@ -7,8 +7,8 @@
     const labels = { top: 'Challenger path', bottom: 'Redemption path', championship: 'Championship', rematch: 'Championship reset', pinnacle: 'Pinnacle Battle' };
     const statusLabels = { waiting: 'Waiting to enter', unbeaten: 'Unbeaten', redemption: 'One life remains', eliminated: 'Journey complete', champion: 'Alliance champion' };
     function FactionMark({ faction }) {
-        const Sigil = App.DuatPresentation?.Sigil;
-        return Sigil ? <Sigil id={faction.id}/> : <span className="duat-sigil" style={{ color: faction.color }} aria-hidden="true">{faction.sigil || '◈'}</span>;
+        const Sigil = App.DuatPresentation?.Sigil || App.DuatFactionMark;
+        return Sigil ? <Sigil id={faction.id} className="duat-sigil"/> : null;
     }
     function RulesControls({ value, onChange, disabled = false }) {
         const options = Heptad.normalizeOptions(value);

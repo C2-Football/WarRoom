@@ -148,13 +148,15 @@
     function updateLatest(state, faction, createdAt, addJournal=true) {
         const army=activeArmy(faction);
         if(!army)return;
-        const stages=['discovery','ruler','roster','record'].map(stage=>Lore.expedition({factionId:faction.id,stage,rulerName:army.rulerName,playerCount:army.players.length,season:army.season}));
+        const journal=state.dynasty.journal.filter(entry=>entry.cycle===state.dynastySeason&&entry.factionId===faction.id).at(-1);
+        const story={campaignId:state.id,cycle:state.dynastySeason,variantId:journal?journal.variantId||'original':undefined};
+        const stages=['discovery','ruler','roster','record'].map(stage=>Lore.expedition({...story,factionId:faction.id,stage,rulerName:army.rulerName,playerCount:army.players.length,season:army.season}));
         const lines=stages.flatMap(stage=>stage.lines || (stage.text?[stage.text]:[]));
         const latest={factionId:faction.id,factionName:faction.name,armyId:army.id,rulerName:army.rulerName,
             rulerRoll:faction.rulerRoll,season:army.season,players:copy(army.players),stages,
             narration:{title:'The return of '+army.rulerName,lines:lines.length?lines:[army.rulerName+' has returned to '+faction.name+'.']}};
         if(state.archaeology.revealedFactionIds.at(-1)===faction.id)state.archaeology.latest=latest;
-        if(addJournal)state.dynasty.journal.push(Lore.journalEntry({factionId:faction.id,rulerName:army.rulerName,playerCount:army.players.length,season:army.season,cycle:state.dynastySeason,createdAt}));
+        if(addJournal)state.dynasty.journal.push(Lore.journalEntry({...story,factionId:faction.id,rulerId:army.rulerId,rulerName:army.rulerName,playerCount:army.players.length,season:army.season,createdAt}));
     }
     function reveal(state,id,createdAt) {
         const faction=factionOf(state,id); bandArmies(faction);
