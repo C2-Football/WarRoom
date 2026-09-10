@@ -12,11 +12,11 @@
     // SavedViewBar's `columns` slot round-trips correctly between surfaces.
     const FA_COLUMNS = {
         pos:        { label: 'Position',                shortLabel: 'Pos',    width: '40px', sortKey: 'pos',   group: 'core'    },
-        team:       { label: 'NFL Team',                shortLabel: 'Team',   width: '44px', sortKey: 'team',  group: 'core'    },
+        team:       { label: 'NFL Team',                shortLabel: 'Team',   width: '60px', sortKey: 'team',  group: 'core'    },
         age:        { label: 'Age',                     shortLabel: 'Age',    width: '34px', sortKey: 'age',   group: 'dynasty' },
-        dhq:        { label: 'DHQ Dynasty Value',       shortLabel: 'DHQ',    width: '58px', sortKey: 'dhq',   group: 'dynasty' },
-        ppg:        { label: 'Points Per Game',         shortLabel: 'PPG',    width: '44px', sortKey: 'ppg',   group: 'stats'   },
-        proj:       { label: 'This Week Projection',    shortLabel: 'Proj',   width: '48px', sortKey: 'proj',  group: 'stats'   },
+        dhq:        { label: 'DHQ Dynasty Value',       shortLabel: 'DHQ',    width: '70px', sortKey: 'dhq',   group: 'dynasty' },
+        ppg:        { label: 'Points Per Game',         shortLabel: 'PPG',    width: '65px', sortKey: 'ppg',   group: 'stats'   },
+        proj:       { label: 'This Week Projection',    shortLabel: 'Proj',   width: '78px', sortKey: 'proj',  group: 'stats'   },
         peakYr:     { label: 'Peak Years Left',         shortLabel: 'Peak',   width: '44px', sortKey: 'peak',  group: 'dynasty' },
         yrsExp:     { label: 'NFL Years Experience',    shortLabel: 'Exp',    width: '38px', sortKey: 'exp',   group: 'dynasty' },
         college:    { label: 'College',                 shortLabel: 'College',width: '90px', sortKey: 'college', group: 'scout' },
@@ -24,7 +24,7 @@
         weight:     { label: 'Weight (lbs)',            shortLabel: 'Wt',     width: '42px', sortKey: 'weight',  group: 'scout' },
         depthChart: { label: 'NFL Depth Chart Position',shortLabel: 'Depth',  width: '50px', group: 'scout'   },
         injury:     { label: 'Injury Status',           shortLabel: 'Inj',    width: '46px', sortKey: 'injury',  group: 'stats' },
-        faab:       { label: 'Suggested FAAB Bid',      shortLabel: 'FAAB',   width: '60px', group: 'stats'   },
+        faab:       { label: 'Suggested FAAB Bid',      shortLabel: 'FAAB bid', width: '94px', group: 'stats'   },
         // Usage stats — beyond PPG, and POSITION-SPECIFIC: each row pulls its
         // own position's top 2 signature stats (window.App.StatCatalog.
         // getSignatureStats — targets/snap%/RZ for a WR, CMP%/YPA for a QB,
@@ -32,8 +32,8 @@
         // '—' for every position it doesn't apply to. Label is generic here
         // since it varies per row; the cell itself carries the stat's short
         // label inline (e.g. "62% SNP") so it reads correctly on a mixed list.
-        sig1:       { label: 'Position Stat 1 (varies by position — see cell)', shortLabel: 'Usage 1', width: '58px', sortKey: 'sig1', group: 'stats' },
-        sig2:       { label: 'Position Stat 2 (varies by position — see cell)', shortLabel: 'Usage 2', width: '58px', sortKey: 'sig2', group: 'stats' },
+        sig1:       { label: 'Position Stat 1 (varies by position — see cell)', shortLabel: 'Usage 1', width: '90px', sortKey: 'sig1', group: 'stats' },
+        sig2:       { label: 'Position Stat 2 (varies by position — see cell)', shortLabel: 'Usage 2', width: '90px', sortKey: 'sig2', group: 'stats' },
         // Draft-capital + profile columns. Rookies use the rookie-data prospect
         // record (window.App.RookieFields); vets fall back to the static NFL
         // draft dataset (faDraftCap below). Consensus rank/tier stay rookie-only.
@@ -56,7 +56,7 @@
         return dp ? (dp.round > 0 ? 'R' + dp.round + ' #' + dp.overall : 'UDFA') : null;
     }
     const FA_COLUMN_PRESETS = {
-        default: ['pos','team','age','dhq','ppg','proj','faab'],
+        default: ['pos','team','age','dhq','ppg','proj','faab','sig1','sig2'],
         scout:   ['pos','age','college','height','weight','depthChart'],
         bidding: ['pos','team','dhq','ppg','faab','injury'],
         rookie:  ['pos','college','rkSlot','rkTeam','rkRank','rkTier','rkProfile','dhq'],
@@ -845,7 +845,7 @@
         );
     }
 
-    function FreeAgencyTab({ playersData, statsData, prevStatsData, myRoster, currentLeague, leagueSkin, sleeperUserId, timeRecomputeTs, viewMode, briefDraftInfo }) {
+    function FreeAgencyTab({ playersData, statsData, prevStatsData, statsSeason, priorStatsSeason, myRoster, currentLeague, leagueSkin, sleeperUserId, timeRecomputeTs, viewMode, briefDraftInfo }) {
         const [faSection, setFaSection] = React.useState('overview');
         const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
         const skinFeatures = resolvedLeagueSkin?.features || {};
@@ -903,13 +903,10 @@
         const [visibleFaCols, setVisibleFaCols] = useState(() => {
             const stored = window.App?.WrStorage?.get?.('wr_fa_cols');
             const valid = Array.isArray(stored) ? stored.filter(k => FA_COLUMNS[k]) : [];
-            if (!valid.length) return faTierCols(FA_COLUMN_PRESETS.default);
-            // One-time migration: surface the new this-week projection column for
-            // users whose saved column set predates it (insert after PPG/DHQ).
-            if (!valid.includes('proj')) {
-                const at = valid.indexOf('ppg') >= 0 ? valid.indexOf('ppg') + 1 : valid.indexOf('dhq') >= 0 ? valid.indexOf('dhq') + 1 : valid.length;
-                valid.splice(at, 0, 'proj');
-            }
+            // Upgrade the previous default only; custom column sets remain deliberate.
+            const oldDefault = ['pos','team','age','dhq','ppg','proj','faab'];
+            const legacyDefaults = [oldDefault, oldDefault.filter(k => k !== 'proj'), oldDefault.filter(k => k !== 'faab'), oldDefault.filter(k => k !== 'proj' && k !== 'faab')];
+            if (!valid.length || legacyDefaults.some(cols => cols.join('|') === valid.join('|'))) return faTierCols(FA_COLUMN_PRESETS.default);
             return faTierCols(valid);
         });
         const [faColPreset, setFaColPreset] = useState('default');
@@ -924,33 +921,52 @@
         // Rolling PPG window — shared localStorage key with My Roster so the setting persists across tabs.
         const [ppgWindow, setPpgWindow] = useState(() => { try { return localStorage.getItem('wr_ppg_window') || 'season'; } catch { return 'season'; } });
         useEffect(() => { try { localStorage.setItem('wr_ppg_window', ppgWindow); } catch {} }, [ppgWindow]);
-        const [, forcePpgRerender] = useState(0);
+        const [marketDataVersion, forcePpgRerender] = useState(0);
         useEffect(() => {
             const h = () => forcePpgRerender(n => n + 1);
             window.addEventListener('wr:weekly-points-loaded', h);
-            return () => window.removeEventListener('wr:weekly-points-loaded', h);
+            window.addEventListener('wr:projections-loaded', h);
+            return () => { window.removeEventListener('wr:weekly-points-loaded', h); window.removeEventListener('wr:projections-loaded', h); };
         }, []);
         // sig1/sig2 headers: when the position filter is a single concrete
         // position, name the columns after that position's actual signature
         // stats (e.g. "TGT/G" / "SNP%" for WR) instead of the generic
         // placeholder — mixed/flex views keep the generic label since no
         // single stat pair applies to every row shown.
-        const faSigStats = window.App?.StatCatalog?.getSignatureStats?.(faFilter) || [];
+        const marketSeason = String(statsSeason || currentLeague?.season || new Date().getFullYear());
+        const marketWeek = window.App?.WeeklyProj?.currentWeek?.() || 1;
+        const marketIsCurrent = marketSeason === String(window.S?.nflState?.season || new Date().getFullYear());
+        const faSigStats = [0, 1].map(index => window.App?.FAMarketData?.signature(faFilter, index, {}));
         const faColumns = useMemo(() => ({
             ...FA_COLUMNS,
-            dhq: {
-                ...FA_COLUMNS.dhq,
-                label: valueLabel,
-                shortLabel: valueShortLabel,
-            },
-            peakYr: {
-                ...FA_COLUMNS.peakYr,
-                label: skinFeatures.showAgeCurve === false ? 'Value Window' : FA_COLUMNS.peakYr.label,
-                shortLabel: skinFeatures.showAgeCurve === false ? 'Window' : FA_COLUMNS.peakYr.shortLabel,
-            },
-            sig1: faSigStats[0] ? { ...FA_COLUMNS.sig1, label: faSigStats[0].label, shortLabel: faSigStats[0].short } : FA_COLUMNS.sig1,
-            sig2: faSigStats[1] ? { ...FA_COLUMNS.sig2, label: faSigStats[1].label, shortLabel: faSigStats[1].short } : FA_COLUMNS.sig2,
-        }), [valueLabel, valueShortLabel, skinFeatures.showAgeCurve, faSigStats]);
+            dhq: { ...FA_COLUMNS.dhq, label: valueLabel, shortLabel: valueShortLabel },
+            proj: { ...FA_COLUMNS.proj, shortLabel: marketIsCurrent ? `W${marketWeek} proj` : 'Proj' },
+            ppg: { ...FA_COLUMNS.ppg, shortLabel: ppgWindow === 'season' ? 'PPG' : `${ppgWindow.toUpperCase()} PPG` },
+            peakYr: { ...FA_COLUMNS.peakYr, label: skinFeatures.showAgeCurve === false ? 'Value Window' : FA_COLUMNS.peakYr.label, shortLabel: skinFeatures.showAgeCurve === false ? 'Window' : FA_COLUMNS.peakYr.shortLabel },
+            sig1: { ...FA_COLUMNS.sig1, ...(faSigStats[0] ? { label: faSigStats[0].label, shortLabel: faSigStats[0].short } : { sortKey: null }) },
+            sig2: { ...FA_COLUMNS.sig2, ...(faSigStats[1] ? { label: faSigStats[1].label, shortLabel: faSigStats[1].short } : { sortKey: null }) },
+        }), [valueLabel, valueShortLabel, skinFeatures.showAgeCurve, faFilter, marketIsCurrent, marketWeek, ppgWindow]);
+        useEffect(() => {
+            if ((faSort.key === 'sig1' || faSort.key === 'sig2') && !faSigStats[0]) setFaSort({ key: 'dhq', dir: -1 });
+        }, [faFilter, faSort.key]);
+
+        function marketStatSource(pid) {
+            const current = statsData?.[pid] || {};
+            const prior = prevStatsData?.[pid] || {};
+            const priorYear = String(priorStatsSeason || Number(marketSeason) - 1);
+            const usePrior = !(current.gp > 0) && prior.gp > 0 && Number(priorYear) < Number(marketSeason);
+            return { raw: usePrior ? prior : current, year: usePrior ? priorYear : marketSeason, prior: usePrior };
+        }
+        function marketPpgRead(pid, position) {
+            const source = marketStatSource(pid);
+            const historyLeagueId = window.S?.weeklyPlayerPointsLeagueId;
+            if (ppgWindow !== 'season' && marketIsCurrent && historyLeagueId && String(historyLeagueId) === String(currentLeague?.id || currentLeague?.league_id)) {
+                const recent = window.App?.FAMarketData?.recentPpg(window.App?.WeeklyProj?.weeklyHistory?.(pid), marketWeek, ppgWindow === 'l3' ? 3 : 5);
+                if (recent) return { value: recent.value, note: `${recent.count} reported wk${recent.count === 1 ? '' : 's'}` };
+            }
+            return { value: window.App?.FAMarketData?.ppg(source.raw, currentLeague?.scoring_settings || {}, position) ?? null, note: source.prior ? `${source.year} avg` : ppgWindow !== 'season' ? `${source.year} avg` : '' };
+        }
+        const compareMarketNumber = (a, b, dir) => a == null && b == null ? 0 : a == null ? 1 : b == null ? -1 : dir * (a - b);
 
         useEffect(() => { try { window.App?.WrStorage?.set?.('wr_fa_cols', visibleFaCols); } catch {} }, [visibleFaCols]);
         // Resurrect-proofing: saved views / older persisted prefs can still
@@ -1047,16 +1063,19 @@
                     && (!leaguePosSet || leaguePosSet.has(normPos(p.position) || p.position)))
                 .map(([pid, p]) => {
                     const dhq = (window.App?.PlayerValue?.getValue ? window.App.PlayerValue.getValue(pid, { skin: resolvedLeagueSkin }) : (window.App?.LI?.playerScores?.[pid] || 0));
-                    let proj = 0;
+                    let proj = null;
                     const WP = window.App && window.App.WeeklyProj;
-                    if (WP && WP.projectPlayer) {
-                        try { const pr = WP.projectPlayer(pid, { playersData, statsData, priorData: prevStatsData, scoring: currentLeague?.scoring_settings || {}, week: WP.currentWeek ? WP.currentWeek() : (window.S?.currentWeek || 1) }); proj = (pr && pr.points) ? (pr.points.median || 0) : 0; } catch (e) { proj = 0; }
+                    if (marketIsCurrent && WP?.projectPlayer) {
+                        try {
+                            const pr = WP.projectPlayer(pid, { playersData, statsData, priorData: prevStatsData, scoring: currentLeague?.scoring_settings || {}, week: marketWeek });
+                            if (pr?.available && typeof pr.points?.median === 'number' && Number.isFinite(pr.points.median)) proj = pr.points.median;
+                        } catch (e) { /* Missing forecast stays unavailable. */ }
                     }
                     return { pid, p, dhq, proj, pos: normPos(p.position) || p.position };
                 })
                 .sort((a, b) => b.dhq - a.dhq)
                 .slice(0, 300);
-        }, [rosterState.isUsable, playersData, statsData, prevStatsData, currentLeague, rostered, timeRecomputeTs, isDraftProspect, leaguePosSet]);
+        }, [rosterState.isUsable, playersData, statsData, prevStatsData, currentLeague, rostered, timeRecomputeTs, isDraftProspect, leaguePosSet, marketIsCurrent, marketWeek, marketDataVersion]);
 
         // Streaming opportunities: the best available FA per position that
         // out-projects the user's WEAKEST current starter at that position this week.
@@ -1206,13 +1225,8 @@
                 if (k === 'pos') return dir * ((normPos(a.p.position) || '').localeCompare(normPos(b.p.position) || ''));
                 if (k === 'age') return dir * ((a.p.age || 0) - (b.p.age || 0));
                 if (k === 'dhq') return dir * (a.dhq - b.dhq);
-                if (k === 'proj') return dir * ((a.proj || 0) - (b.proj || 0));
-                if (k === 'ppg') {
-                    const sa = statsData[a.pid] || {}; const sb = statsData[b.pid] || {};
-                    const pa = sa.gp > 0 ? calcRawPts(sa) / sa.gp : 0;
-                    const pb = sb.gp > 0 ? calcRawPts(sb) / sb.gp : 0;
-                    return dir * (pa - pb);
-                }
+                if (k === 'proj') return compareMarketNumber(a.proj, b.proj, dir);
+                if (k === 'ppg') return compareMarketNumber(marketPpgRead(a.pid, a.pos).value, marketPpgRead(b.pid, b.pos).value, dir);
                 if (k === 'team') return dir * ((a.p.team || '').localeCompare(b.p.team || ''));
                 if (k === 'trend') {
                     const ta = window.App?.LI?.playerTrends?.[a.pid] || 0;
@@ -1227,13 +1241,11 @@
                 if (k === 'exp') return dir * ((a.p.years_exp || 0) - (b.p.years_exp || 0));
                 if (k === 'injury') return dir * ((a.p.injury_status || '').localeCompare(b.p.injury_status || ''));
                 if (k === 'sig1' || k === 'sig2') {
+                    if (!faSigStats[0]) return b.dhq - a.dhq;
                     const idx = k === 'sig1' ? 0 : 1;
-                    const SC = window.App?.StatCatalog;
-                    const va = SC ? SC.getSignatureStats(normPos(a.p.position))[idx] : null;
-                    const vb = SC ? SC.getSignatureStats(normPos(b.p.position))[idx] : null;
-                    const na = va ? (SC.computeStat(va.key, statsData[a.pid] || {}, { perGame: true }) || 0) : 0;
-                    const nb = vb ? (SC.computeStat(vb.key, statsData[b.pid] || {}, { perGame: true }) || 0) : 0;
-                    return dir * (na - nb);
+                    const na = window.App?.FAMarketData?.signature(a.pos, idx, marketStatSource(a.pid).raw)?.value;
+                    const nb = window.App?.FAMarketData?.signature(b.pos, idx, marketStatSource(b.pid).raw)?.value;
+                    return compareMarketNumber(na, nb, dir);
                 }
                 if (k === 'rkSlot' || k === 'rkRank' || k === 'rkTier' || k === 'rkTeam') {
                     const ra = prospectFor(a.p); const rb = prospectFor(b.p);
@@ -1255,7 +1267,7 @@
                 }
                 return 0;
             }).slice(0, 50);
-        }, [availablePlayers, faFilter, faSearch, faSort, statsData, rookieOnly, isRookiePlayer, rookieTeamFilter, rookieCollegeFilter, rookieSlotFilter, rookieTeamOf, rookieCollegeOf, rookieSlotMatch, prospectFor]);
+        }, [availablePlayers, faFilter, faSearch, faSort, statsData, rookieOnly, isRookiePlayer, rookieTeamFilter, rookieCollegeFilter, rookieSlotFilter, rookieTeamOf, rookieCollegeOf, rookieSlotMatch, prospectFor, prevStatsData, ppgWindow, marketDataVersion]);
 
         const faHeaderStyle = { fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' };
 
@@ -1625,6 +1637,18 @@
         };
         const waiverTakeCacheAgeMin = waiverTake?.ts ? Math.round((Date.now() - waiverTake.ts) / 60000) : null;
 
+        function byeRead(player) {
+            const byes = window.App?.NFLByes;
+            if (!byes) return 'Bye —';
+            const season = byes.seasonFor(currentLeague);
+            const week = byes.weekForPlayer(player, season);
+            const label = byes.label(player, season);
+            if (!week || week < (window.App?.WeeklyProj?.currentWeek?.() || 1)) return label;
+            const samePosition = (myRoster?.players || []).map(pid => playersData?.[pid]).filter(p =>
+                p && p.position === player.position && byes.weekForPlayer(p, season) === week);
+            return label + (samePosition.length ? ' · Same bye as ' + samePosition.map(p => playerName(p)).join(', ') : '');
+        }
+
         function renderCandidateRow(x, i, isPrimary) {
             const dhqCol = x.dhq >= 4000 ? 'var(--k-3498db, #3498db)' : x.dhq >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.45))';
             return (
@@ -1634,6 +1658,7 @@
                     <span className="fa-hq-player-main">
                         <strong>{playerName(x.p)} <em className="fa-hq-cand-pos" style={{ color: posColors[x.pos] || 'var(--silver)' }}>{x.pos}</em></strong>
                         <span className="fa-hq-cand-badge" style={{ color: x.fit.color, borderColor: x.fit.color }}>{x.fit.label}</span>
+                        <small style={{ display: 'block', color: 'var(--gold)', whiteSpace: 'normal', lineHeight: 1.4 }}>{byeRead(x.p)}</small>
                     </span>
                     <span className="fa-hq-cand-window">
                         <FaTrendSpark pid={x.pid} color={x.windowColor} />
@@ -1742,6 +1767,7 @@
                                         <span className="fa-hq-mini-body">
                                             <strong>{playerName(x.p)} <span style={{ color: posColors[x.pos] || 'var(--silver)' }}>{x.pos}</span></strong>
                                             <em>{x.fit.label} · {x.dhq.toLocaleString()} {valueShortLabel}{x.faab ? ' · $' + x.faab.lo + '-' + x.faab.hi : ''}</em>
+                                            <em style={{ color: 'var(--gold)', whiteSpace: 'normal' }}>{byeRead(x.p)}</em>
                                         </span>
                                         <span className="fa-hq-mini-plus" aria-hidden="true">+</span>
                                     </button>
@@ -1968,8 +1994,9 @@
                 scout:   ['age', 'height', 'weight'],
                 bidding: ['dhq', 'faab', 'proj'],  // value · bid · this-week projection
                 rookie:  ['rkSlot', 'rkRank', 'rkTier'],
+                usage: ['sig1', 'sig2', 'ppg'],
             };
-            const FA_PHONE_SLOT_KEYS = new Set(['age', 'dhq', 'ppg', 'proj', 'peakYr', 'yrsExp', 'height', 'weight', 'depthChart', 'injury', 'faab', 'rkSlot', 'rkTeam', 'rkRank', 'rkTier']);
+            const FA_PHONE_SLOT_KEYS = new Set(['age', 'dhq', 'ppg', 'proj', 'peakYr', 'yrsExp', 'height', 'weight', 'depthChart', 'injury', 'faab', 'rkSlot', 'rkTeam', 'rkRank', 'rkTier', 'sig1', 'sig2']);
             let _faSlotKeys = FA_PHONE_SLOT_PRESETS[faActivePresetKey]
                 || shownFaCols.filter(k => FA_PHONE_SLOT_KEYS.has(k)).slice(0, 3);
             _faSlotKeys = faTierCols(_faSlotKeys);
@@ -1986,18 +2013,16 @@
                         return { label: 'BID', value: f ? '$' + f.lo + '-' + f.hi : '—', tone: f ? 'gold' : 'mute' };
                     }
                     case 'ppg': {
-                        // Same rolling-window override + seasonal fallback as
-                        // renderCell; the window rides the LABEL (L5/L3).
-                        let shown = seasonPpgFor(x.pid);
-                        let lbl = 'PPG';
-                        if (ppgWindow !== 'season') {
-                            const n = ppgWindow === 'l3' ? 3 : 5;
-                            const rolling = typeof window.App?.computeRollingPPG === 'function' ? window.App.computeRollingPPG(x.pid, n) : 0;
-                            if (rolling > 0) { shown = rolling; lbl = 'L' + n; } else { lbl = 'SZN'; }
-                        }
-                        return { label: lbl, value: shown > 0 ? shown : '—' };
+                        const read = marketPpgRead(x.pid, x.pos);
+                        const year = read.note.match(/^\d{4}/)?.[0];
+                        return { label: year ? `${year} PPG` : ppgWindow === 'season' ? 'PPG' : `${ppgWindow.toUpperCase()} PPG`, value: read.value == null ? '—' : read.value.toFixed(1) };
                     }
-                    case 'proj': return { label: 'WK', value: x.proj > 0 ? x.proj.toFixed(1) : '—' };
+                    case 'proj': return { label: marketIsCurrent ? `W${marketWeek} PROJ` : 'PROJ', value: x.proj == null ? '—' : x.proj.toFixed(1) };
+                    case 'sig1': case 'sig2': {
+                        const source = marketStatSource(x.pid);
+                        const read = window.App?.FAMarketData?.signature(x.pos, k === 'sig1' ? 0 : 1, source.raw);
+                        return { label: (read?.short || short) + (source.prior && read?.value != null ? ` · ${source.year}` : ''), value: read?.text || '—' };
+                    }
                     case 'age': return { label: short, value: p.age || '—', tone: 'mute' };
                     case 'peakYr': {
                         const py = peakYearsFor(x.pos, p.age);
@@ -2129,7 +2154,7 @@
                         {_faPanelLbl('PPG window')}
                         <div style={{ display: 'flex', gap: '6px' }}>
                             {[{ k: 'season', l: 'Season' }, { k: 'l5', l: 'L5' }, { k: 'l3', l: 'L3' }].map(opt => (
-                                <button key={opt.k} onClick={() => setPpgWindow(opt.k)} style={{ ..._faChipBtn(ppgWindow === opt.k), flex: 1 }} title={opt.k === 'season' ? 'Season-to-date PPG' : 'Last ' + (opt.k === 'l5' ? 5 : 3) + ' games'}>{opt.l}</button>
+                                <button key={opt.k} onClick={() => setPpgWindow(opt.k)} style={{ ..._faChipBtn(ppgWindow === opt.k), flex: 1 }} title={opt.k === 'season' ? 'Season-to-date PPG' : 'Last ' + (opt.k === 'l5' ? 5 : 3) + ' reported completed weeks'}>{opt.l}</button>
                             ))}
                         </div>
                     </React.Fragment>
@@ -2255,11 +2280,12 @@
             // surface anyone below the cut.
             const _faPhoneMkt = sortedPlayers.slice(0, 25);
             const _faMktRows = _faPhoneMkt.map(x => {
-                const bits = [x.p.team || 'FA'];
+                const bits = [x.p.team || 'FA', window.App?.NFLByes?.label(x.p, window.App.NFLByes.seasonFor(currentLeague)) || 'Bye —'];
                 if (x.p.age) bits.push(String(x.p.age));
                 if (x.p.injury_status) bits.push(x.p.injury_status);
                 return React.createElement(window.WR.AssetRow, {
                     key: x.pid,
+                    className: 'fa-market-phone-row',
                     pos: x.pos,
                     pid: x.pid,
                     name: playerName(x.p, x.pid),
@@ -2310,7 +2336,7 @@
                             {_faHeroEl}
                             <nav className="fa-section-tabs" aria-label="Free agency sections"><button type="button" aria-pressed={faSection === 'overview'} onClick={() => setFaSection('overview')}>Overview</button><button type="button" aria-pressed={faSection === 'market'} onClick={() => setFaSection('market')}>Market Explorer</button></nav>
                             {renderCrazePanel()}
-                            {faSection === 'overview' ? (isPro ? renderActionHQ(true) : renderActionHqTeaser()) : <>{_faPillsEl}{_faPanelEl}{React.createElement(window.WR.CardList, { groups: _faGroups })}</>}
+                            {faSection === 'overview' ? (isPro ? renderActionHQ(true) : renderActionHqTeaser()) : <>{hasFAAB && <div className="fa-market-phone-budget">FAAB remaining <strong>${remaining.toLocaleString()}</strong><span> / ${budget.toLocaleString()}</span></div>}{_faPillsEl}{_faPanelEl}{React.createElement(window.WR.CardList, { groups: _faGroups })}</>}
                         </div>
                     </div>
                     {/* The column customizer stays a drill-down sheet, rendered
@@ -2356,11 +2382,12 @@
                 <div className="fa-market-head">
                     <div>
                         <span>Market Explorer</span>
-                        <p>{sortedPlayers.length} shown from {availablePlayers.length} available players. Saved views and custom columns still apply.</p>
+                        <p>{sortedPlayers.length} shown from {availablePlayers.length} available players · {marketSeason} season</p>
                     </div>
                     <div className="fa-market-search">
-                        <input value={faSearch} onChange={e => setFaSearch(e.target.value)} placeholder="Search player, team, college..." />
+                        <input aria-label="Search available players" value={faSearch} onChange={e => setFaSearch(e.target.value)} placeholder="Search player, team, college..." />
                     </div>
+                    {hasFAAB && <div className="fa-market-budget" aria-label="Remaining FAAB budget"><span>FAAB remaining</span><strong>${remaining.toLocaleString()} <small>/ ${budget.toLocaleString()}</small></strong><p>Suggested bids use this balance</p></div>}
                 </div>
 
                 <div className="fa-market-toolbar wr-module-toolbar">
@@ -2513,48 +2540,36 @@
                     </div>
                 ) : null}
 
+                <p className="fa-market-data-note">PPG and usage use {marketSeason} stats; prior-season baselines are labeled. {marketIsCurrent ? `Projections are for Week ${marketWeek}.` : 'Weekly projections are only available for the current season.'} Usage varies by position.</p>
                 {/* Dynamic grid — photo + Player + configured columns */}
                 {(() => {
                     // Render-time tier filter — the normalize effect fixes state a
                     // beat later, but the first paint must never show a Pro column.
                     const shownFaCols = faTierCols(visibleFaCols);
-                    const gridTemplate = '32px minmax(150px, 1fr) ' + shownFaCols.map(k => (faColumns[k]?.width || '44px')).join(' ');
-                    const tableMinWidth = 32 + 150 + 24 + shownFaCols.reduce((s, k) => s + (parseInt(faColumns[k]?.width || '44', 10) || 44) + 4, 0);
-                    return <div style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius, 10px)', overflowX: 'auto' }}>
+                    const gridTemplate = '32px 190px ' + shownFaCols.map(k => `minmax(${faColumns[k]?.width || '44px'}, 1fr)`).join(' ');
+                    const tableMinWidth = 32 + 190 + 24 + (shownFaCols.length + 1) * 8 + shownFaCols.reduce((sum, k) => sum + (parseInt(faColumns[k]?.width || '44', 10) || 44), 0);
+                    return <div className="fa-market-table" role="region" aria-label="Available player data; scroll for more columns" tabIndex={0} style={{ background: 'var(--black)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius, 10px)', overflowX: 'auto' }}>
                         {/* Header */}
-                        <div className="fa-mkt-head" style={{ display: 'grid', gridTemplateColumns: gridTemplate, gap: '4px', padding: '8px 12px', minWidth: tableMinWidth + 'px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))' }}>
-                            <span style={faHeaderStyle}></span>
-                            <span style={faHeaderStyle} onClick={() => handleFaSort('name')}>Player{faSortIndicator('name')}</span>
+                        <div className="fa-mkt-head" style={{ display: 'grid', gridTemplateColumns: gridTemplate, gap: '8px', padding: '8px 12px', minWidth: tableMinWidth + 'px', background: 'var(--acc-fill1, rgba(212,175,55,0.06))', borderBottom: '2px solid var(--acc-line1, rgba(212,175,55,0.2))' }}>
+                            <span className="fa-market-avatar"></span>
+                            <button type="button" className="fa-market-name fa-market-sort" style={faHeaderStyle} onClick={() => handleFaSort('name')}>Player{faSortIndicator('name')}</button>
                             {shownFaCols.map(k => {
                                 const col = faColumns[k]; if (!col) return null;
                                 const clickable = !!col.sortKey;
-                                return <span key={k} style={{ ...faHeaderStyle, cursor: clickable ? 'pointer' : 'default' }} title={col.label}
+                                return <button type="button" className={`fa-market-sort fa-market-col-${k}`} key={k} style={{ ...faHeaderStyle, cursor: clickable ? 'pointer' : 'default' }} title={col.label} disabled={!clickable}
                                     onClick={() => clickable && handleFaSort(col.sortKey)}>
                                     {col.shortLabel}{clickable ? faSortIndicator(col.sortKey) : ''}
-                                </span>;
+                                </button>;
                             })}
                         </div>
                         {/* Body */}
                         <div style={{ maxHeight: 'none', overflow: 'visible', minWidth: tableMinWidth + 'px' }}>
                             {sortedPlayers.map(({ pid, p, dhq, proj }) => {
                                 const pos = normPos(p.position) || p.position;
-                                const st = statsData[pid] || {};
-                                const prevSt = (prevStatsData || {})[pid] || {};
-                                const seasonPpg = st.gp > 0 ? +(calcRawPts(st) / st.gp).toFixed(1) : (prevSt.gp > 0 ? +(calcRawPts(prevSt) / prevSt.gp).toFixed(1) : 0);
-                                // Rolling PPG — swap in when user toggled L5/L3 and weekly data is loaded.
-                                // If a window is active but the player has no weekly data yet, annotate
-                                // the cell with "· Szn" so the user knows the shown value is seasonal.
-                                let ppg = seasonPpg;
-                                let ppgMarker = '';
-                                if (ppgWindow !== 'season') {
-                                    const n = ppgWindow === 'l3' ? 3 : 5;
-                                    const rolling = typeof window.App?.computeRollingPPG === 'function'
-                                        ? window.App.computeRollingPPG(pid, n)
-                                        : 0;
-                                    if (rolling > 0) { ppg = rolling; ppgMarker = ' · L' + n; }
-                                    else { ppgMarker = ' · Szn'; }
-                                }
-	                                const faab = faabSuggest(dhq, pos);
+                                const statSource = marketStatSource(pid);
+                                const ppgRead = marketPpgRead(pid, pos);
+                                const ppg = ppgRead.value;
+                                const faab = faabSuggest(dhq, pos, p.age);
 		                                const peakYrs = peakYearsFor(pos, p.age);
 		                                const valueYrs = valueYearsFor(pos, p.age);
 		                                const peakLabel = peakYrs >= 4 ? 'Rising' : peakYrs >= 1 ? 'Prime' : valueYrs >= 1 ? 'Vet' : 'Post';
@@ -2565,12 +2580,12 @@
                                 const renderCell = (k) => {
                                     switch (k) {
                                         case 'pos':        return <span style={{ fontSize: '0.78rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)' }}>{window.App?.posLabel?.(pos) || (pos === 'DEF' ? 'D/ST' : pos)}</span>;
-                                        case 'team':       return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', fontWeight: 600 }}>{p.team || 'FA'}</span>;
+                                        case 'team':       return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', fontWeight: 600 }}>{p.team || 'FA'}<small style={{ display: 'block', color: 'var(--gold)' }}>{window.App?.NFLByes?.label(p, window.App.NFLByes.seasonFor(currentLeague)) || 'Bye —'}</small></span>;
                                         case 'age':        return <span style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>{p.age || '\u2014'}</span>;
                                         // DHQ reads white here \u2014 no tier colors in the market table (owner ask 2026-07-12)
                                         case 'dhq':        return <span style={{ fontSize: '0.78rem', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--white)' }}>{dhq > 0 ? dhq.toLocaleString() : '\u2014'}</span>;
-                                        case 'ppg':        return <span style={{ fontSize: '0.78rem', color: ppg >= 10 ? 'var(--good)' : ppg >= 5 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{ppg > 0 ? ppg : '\u2014'}{ppgMarker}</span>;
-                                        case 'proj':       return <span title="This week's projected points (league-scored)" style={{ fontSize: '0.78rem', fontWeight: 600, color: proj >= 14 ? 'var(--good)' : proj >= 8 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{proj > 0 ? proj.toFixed(1) : '\u2014'}</span>;
+                                        case 'ppg': return <span className="fa-market-number"><strong>{ppg == null ? '—' : ppg.toFixed(1)}</strong>{ppgRead.note && <small>{ppgRead.note}</small>}</span>;
+                                        case 'proj': return <span className="fa-market-number" title={marketIsCurrent ? `Week ${marketWeek} projected points under your league scoring` : 'Weekly forecasts are only available for the current season'}><strong>{proj == null ? '—' : proj.toFixed(1)}</strong></span>;
                                         case 'peakYr':     return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: peakCol, fontWeight: 600 }}>{peakLabel}</span>;
                                         case 'yrsExp':     return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>{p.years_exp != null ? p.years_exp : '\u2014'}</span>;
                                         case 'college':    return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.college || '\u2014'}</span>;
@@ -2578,17 +2593,12 @@
                                         case 'weight':     return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>{p.weight || '\u2014'}</span>;
                                         case 'depthChart': return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: p.depth_chart_order != null ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{p.depth_chart_order != null ? pos + (p.depth_chart_order + 1) : '\u2014'}</span>;
                                         case 'injury':     return <span style={{ fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600, color: p.injury_status ? 'var(--bad)' : 'var(--ov-8, rgba(255,255,255,0.3))' }}>{p.injury_status || '—'}</span>;
-                                        case 'faab':       return <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--gold)', fontWeight: 700 }}>{faab ? '$' + faab.lo + '-' + faab.hi : '\u2014'}</span>;
+                                        case 'faab': return <span className="fa-market-number fa-market-bid"><strong>{faab ? `$${faab.lo}–${faab.hi}` : '—'}</strong>{faab && remaining > 0 && <small>{(faab.lo / remaining * 100).toFixed(1)}–{(faab.hi / remaining * 100).toFixed(1)}% of balance</small>}</span>;
                                         case 'sig1':
                                         case 'sig2': {
-                                            const SC = window.App?.StatCatalog;
-                                            if (!SC) return rkDash;
-                                            const idx = k === 'sig1' ? 0 : 1;
-                                            const stat = SC.getSignatureStats(pos)[idx];
-                                            if (!stat) return rkDash;
-                                            const v = SC.computeStat(stat.key, statsData[pid] || {}, { perGame: true });
-                                            if (v == null) return rkDash;
-                                            return <span title={stat.label} style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)' }}>{SC.formatStat(v, stat.format)} <span style={{ opacity: 0.55, fontSize: '0.62rem' }}>{stat.short}</span></span>;
+                                            const read = window.App?.FAMarketData?.signature(pos, k === 'sig1' ? 0 : 1, statSource.raw);
+                                            if (!read) return rkDash;
+                                            return <span className="fa-market-number" title={`${read.label} · ${statSource.year}`}><strong>{read.text}</strong><small>{read.short}{statSource.prior && read.value != null ? ` · ${statSource.year}` : ''}</small></span>;
                                         }
                                         case 'rkSlot': {
                                             // Prospect slot wins; vets show R<rd> #<overall> / UDFA from the static dataset.
@@ -2612,15 +2622,15 @@
                                 };
                                 return <div key={pid} role="button" tabIndex={0} title="Open player card" onClick={() => {
                                     openFaPlayer(pid);
-                                }} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFaPlayer(pid); } }} className={'fa-mkt-row' + (faSelectedPid === pid ? ' is-sel' : '')} style={{ display: 'grid', gridTemplateColumns: gridTemplate, background: faSelectedPid === pid ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'transparent', gap: '4px', padding: '7px 12px', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))', cursor: 'pointer', alignItems: 'center', transition: 'background 0.1s' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--acc-fill1, rgba(212,175,55,0.05))'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                    <div className={'wr-ring wr-ring-' + pos} style={{ width: '26px', height: '26px', borderRadius: '50%', overflow: 'hidden', background: 'var(--acc-fill3, rgba(212,175,55,0.15))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                }} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFaPlayer(pid); } }} className={'fa-mkt-row' + (faSelectedPid === pid ? ' is-sel' : '')} style={{ display: 'grid', gridTemplateColumns: gridTemplate, background: faSelectedPid === pid ? 'var(--acc-fill2, rgba(212,175,55,0.08))' : 'transparent', gap: '8px', padding: '7px 12px', borderBottom: '1px solid var(--ov-3, rgba(255,255,255,0.04))', cursor: 'pointer', alignItems: 'center', transition: 'background 0.1s' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--acc-fill1, rgba(212,175,55,0.05))'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                    <div className={'fa-market-avatar wr-ring wr-ring-' + pos} style={{ width: '26px', height: '26px', borderRadius: '50%', overflow: 'hidden', background: 'var(--acc-fill3, rgba(212,175,55,0.15))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                         <img src={'https://sleepercdn.com/content/nfl/players/' + pid + '.jpg'} alt="" style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))' }} onError={e => { e.target.style.display='none'; const s=document.createElement('span'); s.style.cssText='font-size:var(--text-label, 0.75rem);font-weight:700;color:var(--gold)'; s.textContent=((p.first_name||'?')[0]+(p.last_name||'?')[0]).toUpperCase(); e.target.after(s); }} />
                                     </div>
-                                    <div style={{ overflow: 'hidden' }}>
-                                        <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{playerName(p, pid)}</div>
+                                    <div className="fa-market-name" style={{ overflow: 'hidden' }}>
+                                        <div title={playerName(p, pid)} style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{playerName(p, pid)}</div>
                                         <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.55 }}>{p.team || 'FA'}{p.injury_status ? ' · ' : ''}{p.injury_status ? <span style={{ color: 'var(--bad)' }}>{p.injury_status}</span> : ''}</div>
                                     </div>
-                                    {shownFaCols.map(k => <span key={k} style={{ display: 'flex', alignItems: 'center' }}>{renderCell(k)}</span>)}
+                                    {shownFaCols.map(k => <span key={k} className={`fa-market-cell fa-market-col-${k}`}>{renderCell(k)}</span>)}
                                 </div>;
                             })}
                         </div>
@@ -2643,7 +2653,7 @@
                         </div>
                         <div>
                             <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.4rem', color: 'var(--white)', letterSpacing: '0.02em' }}>{playerName(selPlayer, faSelectedPid)}</div>
-                            <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)' }}>{selPos} · {selPlayer.team || 'FA'} · Age {selPlayer.age || '?'} · {selPlayer.years_exp ?? 0}yr exp{selPlayer.college ? ' · ' + selPlayer.college : ''}</div>
+                            <div style={{ fontSize: 'var(--text-body, 1rem)', color: 'var(--silver)' }}>{selPos} · {selPlayer.team || 'FA'} · {window.App?.NFLByes?.label(selPlayer, window.App.NFLByes.seasonFor(currentLeague)) || 'Bye —'} · Age {selPlayer.age || '?'} · {selPlayer.years_exp ?? 0}yr exp{selPlayer.college ? ' · ' + selPlayer.college : ''}</div>
                         </div>
                     </div>
 

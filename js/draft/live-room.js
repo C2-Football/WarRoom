@@ -134,7 +134,7 @@
         return <section className="live-room" aria-label="Live team tracker">
             <LiveRoomStyles />
             <div className="live-room-head"><div className="live-room-title"><h3>Team tracker</h3><span className="live-room-count">{room.totalPicks > 0 ? room.pickCount + '/' + room.totalPicks + ' picks' : room.pickCount + ' picks synced'}</span></div>
-                <p>{room.isComplete ? 'Compare the room. Open any team’s draft class.' : 'Who is building what — and who picks before you.'}</p>
+                <p>{room.isComplete ? 'Compare the room. Open any team’s draft class.' : state.draftMechanic === 'auction' ? 'Track each team’s auction purchases.' : 'Who is building what — and who picks before you.'}</p>
                 {!room.isComplete && (state.liveSync?.stale || ['error', 'stale', 'offline'].includes(state.liveSync?.status)) && <p role="status" style={{ color: 'var(--warn, #efc271)' }}>Sync interrupted · showing the last received picks. Updates resume when the connection recovers.</p>}
                 {!selected && <div className="live-room-tools">
                     <select className="live-room-control" aria-label="Jump to team" value="" onChange={e => select(e.target.value)}><option value="" disabled>Jump to team…</option>{room.teams.map(t => <option key={t.rosterId} value={t.rosterId}>{t.teamName}{t.isUser ? ' (You)' : ''}</option>)}</select>

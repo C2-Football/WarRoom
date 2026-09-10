@@ -90,6 +90,36 @@
                 h('strong', null, teamName(row.teamId)), h('span', null, `${row.wins}–${row.losses}${row.ties ? '–'+row.ties : ''}`), h('small', null, `${row.pointsFor.toFixed(1)} PF`)))),
             !remaining && league.currentWeek <= Engine.seasonEndWeek(league) && h('div', { className: 'tl-hunt-bracket' }, Engine.playoffPairs(league, league.currentWeek).map((pair, index) => h('div', { key: index }, h('small', null, `WEEK ${league.currentWeek}`), h('strong', null, pair.map(teamName).join(' vs. '))))));
 
+        if (postgame && league.phase === 'season' && justFinished) {
+            const nextPair = currentSchedule?.pairs.find(pair => pair.includes(myTeam.teamId));
+            const nextOpponent = nextPair ? teamOf(nextPair.find(id => id !== myTeam.teamId)) : null;
+            const myScore = justFinished.results.find(result => result.teamId === myTeam.teamId)?.total;
+            return h('section', { className: 'tl-home tl-week-recap', 'aria-label': `Week ${justFinished.week} recap` },
+                h('header', { className: 'tl-recap-heading' },
+                    h('span', { className: 'tl-eyebrow' }, 'FINAL WHISTLE'), h('h1', null, `Week ${justFinished.week} recap`),
+                    h('p', null, 'The scores are final. Review the week, then select End week to roll into the next waiver window.')),
+                h('section', { className: 'tl-home-hero tl-recap-result' },
+                    h('div', { className: 'tl-home-hero-copy' }, h('span', { className: 'tl-eyebrow' }, 'YOUR RESULT'),
+                        h('h2', null, lastResult === 'W' ? 'A win in the books.' : lastResult === 'L' ? 'A tough week. A fresh start ahead.' : lastResult === 'T' ? 'All square at the final whistle.' : 'Your bye week is complete.'),
+                        h('p', null, `${myTeam.name} · ${myStanding.wins}–${myStanding.losses}${myStanding.ties ? '–' + myStanding.ties : ''} · ${myStanding.pointsFor.toFixed(1)} season points`)),
+                    h('div', { className: 'tl-home-matchup' },
+                        h(TeamLockup, { team: myTeam, standing: myStanding, side: 'mine', score: myScore }),
+                        h('div', { className: 'tl-home-vs' }, h('span', null, `WEEK ${justFinished.week}`), h('strong', null, 'FINAL')),
+                        h(TeamLockup, { team: opponent, standing: opponentStanding, side: 'opponent', score: opponent && justFinished.results.find(result => result.teamId === opponent.teamId)?.total }))),
+                h('section', { className: 'tl-card tl-league-update' },
+                    h('h2', null, 'Around the league'),
+                    weeklyLeaders && h('div', { className: 'tl-update-highlights' },
+                        weeklyLeaders.topTeam && h('div', null, h('small', null, 'High score'), h('strong', null, `${weeklyLeaders.topTeam.total.toFixed(1)} pts`), h('span', null, teamName(weeklyLeaders.topTeam.teamId))),
+                        weeklyLeaders.topPlayer && h('div', null, h('small', null, 'Player of the week'), h('strong', null, weeklyLeaders.topPlayer.name), h('span', null, `${weeklyLeaders.topPlayer.points.toFixed(1)} pts · ${teamName(weeklyLeaders.topPlayer.teamId)}`))),
+                    h('div', { className: 'tl-update-results', 'aria-label': `Week ${justFinished.week} results` }, justFinished.matchups.map(match =>
+                        h('div', { key: `${match.home}:${match.away}`, className: 'tl-update-match' }, h('small', null, 'FINAL'),
+                            [[match.home, match.homePoints], [match.away, match.awayPoints]].map(([id, points]) => h('div', { key: id, className: match.winner === id ? 'winner' : '' }, h('span', null, teamName(id)), h('strong', null, points.toFixed(1)))))))),
+                h('details', { className: 'tl-home-secondary' }, h('summary', null, 'Updated standings & team profiles'), h(window.WrTimeLeagueStandingsPanel, { league, embedded: true })),
+                h('section', { className: 'tl-card tl-recap-next' }, h('span', { className: 'tl-eyebrow' }, `UP NEXT · WEEK ${league.currentWeek}`),
+                    h('h2', null, nextOpponent ? `${myTeam.name} vs. ${nextOpponent.name}` : 'No matchup scheduled'),
+                    h('p', null, league.settings.waiversEnabled ? 'End week opens the next waiver window. Submit claims, resolve waivers, then set your lineup for kickoff.' : 'End week opens the next planning window. Review trades and set your lineup for kickoff.')));
+        }
+
         return h('div', { className: 'tl-home' },
             league.phase === 'complete' && window.WrTimeLeagueCeremony && h(window.WrTimeLeagueCeremony, { key: league.leagueId || league.id || league.name, league, onNavigate }),
             (league.phase !== 'complete' || !window.WrTimeLeagueCeremony) && h('section', { className: `tl-home-hero${league.phase === 'complete' ? ' champion' : ''}` },
@@ -101,7 +131,7 @@
                     h('p', null, league.phase === 'complete'
                         ? `${champion?.name ?? 'The champion'} survived every era and finished on top of ${league.name}.`
                         : postgame
-                            ? 'The final is in. Review the results below, then use Advance week to open the next bidding window.'
+                            ? 'The final is in. Review the results below, then use End week to open the next bidding window.'
                         : ready
                             ? 'Your lineup is ready. Review the matchup, make a final move, then let the week play out live.'
                             : `${lineupProblems.length} lineup ${lineupProblems.length === 1 ? 'decision needs' : 'decisions need'} your attention before kickoff.`),

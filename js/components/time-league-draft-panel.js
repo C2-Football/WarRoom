@@ -628,13 +628,15 @@
         const roomRun = streak >= 3 && POSITION_ORDER.includes(latestPick?.position)
             ? { position: latestPick.position, detail: `${streak} straight picks` }
             : runPosition ? { position: runPosition, detail: `${roomWindow.filter(pick => pick.position === runPosition).length} of the last ${roomWindow.length}` } : null;
-        const latestTeam = latestPick && league.teams.find(team => team.teamId === latestPick.teamId);
-        const draftPulse = h('section', { className: 'tl-draft-live-room', 'aria-label': 'Draft room activity', role: 'status', 'aria-atomic': true },
+        const clockStateLabel = league.draftClock?.status === 'paused' ? 'Paused'
+            : league.draftClock?.status === 'waiting' ? 'Waiting to start'
+                : myTurn ? 'Your turn' : 'Picking now';
+        const draftPulse = h('section', { className: 'tl-draft-live-room', 'aria-label': 'Current draft turn', role: 'status', 'aria-atomic': true },
             h('div', { className: 'tl-draft-live-selection' },
-                latestTeam && h(window.TimeLeagueHelmetIcon, { helmet: latestTeam.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(latestTeam.name), size: 34 }),
-                h('div', null, h('small', null, latestPick ? `Just picked · #${latestPick.overall}` : 'Draft room'),
-                    h('strong', null, latestPick?.name || 'Waiting for the first pick'),
-                    latestPick && h('span', null, `${latestPick.position} · ${teamName(latestPick.teamId)}${Number.isFinite(latestPick.auctionPrice) ? ` · $${latestPick.auctionPrice}` : ''}`))),
+                onClockTeam && h(window.TimeLeagueHelmetIcon, { helmet: onClockTeam.helmet, letter: window.App.TimeLeagueHelmet.monogramFor(onClockTeam.name), size: 34 }),
+                h('div', null, h('small', null, seat ? `${isAuction ? 'Nominating' : 'On the clock'} · #${seat.overall}` : 'Draft complete'),
+                    h('strong', null, onClockTeam?.name || 'All picks are in'),
+                    seat && h('span', null, `${isAuction ? 'Auction' : draftPickLabel(seat)} · ${isAuction ? (league.draftAuction?.nomination ? 'Bidding open' : 'Next nomination') : clockStateLabel}`))),
             h('div', { className: `tl-draft-room-run${roomRun ? ' is-active' : ''}` },
                 h('strong', null, roomRun ? `${roomRun.position} run` : 'Room watch'),
                 h('span', null, roomRun ? roomRun.detail : 'No position run')));

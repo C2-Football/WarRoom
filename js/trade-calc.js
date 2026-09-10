@@ -1062,7 +1062,7 @@
         const [assetBrowserSort, setAssetBrowserSort] = useState('dhq');
         const [assetBrowserRookieOnly, setAssetBrowserRookieOnly] = useState(false);
         const [phPicksScope, setPhPicksScope] = useState('owned');   // 'owned' | 'league' — picks board scope, shared phone + desktop (Intent=Picks)
-        const [partnerListOpen, setPartnerListOpen] = useState(false); // desktop finder "More ▾" full partner dropdown (owner ask 2026-07-12)
+        const [finderBrowseOpen, setFinderBrowseOpen] = useState(false); // Detailed player/pick board, separate from its row count.
         // Phone tier (iPhone program Phase 2) — Trade Center phone-branch sheet
         // state. Declared unconditionally (hook-order safety); inert off-phone.
         const [phBuilderOpen, setPhBuilderOpen] = useState(false);   // WR.ActionBar → builder + verdict WR.Sheet
@@ -2375,6 +2375,11 @@
             setLedgerSyncing(false);
         }
 
+        function revealTradeBuilder() {
+            setBuilderExpanded(true);
+            if (!_vp.isPhone) window.requestAnimationFrame(() => document.getElementById('tc-active-builder')?.scrollIntoView({ block: 'start' }));
+        }
+
         function loadDealIntoBuilder(deal) {
             if (!deal) return;
             setTradeOwner({ A: myAssessment?.ownerId || null, B: deal.partnerOwnerId || null });
@@ -2392,7 +2397,7 @@
             // (the only builder). The rail's fixed Verdict card tracks builder state,
             // so no rail writes are needed here.
             setTcTab('desk');
-            setBuilderExpanded(true);
+            revealTradeBuilder();
         }
 
         // ── renderOwnerDna ──
@@ -3165,31 +3170,24 @@
             const moonshotCount = finderMoonshotCount;
             const visibleDeals = finderVisibleDeals;
             const finderIntents = [
-                { key: 'help', label: 'Add' },
-                { key: 'shop', label: 'Sell' },
-                { key: 'picks', label: 'Picks' },
+                { key: 'help', label: 'Find a player', description: 'Add talent that fits your roster.' },
+                { key: 'shop', label: 'Shop my players', description: 'See what your players could bring back.' },
+                { key: 'picks', label: 'Trade draft picks', description: 'Explore deals around future picks.' },
             ];
-            const intentLabel = (finderIntents.find(i => i.key === finderQuery.intent) || finderIntents[0]).label;
-            const modeDescriptor = (finderDualBest && finderPoolOn) ? 'best moves league-wide (buy + sell)'
-                : (finderPoolOn ? 'league-wide · ' : '') + (effMode === 'acquire' ? `targeting ${focusR?.label || 'their asset'}`
-                : effMode === 'shop' ? `shopping ${focusR?.label || 'your asset'}`
-                : effMode === 'picks' ? 'hunting pick capital'
-                : effMode === 'sellSurplus' ? 'shopping your surplus'
-                : 'filling roster needs');
-            const finderScopeLabel = finderPoolOn
-                ? (!scanArmed ? 'tap Scan to run' : finderPool.done ? 'league-wide scan' : `scanning ${finderPool.scanned}/${finderPool.total}…`)
-                : selectedPartner ? `vs ${selectedPartner.ownerName}` : 'no partner scored yet';
+            const activeIntent = effMode === 'picks' || focusR?.kind === 'pick' ? 'picks'
+                : focusR?.kind === 'player' ? (String(focusR.rosterId) === String(myRosterId) ? 'shop' : 'help')
+                : finderQuery.intent;
             const assetBrowserSorts = [
-                { key:'dhq', label:'DHQ' },
+                { key:'dhq', label:'Trade value' },
                 { key:'age', label:'Age' },
-                { key:'owner', label:'Owned Team' },
-                { key:'points', label:'Last FP' },
+                { key:'owner', label:'League team' },
+                { key:'points', label:'Season points' },
                 { key:'prime', label:'Prime Years' },
             ];
             // Intent=Picks swaps the browser to the PICKS board below — the
             // player-table "your roster" semantics no longer apply there
             // (owner ask 2026-07-12).
-            const finderPicksMode = effMode === 'picks';
+            const finderPicksMode = activeIntent === 'picks';
             const browsingMyRoster = effMode === 'shop' || effMode === 'sellSurplus';
             // Partner pinned + acquire-side browse → only that partner's roster
             // (owner ask 2026-07-12, same rule as the phone board).
@@ -3333,6 +3331,7 @@
 
             function selectAssetFocus(row) {
                 if (!row) return;
+                setFinderBrowseOpen(false);
                 setFinderQuery(qr => ({ ...qr, focus: { kind: 'player', id: row.pid, label: row.name, pos: row.pos, ownerId: row.ownerId, rosterId: row.rosterId } }));
                 setShowAllDeals(false);
             }
@@ -3341,6 +3340,7 @@
                 // Pick-board row tap = focus the finder on this pick (the phone
                 // phPickRow onClick, ported).
                 if (!row) return;
+                setFinderBrowseOpen(false);
                 setFinderQuery(qr => ({ ...qr, focus: { kind: 'pick', id: row.id, label: row.label, ownerId: row.ownerId, rosterId: row.rosterId } }));
                 setShowAllDeals(false);
             }
@@ -3391,36 +3391,20 @@
             return <div className="tc-dhq-shell wr-fade-in">
                 {dealHqNotice && <div className="tc-dhq-notice" onAnimationEnd={() => setDealHqNotice(null)}>{dealHqNotice}</div>}
 
-                {/* ── TRADE FINDER (the star) — intent chips · focus typeahead · GM lens ·
-                    partner facet chips · optional asset-browser expander (Phase 4a).
-                    Inline overflow overrides: the panel/body CSS clamps for the old
-                    fixed-height grid and would clip the typeahead dropdown. */}
-                <section className="tc-dhq-panel" style={{ overflow: 'visible' }}>
-                    <div className="tc-dhq-panel-head">
-                        <span>Trade Finder</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                            <em>{intentLabel} · {finderScopeLabel}</em>
-                            {/* Scan moved up from the foot of the panel (owner ask) — it's
-                                the primary action for this card and belongs where it's seen
-                                without scrolling past the whole control stack + board. */}
-                            {finderPoolOn && !scanArmed && (
-                                <button type="button" onClick={() => setScanForKey(finderLoopKey)} style={{ padding: '5px 12px', border: '1px solid var(--gold)', borderRadius: 'var(--card-radius-xs, 5px)', background: 'var(--gold)', color: 'var(--page-bg, #0A0A0F)', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap' }}>Scan the league for moves</button>
-                            )}
-                            {renderTcTabNav()}
-                        </div>
+                <section className="tc-dhq-panel tc-finder-panel" aria-label="Find trade ideas" style={{ overflow: 'visible' }}>
+                    <div className="tc-finder-intro">
+                        <h3>Find your next move</h3>
+                        <p>Choose a goal, then explore trade ideas for your team.</p>
                     </div>
-                    <div className="tc-dhq-panel-body" style={{ overflow: 'visible', paddingRight: 0, display: 'flex', flexDirection: 'column', gap: '7px' }}>
-                        {/* Organized control rows (owner ask 2026-07-12): INTENT seg +
-                            focus search share one line; PARTNER is a labeled row below;
-                            the GM-lens read rides as a caption just above the board. */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.65, flex: 'none' }}>Intent</span>
-                        <div className="tc-dhq-modebar" role="group" aria-label="Finder intent" style={{ flex: 'none' }}>
-                            {finderIntents.map(i => <button key={i.key} type="button" className={finderQuery.intent === i.key ? 'is-active' : ''} onClick={() => { setFinderQuery(qr => ({ ...qr, intent: i.key })); setAssetBrowserPos('ALL'); setShowAllDeals(false); }}>{i.label}</button>)}
+                    <div className="tc-dhq-panel-body" style={{ overflow: 'visible', paddingRight: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div className="tc-finder-goals" role="group" aria-label="Trade goal">
+                            {finderIntents.map(i => <button key={i.key} type="button" aria-pressed={activeIntent === i.key} className={activeIntent === i.key ? 'is-active' : ''} onClick={() => { setFinderQuery(qr => ({ ...qr, intent: i.key, focus: null })); setFinderSearch(''); setAssetBrowserPos('ALL'); setShowAllDeals(false); }}><strong>{i.label}</strong><span>{i.description}</span></button>)}
                         </div>
-
+                        <div className="tc-finder-inputs">
                         <div style={{ position: 'relative', minWidth: '240px', flex: '1 1 240px' }}>
+                            <label className="tc-finder-label" htmlFor="tc-finder-search">Player, pick, or manager <span>Optional</span></label>
                             <input
+                                id="tc-finder-search"
                                 type="text"
                                 value={finderSearch}
                                 onChange={e => { setFinderSearch(e.target.value); setFinderTypeaheadIdx(0); }}
@@ -3432,12 +3416,12 @@
                                     else if (e.key === 'ArrowUp') { e.preventDefault(); setFinderTypeaheadIdx(i => Math.max(i - 1, 0)); }
                                     else if (e.key === 'Enter') { e.preventDefault(); selectFinderFocus(typeaheadFlat[finderTypeaheadIdx] || typeaheadFlat[0]); }
                                 }}
-                                placeholder="Focus: search players, picks, owners — yours and the league's"
+                                placeholder="Search by name…"
                                 aria-label="Finder focus search"
                                 role="combobox"
                                 aria-expanded={typeaheadFlat.length > 0}
                                 aria-autocomplete="list"
-                                style={{ width: '100%', minHeight: _vp.isPhone ? '44px' : '32px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: 'var(--card-radius-xs, 5px)', background: 'rgba(255,255,255,0.045)', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '0.76rem', padding: '6px 10px' }}
+                                style={{ width: '100%', minHeight: '44px', border: '1px solid rgba(212,175,55,0.22)', borderRadius: 'var(--card-radius-xs, 5px)', background: 'rgba(255,255,255,0.045)', color: 'var(--white)', fontFamily: 'var(--font-body)', fontSize: '0.76rem', padding: '6px 10px' }}
                             />
                             {typeaheadFlat.length > 0 && (
                                 <div role="listbox" aria-label="Focus matches" ref={node => {
@@ -3476,6 +3460,12 @@
                                 </div>
                             )}
                         </div>
+                            <label className="tc-finder-partner">Trade partner
+                                <select aria-label="Trade partner" value={String(effPartnerId ?? '')} onChange={e => setPartnerFacet(e.target.value || null)}>
+                                    <option value="">All other teams</option>
+                                    {partnerBoard.map(item => <option key={item.assessment.rosterId} value={String(item.assessment.ownerId)}>{item.assessment.ownerName}</option>)}
+                                </select>
+                            </label>
                         </div>
 
                         {focusR && (
@@ -3493,64 +3483,25 @@
                             </div>
                         )}
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--silver)', opacity: 0.65, flex: 'none' }}>Partner</span>
-                        <div className="tc-dhq-modebar" role="group" aria-label="Partner filter" style={{ flex: '1 1 auto', minWidth: 0 }}>
-                            <button type="button" className={effPartnerId == null ? 'is-active' : ''} onClick={() => setPartnerFacet(null)}>Auto</button>
-                            {partnerBoard.slice(0, 6).map(item => {
-                                const a = item.assessment;
-                                const active = effPartnerId != null && String(a.ownerId) === String(effPartnerId);
-                                return <button key={a.rosterId} type="button" className={active ? 'is-active' : ''} title={`${item.score} fit · ${item.tag} · ${item.scoreReasons.slice(0, 2).join(' · ')}`} onClick={() => setPartnerFacet(active ? null : a.ownerId)}>{a.ownerName} {item.score}</button>;
-                            })}
-                            {partnerBoard.length > 6 && (
-                                <button type="button" className={partnerListOpen ? 'is-active' : ''} aria-expanded={partnerListOpen} onClick={() => setPartnerListOpen(v => !v)}>{partnerListOpen ? 'Less ▴' : 'More ▾'}</button>
-                            )}
-                        </div>
-                        </div>
-                        {/* Full ranked partner list (owner ask 2026-07-12) — every
-                            partner, not the capped 6-chip facet; same setPartnerFacet
-                            pin path as the chips (the phone full list, ported). */}
-                        {partnerListOpen && partnerBoard.length > 6 && (
-                            <div style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: 'var(--card-radius-sm, 8px)', background: 'var(--off-black, #10141b)', maxHeight: '260px', overflowY: 'auto', overscrollBehavior: 'contain' }}>
-                                {partnerBoard.map(item => {
-                                    const a = item.assessment;
-                                    const on = effPartnerId != null && String(a.ownerId) === String(effPartnerId);
-                                    return (
-                                        <button key={a.rosterId} type="button" title={`${item.score} fit · ${item.tag} · ${item.scoreReasons.slice(0, 2).join(' · ')}`}
-                                            onClick={() => { setPartnerFacet(on ? null : a.ownerId); setPartnerListOpen(false); }}
-                                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.05)', background: on ? 'rgba(212,175,55,0.12)' : 'transparent', textAlign: 'left', padding: '7px 10px', cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.78rem' }}>
-                                            <strong style={{ color: on ? 'var(--gold)' : 'var(--white)', fontWeight: 600, minWidth: 0, flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.ownerName}</strong>
-                                            {item.posture && <span style={{ fontSize: '0.58rem', letterSpacing: '0.06em', textTransform: 'uppercase', color: item.posture.color, whiteSpace: 'nowrap' }}>{item.posture.label}</span>}
-                                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--silver)' }}>{item.score}</span>
-                                        </button>
-                                    );
-                                })}
+                        <div className="tc-finder-run">
+                            <div>
+                                <strong>{focusR ? `Trade ideas for ${focusR.label}` : selectedPartner && !finderPoolOn ? `Explore trades with ${selectedPartner.ownerName}` : 'Ready to explore your league?'}</strong>
+                                <p>{finderPoolOn ? `Look for ${activeIntent === 'shop' ? 'offers for your players' : activeIntent === 'picks' ? 'draft-pick deals' : 'roster improvements'} across ${partnerBoard.length} other teams.` : 'Ideas update below for your selected player or trade partner.'}</p>
                             </div>
-                        )}
-
-                        {/* Board is default-visible now (owner ask 2026-07-12): the first
-                            8 rows always render with the Pos/Sort controls; the old
-                            "Browse assets" toggle is just a Show all / Show less expander.
-                            The extra Add column and the div-row affordances override the
-                            index.html base grid (7-col template) — scoped inline since
-                            this port touches only trade-calc.js. */}
-                        <style>{`
-                            /* Condensed Intent/Partner control rows (owner ask) — tighter
-                               than the shared .tc-dhq-modebar default so this settings
-                               stack reads as a compact instrument strip, not stacked cards. */
-                            .tc-dhq-modebar button { padding: 4px 9px; font-size: 0.68rem; }
-                            .tc-dhq-asset-table.has-add .tc-dhq-asset-row { grid-template-columns: minmax(150px,1.5fr) 46px 72px 48px minmax(118px,1fr) 68px 58px 36px; min-width: 764px; }
-                            .tc-dhq-asset-table.is-picks .tc-dhq-asset-row { grid-template-columns: minmax(170px,1.6fr) 56px minmax(130px,1fr) 80px 36px; min-width: 520px; }
-                            div.tc-dhq-asset-row[tabindex] { cursor: pointer; }
-                            div.tc-dhq-asset-row[tabindex]:hover, div.tc-dhq-asset-row.is-active { background: rgba(212,175,55,0.07); color: var(--white); }
-                            .tc-dhq-add-btn { width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; justify-self: end; border-radius: var(--card-radius-sm, 8px); border: 1px solid var(--acc-line2, rgba(212,175,55,0.4)); background: rgba(212,175,55,0.10); color: var(--gold); font-family: var(--font-mono, monospace); font-size: 0.95rem; font-weight: 700; line-height: 1; padding: 0; cursor: pointer; }
-                            .tc-dhq-add-btn:hover { background: rgba(212,175,55,0.22); border-color: var(--gold); }
-                        `}</style>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap', fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.8, lineHeight: 1.3 }}>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.65 }}>GM lens</span>
-                            <strong style={{ color: 'var(--gold)', fontWeight: 700 }}>{focusTuning.modeLabel}</strong>
-                            <span>· bar {actionFloor}% · {focusTuning.untouchable.size} untouchable{focusTuning.untouchable.size === 1 ? '' : 's'} · {modeDescriptor}</span>
+                            {finderPoolOn && <button type="button" className="tc-center-primary" disabled={scanArmed} onClick={() => setScanForKey(finderLoopKey)}>{!scanArmed ? 'Find trade ideas' : finderPool.done ? 'Ideas up to date' : `Searching ${finderPool.scanned}/${finderPool.total}…`}</button>}
                         </div>
+                        <details className="tc-finder-method"><summary>How these ideas are ranked <span>· {focusTuning.modeLabel}</span></summary>
+                            <p>Using your {focusTuning.modeLabel.toLowerCase()} strategy, roster needs, player values, and manager tendencies. The default list shows ideas with at least {actionFloor}% estimated acceptance. {focusTuning.untouchable.size ? `${focusTuning.untouchable.size} protected player${focusTuning.untouchable.size === 1 ? ' is' : 's are'} excluded from offers.` : 'You can protect players from your roster.'}</p>
+                        </details>
+                        {(scanArmed || !finderPoolOn) && <div className="tc-finder-status" role="status">
+                            {scanArmed && !finderPool.done ? `Searching teams ${finderPool.scanned} of ${finderPool.total}…` : deals.length ? `${actionableDeals.length} recommended trade idea${actionableDeals.length === 1 ? '' : 's'}${moonshotCount ? ` · ${moonshotCount} lower-confidence ideas available` : ''}` : 'No matching deals yet. Try another player or trade partner, or build your own trade.'}
+                        </div>}
+                    </div>
+                </section>
+
+                <details className="tc-finder-browse" open={finderBrowseOpen} onToggle={e => { if (e.currentTarget.open !== finderBrowseOpen) setFinderBrowseOpen(e.currentTarget.open); }}>
+                    <summary><strong>{finderPicksMode ? 'Browse draft picks' : browsingMyRoster ? 'Browse my players' : 'Browse players'}</strong><span>Choose a target or add to your trade</span></summary>
+                    <p className="tc-finder-board-help">Select a row to find trade ideas for that {finderPicksMode ? 'pick' : 'player'}. Use <strong>+ Build</strong> to add it directly to your trade.</p>
                         {finderPicksMode ? (
                             /* Intent=Picks → a draft-pick board with an Owned/League scope
                                toggle (the phone board, ported): Owned = your picks (→ YOU
@@ -3562,9 +3513,9 @@
                                         <strong>{picksScopeMine ? 'Your picks' : 'League picks'}</strong>
                                     </div>
                                     <div className="tc-dhq-browser-controls" role="group" aria-label="Picks scope">
-                                        <button type="button" className={picksScopeMine ? 'is-active' : ''} onClick={() => { setPhPicksScope('owned'); setAssetBrowserOpen(false); }}>Owned</button>
-                                        <button type="button" className={!picksScopeMine ? 'is-active' : ''} onClick={() => { setPhPicksScope('league'); setAssetBrowserOpen(false); }}>League</button>
-                                        {boardRowCount > 8 && <button type="button" onClick={() => setAssetBrowserOpen(v => !v)}>{assetBrowserOpen ? 'Less ▴' : `All ${boardRowCount} ▾`}</button>}
+                                        <button type="button" className={picksScopeMine ? 'is-active' : ''} onClick={() => { setPhPicksScope('owned'); setAssetBrowserOpen(false); }}>My picks</button>
+                                        <button type="button" className={!picksScopeMine ? 'is-active' : ''} onClick={() => { setPhPicksScope('league'); setAssetBrowserOpen(false); }}>Other teams</button>
+                                        {boardRowCount > 8 && <button type="button" onClick={() => setAssetBrowserOpen(v => !v)}>{assetBrowserOpen ? 'Show fewer' : `Show ${boardRowCount}`}</button>}
                                     </div>
                                 </div>
                                 <div className="tc-dhq-asset-table is-picks" role="table" aria-label="Trade Finder pick board">
@@ -3573,18 +3524,18 @@
                                         <span>Year</span>
                                         <span>Owner</span>
                                         <span>Value</span>
-                                        <span>Add{_vp.isCoarse && typeof Tip === 'function' ? <Tip>The + drops the pick straight onto the live deal builder.</Tip> : null}</span>
+                                        <span>Build trade{_vp.isCoarse && typeof Tip === 'function' ? <Tip>The + drops the pick straight onto the live deal builder.</Tip> : null}</span>
                                     </div>
                                     {visiblePickRows.length ? visiblePickRows.map(row => (
                                         <div key={`${row.rosterId}-${row.id}`} role="row" tabIndex={0}
                                             className={`tc-dhq-asset-row${finderQuery.focus && finderQuery.focus.kind === 'pick' && String(finderQuery.focus.id) === String(row.id) ? ' is-active' : ''}`}
                                             onClick={() => selectPickFocus(row)}
-                                            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectPickFocus(row); } }}>
+                                            onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); selectPickFocus(row); } }}>
                                             <span title={row.label}>{row.label}{row.via && row.via !== row.ownerName ? <em style={{ fontStyle:'normal', opacity:0.65 }}> via {row.via}</em> : null}</span>
                                             <span>{row.year}</span>
                                             <span title={picksScopeMine ? 'Your pick' : row.ownerName}>{picksScopeMine ? 'Your pick' : row.ownerName}</span>
                                             <span>{row.value.toLocaleString()}</span>
-                                            <button type="button" className="tc-dhq-add-btn" aria-label={'Add ' + row.label + ' to the builder'} title="Add to the live deal" onClick={e => { e.stopPropagation(); if (addPickRowToBuilder(row)) setBuilderExpanded(true); }}>+</button>
+                                            <button type="button" className="tc-dhq-add-btn" aria-label={'Add ' + row.label + ' to the builder'} title="Add to the live deal" onClick={e => { e.stopPropagation(); if (addPickRowToBuilder(row)) revealTradeBuilder(); }}>+ Build</button>
                                         </div>
                                     )) : <div className="tc-dhq-empty">No {picksScopeMine ? 'owned' : 'league'} picks to browse.</div>}
                                 </div>
@@ -3611,21 +3562,21 @@
                                         {/* Show-all lives ON the board head with the other board
                                             controls (owner ask 2026-07-12) — it floated alone above
                                             the board before. */}
-                                        {boardRowCount > 8 && <button type="button" onClick={() => setAssetBrowserOpen(v => !v)}>{assetBrowserOpen ? 'Less ▴' : `All ${boardRowCount} ▾`}</button>}
+                                        {boardRowCount > 8 && <button type="button" onClick={() => setAssetBrowserOpen(v => !v)}>{assetBrowserOpen ? 'Show fewer' : `Show ${boardRowCount}`}</button>}
                                     </div>
                                 </div>
                                 <div className="tc-dhq-asset-table has-add" role="table" aria-label="Trade Finder asset browser">
                                     <div className="tc-dhq-asset-row tc-dhq-asset-head" role="row">
                                         <span>Player</span>
                                         <span>Pos</span>
-                                        <span>DHQ</span>
+                                        <span title="Dynasty HQ trade value">Trade value</span>
                                         <span>Age</span>
-                                        <span>Current owned team</span>
-                                        <span>Last FP</span>
-                                        <span>Prime</span>
+                                        <span>League team</span>
+                                        <span>Season points</span>
+                                        <span title="Estimated remaining prime years">Prime years</span>
                                         {/* iPad pass: hover titles never fire on touch — one
                                             coarse-only Tip on the header explains the + column. */}
-                                        <span>Add{_vp.isCoarse && typeof Tip === 'function' ? <Tip>The + drops the player straight onto the live deal builder.</Tip> : null}</span>
+                                        <span>Build trade{_vp.isCoarse && typeof Tip === 'function' ? <Tip>The + drops the player straight onto the live deal builder.</Tip> : null}</span>
                                     </div>
                                     {visibleAssetRows.length ? visibleAssetRows.map(row => (
                                         /* div row (not <button>) so the gold "+" can be a real
@@ -3635,7 +3586,7 @@
                                         <div key={`${row.rosterId}-${row.pid}`} role="row" tabIndex={0}
                                             className={`tc-dhq-asset-row${focusPlayerPid != null && String(focusPlayerPid) === String(row.pid) ? ' is-active' : ''}`}
                                             onClick={() => selectAssetFocus(row)}
-                                            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectAssetFocus(row); } }}>
+                                            onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); selectAssetFocus(row); } }}>
                                             <span title={row.name}>{row.name}{(() => {
                                                 const rf = tcRookieInfoFor(row.pid);
                                                 if (!rf) return null;
@@ -3649,35 +3600,27 @@
                                             <span title={row.ownerLabel}>{row.ownerLabel}</span>
                                             <span>{row.lastPoints ? row.lastPoints.toLocaleString() : '--'}</span>
                                             <span>{row.primeYears != null ? row.primeYears : '--'}</span>
-                                            <button type="button" className="tc-dhq-add-btn" aria-label={'Add ' + row.name + ' to the builder'} title="Add to the live deal" onClick={e => { e.stopPropagation(); if (addAssetToBuilder(row)) setBuilderExpanded(true); }}>+</button>
+                                            <button type="button" className="tc-dhq-add-btn" aria-label={'Add ' + row.name + ' to the builder'} title="Add to the live deal" onClick={e => { e.stopPropagation(); if (addAssetToBuilder(row)) revealTradeBuilder(); }}>+ Build</button>
                                         </div>
                                     )) : <div className="tc-dhq-empty">{assetBrowserRookieOnly ? (tcRookieIndex.size === 0 ? 'Rookie data still loading…' : 'No tradeable rookies match this filter (rookies with no trade value yet are hidden).') : 'No assets match this position filter.'}</div>}
                                 </div>
                             </div>
                         ) : <div className="tc-dhq-empty">No tradeable assets to browse for this scope.</div>}
 
-                        {finderPoolOn && !scanArmed
-                            ? <div className="tc-dhq-empty" style={{ textAlign: 'center', padding: '14px' }}>Runs a league-wide {intentLabel.toLowerCase()} scan across {partnerBoard.length} partners — hit <strong style={{ color: 'var(--gold)' }}>Scan the league for moves</strong> above.</div>
-                            : deals.length
-                                ? <div className="tc-dhq-package-note"><b>{actionableDeals.length ? 'Ready' : 'Moonshots only'}</b> {actionableDeals.length || 0} actionable package{actionableDeals.length === 1 ? '' : 's'}{moonshotCount ? ` · ${moonshotCount} moonshot${moonshotCount === 1 ? '' : 's'} hidden` : ''}{scanArmed && !finderPool.done ? ` · scanning ${finderPool.scanned}/${finderPool.total}` : ''}</div>
-                                : scanArmed && !finderPool.done
-                                    ? <div className="tc-dhq-package-note"><b>Scanning</b> partner {finderPool.scanned}/{finderPool.total} — rows appear as the league scan runs.</div>
-                                    : <div className="tc-dhq-empty">No package found for this intent. Try another partner chip, clear the focus, or open the builder below.</div>}
-                    </div>
-                </section>
+                </details>
 
                 {deals.length > 0 && (
                     <section className="tc-dhq-panel tc-dhq-deal-stage">
                         <div className="tc-dhq-panel-head">
-                            <span>Finder Rows</span>
+                            <span>Trade ideas</span>
                             <em>{showAllDeals ? deals.length : actionableDeals.length} idea{(showAllDeals ? deals.length : actionableDeals.length) === 1 ? '' : 's'} · {finderPoolOn ? 'league-wide' : selectedPartner ? selectedPartner.ownerName : 'Select a partner'}</em>
                         </div>
                         <div className="tc-dhq-deal-stage-body">
                             {visibleDeals.length
                                 ? visibleDeals.map((deal, idx) => <TcDealCard key={deal.id} deal={deal} idx={idx} actionFloor={actionFloor} expandedDealId={expandedDealId} setExpandedDealId={setExpandedDealId} loadDealIntoBuilder={loadDealIntoBuilder} saveDeal={saveDeal} sideSummary={sideSummary} />)
-                                : <div className="tc-dhq-empty">No actionable package clears {actionFloor}% acceptance. Use moonshots only if you want long-shot leverage ideas.</div>}
+                                : <div className="tc-dhq-empty">No ideas meet the {actionFloor}% estimated acceptance threshold. You can still explore the lower-confidence ideas below.</div>}
                         </div>
-                        {(deals.length > visibleDeals.length || showAllDeals) && <button className="tc-dhq-show-more" onClick={() => setShowAllDeals(!showAllDeals)}>{showAllDeals ? 'Hide moonshots' : moonshotCount ? `Show ${moonshotCount} moonshot${moonshotCount === 1 ? '' : 's'}` : `Show ${deals.length - visibleDeals.length} more`}</button>}
+                        {(deals.length > visibleDeals.length || showAllDeals) && <button className="tc-dhq-show-more" onClick={() => setShowAllDeals(!showAllDeals)}>{showAllDeals ? 'Show recommended ideas' : moonshotCount ? `Explore ${moonshotCount} lower-confidence idea${moonshotCount === 1 ? '' : 's'}` : `Show ${deals.length - visibleDeals.length} more`}</button>}
                     </section>
                 )}
 
@@ -3692,29 +3635,25 @@
             return builderExpanded || tradeIds.A.length > 0 || tradeIds.B.length > 0 || tradePickIds.A.length > 0 || tradePickIds.B.length > 0;
         }
 
-        // ── Desk/DNA/Log tabs — relocated from the retired wr-module-strip banner
-        // into the panel-head level (owner ask 2026-07-12: tabs sit on the Trade
-        // Finder line, not their own banner row). Rendered inside the finder head
-        // on the Pro desk; the other views get a slim right-aligned bar. Also
-        // hosts the "◂ Deal intel" reopen pill when the rail is hidden mid-build.
+        // Navigation remains outside the finder, with saved-count and rail controls.
         function renderTcTabNav() {
             const surfaces = [
-                { key: 'desk', label: 'Trade Desk' },
-                { key: 'dna', label: 'Owner DNA' },
-                { key: 'log', label: 'Trade Log' },
+                { key: 'desk', label: 'Find trades' },
+                { key: 'dna', label: 'Managers' },
+                { key: 'log', label: 'Trade history' },
             ];
             return (
-                <div className="wr-module-nav" style={{ flex: 'none' }}>
+                <nav className="wr-module-nav" aria-label="Trade Center sections" style={{ flex: 'none' }}>
                     {tcTab === 'desk' && tcBuilderInUse() && railHidden && (
                         <button type="button" onClick={() => setRailHidden(false)} title="Reopen the deal-intel side panel (verdict + Owner DNA)" style={{ color: 'var(--gold)' }}>◂ Deal intel</button>
                     )}
                     {surfaces.map(s => (
-                        <button key={s.key} className={tcTab === s.key ? 'is-active' : ''} onClick={() => setTcTab(s.key)}>
+                        <button type="button" aria-current={tcTab === s.key ? 'page' : undefined} key={s.key} className={tcTab === s.key ? 'is-active' : ''} onClick={() => setTcTab(s.key)}>
                             {s.label}
                             {s.key === 'log' && savedDeals.length > 0 && <span style={{ color: 'var(--silver)', fontWeight: 500, opacity: 0.8 }}>{' · ' + savedDeals.length}</span>}
                         </button>
                     ))}
-                </div>
+                </nav>
             );
         }
 
@@ -3820,15 +3759,15 @@
             const railItem = (liveDealOwnerId != null && railBoard.find(p => String(p.assessment.ownerId) === String(liveDealOwnerId)))
                 || railBoard.find(p => String(p.assessment.ownerId) === String(effPartnerId))
                 || railBoard[0] || null;
-            // The builder is the first entry point on the desk, even before a deal starts.
-            const builderEl = active === 'desk' && (
-                        <div style={{ margin: '0 0 12px', border: '1px solid rgba(53,208,214,0.28)', borderRadius: 'var(--card-radius-sm, 8px)', background: 'rgba(53,208,214,0.05)', overflow: 'hidden' }}>
+            // The manual builder opens from the header or a selected trade asset.
+            const builderEl = buildingLive && (
+                        <div id="tc-active-builder" style={{ margin: '0 0 12px', border: '1px solid rgba(53,208,214,0.28)', borderRadius: 'var(--card-radius-sm, 8px)', background: 'rgba(53,208,214,0.05)', overflow: 'hidden' }}>
                             <button type="button" onClick={() => setBuilderExpanded(v => !v)} title="Build or tweak a deal without leaving this view" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', textAlign: 'left', background: 'transparent', border: 'none', padding: '9px 13px', cursor: 'pointer' }}>
                                 <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#35d0d6' }}>{_verdict.hasTrade ? 'Live deal' : 'Trade builder'}</span>
                                 {_verdict.hasTrade ? (
                                     <>
                                         <strong style={{ fontFamily: 'var(--font-title)', fontSize: '0.95rem', color: _verdict.verdictColor }}>{_verdict.verdictText} {_verdict.diffDisplay}</strong>
-                                        <span style={{ fontSize: '0.74rem', color: 'var(--silver)' }}>gave {_verdict.totalA.toLocaleString()} / got {_verdict.totalB.toLocaleString()}</span>
+                                        <span style={{ fontSize: '0.74rem', color: 'var(--silver)' }}>Sending {_verdict.totalA.toLocaleString()} / receiving {_verdict.totalB.toLocaleString()}</span>
                                         {_pro && <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.82rem', fontWeight: 700, color: _verdict.likelihoodColor }}>{_verdict.likelihood}% accept</span>}
                                     </>
                                 ) : (
@@ -3869,13 +3808,11 @@
                             .tc-trade-root .tc-rail-dna-link { min-height: 44px; }
                         }
                     `}</style>
-                    {/* wr-module-strip banner retired here (owner ask 2026-07-12):
-                        the Desk/DNA/Log tabs now live at panel-head level — inside
-                        the Trade Finder head on the Pro desk (renderDealHQ), and as
-                        this slim right-aligned bar on every other view. */}
-                    {(active !== 'desk' || !_pro) && (
-                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>{renderTcTabNav()}</div>
-                    )}
+                    <header className="tc-center-header">
+                        <div><h2>Trade Center</h2><p>{active === 'dna' ? 'Understand the managers you trade with.' : active === 'log' ? 'Track your saved ideas and completed league trades.' : 'Find a deal that helps your team, or build one yourself.'}</p></div>
+                        <button type="button" className="tc-center-build" aria-expanded={active === 'desk' && builderExpanded} aria-controls="tc-active-builder" onClick={() => { setTcTab('desk'); setBuilderExpanded(v => active !== 'desk' || !v); }}>{builderExpanded && active === 'desk' ? 'Close builder' : _verdict.hasTrade ? 'Edit my trade' : '+ Build a trade'}</button>
+                    </header>
+                    <div className="tc-center-nav">{renderTcTabNav()}</div>
                     <div className={'tc-adaptive-canvas' + (railOn ? ' has-rail' : '')}>
                     <div className="tc-adaptive-main">
                     {builderEl}
@@ -4425,9 +4362,9 @@
             // setPartnerFacet), re-declared here because those closures live inside
             // renderDealHQ, which stays untouched for tablet/desktop.
             const finderIntents = [
-                { key: 'help', label: 'Add' },
-                { key: 'shop', label: 'Sell' },
-                { key: 'picks', label: 'Picks' },
+                { key: 'help', label: 'Find a player' },
+                { key: 'shop', label: 'Shop my players' },
+                { key: 'picks', label: 'Draft picks' },
             ];
             const intentLabel = (finderIntents.find(i => i.key === finderQuery.intent) || finderIntents[0]).label;
             const assetBrowserSorts = [
@@ -4440,7 +4377,7 @@
             const sortLabel = (assetBrowserSorts.find(s => s.key === assetBrowserSort) || assetBrowserSorts[0]).label;
             const pinnedPartnerName = effPartnerId != null
                 ? ((assessments.find(a => String(a.ownerId) === String(effPartnerId)) || {}).ownerName || 'Pinned')
-                : 'Auto';
+                : 'All teams';
             function phSelectFocus(item) {
                 if (!item) return;
                 setFinderQuery(qr => item.kind === 'owner'
@@ -4745,7 +4682,7 @@
                     <div className="wr-seg">
                         {finderIntents.map(i => (
                             <button key={i.key} type="button" className={finderQuery.intent === i.key ? 'is-on' : ''}
-                                onClick={() => { setFinderQuery(qr => ({ ...qr, intent: i.key })); setAssetBrowserPos('ALL'); setShowAllDeals(false); setPhFinderPanel(null); }}>{i.label}</button>
+                                onClick={() => { setFinderQuery(qr => ({ ...qr, intent: i.key, focus: null })); setAssetBrowserPos('ALL'); setShowAllDeals(false); setPhFinderPanel(null); }}>{i.label}</button>
                         ))}
                     </div>
                 );
@@ -4758,8 +4695,8 @@
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div style={{ maxHeight: '42vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', border: '1px solid var(--ov-6, rgba(255,255,255,0.1))', borderRadius: 'var(--card-radius-sm, 8px)' }}>
                             <button type="button" style={partnerRow(effPartnerId == null)} onClick={() => { phSetPartner(null); setPhFinderPanel(null); }}>
-                                <strong style={{ color: effPartnerId == null ? 'var(--gold)' : 'var(--white)', fontWeight: 600 }}>Auto</strong>
-                                <span style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.65, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Best partner picked for you</span>
+                                <strong style={{ color: effPartnerId == null ? 'var(--gold)' : 'var(--white)', fontWeight: 600 }}>All teams</strong>
+                                <span style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.65, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Search across the league</span>
                             </button>
                             {partnerBoard.map(item => {
                                 const a = item.assessment;
@@ -4868,7 +4805,7 @@
             if (active === 'desk') {
                 const pillsEl = (_pro && rosterState.isUsable) ? (
                     <div className="wr-hscroll" style={{ display: 'flex', gap: '6px', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
-                        {React.createElement(FilterPill, { label: 'Intent', value: intentLabel, onClick: () => setPhFinderPanel(p => p === 'intent' ? null : 'intent') })}
+                        {React.createElement(FilterPill, { label: 'Goal', value: intentLabel, onClick: () => setPhFinderPanel(p => p === 'intent' ? null : 'intent') })}
                         {React.createElement(FilterPill, { label: 'Partner', value: pinnedPartnerName, onClick: () => setPhFinderPanel(p => p === 'partner' ? null : 'partner') })}
                         {focusR ? React.createElement(FilterPill, { label: '✕', value: focusR.label, onClick: phClearFocus }) : null}
                         {React.createElement(FilterPill, { label: 'Pos', value: assetBrowserPos, onClick: () => setPhFinderPanel(p => p === 'pos' ? null : 'pos') })}
@@ -4900,12 +4837,12 @@
                         {_pro && rosterState.isUsable && (
                             (finderPoolOn && !scanArmed)
                                 ? <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                                    <button type="button" onClick={() => setScanForKey(finderLoopKey)} style={{ flex: 'none', minHeight: '40px', padding: '9px 16px', borderRadius: 'var(--card-radius-sm, 8px)', border: 'none', background: 'var(--gold)', color: 'var(--page-bg, #0A0A0F)', fontFamily: MONO, fontSize: MICRO, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>{scanForKey != null ? 'Re-run scan' : 'Scan for moves'}</button>
+                                    <button type="button" onClick={() => setScanForKey(finderLoopKey)} style={{ flex: 'none', minHeight: '40px', padding: '9px 16px', borderRadius: 'var(--card-radius-sm, 8px)', border: 'none', background: 'var(--gold)', color: 'var(--page-bg, #0A0A0F)', fontFamily: MONO, fontSize: MICRO, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>{scanForKey != null ? 'Refresh trade ideas' : 'Find trade ideas'}</button>
                                     <span style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--silver)', opacity: 0.7 }}>{scanForKey != null ? 'Settings changed — re-run to refresh moves.' : `League-wide across ${partnerBoard.length} partners.`}</span>
                                 </div>
                                 : finderDeals.length
                                 ? <React.Fragment>
-                                    {goldDiv('Finder rows', finderPoolOn ? 'league-wide' : (selectedPartner ? 'vs ' + selectedPartner.ownerName : null))}
+                                    {goldDiv('Trade ideas', finderPoolOn ? 'league-wide' : (selectedPartner ? 'vs ' + selectedPartner.ownerName : null))}
                                     <div style={{ fontFamily: MONO, fontSize: MICRO, color: 'var(--silver)', opacity: 0.7 }}>{finderActionable.length} actionable · {finderMoonshotCount} moonshot{finderMoonshotCount === 1 ? '' : 's'}{scanArmed && !finderPool.done ? ` · scanning ${finderPool.scanned}/${finderPool.total}` : ''}</div>
                                 </React.Fragment>
                                 : (scanArmed && !finderPool.done
@@ -5105,9 +5042,9 @@
                     {/* P2 sub-nav — same canonical tcTab setters as the desktop
                         module-nav; the LOG count mirrors the desktop badge. */}
                     <div className="wr-seg">
-                        <button type="button" className={active === 'desk' ? 'is-on' : ''} onClick={() => setTcTab('desk')}>Desk</button>
-                        <button type="button" className={active === 'dna' ? 'is-on' : ''} onClick={() => setTcTab('dna')}>Owner DNA</button>
-                        <button type="button" className={active === 'log' ? 'is-on' : ''} onClick={() => setTcTab('log')}>{savedDeals.length > 0 ? `Log · ${savedDeals.length}` : 'Log'}</button>
+                        <button type="button" className={active === 'desk' ? 'is-on' : ''} onClick={() => setTcTab('desk')}>Find trades</button>
+                        <button type="button" className={active === 'dna' ? 'is-on' : ''} onClick={() => setTcTab('dna')}>Managers</button>
+                        <button type="button" className={active === 'log' ? 'is-on' : ''} onClick={() => setTcTab('log')}>{savedDeals.length > 0 ? `History · ${savedDeals.length}` : 'History'}</button>
                     </div>
                     {deskBody}
                     {dnaTabBody}

@@ -49,21 +49,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
     });
 
     // ── This league's scoreboard ──
-    const [board, setBoard] = React.useState({ week: null, rows: [] });
-    React.useEffect(() => {
-        if (isPhone || !leagueId || typeof window.fetchMatchups !== 'function') return undefined;
-        const WP = window.App?.WeeklyProj;
-        if (!WP) return undefined;
-        const wk = Math.max(1, Math.min(18, WP.currentWeek()));
-        let alive = true;
-        setBoard({ week: null, rows: [] });
-        const refresh = () => window.fetchMatchups(leagueId, wk)
-            .then(rows => { if (alive) setBoard({ week: wk, rows: rows || [] }); })
-            .catch(() => { if (alive) setBoard({ week: null, rows: [] }); });
-        refresh();
-        const timer = setInterval(refresh, 60000);
-        return () => { alive = false; clearInterval(timer); };
-    }, [leagueId, season, isPhone]);
+    const board = window.App.LeagueLiveScores.useScores({ league: currentLeague, enabled: !isPhone });
 
     const weekHasScores = board.rows.filter(r => Number(r.points) > 0).length >= 2;
     const statWeek = board.week ? Math.max(1, weekHasScores ? board.week : board.week - 1) : null;
@@ -283,8 +269,9 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
         });
         (nflLeaders || []).forEach(l => out.push(l));
 
-        // This league
-        const pairs = Object.values((board.rows || []).reduce((acc, r) => {
+        // This league shares the same scored snapshot as Command Center.
+        const scoreRows = (board.rows || []).map(row => ({ ...row, points: window.App.LeagueLiveScores.rosterPoints(row) })).filter(row => row.points != null);
+        const pairs = Object.values(scoreRows.reduce((acc, r) => {
             if (r.matchup_id == null) return acc;
             (acc[r.matchup_id] = acc[r.matchup_id] || []).push(r);
             return acc;
@@ -292,7 +279,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
         pairs.forEach(pair => {
             if (!pair.some(p => Number(p.points) > 0)) return;
             const [a, b] = [...pair].sort((x, y) => Number(y.points) - Number(x.points));
-            out.push({ kind: 'score', label: 'WK ' + board.week, text: nameFor(a.roster_id) + ' ' + Number(a.points).toFixed(1) + ' — ' + nameFor(b.roster_id) + ' ' + Number(b.points).toFixed(1) });
+            out.push({ kind: 'score', label: (board.error ? 'LAST UPDATE · WK ' : 'WK ') + board.week, text: nameFor(a.roster_id) + ' ' + Number(a.points).toFixed(1) + ' — ' + nameFor(b.roster_id) + ' ' + Number(b.points).toFixed(1) });
         });
         const margins = pairs.filter(p => p.some(x => Number(x.points) > 0)).map(pair => {
             const [a, b] = [...pair].sort((x, y) => Number(y.points) - Number(x.points));
@@ -305,7 +292,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
             const ugly = margins.slice().sort((x, y) => Number(x.win.points) - Number(y.win.points))[0];
             if (ugly) out.push({ kind: 'rec', label: 'LOWEST LEADING SCORE', text: nameFor(ugly.win.roster_id) + ' leads with ' + Number(ugly.win.points).toFixed(1) });
             let hi = null;
-            (board.rows || []).forEach(r => { const p = Number(r.points) || 0; if (!hi || p > hi.p) hi = { p, rid: r.roster_id }; });
+            scoreRows.forEach(r => { const p = Number(r.points) || 0; if (!hi || p > hi.p) hi = { p, rid: r.roster_id }; });
             if (hi && hi.p > 0) out.push({ kind: 'top', label: 'HIGH SCORE', text: nameFor(hi.rid) + ' ' + hi.p.toFixed(1) });
         }
 
@@ -396,7 +383,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
         <button type="button" aria-label="Previous update" disabled={visible.length < 2} onClick={() => setIndex((currentIndex - 1 + visible.length) % visible.length)}>‹</button>
         <button type="button" aria-label={paused ? 'Resume automatic updates' : 'Pause automatic updates'} aria-pressed={paused || reduced} disabled={reduced} title={reduced ? 'Automatic rotation disabled by your reduced-motion preference' : undefined} onClick={() => setPaused(v => !v)}>{reduced ? 'Manual' : paused ? 'Play' : 'Pause'}</button>
         <button type="button" aria-label="Next update" disabled={visible.length < 2} onClick={() => setIndex((currentIndex + 1) % visible.length)}>›</button>
-        {expanded && <aside id="wr-wire-panel" className="wr-wire-panel" aria-label="All wire updates"><header><h3>League wire · {visible.length} updates</h3><button type="button" onClick={close}>Close ×</button></header><p>League scores and NFL games refresh every minute. Scores may still be in progress. Trends compare the two seasons shown; they are not live news.</p><ul>{visible.map((it, i) => <li key={it.kind + ':' + i}><span className={'wr-wire-tag' + (it.kind === 'nfllive' ? ' is-live' : '')}>{it.label}</span>{playerLink(it) ? <button type="button" onClick={() => openItem(it)}>{it.text} · View player →</button> : it.text}</li>)}</ul>{!visible.length && <p>No updates in this topic yet.</p>}</aside>}
+        {expanded && <aside id="wr-wire-panel" className="wr-wire-panel" aria-label="All wire updates"><header><h3>League wire · {visible.length} updates</h3><button type="button" onClick={close}>Close ×</button></header><p>League scores refresh every 30 seconds; NFL games refresh every minute. Scores may still be in progress. Trends compare the two seasons shown; they are not live news.</p><ul>{visible.map((it, i) => <li key={it.kind + ':' + i}><span className={'wr-wire-tag' + (it.kind === 'nfllive' ? ' is-live' : '')}>{it.label}</span>{playerLink(it) ? <button type="button" onClick={() => openItem(it)}>{it.text} · View player →</button> : it.text}</li>)}</ul>{!visible.length && <p>No updates in this topic yet.</p>}</aside>}
     </section>;
 }
 

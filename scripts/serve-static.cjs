@@ -41,7 +41,7 @@ function getArg(name, fallback) {
 
 const host = getArg('host', '127.0.0.1');
 const port = Number(getArg('port', process.env.PORT || 3001));
-const root = path.resolve(getArg('root', process.cwd()));
+const root = fs.realpathSync(path.resolve(getArg('root', process.cwd())));
 const openPath = getArg('open', '');
 const COMPILE = process.argv.includes('--compile');
 if (COMPILE) {
@@ -69,9 +69,15 @@ function loadLocalEnv() {
 
 loadLocalEnv();
 
-function isInsideRoot(filePath) {
-  const relative = path.relative(root, filePath);
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+const PRIVATE_DIRECTORIES = new Set(['supabase', 'scripts', 'tests', 'reports', 'node_modules', 'tmp', 'output', 'docs']);
+const PRIVATE_FILES = new Set(['package.json', 'package-lock.json', 'capacitor.config.json', 'eslint.config.js']);
+const PUBLIC_EXTENSIONS = new Set([...Object.keys(MIME_TYPES), '.webmanifest', '.woff', '.woff2', '.ttf', '.mp4']);
+
+function isPublicPath(filePath) {
+  const relative = path.relative(fs.realpathSync(root), filePath);
+  const parts = relative.split(path.sep);
+  return relative && !path.isAbsolute(relative) && !parts.some(part => part.startsWith('.') || PRIVATE_DIRECTORIES.has(part))
+    && !PRIVATE_FILES.has(path.basename(filePath)) && PUBLIC_EXTENSIONS.has(path.extname(filePath).toLowerCase());
 }
 
 function resolveRequestPath(reqUrl) {
@@ -79,18 +85,29 @@ function resolveRequestPath(reqUrl) {
   let pathname = decodeURIComponent(url.pathname);
   if (pathname.endsWith('/')) pathname += 'index.html';
   if (pathname === '/favicon.ico') pathname = '/icon-192.png';
-
-  const directPath = path.join(root, pathname);
-  if (isInsideRoot(directPath) && fs.existsSync(directPath) && fs.statSync(directPath).isFile()) {
-    return directPath;
+  for (const candidate of [path.join(root, pathname), path.join(root, pathname, 'index.html')]) {
+    if (!isPublicPath(candidate)) continue;
+    try {
+      const realPath = fs.realpathSync(candidate);
+      if (isPublicPath(realPath) && fs.statSync(realPath).isFile()) return realPath;
+    } catch { /* Missing files return 404. */ }
   }
-
-  const indexPath = path.join(root, pathname, 'index.html');
-  if (isInsideRoot(indexPath) && fs.existsSync(indexPath) && fs.statSync(indexPath).isFile()) {
-    return indexPath;
-  }
-
   return null;
+}
+
+function isTrustedRequest(req) {
+  try {
+    const requested = new URL(`http://${req.headers.host || ''}`);
+    const allowed = new Set(['localhost', '127.0.0.1', '[::1]',
+      ...(!['0.0.0.0', '::'].includes(host) ? [host] : []),
+      ...getArg('allowed-hosts', '').split(',').map(value => value.trim()).filter(Boolean)]);
+    const address = server.address();
+    const listeningPort = address && typeof address === 'object' ? address.port : port;
+    if (!allowed.has(requested.hostname) || Number(requested.port || 80) !== listeningPort) return false;
+    if (!req.url.startsWith('/') || req.url.startsWith('//')) return false;
+    if (req.headers.origin && req.headers.origin !== requested.origin) return false;
+    return req.headers['sec-fetch-site'] !== 'cross-site';
+  } catch { return false; }
 }
 
 function sendJson(res, status, body) {
@@ -607,6 +624,10 @@ function transpileFile(absPath) {
 }
 
 const server = http.createServer((req, res) => {
+  if (!isTrustedRequest(req)) {
+    sendJson(res, 403, { error: 'Untrusted preview request.' });
+    return;
+  }
   const url = new URL(req.url, `http://${host}:${port}`);
   if (url.pathname === '/api/dev-ai-analyze') {
     handleDevAI(req, res);
@@ -703,7 +724,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(port, host, () => {
   const compileNote = COMPILE ? (Babel ? '  [JSX compile: ON]' : '  [JSX compile: requested but @babel/standalone missing]') : '';
-  console.log(`Serving ${root} at http://${host}:${port}/${compileNote}`);
+  console.log(`Serving ${root} at http://${host}:${server.address().port}/${compileNote}`);
   if (openPath) {
     const target = new URL(openPath.replace(/^\/+/, ''), `http://${host}:${port}/`).toString();
     const opener = spawn('open', [target], { detached: true, stdio: 'ignore' });

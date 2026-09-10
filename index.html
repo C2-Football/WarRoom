@@ -2859,8 +2859,11 @@ WRShared.preloadMany(WR_SHARED_FILES);
 </style><style>
 .cup-panel{display:grid;gap:12px;color:var(--silver)}.cup-panel header,.cup-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.cup-panel header>div{flex:1}.cup-panel h2,.cup-panel h3{color:var(--gold);margin:0}.cup-panel p{margin:0;line-height:1.5}.cup-panel button,.cup-panel select,.cup-panel input{font:inherit;color:var(--silver);background:var(--off-black);border:1px solid var(--acc-line1);border-radius:6px;padding:8px;min-height:40px}.cup-panel button{cursor:pointer}.cup-panel button:disabled{opacity:.45;cursor:default}.cup-panel label{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.cup-panel input[type=file]{max-width:210px}.cup-groups,.cup-setup{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(310px,100%),1fr));gap:12px}.cup-groups>section,.cup-panel details{padding:12px;border:1px solid var(--acc-line1);border-radius:8px;min-width:0}.cup-panel table{width:100%;border-collapse:collapse;font-size:.78rem}.cup-panel td,.cup-panel th{padding:7px 3px;text-align:right;border-bottom:1px solid var(--ov-4)}.cup-panel td:first-child,.cup-panel th:first-child{text-align:left;overflow-wrap:anywhere}.cup-note{font-size:.78rem;color:var(--text-muted)}.cup-panel summary{cursor:pointer;color:var(--gold)}.cup-panel [role=alert]{color:var(--bad)}
 </style><link rel="stylesheet" href="experience-hub.css?v=20260908">
-<link rel="stylesheet" href="woeppel-cup.css?v=1">
-<link rel="stylesheet" href="time-league-play.css?v=20260908-beta-review">
+<link rel="stylesheet" href="woeppel-cup.css?v=20260910formats2">
+<link rel="stylesheet" href="dashboard-league-widgets.css?v=20260910kpi3">
+<link rel="stylesheet" href="trade-center.css?v=20260910clear1">
+<link rel="stylesheet" href="free-agency-market.css?v=20260910rich3">
+<link rel="stylesheet" href="time-league-play.css?v=20260908-end-week1">
 <link rel="stylesheet" href="time-league-helmet-studio.css?v=20260907sourceart1">
 <link rel="stylesheet" href="time-league-profile.css?v=20260907sourceart1">
 <link rel="stylesheet" href="time-league-community.css?v=20260907identity1">
@@ -2915,7 +2918,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script>window._sharedCanAccess = window.canAccess;</script>
 <!-- Scout-free vs Pro gate: wrIsPro() + chrome + lock card; boots loadUserTier().
      Must run after the shared tier chain above, before any tab code. -->
-<script src="js/shared/pro-gate.js?v=20260705gate1"></script>
+<script src="js/shared/pro-gate.js?v=20260909free1"></script>
+    <script src="js/shared/ai-access.js?v=20260909free1"></script>
 <script src="js/pro-launch.js?v=20260414d"></script>
 <script src="college-stats.js"></script>
 <script src="draft-history.js"></script>
@@ -2951,7 +2955,8 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <!-- Shared visual primitives (WR.Card / Badge / Chip / ConfChip / DeltaLine / Kpi / InsightCard) -->
 <script type="text/babel" src="js/components/wr-primitives.js?v=20260907density-20260906setupui1"></script>
     <script type="text/babel" src="js/components/manual-seasons-editor.js?v=20260906manual1"></script>
-    <script type="text/babel" src="js/components/player-card.js?v=20260905anacard1"></script>
+    <script src="js/utils/nfl-byes.js?v=20260908bye1"></script>
+    <script type="text/babel" src="js/components/player-card.js?v=20260908bye1"></script>
 <!-- 2c. Saved List Views (SI-1) — window.WR.SavedViews — shared across list surfaces -->
 <script type="text/babel" src="js/shared/saved-views.js?v=20260427font1"></script>
 <!-- 2c-2. Saved Alex Reports — window.WR.SavedReports — local cache + ai_analysis server sync -->
@@ -2962,10 +2967,15 @@ WRShared.preloadMany(WR_SHARED_FILES);
      Office or GM's Office; consumed by Calendar + My Roster's drop-alert engine -->
 <script src="js/shared/roster-cutdown.js?v=20260810rc1"></script>
 <script src="js/shared/startsit-engine.js?v=20260906fa1"></script>
-<script src="js/shared/weekly-proj.js?v=20260906fa1"></script>
-<script src="js/shared/nfl-context.js?v=20260823pre1"></script>
+<script src="js/shared/weekly-proj.js?v=20260908bye1"></script>
+<script src="js/shared/nfl-context.js?v=20260910live1"></script>
 <script src="js/shared/matchup.js?v=20260701gdc1"></script>
-<script src="js/utils/schedule-engine.js?v=20260702bye1"></script>
+<script src="js/shared/league-live-scores.js?v=20260910live1"></script>
+<script src="js/shared/woeppel-cup.js?v=20260910formats2"></script>
+<script src="js/shared/dashboard-league-layout.js?v=20260910kpi3"></script>
+<script src="js/shared/dashboard-league-data.js?v=20260910kpi3"></script>
+<script src="js/shared/lineup-forecast-snapshots.js?v=20260910live1"></script>
+<script src="js/utils/schedule-engine.js?v=20260908bye1"></script>
 <!-- Redraft add-ons (2026-07-29): luck ledger, playoff Monte Carlo, FAAB bid
      model. Plain-JS engines (no JSX), eager like the rest of this block —
      consumed by Analytics (Season Odds), Free Agency, and Game Day. -->
@@ -2975,6 +2985,7 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script src="js/shared/empire-decisions.js?v=20260809ed1"></script>
 <script src="js/shared/luck-engine.js?v=20260729rd1"></script>
 <script src="js/shared/stat-catalog.js?v=20260821sc3"></script>
+<script src="js/shared/league-stats.js?v=20260910stats2"></script>
 <!-- Real market ADP (MFL public export, joined to sleeperId via FantasyCalc's
      id bridge) — "market says / DHQ says" companion column on redraft/chopped
      draft boards, display-only, never feeds DHQ/ROS/pricing. Eager: warms its
@@ -3066,15 +3077,16 @@ WRShared.preloadMany(WR_SHARED_FILES);
      group, when the owning surface first calls wrLoadModuleGroup('<group>'). -->
 <script src="js/module-loader.js?v=20260905lazyretry1"></script>
 <script type="text/babel" src="js/settings.js?v=20260906nodiscord1"></script>
-<script type="text/babel" data-wr-defer="trade" src="js/trade-calc.js?v=20260907wire2"></script>
+<script type="text/babel" data-wr-defer="trade" src="js/trade-calc.js?v=20260910clear1"></script>
 <script type="text/babel" src="js/post-draft.js?v=20260609postdraft1"></script>
-<script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260907rosterfit1"></script>
+<script type="text/babel" data-wr-defer="fa" src="js/shared/fa-market-data.js?v=20260910rich3"></script>
+<script type="text/babel" data-wr-defer="fa" src="js/free-agency.js?v=20260910rich3"></script>
 <!-- Season Odds panel loads with Game Day (owner ruling 2026-07-30) — must
      precede lineup.js in the group so window.WrSeasonOdds exists on first render. -->
 <script type="text/babel" data-wr-defer="lineup" src="js/components/season-odds-panel.js?v=20260805ch1"></script>
 <script type="text/babel" src="js/components/chop-block-panel.js?v=20260805ch2"></script>
-<script type="text/babel" src="js/components/league-wire.js?v=20260907wire2"></script>
-<script type="text/babel" data-wr-defer="lineup" src="js/tabs/lineup.js?v=20260830lean1"></script>
+<script type="text/babel" src="js/components/league-wire.js?v=20260910live1"></script>
+<script type="text/babel" data-wr-defer="lineup" src="js/tabs/lineup.js?v=20260910live1"></script>
 <!-- 4b. Draft Command Center modules — group "draft" (~28 scripts, ~1.26MB),
      loaded on first Draft-tab open. -->
 <script type="text/babel" data-wr-defer="draft" src="js/draft/styles.js?v=20260427font1"></script>
@@ -3128,18 +3140,20 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" src="js/widgets/my-trophies.js?v=20260611kpifix1"></script>
 <!-- League Calendar widget — depends on window.WrCalendar (js/tabs/calendar.js) -->
 <script type="text/babel" src="js/widgets/league-calendar.js?v=20260619cal1"></script>
-<script type="text/babel" src="js/tabs/dashboard.js?v=20260805ch2"></script>
+<script type="text/babel" src="js/widgets/league-progress.js?v=20260910kpi3"></script>
+<script type="text/babel" src="js/tabs/dashboard.js?v=20260910kpi3"></script>
 <script type="text/babel" src="js/tabs/flash-brief.js?v=20260903leaguefix1"></script>
 <!-- Group "analysis": analytics.js embeds LeagueMapTab, so both defer together
      (league-map.js first — DOM order is execution order within a group). -->
 <script type="text/babel" data-wr-defer="analysis" src="js/tabs/league-map.js?v=20260907toolbar1"></script>
-<script type="text/babel" data-wr-defer="myteam" src="js/tabs/my-team.js?v=20260907name1"></script>
+<script type="text/babel" data-wr-defer="myteam" src="js/tabs/my-team.js?v=20260908bye1"></script>
 <!-- Compare: extracted from My Roster's former sub-view, now a top-level ROSTER-group tab. -->
 <script type="text/babel" data-wr-defer="compare" src="js/tabs/compare.js?v=20260907density-20260905select2"></script>
-<script type="text/babel" data-wr-defer="central" src="js/shared/woeppel-cup.js?v=1"></script>
-<script type="text/babel" data-wr-defer="central" src="js/components/woeppel-cup-panel.js?v=4"></script>
-<script type="text/babel" data-wr-defer="central" src="js/tabs/league-central.js?v=cup2-20260907density-20260903kpi1"></script>
-<script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260907density-20260907marketheader1"></script>
+<script type="text/babel" data-wr-defer="central" src="js/components/woeppel-cup-panel.js?v=20260910formats2"></script>
+<script type="text/babel" data-wr-defer="central" src="js/components/league-live-scoreboard.js?v=20260910matchup2"></script>
+<script type="text/babel" data-wr-defer="central" src="js/tabs/league-central.js?v=20260910kpi3"></script>
+<script type="text/babel" data-wr-defer="stats" src="js/tabs/stats.js?v=20260910stats2"></script>
+<script type="text/babel" data-wr-defer="analysis" src="js/tabs/analytics.js?v=20260910stats2"></script>
 <script type="text/babel" data-wr-defer="trophies" src="js/components/cup-honours.js?v=1"></script>
 <script type="text/babel" data-wr-defer="trophies" src="js/tabs/trophy-room.js?v=20260907cup1"></script>
 <script type="text/babel" src="js/tabs/calendar.js?v=20260619cal1"></script>
@@ -3166,28 +3180,28 @@ WRShared.preloadMany(WR_SHARED_FILES);
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-profile-panel.js?v=20260907sourceart1"></script>
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-community-panel.js?v=20260908-beta-review"></script>
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-ceremony.js?v=20260907career1"></script>
-<script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-stats-panel.js?v=20260908-full-season1"></script>
+<script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-stats-panel.js?v=20260908-claims-profile1"></script>
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-rivals-panel.js?v=20260908typing1"></script>
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-career-panel.js?v=20260907career1"></script>
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-career-view.js?v=20260907identity1"></script>
-<script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-home-panel.js?v=20260907mobile2"></script>
+<script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-home-panel.js?v=20260908-end-week1"></script>
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-setup-panel.js?v=20260908-draft-order"></script>
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-draft-controls.js?v=20260908-draft-focus"></script>
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-draft-roster.js?v=20260908-my-draft"></script>
-<script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-draft-panel.js?v=20260908-full-season1"></script>
-<script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-team-panel.js?v=20260908-full-season1"></script>
-<script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-standings-panel.js?v=20260907mobile2"></script>
+<script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-draft-panel.js?v=20260908-current-turn1"></script>
+<script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-team-panel.js?v=20260908-claims-profile1"></script>
+<script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-standings-panel.js?v=20260908-claims-profile1"></script>
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-activity-panel.js?v=20260907career1"></script>
 <script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-gamecast-panel.js?v=20260908-full-season1"></script>
-<script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-week-gates.js?v=20260908mailnotice1"></script>
-<script type="text/babel" data-wr-defer="timeleague" src="js/tabs/time-league.js?v=20260908-full-season1"></script>
+<script type="text/babel" data-wr-defer="timeleague" src="js/components/time-league-week-gates.js?v=20260908-end-week1"></script>
+<script type="text/babel" data-wr-defer="timeleague" src="js/tabs/time-league.js?v=20260908-end-week1"></script>
 <script src="js/tutorial.js?v=20260503tutorial1"></script>
 <!-- 6. Strategy editor: calls shared GMStrategy API, no logic duplication.
      Only consumed by alex-insights' Strategy sub-view, so it rides the same
      "alex" lazy group — inert at boot, loaded on first GM's Office / Strategy open. -->
 <script type="text/babel" data-wr-defer="alex" src="js/tabs/strategy-editor.js?v=20260903leaguefix1"></script>
 <!-- 7. League detail: coordinator shell, depends on all above -->
-    <script type="text/babel" src="js/league-detail.js?v=20260907wire2"></script>
+    <script type="text/babel" src="js/league-detail.js?v=20260910kpi3"></script>
 <!-- 8. App: OwnerDashboard + ReactDOM.render (loads last) -->
 <script type="text/babel" src="js/app.js?v=20260908-beta-review"></script>
 

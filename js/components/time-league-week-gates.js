@@ -5,7 +5,7 @@
         { id: 'claims', title: 'Bids & trades', action: 'process-claims', button: 'Run waivers', tab: 'waivers', open: 'Review bids' },
         { id: 'lineup', title: 'Decisions & lineup', action: 'finalize-rosters', button: 'Lock lineup', tab: 'roster', open: 'Set lineup' },
         { id: 'ready', title: 'Ready for kickoff', action: 'week', button: 'Start game day', tab: 'gameday', open: 'Go to game day' },
-        { id: 'postgame', title: 'Final · Next week ready', action: 'advance-week', button: 'Advance week', tab: 'home' },
+        { id: 'postgame', title: 'Week recap', action: 'advance-week', button: 'End week', tab: 'home', open: 'Week recap' },
     ];
 
     function WeekGates({ league, onlineMeta, saving, dataReady, onAction, onNavigate, currentTab, playback, messageAction }) {
@@ -22,7 +22,7 @@
         const voted = votes.includes(onlineMeta?.seatTeamId);
         const week = live ? playback.week : league.weekStage === 'postgame' ? league.currentWeek - 1 : league.currentWeek;
         const deadline = new Date(Date.parse(league.gateStartedAt || league.createdAt) + (league.settings.gateHours || 24) * 3600000);
-        const needsScreen = currentTab && currentTab !== stage.tab && stage.id !== 'postgame';
+        const needsScreen = currentTab && currentTab !== stage.tab;
         const disabled = saving || !dataReady;
         const go = (tab, label) => h('button', { type: 'button', className: 'tl-btn', onClick: () => onNavigate(tab), disabled: saving }, label);
         const advance = () => onAction({ type: mode === 'majority' ? 'vote-advance' : stage.action });
@@ -37,13 +37,13 @@
         } else {
             primary = needsScreen ? go(stage.tab, stage.open)
                 : h('button', { type: 'button', className: 'tl-btn primary', disabled: disabled || (mode === 'majority' ? voted : !host), onClick: advance },
-                    saving ? 'Saving…' : mode === 'majority' ? voted ? 'Vote recorded' : 'Vote to advance' : host ? stage.button : 'Waiting for commissioner');
-            secondary = stage.id === 'postgame' ? go('home', 'Weekly recap')
+                    saving ? 'Saving…' : mode === 'majority' ? voted ? 'Vote recorded' : stage.id === 'postgame' ? 'Vote to end week' : 'Vote to advance' : host ? stage.button : 'Waiting for commissioner');
+            secondary = stage.id === 'postgame' ? (currentTab === 'home' ? go('gameday', 'Box scores') : null)
                 : stage.id === 'claims' ? go(currentTab === 'trades' ? 'waivers' : 'trades', currentTab === 'trades' ? 'Waiver bids' : 'Trades')
                     : stage.id === 'lineup' ? go('trades', 'Trade decisions') : null;
         }
-        if (!live && currentTab === 'gameday' && messageAction) secondary = messageAction;
-        const title = live ? `Q${playback.quarter || 1} · ${playback.playing ? 'Playing' : 'Paused'}${playback.replay ? ' · Replay' : ''}` : complete ? 'Season complete' : stage.title;
+        if (!live && ['home', 'gameday'].includes(currentTab) && messageAction) secondary = messageAction;
+        const title = live ? `Q${playback.quarter || 1} · ${playback.playing ? 'Playing' : 'Paused'}${playback.replay ? ' · Replay' : ''}` : complete ? 'Season complete' : stage.id === 'postgame' ? `Week ${week} recap` : stage.title;
         const status = !live && !complete && onlineMeta ? mode === 'majority' ? `${votes.length}/${majority} votes` : mode === 'timed' ? `Deadline: ${deadline.toLocaleString()}` : host ? 'Commissioner' : 'Commissioner advances' : '';
 
         return h('footer', { className: 'tl-week-action-row', 'aria-label': 'Week actions' },
@@ -58,7 +58,7 @@
                         h('div', { className: 'tl-card-title' }, 'This week', h('button', { type: 'button', className: 'tl-btn icon', 'aria-label': 'Close week options', onClick: () => setShowSettings(false) }, '×')),
                         h('ol', { className: 'tl-stage-track' }, STAGES.map((row, i) => h('li', { key: row.id, 'aria-current': row.id === stage.id ? 'step' : undefined, className: row.id === stage.id ? 'active' : '' }, h('span', null, i + 1), row.title))),
                         host && stage.id === 'ready' && h('button', { className: 'tl-btn', disabled: saving, onClick: () => { setShowSettings(false); onAction({ type: 'reopen-lineups' }); } }, 'Reopen lineups'),
-                        host && mode !== 'commissioner' && h('button', { className: 'tl-btn', disabled, onClick: () => { setShowSettings(false); onAction({ type: stage.action }); } }, `Commissioner override · ${stage.button}`),
+                        host && mode !== 'commissioner' && h('button', { className: 'tl-btn', disabled, onClick: () => { setShowSettings(false); if (needsScreen) onNavigate(stage.tab); else onAction({ type: stage.action }); } }, `Commissioner override · ${stage.button}`),
                         onlineMeta && host && h('div', { className: 'tl-stage-settings' },
                             h('label', null, 'Advance stages by', h('select', { className: 'tl-select', value: mode, disabled: saving, onChange: event => onAction({ type: 'gate-settings', advancementMode: event.target.value, gateHours: league.settings.gateHours || 24 }) },
                                 h('option', { value: 'commissioner' }, 'Commissioner'), h('option', { value: 'majority' }, 'Majority vote'), h('option', { value: 'timed' }, 'Time limit'))),

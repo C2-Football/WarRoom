@@ -6,59 +6,35 @@
 //   supabase functions deploy ai-analyze
 //
 // SET SECRET:
-//   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 //   supabase secrets set GOOGLE_AI_KEY=AIza...
-//   supabase secrets set OPENAI_API_KEY=sk-...
 // ============================================================
 
 import Anthropic from 'npm:@anthropic-ai/sdk';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
     corsHeaders,
-    hasAdminRole,
+    checkRateLimit as checkSecurityRateLimit,
     handleOptions,
     requireActiveAppSession,
     requireSleeperSession,
 } from '../_shared/security.ts';
 
 // ── Rate limiting ─────────────────────────────────────────────
-// 10 AI requests per user per minute to protect Anthropic API costs.
-// Uses Deno KV (shared across Edge Function instances).
+// 10 AI requests per user per minute to protect service capacity.
+// Uses the transactional database limiter shared across Edge instances.
 const RATE_LIMIT_MAX     = 10;
 const RATE_LIMIT_WINDOW  = 60 * 1000; // 1 minute in ms
 
-function extractUsernameFromJWT(authHeader: string | null): string {
-    if (!authHeader) return 'anonymous';
-    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-    try {
-        const [, payload] = token.split('.');
-        const decoded = JSON.parse(atob(payload));
-        return decoded?.app_metadata?.sleeper_username
-            ?? decoded?.sub
-            ?? 'anonymous';
-    } catch { return 'anonymous'; }
-}
-
 async function checkRateLimit(identifier: string): Promise<{ allowed: boolean; retryAfterMs?: number }> {
-    try {
-        const kv = await Deno.openKv();
-        const bucket = Math.floor(Date.now() / RATE_LIMIT_WINDOW);
-        const key = ['rate_limit', 'ai_analyze', identifier, bucket];
-        const entry = await kv.get<number>(key);
-        const count = entry.value ?? 0;
-        if (count >= RATE_LIMIT_MAX) {
-            const windowEnd = (bucket + 1) * RATE_LIMIT_WINDOW;
-            return { allowed: false, retryAfterMs: windowEnd - Date.now() };
-        }
-        await kv.set(key, count + 1, { expireIn: RATE_LIMIT_WINDOW });
-        return { allowed: true };
-    } catch {
-        // If KV is unavailable, allow the request (fail open)
-        return { allowed: true };
-    }
+    const url = Deno.env.get('SUPABASE_URL');
+    const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!url || !key) return { allowed: false, retryAfterMs: RATE_LIMIT_WINDOW };
+    const result = await checkSecurityRateLimit(createClient(url, key), 'ai-analyze:minute', identifier,
+        { limit: RATE_LIMIT_MAX, windowSeconds: RATE_LIMIT_WINDOW / 1000 });
+    return { allowed: result.allowed, retryAfterMs: (result.retryAfterSeconds || 60) * 1000 };
 }
 
-type AIPlanName = 'free' | 'scout' | 'warroom' | 'pro' | 'commissioner' | 'legacy';
+type AIPlanName = 'free' | 'legacy';
 
 interface AISession {
     identifier: string;
@@ -70,55 +46,9 @@ interface AISession {
     source: 'app' | 'sleeper';
 }
 
-function normalizeAIPlan(value: unknown): AIPlanName {
-    const plan = String(value || 'free').toLowerCase();
-    if (plan === 'commissioner') return 'commissioner';
-    if (plan === 'pro' || plan === 'power' || plan === 'bundle') return 'pro';
-    if (plan === 'warroom' || plan === 'war_room' || plan === 'standard') return 'warroom';
-    if (plan === 'scout' || plan === 'dynast_hq' || plan === 'reconai') return 'scout';
-    if (plan === 'legacy') return 'legacy';
-    return 'free';
-}
-
-async function loadAppAIPlan(
-    supabase: any,
-    userId: string,
-    payload: Record<string, any>,
-): Promise<{ plan: AIPlanName; products: string[] }> {
-    const metadata = payload?.app_metadata || {};
-    const fallbackPlan = normalizeAIPlan(metadata.tier);
-    const fallbackProducts = Array.isArray(metadata.products) ? metadata.products.map(String) : [];
-
-    const isAdmin = await hasAdminRole(supabase, userId).catch(() => false);
-    if (isAdmin) {
-        return { plan: 'commissioner', products: fallbackProducts };
-    }
-
-    const subs = await safeSupabaseData(supabase
-        .from('subscriptions')
-        .select('product_slug, tier, status')
-        .eq('user_id', userId)
-        .in('status', ['active', 'trialing']));
-
-    const activePaid = (subs || []).filter((s: any) => s?.tier === 'pro');
-    const paidProducts = activePaid.map((s: any) => String(s.product_slug || ''));
-    const products = paidProducts.length
-        ? [...new Set(paidProducts.flatMap((slug: string) => slug === 'bundle' ? ['war_room', 'dynast_hq'] : [slug]))]
-        : fallbackProducts;
-
-    if (paidProducts.includes('bundle') || (products.includes('war_room') && products.includes('dynast_hq'))) {
-        return { plan: 'pro', products };
-    }
-    if (paidProducts.includes('war_room')) {
-        return { plan: 'warroom', products };
-    }
-    if (paidProducts.includes('dynast_hq')) {
-        return { plan: 'scout', products };
-    }
-    if (fallbackPlan !== 'free') {
-        return { plan: fallbackPlan, products };
-    }
-    return { plan: 'free', products };
+// Product access is free; billing claims never grant administrative authority.
+async function loadAppAIPlan(_supabase: any, _userId: string, _payload: Record<string, any>): Promise<{ plan: AIPlanName; products: string[] }> {
+    return { plan: 'free', products: ['war_room', 'dynast_hq'] };
 }
 
 async function resolveAISession(req: Request): Promise<AISession | null> {
@@ -166,164 +96,13 @@ interface AIRoute {
     tier: AIWorkloadTier;
 }
 
-const AI_POLICY_VERSION = '2026-06-14.dynasty-read.v1';
+const AI_POLICY_VERSION = '2026-09-09.free-gemini.v1';
 
 const AI_MODELS = {
-    GEMINI_FAST: 'gemini-2.5-flash-lite',
     GEMINI_BALANCED: 'gemini-2.5-flash',
-    OPENAI_FAST: 'gpt-5.4-nano',
     OPENAI_STANDARD: 'gpt-5.4-mini',
-    OPENAI_PREMIUM: 'gpt-5.5',
     CLAUDE_REASONING: 'claude-sonnet-4-6',
-    CLAUDE_DEEP: 'claude-opus-4-7',
 } as const;
-
-const MODEL_COSTS: Record<string, { input: number; output: number; cachedInput?: number }> = {
-    'gemini-2.5-flash-lite': { input: 0.10, output: 0.40 },
-    'gemini-2.5-flash': { input: 0.30, output: 2.50 },
-    'gpt-5.4-nano': { input: 0.20, output: 1.25, cachedInput: 0.02 },
-    'gpt-5.4-mini': { input: 0.75, output: 4.50, cachedInput: 0.075 },
-    'gpt-5.5': { input: 5.00, output: 30.00, cachedInput: 0.50 },
-    'claude-sonnet-4-6': { input: 3.00, output: 15.00, cachedInput: 0.30 },
-    'claude-opus-4-7': { input: 5.00, output: 25.00, cachedInput: 0.50 },
-};
-
-const AI_TIER_MODELS: Record<AIWorkloadTier, Partial<Record<AIProvider, string>>> = {
-    fast: {
-        gemini: AI_MODELS.GEMINI_FAST,
-        openai: AI_MODELS.OPENAI_FAST,
-    },
-    standard: {
-        gemini: AI_MODELS.GEMINI_BALANCED,
-        openai: AI_MODELS.OPENAI_STANDARD,
-    },
-    premium: {
-        // Gemini has no verified-pricing model stronger than GEMINI_BALANCED
-        // in MODEL_COSTS below, so premium/deep share it — an honest
-        // simplification, not a distinct "premium" SKU. See route.tier
-        // (not the model string) for entitlement gating — downgradeRouteForEntitlement
-        // relies on that, not on this model being unique per tier.
-        gemini: AI_MODELS.GEMINI_BALANCED,
-        anthropic: AI_MODELS.CLAUDE_REASONING,
-        openai: AI_MODELS.OPENAI_PREMIUM,
-    },
-    deep: {
-        gemini: AI_MODELS.GEMINI_BALANCED,
-        anthropic: AI_MODELS.CLAUDE_DEEP,
-    },
-};
-
-const DEFAULT_PROVIDER_BY_TIER: Record<AIWorkloadTier, AIProvider> = {
-    fast: 'gemini',
-    standard: 'gemini',
-    premium: 'gemini',
-    deep: 'gemini',
-};
-
-const PROVIDER_OVERRIDE_ENV: Record<AIWorkloadTier, string> = {
-    fast: 'AI_FAST_PROVIDER',
-    standard: 'AI_STANDARD_PROVIDER',
-    premium: 'AI_PREMIUM_PROVIDER',
-    deep: 'AI_DEEP_PROVIDER',
-};
-
-type AIModelTier = AIWorkloadTier;
-
-interface AIPlanLimits {
-    dailyRequests: number;
-    monthlyRequests: number;
-    dailyCostUsd: number;
-    monthlyCostUsd: number;
-    maxOutputTokens: number;
-    mockDraftMaxOutputTokens: number;
-    maxInputChars: number;
-    maxModelTier: AIModelTier;
-    allowWebSearch: boolean;
-}
-
-const MODEL_TIER_RANK: Record<AIModelTier, number> = { fast: 1, standard: 2, premium: 3, deep: 4 };
-
-const AI_LIMITS: Record<AIPlanName, AIPlanLimits> = {
-    free: {
-        dailyRequests: 1,
-        monthlyRequests: 31,
-        dailyCostUsd: 0.10,
-        monthlyCostUsd: 1.00,
-        maxOutputTokens: 700,
-        mockDraftMaxOutputTokens: 0,
-        maxInputChars: 20000,
-        maxModelTier: 'standard',
-        allowWebSearch: false,
-    },
-    scout: {
-        dailyRequests: 1,
-        monthlyRequests: 31,
-        dailyCostUsd: 0.10,
-        monthlyCostUsd: 1.00,
-        maxOutputTokens: 700,
-        mockDraftMaxOutputTokens: 0,
-        maxInputChars: 20000,
-        maxModelTier: 'standard',
-        allowWebSearch: false,
-    },
-    warroom: {
-        dailyRequests: 5,
-        monthlyRequests: 20,
-        dailyCostUsd: 0.75,
-        monthlyCostUsd: 6.00,
-        maxOutputTokens: 2200,
-        mockDraftMaxOutputTokens: 6000,
-        maxInputChars: 55000,
-        maxModelTier: 'premium',
-        allowWebSearch: false,
-    },
-    pro: {
-        dailyRequests: 25,
-        monthlyRequests: 200,
-        dailyCostUsd: 3.00,
-        monthlyCostUsd: 35.00,
-        maxOutputTokens: 4200,
-        mockDraftMaxOutputTokens: 10000,
-        maxInputChars: 90000,
-        maxModelTier: 'premium',
-        allowWebSearch: true,
-    },
-    commissioner: {
-        dailyRequests: 60,
-        monthlyRequests: 600,
-        dailyCostUsd: 10.00,
-        monthlyCostUsd: 150.00,
-        maxOutputTokens: 8000,
-        mockDraftMaxOutputTokens: 16000,
-        maxInputChars: 140000,
-        maxModelTier: 'deep',
-        allowWebSearch: true,
-    },
-    legacy: {
-        dailyRequests: 10,
-        monthlyRequests: 100,
-        dailyCostUsd: 1.00,
-        monthlyCostUsd: 12.00,
-        maxOutputTokens: 2200,
-        mockDraftMaxOutputTokens: 6000,
-        maxInputChars: 55000,
-        maxModelTier: 'premium',
-        allowWebSearch: false,
-    },
-};
-
-// Web search is normally restricted to the top plans (allowWebSearch). The
-// dynasty_read type is the one exception: its result is shared and cached weekly,
-// so the search cost is paid once per player per week across ALL users. We
-// therefore extend web search to the War Room tier for this single type only —
-// no other type's web-search policy changes.
-const WEB_SEARCH_ALLOWED_TYPES = new Set(['dynasty_read']);
-function planAllowsWebSearch(plan: AIPlanName, type: string): boolean {
-    if (WEB_SEARCH_ALLOWED_TYPES.has(type) && (plan === 'warroom' || plan === 'pro' || plan === 'commissioner')) {
-        return true;
-    }
-    return !!AI_LIMITS[plan]?.allowWebSearch;
-}
 
 function envFlag(name: string, defaultValue = false): boolean {
     const raw = Deno.env.get(name);
@@ -339,16 +118,6 @@ function envNumber(name: string, defaultValue: number): number {
 function isAIEnabled(): boolean {
     if (envFlag('AI_KILL_SWITCH', false)) return false;
     return envFlag('AI_ENABLED', true);
-}
-
-function allowExpensiveFallback(): boolean {
-    return envFlag('AI_ALLOW_EXPENSIVE_FALLBACK', !Deno.env.get('GOOGLE_AI_KEY') && !Deno.env.get('OPENAI_API_KEY'));
-}
-
-function providerSecretName(provider: AIProvider): string {
-    if (provider === 'gemini') return 'GOOGLE_AI_KEY';
-    if (provider === 'openai') return 'OPENAI_API_KEY';
-    return 'ANTHROPIC_API_KEY';
 }
 
 const AI_SECRET_CACHE = new Map<string, string | null>();
@@ -377,174 +146,14 @@ async function getVaultSecret(secretName: string): Promise<string | null> {
     }
 }
 
-async function getProviderSecret(provider: AIProvider): Promise<string | null> {
-    const secretName = providerSecretName(provider);
+async function getSharedGeminiKey(): Promise<string | null> {
+    const secretName = 'GOOGLE_AI_KEY';
     return Deno.env.get(secretName) || await getVaultSecret(secretName);
-}
-
-async function isProviderConfigured(provider: AIProvider): Promise<boolean> {
-    return !!(await getProviderSecret(provider));
-}
-
-function normalizeProvider(value: string | null | undefined): AIProvider | null {
-    const provider = String(value || '').trim().toLowerCase();
-    if (provider === 'gemini' || provider === 'openai' || provider === 'anthropic') return provider;
-    return null;
-}
-
-function routeForProviderTier(tier: AIWorkloadTier, provider: AIProvider): AIRoute | null {
-    const model = AI_TIER_MODELS[tier]?.[provider];
-    return model ? { provider, model, tier } : null;
-}
-
-function preferredProviderForTier(tier: AIWorkloadTier): AIProvider {
-    return normalizeProvider(Deno.env.get(PROVIDER_OVERRIDE_ENV[tier])) || DEFAULT_PROVIDER_BY_TIER[tier];
-}
-
-function routeForTier(tier: AIWorkloadTier, provider?: AIProvider): AIRoute {
-    const preferred = provider || preferredProviderForTier(tier);
-    return routeForProviderTier(tier, preferred)
-        || routeForProviderTier(tier, DEFAULT_PROVIDER_BY_TIER[tier])
-        || routeForProviderTier('standard', 'gemini')!;
-}
-
-const AI_ROUTES: Record<string, AIWorkloadTier> = {
-    // Frequent Alex surfaces should be self-sufficient and inexpensive.
-    chat:       'standard',
-    fa_chat:    'fast',
-    fa_targets: 'fast',
-    league:     'standard',
-    team:       'standard',
-    partners:   'standard',
-    // Keep long structured generation on premium models for reliability.
-    mock_draft: 'premium',
-    rookies:    'premium',
-    // Explicit user-triggered deep dives.
-    trade_verdict: 'premium',
-    // Web-search-backed player news synthesis (shared weekly cache).
-    dynasty_read:  'premium',
-    // Ambient insight surfaces: cheap-first, server-cached, request-uncounted.
-    team_diagnosis:   'standard',
-    dashboard_digest: 'fast',
-    insight:          'fast',
-    // ReconAI / Scout generic chat routes.
-    'trade-chat':        'premium',
-    'trade-scout':       'premium',
-    'draft-scout':       'premium',
-    'pick-analysis':     'premium',
-    'player-scout':      'premium',
-    'waiver-chat':       'standard',
-    'waiver-agent':      'standard',
-    'draft-chat':        'standard',
-    'strategy-analysis': 'standard',
-    'home-chat':         'fast',
-    'memory-summary':    'fast',
-    'power-posts':       'fast',
-    'recon-chat':        'fast',
-    general:             'standard',
-    'deep-analysis':     'deep',
-    'league-report':     'deep',
-    'rule-simulator':    'deep',
-    'trade-audit':       'deep',
-};
-
-function routeForType(type: string): AIRoute {
-    return routeForTier(AI_ROUTES[type] || 'standard');
-}
-
-function allowsModelTier(limit: AIPlanLimits, tier: AIModelTier): boolean {
-    return MODEL_TIER_RANK[tier] <= MODEL_TIER_RANK[limit.maxModelTier];
-}
-
-function downgradeRouteForEntitlement(route: AIRoute, limits: AIPlanLimits): { route: AIRoute; downgraded: boolean } {
-    // Gate on the route's own semantic tier, not a model-string lookup — once
-    // two tiers can share the same underlying model (e.g. premium and deep
-    // both resolving to gemini-2.5-flash when Gemini is the default for both),
-    // a model->tier table would misclassify a premium/deep route as whatever
-    // tier that model string happens to also be used for elsewhere, silently
-    // granting free/scout plans access to gated routes.
-    if (allowsModelTier(limits, route.tier)) {
-        return { route, downgraded: false };
-    }
-    if (allowsModelTier(limits, 'premium')) return { route: routeForTier('premium'), downgraded: true };
-    if (allowsModelTier(limits, 'standard')) return { route: routeForTier('standard'), downgraded: true };
-    return { route: routeForTier('fast'), downgraded: true };
-}
-
-async function resolveConfiguredRoute(
-    route: AIRoute,
-    limits: AIPlanLimits,
-    useWebSearch: boolean,
-    blockedProvider: AIProvider | null = null,
-): Promise<{ route: AIRoute | null; providerFallback: boolean; providerFallbackReason: string | null }> {
-    if (useWebSearch) {
-        const webRoute = routeForProviderTier('premium', 'anthropic');
-        if (webRoute && blockedProvider !== 'anthropic' && allowsModelTier(limits, webRoute.tier) && await isProviderConfigured(webRoute.provider)) {
-            return {
-                route: webRoute,
-                providerFallback: route.provider !== webRoute.provider || route.model !== webRoute.model,
-                providerFallbackReason: route.provider === webRoute.provider ? null : 'web_search_requires_anthropic',
-            };
-        }
-        return { route: null, providerFallback: false, providerFallbackReason: 'web_search_provider_unavailable' };
-    }
-
-    if (blockedProvider !== route.provider && await isProviderConfigured(route.provider)) {
-        return { route, providerFallback: false, providerFallbackReason: null };
-    }
-
-    const candidates: AIRoute[] = [];
-    (['openai', 'gemini', 'anthropic'] as AIProvider[]).forEach(provider => {
-        const candidate = routeForProviderTier(route.tier, provider);
-        if (candidate) candidates.push(candidate);
-    });
-
-    if (allowExpensiveFallback() && allowsModelTier(limits, 'premium')) {
-        (['openai', 'anthropic'] as AIProvider[]).forEach(provider => {
-            const candidate = routeForProviderTier('premium', provider);
-            if (candidate) candidates.push(candidate);
-        });
-    }
-
-    let fallback: AIRoute | null = null;
-    for (const candidate of candidates) {
-        if (
-            candidate.provider !== route.provider
-            && candidate.provider !== blockedProvider
-            && allowsModelTier(limits, candidate.tier)
-            && await isProviderConfigured(candidate.provider)
-        ) {
-            fallback = candidate;
-            break;
-        }
-    }
-
-    return fallback
-        ? { route: fallback, providerFallback: true, providerFallbackReason: blockedProvider ? `${blockedProvider}_provider_error` : `${route.provider}_unconfigured` }
-        : { route: null, providerFallback: false, providerFallbackReason: 'no_configured_provider' };
-}
-
-function estimateCostUsd(model: string, inputTokens: number, outputTokens: number, cachedInputTokens = 0): number {
-    const costs = MODEL_COSTS[model];
-    if (!costs) return 0;
-    const billableInput = Math.max(0, inputTokens - cachedInputTokens);
-    const inputCost = (billableInput / 1_000_000) * costs.input;
-    const cachedCost = (cachedInputTokens / 1_000_000) * (costs.cachedInput ?? costs.input);
-    const outputCost = (outputTokens / 1_000_000) * costs.output;
-    return Number((inputCost + cachedCost + outputCost).toFixed(6));
-}
-
-function estimatePromptTokens(text: string): number {
-    return Math.ceil(String(text || '').length / 4);
-}
-
-function isProviderAvailabilityError(error: any): boolean {
-    const message = String(error?.message || error || '').toLowerCase();
-    return /429|rate|timeout|temporar|unavailable|overload|quota|502|503|529/.test(message);
 }
 
 async function callAIProvider(args: {
     route: AIRoute;
+    apiKey: string;
     systemPrompt: string;
     userPrompt: string;
     maxTokens: number;
@@ -556,48 +165,41 @@ async function callAIProvider(args: {
     outputTokens: number;
     cachedInputTokens: number;
     webSearchCount?: number;
+    grounding?: { sources: Array<{ title: string; url: string }>; searchSuggestions?: string };
 }> {
-    const { route, systemPrompt, userPrompt, maxTokens, useWebSearch } = args;
+    const { route, apiKey, systemPrompt, userPrompt, maxTokens, useWebSearch } = args;
 
     if (route.provider === 'gemini') {
-        const googleKey = await getProviderSecret('gemini');
-        if (!googleKey) throw new Error('GOOGLE_AI_KEY not configured');
-        const res = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(route.model)}:generateContent`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${googleKey}`,
-            },
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
             body: JSON.stringify({
-                model: route.model,
-                max_tokens: maxTokens,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: userPrompt },
-                ],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+                generationConfig: { maxOutputTokens: maxTokens, ...(['gemini-2.5-flash', 'gemini-2.5-flash-lite'].includes(route.model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
+                ...(useWebSearch ? { tools: [{ google_search: {} }] } : {}),
             }),
+            signal: AbortSignal.timeout(90000),
         });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error((err as any).error?.message || `Gemini API error ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`Gemini request failed (${res.status})`);
         const data = await res.json();
-        const usage = (data as any).usage || {};
-        let inputTokens = usage.prompt_tokens || usage.input_tokens || 0;
-        const outputTokens = usage.completion_tokens || usage.output_tokens || 0;
-        if (!inputTokens && !outputTokens && usage.total_tokens) inputTokens = usage.total_tokens;
+        const candidate = data.candidates?.[0];
+        const usage = data.usageMetadata || {};
         return {
-            analysis: (data as any).choices?.[0]?.message?.content || '',
-            stopReason: '',
-            inputTokens,
-            outputTokens,
-            cachedInputTokens: 0,
+            analysis: (candidate?.content?.parts || []).filter((p: any) => !p.thought).map((p: any) => p.text || '').join(''),
+            stopReason: candidate?.finishReason === 'MAX_TOKENS' ? 'max_tokens' : '',
+            inputTokens: usage.promptTokenCount || 0,
+            outputTokens: (usage.candidatesTokenCount || 0) + (usage.thoughtsTokenCount || 0),
+            cachedInputTokens: usage.cachedContentTokenCount || 0,
+            webSearchCount: candidate?.groundingMetadata?.webSearchQueries?.length || 0,
+            grounding: {
+                sources: (candidate?.groundingMetadata?.groundingChunks || []).filter((c: any) => c.web?.uri).map((c: any) => ({ title: c.web.title || 'Source', url: c.web.uri })),
+                searchSuggestions: candidate?.groundingMetadata?.searchEntryPoint?.renderedContent || '',
+            },
         };
     }
 
     if (route.provider === 'openai') {
-        const apiKey = await getProviderSecret('openai');
-        if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
         const res = await fetch('https://api.openai.com/v1/responses', {
             method: 'POST',
             headers: {
@@ -609,11 +211,12 @@ async function callAIProvider(args: {
                 instructions: systemPrompt,
                 input: [{ role: 'user', content: userPrompt }],
                 max_output_tokens: maxTokens,
+                store: false,
+                ...(useWebSearch ? { tools: [{ type: 'web_search' }] } : {}),
             }),
         });
         if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error((err as any).error?.message || `OpenAI API error ${res.status}`);
+            throw new Error(`OpenAI request failed (${res.status})`);
         }
         const data = await res.json();
         const usage = (data as any).usage || {};
@@ -627,11 +230,9 @@ async function callAIProvider(args: {
             inputTokens: usage.input_tokens || usage.prompt_tokens || 0,
             outputTokens: usage.output_tokens || usage.completion_tokens || 0,
             cachedInputTokens: usage.input_tokens_details?.cached_tokens || usage.cached_input_tokens || 0,
+            grounding: { sources: ((data as any).output || []).flatMap((item: any) => item.content || []).flatMap((part: any) => part.annotations || []).filter((a: any) => a.type === 'url_citation').map((a: any) => ({ title: a.title || 'Source', url: a.url })) },
         };
     }
-
-    const apiKey = await getProviderSecret('anthropic');
-    if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
 
     const anthropic = new Anthropic({ apiKey });
     const anthropicRequest: any = {
@@ -697,13 +298,6 @@ async function callAIProvider(args: {
     };
 }
 
-function clampTextToChars(text: string, maxChars: number): { text: string; truncated: boolean } {
-    const value = String(text || '');
-    if (value.length <= maxChars) return { text: value, truncated: false };
-    const suffix = '\n\n[Context truncated to fit launch AI limits.]';
-    return { text: value.slice(0, Math.max(0, maxChars - suffix.length)) + suffix, truncated: true };
-}
-
 const STRUCTURED_TYPES = new Set(['league', 'team', 'partners', 'fa_targets', 'rookies', 'fa_chat', 'mock_draft', 'chat', 'trade_verdict', 'team_diagnosis', 'dashboard_digest', 'insight', 'dynasty_read']);
 
 interface GenericAIContext {
@@ -714,17 +308,6 @@ interface GenericAIContext {
     useWebSearch: boolean;
     leagueId: string | null;
     sessionId: string | null;
-}
-
-function decodeAuthPayload(authHeader: string | null): Record<string, any> | null {
-    if (!authHeader) return null;
-    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-    try {
-        const [, payload] = token.split('.');
-        return JSON.parse(atob(payload));
-    } catch {
-        return null;
-    }
 }
 
 function parseContextPayload(context: any): any {
@@ -777,10 +360,6 @@ function normalizeGenericAIContext(type: string, context: any): GenericAIContext
     };
 }
 
-function isUuid(value: unknown): boolean {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
-}
-
 async function safeSupabaseData(query: any): Promise<any> {
     try {
         const { data } = await query;
@@ -795,262 +374,6 @@ async function safeSupabaseWrite(query: any): Promise<void> {
         await query;
     } catch {
         // Analytics and post-response accounting must not break the user flow.
-    }
-}
-
-async function recordAIAccounting(args: {
-    req: Request;
-    aiSession: AISession;
-    planLimits: AIPlanLimits;
-    reservedCostUsd: number;
-    routeType: string;
-    originalType: string;
-    context: any;
-    genericContext: GenericAIContext | null;
-    route: AIRoute;
-    inputTokens: number;
-    outputTokens: number;
-    cachedInputTokens: number;
-    tokensUsed: number;
-    estimatedCostUsd: number;
-    latencyMs: number;
-    providerFallback: boolean;
-    providerFallbackReason: string | null;
-    routeDowngraded: boolean;
-    promptTruncated: boolean;
-    webSearchDisabled: boolean;
-}) {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    if (!supabaseUrl || !serviceRoleKey) return { totalTokensUsed: null, usageCounters: null };
-
-    const claims = decodeAuthPayload(args.req.headers.get('Authorization'));
-    const userId = args.aiSession.userId || (isUuid(claims?.sub) ? claims?.sub : null);
-    const parsed = parseContextPayload(args.context);
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-    let totalTokensUsed: number | null = null;
-    let usageCounters: Record<string, any> | null = null;
-
-    if (args.tokensUsed > 0 && args.aiSession.username) {
-        const data = await safeSupabaseData(supabase.rpc('add_ai_tokens_used', {
-            p_username: args.aiSession.username,
-            p_tokens: args.tokensUsed,
-        }));
-        if (typeof data === 'number') totalTokensUsed = data;
-    }
-
-    const usageData = await safeSupabaseData(supabase.rpc('record_ai_usage_result', {
-        p_identifier: args.aiSession.identifier,
-        p_user_id: userId,
-        p_username: args.aiSession.username,
-        p_tier: args.aiSession.plan,
-        p_tokens: args.tokensUsed,
-        p_estimated_cost_usd: args.estimatedCostUsd,
-        p_reserved_cost_usd: args.reservedCostUsd,
-    }));
-    if (usageData && typeof usageData === 'object') usageCounters = usageData as Record<string, any>;
-
-    await safeSupabaseWrite(supabase.from('analytics_events').insert({
-        event_id: crypto.randomUUID(),
-        username: args.aiSession.username,
-        user_id: userId,
-        league_id: args.genericContext?.leagueId || parsed?.leagueId || parsed?.currentLeagueId || null,
-        session_id: args.genericContext?.sessionId || parsed?.sessionId || parsed?.session_id || `edge_${args.aiSession.identifier}_${Date.now()}`,
-        platform: args.genericContext ? 'reconai' : 'warroom',
-        module: 'ai',
-        widget: args.routeType,
-        event_name: 'ai_call_completed',
-        duration_ms: args.latencyMs,
-        entity_type: 'ai_call',
-        entity_id: args.routeType,
-        metadata: {
-            originalType: args.originalType,
-            callType: args.routeType,
-            aiPolicyVersion: AI_POLICY_VERSION,
-            routeTier: args.route.tier,
-            provider: args.route.provider,
-            model: args.route.model,
-            inputTokens: args.inputTokens,
-            outputTokens: args.outputTokens,
-            cachedInputTokens: args.cachedInputTokens,
-            tokensUsed: args.tokensUsed,
-            totalTokensUsed,
-            estimatedCostUsd: args.estimatedCostUsd,
-            providerFallback: args.providerFallback,
-            providerFallbackReason: args.providerFallbackReason,
-            useWebSearch: !!args.genericContext?.useWebSearch,
-            routeDowngraded: args.routeDowngraded,
-            promptTruncated: args.promptTruncated,
-            webSearchDisabled: args.webSearchDisabled,
-            plan: args.aiSession.plan,
-            dailyRequestLimit: args.planLimits.dailyRequests,
-            monthlyRequestLimit: args.planLimits.monthlyRequests,
-        },
-    }));
-
-    return { totalTokensUsed, usageCounters };
-}
-
-async function recordAIUsageDenied(args: {
-    req: Request;
-    aiSession: AISession;
-    planLimits: AIPlanLimits;
-    routeType: string;
-    originalType: string;
-    route: AIRoute;
-    reason: string;
-    usage?: Record<string, any> | null;
-}) {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    if (!supabaseUrl || !serviceRoleKey) return;
-
-    const claims = decodeAuthPayload(args.req.headers.get('Authorization'));
-    const userId = args.aiSession.userId || (isUuid(claims?.sub) ? claims?.sub : null);
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-    await safeSupabaseWrite(supabase.from('analytics_events').insert({
-        event_id: crypto.randomUUID(),
-        username: args.aiSession.username,
-        user_id: userId,
-        league_id: null,
-        session_id: `edge_${args.aiSession.identifier}_${Date.now()}`,
-        platform: 'warroom',
-        module: 'ai',
-        widget: args.routeType,
-        event_name: 'ai_call_denied',
-        entity_type: 'ai_call',
-        entity_id: args.routeType,
-        metadata: {
-            originalType: args.originalType,
-            callType: args.routeType,
-            aiPolicyVersion: AI_POLICY_VERSION,
-            routeTier: args.route.tier,
-            provider: args.route.provider,
-            model: args.route.model,
-            reason: args.reason,
-            plan: args.aiSession.plan,
-            dailyRequestLimit: args.planLimits.dailyRequests,
-            monthlyRequestLimit: args.planLimits.monthlyRequests,
-            usage: args.usage || null,
-        },
-    }));
-}
-
-async function recordAIUsageFailed(args: {
-    req: Request;
-    aiSession: AISession;
-    planLimits: AIPlanLimits;
-    reservedCostUsd: number;
-    routeType: string;
-    originalType: string;
-    route: AIRoute;
-    reason: string;
-    latencyMs: number;
-    providerFallback: boolean;
-    providerFallbackReason: string | null;
-    routeDowngraded: boolean;
-    promptTruncated: boolean;
-    webSearchDisabled: boolean;
-}) {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    if (!supabaseUrl || !serviceRoleKey) return;
-
-    const claims = decodeAuthPayload(args.req.headers.get('Authorization'));
-    const userId = args.aiSession.userId || (isUuid(claims?.sub) ? claims?.sub : null);
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-    await safeSupabaseData(supabase.rpc('record_ai_usage_result', {
-        p_identifier: args.aiSession.identifier,
-        p_user_id: userId,
-        p_username: args.aiSession.username,
-        p_tier: args.aiSession.plan,
-        p_tokens: 0,
-        p_estimated_cost_usd: 0,
-        p_reserved_cost_usd: args.reservedCostUsd,
-    }));
-
-    await safeSupabaseWrite(supabase.from('analytics_events').insert({
-        event_id: crypto.randomUUID(),
-        username: args.aiSession.username,
-        user_id: userId,
-        league_id: null,
-        session_id: `edge_${args.aiSession.identifier}_${Date.now()}`,
-        platform: 'warroom',
-        module: 'ai',
-        widget: args.routeType,
-        event_name: 'ai_call_failed',
-        duration_ms: args.latencyMs,
-        entity_type: 'ai_call',
-        entity_id: args.routeType,
-        metadata: {
-            originalType: args.originalType,
-            callType: args.routeType,
-            aiPolicyVersion: AI_POLICY_VERSION,
-            routeTier: args.route.tier,
-            provider: args.route.provider,
-            model: args.route.model,
-            reason: args.reason,
-            providerFallback: args.providerFallback,
-            providerFallbackReason: args.providerFallbackReason,
-            routeDowngraded: args.routeDowngraded,
-            promptTruncated: args.promptTruncated,
-            webSearchDisabled: args.webSearchDisabled,
-            plan: args.aiSession.plan,
-            dailyRequestLimit: args.planLimits.dailyRequests,
-            monthlyRequestLimit: args.planLimits.monthlyRequests,
-        },
-    }));
-}
-
-async function reserveAIUsage(args: {
-    aiSession: AISession;
-    limits: AIPlanLimits;
-    estimatedRequestCostUsd: number;
-    countRequest?: boolean;
-}): Promise<Record<string, any>> {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    if (!supabaseUrl || !serviceRoleKey) {
-        throw new Error('AI usage controls unavailable.');
-    }
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-    const { data, error } = await supabase.rpc('reserve_ai_usage', {
-        p_identifier: args.aiSession.identifier,
-        p_user_id: args.aiSession.userId,
-        p_username: args.aiSession.username,
-        p_tier: args.aiSession.plan,
-        p_daily_request_limit: args.limits.dailyRequests,
-        p_monthly_request_limit: args.limits.monthlyRequests,
-        p_daily_cost_limit: args.limits.dailyCostUsd,
-        p_monthly_cost_limit: args.limits.monthlyCostUsd,
-        p_estimated_request_cost_usd: args.estimatedRequestCostUsd,
-        p_global_daily_cost_limit: envNumber('AI_GLOBAL_DAILY_COST_LIMIT_USD', 50),
-        p_global_monthly_cost_limit: envNumber('AI_GLOBAL_MONTHLY_COST_LIMIT_USD', 1000),
-        p_count_request: args.countRequest !== false,
-    });
-    if (error) {
-        console.error('[ai-analyze] reserve_ai_usage failed:', error);
-        throw new Error('AI usage controls unavailable.');
-    }
-    return (data && typeof data === 'object') ? data as Record<string, any> : { allowed: false, reason: 'usage_control_error' };
-}
-
-function aiLimitMessage(reason: string): string {
-    switch (reason) {
-        case 'daily_requests':
-            return 'Daily AI limit reached. Try again tomorrow or upgrade your plan.';
-        case 'monthly_requests':
-            return 'Monthly AI limit reached. Your included AI resets next month.';
-        case 'daily_cost':
-        case 'monthly_cost':
-            return 'AI budget limit reached for this plan. Try a shorter request or use your own AI key.';
-        case 'global_daily_cost':
-        case 'global_monthly_cost':
-            return 'AI is temporarily capped while we protect launch capacity. Try again later.';
-        default:
-            return 'AI usage limit reached.';
     }
 }
 
@@ -1237,42 +560,6 @@ async function writeAIResponseCache(args: {
             supabase.from('ai_response_cache').delete().lt('expires_at', new Date().toISOString())
         );
     }
-}
-
-async function recordAICacheHit(args: {
-    req: Request;
-    aiSession: AISession;
-    routeType: string;
-    originalType: string;
-    leagueId: string | null;
-    model: string | null;
-}) {
-    const supabase = cacheSupabaseClient();
-    if (!supabase) return;
-    const claims = decodeAuthPayload(args.req.headers.get('Authorization'));
-    const userId = args.aiSession.userId || (isUuid(claims?.sub) ? claims?.sub : null);
-    await safeSupabaseWrite(supabase.from('analytics_events').insert({
-        event_id: crypto.randomUUID(),
-        username: args.aiSession.username,
-        user_id: userId,
-        league_id: args.leagueId,
-        session_id: `edge_${args.aiSession.identifier}_${Date.now()}`,
-        platform: 'warroom',
-        module: 'ai',
-        widget: args.routeType,
-        event_name: 'ai_call_cached',
-        entity_type: 'ai_call',
-        entity_id: args.routeType,
-        metadata: {
-            originalType: args.originalType,
-            callType: args.routeType,
-            aiPolicyVersion: AI_POLICY_VERSION,
-            model: args.model,
-            estimatedCostUsd: 0,
-            cached: true,
-            plan: args.aiSession.plan,
-        },
-    }));
 }
 
 // ── League Format Detection ──────────────────────────────────────────────────
@@ -2288,12 +1575,23 @@ Deno.serve(async (req) => {
                 { status: 503, headers: { ...responseHeaders, 'Content-Type': 'application/json' } }
             );
         }
-        const planLimits = AI_LIMITS[aiSession.plan] || AI_LIMITS.free;
+        if (req.method !== 'POST') return new Response(null, { status: 405, headers: responseHeaders });
+        const rawBody = await req.text();
+        if (rawBody.length > 200000) return new Response(JSON.stringify({ error: 'AI request is too large.' }), { status: 413, headers: responseHeaders });
+        let body;
+        try { body = JSON.parse(rawBody); } catch { return new Response(JSON.stringify({ error: 'Invalid JSON.' }), { status: 400, headers: responseHeaders }); }
+        const personalProvider = req.headers.get('x-ai-provider');
+        const personalKey = req.headers.get('x-ai-key');
+        const personalModel = req.headers.get('x-ai-model');
+        const personal = personalProvider !== null || personalKey !== null || personalModel !== null;
+        if (personal && (!['gemini', 'openai', 'anthropic'].includes(personalProvider || '') || !personalKey || personalKey.length < 10 || personalKey.length > 1024 || /[\s\x00-\x1f]/.test(personalKey) || (personalModel && !/^[a-zA-Z0-9._-]{1,100}$/.test(personalModel)))) {
+            return new Response(JSON.stringify({ error: 'Choose a supported AI provider and enter its API key in AI settings.' }), { status: 400, headers: responseHeaders });
+        }
+        if (!body || typeof body !== 'object' || Array.isArray(body)) return new Response(JSON.stringify({ error: 'Invalid request.' }), { status: 400, headers: responseHeaders });
+        const { type } = body;
+        const context = parseContextPayload(body.context);
 
-        const body = await req.json();
-        const { type, context } = body;
-
-        if (!type || !context) {
+        if (typeof type !== 'string' || !type || type.length > 100 || body.context == null) {
             return new Response(
                 JSON.stringify({ error: 'Missing required fields: type, context' }),
                 { status: 400, headers: { ...responseHeaders, 'Content-Type': 'application/json' } }
@@ -2318,7 +1616,6 @@ Deno.serve(async (req) => {
         }
 
         const genericContext = normalizeGenericAIContext(type, context);
-        let routeType = type;
         let maxTokensOverride: number | null = null;
         let useWebSearch = false;
 
@@ -2334,7 +1631,7 @@ Deno.serve(async (req) => {
             case 'rookies':    userPrompt = buildRookiesPrompt(context);          break;
             case 'fa_chat':    userPrompt = buildFAChatPrompt(context);           break;
             case 'mock_draft': userPrompt = buildMockDraftPrompt(context);        break;
-            case 'chat':       userPrompt = buildChatPrompt(context, liveNews);   break;
+            case 'chat':       userPrompt = genericContext ? genericContext.userPrompt : buildChatPrompt(context, liveNews);   break;
             case 'trade_verdict':    userPrompt = buildTradeVerdictPrompt(context);    break;
             case 'team_diagnosis':   userPrompt = buildTeamDiagnosisPrompt(context);   break;
             case 'dashboard_digest': userPrompt = buildDashboardDigestPrompt(context); break;
@@ -2343,7 +1640,6 @@ Deno.serve(async (req) => {
             default:
                 if (genericContext) {
                     userPrompt = genericContext.userPrompt;
-                    routeType = genericContext.callType;
                     maxTokensOverride = genericContext.maxTokens;
                     useWebSearch = genericContext.useWebSearch;
                 } else {
@@ -2354,356 +1650,68 @@ Deno.serve(async (req) => {
                 }
         }
 
-        if (genericContext && STRUCTURED_TYPES.has(type) && type !== 'chat') {
-            routeType = genericContext.callType;
+        if (genericContext && STRUCTURED_TYPES.has(type)) {
             maxTokensOverride = genericContext.maxTokens;
             useWebSearch = genericContext.useWebSearch;
         }
 
-        // Dynasty Read is server-authoritative on web search: the synthesis is
-        // worthless without fresh reporting, and the shared weekly cache amortizes
-        // the cost to one search per player per week. Entitlement is enforced below.
+        // Fresh reporting is part of Dynasty Read for every user.
         if (type === 'dynasty_read') useWebSearch = true;
 
-        // ── Server-side cache for ambient insight types ───────────────────
-        // Cache hits cost nothing and consume no budget. forceRefresh skips
-        // the cache read (the regenerate path) and pays a counted request,
-        // so free regeneration spam is not possible.
+        // No paid plan gates or owner-funded provider fallbacks. Personal credentials
+        // exist only in this request and are never stored in cache or accounting.
+        const provider: AIProvider = personal ? personalProvider as AIProvider : 'gemini';
+        const defaults = { gemini: AI_MODELS.GEMINI_BALANCED, openai: AI_MODELS.OPENAI_STANDARD, anthropic: AI_MODELS.CLAUDE_REASONING };
+        const route: AIRoute = { provider, model: personalModel || defaults[provider], tier: 'standard' };
+        const apiKey = personal ? personalKey! : await getSharedGeminiKey();
+        const respond = (data: any, status = 200) => new Response(JSON.stringify(data), { status, headers: { ...responseHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+        if (!apiKey) return respond({ error: 'Shared Gemini is not configured yet. Add your own key in AI settings.' }, 503);
         const parsedContext = parseContextPayload(context);
         const contextLeagueId = parsedContext?.leagueId || parsedContext?.currentLeagueId || null;
-        const cacheTtlMs = !genericContext ? (CACHEABLE_TYPES[type] || 0) : 0;
-        const forceRefresh = parsedContext?.forceRefresh === true;
-
-        // Learning loop: fetch the owner's preference summary once per
-        // structured request (fail-open) and fold it into the system prompt
-        // and the cache key.
-        // dynasty_read is intentionally user-independent (shared cache key + shared
-        // prompt), so it must NOT fold in the caller's preference summary.
         const userPrefs = (!genericContext && STRUCTURED_TYPES.has(type) && type !== 'mock_draft' && type !== 'dynasty_read')
-            ? await fetchPreferenceSummary(aiSession, contextLeagueId)
-            : null;
-
-        let cacheKey: string | null = null;
-        if (cacheTtlMs > 0) {
-            cacheKey = await computeCacheKey(type, context, aiSession, prefsVersionFor(userPrefs));
-            if (!forceRefresh) {
-                const cached = await readAIResponseCache(cacheKey);
-                if (cached) {
-                    await recordAICacheHit({
-                        req,
-                        aiSession,
-                        routeType,
-                        originalType: type,
-                        leagueId: contextLeagueId,
-                        model: cached.model,
-                    });
-                    const cachedInsights = JSON_ARRAY_TYPES.has(type) ? parseJsonArray(cached.analysis) : undefined;
-                    return new Response(
-                        JSON.stringify({
-                            analysis: cached.analysis,
-                            ...(cachedInsights ? { insights: cachedInsights } : {}),
-                            cached: true,
-                            model: cached.model,
-                            usage: {
-                                aiPolicyVersion: AI_POLICY_VERSION,
-                                cached: true,
-                                estimatedCostUsd: 0,
-                                plan: aiSession.plan,
-                            },
-                        }),
-                        { headers: { ...responseHeaders, 'Content-Type': 'application/json' } }
-                    );
-                }
+            ? await fetchPreferenceSummary(aiSession, contextLeagueId) : null;
+        const cacheTtlMs = !personal && !genericContext ? (CACHEABLE_TYPES[type] || 0) : 0;
+        const cacheKey = cacheTtlMs ? 'free-gemini-v1:' + aiSession.identifier + ':' + await computeCacheKey(type, context, aiSession, prefsVersionFor(userPrefs)) : null;
+        const usage = { source: personal ? 'personal-key' : 'shared-gemini', plan: 'free', provider, model: route.model };
+        const resultBody = (analysis: string, grounding?: any) => ({ analysis, ...(grounding ? { grounding } : {}),
+            ...(type === 'mock_draft' ? { picks: parseJsonArray(analysis) } : {}),
+            ...(JSON_ARRAY_TYPES.has(type) ? { insights: parseJsonArray(analysis) } : {}), provider, model: route.model, usage });
+        if (cacheKey && parsedContext?.forceRefresh !== true) {
+            const cached = await readAIResponseCache(cacheKey);
+            if (cached) return respond({ ...resultBody(cached.analysis, cached.usage?.grounding), cached: true });
+        }
+        if (!personal) {
+            const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+            // Atomic limits are shared across workers; provider free-tier quotas may be lower.
+            for (const [scope, identifier, limit, seconds] of [
+                ['ai-shared:user-day', aiSession.identifier, envNumber('AI_SHARED_USER_DAILY_LIMIT', 30), 86400],
+                ['ai-shared:project-minute', 'gemini', envNumber('AI_SHARED_RPM', 5), 60],
+                ['ai-shared:project-day', 'gemini', envNumber('AI_SHARED_DAILY_LIMIT', 100), 86400],
+            ] as [string, string, number, number][]) {
+                const quota = await checkSecurityRateLimit(db, scope, identifier, { limit: Math.max(1, Math.floor(limit)), windowSeconds: seconds });
+                if (!quota.allowed) return respond({ error: 'Shared Gemini capacity is used up. Try later or add your own key in AI settings.', retryAfterSeconds: quota.retryAfterSeconds }, 429);
             }
         }
-
-        const isMockDraft = type === 'mock_draft' && !genericContext;
-        const isDynastyRead = type === 'dynasty_read' && !genericContext;
-        const requestedMaxTokens = maxTokensOverride || (isMockDraft ? 16000 : 8192);
-        const routeOutputCap = isMockDraft
-            ? planLimits.mockDraftMaxOutputTokens
-            // Web search emits tool-query blocks that count as output tokens. On a
-            // low plan cap (e.g. War Room's 2200) a player the model searches hard
-            // for — typically a low-profile one with thin coverage — can exhaust the
-            // budget before writing the final read, returning empty → template. Give
-            // dynasty_read headroom; still bounded by the global cap below.
-            : isDynastyRead
-                ? Math.max(planLimits.maxOutputTokens, 4000)
-                : planLimits.maxOutputTokens;
-        if (routeOutputCap <= 0) {
-            return new Response(
-                JSON.stringify({ error: 'This AI feature is not included on your current plan.' }),
-                { status: 403, headers: { ...responseHeaders, 'Content-Type': 'application/json' } }
-            );
-        }
-        const globalOutputCap = envNumber('AI_MAX_OUTPUT_TOKENS', 8000);
-        const maxTokens = Math.max(100, Math.min(requestedMaxTokens, routeOutputCap, globalOutputCap));
-        const systemPrompt = genericContext?.system || (isMockDraft
-            ? 'You are a dynasty fantasy football draft simulator. Output ONLY a raw JSON array. No markdown, no code fences, no backticks, no prose before or after. Start your response with [ and end with ]. Never repeat a player. Track all prior picks carefully so each player is selected at most once.'
-            : type === 'dynasty_read'
-                ? buildDynastyReadSystemPrompt(parsedContext)
-                : buildSystemPrompt(context) + buildUserPreferenceBlock(userPrefs));
-
-        let route = routeForType(routeType);
-        if (['deep-analysis', 'league-report', 'rule-simulator', 'trade-audit'].includes(routeType)) {
-            route = routeForTier('deep');
-        }
-        const downgradedRoute = downgradeRouteForEntitlement(route, planLimits);
-        route = downgradedRoute.route;
-        let webSearchDisabled = false;
-        // dynasty_read IS a web-search feature — the synthesis is worthless without
-        // fresh reporting, and its cost is already bounded by the shared weekly cache
-        // (~1 search/player/week/format-bucket). It therefore does NOT depend on the
-        // generic AI_ALLOW_WEB_SEARCH launch flag; plan entitlement (planAllowsWebSearch)
-        // and the master AI kill switch / AI_ENABLED above still govern it.
-        const webSearchFlagOn = envFlag('AI_ALLOW_WEB_SEARCH', false) || type === 'dynasty_read';
-        if (useWebSearch && (!planAllowsWebSearch(aiSession.plan, type) || !webSearchFlagOn)) {
-            useWebSearch = false;
-            webSearchDisabled = true;
-        }
-        // Web search only exists on the Anthropic adapter — callAIProvider has
-        // no search tool wired up for Gemini/OpenAI. Once Anthropic isn't the
-        // configured premium provider, there's no provider left that can honor
-        // a search request; degrade gracefully here (dynasty_read's own
-        // short-circuit below turns this into an intentional empty skip)
-        // rather than letting resolveConfiguredRoute fail the whole request.
-        if (useWebSearch && preferredProviderForTier('premium') !== 'anthropic') {
-            useWebSearch = false;
-            webSearchDisabled = true;
-        }
-
-        // Dynasty Read with no web search available (under-entitled plan, or the
-        // global web-search flag is off) has no value — and would poison the shared
-        // weekly cache with a newsless read. Short-circuit to an empty analysis so
-        // the client keeps its template fallback; no model call, no cache write. A
-        // cache HIT above already returned before this point, so paid users still
-        // get a previously-warmed read regardless of their own web-search tier.
-        if (type === 'dynasty_read' && !useWebSearch) {
-            return new Response(
-                JSON.stringify({ analysis: '', skipped: 'web_search_unavailable' }),
-                { status: 200, headers: { ...responseHeaders, 'Content-Type': 'application/json' } }
-            );
-        }
-        const promptBudget = Math.max(1000, Math.min(planLimits.maxInputChars, envNumber('AI_MAX_INPUT_CHARS', planLimits.maxInputChars)) - systemPrompt.length);
-        const promptClamp = clampTextToChars(userPrompt, promptBudget);
-        userPrompt = promptClamp.text;
-
-        const configuredRoute = await resolveConfiguredRoute(route, planLimits, useWebSearch);
-        if (!configuredRoute.route) {
-            return new Response(
-                JSON.stringify({ error: 'AI provider unavailable for this route.' }),
-                { status: 503, headers: { ...responseHeaders, 'Content-Type': 'application/json' } }
-            );
-        }
-        route = configuredRoute.route;
-        let providerFallback = configuredRoute.providerFallback;
-        let providerFallbackReason = configuredRoute.providerFallbackReason;
-
-        const estimatedInputTokens = estimatePromptTokens(systemPrompt + '\n' + userPrompt);
-        const estimatedRequestCostUsd = estimateCostUsd(route.model, estimatedInputTokens, maxTokens, 0);
-        const usageReservation = await reserveAIUsage({
-            aiSession,
-            limits: planLimits,
-            estimatedRequestCostUsd,
-            // Ambient (cacheable) insights stay inside cost budgets but do not
-            // consume the plan's request allowance — except explicit refreshes.
-            countRequest: cacheTtlMs <= 0 || forceRefresh,
-        });
-        if (!usageReservation.allowed) {
-            await recordAIUsageDenied({
-                req,
-                aiSession,
-                planLimits,
-                routeType,
-                originalType: type,
-                route,
-                reason: String(usageReservation.reason || 'usage_control_error'),
-                usage: usageReservation,
-            });
-            return new Response(
-                JSON.stringify({
-                    error: aiLimitMessage(String(usageReservation.reason || '')),
-                    usage: usageReservation,
-                }),
-                { status: 429, headers: { ...responseHeaders, 'Content-Type': 'application/json' } }
-            );
-        }
-        let analysis = '';
-        let stopReason = '';
-        let inputTokens = 0;
-        let outputTokens = 0;
-        let cachedInputTokens = 0;
-        let webSearchCount = 0;
-        const startedAt = Date.now();
-        const reservedCostUsd = Number(usageReservation.reservedCostUsd || estimatedRequestCostUsd || 0);
-        let failureRecorded = false;
-        const recordProviderFailure = async (providerError: any) => {
-            if (failureRecorded) return;
-            failureRecorded = true;
-            await recordAIUsageFailed({
-                req,
-                aiSession,
-                planLimits,
-                reservedCostUsd,
-                routeType,
-                originalType: type,
-                route,
-                reason: String(providerError?.message || providerError || 'provider_error').slice(0, 300),
-                latencyMs: Date.now() - startedAt,
-                providerFallback,
-                providerFallbackReason,
-                routeDowngraded: downgradedRoute.downgraded,
-                promptTruncated: promptClamp.truncated,
-                webSearchDisabled,
-            });
-        };
-
+        const maxTokens = Math.max(100, Math.min(maxTokensOverride || (type === 'mock_draft' ? 16000 : 8192), type === 'mock_draft' ? 16000 : 8192));
+        const systemPrompt = genericContext?.system || (type === 'mock_draft'
+            ? 'You are a dynasty fantasy football draft simulator. Output ONLY a raw JSON array. Never repeat a player. Start with [ and end with ].'
+            : type === 'dynasty_read' ? buildDynastyReadSystemPrompt(parsedContext)
+            : buildSystemPrompt(context) + buildUserPreferenceBlock(userPrefs));
+        let result;
         try {
-            const providerResult = await callAIProvider({ route, systemPrompt, userPrompt, maxTokens, useWebSearch });
-            analysis = providerResult.analysis;
-            stopReason = providerResult.stopReason;
-            inputTokens = providerResult.inputTokens;
-            outputTokens = providerResult.outputTokens;
-            cachedInputTokens = providerResult.cachedInputTokens;
-            webSearchCount = providerResult.webSearchCount || 0;
-        } catch (providerError) {
-            if (useWebSearch || !isProviderAvailabilityError(providerError)) {
-                await recordProviderFailure(providerError);
-                throw providerError;
-            }
-            const failedProvider = route.provider;
-            const fallback = await resolveConfiguredRoute(route, planLimits, false, failedProvider);
-            if (!fallback.route || fallback.route.provider === route.provider) {
-                await recordProviderFailure(providerError);
-                throw providerError;
-            }
-
-            route = fallback.route;
-            providerFallback = true;
-            providerFallbackReason = fallback.providerFallbackReason || `${failedProvider}_provider_error`;
-
-            try {
-                const providerResult = await callAIProvider({ route, systemPrompt, userPrompt, maxTokens, useWebSearch: false });
-                analysis = providerResult.analysis;
-                stopReason = providerResult.stopReason;
-                inputTokens = providerResult.inputTokens;
-                outputTokens = providerResult.outputTokens;
-                cachedInputTokens = providerResult.cachedInputTokens;
-            } catch (fallbackError) {
-                await recordProviderFailure(fallbackError);
-                throw fallbackError;
-            }
+            result = await callAIProvider({ route, apiKey, systemPrompt: systemPrompt.slice(0, 30000), userPrompt: userPrompt.slice(0, 100000), maxTokens, useWebSearch });
+        } catch {
+            // Do not expose provider errors: some SDK errors contain request headers.
+            return respond({ error: personal
+                ? 'Your AI provider could not complete this request. Check your key, model, and provider quota in AI settings.'
+                : 'Shared Gemini is unavailable or at capacity. Try later or add your own key in AI settings.' }, 503);
         }
-
-        // Dynasty Read: keep only what's inside <read></read>, dropping any
-        // web-search narration the model emitted around it.
-        if (isDynastyRead) analysis = extractTaggedRead(analysis);
-
-        const latencyMs = Date.now() - startedAt;
-        const measuredTokensUsed = inputTokens + outputTokens;
-        const tokensUsed = measuredTokensUsed || (estimatedInputTokens + maxTokens);
-        const estimatedCostUsd = measuredTokensUsed
-            ? estimateCostUsd(route.model, inputTokens, outputTokens, cachedInputTokens)
-            : estimatedRequestCostUsd;
-        const accounting = await recordAIAccounting({
-            req,
-            aiSession,
-            planLimits,
-            reservedCostUsd,
-            routeType,
-            originalType: type,
-            context,
-            genericContext,
-            route,
-            inputTokens,
-            outputTokens,
-            cachedInputTokens,
-            tokensUsed,
-            estimatedCostUsd,
-            latencyMs,
-            providerFallback,
-            providerFallbackReason,
-            routeDowngraded: downgradedRoute.downgraded,
-            promptTruncated: promptClamp.truncated,
-            webSearchDisabled,
-        });
-
-        // For mock_draft, parse the JSON picks array from the AI response
-        let picks: any[] | undefined;
-        if (isMockDraft) {
-            // Detect truncation before attempting to parse
-            if (stopReason === 'max_tokens') {
-                return new Response(
-                    JSON.stringify({ error: 'Draft simulation response was too long and got cut off. Try reducing the number of rounds or owners.' }),
-                    { status: 422, headers: { ...responseHeaders, 'Content-Type': 'application/json' } }
-                );
-            }
-            picks = parseJsonArray(analysis);
-        }
-
-        // JSON-contract insight types are parsed server-side so every client
-        // gets a ready-to-render array alongside the raw analysis text.
-        const insights = (!genericContext && JSON_ARRAY_TYPES.has(type)) ? parseJsonArray(analysis) : undefined;
-
-        // Low-coverage ("bad") players make the model search to the cap (≥4 of the 5
-        // allowed) and the resulting depth/stash read barely changes week to week —
-        // so cache it ~4x longer (28d vs 7d) to avoid repeatedly paying for the
-        // expensive search on a player whose read is stable. Well-covered players are
-        // found in 1-2 searches and stay on the normal news-cadence TTL.
-        const effectiveTtlMs = (isDynastyRead && webSearchCount >= 4)
-            ? Math.max(cacheTtlMs, 28 * 24 * 60 * 60 * 1000)
-            : cacheTtlMs;
-        if (cacheTtlMs > 0 && cacheKey && analysis && stopReason !== 'max_tokens') {
-            await writeAIResponseCache({
-                cacheKey,
-                type,
-                aiSession,
-                leagueId: contextLeagueId,
-                model: route.model,
-                analysis,
-                usage: { inputTokens, outputTokens, estimatedCostUsd },
-                ttlMs: effectiveTtlMs,
-            });
-        }
-
-        return new Response(
-            JSON.stringify({
-                analysis,
-                ...(picks ? { picks } : {}),
-                ...(insights ? { insights } : {}),
-                provider: route.provider,
-                model: route.model,
-                usage: {
-                    aiPolicyVersion: AI_POLICY_VERSION,
-                    routeTier: route.tier,
-                    inputTokens,
-                    outputTokens,
-                    cachedInputTokens,
-                    tokensUsed,
-                    totalTokensUsed: accounting.totalTokensUsed,
-                    estimatedCostUsd,
-                    latencyMs,
-                    providerFallback,
-                    providerFallbackReason,
-                    routeDowngraded: downgradedRoute.downgraded,
-                    promptTruncated: promptClamp.truncated,
-                    webSearchDisabled,
-                    plan: aiSession.plan,
-                    dailyRequests: accounting.usageCounters?.dailyRequests ?? usageReservation.dailyRequests ?? null,
-                    dailyRequestLimit: usageReservation.dailyRequestLimit ?? planLimits.dailyRequests,
-                    monthlyRequests: accounting.usageCounters?.monthlyRequests ?? usageReservation.monthlyRequests ?? null,
-                    monthlyRequestLimit: usageReservation.monthlyRequestLimit ?? planLimits.monthlyRequests,
-                    dailyCostUsd: accounting.usageCounters?.dailyCostUsd ?? usageReservation.dailyCostUsd ?? null,
-                    monthlyCostUsd: accounting.usageCounters?.monthlyCostUsd ?? usageReservation.monthlyCostUsd ?? null,
-                },
-            }),
-            { headers: { ...responseHeaders, 'Content-Type': 'application/json' } }
-        );
-    } catch (error: any) {
-        console.error('[ai-analyze] error:', error);
-        return new Response(
-            JSON.stringify({ error: error.message || 'Internal server error' }),
-            { status: 500, headers: { ...responseHeaders, 'Content-Type': 'application/json' } }
-        );
+        const analysis = type === 'dynasty_read' ? extractTaggedRead(result.analysis) : result.analysis;
+        if (!analysis) return respond({ error: 'AI returned no answer. Please try again.' }, 502);
+        if (type === 'mock_draft' && result.stopReason === 'max_tokens') return respond({ error: 'Draft simulation was too long. Try fewer rounds or owners.' }, 422);
+        if (cacheKey && result.stopReason !== 'max_tokens') await writeAIResponseCache({ cacheKey, type, aiSession, leagueId: contextLeagueId, model: route.model, analysis, usage: { ...usage, grounding: result.grounding }, ttlMs: cacheTtlMs });
+        return respond(resultBody(analysis, result.grounding));
+    } catch {
+        return new Response(JSON.stringify({ error: 'Unable to complete this AI request.' }), { status: 500, headers: { ...responseHeaders, 'Content-Type': 'application/json' } });
     }
 });

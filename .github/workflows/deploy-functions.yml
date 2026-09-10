@@ -6,6 +6,7 @@ on:
     paths:
       - "supabase/functions/**"
       - "supabase/migrations/**"
+      - "supabase/config.toml"
       - "js/shared/time-league-*.js"
       - "data/time-league/**"
       - "scripts/build-time-league-server.cjs"
@@ -50,8 +51,8 @@ jobs:
       - name: Install test dependencies
         run: npm ci
 
-      - name: Verify Vault contracts before backend deployment
-        run: npm run test:timeleague
+      - name: Verify security and Vault contracts before backend deployment
+        run: npm run test:security && npm run test:timeleague
 
       # The full historical runtime exceeds the 5 MB server-side bundler limit.
       # Check Docker before any migrations or deployments; local bundling has
@@ -83,6 +84,7 @@ jobs:
           endpoint = 'https://api.supabase.com/v1/projects/sxshiqyxhhifvtfqawbq/database/query'
 
           pending = {
+              '20260909000000': 'supabase/migrations/20260909000000_security_audit_fixes.sql',
               '20260907010000': 'supabase/migrations/20260907010000_cup_honours.sql',
               '20260907193000': 'supabase/migrations/20260907193000_time_league_multiplayer.sql',
               '20260908010000': 'supabase/migrations/20260908010000_time_league_community.sql',

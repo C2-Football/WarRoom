@@ -351,53 +351,16 @@ test('16-game season: 320 pts → 20 PPG',
 // ══════════════════════════════════════════════════════════════════
 // 4. getUserTier + canAccess
 // ══════════════════════════════════════════════════════════════════
-group('getUserTier');
-test('no profile → free',
-  () => { resetTierState(); eq(getUserTier(), 'free'); });
-test('localStorage tier does not grant War Room access',
-  () => { resetTierState(); ls.setItem('od_profile_v1', JSON.stringify({ tier: 'warroom' })); eq(getUserTier(), 'free'); resetTierState(); });
-test('server product tier = warroom → warroom',
-  () => { resetTierState(); setServerProductTier('warroom'); eq(getUserTier(), 'warroom'); resetTierState(); });
-test('server product tier = commissioner → commissioner',
-  () => { resetTierState(); setServerProductTier('commissioner'); eq(getUserTier(), 'commissioner'); resetTierState(); });
-test('server product tier = pro → pro',
-  () => { resetTierState(); setServerProductTier('pro'); eq(getUserTier(), 'pro'); resetTierState(); });
-test('server product tier = scout → scout',
-  () => { resetTierState(); setServerProductTier('scout'); eq(getUserTier(), 'scout'); resetTierState(); });
-test('server paid with unknown product tier → scout minimum',
-  () => { resetTierState(); ctx.getTier = () => 'paid'; ctx.window.getTier = ctx.getTier; eq(getUserTier(), 'scout'); resetTierState(); });
-test('malformed JSON profile → free',
-  () => { resetTierState(); ls.setItem('od_profile_v1', '{bad json{{'); eq(getUserTier(), 'free'); resetTierState(); });
-
-group('canAccess');
-test('free: my-roster-basic accessible',
-  () => { resetTierState(); ok(canAccess('my-roster-basic')); });
-test('free: draft-rankings accessible',
-  () => { resetTierState(); ok(canAccess('draft-rankings')); });
-test('free: ai-unlimited blocked',
-  () => { resetTierState(); ok(!canAccess('ai-unlimited')); });
-test('free: trade-finder blocked',
-  () => { resetTierState(); ok(!canAccess('trade-finder')); });
-test('free: owner-dna blocked',
-  () => { resetTierState(); ok(!canAccess('owner-dna')); });
-test('scout: ai-unlimited accessible',
-  () => { resetTierState(); setServerProductTier('scout'); ok(canAccess('ai-unlimited')); resetTierState(); });
-test('scout: waiver-targets accessible',
-  () => { resetTierState(); setServerProductTier('scout'); ok(canAccess('waiver-targets')); resetTierState(); });
-test('scout: trade-finder blocked',
-  () => { resetTierState(); setServerProductTier('scout'); ok(!canAccess('trade-finder')); resetTierState(); });
-test('scout: owner-dna blocked',
-  () => { resetTierState(); setServerProductTier('scout'); ok(!canAccess('owner-dna')); resetTierState(); });
-test('warroom: trade-finder accessible',
-  () => { resetTierState(); setServerProductTier('warroom'); ok(canAccess('trade-finder')); resetTierState(); });
-test('warroom: owner-dna accessible',
-  () => { resetTierState(); setServerProductTier('warroom'); ok(canAccess('owner-dna')); resetTierState(); });
-test('warroom: projections accessible',
-  () => { resetTierState(); setServerProductTier('warroom'); ok(canAccess('projections')); resetTierState(); });
-test('warroom: analytics-full accessible',
-  () => { resetTierState(); setServerProductTier('warroom'); ok(canAccess('analytics-full')); resetTierState(); });
-test('warroom: intelligence-full accessible',
-  () => { resetTierState(); setServerProductTier('warroom'); ok(canAccess('intelligence-full')); resetTierState(); });
+group('free product access');
+for (const oldTier of ['free', 'scout', 'warroom', 'pro', 'commissioner']) {
+  test(`legacy ${oldTier} profile has all product features`, () => {
+    resetTierState(); setServerProductTier(oldTier);
+    for (const feature of ['trade-finder', 'owner-dna', 'cross-league-ai', 'rule-simulator', 'league-health']) ok(canAccess(feature));
+    eq(getUserTier(), 'pro'); // compatibility label only
+    eq(ctx.isCommissioner(), false); // never grant an account role from a product tier
+    resetTierState();
+  });
+}
 
 // ══════════════════════════════════════════════════════════════════
 // 5. getPickValue

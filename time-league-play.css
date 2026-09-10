@@ -543,3 +543,39 @@
 .tl-stats-table th:first-child, .tl-stats-table td:first-child { width: 195px; min-width: 195px; max-width: 195px; box-sizing: border-box; }
 .tl-stats-table th:nth-child(2), .tl-stats-table td:nth-child(2) { width: 78px; box-sizing: border-box; }
 .tl-stats-player strong, .tl-stats-table td:nth-child(5) { overflow-wrap: anywhere; white-space: normal; }
+
+/* Team profiles and an immediate add/drop comparison from the wire. */
+.tl-action-dialog { box-sizing:border-box; width:min(760px,calc(100vw - 24px)); max-height:calc(100dvh - 32px); margin:auto; padding:18px; overflow:auto; overscroll-behavior:contain; border:1px solid #617592; border-radius:16px; background:#1c2940; color:#e4edfb; }
+.tl-action-dialog::backdrop { background:rgba(5,10,23,.78); }
+.tl-action-dialog-head { display:flex; align-items:center; justify-content:space-between; gap:12px; position:sticky; top:-18px; padding:12px 0; background:#1c2940; z-index:2; }
+.tl-action-dialog-head h2 { margin:0; font-size:20px; }
+.tl-action-dialog button:focus-visible { outline:2px solid #8af0cf; outline-offset:3px; }
+.tl-stats-team-link { display:block; border:0; background:none; padding:5px 0; color:#8af0cf; font-size:11px; text-align:left; white-space:normal; cursor:pointer; min-height:32px; }
+.tl-profile-roster-row { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; padding:10px 0; border-bottom:1px solid #35445c; font-size:13px; }
+.tl-profile-roster-row span { color:#acbdd4; }
+.tl-waiver-drop-list { border:0; padding:0; margin:16px 0; min-width:0; display:grid; gap:8px; }
+.tl-waiver-drop-list legend { padding:0 0 10px; font-weight:700; }
+.tl-waiver-drop-option { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(90px,.7fr); gap:8px 14px; padding:12px; width:100%; text-align:left; border:1px solid #4a5d7b; border-radius:10px; background:#26354e; color:#e3edfc; cursor:pointer; }
+.tl-waiver-drop-option > span:last-child { grid-column:1/-1; }
+.tl-waiver-drop-option small { display:block; margin-top:4px; color:#b2c1d7; font-size:11px; }
+.tl-waiver-drop-option[aria-pressed="true"] { border-color:#8af0cf; background:#234840; }
+.tl-waiver-drop-option:disabled { opacity:.5; cursor:not-allowed; }
+.tl-waiver-submit { position:sticky; bottom:-18px; padding:10px 0; background:#1c2940; border-top:1px solid #50617c; }
+.tl-waiver-submit small { display:block; margin-bottom:8px; font-size:12px; line-height:1.4; }
+.tl-waiver-submit .tl-btn.primary { width:100%; min-height:48px; }
+.tl-waiver-mobile-points { display:none; }
+.tl-team-profile-dialog .tl-command-metrics { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+.tl-team-profile-dialog .tl-command-metric { padding:8px; }
+.tl-team-profile-dialog .tl-command-intel { margin-top:0!important; }
+@media(max-width:650px) { .tl-waiver-mobile-points { display:block; color:#f7dc82; margin-top:5px; font-size:10px; } }
+@media(max-width:600px) { .tl-action-dialog { width:calc(100vw - 16px); padding:14px; max-height:calc(100dvh - 24px); } .tl-action-dialog-head { top:-14px; } .tl-waiver-submit { bottom:-14px; } }
+
+/* The final whistle leads to a dedicated recap before rollover. */
+.tl-recap-heading { margin-bottom:18px; }
+.tl-recap-heading h1 { margin:6px 0; font-size:clamp(26px,4vw,38px); }
+.tl-recap-heading p,.tl-recap-next p { color:var(--text-secondary); line-height:1.6; }
+.tl-week-recap { display:grid; gap:18px; }
+.tl-week-recap .tl-recap-heading { margin-bottom:0; }
+.tl-recap-result h2 { font-size:clamp(22px,3vw,30px); margin:8px 0; }
+.tl-recap-next { border-color:#648b80!important; }
+.tl-recap-next h2 { margin:8px 0; font-size:21px; }

@@ -37,6 +37,43 @@ function LineupTab({
         } catch (e) { if (window.wrLog) window.wrLog('lineup.compute', e); return null; }
     }, [myRoster, currentLeague, playersData, statsData, timeRecomputeTs, ctxTick]);
 
+    const Live = window.App && window.App.LeagueLiveScores;
+    const liveWeek = Live ? Live.currentWeek(currentLeague) : (result && result.week) || 1;
+    const liveScores = Live ? Live.useScores({ league: currentLeague, week: liveWeek }) : { rows: [], status: 'unavailable', supported: false };
+    const [nflGames, setNflGames] = React.useState({ key: '', games: [], updatedAt: 0 });
+    const liveKey = String(currentLeague && (currentLeague.league_id || currentLeague.id) || '') + '|' + String(currentLeague && currentLeague.season) + '|' + liveWeek;
+    React.useEffect(() => {
+        let alive = true, busy = false;
+        const NC = window.App && window.App.NflContext;
+        const refresh = async () => {
+            if (busy || !NC || !NC.loadScores || document.hidden) return;
+            busy = true;
+            try {
+                const games = await NC.loadScores(liveWeek, currentLeague && currentLeague.season, 2);
+                if (alive && games && games.length) setNflGames({ key: liveKey, games, updatedAt: Date.now() });
+            } finally { busy = false; }
+        };
+        refresh();
+        const timer = setInterval(refresh, 30000);
+        document.addEventListener('visibilitychange', refresh);
+        return () => { alive = false; clearInterval(timer); document.removeEventListener('visibilitychange', refresh); };
+    }, [liveKey]);
+    const games = nflGames.key === liveKey ? nflGames.games : [];
+    const statusOfGame = game => window.App?.NflContext?.gameStatus?.(game) || 'unknown';
+    const gameFor = pid => {
+        const aliases = { WSH: 'WAS', JAC: 'JAX', LA: 'LAR' };
+        const raw = String(playersData?.[pid]?.team || '').toUpperCase();
+        const team = aliases[raw] || raw;
+        return games.find(g => g.home === team || g.away === team);
+    };
+    const gameState = pid => statusOfGame(gameFor(pid));
+    const gamesFresh = nflGames.key === liveKey && Date.now() - nflGames.updatedAt < 90000;
+    const weekStarted = games.some(g => ['live', 'final', 'locked'].includes(statusOfGame(g)));
+    const optimizerAvailable = gamesFresh && games.length > 0 && !weekStarted
+        && games.every(g => statusOfGame(g) === 'upcoming')
+        && ((myRoster && myRoster.players) || []).filter(pid => result?.projections?.[pid]?.available !== false).every(pid => gameState(pid) === 'upcoming');
+    const canChangePlayer = pid => !pid || (gamesFresh && gameState(pid) === 'upcoming');
+
     const [formWindow, setFormWindow] = React.useState(5); // rolling-PPG window: 3 | 5 | 8 | 'season'
     const [openSlot, setOpenSlot] = React.useState(null);  // slot idx whose picker is expanded
     const [workingAssign, setWorkingAssign] = React.useState({}); // slotIdx -> pid (the user's working lineup)
@@ -155,7 +192,7 @@ function LineupTab({
     // template-first pattern the note itself already uses.
     const [gameplanTake, setGameplanTake] = React.useState(null); // null | {loading} | {text}
     async function askGameplanTake() {
-        if (typeof window.AlexVoice?.enhance !== 'function') return;
+        if (!optimizerAvailable || typeof window.AlexVoice?.enhance !== 'function') return;
         setGameplanTake({ loading: true });
         const facts = buildNoteFacts();
         if (!facts) { setGameplanTake(null); return; }
@@ -272,7 +309,7 @@ function LineupTab({
         // `pro && isDynastyFormat`. The AV.enhance AI upgrade below is
         // additionally behind hasAmbientAI() (ambient-AI policy seam) — a Pro
         // user without AI still keeps the seeded template.
-        const noteAllowed = pro;
+        const noteAllowed = pro && optimizerAvailable;
         if (!noteAllowed) { setNote(''); return; }
         if (!_projReady) return;                 // wait for real projections (avoid a stale AI-note cache)
         const facts = buildNoteFacts();
@@ -296,13 +333,13 @@ function LineupTab({
             }).then(txt => { if (alive && txt && typeof txt === 'string') setNote(txt); }).catch(() => {});
         }
         return () => { alive = false; };
-    }, [lineupKey, ctxTick, oppRosterId, _projReady, seasonData]);
+    }, [lineupKey, ctxTick, oppRosterId, _projReady, seasonData, optimizerAvailable]);
 
     // Invalidate the game-plan expansion on the same signals the note above
     // regenerates on — otherwise a stale plan for last week or a different
     // league keeps showing, with the trigger button permanently hidden and
     // no way to refresh it.
-    React.useEffect(() => { setGameplanTake(null); }, [lineupKey, ctxTick, oppRosterId, _projReady, seasonData]);
+    React.useEffect(() => { setGameplanTake(null); }, [lineupKey, ctxTick, oppRosterId, _projReady, seasonData, optimizerAvailable]);
 
     // MFL is the only platform with a public lineup-write API (Sleeper has none).
     const _plat = (window.App && window.App.Matchup && window.App.Matchup._platform) ? window.App.Matchup._platform(currentLeague) : 'sleeper';
@@ -335,6 +372,7 @@ function LineupTab({
         setMflCookie(''); setMflHost(''); setSubmit({ status: 'idle', msg: '' });
     }
     async function pushToMfl() {
+        if (!optimizerAvailable) { setSubmit({ status: 'error', msg: 'Set game-day changes on MFL directly so its lineup locks are enforced.' }); return; }
         const MFL = window.MFL;
         if (!MFL || !MFL.submitLineup) { setSubmit({ status: 'error', msg: 'MFL connector unavailable.' }); return; }
         // Fail closed: if any starting slot TYPE wasn't recognized (so it was
@@ -398,18 +436,85 @@ function LineupTab({
         if (Object.keys(next).length) setWorkingAssign(next);
     }, [lineupKey, isMfl, _optReady]);
 
+    const liveRow = (liveScores.rows || []).find(r => String(r.roster_id) === String(myRoster && myRoster.roster_id));
+    const platformStarters = liveRow && Array.isArray(liveRow.starters) ? liveRow.starters : ((myRoster && myRoster.starters) || []);
+    const projectedPoints = pid => {
+        // The existing engine recomputes as data arrives; never call this an archived pregame forecast.
+        const projectionSeason = window.S?.nflState?.season || new Date().getFullYear();
+        if (!result || Number(result.week) !== Number(liveWeek) || Number(currentLeague?.season) !== Number(projectionSeason) || result.projections?.[pid]?.available === false) return null;
+        const value = result.projections?.[pid]?.points?.median;
+        return Number.isFinite(value) ? value : null;
+    };
+    const Forecasts = window.App && window.App.LineupForecastSnapshots;
+    const [forecastState, setForecastState] = React.useState(() => ({ key: liveKey, data: Forecasts ? Forecasts.read(currentLeague, liveWeek) : { players: {}, persistent: false } }));
+    React.useEffect(() => {
+        if (!Forecasts) return;
+        const projections = {}, statuses = {};
+        if (gamesFresh) platformStarters.forEach(pid => { projections[pid] = projectedPoints(pid); statuses[pid] = gameState(pid); });
+        const data = Forecasts.capture({ league: currentLeague, week: liveWeek, projections, statuses });
+        setForecastState(previous => previous.key === liveKey && previous.data === data ? previous : { key: liveKey, data });
+    }, [liveKey, result, nflGames, platformStarters.join(',')]);
+    const savedForecasts = forecastState.key === liveKey ? forecastState.data : { players: {}, persistent: true };
+    const liveTotal = Live && liveRow ? Live.rosterPoints(liveRow) : null;
+    const livePanel = (
+        <section aria-label="My live game plan" style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: isPhone ? '14px' : '18px 20px', marginBottom: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                    <div style={{ color: GOLD, fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.06em' }}>WEEK {liveWeek} · FOLLOW YOUR LINEUP</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 800, color: TEXT, marginTop: '5px' }}>{liveTotal == null ? '—' : liveTotal.toFixed(2)} <span style={{ fontSize: '0.75rem', color: SILVER }}>actual points</span></div>
+                </div>
+                {liveScores.supported && liveScores.refresh ? <button type="button" onClick={() => liveScores.refresh()} style={{ padding: '10px 14px', color: GOLD, background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', cursor: 'pointer' }}>Refresh scores</button> : null}
+            </div>
+            <p style={{ color: SILVER, fontSize: '0.74rem', lineHeight: 1.5, margin: '10px 0' }}>
+                {!liveScores.supported ? 'Live fantasy scoring is available for connected Sleeper leagues. Set and follow this lineup on your league platform.'
+                    : liveScores.error ? 'Scores could not refresh. Showing the last available update; check Sleeper before making a change.'
+                    : liveScores.updatedAt ? 'Sleeper scoring · updated ' + new Date(liveScores.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' · refreshes every 30 seconds while open. Provider updates can lag.'
+                    : liveScores.status === 'loading' ? 'Loading league scoring…' : 'No matchup scoring is available for this week yet.'}
+            </p>
+            {liveScores.supported && platformStarters.length ? (
+                <div role="table" aria-label="Submitted starters projected versus actual points">
+                    <div role="row" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 72px 62px', gap: '8px', padding: '8px 0', borderBottom: `1px solid ${LINE}`, color: SILVER, fontSize: '0.68rem' }}>
+                        <span role="columnheader">SUBMITTED STARTERS</span><span role="columnheader" style={{ textAlign: 'right' }}>SAVED PROJ</span><span role="columnheader" style={{ textAlign: 'right' }}>ACTUAL</span>
+                    </div>
+                    {platformStarters.map((pid, idx) => {
+                        const empty = !pid || String(pid) === '0';
+                        const meta = empty ? { name: 'Empty slot', team: '' } : pmeta(pid);
+                        const state = empty ? 'unknown' : gameState(pid);
+                        const game = empty ? null : gameFor(pid);
+                        const actual = !empty && Live && liveRow ? Live.playerPoints(liveRow, pid) : null;
+                        const forecast = empty ? null : savedForecasts.players[pid];
+                        const projected = forecast ? forecast.points : null;
+                        const statusLabel = state === 'final' ? 'Final' : state === 'live' ? (game.shortDetail || 'In progress') : state === 'locked' ? 'Kickoff passed · locked' : state === 'upcoming' ? new Date(game.kickoff).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : 'Game status unavailable';
+                        const injury = playersData?.[pid]?.injury_status;
+                        return <div role="row" key={String(pid) + '-' + idx} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 72px 62px', gap: '8px', alignItems: 'center', padding: '11px 0', borderBottom: `1px solid ${LINE}` }}>
+                            <div role="cell" style={{ minWidth: 0, color: TEXT, fontSize: '0.83rem' }}><strong>{meta.name}</strong><div style={{ color: SILVER, fontSize: '0.7rem', marginTop: '3px' }}>{[meta.team, statusLabel, injury].filter(Boolean).join(' · ')}</div></div>
+                            <span role="cell" style={{ textAlign: 'right', color: SILVER, fontVariantNumeric: 'tabular-nums' }}>{projected == null ? '—' : projected.toFixed(1)}{forecast ? <small title={'Captured ' + new Date(forecast.capturedAt).toLocaleString()} style={{ display: 'block', fontSize: '0.65rem', marginTop: '3px' }}>{forecast.kind === 'pregame' ? 'Pregame proj' : 'First-view proj'}</small> : null}</span>
+                            <span role="cell" style={{ textAlign: 'right', color: state === 'live' ? GREEN : TEXT, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{actual == null ? '—' : actual.toFixed(2)}</span>
+                        </div>;
+                    })}
+                </div>
+            ) : null}
+            <p style={{ color: SILVER, fontSize: '0.72rem', lineHeight: 1.5, margin: '12px 0 0' }}>Actual points follow your submitted lineup. Saved projections stay fixed in this browser: Pregame means captured before kickoff; First-view means first captured after kickoff, not an original pregame forecast. A dash means unavailable.</p>
+            {!savedForecasts.persistent && Object.keys(savedForecasts.players).length ? <p style={{ color: SILVER, fontSize: '0.72rem' }}>Browser storage is unavailable; these projections are saved for this visit only.</p> : null}
+            <p style={{ color: AMBER, fontSize: '0.72rem', lineHeight: 1.5, margin: '8px 0 0' }}>Injury check: a player whose game has started cannot be replaced under normal lineup locks. Review unstarted bench options for later games and confirm eligibility on your league platform. Injury tags are periodic updates, not instant alerts.</p>
+        </section>
+    );
+
     // No whole-tab gate: the partial free/Pro split above (`pro`) supersedes
     // the old STARTSIT_DEPTH block — free users enter and use the manual
     // builder; only the optimizer layer is locked inline.
 
     if (!WP || !SS) {
-        return <div style={{ padding: '48px 24px', color: SILVER }}>Start/Sit engine not loaded.</div>;
+        return <div style={{ padding: '24px', color: SILVER }}>{livePanel}Start/Sit engine not loaded.</div>;
     }
     if (!result || !result.optimal || !result.optimal.starters.length) {
         return (
-            <div style={{ padding: '56px 24px', textAlign: 'center', color: SILVER, maxWidth: '520px', margin: '0 auto' }}>
+            <div style={{ padding: isPhone ? '14px 12px' : '20px 16px', color: SILVER, maxWidth: '1240px', margin: '0 auto' }}>
+                {livePanel}
+                <div style={{ padding: '32px 12px', textAlign: 'center', maxWidth: '520px', margin: '0 auto' }}>
                 <div style={{ fontSize: '1.1rem', color: GOLD, fontWeight: 600, marginBottom: '10px', letterSpacing: '0.04em' }}>LINEUP COMMAND CENTER</div>
                 <div>No weekly projections yet. This lights up in-season once roster and stat data are synced — start/sit guidance is built from each player's role, recent form, and matchup, scored through your league's exact settings.</div>
+                </div>
             </div>
         );
     }
@@ -429,6 +534,7 @@ function LineupTab({
         return activeIds
             .filter(pid => slot.elig.includes(normPos((playersData[pid] || {}).position) || (playersData[pid] || {}).position))
             .filter(pid => !usedPids.has(pid) || String(workingAssign[slot.idx]) === pid)
+            .filter(pid => String(workingAssign[slot.idx]) === pid || (canChangePlayer(workingAssign[slot.idx]) && canChangePlayer(pid)))
             .sort((a, b) => objPts(b) - objPts(a));
     }
 
@@ -440,6 +546,7 @@ function LineupTab({
     const _scaleMax = Math.max(1, ...result.optimal.starters.map(s => { const p = projOf(s.pid); return (p && p.points && p.points.ceiling) || 0; }));
 
     function applyOptimal() {
+        if (!optimizerAvailable) return;
         const byName = {};
         result.optimal.starters.forEach(s => { (byName[s.slot] = byName[s.slot] || []).push(s.pid); });
         const next = {};
@@ -487,7 +594,7 @@ function LineupTab({
         return (<React.Fragment>
             <span style={{ minWidth: 0, overflow: 'hidden' }}>
                 <span style={{ color: unavail ? SILVER : TEXT, fontWeight: 500, textDecoration: unavail ? 'line-through' : 'none' }}>{meta.name}</span>
-                <span style={{ color: SILVER, fontSize: '0.7rem', marginLeft: '6px' }}>{meta.pos}{meta.team ? ' · ' + meta.team : ''}</span>
+                <span style={{ color: SILVER, fontSize: '0.7rem', marginLeft: '6px' }}>{meta.pos}{meta.team ? ' · ' + meta.team : ''} · {window.App?.NFLByes?.label(playersData?.[pid], window.App.NFLByes.seasonFor(currentLeague)) || 'Bye —'}</span>
                 {opp && opp.abbr ? <span style={{ color: SILVER, fontSize: '0.66rem', marginLeft: '6px', opacity: 0.85 }}>{opp.home ? 'vs ' : '@ '}{opp.abbr}</span> : null}
                 {wxTag(weather)}
                 {status ? <span style={{ color: status === 'BYE' ? SILVER : AMBER, fontSize: fz('0.62rem'), marginLeft: '6px', fontWeight: 700 }}>{status}</span> : null}
@@ -849,7 +956,7 @@ function LineupTab({
         // assignment walk as applyOptimal(), diffed against the working
         // lineup. Pro only (the optimizer layer).
         let swaps = [], topSwap = null;
-        if (pro) {
+        if (pro && optimizerAvailable) {
             const byName = {};
             result.optimal.starters.forEach(s => { (byName[s.slot] = byName[s.slot] || []).push(s.pid); });
             const optAssign = {};
@@ -923,13 +1030,16 @@ function LineupTab({
                 slots={[{ label: 'PROJ', value: pts ? (pts[objective] || 0).toFixed(1) : '—' }, { label: formWinLabel, value: fs ? fs.rollingPPG.toFixed(1) : '—', tone: 'mute' }]}
                 verdict={pro ? gradeChip((proj && proj.matchupGrade) || '—') : null}
                 accent={isCur ? 'gold' : undefined}
-                onClick={() => { setWorkingAssign(w => ({ ...w, [openSl.idx]: epid })); setOpenSlot(null); }} />;
+                onClick={() => { canChangePlayer(openPid) && canChangePlayer(epid) && setWorkingAssign(w => ({ ...w, [openSl.idx]: epid })); setOpenSlot(null); }} />;
         };
 
         // P5 decision hero. Pro: optimal-vs-working delta + one-swap summary
         // + APPLY OPTIMAL → the existing applyOptimal(). Free: matchup
         // context + raw working total, optimizer teaser at the existing gate.
-        const heroEl = pro ? (
+        const heroEl = !optimizerAvailable ? (
+            <HeroCard kicker="Lineup planning" headline={workingTotal.toFixed(1) + ' PROJECTED'}
+                facts="Follow your submitted lineup above. Whole-lineup optimization is paused once games start or kickoff status cannot be verified. Set eligible changes on your league platform." />
+        ) : pro ? (
             <HeroCard kicker="Optimizer"
                 headline={isOptimal ? 'LINEUP OPTIMAL · ' + workingTotal.toFixed(1) + ' PROJ' : 'OPTIMAL LINEUP +' + benchPts.toFixed(1) + ' PROJ'}
                 facts={isOptimal ? 'No changes needed · yours ' + workingTotal.toFixed(1) + ' = optimal ' + optimalTotal.toFixed(1) : swapFacts}
@@ -978,6 +1088,7 @@ function LineupTab({
                             leagueSkin={leagueSkin} pro={pro} onSummary={onSimSummary} />
                         : null
                 ) : phoneView === 'week' ? (<React.Fragment>
+                {livePanel}
                 {/* Matchup + breakdown LEAD the week view (owner ask). Free
                     keeps the raw you-vs-their-current totals; win%, margin,
                     their-ideal and the breakdown stay Pro (existing gates). */}
@@ -1045,7 +1156,7 @@ function LineupTab({
                             {openElig.map(pickRow)}
                             {!openElig.length ? <div style={{ color: SILVER, fontSize: '0.74rem', opacity: 0.7 }}>No eligible bench players.</div> : null}
                             {openPid ? (
-                                <div onClick={() => { setWorkingAssign(w => { const n = { ...w }; delete n[openSl.idx]; return n; }); setOpenSlot(null); }}
+                                <div onClick={() => { canChangePlayer(openPid) && setWorkingAssign(w => { const n = { ...w }; delete n[openSl.idx]; return n; }); setOpenSlot(null); }}
                                     style={{ padding: '13px 0', cursor: 'pointer', color: RED, fontSize: '0.74rem', fontWeight: 600 }}>✕ Empty this slot</div>
                             ) : null}
                         </div>
@@ -1113,11 +1224,11 @@ function LineupTab({
                 <Sheet open={applyOpen} onClose={() => setApplyOpen(false)} title="Working lineup" desktop={null}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '10px 14px 4px' }}>
                         <div style={{ fontSize: '0.82rem', color: TEXT }}>
-                            {pro ? (isOptimal ? <span style={{ color: GREEN, fontWeight: 700 }}>Lineup is optimal</span> : <span style={{ color: GOLD, fontWeight: 700 }}>{benchPts.toFixed(1)} pts below optimal</span>) : <span style={{ fontWeight: 700 }}>Your lineup {workingTotal.toFixed(1)} pts</span>}
+                            {!optimizerAvailable ? <span style={{ fontWeight: 700 }}>Lineup planning · projections</span> : pro ? (isOptimal ? <span style={{ color: GREEN, fontWeight: 700 }}>Lineup is optimal</span> : <span style={{ color: GOLD, fontWeight: 700 }}>{benchPts.toFixed(1)} pts below optimal</span>) : <span style={{ fontWeight: 700 }}>Your lineup {workingTotal.toFixed(1)} pts</span>}
                             {pro ? <span style={{ color: SILVER, fontSize: '0.76rem' }}> · yours {workingTotal.toFixed(1)} · optimal {optimalTotal.toFixed(1)}</span> : null}
                         </div>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            {pro ? <button onClick={applyOptimal} style={{ ...actBtn, color: GOLD, borderColor: 'var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.12)' }}>Apply Optimal</button> : null}
+                            {pro && optimizerAvailable ? <button onClick={applyOptimal} style={{ ...actBtn, color: GOLD, borderColor: 'var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.12)' }}>Apply Optimal</button> : null}
                             <button onClick={() => { setWorkingAssign(currentAssign); setOpenSlot(null); }} style={actBtn}>Reset</button>
                         </div>
                         {renderMflPush()}
@@ -1157,9 +1268,9 @@ function LineupTab({
                     the platform lineup. APPLY = the same applyOptimal path
                     (Pro); bar tap opens the apply/push sheet. */}
                 <ActionBar visible={dirty && phoneView === 'week'} label="WORKING LINEUP"
-                    value={pro ? (isOptimal ? workingTotal.toFixed(1) + ' PROJ' : '+' + benchPts.toFixed(1)) : workingTotal.toFixed(1) + ' PROJ'}
-                    tone="good" actionLabel="APPLY"
-                    onAction={pro ? applyOptimalWithSummary : () => setApplyOpen(true)}
+                    value={pro && optimizerAvailable ? (isOptimal ? workingTotal.toFixed(1) + ' PROJ' : '+' + benchPts.toFixed(1)) : workingTotal.toFixed(1) + ' PROJ'}
+                    tone="good" actionLabel={optimizerAvailable ? "APPLY" : "VIEW"}
+                    onAction={pro && optimizerAvailable ? applyOptimalWithSummary : () => setApplyOpen(true)}
                     onOpen={() => setApplyOpen(true)} />
             </div>
         );
@@ -1200,8 +1311,9 @@ function LineupTab({
         <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '20px 16px 60px' }}>
             {ledgerNode}
             {gdSeg}
+            {livePanel}
             {/* Alex's game-day note */}
-            {note ? (
+            {note && optimizerAvailable ? (
                 <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderLeft: `3px solid ${GOLD}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '12px 16px', marginBottom: '14px' }}>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                         <span style={{ fontSize: fz('0.6rem'), fontWeight: 800, letterSpacing: '0.08em', color: GOLD, marginTop: '3px', whiteSpace: 'nowrap' }}>ALEX ·</span>
@@ -1233,7 +1345,7 @@ function LineupTab({
                         {pro ? (
                             <React.Fragment>
                                 <div style={{ fontSize: '1.45rem', fontWeight: 700, color: isOptimal ? GREEN : GOLD, marginTop: '6px' }}>
-                                    {isOptimal ? 'Lineup is optimal' : `${benchPts.toFixed(1)} pts below optimal`}
+                                    {!optimizerAvailable ? 'Lineup planning · projections' : isOptimal ? 'Lineup is optimal' : `${benchPts.toFixed(1)} pts below optimal`}
                                 </div>
                                 <div style={{ color: SILVER, fontSize: '0.82rem', marginTop: '4px' }}>
                                     Your lineup {workingTotal.toFixed(1)} · Optimal {optimalTotal.toFixed(1)}
@@ -1258,7 +1370,7 @@ function LineupTab({
                             </React.Fragment>
                         ) : null}
                         <div style={{ display: 'flex', gap: '6px', marginTop: '10px', justifyContent: 'flex-end' }}>
-                            {pro ? <button onClick={applyOptimal} style={{ ...actBtn, color: GOLD, borderColor: 'var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.12)' }}>Apply Optimal</button> : null}
+                            {pro && optimizerAvailable ? <button onClick={applyOptimal} style={{ ...actBtn, color: GOLD, borderColor: 'var(--acc-line2, rgba(212,175,55,0.4))', background: 'rgba(212,175,55,0.12)' }}>Apply Optimal</button> : null}
                             <button onClick={() => { setWorkingAssign(currentAssign); setOpenSlot(null); }} style={actBtn}>Reset</button>
                         </div>
                     </div>
@@ -1394,7 +1506,7 @@ function LineupTab({
                                     {elig.map(epid => {
                                         const isCur = String(pid) === String(epid);
                                         return (
-                                            <div key={epid} onClick={() => { setWorkingAssign(w => ({ ...w, [sl.idx]: epid })); setOpenSlot(null); }}
+                                            <div key={epid} onClick={() => { canChangePlayer(pid) && canChangePlayer(epid) && setWorkingAssign(w => ({ ...w, [sl.idx]: epid })); setOpenSlot(null); }}
                                                 style={{ display: 'grid', gridTemplateColumns: GRID, gap: '8px', padding: isPhone ? '10px 14px' : '7px 14px', minHeight: isPhone ? '44px' : undefined, alignItems: 'center', cursor: 'pointer', background: isCur ? 'rgba(212,175,55,0.10)' : 'transparent', borderLeft: isCur ? `3px solid ${GOLD}` : '3px solid transparent' }}>
                                                 <span style={{ fontSize: fz('0.6rem'), color: isCur ? GOLD : SILVER, fontWeight: 700 }}>{isCur ? 'IN' : ''}</span>
                                                 <PlayerCells pid={epid} />
@@ -1402,7 +1514,7 @@ function LineupTab({
                                         );
                                     })}
                                     {pid ? (
-                                        <div onClick={() => { setWorkingAssign(w => { const n = { ...w }; delete n[sl.idx]; return n; }); setOpenSlot(null); }}
+                                        <div onClick={() => { canChangePlayer(pid) && setWorkingAssign(w => { const n = { ...w }; delete n[sl.idx]; return n; }); setOpenSlot(null); }}
                                             style={{ padding: isPhone ? '13px 14px' : '7px 14px', cursor: 'pointer', color: RED, fontSize: '0.7rem', fontWeight: 600 }}>✕ Empty this slot</div>
                                     ) : null}
                                     {!elig.length ? <div style={{ padding: '7px 14px', color: SILVER, fontSize: '0.74rem', opacity: 0.7 }}>No eligible bench players.</div> : null}

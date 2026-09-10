@@ -26,7 +26,7 @@ export function corsHeaders(req: Request): HeadersInit {
   return {
     'Access-Control-Allow-Origin': allowOrigin,
     'Vary': 'Origin',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-ai-provider, x-ai-key, x-ai-model',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
   };
 }
@@ -161,50 +161,21 @@ export async function checkRateLimit(
   identifier: string,
   options: { limit: number; windowSeconds: number; lockoutSeconds?: number },
 ): Promise<{ allowed: boolean; retryAfterSeconds?: number; count: number }> {
-  const now = Date.now();
-  const key = String(identifier || 'unknown').slice(0, 300);
-  const { data: row } = await admin
-    .from('auth_rate_limits')
-    .select('window_start, attempt_count, locked_until')
-    .eq('scope', scope)
-    .eq('identifier', key)
-    .maybeSingle();
-
-  const lockedUntil = row?.locked_until ? Date.parse(row.locked_until) : 0;
-  if (lockedUntil && lockedUntil > now) {
-    return {
-      allowed: false,
-      retryAfterSeconds: Math.ceil((lockedUntil - now) / 1000),
-      count: row?.attempt_count || 0,
-    };
+  try {
+    const { data, error } = await admin.rpc('consume_auth_rate_limit', {
+      p_scope: scope, p_identifier: String(identifier || 'unknown').slice(0, 300),
+      p_limit: options.limit, p_window_seconds: options.windowSeconds,
+      p_lockout_seconds: options.lockoutSeconds || 0,
+    });
+    if (error || !data || typeof data.allowed !== 'boolean' || !Number.isFinite(data.count)) {
+      throw new Error('Rate limit storage unavailable');
+    }
+    return data;
+  } catch {
+    // Authentication and paid provider calls must not bypass limits when the
+    // database is unavailable or the migration has not yet been installed.
+    return { allowed: false, retryAfterSeconds: 60, count: 0 };
   }
-
-  const windowStart = row?.window_start ? Date.parse(row.window_start) : 0;
-  const resetWindow = !windowStart || now - windowStart > options.windowSeconds * 1000;
-  const count = resetWindow ? 1 : (row?.attempt_count || 0) + 1;
-  const shouldLock = count > options.limit;
-  const lockedIso = shouldLock && options.lockoutSeconds
-    ? new Date(now + options.lockoutSeconds * 1000).toISOString()
-    : null;
-
-  await admin.from('auth_rate_limits').upsert({
-    scope,
-    identifier: key,
-    window_start: resetWindow ? new Date(now).toISOString() : row?.window_start,
-    attempt_count: count,
-    locked_until: lockedIso,
-    updated_at: new Date(now).toISOString(),
-  }, { onConflict: 'scope,identifier' });
-
-  if (shouldLock) {
-    return {
-      allowed: false,
-      retryAfterSeconds: options.lockoutSeconds || options.windowSeconds,
-      count,
-    };
-  }
-
-  return { allowed: true, count };
 }
 
 export async function clearRateLimit(admin: SupabaseClient, scope: string, identifier: string): Promise<void> {

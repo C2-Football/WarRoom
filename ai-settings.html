@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src https://sxshiqyxhhifvtfqawbq.supabase.co; img-src 'self' data:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'"><title>AI settings · Dynasty HQ</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#101116;color:#e6e9ed}*{box-sizing:border-box}main{max-width:680px;margin:5vh auto;padding:24px}a{color:#dfbd61}h1{font-size:2rem;margin-bottom:12px}p{line-height:1.6;color:#b6bdc8}.card{background:#191b24;border:1px solid #373944;padding:24px;border-radius:12px;margin:24px 0}label{display:block;margin:18px 0 8px}input,select,button{font:inherit;width:100%;padding:13px;border:1px solid #505360;border-radius:6px;background:#101116;color:#fff}button{cursor:pointer;background:#dfbd61;color:#191713;font-weight:650;margin-top:14px;min-height:48px}button.secondary{background:transparent;color:#dfbd61}button:disabled{opacity:.5;cursor:wait}input:focus,select:focus,button:focus-visible{outline:2px solid #dfbd61;outline-offset:3px}.badge{color:#dfbd61}#status{min-height:2em}small{display:block;line-height:1.6;color:#b6bdc8}@media(max-width:480px){main{padding:18px;margin:12px auto}.card{padding:18px}}
+</style></head><body><main>
+<a href="index.html">← Dynasty HQ</a><h1>AI settings</h1>
+<p class="badge">All app features are unlocked. Choose how you connect to AI.</p>
+<p>Shared Gemini is included, subject to availability and usage limits. You can also use a personal Gemini, OpenAI, or Anthropic key. Your provider’s own limits and charges apply when using your key.</p>
+<div class="card"><h2 id="current-source">Using shared Gemini</h2>
+<form id="ai-form"><label for="provider">Personal AI provider</label><select id="provider"><option value="gemini">Gemini</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option></select>
+<label for="key">API key</label><input id="key" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" required placeholder="Paste your provider’s API key">
+<label for="model">Model (optional)</label><input id="model" autocomplete="off" spellcheck="false" placeholder="Use the default model">
+<p><small>Your key is saved only for this browser tab’s session and cleared when you sign out. It is sent securely through Dynasty HQ to your selected AI provider for each request. We do not save it to your account.</small></p>
+<button type="submit">Save personal key</button></form>
+<button id="test-key" class="secondary">Test current AI connection</button><button id="use-shared" class="secondary">Remove personal key · use shared Gemini</button>
+<p id="status" role="status" aria-live="polite"></p></div>
+<p><a id="continue" href="index.html">Continue to Dynasty HQ →</a></p>
+</main><script src="js/shared/ai-access.js?v=20260909free1"></script><script src="js/ai-settings.js?v=20260909free1"></script></body></html>

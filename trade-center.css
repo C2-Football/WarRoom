@@ -1,0 +1,77 @@
+/* Trade Center: navigation, a single finder flow, and optional detail. */
+.tc-trade-root .tc-center-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 10px 2px 20px;
+}
+.tc-center-header h2 { margin: 0; font: 700 1.65rem var(--font-title, 'Rajdhani', sans-serif); color: var(--white); }
+.tc-center-header p, .tc-finder-intro p { margin: 5px 0 0; color: var(--silver); font-size: .84rem; line-height: 1.5; }
+.tc-center-build, .tc-center-primary {
+    min-height: 44px;
+    padding: 10px 18px;
+    border: 1px solid var(--gold);
+    border-radius: 7px;
+    color: var(--gold);
+    background: transparent;
+    font: 600 .82rem var(--font-body, sans-serif);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.tc-center-primary { color: var(--black); background: var(--gold); }
+.tc-center-primary:disabled { opacity: .65; cursor: default; }
+.tc-center-build:hover { background: rgba(212,175,55,.08); }
+#tc-active-builder { scroll-margin-top: 112px; }
+.tc-center-nav { border-bottom: 1px solid rgba(189,184,173,.15); margin-bottom: 22px; }
+.tc-center-nav .wr-module-nav { display: flex; gap: 24px; border: 0; border-radius: 0; padding: 0; background: transparent; }
+.tc-center-nav .wr-module-nav button { min-height: 42px; padding: 0 2px 10px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; text-transform: none; letter-spacing: 0; font-size: .84rem; color: var(--silver); }
+.tc-center-nav .wr-module-nav button.is-active { background: transparent; color: var(--gold); border-bottom-color: var(--gold); }
+.tc-trade-root .tc-finder-panel { padding: 24px; border-color: rgba(189,184,173,.17); }
+.tc-finder-intro { margin-bottom: 20px; }
+.tc-finder-intro h3 { margin: 0; color: var(--white); font: 700 1.25rem var(--font-title, 'Rajdhani', sans-serif); }
+.tc-finder-goals { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.tc-finder-goals button { display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 16px; border: 1px solid rgba(189,184,173,.19); border-radius: 8px; background: transparent; color: var(--white); text-align: left; font-family: var(--font-body); cursor: pointer; }
+.tc-finder-goals strong { font-size: .9rem; font-weight: 600; }
+.tc-finder-goals span { color: var(--silver); font-size: .76rem; line-height: 1.5; }
+.tc-finder-goals button.is-active { border-color: var(--gold); background: rgba(212,175,55,.07); }
+.tc-finder-goals button.is-active strong { color: var(--gold); }
+.tc-finder-goals button:hover { border-color: var(--gold); }
+.tc-finder-inputs { display: grid; grid-template-columns: minmax(240px,2fr) minmax(190px,1fr); align-items: end; gap: 16px; padding: 6px 0; }
+.tc-finder-label, .tc-finder-partner { display: block; font-size: .76rem; font-weight: 500; color: var(--silver); }
+.tc-finder-label { margin-bottom: 7px; }
+.tc-finder-label span { color: var(--text-muted, #8d887e); font-weight: 400; font-size: .69rem; margin-left: 6px; }
+.tc-finder-partner select { display: block; width: 100%; min-height: 44px; margin-top: 7px; padding: 8px 10px; border: 1px solid rgba(212,175,55,.22); border-radius: 5px; background: var(--off-black); color: var(--white); font: .8rem var(--font-body); }
+.tc-finder-run { display: flex; align-items: center; justify-content: space-between; gap: 20px; border-top: 1px solid rgba(189,184,173,.13); padding-top: 20px; }
+.tc-finder-run strong { color: var(--white); font-size: .85rem; font-weight: 600; }
+.tc-finder-run p { margin: 5px 0 0; color: var(--silver); font-size: .76rem; line-height: 1.5; }
+.tc-finder-method { color: var(--silver); font-size: .73rem; line-height: 1.6; }
+.tc-finder-method summary { cursor: pointer; width: fit-content; }
+.tc-finder-method summary span { color: var(--text-muted, #8d887e); }
+.tc-finder-method p { margin: 8px 0 0; max-width: 760px; }
+.tc-finder-status { color: var(--silver); font-size: .8rem; line-height: 1.5; }
+.tc-finder-browse { border: 1px solid rgba(189,184,173,.15); border-radius: 8px; min-width: 0; }
+.tc-finder-browse > summary { cursor: pointer; padding: 17px 20px; color: var(--white); font-size: .84rem; }
+.tc-finder-browse > summary strong { font-weight: 600; }
+.tc-finder-browse > summary > span { margin-left: 12px; color: var(--silver); font-size: .75rem; }
+.tc-finder-board-help { margin: 0 20px 14px; color: var(--silver); font-size: .75rem; line-height: 1.5; }
+.tc-finder-browse .tc-dhq-asset-browser { padding: 0 14px 14px; border: 0; background: transparent; }
+.tc-finder-browse .tc-dhq-asset-table.has-add .tc-dhq-asset-row { grid-template-columns: minmax(160px,1.5fr) 42px 76px 38px minmax(125px,1fr) 86px 72px 72px; min-width: 780px; min-height: 44px; }
+.tc-finder-browse .tc-dhq-asset-table.is-picks .tc-dhq-asset-row { grid-template-columns: minmax(170px,1.6fr) 56px minmax(130px,1fr) 80px 72px; min-width: 560px; min-height: 44px; }
+.tc-finder-browse .tc-dhq-asset-row[tabindex] { cursor: pointer; }
+.tc-finder-browse .tc-dhq-asset-row[tabindex]:hover, .tc-finder-browse .tc-dhq-asset-row.is-active { background: rgba(212,175,55,.07); color: var(--white); }
+.tc-finder-browse .tc-dhq-add-btn { min-height: 32px; border: 1px solid rgba(212,175,55,.28); border-radius: 5px; padding: 5px 8px; color: var(--gold); background: rgba(212,175,55,.05); font: 600 .72rem var(--font-body); cursor: pointer; white-space: nowrap; }
+.tc-finder-browse .tc-dhq-add-btn:hover { background: rgba(212,175,55,.14); }
+.tc-trade-root button:focus-visible, .tc-trade-root summary:focus-visible, .tc-trade-root input:focus-visible, .tc-trade-root select:focus-visible, .tc-finder-browse [tabindex]:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+@media (max-width: 1100px) {
+    .tc-finder-goals button { padding: 13px; }
+    .tc-trade-root .tc-finder-panel { padding: 20px; }
+}
+@media (max-width: 767px) {
+    .tc-center-header { align-items: flex-start; flex-wrap: wrap; }
+    .tc-center-nav .wr-module-nav { gap: 18px; }
+    .tc-finder-goals, .tc-finder-inputs { grid-template-columns: 1fr; }
+    .tc-finder-run { align-items: flex-start; flex-direction: column; }
+    .tc-center-primary { width: 100%; }
+    .tc-finder-browse > summary > span { display: block; margin: 6px 0 0; }
+}

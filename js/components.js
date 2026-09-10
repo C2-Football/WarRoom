@@ -3,37 +3,8 @@
 // ══════════════════════════════════════════════════════════════════
     const COMPONENTS_WR_KEYS  = window.App.WR_KEYS;
     const ComponentsStorage = window.App.WrStorage;
-    function UpgradeGate({ feature, title, description, targetTier, children, onClose }) {
-        const tier = getUserTier();
-        const hasAccess = canAccess(feature);
-
-        if (hasAccess) return children || null;
-
-        // Check one-time taste
-        const [tasteUsed, setTasteUsed] = React.useState(false);
-        if (children && hasTasteLeft() && !tasteUsed) {
-            return React.createElement(React.Fragment, null,
-                children,
-                React.createElement('div', { style: { textAlign:'center', padding:'12px', background:'var(--acc-fill1, rgba(212,175,55,0.06))', border:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius:'var(--card-radius-sm, 8px)', marginTop:'12px' } },
-                    React.createElement('div', { style: { fontSize:'var(--text-body, 1rem)', color:'var(--gold)', fontWeight:700, marginBottom:'4px' } }, 'Free preview — upgrade to keep using this feature'),
-                    React.createElement('button', { onClick: () => setTasteUsed(true), style: { padding:'6px 16px', background:'var(--gold)', color:'var(--black)', border:'none', borderRadius:'var(--card-radius-sm, 8px)', fontFamily:'Rajdhani, sans-serif', fontSize:'var(--text-body, 1rem)', cursor:'pointer' } }, 'Got it')
-                )
-            );
-        }
-
-        const tierLabel = targetTier === 'scout' ? 'Scout' : 'Dynasty HQ';
-        const tierPrice = targetTier === 'scout' ? '$4.99/mo' : '$9.99/mo';
-
-        return React.createElement('div', { style: { background:'linear-gradient(135deg, var(--off-black), var(--charcoal))', border:'1px solid var(--acc-line1, rgba(212,175,55,0.2))', borderRadius:'var(--card-radius)', padding:'24px', textAlign:'center', maxWidth:'480px', margin:'24px auto' } },
-            React.createElement('div', { style: { fontFamily:'Rajdhani, sans-serif', fontSize:'1.6rem', color:'var(--gold)', letterSpacing:'0.06em', marginBottom:'8px' } }, title || 'UPGRADE TO UNLOCK'),
-            React.createElement('div', { style: { fontSize:'var(--text-body, 1rem)', color:'var(--silver)', lineHeight:1.7, marginBottom:'16px' } }, description || 'This feature requires a paid subscription.'),
-            React.createElement('div', { style: { display:'flex', gap:'10px', justifyContent:'center', marginBottom:'12px' } },
-                React.createElement('button', { onClick: () => { window.location.href = 'landing.html'; }, style: { padding:'10px 24px', background:'var(--gold)', color:'var(--black)', border:'none', borderRadius:'var(--card-radius-sm, 8px)', fontFamily:'Rajdhani, sans-serif', fontSize:'1.1rem', letterSpacing:'0.05em', cursor:'pointer' } }, 'Unlock ' + tierLabel + ' — ' + tierPrice),
-            ),
-            React.createElement('div', { style: { fontSize:'var(--text-body, 1rem)', color:'var(--silver)', opacity:0.5 } }, 'Currently on Scout (free) plan'),
-            onClose ? React.createElement('button', { onClick: onClose, style: { marginTop:'10px', background:'none', border:'none', color:'var(--silver)', cursor:'pointer', fontSize:'var(--text-body, 1rem)' } }, 'Maybe later') : null
-        );
-    }
+    // Retain the component boundary for callers; every feature is included.
+    function UpgradeGate({ children }) { return children || null; }
     window.UpgradeGate = UpgradeGate;
     // canAccess lives in core.js closure; do NOT re-assign to window
     // (overwrites shared/tier.js and causes infinite recursion via _sharedCanAccess)
@@ -45,23 +16,7 @@
     // real rows sliced to zero — rows.slice(0, gated ? 0 : N) — plus this row;
     // no real recommendations reach the DOM. Port of reconai's
     // _scoutGatedMoreRow (js/scout-ui.js) in warroom terminal trim.
-    function WrGatedMoreRow({ title, sub, feature }) {
-        const openUpsell = () => {
-            if (window.showProLaunchPage) window.showProLaunchPage();
-            else if (window.showUpgradePrompt) window.showUpgradePrompt(feature || '');
-        };
-        return React.createElement('button', {
-                onClick: openUpsell,
-                style: { display:'flex', alignItems:'center', gap:'10px', width:'100%', textAlign:'left', padding:'10px 12px', background:'var(--off-black)', border:'1px solid var(--charcoal)', borderRadius:'2px', cursor:'pointer' }
-            },
-            React.createElement('span', { 'aria-hidden': true, style: { fontSize:'0.9rem' } }, '🔒'),
-            React.createElement('span', { style: { flex:1, minWidth:0 } },
-                React.createElement('div', { style: { fontFamily:'Rajdhani, sans-serif', fontSize:'0.95rem', fontWeight:600, color:'var(--white)', letterSpacing:'.03em' } }, title),
-                sub ? React.createElement('div', { style: { fontSize:'var(--text-label, 0.75rem)', color:'var(--silver)', marginTop:'2px' } }, sub) : null
-            ),
-            React.createElement('span', { style: { fontFamily:'JetBrains Mono, monospace', fontSize:'var(--text-label, 0.75rem)', letterSpacing:'.08em', textTransform:'uppercase', color:'var(--gold)', border:'1px solid var(--acc-line3, rgba(212,175,55,0.4))', borderRadius:'2px', padding:'2px 6px' } }, 'Pro')
-        );
-    }
+    function WrGatedMoreRow() { return null; }
     window.WrGatedMoreRow = WrGatedMoreRow;
 
     // ===== PLAYER INLINE CARD (bottom-right, non-blocking) =====

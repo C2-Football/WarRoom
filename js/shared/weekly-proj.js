@@ -219,7 +219,8 @@
         // Checked before bye/injury so the reason surfaces as "FA" rather than
         // an empty status the UI would render as playable.
         if (!hasNflTeam(player)) return 'FA';
-        if (Number(player && player.bye_week) === week) return 'BYE';
+        const byeWeek = App.NFLByes ? App.NFLByes.weekForPlayer(player, providerSeason()) : Number(player && player.bye_week);
+        if (byeWeek === Number(week)) return 'BYE';
         return ctxStatus || sleeperStatus || '';
     }
 
