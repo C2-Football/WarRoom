@@ -59,76 +59,213 @@ function LegacyWoeppelCupPanel({ league, getOwnerName, myRoster }) {
 
 
 function WoeppelCupPanel(props) {
-    const {league,getOwnerName,myRoster}=props, engine=window.WoeppelCup.tournament;
-    const [saved,setSaved]=React.useState(null),[draft,setDraft]=React.useState(()=>engine.defaults(league));
-    const [access,setAccess]=React.useState(null),[busy,setBusy]=React.useState(false),[error,setError]=React.useState(''),[notice,setNotice]=React.useState('');
-    const [week,setWeek]=React.useState(null),[scores,setScores]=React.useState({}),[seedIds,setSeedIds]=React.useState([]),[reason,setReason]=React.useState('');
-    const call=async body=>{
-        const db=window.App?.OD?.getClient?.()||window.OD?.getClient?.();if(!db)throw Error('Sign in to connect your league tournament.');
-        const {data,error:e}=await db.functions.invoke('league-cup',{body:{leagueId:String(league.league_id||league.id),season:String(league.season),...body}});
-        if(e){let message=e.message;try{message=(await e.context.json()).error||message;}catch{}throw Error(message);}if(data?.error)throw Error(data.error);return data;
+    const { league, getOwnerName, myRoster } = props;
+    const engine = window.WoeppelCup.tournament;
+    const formats = engine.formats;
+    const [saved, setSaved] = React.useState(null);
+    const [draft, setDraft] = React.useState(() => engine.defaults(league));
+    const [access, setAccess] = React.useState(null);
+    const [busy, setBusy] = React.useState(false);
+    const [connection, setConnection] = React.useState('');
+    const [error, setError] = React.useState('');
+    const [notice, setNotice] = React.useState('');
+    const [explore, setExplore] = React.useState(false);
+    const [sample, setSample] = React.useState(null);
+    const [week, setWeek] = React.useState(null);
+    const [scores, setScores] = React.useState({});
+    const [seedIds, setSeedIds] = React.useState([]);
+    const [survivorIds, setSurvivorIds] = React.useState([]);
+    const [reason, setReason] = React.useState('');
+    const touched = React.useRef(false);
+    const name = id => id == null ? 'Bye' : getOwnerName?.(Number(id)) || 'Team ' + id;
+    const myId = String(myRoster?.roster_id || '');
+    const icons = { points: '◎', 'round-robin': '↔', 'all-play': '✦', median: '↑', knockout: '⚡', survivor: '♜' };
+    const isQualifier = s => !['knockout', 'survivor'].includes(s.format);
+    const formatOf = s => formats.find(f => f.id === s.format) || formats[0];
+    const call = async body => {
+        const db = window.App?.OD?.getClient?.() || window.OD?.getClient?.();
+        if (!db) throw Error('Sign in to connect your league tournament.');
+        const { data, error: failure } = await db.functions.invoke('league-cup', { body: { leagueId: String(league.league_id || league.id), season: String(league.season), ...body } });
+        if (failure) { let message = failure.message; try { message = (await failure.context.json()).error || message; } catch {} throw Error(message); }
+        if (data?.error) throw Error(data.error);
+        return data;
     };
-    const load=async()=>{setBusy(true);try{const data=await call({action:'load'});setSaved(data.cup?.state||null);setDraft(data.cup?.state||engine.defaults(league));setAccess({canManage:data.canManage,revision:data.cup?.revision||0});setError('');}catch(e){setError(e.message);}finally{setBusy(false);}};
-    React.useEffect(()=>{load();},[]);
-    const save=async next=>{
-        if(!access?.canManage||busy)return;
-        try{engine.validate(next);}catch(e){setError(e.message);return;}
-        setBusy(true);try{const data=await call({action:'save',revision:access.revision,state:next});setSaved(data.cup.state);setDraft(data.cup.state);setAccess({...access,revision:data.cup.revision});setError('');setNotice('Tournament saved for your league.');}catch(e){setError(e.message);}finally{setBusy(false);}
+    const load = async () => {
+        setBusy(true);
+        try {
+            const data = await call({ action: 'load' });
+            setSaved(data.cup?.state || null);
+            if (!touched.current) setDraft(data.cup?.state || engine.defaults(league));
+            setAccess({ canManage: data.canManage, revision: data.cup?.revision || 0 });
+            setConnection('');
+        } catch (e) { setConnection(e.message); }
+        finally { setBusy(false); }
     };
-    const state=saved||draft, selectedWeek=week||state.startWeek;
-    React.useEffect(()=>{setScores(state.weeks?.[selectedWeek]?.scores||{});},[saved,selectedWeek]);
-    if(saved&&saved.version!==2)return <LegacyWoeppelCupPanel {...props}/>;
-    const name=id=>getOwnerName(Number(id))||'Team '+id;
-    const update=(key,value)=>setDraft(d=>({...d,[key]:value}));
-    const suggestSchedule=next=>{
-        const count=next.teams.length,qualifierCount=2**Math.floor(Math.log2(Math.max(2,Math.min(next.qualifierCount,count))));
-        const groupWeeks=next.format==='round-robin'?(count%2?count:count-1):3;
-        const end=Math.max(3,Math.min(18,(Number(league.settings?.playoff_week_start)||15)-1));
-        const startWeek=Math.max(1,end-Math.log2(qualifierCount)-groupWeeks+1);
-        setDraft({...next,qualifierCount,groupWeeks,startWeek,knockoutStart:startWeek+groupWeeks});
+    React.useEffect(() => { load(); }, []);
+    const save = async next => {
+        if (!access?.canManage || busy || sample) return;
+        try { engine.validate(next); } catch (e) { setError(e.message); return; }
+        setBusy(true);
+        try {
+            const data = await call({ action: 'save', revision: access.revision, state: next });
+            setSaved(data.cup.state); setDraft(data.cup.state); touched.current = false;
+            setAccess({ ...access, revision: data.cup.revision }); setError(''); setNotice('Saved for your league.');
+            if (next.locked) setExplore(false);
+        } catch (e) { setError(e.message); }
+        finally { setBusy(false); }
     };
-    let rows=[],rounds=[],bracketNote='',setupError='';
-    try{engine.validate(draft);}catch(e){setupError=e.message;}
-    if(state.locked){try{rows=engine.tables(state);rounds=engine.knockout(state);}catch(e){bracketNote=e.message;}}
-    const final=rounds.length===Math.log2(state.qualifierCount)?rounds[rounds.length-1]?.[0]:null, champion=final?.winner;
-    const schedule=state.locked?engine.schedule(state):[];
-    const fixtures=state.locked?(selectedWeek<state.knockoutStart?engine.fixtures(state):rounds.flat()).filter(f=>f.week===selectedWeek):[];
-    const persistScores=finalize=>{
-        const parsed={};for(const id of state.teams){if(scores[id]===''||scores[id]===undefined||!Number.isFinite(Number(scores[id]))){setError('Enter a score for every participating team, including zero where appropriate.');return;}parsed[id]=Number(scores[id]);}
-        const weeks=Object.fromEntries(Object.entries(state.weeks).map(([w,data])=>[w,Number(w)>selectedWeek?{...data,final:false}:data]));
-        save({...state,weeks:{...weeks,[selectedWeek]:{scores:parsed,final:finalize}}});
+    const update = (key, value) => { touched.current = true; setDraft(d => ({ ...d, [key]: value })); setError(''); };
+    const chooseFormat = id => {
+        touched.current = true;
+        setDraft(d => {
+            const next = engine.configure(league, id, d);
+            if (d.name === 'League Cup' || formats.some(f => f.name === d.name)) next.name = formats.find(f => f.id === id).name;
+            return next;
+        });
+        setError(''); setNotice('');
     };
-    const pull=async()=>{setBusy(true);try{const data=await window.fetchMatchups(league.league_id||league.id,selectedWeek);if(!Array.isArray(data))throw Error('Scores are unavailable. Enter them manually.');const next={};for(const r of data)if(Number.isFinite(r.points))next[String(r.roster_id)]=r.points;setScores(next);setNotice('Scores loaded for review. Finalize only after the week and stat corrections are complete.');setError('');}catch(e){setError(e.message);}finally{setBusy(false);}};
-    const archive=async()=>{setBusy(true);try{const history=await call({action:'history'}),previous=history.records?.find(r=>r.season===String(league.season));if(previous&&!window.confirm('Replace this season’s existing Cup honour?'))return;const runner=final.a===champion?final.b:final.a;await call({action:'save-history',revision:previous?.revision||0,state:{cupName:state.name,winner:name(champion),runnerUp:name(runner),winnerScore:state.weeks[final.week].scores[champion],runnerScore:state.weeks[final.week].scores[runner],notes:'Confirmed from the finalized '+state.name+' tournament.'}});setNotice('Champion recorded in Hall of Fame → Cup history.');}catch(e){setError(e.message);}finally{setBusy(false);}};
-    return <section className="cup-panel">
-        <header className="cup-hero"><div><span className="cup-eyebrow">{league.name} · {league.season}</span><h2>{state.name||'In-season Cup'}</h2><p>A second trophy to play for during your league season.</p></div><button disabled={busy} onClick={()=>{if(!state.locked&&JSON.stringify(draft)!==JSON.stringify(saved||engine.defaults(league))&&!window.confirm('Discard unsaved setup changes and refresh?'))return;load();}}>Refresh</button></header>
-        {error&&<p role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}
-        {!access&&!error&&<p>Connecting to your league…</p>}
-        {access&&!access.canManage&&!state.locked&&<div className="cup-awaiting"><h3>Want to run an in-season tournament?</h3><p>Your commissioner can enable and name a Cup here, choose participants and dates, and share it with the league.</p></div>}
-        {access?.canManage&&!state.locked&&<form onSubmit={e=>{e.preventDefault();save({...draft,enabled:true,locked:true});}}><fieldset disabled={busy} className="cup-settings"><legend>Tournament settings</legend><p>Works alongside dynasty, redraft, keeper, empire, guillotine and other league formats. Your league’s scoring and lineup rules determine the scores.</p>
-            <label><input type="checkbox" checked={draft.enabled} onChange={e=>update('enabled',e.target.checked)}/> Run an in-season tournament</label>
-            <div className="cup-setup"><label>Tournament name<input maxLength={80} required value={draft.name} onChange={e=>update('name',e.target.value)} placeholder="Woeppel Cup"/></label>
-            <label>Qualifying format<select value={draft.format} onChange={e=>suggestSchedule({...draft,format:e.target.value})}><option value="points">Total points race · any league size</option><option value="round-robin">Round robin · everyone plays everyone</option></select></label>
-            {[['startWeek','First qualifying week',1,18],['groupWeeks','Qualifying weeks',1,17],['knockoutStart','First knockout week',2,18]].map(([key,label,min,max])=><label key={key}>{label}<input type="number" min={min} max={max} required value={draft[key]} onChange={e=>update(key,Number(e.target.value))}/></label>)}
-            <label>Teams advancing<select value={draft.qualifierCount} onChange={e=>update('qualifierCount',Number(e.target.value))}>{[2,4,8,16,32,64].filter(n=>n<=(league.rosters||[]).length).map(n=><option key={n} value={n}>{n} teams</option>)}</select></label>
-            {draft.format==='round-robin'&&<label>Draw margin<input type="number" min="0" max="100" step="0.01" value={draft.drawMargin} onChange={e=>update('drawMargin',Number(e.target.value))}/></label>}</div>
-            <h3>Participating teams · {draft.teams.length}</h3><div className="cup-setup">{(league.rosters||[]).map(r=>{const id=String(r.roster_id);return <label key={id}><input type="checkbox" checked={draft.teams.includes(id)} onChange={e=>update('teams',e.target.checked?[...draft.teams,id]:draft.teams.filter(x=>x!==id))}/>{name(id)}</label>;})}</div>
-            <button type="button" onClick={()=>suggestSchedule(draft)}>Suggest dates for this field</button><p>Suggested dates aim to finish before your league playoffs (Week {Number(league.settings?.playoff_week_start)||15}). You can extend the Cup through Week 18. Round robin requires {draft.teams.length%2?draft.teams.length:draft.teams.length-1} weeks per cycle; odd fields get rotating byes.</p>
-            <p>Qualifying W{draft.startWeek}–{draft.startWeek+draft.groupWeeks-1} → {draft.qualifierCount} teams → Final W{draft.knockoutStart+Math.log2(draft.qualifierCount)-1}.</p>
-            {setupError&&<p role="status">{setupError}</p>}<button type="button" disabled={!!setupError} onClick={()=>save(draft)}>Save settings</button> <button type="submit" disabled={!draft.enabled||!!setupError}>Start tournament</button>
-        </fieldset></form>}
-        {state.locked&&<>
-            <p>{state.enabled?'Tournament active':'Tournament paused'} · Qualifying W{state.startWeek}–{state.startWeek+state.groupWeeks-1} · Knockout W{state.knockoutStart}–{state.knockoutStart+Math.log2(state.qualifierCount)-1}</p>
-            {access?.canManage&&<details><summary>Tournament settings</summary><fieldset disabled={busy} className="cup-settings"><label>Name<input maxLength={80} value={draft.name} onChange={e=>update('name',e.target.value)}/></label><button onClick={()=>save({...state,name:draft.name})}>Save name</button><button onClick={()=>save({...state,enabled:!state.enabled})}>{state.enabled?'Pause tournament':'Resume tournament'}</button>{!Object.values(state.weeks).some(w=>w.final)&&<button onClick={()=>save({...state,locked:false,weeks:{},seedRuling:null,tieRulings:{}})}>Edit setup</button>}</fieldset></details>}
-            {champion&&<div className="cup-champion"><div><span className="cup-eyebrow">{state.name} champion</span><h3>🏆 {name(champion)}</h3>{access?.canManage&&<button disabled={busy} onClick={archive}>Record in Hall of Fame</button>}</div></div>}
-            <div className="cup-groups"><section><h3>Qualifying standings</h3><table><thead><tr><th>Team</th><th>Played</th><th>{state.format==='points'?'Points':'Cup points'}</th><th>PF</th></tr></thead><tbody>{rows.map((r,i)=><tr key={r.id} className={String(myRoster?.roster_id)===r.id?'is-mine':''}><td>{i+1}. {name(r.id)}</td><td>{r.played}</td><td>{r.points.toFixed(2)}</td><td>{r.pf.toFixed(2)}</td></tr>)}</tbody></table></section></div>
-            <div className="cup-tools"><label>Tournament week<select value={selectedWeek} onChange={e=>setWeek(Number(e.target.value))}>{schedule.map(w=><option key={w} value={w}>Week {w}{state.weeks[w]?.final?' · Final':''}</option>)}</select></label><span>{state.weeks[selectedWeek]?.final?'Finalized':'Provisional — finalize to count scores'}</span></div>
-            <div className="cup-fixtures">{fixtures.map(f=><article className="cup-match" key={f.a+':'+f.b}><div>{name(f.a)} <b>{state.weeks[selectedWeek]?.scores[f.a]??'—'}</b></div><div>{name(f.b)} <b>{state.weeks[selectedWeek]?.scores[f.b]??'—'}</b></div>{f.winner&&<p>{name(f.winner)} advances</p>}</article>)}</div>
-            {access?.canManage&&<details><summary>Manage Week {selectedWeek} scores</summary><fieldset disabled={busy||!state.enabled||state.weeks[selectedWeek]?.final} className="cup-settings"><button onClick={pull}>Fetch Sleeper scores</button><p>Review actual weekly fantasy points or enter scores manually. For eliminated or inactive rosters, enter the score agreed by your league (including zero). The Cup does not change lineups or reinstate teams.</p><div className="cup-setup">{state.teams.map(id=><label key={id}>{name(id)}<input type="number" step="0.01" value={scores[id]??''} onChange={e=>setScores({...scores,[id]:e.target.value})}/></label>)}</div><button onClick={()=>persistScores(false)}>Save preview</button><button onClick={()=>{if(window.confirm('Confirm all Week '+selectedWeek+' scores are final?'))persistScores(true);}}>Finalize week</button></fieldset>{state.weeks[selectedWeek]?.final&&<button disabled={busy||!state.enabled} onClick={()=>{if(window.confirm('Reopen this week? All later weeks will also require re-finalization.'))save({...state,weeks:Object.fromEntries(Object.entries(state.weeks).map(([w,data])=>[w,Number(w)>=selectedWeek?{...data,final:false}:data])),seedRuling:null,tieRulings:{}});}}>Reopen week</button>}</details>}
-            <h3>Road to {state.name}</h3>{bracketNote&&<p>{bracketNote}</p>}<div className="cup-bracket">{Array.from({length:Math.log2(state.qualifierCount)},(_,i)=><section className="cup-round" key={i}><h4>{i===Math.log2(state.qualifierCount)-1?'Final':'Round '+(i+1)} · W{state.knockoutStart+i}</h4>{rounds[i]?.map(r=><article className="cup-bracket-match" key={r.a}><div>{name(r.a)} · {r.x??'—'}</div><div>{name(r.b)} · {r.y??'—'}</div>{r.winner&&<strong>{name(r.winner)} advances</strong>}</article>)||<p>Awaiting previous results</p>}</section>)}</div>
-            {access?.canManage&&<details><summary>Commissioner tiebreak rulings</summary><fieldset disabled={busy||!state.enabled} className="cup-settings"><p>Qualifying ties use Cup points, then PF. Resolve remaining ties using your league’s agreed rules and record the evidence.</p><div className="cup-setup">{Array.from({length:state.qualifierCount},(_,i)=><label key={i}>Seed {i+1}<select value={seedIds[i]||''} onChange={e=>setSeedIds(ids=>Array.from({length:state.qualifierCount},(_,j)=>j===i?e.target.value:ids[j]||''))}><option value="">Choose team</option>{state.teams.map(id=><option key={id} value={id}>{name(id)}</option>)}</select></label>)}</div><label>Reason and evidence<input value={reason} onChange={e=>setReason(e.target.value)} maxLength={1000}/></label><button onClick={()=>{try{const next={...state,seedRuling:{ids:seedIds,reason}};if(!reason.trim())throw Error('Record the reason for this ruling.');engine.qualifiers(next);save({...next,weeks:Object.fromEntries(Object.entries(state.weeks).map(([w,data])=>[w,Number(w)>=state.knockoutStart?{...data,final:false}:data])),tieRulings:{}});}catch(e){setError(e.message);}}}>Apply seeding ruling</button>{state.seedRuling&&<p>Recorded ruling: {state.seedRuling.reason}</p>}{rounds.flat().filter(r=>state.weeks[r.week]?.final&&r.x===r.y&&!r.winner).map(r=><div key={r.a}><p>Week {r.week}: {name(r.a)} / {name(r.b)} tied</p>{[r.a,r.b].map(id=><button key={id} onClick={()=>{const explanation=window.prompt('Record the tiebreak evidence for advancing '+name(id));if(explanation?.trim())save({...state,tieRulings:{...state.tieRulings,[r.week+':'+r.a+':'+r.b]:{winner:id,reason:explanation}}});}}>Advance {name(id)}</button>)}</div>)}</fieldset></details>}
+    const active = sample || (saved?.locked && !explore ? saved : null);
+    const state = active || draft;
+    let schedule = [], setupError = '', rows = [], rounds = [], survival = [], result = null, bracketNote = '';
+    try { engine.validate(draft); } catch (e) { setupError = e.message; }
+    try { schedule = engine.schedule(state); } catch {}
+    const selectedWeek = schedule.includes(week) ? week : schedule[0];
+    React.useEffect(() => { setScores(active?.weeks?.[selectedWeek]?.scores || {}); setSurvivorIds([]); }, [active, selectedWeek]);
+    if (saved && saved.version !== 2) return <LegacyWoeppelCupPanel {...props}/>;
+    if (active) {
+        try {
+            rows = engine.tables(active);
+            if (active.format === 'survivor') survival = engine.survivor(active);
+            else rounds = engine.knockout(active);
+            result = engine.result(active);
+        } catch (e) { bracketNote = e.message; }
+    }
+    const viewFormat = formatOf(state), chosen = formatOf(draft);
+    const currentSurvival = survival.find(r => r.week === selectedWeek);
+    let requiredTeams = [], scoresBlocked = '';
+    if (active) { try { requiredTeams = engine.requiredScoreIds(active, selectedWeek); } catch (e) { scoresBlocked = e.message; } }
+    const formatWeeks = s => { try { const weeks = engine.schedule(s); return weeks.length ? 'W' + weeks[0] + '–' + weeks[weeks.length - 1] : 'Choose dates'; } catch { return 'Choose dates'; } };
+    const clearAfter = (s, from, include = true) => ({
+        ...s,
+        weeks: Object.fromEntries(Object.entries(s.weeks).map(([w, data]) => [w, Number(w) >= from + (include ? 0 : 1) ? { ...data, final: false } : data])),
+        tieRulings: Object.fromEntries(Object.entries(s.tieRulings || {}).filter(([key]) => Number(key.split(':')[0]) < from + (include ? 0 : 1))),
+        survivorRulings: Object.fromEntries(Object.entries(s.survivorRulings || {}).filter(([key]) => Number(key) < from + (include ? 0 : 1))),
+        ...(isQualifier(s) && from < s.knockoutStart ? { seedRuling: null } : {})
+    });
+    const startSample = () => {
+        if (setupError) return;
+        setSample({ ...draft, enabled: true, locked: true, weeks: {}, seedRuling: null, tieRulings: {}, survivorRulings: {} });
+        setExplore(false); setWeek(null); setNotice(''); setError('');
+    };
+    const sampleWeek = () => {
+        const nextWeek = engine.schedule(sample).find(w => !sample.weeks[w]?.final);
+        if (!nextWeek) return;
+        // Illustrative, unique scores: separate from every live league score.
+        const values = Object.fromEntries(sample.teams.map((id, i) => [id, Math.round((80 + ((i * 37 + nextWeek * 23) % 79) + i / 100) * 100) / 100]));
+        let next = { ...sample, weeks: { ...sample.weeks, [nextWeek]: { final: true, scores: values } } };
+        // All-play/median sample ties use a declared sample-only points tiebreak.
+        if (isQualifier(next) && nextWeek === next.startWeek + next.groupWeeks - 1) {
+            try { engine.qualifiers(next); } catch {
+                const order = engine.tables(next).map(r => r.id).slice(0, next.qualifierCount);
+                next.seedRuling = { ids: order, reason: 'Sample only: tied seeds use the displayed order.' };
+            }
+        }
+        setSample(next); setWeek(nextWeek);
+    };
+    const persistScores = finalize => {
+        let required;
+        try { required = engine.requiredScoreIds(active, selectedWeek); } catch (e) { setError(e.message); return; }
+        const parsed = {};
+        for (const id of required) {
+            if (scores[id] === '' || scores[id] === undefined || !Number.isFinite(Number(scores[id]))) { setError('Enter a score for every team competing this week, including zero where appropriate.'); return; }
+            parsed[id] = Number(scores[id]);
+        }
+        const next = clearAfter(active, selectedWeek);
+        save({ ...next, weeks: { ...next.weeks, [selectedWeek]: { scores: parsed, final: finalize } } });
+    };
+    const pull = async () => {
+        setBusy(true);
+        try {
+            const data = await window.fetchMatchups(league.league_id || league.id, selectedWeek);
+            if (!Array.isArray(data)) throw Error('Scores are unavailable. Enter them manually.');
+            const values = data.map(r => [String(r.roster_id), Number.isFinite(r.custom_points) ? r.custom_points : r.points]);
+            setScores(Object.fromEntries(values.filter(([, value]) => Number.isFinite(value))));
+            setNotice('Scores loaded for review. Finalize after the week and stat corrections are complete.'); setError('');
+        } catch (e) { setError(e.message); }
+        finally { setBusy(false); }
+    };
+    const archive = async () => {
+        if (!result || sample) return;
+        setBusy(true);
+        try {
+            const history = await call({ action: 'history' }), previous = history.records?.find(r => r.season === String(league.season));
+            if (previous && !window.confirm('Replace this season’s existing Cup honour?')) return;
+            await call({ action: 'save-history', revision: previous?.revision || 0, state: { cupName: active.name, winner: name(result.champion), runnerUp: result.runnerUp ? name(result.runnerUp) : '', winnerScore: result.winnerScore, runnerScore: result.runnerScore, notes: 'Confirmed from the finalized ' + active.name + ' tournament (' + viewFormat.name + ').' } });
+            setNotice('Champion recorded in Hall of Fame → Cup history.');
+        } catch (e) { setError(e.message); }
+        finally { setBusy(false); }
+    };
+    const roundLabel = (index, count) => count - index === 1 ? 'Final' : count - index === 2 ? 'Semifinals' : count - index === 3 ? 'Quarterfinals' : 'Round ' + (index + 1);
+    const canManage = access?.canManage && !sample;
+    const points = value => Number.isFinite(value) ? value.toFixed(2) : '—';
+    const fixtures = active && isQualifier(active) && selectedWeek < active.knockoutStart ? engine.fixtures(active).filter(f => f.week === selectedWeek) : rounds.flat().filter(f => f.week === selectedWeek);
+    return <section className="cup-panel cup-studio" aria-label="League Cup">
+        <header className="cup-hero">
+            <span className="cup-studio-emblem" aria-hidden="true">🏆</span>
+            <div><span className="cup-eyebrow">{league.name} · {league.season}</span><h2>{active ? active.name : 'Make it a Cup season.'}</h2><p>{active ? viewFormat.tagline : 'Six ways to compete. One more reason to care about every week.'}</p></div>
+            <div className="cup-hero-actions">{active && <button onClick={() => { setSample(null); setExplore(true); setError(''); }}>Explore formats</button>}{saved?.locked && !active && <button onClick={() => { setExplore(false); setSample(null); setDraft(saved); touched.current = false; }}>Back to your Cup</button>}<button disabled={busy} onClick={load}>{busy ? 'Connecting…' : 'Refresh Cup'}</button></div>
+        </header>
+        {error && <p className="cup-message" role="alert">{error}</p>}{notice && <p className="cup-message" role="status">{notice}</p>}
+        {!sample && (connection || (access && !access.canManage)) && <div className="cup-connection"><strong>{connection ? 'Explore now. Connect to save.' : 'Build a Cup your commissioner can run.'}</strong><span>{connection ? 'Format previews work here. Shared setup needs a verified commissioner account.' : 'Everyone can try the formats. Your commissioner starts the shared league tournament.'}</span>{connection && <details><summary>Connection details</summary><p>{connection}</p><a href={window.location?.pathname?.includes('/dist-preview/') ? '../login.html' : 'login.html'}>Open sign-in</a></details>}</div>}
+        {!active && <>
+            <div className="cup-section-heading"><h3>CHOOSE YOUR COMPETITION</h3><span>Uses your league’s weekly fantasy scores</span></div>
+            <div className="cup-format-grid" role="radiogroup" aria-label="Cup format">
+                {formats.map(f => <button type="button" role="radio" aria-checked={draft.format === f.id} className={'cup-format-card' + (draft.format === f.id ? ' is-selected' : '')} key={f.id} onClick={() => chooseFormat(f.id)}>
+                    <span className="cup-format-icon" aria-hidden="true">{icons[f.id]}</span><span className="cup-format-copy"><strong>{f.name}</strong><span>{f.tagline}</span><small>{f.description}</small></span><span className="cup-format-check" aria-hidden="true">{draft.format === f.id ? '✓' : '○'}</span>
+                </button>)}
+            </div>
+            <div className="cup-plan-layout">
+                <form className="cup-plan-form" onSubmit={e => { e.preventDefault(); if (!saved?.locked) save({ ...draft, enabled: true, locked: true }); }}>
+                    <h3>Make it yours</h3><label className="cup-field">Cup name<input maxLength={80} required value={draft.name} onChange={e => update('name', e.target.value)} placeholder="Your league’s next tradition"/></label>
+                    <div className="cup-plan-fields"><label className="cup-field">First week<input type="number" min="1" max="18" value={draft.startWeek} onChange={e => { const start = Number(e.target.value); touched.current = true; setDraft(d => ({ ...d, startWeek: start, knockoutStart: d.knockoutStart + start - d.startWeek })); }}/></label>
+                    {draft.format !== 'knockout' && <label className="cup-field">{draft.format === 'survivor' ? 'Survival weeks' : 'Qualifying weeks'}<input type="number" min="1" max="18" value={draft.groupWeeks} onChange={e => { const count = Number(e.target.value); touched.current = true; setDraft(d => ({ ...d, groupWeeks: count, ...(isQualifier(d) ? { knockoutStart: d.startWeek + count } : {}) })); }}/></label>}
+                    {isQualifier(draft) && <label className="cup-field">Teams advancing<select value={draft.qualifierCount} onChange={e => update('qualifierCount', Number(e.target.value))}>{[2, 4, 8, 16, 32, 64].filter(n => n <= draft.teams.length).map(n => <option key={n} value={n}>{n} teams</option>)}</select></label>}</div>
+                    <details><summary>Teams, seeding &amp; advanced rules · {draft.teams.length} entered</summary>
+                        <div className="cup-participants">{(league.rosters || []).map(r => { const id = String(r.roster_id); return <label key={id}><input type="checkbox" checked={draft.teams.includes(id)} onChange={e => { const teams = e.target.checked ? [...draft.teams, id] : draft.teams.filter(x => x !== id); touched.current = true; setDraft(d => engine.configure(league, d.format, { ...d, teams })); }}/>{name(id)}</label>; })}</div>
+                        {draft.format === 'knockout' && <div className="cup-seeding"><p>Seed order sets the bracket. The highest seeds receive any first-round byes.</p>{draft.teams.map((id, i) => <div key={id}><span><b>{i + 1}</b> {name(id)}</span><button type="button" disabled={i === 0} aria-label={'Move ' + name(id) + ' up one seed'} onClick={() => { const teams = [...draft.teams]; [teams[i - 1], teams[i]] = [teams[i], teams[i - 1]]; update('teams', teams); }}>↑</button></div>)}</div>}
+                        {isQualifier(draft) && <label className="cup-field">First knockout week<input type="number" min="2" max="18" value={draft.knockoutStart} onChange={e => update('knockoutStart', Number(e.target.value))}/></label>}
+                        {draft.format === 'round-robin' && <label className="cup-field">Draw margin · fantasy points<input type="number" min="0" max="100" step="0.01" value={draft.drawMargin} onChange={e => update('drawMargin', Number(e.target.value))}/></label>}
+                        <button type="button" onClick={() => { touched.current = true; setDraft(d => engine.configure(league, d.format, d)); }}>Suggest dates for this field</button>
+                    </details>
+                    {setupError && <p className="cup-validation" role="status">{setupError}</p>}
+                    <div className="cup-plan-actions"><button type="button" className="cup-primary" disabled={!!setupError} onClick={startSample}>Try a sample Cup <span aria-hidden="true">→</span></button>{access?.canManage && !saved?.locked && <><button type="submit" disabled={busy || !!setupError}>Start league Cup</button><button type="button" disabled={busy || !!setupError} onClick={() => save({ ...draft, enabled: true })}>Save setup</button></>}</div>
+                    <p className="cup-note">The sample uses made-up scores. Starting a league Cup saves the rules for everyone. One shared Cup per league season.</p>
+                </form>
+                <aside className="cup-plan-preview" aria-label="Tournament preview"><span className="cup-eyebrow">YOUR CUP AT A GLANCE</span><h3>{draft.name || chosen.name}</h3><p>{chosen.description}</p><div className="cup-plan-numbers"><div><strong>{draft.teams.length}</strong><span>teams</span></div><div><strong>{setupError ? '—' : engine.schedule(draft).length}</strong><span>game weeks</span></div><div><strong>1</strong><span>champion</span></div></div><div className="cup-plan-road"><span>{formatWeeks(draft)}</span><strong>{draft.format === 'survivor' ? 'Survive each cut → Last team standing' : draft.format === 'knockout' ? 'Win and advance → Championship' : 'Qualify → ' + draft.qualifierCount + '-team bracket → Championship'}</strong></div><p className="cup-note">{draft.format === 'round-robin' ? 'Every team plays a full cycle. Odd fields get rotating byes.' : draft.format === 'survivor' ? 'Only this week’s score decides the cut. Earlier points cannot save you.' : draft.format === 'knockout' ? 'One loss ends the run. Set seeds before starting.' : 'Your normal lineup counts. No extra roster to manage.'}</p><p className="cup-note">Suggested dates aim to finish before your league playoffs. You can choose any valid schedule through Week 18.</p></aside>
+            </div>
         </>}
-        <details><summary>How the Cup works</summary><p>The points race ranks teams by total qualifying scores. Round robin awards 3 points for a win and 1 for a draw, then uses total fantasy points as the tiebreak. The top selected field advances into a seeded, single-elimination bracket. Knockout scores use that week only; exact ties require a recorded commissioner ruling. Scores remain provisional until finalized. One tournament is stored per league season.</p></details>
+        {active && <>
+            {sample && <div className="cup-sample-banner"><div><strong>SAMPLE CUP · MADE-UP SCORES</strong><span>Play through the format. Your league Cup is unchanged.</span></div><button className="cup-primary" disabled={!!result || engine.schedule(sample).every(w => sample.weeks[w]?.final)} onClick={sampleWeek}>{result ? 'Sample complete' : 'Play next sample week'}</button><button onClick={() => { setSample({ ...sample, weeks: {}, seedRuling: null, tieRulings: {}, survivorRulings: {} }); setWeek(null); }}>Restart sample</button></div>}
+            <div className="cup-live-summary"><span>{viewFormat.name}</span><span>{active.teams.length} teams</span><span>{formatWeeks(active)}</span><span>{sample ? 'Preview' : active.enabled ? 'Active' : 'Paused'}</span></div>
+            {result && <div className="cup-champion"><span className="cup-studio-emblem" aria-hidden="true">🏆</span><div><span className="cup-eyebrow">{sample ? 'SAMPLE CHAMPION' : active.name + ' CHAMPION'}</span><h3>{name(result.champion)}</h3>{result.runnerUp && <p>Runner-up: {name(result.runnerUp)} · {points(result.winnerScore)}–{points(result.runnerScore)}</p>}{canManage && <button disabled={busy} onClick={archive}>Record in Hall of Fame</button>}</div></div>}
+            {active.teams.includes(myId) && <div className="cup-your-team"><div><span className="cup-eyebrow">YOUR CUP</span><strong>{name(myId)}</strong></div><div><strong>{active.format === 'survivor' ? survival.some(r => r.eliminated?.includes(myId)) ? 'Eliminated' : result?.champion === myId ? 'Champion' : 'Still in the hunt' : rounds.flat().some(r => r.winner && [r.a, r.b].includes(myId) && r.winner !== myId) ? 'Knocked out' : result?.champion === myId ? 'Champion' : 'Follow your road to the trophy'}</strong><span>{sample ? 'Sample results' : 'Finalized results only'}</span></div></div>}
+            <div className="cup-tools"><label>Week<select aria-label="Tournament week" value={selectedWeek} onChange={e => setWeek(Number(e.target.value))}>{schedule.map(w => <option key={w} value={w}>Week {w}{active.weeks[w]?.final ? ' · Final' : ''}</option>)}</select></label><span className="cup-note">{active.weeks[selectedWeek]?.final ? 'Finalized' : active.weeks[selectedWeek] ? 'Score preview · not counted yet' : 'Awaiting scores'}</span></div>
+            {isQualifier(active) && <div className="cup-groups"><section><div className="cup-section-heading"><h3>Qualification race</h3><span>Top {active.qualifierCount} advance</span></div><table><thead><tr><th>Team</th><th>Weeks / games</th><th>{active.format === 'points' ? 'Fantasy points' : 'Cup points'}</th><th>PF</th></tr></thead><tbody>{rows.map((r, i) => <tr key={r.id} className={r.id === myId ? 'is-mine' : ''}><td><span className="cup-rank">{i + 1}</span>{name(r.id)}</td><td>{r.played}</td><td><b>{points(r.points)}</b></td><td>{points(r.pf)}</td></tr>)}</tbody></table><p className="cup-note">Finalized weeks only. Positions are provisional until qualifying ends.</p></section></div>}
+            {active.format === 'survivor' && <section className="cup-survival"><div className="cup-section-heading"><h3>THE SURVIVAL LINE</h3><span>Week {selectedWeek}{currentSurvival ? ' · ' + currentSurvival.active.length + ' entered · ' + currentSurvival.cutCount + ' to leave' : ''}</span></div>{currentSurvival ? <><div className="cup-survival-rows">{(currentSurvival.ranked.length ? currentSurvival.ranked.map(r => r.id) : currentSurvival.active).map(id => <div key={id} className={currentSurvival.eliminated.includes(id) ? 'is-eliminated' : ''}><strong>{name(id)}</strong><b>{points(active.weeks[selectedWeek]?.scores[id])}</b><span>{currentSurvival.eliminated.includes(id) ? 'OUT' : currentSurvival.survivors.includes(id) ? 'THROUGH' : currentSurvival.pendingTie?.ids.includes(id) ? 'TIE AT CUT' : 'PENDING'}</span></div>)}</div>{currentSurvival.pendingTie && <p className="cup-validation">A tie at the cut needs a commissioner ruling before anyone advances.</p>}</> : <p>Finalize the previous cut to reveal this round’s field.</p>}</section>}
+            {!!fixtures.length && <div className="cup-fixtures">{fixtures.map(f => <article className="cup-match" key={f.a + ':' + f.b}><div><strong>{name(f.a)}</strong><b>{points(active.weeks[selectedWeek]?.scores[f.a])}</b></div><div><strong>{name(f.b)}</strong><b>{f.b == null ? 'BYE' : points(active.weeks[selectedWeek]?.scores[f.b])}</b></div>{f.winner && <small>{name(f.winner)} advances</small>}</article>)}</div>}
+            {bracketNote && <p className="cup-message">{bracketNote}</p>}
+            {active.format !== 'survivor' && <><div className="cup-section-heading"><h3>ROAD TO THE TROPHY</h3><span>{engine.roundCount(active)} rounds</span></div><div className="cup-bracket cup-studio-bracket">{Array.from({ length: engine.roundCount(active) }, (_, i) => <section className="cup-round" key={i}><h4>{roundLabel(i, engine.roundCount(active))} · W{active.knockoutStart + i}</h4>{rounds[i]?.map(r => <article className="cup-bracket-match" key={r.a + ':' + r.b}>{[r.a, r.b].map((id, j) => <div key={j} className={id && r.winner === id ? 'is-winner' : ''}><span>{name(id)}</span><b>{id == null ? 'BYE' : points(j ? r.y : r.x)}</b></div>)}</article>) || <p className="cup-note">Awaiting previous results</p>}</section>)}</div></>}
+            {canManage && <>
+                <details><summary>Manage Week {selectedWeek} scores</summary>{scoresBlocked && <p className="cup-note">{scoresBlocked}</p>}<fieldset disabled={busy || !active.enabled || !!scoresBlocked || active.weeks[selectedWeek]?.final} className="cup-settings"><button onClick={pull}>Fetch Sleeper scores</button><p>Review actual fantasy points for the teams competing this week. The Cup uses your existing lineups; eliminated teams and knockout byes need no score.</p><div className="cup-setup">{requiredTeams.map(id => <label key={id}>{name(id)}<input type="number" step="0.01" value={scores[id] ?? ''} onChange={e => setScores({ ...scores, [id]: e.target.value })}/></label>)}</div><div className="cup-plan-actions"><button onClick={() => persistScores(false)}>Save score preview</button><button onClick={() => { if (window.confirm('Confirm all Week ' + selectedWeek + ' scores are final?')) persistScores(true); }}>Finalize week</button></div></fieldset>{active.weeks[selectedWeek]?.final && <button disabled={busy || !active.enabled} onClick={() => { if (window.confirm('Reopen this week? Later weeks and rulings will need review again.')) save(clearAfter(active, selectedWeek)); }}>Reopen week</button>}</details>
+                <details><summary>Commissioner tiebreak rulings</summary><fieldset disabled={busy || !active.enabled} className="cup-settings"><p>Ties never advance a team automatically. Apply your league’s agreed tiebreak and record the evidence.</p>
+                    {isQualifier(active) && <><div className="cup-setup">{Array.from({ length: active.qualifierCount }, (_, i) => <label key={i}>Seed {i + 1}<select value={seedIds[i] || ''} onChange={e => setSeedIds(ids => Array.from({ length: active.qualifierCount }, (_, j) => j === i ? e.target.value : ids[j] || ''))}><option value="">Choose team</option>{active.teams.map(id => <option key={id} value={id}>{name(id)}</option>)}</select></label>)}</div><label>Reason and evidence<input maxLength={1000} value={reason} onChange={e => setReason(e.target.value)}/></label><button onClick={() => { try { if (!reason.trim()) throw Error('Record the reason for this ruling.'); const next = { ...clearAfter(active, active.knockoutStart), seedRuling: { ids: seedIds, reason } }; engine.qualifiers(next); save(next); } catch (e) { setError(e.message); } }}>Apply seeding ruling</button>{active.seedRuling && <p>Recorded ruling: {active.seedRuling.reason}</p>}</>}
+                    {currentSurvival?.pendingTie && <><p>Select {currentSurvival.requiredSurvivors} survivors. Teams above the tied cutoff must advance.</p><div className="cup-participants">{currentSurvival.active.map(id => <label key={id}><input type="checkbox" checked={survivorIds.includes(id)} onChange={e => setSurvivorIds(ids => e.target.checked ? [...ids, id] : ids.filter(x => x !== id))}/>{name(id)} · {points(active.weeks[selectedWeek]?.scores[id])}</label>)}</div><label>Survival tiebreak evidence<input maxLength={1000} value={reason} onChange={e => setReason(e.target.value)}/></label><button onClick={() => { try { if (!reason.trim()) throw Error('Record the tiebreak evidence.'); const base = clearAfter(active, selectedWeek, false); const next = { ...base, survivorRulings: { ...base.survivorRulings, [selectedWeek]: { ids: survivorIds, reason } } }; engine.survivor(next); save(next); } catch (e) { setError(e.message); } }}>Apply survival ruling</button></>}
+                    {rounds.flat().filter(r => r.a && r.b && active.weeks[r.week]?.final && r.x === r.y && !r.winner).map(r => <div key={r.a}><p>Week {r.week}: {name(r.a)} / {name(r.b)} tied</p>{[r.a, r.b].map(id => <button key={id} onClick={() => { const explanation = window.prompt('Record the tiebreak evidence for advancing ' + name(id)); if (explanation?.trim()) { const next = clearAfter(active, r.week, false); save({ ...next, tieRulings: { ...next.tieRulings, [r.week + ':' + r.a + ':' + r.b]: { winner: id, reason: explanation } } }); } }}>Advance {name(id)}</button>)}</div>)}
+                </fieldset></details>
+                <details><summary>Tournament settings</summary><fieldset disabled={busy} className="cup-settings"><label>Name<input maxLength={80} value={draft.name} onChange={e => update('name', e.target.value)}/></label><div className="cup-plan-actions"><button onClick={() => save({ ...active, name: draft.name })}>Save name</button><button onClick={() => save({ ...active, enabled: !active.enabled })}>{active.enabled ? 'Pause tournament' : 'Resume tournament'}</button>{!Object.values(active.weeks).some(w => w.final) && <button onClick={() => save({ ...active, locked: false, weeks: {}, seedRuling: null, tieRulings: {}, survivorRulings: {} })}>Edit setup</button>}</div></fieldset></details>
+            </>}
+            <details><summary>How {viewFormat.name} works</summary><p>{viewFormat.description} {active.format === 'all-play' ? 'Earn 1 Cup point for every opponent beaten and half a point for each tied opponent.' : active.format === 'median' ? 'Earn 1 Cup point above the field’s median score, half a point on the median, and 0 below it.' : active.format === 'round-robin' ? 'Wins earn 3 Cup points and draws earn 1; PF breaks standings ties.' : active.format === 'points' ? 'Total qualifying fantasy points set the seeds.' : active.format === 'survivor' ? 'Each round removes enough low scorers to leave one champion in the final week. Only that week’s score determines survival.' : 'Seed order sets the opening bracket. Highest seeds receive byes when needed.'} {isQualifier(active) && 'The selected qualifiers enter a seeded knockout bracket; PF breaks Cup-points ties.'} Finalized scores count; unresolved exact ties require a commissioner ruling. {sample ? 'This is a sample with illustrative scores.' : 'One shared Cup is stored per league season.'}</p></details>
+        </>}
     </section>;
 }
-window.WoeppelCupPanel=WoeppelCupPanel;
+window.WoeppelCupPanel = WoeppelCupPanel;

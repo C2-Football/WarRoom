@@ -32,6 +32,14 @@ walk(tree).find(node=>node.props?.['aria-label']==='Week options').props.onClick
 league={...league,settings:{...league.settings,advancementMode:'timed'}};reset();tree=gates({role:'commissioner'});assert(text(tree).includes('Deadline:'));walk(tree).find(node=>node.props?.['aria-label']==='Week options').props.onClick();tree=gates({role:'commissioner'});assert(text(tree).includes('Time per stage'));
 const week={week:1,headlines:[],results:league.teams.map(team=>({teamId:team.teamId,total:0,starters:[],bench:[]})),matchups:[{home:league.teams[0].teamId,away:league.teams[1].teamId,homePoints:0,awayPoints:0,winner:null}]};
 league={...league,currentWeek:2,weekStage:'postgame',finalizedWeeks:[week]};
+// Ending a week is only offered on the recap; shared rooms retain their advancement rules.
+const recapGate = extra => render(() => WrTimeLeagueWeekGates({ league, currentTab: 'home', dataReady: true, onAction: action => { called = action; }, onNavigate: tab => { called = tab; }, ...extra }));
+reset(); tree = recapGate({}); button(tree, 'End week').props.onClick(); assert.equal(called.type, 'advance-week');
+reset(); tree = recapGate({ currentTab: 'waivers' }); assert(!button(tree, 'End week')); button(tree, 'Week recap').props.onClick(); assert.equal(called, 'home');
+reset(); tree = recapGate({ onlineMeta: { role: 'member', seatTeamId: league.teams[0].teamId } }); assert(button(tree, 'Waiting for commissioner').props.disabled);
+reset(); tree = recapGate({ league: { ...league, settings: { ...league.settings, advancementMode: 'majority' } }, onlineMeta: { role: 'member', seatTeamId: league.teams[0].teamId } });
+button(tree, 'Vote to end week').props.onClick(); assert.equal(called.type, 'vote-advance');
+reset(); tree = recapGate({ saving: true }); assert(button(tree, 'Saving…').props.disabled);
 reset();const cast=()=>render(()=>WrTimeLeagueGamecastPanel({league,cards,logIndex:new Map(),onUpdate:()=>{},autoPlayWeek:1}));cast();effects[0]();tree=cast();assert.equal(state[2],true);assert.equal(state[3],300);assert(state[0].live);assert.equal(state[0].weekData.week,1);
 state[1]=35;effects[0]();assert.equal(state[1],35,'Autoplay must not rewind same week on rerender');
 reset(); cast(); effects[0](); tree=cast();

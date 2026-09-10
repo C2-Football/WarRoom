@@ -272,7 +272,7 @@
     <div class="page-header">
         <img src="icon-192.png" alt="Dynasty HQ">
         <div class="page-title">Gift a Dashboard</div>
-        <div class="page-subtitle">Create a personalized Dynasty HQ dashboard for a league mate</div>
+        <div class="page-subtitle">Administrator access required to provision a gifted dashboard</div>
     </div>
 
     <a href="index.html" class="back-link">← Back to dashboard</a>
@@ -301,7 +301,7 @@
         <input type="text" id="displayNameInput" class="form-input" placeholder="e.g. Big Pete — leave blank to use Sleeper name" />
 
         <label class="form-label" for="giftPassword">Initial Password</label>
-        <input type="password" id="giftPassword" class="form-input" placeholder="They can change this after logging in" />
+        <input type="password" id="giftPassword" class="form-input" minlength="8" maxlength="128" placeholder="They can change this after logging in" />
         <div class="hint">Share this password with them along with the link below. They can change it in Settings after first login.</div>
 
         <hr class="divider">
@@ -377,7 +377,7 @@
 
         err.classList.remove('show');
         if (!verifiedUsername) { showErr(err, 'Verify the Sleeper username first (Step 1)'); return; }
-        if (!password || password.length < 4) { showErr(err, 'Password must be at least 4 characters'); return; }
+        if (!password || password.length < 8 || password.length > 128) { showErr(err, 'Password must be between 8 and 128 characters'); return; }
 
         btn.textContent = 'Creating...';
         btn.disabled = true;

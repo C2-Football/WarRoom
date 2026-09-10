@@ -1,0 +1,92 @@
+const assert = require('node:assert/strict');
+require('../js/shared/stat-catalog.js');
+require('../js/shared/league-stats.js');
+const L = globalThis.App.LeagueStats;
+
+const raw = { gp: 2, pass_cmp: 0, pass_att: 10, pass_yd: -20, cmp_pct: 120, pass_ypa: 14, rec: 4, rec_yd: 60, rec_tgt: 8, rush_rz_att: 0, rec_rz_tgt: 0, idp_tkl_solo: 0, idp_tkl_ast: 0, off_snp: 40, tm_off_snp: 100, custom_counter: 0, season: 2026 };
+const league = {
+    scoring_settings: { rec: 1, rec_yd: 0.1, bonus_rec_te: 0.5 },
+    rosters: [{ roster_id: 4, owner_id: 'u', players: ['a', 'missing'] }], users: [{ user_id: 'u', display_name: 'Manager' }]
+};
+const rows = L.buildRows({ statsByPid: { a: raw, BUF: { gp: 2, pts_allow_0: 1, sack: 3 }, TEAM_BUF: raw }, playersData: { a: { position: 'TE', full_name: 'A', team: 'BUF' }, missing: { position: 'DE', full_name: 'B' }, free: { position: 'WR', team: 'NYJ', active: true } }, league });
+const a = rows.find(r => r.pid === 'a');
+assert.equal(rows.length, 4, 'reported, active and rostered players, without aggregate duplicates');
+assert.deepEqual(a.ownerIds, ['4']);
+assert.deepEqual(a.ownerNames, ['Manager']);
+assert.equal(rows.find(r => r.pid === 'BUF').position, 'DEF');
+assert.equal(rows.find(r => r.pid === 'missing').position, 'DL');
+assert.equal(rows.find(r => r.pid === 'missing').fantasyPoints, null);
+assert.equal(rows.find(r => r.pid === 'free').rostered, false);
+assert.equal(a.fantasyPoints, 12, 'league-only weights, TE bonus');
+assert.equal(L.score({ pass_yd: 400, pass_td: 3 }, { rec: 1 }, 'QB'), 0, 'no default QB scoring');
+assert.equal(L.score({ fum_rec_td: 1 }, { fum_rec_td: 6 }, 'RB'), 6, 'offensive fumble-recovery touchdown remains eligible');
+assert.equal(L.score({ gp: 2, pts_allow_0: 1, sack: 3 }, { pts_allow_0: 10, sack: 1 }, 'DEF'), 13);
+assert.equal(L.score({ idp_tkl_solo: 3, tkl_solo: 8 }, { idp_tkl_solo: 1 }, 'LB'), 3, 'first-present IDP alias, no double count');
+assert.equal(L.score({ tkl_solo: 3 }, { idp_tkl_solo: 1 }, 'LB'), 3);
+assert.equal(L.score({ pass_yd: 600, bonus_pass_yd_300: 1 }, { bonus_pass_yd_300: 4 }, 'QB'), 4, 'use reported bonus occurrences');
+assert.equal(L.score({ pass_yd: 600 }, { bonus_pass_yd_300: 4 }, 'QB'), 0, 'never synthesize a season bonus from totals');
+assert.equal(L.score(raw, {}, 'TE'), null);
+assert.equal(L.value(a, 'catalog:cmpPct'), 0, 'derive completion rate, preserve zero');
+assert.equal(L.value(a, 'catalog:ypa', { perGame: true }), -2, 'never divide a rate by GP');
+assert.equal(L.value(a, 'catalog:rzTouches'), 0);
+assert.equal(L.value(a, 'catalog:tackles'), 0);
+assert.equal(L.value(a, 'raw:pass_yd', { perGame: true }), -10);
+assert.equal(L.value(a, 'raw:custom_counter'), 0);
+assert.equal(L.value(a, 'raw:unknown'), null);
+assert.equal(L.value(a, 'gp', { perGame: true }), 2);
+assert.equal(L.value({ ...a, gp: 0 }, 'fantasyPoints', { perGame: true }), null);
+assert.equal(L.value({ ...a, gp: null }, 'raw:pass_yd', { perGame: true }), null);
+assert.equal(L.value(a, 'raw:cmp_pct', { perGame: true }), 120, 'raw provider rates remain unadjusted');
+const metrics = L.metrics({ a: raw, TEAM_BUF: { aggregate_only: 1 } });
+assert(metrics.some(m => m.key === 'raw:rush_td'), 'preset columns remain available before the first reported stat');
+assert.equal(L.value(a, metrics.find(m => m.key === 'raw:rush_td')), null, 'unreported preset stats remain unavailable');
+assert(metrics.some(m => m.key === 'raw:custom_counter'));
+assert(!metrics.some(m => m.key === 'raw:season' || m.key === 'raw:aggregate_only'));
+assert(L.filterMetrics(metrics, { query: 'complet', group: 'passing' }).length >= 1);
+assert.equal(L.format(null), '—');
+assert.equal(L.format(0, { format: 'pct' }), '0%');
+const labelKeys = ['idp_tkl_loss', 'fgm_50_59', 'pts_allow_1_6', 'yds_allow_550p', 'bonus_rec_yd_100', 'bonus_rec_te', 'tm_def_snp', 'rec_rz_tgt', 'def_kr_yd', 'kr_ypa', 'unmapped_provider_field'];
+const labels = Object.fromEntries(L.metrics({ a: Object.fromEntries(labelKeys.map(key => [key, 1])) }).map(metric => [metric.key, metric.label]));
+assert.equal(labels['raw:idp_tkl_loss'], 'Individual defense: tackles for loss');
+assert.equal(labels['raw:fgm_50_59'], 'Field goals made from 50–59 yards');
+assert.equal(labels['raw:pts_allow_1_6'], 'Games allowing 1–6 points');
+assert.equal(labels['raw:yds_allow_550p'], 'Games allowing 550+ yards');
+assert.equal(labels['raw:bonus_rec_yd_100'], '100-yard receiving bonuses');
+assert.equal(labels['raw:bonus_rec_te'], 'Tight end reception bonus count');
+assert.equal(labels['raw:tm_def_snp'], 'Team defensive snaps');
+assert.equal(labels['raw:rec_rz_tgt'], 'Red zone receiving targets');
+assert.equal(labels['raw:def_kr_yd'], 'Team kick return yards');
+assert.equal(labels['raw:kr_ypa'], 'Yards per kick return (provider raw)');
+assert.equal(labels['raw:unmapped_provider_field'], 'unmapped provider field');
+
+async function run() {
+    let now = 1000, calls = 0, failure = false, malformed = false;
+    const urls = [];
+    const client = L.createClient({ now: () => now, fetch: async url => { calls++; urls.push(url); return { ok: !failure, status: 503, json: async () => malformed ? [] : { a: raw } }; } });
+    const first = await client.load({ season: 2025, week: 3 });
+    assert(urls[0].endsWith('/2025/3'));
+    await client.load({ season: 2025, week: 3 }); assert.equal(calls, 1);
+    await client.load({ season: 2025, week: 3, force: true }); assert.equal(calls, 2);
+    now += 60001; failure = true;
+    await assert.rejects(client.load({ season: 2025, week: 3 }), /provider 503/);
+    failure = false; malformed = true;
+    await assert.rejects(client.load({ season: 2025, week: 3 }), /invalid response/);
+    malformed = false;
+    const recovered = await client.load({ season: 2025, week: 3 });
+    assert(recovered.updatedAt > first.updatedAt);
+    await client.load({ season: 2024 }); assert(urls.at(-1).endsWith('/2024'));
+    await assert.rejects(client.load({ season: '2025/1' }), /valid NFL/);
+    await assert.rejects(client.load({ season: 2025, week: 19 }), /valid NFL/);
+    let active = 0, maxActive = 0;
+    const logClient = L.createClient({ fetch: async () => {
+        active++; maxActive = Math.max(maxActive, active);
+        await new Promise(resolve => setTimeout(resolve, 2)); active--;
+        return { ok: true, json: async () => ({ a: raw }) };
+    } });
+    const log = await logClient.loadGameLog({ pid: 'a', season: 2025, weeks: [4, 1, 2, 3, 4, 5] });
+    assert.deepEqual(log.map(r => r.week), [1, 2, 3, 4, 5]);
+    assert(maxActive <= 3 && maxActive > 1, 'bounded concurrent game-log requests');
+    assert(log.every(r => r.raw.gp === 2 && r.error === null));
+    console.log('League stats: metadata, scoring, ratios, missing/zero, season requests, cache recovery and bounded logs passed.');
+}
+run().catch(e => { console.error(e); process.exitCode = 1; });

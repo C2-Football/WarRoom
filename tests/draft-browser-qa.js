@@ -175,16 +175,43 @@ async function main() {
       timeout: 45000,
     });
     await desktop.waitForFunction(() => document.body.innerText.includes('Draft'), null, { timeout: 25000 });
-    if (!(await desktop.evaluate(() => /Alex Analyst Mock/i.test(document.body.innerText)))) {
-      await desktop.getByRole('button', { name: 'Draft', exact: true }).first().click().catch(() => {});
+    // The War Room view has TWO shapes and which one renders is a property of
+    // the league, not of the code: draft_locked (the league's draft has
+    // finished) swaps the Flash Brief for the recap/"Draft Complete" panel.
+    // This used to hard-wait on 'Alex Analyst Mock' and timed out for 45s the
+    // season the QA league's draft completed — a red suite that said nothing
+    // about the app. Wait for either, then assert the one that rendered.
+    // 90s, not 45: a cold run hydrates the hub, resolves the deep link, then
+    // builds league intelligence before the War Room renders either shape —
+    // measured at ~35s locally, and CI is slower.
+    await desktop.waitForFunction(
+      () => /Alex Analyst Mock|Draft Complete|VIEW FULL BOARD/i.test(document.body.innerText),
+      null,
+      { timeout: 90000 },
+    ).catch(() => {});
+    if (!(await desktop.evaluate(() => /Alex Analyst Mock|Draft Complete|VIEW FULL BOARD/i.test(document.body.innerText)))) {
+      await desktop.getByRole('button', { name: 'War Room', exact: true }).first().click().catch(() => {});
+      await desktop.waitForFunction(
+        () => /Alex Analyst Mock|Draft Complete|VIEW FULL BOARD/i.test(document.body.innerText),
+        null,
+        { timeout: 90000 },
+      );
     }
-    await desktop.waitForFunction(() => /Alex Analyst Mock/i.test(document.body.innerText), null, { timeout: 45000 });
-    const flashSnap = await assertNoOverflow(desktop, 'flash-brief@1365', failures);
+    const flashSnap = await assertNoOverflow(desktop, 'war-room@1365', failures);
     const flashTextLower = flashSnap.text.toLowerCase();
-    ['Alex Analyst Mock', 'League Reality', 'My Board Lens', 'Trade Market'].forEach(text => {
-      if (!flashTextLower.includes(text.toLowerCase())) failures.push(`flash-brief@1365: missing ${text}`);
-    });
-    if (!flashTextLower.includes('draft readiness')) failures.push('flash-brief@1365: missing Draft Readiness trust layer');
+    const draftIsComplete = /draft complete|view full board/i.test(flashSnap.text)
+      && !/alex analyst mock/i.test(flashSnap.text);
+    if (draftIsComplete) {
+      // Post-draft league: assert the recap route exists instead of pretending
+      // a pre-draft brief should be here.
+      ['View Draft Results', 'VIEW FULL BOARD'].some(text => flashTextLower.includes(text.toLowerCase()))
+        || failures.push('war-room@1365: draft-complete panel offers no way into the results');
+    } else {
+      ['Alex Analyst Mock', 'League Reality', 'My Board Lens', 'Trade Market'].forEach(text => {
+        if (!flashTextLower.includes(text.toLowerCase())) failures.push(`war-room@1365: missing ${text}`);
+      });
+      if (!flashTextLower.includes('draft readiness')) failures.push('war-room@1365: missing Draft Readiness trust layer');
+    }
     process.stdout.write('.');
 
     await clickTopDraftView(desktop, 'Big Board');

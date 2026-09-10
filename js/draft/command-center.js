@@ -565,6 +565,10 @@
                 // got past that check — always fall through to a fresh
                 // live-sync setup instead of showing whatever was saved.
                 if (saved && forcedMode === 'live-sync' && saved.mode !== 'live-sync') saved = null;
+                // Rebuild malformed auction rooms from authoritative Sleeper sales.
+                if (saved?.mode === 'live-sync' && saved.draftMechanic === 'auction'
+                    && saved.auctionPoolSource === 'auction') saved = null;
+                if (saved?.mode === 'live-sync' && saved.draftMechanic === 'auction') saved.variant = 'auction';
                 if (saved && saved.phase !== 'setup') {
                     saved = refreshRookieValuesFromEngine(saved, stateFns, playersData);
                     // Recompose personas — we strip them on save, so rehydrate from the live DNA map
@@ -1127,7 +1131,8 @@
                     const detectedVariant = stateFns.detectDraftVariant
                         ? stateFns.detectDraftVariant({ currentLeague, draft: meta, fallback: state.variant || 'startup' })
                         : detectSleeperDraftVariant(meta, currentLeague, state.variant || 'startup');
-                    if (!detectedVariant || state.variant === detectedVariant) return;
+                    const currentPoolVariant = state.draftMechanic === 'auction' ? state.auctionPoolSource : state.variant;
+                    if (!detectedVariant || currentPoolVariant === detectedVariant) return;
                     if (state.picks && state.picks.length > 0) {
                         if (window.wrLog) window.wrLog('cc.variantMismatch', { sleeperDraftId: state.sleeperDraftId, saved: state.variant, detected: detectedVariant, picks: state.picks.length });
                         return;
@@ -1139,7 +1144,7 @@
                         : 200;
                     let newPool = stateFns.buildPool({ variant: detectedVariant, playersData, maxSize: maxPoolSize });
                     newPool = applyUserBigBoardOrder(newPool, leagueId, detectedVariant);
-                    dispatch({ type: 'SETUP_CHANGE', payload: { variant: detectedVariant, pool: newPool, originalPool: newPool.slice() } });
+                    dispatch({ type: 'SETUP_CHANGE', payload: { variant: state.draftMechanic === 'auction' ? 'auction' : detectedVariant, ...(state.draftMechanic === 'auction' ? { auctionPoolSource: detectedVariant } : {}), pool: newPool, originalPool: newPool.slice() } });
                 } catch (e) {
                     if (window.wrLog) window.wrLog('cc.variantAutoCorrect', e);
                 }
@@ -1371,6 +1376,7 @@
                     ? window.DraftCC.context.summarizeOwnerIntel(persona?.ownerIntel || state.draftContext?.ownerContext?.[String(lastPick.rosterId)])
                     : '';
                 const contextLines = [
+                    state.draftMechanic === 'auction' ? 'Auction sale: ' + lastPick.name + ' sold for $' + lastPick.amount + '. Discuss price, remaining budget and roster fit. There are no scheduled player picks or trade-up opportunities.' : '',
                     isRedraftLive(state) ? 'Live redraft: focus on this season, actual roster builds, ADP and who may be picked next. No trade suggestions or dynasty/five-year value. Treat manager predictions as uncertain. ' + (window.DraftCC?.buildAskContext?.(state) || '') : '',
                     (window.WR?.AIContext?.buildFormatPreamble?.(window.S?.currentLeague) || '').trim(),
                     `Draft pick: ${lastPick.name} (${lastPick.pos}) at R${lastPick.round}.${String(pickInRoundOf(lastPick, state.leagueSize)).padStart(2, '0')}, overall #${lastPick.overall}.`,
@@ -1519,7 +1525,7 @@
         React.useEffect(() => {
             if (state.mode !== 'live-sync') return;
             if (state.phase !== 'drafting') return;
-            if (isRedraftLive(state)) return;
+            if (isRedraftLive(state) || state.draftMechanic === 'auction') return;
             const windows = window.DraftCC.tradeSimulator?.buildLiveTradeWindows?.(state, { lookahead: 5 }) || [];
             const best = windows[0];
             if (!best) return;
@@ -1575,15 +1581,16 @@
                 : (recapLearning?.sampleSize ? (recapLearning.suggestedTuning || activeState.draftTuning) : activeState.draftTuning);
 
             const totalPicks = Number(activeState.rounds || 0) * Number(activeState.leagueSize || 0);
-            const maxPoolSize = activeState.variant === 'redraft'
+            const poolVariant = activeState.variant === 'auction' ? (activeState.auctionPoolSource || 'startup') : activeState.variant;
+            const maxPoolSize = poolVariant === 'redraft'
                 ? Math.max(300, totalPicks + 80)
                 : 200;
             let pool = stateFns.buildPool({
-                variant: activeState.variant,
+                variant: poolVariant,
                 playersData: Object.keys(playersData || {}).length ? playersData : window.S?.players || {},
                 maxSize: maxPoolSize,
             });
-            pool = applyUserBigBoardOrder(pool, leagueId, activeState.variant);
+            pool = applyUserBigBoardOrder(pool, leagueId, poolVariant);
             const originalPool = pool.slice();
             let pickOrder = stateFns.buildPickOrder(
                 activeState.rounds,
@@ -1682,6 +1689,7 @@
                 ? window.DraftCC.context.buildDraftContext({
                     state: {
                         ...activeState,
+                        variant: poolVariant,
                         phase: 'drafting',
                         pool,
                         pickOrder,
@@ -1728,7 +1736,7 @@
                 });
                 auctionPatch = {
                     variant: 'auction',
-                    auctionPoolSource: activeState.variant,
+                    auctionPoolSource: poolVariant,
                     auctionBudget: budget,
                     teamBudgets,
                     marketValues,
@@ -2091,7 +2099,9 @@
         // backs Draft History) and shows the post-draft review modal. MobileFeed
         // never had that logic, so a draft finished/opened on a phone silently
         // never got reviewed or archived.
-        if (viewport === 'mobile' && state.phase !== 'complete') {
+        // Live auctions share the responsive sales/budget room on every width.
+        if (viewport === 'mobile' && state.phase !== 'complete'
+            && !(state.mode === 'live-sync' && state.draftMechanic === 'auction' && state.phase === 'drafting')) {
             // Phone gets the REAL mock setup (owner ask — mobile must be able to
             // mock draft): SetupScreen's CSS already stacks 1-col at small widths,
             // so pool type / rounds / league size / slot / order / CPU speed and
@@ -6126,7 +6136,7 @@
         });
 
         const liveTradeWindow = React.useMemo(() => {
-            if (isRedraftLive(state)) return null;
+            if (isRedraftLive(state) || state.draftMechanic === 'auction') return null;
             if (!ccIsPro()) return null; // sell-the-pick windows are likelihood reads → Pro
             if (state.mode !== 'live-sync' || state.phase !== 'drafting') return null;
             try {
@@ -6139,7 +6149,7 @@
         }, [state.mode, state.phase, state.currentIdx, state.pickOrder, state.personas, state.tradedAssets, state.draftTuning, state.picks.length, state.userRosterId, state.variant, state.auctionPoolSource, state.draftContext]);
 
         const tradeDeskTarget = React.useMemo(() => {
-            if (isRedraftLive(state)) return null;
+            if (isRedraftLive(state) || state.draftMechanic === 'auction') return null;
             if (liveTradeWindow?.rosterId) return liveTradeWindow.rosterId;
             const userRosterId = String(state.userRosterId || '');
             if (currentSlot?.rosterId && String(currentSlot.rosterId) !== userRosterId) {
@@ -6154,7 +6164,7 @@
         }, [currentSlot, liveTradeWindow, state.currentIdx, state.personas, state.pickOrder, state.userRosterId, state.mode, state.variant, state.auctionPoolSource, state.draftContext]);
 
         const liveDecisionDeck = React.useMemo(() => {
-            if (state.mode !== 'live-sync' || state.phase !== 'drafting') return null;
+            if (state.mode !== 'live-sync' || state.phase !== 'drafting' || state.draftMechanic === 'auction') return null;
             try {
                 return window.DraftCC.liveDecisionEngine?.buildDecisionDeck?.(state, { tradeWindow: liveTradeWindow }) || null;
             } catch (e) {
@@ -6341,7 +6351,22 @@
 
         return (
             <div className="draft-cc-scope" style={{ fontFamily: FONT_UI, paddingBottom: '12px' }}>
-                {isLiveDraftHud ? (
+                {isLiveDraftHud && isLiveAuctionDrafting ? (
+                    <section aria-label="Live auction" style={{ marginBottom: L.GRID_GAP }}>
+                        <div className="mock-panel-head" style={{ flexWrap: 'wrap', gap: 8 }}>
+                            <strong>Live Auction · {state.picks.length} / {state.rounds * state.leagueSize} sold</strong>
+                            <span style={{ color: liveConfidenceCard?.tone }} title={liveConfidenceCard?.detail}>{liveConfidenceCard?.value}</span>
+                            <button type="button" onClick={() => setShowLeagueGrades(true)}>Grades</button>
+                            <button type="button" onClick={onExit}>Exit</button>
+                        </div>
+                        <p style={{ color: 'var(--silver)', fontSize: '0.78rem' }}>Completed sales update every 5 seconds. Place nominations and bids in Sleeper.</p>
+                        {state.liveSync?.error && <p role="status">{state.liveSync.error}</p>}
+                        <div style={{ display: 'grid', gridTemplateColumns: isCompact ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))', gap: L.GRID_GAP }}>
+                            <AuctionBudgetPanel state={state} />
+                            <LiveAuctionSalesTicker state={state} />
+                        </div>
+                    </section>
+                ) : isLiveDraftHud ? (
                     <LiveCommandHeader
                         state={state}
                         dispatch={dispatch}
@@ -6803,7 +6828,7 @@
                     marginBottom: L.GRID_GAP + 'px',
                 }}>
                     <div style={{ height: isCompact ? 'clamp(420px, 50vh, 560px)' : '100%', minHeight: 0, minWidth: 0, overflowY: viewport === 'mobile' ? 'auto' : undefined, overscrollBehavior: 'contain' }}>
-                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={!isRedraftLive(state)} />
+                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={!isRedraftLive(state) && state.draftMechanic !== 'auction'} />
                     </div>
                     <div style={{ height: isCompact ? 'clamp(420px, 50vh, 560px)' : '100%', minHeight: 0, minWidth: 0 }}>
                         {isRedraftLive(state) && window.DraftCC.LiveRosterBuildCard ? React.createElement(window.DraftCC.LiveRosterBuildCard, { state, contained: true }) : <MyDraftRosterPanel state={state} />}
@@ -8120,7 +8145,7 @@
                     {isRedraftLive(state) && <RedraftRoomReadPanel state={state} dispatch={dispatch} />}
                     {hasTeamTracker && <LiveRoomPanel state={state} />}
                     <div style={{ minHeight: 320, maxHeight: '56vh', marginBottom: 10 }}>
-                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={!isRedraftLive(state)} />
+                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={!isRedraftLive(state) && state.draftMechanic !== 'auction'} />
                     </div>
                     <div style={{ minHeight: 300, marginBottom: 10 }}>
                         <AlexStreamPanel state={state} dispatch={dispatch} />
@@ -8244,7 +8269,7 @@
                         </section>
                     ))}
                     <div style={{ marginBottom: 10 }}>
-                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={!isRedraftLive(state)} />
+                        <BigBoardPanel state={state} dispatch={dispatch} isUserTurn={isUserTurn} showPickAdvisory={!isRedraftLive(state) && state.draftMechanic !== 'auction'} />
                     </div>
                 </div>)}
                 {phTab === 'roster' && (

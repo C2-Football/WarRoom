@@ -370,8 +370,8 @@ test('Deal HQ reflects reviewed trade-center UX requirements', () => {
   ok(!tradeCalcSrc.includes('they have ${theyHaveNeed}'), 'partner cards should not show the removed lanes-you-need sentence');
   ok(!tradeCalcSrc.includes('Roster Leverage'), 'the Deal HQ metrics strip stays cut from the Trade Desk');
   sourceHas(tradeCalcSrc, 'assetBrowserSorts', 'Deal HQ should expose an asset browser sort model');
-  sourceHas(tradeCalcSrc, "key:'owner', label:'Owned Team'", 'asset browser should sort by current owned team');
-  sourceHas(tradeCalcSrc, "key:'points', label:'Last FP'", 'asset browser should sort by last-season fantasy points');
+  sourceHas(tradeCalcSrc, "key:'owner', label:'League team'", 'asset browser should sort by current owned team');
+  sourceHas(tradeCalcSrc, "key:'points', label:'Season points'", 'asset browser should sort by the selected season fantasy points');
   sourceHas(tradeCalcSrc, "key:'prime', label:'Prime Years'", 'asset browser should sort by prime years remaining');
   sourceHas(tradeCalcSrc, '<b>Head-to-head vs me</b>', 'owner detail card must keep head-to-head trade history with the user');
   sourceHas(tradeCalcSrc, '<p><b>You got</b> {summarizeTradeAssets(received)}</p>', 'head-to-head received assets should have readable spacing');

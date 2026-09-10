@@ -8,9 +8,8 @@
 //   Stats     — real position columns (CMP%/YDS/TD/INT for a QB, TGT/REC for
 //               a WR, TKL/SACK for IDP) via App.StatCatalog, week or season.
 //
-// The scoreboard, transactions and trending panels that used to stack below
-// these now live in the always-on ticker (js/components/league-wire.js),
-// which league-detail renders across every tab — not here.
+// A live matchup board anchors this page. Transactions and trending panels
+// also remain in the always-on league wire across tabs.
 //
 // In merged-home formats (redraft / chopped) this tab is also the landing
 // page: it carries the intelligence briefing and a League/KPIs tab pair,
@@ -117,18 +116,7 @@ function LeagueCentralTab({
     }, [odds.status, leagueId, noPlayoffs]);
 
     // ── This week's scoreboard ──
-    const [board, setBoard] = React.useState({ status: 'idle', week: null, rows: [] });
-    React.useEffect(() => {
-        const WP = window.App?.WeeklyProj;
-        if (!WP || !currentLeague || typeof window.fetchMatchups !== 'function' || !leagueId) return;
-        const wk = Math.max(1, Math.min(18, WP.currentWeek()));
-        let alive = true;
-        setBoard({ status: 'loading', week: wk, rows: [] });
-        window.fetchMatchups(leagueId, wk)
-            .then(rows => { if (alive) setBoard({ status: 'ready', week: wk, rows: rows || [] }); })
-            .catch(e => { window.wrLog?.('leagueCentral.matchups', e); if (alive) setBoard({ status: 'error', week: wk, rows: [] }); });
-        return () => { alive = false; };
-    }, [leagueId]);
+    const board = window.App.LeagueLiveScores.useScores({ league: currentLeague });
 
     const weekHasScores = board.rows.filter(r => Number(r.points) > 0).length >= 2;
     const statWeek = board.week ? Math.max(1, weekHasScores ? board.week : board.week - 1) : null;
@@ -280,7 +268,35 @@ function LeagueCentralTab({
     // game — standings/W-L barely mean anything with the field shrinking
     // every week), matching Chopped's survival framing elsewhere in the app.
     const cupEnabled = true;
-    const [innerTab, setInnerTab] = React.useState(() => isChopped ? 'kpis' : 'league'); // 'league' | 'kpis'
+    const dashboardNav = window.App.DashboardLeagueLayout;
+    const navigationLeagueId = dashboardNav.leagueId(currentLeague);
+    const centralRef = React.useRef(null);
+    const [innerTab, setInnerTab] = React.useState(() => dashboardNav.peek(navigationLeagueId)?.section || (isChopped ? 'kpis' : 'league'));
+    const [navigationIntent, setNavigationIntent] = React.useState(null);
+    React.useEffect(() => {
+        const apply = () => {
+            const intent = dashboardNav.consume(navigationLeagueId);
+            if (!intent) return;
+            setInnerTab(intent.section);
+            setNavigationIntent(intent);
+        };
+        apply();
+        window.addEventListener('wr:league-central-nav', apply);
+        return () => window.removeEventListener('wr:league-central-nav', apply);
+    }, [navigationLeagueId]);
+    React.useEffect(() => {
+        if (!navigationIntent) return;
+        const frame = requestAnimationFrame(() => {
+            const selector = { scoreboard: '[aria-label="League scoreboard"]', standings: '#league-central-standings', cup: '.cup-panel' }[navigationIntent.anchor];
+            const target = centralRef.current?.querySelector(selector);
+            if (target) {
+                target.style.scrollMarginTop = isPhone ? '150px' : '115px';
+                target.scrollIntoView({ block: 'start', behavior: 'instant' });
+            }
+            setNavigationIntent(null);
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [navigationIntent, innerTab, isPhone]);
     const BRIEF_KEY = 'wr_cc_brief_collapsed';
     const [briefCollapsed, setBriefCollapsed] = React.useState(
         () => window.App?.WrStorage?.get?.(BRIEF_KEY, false) === true
@@ -428,7 +444,7 @@ function LeagueCentralTab({
     const oddsReady = odds.status === 'ready' && odds.sim;
 
     return (
-        <div style={{ padding: isPhone ? '14px' : '20px 24px', maxWidth: '1500px', margin: '0 auto', paddingBottom: '54px' }}>
+        <div ref={centralRef} style={{ padding: isPhone ? '14px' : '20px 24px', maxWidth: '1500px', margin: '0 auto', paddingBottom: '54px' }}>
             <div style={{ marginBottom: '14px' }}>
                 <div style={{ fontFamily: RAJ, fontWeight: 700, fontSize: isPhone ? '1.3rem' : '1.6rem', color: WHITE, letterSpacing: '0.02em' }}>
                     {homeMerged ? 'Command Center' : 'League Central'}
@@ -438,6 +454,12 @@ function LeagueCentralTab({
                     {board.week ? <> · Week {board.week}</> : null}
                 </div>
             </div>
+
+            {window.LeagueLiveScoreboard && React.createElement(window.LeagueLiveScoreboard, {
+                key: leagueId + ':' + season,
+                currentLeague, myRoster, playersData,
+                getOwnerName: _getOwnerName, getPlayerName: _getPlayerName, setActiveTab,
+            })}
 
             {/* Briefing — always the first thing you see on entry, collapsible
                 to a one-line bar once you've read it. */}
@@ -480,7 +502,7 @@ function LeagueCentralTab({
             ) : (
             <React.Fragment>
             {/* The two things that matter: Standings | Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: isPhone ? '1fr' : '1.32fr 1fr', gap: '14px', alignItems: 'start' }}>
+            <div id="league-central-standings" style={{ scrollMarginTop: '100px', display: 'grid', gridTemplateColumns: isPhone ? '1fr' : '1.32fr 1fr', gap: '14px', alignItems: 'start' }}>
 
                 <Panel
                     title="Standings"
@@ -551,7 +573,7 @@ function LeagueCentralTab({
                 </Panel>
 
                 <Panel
-                    title="Stats"
+                    title="Stat leaders"
                     right={
                         <div style={segWrap}>
                             <button onClick={() => setStatScope('week')} style={segBtn(statScope === 'week')}>
@@ -561,6 +583,7 @@ function LeagueCentralTab({
                         </div>
                     }
                 >
+                    <button type="button" onClick={() => setActiveTab?.('stats')} style={{ ...segBtn(false), color: GOLD, padding: '5px 0', marginBottom: '8px', textTransform: 'none', fontSize: '0.75rem' }}>Explore all player stats →</button>
                     <div className="wr-hscroll" style={{ display: 'flex', gap: '3px', overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.07)', paddingBottom: '8px', marginBottom: '9px' }}>
                         {['Overall', ...leaguePositions].map(p => (
                             <button key={p} onClick={() => setLeaderPos(p)} style={{ ...segBtn(leaderPos === p), fontWeight: 700 }}>{p}</button>

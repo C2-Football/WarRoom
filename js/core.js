@@ -137,122 +137,25 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
     window.wrLogAction = wrLogAction;
     // ──────────────────────────────────────────────────────────────────────────
 
-    // ===== PRODUCT TIER SYSTEM =====
-    // Tiers: free → scout → warroom ($9.99) → pro ($14.95) → commissioner ($14.99)
-    //
-    // Delegates to shared/tier.js (window.getTier) for canonical paid/free detection,
-    // then resolves War Room's granular level from the profile tier field.
-    // Accounts that always get full (commissioner) access in every environment, including
-    // live — keyed on the current Sleeper username (lowercased). The owner account lives here.
-    const FULL_ACCESS_USERNAMES = new Set(['bigloco']);
-
-    // Falls back to local logic if shared/tier.js failed to load.
-    function getUserTier() {
-        // Sandbox deploy unlocks every feature, including commissioner-only ones.
-        if (typeof window.isSandbox === 'function' && window.isSandbox()) return 'commissioner';
-
-        // Owner override: these accounts get full (commissioner) access in every
-        // environment, including live — keyed on the current Sleeper username.
-        try {
-            const _u = (window.OD?.getCurrentUsername?.() || '').toLowerCase();
-            if (FULL_ACCESS_USERNAMES.has(_u)) return 'commissioner';
-        } catch (e) { /* non-fatal */ }
-
-        // shared/tier.js returns 'free' | 'trial' | 'paid'
-        const sharedTier = typeof window.getTier === 'function' ? window.getTier() : null;
-
-        if (sharedTier === 'paid') {
-            const productTier = window.App?._productTier;
-            if (['commissioner', 'pro', 'warroom', 'scout'].includes(productTier)) return productTier;
-            // Dev mode returns 'paid' from shared — give full local access
-            if (new URLSearchParams(window.location.search).has('dev') || ['localhost', '127.0.0.1'].includes(window.location.hostname)) return 'pro';
-            return 'scout'; // paid but unrecognized profile tier → minimum paid level
-        }
-
-        // Trial (30-day) counts as Pro — Scout parity, owner ruling 2026-07-05.
-        // Maps to 'warroom' so existing canAccess gates unlock during trial too,
-        // matching wrIsPro()'s trial-is-Pro line (js/shared/pro-gate.js).
-        if (sharedTier === 'trial') return 'warroom';
-
-        // Fallback: shared/tier.js not loaded. Do not trust persisted local
-        // storage for paid access; users can edit it in the browser.
-        if (sharedTier === null) {
-            if (new URLSearchParams(window.location.search).has('dev') || ['localhost', '127.0.0.1'].includes(window.location.hostname)) return 'pro';
-        }
-
-        return 'free';
-    }
-
-    const WR_FEATURES = new Set(['trade-finder', 'deal-analyzer', 'owner-dna', 'league-map', 'command-view', 'projections',
-        'fa-decision-engine', 'big-board', 'draft-simulation', 'analytics-full', 'intelligence-full']);
-    const PRO_FEATURES = new Set(['global-dashboard', 'cross-league-ai', 'unified-trophy-room', 'synced-calendar',
-        'premium-reporting', 'season-recap', 'enhanced-ai', 'player-exposure']);
-
-    const TIER_FEATURES = {
-        free: new Set(['my-roster-basic', 'player-cards-basic', 'team-diagnosis-basic', 'ai-1-per-day', 'draft-rankings']),
-        scout: new Set(['my-roster-basic', 'player-cards-basic', 'team-diagnosis-basic', 'ai-1-per-day', 'draft-rankings',
-            'ai-unlimited', 'player-cards-full', 'team-diagnosis-full', 'waiver-targets', 'trade-quick-check']),
-        warroom: new Set([...new Set(['my-roster-basic', 'player-cards-basic', 'team-diagnosis-basic', 'ai-1-per-day', 'draft-rankings',
-            'ai-unlimited', 'player-cards-full', 'team-diagnosis-full', 'waiver-targets', 'trade-quick-check']),
-            ...WR_FEATURES]),
-        pro: new Set([...new Set(['my-roster-basic', 'player-cards-basic', 'team-diagnosis-basic', 'ai-1-per-day', 'draft-rankings',
-            'ai-unlimited', 'player-cards-full', 'team-diagnosis-full', 'waiver-targets', 'trade-quick-check']),
-            ...WR_FEATURES, ...PRO_FEATURES]),
-        commissioner: new Set([...new Set(['my-roster-basic', 'player-cards-basic', 'team-diagnosis-basic', 'ai-1-per-day', 'draft-rankings',
-            'ai-unlimited', 'player-cards-full', 'team-diagnosis-full', 'waiver-targets', 'trade-quick-check']),
-            ...WR_FEATURES, ...PRO_FEATURES,
-            'league-chronicles', 'rule-simulator', 'trade-auditor', 'league-health', 'opus-analysis']),
-    };
-
-    // Save shared canAccess reference (from shared/tier.js) before War Room overlay.
-    // NOTE: window.canAccess is unreliable here — core.js's own `function canAccess`
-    // declaration hoists and overwrites window.canAccess before this line executes.
-    // index.html captures the shared ref into window._sharedCanAccess between
-    // tier.js and core.js (inline <script>), which runs before Babel compiles core.js.
-    const _sharedCanAccess = window._sharedCanAccess || null;
-
-    function canAccess(feature) {
-        // War Room's granular feature matrix is the primary gate
-        const tier = getUserTier();
-        if (TIER_FEATURES[tier]?.has(feature)) return true;
-        // Fall back to shared tier.js canAccess for features not in War Room's matrix
-        // (covers shared FEATURES enum values used by ReconAI modules)
-        return _sharedCanAccess ? _sharedCanAccess(feature) : false;
-    }
-
-    function isPro() { const t = getUserTier(); return t === 'pro' || t === 'commissioner'; }
-    function isCommissioner() { return getUserTier() === 'commissioner'; }
+    // Compatibility helpers expose all product features. Server roles still govern
+    // commissioner/admin actions; a feature capability is never an authorization.
+    function getUserTier() { return 'pro'; }
+    function canAccess() { return true; }
+    function isPro() { return true; }
+    function isCommissioner() { return false; }
     window.isPro = isPro;
     window.isCommissioner = isCommissioner;
-
-    // One-time taste tracking
-    function useTaste() {
-        if (WrStorage.get(WR_KEYS.TASTE_USED)) return false;
-        WrStorage.set(WR_KEYS.TASTE_USED, '1');
-        return true; // first time = allow
-    }
-    function hasTasteLeft() { return !WrStorage.get(WR_KEYS.TASTE_USED); }
-
-    // AI daily limit for scout tier
-    function canUseAI() {
-        // If server AI is available (authenticated user), let the Edge Function handle rate limiting
-        if (typeof hasServerAI === 'function' && hasServerAI()) return true;
-        const tier = getUserTier();
-        if (tier !== 'scout') return true;
-        const key = WR_KEYS.AI_DAILY(new Date().toISOString().split('T')[0]);
-        return parseInt(WrStorage.get(key, '0')) < 1;
-    }
-    function trackAIUse() {
-        const key = WR_KEYS.AI_DAILY(new Date().toISOString().split('T')[0]);
-        const count = parseInt(WrStorage.get(key, '0'));
-        WrStorage.set(key, String(count + 1));
-    }
-
+    function useTaste() { return true; }
+    function hasTasteLeft() { return true; }
+    function canUseAI() { return true; } // authenticated server enforces shared usage limits
+    function trackAIUse() {}
 
     function handleLogout() {
         if (confirm('Are you sure you want to logout?')) {
+            window.DHQAI?.clear();
             localStorage.removeItem((window.STORAGE_KEYS?.OD_AUTH    || 'od_auth_v1'));
             localStorage.removeItem((window.STORAGE_KEYS?.FW_SESSION || 'fw_session_v1'));
+            localStorage.removeItem('od_session_v1');
             window.location.href = 'landing.html';
         }
     }

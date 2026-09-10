@@ -898,6 +898,41 @@ testAsync('a status callback stopping the room suppresses its remaining pick cal
   eq(h.timers.size, 0, 'no interval is installed after stop');
 });
 
+test('Shootout auction uses a seasonal pool even with a Chopped profile', () => {
+  const variant = ctx.DraftCC.state.detectDraftVariant({
+    draft: { type: 'auction', settings: { player_type: 0, rounds: 7, teams: 18, budget: 200 } },
+    currentLeague: { settings: { type: 3 } },
+    leagueProfile: { type: 'chopped' },
+  });
+  eq(variant, 'redraft');
+});
+
+test('auction sales charge the winning roster, not nomination order, exactly once', () => {
+  const pool = [
+    { pid: 'gibbs', name: 'Jahmyr Gibbs', pos: 'RB', dhq: 900 },
+    { pid: 'chase', name: 'Ja Marr Chase', pos: 'WR', dhq: 800 },
+  ];
+  const initial = ctx.DraftCC.state.initialDraftState({ mode: 'live-sync', userRosterId: 14 });
+  let state = ctx.DraftCC.state.reducer(initial, {
+    type: 'START_DRAFT', pool, pickOrder, personas: {}, liveDraftStatus: 'drafting',
+    setupPatch: { draftMechanic: 'auction', variant: 'auction', auctionPoolSource: 'redraft', auctionBudget: 200 },
+  });
+  const sales = pool.map((player, i) => ({
+    player, sleeperPick: { pick_no: i + 1, player_id: player.pid, roster_id: 14, draft_slot: 2, round: 1, metadata: { amount: i ? '66' : '93' } },
+  }));
+  const action = { type: 'APPLY_LIVE_SYNC_PICKS', picks: sales, status: { status: 'mirroring' } };
+  state = ctx.DraftCC.state.reducer(state, action);
+  eq(state.picks.length, 2);
+  eq(state.picks[0].rosterId, 14);
+  eq(state.teamBudgets[14].spent, 159);
+  eq(state.teamBudgets[14].remaining, 41);
+  eq(state.teamRosters[14].length, 2);
+  eq(state.pool.length, 0);
+  state = ctx.DraftCC.state.reducer(state, action);
+  eq(state.picks.length, 2);
+  eq(state.teamBudgets[14].remaining, 41);
+});
+
 (async () => {
   for (const { name, fn } of asyncTests) {
     try {

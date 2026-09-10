@@ -98,7 +98,7 @@
         const resolveBye = (pid) => {
             const p = playersData && playersData[pid];
             if (!p) return 0;
-            return Number(p.bye_week) || teamBye[String(p.team || '').toUpperCase()] || 0;
+            return App.NFLByes ? App.NFLByes.weekForPlayer(p, App.NFLByes.seasonFor(league)) || 0 : Number(p.bye_week) || teamBye[String(p.team || '').toUpperCase()] || 0;
         };
         let coreStarterPids = [];
         try {

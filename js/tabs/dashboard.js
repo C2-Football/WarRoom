@@ -109,14 +109,36 @@ const WIDGET_MODULES = {
         // league-landscape.js
         pro: false, formatFlag: null,
     },
+    'weekly-matchups': {
+        label: 'Weekly Matchups', icon: '🏈',
+        description: 'Your weekly score, opponent, and matchups across the league',
+        accent: () => T().color?.('accent') || 'var(--gold, #d4af37)',
+        metrics: [], sizes: ['sm', 'md', 'lg'],
+        clickTarget: { sm: 'weekly-matchups', md: 'weekly-matchups', lg: 'weekly-matchups' },
+        pro: false, formatFlag: null,
+    },
     'league-standings': {
-        label: 'League Standings',
-        icon: '📊',
-        description: 'Current records, value, and roster strength by team',
-        accent: () => T().color?.('accent') || 'var(--k-d4af37, #d4af37)',
-        metrics: [],
-        sizes: ['md', 'lg'],
-        clickTarget: { md: 'analytics' },
+        label: 'League Standings', icon: '📊',
+        description: 'Your record, points scored, and position in the league',
+        accent: () => T().color?.('accent') || 'var(--gold, #d4af37)',
+        metrics: [], sizes: ['sm', 'md', 'lg'],
+        clickTarget: { sm: 'league-standings', md: 'league-standings', lg: 'league-standings' },
+        pro: false, formatFlag: null,
+    },
+    'league-stats': {
+        label: 'League Stats', icon: '📈',
+        description: 'Weekly scoring leaders using your league scoring settings',
+        accent: () => T().color?.('accent') || 'var(--gold, #d4af37)',
+        metrics: [], sizes: ['sm', 'md', 'lg'],
+        clickTarget: { sm: 'stats', md: 'stats', lg: 'stats' },
+        pro: false, formatFlag: null,
+    },
+    'league-cup': {
+        label: 'League Cup', icon: '🏆',
+        description: 'Cup progress, your next round, and the champion',
+        accent: () => T().color?.('accent') || 'var(--gold, #d4af37)',
+        metrics: [], sizes: ['sm', 'md', 'lg'],
+        clickTarget: { sm: 'league-cup', md: 'league-cup', lg: 'league-cup' },
         pro: false, formatFlag: null,
     },
     'transaction-ticker': {
@@ -265,7 +287,6 @@ const LEGACY_MODULE_MAP = {
     'trading': 'market-radar',
     'waivers': 'market-radar',
     'draft': 'draft-capital',
-    'league-standings': 'league-landscape',
     'transaction-ticker': 'league-landscape',
     'intelligence-brief': 'intel-brief',
     // field-notes stays as-is
@@ -744,9 +765,10 @@ function DashboardPanel({
     const touchReorder = dashViewport.isPhone || dashViewport.isCoarse;
     const [starredWidgets, setStarredWidgets] = React.useState(() => window.WrStarWidget?.getAll() || []);
     const navigateWidget = React.useCallback((target) => {
-        const tab = resolveWidgetDestination(target);
+        const layout = window.App.DashboardLeagueLayout;
+        const tab = layout.request(target, layout.leagueId(currentLeague)) ? 'central' : resolveWidgetDestination(target);
         if (tab && setActiveTab) setActiveTab(tab);
-    }, [setActiveTab]);
+    }, [setActiveTab, currentLeague?.id, currentLeague?.league_id]);
     // Redraft → build ROS values so dashboard rankings/tiers/widgets reflect
     // rest-of-season production (no-op → DHQ for dynasty/keeper).
     React.useMemo(() => {
@@ -1314,7 +1336,7 @@ function DashboardPanel({
     // ══════════════════════════════════════════════════════════════
     // WIDGET SHELL — wrapper with gear button + drag handle
     // ══════════════════════════════════════════════════════════════
-    function WidgetShell({ widget, idx, children }) {
+    function WidgetShell({ widget, idx, children, compact = false }) {
         const isTouch = (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
         const [showGear, setShowGear] = React.useState(isTouch);
         // Phone (<768) chrome (iPhone program Phase 1): the ⚙/✕ pair
@@ -1365,7 +1387,8 @@ function DashboardPanel({
                     position: 'relative',
                     opacity: dragIdx === idx ? 0.4 : 1,
                     transition: theme.effects?.transition || 'opacity 0.15s',
-                    minHeight: widget.size === 'sm' ? '160px' : undefined,
+                    minHeight: compact ? '142px' : widget.size === 'sm' ? '160px' : undefined,
+                    height: compact ? '142px' : undefined,
                 }}
             >
                 {children}
@@ -1589,6 +1612,11 @@ function DashboardPanel({
     // <script> tags). If one exists, it takes priority over the
     // generic KPI renderers.
     function resolveExternalWidget(moduleKey, size, primaryMetric) {
+        if (window.App.DashboardLeagueLayout.keys.includes(moduleKey) && window.LeagueProgressWidget) {
+            return React.createElement(window.LeagueProgressWidget, {
+                kind: moduleKey, size, currentLeague, myRoster, playersData, getOwnerName, navigateWidget, setActiveTab,
+            });
+        }
         // Intel Brief → IntelligenceBriefWidget (flash-brief.js)
         if (moduleKey === 'intel-brief') {
             return renderIntelligenceBrief(size);
@@ -1800,7 +1828,14 @@ function DashboardPanel({
         // delta already computed above → icon launcher to the module's
         // existing sm clickTarget.
         const _PHONE_SM_KPI = { 'draft-capital': 'pick-capital', 'market-radar': 'faab-efficiency' };
-        const _phoneKpiTile = (widget) => {
+        const _phoneKpiTile = (widget, idx) => {
+            if (window.App.DashboardLeagueLayout.keys.includes(widget.key) && window.LeagueProgressWidget) {
+                return <WidgetShell key={widget.id || widget.key} widget={widget} idx={idx} compact={true}>
+                    {React.createElement(window.LeagueProgressWidget, {
+                        kind: widget.key, size: 'sm', compact: true, currentLeague, myRoster, playersData, getOwnerName, navigateWidget, setActiveTab,
+                    })}
+                </WidgetShell>;
+            }
             const mod = WIDGET_MODULES[widget.key];
             const clickTab = resolveWidgetDestination(mod?.clickTarget?.sm || mod?.clickTarget?.md || null);
             const tileBase = {
@@ -1914,6 +1949,13 @@ function DashboardPanel({
                     )}
                 </div>
 
+                {/* Weekly results stay visible on phones without restoring the
+                    old health / power-ranking strip. */}
+                {_phoneSm.some(({ w }) => window.App.DashboardLeagueLayout.keys.includes(w.key)) && (
+                    <div className="wr-league-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: '10px', padding: 'var(--space-md) var(--space-md) 0' }}>
+                        {_phoneSm.filter(({ w }) => window.App.DashboardLeagueLayout.keys.includes(w.key)).map(({ w, i }) => _phoneKpiTile(w, i))}
+                    </div>
+                )}
                 {/* md+ widget cards — existing stack order, original indices */}
                 <div className="wr-dashboard-grid" style={{
                     display: 'grid',

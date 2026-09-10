@@ -53,6 +53,12 @@ function MyTeamTab({
   // Fallback if prop not passed — prevents crash
   const getAcquisitionInfo = typeof getAcquisitionInfoProp === 'function' ? getAcquisitionInfoProp : () => ({ method: 'Unknown', date: '', cost: '' });
   const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
+  const isChoppedRoster = resolvedLeagueSkin?.type === 'chopped' || !!window.App?.Chopped?.isChopped(currentLeague);
+  const byeSeason = window.App?.NFLByes?.seasonFor(currentLeague);
+  const byeWeekNow = window.App?.WeeklyProj?.currentWeek?.() || 1;
+  const byeLabel = p => window.App?.NFLByes?.label(p, byeSeason) || 'Bye —';
+  const byeSummary = window.App?.NFLByes?.rosterWeeks(myRoster, playersData, byeSeason, byeWeekNow) || { weeks: [], unknown: [] };
+  const nextRosterBye = byeSummary.weeks[0];
   const skinFeatures = resolvedLeagueSkin?.features || {};
   const skinVocabulary = resolvedLeagueSkin?.vocabulary || {};
   const valueLabel = skinVocabulary.valueLabel || 'DHQ Dynasty Value';
@@ -1579,6 +1585,7 @@ function MyTeamTab({
   const _phoneTagFor = (r) => {
     const bits = [r.p.team || 'FA'];
     if (r.age) bits.push(String(r.age));
+    if (!isChoppedRoster) bits.push(byeLabel(r.p));
     bits.unshift(r.pos);
     if (r.injury) bits.push(r.injury);
     if (isPro && resolvedLeagueSkin?.type === 'keeper' && keeperTopPids.has(r.pid)) bits.push('KEEP');
@@ -1617,7 +1624,9 @@ function MyTeamTab({
     _phoneHeroEl = React.createElement(window.WR.HeroCard, {
       kicker: 'Roster call',
       headline: totalRosterAlerts ? `${totalRosterAlerts} roster ${totalRosterAlerts === 1 ? 'decision' : 'decisions'} to review` : `${allPlayers.length} players · Your roster`,
-      facts: `${modeLabel} window${sellCalls ? ` · ${sellCalls} sell calls` : ''}`,
+      facts: isChoppedRoster
+        ? (nextRosterBye ? 'Next bye: W' + nextRosterBye.week + ' · ' + nextRosterBye.pids.length + ' player' + (nextRosterBye.pids.length === 1 ? '' : 's') + ' unavailable' : 'No known upcoming byes')
+        : `${modeLabel} window${sellCalls ? ` · ${sellCalls} sell calls` : ''}`,
       ctaGhost: heroGhost,
       onCtaGhost: heroGhost ? () => setReviewOpen(true) : undefined,
     });
@@ -1782,7 +1791,12 @@ function MyTeamTab({
         pid: r.pid,
         name: getPlayerName(r.pid),
         tag: _phoneTagFor(r),
-        slots: [_phoneSlotFor(_phoneSlotKeys[0], r)],
+        slots: isChoppedRoster ? [{
+          label: 'BYE',
+          value: window.App?.NFLByes?.weekForPlayer(r.p, byeSeason) ? 'W' + window.App.NFLByes.weekForPlayer(r.p, byeSeason) : '—',
+          tone: window.App?.NFLByes?.weekForPlayer(r.p, byeSeason) === byeWeekNow ? 'warn' : undefined,
+          strong: true,
+        }] : [_phoneSlotFor(_phoneSlotKeys[0], r)],
         // Verdict chip dropped from the collapsed row (owner ask, 2026-08-30)
         // to give the name/slots more width — Hold/Stash/Sell is still the
         // first thing you see when you tap into the player card.
@@ -1923,7 +1937,7 @@ function MyTeamTab({
                       {isPro && resolvedLeagueSkin?.type === 'keeper' && keeperTopPids.has(r.pid) && <span title={'Recommended keep — top ' + maxKeepers + ' by keeper value'} style={{ fontSize: 'var(--text-micro, 0.6875rem)', padding: '1px 4px', borderRadius: '3px', fontWeight: 800, background: 'var(--acc-fill2, rgba(212,175,55,0.12))', color: 'var(--gold)', border: '1px solid var(--acc-line1, rgba(212,175,55,0.28))', flexShrink: 0, lineHeight: 1, letterSpacing: '0.03em' }}>KEEP</span>}
                       </React.Fragment>}
                     </div>
-                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, marginTop: '1px' }}>{r.p.team || 'FA'}{!_phone && r.injury ? ' \u00B7 '+r.injury : ''}</div>
+                    <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', opacity: 0.62, marginTop: '1px' }}>{r.p.team || 'FA'} · {byeLabel(r.p)}{!_phone && r.injury ? ' \u00B7 '+r.injury : ''}</div>
                   </div>
                   <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--gold)', opacity: 0.42 }}>{isExpanded ? '\u25B2' : '\u25BC'}</span>
                 </div>
@@ -2004,6 +2018,25 @@ function MyTeamTab({
         {_phoneSheetEl}
         {_reviewSheetEl}
       </React.Fragment>}
+      {isChoppedRoster && <section aria-label="Roster bye weeks" style={{ border: '1px solid var(--acc-line1, rgba(212,175,55,.25))', borderRadius: 'var(--card-radius, 10px)', padding: '12px', color: 'var(--silver)' }}>
+        <details>
+        <summary style={{ cursor: 'pointer', minHeight: '44px', fontSize: '0.8rem', color: 'var(--gold)' }}>
+          <strong>BYE WATCH</strong><span style={{ fontSize: '0.72rem', color: 'var(--silver)', marginLeft: '8px' }}>Weeks · players out</span>
+          <span style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+            {byeSummary.weeks.map(group => <span key={group.week} style={{ padding: '3px 7px', borderRadius: '5px', border: '1px solid var(--ov-6, rgba(255,255,255,.12))', color: group.pids.length > 1 || group.week === byeWeekNow ? 'var(--warn, #f0a500)' : 'var(--silver)' }}>W{group.week} · {group.pids.length}</span>)}
+          </span>
+        </summary>
+        <p style={{ fontSize: '0.75rem', margin: '10px 0' }}>Players unavailable each week. Plan replacements before the chop.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
+          {byeSummary.weeks.map(group => <div key={group.week} style={{ fontSize: '0.78rem', lineHeight: 1.5 }}>
+            <strong style={{ color: group.pids.length > 1 || group.week === byeWeekNow ? 'var(--warn, #f0a500)' : 'var(--white)' }}>W{group.week}{group.week === byeWeekNow ? ' · This week' : ''} · {group.pids.length} out</strong>
+            <div>{group.pids.map(pid => getPlayerName(pid)).join(', ')}</div>
+          </div>)}
+        </div>
+        {!byeSummary.weeks.length && <span style={{ fontSize: '0.78rem' }}>No known upcoming byes.</span>}
+        {byeSummary.unknown.length > 0 && <p style={{ fontSize: '0.75rem', marginBottom: 0 }}>Bye unavailable: {byeSummary.unknown.map(pid => getPlayerName(pid)).join(', ')}.</p>}
+        </details>
+      </section>}
       {!_phone && <React.Fragment>
       {isCompactRoster && (() => {
         const ppgLabelMap = { season: 'Season', l5: 'L5', l3: 'L3' };

@@ -10,10 +10,10 @@
     const Engine = window.App.TimeLeagueEngine;
     const UI = window.App.TimeLeagueUI;
 
-    function WrTimeLeagueStandingsPanel({ league, embedded = false }) {
+    function WrTimeLeagueStandingsPanel({ league, embedded = false, profileTeamId = '', profileOnly = false, onCloseProfile, children }) {
         const standings = useMemo(() => Engine.computeStandings(league), [league]);
         const teamOf = (teamId) => league.teams.find((t) => t.teamId === teamId);
-        const [selectedId, setSelectedId] = React.useState('');
+        const [selectedId, setSelectedId] = React.useState(profileTeamId);
         const detailsRef = React.useRef(null);
         const selectedTrigger = React.useRef(null);
         const selected = teamOf(selectedId);
@@ -33,16 +33,16 @@
             setSelectedId(selectedId === teamId ? '' : teamId);
         };
         React.useEffect(() => {
-            if (!selectedId) return;
+            if (!selectedId || profileOnly) return;
             detailsRef.current?.focus?.({ preventScroll: true });
             detailsRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'auto' });
         }, [selectedId]);
         return h('div', { className: 'tl-command-center' },
-            !embedded && h('div', { className: 'tl-command-metrics' },
+            !embedded && !profileOnly && h('div', { className: 'tl-command-metrics' },
                 metric('League leader', scored ? teamOf(leader?.teamId)?.name : 'Not yet decided', scored ? `${leader.wins} wins · ${leader.losses} losses` : 'Season opener ahead'),
                 metric('Scoring pace', scored ? (scoringLeader.pointsFor/scored).toFixed(1) : '—', scored ? `${teamOf(scoringLeader.teamId)?.name} · points/week` : 'No completed games'),
                 metric('Weeks remaining', Math.max(0, league.settings.regularSeasonWeeks-scored), `of ${league.settings.regularSeasonWeeks} scheduled`)),
-            h('div', { className: 'tl-card' },
+            !profileOnly && h('div', { className: 'tl-card' },
             h('div', { className: 'tl-card-title' }, h('span', null, 'Standings'), h('small', null, `${scored} of ${league.settings.regularSeasonWeeks} weeks scored`)),
             champion && h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', marginBottom: 10, borderBottom: '1px solid var(--charcoal)' } },
                 h('span', { style: { fontSize: 20 } }, '🏆'),
@@ -80,8 +80,9 @@
                         h('td', { className: 'num tabular' }, row.pointsFor.toFixed(1)), h('td', { className: 'num tabular' }, row.pointsAgainst.toFixed(1)));
                 }))))),
             selected && h('section', { className: 'tl-command-intel tl-card', tabIndex: -1, ref: detailsRef, 'aria-label': `${selected.name} team details` },
-                h('div', { className: 'tl-card-title' }, h('span', null, `${selected.name} · Team details`), h('button', { className: 'tl-btn icon', 'aria-label': 'Close team details', onClick: () => { setSelectedId(''); selectedTrigger.current?.focus?.(); } }, '×')),
+                !profileOnly && h('div', { className: 'tl-card-title' }, h('span', null, `${selected.name} · Team details`), h('button', { className: 'tl-btn icon', 'aria-label': 'Close team details', onClick: () => { setSelectedId(''); onCloseProfile?.(); selectedTrigger.current?.focus?.(); } }, '×')),
                 h('div', { className: 'tl-command-metrics' }, metric('Record', `${selectedRow.wins}–${selectedRow.losses}–${selectedRow.ties}`, 'Wins · losses · ties'), metric('Point differential', (selectedRow.pointsFor-selectedRow.pointsAgainst).toFixed(1), 'Points for minus points against'), metric('All-play', `${selectedRow.allPlayWins}–${selectedRow.allPlayLosses}`, 'Compared against every team each week')),
+                profileOnly && children,
                 h('div', { className: 'tl-command-columns' },
                     h('div', null, h('h3', null, 'Recent form'),
                         past.length ? past.slice(-5).reverse().map(row => h('div', { key: row.week, className: 'tl-command-result' }, h('small', null, `W${row.week}`), h('strong', null, row.result ? `${row.result.total.toFixed(1)} pts` : '—'), h('span', null, !row.match ? 'Bye' : `${row.match.winner === null ? 'Tie' : row.match.winner === selected.teamId ? 'Win' : 'Loss'} vs ${teamOf(row.match.home === selected.teamId ? row.match.away : row.match.home)?.name}`))) : h('p', null, 'No games completed yet.')),

@@ -516,7 +516,7 @@
     <!-- ═══════════════════════════════════════════════════════
          STEP 1 — CHOOSE YOUR PLAN
     ═══════════════════════════════════════════════════════ -->
-    <div class="step-panel active" id="step1">
+    <div class="step-panel" id="step1">
       <p class="step-eyebrow">Step 1 of 4</p>
       <h1 class="step-heading">Choose Your<br><span style="color:var(--gold)">Arsenal</span></h1>
       <p class="step-sub">Pick the plan that fits how you play. Upgrade anytime from settings. No contract required.</p>
@@ -588,81 +588,10 @@
          STEP 2b — BYO AI KEY (Optional — available on all plans)
     ═══════════════════════════════════════════════════════ -->
     <div class="step-panel" id="step2token">
-      <p class="step-eyebrow">Step 2 of 4</p>
-      <h1 class="step-heading">Bring Your<br><span style="color:var(--gold)">AI to the Fight</span></h1>
-      <p class="step-sub">Your plan includes AI queries every month. Want unlimited? Connect your own AI key and take full control.</p>
-
-      <div class="token-card">
-        <div class="token-perks">
-          <div class="token-perk">
-            <span class="token-perk-icon">🧠</span>
-            <span><strong style="color:var(--white)">Your AI, Your Rules</strong> — connect Claude, Genesis, ChatGPT, or Grok. You control usage and billing directly with your provider.</span>
-          </div>
-          <div class="token-perk">
-            <span class="token-perk-icon">⚡</span>
-            <span><strong style="color:var(--white)">Unlimited Queries</strong> — no monthly cap. Your BYO key bypasses the included query limit entirely.</span>
-          </div>
-          <div class="token-perk">
-            <span class="token-perk-icon">🔒</span>
-            <span><strong style="color:var(--white)">Stored on Device Only</strong> — your key never touches our servers. All AI calls go directly from your browser to your provider.</span>
-          </div>
-        </div>
-
-        <!-- AI Provider selector — matches Dynasty HQ implementation -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
-          <div>
-            <label class="form-label" style="margin-bottom:0.4rem;">Provider</label>
-            <select id="ai-provider-sel" class="form-input" style="padding:0.6rem 0.75rem;font-size:0.85rem;" onchange="updateProviderHint()">
-              <option value="gemini">Gemini Flash — Free (Google)</option>
-              <option value="openai">OpenAI — GPT-5.4 Mini</option>
-              <option value="anthropic">Claude (Anthropic)</option>
-            </select>
-          </div>
-          <div>
-            <label class="form-label" style="margin-bottom:0.4rem;">Model <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
-            <input type="text" id="ai-model-in" class="form-input" placeholder="auto" style="padding:0.6rem 0.75rem;font-size:0.85rem;">
-          </div>
-        </div>
-
-        <p id="provider-hint" class="token-hint" style="margin-bottom:0.85rem;"></p>
-
-        <label class="form-label" for="api-key-in">API Key</label>
-        <input
-          class="form-input"
-          type="password"
-          id="api-key-in"
-          placeholder="Paste API key..."
-          autocomplete="off"
-          spellcheck="false"
-          style="font-family:monospace;font-size:0.82rem;"
-        >
-
-        <!-- Optional xAI news key -->
-        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.06);">
-          <p style="font-size:0.72rem;color:var(--muted);margin-bottom:0.5rem;line-height:1.5;">
-            <strong style="color:var(--silver);">Real-time news (optional)</strong> — Add an xAI key to get live player news from X/Twitter via Grok.
-          </p>
-          <input
-            class="form-input"
-            type="password"
-            id="xai-key-in"
-            placeholder="xai-... (optional)"
-            autocomplete="off"
-            style="font-family:monospace;font-size:0.82rem;"
-          >
-          <div id="xai-key-status" class="token-hint" style="margin-top:0.35rem;"></div>
-        </div>
-
-        <div class="security-note" style="margin-top:1rem;">
-          🔒 <span>Keys are kept <strong>only for this browser session</strong>. Never sent to our servers — all AI calls go directly to your provider.</span>
-        </div>
-      </div>
-
-      <div id="key-status" class="alert" style="margin-top:0.75rem;"></div>
-      <button class="cta-btn" onclick="saveKey()">Save Key &amp; Continue →</button>
-      <span class="skip-link" onclick="skipToken()">Skip — I'll use my included queries for now</span>
+      <h1 class="step-heading">Your AI connection</h1>
+      <p class="step-sub">Use shared Gemini or connect your own Gemini, OpenAI, or Anthropic key for this browser session.</p>
+      <a class="cta-btn" href="ai-settings.html?setup=1">Open AI settings →</a>
     </div>
-
 
     <!-- ═══════════════════════════════════════════════════════
          STEP 3 — FANTASY PLATFORMS
@@ -670,7 +599,7 @@
     <div class="step-panel" id="step3">
       <p class="step-eyebrow">Step 3 of 4</p>
       <h1 class="step-heading">Your<br><span style="color:var(--gold)">Battlegrounds</span></h1>
-      <p class="step-sub">Connect Sleeper so we can pull in your leagues and historical data.</p>
+      <p class="step-sub">All app features are unlocked. Connect Sleeper to import your leagues, or <a href="ai-settings.html?setup=1">set up your own AI key</a>.</p>
 
       <div class="platform-grid">
 
@@ -850,6 +779,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="reconai-shared/supabase-client.js"></script>
+  <script src="js/shared/ai-access.js?v=20260909free1"></script>
   <script>
     // ═══════════════════════════════════════════════════════
     // CONFIG
@@ -885,6 +815,7 @@
 
       const params = new URLSearchParams(window.location.search);
       const isManaging = params.get('manage') === 'true';
+      if (location.hash === '#byo') { location.replace('ai-settings.html'); return; }
 
       // If onboarding already complete: a commander who finished setup and came
       // back via ?manage=true (the header's BILLING button, or Settings' "Manage
@@ -933,7 +864,8 @@
         }
       } catch {}
 
-      showStep(1);
+      // Product features are unlocked; normal setup does not require checkout.
+      showStep(3);
     })();
 
     // ── Step navigation ────────────────────────────────────
@@ -945,8 +877,8 @@
         updatePaymentUI();
         document.getElementById('step2pay').classList.add('active');
       } else if (n === '2b') {
-        document.getElementById('step2token').classList.add('active');
-        loadStoredAIKeys();
+        window.location.href = 'ai-settings.html?setup=1';
+        return;
       } else if (n === 4) {
         document.getElementById('step4creds').classList.add('active');
       } else {
@@ -1105,85 +1037,7 @@
       showStep('2b');
     }
 
-    // ── BYO AI Key — Dynasty HQ implementation ─────────────
-    const AI_SESSION_KEYS = ['dynastyhq_ai_provider', 'dynastyhq_ai_key', 'dynastyhq_ai_model', 'dynastyhq_xai_key'];
-    const AI_LEGACY_KEYS = ['dynastyhq_provider', 'dynastyhq_gemini_key', 'dynastyhq_anthropic_key', ...AI_SESSION_KEYS];
-
-    function migrateAIKeysToSession() {
-      try {
-        AI_LEGACY_KEYS.forEach(name => {
-          const value = localStorage.getItem(name);
-          if (value && !sessionStorage.getItem(name)) sessionStorage.setItem(name, value);
-          localStorage.removeItem(name);
-        });
-      } catch (e) {}
-    }
-
-    function updateProviderHint() {
-      const provider = document.getElementById('ai-provider-sel').value;
-      const hints = {
-        gemini:    'Free Google Gemini Flash — the default for Alex. Get your key at ai.google.dev (includes a generous free tier).',
-        openai:    'Paid OpenAI access. GPT-5.4 Mini is the default BYO model; GPT-5.5 can be entered manually for premium analysis.',
-        anthropic: 'Paid Claude access. Get your key at console.anthropic.com.',
-      };
-      document.getElementById('provider-hint').textContent = hints[provider] || '';
-    }
-
-    function saveKey() {
-      const provider = document.getElementById('ai-provider-sel').value;
-      const key      = document.getElementById('api-key-in').value.trim();
-      const model    = document.getElementById('ai-model-in').value.trim() || '';
-      const statusEl = document.getElementById('key-status');
-
-      if (!key) {
-        statusEl.className = 'alert alert-error show';
-        statusEl.textContent = 'Paste an API key first.';
-        return;
-      }
-
-      try {
-        migrateAIKeysToSession();
-        sessionStorage.setItem('dynastyhq_ai_provider', provider);
-        sessionStorage.setItem('dynastyhq_ai_key', key);
-        if (model) sessionStorage.setItem('dynastyhq_ai_model', model);
-        else sessionStorage.removeItem('dynastyhq_ai_model');
-
-        // Save optional xAI key
-        const xaiKey = document.getElementById('xai-key-in').value.trim();
-        if (xaiKey) sessionStorage.setItem('dynastyhq_xai_key', xaiKey);
-        else sessionStorage.removeItem('dynastyhq_xai_key');
-      } catch (e) {
-        statusEl.className = 'alert alert-error show';
-        statusEl.textContent = 'Storage error: ' + e.message;
-        return;
-      }
-
-      patchProfile({ byoAI: provider, hasBYOKey: true });
-      statusEl.className = 'alert alert-success show';
-      statusEl.textContent = '✓ API key saved for this browser session.';
-      setTimeout(() => showStep(3), 900);
-    }
-
-    function skipToken() {
-      patchProfile({ hasBYOKey: false });
-      showStep(3);
-    }
-
-    // Load any previously saved keys into the form
-    function loadStoredAIKeys() {
-      try {
-        migrateAIKeysToSession();
-        const p = sessionStorage.getItem('dynastyhq_ai_provider');
-        const k = sessionStorage.getItem('dynastyhq_ai_key');
-        const m = sessionStorage.getItem('dynastyhq_ai_model');
-        const x = sessionStorage.getItem('dynastyhq_xai_key');
-        if (p) document.getElementById('ai-provider-sel').value = p;
-        if (k) document.getElementById('api-key-in').value = k;
-        if (m) document.getElementById('ai-model-in').value = m;
-        if (x) document.getElementById('xai-key-in').value = x;
-        updateProviderHint();
-      } catch (e) {}
-    }
+    // Legacy AI setup links use the new identity-scoped key settings page.
 
     // ── Platform selection ─────────────────────────────────
     function togglePlatform(id) {

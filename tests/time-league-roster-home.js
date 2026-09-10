@@ -43,8 +43,11 @@ assert.equal(walk(roster()).filter(node => node.props?.draggable).length, 0);
 states = [];
 const finalWeek = { week: 6, headlines: [], results: league.teams.map(team => ({ teamId: team.teamId, total: 20, starters: [], bench: [] })), matchups: [{ home: league.teams[0].teamId, away: league.teams[1].teamId, homePoints: 20, awayPoints: 10, winner: league.teams[0].teamId }] };
 const finalHome = JSON.stringify(render(() => WrTimeLeagueHomePanel({ league: { ...league, weekStage: 'postgame', finalizedWeeks: [finalWeek] }, onNavigate: () => {} })));
-assert(finalHome.includes('FINAL')); assert(finalHome.includes('WK 6')); assert(!finalHome.includes('UPCOMING')); assert(finalHome.includes('The final is in.'));
-assert(finalHome.includes('League update')); assert(!finalHome.includes('tl-home-pulse')); assert(!finalHome.includes('PRESEASON EDITION'));
+assert(finalHome.includes('FINAL')); assert(finalHome.includes('Week 6 recap')); assert(!finalHome.includes('UPCOMING'));
+assert(finalHome.includes('Around the league') && finalHome.includes('UP NEXT · WEEK 7'));
+assert(finalHome.includes('End week opens the next planning window'));
+assert(!finalHome.includes('tl-home-action-grid'), 'The postgame view is a recap, not the normal planning dashboard'); assert(finalHome.includes('The scores are final.'));
+assert(finalHome.includes('Around the league')); assert(!finalHome.includes('tl-home-pulse')); assert(!finalHome.includes('PRESEASON EDITION'));
 
 const leagueTwelve = E.createTimeLeague({ name: 'Phone league', seed: 'phone-ui', createdAt: '2026-01-01', settings: { ...league.settings, draftOrderMode: undefined, draftTeamOrder: undefined },
     seats: Array.from({ length: 12 }, (_, i) => ({ name: i === 0 ? 'The Very Long Named Phone Test Champions' : `Manager ${i + 1}`, manager: i ? 'ai' : 'human' })) });

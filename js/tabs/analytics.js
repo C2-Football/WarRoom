@@ -482,6 +482,7 @@ function AnalyticsPanel({
 
     return (
     <div className="analytics-shell" style={{ padding: 'var(--space-md) var(--space-lg) var(--space-lg)' }}>
+        {setActiveTab && <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}><button type="button" onClick={() => setActiveTab('stats')} style={{ background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,.25))', borderRadius: '6px', padding: '7px 10px', color: 'var(--gold)', fontSize: '.75rem', cursor: 'pointer' }}>Browse player stats →</button></div>}
         {/* PHONE (≤767): the 5 sub-tabs re-pour as the shared P2 .wr-seg
             (scrollable 4+ variant — min-width:fit-content children); long
             labels compress for the 390px strip per the gallery spec. Same

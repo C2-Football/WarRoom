@@ -186,18 +186,12 @@ test('AI endpoint uses shared CORS helper instead of wildcard CORS', () => {
   ok(!aiAnalyze.includes("'Access-Control-Allow-Origin': '*'"), 'ai-analyze must not use wildcard CORS');
 });
 
-test('BYO AI keys are session-only and legacy localStorage keys are cleared', () => {
-  hasEvery(onboarding, [
-    'sessionStorage.setItem',
-    'localStorage.removeItem(name)',
-    'only for this browser session',
-  ], 'onboarding BYO key handling');
-  hasEvery(leagueDetail, [
-    'sessionStorage.getItem',
-    'localStorage.removeItem(name)',
-    'BYO keys are session-only',
-  ], 'league BYO key handling');
-  ok(!onboarding.includes("localStorage.setItem('dynastyhq_ai_key'"), 'onboarding must not persist BYO key in localStorage');
+test('BYO keys belong to the session adapter and never localStorage', () => {
+  const adapter = read('js/shared/ai-access.js');
+  hasEvery(adapter, ['sessionStorage.setItem', 'localStorage.removeItem(key)', 'config.owner !== owner()'], 'AI session adapter');
+  ok(!adapter.includes('localStorage.setItem'), 'AI keys must never persist to localStorage');
+  ok(onboarding.includes('ai-settings.html'), 'onboarding must expose AI settings');
+  ok(!leagueDetail.includes("sessionStorage.getItem('dynastyhq_ai_key')"), 'legacy key fallback must be removed');
 });
 
 test('admin list uses admin role table instead of static bearer secret', () => {

@@ -111,11 +111,26 @@
                 away: normTeam(away && away.team && away.team.abbreviation),
                 homeScore: home && home.score != null ? Number(home.score) : null,
                 awayScore: away && away.score != null ? Number(away.score) : null,
+                kickoff: (comp && comp.date) || ev.date || null,
+                statusName: type.name || '',
                 state: type.state || 'pre',            // 'pre' | 'in' | 'post'
                 shortDetail: type.shortDetail || '',    // "Q3 4:12", "Final", "1:00 PM"
                 completed: !!type.completed,
             };
         }).filter(g => g.home && g.away);
+    }
+
+    // Unknown/postponed schedules never authorize a lineup change.
+    function gameStatus(game, now) {
+        if (!game) return 'unknown';
+        if (/POSTPONED|CANCEL|SUSPEND|DELAY/i.test(game.statusName || '')) return 'unknown';
+        if (game.completed) return 'final';
+        if (game.state === 'post') return 'unknown';
+        if (game.state === 'in') return 'live';
+        const kickoff = Date.parse(game.kickoff || '');
+        if (!Number.isFinite(kickoff)) return 'unknown';
+        if (kickoff <= (now == null ? Date.now() : now)) return 'locked';
+        return game.state === 'pre' ? 'upcoming' : 'unknown';
     }
 
     function loadScores(week, season, seasontype) {
@@ -164,5 +179,5 @@
         return load([wk], season);
     }
 
-    App.NflContext = App.NflContext || { load, loadCurrent, parse, parseScores, loadScores, currentPhase, endpoint, _done };
+    App.NflContext = App.NflContext || { load, loadCurrent, parse, parseScores, loadScores, gameStatus, currentPhase, endpoint, _done };
 })(typeof window !== 'undefined' ? window : globalThis);

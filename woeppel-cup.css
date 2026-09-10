@@ -2,3 +2,75 @@
 @media(max-width:767px){.cup-panel .cup-hero{padding:14px;gap:12px}.cup-hero-actions{width:100%}.cup-trophy{width:42px;height:52px}.cup-stage-rail>div{padding:7px 3px;font-size:.55rem}.cup-bracket{grid-template-columns:1fr;gap:20px}.cup-round:not(:last-child) .cup-bracket-match:after{display:none}.cup-round-matches{gap:8px}.cup-your-team{gap:12px}.cup-panel button,.cup-panel select,.cup-panel summary{min-height:44px}.cup-panel input{max-width:100%;box-sizing:border-box}}
 
 .cup-settings{border:1px solid var(--border-color,#334155);border-radius:12px;padding:16px;margin:16px 0;min-width:0;display:grid;gap:12px}.cup-settings label{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.cup-settings .cup-setup label{align-items:stretch}.cup-settings input:not([type=checkbox]),.cup-settings select{min-width:0;max-width:100%;padding:8px;border-radius:6px}.cup-hero h2{overflow-wrap:anywhere}.cup-groups{overflow-x:auto}
+
+/* Cup Studio: choose a format, personalize it, then try the tournament. */
+.cup-studio { gap: 18px; }
+.cup-studio .cup-hero { padding: 22px; }
+.cup-studio .cup-hero h2 { font-size: clamp(1.5rem, 2.6vw, 2.15rem); letter-spacing: .01em; }
+.cup-studio-emblem { display: grid; place-items: center; width: 60px; height: 66px; font-size: 2.4rem; flex: none; }
+.cup-studio .cup-hero-actions { flex: 0 1 auto; }
+.cup-studio button, .cup-studio input, .cup-studio select { font-size: .78rem; }
+.cup-studio button:disabled { cursor: not-allowed; }
+.cup-format-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.cup-studio .cup-format-card { display: flex; align-items: flex-start; gap: 12px; padding: 17px 14px; min-height: 145px; text-align: left; background: #11151b; border-color: rgba(189,184,173,.16); transition: border-color .15s, background .15s; }
+.cup-studio .cup-format-card:hover { border-color: var(--cup-teal); }
+.cup-studio .cup-format-card.is-selected { background: linear-gradient(135deg, #183332, #142024); border-color: var(--cup-teal); box-shadow: inset 0 0 0 1px rgba(101,222,198,.2); }
+.cup-format-icon { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 34px; background: rgba(101,222,198,.08); border: 1px solid var(--cup-line); border-radius: 7px; color: var(--cup-teal); font-size: 1.3rem; }
+.cup-format-copy { display: grid; gap: 5px; flex: 1; min-width: 0; }
+.cup-format-copy strong { font: 700 1.08rem var(--font-title); color: var(--white); }
+.cup-format-copy > span { font-size: .74rem; color: #c7d5d4; line-height: 1.4; }
+.cup-format-copy small { font-size: .68rem; color: var(--silver); line-height: 1.5; }
+.cup-format-check { color: var(--cup-teal); font-size: .88rem; }
+.cup-connection { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; border-left: 2px solid var(--cup-line); padding: 10px 14px; background: rgba(101,222,198,.035); font-size: .74rem; }
+.cup-connection strong { color: #d2e5e1; }
+.cup-connection > details { padding: 0; border: 0; margin-left: auto; }
+.cup-connection details p { max-width: 360px; padding: 8px 0; }
+.cup-connection a { color: var(--cup-teal); }
+.cup-plan-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(240px, 1fr); gap: 14px; }
+.cup-plan-form, .cup-plan-preview { padding: 20px; background: #11151b; border: 1px solid rgba(189,184,173,.14); border-radius: 10px; display: grid; align-content: start; gap: 15px; min-width: 0; }
+.cup-studio .cup-plan-form h3, .cup-studio .cup-plan-preview h3 { color: var(--white); font: 700 1.2rem var(--font-title); }
+.cup-studio .cup-field { display: flex; flex-direction: column; align-items: stretch; gap: 6px; font-size: .72rem; color: var(--silver); }
+.cup-field input, .cup-field select { width: 100%; min-width: 0; box-sizing: border-box; }
+.cup-plan-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.cup-studio summary { font-size: .77rem; }
+.cup-plan-form details > :not(summary) { margin-top: 12px; }
+.cup-plan-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cup-studio .cup-primary { background: var(--cup-teal); color: #102421; font-weight: 700; border-color: var(--cup-teal); }
+.cup-studio .cup-primary:hover { filter: brightness(1.08); }
+.cup-plan-preview { background: radial-gradient(ellipse at 100% 0,rgba(101,222,198,.09),transparent 70%),#101b21; border-color: var(--cup-line); }
+.cup-plan-preview > p { font-size: .77rem; }
+.cup-plan-numbers { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; padding: 14px 0; border-block: 1px solid var(--cup-line); }
+.cup-plan-numbers > div { display: grid; gap: 2px; }
+.cup-plan-numbers strong { color: #e3f5ed; font: 700 1.8rem var(--font-title); }
+.cup-plan-numbers span { font-size: .7rem; }
+.cup-plan-road { display: grid; gap: 8px; }
+.cup-plan-road > span { font: 600 .72rem var(--font-mono); color: var(--cup-teal); }
+.cup-plan-road strong { font-size: .9rem; color: #e3f5ed; line-height: 1.5; }
+.cup-participants { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
+.cup-studio .cup-participants label { display: flex; flex-wrap: nowrap; font-size: .73rem; overflow-wrap: anywhere; }
+.cup-studio input[type=checkbox] { accent-color: var(--cup-teal); min-height: auto; width: 15px; height: 15px; flex: none; }
+.cup-seeding { display: grid; gap: 5px; }
+.cup-seeding > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: .75rem; }
+.cup-seeding b { color: var(--cup-teal); display: inline-block; width: 22px; }
+.cup-validation { color: #efc36d; font-size: .76rem; padding: 10px; border: 1px solid rgba(239,195,109,.3); border-radius: 6px; }
+.cup-message { font-size: .78rem; padding: 10px 14px; border-radius: 7px; background: rgba(101,222,198,.06); }
+.cup-sample-banner { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 14px; border: 1px dashed var(--cup-teal); border-radius: 9px; background: rgba(101,222,198,.05); }
+.cup-sample-banner > div { flex: 1 1 230px; display: grid; gap: 5px; }
+.cup-sample-banner strong { color: var(--cup-teal); font: 700 .7rem var(--font-mono); letter-spacing: .06em; }
+.cup-sample-banner span { font-size: .76rem; }
+.cup-live-summary { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 0 2px; font-size: .75rem; }
+.cup-live-summary > span:first-child { color: var(--cup-teal); font-weight: 700; }
+.cup-studio .cup-studio-bracket { display: flex; overflow-x: auto; align-items: stretch; gap: 18px; padding-bottom: 8px; }
+.cup-studio-bracket > section { min-width: 210px; flex: 1 0 210px; gap: 8px; }
+.cup-studio-bracket .cup-bracket-match:after { display: none; }
+.cup-studio .cup-survival { display: grid; gap: 12px; }
+.cup-survival-rows { border: 1px solid var(--cup-line); border-radius: 9px; overflow: hidden; }
+.cup-survival-rows > div { display: grid; grid-template-columns: minmax(0,1fr) 70px 90px; gap: 12px; align-items: center; padding: 11px 14px; background: var(--cup-ground); font-size: .78rem; }
+.cup-survival-rows > div + div { border-top: 1px solid var(--cup-line); }
+.cup-survival-rows strong { overflow-wrap: anywhere; font-weight: 500; }
+.cup-survival-rows b { text-align: right; font-variant-numeric: tabular-nums; }
+.cup-survival-rows span { text-align: right; color: var(--cup-teal); font: 600 .64rem var(--font-mono); }
+.cup-survival-rows .is-eliminated { background: rgba(208,97,74,.08); }
+.cup-survival-rows .is-eliminated span { color: #dc8a78; }
+@media(max-width:1050px) { .cup-format-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .cup-plan-layout { grid-template-columns: 1fr; } .cup-plan-preview { grid-template-columns: 1fr; } }
+@media(max-width:600px) { .cup-studio .cup-hero { padding: 15px; gap: 10px; } .cup-studio-emblem { width: 38px; height: 44px; font-size: 1.85rem; } .cup-format-grid { grid-template-columns: 1fr; gap: 8px; } .cup-studio .cup-format-card { min-height: 0; padding: 13px; } .cup-format-copy small { font-size: .72rem; } .cup-format-copy strong { font-size: 1.1rem; } .cup-plan-form, .cup-plan-preview { padding: 15px; } .cup-plan-fields { grid-template-columns: repeat(2,minmax(0,1fr)); } .cup-participants { grid-template-columns: 1fr; } .cup-connection { align-items: flex-start; flex-direction: column; } .cup-connection > details { margin-left: 0; } .cup-studio-bracket { flex-direction: column; } .cup-studio-bracket > section { min-width: 0; flex-basis: auto; } .cup-survival-rows > div { grid-template-columns: minmax(0,1fr) 55px 70px; gap: 7px; padding: 10px; } }

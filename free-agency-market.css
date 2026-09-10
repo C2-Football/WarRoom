@@ -1,0 +1,36 @@
+/* Keep Market Explorer focused on comparable player data. */
+.fa-market-head { flex-wrap: wrap; }
+.fa-market-head > div:first-child { flex: 1 1 260px; }
+.fa-market-head .fa-market-search { flex: 1 1 240px; min-width: 200px; max-width: 360px; }
+.fa-market-head .fa-market-search input { min-height: 40px; }
+.fa-market-budget { flex: 0 0 auto; min-width: 155px; padding-left: 18px; border-left: 1px solid rgba(189,184,173,.18); }
+.fa-market-budget > span { display: block; font-size: .63rem; letter-spacing: .08em; }
+.fa-market-budget > strong { display: block; color: var(--gold); font: 700 1.3rem var(--font-title, 'Rajdhani', sans-serif); font-variant-numeric: tabular-nums; line-height: 1.3; margin-top: 3px; }
+.fa-market-budget small { color: var(--silver); font: 400 .75rem var(--font-body); }
+.fa-market-budget p { font-size: .65rem; }
+.fa-market-phone-budget { color: var(--silver); font-size: .75rem; }
+.fa-market-phone-budget strong { color: var(--gold); margin-left: 6px; font-variant-numeric: tabular-nums; }
+.fa-market-phone-budget span { font-size: .68rem; }
+.fa-market-phone-row > [role="button"] { display: grid !important; grid-template-columns: 30px minmax(0, 1fr); }
+.fa-market-phone-row > [role="button"] > div:last-child { grid-column: 1 / -1; display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) 10px; border-top: 1px solid rgba(189,184,173,.1); padding-top: 7px; }
+.fa-market-phone-row > [role="button"] > div:last-child > div { min-width: 0 !important; text-align: left !important; }
+.fa-market-phone-row > [role="button"] > div:last-child > div > div:first-child { font-size: .59rem !important; }
+.fa-market-data-note { margin: 10px 0 12px; color: var(--silver); font-size: .7rem; line-height: 1.5; }
+.fa-market-table { font-variant-numeric: tabular-nums; }
+.fa-market-table .fa-market-sort { display: block; min-width: 0; padding: 0; background: transparent; border: 0; border-radius: 0; text-align: right; font-family: inherit; line-height: 1.5; }
+.fa-market-table .fa-market-sort:disabled { opacity: 1; }
+.fa-market-table .fa-market-name { text-align: left; }
+.fa-market-table .fa-market-cell { display: flex; align-items: center; justify-content: flex-end; min-width: 0; padding: 0 2px; text-align: right; }
+.fa-market-table .fa-market-col-pos, .fa-market-table .fa-market-col-team, .fa-market-table .fa-market-col-age { text-align: center; justify-content: center; }
+.fa-market-number { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-size: .78rem; line-height: 1.25; }
+.fa-market-number strong { color: var(--white); font-weight: 600; }
+.fa-market-number small { color: var(--silver); font-size: .62rem; white-space: nowrap; }
+.fa-market-bid strong { color: var(--gold); }
+.fa-market-table .fa-market-col-sig1 { border-left: 1px solid rgba(189,184,173,.12); padding-left: 8px; }
+.fa-market-table .fa-mkt-row { min-height: 56px; }
+.fa-market-table .fa-market-name > div:first-child { white-space: normal !important; line-height: 1.35; }
+.fa-market-table:focus-visible, .fa-market-sort:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (max-width: 1100px) {
+    .fa-market-head { flex-direction: row; align-items: center; }
+    .fa-market-head .fa-market-search { flex-basis: 100%; max-width: none; order: 2; }
+}

@@ -1,0 +1,45 @@
+/* Read-only league results tiles, inside the dashboard's existing WidgetShell. */
+.league-progress-widget { box-sizing: border-box; height:100%; min-height:0; min-width:0; display:flex; flex-direction:column; padding:13px 15px; overflow:hidden; color:var(--white,#f5f2ea); background:var(--off-black,#1b1b22); border:1px solid rgba(189,184,173,.14); border-radius:var(--card-radius,10px); font-family:var(--font-body,'DM Sans',sans-serif); }
+.lpw-header { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-shrink:0; font-size:.66rem; font-weight:700; letter-spacing:.055em; text-transform:uppercase; color:var(--silver,#bdb8ad); }
+.lpw-header>span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lpw-badge { font:600 .54rem var(--font-mono,monospace); letter-spacing:.06em; color:var(--teal,#35d0d6); white-space:nowrap; }
+.lpw-eyebrow { margin-top:8px; font-size:.61rem; line-height:1.3; color:var(--text-muted,#8d887e); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lpw-headline { margin-top:7px; font:700 1.85rem/1.05 var(--font-mono,'JetBrains Mono',monospace); font-variant-numeric:tabular-nums; letter-spacing:-.035em; color:var(--lpw-accent,var(--gold,#d4af37)); white-space:nowrap; }
+.lpw-scoreline { font-size:clamp(1.15rem,2vw,1.8rem); }
+.lpw-word { font:700 1.6rem/1.12 var(--font-title,'Rajdhani',sans-serif); letter-spacing:0; }
+.lpw-caption { margin-top:5px; font-size:.75rem; line-height:1.3; color:var(--white,#f5f2ea); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-shrink:0; }
+.lpw-secondary { margin-top:3px; font-size:.63rem; line-height:1.4; color:var(--silver,#bdb8ad); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; flex-shrink:0; }
+.lpw-footer { display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:auto; padding-top:7px; flex-shrink:0; min-width:0; }
+.lpw-freshness { font-size:.53rem; color:var(--text-muted,#8d887e); white-space:nowrap; text-overflow:ellipsis; overflow:hidden; min-width:0; }
+.lpw-footer button { border:0; background:transparent; border-radius:4px; padding:3px 0 3px 5px; color:var(--lpw-accent,var(--gold,#d4af37)); font:600 .62rem var(--font-body,sans-serif); white-space:nowrap; cursor:pointer; flex-shrink:0; min-height:24px; }
+.lpw-footer button:focus-visible { outline:2px solid var(--gold,#d4af37); outline-offset:3px; }
+.lpw-footer button:hover { color:var(--white,#f5f2ea); }
+.lpw-stale .lpw-freshness { color:var(--warn,#f0a500); }
+.lpw-rows { flex-shrink:0; display:flex; flex-direction:column; margin-top:9px; min-height:0; overflow:hidden; border-top:1px solid rgba(189,184,173,.12); }
+.lpw-row { box-sizing:border-box; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:35px; padding:3px 0; border-bottom:1px solid rgba(189,184,173,.09); }
+.lpw-row>div { min-width:0; }
+.lpw-row strong { display:block; font-size:.69rem; line-height:1.2; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lpw-row small { display:block; margin-top:3px; color:var(--text-muted,#8d887e); font-size:.56rem; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lpw-row b { font:600 .7rem var(--font-mono,monospace); font-variant-numeric:tabular-nums; color:var(--silver,#bdb8ad); white-space:nowrap; }
+.lpw-row.lpw-mine b { color:var(--lpw-accent,var(--gold,#d4af37)); }
+.lpw-you { margin-left:5px; font:600 .5rem var(--font-mono,monospace); color:var(--teal,#35d0d6); }
+.lpw-lg { padding:16px 18px; }
+.lpw-lg .lpw-headline { margin-top:10px; font-size:2rem; }
+.lpw-lg .lpw-scoreline { font-size:1.8rem; }
+.lpw-lg .lpw-word { font-size:1.85rem; }
+.lpw-sm { padding:11px 12px; }
+.lpw-sm .lpw-headline { margin-top:auto; padding-top:8px; font-size:1.7rem; }
+.lpw-sm .lpw-scoreline { font-size:1.5rem; }
+.lpw-sm .lpw-word { font-size:1.45rem; }
+.lpw-sm .lpw-caption { font-size:.65rem; }
+.lpw-sm .lpw-footer { padding-top:3px; }
+@media(max-width:767px) { .lpw-footer button { min-height:30px; }.lpw-lg .lpw-scoreline{font-size:1.45rem;} }
+.lpw-clickable { width:100%; text-align:left; cursor:pointer; }
+.lpw-clickable:focus-visible { outline:2px solid var(--gold,#d4af37); outline-offset:3px; }
+.lpw-clickable:hover { border-color:var(--gold,#d4af37); }
+.lpw-clickable .lpw-header,.lpw-clickable .lpw-caption,.lpw-clickable .lpw-footer { width:100%; }
+.lpw-open { color:var(--lpw-accent,var(--gold,#d4af37)); font-size:.8rem; }
+.lpw-compact .lpw-header { font-size:.59rem; letter-spacing:.025em; }
+.lpw-compact .lpw-headline { font-size:1.45rem; }
+.lpw-compact .lpw-scoreline { font-size:1.02rem; }
+.lpw-compact .lpw-word { font-size:1.3rem; }

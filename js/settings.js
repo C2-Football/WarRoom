@@ -114,8 +114,7 @@
         const currentTier = React.useMemo(() => {
             try {
                 const p = JSON.parse(localStorage.getItem('od_profile_v1') || '{}');
-                const appTier = typeof window.getUserTier === 'function' ? window.getUserTier() : null;
-                return appTier || p.tier || 'free';
+                return p.tier || 'free';
             } catch { return 'free'; }
         }, []);
 
@@ -324,7 +323,11 @@
                                     <button onClick={goToManagePlan} style={{ ...btnOutline, fontSize: 'var(--text-label, 0.75rem)' }}>Change Plan</button>
                                 </div>
                             </div>
-                            {/* AI KEY section removed (owner ask). */}
+                            <div style={moduleSectionStyle}>
+                                <div style={sectionTitle}>AI SETTINGS</div>
+                                <p style={{ color: 'var(--silver)', lineHeight: 1.5 }}>All app features are unlocked. Use shared Gemini or your own AI key.</p>
+                                <button onClick={() => { window.location.href = 'ai-settings.html'; }} style={btnOutline}>Manage AI key</button>
+                            </div>
                             <div style={moduleSectionStyle}>
                                 <div style={sectionTitle}>DATA</div>
                                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -393,6 +396,7 @@
                             </div>
                             <button onClick={goToManagePlan} style={{ ...btnOutline, flex: 'none', padding: '0.5rem 0.9rem' }}>Manage</button>
                         </div>
+                        <button onClick={() => { window.location.href = 'ai-settings.html'; }} style={{ ...btnOutline, width: '100%', marginBottom: '0.75rem' }}>AI settings</button>
                         <button onClick={handleLogout} style={{ padding: '0.8rem', background: 'rgba(231,76,60,0.14)', border: '1px solid rgba(231,76,60,0.4)', borderRadius: 'var(--card-radius, 10px)', color: 'var(--k-fca5a5, #fca5a5)', fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>Sign out</button>
                     </div>
                 </div>
@@ -543,9 +547,9 @@
                     <div style={sectionStyle}>
                         <div style={sectionTitle}>BYO AI KEY</div>
                         <div style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', lineHeight: 1.55, marginBottom: '0.75rem' }}>
-                            Session-only BYO keys are supported during onboarding and in the AI controls. They are not stored in localStorage and they bypass included query limits only for that session.
+                            All app features are unlocked. Use shared Gemini or add your own Gemini, OpenAI, or Anthropic key for this browser session.
                         </div>
-                        <button onClick={() => { window.location.href = 'onboarding.html?manage=true#byo'; }} style={{ ...btnOutline, width: '100%', flex: 'none', fontSize: 'var(--text-body, 1rem)' }}>Review AI Setup</button>
+                        <button onClick={() => { window.location.href = 'ai-settings.html'; }} style={{ ...btnOutline, width: '100%', flex: 'none', fontSize: 'var(--text-body, 1rem)' }}>Review AI Setup</button>
                     </div>
                     </>)}
 

@@ -1033,9 +1033,13 @@
         gamecastRef.current = gamecastStatus;
         const gateBusy = useRef(false);
         const reportPlayback = useCallback(value => {
+            const previous = gamecastRef.current;
+            gamecastRef.current = value;
             setGamecastStatus(value);
             if (value) setAutoPlayWeek(week => week === value.week ? null : week);
-        }, []);
+            if (value?.done && !value.replay && value.leagueId === leagueRef.current?.leagueId
+                && (!previous?.done || previous.week !== value.week || previous.leagueId !== value.leagueId)) navigateTab('home');
+        }, [navigateTab]);
         const pendingLocalSave = useRef(null);
         const pendingSaveTime = useRef(null);
         const previousLocalSave = useRef(null);
@@ -1591,7 +1595,10 @@
                     h('div', null, h('strong', null, 'Finish with a playoff?'), h('p', null, 'Keep regular-season results and reopen this season for a seeded championship. This replaces the standings-only title.')),
                     addPlayoffCounts.map(count => h('button', { key: count, className: 'tl-btn', disabled: saving || (onlineMeta && onlineMeta.role !== 'commissioner'), onClick: () => handleUpdate(Engine.startPlayoffs(league, count), { type: 'start-playoffs', count }) }, `Add ${count}-team playoffs`))),
                 activeTab === 'draft' && draftModuleState === 'error' && h('p', { role: 'status' }, 'The draft grid could not load. ', h('button', { className: 'tl-btn', onClick: () => setDraftModuleState('idle') }, 'Retry draft module')),
-                activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: responseTeam }) : null,
+                activeTab === 'home' && watching && !playback.replay ? h('section', { className: 'tl-card' },
+                    h('h2', null, `Week ${playback.week} is still in progress`), h('p', null, 'Your week recap opens after the final whistle.'),
+                    h('button', { className: 'tl-btn primary', onClick: () => navigateTab('gameday') }, 'Watch game'))
+                    : activeTab === 'home' && HomePanel ? h(HomePanel, { league, onNavigate: navigateTab, seatTeamId: responseTeam }) : null,
                 activeTab === 'home' && RivalsPanel ? h(RivalsPanel, { key: `${league.leagueId}:${responseTeam}`, league, teamId: responseTeam, compact: true, throughWeek: mailThroughWeek, onOpenThread: openMail, isPrivate: Boolean(onlineMeta), onSend: sendRivalMessage, onNavigate: navigateTab }) : null,
                 activeTab === 'draft' ? (cardsReady && DraftPanel ? h(DraftPanel, {
                     key: league.leagueId, league, cards, onUpdate: handleUpdate, onlineMeta, onRevealReadyChange: onDraftRevealReady, onDraftAction: dispatchDraft, onRevealEra: onlineMeta ? revealOnlineEra : undefined,

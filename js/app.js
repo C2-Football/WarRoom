@@ -1302,7 +1302,7 @@
                         </div>
                         {!filtered.length && <div className="hub-empty" role="status"><strong>{query ? 'No matching leagues' : hubSyncing ? 'Bringing your leagues together…' : 'Your first league starts here.'}</strong><p>{query ? 'Try another team name, league, or format.' : hubSyncing ? 'You can explore Games while your leagues sync.' : 'Connect your fantasy account to see your teams in one place.'}</p>{query ? <button type="button" className="hub-add-button" onClick={() => setLeagueQuery('')}>Clear search</button> : !hubSyncing && <button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>Connect a league</button>}</div>}
                     </section>
-                    <footer className="hub-footer"><span>One home for every way you play.</span><button type="button" onClick={() => setShowSettings(true)}>Account & settings</button><a href={distPrefix + ((typeof window.wrIsPro === 'function' && !window.wrIsPro()) ? 'upgrade.html' : 'onboarding.html?manage=true')}>Plans & billing</a></footer>
+                    <footer className="hub-footer"><span>One home for every way you play.</span><button type="button" onClick={() => setShowSettings(true)}>Account & settings</button><a href={distPrefix + ((typeof window.wrIsPro === 'function' && !window.wrIsPro()) ? 'upgrade.html' : 'onboarding.html?manage=true')}>Plans & billing</a><a href={distPrefix + 'ai-settings.html'}>AI settings</a></footer>
                 </main>
             );
         }
@@ -1456,7 +1456,7 @@
                         </div>
                     </div>
                     <div className="hub-account-controls">
-                        <a href={distPrefix + ((typeof window.wrIsPro === 'function' && !window.wrIsPro()) ? 'upgrade.html' : 'onboarding.html?manage=true')}>Plans & billing</a>
+                        <a href={distPrefix + ((typeof window.wrIsPro === 'function' && !window.wrIsPro()) ? 'upgrade.html' : 'onboarding.html?manage=true')}>Plans & billing</a><a href={distPrefix + 'ai-settings.html'}>AI settings</a>
                         <button type="button" onClick={() => setShowSettings(true)}><span className="hub-account-avatar" aria-hidden="true">{initialsFor(String(displayName))}</span> Account & settings</button>
                     </div>
                 </header>

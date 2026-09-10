@@ -837,7 +837,7 @@
                         ),
                         // Single-row identity strip — no redundant profile block below
                         React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', color: 'var(--k-d0d0d0, #d0d0d0)', marginTop: '2px' } },
-                            [nPos, team, 'Age ' + (age || '?'), heightWeight, p.college].filter(Boolean).join(' · ')
+                            [nPos, team, window.App?.NFLByes?.label(p, window.App.NFLByes.seasonFor(currentLeague)) || 'Bye —', 'Age ' + (age || '?'), heightWeight, p.college].filter(Boolean).join(' · ')
                         )
                     ),
                     React.createElement('button', {

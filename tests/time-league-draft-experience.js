@@ -62,6 +62,26 @@ let league = Engine.createTimeLeague({ name: 'Grid test', seed: 'grid', createdA
     settings: { rosterSlots: { RB: 1, BN: 1 }, regularSeasonWeeks: 12, playoffTeams: 0, eraRules: { mode: 'any-era', decades: [] } },
     seats: [{ name: 'Alpha', manager: 'human' }, { name: 'Beta', manager: 'ai' }] });
 if (Engine.startDraft) league = Engine.startDraft(league, '2026-01-01T00:00:00.000Z');
+// The pinned banner follows the next seat, including the snake-round turn.
+{
+let turnLeague = league;
+for (let i = 0; i < 3; i++) {
+    const seat = Engine.currentDraftSeat(turnLeague);
+    const manager = turnLeague.teams.find(team => team.teamId === seat.teamId);
+    const turnTree = mount({ league: turnLeague, cards, onUpdate() {} })();
+    const banner = find(turnTree, node => node.props['aria-label'] === 'Current draft turn')[0];
+    assert(banner);
+    assert(text(banner).includes('On the clock · #' + seat.overall));
+    assert(text(banner).includes(manager.name));
+    assert(!text(banner).includes('Just picked'));
+    const helmet = find(banner, node => node.props.helmet)[0];
+    assert.deepEqual(helmet.props.helmet, manager.helmet);
+    turnLeague = Engine.applyDraftPick(turnLeague, [...cards.values()][i], { madeBy: 'human', createdAt: '2026-01-01T00:00:01.000Z' });
+}
+const pausedTree = mount({ league: { ...league, draftClock: { ...league.draftClock, status: 'paused' } }, cards, onUpdate() {} })();
+assert(text(find(pausedTree, node => node.props['aria-label'] === 'Current draft turn')[0]).includes('Paused'));
+}
+
 for (const card of [...cards.values()].slice(0, 4)) league = Engine.applyDraftPick(league, card, { madeBy: 'human', createdAt: '2026-01-01T00:00:01.000Z' });
 assert.equal(league.seasonsRevealed, true);
 const SharedGrid = () => {};
@@ -106,19 +126,20 @@ const fallbackAuction = mount({ league: auctionRecap, cards, onUpdate() {} })();
 assert.equal(find(fallbackAuction, node => node.props.className?.startsWith('tl-draft-pick tl-draft-pick-')).length, 4, 'Fallback auction grid also retains every award');
 assert.ok(mount({ league, cards, onUpdate: () => {} })(), 'Fallback renders while DHQ loads');
 
-// A live room leads with incoming picks, and runs expire as other positions land.
+// The pinned room follows the current seat; runs expire as other positions land.
 const liveCards = new Map(['RB', 'RB', 'RB', 'WR', 'RB', 'TE', 'QB', ...Array(13).fill('WR')].map((position, index) =>
     [`live${index}`, makeCard(`live${index}`, position, [2000], 200 - index)]));
 let liveLeague = Engine.createTimeLeague({ name: 'Room watch', seed: 'room-watch', createdAt: '2026-01-01',
     settings: { rosterSlots: { QB: 1, RB: 2, WR: 2, TE: 1, BN: 4 }, eraRules: { mode: 'any-era', decades: [] } },
     seats: [{ name: 'Alpha', manager: 'human' }, { name: 'Beta', manager: 'ai' }] });
 const liveRender = mount({ league: liveLeague, cards: liveCards, onUpdate() {} });
-const roomActivity = page => find(page, node => node.props['aria-label'] === 'Draft room activity')[0];
-assert(text(roomActivity(liveRender())).includes('Waiting for the first pick'));
+const roomActivity = page => find(page, node => node.props['aria-label'] === 'Current draft turn')[0];
+assert(text(roomActivity(liveRender())).includes('On the clock · #1'));
 for (let i = 0; i < 3; i++) liveLeague = Engine.applyDraftPick(liveLeague, liveCards.get(`live${i}`), { madeBy: 'human' });
 let livePage = liveRender({ league: liveLeague });
 assert(text(roomActivity(livePage)).includes('RB run') && text(roomActivity(livePage)).includes('3 straight picks'));
-assert(text(roomActivity(livePage)).includes('RB Legend live2'), 'Latest selection names the actual most recent pick');
+assert(text(roomActivity(livePage)).includes('On the clock · #4'), 'Banner advances beyond the last completed pick');
+assert(!text(roomActivity(livePage)).includes('RB Legend live2'), 'Latest selection stays in the pick feed, not the pinned banner');
 assert.equal(find(livePage, node => node.props.className === 'tl-draft-pick-feed').length, 1, 'Live draft defaults to the incoming pick feed');
 button(livePage, 'Board grid').props.onClick(); livePage = liveRender();
 assert.equal(find(livePage, node => node.props.className?.endsWith(' is-latest') && node.props.className.startsWith('tl-draft-pick ')).length, 1, 'Only the newest grid cell is highlighted');

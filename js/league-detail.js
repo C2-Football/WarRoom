@@ -59,6 +59,7 @@
     const AlexInsightsTabLazy = wrLazyTab('alex', "GM's Office", () => (typeof window.AlexInsightsTab === 'function' ? window.AlexInsightsTab : null));
     const CompareTabLazy = wrLazyTab('compare', 'Compare', () => (typeof window.CompareTab === 'function' ? window.CompareTab : null));
     const LeagueCentralTabLazy = wrLazyTab('central', 'League Central', () => (typeof window.LeagueCentralTab === 'function' ? window.LeagueCentralTab : null));
+    const LeagueStatsTabLazy = wrLazyTab('stats', 'Stats', () => (typeof window.LeagueStatsTab === 'function' ? window.LeagueStatsTab : null));
     // My Team and Calendar are non-default tabs (the default in-league view is the
     // dashboard), so their modules are deferred too — they no longer load at boot
     // and only fetch on first open, like the tabs above. Removes ~68KB of JSX from
@@ -216,6 +217,7 @@
         draft: ['M10 12h11', 'M10 18h11', 'M10 6h11', 'M4 10h2', 'M4 6h1v4', 'M6 18H4c0-1 2-2 2-3s-1-1.5-2-1'],
         // chart-column
         analytics: ['M3 3v16a2 2 0 0 0 2 2h16', 'M18 17V9', 'M13 17V5', 'M8 17v-3'],
+        stats: ['M3 3h18v18H3z', 'M3 9h18', 'M9 3v18', 'M15 9v12', 'M3 15h18'],
         // film
         film: ['M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z', 'M7 3v18', 'M3 7.5h4', 'M3 12h18', 'M3 16.5h4', 'M17 3v18', 'M21 7.5h-4', 'M21 16.5h-4'],
         // briefcase
@@ -251,6 +253,7 @@
             { label: 'Compare', tab: 'compare', iconKey: 'compare' },
             { section: 'LEAGUE' },
             { label: mergedHome ? 'Command Center' : 'League Central', tab: 'central', iconKey: mergedHome ? 'home' : 'central' },
+            { label: 'Stats', tab: 'stats', iconKey: 'stats' },
             // Hidden where the format forbids trading (chopped, or trades
             // disabled in settings) — an unusable tab is worse than no tab.
             ...(showTrades === false ? [] : [{ label: 'Trade Center', tab: 'trades', iconKey: 'trade' }]),
@@ -1012,7 +1015,10 @@
         //   3. Power Rankings (small)— "where do I stand?" competitive tension
         //   4. Elite Players (medium)— your cornerstones (visual)
         //   5. Market Radar (medium) — a moving feed of trade/waiver opportunities
+        const leagueWidgetLayout = window.App.DashboardLeagueLayout;
+        const widgetScope = leagueWidgetLayout.leagueId(currentLeague);
         const DEFAULT_WIDGETS = [
+            ...leagueWidgetLayout.defaults(),
             { id: 'dw0', key: 'intel-brief',    size: 'tall' },
             { id: 'dw1', key: 'roster-pulse',   size: 'sm', primaryMetric: 'health-score' },
             { id: 'dw2', key: 'power-rankings', size: 'sm' },
@@ -1031,6 +1037,7 @@
         // WrChopBlock in dashboard.js, gated on showElimination, independent
         // of selectedWidgets), so this list doesn't need to duplicate it.
         const REDRAFT_FIXED_WIDGETS = [
+            ...leagueWidgetLayout.defaults(),
             { id: 'rfw0', key: 'intel-brief',    size: 'tall' },
             { id: 'rfw1', key: 'roster-pulse',   size: 'sm', primaryMetric: 'health-score' },
             { id: 'rfw2', key: 'power-rankings', size: 'sm' },
@@ -1098,12 +1105,30 @@
             }
             return widgets;
         }
-        const [selectedWidgets, setSelectedWidgets] = useState(() =>
-            migrateKpisToWidgets(LeagueStorage.get(LEAGUE_WR_KEYS.KPI_SELECTION(currentLeague?.id || ''))) || DEFAULT_WIDGETS
-        );
+        const loadWidgetLayout = () => {
+            const saved = LeagueStorage.get(LEAGUE_WR_KEYS.KPI_SELECTION(widgetScope));
+            const migrated = LeagueStorage.get(leagueWidgetLayout.marker(widgetScope), false);
+            if (migrated && Array.isArray(saved) && !saved.length) return [];
+            const stored = migrateKpisToWidgets(saved);
+            return migrated ? stored : leagueWidgetLayout.addMissing(stored);
+        };
+        const [selectedWidgets, setSelectedWidgets] = useState(loadWidgetLayout);
+        const [widgetLayoutScope, setWidgetLayoutScope] = useState(widgetScope);
         useEffect(() => {
-            LeagueStorage.set(LEAGUE_WR_KEYS.KPI_SELECTION(currentLeague?.id || ''), selectedWidgets);
-        }, [selectedWidgets]);
+            if (widgetLayoutScope === widgetScope) return;
+            setSelectedWidgets(loadWidgetLayout());
+            setWidgetLayoutScope(widgetScope);
+        }, [widgetScope, widgetLayoutScope]);
+        useEffect(() => {
+            if (widgetLayoutScope !== widgetScope) return;
+            const key = LEAGUE_WR_KEYS.KPI_SELECTION(widgetScope);
+            LeagueStorage.set(key, selectedWidgets);
+            // Mark only after the new layout was saved. Removing a card later
+            // remains a user choice, including across reloads and league switches.
+            if (JSON.stringify(LeagueStorage.get(key)) === JSON.stringify(selectedWidgets)) {
+                LeagueStorage.set(leagueWidgetLayout.marker(widgetScope), true);
+            }
+        }, [selectedWidgets, widgetScope, widgetLayoutScope]);
         // Redraft + Chopped Home is fixed (owner ask) — force the curated
         // layout the moment the league's format resolves to either, overwriting
         // any saved custom layout (every affected user resets to the same fixed
@@ -1118,7 +1143,7 @@
                     ? prev
                     : REDRAFT_FIXED_WIDGETS
             );
-        }, [leagueSkin?.type]);
+        }, [leagueSkin?.type, widgetScope]);
 
         // Home + League Central are ONE surface for these formats (owner ruling
         // 2026-08-23) — same two types that get the fixed Home layout above, so
@@ -2095,17 +2120,9 @@
                     return +(games.reduce((a, b) => a + b, 0) / games.length).toFixed(1);
                 };
 
-                // BYO keys are session-only; migrate and clear older localStorage keys.
-                ['dynastyhq_ai_provider', 'dynastyhq_ai_key', 'dynastyhq_ai_model', 'dynastyhq_xai_key', 'dynastyhq_provider', 'dynastyhq_gemini_key', 'dynastyhq_anthropic_key'].forEach(name => {
-                    try {
-                        const value = localStorage.getItem(name);
-                        if (value && !sessionStorage.getItem(name)) sessionStorage.setItem(name, value);
-                        localStorage.removeItem(name);
-                    } catch (_) {}
-                });
-                const savedProvider = sessionStorage.getItem('dynastyhq_ai_provider') || sessionStorage.getItem('dynastyhq_provider') || 'gemini';
-                const savedKey = sessionStorage.getItem('dynastyhq_ai_key') || sessionStorage.getItem('dynastyhq_' + savedProvider + '_key') || sessionStorage.getItem('dynastyhq_gemini_key') || sessionStorage.getItem('dynastyhq_anthropic_key') || '';
-                if (savedKey) { window.S.aiProvider = savedProvider; window.S.apiKey = savedKey; }
+                // AI credentials are owned by the session-scoped request adapter.
+                window.S.apiKey = '';
+                window.S.aiProvider = window.DHQAI?.get()?.provider || 'gemini';
 
                 // Bridge stats data — use prevStats (2025) as base, overlay current season
                 Object.entries(prevStats).forEach(([pid, s]) => {
@@ -2884,7 +2901,7 @@
                                 if (name.toLowerCase().includes(lower)) matches.push({ type: 'player', pid, name, pos: p.position || '?', team: p.team || 'FA' });
                             });
                             // Search tabs
-                            [{ label: 'Home', tab: 'dashboard' }, { label: 'My Roster', tab: 'myteam' }, { label: 'Trade Center', tab: 'trades' }, { label: 'Free Agency', tab: 'fa' }, { label: 'Draft Command', tab: 'draft' }, { label: 'Analytics', tab: 'analytics' }, { label: 'GM\'s Office', tab: 'alex' }, { label: 'Trophy Room', tab: 'trophies' }, { label: 'Settings', tab: 'settings' }, { label: 'Legend', tab: 'legend' }].forEach(t => {
+                            [{ label: 'Home', tab: 'dashboard' }, { label: 'My Roster', tab: 'myteam' }, { label: 'Trade Center', tab: 'trades' }, { label: 'Free Agency', tab: 'fa' }, { label: 'Draft Command', tab: 'draft' }, { label: 'Stats', tab: 'stats' }, { label: 'Analytics', tab: 'analytics' }, { label: 'GM\'s Office', tab: 'alex' }, { label: 'Trophy Room', tab: 'trophies' }, { label: 'Settings', tab: 'settings' }, { label: 'Legend', tab: 'legend' }].forEach(t => {
                                 if (t.label.toLowerCase().includes(lower)) matches.push({ type: 'tab', label: t.label, tab: t.tab });
                             });
                             setResults(matches.slice(0, 8));
@@ -3536,6 +3553,8 @@
                     playersData={playersData}
                     statsData={statsData}
                     prevStatsData={stats2025Data}
+                    statsSeason={timeYear}
+                    priorStatsSeason={STATS_YEAR}
                     myRoster={myRoster}
                     currentLeague={currentLeague}
                     leagueSkin={leagueSkin}
@@ -3575,6 +3594,9 @@
                 }) : activeTab === 'compare' ? React.createElement(CompareTabLazy, {
                     currentLeague, leagueSkin, myRoster, playersData, statsData, stats2025Data,
                     standings, sleeperUserId,
+                }) : activeTab === 'stats' ? React.createElement(LeagueStatsTabLazy, {
+                    key: String(currentLeague?.league_id || currentLeague?.id) + ':' + currentLeague?.season,
+                    currentLeague, myRoster, playersData, getOwnerName, getPlayerName, setActiveTab,
                 }) : activeTab === 'central' ? React.createElement(LeagueCentralTabLazy, {
                     currentLeague, leagueSkin, myRoster, playersData, standings, transactions,
                     sleeperUserId, getOwnerName, getPlayerName, timeAgo, setActiveTab,
