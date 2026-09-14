@@ -98,12 +98,14 @@ export async function handleDuatRequest(req: Request): Promise<Response> {
         if (body.op === 'create') {
             const input = body.input;
             if (!input || typeof input.name !== 'string' || !input.name.trim() || input.name.length > 80) reject('Choose a campaign name of up to 80 characters.');
-            if (Object.keys(input).some(key => !['version', 'name', 'seasons', 'hostFactionId', 'humanFactionIds', 'factionIds', 'settings', 'scoring', 'expansionSettings'].includes(key))) reject('Unexpected campaign setup field.');
+            if (Object.keys(input).some(key => !['version', 'name', 'seasons', 'hostFactionId', 'humanFactionIds', 'factionIds', 'settings', 'scoring', 'expansionSettings', 'era'].includes(key))) reject('Unexpected campaign setup field.');
             if (input.version !== undefined && ![1, 2, 3, 4].includes(input.version)) reject('Choose a supported campaign version.');
             const version = input.version === undefined ? 1 : input.version;
             const settings = version >= 3 ? App.DuatCampaign.normalizeSettings(input.settings) : App.DuatCampaign.normalizeSettings();
             if (version < 3 && (input.settings !== undefined || input.scoring !== undefined)) reject('Custom rules require the current campaign format.');
             if (version !== 4 && input.expansionSettings !== undefined) reject('Sourcebook rules require a dynasty campaign.');
+            if (version !== 4 && input.era !== undefined) reject('Resurrection requires a dynasty campaign.');
+            const era = version === 4 && input.era !== undefined ? App.DuatCampaign.eraOptions(input.era, new Date().toISOString()) : undefined;
             const scoring = version >= 3 ? App.DuatCampaign.normalizeScoring(input.scoring) : App.DuatCampaign.SCORING;
             const expansionSettings = version === 4 ? App.DuatCampaign.expansionOptions(input.expansionSettings) : undefined;
             if (!Array.isArray(input.seasons) || input.seasons.length !== settings.mummyCount || new Set(input.seasons).size !== settings.mummyCount || input.seasons.some((year: any) => !Number.isInteger(year) || !availableSeasons.includes(year))) reject('Choose one complete historical season per mummy roster.');
@@ -115,7 +117,7 @@ export async function handleDuatRequest(req: Request): Promise<Response> {
             if (!Array.isArray(selected) || selected.length !== settings.leagueSize || new Set(selected).size !== settings.leagueSize || selected.some((id: any) => !factions.includes(id))
                 || !selected.includes(input.hostFactionId) || invited.some((id: any) => !selected.includes(id))) reject('Choose the configured number of active factions including every human seat.');
             const humanFactionIds = [...new Set([input.hostFactionId, ...invited])];
-            const campaign = App.DuatCampaign.createCampaign({ version, settings, scoring, expansionSettings, id: crypto.randomUUID(), name: input.name.trim(),
+            const campaign = App.DuatCampaign.createCampaign({ version, era, settings, scoring, expansionSettings, id: crypto.randomUUID(), name: input.name.trim(),
                 seed: crypto.randomUUID(), createdAt: new Date().toISOString(), seasons: input.seasons,
                 hostFactionId: input.hostFactionId, humanFactionIds, factionIds: selected }, await loadData(input.seasons));
             const { data: roomId, error } = await admin.rpc('create_duat_campaign', { p_user_id: session.userId, p_state: campaign });

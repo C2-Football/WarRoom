@@ -145,6 +145,8 @@
     // calibrated so the alert-threshold slider reads intuitively.
     function computeInsights(props, kpis) {
         const { myRoster, currentLeague, playersData } = props;
+        const decision = window.WR?.AIContext?.decisionContext?.(currentLeague);
+        const dynasty = decision?.leagueType === 'dynasty';
         const LI = window.App?.LI || {};
         const myRid = myRoster?.roster_id;
         const out = [];
@@ -272,7 +274,7 @@
         // ── Draft ─────────────────────────────────────────────────
         // Relaxed sample thresholds — users often have 5\u20137 picks visible,
         // not 10+, and still deserve signal when their pattern is clear.
-        if (kpis.draftHitPct != null && kpis.draftTotal >= 5 && kpis.draftHitPct < 30) {
+        if (dynasty && kpis.draftHitPct != null && kpis.draftTotal >= 5 && kpis.draftHitPct < 30) {
             out.push({
                 focus: 'draft', severity: 'pattern', confidence: 82,
                 title: 'Your draft hit rate (' + kpis.draftHitPct + '%) trails starter caliber',
@@ -280,7 +282,7 @@
                 ctaLabel: 'Review draft board',
             });
         }
-        if (kpis.draftHitPct != null && kpis.draftTotal >= 5 && kpis.draftHitPct >= 55) {
+        if (dynasty && kpis.draftHitPct != null && kpis.draftTotal >= 5 && kpis.draftHitPct >= 55) {
             out.push({
                 focus: 'draft', severity: 'edge', confidence: 80,
                 title: 'Your drafts hit ' + kpis.draftHitPct + '% \u2014 elite',
@@ -315,7 +317,7 @@
             return p.age && p.age > valueEnd;
         });
         const agingDhq = agingPids.reduce((s, pid) => s + (LI.playerScores?.[pid] || 0), 0);
-        if (totalDhq > 0 && agingDhq / totalDhq > 0.25) {
+        if (dynasty && totalDhq > 0 && agingDhq / totalDhq > 0.25) {
             out.push({
                 focus: 'gmStyle', severity: 'warning', confidence: 91,
 	                title: Math.round((agingDhq / totalDhq) * 100) + '% of your roster DHQ is past the value window',
@@ -329,14 +331,14 @@
         const eliteCount = typeof window.App?.countElitePlayers === 'function'
             ? window.App.countElitePlayers(myPlayers)
             : myPlayers.filter(pid => (LI.playerScores?.[pid] || 0) >= 7000).length;
-        if (myPlayers.length >= 10 && eliteCount === 0) {
+        if (dynasty && myPlayers.length >= 10 && eliteCount === 0) {
             out.push({
                 focus: 'gmStyle', severity: 'warning', confidence: 85,
                 title: 'Your roster has zero elite-tier players',
                 body: 'Championship cores run on 2\u20134 elites (7000+ DHQ or top-5 at position) \u2014 flip mid-tier depth and picks for a cornerstone.',
                 ctaLabel: 'Find a cornerstone target',
             });
-        } else if (eliteCount >= 4) {
+        } else if (dynasty && eliteCount >= 4) {
             out.push({
                 focus: 'gmStyle', severity: 'edge', confidence: 80,
                 title: 'You hold ' + eliteCount + ' elite-tier players',
@@ -350,7 +352,7 @@
             const pk = peaks[p.position] || [24, 29];
             return p.age < pk[0] && (LI.playerScores?.[pid] || 0) >= 4000;
         });
-        if (risingPids.length >= 3 && eliteCount < 2) {
+        if (dynasty && risingPids.length >= 3 && eliteCount < 2) {
             out.push({
                 focus: 'gmStyle', severity: 'opportunity', confidence: 76,
                 title: 'You\u2019re sitting on ' + risingPids.length + ' rising mid-tier players',
@@ -377,7 +379,7 @@
                         focus: 'startSit', severity: 'pattern', confidence: 70,
                         pointsDelta: Math.max(...lowWeekDeltas),
                         title: lowWeeks + ' of ' + mine.length + ' weeks were 25%+ below your average',
-                        body: 'Lineup variance is eating wins \u2014 pre-commit starters with the Compare tab\u2019s matchup view.',
+                        body: 'Scoring dipped in these weeks. This alone does not prove a lineup mistake; compare the starters and eligible bench alternatives before changing your approach.',
                         ctaLabel: 'Open Compare',
                     });
                 }
@@ -400,11 +402,11 @@
         }
 
         // NEW: FAAB restraint while winning on the trade market (gmStyle edge)
-        if (budget > 0 && (myFaab / budget) < 0.3 && kpis.tradeCount >= 10 && (kpis.tradeNetDhq || 0) > 0) {
+        if (dynasty && budget > 0 && (myFaab / budget) < 0.3 && kpis.tradeCount >= 10 && (kpis.tradeNetDhq || 0) > 0) {
             out.push({
                 focus: 'gmStyle', severity: 'edge', confidence: 70,
                 title: 'You win value on the trade market without leaning on FAAB',
-                body: 'Only ' + Math.round((myFaab / budget) * 100) + '% of your FAAB spent and still a positive trade ledger \u2014 trade-first managers beat FAAB-first in dynasty.',
+                body: 'Only ' + Math.round((myFaab / budget) * 100) + '% of your FAAB spent and still a positive trade ledger \u2014 that describes your activity, but does not prove trading outperforms waivers.',
                 ctaLabel: 'Keep trading',
             });
         }
@@ -437,7 +439,7 @@
             const gmFx = typeof window.WR?.GmMode?.effects === 'function'
                 ? window.WR.GmMode.effects(currentLeague?.league_id || currentLeague?.id)
                 : null;
-            if (gmFx && gmFx.hasStrategy) {
+            if (dynasty && gmFx && gmFx.hasStrategy) {
                 const gmCards = [];
                 // 1. Strategy drift — GMStrategy.recordAction logs moves that
                 // conflict with the plan; getDrift is that (previously unread) ledger.
@@ -492,7 +494,7 @@
         // Priority-sort (warning → edge → pattern → opportunity).
         const priority = { warning: 0, edge: 1, pattern: 2, opportunity: 3 };
         out.sort((a, b) => (priority[a.severity] ?? 9) - (priority[b.severity] ?? 9));
-        return out;
+        return decision?.canTrade === false ? out.filter(ins => ins.focus !== 'trades' && !/trade/i.test(ins.ctaLabel || '')) : out;
     }
 
     function getInsightsLeagueProfile(props) {
@@ -2023,7 +2025,7 @@
 
         // Safe read of derived data — handle mid-load states
         const kpis = React.useMemo(() => computeKpis(props), [props.myRoster, props.currentLeague, props.timeRecomputeTs]);
-        const rawInsightBase = React.useMemo(() => computeInsights(props, kpis), [kpis, props.myRoster, props.playersData]);
+        const rawInsightBase = React.useMemo(() => computeInsights(props, kpis), [kpis, props.myRoster, props.playersData, props.currentLeague]);
         // Free: never decorate (Intelligence.buildBehavioralRecommendation is
         // the rec engine) — the raw count alone feeds the locked teaser row.
         const rawInsights = React.useMemo(

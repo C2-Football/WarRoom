@@ -38,6 +38,16 @@ async function server() {
   assert.equal(requests.at(-1).headers['x-goog-api-key'], env.GOOGLE_AI_KEY);
   assert.deepEqual(limits, ['ai-analyze:minute', 'ai-shared:user-day', 'ai-shared:project-minute', 'ai-shared:project-day']);
   assert(!reads.includes('OPENAI_API_KEY') && !reads.includes('ANTHROPIC_API_KEY'));
+  for (const [type, context] of [
+    ['recon-chat', { userMessage: 'Who should I add?', decisionContext: { leagueType: 'redraft' } }],
+    ['team_diagnosis', { leagueName: 'Keeper test', roster: [], decisionContext: { leagueType: 'keeper' } }],
+  ]) {
+    const response = await invoke(req({ 'X-AI-Provider': 'gemini', 'X-AI-Key': 'personal-synthetic-key' }, type, context));
+    assert.equal(response.status, 200);
+    const prompt = requests.at(-1).body.systemInstruction.parts[0].text;
+    assert.match(prompt, type === 'recon-chat' ? /REDRAFT: focus/ : /KEEPER: distinguish/);
+    assert.match(prompt, /Missing data is unknown/);
+  }
   for (const provider of ['gemini', 'openai', 'anthropic']) {
     limits.length = 0; const before = requests.length;
     const response = await invoke(req({ 'X-AI-Provider': provider, 'X-AI-Key': 'personal-synthetic-key' }));
@@ -86,6 +96,17 @@ async function browser() {
   assert.equal(requests[0].headers['X-AI-Key'], 'synthetic-personal-key'); assert.equal(requests[0].headers['X-AI-Provider'], 'openai');
   assert.equal(JSON.parse(requests[0].body).context.useWebSearch, true);
   assert(!requests[0].body.includes('synthetic-personal-key'));
+  vm.runInNewContext(fs.readFileSync('js/shared/wr-ai-context.js','utf8'), { window });
+  window.S.currentLeague = { league_id: 'league-a', settings: { type: 0 } };
+  await window.callClaude([{ role: 'user', content: 'Waiver help' }], false, 0, 300, 'chat');
+  assert.equal(JSON.parse(requests.at(-1).body).context.decisionContext.leagueType, 'redraft');
+  await window.OD.callAI({ type: 'team_diagnosis', context: JSON.stringify({ leagueId: 'league-b' }) });
+  assert.equal(JSON.parse(requests.at(-1).body).context.decisionContext, undefined);
+  await window.OD.callAI({ type: 'dashboard_digest', context: { leagues: [] } });
+  assert.equal(JSON.parse(requests.at(-1).body).context.decisionContext, undefined);
+  const explicit = { leagueId: 'league-a', leagueType: 'keeper', keeperRules: { slots: 2 } };
+  await window.OD.callAI({ type: 'chat', context: { decisionContext: explicit } });
+  assert.deepEqual(JSON.parse(requests.at(-1).body).context.decisionContext, explicit);
   jwt = 'x.' + btoa(JSON.stringify({ sub: 'user-b' })) + '.x';
   assert.equal(window.DHQAI.get(), null); assert.equal(sessionStorage.getItem('dhq_personal_ai_v1'), null);
   await window.OD.callAI({ type: 'chat', context: 'hello' }); assert(!requests.at(-1).headers['X-AI-Key']);

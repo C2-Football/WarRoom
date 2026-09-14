@@ -351,7 +351,7 @@ function normalizeGenericAIContext(type: string, context: any): GenericAIContext
 
     return {
         callType,
-        system: String(parsed?.system || 'Dynasty fantasy football advisor. Values are DHQ on a 0-10000 league-adjusted scale. Be specific, practical, and concise.'),
+        system: String(parsed?.system || 'Fantasy football advisor. Use the supplied league format, scoring, value definitions and decision horizon. Be specific, practical, and concise.'),
         userPrompt,
         maxTokens: Math.max(100, Math.min(Number(parsed?.maxTokens) || 600, 4000)),
         useWebSearch: parsed?.useWebSearch === true,
@@ -631,14 +631,14 @@ function buildLeagueFormatBlock(fmt: LeagueFormat): string {
     const lines: string[] = [];
 
     if (fmt.isSuperFlex) {
-        lines.push(`⚡ SUPERFLEX LEAGUE — ${fmt.numQBSlots} QB-eligible slots. QBs are the most valuable position. A team without 2 starting-caliber QBs has a CRITICAL deficit that overrides all other needs.`);
-        lines.push(`  → QB scarcity multiplier: 1.8x. Every QB valuation, trade offer, and FAAB bid must reflect this premium.`);
-        lines.push(`  → A team with only 1 startable QB should treat acquiring a second QB as their #1 priority above ALL other positions.`);
+        lines.push(`⚡ SUPERFLEX LEAGUE — ${fmt.numQBSlots} QB-eligible slots. Compare startable QBs with the actual lineup alternatives and available player pool.`);
+        lines.push(`  → Use league-adjusted values and actual replacement supply; do not apply a fixed multiplier.`);
+        lines.push(`  → A missing starter may be a priority, but compare the expected lineup gain against other needs.`);
     }
 
     if (fmt.isTEP) {
         lines.push(`⚡ TE PREMIUM LEAGUE — TEs receive +${fmt.tePremiumBonus} bonus PPR (total: ${(fmt.tePremiumBonus + (fmt.scoringType === 'ppr' ? 1 : fmt.scoringType === 'half_ppr' ? 0.5 : 0)).toFixed(1)} PPR for TE). Elite TEs (top 5) are premium assets worth significantly more than standard leagues.`);
-        lines.push(`  → TE scarcity multiplier: 1.5x. Do NOT treat TEs as interchangeable depth pieces.`);
+        lines.push(`  → Use the supplied scoring and replacement options; do not double-count the premium in league-adjusted values.`);
     }
 
     if (fmt.isIDP) {
@@ -662,9 +662,38 @@ function buildLeagueFormatBlock(fmt: LeagueFormat): string {
         : '';
 }
 
+// Rules shared by generic chat and structured analyses. The supplied context
+// establishes the horizon; older task templates must not force dynasty advice.
+function adviceLeagueType(ctx: any): string {
+    const raw = ctx?.decisionContext?.leagueType ?? ctx?.leagueType ?? ctx?.settings?.type;
+    return ({ 0: 'redraft', 1: 'keeper', 2: 'dynasty', 3: 'chopped' } as any)[raw] || String(raw || 'unknown').toLowerCase();
+}
+
+function buildDecisionRules(ctx: any): string {
+    const type = adviceLeagueType(ctx);
+    const d = ctx?.decisionContext || ctx || {};
+    const lines = [
+        'LEAGUE AND EVIDENCE RULES: These govern the advice even when an older task template says dynasty or uses a generic rebuild label.',
+        'Use supplied facts and actually retrieved sources. Do not claim current news, confirmed injuries, ownership, lineup eligibility or live access without evidence. Missing data is unknown, not zero. Separate projections from results and opinions.',
+        'Do not apply universal DHQ, PPG or age cutoffs, or fixed positional multipliers. League-adjusted values already reflect scoring; compare actual roster alternatives, role changes and available replacements.',
+        'Recommend legal, available actions only. A waiver needs an available player, roster/drop context and budget evidence; otherwise make the advice conditional. Do not invent bid amounts, trade acceptance probabilities or transaction completion.',
+        'Lead with a useful decision, then evidence and the main tradeoff. Identify the specific missing fact that could change the answer. Preserve required JSON or other output schemas.',
+    ];
+    if (type === 'redraft') lines.push('REDRAFT: focus on this week and the remaining fantasy season. No multi-year rebuild, future rookie-pick strategy or future-season youth stash. Low standings do not turn redraft into dynasty. Separate weekly lineup projections from rest-of-season value.');
+    else if (type === 'keeper') lines.push('KEEPER: distinguish current-season lineup/waiver/trade benefit from next-season keeper surplus. Do not issue a final keep/cut recommendation without known slots, eligibility, round or salary costs, escalation and alternatives. Unknown costs are not zero. User-supplied rules and player costs can fill gaps in imported keeperRules. A 60/40 dynasty/ROS blend is an uncalibrated shortlist signal, not keeper surplus or a next-year projection. Ask for missing rules and provide a conditional comparison meanwhile.');
+    else if (type === 'chopped') lines.push('CHOPPED: optimize the next elimination and waiver opportunities. No trades, rebuilds or future-pick advice.');
+    else if (type === 'best_ball') lines.push('BEST BALL: scoring selects the lineup automatically; no manual start/sit advice. Verify transaction rules.');
+    else if (type === 'dynasty') lines.push('DYNASTY: weigh immediate production and future value against the supplied team plan. Age and competitive labels are considerations, not unconditional buy/sell rules.');
+    else lines.push('Retention format is unknown or this request spans leagues. Do not assume dynasty. Evaluate each explicitly identified league separately; ask for format if it changes the decision.');
+    if (d.canTrade === false || type === 'chopped') lines.push('Trades are disabled. Do not propose trade actions.');
+    if (ctx?.decisionContext) lines.push('Supplied decision context: ' + JSON.stringify(ctx.decisionContext));
+    return '\n' + lines.join('\n') + '\n';
+}
+
 // ── Team Mode Context ────────────────────────────────────────────────────────
 
 function buildTeamModeBlock(ctx: any): string {
+    if (adviceLeagueType(ctx) !== 'dynasty') return '';
     const tier = ctx.teamTier || ctx.tier || '';
     const window = ctx.teamWindow || ctx.tradeWindow || '';
     const healthScore = ctx.healthScore || 0;
@@ -774,24 +803,7 @@ function buildScarcityBlock(ctx: any): string {
 
 function buildQualityThresholdBlock(): string {
     return `
-═══ MINIMUM QUALITY THRESHOLDS (apply to ALL FA/FAAB/waiver recommendations) ═══
-⛔ DO NOT recommend adding or bidding on players who meet ANY of these criteria:
-  • DHQ below 500 (replacement-level talent — not worth a roster spot in competitive leagues)
-  • PPG below 5.0 in their most recent season with 6+ games played
-  • Players with no NFL stats in the last 2 seasons (unless they are rookies)
-  • Veterans (age 27+) with declining trend who would not crack the starting lineup
-
-✅ ONLY recommend FAAB spending when the player would:
-  • Start or be the first backup at a position of need, OR
-  • Be a high-upside young player (age ≤25) worth a speculative hold, OR
-  • Replace an injured starter (emergency depth pickup)
-
-💰 FAAB DISCIPLINE:
-  • "Depth for depth's sake" is NEVER a valid reason to spend FAAB
-  • A $1 bid on a bad player is still a wasted roster spot
-  • If no quality targets exist at a position, say "HOLD YOUR FAAB" — do not invent targets
-  • Remaining FAAB is a weapon for mid-season breakouts and injuries — preserve it
-═══════════════════════════════════════════════════════════════════════════════════════
+WAIVER QUALITY: Evaluate available players against legal roster/drop options, league scoring, current role and remaining budget. Historical PPG, age and dynasty DHQ alone cannot rule out useful streamers or role changes. State uncertainty when current evidence is missing. Hold FAAB when no supported improvement exists.
 `;
 }
 
@@ -804,9 +816,9 @@ function buildSystemPrompt(ctx?: any): string {
     const scarcityBlock = ctx ? buildScarcityBlock(ctx) : '';
     const qualityBlock = buildQualityThresholdBlock();
 
-    return `You are an elite dynasty fantasy football analyst with deep expertise in player values, team-building strategy, and trade negotiation psychology. You analyze leagues with the precision of a sports analytics team combined with the strategic instinct of a seasoned GM.
+    return `You are a fantasy football analyst with deep expertise in player values, team-building strategy, and trade negotiation psychology. You analyze leagues with the precision of a sports analytics team combined with the strategic instinct of a seasoned GM.
 
-You have access to live data: Sleeper rosters and standings, FantasyCalc dynasty player values, and behavioral profiles of each owner (their DNA/trading personality derived from actual trade history).
+Use only the rosters, standings, values, owner history and retrieved sources supplied with this request. Their availability and freshness are not guaranteed.
 ${fmtBlock}${modeBlock}${scarcityBlock}${qualityBlock}
 Your analysis must be:
 - Specific and data-driven — name owners, cite records, reference actual roster compositions
@@ -816,11 +828,7 @@ Your analysis must be:
 - CONTEXTUALLY AWARE — every recommendation must respect the team's competitive mode (rebuild/contend/crossroads) and the league's format (superflex/TEP/IDP/scoring type)
 
 CRITICAL RULES:
-1. Never recommend a rebuilding team acquire aging veterans for "depth"
-2. Never recommend spending FAAB on replacement-level players (DHQ < 500, PPG < 5.0)
-3. In superflex leagues, ALWAYS flag QB needs as the top priority if a team lacks 2 starters
-4. In TE premium leagues, value elite TEs 1.5x higher than standard leagues
-5. "Add depth" is only valid advice for CONTENDING teams at positions where the depth player would actually start in case of injury to a top-24 player
+Respect the league horizon, transaction rules and evidence limits. Treat owner behavioral profiles as uncertain estimates, not verified motives or acceptance probabilities.
 
 Format with **bold headers** for each section. Keep total response under 1200 words.`
     + (ctx?._dhqContext ? '\n\n--- WAR ROOM CONTEXT ---\n' + ctx._dhqContext : '');
@@ -1671,7 +1679,7 @@ Deno.serve(async (req) => {
         const userPrefs = (!genericContext && STRUCTURED_TYPES.has(type) && type !== 'mock_draft' && type !== 'dynasty_read')
             ? await fetchPreferenceSummary(aiSession, contextLeagueId) : null;
         const cacheTtlMs = !personal && !genericContext ? (CACHEABLE_TYPES[type] || 0) : 0;
-        const cacheKey = cacheTtlMs ? 'free-gemini-v1:' + aiSession.identifier + ':' + await computeCacheKey(type, context, aiSession, prefsVersionFor(userPrefs)) : null;
+        const cacheKey = cacheTtlMs ? 'free-gemini-v2:' + aiSession.identifier + ':' + await computeCacheKey(type, context, aiSession, prefsVersionFor(userPrefs)) : null;
         const usage = { source: personal ? 'personal-key' : 'shared-gemini', plan: 'free', provider, model: route.model };
         const resultBody = (analysis: string, grounding?: any) => ({ analysis, ...(grounding ? { grounding } : {}),
             ...(type === 'mock_draft' ? { picks: parseJsonArray(analysis) } : {}),
@@ -1693,10 +1701,11 @@ Deno.serve(async (req) => {
             }
         }
         const maxTokens = Math.max(100, Math.min(maxTokensOverride || (type === 'mock_draft' ? 16000 : 8192), type === 'mock_draft' ? 16000 : 8192));
-        const systemPrompt = genericContext?.system || (type === 'mock_draft'
-            ? 'You are a dynasty fantasy football draft simulator. Output ONLY a raw JSON array. Never repeat a player. Start with [ and end with ].'
+        const baseSystemPrompt = genericContext?.system || (type === 'mock_draft'
+            ? 'You are a fantasy football draft simulator. Follow the supplied league format. Output ONLY a raw JSON array. Never repeat a player. Start with [ and end with ].'
             : type === 'dynasty_read' ? buildDynastyReadSystemPrompt(parsedContext)
             : buildSystemPrompt(context) + buildUserPreferenceBlock(userPrefs));
+        const systemPrompt = buildDecisionRules(parsedContext) + baseSystemPrompt;
         let result;
         try {
             result = await callAIProvider({ route, apiKey, systemPrompt: systemPrompt.slice(0, 30000), userPrompt: userPrompt.slice(0, 100000), maxTokens, useWebSearch });

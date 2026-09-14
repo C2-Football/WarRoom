@@ -265,12 +265,15 @@
         const scoring = scoringProfile(league.scoring_settings || league.scoringSettings || {});
         const upperSlots = rosterPositions.map(s => String(s || '').toUpperCase());
         const activeSlots = upperSlots.filter(s => s && !BENCH_SLOTS.has(s));
+        const retentionType = window.App?.LeagueSkin?.build?.({ league })?.type
+            || ({ 0: 'redraft', 1: 'keeper', 2: 'dynasty', 3: 'chopped' })[league.settings?.type]
+            || league.type || league.league_type || 'unknown';
         const flags = {
             superflex: upperSlots.some(s => QB_PREMIUM_SLOTS.has(s)),
             idp: upperSlots.some(s => IDP_SLOTS.has(s)),
             tePremium: !!scoring.tePremium,
             bestBall: !!(league.settings?.best_ball || league.metadata?.best_ball || data.draftType === 'best_ball' || state.variant === 'best_ball'),
-            keeper: !!(league.settings?.keeper_count || league.metadata?.keeper_count),
+            keeper: retentionType === 'keeper' || (retentionType === 'unknown' && Number(league.settings?.max_keepers ?? league.settings?.keeper_count ?? league.metadata?.keeper_count) > 0),
             auction: normalizeDraftType(data) === 'auction',
         };
         return {

@@ -201,3 +201,35 @@ test('failed guided actions stay beside the current move, can be dismissed, and 
 test('returning campaigns precede setup in DOM and focus order without opening or changing the saved game',async()=>{
     const page=await harness(),tree=page.draw(),all=nodes(tree),shelf=all.findIndex(node=>node.props.className==='duat-panel duat-campaign-shelf'),form=all.findIndex(node=>node.type==='form');assert(shelf>0&&shelf<form);assert.equal(page.actions.length,0);assert.equal(page.frame(),undefined);assert.equal(page.component(page.App.DuatSeasonHomeView),undefined);
 });
+
+test('first expedition reduces new-campaign draft work and preserves the saved campaign',async()=>{
+    const page=await harness(),before=JSON.stringify(page.saved());
+    await button(page.draw(),'Use first-expedition rules').props.onClick();
+    const tree=page.draw(),settings=nodes(tree).find(node=>typeof node.type==='function'&&node.type.name==='CampaignSettings').props;
+    assert.equal(settings.settings.leagueSize,8);assert.equal(settings.settings.mummyCount,1);
+    assert.equal(settings.settings.playoffTeams,4);assert.equal(settings.settings.favors,true);assert.equal(settings.settings.conquest,true);
+    assert.equal(settings.scoring.reception,.5);assert.equal(settings.expansionSettings.conquestMode,'original');
+    assert.match(text(tree),/Your draft:.*8.*picks/);
+    assert.equal(button(tree,'Found a dynasty').props.disabled,false);
+    assert.equal(JSON.stringify(page.saved()),before);assert.equal(page.actions.length,0);
+});
+
+test('recap rivalry uses only supplied revealed standings and distinguishes chasing, ties and a lead',async()=>{
+    const page=await harness(),render=rows=>text(page.App.DuatWeeklyUI.RivalMoment({rows,factionId:'egypt'}));
+    const rows=[{factionId:'egypt',name:'Egypt',points:100},{factionId:'rome',name:'Rome',points:103.25},{factionId:'greece',name:'Greece',points:150}];
+    const before=JSON.stringify(rows);assert.match(render(rows),/3.25 points behind Rome/);assert.equal(JSON.stringify(rows),before);
+    assert.match(render([{...rows[0]}, {...rows[1],points:100}]),/Level with Rome/);
+    assert.match(render([{...rows[0]}, {...rows[1],points:97}]),/3.00 points clear of Rome/);
+    assert.equal(render([]),'');assert.equal(render([rows[1]]),'');
+});
+
+test('Resurrection setup persists its era through the actual create handler without changing existing saves',async()=>{
+    const page=await harness(),before=JSON.stringify(page.saved());
+    button(page.draw(),'Original Duat · Resurrection').props.onClick();
+    assert.match(text(page.draw()),/Draft and excavation preview/);assert.equal(JSON.stringify(page.saved()),before);
+    const form=nodes(page.draw()).find(node=>node.type==='form');
+    await form.props.onSubmit({preventDefault(){}});page.draw();
+    assert.equal(page.saved().era.mode,'resurrection');assert.equal(page.saved().era.scoringSeason,new Date().getUTCFullYear());
+    assert.equal(page.saved().phase,'draft');assert.equal(page.saved().completedWeeks.length,0);
+    assert.match(text(page.draw()),/NFL roster and scoring feed is not connected/);
+});

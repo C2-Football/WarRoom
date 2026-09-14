@@ -203,3 +203,30 @@ test('alliance names lock with the first scored week and jsonb object-key order 
     const reorder=value=>Array.isArray(value)?value.map(reorder):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).reverse().map(([key,item])=>[key,reorder(item)])):value;
     assert(D.validateCampaign(reorder(state)));assert(D.validateCampaign(reorder(ended())));
 });
+
+test('Resurrection preserves historical identities through a multi-year draft and excavation, separately from the scoring season',()=>{
+    const state=ready({}, {era:{mode:'resurrection',scoringSeason:2026}});
+    assert.equal(state.era.scoringSeason,2026);assert.deepEqual(state.seasons,[2025,2024]);
+    for(const faction of state.factions){
+        assert.equal(faction.armies.length,2);
+        for(const army of faction.armies)for(const player of army.players)assert.equal(player.id,player.identity+':'+army.season);
+        assert([2024,2025].includes(D.activeArmy(faction).season));
+    }
+    assert.equal(D.validateCampaign(state),true);
+    const projected=D.projectCampaign(state,'egypt',data);assert.equal(projected.era.mode,'resurrection');assert.equal(projected.era.scoringSeason,2026);
+    assert.equal(D.resurrectionStatus(state).ready,false);
+});
+
+test('Resurrection refuses historical score substitution and all live-dependent mutations without changing the save',()=>{
+    const state=ready({}, {era:{mode:'resurrection',scoringSeason:2026}}),before=JSON.stringify(state);
+    for(const type of ['advance-week','set-lineup','declare-favor','ritual','claim','attack','next-season'])assert.throws(()=>act(state,{type}),error=>error.code==='LIVE_FEED_REQUIRED');
+    assert.equal(JSON.stringify(state),before);assert.equal(state.completedWeeks.length,0);
+    const forged=clone(state);forged.completedWeeks.push({week:1});assert.throws(()=>D.validateCampaign(forged),error=>error.code==='INVALID_CAMPAIGN');
+});
+
+test('era validation rejects future draft armies and malformed modes while old saves remain Historical Replay',()=>{
+    assert.throws(()=>create({}, {era:{mode:'resurrection',scoringSeason:2025}}),error=>error.code==='INVALID_ERA');
+    for(const era of [{mode:'other'},{mode:'historical',scoringSeason:2026},{mode:'resurrection',scoringSeason:'2026'}])assert.throws(()=>create({}, {era}),error=>error.code==='INVALID_ERA');
+    const legacy=create();assert.equal(legacy.era,undefined);assert.equal(D.resurrectionStatus(legacy),null);
+    assert.deepEqual(D.eraOptions({mode:'resurrection'},'2026-09-14T12:00:00Z'),{mode:'resurrection',scoringSeason:2026});
+});

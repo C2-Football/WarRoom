@@ -190,6 +190,33 @@ test('league scoring is the differentiator: doubling PPR moves the WR/RB ratio',
   assert.ok(rFull > rHalf * 1.05, `receptions premium lifts the WR relative to the RB (${rHalf.toFixed(2)} → ${rFull.toFixed(2)})`);
 });
 
+test('missing, stale and zero seasonal values never become dynasty scores', () => {
+  build();
+  window.S.currentLeagueId = 'L' + lid;
+  window.App.LeagueSkin = {getCurrent: () => ({type:'redraft'})};
+  assert.strictEqual(PV.getValue('stash'), 0);
+  assert.strictEqual(PV.getValue('missing'), null);
+  assert.ok(Object.keys(PV.valueMap()).includes('rook'), 'projection-only player remains enumerable');
+  window.S.currentLeagueId = 'another';
+  assert.strictEqual(PV.getValue('vet'), null);
+  window.S.currentLeagueId = 'L' + lid;
+  const currentWeek = window.App.WeeklyProj.currentWeek;
+  window.App.WeeklyProj.currentWeek = () => 99;
+  assert.strictEqual(PV.getValue('vet'), null);
+  window.App.WeeklyProj.currentWeek = currentWeek;
+  delete window.App.LeagueSkin;
+});
+test('same-league scoring edits refresh the seasonal map', () => {
+  resetState(); lid++;
+  const league = {...LEAGUE, league_id:'L'+lid, scoring_settings:{...SCORING}};
+  const ctx=freshCtx({league,leagueId:league.league_id});
+  const first=PV.ensureRos(ctx);
+  league.scoring_settings.rec=2;
+  const second=PV.ensureRos(ctx);
+  assert.notStrictEqual(first,second);
+  assert.notStrictEqual(first.points.vet,second.points.vet);
+});
+
 // ── Summary ─────────────────────────────────────────────────────────
 console.log('');
 if (failed) {

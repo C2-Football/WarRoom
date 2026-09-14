@@ -321,7 +321,7 @@
             showAgeCurve: longTerm,
             showDraftPrep: preDraft || phase === 'offseason',
             showDraftPrepWhenRosterEmpty: (seasonal || type === 'keeper') && preDraft,
-            showStartSit: seasonal && phase === 'in_season',
+            showStartSit: (seasonal || type === 'keeper') && phase === 'in_season',
             // Game Day Central (start/sit + opponent + season schedule + bye watch)
             // applies to ANY in-season league (dynasty plays weekly H2H too), AND
             // to any drafted roster in the offseason so you can build your Week 1

@@ -590,6 +590,115 @@ function buildEmpirePortfolioModel(input) {
     };
 }
 
+// Scenario math uses the same DHQ book as the portfolio, never mixes pricing scales.
+// No mutation: these are hypothetical value shocks, not roster or scoring changes.
+function buildEmpireScenario(model, options = {}) {
+    const provinces = model.provinces || [];
+    const ids = new Set(provinces.map(p => String(p.id)));
+    const seen = new Set();
+    const assets = (model.assets || []).filter(a => {
+        const key = String(a.leagueId) + ':' + a.pid;
+        if (!ids.has(String(a.leagueId)) || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+    const valueOf = a => Number.isFinite(Number(a.dhq)) && Number(a.dhq) > 0 ? Number(a.dhq) : 0;
+    const kind = ['player', 'team', 'position'].includes(options.kind) ? options.kind : 'player';
+    const groupKey = a => String(kind === 'player' ? a.pid : kind === 'team' ? a.team : a.pos);
+    const groups = new Map();
+    assets.forEach(a => {
+        const key = groupKey(a);
+        if (!key || key === 'undefined' || key === '?' || (kind === 'team' && key === 'FA')) return;
+        if (!groups.has(key)) groups.set(key, { key, name: kind === 'player' ? a.name : key, value: 0, leagueIds: new Set() });
+        const group = groups.get(key);
+        group.value += valueOf(a);
+        group.leagueIds.add(String(a.leagueId));
+    });
+    const choices = [...groups.values()].map(g => ({ ...g, count: g.leagueIds.size }))
+        .sort((a, b) => b.value - a.value || b.count - a.count || a.name.localeCompare(b.name));
+    const selected = choices.find(g => g.key === String(options.target)) || choices[0] || null;
+    const drop = Number.isFinite(Number(options.drop)) ? Math.min(100, Math.max(0, Number(options.drop))) : 30;
+    const cap = Number.isFinite(Number(options.cap)) ? Math.min(100, Math.max(0, Number(options.cap))) : 50;
+    const affected = selected ? assets.filter(a => groupKey(a) === selected.key) : [];
+    const total = assets.reduce((n, a) => n + valueOf(a), 0);
+    const exposed = affected.reduce((n, a) => n + valueOf(a), 0);
+    const loss = exposed * drop / 100;
+    const rows = provinces.map(p => {
+        const holdings = assets.filter(a => String(a.leagueId) === String(p.id));
+        const hits = affected.filter(a => String(a.leagueId) === String(p.id));
+        const baseline = holdings.reduce((n, a) => n + valueOf(a), 0);
+        const atRisk = hits.reduce((n, a) => n + valueOf(a), 0);
+        const delta = atRisk * drop / 100;
+        return { province: p, hits, baseline, loss: delta, after: baseline - delta,
+            lossPct: baseline > 0 ? delta / baseline * 100 : null,
+            unknown: hits.filter(a => !valueOf(a)).length };
+    }).filter(r => r.hits.length).sort((a, b) => (b.lossPct || 0) - (a.lossPct || 0) || b.loss - a.loss);
+    const allowed = Math.floor(provinces.length * cap / 100);
+    const ownership = new Map();
+    assets.forEach(a => {
+        const key = String(a.pid);
+        if (!ownership.has(key)) ownership.set(key, { pid: a.pid, name: a.name, pos: a.pos, holdings: [] });
+        ownership.get(key).holdings.push(a);
+    });
+    const breaches = [...ownership.values()].filter(g => g.holdings.length > allowed)
+        .map(g => ({ ...g, count: g.holdings.length, excess: g.holdings.length - allowed,
+            pct: provinces.length ? g.holdings.length / provinces.length * 100 : 0,
+            value: g.holdings.reduce((n, a) => n + valueOf(a), 0) }))
+        .sort((a, b) => b.excess - a.excess || b.value - a.value || a.name.localeCompare(b.name));
+    return { choices, selected, drop, cap, allowed, total, exposed, loss, after: total - loss,
+        lossPct: total > 0 ? loss / total * 100 : null, rows, breaches,
+        scored: assets.filter(a => valueOf(a) > 0).length, assetCount: assets.length,
+        missingMeta: model.dataQuality?.missingPlayerMeta || 0 };
+}
+
+function EmpirePortfolioLab({ model, onOpen }) {
+    const [kind, setKind] = React.useState('player');
+    const [target, setTarget] = React.useState('');
+    const [drop, setDrop] = React.useState(30);
+    const [cap, setCap] = React.useState(50);
+    const result = React.useMemo(() => buildEmpireScenario(model, { kind, target, drop, cap }), [model, kind, target, drop, cap]);
+    const pct = n => n == null ? 'Unavailable' : n.toFixed(1) + '%';
+    return <main className="empire-detail empire-lab" data-testid="empire-portfolio-lab">
+        <section className="empire-detail-hero">
+            <div><div className="empire-command-kicker">Plan before you move</div><h1>One outcome. Every league.</h1><p>Stress-test your holdings, find the most affected rosters, and decide where to review your exposure.</p></div>
+            <span className="empire-lab-badge">Hypothetical scenario</span>
+        </section>
+        <section className="empire-panel">
+            <div className="empire-panel-head"><strong>Build your scenario</strong><em>Included Empire leagues</em></div>
+            <div className="empire-lab-controls">
+                <label>Group by<select value={kind} onChange={e => { setKind(e.target.value); setTarget(''); }}><option value="player">Player</option><option value="team">NFL team</option><option value="position">Position</option></select></label>
+                <label>Holding<select value={result.selected?.key || ''} disabled={!result.choices.length} onChange={e => setTarget(e.target.value)}>{!result.choices.length && <option value="">No holdings available</option>}{result.choices.map(g => <option key={g.key} value={g.key}>{g.name} · {g.count} {g.count === 1 ? 'league' : 'leagues'}</option>)}</select></label>
+                <label>Value drop · {drop}%<input aria-label="Value drop" type="range" min="0" max="100" step="5" value={drop} onChange={e => setDrop(Number(e.target.value))} /></label>
+            </div>
+            <p className="empire-lab-note">Applies a {drop}% drop to each selected holding's current DHQ value. Uses the portfolio's shared valuation baseline; league scoring differences are not repriced here. This is a value scenario, not an injury, points, or win-probability forecast. Picks are excluded.</p>
+        </section>
+        <div className="empire-detail-metrics" aria-live="polite" aria-atomic="true">
+            <div className="empire-metric"><span>Current player value</span><strong>{result.total ? empireCompact(result.total) : 'Unavailable'}</strong></div>
+            <div className="empire-metric"><span>Scenario value</span><strong>{result.total ? empireCompact(result.after) : 'Unavailable'}</strong></div>
+            <div className="empire-metric"><span>Portfolio decrease</span><strong style={{ color: 'var(--bad)' }}>{pct(result.lossPct)}</strong><span>{result.total ? empireCompact(result.loss) + ' DHQ' : 'Waiting for valuations'}</span></div>
+            <div className="empire-metric"><span>Leagues affected</span><strong>{result.rows.length}/{model.provinces.length}</strong><span>{result.scored}/{result.assetCount} holdings valued{result.missingMeta ? ' · ' + result.missingMeta + ' unnamed' : ''}</span></div>
+        </div>
+        {(result.scored < result.assetCount || result.missingMeta > 0) && <p className="empire-lab-note" role="status">Partial coverage: unvalued or unnamed holdings are excluded from value calculations. Their impact is unknown.</p>}
+        <section className="empire-panel">
+            <div className="empire-panel-head"><strong>Where it hits hardest</strong><em>Largest share of roster value first</em></div>
+            {result.rows.length ? <div className="empire-lab-table-wrap"><table className="empire-lab-table"><caption className="empire-lab-note">{result.selected.name} · {drop}% value drop</caption><thead><tr><th scope="col">League / holdings</th><th scope="col">Current DHQ</th><th scope="col">Scenario DHQ</th><th scope="col">Decrease</th><th scope="col">Next step</th></tr></thead><tbody>{result.rows.map(r => <tr key={r.province.id}>
+                <th scope="row"><button className="empire-ghost" type="button" onClick={() => onOpen({ type: 'league', leagueId: r.province.id })}>{r.province.name}</button><small>{r.hits.map(a => a.name).join(', ')}</small>{r.unknown > 0 && <small>{r.unknown} unvalued · partial estimate</small>}</th>
+                <td data-label="Current DHQ">{r.baseline ? empireCompact(r.baseline) : '—'}</td><td data-label="Scenario DHQ">{r.baseline ? empireCompact(r.after) : '—'}</td><td data-label="Decrease"><strong>{pct(r.lossPct)}</strong><small>{empireCompact(r.loss)} DHQ</small></td>
+                <td className="empire-lab-next"><button className="empire-action" type="button" onClick={() => onOpen(canOpenEmpireTradeDesk(r.province) ? { type: 'tradeDesk', leagueId: r.province.id, seedPid: kind === 'player' ? result.selected.key : undefined } : { type: 'league', leagueId: r.province.id })}>{canOpenEmpireTradeDesk(r.province) ? 'Review trade options' : 'Review roster'}</button></td>
+            </tr>)}</tbody></table></div> : <div className="empire-empty"><strong>No holdings to model</strong>Sync your leagues or choose another group to build a scenario.</div>}
+        </section>
+        <section className="empire-panel">
+            <div className="empire-panel-head"><strong>Your exposure guardrail</strong><em>{result.breaches.length} players above target</em></div>
+            <div className="empire-lab-controls"><label>Maximum leagues per player · {cap}%<input aria-label="Maximum player exposure" type="range" min="0" max="100" step="10" value={cap} onChange={e => setCap(Number(e.target.value))} /></label><p className="empire-lab-note">Your target allows up to {result.allowed} of {model.provinces.length} included leagues per player. Ownership is rounded down to whole leagues. This target is for this visit.</p></div>
+            <div className="empire-lab-guardrails">{result.breaches.slice(0, 12).map(g => <button className="empire-signal" type="button" key={g.pid} onClick={() => { setKind('player'); setTarget(String(g.pid)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                <div className="empire-signal-top"><strong>{g.name}</strong><b>{Math.round(g.pct)}%</b></div><span>{g.count} leagues · {g.excess} above your target</span><em>Model this player →</em>
+            </button>)}</div>
+            {!result.breaches.length && <div className="empire-empty"><strong>{result.assetCount ? 'Within your exposure target' : 'No ownership data yet'}</strong>{result.assetCount ? 'Every player fits your selected limit.' : 'Sync leagues to review concentration.'}</div>}
+            {result.breaches.length > 12 && <p className="empire-lab-note">Showing the 12 largest breaches, ordered by excess ownership, then DHQ value. Use the Holding selector to model any player.</p>}
+        </section>
+    </main>;
+}
+
 // deriveOwnerEdge — translate a trade posture into an actionable cross-league edge.
 function deriveOwnerEdge(posture) {
     const key = posture?.key || 'NEUTRAL';
@@ -1491,6 +1600,25 @@ function empireStandingsFor(league) {
 function EmpireStyles() {
     return (
         <style>{`
+            .empire-lab { display: grid; gap: 20px; }
+            .empire-lab .empire-detail-hero { margin-bottom: 0; }
+            .empire-lab-badge { color: var(--gold); border: 1px solid var(--gold); border-radius: 30px; padding: 8px 12px; font-size: 12px; white-space: nowrap; }
+            .empire-lab-controls { display: grid; grid-template-columns: 1fr 2fr 1.4fr; gap: 20px; align-items: center; }
+            .empire-lab-controls label { display: grid; gap: 10px; font-size: 13px; font-weight: 700; min-width: 0; }
+            .empire-lab-controls select { width: 100%; min-width: 0; background: var(--page-bg, #101010); color: var(--text-primary, #eee); border: 1px solid var(--ov-6, #444); padding: 12px; border-radius: var(--card-radius-sm, 8px); font: inherit; }
+            .empire-lab-controls input { width: 100%; accent-color: var(--gold, #d4af37); min-height: 32px; }
+            .empire-lab-note { color: var(--silver, #aaa); font-size: 12px; line-height: 1.65; }
+            .empire-lab-table-wrap { overflow-x: auto; }
+            .empire-lab-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+            .empire-lab-table caption { text-align: left; padding-bottom: 12px; }
+            .empire-lab-table th, .empire-lab-table td { padding: 16px 10px; border-bottom: 1px solid var(--ov-6, #333); }
+            .empire-lab-table thead { color: var(--silver, #aaa); font-size: 11px; text-transform: uppercase; }
+            .empire-lab-table small { display: block; max-width: 320px; color: var(--silver, #aaa); font-weight: 400; line-height: 1.6; margin-top: 5px; }
+            .empire-lab-guardrails { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+            .empire-lab-entry { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; background: linear-gradient(110deg, var(--surf-solid, #151515), #211d13); }
+            .empire-lab-entry p { color: var(--silver, #aaa); font-size: 13px; margin: 8px 0 0; }
+            .empire-lab button:focus-visible, .empire-lab select:focus-visible, .empire-lab input:focus-visible { outline: 2px solid var(--gold, #d4af37); outline-offset: 3px; }
+            @media(max-width: 700px) { .empire-lab-controls, .empire-lab-guardrails { grid-template-columns: 1fr; } .empire-lab-entry { align-items: flex-start; flex-direction: column; } .empire-lab-table { min-width: 0; } .empire-lab-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); } .empire-lab-table tbody { display: block; } .empire-lab-table tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--ov-6, #333); padding: 12px 0; gap: 12px; } .empire-lab-table th, .empire-lab-table td { padding: 0; border: 0; } .empire-lab-table th, .empire-lab-table .empire-lab-next { grid-column: 1 / -1; } .empire-lab-table td[data-label]::before { content: attr(data-label); display: block; font-size: 10px; color: var(--silver, #aaa); margin-bottom: 6px; } .empire-lab-next button { width: 100%; min-height: 44px; } .empire-lab .empire-detail-hero { flex-wrap: wrap; } }
             .empire-root { min-height: 100vh; background: var(--page-bg); color: var(--text-primary, var(--k-f4f1e8, #f4f1e8)); font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
             /* The app-wide "subdued logo" watermark (index.html body::before) is
                position:fixed with an explicit z-index, which stacks it ABOVE
@@ -2097,7 +2225,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
 
     const workspaceForDetail = ['moves', 'tradeDesk', 'owner'].includes(detail?.type) ? 'actions'
         : ['war', 'outlook', 'provinces', 'threat', 'league'].includes(detail?.type) ? 'leagues'
-        : ['scout', 'index', 'player', 'slice', 'quality'].includes(detail?.type) ? 'assets' : workspace;
+        : ['lab', 'scout', 'index', 'player', 'slice', 'quality'].includes(detail?.type) ? 'assets' : workspace;
     const openWorkspace = (key) => {
         setWorkspace(key);
         clearFilters();
@@ -2130,6 +2258,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                 { label: 'Allocation', selector: '.empire-main-grid' },
                 { label: 'Players & picks', selector: '.empire-workspace' },
                 { label: 'Exposure', selector: '.empire-floor' },
+                { label: 'Portfolio Lab', type: 'lab' },
                 { label: 'Market index', type: 'index' }, { label: 'Rankings', type: 'scout' },
             ] },
         ];
@@ -3117,6 +3246,10 @@ const renderScoutDetail = () => {
   );
 };
 
+    if (detail?.type === 'lab') return <div className={rootClassName}>
+        <EmpireStyles /><header className="empire-header">{renderWorkspaceNav()}<div className="empire-topbar"><button className="empire-back" aria-label="Back to Empire overview" type="button" onClick={() => openWorkspace('overview')}>{"<"}</button><div className="empire-title"><strong>Portfolio Lab</strong><span>Stress tests & exposure guardrails</span></div></div></header>
+        <EmpirePortfolioLab model={model} onOpen={setDetail} />
+    </div>;
     if (detail?.type === 'threat') return renderThreatDetail();
     if (detail?.type === 'war') return renderWarDetail();
     if (detail?.type === 'outlook') return renderOutlookDetail();
@@ -3255,7 +3388,7 @@ const renderScoutDetail = () => {
                                 <div className="empire-panel-head"><strong>Empire Brief</strong><em>Alex · {userName}</em></div>
                                 <div className="empire-command-kicker">Today's command read</div>
                                 <div className="empire-command-focus">{briefText}</div>
-                                <div className="empire-command-meta">Across {model.totals.leagues} leagues · {actionQueue.length} ranked moves · {model.totals.pickCount} picks under management</div>
+                                <div className="empire-command-meta">Across {model.totals.leagues} leagues · {actionQueue.length} ranked moves · {model.pickCapital.total} picks under management</div>
                             </div>
                             <div className="empire-panel">
                                 <div className="empire-panel-head"><strong>Priority Queue</strong><em>the next {Math.min(3, actionQueue.length)} moves</em></div>
@@ -3270,6 +3403,10 @@ const renderScoutDetail = () => {
                                 </div>
                                 {actionQueue.length > 3 ? <div className="empire-section-footer"><button className="empire-action" type="button" onClick={() => { setActionView('priority'); setDetail({ type: 'moves' }); }}>View all {actionQueue.length} priorities →</button></div> : null}
                             </div>
+                        </section>
+                        <section className="empire-panel empire-lab-entry">
+                            <div><div className="empire-command-kicker">Portfolio Lab</div><strong>How much of your empire rides on one outcome?</strong><p>Model a player, team, or position value drop across every league.</p></div>
+                            <button className="empire-action" type="button" onClick={() => setDetail({ type: 'lab' })}>Stress-test portfolio →</button>
                         </section>
                         {/* ── THE ARBITRAGE BOARD ─────────────────────────
                             Every league marked to its own book, so the same

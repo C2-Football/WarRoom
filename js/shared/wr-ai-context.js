@@ -37,25 +37,50 @@
         };
     }
 
-    // Compact text mirror of the edge function's league-format + quality
-    // blocks, for prepending to generic dhqAI context strings.
+    // Never infer retention rules from roster strength or dynasty scores.
+    function keeperRules(league) {
+        const candidates = [league?.settings?.max_keepers, league?.settings?.keeper_count, league?.metadata?.keeper_count];
+        const raw = candidates.find(v => v !== null && v !== undefined && v !== '');
+        const n = Number(raw);
+        return { slots: raw !== undefined && Number.isInteger(n) && n >= 0 ? n : null,
+            costsKnown: false, eligibilityKnown: false,
+            valuationBasis: 'Uncalibrated 60% dynasty / 40% rest-of-season blend; not keeper surplus or next-season projection' };
+    }
+
+    function decisionContext(league) {
+        const override = window.App?.Intelligence?.getLeagueTypeOverride?.(league);
+        const resolved = window.App?.LeagueSkin?.build?.({ league });
+        const raw = league?.type ?? league?.league_type ?? league?.settings?.type ?? league?.metadata?.type;
+        const normalized = ({ 0: 'redraft', 1: 'keeper', 2: 'dynasty', 3: 'chopped' })[raw] || String(raw || '').toLowerCase();
+        const detected = override || resolved?.type || normalized;
+        const leagueType = ['redraft', 'keeper', 'dynasty', 'chopped', 'best_ball'].includes(detected) ? detected : 'unknown';
+        return {
+            version: 2, leagueId: league?.league_id || league?.id || null,
+            leagueType, season: league?.season || null,
+            week: window.S?.nflState?.display_week ?? window.S?.nflState?.week ?? null,
+            rosterPositions: league?.roster_positions || league?.rosterPositions || [],
+            scoringSettings: league?.scoring_settings || league?.scoringSettings || {},
+            canTrade: leagueType !== 'chopped' && Number(league?.settings?.disable_trades || 0) !== 1,
+            keeperRules: leagueType === 'keeper' ? keeperRules(league) : null,
+        };
+    }
+
     function buildFormatPreamble(league) {
         const fmt = detectFormat(league);
-        const lines = [];
-        if (fmt.isSuperFlex) {
-            lines.push(`SUPERFLEX league (${fmt.numQBSlots} QB-eligible slots): QBs carry a 1.8x scarcity premium. A team without ${fmt.numQBSlots} startable QBs has a CRITICAL deficit that overrides all other needs.`);
-        }
-        if (fmt.isTEP) {
-            lines.push(`TE PREMIUM league (+${fmt.tePremiumBonus} PPR for TE): elite TEs carry a 1.5x premium — never treat them as interchangeable depth.`);
-        }
-        if (fmt.isIDP) {
-            lines.push(`IDP league (${fmt.idpSlots} defensive starter slots): LB/DL/DB have real fantasy and trade value.`);
-        }
-        if (fmt.scoringType === 'ppr') lines.push('FULL PPR scoring: high-volume pass catchers carry premium value.');
-        else if (fmt.scoringType === 'half_ppr') lines.push('HALF PPR scoring: balanced value between receivers and rushers.');
-        if (fmt.numRBSlots >= 2) lines.push(`${fmt.numRBSlots} dedicated RB slots plus FLEX: startable RBs are scarce — do not advise trading away RB depth lightly.`);
-        lines.push('QUALITY FLOORS (always enforce): never recommend adding/bidding on players with DHQ below 500 or PPG below 5.0 (6+ games). "Depth for depth\'s sake" is never valid. If no quality targets exist, say "HOLD YOUR FAAB."');
-        return '--- LEAGUE FORMAT & QUALITY RULES ---\n' + lines.join('\n') + '\n';
+        const context = decisionContext(league);
+        const lines = ['Decision context: ' + JSON.stringify(context)];
+        if (context.leagueType === 'redraft') lines.push('REDRAFT: optimize this week and the remaining fantasy season. Do not recommend multi-year rebuilds, youth stashes for future seasons, or future rookie picks. Separate immediate lineup benefit from rest-of-season value.');
+        else if (context.leagueType === 'keeper') lines.push('KEEPER: separate winning this season from next-season retention. Keeper decisions need slot count, player eligibility, round/salary cost, escalation and alternatives. Unknown costs are not free. A blended player score is only a shortlist signal, not a final keep/cut verdict.');
+        else if (context.leagueType === 'chopped') lines.push('CHOPPED: prioritize surviving the next elimination and waiver opportunities. No trades, future picks or rebuilding.');
+        else if (context.leagueType === 'best_ball') lines.push('BEST BALL: automatic scoring; do not suggest manual start/sit changes. Confirm transaction rules before suggesting moves.');
+        else if (context.leagueType === 'unknown') lines.push('League retention format is unknown. Do not assume dynasty; ask for the format when it changes the answer.');
+        if (!context.canTrade) lines.push('Trades are disabled: do not propose trades.');
+        if (fmt.numQBSlots > 1) lines.push(`${fmt.numQBSlots} QB-eligible slots: compare available starters and alternatives. No fixed scarcity multiplier or automatic priority overriding actual needs.`);
+        if (fmt.isTEP) lines.push(`TE receiving bonus: ${fmt.tePremiumBonus}. Use the supplied league-scored values; do not add a second arbitrary premium.`);
+        lines.push('EVIDENCE: Use supplied statistics and dated sources. Missing projections, injury updates, ownership, lineup locks, keeper costs or budgets are unknown, not zero. Do not claim live news without retrieved evidence. Do not invent availability, bids or acceptance probabilities.');
+        lines.push('WAIVERS: compare legal available adds to the actual drop and starting alternatives, scoring, role, roster depth and remaining budget. No universal DHQ/PPG/age cutoff; useful streamers and role changes can have low historical scores. Recommend holding when no supported improvement exists.');
+        lines.push('ANSWER: lead with the decision, its evidence and the main tradeoff. Label estimates and the specific missing fact that could change the call. Respect the requested response format.');
+        return '--- LEAGUE DECISION RULES ---\n' + lines.join('\n') + '\n';
     }
 
     // Cheap stable hash (djb2) — keys the localStorage + server caches to the
@@ -72,6 +97,10 @@
             (roster?.players || []).slice().sort().join(','),
             roster?.settings ? `${roster.settings.wins}-${roster.settings.losses}` : '',
             window.S?.nflState?.week || '',
+            JSON.stringify(decisionContext(league)),
+            JSON.stringify(roster?.starters || []),
+            JSON.stringify(roster?.reserve || []),
+            JSON.stringify(roster?.waiver_budget_used ?? roster?.settings?.waiver_budget_used ?? null),
             extra || '',
         ];
         return hashString(parts.join('|'));
@@ -92,6 +121,8 @@
         return {
             leagueId: league?.league_id || league?.id || null,
             leagueName: league?.name || '',
+            decisionContext: decisionContext(league),
+            leagueType: decisionContext(league).leagueType,
             rosterPositions: league?.roster_positions || [],
             roster_positions: league?.roster_positions || [],
             scoringSettings: league?.scoring_settings || {},
@@ -104,7 +135,7 @@
         };
     }
 
-    window.WR.AIContext = { detectFormat, buildFormatPreamble, buildStructuredBase, stateHashFor };
+    window.WR.AIContext = { detectFormat, keeperRules, decisionContext, buildFormatPreamble, buildStructuredBase, stateHashFor };
 
     // ── Learning-loop feedback capture ────────────────────────────────
     const _sentKeys = new Set();

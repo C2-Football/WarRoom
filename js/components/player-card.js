@@ -122,6 +122,62 @@
         return out;
     }
 
+    // Season data stays scoped to the requested year, never the legacy stats cache.
+    function PlayerSeasonStats({ pid, player, league, scoring }) {
+        const engine = window.App?.LeagueStats;
+        const latest = Number(window.S?.nflState?.season) || new Date().getFullYear();
+        const initial = Number(league?.season) || latest;
+        const [season, setSeason] = useState(String(initial));
+        const [perGame, setPerGame] = useState(false);
+        const [revision, setRevision] = useState(0);
+        const [load, setLoad] = useState({ key: '', status: 'loading' });
+        const requestKey = pid + '|' + season;
+        useEffect(() => {
+            if (!engine) return;
+            let alive = true;
+            setLoad({ key: requestKey, status: 'loading' });
+            engine.load({ season, force: revision > 0 }).then(data => {
+                if (alive) setLoad({ key: requestKey, status: 'ready', raw: data.statsByPid[pid] });
+            }).catch(() => {
+                if (alive) setLoad({ key: requestKey, status: 'error' });
+            });
+            return () => { alive = false; };
+        }, [engine, requestKey, revision]);
+        const h = React.createElement;
+        const years = Array.from({ length: Math.max(1, Math.min(30, Number(player.years_exp) + 1 || 1)) }, (_, i) => latest - i);
+        if (!years.includes(initial)) years.push(initial);
+        years.sort((a, b) => b - a);
+        const controls = h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '14px' } },
+            h('label', null, 'Season ', h('select', { 'aria-label': 'Player stats season', value: season, onChange: e => setSeason(e.target.value), style: { ...btnStyle(), background: 'var(--surf-solid, #15171b)' } }, years.map(year => h('option', { key: year, value: year }, year)))),
+            h('button', { style: btnStyle(), 'aria-pressed': perGame, onClick: () => setPerGame(v => !v) }, perGame ? 'Per game' : 'Totals'),
+            h('button', { style: btnStyle(), onClick: () => setRevision(v => v + 1) }, 'Refresh')
+        );
+        let content;
+        if (!engine) content = h('p', null, 'Season stats are unavailable. Reload the app to try again.');
+        else if (load.key !== requestKey || load.status === 'loading') content = h('p', { role: 'status' }, 'Loading season stats…');
+        else if (load.status === 'error') content = h('p', { role: 'alert' }, 'Season stats could not load. Select Refresh to retry.');
+        else if (!load.raw || !Object.values(load.raw).some(v => typeof v === 'number' && Number.isFinite(v))) content = h('p', null, 'No stats reported for this player in the ' + season + ' regular season.');
+        else {
+            const row = engine.buildRows({ statsByPid: { [pid]: load.raw }, playersData: { [pid]: player }, league: { scoring_settings: scoring } })[0];
+            const metrics = engine.metrics({ [pid]: load.raw });
+            const position = engine.normalizePosition(player.position);
+            const groups = position === 'QB' ? ['passing', 'rushing'] : ['RB', 'WR', 'TE'].includes(position) ? ['rushing', 'receiving'] : position === 'K' ? ['kicking'] : ['DL', 'LB', 'DB', 'DEF'].includes(position) ? ['defense'] : ['general'];
+            const keys = new Set(['fantasyPoints', 'gp', ...groups.flatMap(group => engine.PRESETS[group] || [])]);
+            const tiles = list => h('dl', { style: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px', margin: '12px 0' } }, list.map(metric => h('div', { key: metric.key, style: { padding: '10px', background: 'var(--ov-3, rgba(255,255,255,.04))', borderRadius: 'var(--card-radius-sm, 8px)' } },
+                h('dt', { style: { color: 'var(--silver)', fontSize: '.8rem' } }, metric.label),
+                h('dd', { style: { margin: '4px 0 0', color: 'var(--text-primary)', fontWeight: 700 } }, engine.format(engine.value(row, metric, { perGame }), metric, { perGame }))
+            )));
+            content = h(React.Fragment, null,
+                tiles(metrics.filter(metric => keys.has(metric.key))),
+                h('details', null, h('summary', { style: { cursor: 'pointer', padding: '12px 0' } }, 'All reported stats'), tiles(metrics.filter(metric => metric.source === 'provider' && engine.value(row, metric) !== null && !keys.has(metric.key))))
+            );
+        }
+        return h('section', { 'aria-label': 'Season stats', style: { padding: '14px 20px', color: 'var(--silver)' } }, controls,
+            h('p', { style: { fontSize: '.8rem' } }, season + ' regular season · ' + (perGame ? 'Per game' : 'Totals') + ' · ' + (league.name || 'League scoring')),
+            content, h('p', { style: { fontSize: '.75rem', color: 'var(--text-muted)' } }, 'A dash means unavailable. Fantasy points use league scoring. Per-game totals require reported games played.')
+        );
+    }
+
     // ── Main component ────────────────────────────────────────────
     // Surface the user's private scouting note (written on the Draft Big Board) on
     // the player card wherever it opens — incl. Follow Live Draft. Scans every board
@@ -874,20 +930,20 @@
                 // three items distribute evenly (flex:1), no momentum scroll
                 // needed. Desktop keeps the underline tab strip untouched.
                 isPhone
-                    ? React.createElement('div', { className: 'wr-seg', style: { margin: '12px 20px 0' } },
-                        ['overview', 'stats', 'scouting', 'value-history'].map(t =>
+                    ? React.createElement('div', { className: 'wr-seg', style: { margin: '12px 20px 0', flexWrap: 'wrap' } },
+                        ['overview', 'season-stats', 'stats', 'scouting', 'value-history'].map(t =>
                             React.createElement('button', {
                                 key: t,
                                 className: tab === t ? 'is-on' : undefined,
                                 onClick: () => setTab(t),
                                 style: { minHeight: '44px' }
-                            }, t === 'overview' ? 'Overview' : t === 'stats' ? 'Career Stats' : t === 'scouting' ? 'Scouting' : 'Value')
+                            }, t === 'overview' ? 'Overview' : t === 'season-stats' ? 'Season Stats' : t === 'stats' ? 'Career Stats' : t === 'scouting' ? 'Scouting' : 'Value')
                         )
                     )
                     : React.createElement('div', {
-                        style: { display: 'flex', gap: '2px', padding: '0 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }
+                        style: { display: 'flex', flexWrap: 'wrap', gap: '2px', padding: '0 20px', borderBottom: '1px solid var(--ov-4, rgba(255,255,255,0.06))' }
                     },
-                        ['overview', 'stats', 'scouting', 'value-history'].map(t =>
+                        ['overview', 'season-stats', 'stats', 'scouting', 'value-history'].map(t =>
                             React.createElement('button', {
                                 key: t,
                                 onClick: () => setTab(t),
@@ -897,11 +953,11 @@
                                     color: tab === t ? 'var(--gold)' : 'var(--silver)',
                                     fontFamily: 'var(--font-body)', fontSize: 'var(--text-body, 1rem)', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: 'pointer'
                                 }
-                            }, t === 'overview' ? 'Overview' : t === 'stats' ? 'Career Stats' : t === 'scouting' ? 'Scouting' : 'Value')
+                            }, t === 'overview' ? 'Overview' : t === 'season-stats' ? 'Season Stats' : t === 'stats' ? 'Career Stats' : t === 'scouting' ? 'Scouting' : 'Value')
                         )
                     ),
                 // Tab body
-                tab === 'overview' ? OverviewTab() : tab === 'stats' ? StatsTab() : tab === 'scouting' ? ScoutingTab() : ValueHistoryTab(),
+                tab === 'overview' ? OverviewTab() : tab === 'season-stats' ? React.createElement(PlayerSeasonStats, { key: pid + '|' + (currentLeague.league_id || ''), pid, player: p, league: currentLeague, scoring: sc }) : tab === 'stats' ? StatsTab() : tab === 'scouting' ? ScoutingTab() : ValueHistoryTab(),
                 // Actions — Compare, Trade Finder, Tag As (no News button).
                 // Phone (D4 polish): the 4 buttons ride a 2-up grid of 44px
                 // targets (never a sideways pan); desktop keeps the flex row.

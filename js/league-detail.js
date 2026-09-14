@@ -3411,6 +3411,19 @@
                         {workspaceViews.map(view => <button type="button" key={view.tab} aria-current={viewTab === view.tab ? 'page' : undefined} onClick={() => setActiveTab(view.tab)}>{view.label}</button>)}
                     </nav>}
                 </header>
+                {/* The Wire stays a desktop ticker and becomes an inline launcher on phones. */}
+                {typeof window.WrLeagueWire === 'function' && (
+                    <window.WrLeagueWire
+                        sidebarWidth={sidebarWidth}
+                        currentLeague={currentLeague}
+                        standings={standings}
+                        transactions={transactions}
+                        playersData={playersData}
+                        getOwnerName={getOwnerName}
+                        getPlayerName={getPlayerName}
+                    />
+                )}
+
                 {/* Existing deep links render in their owning workspace. */}
                 <div className="wr-content-frame">
                 {!loading && !['analytics', 'league'].includes(activeTab) && viewTab !== activeTab && <p role="status" style={{ color: 'var(--silver)', padding: '0 12px' }}>That view is unavailable for this league. Showing {workspaceRoute.label}.</p>}
@@ -3594,23 +3607,6 @@
                   } catch(e) { console.error('[War Room] Player modal error:', e); }
                 }}
             />}
-
-            {/* League Wire — the always-on ticker, pinned bottom across EVERY
-                league tab (not just Command Center): NFL scores and leaders,
-                this league's scores and records, FAAB, risers/fallers.
-                Desktop + tablet only — it returns null on phones, where the
-                bottom edge belongs to PhoneDock below. */}
-            {typeof window.WrLeagueWire === 'function' && (
-                <window.WrLeagueWire
-                    sidebarWidth={sidebarWidth}
-                    currentLeague={currentLeague}
-                    standings={standings}
-                    transactions={transactions}
-                    playersData={playersData}
-                    getOwnerName={getOwnerName}
-                    getPlayerName={getPlayerName}
-                />
-            )}
 
             {/* Phone bottom dock (≤767 only) — null on tablet/desktop and
                 while the iOS keyboard is open. ONE row: sliding strip of

@@ -30,6 +30,22 @@
         if (!['combat','original'].includes(value.conquestMode) || !['countries','provinces'].includes(value.worldScale)) fail('INVALID_SETTINGS', 'Choose a supported world and conquest format.');
         return value;
     }
+    function eraOptions(input = {}, createdAt) {
+        if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key=>!['mode','scoringSeason'].includes(key))) fail('INVALID_ERA','Choose a supported campaign era.');
+        const mode=input.mode||'historical';
+        if(!['historical','resurrection'].includes(mode))fail('INVALID_ERA','Choose Historical Replay or Original Duat Resurrection.');
+        if(mode==='historical') {
+            if(input.scoringSeason!=null)fail('INVALID_ERA','Historical Replay scores each army in its own year.');
+            return {mode:'historical',scoringSeason:null};
+        }
+        const scoringSeason=input.scoringSeason??new Date(createdAt).getUTCFullYear();
+        if(!Number.isInteger(scoringSeason)||scoringSeason<2002||scoringSeason>2100)fail('INVALID_ERA','Choose a valid NFL scoring season.');
+        return {mode,scoringSeason};
+    }
+    const isResurrection = state => state?.era?.mode==='resurrection';
+    function resurrectionStatus(state) {
+        return isResurrection(state)?{ready:false,season:state.era.scoringSeason,message:'Draft and excavation are available. The '+state.era.scoringSeason+' NFL roster and scoring feed is not connected. Weekly play and offerings will open only after live eligibility and kickoff locks are supported.'}:null;
+    }
     function availableYears(data) { return data?.availableSeasons || Legacy.availableSeasons(data); }
     function requiredYears(state) {
         return [...new Set(state.factions.flatMap(f => livingArmies(f).flatMap(a => [a.season, ...a.players.map(p => p.season || a.season)])))].sort((a,b)=>b-a);
@@ -79,7 +95,9 @@
     function createCampaign(input, data) {
         if (input.version !== 4) return Legacy.createCampaign(input,data);
         const state = Legacy.createCampaign({...input,version:3},data);
-        state.version = 4; state.expansionVersion = 1; state.expansionSettings = expansionOptions(input.expansionSettings);
+        state.version = 4;
+        if(input.era!==undefined){state.era=eraOptions(input.era,input.createdAt);if(isResurrection(state)&&state.seasons.some(year=>year>=state.era.scoringSeason))fail('INVALID_ERA','Resurrection armies must be drafted from years before their NFL scoring season.');}
+        state.expansionVersion = 1; state.expansionSettings = expansionOptions(input.expansionSettings);
         state.dynastySeason = 1; state.dynasty = {cycle:1,seasons:[],retiredRulers:[],journal:[],honors:{},usedYears:[...state.seasons]};
         state.treasuryLedger = []; state.pinnacle = null;
         for (const faction of state.factions) {
@@ -337,6 +355,7 @@
         if(!action||typeof action.type!=='string')fail('INVALID_ACTION','Choose a dynasty action.');
         let next=copy(state);const createdAt=action.createdAt||state.updatedAt;
         if(typeof createdAt!=='string'||!Number.isFinite(Date.parse(createdAt)))fail('INVALID_TIME','Use a valid action time.');
+        if(isResurrection(state)&&!['start-draft','draft-pick','reveal-next','name-ruler','name-alliance'].includes(action.type))fail('LIVE_FEED_REQUIRED',resurrectionStatus(state).message);
         const actor=action.factionId||state.hostFactionId;
         if(!state.humanFactionIds.includes(actor))fail('NOT_YOUR_FACTION','Only a human manager can submit this action.');
         const hostActions=['start-draft','reveal-next','advance-week','next-season'];
@@ -427,6 +446,7 @@
         if(!modern(state))return Legacy.validateCampaign(state);
         try {
             const invalid=message=>fail('INVALID_CAMPAIGN',message), settings=settingsOf(state), size=Legacy.rosterSize(state);
+            if(state.era!==undefined){const era=eraOptions(state.era,state.createdAt);if(JSON.stringify(era)!==JSON.stringify(state.era))invalid('Invalid campaign era.');if(isResurrection(state)&&(state.seasons.some(year=>year>=era.scoringSeason)||state.completedWeeks.length||state.dynastySeason!==1))invalid('Resurrection requires a connected live engine before results or succession can be saved.');}
             const finite=n=>typeof n==='number'&&Number.isFinite(n), ids=state.factions?.map(f=>f.id)||[];
             const text=value=>typeof value==='string'&&value.trim().length>0&&value.length<=240;
             const nameKey=value=>value.normalize('NFKC').trim().replace(/\s+/gu,' ').toLocaleLowerCase();
@@ -582,5 +602,5 @@
         } catch(error){if(error.code==='INVALID_CAMPAIGN')throw error;fail('INVALID_CAMPAIGN','This dynasty save is malformed: '+error.message);}
     }
     return {...Legacy,createCampaign,applyAction,validateCampaign,projectCampaign,draftTurn,draftCandidates,
-        expansionOptions,nextSeasonYears,requiredYears,ritualCandidates,unresolvedClaims,livingArmies};
+        eraOptions,isResurrection,resurrectionStatus,expansionOptions,nextSeasonYears,requiredYears,ritualCandidates,unresolvedClaims,livingArmies};
 });

@@ -92,6 +92,16 @@
     if (typeof context === 'string') {
       try { JSON.parse(context); } catch (_) { context = { callType: args.type || 'recon-chat', userMessage: context, messages: [{ role: 'user', content: context }] }; }
     }
+    // Resolve once at request time; never attach the open league to a portfolio
+    // or an explicitly different league's request.
+    if (typeof context === 'string') { try { context = JSON.parse(context); } catch (_) {} }
+    var league = window.S?.currentLeague;
+    var contextId = context?.leagueId || context?.currentLeagueId || context?.decisionContext?.leagueId;
+    var leagueId = league?.league_id || league?.id;
+    var portfolio = args.type === 'dashboard_digest' || Array.isArray(context?.leagues);
+    if (context && typeof context === 'object' && !Array.isArray(context) && !portfolio && leagueId && (!contextId || String(contextId) === String(leagueId)) && window.WR?.AIContext) {
+      context = { ...context, decisionContext: context.decisionContext || window.WR.AIContext.decisionContext(league) };
+    }
     var appConfig = window.App && window.App.CONFIG || window.OD.CONFIG || {};
     var base = appConfig.supabaseUrl || 'https://sxshiqyxhhifvtfqawbq.supabase.co';
     // Personal keys are sent only to our authenticated AI function, never arbitrary model URLs.
