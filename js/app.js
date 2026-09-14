@@ -4,6 +4,23 @@
 // ══════════════════════════════════════════════════════════════════
     const APP_WR_KEYS  = window.App.WR_KEYS;
     const AppStorage = window.App.WrStorage;
+    // Resume is account history, separate from the current URL/route. Keep the
+    // ID inside an object: WrStorage parses a bare Sleeper ID as a number and
+    // 19-digit IDs exceed JavaScript's integer precision.
+    function hubLastVisitKey(sleeperUserId) {
+        const accountId = (window.App.OD || window.OD)?.getCurrentUserId?.();
+        const owner = accountId ? 'account:' + accountId : sleeperUserId ? 'sleeper:' + sleeperUserId : null;
+        return owner ? 'wr_hub_last_visit_v1_' + encodeURIComponent(owner) : null;
+    }
+    function readHubLastVisit(sleeperUserId) {
+        const key = hubLastVisitKey(sleeperUserId);
+        const visit = key ? AppStorage.get(key) : null;
+        return visit?.version === 1 && typeof visit.id === 'string' ? visit : null;
+    }
+    function rememberHubLastVisit(league, sleeperUserId) {
+        const key = hubLastVisitKey(sleeperUserId);
+        if (key && league?.id != null) AppStorage.set(key, { version: 1, id: String(league.id), name: league.name || '' });
+    }
     const WR_HOST = window.location.hostname || '';
     const WR_PATH = window.location.pathname || '';
     const PLATFORM_SANDBOX_ACCESS = WR_HOST.includes('sandbox')
@@ -30,6 +47,26 @@
     window.PLATFORM_SANDBOX_ACCESS = PLATFORM_SANDBOX_ACCESS;
     window.MFL_SANDBOX_ACCESS = MFL_SANDBOX_ACCESS;
     window.platformAccessAllowed = platformAccessAllowed;
+
+    // Read-only ownership context for shared player cards. This uses connected
+    // account rosters only; an unhydrated league is unknown, never a zero holding.
+    // player(pid) -> {count,totalLeagues,coveredLeagues,complete,leagues:[{id,name,teamName}]}.
+    function buildPortfolioPlayerContext(leagues, userId, pid) {
+        const unique = new Map();
+        (leagues || []).forEach(l => { const id = l && (l.id || l.league_id); if (id != null) unique.set(String(id), l); });
+        const holdings = [];
+        let coveredLeagues = 0;
+        const same = (a, b) => a != null && b != null && String(a) === String(b);
+        unique.forEach((l, id) => {
+            const roster = (l.rosters || []).find(r => same(r.owner_id, userId) || same(r.owner_id, l.myUserId) || same(r.roster_id, l.myRosterId));
+            if (!roster || !Array.isArray(roster.players)) return;
+            coveredLeagues++;
+            const players = new Set([].concat(roster.players, roster.reserve || [], roster.taxi || []).filter(p => p && String(p) !== '0').map(String));
+            if (pid != null && players.has(String(pid))) holdings.push({ id, name: l.name || 'League', teamName: roster.metadata?.team_name || l.teamName || '' });
+        });
+        return { count: holdings.length, totalLeagues: unique.size, coveredLeagues, complete: coveredLeagues === unique.size, leagues: holdings };
+    }
+    window.App.PortfolioContext = { player: () => buildPortfolioPlayerContext([], null, null) };
 
     // ── PRE-LIVE: Empire Dashboard is free for everyone until launch. ──
     // Flip to false (or delete) to restore the paid gate before going live.
@@ -286,6 +323,11 @@
         const [mflPendingResult, setMflPendingResult] = useState(null);
         const visibleEspnLeagues = PLATFORM_SANDBOX_ACCESS ? espnLeagues : [];
         const visibleMflLeagues = MFL_SANDBOX_ACCESS ? mflLeagues : [];
+        useEffect(() => {
+            const connected = [...sleeperLeagues, ...visibleEspnLeagues, ...visibleMflLeagues];
+            window.App.PortfolioContext.player = pid => buildPortfolioPlayerContext(connected, sleeperUser?.user_id, pid);
+            return () => { window.App.PortfolioContext.player = () => buildPortfolioPlayerContext([], null, null); };
+        }, [sleeperLeagues, espnLeagues, mflLeagues, sleeperUser?.user_id]);
         const [espnError, setEspnError] = useState(null);
         // Sleeper username — read from localStorage (login.html stores 'username', inline connect stores 'sleeperUsername')
         const sleeperUsername = React.useMemo(() => {
@@ -626,6 +668,7 @@
                     if (league) {
                         setActiveLeagueId(league.id);
                         setSelectedLeague(league);
+                        rememberHubLastVisit(league, sleeperUser?.user_id);
                         // Legacy 'brief' tab folded into dashboard
                         const restoredTab = nextState.tab === 'brief' ? 'dashboard' : (nextState.tab || 'dashboard');
                         setActiveTab(restoredTab);
@@ -645,7 +688,7 @@
                 history.replaceState(state, '', routeUrl(window.location.hash));
             }
             return () => window.removeEventListener('popstate', onPopState);
-        }, [sleeperLeagues, espnLeagues, mflLeagues]);
+        }, [sleeperLeagues, espnLeagues, mflLeagues, sleeperUser?.user_id]);
 
         React.useEffect(() => {
             if (initialRouteAppliedRef.current) return;
@@ -668,13 +711,14 @@
             setActiveTab(route.tab || 'dashboard');
             AppStorage.set(APP_WR_KEYS.LAST_LEAGUE_ID, league.id);
             AppStorage.set(APP_WR_KEYS.LAST_LEAGUE_NAME, league.name);
+            rememberHubLastVisit(league, sleeperUser?.user_id);
             history.replaceState(
                 { view: 'league', leagueId: league.id, tab: route.tab || 'dashboard' },
                 '',
                 routeUrl(buildHash(league.id, route.tab || 'dashboard'))
             );
             setTimeout(() => { isNavigatingRef.current = false; }, 0);
-        }, [loading, sleeperLeagues, espnLeagues, mflLeagues]);
+        }, [loading, sleeperLeagues, espnLeagues, mflLeagues, sleeperUser?.user_id]);
 
         // Show Empire Dashboard (Pro mode)
         // global-view.js is a deferred module group (see js/module-loader.js); load it
@@ -1120,8 +1164,9 @@
         }
 
         // ── Shared helpers ──
-        const lastLeagueId = AppStorage.get(APP_WR_KEYS.LAST_LEAGUE_ID);
-        const lastLeagueName = AppStorage.get(APP_WR_KEYS.LAST_LEAGUE_NAME);
+        const lastVisit = readHubLastVisit(sleeperUser?.user_id);
+        const lastLeagueId = lastVisit?.id;
+        const lastLeagueName = lastVisit?.name;
         const displayName = sleeperUser
             ? (customDisplayName || sleeperUser.display_name || sleeperUser.username || sleeperUsername).toUpperCase()
             : (customDisplayName || 'COMMANDER').toUpperCase();
@@ -1243,6 +1288,7 @@
             const tier = typeof getUserTier === 'function' ? getUserTier() : 'free';
             const isPaid = EMPIRE_FREE_PRELIVE || tier === 'pro' || tier === 'warroom' || tier === 'war_room' || tier === 'commissioner';
             const query = leagueQuery.trim().toLowerCase();
+            const resume = leagues.find(l => String(l.id) === String(lastLeagueId));
             const filtered = leagues.filter(l => [l.name, leagueTeamName(l), leagueFormat(l)].join(' ').toLowerCase().includes(query))
                 .sort((a, b) => Number(String(b.id) === String(lastLeagueId)) - Number(String(a.id) === String(lastLeagueId)));
             return (
@@ -1251,11 +1297,30 @@
                         <div><span className="hub-eyebrow">YOUR DYNASTY HQ</span><h1>Choose your experience.</h1><p>Your leagues. Your bigger picture. Your next great season.</p></div>
                         <span className="hub-sync-status" role="status">{hubSyncing ? 'Syncing leagues…' : leagues.length + ' connected league' + (leagues.length === 1 ? '' : 's')}</span>
                     </div>
+                    {resume && <button type="button" className="hub-resume" onClick={() => onSelect(resume)}><span className="hub-eyebrow">PICK UP WHERE YOU LEFT OFF</span><strong>Resume {leagueTeamName(resume) || resume.name}</strong><span>{resume.name}</span><b aria-hidden="true">→</b></button>}
                     <nav className="hub-jump-nav" aria-label="Choose your experience">
-                        {(EMPIRE_ENABLED || COMMISH_ENABLED) && <a href="#hub-management"><span>01</span> Multi-league</a>}
-                        <a href="#hub-leagues"><span>02</span> Your leagues <small>{leagues.length}</small></a>
+                        <a href="#hub-leagues"><span>01</span> Your leagues <small>{leagues.length}</small></a>
+                        {(EMPIRE_ENABLED || COMMISH_ENABLED) && <a href="#hub-management"><span>02</span> Multi-league</a>}
                         {TIME_LEAGUE_ENABLED && <a href="#hub-games"><span>03</span> Games</a>}
                     </nav>
+                    <section id="hub-leagues" className="hub-leagues" aria-labelledby="hub-leagues-title">
+                        <div className="hub-section-heading"><div><span className="hub-eyebrow">ONE LEAGUE. YOUR FULL FOCUS.</span><h2 id="hub-leagues-title">Your leagues <span className="hub-count">{leagues.length}</span></h2><p>Open a team to manage your roster, trades, and next move.</p></div><button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>+ Add a league</button></div>
+                        {leagues.length > 0 && <div className="hub-league-tools"><label htmlFor="hub-league-search">Find your league</label><input id="hub-league-search" type="search" placeholder="Search league, team, or format" value={leagueQuery} onChange={e => setLeagueQuery(e.target.value)} /><span aria-live="polite">{filtered.length} of {leagues.length}</span></div>}
+                        {error && <div className="hub-invite" role="alert">{error}<button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>Manage connection</button></div>}
+                        <div className="hub-league-grid">
+                            {filtered.map(l => {
+                                const h = leagueHealth(l);
+                                const team = leagueTeamName(l);
+                                const title = team || l.name;
+                                const isLast = String(l.id) === String(lastLeagueId);
+                                return <button type="button" key={l.id} className={'hub-league-card' + (isLast ? ' is-last' : '')} onClick={() => onSelect(l)}>
+                                    <span className="hub-league-card-top"><span className="hub-team-avatar">{initialsFor(title)}</span><span className="hub-league-identity"><strong>{title}</strong><span>{l.name}</span></span>{isLast && <span className="hub-last-badge">Last opened</span>}</span>
+                                    <span className="hub-league-card-bottom"><span>{leagueFormat(l)}</span><span>{h.wp !== null ? l.wins + '–' + l.losses + (l.ties > 0 ? '–' + l.ties : '') : 'Open league'} <span aria-hidden="true">→</span></span></span>
+                                </button>;
+                            })}
+                        </div>
+                        {!filtered.length && <div className="hub-empty" role="status"><strong>{query ? 'No matching leagues' : hubSyncing ? 'Bringing your leagues together…' : 'Your first league starts here.'}</strong><p>{query ? 'Try another team name, league, or format.' : hubSyncing ? 'You can explore Games while your leagues sync.' : 'Connect your fantasy account to see your teams in one place.'}</p>{query ? <button type="button" className="hub-add-button" onClick={() => setLeagueQuery('')}>Clear search</button> : !hubSyncing && <button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>Connect a league</button>}</div>}
+                    </section>
                     <div className="hub-experience-grid">
                         {(EMPIRE_ENABLED || COMMISH_ENABLED) && <section id="hub-management" className="hub-management" aria-labelledby="hub-management-title">
                             <div className="hub-section-heading"><div><span className="hub-eyebrow">THE BIGGER PICTURE</span><h2 id="hub-management-title">Multi-league management</h2></div></div>
@@ -1284,24 +1349,6 @@
                         </section>}
                     </div>
                     {pendingInvite && !(window.App.OD?.getCurrentUserId && window.App.OD.getCurrentUserId()) && <div className="hub-invite"><div><strong>You have a pending Vault invite</strong><p>Sign in with the account you want to play from to claim your seat.</p></div><a href={distPrefix + 'login.html?vault=1'}>Sign in to join →</a></div>}
-                    <section id="hub-leagues" className="hub-leagues" aria-labelledby="hub-leagues-title">
-                        <div className="hub-section-heading"><div><span className="hub-eyebrow">ONE LEAGUE. YOUR FULL FOCUS.</span><h2 id="hub-leagues-title">Your leagues <span className="hub-count">{leagues.length}</span></h2><p>Open a team to manage your roster, trades, and next move.</p></div><button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>+ Add a league</button></div>
-                        {leagues.length > 0 && <div className="hub-league-tools"><label htmlFor="hub-league-search">Find your league</label><input id="hub-league-search" type="search" placeholder="Search league, team, or format" value={leagueQuery} onChange={e => setLeagueQuery(e.target.value)} /><span aria-live="polite">{filtered.length} of {leagues.length}</span></div>}
-                        {error && <div className="hub-invite" role="alert">{error}<button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>Manage connection</button></div>}
-                        <div className="hub-league-grid">
-                            {filtered.map(l => {
-                                const h = leagueHealth(l);
-                                const team = leagueTeamName(l);
-                                const title = team || l.name;
-                                const isLast = String(l.id) === String(lastLeagueId);
-                                return <button type="button" key={l.id} className={'hub-league-card' + (isLast ? ' is-last' : '')} onClick={() => onSelect(l)}>
-                                    <span className="hub-league-card-top"><span className="hub-team-avatar">{initialsFor(title)}</span><span className="hub-league-identity"><strong>{title}</strong><span>{l.name}</span></span>{isLast && <span className="hub-last-badge">Last opened</span>}</span>
-                                    <span className="hub-league-card-bottom"><span>{leagueFormat(l)}</span><span>{h.wp !== null ? l.wins + '–' + l.losses + (l.ties > 0 ? '–' + l.ties : '') : 'Open league'} <span aria-hidden="true">→</span></span></span>
-                                </button>;
-                            })}
-                        </div>
-                        {!filtered.length && <div className="hub-empty" role="status"><strong>{query ? 'No matching leagues' : hubSyncing ? 'Bringing your leagues together…' : 'Your first league starts here.'}</strong><p>{query ? 'Try another team name, league, or format.' : hubSyncing ? 'You can explore Games while your leagues sync.' : 'Connect your fantasy account to see your teams in one place.'}</p>{query ? <button type="button" className="hub-add-button" onClick={() => setLeagueQuery('')}>Clear search</button> : !hubSyncing && <button type="button" className="hub-add-button" onClick={() => setShowConnect(true)}>Connect a league</button>}</div>}
-                    </section>
                     <footer className="hub-footer"><span>One home for every way you play.</span><button type="button" onClick={() => setShowSettings(true)}>Account & settings</button><a href={distPrefix + ((typeof window.wrIsPro === 'function' && !window.wrIsPro()) ? 'upgrade.html' : 'onboarding.html?manage=true')}>Plans & billing</a><a href={distPrefix + 'ai-settings.html'}>AI settings</a></footer>
                 </main>
             );
@@ -1313,6 +1360,7 @@
             setActiveTab('dashboard');
             AppStorage.set(APP_WR_KEYS.LAST_LEAGUE_ID, league.id);
             AppStorage.set(APP_WR_KEYS.LAST_LEAGUE_NAME, league.name);
+            rememberHubLastVisit(league, sleeperUser?.user_id);
             if (!isNavigatingRef.current) {
                 history.pushState({ view: 'league', leagueId: league.id, tab: 'dashboard' }, '', routeUrl(buildHash(league.id, 'dashboard')));
             }
@@ -1416,7 +1464,7 @@
         // Search connected leagues across active production platforms.
         const allLeagues = [...sleeperLeagues, ...visibleEspnLeagues, ...visibleMflLeagues];
         const hasLeagues = allLeagues.length > 0;
-        const resumeLeague = allLeagues.find(l => l.id === lastLeagueId);
+        const resumeLeague = allLeagues.find(l => String(l.id) === lastLeagueId);
         const distPrefix = (window.location.pathname || '').includes('/dist-preview/') ? '../' : '';
         const iconSrc = distPrefix + 'icon-192.png';
         // `loading` starts true and only resolves via loadSleeperData, which never

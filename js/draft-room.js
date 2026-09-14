@@ -131,6 +131,7 @@
         const toggleHideDrafted = () => setHideDrafted(v => { const next = !v; try { DraftStorage.set('wr_bb_hide_drafted', next); } catch (e) {} return next; });
         useEffect(() => { setBoardVisibleCount(BOARD_PAGE_SIZE); }, [boardMode, boardSearch, boardPosFilter, boardTeamFilter, boardRoundFilter, hideDrafted]);
         const [expandedDraftPid, setExpandedDraftPid] = useState(null);
+        const [notebookPlayerFocus, setNotebookPlayerFocus] = useState(null);
         // Phone Big Board controls — inline Lane/Pos/Filters choosers (like the
         // Trade Center). Hoisted here because the board view renders inside an
         // IIFE (no hooks allowed). null | 'lane' | 'pos' | 'filters'.
@@ -878,6 +879,7 @@
         // Restore board data from localStorage
         useEffect(() => {
             if (boardData) {
+                window.WR?.PlayerNotebook?.migrateDraft(leagueKey, boardStorageKey, boardData);
                 if (boardData.tags) setBoardTags(boardData.tags);
                 if (boardData.notes) setBoardNotes(boardData.notes);
                 if (boardData.drafted) setDraftedPids(new Set(boardData.drafted));
@@ -1024,6 +1026,7 @@
         // Auto-save board data to localStorage on changes. The AI order is saved
         // so mocks, context, and the visible Big Board share one recommendation source.
         useEffect(() => {
+            window.WR?.PlayerNotebook?.migrateDraft(leagueKey, boardStorageKey, { tags: boardTags, notes: boardNotes });
             DraftStorage.set(boardStorageKey,
                 {
                     tags: boardTags,
@@ -1293,7 +1296,7 @@
 
         const openDraftPlayer = useCallback((pid) => {
             if (!pid) return;
-            if (window.WR?.openPlayerCard) window.WR.openPlayerCard(pid);
+            if (window.WR?.openPlayerCard) window.WR.openPlayerCard(pid, { context: 'draft-board' });
             else if (window._wrSelectPlayer) window._wrSelectPlayer(pid);
         }, []);
 
@@ -1311,6 +1314,24 @@
                 if (el?.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }, 150);
         }, []);
+
+        useEffect(() => {
+            const receive = event => {
+                const next = window.WR?.PlayerNotebook?.contextFor(event?.detail || window.WR?.draftPlayerContext, leagueKey);
+                if (!next?.pid) return;
+                window.WR.draftPlayerContext = null;
+                const player = playersData?.[next.pid] || window.App?._playersCache?.[next.pid];
+                const name = player?.full_name || [player?.first_name, player?.last_name].filter(Boolean).join(' ') || (String(next.pid).startsWith('csv_') ? String(next.pid).slice(4).replace(/_/g, ' ') : '');
+                setBoardSearch(name);
+                setNotebookPlayerFocus(next.pid);
+                setHideDrafted(false);
+                setBoardMode('dhq');
+                openInBigBoard(next.pid);
+            };
+            receive();
+            window.addEventListener('wr:draft-player-context', receive);
+            return () => window.removeEventListener('wr:draft-player-context', receive);
+        }, [leagueKey, openInBigBoard]);
 
         const slotMap = useMemo(() => {
             const mappedFromDraft = {};
@@ -2765,6 +2786,9 @@
                 </div>
                 )}
 
+                {activeView !== 'live' && activeView !== 'mock' && <div style={{ marginBottom: 10, color: 'var(--silver)', fontSize: '.78rem' }}>Use your league’s past results to inform prep. <button type="button" onClick={() => window.wrNavigateTab?.('draft-review')} style={{ color: 'var(--gold)', background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', textDecoration: 'underline', minHeight: 36 }}>Draft results &amp; research →</button></div>}
+                {activeView === 'board' && notebookPlayerFocus && !draftPoolRows.some(row => String(row.pid) === String(notebookPlayerFocus)) && <p role="status" style={{ color: 'var(--silver)', fontSize: '.8rem' }}>This player is not in the current draft pool. Your notebook is still saved. <button type="button" onClick={() => { setNotebookPlayerFocus(null); setBoardSearch(''); }}>Browse this draft</button></p>}
+
                 {pickFocus && (
                     <div className="draft-pick-context-banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-md)', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.24))', borderRadius: 'var(--card-radius-sm)', padding: 'var(--card-pad-sm)', marginBottom: 'var(--space-md)' }}>
                         <div style={{ minWidth: 0 }}>
@@ -3636,7 +3660,7 @@
                                             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px,1fr) minmax(260px,0.9fr)', gap: 10, alignItems: 'start', marginTop: 10 }}>
                                                 <div style={detailBox}>
                                                     <span style={detailLabel}>Front Office Notes</span>
-                                                    <textarea value={note} onChange={e => setBoardNotes(prev => ({...prev, [r.pid]: e.target.value}))} onClick={e => e.stopPropagation()} placeholder={'Add your scouting notes on ' + pName(r.p) + '...'} style={{ width: '100%', minHeight: 82, padding: '8px 10px', fontSize: '0.76rem', background: 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 6, color: 'var(--silver)', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.5, outline: 'none' }} />
+                                                    {window.WR?.PlayerNotebook?.NotebookEditor ? React.createElement(window.WR.PlayerNotebook.NotebookEditor, { pid: r.pid, leagueId: leagueKey, leagueName: currentLeague?.name || "This league" }) : <textarea value={note} onChange={e => setBoardNotes(prev => ({...prev, [r.pid]: e.target.value}))} onClick={e => e.stopPropagation()} placeholder={'Add your scouting notes on ' + pName(r.p) + '...'} style={{ width: '100%', minHeight: 82, padding: '8px 10px', fontSize: '0.76rem', background: 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 6, color: 'var(--silver)', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.5, outline: 'none' }} />}
                                                 </div>
                                                 <div style={detailBox}>
                                                     <span style={detailLabel}>Research / Actions</span>
@@ -3787,7 +3811,7 @@
                                             <button type="button" style={phChipBtn(isRowDrafted(r), 'var(--bad)')} onClick={e => { e.stopPropagation(); setDraftedPids(prev => { const n = new Set(prev); if (n.has(r.pid)) n.delete(r.pid); else n.add(r.pid); return n; }); }}>{isRowDrafted(r) ? 'Undo Off' : 'Off Board'}</button>
                                         )}
                                     </div>
-                                    <textarea value={note} onChange={e => setBoardNotes(prev => ({ ...prev, [r.pid]: e.target.value }))} onClick={e => e.stopPropagation()} placeholder={'Add your scouting notes on ' + pName(r.p) + '...'} style={{ width: '100%', minHeight: 72, padding: '8px 10px', fontSize: '16px', background: 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 6, color: 'var(--silver)', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.5, outline: 'none', boxSizing: 'border-box' }} />
+                                    {window.WR?.PlayerNotebook?.NotebookEditor ? React.createElement(window.WR.PlayerNotebook.NotebookEditor, { pid: r.pid, leagueId: leagueKey, leagueName: currentLeague?.name || "This league" }) : <textarea value={note} onChange={e => setBoardNotes(prev => ({ ...prev, [r.pid]: e.target.value }))} onClick={e => e.stopPropagation()} placeholder={'Add your scouting notes on ' + pName(r.p) + '...'} style={{ width: '100%', minHeight: 72, padding: '8px 10px', fontSize: '16px', background: 'var(--ov-2, rgba(255,255,255,0.03))', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', borderRadius: 6, color: 'var(--silver)', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.5, outline: 'none', boxSizing: 'border-box' }} />}
                                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                         <a href={(isSeasonalDraft ? 'https://www.pro-football-reference.com/search/search.fcgi?search=' : 'https://www.sports-reference.com/cfb/search/search.fcgi?search=') + encodeURIComponent(pName(r.p))} target="_blank" rel="noopener" onClick={e => e.stopPropagation()} style={{ ...phChipBtn(false), display: 'inline-flex', alignItems: 'center', textDecoration: 'none', color: 'var(--k-3498db, #3498db)', borderColor: 'rgba(52,152,219,0.3)' }}>{isSeasonalDraft ? 'Pro Stats' : 'College Stats'}</a>
                                         <a href={'https://www.youtube.com/results?search_query=' + encodeURIComponent(pName(r.p) + ' highlights ' + leagueSeason)} target="_blank" rel="noopener" onClick={e => e.stopPropagation()} style={{ ...phChipBtn(false), display: 'inline-flex', alignItems: 'center', textDecoration: 'none', color: 'var(--bad)', borderColor: 'rgba(231,76,60,0.3)' }}>Highlights</a>

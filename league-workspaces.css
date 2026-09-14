@@ -1,0 +1,32 @@
+.wr-workspace-header {
+    padding: 18px 24px 0;
+    background: var(--black, #121217);
+    border-bottom: 1px solid var(--ov-6, rgba(255,255,255,.1));
+}
+.wr-workspace-heading { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.wr-workspace-heading h1 { margin: 0; color: var(--white); font-family: var(--font-title, Rajdhani, sans-serif); font-size: 1.5rem; }
+.wr-workspace-heading p { margin: 4px 0 12px; color: var(--silver); font-size: .875rem; }
+.wr-workspace-shortcuts { display: flex; gap: 8px; flex-wrap: wrap; }
+.wr-workspace-shortcuts button {
+    min-height: 44px; padding: 8px 12px; color: var(--gold); background: transparent;
+    border: 1px solid var(--acc-line2, rgba(212,175,55,.3)); border-radius: 8px; cursor: pointer; font: inherit;
+}
+.wr-workspace-views { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.wr-workspace-views button {
+    border: 0; border-bottom: 3px solid transparent; background: transparent;
+    min-height: 44px; padding: 9px 0; cursor: pointer; color: var(--silver); font: inherit; font-size: .875rem;
+}
+.wr-workspace-views button[aria-current="page"] { border-color: var(--gold); color: var(--gold); font-weight: 600; }
+.wr-workspace-views button:hover { color: var(--white); }
+.wr-help-search { display: block; margin: 0 0 16px; color: var(--silver); }
+.wr-help-search input { display: block; width: 100%; max-width: 520px; margin-top: 6px; padding: 10px 12px; min-height: 44px; border: 1px solid var(--acc-line2, rgba(212,175,55,.3)); background: var(--black); color: var(--white); font: inherit; border-radius: 8px; }
+@media (max-width: 767px) {
+    .wr-workspace-header { padding: 12px 14px 0; }
+    .wr-workspace-heading h1 { font-size: 1.25rem; }
+    .wr-workspace-heading p { font-size: .8125rem; }
+    .wr-workspace-views { gap: 0 14px; }
+    .wr-workspace-views button { font-size: .8125rem; }
+    .wr-phone-dock .wr-dock-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); width: 100%; overflow: visible; mask-image: none; -webkit-mask-image: none; }
+    .wr-phone-dock .wr-dock-chip { min-width: 0; width: 100%; padding-left: 2px; padding-right: 2px; }
+    .wr-phone-dock .wr-dock-chip span { font-size: 11px; }
+}

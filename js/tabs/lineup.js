@@ -890,16 +890,31 @@ function LineupTab({
                     <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', padding: '12px 16px' }}>
                         <div style={{ fontSize: fz('0.64rem'), letterSpacing: '0.07em', color: SILVER, fontWeight: 600, marginBottom: '6px' }}>BYE WATCH</div>
                         {byeWatch.map(bw => (
-                            <div key={bw.week} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px', padding: '3px 0', fontSize: '0.74rem' }}>
+                            <div key={bw.week} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px', padding: '6px 0', fontSize: '0.74rem' }}>
                                 <span style={{ minWidth: 0 }}>
                                     <span style={{ color: bw.unfilled ? RED : AMBER, fontWeight: 700 }}>Wk {bw.week}</span>
                                     <span style={{ color: SILVER, marginLeft: '6px' }}>{byeLabel(bw)}{bw.unfilled && bw.count > 0 ? ' · no cover' : ''}</span>
                                 </span>
                                 <span style={{ color: bw.unfilled ? RED : AMBER, fontWeight: 800 }}>{bw.unfilled ? '⚠' : bw.count}</span>
+                                <div style={{ flexBasis: '100%', display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                                    {(bw.positions?.length ? [...new Set(bw.positions)] : [null]).map(position => <button key={position || 'cover'} type="button" onClick={() => {
+                                        const dropPid = (myRoster?.players || []).find(pid => window._playerTags?.[pid] === 'cut');
+                                        const context = {
+                                            position: position || undefined,
+                                            week: bw.week,
+                                            dropPid: dropPid || undefined,
+                                            reason: 'Week ' + bw.week + (position ? ' ' + position : '') + (bw.reason === 'gap' ? ' lineup coverage' : ' bye coverage') + (bw.unfilled ? ' · No cover on your roster.' : ' · Add depth before this week.'),
+                                            source: 'game-day-bye-watch',
+                                            leagueId: currentLeague?.league_id || currentLeague?.id,
+                                        };
+                                        if (typeof window.WR?.openAcquisition === 'function') window.WR.openAcquisition(context);
+                                        else setActiveTab?.('fa');
+                                    }} style={{ background: 'transparent', border: '1px solid ' + LINE, borderRadius: '6px', padding: '5px 8px', minHeight: '36px', color: GOLD, fontSize: '.7rem', cursor: 'pointer' }}>Find {position ? position + ' ' : ''}cover →</button>)}
+                                </div>
                             </div>
                         ))}
                         {/* The raw bye listing is free; the "do X" line is a rec. */}
-                        {pro ? <div style={{ fontSize: fz('0.62rem'), color: SILVER, opacity: 0.7, marginTop: '6px' }}>Plan waivers/draft around these.</div> : null}
+                        <div style={{ fontSize: fz('0.62rem'), color: SILVER, opacity: 0.7, marginTop: '6px' }}>Carry the week and position into your waiver plan.</div>
                     </div>
                 ) : null}
 

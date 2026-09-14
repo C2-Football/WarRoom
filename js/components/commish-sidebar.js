@@ -54,7 +54,7 @@
         };
 
         const body = (
-            <nav aria-label="Commissioner desks" style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: phone ? '260px' : '208px', flex: 'none', background: phone ? SURF : 'transparent', height: phone ? '100%' : undefined, overflowY: phone ? 'auto' : undefined, padding: phone ? '12px 0' : 0 }}>
+            <nav aria-label="Commissioner workspaces" style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: phone ? '260px' : '208px', flex: 'none', background: phone ? SURF : 'transparent', height: phone ? '100%' : undefined, overflowY: phone ? 'auto' : undefined, padding: phone ? '12px 0' : 0 }}>
                 <button onClick={() => { onSelect('command'); if (phone && onClose) onClose(); }}
                     style={{
                         display: 'flex', alignItems: 'center', gap: '8px', width: '100%', textAlign: 'left',
@@ -65,18 +65,21 @@
                         font: '700 0.75rem ' + MONO, letterSpacing: '0.08em', textTransform: 'uppercase',
                         minHeight: phone ? '44px' : undefined,
                     }}>
-                    ◧ Command
+                    ◧ Overview
                 </button>
 
-                {(groups || []).map(g => (
-                    <div key={g.name} style={{ marginBottom: '10px' }}>
-                        <div style={{ ...label, padding: '6px 12px 5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
-                            {g.dormant ? <span style={{ ...chip, color: ACCENT }}>WK 1</span> : null}
-                        </div>
-                        {g.hubs.map(h => <Row key={h.hub} hub={h.hub} name={h.name} dormant={h.dormant} />)}
-                    </div>
-                ))}
+                {(groups || []).map(g => {
+                    const selected = g.hubs.some(h => h.hub === active);
+                    const count = g.hubs.reduce((n, h) => n + ((counts && counts[h.hub]) || 0), 0);
+                    return <div key={g.name} style={{ marginBottom: '4px' }}>
+                        <button type="button" aria-current={selected ? 'page' : undefined} onClick={() => { onSelect(g.hubs[0].hub); if (phone && onClose) onClose(); }}
+                            style={{ width: '100%', minHeight: '44px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 12px', border: '1px solid ' + (selected ? ACC_LINE : 'transparent'), borderRadius: '8px', background: selected ? ACC_FILL : 'transparent', color: selected ? ACCENT : SILVER, font: '600 0.75rem ' + MONO, cursor: 'pointer' }}>
+                            <span style={{ flex: 1 }}>{g.name}</span>
+                            {count ? <span style={{ ...chip, color: BAD }}>{count}</span> : g.dormant ? <span style={{ ...chip, color: MUTED }}>WK 1</span> : null}
+                        </button>
+                        {selected && !phone ? g.hubs.map(h => <Row key={h.hub} hub={h.hub} name={h.name} dormant={h.dormant} />) : null}
+                    </div>;
+                })}
 
                 <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: `1px solid ${LINE}` }}>
                     <button onClick={() => { onOpenSettings(); if (phone && onClose) onClose(); }}

@@ -777,7 +777,7 @@
         return (
             <div className="fa-hq-command">
                 <div className="fa-hq-command-head">
-                    <b>FAAB Command</b>
+                    <b>Competitive bid estimate</b>
                     <span>${a.myLeft} of ${a.budget} left</span>
                     {a.coldStart ? <span title="Fewer than 15 logged bids this season — showing league-size defaults, not per-rival reads" className="is-warn">league-median mode · {a.sampleSize} bids logged</span> : <span>{a.sampleSize} bids of evidence</span>}
                 </div>
@@ -796,6 +796,10 @@
                             : 'uncontested — no rival needs him'}
                     </span>
                 </div>
+                {!a.coldStart && Number(a.medianBid) > 0 && <p style={{ margin: '4px 0 8px', color: 'var(--silver)', fontSize: '.76rem' }}>Comparable league bids: ${a.medianBid} median · {a.sampleSize} bids logged.</p>}
+                <p style={{ margin: '4px 0 8px', color: 'var(--silver)', fontSize: '.76rem' }}>This estimates the bid needed to compete with rivals. Compare it with the player’s value-based range and your remaining budget.</p>
+                {target.valueRange && a.rec.bid > target.valueRange.hi && <p style={{ color: 'var(--warn)', fontSize: '.76rem' }}>The market estimate exceeds the ${target.valueRange.lo}–${target.valueRange.hi} value-based range. Consider whether this upgrade is worth the premium.</p>}
+                <button type="button" onClick={() => window.wrNavigateTab?.('market-review')} style={{ marginBottom: 8, color: 'var(--gold)', background: 'transparent', border: 0, padding: 0, minHeight: 36, textDecoration: 'underline', cursor: 'pointer', font: 'inherit', fontSize: '.76rem' }}>League bid history &amp; market research →</button>
                 {/* CHOPPED pacing: budget you never spend is budget you lose.
                     In a real 18-team chopped league the three teams that spent
                     nothing went out weeks 1-3, while the champion finished with
@@ -845,8 +849,23 @@
         );
     }
 
-    function FreeAgencyTab({ playersData, statsData, prevStatsData, statsSeason, priorStatsSeason, myRoster, currentLeague, leagueSkin, sleeperUserId, timeRecomputeTs, viewMode, briefDraftInfo }) {
-        const [faSection, setFaSection] = React.useState('overview');
+    function FreeAgencyTab({ playersData, statsData, prevStatsData, statsSeason, priorStatsSeason, myRoster, currentLeague, leagueSkin, sleeperUserId, timeRecomputeTs, viewMode, briefDraftInfo, initialView = 'overview' }) {
+        const [faSection, setFaSection] = React.useState(initialView === 'targets' ? 'targets' : 'overview');
+        const acquisitionLeagueId = String(currentLeague?.league_id || currentLeague?.id || '');
+        const [acquisitionContext, setAcquisitionContext] = useState(null);
+        const [notebookRevision, setNotebookRevision] = useState(0);
+        useEffect(() => {
+            const plan = window.WR?.PlayerNotebook?.contextFor(window.WR?.acquisitionContext, acquisitionLeagueId);
+            setFaSection(initialView === 'targets' ? 'targets' : plan ? 'market' : 'overview');
+        }, [initialView, acquisitionLeagueId]);
+        useEffect(() => {
+            const changed = () => setNotebookRevision(n => n + 1);
+            window.addEventListener('wr:player-notebook-changed', changed);
+            window.addEventListener('storage', changed);
+            window.WR?.PlayerNotebook?.migrateLeague(acquisitionLeagueId);
+            changed();
+            return () => { window.removeEventListener('wr:player-notebook-changed', changed); window.removeEventListener('storage', changed); };
+        }, [acquisitionLeagueId]);
         const resolvedLeagueSkin = leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
         const skinFeatures = resolvedLeagueSkin?.features || {};
         const skinVocabulary = resolvedLeagueSkin?.vocabulary || {};
@@ -887,6 +906,24 @@
         const [faSort, setFaSort] = useState({ key: 'dhq', dir: -1 });
         const [faSelectedPid, setFaSelectedPid] = useState(null);
         const [faSearch, setFaSearch] = useState('');
+        useEffect(() => {
+            const receive = event => {
+                const next = window.WR?.PlayerNotebook?.contextFor(event?.detail || window.WR?.acquisitionContext, acquisitionLeagueId);
+                if (!next) { if (!event) setAcquisitionContext(null); return; }
+                setAcquisitionContext(next);
+                if (!event && initialView === 'targets') return;
+                setFaSection('market');
+                setFaFilter(next.position || '');
+                setFaSearch('');
+                setRookieOnly(false);
+                setRookieTeamFilter('');
+                setRookieCollegeFilter('');
+                setRookieSlotFilter('');
+            };
+            receive();
+            window.addEventListener('wr:acquisition-context', receive);
+            return () => window.removeEventListener('wr:acquisition-context', receive);
+        }, [acquisitionLeagueId]);
         // ── Waiver Take (one-shot AI card, no chat) ──────────────────────
         // Ask once → structured take on the already-ranked Priority Moves list.
         // Reuses the orphaned 'waiver-agent' DHQ_PROMPTS type — the deterministic
@@ -1418,7 +1455,7 @@
 
         function openFaPlayer(pid) {
             if (window.WR && typeof window.WR.openPlayerCard === 'function') {
-                window.WR.openPlayerCard(pid, { scoringSettings: currentLeague?.scoring_settings });
+                window.WR.openPlayerCard(pid, { scoringSettings: currentLeague?.scoring_settings, context: { ...acquisitionContext, source: 'free-agency', leagueId: acquisitionLeagueId } });
             } else if (typeof window.openFWPlayerModal === 'function') {
                 window.openFWPlayerModal(pid, playersData, statsData, currentLeague?.scoring_settings);
             } else {
@@ -1652,7 +1689,7 @@
         function renderCandidateRow(x, i, isPrimary) {
             const dhqCol = x.dhq >= 4000 ? 'var(--k-3498db, #3498db)' : x.dhq >= 2000 ? 'var(--silver)' : 'var(--ov-8, rgba(255,255,255,0.45))';
             return (
-                <button key={x.pid} className={'fa-hq-candidate' + (isPrimary ? ' is-primary' : '')} title="Open player card" onClick={() => openFaPlayer(x.pid)}>
+                <button key={x.pid} className={'fa-hq-candidate' + (isPrimary ? ' is-primary' : '')} title="Plan this waiver" onClick={() => window.WR?.openAcquisition ? window.WR.openAcquisition({ pid: x.pid, position: x.pos, leagueId: acquisitionLeagueId, source: 'ranked-waiver-plan', reason: x.fit.label + ' · ' + x.windowLabel }) : openFaPlayer(x.pid)}>
                     <span className="fa-hq-rank">{i + 1}</span>
                     <PlayerAvatar pid={x.pid} p={x.p} size={30} />
                     <span className="fa-hq-player-main">
@@ -1676,199 +1713,94 @@
         }
 
         function renderActionHQ(compact = false) {
-            const topAdds = priorityAdds.slice(0, compact ? 4 : 5);
             const boardRows = actionBoardPlayers.slice(0, compact ? 6 : 8);
-            const swapRows = upgradePairs.slice(0, compact ? 3 : 4);
-            const freshRows = recentDrops.slice(0, compact ? 2 : 3);
-            const faabColor = remaining > budget * 0.5 ? 'var(--k-2ecc71, #2ecc71)' : remaining > budget * 0.25 ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
-            // In-reach count: of the top 20 ranked, roster-relevant targets (dhq
-            // >= 500, the same relevance floor faabSuggest() uses), how many have
-            // a suggested bid your remaining FAAB can actually cover. Scoped to
-            // the ranked board, not the whole ~300-player wire, so the number
-            // means "targets", not "every rostered-or-not name available".
-            const rankedTargets = actionBoardPlayers.filter(x => x.dhq >= 500).slice(0, 20);
-            const inRangeCount = rankedTargets.filter(x => !x.faab || x.faab.hi <= remaining).length;
-            return (
-                <section className={'fa-hq-shell' + (compact ? ' is-compact' : '')}>
-                    <div className="fa-hq-grid">
-                        <aside className="fa-hq-panel">
-                            <div className="fa-hq-panel-head">
-                                <span>Priority Moves</span>
-                                <em>{topAdds.length} add targets · {swapRows.length} swaps</em>
-                            </div>
-                            {/* Waiver Take — one-shot AI card, ask once, no chat.
-                                Alex reacts to the deterministic board above, never
-                                picks players outside it. */}
-                            {isPro && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '2px 0 10px', flexWrap: 'wrap' }}>
-                                    <button
-                                        onClick={doGenerateWaiverTake}
-                                        disabled={waiverTakeLoading}
-                                        style={{
-                                            display: 'inline-flex', alignItems: 'center', gap: '6px', minHeight: '32px',
-                                            padding: '5px 10px', borderRadius: 'var(--card-radius-sm, 8px)', fontSize: 'var(--text-label, 0.75rem)', fontWeight: 600,
-                                            fontFamily: 'var(--font-body)',
-                                            background: waiverTakeLoading ? 'rgba(124,107,248,0.08)' : 'rgba(124,107,248,0.12)',
-                                            border: '1px solid rgba(124,107,248,0.35)', color: 'var(--purple)',
-                                            cursor: waiverTakeLoading ? 'wait' : 'pointer', opacity: waiverTakeLoading ? 0.7 : 1,
-                                        }}
-                                    >✨ {waiverTakeLoading ? 'Thinking…' : (waiverTake.recommendations.length ? 'Regenerate Alex’s take' : 'Ask Alex')}</button>
-                                    {waiverTake.recommendations.length > 0 && (
-                                        <button onClick={doClearWaiverTake} style={{ minHeight: '32px', padding: '5px 8px', borderRadius: 'var(--card-radius-sm, 8px)', fontSize: 'var(--text-label, 0.75rem)', fontFamily: 'var(--font-body)', background: 'transparent', border: '1px solid var(--ov-5, rgba(255,255,255,0.08))', color: 'var(--silver)', cursor: 'pointer' }}>Clear</button>
-                                    )}
-                                    {waiverTake.recommendations.length > 0 && waiverTakeCacheAgeMin != null && (
-                                        <span style={{ fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>
-                                            {waiverTakeCacheAgeMin < 1 ? 'just now' : waiverTakeCacheAgeMin < 60 ? waiverTakeCacheAgeMin + 'm ago' : Math.floor(waiverTakeCacheAgeMin / 60) + 'h ago'}
-                                        </span>
-                                    )}
-                                </div>
-                            )}
-                            {/* FAAB Command — league-aware bid plan for the top targets
-                                (deterministic; the league's own bid history is the model). */}
-                            {isPro && topAdds.length > 0 && (
-                                <FaabCommandCard league={currentLeague} myRoster={myRoster} playersData={playersData}
-                                    targets={topAdds.slice(0, 3).map(x => ({ pid: x.pid, name: x.name, pos: x.pos, dhq: x.dhq }))} />
-                            )}
-                            {waiverTakeError && (
-                                <div style={{ padding: '8px 10px', marginBottom: '10px', background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: 'var(--card-radius-sm, 8px)', fontSize: 'var(--text-label, 0.75rem)', color: 'var(--bad)' }}>
-                                    Alex couldn't generate a take: {waiverTakeError}
-                                </div>
-                            )}
-                            {waiverTake.recommendations.length > 0 && (
-                                <div className="fa-hq-stack" style={{ marginBottom: '10px' }}>
-                                    {waiverTake.recommendations.slice(0, 3).map((rec, i) => (
-                                        <InsightCard
-                                            key={rec.name}
-                                            compact
-                                            severity={i === 0 ? 'opportunity' : 'pattern'}
-                                            title={rec.name + (rec.position ? ' · ' + rec.position : '')}
-                                            body={rec.reason}
-                                            ctaLabel={rec.faab_low != null ? 'Bid $' + rec.faab_low + '-' + rec.faab_high + ' FAAB' : (rec.copyText ? 'Copy Sleeper message' : null)}
-                                            ctaOnClick={() => { if (rec.copyText) { try { navigator.clipboard.writeText(rec.copyText); } catch (_) {} } }}
-                                            feedback={{
-                                                given: waiverTakeFeedback[rec.name] || null,
-                                                onUp: () => sendWaiverTakeFeedback(rec, 'up'),
-                                                onDown: () => sendWaiverTakeFeedback(rec, 'down'),
-                                            }}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                            {/* Add targets | swaps ride side by side when the panel is
-                                wide (owner ask 2026-07-12 — stacked full-width cards
-                                left half the panel empty); auto-stacks below ~640px. */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '4px 16px', alignItems: 'start' }}>
-                            <div>
-                            <div className="fa-hq-subhead" style={{ marginTop: 0 }}>Add Targets</div>
-                            <div className="fa-hq-stack">
-                                {topAdds.length ? topAdds.map((x, i) => (
-                                    <button key={x.pid} className="fa-hq-mini-card" title="Open player card" onClick={() => openFaPlayer(x.pid)}>
-                                        <PlayerAvatar pid={x.pid} p={x.p} size={28} />
-                                        <span className="fa-hq-mini-body">
-                                            <strong>{playerName(x.p)} <span style={{ color: posColors[x.pos] || 'var(--silver)' }}>{x.pos}</span></strong>
-                                            <em>{x.fit.label} · {x.dhq.toLocaleString()} {valueShortLabel}{x.faab ? ' · $' + x.faab.lo + '-' + x.faab.hi : ''}</em>
-                                            <em style={{ color: 'var(--gold)', whiteSpace: 'normal' }}>{byeRead(x.p)}</em>
-                                        </span>
-                                        <span className="fa-hq-mini-plus" aria-hidden="true">+</span>
-                                    </button>
-                                )) : <div className="fa-hq-empty">No priority adds match your current roster needs.</div>}
-                            </div>
-                            {gmFiltersOn && (() => {
-                                const parts = [];
-                                if (gmFa.minDhq) parts.push('min ' + gmFa.minDhq.toLocaleString() + ' ' + valueShortLabel);
-                                if (gmFa.maxAge) parts.push('≤' + gmFa.maxAge + ' yrs');
-                                if (gmFa.requirePrimeYears) parts.push('prime years only');
-                                if (gmFa.excludePositions.length) parts.push('no ' + gmFa.excludePositions.join('/'));
-                                return (
-                                    <div style={{ marginTop: 8, padding: '7px 10px', borderRadius: 6, background: 'var(--acc-fill1, rgba(212,175,55,0.06))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.2))', fontSize: 'var(--text-micro, 0.6875rem)', color: 'var(--silver)', lineHeight: 1.5 }}>
-                                        <strong style={{ color: 'var(--gold)' }}>GM filters</strong>: {parts.join(' · ')}{gmHiddenCount > 0 ? ' · ' + gmHiddenCount + ' hidden' : ''} · edit in GM's Office
-                                    </div>
-                                );
-                            })()}
-                            </div>
+            const topAdds = priorityAdds.slice(0, 3);
+            const planPlayer = (pid, dropPid, reason) => {
+                const player = playersData[pid] || {};
+                if (window.WR?.openAcquisition) window.WR.openAcquisition({ pid, dropPid, position: normPos(player.position), reason, leagueId: acquisitionLeagueId, source: 'waiver-action-plan' });
+                else openFaPlayer(pid);
+            };
+            return <section className={'fa-hq-shell' + (compact ? ' is-compact' : '')}>
+                <div className="fa-hq-grid">
+                    <main className="fa-hq-panel fa-hq-board" style={{ order: -1 }}>
+                        <div className="fa-hq-panel-head"><span>Ranked action plan</span><em>Select a player to plan the claim</em></div>
+                        <div className="fa-hq-board-head"><span>Rank</span><span /><span>Player</span><span>Window</span><span>Score</span><span>Value bid</span></div>
+                        <div className="fa-hq-board-list">{boardRows.length ? boardRows.map((x, i) => renderCandidateRow(x, i, i === 0)) : <p className="fa-hq-empty">{rosterRead.known ? 'No clear roster upgrade meets your filters. Holding your roster is a valid move.' : 'Roster details are incomplete. Recommendations resume when player details are available.'}</p>}</div>
+                        <div className="fa-hq-board-foot"><span>Ranked for your scoring, roster, and strategy.</span><button type="button" onClick={() => setFaSection('market')}>Explore all available players →</button></div>
+                        {gmFiltersOn && <p style={{ color: 'var(--silver)', fontSize: '.76rem' }}>Your strategy filters apply{gmHiddenCount ? ' · ' + gmHiddenCount + ' players hidden' : ''}. <button type="button" onClick={() => window.wrNavigateTab?.('alex')}>Edit strategy</button></p>}
+                    </main>
+                    <aside className="fa-hq-panel">
+                        <div className="fa-hq-panel-head"><span>Bid planning</span><em>{hasFAAB ? '$' + remaining + ' remaining' : 'League waiver rules apply'}</em></div>
+                        {topAdds.length > 0 && <FaabCommandCard league={currentLeague} myRoster={myRoster} playersData={playersData} targets={topAdds.map(x => ({ pid: x.pid, name: x.name, pos: x.pos, dhq: x.dhq, valueRange: x.faab }))} />}
+                        <button type="button" onClick={doGenerateWaiverTake} disabled={waiverTakeLoading}>{waiverTakeLoading ? 'Alex is thinking…' : waiverTake.recommendations.length ? 'Refresh Alex’s take' : 'Ask Alex about this plan'}</button>
+                        {waiverTakeError && <p role="alert" style={{ color: 'var(--bad)', fontSize: '.8rem' }}>{waiverTakeError}</p>}
+                        {waiverTake.recommendations.length > 0 && <details style={{ marginTop: 10 }}><summary>Alex’s reasoning{waiverTakeCacheAgeMin != null ? ' · ' + Math.round(waiverTakeCacheAgeMin) + 'm ago' : ''}</summary><button type="button" onClick={doClearWaiverTake}>Clear take</button>{waiverTake.recommendations.slice(0, 3).map(rec => <InsightCard key={rec.name} compact severity="opportunity" title={rec.name} body={rec.reason} feedback={{ given: waiverTakeFeedback[rec.name] || null, onUp: () => sendWaiverTakeFeedback(rec, 'up'), onDown: () => sendWaiverTakeFeedback(rec, 'down') }} />)}</details>}
+                        <button type="button" onClick={() => window.wrNavigateTab?.('market-review')} style={{ display: 'block', marginTop: 10 }}>League bid history &amp; market research →</button>
+                    </aside>
+                    <aside className="fa-hq-panel">
+                        <div className="fa-hq-panel-head"><span>Supporting context</span><em>Expand what you need</em></div>
+                        <details style={{ marginBottom: 12 }}><summary>Add/drop upgrades · {upgradePairs.length}</summary><div className="fa-hq-stack" style={{ marginTop: 8 }}>{upgradePairs.length ? upgradePairs.map(pair => <button key={pair.drop.pid + '-' + pair.add.pid} type="button" className="fa-hq-swap" onClick={() => planPlayer(pair.add.pid, pair.drop.pid, 'Review this add/drop upgrade before submitting a claim.')}><span className="fa-hq-swap-side is-drop"><b>Possible drop</b>{pair.drop.name}<em>{pair.drop.dhq.toLocaleString()}</em></span><span className="fa-hq-swap-side is-add"><b>Add</b>{playerName(pair.add.p)}<em>+{pair.gain.toLocaleString()} {valueShortLabel}</em></span></button>) : <p className="fa-hq-empty">No obvious add/drop upgrade found.</p>}</div></details>
+                        <details style={{ marginBottom: 12 }}><summary>Fresh drop alerts · {recentDrops.length}</summary><div className="fa-hq-stack" style={{ marginTop: 8 }}>{recentDrops.length ? recentDrops.map(d => <button key={d.pid} type="button" className="fa-hq-mini-card" onClick={() => planPlayer(d.pid, null, 'Dropped in Week ' + d.week + '; review availability and fit.')}><PlayerAvatar pid={d.pid} p={playersData[d.pid]} size={28} /><span className="fa-hq-mini-body"><strong>{d.name}</strong><em>Dropped W{d.week} · {d.dhq.toLocaleString()} {valueShortLabel}</em></span></button>) : <p className="fa-hq-empty">No startable recent drops on the wire.</p>}</div></details>
+                        <details style={{ marginBottom: 12 }}><summary>Your roster coverage · {rosterRead.coverage}/{rosterRead.total} starting slots</summary><div className="fa-roster-groups" style={{ marginTop: 8 }}>{rosterGapRows.map(row => <div key={row.pos} className="fa-roster-group"><div><strong style={{ color: posColors[row.pos] }}>{row.pos}</strong><span>{row.actual} owned · {row.required} dedicated slots</span><b>{!rosterRead.known ? 'Unknown' : row.fillsStarter ? 'Open slot' : 'Covered'}</b></div><p>{row.owned.map(p => p.name).join(' · ') || 'No players owned'}</p>{row.bestWire && <button type="button" onClick={() => planPlayer(row.bestWire.pid, null, 'Improve your ' + row.pos + ' room.')}>{playerName(row.bestWire.p)} · +{row.gain.toLocaleString()} {valueShortLabel} over your lowest-valued {row.pos} →</button>}</div>)}</div></details>
+                        {hasFAAB && <details><summary>Budget rivals · #{myFaabRank || '—'} in FAAB</summary><p style={{ color: 'var(--silver)', fontSize: '.8rem' }}>${remaining} of ${budget} left{canOutbidRows.length ? ' · ' + canOutbidRows.length + ' displayed teams can outbid you' : ''}</p><div className="fa-hq-chipline">{faabMarketRows.filter(r => !r.isMe).map(r => <span key={r.rosterId}>{r.name} ${r.remaining}</span>)}</div></details>}
+                    </aside>
+                </div>
+            </section>;
+        }
 
-                            <div>
-                            <div className="fa-hq-subhead" style={{ marginTop: 0 }}>Best Add/Drop Upgrades</div>
-                            <div className="fa-hq-stack">
-                                {swapRows.length ? swapRows.map(pair => (
-                                    <button key={pair.drop.pid + '-' + pair.add.pid} className="fa-hq-swap" title="Open player card" onClick={() => openFaPlayer(pair.add.pid)}>
-                                        <span className="fa-hq-swap-side is-drop"><b>Drop</b>{pair.drop.name}<em>{pair.drop.dhq.toLocaleString()}</em></span>
-                                        <span className="fa-hq-swap-side is-add"><b>Add</b>{playerName(pair.add.p)}<em>+{pair.gain.toLocaleString()}</em></span>
-                                    </button>
-                                )) : <div className="fa-hq-empty">No obvious add/drop upgrade found from the current wire.</div>}
-                            </div>
-                            </div>
-                            </div>
+        function renderAcquisitionPlan() {
+            if (!acquisitionContext) return null;
+            const target = acquisitionContext.pid ? availablePlayers.find(row => String(row.pid) === acquisitionContext.pid) : null;
+            const targetPlayer = playersData[acquisitionContext.pid];
+            const ownedIds = [...new Set([...(myRoster?.players || []), ...(myRoster?.taxi || []), ...(myRoster?.reserve || [])].map(String))];
+            const dropId = ownedIds.includes(acquisitionContext.dropPid) ? acquisitionContext.dropPid : '';
+            const protectedDrop = dropId && window._playerTags?.[dropId] === 'untouchable';
+            const setDrop = value => {
+                const next = { ...acquisitionContext, dropPid: value || null };
+                window.WR.acquisitionContext = next;
+                setAcquisitionContext(next);
+            };
+            const name = targetPlayer ? playerName(targetPlayer, acquisitionContext.pid) : acquisitionContext.pid;
+            const suggestion = target ? faabSuggest(target.dhq, target.pos || normPos(target.p.position), target.p.age) : null;
+            return <section className="fa-acquisition-plan" style={{ marginBottom: 12, padding: 14, border: '1px solid var(--acc-line2, rgba(212,175,55,.35))', borderRadius: 10, background: 'var(--acc-fill1, rgba(212,175,55,.04))' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 }}><strong style={{ color: 'var(--gold)' }}>{target ? 'Waiver plan · ' + name : 'Improve ' + (acquisitionContext.position || 'your team')}{acquisitionContext.week ? ' · Week ' + acquisitionContext.week : ''}</strong><button type="button" onClick={() => { window.WR.acquisitionContext = null; setAcquisitionContext(null); setFaFilter(''); }}>Clear plan</button></div>
+                {acquisitionContext.reason && <p style={{ margin: '8px 0', color: 'var(--silver)', fontSize: '.82rem' }}>{acquisitionContext.reason}</p>}
+                {acquisitionContext.pid && !target && <p role="status" style={{ color: 'var(--warn)', fontSize: '.8rem' }}>{name || 'This target'} is not in the current available-player pool. Choose an available player below.</p>}
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+                    <label style={{ color: 'var(--silver)', fontSize: '.8rem' }}>Possible drop <select value={dropId} onChange={e => setDrop(e.target.value)} style={{ marginLeft: 7, maxWidth: '100%', minHeight: 36 }}><option value="">Keep open / no drop selected</option>{ownedIds.map(id => <option key={id} value={id}>{playerName(playersData[id] || {}, id)}{window._playerTags?.[id] === 'untouchable' ? ' · Untouchable' : ''}</option>)}</select></label>
+                    {target && suggestion && <span style={{ color: 'var(--gold)', fontSize: '.8rem' }}>Value-based bid range ${suggestion.lo}–${suggestion.hi}</span>}
+                    {target && <button type="button" onClick={() => openFaPlayer(target.pid)}>Player details &amp; notebook</button>}
+                </div>
+                {protectedDrop && <p role="alert" style={{ color: 'var(--warn)', fontSize: '.8rem' }}>You marked this player Untouchable. Choose another drop or revisit that decision in My Team.</p>}
+                {acquisitionContext.dropPid && !dropId && <p role="status" style={{ color: 'var(--warn)', fontSize: '.8rem' }}>The earlier drop candidate is no longer on your roster. No drop is selected.</p>}
+                {target && isPro && <FaabCommandCard league={currentLeague} myRoster={myRoster} playersData={playersData} targets={[{ pid: target.pid, name, pos: target.pos || normPos(target.p.position), dhq: target.dhq, valueRange: suggestion }]} />}
+                {target && window.WR?.PlayerNotebook?.NotebookEditor && React.createElement(window.WR.PlayerNotebook.NotebookEditor, { pid: target.pid, leagueId: acquisitionLeagueId, leagueName: currentLeague.name || 'This league', compact: true })}
+                <small style={{ display: 'block', marginTop: 8, color: 'var(--text-muted)' }}>Planning only. Submit any claim and roster change on your league platform.</small>
+            </section>;
+        }
 
-                            <div className="fa-hq-subhead">Fresh Drop Alerts</div>
-                            <div className="fa-hq-stack">
-                                {freshRows.length ? freshRows.map(d => (
-                                    <button key={d.pid} className="fa-hq-mini-card is-alert" title="Open player card" onClick={() => openFaPlayer(d.pid)}>
-                                        <PlayerAvatar pid={d.pid} p={playersData[d.pid]} size={28} />
-                                        <span className="fa-hq-mini-body">
-                                            <strong>{d.name} <span style={{ color: posColors[d.pos] || 'var(--silver)' }}>{d.pos}</span></strong>
-                                            <em>Dropped W{d.week} · {d.dhq.toLocaleString()} {valueShortLabel}</em>
-                                        </span>
-                                    </button>
-                                )) : <div className="fa-hq-empty">No startable recent drops are sitting on the wire.</div>}
-                            </div>
-                        </aside>
-
-                        <main className="fa-hq-panel fa-hq-board">
-                            <div className="fa-hq-panel-head">
-                                <span>Ranked Waiver Board</span>
-                                <em>bid range, fit, window, and reason</em>
-                            </div>
-                            <div className="fa-hq-board-head">
-                                <span>Rank</span><span /><span>Player</span><span>Window</span><span>Score</span><span>Bid Range</span>
-                            </div>
-                            <div className="fa-hq-board-list">
-                                {boardRows.length ? boardRows.map((x, i) => renderCandidateRow(x, i, i === 0)) : <p className="fa-hq-empty">{rosterRead.known ? 'No clear roster upgrade meets your filters. Holding your roster is a valid move.' : 'Roster data is incomplete. Recommendations will resume when player details are available.'}</p>}
-                            </div>
-                            <div className="fa-hq-board-foot">
-                                <span>Rankings run off your league's own scoring and roster settings.</span>
-                                <button type="button" onClick={() => { setFaSection('market'); }}>View Full Board →</button>
-                            </div>
-                        </main>
-
-                        <aside className="fa-hq-panel">
-                            <div className="fa-hq-panel-head">
-                                <span>Market Leverage</span>
-                                <em>{canOutbidRows.length ? canOutbidRows.length + ' teams can outbid you' : 'You control most bids'}</em>
-                            </div>
-                            {/* Consolidated to ~half height (owner ask 2026-07-12): one-line FAAB
-                                card, competitors as a chip line, Position Threats merged into the
-                                gap matrix (both keyed by position). */}
-                            {hasFAAB && <div className="fa-hq-faab-card">
-                                <strong style={{ color: faabColor }}>${remaining}</strong>
-                                <span> of ${budget} · #{myFaabRank || '—'} FAAB</span>
-                                <i style={{ width: budget > 0 ? Math.max(3, Math.round((remaining / budget) * 100)) + '%' : '0%', background: faabColor }} />
-                            </div>}
-                            {hasFAAB && (
-                                <div className="fa-hq-leverage-caption">
-                                    {inRangeCount > 0
-                                        ? "You're in range to compete for " + inRangeCount + ' of your top ' + rankedTargets.length + ' targets.'
-                                        : 'FAAB is tight right now — check the ladder above before you bid.'}
-                                </div>
-                            )}
-                            <div className="fa-hq-chipline">
-                                {(canOutbidRows.length ? canOutbidRows : faabMarketRows.filter(r => !r.isMe).slice(0, 4)).map(r => (
-                                    <span key={r.rosterId}>{r.name} ${r.remaining}</span>
-                                ))}
-                            </div>
-
-                            <div className="fa-hq-subhead">Your roster · actual coverage</div>
-                            <p className="fa-roster-summary">{rosterRead.known ? rosterRead.owned.length + ' players owned · ' + rosterRead.coverage + '/' + rosterRead.total + ' starting slots covered' : 'Roster details are incomplete. Upgrade claims are paused.'}</p>
-                            <div className="fa-roster-groups">{rosterGapRows.map(row => <div key={row.pos} className="fa-roster-group">
-                                <div><strong style={{ color: posColors[row.pos] }}>{row.pos}</strong><span>{row.actual} owned · {row.required} dedicated slot{row.required === 1 ? '' : 's'}</span><b>{!rosterRead.known ? 'Unknown' : row.fillsStarter ? 'Open slot' : 'Covered'}</b></div>
-                                <p>{row.owned.map(p => p.name).join(' · ') || 'No players owned'}</p>
-                                {row.bestWire ? <button type="button" onClick={() => openFaPlayer(row.bestWire.pid)}>{playerName(row.bestWire.p)} · +{row.gain.toLocaleString()} DHQ over your lowest-valued {row.pos} →</button> : <small>No measured value upgrade on this board.</small>}
-                            </div>)}</div>
-
-                        </aside>
-                    </div>
-                </section>
-            );
+        function renderSavedTargets() {
+            const rows = window.WR?.PlayerNotebook?.list(acquisitionLeagueId) || [];
+            return <section className="fa-saved-targets" data-notebook-revision={notebookRevision} style={{ display: 'grid', gap: 12 }}>
+                <div><h2 style={{ color: 'var(--gold)', margin: '0 0 5px' }}>Saved targets</h2><p style={{ color: 'var(--silver)', fontSize: '.85rem' }}>Your watchlist and notes. Personal research follows you across leagues; league plans stay private to this league.</p></div>
+                {!rows.length && <p style={{ color: 'var(--silver)' }}>Open a player’s notebook to watch them or save a note. Draft notes and target tags appear here too.</p>}
+                {rows.map(row => {
+                    const player = playersData[row.pid] || (String(row.pid).startsWith('csv_') ? { full_name: row.pid.slice(4).replace(/_/g, ' ') } : {});
+                    const action = window.WR.PlayerNotebook.resolveAction({ pid: row.pid, league: currentLeague, rosters: currentLeague.rosters, myRosterId: myRoster?.roster_id, features: skinFeatures, context: isDraftProspect(row.pid, player) ? 'draft-prospect' : 'saved-targets' });
+                    return <article key={row.pid} style={{ border: '1px solid var(--ov-5, rgba(255,255,255,.1))', borderRadius: 9, padding: 12, minWidth: 0 }}>
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}><button type="button" onClick={() => openFaPlayer(row.pid)} style={{ color: 'var(--gold)', background: 'transparent', border: 0, cursor: 'pointer', font: 'inherit', textAlign: 'left' }}>{playerName(player, row.pid)} {player.position || ''}</button><button type="button" onClick={() => {
+                            if (action.kind === 'waiver') window.WR.openAcquisition({ pid: action.dropPid ? null : row.pid, dropPid: action.dropPid, position: player.position, leagueId: acquisitionLeagueId, source: 'saved-targets' });
+                            else if (action.kind === 'draft') window.WR.openDraftPlayer({ pid: row.pid, leagueId: acquisitionLeagueId, source: 'saved-targets' });
+                            else if (action.kind === 'trade') {
+                                window._wrTradeFinderTarget = { pid: row.pid, mode: action.mine ? 'my' : 'acquire', ts: Date.now() };
+                                window.wrNavigateTab?.('trades');
+                                window.dispatchEvent(new CustomEvent('wr:open-trade-finder', { detail: { pid: row.pid } }));
+                            } else openFaPlayer(row.pid);
+                        }}>{action.kind === 'watch' ? 'View player' : action.label}</button></div>
+                        {React.createElement(window.WR.PlayerNotebook.NotebookEditor, { pid: row.pid, leagueId: acquisitionLeagueId, leagueName: currentLeague.name || 'This league', compact: true })}
+                    </article>;
+                })}
+            </section>;
         }
 
         function renderRosterSyncBlocker() {
@@ -1886,6 +1818,7 @@
             );
         }
 
+        if (faSection === 'targets') return <div className="fa-page wr-fade-in">{renderSavedTargets()}</div>;
         if (!rosterState.isUsable) return renderRosterSyncBlocker();
 
         // ── UDFA CRAZE PANEL ──────────────────────────────────────────────────
@@ -2333,6 +2266,7 @@
                 <React.Fragment>
                     <div className="fa-page wr-fade-in">
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {renderAcquisitionPlan()}
                             {_faHeroEl}
                             <nav className="fa-section-tabs" aria-label="Free agency sections"><button type="button" aria-pressed={faSection === 'overview'} onClick={() => setFaSection('overview')}>Overview</button><button type="button" aria-pressed={faSection === 'market'} onClick={() => setFaSection('market')}>Market Explorer</button></nav>
                             {renderCrazePanel()}
@@ -2374,6 +2308,7 @@
                     }
                 `}</style>
 
+                {renderAcquisitionPlan()}
                 {renderCrazePanel()}
                 <nav className="fa-section-tabs" aria-label="Free agency sections"><button type="button" aria-pressed={faSection === 'overview'} onClick={() => setFaSection('overview')}>Overview</button><button type="button" aria-pressed={faSection === 'market'} onClick={() => setFaSection('market')}>Market Explorer</button></nav>
                 {faSection === 'overview' && (isPro ? renderActionHQ(viewMode === 'command') : renderActionHqTeaser())}

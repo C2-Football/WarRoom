@@ -1,12 +1,12 @@
 // Command Center's weekly Sleeper scoreboard. Scores are provider snapshots,
 // never inferred game completion or recomputed from a league's current roster.
-function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerName, getPlayerName, setActiveTab }) {
+function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerName, getPlayerName, setActiveTab, selectedWeek, onWeekChange, onRefresh }) {
     const service = window.App.LeagueLiveScores;
     const leagueId = currentLeague?.league_id || currentLeague?.id || '';
     const defaultWeek = service.currentWeek(currentLeague);
     const [selection, setSelection] = React.useState(null);
     const [expanded, setExpanded] = React.useState(false);
-    const week = selection?.leagueId === leagueId ? selection.week : defaultWeek;
+    const week = selectedWeek != null ? selectedWeek : selection?.leagueId === leagueId ? selection.week : defaultWeek;
     const board = service.useScores({ league: currentLeague, week });
     const [nfl, setNfl] = React.useState({ key: '', games: [] });
     const nflKey = `${currentLeague?.season || ''}|${week}`;
@@ -131,10 +131,10 @@ function LeagueLiveScoreboard({ currentLeague, myRoster, playersData, getOwnerNa
         <div className="lls-header">
             <div className="lls-heading"><h3>{chopped ? 'Weekly scoring race' : 'Around the league'}</h3><span className="lls-note">{currentLeague?.season} · Actual points</span></div>
             <div className="lls-controls">
-                <label>Week <select aria-label="Scoreboard week" value={week} onChange={event => setSelection({ leagueId, week: Number(event.target.value) })}>
+                <label>Week <select aria-label="Scoreboard week" value={week} onChange={event => { const value = Number(event.target.value); if (onWeekChange) onWeekChange(value); else setSelection({ leagueId, week: value }); }}>
                     {Array.from({ length: 18 }, (_, i) => i + 1).map(w => <option key={w} value={w}>{w}</option>)}
                 </select></label>
-                <button type="button" disabled={loading || board.supported === false} onClick={() => board.refresh?.()}>{loading ? 'Updating…' : 'Refresh scores'}</button>
+                <button type="button" disabled={loading || board.supported === false} onClick={() => { board.refresh?.(); onRefresh?.(); }}>{loading ? 'Updating…' : 'Refresh scores'}</button>
                 {hasRows && <button type="button" aria-expanded={expanded} aria-controls={boardId} onClick={() => setExpanded(!expanded)}>{expanded ? 'Collapse' : `All ${chopped ? ladder.length + ' teams' : groups.length + ' matchups'} ↓`}</button>}
             </div>
         </div>

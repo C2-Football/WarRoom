@@ -1,0 +1,72 @@
+/* League Central standings: compact current records and provisional weekly results. */
+.lct-live-panel { min-width:0; max-width:100%; color:var(--white,#f5f2ea); font-family:var(--font-body,'DM Sans',sans-serif); }
+.lct-live-panel *, .lct-live-panel *::before, .lct-live-panel *::after { box-sizing:border-box; }
+.lct-status { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
+.lct-status-copy { flex:1 1 170px; min-width:0; }
+.lct-status-copy strong { display:block; font-size:14px; line-height:1.4; font-weight:600; color:var(--white,#f5f2ea); }
+.lct-status-copy small { display:block; font-size:12px; line-height:1.5; color:var(--text-muted,#8d887e); margin-top:3px; }
+.lct-mode-toggle { display:inline-flex; align-items:stretch; gap:3px; padding:3px; border:1px solid rgba(189,184,173,.18); border-radius:8px; background:var(--black,#121217); flex:0 0 auto; max-width:100%; }
+.lct-live-panel .lct-mode-toggle button { min-height:34px; padding:7px 12px; border:1px solid transparent; border-radius:5px; background:transparent; color:var(--silver,#bdb8ad); font:500 13px/1.3 var(--font-body,'DM Sans',sans-serif); cursor:pointer; }
+.lct-live-panel .lct-mode-toggle button[aria-pressed=true] { background:rgba(212,175,55,.1); border-color:rgba(212,175,55,.3); color:var(--gold,#d4af37); }
+.lct-live-panel .lct-mode-toggle button:disabled { opacity:.5; cursor:default; }
+.lct-live-panel button:focus-visible, .lct-table-wrap:focus-visible { outline:2px solid var(--gold,#d4af37); outline-offset:3px; }
+.lct-live-panel .lct-note { margin:0 0 12px; font-size:12px; line-height:1.5; color:var(--text-muted,#8d887e); overflow-wrap:anywhere; }
+.lct-table-wrap { width:100%; max-width:100%; min-width:0; overflow-x:auto; overscroll-behavior-x:contain; -webkit-overflow-scrolling:touch; }
+.lct-live-panel table.lct-table { width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; font-size:13px; }
+.lct-live-panel .lct-table th, .lct-live-panel .lct-table td { padding:10px 8px; vertical-align:middle; border:0; border-bottom:1px solid rgba(189,184,173,.12); text-align:right; }
+.lct-live-panel .lct-table th { color:var(--text-muted,#8d887e); font-size:11px; line-height:1.4; font-weight:600; white-space:nowrap; text-transform:uppercase; letter-spacing:.04em; }
+.lct-live-panel .lct-table th.lct-rank-col, .lct-live-panel .lct-table td.lct-rank-col { width:38px; padding-left:4px; padding-right:4px; text-align:center; }
+.lct-live-panel .lct-table th.lct-team-col, .lct-live-panel .lct-table td.lct-team-col { text-align:left; }
+.lct-live-panel .lct-table .lct-record { width:68px; white-space:nowrap; font-family:var(--font-mono,'JetBrains Mono',monospace); font-variant-numeric:tabular-nums; }
+.lct-live-panel .lct-table th.lct-desktop, .lct-live-panel .lct-table td.lct-desktop { width:66px; font-variant-numeric:tabular-nums; }
+.lct-live-panel .lct-table .lct-week { width:112px; }
+.lct-rank-number { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font:600 14px/1.15 var(--font-mono,monospace); font-variant-numeric:tabular-nums; color:var(--silver,#bdb8ad); }
+.lct-movement { display:block; font:500 10px/1.1 var(--font-mono,monospace); letter-spacing:-.03em; white-space:nowrap; }
+.lct-movement[data-direction=up] { color:var(--good,#2ecc71); }
+.lct-movement[data-direction=down] { color:var(--bad,#e74c3c); }
+.lct-movement[data-direction=flat] { color:var(--text-muted,#8d887e); }
+.lct-team-name { display:block; min-width:0; font-size:14px; font-weight:600; line-height:1.35; overflow-wrap:anywhere; color:var(--white,#f5f2ea); }
+.lct-team-meta { display:block; font-size:11px; line-height:1.4; color:var(--text-muted,#8d887e); margin-top:4px; }
+.lct-live-panel .lct-table td.lct-record { font-size:13px; line-height:1.35; color:var(--silver,#bdb8ad); }
+.lct-result { display:inline-flex; justify-content:center; align-items:center; min-width:23px; min-height:21px; padding:2px 5px; border-radius:4px; border:1px solid rgba(189,184,173,.18); background:rgba(189,184,173,.04); color:var(--silver,#bdb8ad); font:700 11px/1.2 var(--font-mono,monospace); }
+.lct-result[data-result=W] { color:var(--good,#2ecc71); border-color:rgba(46,204,113,.25); background:rgba(46,204,113,.08); }
+.lct-result[data-result=L] { color:var(--bad,#e74c3c); border-color:rgba(231,76,60,.25); background:rgba(231,76,60,.07); }
+.lct-result[data-result=T] { color:var(--gold,#d4af37); border-color:rgba(212,175,55,.28); background:rgba(212,175,55,.07); }
+.lct-result[data-result=none] { color:var(--text-muted,#8d887e); background:transparent; }
+.lct-week-score { display:block; margin-top:4px; font:500 11px/1.35 var(--font-mono,'JetBrains Mono',monospace); font-variant-numeric:tabular-nums; color:var(--silver,#bdb8ad); white-space:nowrap; letter-spacing:-.025em; }
+.lct-opponent { display:block; font-size:10px; line-height:1.4; color:var(--text-muted,#8d887e); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lct-live-panel .lct-table .lct-own > td { background:rgba(212,175,55,.045); }
+.lct-live-panel .lct-table .lct-own > td:first-child { border-left:2px solid var(--gold,#d4af37); }
+.lct-live-panel .lct-table .lct-own .lct-rank-number { color:var(--gold,#d4af37); }
+.lct-live-panel .lct-table .lct-cutline > td { border-bottom:1px solid rgba(212,175,55,.55); }
+.lct-live-dot { display:inline-block; width:6px; height:6px; margin-right:6px; border-radius:50%; background:var(--good,#2ecc71); vertical-align:middle; }
+.lct-form { display:flex; justify-content:flex-end; gap:3px; }
+.lct-live-panel .lct-phone { display:none; }
+@media (max-width:767px) {
+    .lct-status { gap:9px; margin-bottom:10px; }
+    .lct-status-copy { flex-basis:145px; }
+    .lct-status-copy strong { font-size:14px; }
+    .lct-status-copy small { font-size:12px; }
+    .lct-live-panel .lct-mode-toggle button { min-height:44px; padding:9px 10px; font-size:14px; }
+    .lct-live-panel .lct-note { font-size:12px; line-height:1.5; }
+    .lct-live-panel .lct-desktop, .lct-live-panel .lct-form, .lct-live-panel .lct-opponent { display:none; }
+    .lct-live-panel .lct-phone { display:block; }
+    .lct-live-panel table.lct-table { font-size:13px; }
+    .lct-live-panel .lct-table th, .lct-live-panel .lct-table td { padding:10px 5px; }
+    .lct-live-panel .lct-table th { font-size:10px; letter-spacing:.015em; }
+    .lct-live-panel .lct-table th.lct-rank-col, .lct-live-panel .lct-table td.lct-rank-col { width:32px; padding-left:2px; padding-right:2px; }
+    .lct-live-panel .lct-table .lct-record { width:60px; }
+    .lct-live-panel .lct-table .lct-week { width:90px; }
+    .lct-team-name { font-size:14px; line-height:1.35; }
+    .lct-team-meta { font-size:11px; }
+    .lct-live-panel .lct-table td.lct-record { font-size:12px; letter-spacing:-.04em; }
+    .lct-rank-number { font-size:13px; }
+    .lct-movement { font-size:10px; }
+    .lct-week-score { font-size:10px; letter-spacing:-.055em; }
+    .lct-result { min-width:24px; min-height:22px; font-size:11px; }
+}
+@media (max-width:360px) {
+    .lct-live-panel .lct-table th.lct-rank-col, .lct-live-panel .lct-table td.lct-rank-col { width:28px; }
+    .lct-live-panel .lct-table .lct-record { width:54px; }
+    .lct-live-panel .lct-table .lct-week { width:82px; }
+}

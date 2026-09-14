@@ -36,10 +36,6 @@
             if (navigateWidget) navigateWidget(target);
             else if (setActiveTab) setActiveTab(target);
         };
-        const openCard = (pid) => {
-            if (window.WR && typeof window.WR.openPlayerCard === 'function') window.WR.openPlayerCard(pid);
-            else if (typeof window.openPlayerModal === 'function') window.openPlayerModal(pid);
-        };
         const isClickable = size === 'sm';
 
         const myAssess = React.useMemo(() => {
@@ -99,6 +95,21 @@
             if (g.depthShort > 0) return 'Thin — add ' + g.depthShort + ' depth';
             return g.status === 'surplus' ? 'Surplus' : 'Covered';
         };
+        const improveGap = (gap, e, pid) => {
+            e?.stopPropagation?.();
+            if (!gap) return goTo('fa', e);
+            const dropPid = (myRoster?.players || []).find(id => window._playerTags?.[id] === 'cut');
+            const context = {
+                pid: pid || undefined,
+                position: gap.pos,
+                dropPid: dropPid || undefined,
+                reason: needText(gap) + ' at ' + posLabel(gap.pos) + (gap.isTarget ? ' · Your plan targets this position.' : ''),
+                source: 'gap-plan',
+                leagueId: currentLeague?.league_id || currentLeague?.id,
+            };
+            if (typeof window.WR?.openAcquisition === 'function') window.WR.openAcquisition(context);
+            else goTo('fa', e);
+        };
 
         // Concrete sources for the top gap (lg)
         const sources = React.useMemo(() => {
@@ -138,7 +149,7 @@
                     <span style={{ fontSize: opts.large ? '1.05rem' : '0.95rem' }}>🧩</span>
                     <span style={{ fontFamily: fonts.display, fontSize: fs(opts.large ? 1.0 : 0.9), fontWeight: 700, color: colors.negative || 'var(--k-e74c3c, #e74c3c)', letterSpacing: '0.06em', textTransform: 'uppercase', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Gap Plan</span>
                     <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: colors.textMuted, fontFamily: fonts.ui, whiteSpace: 'nowrap' }}>{openGaps.length ? openGaps.length + ' open gap' + (openGaps.length !== 1 ? 's' : '') : 'all covered'}</span>
-                    <button onClick={e => goTo('fa', e)} title="Open Free Agency" style={{ padding: '3px 8px', minHeight: '44px', marginTop: '-10px', marginBottom: '-10px', display: 'inline-flex', alignItems: 'center', background: wrAlpha(colors.info || 'var(--k-3498db, #3498db)', '1A'), color: colors.info || 'var(--k-3498db, #3498db)', border: '1px solid ' + wrAlpha(colors.info || 'var(--k-3498db, #3498db)', '47'), borderRadius: 'var(--card-radius-xs, 5px)', cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: fonts.ui, fontWeight: 700, whiteSpace: 'nowrap' }}>FA</button>
+                    <button onClick={e => improveGap(topGap, e)} title="Plan a roster improvement" style={{ padding: '3px 8px', minHeight: '44px', marginTop: '-10px', marginBottom: '-10px', display: 'inline-flex', alignItems: 'center', background: wrAlpha(colors.info || 'var(--k-3498db, #3498db)', '1A'), color: colors.info || 'var(--k-3498db, #3498db)', border: '1px solid ' + wrAlpha(colors.info || 'var(--k-3498db, #3498db)', '47'), borderRadius: 'var(--card-radius-xs, 5px)', cursor: 'pointer', fontSize: 'var(--text-micro, 0.6875rem)', fontFamily: fonts.ui, fontWeight: 700, whiteSpace: 'nowrap' }}>Improve</button>
                 </div>
             );
         }
@@ -163,7 +174,7 @@
         // ── SM: biggest gap hero ──
         if (size === 'sm') {
             return (
-                <div onClick={e => goTo(topGap ? 'fa' : 'myteam', e)} style={{ ...cardStyle, padding: 'var(--card-pad, 14px 16px)', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', gap: '4px' }}>
+                <div role="button" tabIndex={0} onClick={e => topGap ? improveGap(topGap, e) : goTo('myteam', e)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); topGap ? improveGap(topGap, e) : goTo('myteam', e); } }} style={{ ...cardStyle, padding: 'var(--card-pad, 14px 16px)', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', gap: '4px' }}>
                     <div style={{ fontSize: fs(0.6), color: colors.negative || 'var(--k-e74c3c, #e74c3c)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, fontFamily: fonts.ui }}>🧩 Biggest Gap</div>
                     <div style={{ fontFamily: fonts.mono, fontSize: fs(1.7), fontWeight: 700, color: topGap ? statusCol(topGap.status) : colors.positive, lineHeight: 1 }} className="wr-data-value">
                         {topGap ? (topGap.need > 0 ? '+' + topGap.need + ' ' : '') + posLabel(topGap.pos) : '✓'}
@@ -189,8 +200,8 @@
                         )}
                         {rows.map(g => (
                             <div key={g.pos} role="button" tabIndex={0} title={(g.isTarget ? 'Strategy target — ' : '') + 'Open ' + (g.need > 0 || g.depthShort > 0 ? 'Free Agency' : 'My Roster')}
-                                onClick={e => goTo(g.need > 0 || g.depthShort > 0 ? 'fa' : 'myteam', e)}
-                                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goTo(g.need > 0 || g.depthShort > 0 ? 'fa' : 'myteam', e); } }}
+                                onClick={e => g.need > 0 || g.depthShort > 0 ? improveGap(g, e) : goTo('myteam', e)}
+                                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); g.need > 0 || g.depthShort > 0 ? improveGap(g, e) : goTo('myteam', e); } }}
                                 style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '3px 6px', minHeight: '26px', borderRadius: 'var(--card-radius-xs, 5px)', background: g.isTarget ? wrAlpha(colors.gold || 'var(--gold, #d4af37)', '0F') : 'var(--ov-1, rgba(255,255,255,0.02))', borderLeft: '2px solid ' + (g.isTarget ? (colors.gold || 'var(--gold, #d4af37)') : statusCol(g.status)), cursor: 'pointer' }}>
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '3px', width: 30, flexShrink: 0 }}>
                                     {g.isTarget && <span title="Strategy target" style={{ width: 5, height: 5, borderRadius: '50%', background: colors.gold || 'var(--gold, #d4af37)', flexShrink: 0, boxShadow: '0 0 4px ' + wrAlpha(colors.gold || 'var(--gold, #d4af37)', '99') }} />}
@@ -218,9 +229,9 @@
                             </div>
                             {!topGap && <div style={{ fontSize: 'var(--text-micro, 0.6875rem)', color: colors.textFaint, fontStyle: 'italic', fontFamily: fonts.ui }}>Use your surplus to stack picks or upgrade elites.</div>}
                             {topGap && sources.fas.map(p => (
-                                <div key={p.pid} role="button" tabIndex={0} title="Open player card"
-                                    onClick={() => openCard(p.pid)}
-                                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCard(p.pid); } }}
+                                <div key={p.pid} role="button" tabIndex={0} title={'Plan adding ' + p.name}
+                                    onClick={e => improveGap(topGap, e, p.pid)}
+                                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); improveGap(topGap, e, p.pid); } }}
                                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '3px 0', minHeight: '24px', borderBottom: '1px solid var(--ov-2, rgba(255,255,255,0.03))', cursor: 'pointer' }}>
                                     <span style={{ fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: colors.info || 'var(--k-3498db, #3498db)', width: 24, fontFamily: fonts.ui }}>FA</span>
                                     <span style={{ flex: 1, minWidth: 0, fontSize: fs(0.7), fontWeight: 600, color: colors.text, fontFamily: fonts.ui, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>

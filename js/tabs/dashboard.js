@@ -21,6 +21,7 @@ const WIDGET_DESTINATIONS = {
     fa: 'fa',
     draft: 'draft',
     trophies: 'trophies',
+    calendar: 'calendar',
     fieldNotes: 'alex',
     scout: 'alex',
     intel: 'alex',
@@ -267,7 +268,7 @@ const WIDGET_MODULES = {
         pro: false, formatFlag: null,
     },
     // League Calendar widget — next league date + agenda (draft, deadline,
-    // playoffs, waivers). Lives in the Trophy Room; opens its Calendar sub-view.
+    // playoffs, waivers), opening the dedicated League Calendar view.
     'league-calendar': {
         label: 'League Calendar',
         icon: '🗓️',
@@ -275,7 +276,7 @@ const WIDGET_MODULES = {
         accent: () => T().color?.('info') || 'var(--k-3498db, #3498db)',
         metrics: [],
         sizes: ['sm', 'md', 'lg', 'tall', 'xl', 'xxl'],
-        clickTarget: { sm: 'trophies', md: 'trophies' },
+        clickTarget: { sm: 'calendar', md: 'calendar' },
         pro: false, formatFlag: null,
     },
 };
@@ -1783,12 +1784,11 @@ function DashboardPanel({
         catch (e) { if (window.wrLog) window.wrLog('dashboard.phoneHero', e); return null; }
     }, [_phone, wrPro, myRoster, currentLeague, playersData, statsData, prevStatsData]);
 
-    // CHOPPED leagues: survival is the headline number, so it leads BOTH
-    // layouts. Defined above the phone/desktop split because the phone branch
-    // early-returns at the line below — and Game Day (the other natural home)
-    // is hidden pre-draft, exactly when the block is most interesting.
+    // Home keeps personal survival odds visible; League owns the full field.
+    // The compact form leads both layouts without pushing the briefing below
+    // a table of every surviving roster.
     const chopBlockEl = (resolvedLeagueSkin?.features?.showElimination && window.WrChopBlock)
-        ? <div style={{ padding: '14px 16px 0' }}><window.WrChopBlock active currentLeague={currentLeague} myRoster={myRoster} /></div>
+        ? <div style={{ padding: '14px 16px 0' }}><window.WrChopBlock active compact currentLeague={currentLeague} myRoster={myRoster} onOpenLeague={() => navigateWidget('central')} /></div>
         : null;
 
     if (_phone) {

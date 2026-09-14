@@ -90,8 +90,8 @@ const surfaces = [
     checks: [
       ['function openFaPlayer(pid)', 'centralizes free-agent player opening'],
       ['window.WR.openPlayerCard(pid, { scoringSettings:', 'uses unified player card'],
-      ["<button key={x.pid} className={'fa-hq-candidate' + (isPrimary ? ' is-primary' : '')} title=\"Open player card\"", 'recommendation candidates are real buttons with destination labels'],
-      ['onClick={() => openFaPlayer(x.pid)}', 'recommendation candidates open player detail'],
+      ["<button key={x.pid} className={'fa-hq-candidate' + (isPrimary ? ' is-primary' : '')} title=\"Plan this waiver\"", 'recommendation candidates are real buttons with destination labels'],
+      ["window.WR.openAcquisition({ pid: x.pid, position: x.pos, leagueId: acquisitionLeagueId, source: 'ranked-waiver-plan'", 'recommendation candidates carry player and league context into a waiver plan'],
       ['return <div key={pid} role="button" tabIndex={0} title="Open player card" onClick={() => {', 'player universe rows are accessible controls'],
       ["onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFaPlayer(pid); } }}", 'player universe rows support keyboard activation'],
       ['openFaPlayer(pid);', 'player universe rows route to player detail'],
@@ -136,7 +136,7 @@ const surfaces = [
     file: 'js/draft-room.js',
     checks: [
       ['const openDraftPlayer = useCallback((pid) => {', 'centralizes draft-room player opening'],
-      ['if (window.WR?.openPlayerCard) window.WR.openPlayerCard(pid);', 'uses unified player card'],
+      ["if (window.WR?.openPlayerCard) window.WR.openPlayerCard(pid, { context: 'draft-board' });", 'uses unified player card with its draft context'],
       ['else if (window._wrSelectPlayer) window._wrSelectPlayer(pid);', 'keeps shared selector fallback'],
       ['title="Open player card"', 'draft targets expose player-card destination'],
       ['onClick={() => setScoutDrawerPid(pick.pid)}', 'draft rows open scouting-card player detail'],

@@ -9,6 +9,7 @@ global.window = globalThis;
 window.App = window.App || {};
 window.WR = window.WR || {};
 require('../js/league-skin.js');
+require('../js/shared/league-workspaces.js');
 
 const root = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
@@ -55,7 +56,7 @@ test('shared league surfaces preserve the Chopped identity', () => {
     assert.match(app, /3:\s*'chopped'/);
     assert.match(detail, /chopped:\s*\{ label: 'Chopped'/);
     assert.match(detail, /leagueSkin\?\.type === 'chopped'/);
-    assert.match(detail, /showGmOffice === false/);
+    assert.strictEqual(window.WR.LeagueWorkspaces.resolve('strategy', { showGmOffice: false }).tab, 'myteam');
     assert.match(detail, /leagueSkin\?\.type !== 'chopped'/);
 });
 

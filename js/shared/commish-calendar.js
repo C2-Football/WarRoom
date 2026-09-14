@@ -33,6 +33,17 @@
     function leagueId(l) { return String(l.league_id || l.id || ''); }
     function leagueName(l) { return l.name || ('League ' + leagueId(l)); }
 
+    // A cloned league can retain a deadline even when its format forbids
+    // trades. Share the capability check with the league calendar and brief.
+    function supportsTrades(league, leagueSkin) {
+        const settings = league?.settings || {};
+        const skin = leagueSkin || App.LeagueSkin?.build?.({ league, rosters: league?.rosters || [] }) || null;
+        const chopped = !!App.Chopped?.isChopped?.(league) || skin?.type === 'chopped'
+            || String(league?.type || league?.league_type || '').toLowerCase() === 'chopped'
+            || Number(settings.type) === 3;
+        return !chopped && skin?.features?.showTrades !== false && Number(settings.disable_trades || 0) !== 1;
+    }
+
     // Deterministic seeded copy; plain first-variant fallback keeps Node
     // tests (no AlexVoice) byte-stable.
     function say(seed, variants) {
@@ -110,7 +121,7 @@
 
             // trade_deadline can be 0 = "no deadline" on Sleeper; only >0 is real.
             const dw = Number(st.trade_deadline);
-            if (dw > 0) {
+            if (supportsTrades(l) && dw > 0) {
                 events.push({
                     type: 'deadline', leagueId: lid, leagueName: lname,
                     ts: weekToDate(dw, seasonStartDate), week: dw, approximate: true,
@@ -241,7 +252,7 @@
         return conflicts;
     }
 
-    const api = { loadDrafts, weekToDate, buildCalendar, findConflicts };
+    const api = { loadDrafts, weekToDate, supportsTrades, buildCalendar, findConflicts };
     App.Commish = App.Commish || {};
     App.Commish.Calendar = api;
     /* global module */

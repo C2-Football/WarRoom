@@ -235,7 +235,7 @@
         );
     }
 
-    function PlayerCard({ pid, playersData, statsData, scoringSettings, onClose, initialTab }) {
+    function PlayerCard({ pid, playersData, statsData, scoringSettings, onClose, initialTab, context }) {
         const [tab, setTab] = useState(initialTab || 'overview');
         const [tagMenu, setTagMenu] = useState(false);
         const closeRef = useRef(null);
@@ -361,7 +361,7 @@
         const peakLabel = age < pLo ? 'Rising' : age <= pHi ? 'Prime' : age <= declineHi ? 'Veteran' : 'Post-Window';
         const peakCol = age < pLo ? 'var(--k-2ecc71, #2ecc71)' : age <= pHi ? 'var(--k-d4af37, #d4af37)' : age <= declineHi ? 'var(--k-f0a500, #f0a500)' : 'var(--k-e74c3c, #e74c3c)';
         const dhqCol = dhq >= 7000 ? 'var(--k-2ecc71, #2ecc71)' : dhq >= 4000 ? 'var(--k-3498db, #3498db)' : dhq >= 2000 ? 'var(--k-d0d0d0, #d0d0d0)' : 'var(--text-muted)';
-        const currentLeague = window.S?.leagues?.find(l => l.league_id === window.S?.currentLeagueId) || window.S?.leagues?.[0] || {};
+        const currentLeague = window.S?.leagues?.find(l => String(l.league_id || l.id) === String(window.S?.currentLeagueId)) || {};
         const sc = scoringSettings || currentLeague?.scoring_settings || {};
         const leagueProfile = typeof window.App?.Intelligence?.buildLeagueProfile === 'function'
             ? window.App.Intelligence.buildLeagueProfile({ league: { ...currentLeague, scoring_settings: sc }, rosters: window.S?.rosters || [], platform: window.S?.platform || currentLeague?._platform })
@@ -445,8 +445,13 @@
 
         // Roster context
         const S = window.S || {};
-        const myRoster = (S.rosters || []).find(r => r.roster_id === S.myRosterId);
-        const isOnMyTeam = !!myRoster?.players?.includes(pid);
+        const actionContext = context || S.activeTab || 'player-card';
+        const cardAction = window.WR?.PlayerNotebook?.resolveAction({
+            pid, league: currentLeague, rosters: S.rosters, myRosterId: S.myRosterId,
+            context: actionContext, features: window.App?.LeagueSkin?.getCurrent?.()?.features || {},
+        }) || { kind: 'watch', label: 'Watch player', mine: false };
+        const isOnMyTeam = cardAction.mine;
+        const portfolio = window.App?.PortfolioContext?.player?.(pid);
 
         const heightWeight = [p.height, p.weight].filter(Boolean).join(' / ');
 
@@ -470,6 +475,16 @@
                 else if (typeof window.setActiveTab === 'function') window.setActiveTab('trades');
                 window.dispatchEvent(new CustomEvent('wr:open-trade-finder', { detail: { pid } }));
             } catch (e) { console.warn('[PlayerCard] Trade Finder deep-link unavailable', e); }
+            onClose && onClose();
+        }
+        function goPrimaryAction() {
+            if (cardAction.kind === 'trade') { goTradeFinder(); return; }
+            const incoming = typeof actionContext === 'object' ? actionContext : {};
+            const next = { ...incoming, pid: cardAction.dropPid ? null : pid, position: nPos, dropPid: cardAction.dropPid || incoming.dropPid,
+                leagueId: S.currentLeagueId, source: typeof actionContext === 'string' ? actionContext : incoming.source || 'player-card' };
+            if (cardAction.kind === 'draft') window.WR?.openDraftPlayer?.(next);
+            else if (cardAction.kind === 'waiver') window.WR?.openAcquisition?.(next);
+            else { window.WR?.PlayerNotebook?.update(pid, { watch: true }, { leagueId: S.currentLeagueId }); return; }
             onClose && onClose();
         }
         function applyTag(tag) {
@@ -846,12 +861,14 @@
                     }, '✕')
                 ),
                 // Private scouting note from the Draft Big Board (if any)
-                scoutNote && React.createElement('div', {
+                !window.WR?.PlayerNotebook && scoutNote && React.createElement('div', {
                     style: { margin: '12px 20px 0', padding: '10px 12px', background: 'var(--acc-fill2, rgba(212,175,55,0.08))', border: '1px solid var(--acc-line1, rgba(212,175,55,0.22))', borderRadius: 'var(--card-radius-sm, 8px)' }
                 },
                     React.createElement('div', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--gold)', marginBottom: '4px' } }, '📝 Your scouting note'),
                     React.createElement('div', { style: { fontSize: 'var(--text-label, 0.8rem)', color: 'var(--k-d0d0d0, #d0d0d0)', lineHeight: 1.45, whiteSpace: 'pre-wrap' } }, scoutNote)
                 ),
+                portfolio?.coveredLeagues > 1 && React.createElement('p', { style: { margin: '10px 20px', fontSize: '.78rem', color: 'var(--silver)' }, title: (portfolio.leagues || []).map(l => l.name).join(' · ') }, 'Owned in ' + portfolio.count + ' of ' + portfolio.coveredLeagues + ' synced leagues'),
+                window.WR?.PlayerNotebook?.NotebookEditor && React.createElement('div', { style: { margin: '10px 20px' } }, React.createElement(window.WR.PlayerNotebook.NotebookEditor, { pid, leagueId: S.currentLeagueId, leagueName: currentLeague.name || 'This league', compact: true })),
                 // Tabs. Phone (D4 polish): the shared .wr-seg segmented sub-nav
                 // (P2, index.html ≤767 block) with .is-on active anatomy —
                 // three items distribute evenly (flex:1), no momentum scroll
@@ -890,14 +907,14 @@
                 // targets (never a sideways pan); desktop keeps the flex row.
                 React.createElement('div', { style: { padding: '14px 20px', display: 'flex', gap: '8px', borderTop: '1px solid var(--ov-4, rgba(255,255,255,0.06))', position: 'relative', ...(isPhone ? { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' } : null) } },
                     React.createElement('button', { onClick: goCompare, style: btnStyle() }, 'Compare'),
-                    React.createElement('button', { onClick: goTradeFinder, style: btnStyle('primary') }, isOnMyTeam ? 'Trade Finder' : 'Find Trade'),
-                    React.createElement('button', { onClick: () => setTagMenu(!tagMenu), style: btnStyle() }, 'Tag As ▾'),
-                    tagMenu ? React.createElement('div', {
+                    React.createElement('button', { onClick: goPrimaryAction, style: btnStyle('primary') }, cardAction.label),
+                    isOnMyTeam && React.createElement('button', { onClick: () => setTagMenu(!tagMenu), style: btnStyle() }, 'Tag As ▾'),
+                    isOnMyTeam && tagMenu ? React.createElement('div', {
                         // Phone: full-width above the grid so the 4 tag rows are
                         // easy 44px targets; desktop anchors right, unchanged.
                         style: { position: 'absolute', bottom: '54px', right: '20px', background: 'var(--k-0a0b0d, #0a0b0d)', border: '1px solid var(--acc-line2, rgba(212,175,55,0.3))', borderRadius: 'var(--card-radius-sm, 8px)', padding: '6px', zIndex: 5, minWidth: '160px', boxShadow: '0 8px 24px rgba(0,0,0,0.6)', ...(isPhone ? { left: '20px', right: '20px', bottom: '60px' } : null) }
                     },
-                        ['trade', 'cut', 'watch', 'untouchable'].map(t =>
+                        (isOnMyTeam ? ['trade', 'cut', 'untouchable'] : []).filter(t => t !== 'trade' || cardAction.kind === 'trade').map(t =>
                             React.createElement('button', {
                                 key: t, onClick: () => applyTag(t),
                                 style: { display: 'block', width: '100%', textAlign: 'left', padding: '12px 10px', minHeight: '44px', background: 'transparent', border: 'none', color: 'var(--k-d0d0d0, #d0d0d0)', fontSize: 'var(--text-body, 1rem)', cursor: 'pointer', borderRadius: 'var(--card-radius-xs, 5px)' }
@@ -967,6 +984,7 @@
             statsData,
             scoringSettings: sc,
             initialTab: state.options.tab,
+            context: state.options.context,
             onClose: () => setState(null)
         });
     }

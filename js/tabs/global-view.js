@@ -55,6 +55,17 @@ function setEmpireLeagueOn(leagueId, on) {
     return p;
 }
 
+// Use the same capability check for suggested entry points, the league picker,
+// and direct/stale Trade Desk state. Market prices can include non-trading
+// leagues; a valuation spread is not permission to construct a trade there.
+function canOpenEmpireTradeDesk(province) {
+    if (!province || province.preDraftEmpty || province.isChopped || province.canTrade === false) return false;
+    const league = province.league || {};
+    const type = String(league.type || league.league_type || '').toLowerCase();
+    return Number(league.settings?.type) !== 3 && type !== 'chopped'
+        && Number(league.settings?.disable_trades || 0) !== 1;
+}
+
 // Tier → color. Module-level and shared: this used to be nested inside
 // buildEmpirePortfolioModel while buildThreatBoard kept its own private
 // `tierTone` with a DIFFERENT mapping, so the same league's tier rendered
@@ -1417,7 +1428,7 @@ function buildEmpireActionQueue(model, rolodex) {
         });
 
     actions.sort((a, b) => (sevRank[a.severity] - sevRank[b.severity]) || (b.weight - a.weight));
-    return actions.slice(0, 8);
+    return actions.slice(0, 8).map(action => ({ ...action, type: action.kind, why: action.detail, leagueName: provinces.find(p => String(p.id) === String(action.leagueId))?.name || 'Portfolio' }));
 }
 
 // buildEmpireBrief — Alex's Empire lead: the single focus sentence only.
@@ -1489,6 +1500,21 @@ function EmpireStyles() {
                the global rule other tabs still use it on. */
             body:has(.empire-root)::before { opacity: 0; }
             .empire-root.is-local-preview .empire-topbar { padding-top: 28px; min-height: 72px; }
+            .empire-workspace-nav { background: var(--surf-solid, #070707); padding: 10px 24px; border-bottom: 1px solid var(--ov-6, #252529); }
+            .empire-workspace-primary, .empire-workspace-secondary { display: flex; gap: 6px; flex-wrap: wrap; }
+            .empire-workspace-secondary { margin-top: 6px; }
+            .empire-workspace-nav button { min-height: 44px; padding: 8px 14px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--silver); font: 600 13px var(--font-body); cursor: pointer; }
+            .empire-workspace-primary button { flex: 1; max-width: 180px; }
+            .empire-workspace-nav button[aria-current="page"] { color: var(--gold); border-color: var(--acc-line2, #68572c); background: var(--acc-fill1, #19160e); }
+            .empire-workspace-nav button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+            .empire-shell[data-workspace="overview"] > .empire-floor, .empire-shell[data-workspace="overview"] > .empire-workspace, .empire-shell[data-workspace="overview"] > .empire-viewbar, .empire-shell[data-workspace="overview"] > .empire-advanced-filters { display: none; }
+            .empire-shell[data-workspace="leagues"] > :not(.empire-main-grid):not(.empire-empty), .empire-shell[data-workspace="leagues"] .empire-main-grid > :not(:last-child) { display: none; }
+            .empire-shell[data-workspace="leagues"] .empire-main-grid, .empire-shell[data-workspace="assets"] .empire-main-grid { grid-template-columns: 1fr; }
+            .empire-shell[data-workspace="assets"] > .empire-command-deck, .empire-shell[data-workspace="assets"] > .empire-rolodex, .empire-shell[data-workspace="assets"] .empire-main-grid > :not(:first-child) { display: none; }
+            .empire-slice-grid[data-action-view="priority"], .empire-slice-grid[data-action-view="journal"] > .empire-workspace, .empire-slice-grid[data-action-view="journal"] .empire-journal-column > :not([data-testid="empire-decision-journal"]) { display: none; }
+            .empire-slice-grid[data-action-view="journal"] { grid-template-columns: 1fr; }
+            .empire-main-grid, .empire-floor, .empire-workspace { scroll-margin-top: 150px; }
+            @media(max-width:600px) { .empire-workspace-nav { padding: 8px 14px; } .empire-workspace-nav button { padding: 8px 10px; } .empire-workspace-primary { flex-wrap: nowrap; } .empire-workspace-primary svg { display: none; } .empire-workspace-secondary { flex-wrap: nowrap; overflow-x: auto; } .empire-workspace-secondary button { white-space: nowrap; flex-shrink: 0; } }
             .empire-header { position: sticky; top: 0; z-index: 60; background: var(--surf-solid, rgb(7,7,7)); border-bottom: 1px solid var(--acc-line1, rgb(53,45,21)); box-shadow: 0 12px 32px rgb(5,5,7); }
             .empire-topbar { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 24px; border-bottom: 1px solid var(--ov-4, rgb(22,22,24)); box-sizing: border-box; }
             .empire-back, .empire-ghost, .empire-filter, .empire-row-btn, .empire-action { border: 1px solid var(--ov-6, rgb(33,33,35)); background: var(--ov-3, rgb(17,17,20)); color: var(--ov-9, rgb(186,186,187)); border-radius: var(--card-radius-sm); cursor: pointer; font-family: inherit; transition: border-color 120ms, background 120ms, transform 120ms, color 120ms; }
@@ -1755,12 +1781,8 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const [sort, setSort] = useState('dhq');
     const [detail, setDetail] = useState(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
-    // The left icon rail is desktop-only (it needs hover tooltips and a
-    // 52px gutter). Below 1024px it's hidden, which used to strand six
-    // sections — Empire Index, Threat Board, War Table, Season Outlook,
-    // Provinces and Scout Board have no other entry point. This drives a
-    // tap-to-open grid of the same destinations on phone/portrait iPad.
-    const [navOpen, setNavOpen] = useState(false);
+    const [workspace, setWorkspace] = useState('overview');
+    const [actionView, setActionView] = useState('priority');
     const [decisionTick, setDecisionTick] = useState(0);
     // Arbitrage board default: owned rows only. The board is sorted
     // mine-first regardless, but a portfolio with a deep player pool can
@@ -2063,15 +2085,64 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
             setDetail(signal.detail);
             return;
         }
-        if (signal.filter) setFilters(prev => ({ ...prev, ...signal.filter }));
+        if (signal.filter) { setWorkspace('assets'); setFilters(prev => ({ ...prev, ...signal.filter })); }
     }, []);
 
     const actionForQueue = useCallback((action) => {
         if (action.pid) { setDetail({ type: 'player', pid: action.pid }); return; }
         if (action.leagueId) { setDetail({ type: 'league', leagueId: action.leagueId }); return; }
         if (action.sliceDetail?.type) { setDetail(action.sliceDetail); return; }
-        if (action.filter) setFilters(prev => ({ ...prev, ...action.filter }));
+        if (action.filter) { setWorkspace('assets'); setDetail(null); setFilters(prev => ({ ...prev, ...action.filter })); }
     }, []);
+
+    const workspaceForDetail = ['moves', 'tradeDesk', 'owner'].includes(detail?.type) ? 'actions'
+        : ['war', 'outlook', 'provinces', 'threat', 'league'].includes(detail?.type) ? 'leagues'
+        : ['scout', 'index', 'player', 'slice', 'quality'].includes(detail?.type) ? 'assets' : workspace;
+    const openWorkspace = (key) => {
+        setWorkspace(key);
+        clearFilters();
+        setActionView('priority');
+        setDetail(key === 'actions' ? { type: 'moves' } : null);
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    };
+    const openWorkspaceView = (group, view) => {
+        setWorkspace(group);
+        if (view.type === 'moves') setActionView(view.view || 'priority');
+        setDetail(view.type ? { type: view.type, groupBy: 'none', sortBy: 'dhq' } : null);
+        if (view.selector) requestAnimationFrame(() => document.querySelector(view.selector)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        else window.scrollTo({ top: 0, behavior: 'instant' });
+    };
+    const renderWorkspaceNav = () => {
+        const groups = [
+            { key: 'overview', label: 'Overview', views: [] },
+            { key: 'actions', label: 'Actions', views: [
+                { label: 'Priority queue', type: 'moves', view: 'priority' },
+                { label: 'Trade opportunities', type: 'moves', view: 'opportunities' },
+                { label: 'Decision journal', type: 'moves', view: 'journal' },
+                { label: 'Trade Desk', type: 'tradeDesk' },
+            ] },
+            { key: 'leagues', label: 'Leagues', views: [
+                { label: 'League overview' }, { label: 'Competitive windows', type: 'war' },
+                { label: 'Season outlook', type: 'outlook' }, { label: 'Rivals', type: 'threat' },
+                { label: 'Map', type: 'provinces' },
+            ] },
+            { key: 'assets', label: 'Assets', views: [
+                { label: 'Allocation', selector: '.empire-main-grid' },
+                { label: 'Players & picks', selector: '.empire-workspace' },
+                { label: 'Exposure', selector: '.empire-floor' },
+                { label: 'Market index', type: 'index' }, { label: 'Rankings', type: 'scout' },
+            ] },
+        ];
+        const group = groups.find(g => g.key === workspaceForDetail);
+        return <div className="empire-workspace-nav">
+            <nav aria-label="Empire workspaces" className="empire-workspace-primary">
+                {groups.map(g => <button key={g.key} type="button" aria-current={group.key === g.key ? 'page' : undefined} onClick={() => openWorkspace(g.key)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ marginRight: 7, verticalAlign: 'middle' }}>{EMPIRE_ICON_PATHS[({ overview: 'home', actions: 'zap', leagues: 'layers', assets: 'briefcase' })[g.key]].map((d, i) => <path key={i} d={d} />)}</svg><span>{g.label}</span></button>)}
+            </nav>
+            {!!group.views.length && <nav aria-label={group.label + ' views'} className="empire-workspace-secondary">
+                {group.views.map(v => <button key={v.label} type="button" aria-current={v.type && detail?.type === v.type && (!v.view || actionView === v.view) ? 'page' : undefined} onClick={() => openWorkspaceView(group.key, v)}>{v.label}</button>)}
+            </nav>}
+        </div>;
+    };
 
     // Command Bridge KPI tile — renders a buildCommandBridge KPI (value + label + sub + WoW delta).
     const kpiToneColor = (t) => t === 'good' ? 'var(--good)' : t === 'warn' ? 'var(--warn)' : t === 'bad' ? 'var(--bad)' : t === 'gold' ? 'var(--gold)' : undefined;
@@ -2167,6 +2238,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
             <div className={rootClassName} data-testid="empire-root">
                 <EmpireStyles />
                 <div className="empire-header">
+                    {renderWorkspaceNav()}
                     <div className="empire-topbar">
                         <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
                         <div className="empire-title"><strong>Player Portfolio</strong><span>Ownership, exposure, and league context</span></div>
@@ -2218,6 +2290,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
             <div className={rootClassName} data-testid="empire-root">
                 <EmpireStyles />
                 <div className="empire-header">
+                    {renderWorkspaceNav()}
                     <div className="empire-topbar">
                         <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
                         <div className="empire-title"><strong>League Portfolio</strong><span>{province.name}</span></div>
@@ -2277,6 +2350,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
             <div className={rootClassName} data-testid="empire-root">
                 <EmpireStyles />
                 <div className="empire-header">
+                    {renderWorkspaceNav()}
                     <div className="empire-topbar">
                         <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
                         <div className="empire-title"><strong>Portfolio Slice</strong><span>{slice.title || 'Filtered workspace'}</span></div>
@@ -2322,25 +2396,40 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
             <div className={rootClassName} data-testid="empire-root">
                 <EmpireStyles />
                 <div className="empire-header">
+                    {renderWorkspaceNav()}
                     <div className="empire-topbar">
                         <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
-                        <div className="empire-title"><strong>Empire Moves</strong><span>DHQ × Owner DNA × all leagues — moves you can't see from inside one league</span></div>
+                        <div className="empire-title"><strong>Actions</strong><span>Priorities, trade opportunities, and tracked decisions across your leagues</span></div>
                     </div>
                 </div>
                 <main className="empire-detail">
                     <section className="empire-detail-hero">
                         <div>
-                            <h1>Empire Moves</h1>
-                            <p>{moves.length} portfolio-optimal {moves.length === 1 ? 'move' : 'moves'} · ranked by value × acceptance</p>
+                            <h1>{actionView === 'priority' ? 'Priority queue' : actionView === 'journal' ? 'Decision journal' : 'Trade opportunities'}</h1>
+                            <p>{actionView === 'priority' ? actionQueue.length + ' priorities from your overview' : actionView === 'journal' ? decisionSummary.active + ' active decisions' : moves.length + ' opportunities ranked by value × acceptance'}</p>
                         </div>
                     </section>
+                    {actionView === 'priority' && <section className="empire-panel" data-testid="empire-full-priority-queue">
+                        <div className="empire-stack">
+                            {actionQueue.length ? actionQueue.map((action, i) => {
+                                const tracked = decisionForMove(action);
+                                return <div key={i} className="empire-move-card" style={{ '--tone': signalTone(action.severity) }}>
+                                    <strong>{action.title}</strong><p>{action.detail}</p>
+                                    <div className="empire-section-footer">
+                                        <button type="button" className="empire-action" onClick={() => actionForQueue(action)}>{action.cta}</button>
+                                        <button type="button" className="empire-ghost" onClick={() => tracked ? setActionView('journal') : trackDecision(action)}>{tracked ? 'View tracked decision' : 'Track decision'}</button>
+                                    </div>
+                                </div>;
+                            }) : <div className="empire-empty"><strong>No priorities right now</strong>Your overview and this queue are up to date.</div>}
+                        </div>
+                    </section>}
                     <div className="empire-detail-metrics" data-testid="empire-decision-summary">
                         <div className="empire-metric"><span>Tracked</span><strong>{decisionSummary.total}</strong></div>
                         <div className="empire-metric"><span>Active</span><strong style={{ color: decisionSummary.active ? 'var(--gold)' : 'var(--good)' }}>{decisionSummary.active}</strong></div>
                         <div className="empire-metric"><span>Closed Record</span><strong>{decisionSummary.won}-{decisionSummary.lost}</strong></div>
                         <div className="empire-metric"><span>Realized Δ</span><strong style={{ color: decisionSummary.realizedDelta >= 0 ? 'var(--good)' : 'var(--bad)' }}>{decisionSummary.realizedDelta > 0 ? '+' : ''}{empireCompact(decisionSummary.realizedDelta)} DHQ</strong></div>
                     </div>
-                    {consolidation ? (
+                    {actionView === 'opportunities' && consolidation ? (
                         <section className="empire-panel" style={{ marginBottom: 12 }}>
                             <div className="empire-panel-head"><strong>Consolidation Plan</strong><em>{consolidation.sells} sell → {consolidation.buys} buy · one campaign</em></div>
                             <div className="empire-stack">
@@ -2356,7 +2445,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                             </div>
                         </section>
                     ) : null}
-                    <div className="empire-slice-grid">
+                    <div className="empire-slice-grid" data-action-view={actionView}>
                         <section className="empire-workspace" style={{ marginTop: 0 }}>
                             <div className="empire-workspace-head"><strong>Ranked Moves</strong><span>{sells.length} sell · {buys.length} buy</span></div>
                             <div className="empire-stack" style={{ padding: 12 }}>
@@ -2394,15 +2483,21 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                                 )}
                             </div>
                         </section>
-                        <div className="empire-stack">
+                        <div className="empire-stack empire-journal-column">
                             <section className="empire-panel" data-testid="empire-decision-journal">
                                 <div className="empire-panel-head"><strong>Decision Journal</strong><em>{decisionSummary.active} active · {decisionSummary.closed} closed</em></div>
                                 <div className="empire-stack">
-                                    {decisions.length ? decisions.slice(0, 8).map(d => (
+                                    {decisions.length ? (actionView === 'journal' ? decisions : decisions.slice(0, 8)).map(d => (
                                         <div key={d.id} className="empire-decision-row" style={{ '--tone': decisionTone(d.status) }}>
                                             <strong>{d.title}</strong>
                                             <span style={{ color: decisionTone(d.status), fontWeight: 800 }}>{d.status}{d.actualDelta != null ? ' · ' + (d.actualDelta > 0 ? '+' : '') + empireCompact(d.actualDelta) + ' DHQ' : ''}</span>
                                             <span>{d.leagueName}{d.reviewAt ? ' · review ' + d.reviewAt : ''}</span>
+                                            <div className="empire-decision-controls">
+                                                <select aria-label={'Status for ' + d.title} value={d.status} onChange={e => updateDecision(d.id, { status: e.target.value })}>{(decisionApi?.STATUSES || []).map(status => <option key={status} value={status}>{status}</option>)}</select>
+                                                <input type="date" aria-label={'Review date for ' + d.title} value={d.reviewAt || ''} onChange={e => updateDecision(d.id, { reviewAt: e.target.value })} />
+                                            </div>
+                                            <textarea key={d.id + ':' + d.updatedAt} className="empire-decision-note" aria-label={'Decision note for ' + d.title} defaultValue={d.note || ''} onBlur={e => updateDecision(d.id, { note: e.target.value })} />
+                                            <button type="button" className="empire-ghost" onClick={() => removeDecision(d.id)}>Remove from journal</button>
                                         </div>
                                     )) : <div className="empire-empty"><strong>No tracked decisions</strong>Track a ranked move to preserve the recommendation, set a review date and record the outcome.</div>}
                                 </div>
@@ -2457,10 +2552,11 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
             <div className={rootClassName} data-testid="empire-root">
                 <EmpireStyles />
                 <div className="empire-header">
+                    {renderWorkspaceNav()}
                     <div className="empire-topbar">
                         <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
                         <div className="empire-title"><strong>Negotiation HUD</strong><span>{theirA?.ownerName || theirA?.teamName || 'Owner'} · {league?.name || 'League'}</span></div>
-                        <button className="empire-action" type="button" style={{ marginLeft: 'auto', borderColor: 'rgba(155,138,251,0.4)', color: 'var(--purple)', background: 'rgb(15,13,20)' }} onClick={() => setDetail({ type: 'tradeDesk', leagueId, seedOwnerId: ownerId })}>Propose Trade</button>
+                        {canOpenEmpireTradeDesk(model.provinces.find(p => String(p.id) === String(leagueId))) && <button className="empire-action" type="button" style={{ marginLeft: 'auto', borderColor: 'rgba(155,138,251,0.4)', color: 'var(--purple)', background: 'rgb(15,13,20)' }} onClick={() => setDetail({ type: 'tradeDesk', leagueId, seedOwnerId: ownerId })}>Propose Trade</button>}
                         {league?.league ? <button className="empire-action" type="button" onClick={() => onEnterLeague(league.league || league)}>Open League</button> : null}
                     </div>
                 </div>
@@ -2511,6 +2607,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
             <div className={rootClassName} data-testid="empire-root">
                 <EmpireStyles />
                 <div className="empire-header">
+                    {renderWorkspaceNav()}
                     <div className="empire-topbar">
                         <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
                         <div className="empire-title"><strong>Empire Index</strong><span>the dynasty market · and how your portfolio is levered to it</span></div>
@@ -2560,6 +2657,7 @@ const renderThreatDetail = () => {
     <div className={rootClassName} data-testid="empire-root">
       <EmpireStyles />
       <div className="empire-header">
+                    {renderWorkspaceNav()}
         <div className="empire-topbar">
           <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
           <div className="empire-title"><strong>Threat Board</strong><span>who's coming for your titles · a read on rivals, not a prediction</span></div>
@@ -2628,6 +2726,7 @@ const renderWarDetail = () => {
         <div className={rootClassName} data-testid="empire-root">
             <EmpireStyles />
             <div className="empire-header">
+                    {renderWorkspaceNav()}
                 <div className="empire-topbar">
                     <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
                     <div className="empire-title"><strong>War Table</strong><span>every league's competitive window · where to push, where to sell</span></div>
@@ -2721,6 +2820,7 @@ const renderOutlookDetail = () => {
         <div className={rootClassName} data-testid="empire-root">
             <EmpireStyles />
             <div className="empire-header">
+                    {renderWorkspaceNav()}
                 <div className="empire-topbar">
                     <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
                     <div className="empire-title"><strong>Season Outlook</strong><span>Monte Carlo playoff &amp; title odds · once a league has games on the board</span></div>
@@ -2789,11 +2889,12 @@ const renderTradeDeskDetail = (d) => {
     const provinces = model?.provinces || [];
 
     if (!leagueId) {
-        const tradeable = provinces.filter(p => !p.preDraftEmpty && Number(p.league?.settings?.disable_trades || 0) !== 1);
+        const tradeable = provinces.filter(canOpenEmpireTradeDesk);
         return (
             <div className={rootClassName} data-testid="empire-root">
                 <EmpireStyles />
                 <div className="empire-header">
+                    {renderWorkspaceNav()}
                     <div className="empire-topbar">
                         <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
                         <div className="empire-title"><strong>Trade Desk</strong><span>Pick a league to build a proposal in</span></div>
@@ -2828,6 +2929,7 @@ const renderTradeDeskDetail = (d) => {
         <div className={rootClassName} data-testid="empire-root">
             <EmpireStyles />
             <div className="empire-header">
+                    {renderWorkspaceNav()}
                 <div className="empire-topbar">
                     <button className="empire-back" type="button" onClick={() => setDetail({ type: 'tradeDesk' })}>{"<"}</button>
                     <div className="empire-title"><strong>Trade Desk</strong><span>{province?.name || 'League'}</span></div>
@@ -2837,6 +2939,8 @@ const renderTradeDeskDetail = (d) => {
             <main className="empire-detail">
                 {!currentLeague ? (
                     <div className="empire-empty"><strong>League not found</strong>Pick a different league.</div>
+                ) : !canOpenEmpireTradeDesk(province) || leagueSkin?.features?.showTrades === false ? (
+                    <div className="empire-empty" role="status"><strong>Trading is unavailable in this league</strong>Use its league workspace for the actions this format supports.<div className="empire-section-footer"><button type="button" className="empire-action" onClick={() => onEnterLeague?.(currentLeague)}>Open league</button></div></div>
                 ) : !tradeModuleReady ? (
                     <div className="empire-empty"><strong>Loading Trade Desk…</strong></div>
                 ) : (
@@ -2866,6 +2970,7 @@ const renderProvincesDetail = () => {
     <div className={rootClassName} data-testid="empire-root">
       <EmpireStyles />
       <div className="empire-header">
+                    {renderWorkspaceNav()}
         <div className="empire-topbar">
           <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
           <div className="empire-title"><strong>Provinces Map</strong><span>your empire as territory · tile size = DHQ, color = status</span></div>
@@ -2942,6 +3047,7 @@ const renderScoutDetail = () => {
     <div className={rootClassName} data-testid="empire-root">
       <EmpireStyles />
       <div className="empire-header">
+                    {renderWorkspaceNav()}
         <div className="empire-topbar">
           <button className="empire-back" type="button" onClick={() => setDetail(null)}>{"<"}</button>
           <div className="empire-title"><strong>Scout Board</strong><span>your top assets · ranked across the whole empire</span></div>
@@ -3024,23 +3130,6 @@ const renderScoutDetail = () => {
     if (detail?.type === 'slice' || detail?.type === 'quality') return renderSliceDetail(detail);
     if (detail?.type === 'moves') return renderMovesDetail();
 
-    // Single source for both navigations: the desktop icon rail and the
-    // phone/tablet section grid render from this list, so a new section
-    // can't reach one surface and miss the other.
-    const sectionNav = [
-        { icon: 'home', t: 'Command Bridge', go: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
-        { icon: 'zap', t: 'Empire Moves', go: () => setDetail({ type: 'moves' }) },
-        { icon: 'layers', t: 'Allocation & Leagues', go: () => document.querySelector('.empire-main-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
-        { icon: 'trendingUp', t: 'Asset Floor', go: () => document.querySelector('.empire-floor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
-        { icon: 'barChart', t: 'Empire Index', go: () => setDetail({ type: 'index' }) },
-        { icon: 'alertTriangle', t: 'Threat Board', go: () => setDetail({ type: 'threat' }) },
-        { icon: 'target', t: 'War Table', go: () => setDetail({ type: 'war' }) },
-        { icon: 'trophy', t: 'Season Outlook', go: () => setDetail({ type: 'outlook' }) },
-        { icon: 'trade', t: 'Trade Desk', go: () => setDetail({ type: 'tradeDesk' }) },
-        { icon: 'map', t: 'Provinces Map', go: () => setDetail({ type: 'provinces' }) },
-        { icon: 'search', t: 'Scout Board', go: () => setDetail({ type: 'scout', groupBy: 'none', sortBy: 'dhq' }) },
-        { icon: 'briefcase', t: 'Asset Workspace', go: () => document.querySelector('.empire-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
-    ];
     // The header used to show an unconditional pulsing "Live" badge, but
     // Empire only re-reads league data when you hit Refresh Leagues. Report
     // the real age of the intel build instead, and reserve "Live" for data
@@ -3056,32 +3145,14 @@ const renderScoutDetail = () => {
         return { live: false, label: Math.round(hrs / 24) + 'd old' };
     })();
 
-    const navIcon = (name, size) => (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ width: size, height: size }}>
-            {(EMPIRE_ICON_PATHS[name] || EMPIRE_ICON_PATHS.home).map((d, i) => <path key={i} d={d} />)}
-        </svg>
-    );
 
     return (
-        <div className={rootClassName + ' is-terminal'} data-testid="empire-root">
+        <div className={rootClassName} data-testid="empire-root">
             <EmpireStyles />
-            <nav className="empire-rail" aria-label="Empire sections">
-                {sectionNav.map(it => (
-                    <button key={it.t} className="empire-rail-btn" type="button" title={it.t} aria-label={it.t} onClick={it.go}>
-                        {navIcon(it.icon, 18)}
-                    </button>
-                ))}
-                <div className="empire-rail-spacer" />
-                {typeof window.ProTierIcon === 'function' ? <div style={{ width: 24, height: 24 }}>{React.createElement(window.ProTierIcon, { size: 24 })}</div> : null}
-            </nav>
             <header className="empire-header">
+                {renderWorkspaceNav()}
                 <div className="empire-topbar">
                     <button className="empire-back" type="button" onClick={onBack}>{"<"}</button>
-                    <button className={'empire-sections-btn' + (navOpen ? ' is-active' : '')} type="button"
-                        aria-expanded={navOpen} aria-controls="empire-sections-sheet" aria-label="Empire sections"
-                        onClick={() => setNavOpen(v => !v)}>
-                        {navIcon('layers', 15)}<span>Sections</span>
-                    </button>
                     <div className="empire-title">
                         <strong>Empire Command</strong>
                         <span>{model.totals.leagues} leagues · asset allocation · exposure · pick capital</span>
@@ -3098,16 +3169,6 @@ const renderScoutDetail = () => {
                     </button>
                     <div className="empire-user">{userName}</div>
                 </div>
-                {navOpen ? (
-                    <div className="empire-sections-sheet" id="empire-sections-sheet" data-testid="empire-sections-sheet">
-                        {sectionNav.map(it => (
-                            <button key={it.t} className="empire-section-tile" type="button"
-                                onClick={() => { setNavOpen(false); it.go(); }}>
-                                {navIcon(it.icon, 16)}<span>{it.t}</span>
-                            </button>
-                        ))}
-                    </div>
-                ) : null}
                 <div className="empire-kpis" data-testid="empire-command-strip">
                     {/* Command Bridge KPI strip — empire-wide overview (mockup contract), with
                         week-over-week deltas from the snapshot store. Lens filters drive the asset
@@ -3116,7 +3177,7 @@ const renderScoutDetail = () => {
                 </div>
             </header>
 
-            <main className="empire-shell">
+            <main className="empire-shell" data-workspace={workspace}>
                 <div className="empire-viewbar" aria-label="Empire portfolio views">
                     <span className="empire-filter-label">View</span>
                     {lensButton('All', {}, 'var(--gold)')}
@@ -3207,7 +3268,7 @@ const renderScoutDetail = () => {
                                         </button>
                                     )) : <div className="empire-empty"><strong>Portfolio is clean</strong>No high-leverage moves flagged right now.</div>}
                                 </div>
-                                {actionQueue.length > 3 ? <div className="empire-section-footer"><button className="empire-action" type="button" onClick={() => setDetail({ type: 'moves' })}>View all {actionQueue.length} moves →</button></div> : null}
+                                {actionQueue.length > 3 ? <div className="empire-section-footer"><button className="empire-action" type="button" onClick={() => { setActionView('priority'); setDetail({ type: 'moves' }); }}>View all {actionQueue.length} priorities →</button></div> : null}
                             </div>
                         </section>
                         {/* ── THE ARBITRAGE BOARD ─────────────────────────
@@ -3235,7 +3296,7 @@ const renderScoutDetail = () => {
                                     ) : null}
                                     <div className="empire-stack">
                                         {rows.length ? rows.map(a => {
-                                            const ownedLegs = (a.legs || []).filter(leg => leg.mine);
+                                            const ownedLegs = (a.legs || []).filter(leg => leg.mine && canOpenEmpireTradeDesk(model.provinces.find(p => String(p.id) === String(leg.leagueId))));
                                             return (
                                             <div key={a.pid} role="button" tabIndex={0} className="empire-signal" style={{ '--tone': 'var(--purple)', cursor: 'pointer' }}
                                                 onClick={() => setDetail && setDetail({ type: 'player', pid: a.pid })}

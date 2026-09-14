@@ -7,13 +7,12 @@
 function TrophyRoomTab({ currentLeague, leagueSkin, playersData, myRoster, sleeperUserId, initialView }) {
     const { useState, useMemo, useEffect } = React;
     const [selectedOwner, setSelectedOwner] = useState(null);
-    // View can be deep-linked: an explicit initialView prop (stale ?tab=calendar
-    // links) or a one-shot window._wrTrophyView set by the Home calendar widget.
+    // History views retain their direct links. Calendar now has its own route.
     const [view, setView] = useState(() => {
-        if (initialView) return initialView;
-        try { const v = window._wrTrophyView; if (v) { delete window._wrTrophyView; return v; } } catch (e) {}
+        if (initialView && initialView !== 'calendar') return initialView;
+        try { const v = window._wrTrophyView; if (v) { delete window._wrTrophyView; if (v !== 'calendar') return v; } } catch (e) {}
         return 'league';
-    }); // 'league' | 'personal' | 'alltime' | 'chronicles' | 'import' | 'calendar'
+    }); // 'league' | 'personal' | 'alltime' | 'chronicles' | 'import'
     const [importText, setImportText] = useState('');
     const [importStatus, setImportStatus] = useState(''); // '' | 'parsing' | 'done' | 'error'
     const [recapStatus, setRecapStatus] = useState(''); // '' | 'generating' | 'done'
@@ -1150,18 +1149,6 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
     }
 
     // ══════════════════════════════════════════════════════════════
-    // CALENDAR VIEW — League Calendar folded in from its old sidebar tab.
-    // Renders the full CalendarTab (defined in js/tabs/calendar.js).
-    // ══════════════════════════════════════════════════════════════
-    function renderCalendarView() {
-        const Cal = (typeof CalendarTab === 'function' ? CalendarTab : window.CalendarTab);
-        if (typeof Cal !== 'function') {
-            return React.createElement('div', { style: { color: 'var(--silver)', padding: '20px', textAlign: 'center', fontSize: '0.82rem' } }, 'Calendar unavailable.');
-        }
-        return React.createElement(Cal, { currentLeague, leagueSkin, myRoster });
-    }
-
-    // ══════════════════════════════════════════════════════════════
     // PHONE (<768) — iPhone program Phase 4 (Trophy Room)
     // Function declarations (hoisted) called ONLY when `_phone` is true;
     // each replaces one desktop card with its phone-kit re-pour. Every
@@ -1186,7 +1173,6 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
                 segBtn('Me', 'personal', () => { setView('personal'); if (!selectedOwner) setSelectedOwner(myRoster?.roster_id); }),
                 segBtn('All-Time', 'alltime'),
                 cupEnabled && segBtn('Cup history', 'cup'),
-                segBtn('Calendar', 'calendar'),
                 chronicles && segBtn('Chronicles', 'chronicles'),
                 segBtn('Import', 'import'),
             ),
@@ -1371,7 +1357,6 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
             tabBtn('My Trophies', 'personal', () => { setView('personal'); if (!selectedOwner) setSelectedOwner(myRoster?.roster_id); }),
             tabBtn('All-Time', 'alltime'),
             cupEnabled && tabBtn('Cup history', 'cup'),
-            tabBtn('Calendar', 'calendar'),
             chronicles && tabBtn('Chronicles', 'chronicles'),
             tabBtn('Import', 'import'),
             view === 'league' && React.createElement('button', {
@@ -1394,7 +1379,6 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
         view === 'cup' && cupEnabled ? React.createElement(window.CupHonours,{key:leagueId,league:currentLeague}) : view === 'league' ? renderLeagueView()
             : view === 'personal' ? renderPersonalView()
             : view === 'alltime' ? renderAllTimeView()
-            : view === 'calendar' ? renderCalendarView()
             : view === 'chronicles' ? renderChroniclesView()
             : view === 'import' ? renderImportView()
             : renderLeagueView(),

@@ -1971,9 +1971,13 @@
 
     // ── Main component ────────────────────────────────────────────
     function AlexInsightsTab(props) {
+        const workspaceAliases = { plan: 'strategy', review: 'history' };
+        const requestedWorkspaceView = props.workspaceView ? (workspaceAliases[props.workspaceView] || props.workspaceView) : null;
+        const [reviewView, setReviewView] = useState('history');
         const [subTab, setSubTab] = useState(() => {
             // Priority: explicit prop (used by old tab=strategy URLs) →
             // ?film-sub=… hash arg → last-used sub → 'overview'.
+            if (requestedWorkspaceView) return requestedWorkspaceView;
             if (props.initialSubTab) return props.initialSubTab;
             try {
                 const m = (window.location.hash || '').match(/[?&]film-sub=([^&]+)/);
@@ -1982,16 +1986,20 @@
             } catch { return 'overview'; }
         });
         const resolvedLeagueSkin = props.leagueSkin || window.App?.LeagueSkin?.getCurrent?.() || null;
-        const hideStrategyTab = resolvedLeagueSkin?.type === 'redraft';
-        const combinePatterns = !!resolvedLeagueSkin?.type && !['dynasty', 'unknown'].includes(resolvedLeagueSkin.type);
-        const activeSubTab = (hideStrategyTab && subTab === 'strategy') || (combinePatterns && subTab === 'patterns') ? 'overview' : subTab;
+        const hideStrategyTab = !props.workspaceView && resolvedLeagueSkin?.type === 'redraft';
+        const combinePatterns = !props.workspaceView && !!resolvedLeagueSkin?.type && !['dynasty', 'unknown'].includes(resolvedLeagueSkin.type);
+        const selectedSubTab = requestedWorkspaceView === 'history' ? reviewView : (requestedWorkspaceView || subTab);
+        const activeSubTab = (hideStrategyTab && selectedSubTab === 'strategy') || (combinePatterns && selectedSubTab === 'patterns') ? 'overview' : selectedSubTab;
         const alexTabs = [
-            { k: 'overview', label: 'Overview' },
-            ...(hideStrategyTab ? [] : [{ k: 'strategy', label: 'My Strategy' }]),
+            { k: 'overview', label: 'Decision Insights' },
+            ...(hideStrategyTab ? [] : [{ k: 'strategy', label: 'Team Plan' }]),
             ...(combinePatterns ? [] : [{ k: 'patterns', label: 'Patterns' }]),
             { k: 'history', label: 'Decision History' },
-            { k: 'settings', label: 'Model Settings' },
+            { k: 'settings', label: 'Alex Preferences' },
         ];
+        useEffect(() => {
+            if (props.initialSubTab) setSubTab(props.initialSubTab);
+        }, [props.initialSubTab]);
         useEffect(() => {
             if (activeSubTab !== subTab) setSubTab(activeSubTab);
         }, [activeSubTab, subTab]);
@@ -2029,7 +2037,12 @@
         }, [rawInsights, settings]);
 
         return h('div', { className: 'gm-office-shell wr-fade-in' },
-            h(SubTabs, {
+            requestedWorkspaceView === 'history' && h(SubTabs, {
+                value: reviewView,
+                onChange: setReviewView,
+                tabs: [{ k: 'history', label: 'Decision History' }, { k: 'overview', label: 'Decision Insights' }]
+            }),
+            !props.workspaceView && h(SubTabs, {
                 value: activeSubTab,
                 onChange: setSubTab,
                 tabs: alexTabs
@@ -2044,16 +2057,25 @@
 
     // ── Strategy sub-view — embeds the existing StrategyEditorTab ──────
     function StrategySubview({ props }) {
+        const gm = window.WR.GmMode.useGmEffects(props.currentLeague);
+        const assessment = typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(props.myRoster?.roster_id) : null;
         if (typeof window.StrategyEditorTab !== 'function') {
             return h('div', { style: { padding: '40px', textAlign: 'center', color: 'var(--silver)' } }, 'Strategy editor module not loaded.');
         }
-        return React.createElement(window.StrategyEditorTab, {
+        return h(React.Fragment, null,
+            h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '8px 20px', padding: '12px 16px', marginBottom: '12px', border: '1px solid var(--acc-line1, rgba(212,175,55,.2))', borderRadius: '8px', color: 'var(--silver)', fontSize: '.8rem', lineHeight: 1.5 } },
+                h('span', null, 'Your plan: ', h('strong', { style: { color: 'var(--gold)' } }, gm.hasStrategy ? (gm.modeLabel || gm.mode) : 'Choose below')),
+                h('span', null, 'Current assessment: ', h('strong', { style: { color: 'var(--white)' } }, assessment?.tier ? String(assessment.tier).toLowerCase().replace(/^./, c => c.toUpperCase()) : 'Awaiting roster data')),
+                h('span', { style: { flexBasis: '100%' } }, 'Your plan guides future moves. The assessment describes the roster you have today.')
+            ),
+            React.createElement(window.StrategyEditorTab, {
             currentLeague: props.currentLeague,
             myRoster: props.myRoster,
             playersData: props.playersData,
             gmStrategy: props.gmStrategy,
             setGmStrategy: props.setGmStrategy,
-        });
+            })
+        );
     }
 
     // ── Phone-scoped CSS (≤767 only) ─────────────────────────────

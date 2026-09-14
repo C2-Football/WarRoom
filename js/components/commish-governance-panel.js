@@ -23,7 +23,7 @@
 //          onPasteCsv(lid, text) → {applied, unmatched}|null, onAsk(lid,
 //          question) → Promise<string|null> }
 // ══════════════════════════════════════════════════════════════════
-function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, treasuries, onMarkPaid, onSetLeagueSafe, onSetSheet, onFetchSheet, onPasteCsv, onAsk }) {
+function WrCommishGovernancePanel({ section, leagues, graph, constitutions, amendments, treasuries, onMarkPaid, onSetLeagueSafe, onSetSheet, onFetchSheet, onPasteCsv, onAsk }) {
     const GOLD = 'var(--gold, #d4af37)', SILVER = 'var(--silver, #9aa0a6)', TEXT = 'var(--text, #e8e8ea)';
     const GREEN = 'var(--k-2ecc71, #2ecc71)', RED = 'var(--k-e74c3c, #e74c3c)', AMBER = 'var(--warn, #F0A500)';
     const PANEL = 'var(--panel, #15151b)', LINE = 'var(--ov-4, rgba(255,255,255,0.08))';
@@ -64,7 +64,7 @@ function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, t
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <Section title="Bylaws & Dues" meta="constitutions as living documents · dues bookkeeping — LeagueSafe stays the system of record; DHQ never touches money">
+            <Section title={section === 'dues' ? 'Dues' : section === 'bylaws' ? 'Bylaws & Amendments' : 'Bylaws & Dues'} meta={section === 'bylaws' ? 'Constitutions, grounded rulings, and amendment history' : 'Dues bookkeeping · LeagueSafe stays the system of record'}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {(leagues || []).map(l => {
                         const lid = String(l.league_id || l.id);
@@ -78,17 +78,17 @@ function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, t
                             <div key={lid} style={{ border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)' }}>
                                 <div onClick={() => setOpenLid(open ? null : lid)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', flexWrap: 'wrap' }}>
                                     <span style={{ color: TEXT, fontWeight: 700, fontSize: '0.85rem' }}>{l.name}</span>
-                                    <span style={{ ...microHdr, color: con && con.clauses.length ? GREEN : AMBER }}>
+                                    {section !== 'dues' && <span style={{ ...microHdr, color: con && con.clauses.length ? GREEN : AMBER }}>
                                         {con && con.clauses.length ? con.clauses.length + ' clauses on file' : 'no constitution on file'}
-                                    </span>
-                                    {tre ? <span style={{ ...microHdr }}>dues {tre.summary.paid}/{tre.summary.total}</span> : null}
+                                    </span>}
+                                    {section !== 'bylaws' && tre ? <span style={{ ...microHdr }}>dues {tre.summary.paid}/{tre.summary.total}</span> : null}
                                     <span style={{ marginLeft: 'auto', color: TEXT }}>{open ? '▾' : '▸'}</span>
                                 </div>
                                 {open ? (
                                     <div style={{ borderTop: `1px solid ${LINE}`, padding: '12px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
                                         {/* ── BYLAWS DESK ── */}
-                                        <div>
+                                        {section !== 'dues' && <div>
                                             <div style={{ ...microHdr, marginBottom: '6px' }}>Bylaws desk</div>
                                             {!con || !con.clauses.length ? (
                                                 <div style={{ color: TEXT, fontSize: '0.78rem', lineHeight: 1.5 }}>
@@ -121,10 +121,10 @@ function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, t
                                                     ) : <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '8px' }}>No amendments recorded yet — acknowledged Drift changes land here as constitutional history.</div>}
                                                 </React.Fragment>
                                             )}
-                                        </div>
+                                        </div>}
 
                                         {/* ── TREASURY DESK ── */}
-                                        <div>
+                                        {section !== 'bylaws' && <div>
                                             <div style={{ ...microHdr, marginBottom: '6px' }}>Treasury — dues bookkeeping</div>
                                             {tre ? (
                                                 <React.Fragment>
@@ -175,7 +175,7 @@ function WrCommishGovernancePanel({ leagues, graph, constitutions, amendments, t
                                                     </div>
                                                 </React.Fragment>
                                             ) : <div style={{ color: TEXT, fontSize: '0.78rem' }}>Treasury unavailable for this league.</div>}
-                                        </div>
+                                        </div>}
                                     </div>
                                 ) : null}
                             </div>

@@ -237,41 +237,13 @@
         // gauge — the league-wide hub/command view
         central: ['m12 14 4-4', 'M3.34 19a10 10 0 1 1 17.32 0'],
     };
-    // showGameDay = the FINAL leagueSkin.features.showGameDay flag
-    // (callers apply the same `?? phase === 'in_season'` fallback in one place).
-    // mergedHome (redraft + chopped): Home and League Central are one surface.
-    // The Home tab disappears entirely and League Central becomes the landing
-    // page, renamed Command Center, carrying the intelligence briefing plus a
-    // League/KPIs tab pair. Dynasty and keeper keep the two separate tabs.
-    function buildLeagueNavItems(showGameDay, showTrades, showGmOffice, mergedHome) {
-        return [
-            { section: 'FRONT OFFICE' },
-            ...(mergedHome ? [] : [{ label: 'Home', tab: 'dashboard', iconKey: 'home' }]),
-            { label: 'My Roster', tab: 'myteam', iconKey: 'roster' },
-            // Game Day Central — only surfaced for in-season leagues.
-            ...(showGameDay ? [{ label: 'Game Day', tab: 'lineup', iconKey: 'gameday' }] : []),
-            { label: 'Compare', tab: 'compare', iconKey: 'compare' },
-            { section: 'LEAGUE' },
-            { label: mergedHome ? 'Command Center' : 'League Central', tab: 'central', iconKey: mergedHome ? 'home' : 'central' },
-            { label: 'Stats', tab: 'stats', iconKey: 'stats' },
-            // Hidden where the format forbids trading (chopped, or trades
-            // disabled in settings) — an unusable tab is worse than no tab.
-            ...(showTrades === false ? [] : [{ label: 'Trade Center', tab: 'trades', iconKey: 'trade' }]),
-            { label: 'Free Agency', tab: 'fa', iconKey: 'fa' },
-            { label: 'Draft', tab: 'draft', iconKey: 'draft' },
-            { label: 'Analytics', tab: 'analytics', iconKey: 'analytics' },
-            { section: 'DOSSIER' },
-            ...(showGmOffice === false ? [] : [{ label: 'GM\'s Office', tab: 'alex', iconKey: 'office' }]),
-            { label: 'Trophy Room', tab: 'trophies', iconKey: 'trophy' },
-            { section: 'SETTINGS' },
-            { label: 'Settings', tab: 'settings', iconKey: 'settings' },
-            { label: 'Legend', tab: 'legend', iconKey: 'legend' },
-        ];
+    // One stable workspace map owns desktop, phone, search, and deep-link state.
+    function buildLeagueNavItems() {
+        const utilities = window.WR.LeagueWorkspaces.navigation();
+        return [...utilities.filter(item => !item.utility), { section: 'UTILITIES' }, ...utilities.filter(item => item.utility)];
     }
-    // Shared active test (sidebar + dock): the Strategy editor lives under
-    // GM's Office, so 'strategy' lights the 'alex' item.
     function navItemIsActive(item, activeTab) {
-        return !!item.tab && (activeTab === item.tab || (item.tab === 'alex' && activeTab === 'strategy'));
+        return !!item.tab && item.workspace === window.WR.LeagueWorkspaces.resolve(activeTab).workspace;
     }
 
     // ── Phone bottom dock (≤767 only) ──
@@ -297,7 +269,7 @@
     }
     function PhoneDockInner({ activeTab, navItems, onSelectTab }) {
         const stripRef = useRef(null);
-        const chips = navItems.filter(item => item.tab);
+        const chips = navItems.filter(item => item.tab && !item.utility);
 
         // Keep the active chip visible whenever the tab changes (sidebar,
         // deep links, and dock taps all funnel through activeTab).
@@ -371,11 +343,6 @@
         const isSleeper = _provider?.id === 'sleeper';
         const [trending, setTrending] = useState({ adds: [], drops: [] });
         const [localActiveTab, setLocalActiveTab] = useState('dashboard');
-        // Phase 8: any stale/saved state that points at the removed 'league' tab auto-redirects to Analytics.
-        useEffect(() => {
-            if (localActiveTab === 'league') setLocalActiveTab('analytics');
-            if (propActiveTab === 'league' && typeof onTabChange === 'function') onTabChange('analytics');
-        }, [localActiveTab, propActiveTab]);
         const activeTab = propActiveTab !== undefined ? propActiveTab : localActiveTab;
         const setActiveTab = onTabChange || setLocalActiveTab;
         const [tradeSubTab, setTradeSubTab] = useState(null); // when set, TradeCalcTab opens this sub-tab
@@ -697,6 +664,7 @@
         function LegendPanel({ module = false } = {}) {
             const [open, setOpen] = React.useState(false);
             const [expanded, setExpanded] = React.useState(false);
+            const [guideQuery, setGuideQuery] = React.useState('');
             const valueTerm = skinValueShort === 'DHQ' ? 'DHQ Value' : skinValueLabel;
             const rankTerm = skinShowsDynastyValue ? 'Dynasty Rank' : 'Asset Rank';
             const windowTerm = skinShowsAgeCurve ? 'Compete Window' : 'Season Window';
@@ -709,6 +677,15 @@
                 { term: 'Flash Brief', def: 'Quick-action dashboard. Analyst mode shows deep data.' },
             ];
             const fullItems = [
+                { cat: 'Find Your Workspace', items: [
+                    { term: 'Home', def: 'Start with priority decisions, this week’s matchup, and upcoming dates. Open Game Day for your weekly lineup.' },
+                    { term: 'My Team', def: 'Manage your roster and Game Day lineup. Team outlook explains the current assessment; GM plan sets your chosen direction. Decision review keeps your past decisions together.' },
+                    { term: 'Market', def: 'Plan waivers, explore trades when your league allows them, and revisit saved targets. Roster coverage actions carry the position and week into your waiver plan.' },
+                    { term: 'Draft', def: 'Prepare your board, practice, follow a live draft, and review results. Draft analysis contains historical position patterns and outcomes.' },
+                    { term: 'League', def: 'Find standings, all matchups, league dates, Cup information, and history. Calendar dates marked Estimated need confirmation; custom reminders stay in this browser.' },
+                    { term: 'Research', def: 'Explore sortable player Stats, players and picks, comparisons, and custom reports. Stats includes weekly views, ownership filters, and CSV export.' },
+                    { term: 'Player Notebook', def: 'Personal notes and watch status follow a player across your leagues. League notes keep a separate private plan. Notes are saved for your account in this browser; draft board order stays with the draft.' },
+                ]},
                 { cat: 'What DHQ Measures', items: [
                     { term: valueTerm, def: skinShowsDynastyValue ? 'A 0-10,000 dynasty value score. It blends production, projected role, age curve, positional scarcity, roster situation, market consensus, and format context. It is updated when you refresh league data.' : 'A 0-10,000 format-adjusted value score. It blends production, projected role, positional scarcity, roster situation, market consensus, and this league format. It is updated when you refresh league data.' },
                     { term: 'Production Layer', def: 'Recent fantasy scoring, usage, playing time, and efficiency establish the floor. Current-season roles matter more in redraft, while multi-year stability carries more weight in dynasty.' },
@@ -747,15 +724,19 @@
                 ]},
 	            ];
 	            if (module) {
+                    const matches = item => (item.term + ' ' + item.def).toLowerCase().includes(guideQuery.trim().toLowerCase());
+                    const filteredSections = fullItems.map(section => ({ ...section, items: section.items.filter(matches) })).filter(section => section.items.length);
 	                return React.createElement('div', { style: { padding: '10px 16px 16px', maxWidth: '1280px', margin: '0 auto' } },
+                        React.createElement('label', { className: 'wr-help-search' }, 'Find a tool or term', React.createElement('input', { type: 'search', value: guideQuery, onChange: event => setGuideQuery(event.target.value), placeholder: 'Search values, trades, waivers…' })),
+                        !filteredSections.length && React.createElement('p', { role: 'status' }, 'No matching terms. Try a different word.'),
 	                    React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px', marginBottom: '14px' } },
-	                        ...quickItems.map(item => React.createElement('div', { key: item.term, style: { padding: '12px 13px', background: 'var(--black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.18))', borderRadius: 'var(--card-radius-sm, 8px)' } },
+	                        ...quickItems.filter(matches).map(item => React.createElement('div', { key: item.term, style: { padding: '12px 13px', background: 'var(--black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.18))', borderRadius: 'var(--card-radius-sm, 8px)' } },
 	                            React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', fontWeight: 800, color: 'var(--gold)', fontFamily: 'var(--font-body)', marginBottom: '4px' } }, item.term),
 	                            React.createElement('div', { style: { fontSize: 'var(--text-label, 0.75rem)', color: 'var(--silver)', lineHeight: 1.45 } }, item.def)
 	                        ))
 	                    ),
-	                    React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '12px' } },
-	                        ...fullItems.map(section => React.createElement('section', { key: section.cat, style: { padding: '13px 14px', background: 'var(--black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.18))', borderRadius: 'var(--card-radius-sm, 8px)' } },
+	                    React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '12px' } },
+	                        ...filteredSections.map(section => React.createElement('section', { key: section.cat, style: { padding: '13px 14px', background: 'var(--black)', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.18))', borderRadius: 'var(--card-radius-sm, 8px)' } },
 	                            React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: 'var(--text-body, 1rem)', color: 'var(--gold)', letterSpacing: '0.08em', marginBottom: '10px', textTransform: 'uppercase' } }, section.cat),
 	                            ...section.items.map(item => React.createElement('div', { key: item.term, style: { marginBottom: '10px' } },
 	                                React.createElement('div', { style: { fontSize: 'var(--text-body, 1rem)', fontWeight: 800, color: 'var(--white)', marginBottom: '2px' } }, item.term),
@@ -1018,37 +999,16 @@
         const leagueWidgetLayout = window.App.DashboardLeagueLayout;
         const widgetScope = leagueWidgetLayout.leagueId(currentLeague);
         const DEFAULT_WIDGETS = [
+            { id: 'dw0', key: 'intel-brief', size: 'xl' },
             ...leagueWidgetLayout.defaults(),
-            { id: 'dw0', key: 'intel-brief',    size: 'tall' },
-            { id: 'dw1', key: 'roster-pulse',   size: 'sm', primaryMetric: 'health-score' },
-            { id: 'dw2', key: 'power-rankings', size: 'sm' },
-            { id: 'dw3', key: 'roster-pulse',   size: 'md', primaryMetric: 'elite-count' },
-            { id: 'dw4', key: 'market-radar',   size: 'md' },
+            { id: 'dw_calendar', key: 'league-calendar', size: 'md' },
+            { id: 'dw_team', key: 'roster-pulse', size: 'md', primaryMetric: 'health-score' },
         ];
-        // Redraft + Chopped Home (owner ask): a fixed, curated layout — no
-        // drag/resize/remove/Add Widget (dashboard.js gates all of that on
-        // league type). Same 5 as DEFAULT_WIDGETS plus Lineup Check ("points
-        // left on your bench") and FAAB Command (league-aware bid plan for
-        // the top add on the wire) — both existed already but weren't
-        // defaulted anywhere. Power Rankings opens to the Contender view for
-        // redraft via power-rankings.js's own format check. Chopped reuses
-        // this exact same list — no chopped-specific widget — its survival
-        // read already renders separately above the grid (chopBlockEl /
-        // WrChopBlock in dashboard.js, gated on showElimination, independent
-        // of selectedWidgets), so this list doesn't need to duplicate it.
+        // Seasonal formats keep a curated layout and their mock-draft entry point.
         const REDRAFT_FIXED_WIDGETS = [
-            ...leagueWidgetLayout.defaults(),
-            { id: 'rfw0', key: 'intel-brief',    size: 'tall' },
-            { id: 'rfw1', key: 'roster-pulse',   size: 'sm', primaryMetric: 'health-score' },
-            { id: 'rfw2', key: 'power-rankings', size: 'sm' },
-            { id: 'rfw3', key: 'roster-pulse',   size: 'md', primaryMetric: 'elite-count' },
-            { id: 'rfw4', key: 'market-radar',   size: 'md' },
-            { id: 'rfw5', key: 'lineup-check',   size: 'md' },
-            { id: 'rfw6', key: 'faab-command',   size: 'md' },
-            // Appended, not swapped in — redraft/chopped just lost their in-draft-room
-            // Analyst Mock card (War Room tab is hidden for these formats now), so this
-            // is their only remaining access point to it.
-            { id: 'rfw7', key: 'analyst-mock',   size: 'sm' },
+            ...DEFAULT_WIDGETS,
+            { id: 'rfw5', key: 'lineup-check', size: 'md' },
+            { id: 'rfw7', key: 'analyst-mock', size: 'sm' },
         ];
         // Migrate legacy formats to current widget object format
         function migrateKpisToWidgets(stored) {
@@ -1109,7 +1069,7 @@
             const saved = LeagueStorage.get(LEAGUE_WR_KEYS.KPI_SELECTION(widgetScope));
             const migrated = LeagueStorage.get(leagueWidgetLayout.marker(widgetScope), false);
             if (migrated && Array.isArray(saved) && !saved.length) return [];
-            const stored = migrateKpisToWidgets(saved);
+            const stored = window.WR.LeagueWorkspaces.upgradeStarter(migrateKpisToWidgets(saved), DEFAULT_WIDGETS, leagueWidgetLayout.defaults());
             return migrated ? stored : leagueWidgetLayout.addMissing(stored);
         };
         const [selectedWidgets, setSelectedWidgets] = useState(loadWidgetLayout);
@@ -1145,18 +1105,21 @@
             );
         }, [leagueSkin?.type, widgetScope]);
 
-        // Home + League Central are ONE surface for these formats (owner ruling
-        // 2026-08-23) — same two types that get the fixed Home layout above, so
-        // the two rules can never disagree about which leagues are "seasonal".
-        const mergedHome = leagueSkin?.type === 'redraft' || leagueSkin?.type === 'chopped';
-        // The Home tab no longer exists for them, so anything still pointing at
-        // it (saved tab, deep link, a setActiveTab('dashboard') elsewhere) has
-        // to land on the merged surface instead of rendering a tab with no way
-        // back. Same late-resolve caveat as the fixed-widgets effect: leagueSkin
-        // is not known on first mount, so this corrects itself once it is.
-        useEffect(() => {
-            if (mergedHome && activeTab === 'dashboard') setActiveTab('central');
-        }, [mergedHome, activeTab]);
+        // Home summarizes the owner's decisions; League contains the full competition view.
+        // Old tab identifiers are resolved without losing their selected report.
+        const workspaceOptions = {
+            showGameDay: leagueSkin?.features?.showGameDay ?? (leagueSkin?.phase === 'in_season'),
+            showTrades: leagueSkin?.features?.showTrades,
+            showGmOffice: leagueSkin?.type !== 'chopped',
+            leagueType: leagueSkin?.type,
+            legacyAnalyticsView: analyticsTab,
+        };
+        const workspaceRoute = window.WR.LeagueWorkspaces.resolve(activeTab, workspaceOptions);
+        const viewTab = workspaceRoute.tab;
+        const workspace = window.WR.LeagueWorkspaces.workspace(viewTab, workspaceOptions);
+        const workspaceViews = window.WR.LeagueWorkspaces.views(workspace.id, workspaceOptions);
+        // Resolve unsupported views at render time without rewriting a bookmarked
+        // destination while league/season capabilities are still loading.
 
         useEffect(() => {
             LeagueStorage.set(LEAGUE_WR_KEYS.ROSTER_COLS, visibleCols);
@@ -1621,11 +1584,11 @@
         }, [playersData, myRoster]);
 
         useEffect(() => {
-            if (activeTab === 'analytics' && !analyticsData && window.App?.LI_LOADED) {
+            if (workspaceRoute.analysis && !analyticsData && window.App?.LI_LOADED) {
                 const data = typeof runLeagueAnalytics === 'function' ? runLeagueAnalytics() : null;
                 setAnalyticsData(data);
             }
-        }, [activeTab, analyticsData, timeRecomputeTs]);
+        }, [workspaceRoute.analysis, analyticsData, timeRecomputeTs]);
 
 
         useEffect(() => {
@@ -2696,12 +2659,7 @@
         // buildLeagueNavItems). The sidebar maps this array below and the
         // SAME array instance feeds the PhoneDock strip at the bottom of
         // this render, so the two surfaces can never drift.
-        const navItems = buildLeagueNavItems(
-            leagueSkin?.features?.showGameDay ?? (leagueSkin?.phase === 'in_season'),
-            leagueSkin?.features?.showTrades,
-            leagueSkin?.type !== 'chopped',
-            mergedHome
-        );
+        const navItems = buildLeagueNavItems();
 
         // One builder for the widget grid so the standalone Home tab (dynasty /
         // keeper) and the merged Command Center's KPIs tab (redraft / chopped)
@@ -2901,7 +2859,7 @@
                                 if (name.toLowerCase().includes(lower)) matches.push({ type: 'player', pid, name, pos: p.position || '?', team: p.team || 'FA' });
                             });
                             // Search tabs
-                            [{ label: 'Home', tab: 'dashboard' }, { label: 'My Roster', tab: 'myteam' }, { label: 'Trade Center', tab: 'trades' }, { label: 'Free Agency', tab: 'fa' }, { label: 'Draft Command', tab: 'draft' }, { label: 'Stats', tab: 'stats' }, { label: 'Analytics', tab: 'analytics' }, { label: 'GM\'s Office', tab: 'alex' }, { label: 'Trophy Room', tab: 'trophies' }, { label: 'Settings', tab: 'settings' }, { label: 'Legend', tab: 'legend' }].forEach(t => {
+                            window.WR.LeagueWorkspaces.navigation().flatMap(group => [{ label: group.label, tab: group.tab }, ...window.WR.LeagueWorkspaces.views(group.id, workspaceOptions)]).forEach(t => {
                                 if (t.label.toLowerCase().includes(lower)) matches.push({ type: 'tab', label: t.label, tab: t.tab });
                             });
                             setResults(matches.slice(0, 8));
@@ -2954,9 +2912,9 @@
                                 <div key={i} className="wr-sidebar-divider" style={{ height: '1px', margin: '8px 16px', background: 'var(--ov-4, rgba(255,255,255,0.06))' }} aria-hidden="true" />
                             );
                         }
-                        const isActive = navItemIsActive(item, activeTab);
+                        const isActive = navItemIsActive(item, viewTab);
                         return (
-                        <button key={i} onClick={() => { setSidebarOpen(false); item.tab ? setActiveTab(item.tab) : item.action ? item.action() : window.location.href = item.url; }}
+                        <button key={i} aria-current={isActive ? 'page' : undefined} aria-label={item.label} onClick={() => { setSidebarOpen(false); item.tab ? setActiveTab(item.tab) : item.action ? item.action() : window.location.href = item.url; }}
                             className="wr-sidebar-nav-btn"
                             style={{
                                 width: '100%', minHeight: '44px', padding: sidebarCollapsed ? '10px 0' : '9px 16px 9px 20px', border: 'none',
@@ -3441,9 +3399,22 @@
                     })()}
                 </div>}
 
-                {/* Tab Content Routing — Brief tab folded into Dashboard as widgets */}
+                <header className="wr-workspace-header">
+                    <div className="wr-workspace-heading">
+                        <div><h1>{workspace.label}</h1>{workspace.description && <p>{workspace.description}</p>}</div>
+                        <div className="wr-workspace-shortcuts">
+                            {workspace.id === 'home' && workspaceOptions.showGameDay && <button type="button" onClick={() => setActiveTab('lineup')}>Open Game Day</button>}
+                            {workspace.id !== 'help' && <button type="button" onClick={() => setActiveTab('legend')} aria-label={'Help with ' + workspace.label}>Help</button>}
+                        </div>
+                    </div>
+                    {workspaceViews.length > 1 && <nav className="wr-workspace-views" aria-label={workspace.label + ' views'}>
+                        {workspaceViews.map(view => <button type="button" key={view.tab} aria-current={viewTab === view.tab ? 'page' : undefined} onClick={() => setActiveTab(view.tab)}>{view.label}</button>)}
+                    </nav>}
+                </header>
+                {/* Existing deep links render in their owning workspace. */}
                 <div className="wr-content-frame">
-                {activeTab === 'trades' ? (
+                {!loading && !['analytics', 'league'].includes(activeTab) && viewTab !== activeTab && <p role="status" style={{ color: 'var(--silver)', padding: '0 12px' }}>That view is unavailable for this league. Showing {workspaceRoute.label}.</p>}
+                {viewTab === 'trades' ? (
                     <TradeCalcTabLazy
                         playersData={playersData}
                         statsData={statsData}
@@ -3457,7 +3428,7 @@
                         initialSubTab={tradeSubTab}
                         onSubTabConsumed={() => setTradeSubTab(null)}
                     />
-                ) : activeTab === 'myteam' ? <MyTeamTabLazy
+                ) : viewTab === 'myteam' ? <MyTeamTabLazy
                     myRoster={myRoster}
                     currentLeague={currentLeague}
                     leagueSkin={leagueSkin}
@@ -3488,7 +3459,7 @@
                     timeRecomputeTs={timeRecomputeTs}
                     setTimeRecomputeTs={setTimeRecomputeTs}
                     getAcquisitionInfo={getAcquisitionInfo}
-                /> : activeTab === 'lineup' ? <LineupTabLazy
+                /> : viewTab === 'lineup' ? <LineupTabLazy
                     myRoster={myRoster}
                     currentLeague={currentLeague}
                     leagueSkin={leagueSkin}
@@ -3499,7 +3470,7 @@
                     gmStrategy={gmStrategy}
                     setActiveTab={setActiveTab}
                     timeRecomputeTs={timeRecomputeTs}
-                /> : activeTab === 'league' ? <LeagueMapTabLazy
+                /> : viewTab === 'league' ? <LeagueMapTabLazy
                     leagueViewTab={leagueViewTab}
                     setLeagueViewTab={setLeagueViewTab}
                     leagueSelectedTeam={leagueSelectedTeam}
@@ -3526,7 +3497,8 @@
                     setTimeRecomputeTs={setTimeRecomputeTs}
                     getAcquisitionInfo={getAcquisitionInfo}
                     setActiveTab={setActiveTab}
-                /> : activeTab === 'analytics' ? <AnalyticsPanelLazy
+                /> : workspaceRoute.analysis ? <AnalyticsPanelLazy
+                    workspaceView={workspaceRoute.analysis}
                     analyticsData={analyticsData}
                     analyticsTab={analyticsTab}
                     setAnalyticsTab={setAnalyticsTab}
@@ -3549,7 +3521,8 @@
                     setTradeSubTab={setTradeSubTab}
                     getOwnerName={getOwnerName}
                     getAcquisitionInfo={getAcquisitionInfo}
-                /> : activeTab === 'fa' ? <FreeAgencyTabLazy
+                /> : (viewTab === 'fa' || viewTab === 'targets') ? <FreeAgencyTabLazy
+                    initialView={viewTab === 'targets' ? 'targets' : null}
                     playersData={playersData}
                     statsData={statsData}
                     prevStatsData={stats2025Data}
@@ -3562,7 +3535,7 @@
                     timeRecomputeTs={timeRecomputeTs}
                     viewMode={viewMode}
                     briefDraftInfo={briefDraftInfo}
-                /> : activeTab === 'draft' ? <DraftTabLazy
+                /> : viewTab === 'draft' ? <DraftTabLazy
                     playersData={playersData}
                     statsData={statsData}
                     myRoster={myRoster}
@@ -3571,50 +3544,36 @@
                     sleeperUserId={sleeperUserId}
                     timeRecomputeTs={timeRecomputeTs}
                     viewMode={viewMode}
-                /> : (activeTab === 'trophies' || activeTab === 'calendar') ? <TrophyRoomTabLazy
+                /> : viewTab === 'calendar' ? <CalendarTabLazy currentLeague={currentLeague} leagueSkin={leagueSkin} myRoster={myRoster} /> : viewTab === 'trophies' ? <TrophyRoomTabLazy
                     currentLeague={currentLeague}
                     leagueSkin={leagueSkin}
                     playersData={playersData}
                     myRoster={myRoster}
                     sleeperUserId={sleeperUserId}
-                    initialView={activeTab === 'calendar' ? 'calendar' : null}
-                /> : activeTab === 'settings' ? (
+                /> : viewTab === 'settings' ? (
                     typeof window.SettingsModule === 'function'
                         ? React.createElement(window.SettingsModule, settingsProps)
                         : <div style={{ padding: '40px', textAlign: 'center', color: 'var(--silver)' }}>Settings module not loaded.</div>
-                ) : activeTab === 'legend' ? (
+                ) : viewTab === 'legend' ? (
                     React.createElement(LegendPanel, { module: true })
-                ) : (activeTab === 'alex' || activeTab === 'strategy') ? React.createElement(AlexInsightsTabLazy, {
+                ) : (workspaceRoute.alex || viewTab === 'alex') ? React.createElement(AlexInsightsTabLazy, {
                     currentLeague, leagueSkin, myRoster, playersData, statsData,
                     stats2025Data, standings, sleeperUserId,
                     timeRecomputeTs, setActiveTab,
                     gmStrategy, setGmStrategy,
                     // Old tab=strategy URLs land on the Strategy sub-view inside GM's Office.
-                    initialSubTab: activeTab === 'strategy' ? 'strategy' : null,
-                }) : activeTab === 'compare' ? React.createElement(CompareTabLazy, {
+                    initialSubTab: workspaceRoute.alex,
+                    workspaceView: workspaceRoute.alex,
+                }) : viewTab === 'compare' ? React.createElement(CompareTabLazy, {
                     currentLeague, leagueSkin, myRoster, playersData, statsData, stats2025Data,
                     standings, sleeperUserId,
-                }) : activeTab === 'stats' ? React.createElement(LeagueStatsTabLazy, {
+                }) : viewTab === 'stats' ? React.createElement(LeagueStatsTabLazy, {
                     key: String(currentLeague?.league_id || currentLeague?.id) + ':' + currentLeague?.season,
                     currentLeague, myRoster, playersData, getOwnerName, getPlayerName, setActiveTab,
-                }) : activeTab === 'central' ? React.createElement(LeagueCentralTabLazy, {
+                }) : viewTab === 'central' ? React.createElement(LeagueCentralTabLazy, {
                     currentLeague, leagueSkin, myRoster, playersData, standings, transactions,
                     sleeperUserId, getOwnerName, getPlayerName, timeAgo, setActiveTab,
-                    homeMerged: mergedHome,
-                    // Merged formats hoist the briefing ABOVE the tab strip
-                    // (always visible, collapsible) and drop it from the widget
-                    // grid below, so it renders once, not twice. The grid is
-                    // fixed for these formats — dashboard.js hides the
-                    // customize UI — so filtering here cannot corrupt a saved
-                    // layout.
-                    briefSlot: mergedHome && typeof window.IntelligenceBriefWidget === 'function'
-                        ? React.createElement(window.IntelligenceBriefWidget, {
-                            size: 'xl', myRoster, rankedTeams, sleeperUserId, currentLeague,
-                            briefDraftInfo, playersData, statsData, prevStatsData: stats2025Data,
-                            timeRecomputeTs, setActiveTab,
-                        })
-                        : null,
-                    kpiSlot: mergedHome ? dashboardEl(selectedWidgets.filter(w => w.key !== 'intel-brief')) : null,
+                    homeMerged: false,
                 }) : dashboardEl(selectedWidgets)}
                 </div>
                 </div>{/* end marginLeft wrapper */}
@@ -3658,7 +3617,7 @@
                 EVERY sidebar nav item (same navItems array — single source
                 of truth). */}
             <PhoneDock
-                activeTab={activeTab}
+                activeTab={viewTab}
                 navItems={navItems}
                 onSelectTab={(tab) => { setSidebarOpen(false); setActiveTab(tab); }}
             />

@@ -90,6 +90,9 @@ function IntelligenceBriefWidget({
     const gm = window.WR.GmMode.useGmEffects(currentLeague);
     const leagueSkin = window.App?.LeagueSkin?.build?.({ league: currentLeague, rosters: currentLeague?.rosters || [] });
     const isChopped = window.App?.Chopped?.isChopped?.(currentLeague) || leagueSkin?.type === 'chopped';
+    const canTrade = window.App?.Commish?.Calendar?.supportsTrades
+        ? window.App.Commish.Calendar.supportsTrades(currentLeague, leagueSkin)
+        : !isChopped && Number(currentLeague?.settings?.type) !== 3 && leagueSkin?.features?.showTrades !== false && Number(currentLeague?.settings?.disable_trades || 0) !== 1;
     // GM Strategy's Rebuild/Compete/Win-Now modes are a multi-YEAR roster-
     // building framing (timeline, "stockpile picks", sell-high posture) —
     // it doesn't mean anything in a league that resets every season. Same
@@ -262,7 +265,7 @@ function IntelligenceBriefWidget({
     // deals. A Deal HQ visit overwrites the scope with real deals; the warm
     // never clobbers those (meta.surface guard in the publish effect below).
     const tradeWarm = useMemo(() => {
-        if (!rosterState.isUsable || !myAssess) return [];
+        if (!canTrade || !rosterState.isUsable || !myAssess) return [];
         if (typeof window.wrIsPro === 'function' && !window.wrIsPro()) return [];
         if (typeof window.assessTeamFromGlobal !== 'function') return [];
         const myNeeds = new Set((myAssess.needs || []).map(n => String(typeof n === 'string' ? n : n?.pos || '').toUpperCase()).filter(Boolean));
@@ -292,7 +295,7 @@ function IntelligenceBriefWidget({
             });
         });
         return fits.sort((a, b) => b.score - a.score).slice(0, 3);
-    }, [rosterState.isUsable, myAssess, currentLeague, myRoster, ownerProfiles, gm.hasStrategy, gm.targetPositions, timeRecomputeTs]);
+    }, [canTrade, rosterState.isUsable, myAssess, currentLeague, myRoster, ownerProfiles, gm.hasStrategy, gm.targetPositions, timeRecomputeTs]);
 
     useEffect(() => {
         if (!tradeWarm.length) return;
@@ -329,19 +332,21 @@ function IntelligenceBriefWidget({
     // Key drops (high-value players dropped in last 3 weeks)
     const keyDrops = useMemo(() => {
         const drops = [];
+        const rostered = new Set((currentLeague?.rosters || []).flatMap(roster => (roster.players || []).concat(roster.reserve || [], roster.taxi || [])).map(String));
         const transactions = window.S?.transactions || {};
         const curWeek = window.S?.currentWeek || 1;
         for (let w = curWeek; w >= Math.max(1, curWeek - 2); w--) {
             ((transactions['w' + w]) || []).forEach(t => {
                 if (t.type !== 'free_agent' && t.type !== 'waiver') return;
                 Object.keys(t.drops || {}).forEach(pid => {
+                    if (rostered.has(String(pid))) return;
                     const dhq = scores[pid] || 0;
                     if (dhq >= 1500) drops.push({ pid, name: playersData?.[pid]?.full_name || '?', dhq, pos: playersData?.[pid]?.position || '?' });
                 });
             });
         }
         return drops.sort((a, b) => b.dhq - a.dhq).slice(0, 3);
-    }, [scores, playersData]);
+    }, [scores, playersData, currentLeague?.rosters, timeRecomputeTs]);
 
     // Draft countdown
     const draftCountdown = useMemo(() => {
@@ -373,29 +378,17 @@ function IntelligenceBriefWidget({
     const p = BRIEF_VOICE;
     const greetingText = p.greeting(hour, userName);
 
-    // Build Alex's conversational briefing
+    // Home labels the chosen plan and current assessment separately. Rankings
+    // and health numbers live in the team summary, rather than repeating here.
     const needPos = needs.length ? (typeof needs[0] === 'string' ? needs[0] : needs[0]?.pos) : '';
-    // Seeded tier read: stable within a league+week (no flicker across
-    // re-renders), fresh phrasing when the week rolls over.
-    const tierSeed = String(currentLeague?.league_id || currentLeague?.id || 'wr') + ':w' + (window.S?.currentWeek || 0) + ':' + tier;
-    const pickTier = (pool) => {
-        const arr = Array.isArray(pool) ? pool : [pool];
-        const fn = (window.AlexVoice && typeof window.AlexVoice.pick === 'function') ? window.AlexVoice.pick(tierSeed, arr) : arr[0];
-        return typeof fn === 'function' ? fn(myRank, hs) : String(fn || '');
-    };
-    // UNKNOWN tier = assessment hasn't loaded — never let it fall through to
-    // the rebuilding copy ('ranked 0th, health score 0' as fact). Same for a
-    // known tier with no rank yet: don't interpolate ordinal(0).
+    // Unknown or incomplete rosters never receive a fabricated assessment.
+    const assessmentLabel = { ELITE: 'Elite', CONTENDER: 'Contender', CROSSROADS: 'Crossroads', REBUILDING: 'Rebuilding' }[tier] || tier.toLowerCase().replace(/^./, c => c.toUpperCase());
     const tierMsg = !rosterState.isUsable ? (rosterState.brief || (isChopped
         ? 'Roster sync incomplete. I paused survival and waiver recommendations until player IDs finish loading.'
         : 'Roster sync incomplete. I paused roster, trade, waiver, and league-rank recommendations until player IDs finish loading.'))
         : isChopped ? 'Survival mode is active. Protect your weekly scoring floor, then keep enough FAAB ready for the next chopped roster.'
-        : (!myAssess || tier === 'UNKNOWN') ? 'Still syncing your league read — I’ll have your tier, rank, and health score once the data lands.'
-        : tier === 'ELITE' ? pickTier(p.elite)
-        : myRank <= 0 ? ('Your roster reads ' + tier + ' with a health score of ' + hs + ' — league rank is still syncing.')
-        : tier === 'CONTENDER' ? pickTier(p.contender)
-        : tier === 'CROSSROADS' ? pickTier(p.crossroads)
-        : pickTier(p.rebuilding);
+        : (!myAssess || tier === 'UNKNOWN') ? 'Current assessment: awaiting roster data.'
+        : 'Current assessment: ' + assessmentLabel + (needPos ? '. Start with your ' + needPos + ' coverage.' : '. Review the next steps below.');
 
     // AlexSettings focus areas — the narrative fragments are gated by whichever
     // areas the user has enabled, so turning off "trades" or "waivers" in
@@ -411,11 +404,9 @@ function IntelligenceBriefWidget({
         ? 'Your plan: ' + (gm.modeLabel || gm.mode) + ', ' + (TIMELINE_FRAME[gm.timeline] || 'on your timeline') + ' — everything below is read against that.'
         : '';
 
-    // Brief prose at tall/xl/default: strategy frame (lead) + tier read, and
-    // nothing else. Elites, gaps, trades, and FAAB all render as KPIs or
-    // action rows on this same widget — never narrated twice (de-busying
-    // rule: prose is a lead, not a summary).
-    const briefText = strategyFrame ? strategyFrame + ' ' + tierMsg : tierMsg;
+    // The assessment gets one sentence; the adjacent Your Plan strip owns
+    // strategy details and the action rows carry the next decisions.
+    const briefText = tierMsg;
 
     // Three-sentence summary — fits a 160px-tall md row, no scroll
     const threeSentence = (() => {
@@ -428,14 +419,12 @@ function IntelligenceBriefWidget({
         else if (elites > 0) parts.push(`${elites} elite anchor${elites > 1 ? 's' : ''}.`);
         if (waiverTarget && alexFocus.waivers !== false) parts.push(`${waiverTarget.name} (${waiverTarget.pos}) sitting on the wire.`);
         else if (draftCountdown) parts.push(draftCountdown.days === 0 ? 'Draft is today.' : `Draft in ${draftCountdown.days} day${draftCountdown.days !== 1 ? 's' : ''}.`);
-        else if (activeTrades > 0 && alexFocus.trades !== false) parts.push(`${activeTrades} recent trade${activeTrades > 1 ? 's' : ''} in your league.`);
-        else if (myRank > 0) parts.push(`Ranked ${ordinal(myRank)} in the league.`);
-        else parts.push('League rank still syncing.');
+        else if (canTrade && activeTrades > 0 && alexFocus.trades !== false) parts.push(`${activeTrades} recent trade${activeTrades > 1 ? 's' : ''} in your league.`);
         return parts.slice(0, 3).join(' ');
     })();
 
     // One-sentence headline — used at lg
-    const oneSentence = tierMsg;
+    const oneSentence = (gm.hasStrategy && !isSeasonal && !isChopped ? 'Your plan: ' + (gm.modeLabel || gm.mode) + '. ' : '') + tierMsg;
 
     // Header avatar renders via the canonical AlexAvatar component
     // (components.js photo/badge vocabulary). Legacy emoji ids stored on
@@ -460,13 +449,11 @@ function IntelligenceBriefWidget({
             detail: rosterState.message + ' ' + rosterState.detail,
         });
     } else {
-    // Lineup gap leads the queue — it's the one item with a weekly deadline.
-    // One exception below: rebuild / sell-high plans still unshift the
-    // sell-rule action to the very front (asset moves outrank weekly points
-    // when the plan says so) — strategy-aware ordering, not a fixed ladder.
+    // Dated decisions and lineup issues lead; strategy urgency orders the
+    // remaining opportunities without moving a deadline off the first page.
     if (alexFocus.startSit !== false && lineupAlert) {
         actions.push({
-            icon: '⚡', tab: 'lineup',
+            icon: '⚡', tab: 'lineup', priority: 100,
             title: lineupAlert.delta.toFixed(1) + ' projected pts sitting on your bench.',
             detail: (lineupAlert.swap && lineupAlert.swap.name
                 ? 'Start ' + lineupAlert.swap.name + (lineupAlert.swap.pos ? ' · ' + lineupAlert.swap.pos + (lineupAlert.swap.slot ? ' → ' + lineupAlert.swap.slot : '') : '') + ' · Wk ' + lineupAlert.week + '. '
@@ -479,7 +466,9 @@ function IntelligenceBriefWidget({
     const waiverIsGmTarget = !!(waiverTarget && gm.hasStrategy && gm.targetPositions instanceof Set && gm.targetPositions.has(String(waiverTarget.pos)));
     if (alexFocus.waivers !== false && waiverTarget) {
         actions.push({
-            icon: '🎯', tab: 'fa',
+            icon: '🎯', tab: 'fa', priority: 80,
+
+	            acquisition: { pid: waiverTarget.pid, position: waiverTarget.pos, reason: waiverTarget.why || ('Improve your ' + waiverTarget.pos + ' coverage.'), source: 'home-briefing', leagueId: currentLeague?.league_id || currentLeague?.id },
 	            title: p.waiver(waiverTarget.name, waiverTarget.pos, waiverTarget.dhq),
 	            detail: [
 	                React.createElement('span', { key: 'n', style: { color: 'var(--gold)', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px' }, onClick: e => { e.stopPropagation(); if (typeof window.openPlayerModal === 'function' && waiverTarget.pid) window.openPlayerModal(waiverTarget.pid); } }, waiverTarget.name),
@@ -489,7 +478,8 @@ function IntelligenceBriefWidget({
     }
     if (alexFocus.waivers !== false && keyDrops.length > 0) {
         actions.push({
-            icon: '⚠️', tab: 'fa',
+            icon: '⚠️', tab: 'fa', priority: 70,
+            acquisition: { pid: keyDrops[0]?.pid, position: keyDrops[0]?.pos, reason: 'A recently dropped player is available in your league.', source: 'home-recent-drop', leagueId: currentLeague?.league_id || currentLeague?.id },
             title: `Heads up — ${keyDrops.length > 1 ? 'some high-value players hit' : 'a high-value player hit'} the wire recently.`,
             detail: [
                 ...keyDrops.map((d, i) => [
@@ -500,24 +490,21 @@ function IntelligenceBriefWidget({
             ],
         });
     }
-    // Sell-rule action — the GM plan's own move. Rebuild / sell-high plans
-    // act on sells FIRST (front of the queue); otherwise it slots ahead of
-    // the generic trade CTA.
-    if (alexFocus.trades !== false && sellRuleTrips.length > 0) {
+    // Sell-rule urgency follows the chosen plan, below immediate deadlines.
+    if (canTrade && alexFocus.trades !== false && sellRuleTrips.length > 0) {
         const sellAction = {
-            icon: '📉', tab: 'myteam',
+            icon: '📉', tab: 'myteam', priority: gm.mode === 'rebuild' || gm.marketPosture === 'sell_high' ? 85 : 65,
             title: sellRuleTrips.length + ' rostered player' + (sellRuleTrips.length > 1 ? 's trip' : ' trips') + ' your sell rules.',
             detail: sellRuleTrips.map(t => t.name + ' (' + t.pos + ')').join(', ') + ' — your GM plan says move ' + (sellRuleTrips.length > 1 ? 'them' : 'him') + ' while the value holds.',
         };
-        if (gm.mode === 'rebuild' || gm.marketPosture === 'sell_high') actions.unshift(sellAction);
-        else actions.push(sellAction);
+        actions.push(sellAction);
     }
-    if (alexFocus.trades !== false) {
+    if (canTrade && alexFocus.trades !== false) {
         // Warm partner-fit intel upgrades the generic CTA into a named call:
         // best complementary roster + why, straight from the tradeWarm scan.
         const topFit = tradeWarm[0] || null;
-        actions.push({
-            icon: '🔄', tab: 'trades',
+        if (topFit) actions.push({
+            icon: '🔄', tab: 'trades', priority: 60,
             title: topFit ? (topFit.name + ' looks like your best call.') : p.trade(Object.keys(ownerProfiles).length),
             detail: topFit
                 ? [
@@ -530,19 +517,32 @@ function IntelligenceBriefWidget({
     }
     if (alexFocus.draft !== false && draftCountdown) {
         actions.push({
-            icon: '📋', tab: 'draft',
+            icon: '📋', tab: 'draft', priority: draftCountdown.days <= 1 ? 110 : draftCountdown.days <= 7 ? 90 : 50,
             // '0 days out' reads wrong — inside 24h the draft is today.
             title: draftCountdown.days === 0 ? 'Draft is today. Time to lock in your board.' : p.draft(draftCountdown.days, draftCountdown.date),
             detail: `${draftCountdown.date} · I've got your scouting report ready when you are.`,
         });
     }
-    actions.push({
-        icon: '🏆', tab: 'analytics',
-        // No rank/tier claims until the assessment has actually landed.
-        title: (myRank > 0 && tier !== 'UNKNOWN') ? p.rank(myRank, tier) : 'League standings still syncing — see how the field stacks up.',
-        detail: (tier !== 'UNKNOWN' ? `${tier} tier · ` : '') + 'See where everyone else stands.',
+    const nextDeadline = (window.WrCalendar?.getUpcoming?.(currentLeague, leagueSkin) || []).find(event => {
+        if (event.estimated || event.tbd || !event.date) return false;
+        const until = new Date(event.date).getTime() - Date.now();
+        return Number.isFinite(until) && until <= 7 * 86400000 && !(event.id === 'draft' && draftCountdown);
+    });
+    if (nextDeadline) {
+        const days = Math.max(0, Math.ceil((new Date(nextDeadline.date).getTime() - Date.now()) / 86400000));
+        actions.push({
+            icon: nextDeadline.icon || '🗓️', tab: 'calendar', priority: days <= 1 ? 105 : 90,
+            title: nextDeadline.title + (days === 0 ? ' · Today' : days === 1 ? ' · Tomorrow' : ' · In ' + days + ' days'),
+            detail: 'Review the date and plan your next move in League Calendar.',
+        });
+    }
+    if (!actions.length) actions.push({
+        icon: '✓', tab: 'team-outlook', priority: 0,
+        title: 'No urgent move in this briefing.',
+        detail: 'Review your team outlook or continue your plan.',
     });
     }
+    actions.sort((a, b) => (b.priority || 0) - (a.priority || 0));
 
     // ── Reusable action button ───────────────────────────────────────
     const baseBtn = { background: 'var(--acc-fill1, rgba(212,175,55,0.05))', border: '1px solid var(--acc-fill3, rgba(212,175,55,0.15))', borderRadius: 'var(--card-radius, 10px)', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 500, textAlign: 'left', display: 'flex', alignItems: 'flex-start', gap: '10px', transition: 'all 0.15s', lineHeight: 1.4 };
@@ -557,7 +557,10 @@ function IntelligenceBriefWidget({
         };
         return React.createElement('button', {
             key,
-            onClick: () => goTo(a.tab), style: btnStyle,
+            onClick: () => {
+                if (a.acquisition && typeof window.WR?.openAcquisition === 'function') window.WR.openAcquisition(a.acquisition);
+                else goTo(a.tab);
+            }, style: btnStyle,
             onMouseEnter: e => e.currentTarget.style.background = 'var(--acc-fill3, rgba(212,175,55,0.15))',
             onMouseLeave: e => e.currentTarget.style.background = 'var(--acc-fill1, rgba(212,175,55,0.05))',
         },
@@ -610,7 +613,7 @@ function IntelligenceBriefWidget({
             title: isChopped ? 'Your survival plan — open Free Agency' : (gm.hasStrategy ? 'Your GM plan — tap to adjust' : 'No GM plan set — tap to set one'),
             style: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '5px', cursor: 'pointer', flexShrink: 0 },
         },
-            React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'JetBrains Mono', monospace" } }, isChopped ? 'SURVIVAL PLAN' : 'GM PLAN'),
+            React.createElement('span', { style: { fontSize: 'var(--text-micro, 0.6875rem)', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'JetBrains Mono', monospace" } }, isChopped ? 'SURVIVAL PLAN' : 'YOUR PLAN'),
             ...(chips
                 ? chips.map((c, i) => React.createElement('span', { key: i, style: chipStyle }, c))
                 : [React.createElement('span', { key: 'none', style: { ...chipStyle, color: 'var(--gold)', border: '1px dashed var(--acc-line2, rgba(212,175,55,0.35))' } }, 'Set your strategy →')]),

@@ -956,12 +956,13 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     const rawQueue = React.useMemo(() => {
         if (state.status !== 'ready' || !C?.Triage?.buildQueue) return null;
         try {
-            return C.Triage.buildQueue({
+            const built = C.Triage.buildQueue({
                 radar: state.radar, renewal: state.renewal, drift: state.drift,
                 calendar: state.calendar, conflicts: state.conflicts, genesis,
                 treasuries, constitutions: state.constitutions || {}, seats: state.seats,
                 graph: state.graph, mine: state.mine, week: state.week, nowMs: Date.now(),
             });
+            return { ...built, items: (built.items || []).map(item => item.kind === 'dues_zero_collected' ? { ...item, hub: 'dues' } : item) };
         } catch (e) { window.wrLog?.('commish.triage', e); return null; }
     }, [state.status, genesis, treasuries, ackTick, genTick, treasuryTick]);
 
@@ -1068,14 +1069,15 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
         const noCon = managedLeagues.filter(l => !(state.constitutions || {})[String(l.league_id || l.id)]).length;
         const avg = (genesis || []).length ? Math.round(genesis.reduce((s, g) => s + g.pct, 0) / genesis.length) : 0;
         return [
-            { group: 'OPEN THE SEASON', hub: 'genesis', name: 'Season Setup', badge: badge('genesis'), stat: avg + '%', unit: 'AVG READINESS', status: lowest ? ('Lowest: ' + lowest.leagueName + ' ' + lowest.pct + '% — ' + (lowest.blockers?.[0] || 'blockers open') + '.') : 'Readiness pending.', dormant: false },
-            { group: 'OPEN THE SEASON', hub: 'ops', name: 'Operations', badge: badge('ops'), stat: String(driftN), unit: 'UNRATIFIED EDITS', status: (state.conflicts.length ? state.conflicts.length + ' calendar conflict' + (state.conflicts.length === 1 ? '' : 's') : 'No collisions') + ' · ' + driftN + ' settings change' + (driftN === 1 ? '' : 's'), dormant: false },
-            { group: 'OPEN THE SEASON', hub: 'rulelab', name: 'Rule Lab', badge: null, stat: ruleLab.season ? String(ruleLab.season) : '—', unit: 'REPLAY SEASON', status: 'Test a scoring change against a finished season.', dormant: false },
-            { group: 'OPEN THE SEASON', hub: 'schedule', name: 'Schedule Builder', badge: null, stat: schedulesBuilt + '/' + managedLeagues.length, unit: 'PLANS BUILT', status: 'Plan the season\u2019s week-by-week matchups \u2014 a tool, not a queue.', dormant: false },
-            { group: 'HOLD THE ROOM', hub: 'people', name: 'People', badge: badge('people'), stat: String(darkCount), unit: 'FLAGGED DARK', status: ((state.renewal?.summary?.atRisk ?? 0) + ' renewals at risk · ' + state.seats.length + ' seat' + (state.seats.length === 1 ? '' : 's') + ' open'), dormant: false },
-            { group: 'HOLD THE ROOM', hub: 'governance', name: 'Bylaws & Dues', badge: badge('governance'), stat: duesTotals.total ? (duesTotals.paid + '/' + duesTotals.total) : '—', unit: 'DUES MARKED', status: noCon ? ('No constitution on file in ' + noCon + ' of ' + managedLeagues.length + ' leagues.') : 'Constitutions on file.', dormant: false },
-            { group: 'THE BROADCAST', hub: 'network', name: 'The Coefficient', badge: scored ? badge('network') : null, stat: scored ? String((state.coefficient?.rows || []).length) : '—', unit: scored ? 'HUMANS RATED' : 'NO SCORED WEEKS', status: 'Rates every human across your leagues on one all-play scale. Starts Week 1 — ' + Object.keys(state.graph.people || {}).length + ' humans staged.', dormant: !scored },
-            { group: 'THE BROADCAST', hub: 'programmes', name: 'Programmes', badge: scored ? badge('programmes') : null, stat: '—', unit: 'WEEKS PUBLISHED', status: 'One shareable recap per league per week. The first one prints after Week 1.', dormant: !scored },
+            { group: 'Season & Schedule', hub: 'genesis', name: 'Season Setup', badge: badge('genesis'), stat: avg + '%', unit: 'AVG READINESS', status: lowest ? ('Lowest: ' + lowest.leagueName + ' ' + lowest.pct + '% — ' + (lowest.blockers?.[0] || 'blockers open') + '.') : 'Readiness pending.', dormant: false },
+            { group: 'Season & Schedule', hub: 'ops', name: 'Calendar & Operations', badge: badge('ops'), stat: String(driftN), unit: 'UNRATIFIED EDITS', status: (state.conflicts.length ? state.conflicts.length + ' calendar conflict' + (state.conflicts.length === 1 ? '' : 's') : 'No collisions') + ' · ' + driftN + ' settings change' + (driftN === 1 ? '' : 's'), dormant: false },
+            { group: 'Rules', hub: 'rulelab', name: 'Rule Lab', badge: null, stat: ruleLab.season ? String(ruleLab.season) : '—', unit: 'REPLAY SEASON', status: 'Test a scoring change against a finished season.', dormant: false },
+            { group: 'Season & Schedule', hub: 'schedule', name: 'Schedule Builder', badge: null, stat: schedulesBuilt + '/' + managedLeagues.length, unit: 'PLANS BUILT', status: 'Plan the season\u2019s week-by-week matchups \u2014 a tool, not a queue.', dormant: false },
+            { group: 'People & Dues', hub: 'people', name: 'People', badge: badge('people'), stat: String(darkCount), unit: 'FLAGGED DARK', status: ((state.renewal?.summary?.atRisk ?? 0) + ' renewals at risk · ' + state.seats.length + ' seat' + (state.seats.length === 1 ? '' : 's') + ' open'), dormant: false },
+            { group: 'Rules', hub: 'governance', name: 'Bylaws & Amendments', badge: badge('governance'), stat: (managedLeagues.length - noCon) + '/' + managedLeagues.length, unit: 'CONSTITUTIONS', status: noCon ? ('No constitution on file in ' + noCon + ' of ' + managedLeagues.length + ' leagues.') : 'Constitutions on file.', dormant: false },
+            { group: 'People & Dues', hub: 'dues', name: 'Dues', badge: badge('dues'), stat: duesTotals.paid + '/' + duesTotals.total, unit: 'DUES MARKED', status: 'Manage league dues and payment records.', dormant: false },
+            { group: 'Reports', hub: 'network', name: 'The Coefficient', badge: scored ? badge('network') : null, stat: scored ? String((state.coefficient?.rows || []).length) : '—', unit: scored ? 'HUMANS RATED' : 'NO SCORED WEEKS', status: 'Rates every human across your leagues on one all-play scale. Starts Week 1 — ' + Object.keys(state.graph.people || {}).length + ' humans staged.', dormant: !scored },
+            { group: 'Reports', hub: 'programmes', name: 'Weekly Recaps', badge: scored ? badge('programmes') : null, stat: '—', unit: 'WEEKS PUBLISHED', status: 'One shareable recap per league per week. The first one prints after Week 1.', dormant: !scored },
         ];
     }, [state.status, queue, genesis, treasuries, ruleLab.season, schedulesBuilt]);
 
@@ -1181,19 +1183,19 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
     // desks wants the whole map visible. The sidebar carries the same group
     // vocabulary as the Command view's desk cards, so the two teach each other.
     const HUB_GROUPS = [
-        { name: 'OPEN THE SEASON', hubs: [['genesis', 'Season Setup'], ['ops', 'Operations'], ['rulelab', 'Rule Lab'], ['schedule', 'Schedule Builder']] },
-        { name: 'HOLD THE ROOM', hubs: [['people', 'People'], ['governance', 'Bylaws & Dues']] },
-        { name: 'THE BROADCAST', hubs: [['network', 'The Coefficient'], ['programmes', 'Programmes']] },
+        { name: 'Season & Schedule', hubs: [['genesis', 'Season Setup'], ['schedule', 'Schedule Builder'], ['ops', 'Calendar & Operations']] },
+        { name: 'Rules', hubs: [['rulelab', 'Rule Lab'], ['governance', 'Bylaws & Amendments']] },
+        { name: 'People & Dues', hubs: [['people', 'People'], ['dues', 'Dues']] },
+        { name: 'Reports', hubs: [['programmes', 'Weekly Recaps'], ['network', 'The Coefficient']] },
     ];
-    // Sidebar shape: the same three groups, with dormancy carried through so a
-    // desk that can't have data yet says so instead of reading as broken.
     const scoredYet = state.status === 'ready' && (state.week || 0) > 0
         && Object.values(state.ledgers || {}).some(l => (l.weeks || []).length);
     const sidebarGroups = HUB_GROUPS.map(g => ({
         name: g.name,
-        dormant: g.name === 'THE BROADCAST' && !scoredYet,
-        hubs: g.hubs.map(([hub, name]) => ({ hub, name, dormant: g.name === 'THE BROADCAST' && !scoredYet })),
+        dormant: g.name === 'Reports' && !scoredYet,
+        hubs: g.hubs.map(([hub, name]) => ({ hub, name, dormant: g.name === 'Reports' && !scoredYet })),
     }));
+    const activeWorkspace = sidebarGroups.find(g => g.hubs.some(h => h.hub === tab));
     const hubCounts = React.useMemo(() => {
         const out = {};
         ((queue && queue.items) || []).forEach(it => {
@@ -1271,9 +1273,12 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                         {isPhone ? (
                             <button onClick={() => setNavOpen(true)}
                                 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', minHeight: '44px', padding: '10px 14px', cursor: 'pointer', background: 'var(--co-surface-2)', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', color: TEXT, fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                                ☰ Desks
+                                ☰ Workspaces
                             </button>
                         ) : null}
+                        {activeWorkspace && <nav aria-label={activeWorkspace.name + ' views'} style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
+                            {activeWorkspace.hubs.map(h => <button key={h.hub} type="button" aria-current={tab === h.hub ? 'page' : undefined} onClick={() => openHub(h.hub, scopeLeagueId)} style={{ minHeight: '44px', padding: '8px 12px', border: '1px solid ' + (tab === h.hub ? ACCENT : LINE), borderRadius: '8px', background: tab === h.hub ? 'var(--co-accent-fill)' : PANEL, color: tab === h.hub ? ACCENT : TEXT, fontFamily: MONO, cursor: 'pointer' }}>{h.name}</button>)}
+                        </nav>}
                         {scopeLeagueId ? (
                             <button onClick={() => setScopeLeagueId(null)}
                                 style={{ marginBottom: '12px', padding: '6px 11px', cursor: 'pointer', background: 'var(--co-accent-fill)', border: `1px solid var(--co-accent-line)`, borderRadius: 'var(--card-radius-sm, 8px)', color: ACCENT, fontFamily: MONO, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
@@ -1413,8 +1418,9 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                 {tab === 'genesis' ? (window.WrCommishGenesisPanel ? (
                     genesis ? <window.WrCommishGenesisPanel readiness={genesis} onToggle={onGenesisToggle} /> : missing('Season Setup')
                 ) : missing('Season Setup')) : null}
-                {tab === 'governance' ? (window.WrCommishGovernancePanel ? (
+                {(tab === 'governance' || tab === 'dues') ? (window.WrCommishGovernancePanel ? (
                     <window.WrCommishGovernancePanel
+                        key={tab} section={tab === 'dues' ? 'dues' : 'bylaws'}
                         leagues={state.mine} graph={state.graph}
                         constitutions={state.constitutions || {}} amendments={bylawAmendments} treasuries={treasuries}
                         onMarkPaid={onMarkPaid} onSetLeagueSafe={onSetLeagueSafe} onSetSheet={onSetSheet}

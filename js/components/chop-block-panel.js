@@ -2,7 +2,7 @@
 // js/components/chop-block-panel.js — window.WrChopBlock
 // The Chopping Block: survival odds for a Sleeper CHOPPED league.
 //
-//   <WrChopBlock active currentLeague myRoster />
+//   <WrChopBlock active currentLeague myRoster compact? onOpenLeague? />
 //
 // Renders three things and nothing else:
 //   1. YOUR number — chance of being chopped this week, and how many more
@@ -18,7 +18,7 @@
 //
 // Deferred with the "lineup" group. Pure render + one async load.
 // ══════════════════════════════════════════════════════════════════
-function WrChopBlock({ active, currentLeague, myRoster }) {
+function WrChopBlock({ active, currentLeague, myRoster, compact = false, onOpenLeague }) {
     const SILVER = 'var(--silver, #BDB8AD)', TEXT = 'var(--white, #F5F2EA)';
     const GREEN = 'var(--k-2ecc71, #2ecc71)', RED = 'var(--k-e74c3c, #e74c3c)';
     const AMBER = 'var(--k-f0a500, #f0a500)', GOLD = 'var(--gold, #D4AF37)';
@@ -69,13 +69,14 @@ function WrChopBlock({ active, currentLeague, myRoster }) {
             {children}
         </div>
     );
+    const leagueAction = () => compact && typeof onOpenLeague === 'function' ? <button type="button" onClick={onOpenLeague} style={{ background: 'transparent', border: '1px solid ' + LINE, borderRadius: '6px', padding: '7px 10px', minHeight: '40px', color: GOLD, fontSize: '.78rem', cursor: 'pointer' }}>Open League →</button> : null;
 
     if (st.status === 'not-chopped') return null;
     if (st.status === 'loading' || st.status === 'idle') {
-        return <Section title="The Chopping Block"><div style={{ color: SILVER, fontSize: '0.78rem', ...mono }}>Simulating survival…</div></Section>;
+        return <Section title="The Chopping Block"><div style={{ color: SILVER, fontSize: '0.78rem', ...mono }}>Simulating survival…</div>{leagueAction()}</Section>;
     }
     if (st.status !== 'ready') {
-        return <Section title="The Chopping Block"><div style={{ color: SILVER, fontSize: '0.78rem' }}>Survival odds are unavailable right now — weekly scores could not be loaded.</div></Section>;
+        return <Section title="The Chopping Block"><div style={{ color: SILVER, fontSize: '0.78rem' }}>Survival odds are unavailable right now — weekly scores could not be loaded.</div>{leagueAction()}</Section>;
     }
 
     const { sim } = st;
@@ -86,7 +87,7 @@ function WrChopBlock({ active, currentLeague, myRoster }) {
     const projected = sim.basis === 'projected';
 
     return (
-        <div>
+        <div aria-label={compact ? 'Survival summary' : 'Survival odds'}>
             {me && me.alive ? (
                 <Section title="Your Survival" meta={(projected ? 'projected form · ' : '') + sim.simCount.toLocaleString() + ' simulations'}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
@@ -103,7 +104,7 @@ function WrChopBlock({ active, currentLeague, myRoster }) {
                         ))}
                     </div>
                     <div style={{ ...microHdr, textTransform: 'none', letterSpacing: 0, marginTop: '9px', lineHeight: 1.55 }}>
-                        {projected
+                        {compact ? (alive.length + ' teams remain. ' + (projected ? 'Based on projected roster strength.' : 'Weekly odds use scoring form.')) : projected
                             ? 'No games played yet — these run off projected roster strength, not form. They will sharpen every week.'
                             : 'Every week the lowest score is chopped. Trust the this-week number most: the season-long figures assume nobody rebuilds off the waiver pool, and in this format everybody does.'}
                     </div>
@@ -111,12 +112,12 @@ function WrChopBlock({ active, currentLeague, myRoster }) {
             ) : me && !me.alive ? (
                 <Section title="Your Survival" meta={'chopped in week ' + me.eliminatedWeek}>
                     <div style={{ color: SILVER, fontSize: '0.8rem', lineHeight: 1.6 }}>
-                        You were chopped in <b style={{ color: TEXT }}>week {me.eliminatedWeek}</b> and your roster went back to the waiver pool. The block below is still live.
+                        You were chopped in <b style={{ color: TEXT }}>week {me.eliminatedWeek}</b> and your roster went back to the waiver pool. {compact ? 'The remaining field is in League.' : 'The block below is still live.'}
                     </div>
                 </Section>
             ) : null}
 
-            <Section title="The Block" meta={alive.length + ' alive · most at risk first'}>
+            {!compact && <Section title="The Block" meta={alive.length + ' alive · most at risk first'}>
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead><tr>
@@ -145,9 +146,9 @@ function WrChopBlock({ active, currentLeague, myRoster }) {
                         <b style={{ color: TEXT }}>{alive[0].name}</b> is most likely to go this week — that roster is the one about to hit the waiver pool. Plan your bids before it does.
                     </div>
                 ) : null}
-            </Section>
+            </Section>}
 
-            {dead.length ? (
+            {!compact && dead.length ? (
                 <Section title="Already Chopped" meta={dead.length + ' gone'}>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                         {dead.slice().sort((a, b) => (a.eliminatedWeek || 0) - (b.eliminatedWeek || 0)).map(r => (
@@ -158,6 +159,7 @@ function WrChopBlock({ active, currentLeague, myRoster }) {
                     </div>
                 </Section>
             ) : null}
+            {compact && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '12px', color: SILVER, fontSize: '.75rem' }}><span>{alive.length} alive · {dead.length} chopped</span>{leagueAction()}</div>}
         </div>
     );
 }

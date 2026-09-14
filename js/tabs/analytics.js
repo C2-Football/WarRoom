@@ -115,6 +115,7 @@ function AnalyticsPanel({
   analyticsData,
   analyticsTab,
   setAnalyticsTab,
+  workspaceView,
   myRoster,
   currentLeague,
   leagueSkin,
@@ -216,7 +217,11 @@ function AnalyticsPanel({
         // Reports tab strip now reads its full label ('Custom Reports') — navLabel dropped.
         { key: 'reports', label: 'Custom Reports' },
     ];
-    const activeSubTab = subTabs.find(t => t.key === analyticsTab) || subTabs[0];
+    // A workspace owns its navigation; this panel renders only its selected
+    // evidence view. Legacy standalone mounts retain the old tab controls.
+    const workspaceAliases = { market: 'trades', players: 'assets' };
+    const requestedView = workspaceView ? (workspaceAliases[workspaceView] || workspaceView) : analyticsTab;
+    const activeSubTab = subTabs.find(t => t.key === requestedView) || subTabs[0];
     const analyticsViewTab = activeSubTab.key;
 
     const _analyticsContext = {
@@ -461,6 +466,7 @@ function AnalyticsPanel({
                     <div>
                         {!compact && <span>{r.kicker || r.label}</span>}
                         <strong>{r.label}</strong>
+                        {r.onAction && <button type="button" onClick={r.onAction} style={{ display: 'block', marginTop: '5px', minHeight: '36px', padding: '5px 8px', background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,.3))', borderRadius: '6px', color: 'var(--gold)', fontSize: '.72rem', cursor: 'pointer', textAlign: 'left' }}>{r.actionLabel || 'Review options'} →</button>}
                     </div>
                     {!compact && <em>{r.detail}</em>}
                     <b style={{ color: r.color || undefined }}>{r.value}</b>
@@ -482,13 +488,13 @@ function AnalyticsPanel({
 
     return (
     <div className="analytics-shell" style={{ padding: 'var(--space-md) var(--space-lg) var(--space-lg)' }}>
-        {setActiveTab && <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}><button type="button" onClick={() => setActiveTab('stats')} style={{ background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,.25))', borderRadius: '6px', padding: '7px 10px', color: 'var(--gold)', fontSize: '.75rem', cursor: 'pointer' }}>Browse player stats →</button></div>}
+        {!workspaceView && setActiveTab && <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}><button type="button" onClick={() => setActiveTab('stats')} style={{ background: 'transparent', border: '1px solid var(--acc-line2, rgba(212,175,55,.25))', borderRadius: '6px', padding: '7px 10px', color: 'var(--gold)', fontSize: '.75rem', cursor: 'pointer' }}>Browse player stats →</button></div>}
         {/* PHONE (≤767): the 5 sub-tabs re-pour as the shared P2 .wr-seg
             (scrollable 4+ variant — min-width:fit-content children); long
             labels compress for the 390px strip per the gallery spec. Same
             setAnalyticsTab setter. Desktop/tablet keep the module strip
             below, byte-identical. */}
-        {_phone ? (
+        {!workspaceView && (_phone ? (
             <div className="wr-seg" style={{ marginBottom: '10px' }}>
                 {subTabs.map(t => (
                     <button key={t.key} className={analyticsViewTab === t.key ? 'is-on' : ''} onClick={() => setAnalyticsTab(t.key)}>
@@ -507,7 +513,7 @@ function AnalyticsPanel({
                 <span className="wr-module-pill">{d?.computedAt ? 'Updated ' + new Date(d.computedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Loading'}</span>
             </div>
         </div>
-        )}
+        ))}
 
         {!d ? (
             <div style={{ ...aCardStyle, color: 'var(--silver)', textAlign: 'center', padding: '40px' }}>
@@ -926,6 +932,7 @@ function AnalyticsPanel({
                 evidencePos.add(pos);
                 evidenceRows.push({
                     kicker: 'Starter Quality',
+                    position: pos,
                     label: (c.have === 0 ? 'Add ' : 'Upgrade ') + posLabel(pos) + (c.have === 0 ? ' starter' : ' room'),
                     detail: posLabel(pos) + ' grades ' + c.grade + ' — ' + c.have + ' of your players rank inside the top ' + c.threshold + ' (' + c.slotsInt + ' slot' + (c.slotsInt > 1 ? 's' : '') + ' × ' + numTeams + ' teams).',
                     value: c.severity.toUpperCase(),
@@ -939,6 +946,7 @@ function AnalyticsPanel({
                 const sev = String(g.priority || g.severity || 'low').toLowerCase();
                 evidenceRows.push({
                     kicker: 'Champion Template',
+                    position: g.pos || null,
                     label: g.action || g.area || 'Roster signal',
                     detail: g.detail || 'Use module tabs to inspect the player-level evidence behind this room.',
                     value: sev.toUpperCase(),
@@ -962,14 +970,31 @@ function AnalyticsPanel({
             }
             const gapRows = (evidenceRows.length ? evidenceRows : [{ kicker: 'Roster', label: 'No starter-quality gap', detail: 'Every starting room grades B or better against the league.', value: 'OK', color: goodColor, weight: 0, score: 0 }])
                 .sort((a, b) => (b.weight - a.weight) || (a.score - b.score))
-                .slice(0, 6);
+                .slice(0, 6)
+                .map(row => {
+                    if (row.position) return {
+                        ...row,
+                        actionLabel: 'Improve ' + posLabel(row.position),
+                        onAction: () => {
+                            const context = { position: row.position, source: 'team-outlook', reason: row.label + '. ' + row.detail, leagueId: currentLeague?.league_id || currentLeague?.id };
+                            if (typeof window.WR?.openAcquisition === 'function') window.WR.openAcquisition(context);
+                            else setActiveTab?.('fa');
+                        },
+                    };
+                    if (row.weight > 0 && setActiveTab) return {
+                        ...row,
+                        actionLabel: row.kicker === 'Draft Capital' ? 'Review draft capital' : 'Review team plan',
+                        onAction: () => setActiveTab(row.kicker === 'Draft Capital' ? 'draft' : 'strategy'),
+                    };
+                    return row;
+                });
 
             return (
             <React.Fragment>
                 {/* Thesis + mode directive + tier/win-now reads = Pro; the raw
                     proof-grid numbers below stay free (D7 raw math). */}
                 {!isPro && <ProLock label="Analytics Command" sub="The research thesis, suggested mode directive, and tier / win-now pressure reads for this roster are Pro." />}
-                {isPro && <div className="analytics-draft-summary"><strong>Roster &amp; winning benchmarks</strong><span>Suggested mode · <b style={{ color: modeColor }}>{modeLabel}</b></span><details><summary>How to read this</summary><p>{modeDirective} ({modeSource})</p><p>Elite player = 7000+ DHQ or top 5 at position. Team benchmarks compare your roster against this league’s proven top teams.</p></details></div>}
+                {isPro && <div className="analytics-draft-summary"><strong>Roster &amp; winning benchmarks</strong><span>{gm.hasStrategy ? 'Your plan' : 'Assessment suggests'} · <b style={{ color: modeColor }}>{modeLabel}</b></span><details><summary>How to read this</summary><p>{modeDirective} ({modeSource})</p><p>Your plan sets the direction. The coverage and benchmark evidence below describes your current roster.</p><p>Elite player = 7000+ DHQ or top 5 at position. Team benchmarks compare your roster against this league’s proven top teams.</p></details></div>}
 
                 <AnalyticsProofGrid items={rosterProofItems} />
 
