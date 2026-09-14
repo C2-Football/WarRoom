@@ -116,7 +116,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
         archiveComplete: past.key === pastKey && past.complete,
         board: historicalEdition || !archiveReady || editionWeek !== 'latest' ? null : board,
     }), [archive, archiveReady, historicalEdition, editionStart, storyThrough, editionWeek, standings, currentLeague, playersData, headToHead, past, board]);
-    const editionStories = edition.stories.filter(it => editionWeek === 'all' || it.week === selectedWeek)
+    const editionStories = edition.stories.filter(it => it.documentary || editionWeek === 'all' || it.week === selectedWeek)
         .concat(editionWeek === 'latest' ? edition.previews : []);
 
     // ── Top fantasy scorer per position (rostered players only) ──
@@ -440,7 +440,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
     React.useEffect(() => {
         if (expanded) dialogRef.current?.showModal?.();
     }, [expanded]);
-    const visible = items.filter(it => topic === 'all' || (topic === 'stories' ? ['story', 'record'].includes(it.kind) : topic === 'recaps' ? it.kind === 'recap' : topic === 'records' ? it.kind === 'record' : topic === 'rivalries' ? it.category === 'Rivalry watch' || it.category === 'Revenge game' : topic === 'nfl' ? it.kind.startsWith('nfl') : topic === 'trends' ? it.kind === 'trend' : !it.kind.startsWith('nfl') && it.kind !== 'trend'));
+    const visible = items.filter(it => topic === 'all' || (topic === 'history' ? it.documentary : topic === 'stories' ? ['story', 'record'].includes(it.kind) : topic === 'recaps' ? it.kind === 'recap' : topic === 'records' ? it.kind === 'record' : topic === 'rivalries' ? it.category === 'Rivalry watch' || it.category === 'Revenge game' : topic === 'nfl' ? it.kind.startsWith('nfl') : topic === 'trends' ? it.kind === 'trend' : !it.kind.startsWith('nfl') && it.kind !== 'trend'));
     const currentIndex = visible.length ? index % visible.length : 0;
     React.useEffect(() => {
         if (isPhone || paused || hovered || focused || expanded || reduced || visible.length < 2) return undefined;
@@ -454,7 +454,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
     const openItem = () => setExpanded(true);
     const allEditorial = visible.filter(it => ['story', 'record', 'recap'].includes(it.kind))
         .filter(it => teamFilter === 'all' || (it.rosterIds || []).some(rid => sameId(rid, teamFilter)))
-        .sort((a, b) => (editionWeek === 'all' ? (b.week || 0) - (a.week || 0) : 0) || (b.weight || 40) - (a.weight || 40));
+        .sort((a, b) => (topic === 'history' ? (b.eventSeason || 0) - (a.eventSeason || 0) : 0) || (editionWeek === 'all' ? (b.week || 0) - (a.week || 0) : 0) || (b.weight || 40) - (a.weight || 40));
     // A front page is edited, not a dump of every generated headline.
     const editorial = topic === 'all' ? (() => {
         const seen = new Set(), firsts = [], rest = [];
@@ -465,7 +465,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
     const lead = editorial[0];
     const fullCoverage = past.key === pastKey && past.complete && (historicalEdition || archiveReady) && edition.completedThrough === storyThrough;
     const archiveTitle = historicalEdition || editionWeek !== 'latest' ? 'Archive through ' + editionLeague.season + ' · Wk ' + edition.completedThrough : fullCoverage && !edition.archive.rulesChanged ? 'All-time · linked seasons' : 'Available archive · same scoring';
-    const topics = [['all', 'Front page'], ['stories', 'Stories'], ['recaps', 'Recaps'], ['records', 'Records'], ['rivalries', 'Rivalries'], ['league', 'League feed'], ['nfl', 'NFL'], ['trends', 'Trends']];
+    const topics = [['all', 'Front page'], ['stories', 'Stories'], ['recaps', 'Recaps'], ['records', 'Records'], ['rivalries', 'Rivalries'], ...(edition.chronicle ? [['history', 'History']] : []), ['league', 'League feed'], ['nfl', 'NFL'], ['trends', 'Trends']];
     const cards = editorial.slice(lead ? 1 : 0);
     const changeSeason = value => { setReadingSeason(value); setEditionWeek('latest'); setTeamFilter('all'); setIndex(0); };
     const articleId = it => 'wire-article-' + encodeURIComponent(it.id || it.label + it.text);
@@ -477,6 +477,7 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
         return <span className="wr-journal-team-badge"><span>{initials(editionName(rid))}</span>{avatar && /^[a-zA-Z0-9_-]+$/.test(avatar) && <img src={'https://sleepercdn.com/avatars/thumbs/' + avatar} alt="" loading="lazy" onError={e => { e.currentTarget.style.display = 'none'; }} />}</span>;
     };
     const storyVisual = (it, hero) => {
+        if (it.documentary) return <figure className="wr-journal-art is-history" aria-label={'League archive · ' + it.eventSeason}>{hero && <span className="wr-journal-art-label">{it.category}</span>}<strong>{it.eventSeason}</strong>{hero && <figcaption>From the league archives</figcaption>}</figure>;
         const ids = (it.rosterIds || []).slice(0, 2), pid = it.featuredPid || it.pid;
         return <figure className={'wr-journal-art' + (ids.length > 1 ? ' is-matchup' : '') + (pid ? ' has-player' : '')} aria-label={pid ? _getPlayerName(pid) + ' · player portrait' : ids.map(editionName).join(' vs. ') || 'League spotlight'}>
             {hero && <span className="wr-journal-art-label">{it.category || 'League spotlight'}</span>}
@@ -485,11 +486,11 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
             {hero && !pid && it.metric && <figcaption><strong>{it.metric}</strong><span>{it.metricLabel}</span></figcaption>}
         </figure>;
     };
-    const storyContext = it => <>{it.body && <p>{it.body}</p>}{it.related?.length > 0 && <details className="wr-journal-context"><summary>The story behind the score</summary>{it.related.map((r, i) => <div key={i}><strong>{r.label}</strong><p>{r.text}</p></div>)}</details>}{playerLink(it) && <button type="button" onClick={() => { close(); window.openPlayerModal(it.pid); }}>View player →</button>}</>;
+    const storyContext = it => <>{it.body && <p>{it.body}</p>}{it.related?.length > 0 && <details className="wr-journal-context"><summary>The story behind the score</summary>{it.related.map((r, i) => <div key={i}><strong>{r.label}</strong><p>{r.text}</p></div>)}</details>}{it.sources?.length > 0 && <details className="wr-journal-context"><summary>Sources & historical scope</summary><p>Historical facts retain their original season. Playoff and award history does not add to regular-season records.</p><ul>{it.sources.map((s, i) => <li key={i}>{s.workbook ? `${s.workbook} · ${s.sheet}!${s.range}` : <a href={s.url} target="_blank" rel="noreferrer">{s.label}</a>}</li>)}</ul></details>}{playerLink(it) && <button type="button" onClick={() => { close(); window.openPlayerModal(it.pid); }}>View player →</button>}</>;
     const storyCard = (it, hero = false) => <article id={articleId(it)} tabIndex={-1} key={it.id || it.label + it.text} className={'wr-journal-story' + (hero ? ' is-lead' : '')}>
         {storyVisual(it, hero)}
         <div className="wr-journal-story-copy"><div className="wr-journal-kicker"><span>{it.label}</span></div>
-        <h3>{it.text}</h3><div className="wr-journal-byline">The Wire <span>·</span> {it.preview ? 'Matchup preview' : it.kind === 'recap' ? 'Game report' : 'League report'}</div>
+        <h3>{it.text}</h3><div className="wr-journal-byline">The Wire <span>·</span> {it.documentary ? 'From the archives' : it.preview ? 'Matchup preview' : it.kind === 'recap' ? 'Game report' : 'League report'}</div>
         {hero && it.matchup && <div className="wr-journal-scoreline">{it.matchup.map(t => <div key={t.rid}>{teamBadge(t.rid)}<span>{t.name}</span><strong>{Number(t.score).toFixed(2)}</strong></div>)}</div>}
         {hero ? storyContext(it) : <details className="wr-journal-read"><summary>Read story <span aria-hidden="true">→</span></summary>{storyContext(it)}</details>}
         </div>
@@ -557,10 +558,12 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
                         {recordCard('Largest archived win', edition.archive.margin, edition.archive.margins, 'point margin · same scoring')}
                         {edition.archive.rulesChanged && <p className="wr-journal-footnote">Scoring or starting positions changed in earlier seasons. The original-scoring high keeps each era's rules; the other point records compare matching rules only.</p>}
                     </details>
+                    {edition.chronicle && <details className="wr-journal-rail-section" open={topic === 'history'}><summary>League chronicles <span>Before {editionLeague.season}</span></summary><p className="wr-journal-footnote">{edition.chronicle.coverage}</p><ol className="wr-journal-history">{edition.chronicle.finals.filter(f => teamFilter === 'all' || f.owners.includes(editionLeague.rosters?.find(r => sameId(r.roster_id, teamFilter))?.owner_id)).map(f => <li key={f.id}><strong>{f.season} · {f.winner}</strong><p>{f.loser ? `Defeated ${f.loser}${f.scores ? ' · ' + f.scores.map(n => Number(n).toFixed(2)).join('–') : ''}` : 'Champion listed; final score unrecorded'}</p></li>)}</ol><p className="wr-journal-footnote">Season-end honors appear in later-season editions. Missing or conflicting entries are excluded from automatic records.</p></details>}
+                    {edition.chronicle?.records.length > 0 && <details className="wr-journal-rail-section" open={topic === 'records'}><summary>Historical scoring honors <span>Original-era points</span></summary>{edition.chronicle.records.filter(f => teamFilter === 'all' || f.owners.includes(editionLeague.rosters?.find(r => sameId(r.roster_id, teamFilter))?.owner_id)).slice().sort((a, b) => b.season - a.season).map(f => <article className="wr-journal-rival" key={f.id}><strong>{f.season} · {f.award.toLowerCase()}</strong><p>{f.holder} · {f.stat}</p>{f.reconciliation === 'award-snapshot-differs' && <p>Checked Sleeper score: {Number(f.observed.value).toFixed(2)} · {f.observed.holder}{f.observed.week ? ` · Week ${f.observed.week}` : ` · through Week ${f.observed.throughWeek}`}</p>}<small>{f.sources[0].sheet}!{f.sources[0].range}</small></article>)}<p className="wr-journal-footnote">Documented awards, not scoring-normalized records. These do not trigger record-breaking claims.</p></details>}
                     {edition.rivals.length > 0 && <details className="wr-journal-rail-section" open={topic === 'rivalries'}><summary>Rivalry watch <span>This week</span></summary>{edition.rivals.filter(r => teamFilter === 'all' || r.rosterIds.some(rid => sameId(rid, teamFilter))).map(r => <article className="wr-journal-rival" key={r.rosterIds.join(':')}><strong>{r.a} <span>vs.</span> {r.b}</strong><div>{r.winsA}<span>–</span>{r.winsB}{r.ties > 0 && <small> · {r.ties} tied</small>}</div><p>{r.meetings} recorded regular-season meeting{r.meetings === 1 ? '' : 's'}</p></article>)}</details>}
                     {edition.table.length > 0 && <details className="wr-journal-rail-section" open={topic === 'league'}><summary>The chase <span>THROUGH WK {edition.completedThrough}</span></summary><ol className="wr-journal-table">{edition.table.map(t => <li key={t.rid}><span>{t.rank}</span><strong>{editionName(t.rid)}</strong><span>{t.wins}–{t.losses}{t.ties ? '–' + t.ties : ''}</span></li>)}</ol><p className="wr-journal-footnote">Completed results, including median games where enabled. Ordered by wins, half-credit for ties, then points for. Official division seeds and tiebreaks may differ.</p></details>}
                 </aside></div>
-                <footer className="wr-journal-footer"><strong>FROM THE LEAGUE, FOR THE LEAGUE.</strong><details><summary>Sources & coverage</summary><p>Stories use Sleeper's scored regular-season matchups. Completed weeks {editionStart}–{edition.completedThrough >= editionStart ? edition.completedThrough : 'none yet'} in {editionLeague.season}. Live scores are provisional. Stat corrections can rewrite an edition; use Refresh edition for the latest.</p><p>Historical records cover {edition.archive.allSeasons.join(', ') || 'no completed seasons yet'}. {past.key === pastKey && past.complete ? 'The connected Sleeper history chain has been checked.' : 'Earlier history may still be missing.'} Pre-Sleeper seasons and playoffs are not included. Rivalries follow owner IDs, not roster slots. Current team names represent current owners; archived editions use that season's names.</p><p>Trade and waiver coverage includes loaded, completed transactions from the last seven days. NFL scores refresh every minute; league scores every 30 seconds. Player trends compare the two labelled seasons.</p></details></footer>
+                <footer className="wr-journal-footer"><strong>FROM THE LEAGUE, FOR THE LEAGUE.</strong><details><summary>Sources & coverage</summary><p>Stories use Sleeper's scored regular-season matchups. Completed weeks {editionStart}–{edition.completedThrough >= editionStart ? edition.completedThrough : 'none yet'} in {editionLeague.season}. Live scores are provisional. Stat corrections can rewrite an edition; use Refresh edition for the latest.</p><p>Historical records cover {edition.archive.allSeasons.join(', ') || 'no completed seasons yet'}. {past.key === pastKey && past.complete ? 'The connected Sleeper history chain has been checked.' : 'Earlier history may still be missing.'} These calculated totals exclude pre-Sleeper seasons and playoffs. Rivalries follow owner IDs, not roster slots. Current team names represent current owners; archived editions use that season's names.</p><p>Trade and waiver coverage includes loaded, completed transactions from the last seven days. NFL scores refresh every minute; league scores every 30 seconds. Player trends compare the two labelled seasons.</p></details></footer>
             </div>
         </dialog>}
     </section>;

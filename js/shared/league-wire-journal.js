@@ -243,8 +243,9 @@
                 : choose([`${rival.a} vs. ${rival.b}: the next chapter`, `${rival.a} and ${rival.b} renew their rivalry`, `Familiar opponents. Fresh stakes. ${rival.a} vs. ${rival.b}`], board.week, a.roster_id);
             if (Number(board.week) > completedThrough && Number(board.week) <= lastReg) previews.push({ id: `preview:${season}:${board.week}:${a.roster_id}`, kind: 'story', category: 'Rivalry watch', label: `WK ${board.week} · RIVALRY WATCH`, text: previewTitle, body: `${rival.a} ${winsA === winsB ? 'are level at' : winsA > winsB ? 'lead the recorded series' : 'trail the recorded series'} ${winsA}–${winsB}${ties ? '–' + ties : ''} across ${meetings.length} regular-season meeting${meetings.length === 1 ? '' : 's'}. Last time: ${fmt(last.a === oa ? last.pa : last.pb)}–${fmt(last.a === oa ? last.pb : last.pa)} in ${last.season}, Week ${last.week}.`, week: Number(board.week), season, rosterIds: rival.rosterIds, weight: 70, preview: true, metric: `${winsA}–${winsB}`, metricLabel: `recorded series · ${rival.a} / ${rival.b}` });
         });
-        return { stories: stories.reverse(), previews, rivals, records, high, priorHigh, marginRecord, table: latestTable, completedThrough,
+        const result = { stories: stories.reverse(), previews, rivals, records, high, priorHigh, marginRecord, table: latestTable, completedThrough,
             archive: { historicalHigh, historicalRecords, allSeasons: [...new Set([...priorSeasons.map(s => String(s.league.season)), ...(completedThrough >= start ? [season] : [])])].sort(), high: archiveHigh, margin: archiveMargin, records: archiveRecords, margins: archiveMargins, complete: archiveComplete, rulesChanged, seasons: [...new Set([...comparableSeasons, ...(completedThrough >= start ? [season] : [])])].sort(), priorCount: priorSeasons.length } };
+        return root.WrWireChronicles?.enrich(result, { league, board: headToHead ? board : null, end, nameFor }) || result;
     }
     root.WrWireStories = { build, loadArchive, signature, inspect, bounds, oldName };
 })(typeof window !== 'undefined' ? window : globalThis);

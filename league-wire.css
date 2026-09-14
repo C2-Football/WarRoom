@@ -33,3 +33,7 @@
 @media(min-width:901px){.wr-journal-paper{padding-top:18px}.wr-journal-tools{margin-bottom:18px}.wr-journal-story.is-lead>.wr-journal-art{aspect-ratio:2/1}.wr-journal-story.is-lead .wr-journal-story-copy>.wr-journal-kicker{display:none}}
 
 .wr-journal-art.has-player .wr-journal-art-monogram{visibility:hidden}.wr-journal-art.has-player.is-image-missing .wr-journal-art-monogram{visibility:visible}
+
+.wr-journal-history{list-style:none;padding:0;margin:16px 0}.wr-journal-history li{padding:12px 0;border-bottom:1px solid #e6e6e6}.wr-journal-history strong{font:700 17px Georgia,serif}.wr-journal-history p{font-size:13px;line-height:1.5;color:#555;margin:5px 0 0}.wr-journal-context li{font-size:12px;line-height:1.6;overflow-wrap:anywhere}.wr-journal-context a{color:#a52323;text-decoration:underline}
+
+.wr-journal-art.is-history{display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#273647,#677c83);color:#fff}.wr-journal-art.is-history>strong{font:700 clamp(28px,5vw,76px) Georgia,serif;letter-spacing:-2px}.wr-journal-story:not(.is-lead) .wr-journal-art.is-history>strong{font-size:25px;letter-spacing:-1px}
