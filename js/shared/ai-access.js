@@ -55,7 +55,7 @@
     if (!grounding || (!grounding.sources?.length && !grounding.searchSuggestions)) return;
     panel = document.createElement('aside'); panel.id = 'dhq-ai-sources';
     panel.setAttribute('aria-label', 'Sources for latest AI response');
-    panel.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:10050;width:min(380px,calc(100vw - 24px));max-height:35vh;overflow:auto;background:#191b24;color:#e6e9ed;border:1px solid #505360;border-radius:8px;padding:12px;font:14px system-ui';
+    panel.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:10050;width:min(380px,calc(100vw - 24px));max-height:35vh;overflow:auto;background:#191b24;color:#e6e9ed;border:1px solid #505360;border-radius:var(--card-radius-sm, 8px);padding:12px;font:14px system-ui';
     var heading = document.createElement('strong'); heading.textContent = 'Sources for latest AI response'; panel.appendChild(heading);
     var close = document.createElement('button'); close.textContent = 'Close'; close.type = 'button'; close.style.cssText = 'float:right;min-height:32px;cursor:pointer'; close.onclick = function () { panel.remove(); }; panel.appendChild(close);
     var list = document.createElement('ul');

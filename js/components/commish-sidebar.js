@@ -73,7 +73,7 @@
                     const count = g.hubs.reduce((n, h) => n + ((counts && counts[h.hub]) || 0), 0);
                     return <div key={g.name} style={{ marginBottom: '4px' }}>
                         <button type="button" aria-current={selected ? 'page' : undefined} onClick={() => { onSelect(g.hubs[0].hub); if (phone && onClose) onClose(); }}
-                            style={{ width: '100%', minHeight: '44px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 12px', border: '1px solid ' + (selected ? ACC_LINE : 'transparent'), borderRadius: '8px', background: selected ? ACC_FILL : 'transparent', color: selected ? ACCENT : SILVER, font: '600 0.75rem ' + MONO, cursor: 'pointer' }}>
+                            style={{ width: '100%', minHeight: '44px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 12px', border: '1px solid ' + (selected ? ACC_LINE : 'transparent'), borderRadius: 'var(--card-radius-sm, 8px)', background: selected ? ACC_FILL : 'transparent', color: selected ? ACCENT : SILVER, font: '600 0.75rem ' + MONO, cursor: 'pointer' }}>
                             <span style={{ flex: 1 }}>{g.name}</span>
                             {count ? <span style={{ ...chip, color: BAD }}>{count}</span> : g.dormant ? <span style={{ ...chip, color: MUTED }}>WK 1</span> : null}
                         </button>

@@ -7,6 +7,8 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
+const workspaces = require('../js/shared/league-workspaces.js');
+const vm = require('node:vm');
 const LEAGUE_ID = '1312100327931019264';
 const USER = 'bigloco';
 const MOBILE_WIDTHS = [390, 430];
@@ -21,12 +23,7 @@ const MAIN_TABS = [
   'alex',
   'trophies',
 ];
-// 'calendar' is routed but NOT a sidebar tab: d5daa83 (2026-06-19, "League
-// Calendar dashboard widget + fold Calendar into Trophy Room") removed the
-// Calendar sidebar nav item and re-pointed stale activeTab='calendar' deep
-// links at the Trophy Room's Calendar sub-view. The deep link must keep
-// working — hence it stays in ROUTED_TABS — but there is deliberately no
-// `tab: 'calendar'` nav entry to find any more.
+// Old bookmarks remain valid; the shared workspace resolver owns their new homes.
 const ROUTED_TABS = [...MAIN_TABS, 'calendar', 'strategy', 'league'];
 const WIDGET_SIZES = ['sm', 'slim', 'narrow', 'md', 'lg', 'tall', 'xl', 'xxl'];
 
@@ -166,14 +163,21 @@ test('every routed tab has a cold-load URL and render branch', () => {
     if (tab === 'dashboard') {
       sourceHas(leagueDetailSrc, '<DashboardPanel', 'dashboard branch missing');
     } else {
-      sourceHas(leagueDetailSrc, `activeTab === '${tab}'`, `${tab} render branch missing`);
+      const route = workspaces.resolve(tab, { showGameDay: true, showTrades: true, showGmOffice: true });
+      if (route.analysis) sourceHas(leagueDetailSrc, 'workspaceRoute.analysis ? <AnalyticsPanelLazy', `${tab} analysis branch missing`);
+      else if (route.alex || route.tab === 'alex') sourceHas(leagueDetailSrc, "workspaceRoute.alex || viewTab === 'alex'", `${tab} GM branch missing`);
+      else sourceHas(leagueDetailSrc, `viewTab === '${route.tab}'`, `${tab} render branch missing`);
+      ok(route.tab !== 'dashboard', `${tab} must not silently fall back to Home`);
     }
   }
 });
 
 test('every main sidebar tab remains directly addressable', () => {
   for (const tab of MAIN_TABS) {
-    sourceHas(leagueDetailSrc, `tab: '${tab}'`, `${tab} nav entry missing`);
+    const route = workspaces.resolve(tab, { showGameDay: true, showTrades: true, showGmOffice: true });
+    ok(route.tab === 'dashboard' ? tab === 'dashboard' : true, `${tab} bookmark fell back to Home`);
+    ok(workspaces.navigation().some(group => group.workspace === route.workspace), `${tab} owning workspace missing`);
+    if (tab !== 'alex') ok(workspaces.views(route.workspace, { showGameDay: true }).some(view => view.tab === route.tab), `${tab} reachable workspace view missing`);
   }
 });
 
@@ -182,10 +186,13 @@ test('dist preview resolves local chrome assets from the project root', () => {
   sourceHas(leagueDetailSrc, "includes('/dist-preview/') ? '../' : ''", 'league sidebar icon must resolve from dist-preview');
 });
 
-test('GM strategy remains routed through GM office, not a sidebar button', () => {
-  sourceHas(leagueDetailSrc, "activeTab === 'strategy'", 'strategy route must still render');
-  sourceHas(leagueDetailSrc, "{ label: 'GM\\'s Office', tab: 'alex', iconKey: 'office' }", 'GM office sidebar entry missing');
-  ok(!leagueDetailSrc.includes("{ label: 'GM Strategy', tab: 'strategy'"), 'GM Strategy should not be a sidebar entry');
+test('GM strategy bookmarks retain the editor in their owning workspace', () => {
+  const route = workspaces.resolve('strategy', { showGmOffice: true });
+  eq(route.workspace, 'team', 'strategy workspace');
+  eq(route.alex, 'strategy', 'strategy must render the canonical GM editor');
+  sourceHas(leagueDetailSrc, 'workspaceView: workspaceRoute.alex', 'GM workspace view must reach the editor');
+  eq(workspaces.resolve('alex').tab, 'alex', 'old Office bookmark must preserve its internal saved view');
+  eq(workspaces.resolve('strategy', { showGmOffice: false }).tab, 'myteam', 'blocked GM bookmarks must use roster fallback');
 });
 
 test('GM strategy saves through the canonical app storage used by the header', () => {
@@ -311,8 +318,9 @@ test('draft redraft board surfaces use current-season player context', () => {
 
 test('redraft shell, history, calendar, and analytics hide dynasty-only assumptions', () => {
   sourceHas(leagueDetailSrc, 'const maxTimeYear = leagueSkin?.features?.showFuturePicks === false ? currentSeason : currentSeason + 2;', 'redraft time bar must stop at the current season');
-  sourceHas(leagueDetailSrc, "{ label: 'Settings', tab: 'settings', iconKey: 'settings' }", 'Settings must route as a normal module');
-  sourceHas(leagueDetailSrc, "{ label: 'Legend', tab: 'legend', iconKey: 'legend' }", 'Legend must route as a normal module below Settings');
+  eq(workspaces.resolve('settings').tab, 'settings', 'Settings route');
+  sourceHas(leagueDetailSrc, "viewTab === 'settings'", 'Settings module render branch');
+  eq(workspaces.resolve('legend').workspace, 'help', 'Legend bookmark resolves into Help');
   sourceHas(settingsSrc, 'function SettingsModule(props)', 'settings content must be mountable as a module');
   sourceHas(settingsSrc, 'wr-settings-module-screen', 'settings module must render a full module surface');
   sourceHas(settingsSrc, 'wr-settings-module-grid', 'settings module must show all control groups on one screen');
@@ -326,8 +334,8 @@ test('redraft shell, history, calendar, and analytics hide dynasty-only assumpti
   sourceHas(calendarSrc, 'const suppressSeasonalWaivers = isSeasonalLeague && (', 'redraft calendar must suppress offseason/pre-draft waivers');
   sourceHas(calendarSrc, 'if (waiverType && !suppressSeasonalWaivers)', 'waiver event rendering must honor seasonal suppression');
   sourceHas(calendarSrc, "const draftTitle = isSeasonalLeague ? 'League Draft' : 'Rookie Draft';", 'seasonal calendar draft naming must not say rookie draft');
-  sourceHas(alexInsightsSrc, "const hideStrategyTab = resolvedLeagueSkin?.type === 'redraft';", 'redraft GM Office must hide My Strategy');
-  sourceHas(alexInsightsSrc, "...(hideStrategyTab ? [] : [{ k: 'strategy', label: 'My Strategy' }]),", 'GM Office strategy tab must be skin-gated');
+  sourceHas(alexInsightsSrc, "const hideStrategyTab = !props.workspaceView && resolvedLeagueSkin?.type === 'redraft';", 'redraft GM Office must hide My Strategy');
+  sourceHas(alexInsightsSrc, "...(hideStrategyTab ? [] : [{ k: 'strategy', label: 'Team Plan' }]),", 'GM Office strategy tab must be skin-gated');
   sourceHas(alexInsightsSrc, 'value: activeSubTab,', 'GM Office must normalize hidden strategy routes back to a visible tab');
   sourceHas(analyticsSrc, 'const draftYears = skinFeatures.showFuturePicks === false ? [leagueSeason] : [leagueSeason, leagueSeason + 1, leagueSeason + 2];', 'analytics draft capital must hide future picks in redraft');
   sourceHas(analyticsSrc, 'window.App?.LeagueSkin?.resolveDraftRounds?.({', 'analytics draft capital must use skin-aware draft rounds');
@@ -598,7 +606,7 @@ test('War Room app filters beta-platform leagues out of live route data', () => 
   // literal. Pin both halves, so the hoisted list cannot be quietly re-pointed
   // at the raw unfiltered espnLeagues/mflLeagues state.
   sourceHas(appSrc, 'const allLeagues = [...sleeperLeagues, ...visibleEspnLeagues, ...visibleMflLeagues];', 'hub league list must be built from the filtered platform leagues');
-  sourceHas(appSrc, 'const resumeLeague = allLeagues.find(l => l.id === lastLeagueId);', 'resume must use filtered platform leagues');
+  sourceHas(appSrc, 'const resumeLeague = allLeagues.find(l => String(l.id) === lastLeagueId);', 'resume must use filtered platform leagues');
 });
 
 test('onboarding only persists allowed platforms for the current environment', () => {
@@ -761,7 +769,16 @@ test('dashboard widget shell defines every supported size for rows and columns',
 test('Intel Brief waiver card uses the Free Agency Action HQ source', () => {
   sourceHas(freeAgencySrc, 'window.App.buildFreeAgencyActionBoard = buildFreeAgencyActionBoard;', 'shared FA board helper missing');
   sourceHas(freeAgencySrc, 'window.App.getFreeAgencyBriefTarget', 'brief target helper missing');
-  sourceHas(freeAgencySrc, '(scores[pid] || 0) > 0', 'shared FA board must not recommend unvalued candidates');
+  // Exercise the actual candidate pipeline, including the positive-value filter.
+  const candidateStart = freeAgencySrc.indexOf('const availablePlayers = Object.entries(playersData || {})');
+  const candidateEnd = freeAgencySrc.indexOf(';', candidateStart);
+  ok(candidateStart >= 0 && candidateEnd > candidateStart, 'shared FA candidate pipeline missing');
+  const candidates = vm.runInNewContext(freeAgencySrc.slice(candidateStart, candidateEnd + 1) + '\navailablePlayers', {
+    playersData: Object.fromEntries(['valued', 'zero', 'negative', 'missing', 'owned'].map(pid => [pid, { position: 'WR', team: 'BUF' }])),
+    rostered: { has: pid => pid === 'owned' }, isDraftProspect: () => false,
+    faValue: pid => ({ valued: 500, zero: 0, negative: -1, owned: 1000 }[pid]), normPos: pos => pos,
+  });
+  eq(candidates.map(row => row.pid).join(','), 'valued', 'unvalued or rostered candidates must never reach the recommendation pool');
   sourceHas(freeAgencySrc, "const ROOKIE_DRAFT_LOCK_STATUSES = new Set(['pre_draft', 'drafting']);", 'shared FA board must treat upcoming/live rookie drafts as waiver-locked');
   sourceHas(freeAgencySrc, 'window.App.rookiesLockedForWaivers = rookiesLockedForWaivers;', 'rookie waiver lock helper must be exposed for brief/FA consistency');
   sourceHas(freeAgencySrc, 'ROOKIE_DHQ_SOURCES.has(source)', 'shared FA board must filter DHQ-valued rookies while rookie waivers are locked');
@@ -799,7 +816,8 @@ test('Field Notes stays a compact decision-log utility off the default board', (
   // 0f5fa64 replaced the default board with the curiosity-first layout: Field
   // Notes is no longer a default widget, but old saved defaults still migrate
   // compact and the empty state keeps its decision-log framing.
-  sourceHas(leagueDetailSrc, "{ id: 'dw0', key: 'intel-brief',    size: 'tall' }", 'curiosity-first default board must anchor on Intel Brief');
+  sourceMatches(leagueDetailSrc, /const DEFAULT_WIDGETS\s*=\s*\[\s*\{ id: 'dw0', key: 'intel-brief', size: 'xl' \}/, 'new default board must lead with the full-width Intel Brief');
+  sourceHas(leagueDetailSrc, 'window.WR.LeagueWorkspaces.upgradeStarter(', 'saved custom boards must pass through exact starter migration');
   ok(!leagueDetailSrc.includes("key: 'field-notes'"), 'Field Notes should stay off the default board');
   sourceHas(leagueDetailSrc, "w.key === 'field-notes' && w.id === 'dw1' && w.size === 'narrow'", 'old default Field Notes layouts should migrate compact');
   sourceHas(flashBriefSrc, 'No decisions logged yet', 'empty Field Notes should explain decision log state');

@@ -1277,7 +1277,7 @@ function CommissionerOffice({ leagues, myUserId, onBack, onEnterLeague }) {
                             </button>
                         ) : null}
                         {activeWorkspace && <nav aria-label={activeWorkspace.name + ' views'} style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
-                            {activeWorkspace.hubs.map(h => <button key={h.hub} type="button" aria-current={tab === h.hub ? 'page' : undefined} onClick={() => openHub(h.hub, scopeLeagueId)} style={{ minHeight: '44px', padding: '8px 12px', border: '1px solid ' + (tab === h.hub ? ACCENT : LINE), borderRadius: '8px', background: tab === h.hub ? 'var(--co-accent-fill)' : PANEL, color: tab === h.hub ? ACCENT : TEXT, fontFamily: MONO, cursor: 'pointer' }}>{h.name}</button>)}
+                            {activeWorkspace.hubs.map(h => <button key={h.hub} type="button" aria-current={tab === h.hub ? 'page' : undefined} onClick={() => openHub(h.hub, scopeLeagueId)} style={{ minHeight: '44px', padding: '8px 12px', border: '1px solid ' + (tab === h.hub ? ACCENT : LINE), borderRadius: 'var(--card-radius-sm, 8px)', background: tab === h.hub ? 'var(--co-accent-fill)' : PANEL, color: tab === h.hub ? ACCENT : TEXT, fontFamily: MONO, cursor: 'pointer' }}>{h.name}</button>)}
                         </nav>}
                         {scopeLeagueId ? (
                             <button onClick={() => setScopeLeagueId(null)}

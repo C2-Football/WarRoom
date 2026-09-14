@@ -9,7 +9,7 @@
 .wr-workspace-shortcuts { display: flex; gap: 8px; flex-wrap: wrap; }
 .wr-workspace-shortcuts button {
     min-height: 44px; padding: 8px 12px; color: var(--gold); background: transparent;
-    border: 1px solid var(--acc-line2, rgba(212,175,55,.3)); border-radius: 8px; cursor: pointer; font: inherit;
+    border: 1px solid var(--acc-line2, rgba(212,175,55,.3)); border-radius: var(--card-radius-sm, 8px); cursor: pointer; font: inherit;
 }
 .wr-workspace-views { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .wr-workspace-views button {
@@ -19,7 +19,7 @@
 .wr-workspace-views button[aria-current="page"] { border-color: var(--gold); color: var(--gold); font-weight: 600; }
 .wr-workspace-views button:hover { color: var(--white); }
 .wr-help-search { display: block; margin: 0 0 16px; color: var(--silver); }
-.wr-help-search input { display: block; width: 100%; max-width: 520px; margin-top: 6px; padding: 10px 12px; min-height: 44px; border: 1px solid var(--acc-line2, rgba(212,175,55,.3)); background: var(--black); color: var(--white); font: inherit; border-radius: 8px; }
+.wr-help-search input { display: block; width: 100%; max-width: 520px; margin-top: 6px; padding: 10px 12px; min-height: 44px; border: 1px solid var(--acc-line2, rgba(212,175,55,.3)); background: var(--black); color: var(--white); font: inherit; border-radius: var(--card-radius-sm, 8px); }
 @media (max-width: 767px) {
     .wr-workspace-header { padding: 12px 14px 0; }
     .wr-workspace-heading h1 { font-size: 1.25rem; }

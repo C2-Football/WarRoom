@@ -463,7 +463,7 @@ function LineupTab({
                     <div style={{ color: GOLD, fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.06em' }}>WEEK {liveWeek} · FOLLOW YOUR LINEUP</div>
                     <div style={{ fontSize: '1.4rem', fontWeight: 800, color: TEXT, marginTop: '5px' }}>{liveTotal == null ? '—' : liveTotal.toFixed(2)} <span style={{ fontSize: '0.75rem', color: SILVER }}>actual points</span></div>
                 </div>
-                {liveScores.supported && liveScores.refresh ? <button type="button" onClick={() => liveScores.refresh()} style={{ padding: '10px 14px', color: GOLD, background: 'transparent', border: `1px solid ${LINE}`, borderRadius: '6px', cursor: 'pointer' }}>Refresh scores</button> : null}
+                {liveScores.supported && liveScores.refresh ? <button type="button" onClick={() => liveScores.refresh()} style={{ padding: '10px 14px', color: GOLD, background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 'var(--card-radius-sm, 8px)', cursor: 'pointer' }}>Refresh scores</button> : null}
             </div>
             <p style={{ color: SILVER, fontSize: '0.74rem', lineHeight: 1.5, margin: '10px 0' }}>
                 {!liveScores.supported ? 'Live fantasy scoring is available for connected Sleeper leagues. Set and follow this lineup on your league platform.'
@@ -909,7 +909,7 @@ function LineupTab({
                                         };
                                         if (typeof window.WR?.openAcquisition === 'function') window.WR.openAcquisition(context);
                                         else setActiveTab?.('fa');
-                                    }} style={{ background: 'transparent', border: '1px solid ' + LINE, borderRadius: '6px', padding: '5px 8px', minHeight: '36px', color: GOLD, fontSize: '.7rem', cursor: 'pointer' }}>Find {position ? position + ' ' : ''}cover →</button>)}
+                                    }} style={{ background: 'transparent', border: '1px solid ' + LINE, borderRadius: 'var(--card-radius-sm, 8px)', padding: '5px 8px', minHeight: '36px', color: GOLD, fontSize: '.7rem', cursor: 'pointer' }}>Find {position ? position + ' ' : ''}cover →</button>)}
                                 </div>
                             </div>
                         ))}

@@ -2023,7 +2023,7 @@ function MyTeamTab({
         <summary style={{ cursor: 'pointer', minHeight: '44px', fontSize: '0.8rem', color: 'var(--gold)' }}>
           <strong>BYE WATCH</strong><span style={{ fontSize: '0.72rem', color: 'var(--silver)', marginLeft: '8px' }}>Weeks · players out</span>
           <span style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-            {byeSummary.weeks.map(group => <span key={group.week} style={{ padding: '3px 7px', borderRadius: '5px', border: '1px solid var(--ov-6, rgba(255,255,255,.12))', color: group.pids.length > 1 || group.week === byeWeekNow ? 'var(--warn, #f0a500)' : 'var(--silver)' }}>W{group.week} · {group.pids.length}</span>)}
+            {byeSummary.weeks.map(group => <span key={group.week} style={{ padding: '3px 7px', borderRadius: 'var(--card-radius-xs, 5px)', border: '1px solid var(--ov-6, rgba(255,255,255,.12))', color: group.pids.length > 1 || group.week === byeWeekNow ? 'var(--warn, #f0a500)' : 'var(--silver)' }}>W{group.week} · {group.pids.length}</span>)}
           </span>
         </summary>
         <p style={{ fontSize: '0.75rem', margin: '10px 0' }}>Players unavailable each week. Plan replacements before the chop.</p>

@@ -1503,7 +1503,7 @@ function EmpireStyles() {
             .empire-workspace-nav { background: var(--surf-solid, #070707); padding: 10px 24px; border-bottom: 1px solid var(--ov-6, #252529); }
             .empire-workspace-primary, .empire-workspace-secondary { display: flex; gap: 6px; flex-wrap: wrap; }
             .empire-workspace-secondary { margin-top: 6px; }
-            .empire-workspace-nav button { min-height: 44px; padding: 8px 14px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--silver); font: 600 13px var(--font-body); cursor: pointer; }
+            .empire-workspace-nav button { min-height: 44px; padding: 8px 14px; border: 1px solid transparent; border-radius: var(--card-radius-sm, 8px); background: transparent; color: var(--silver); font: 600 13px var(--font-body); cursor: pointer; }
             .empire-workspace-primary button { flex: 1; max-width: 180px; }
             .empire-workspace-nav button[aria-current="page"] { color: var(--gold); border-color: var(--acc-line2, #68572c); background: var(--acc-fill1, #19160e); }
             .empire-workspace-nav button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }

@@ -2063,7 +2063,7 @@
             return h('div', { style: { padding: '40px', textAlign: 'center', color: 'var(--silver)' } }, 'Strategy editor module not loaded.');
         }
         return h(React.Fragment, null,
-            h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '8px 20px', padding: '12px 16px', marginBottom: '12px', border: '1px solid var(--acc-line1, rgba(212,175,55,.2))', borderRadius: '8px', color: 'var(--silver)', fontSize: '.8rem', lineHeight: 1.5 } },
+            h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '8px 20px', padding: '12px 16px', marginBottom: '12px', border: '1px solid var(--acc-line1, rgba(212,175,55,.2))', borderRadius: 'var(--card-radius-sm, 8px)', color: 'var(--silver)', fontSize: '.8rem', lineHeight: 1.5 } },
                 h('span', null, 'Your plan: ', h('strong', { style: { color: 'var(--gold)' } }, gm.hasStrategy ? (gm.modeLabel || gm.mode) : 'Choose below')),
                 h('span', null, 'Current assessment: ', h('strong', { style: { color: 'var(--white)' } }, assessment?.tier ? String(assessment.tier).toLowerCase().replace(/^./, c => c.toUpperCase()) : 'Awaiting roster data')),
                 h('span', { style: { flexBasis: '100%' } }, 'Your plan guides future moves. The assessment describes the roster you have today.')

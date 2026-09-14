@@ -69,7 +69,7 @@ function WrChopBlock({ active, currentLeague, myRoster, compact = false, onOpenL
             {children}
         </div>
     );
-    const leagueAction = () => compact && typeof onOpenLeague === 'function' ? <button type="button" onClick={onOpenLeague} style={{ background: 'transparent', border: '1px solid ' + LINE, borderRadius: '6px', padding: '7px 10px', minHeight: '40px', color: GOLD, fontSize: '.78rem', cursor: 'pointer' }}>Open League →</button> : null;
+    const leagueAction = () => compact && typeof onOpenLeague === 'function' ? <button type="button" onClick={onOpenLeague} style={{ background: 'transparent', border: '1px solid ' + LINE, borderRadius: 'var(--card-radius-sm, 8px)', padding: '7px 10px', minHeight: '40px', color: GOLD, fontSize: '.78rem', cursor: 'pointer' }}>Open League →</button> : null;
 
     if (st.status === 'not-chopped') return null;
     if (st.status === 'loading' || st.status === 'idle') {
