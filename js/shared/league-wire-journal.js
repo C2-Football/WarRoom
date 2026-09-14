@@ -169,7 +169,7 @@
                 const title = gap === 0 ? `${nameFor(a.roster_id)} and ${nameFor(b.roster_id)} finish level` : `${nameFor(a.roster_id)} ${verb} ${nameFor(b.roster_id)}`;
                 const recap = add('recap', revenge ? 'Revenge game' : gap > 0 && gap <= 3 ? 'Down to the wire' : 'Game recap', title,
                     `${fmt(points(a))}–${fmt(points(b))}. ${gap === 0 ? 'A tie in the scored matchup.' : `The winning margin: ${fmt(gap)} points.`}${star && gap > 0 ? ` ${playerName(star.pid)} led the winning starters with ${fmt(star.value)}.` : ''}`,
-                    [a.roster_id, b.roster_id], { weight: revenge ? 83 : gap > 0 && gap <= 3 ? 78 : 35, matchup: [{ name: nameFor(a.roster_id), score: points(a), rid: a.roster_id }, { name: nameFor(b.roster_id), score: points(b), rid: b.roster_id }], related: [] });
+                    [a.roster_id, b.roster_id], { featuredPid: gap > 0 ? star?.pid : null, weight: revenge ? 83 : gap > 0 && gap <= 3 ? 78 : 35, matchup: [{ name: nameFor(a.roster_id), score: points(a), rid: a.roster_id }, { name: nameFor(b.roster_id), score: points(b), rid: b.roster_id }], related: [] });
                 recaps.push({ recap, a, b, gap });
                 if (last) recap.related.push({ label: 'Last meeting', text: `${last.season} · Week ${last.week}: ${nameFor(a.roster_id)} ${fmt(last.a === oa ? last.pa : last.pb)}–${fmt(last.a === oa ? last.pb : last.pa)} ${nameFor(b.roster_id)}.` });
                 if (revenge) recap.body += ` A little payback: ${nameFor(b.roster_id)} won their previous meeting.`;

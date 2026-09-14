@@ -468,15 +468,47 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
     const topics = [['all', 'Front page'], ['stories', 'Stories'], ['recaps', 'Recaps'], ['records', 'Records'], ['rivalries', 'Rivalries'], ['league', 'League feed'], ['nfl', 'NFL'], ['trends', 'Trends']];
     const cards = editorial.slice(lead ? 1 : 0);
     const changeSeason = value => { setReadingSeason(value); setEditionWeek('latest'); setTeamFilter('all'); setIndex(0); };
-    const storyCard = (it, hero = false) => <article key={it.id || it.label + it.text} className={'wr-journal-story' + (hero ? ' is-lead' : '')}>
-        <div className="wr-journal-kicker">{hero && <span>THE BIG STORY</span>}<span>{it.label}</span></div>
-        <h3>{it.text}</h3>
-        {it.metric && <div className="wr-journal-metric"><strong>{it.metric}</strong><span>{it.metricLabel}</span></div>}
-        {it.matchup && <div className="wr-journal-scoreline">{it.matchup.map(t => <div key={t.rid}><span>{t.name}</span><strong>{Number(t.score).toFixed(2)}</strong></div>)}</div>}
-        <p>{it.body}</p>
-        {it.related?.length > 0 && <details className="wr-journal-context"><summary>The story behind the score</summary>{it.related.map((r, i) => <div key={i}><strong>{r.label}</strong><p>{r.text}</p></div>)}</details>}
-        {playerLink(it) && <button type="button" onClick={() => { close(); window.openPlayerModal(it.pid); }}>View player →</button>}
+    const articleId = it => 'wire-article-' + encodeURIComponent(it.id || it.label + it.text);
+    const initials = name => String(name || 'League').trim().split(/\s+/).map(w => [...w][0]).slice(0, 2).join('').toUpperCase();
+    const teamBadge = rid => {
+        const roster = editionLeague.rosters?.find(r => sameId(r.roster_id, rid));
+        const user = editionLeague.users?.find(u => u.user_id === roster?.owner_id);
+        const avatar = user?.avatar;
+        return <span className="wr-journal-team-badge"><span>{initials(editionName(rid))}</span>{avatar && /^[a-zA-Z0-9_-]+$/.test(avatar) && <img src={'https://sleepercdn.com/avatars/thumbs/' + avatar} alt="" loading="lazy" onError={e => { e.currentTarget.style.display = 'none'; }} />}</span>;
+    };
+    const storyVisual = (it, hero) => {
+        const ids = (it.rosterIds || []).slice(0, 2), pid = it.featuredPid || it.pid;
+        return <figure className={'wr-journal-art' + (ids.length > 1 ? ' is-matchup' : '') + (pid ? ' has-player' : '')} aria-label={pid ? _getPlayerName(pid) + ' · player portrait' : ids.map(editionName).join(' vs. ') || 'League spotlight'}>
+            {hero && <span className="wr-journal-art-label">{it.category || 'League spotlight'}</span>}
+            {pid ? <><span className="wr-journal-art-monogram" aria-hidden="true">{initials(_getPlayerName(pid))}</span><img className="wr-journal-player-photo" src={'https://sleepercdn.com/content/nfl/players/' + encodeURIComponent(pid) + '.jpg'} alt={_getPlayerName(pid)} loading={hero ? 'eager' : 'lazy'} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.classList.add('is-image-missing'); }} />{hero && <figcaption>{_getPlayerName(pid)}</figcaption>}</>
+                : <div className="wr-journal-art-teams">{ids.length ? ids.map((rid, i) => <React.Fragment key={rid}>{i > 0 && <span className="wr-journal-versus">VS</span>}<div>{teamBadge(rid)}{hero && <span>{editionName(rid)}</span>}</div></React.Fragment>) : <strong className="wr-journal-art-monogram">W.</strong>}</div>}
+            {hero && !pid && it.metric && <figcaption><strong>{it.metric}</strong><span>{it.metricLabel}</span></figcaption>}
+        </figure>;
+    };
+    const storyContext = it => <>{it.body && <p>{it.body}</p>}{it.related?.length > 0 && <details className="wr-journal-context"><summary>The story behind the score</summary>{it.related.map((r, i) => <div key={i}><strong>{r.label}</strong><p>{r.text}</p></div>)}</details>}{playerLink(it) && <button type="button" onClick={() => { close(); window.openPlayerModal(it.pid); }}>View player →</button>}</>;
+    const storyCard = (it, hero = false) => <article id={articleId(it)} tabIndex={-1} key={it.id || it.label + it.text} className={'wr-journal-story' + (hero ? ' is-lead' : '')}>
+        {storyVisual(it, hero)}
+        <div className="wr-journal-story-copy"><div className="wr-journal-kicker"><span>{it.label}</span></div>
+        <h3>{it.text}</h3><div className="wr-journal-byline">The Wire <span>·</span> {it.preview ? 'Matchup preview' : it.kind === 'recap' ? 'Game report' : 'League report'}</div>
+        {hero && it.matchup && <div className="wr-journal-scoreline">{it.matchup.map(t => <div key={t.rid}>{teamBadge(t.rid)}<span>{t.name}</span><strong>{Number(t.score).toFixed(2)}</strong></div>)}</div>}
+        {hero ? storyContext(it) : <details className="wr-journal-read"><summary>Read story <span aria-hidden="true">→</span></summary>{storyContext(it)}</details>}
+        </div>
     </article>;
+    const selectedScores = historicalEdition || editionWeek !== 'latest'
+        ? (historicalEdition?.weeks || (archiveReady ? archive.weeks : [])).find(w => Number(w.week) === storyThrough)?.rows || [] : board.rows || [];
+    const scoreGroups = new Map();
+    if (headToHead) selectedScores.forEach(r => { if (r.matchup_id != null) { const key = String(r.matchup_id); if (!scoreGroups.has(key)) scoreGroups.set(key, []); scoreGroups.get(key).push(r); } });
+    const scorePairs = [...scoreGroups.values()].filter(pair => pair.length === 2);
+    const scoresFinal = !!historicalEdition || editionWeek !== 'latest';
+    const scoreWeek = scoresFinal ? storyThrough : board.week;
+    const jumpToStory = it => {
+        const article = dialogRef.current?.querySelector('[id="' + articleId(it) + '"]');
+        if (!article) return;
+        const read = article.querySelector('.wr-journal-read');
+        if (read) read.open = true;
+        article.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' });
+        article.focus({ preventScroll: true });
+    };
     const recordCard = (title, value, holders, caption) => <article className="wr-journal-record"><span>{title}</span><strong>{value == null ? '—' : Number(value).toFixed(2)}</strong><small>{caption}</small>{holders.slice(0, 3).map((r, i) => <p key={i}>{r.name || editionName(r.rosterId)} <small>{r.season || editionLeague.season} · Wk {r.week}</small></p>)}{holders.length > 3 && <details><summary>+{holders.length - 3} shared marks</summary>{holders.slice(3).map((r, i) => <p key={i}>{r.name || editionName(r.rosterId)} · {r.season || editionLeague.season} · Wk {r.week}</p>)}</details>}</article>;
     return <section className={'wr-wire' + (isPhone ? ' is-phone' : '')} aria-label="League wire" style={{ '--wire-inset': sidebarWidth + 'px' }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onFocus={() => setFocused(true)} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false); }}>
         {isPhone ? <button ref={toggleRef} type="button" className="wr-wire-mobile-launch" onClick={() => setExpanded(true)} aria-haspopup="dialog"><span><strong>THE WIRE</strong><small>Your league. Every chapter.</small></span><span>Read the edition ↗</span></button> : <>
@@ -489,34 +521,44 @@ function WrLeagueWire({ sidebarWidth = 0, currentLeague, standings, transactions
             <button type="button" aria-label="Next update" disabled={visible.length < 2} onClick={() => setIndex((currentIndex + 1) % visible.length)}>›</button>
         </>}
         {expanded && <dialog ref={dialogRef} id="wr-wire-panel" className="wr-journal" aria-labelledby="wr-journal-title" onCancel={close} onClose={close}>
-            <div className="wr-journal-bar"><span>{editionLeague.name || 'Your league'} <span className="wr-journal-dot">•</span> {editionLeague.season}</span><button type="button" onClick={close} aria-label="Close The Wire">Close ×</button></div>
+            <div className="wr-journal-bar"><h2 id="wr-journal-title">The Wire<span>.</span></h2><span>{editionLeague.name || 'Your league'} <span className="wr-journal-dot">•</span> {editionLeague.season}</span><button type="button" onClick={close} aria-label="Close The Wire">Close ×</button></div>
+            <nav className="wr-journal-nav" aria-label="Wire sections">{topics.map(([value, label]) => <button key={value} type="button" aria-pressed={topic === value} onClick={() => { setTopic(value); setIndex(0); }}>{label}</button>)}</nav>
+            {scorePairs.length > 0 && <section className="wr-journal-scorestrip" aria-label={'League scoreboard · Week ' + scoreWeek}>
+                <div className="wr-journal-scorestrip-label"><strong>WEEK {scoreWeek}</strong><span>{scoresFinal ? 'Results' : 'Scoreboard'}</span></div>
+                <div className="wr-journal-scores" tabIndex={0} aria-label="Scroll league matchups">{scorePairs.map((pair, i) => {
+                    const hasPoints = pair.some(r => Number(window.App.LeagueLiveScores.rosterPoints(r)) !== 0 && window.App.LeagueLiveScores.rosterPoints(r) != null);
+                    return <div className="wr-journal-score-tile" key={i}><span className={'wr-journal-score-status' + (!scoresFinal && hasPoints ? ' is-current' : '')}>{scoresFinal ? 'Final' : board.error ? 'Last update' : hasPoints ? 'Score update' : 'Awaiting scores'}</span>{pair.map(r => { const pts = window.App.LeagueLiveScores.rosterPoints(r); return <div key={r.roster_id}>{teamBadge(r.roster_id)}<span title={editionName(r.roster_id)}>{editionName(r.roster_id)}</span><strong>{pts == null || (!scoresFinal && !hasPoints) ? '—' : Number(pts).toFixed(2)}</strong></div>; })}</div>;
+                })}</div>
+            </section>}
             <div className="wr-journal-paper">
-                <header className="wr-journal-masthead"><span>THE INDEPENDENT VOICE OF YOUR LEAGUE</span><h2 id="wr-journal-title">The Wire<span>.</span></h2><p>Every score has a story.</p><div><span>{historicalEdition ? 'FROM THE ARCHIVE' : 'THE LEAGUE EDITION'}</span><span>{editionWeek === 'all' ? 'Season in review' : selectedWeek >= editionStart ? 'Week ' + selectedWeek + ' edition' : 'Opening week'}</span></div></header>
-                <nav className="wr-journal-nav" aria-label="Wire sections">{topics.map(([value, label]) => <button key={value} type="button" aria-pressed={topic === value} onClick={() => { setTopic(value); setIndex(0); }}>{label}</button>)}</nav>
+                <header className="wr-journal-masthead"><div><span>{historicalEdition ? 'FROM THE ARCHIVE' : 'YOUR LEAGUE, COVERED'}</span><h3>{topics.find(([value]) => value === topic)?.[1] === 'Front page' ? 'League news' : topics.find(([value]) => value === topic)?.[1]}</h3></div><p>{editionLeague.season} <span> / </span> {editionWeek === 'all' ? 'Season in review' : selectedWeek >= editionStart ? 'Week ' + selectedWeek + ' edition' : 'Opening week'}</p></header>
+                <details className="wr-journal-tools"><summary>Editions & teams <span className={teamFilter !== 'all' ? 'is-active' : ''}>{teamFilter !== 'all' ? editionName(teamFilter) : 'Browse another season, week, or team'}</span></summary>
                 <div className="wr-journal-filters">
                     <label>Season<select aria-label="Story season" value={readingSeason} onChange={e => changeSeason(e.target.value)}><option value="current">{season} · Current league</option>{pastSeasons.map(s => <option key={s.league.league_id} value={s.league.season}>{s.league.season}</option>)}</select></label>
                     <label>Edition<select aria-label="Story week" value={editionWeek} onChange={e => { setEditionWeek(e.target.value); setIndex(0); }}><option value="latest">Latest edition</option><option value="all">Season archive</option>{Array.from({ length: Math.max(0, editionEnd - editionStart + 1) }, (_, i) => editionEnd - i).map(w => <option key={w} value={w}>Week {w}</option>)}</select></label>
                     <label>Team<select aria-label="Stories about team" value={teamFilter} onChange={e => setTeamFilter(e.target.value)}><option value="all">Whole league</option>{(editionLeague.rosters || []).map(r => <option key={r.roster_id} value={r.roster_id}>{editionName(r.roster_id)}</option>)}</select></label>
                     <button className="wr-journal-refresh" type="button" onClick={() => setHistoryRevision(n => n + 1)}>Refresh edition ↻</button>
                 </div>
+                </details>
                 {!window.App.LeagueLiveScores.supported(currentLeague) ? <p className="wr-journal-notice">Season stories are available for connected Sleeper leagues.</p> : !historicalEdition && archive.key === historyKey && archive.status === 'error' ? <p className="wr-journal-notice" role="status">Completed scores could not load. Refresh the edition to retry.</p> : !historicalEdition && !archiveReady ? <p className="wr-journal-notice" role="status">The newsroom is gathering completed scores…</p> : null}
                 {past.key === pastKey && past.status === 'loading' && <p className="wr-journal-notice" role="status">Opening the history books… {pastSeasons.length} earlier season{pastSeasons.length === 1 ? '' : 's'} loaded. You can read the latest edition now.</p>}
                 {past.key === pastKey && past.status === 'partial' && <p className="wr-journal-notice" role="status">{past.reason} <button type="button" onClick={() => setHistoryRevision(n => n + 1)}>Retry history</button></p>}
-                <div className="wr-journal-layout"><main className="wr-journal-main">
+                <div className="wr-journal-layout"><main className={'wr-journal-main' + (cards.length ? '' : ' is-single')}>
                     {lead ? storyCard(lead, true) : <article className="wr-journal-empty"><span>THE NEXT CHAPTER</span><h3>{edition.stories.length || teamFilter !== 'all' ? 'A quiet edition here.' : 'The first chapter is still being written.'}</h3><p>{edition.stories.length || teamFilter !== 'all' ? 'Try another section, team, or week to follow a different story.' : 'The schedule is set. Rivalries are waiting. Recaps arrive after the first completed regular-season week.'}</p></article>}
                     {cards.length > 0 && <div className="wr-journal-grid">{cards.map(it => storyCard(it))}</div>}
                     {allEditorial.length > editorial.length && <div className="wr-journal-more"><span>{allEditorial.length - editorial.length} more headlines in this edition</span><button type="button" onClick={() => setTopic('stories')}>Read all stories →</button><button type="button" onClick={() => setTopic('recaps')}>Every game recap →</button></div>}
                     {liveItems.length > 0 && <details className="wr-journal-live" open={['nfl', 'trends', 'league'].includes(topic)}><summary>{topic === 'nfl' ? 'Around the NFL' : topic === 'trends' ? 'Player trends' : 'The live desk'} · {liveItems.length} updates</summary><ul>{liveItems.map((it, i) => <li key={it.label + ':' + i}><span className="wr-wire-tag">{it.label}</span>{it.text}{playerLink(it) && <button type="button" onClick={() => { close(); window.openPlayerModal(it.pid); }}>View player →</button>}</li>)}</ul></details>}
                 </main><aside className="wr-journal-rail" aria-label="League record book and rivalries">
-                    <section><div className="wr-journal-section-title"><h3>The record book</h3><span>REGULAR SEASON</span></div>
+                    {editorial.length > 0 && <section className="wr-journal-headlines"><h3>Headlines</h3><ul>{editorial.slice(0, 7).map(it => <li key={it.id || it.text}><button type="button" onClick={() => jumpToStory(it)}>{it.text}</button></li>)}</ul></section>}
+                    <details className="wr-journal-rail-section" open={topic === 'records'}><summary>The record book <span>Regular season</span></summary>
                         {recordCard('Season scoring high', edition.high, edition.records, 'points · ' + editionLeague.season)}
                         {recordCard(archiveTitle, edition.archive.high, edition.archive.records, 'scoring high · ' + (edition.archive.seasons.join(' / ') || 'awaiting scores'))}
                         {edition.archive.rulesChanged && recordCard(fullCoverage && !historicalEdition && editionWeek === 'latest' ? 'All-time high · original scoring' : 'Historical high · original scoring', edition.archive.historicalHigh, edition.archive.historicalRecords, 'original-era points · ' + edition.archive.allSeasons.join(' / '))}
                         {recordCard('Largest archived win', edition.archive.margin, edition.archive.margins, 'point margin · same scoring')}
                         {edition.archive.rulesChanged && <p className="wr-journal-footnote">Scoring or starting positions changed in earlier seasons. The original-scoring high keeps each era's rules; the other point records compare matching rules only.</p>}
-                    </section>
-                    {edition.rivals.length > 0 && <section><div className="wr-journal-section-title"><h3>Rivalry watch</h3><span>THIS WEEK</span></div>{edition.rivals.filter(r => teamFilter === 'all' || r.rosterIds.some(rid => sameId(rid, teamFilter))).map(r => <article className="wr-journal-rival" key={r.rosterIds.join(':')}><strong>{r.a} <span>vs.</span> {r.b}</strong><div>{r.winsA}<span>–</span>{r.winsB}{r.ties > 0 && <small> · {r.ties} tied</small>}</div><p>{r.meetings} recorded regular-season meeting{r.meetings === 1 ? '' : 's'}</p></article>)}</section>}
-                    {edition.table.length > 0 && <section><div className="wr-journal-section-title"><h3>The chase</h3><span>THROUGH WK {edition.completedThrough}</span></div><ol className="wr-journal-table">{edition.table.map(t => <li key={t.rid}><span>{t.rank}</span><strong>{editionName(t.rid)}</strong><span>{t.wins}–{t.losses}{t.ties ? '–' + t.ties : ''}</span></li>)}</ol><p className="wr-journal-footnote">Completed results, including median games where enabled. Ordered by wins, half-credit for ties, then points for. Official division seeds and tiebreaks may differ.</p></section>}
+                    </details>
+                    {edition.rivals.length > 0 && <details className="wr-journal-rail-section" open={topic === 'rivalries'}><summary>Rivalry watch <span>This week</span></summary>{edition.rivals.filter(r => teamFilter === 'all' || r.rosterIds.some(rid => sameId(rid, teamFilter))).map(r => <article className="wr-journal-rival" key={r.rosterIds.join(':')}><strong>{r.a} <span>vs.</span> {r.b}</strong><div>{r.winsA}<span>–</span>{r.winsB}{r.ties > 0 && <small> · {r.ties} tied</small>}</div><p>{r.meetings} recorded regular-season meeting{r.meetings === 1 ? '' : 's'}</p></article>)}</details>}
+                    {edition.table.length > 0 && <details className="wr-journal-rail-section" open={topic === 'league'}><summary>The chase <span>THROUGH WK {edition.completedThrough}</span></summary><ol className="wr-journal-table">{edition.table.map(t => <li key={t.rid}><span>{t.rank}</span><strong>{editionName(t.rid)}</strong><span>{t.wins}–{t.losses}{t.ties ? '–' + t.ties : ''}</span></li>)}</ol><p className="wr-journal-footnote">Completed results, including median games where enabled. Ordered by wins, half-credit for ties, then points for. Official division seeds and tiebreaks may differ.</p></details>}
                 </aside></div>
                 <footer className="wr-journal-footer"><strong>FROM THE LEAGUE, FOR THE LEAGUE.</strong><details><summary>Sources & coverage</summary><p>Stories use Sleeper's scored regular-season matchups. Completed weeks {editionStart}–{edition.completedThrough >= editionStart ? edition.completedThrough : 'none yet'} in {editionLeague.season}. Live scores are provisional. Stat corrections can rewrite an edition; use Refresh edition for the latest.</p><p>Historical records cover {edition.archive.allSeasons.join(', ') || 'no completed seasons yet'}. {past.key === pastKey && past.complete ? 'The connected Sleeper history chain has been checked.' : 'Earlier history may still be missing.'} Pre-Sleeper seasons and playoffs are not included. Rivalries follow owner IDs, not roster slots. Current team names represent current owners; archived editions use that season's names.</p><p>Trade and waiver coverage includes loaded, completed transactions from the last seven days. NFL scores refresh every minute; league scores every 30 seconds. Player trends compare the two labelled seasons.</p></details></footer>
             </div>
